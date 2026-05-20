@@ -1,0 +1,101 @@
+squad:
+  code: crm-comercial-prosystem
+  setor: desenvolvimento
+  grupo: produto
+  sessao: crm-comercial
+  name: CRM Comercial ProSystem
+  description: Squad responsável por projetar, desenvolver e evoluir o CRM Comercial próprio da ProSystem — sistema completo de gestão de leads, funil, propostas, contratos e indicadores comerciais.
+  icon: chart-bar
+  version: "1.0.0"
+
+  company: "_expxagents/_memory/company.md"
+  preferences: "_expxagents/_memory/preferences.md"
+  memory: "squads/desenvolvimento/produto/crm-comercial/crm-comercial-prosystem/_memory/memories.md"
+
+  target_audience: "Equipe comercial da ProSystem: 3 vendedores, 1 supervisora, CEO"
+  platform: "Web (React/Next.js + API REST)"
+  format: "fullstack-page-generation"
+
+  schedule:
+    enabled: true
+
+  skills:
+    - web_search
+    - web_fetch
+
+  data: []
+
+  agents:
+    - id: tech-lead
+      name: "Daniel Mendes"
+      icon: brain
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Daniel"
+      prompt: squads/desenvolvimento/produto/crm-comercial/crm-comercial-prosystem/agents/tech-lead.md
+
+    - id: product-manager
+      name: "André Vieira"
+      icon: clipboard
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Andre"
+      prompt: squads/desenvolvimento/produto/crm-comercial/crm-comercial-prosystem/agents/product-manager.md
+
+    - id: ux-designer
+      name: "Patrícia Moura"
+      icon: palette
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Patricia"
+      prompt: squads/desenvolvimento/produto/crm-comercial/crm-comercial-prosystem/agents/ux-designer.md
+
+    - id: backend-developer
+      name: "Felipe Santos"
+      icon: server
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Felipe"
+      prompt: squads/desenvolvimento/produto/crm-comercial/crm-comercial-prosystem/agents/backend-developer.md
+
+    - id: frontend-developer
+      name: "Isabela Costa"
+      icon: monitor
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Isabela"
+      prompt: squads/desenvolvimento/produto/crm-comercial/crm-comercial-prosystem/agents/frontend-developer.md
+
+    - id: qa-engineer
+      name: "Rodrigo Almeida"
+      icon: check-circle
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Rodrigo"
+      prompt: squads/desenvolvimento/produto/crm-comercial/crm-comercial-prosystem/agents/qa-engineer.md
+
+  pipeline:
+    steps:
+      - id: step-01
+        agent: product-manager
+        label: "Definir escopo do sprint e requisitos detalhados do módulo"
+        execution: inline
+
+      - id: step-02
+        agent: ux-designer
+        label: "Criar wireframes e fluxos de tela do módulo"
+        deliverFrom: product-manager
+        execution: inline
+
+      - id: step-03
+        agent: tech-lead
+        label: "Decisões de arquitetura e modelagem de dados"
+        deliverFrom: ux-designer
+        execution: inline
+
+      - id: step-04
+        agent: backend-developer
+        label: "Implementar backend: schema do banco e endpoints da API"
+        deliverFrom: tech-lead
+        execution: inline
+
+      - id: step-05
+        agent: frontend-developer
+        label: "Implementar frontend: componentes e integração com API"
+        deliverFrom: backend-developer
+        execution: inline
+        produces_format: true
+
+      - id: step-06
+        agent: qa-engineer
+        label: "Testar e validar regras de negócio e fluxos"
+        deliverFrom: frontend-developer
+        execution: inline

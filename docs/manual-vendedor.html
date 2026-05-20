@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Comercial ProSystem — Manual do Vendedor</title>
+  <style>
+    :root {
+      --primary: #1a56db;
+      --primary-dark: #1341b0;
+      --primary-light: #e8f0fe;
+      --accent: #0ea271;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --sidebar-width: 260px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--gray-50);
+      color: var(--gray-800);
+      line-height: 1.6;
+    }
+
+    /* ── Print ── */
+    @media print {
+      .sidebar, .top-bar, .print-btn { display: none !important; }
+      .main { margin-left: 0 !important; padding: 24px !important; }
+      .section { break-inside: avoid; }
+      .card { break-inside: avoid; }
+    }
+
+    /* ── Top bar ── */
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 56px;
+      background: var(--primary);
+      color: white;
+      display: flex; align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.2);
+    }
+    .top-bar .logo {
+      font-size: 1.1rem; font-weight: 700; letter-spacing: -0.3px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .top-bar .logo span { opacity: 0.75; font-weight: 400; font-size: 0.9rem; }
+    .top-bar .spacer { flex: 1; }
+    .print-btn {
+      background: white; color: var(--primary);
+      border: none; border-radius: 6px;
+      padding: 6px 16px; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: background 0.15s;
+    }
+    .print-btn:hover { background: var(--primary-light); }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed; top: 56px; left: 0; bottom: 0;
+      width: var(--sidebar-width);
+      background: white;
+      border-right: 1px solid var(--gray-200);
+      overflow-y: auto;
+      padding: 16px 0;
+    }
+    .sidebar-section { padding: 8px 16px 4px; }
+    .sidebar-section h6 {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--gray-500); font-weight: 600; margin-bottom: 4px;
+    }
+    .sidebar a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 16px; border-radius: 6px;
+      color: var(--gray-700); text-decoration: none;
+      font-size: 0.875rem;
+      transition: background 0.12s, color 0.12s;
+    }
+    .sidebar a:hover { background: var(--primary-light); color: var(--primary); }
+    .sidebar a .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar a.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+
+    /* ── Main ── */
+    .main {
+      margin-left: var(--sidebar-width);
+      margin-top: 56px;
+      padding: 40px 48px;
+      max-width: 900px;
+    }
+
+    /* ── Cover ── */
+    .cover {
+      background: linear-gradient(135deg, var(--primary) 0%, #2563eb 60%, #0ea5e9 100%);
+      border-radius: 16px;
+      padding: 48px 40px;
+      color: white;
+      margin-bottom: 48px;
+    }
+    .cover .label {
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
+      opacity: 0.75; margin-bottom: 8px;
+    }
+    .cover h1 { font-size: 2rem; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+    .cover p { opacity: 0.85; font-size: 1rem; max-width: 540px; }
+    .cover .meta {
+      margin-top: 24px; display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .cover .meta-item {
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px; padding: 8px 16px;
+      font-size: 0.8rem;
+    }
+
+    /* ── Section ── */
+    .section {
+      margin-bottom: 48px;
+      scroll-margin-top: 80px;
+    }
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--gray-200);
+    }
+    .section-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--primary-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+    .section-header h2 {
+      font-size: 1.35rem; font-weight: 700; color: var(--gray-900);
+    }
+    .section-header p {
+      font-size: 0.875rem; color: var(--gray-500); margin-top: 2px;
+    }
+
+    h3 {
+      font-size: 1rem; font-weight: 700; color: var(--gray-800);
+      margin: 24px 0 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    h3::before {
+      content: '';
+      display: inline-block;
+      width: 4px; height: 16px;
+      background: var(--primary);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    p { color: var(--gray-700); font-size: 0.9rem; margin-bottom: 10px; }
+
+    /* ── Cards ── */
+    .card {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-weight: 700; font-size: 0.95rem; color: var(--gray-900);
+      margin-bottom: 8px;
+    }
+    .card p { margin-bottom: 6px; }
+
+    /* ── Info box ── */
+    .info-box {
+      border-left: 4px solid var(--primary);
+      background: var(--primary-light);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 0.875rem;
+      color: var(--primary-dark);
+    }
+    .info-box strong { font-weight: 700; }
+
+    .tip-box {
+      border-left: 4px solid var(--accent);
+      background: #ecfdf5;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 0.875rem;
+      color: #065f46;
+    }
+
+    .warn-box {
+      border-left: 4px solid var(--warning);
+      background: #fffbeb;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 0.875rem;
+      color: #92400e;
+    }
+
+    /* ── Steps ── */
+    .steps { list-style: none; counter-reset: step; margin: 0; padding: 0; }
+    .steps li {
+      counter-increment: step;
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: 0.9rem;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(step);
+      min-width: 28px; height: 28px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* ── Tags / Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-green  { background: #d1fae5; color: #065f46; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-red    { background: #fee2e2; color: #991b1b; }
+    .badge-gray   { background: var(--gray-200); color: var(--gray-700); }
+    .badge-purple { background: #ede9fe; color: #5b21b6; }
+
+    /* ── Table ── */
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.875rem; margin: 12px 0 20px;
+    }
+    thead { background: var(--gray-100); }
+    th {
+      text-align: left; padding: 8px 12px;
+      font-weight: 600; color: var(--gray-700);
+      border-bottom: 2px solid var(--gray-200);
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--gray-50); }
+
+    /* ── Field list ── */
+    .field-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+    .field-item {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px; padding: 10px 12px;
+      font-size: 0.8rem;
+    }
+    .field-item .field-name { font-weight: 700; color: var(--gray-800); margin-bottom: 2px; }
+    .field-item .field-desc { color: var(--gray-500); font-size: 0.75rem; }
+    .field-required::after {
+      content: ' *'; color: var(--danger); font-weight: 700;
+    }
+
+    /* ── Funil ── */
+    .funil-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 8px; margin: 16px 0;
+    }
+    .funil-col {
+      background: var(--gray-100);
+      border-radius: 10px; padding: 12px 10px;
+      text-align: center;
+    }
+    .funil-col .col-num {
+      font-size: 0.7rem; font-weight: 700; color: var(--gray-500);
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .funil-col .col-name {
+      font-size: 0.8rem; font-weight: 700; color: var(--gray-800);
+    }
+    .funil-arrow {
+      text-align: center; font-size: 1.25rem; color: var(--gray-400);
+      line-height: 1;
+    }
+
+    /* ── Status chips ── */
+    .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+
+    /* ── Shortcut key ── */
+    kbd {
+      display: inline-block;
+      background: var(--gray-100);
+      border: 1px solid var(--gray-300);
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 0.8rem;
+      font-family: monospace;
+    }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid var(--gray-200); margin: 32px 0; }
+
+    /* ── Glossary ── */
+    .glossary dl { }
+    .glossary dt {
+      font-weight: 700; color: var(--gray-900);
+      font-size: 0.9rem; margin-top: 14px;
+    }
+    .glossary dd {
+      color: var(--gray-600); font-size: 0.875rem;
+      margin-left: 0; padding-left: 16px;
+      border-left: 3px solid var(--gray-200);
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 24px 16px; }
+      .funil-grid { grid-template-columns: repeat(2, 1fr); }
+      .field-list { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="logo">
+    🟦 CRM Comercial ProSystem
+    <span>/ Manual do Vendedor</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="print-btn" onclick="window.print()">
+    🖨️ Imprimir / Exportar PDF
+  </button>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-section">
+    <a href="#inicio"><span class="icon">🏠</span> Início</a>
+    <a href="#acesso"><span class="icon">🔐</span> Acesso ao Sistema</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Módulos Principais</h6>
+    <a href="#dashboard"><span class="icon">📊</span> Dashboard</a>
+    <a href="#leads"><span class="icon">👤</span> Leads</a>
+    <a href="#funil"><span class="icon">📋</span> Funil Comercial</a>
+    <a href="#atividades"><span class="icon">📝</span> Atividades</a>
+    <a href="#propostas"><span class="icon">📄</span> Propostas</a>
+    <a href="#contratos"><span class="icon">✅</span> Contratos</a>
+    <a href="#perdidos"><span class="icon">❌</span> Leads Perdidos</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Comunicação</h6>
+    <a href="#agenda"><span class="icon">📅</span> Agenda</a>
+    <a href="#whatsapp"><span class="icon">💬</span> WhatsApp</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Referência</h6>
+    <a href="#status"><span class="icon">🏷️</span> Status e Etapas</a>
+    <a href="#glossario"><span class="icon">📖</span> Glossário</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+
+  <!-- Cover -->
+  <div class="cover" id="inicio">
+    <div class="label">ProSystem Sistemas</div>
+    <h1>CRM Comercial<br>Manual do Vendedor</h1>
+    <p>Guia completo para usar o CRM no dia a dia: cadstrar leads, mover pelo funil, criar propostas, agendar reuniões e gerenciar suas conversas.</p>
+    <div class="meta">
+      <div class="meta-item">📅 Versão 1.0 — Maio/2026</div>
+      <div class="meta-item">👤 Perfil: Vendedor</div>
+      <div class="meta-item">🏢 ProSystem Sistemas</div>
+    </div>
+  </div>
+
+  <!-- ── ACESSO ── -->
+  <section class="section" id="acesso">
+    <div class="section-header">
+      <div class="section-icon">🔐</div>
+      <div>
+        <h2>Acesso ao Sistema</h2>
+        <p>Como entrar e navegar no CRM</p>
+      </div>
+    </div>
+
+    <h3>Primeiro Acesso</h3>
+    <p>O administrador irá criar seu usuário e enviar um link de ativação por e-mail. Ao clicar no link você define sua senha e já entra no sistema.</p>
+
+    <ol class="steps">
+      <li>Abra o link enviado pelo administrador no seu e-mail</li>
+      <li>Defina uma senha segura (mínimo 8 caracteres)</li>
+      <li>Clique em <strong>Ativar Conta</strong></li>
+      <li>Você será redirecionado direto para o Dashboard</li>
+    </ol>
+
+    <h3>Login Diário</h3>
+    <ol class="steps">
+      <li>Acesse o CRM pelo endereço fornecido pela equipe de TI</li>
+      <li>Insira seu e-mail e senha</li>
+      <li>Clique em <strong>Entrar</strong></li>
+    </ol>
+
+    <div class="info-box">
+      <strong>Sessão automática:</strong> Sua sessão fica ativa por 15 minutos sem uso. O sistema renova automaticamente enquanto você estiver trabalhando — você não precisa fazer login toda hora.
+    </div>
+
+    <h3>Navegação Principal</h3>
+    <p>O menu lateral esquerdo é sua bússola. Os ícones com badges em vermelho indicam itens que precisam da sua atenção — leads parados, mensagens novas ou propostas vencendo.</p>
+
+    <table>
+      <thead><tr><th>Ícone</th><th>Página</th><th>Para que serve</th></tr></thead>
+      <tbody>
+        <tr><td>📊</td><td>Dashboard</td><td>Visão geral do seu dia e KPIs</td></tr>
+        <tr><td>👤</td><td>Leads</td><td>Toda a sua carteira de leads</td></tr>
+        <tr><td>📋</td><td>Funil</td><td>Kanban visual das etapas de venda</td></tr>
+        <tr><td>📅</td><td>Agenda</td><td>Compromissos e reuniões</td></tr>
+        <tr><td>💬</td><td>Conversas</td><td>WhatsApp e mensagens</td></tr>
+        <tr><td>📄</td><td>Propostas</td><td>Propostas criadas</td></tr>
+        <tr><td>✅</td><td>Contratos</td><td>Clientes fechados</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── DASHBOARD ── -->
+  <section class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-icon">📊</div>
+      <div>
+        <h2>Dashboard do Vendedor</h2>
+        <p>Sua central de controle diária</p>
+      </div>
+    </div>
+
+    <p>O Dashboard é a primeira tela que você vê ao entrar. Ele mostra um resumo do seu desempenho e o que precisa de atenção hoje.</p>
+
+    <h3>Semáforo do Dia</h3>
+    <p>No topo do Dashboard há um <strong>semáforo</strong> que indica a saúde da sua carteira:</p>
+
+    <table>
+      <thead><tr><th>Cor</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>🟢 <strong>Verde</strong></td>
+          <td>Tudo sob controle — sem atrasos críticos</td>
+        </tr>
+        <tr>
+          <td>🟡 <strong>Amarelo</strong></td>
+          <td>Atenção: reuniões em atraso, leads parados há 3+ dias ou propostas vencendo</td>
+        </tr>
+        <tr>
+          <td>🔴 <strong>Vermelho</strong></td>
+          <td>Crítico: reunião não compareceu, proposta vencida, lead parado 7+ dias ou tarefa vencida</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>KPIs do Dia (seus números)</h3>
+    <div class="field-list">
+      <div class="field-item">
+        <div class="field-name">📞 Follow-ups hoje</div>
+        <div class="field-desc">Leads com próximo contato programado para hoje</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">📅 Reuniões hoje</div>
+        <div class="field-desc">Eventos agendados na sua agenda do dia</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">⚠️ Leads parados</div>
+        <div class="field-desc">Leads sem atividade há 3+ dias (badge vermelho)</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">📄 Propostas vencendo</div>
+        <div class="field-desc">Propostas com validade nos próximos 2 dias</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">💰 Seu MRR do mês</div>
+        <div class="field-desc">Receita mensal recorrente dos seus fechamentos</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">🎯 Meta do mês</div>
+        <div class="field-desc">Progresso em % da sua meta mensal</div>
+      </div>
+    </div>
+
+    <h3>Widget de Compromissos de Hoje</h3>
+    <p>Abaixo dos KPIs há uma lista dos compromissos do dia, com horário, nome do lead e botão direto para abrir o link da reunião (Google Meet) quando houver.</p>
+
+    <div class="tip-box">
+      <strong>Dica:</strong> Clique em qualquer KPI para ir direto à lista filtrada. Ex: clicar em "Leads parados" abre a lista de leads com filtro ativado.
+    </div>
+  </section>
+
+  <!-- ── LEADS ── -->
+  <section class="section" id="leads">
+    <div class="section-header">
+      <div class="section-icon">👤</div>
+      <div>
+        <h2>Leads</h2>
+        <p>Cadastro, gestão e acompanhamento de oportunidades</p>
+      </div>
+    </div>
+
+    <p>O módulo de Leads é o coração do CRM. Todo potencial cliente começa aqui. Você vê apenas seus próprios leads — a supervisora e o CEO veem todos.</p>
+
+    <h3>Cadastrar Novo Lead</h3>
+    <ol class="steps">
+      <li>Clique no botão <strong>+ Novo Lead</strong> (canto superior direito)</li>
+      <li>Preencha os campos obrigatórios</li>
+      <li>Clique em <strong>Salvar</strong></li>
+      <li>O lead entra automaticamente na etapa <strong>Novo Lead</strong></li>
+    </ol>
+
+    <p><strong>Campos obrigatórios no cadastro:</strong></p>
+    <div class="field-list">
+      <div class="field-item">
+        <div class="field-name field-required">Empresa / Responsável</div>
+        <div class="field-desc">Nome da empresa ou pessoa</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name field-required">Telefone</div>
+        <div class="field-desc">Número principal para contato</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name field-required">Origem</div>
+        <div class="field-desc">Como chegou até você (indicação, site, etc.)</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name field-required">Segmento</div>
+        <div class="field-desc">Farmácia, Padaria, Varejo, etc.</div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>Código automático:</strong> O sistema gera um código interno único para cada lead ao salvar. Você pode usar esse código para mencionar o lead em comunicações internas.
+    </div>
+
+    <h3>Filtrar e Buscar Leads</h3>
+    <p>A lista de leads tem filtros avançados na barra superior:</p>
+
+    <table>
+      <thead><tr><th>Filtro</th><th>O que faz</th></tr></thead>
+      <tbody>
+        <tr><td>Vendedor</td><td>Filtra por responsável (só supervisão/CEO veem)</td></tr>
+        <tr><td>Status</td><td>Etapa atual no funil</td></tr>
+        <tr><td>Segmento</td><td>Farmácia, Padaria, Varejo…</td></tr>
+        <tr><td>Origem</td><td>Como o lead chegou</td></tr>
+        <tr><td>Temperatura</td><td>Quente, Morno, Frio</td></tr>
+        <tr><td>Período</td><td>Data de cadastro</td></tr>
+        <tr><td>Leads parados</td><td>Sem atividade há 3+ dias</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Tela de Detalhe do Lead</h3>
+    <p>Clique em qualquer lead para abrir a tela completa. Ela tem abas:</p>
+
+    <table>
+      <thead><tr><th>Aba</th><th>Conteúdo</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Resumo</strong></td><td>Dados gerais, temperatura, tags, responsável</td></tr>
+        <tr><td><strong>Timeline</strong></td><td>Histórico completo de atividades, etapas e eventos</td></tr>
+        <tr><td><strong>Propostas</strong></td><td>Propostas criadas para este lead</td></tr>
+        <tr><td><strong>Agenda</strong></td><td>Reuniões agendadas vinculadas ao lead</td></tr>
+        <tr><td><strong>Conversas</strong></td><td>Thread de WhatsApp</td></tr>
+        <tr><td><strong>Arquivos</strong></td><td>Documentos anexados</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Registrar Atividade</h3>
+    <p>Sempre que você fizer contato com um lead, registre a atividade. Isso mantém a timeline atualizada e evita o alerta de "lead parado".</p>
+
+    <ol class="steps">
+      <li>Na tela do lead, clique em <strong>+ Registrar Atividade</strong></li>
+      <li>Escolha o tipo (Ligação, WhatsApp, Reunião, E-mail, Visita)</li>
+      <li>Informe data/hora, resultado e próxima ação</li>
+      <li>Defina a <strong>data do próximo contato</strong></li>
+      <li>Clique em Salvar — a timeline é atualizada imediatamente</li>
+    </ol>
+
+    <div class="warn-box">
+      <strong>Atenção:</strong> Se você não registrar atividade por 3 dias, o lead recebe um badge vermelho na listagem e aparece no Dashboard como "lead parado".
+    </div>
+
+    <h3>Marcar Lead como Perdido</h3>
+    <ol class="steps">
+      <li>Abra o lead e clique em <strong>Marcar como Perdido</strong></li>
+      <li>Selecione o motivo principal</li>
+      <li>Escreva uma observação (obrigatória)</li>
+      <li>Indique se pode ser recontato futuramente (Sim/Não)</li>
+      <li>Se sim, defina a <strong>data de recontato</strong></li>
+      <li>Confirme — o lead vai para a seção de Perdidos</li>
+    </ol>
+  </section>
+
+  <!-- ── FUNIL ── -->
+  <section class="section" id="funil">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <div>
+        <h2>Funil Comercial</h2>
+        <p>Visualização kanban das etapas de venda</p>
+      </div>
+    </div>
+
+    <p>O Funil é um quadro <strong>kanban</strong> onde cada coluna representa uma etapa do processo de venda. Você visualiza todos os seus leads organizados visualmente e pode arrastá-los entre etapas.</p>
+
+    <h3>As 10 Etapas do Funil</h3>
+    <div class="funil-grid">
+      <div class="funil-col"><div class="col-num">1</div><div class="col-name">Novo Lead</div></div>
+      <div class="funil-col"><div class="col-num">2</div><div class="col-name">Primeiro Contato</div></div>
+      <div class="funil-col"><div class="col-num">3</div><div class="col-name">Qualificação</div></div>
+      <div class="funil-col"><div class="col-num">4</div><div class="col-name">Apresentação Agendada</div></div>
+      <div class="funil-col"><div class="col-num">5</div><div class="col-name">Proposta Enviada</div></div>
+    </div>
+    <div class="funil-grid">
+      <div class="funil-col"><div class="col-num">6</div><div class="col-name">Em Negociação</div></div>
+      <div class="funil-col"><div class="col-num">7</div><div class="col-name">Contrato Enviado</div></div>
+      <div class="funil-col"><div class="col-num">8</div><div class="col-name">Aguardando Assinatura</div></div>
+      <div class="funil-col"><div class="col-num">9</div><div class="col-name">Fechado ✅</div></div>
+      <div class="funil-col"><div class="col-num">10</div><div class="col-name">Perdido ❌</div></div>
+    </div>
+
+    <h3>Mover um Lead de Etapa</h3>
+    <p>Existem duas formas de mover um lead:</p>
+    <ul style="padding-left: 20px; font-size: 0.9rem; margin-bottom: 12px;">
+      <li style="margin-bottom: 6px;"><strong>Arrastar e soltar:</strong> Segure o card do lead e arraste para a coluna de destino</li>
+      <li style="margin-bottom: 6px;"><strong>Pelo detalhe:</strong> Na tela do lead, clique na etapa atual e selecione a nova</li>
+    </ul>
+
+    <div class="warn-box">
+      <strong>Campos obrigatórios por etapa:</strong> Cada etapa exige campos específicos preenchidos. Se você tentar mover um lead sem esses dados, um modal aparecerá pedindo que você complete as informações antes de avançar.
+    </div>
+
+    <h3>Campos Exigidos ao Avançar de Etapa</h3>
+    <table>
+      <thead><tr><th>Etapa de destino</th><th>Campos obrigatórios</th></tr></thead>
+      <tbody>
+        <tr><td>Primeiro Contato</td><td>Data do contato, canal, é decisor, próxima ação</td></tr>
+        <tr><td>Qualificação</td><td>Sistema atual, dor principal, plano sugerido, temperatura</td></tr>
+        <tr><td>Apresentação Agendada</td><td>Data, horário, participantes</td></tr>
+        <tr><td>Proposta Enviada</td><td>Plano, valores, data de envio, próximo follow-up</td></tr>
+        <tr><td>Fechado</td><td>Plano contratado, mensalidade, data de instalação, forma de pagamento</td></tr>
+        <tr><td>Perdido</td><td>Motivo, observação, pode recontatar</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Sinais Visuais nos Cards</h3>
+    <table>
+      <thead><tr><th>Indicador</th><th>Significa</th></tr></thead>
+      <tbody>
+        <tr><td>🔴 Borda vermelha</td><td>Follow-up vencido — prazo de contato ultrapassado</td></tr>
+        <tr><td>🟡 Borda amarela</td><td>Lead parado há 3+ dias sem atividade</td></tr>
+        <tr><td>🟠 Borda laranja</td><td>Proposta com validade próxima (menos de 2 dias)</td></tr>
+        <tr><td>🌡️ Temperatura</td><td>Quente/Morno/Frio — indica probabilidade de fechamento</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Filtros no Funil</h3>
+    <p>Use o filtro <strong>"Meus leads"</strong> (padrão) ou troque por outro vendedor se a supervisão liberar. Você também pode filtrar por segmento para focar em um tipo de cliente.</p>
+
+    <div class="tip-box">
+      <strong>Dica:</strong> Clique em um card para abrir o drawer lateral com os dados principais do lead sem sair do funil. Para editar ou registrar atividade, clique em "Ver detalhe completo" no drawer.
+    </div>
+  </section>
+
+  <!-- ── ATIVIDADES ── -->
+  <section class="section" id="atividades">
+    <div class="section-header">
+      <div class="section-icon">📝</div>
+      <div>
+        <h2>Atividades</h2>
+        <p>Registre cada contato e mantenha o histórico atualizado</p>
+      </div>
+    </div>
+
+    <p>Atividades são os registros de cada interação com um lead: ligações, reuniões, e-mails, WhatsApp. Cada atividade atualiza automaticamente a data do último e próximo contato do lead.</p>
+
+    <h3>Tipos de Atividade</h3>
+    <div class="status-row">
+      <span class="badge badge-blue">📞 Ligação</span>
+      <span class="badge badge-green">💬 WhatsApp</span>
+      <span class="badge badge-purple">🎥 Reunião Online</span>
+      <span class="badge badge-yellow">📧 E-mail</span>
+      <span class="badge badge-gray">🏢 Visita Presencial</span>
+      <span class="badge badge-gray">📋 Outro</span>
+    </div>
+
+    <h3>Registrar Nova Atividade</h3>
+    <ol class="steps">
+      <li>Acesse o lead e clique em <strong>+ Atividade</strong></li>
+      <li>Selecione o <strong>tipo</strong> de atividade</li>
+      <li>Informe data e hora</li>
+      <li>Escolha o <strong>resultado</strong> — as opções mudam conforme o tipo</li>
+      <li>Descreva brevemente o que aconteceu</li>
+      <li>Defina a <strong>próxima ação</strong> e a data do próximo contato</li>
+      <li>Clique em <strong>Salvar</strong></li>
+    </ol>
+
+    <h3>Resultados por Tipo de Atividade</h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>Resultados possíveis</th></tr></thead>
+      <tbody>
+        <tr><td>Ligação</td><td>Atendeu, Não atendeu, Caixa postal, Número errado, Agendou reunião</td></tr>
+        <tr><td>WhatsApp</td><td>Respondeu, Não respondeu, Mensagem lida, Agendou, Pediu retorno</td></tr>
+        <tr><td>Reunião</td><td>Realizada, Não compareceu, Remarcada, Cancelada, Proposta solicitada</td></tr>
+        <tr><td>E-mail</td><td>Enviado, Respondeu, Sem resposta</td></tr>
+        <tr><td>Visita</td><td>Realizada, Não estava, Remarcada</td></tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <strong>Automação:</strong> Ao salvar uma atividade, o campo "Último contato" e "Próximo contato" do lead são atualizados automaticamente. Você não precisa editar o lead manualmente.
+    </div>
+
+    <h3>Visualizar Atividades Pendentes</h3>
+    <p>No menu principal, a página <strong>Atividades</strong> mostra uma lista de todas as suas atividades pendentes e atrasadas, ordenadas por data. Use essa página como sua lista de tarefas do dia.</p>
+  </section>
+
+  <!-- ── PROPOSTAS ── -->
+  <section class="section" id="propostas">
+    <div class="section-header">
+      <div class="section-icon">📄</div>
+      <div>
+        <h2>Propostas</h2>
+        <p>Criação, envio e acompanhamento de propostas comerciais</p>
+      </div>
+    </div>
+
+    <p>O módulo de Propostas gerencia todo o ciclo da proposta comercial, desde o rascunho até a aprovação que gera o contrato.</p>
+
+    <h3>Status da Proposta</h3>
+    <div class="status-row">
+      <span class="badge badge-gray">Rascunho</span>
+      <span class="badge badge-blue">Enviada</span>
+      <span class="badge badge-purple">Em Negociação</span>
+      <span class="badge badge-green">Aprovada ✅</span>
+      <span class="badge badge-red">Reprovada</span>
+      <span class="badge badge-yellow">Vencida</span>
+      <span class="badge badge-gray">Cancelada</span>
+    </div>
+
+    <h3>Criar Nova Proposta</h3>
+    <ol class="steps">
+      <li>Acesse a tela do lead e clique na aba <strong>Propostas</strong></li>
+      <li>Clique em <strong>+ Nova Proposta</strong></li>
+      <li>Selecione o <strong>plano ofertado</strong></li>
+      <li>Informe o <strong>valor de instalação</strong> (original)</li>
+      <li>Aplique desconto se necessário — o valor final é calculado automaticamente</li>
+      <li>Defina o <strong>valor da mensalidade</strong></li>
+      <li>Escolha a <strong>validade</strong> da proposta</li>
+      <li>Salve como <strong>Rascunho</strong> ou já marque como <strong>Enviada</strong></li>
+    </ol>
+
+    <div class="info-box">
+      <strong>Cálculo automático:</strong> O valor final da instalação é calculado em tempo real conforme você digita o percentual de desconto: <em>Valor Final = Valor Original × (1 - desconto%)</em>
+    </div>
+
+    <h3>Ciclo de Vida da Proposta</h3>
+    <ol class="steps">
+      <li><strong>Rascunho</strong> — proposta em elaboração, não enviada ao cliente</li>
+      <li><strong>Enviada</strong> — proposta apresentada ao cliente (lead avança para etapa "Proposta Enviada" automaticamente)</li>
+      <li><strong>Em Negociação</strong> — cliente solicitou ajustes ou está avaliando</li>
+      <li><strong>Aprovada</strong> — cliente aceitou → lead vai automaticamente para "Fechado" e um contrato é criado</li>
+      <li><strong>Reprovada / Vencida</strong> — cliente recusou ou prazo passou</li>
+    </ol>
+
+    <h3>Aprovar uma Proposta</h3>
+    <ol class="steps">
+      <li>Abra a proposta com status "Enviada" ou "Em Negociação"</li>
+      <li>Clique em <strong>Aprovar Proposta</strong></li>
+      <li>Informe os dados de implantação: data prevista, forma de pagamento, data de entrada</li>
+      <li>Confirme — o lead é movido para "Fechado" e aparece nos Contratos automaticamente</li>
+    </ol>
+
+    <div class="warn-box">
+      <strong>Atenção — Validade:</strong> O sistema verifica a cada hora as propostas enviadas. Se a validade estiver a menos de 2 dias, um alerta é criado no lead e aparece no seu Dashboard. Fique atento aos avisos!
+    </div>
+
+    <h3>Acompanhar Propostas em Aberto</h3>
+    <p>Acesse o menu <strong>Propostas</strong> para ver todas as suas propostas ativas. Você pode filtrar por status, plano e período. A página exibe o MRR potencial total das propostas em aberto.</p>
+  </section>
+
+  <!-- ── CONTRATOS ── -->
+  <section class="section" id="contratos">
+    <div class="section-header">
+      <div class="section-icon">✅</div>
+      <div>
+        <h2>Contratos Fechados</h2>
+        <p>Acompanhamento do pós-venda dos clientes</p>
+      </div>
+    </div>
+
+    <p>A seção de Contratos lista todos os leads que você fechou (leads com status "fechado"). Aqui você acompanha o processo de implantação e pós-venda.</p>
+
+    <h3>Status Pós-Venda</h3>
+    <div class="status-row">
+      <span class="badge badge-gray">Aguardando Contrato</span>
+      <span class="badge badge-blue">Contrato Enviado</span>
+      <span class="badge badge-blue">Contrato Assinado</span>
+      <span class="badge badge-yellow">Aguardando Pagamento</span>
+      <span class="badge badge-yellow">Entrada Paga</span>
+      <span class="badge badge-purple">Aguardando Implantação</span>
+      <span class="badge badge-purple">Em Implantação</span>
+      <span class="badge badge-green">Implantado ✅</span>
+      <span class="badge badge-red">Cancelado</span>
+    </div>
+
+    <h3>Atualizar Status do Contrato</h3>
+    <ol class="steps">
+      <li>Acesse a página <strong>Contratos</strong></li>
+      <li>Encontre o cliente na lista</li>
+      <li>Clique no status atual — um seletor aparece inline</li>
+      <li>Escolha o novo status e confirme</li>
+    </ol>
+
+    <div class="tip-box">
+      <strong>Dica:</strong> Você pode atualizar o status sem abrir a tela completa do lead — basta clicar diretamente no badge de status na lista de contratos.
+    </div>
+
+    <h3>KPIs de Contratos</h3>
+    <table>
+      <thead><tr><th>KPI</th><th>O que representa</th></tr></thead>
+      <tbody>
+        <tr><td>MRR Total</td><td>Soma das mensalidades de todos os contratos ativos</td></tr>
+        <tr><td>Receita de Instalação</td><td>Soma dos valores de instalação do período</td></tr>
+        <tr><td>Ticket Médio</td><td>Valor médio dos contratos fechados</td></tr>
+        <tr><td>Qtd Contratos</td><td>Total de contratos no período</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── PERDIDOS ── -->
+  <section class="section" id="perdidos">
+    <div class="section-header">
+      <div class="section-icon">❌</div>
+      <div>
+        <h2>Leads Perdidos</h2>
+        <p>Gestão de oportunidades não convertidas e recontato futuro</p>
+      </div>
+    </div>
+
+    <p>Leads que foram marcados como perdidos ficam aqui. Você pode analisar os motivos, reativar leads que tiveram data de recontato chegando e acompanhar seu histórico de perdas.</p>
+
+    <h3>Filtros Disponíveis</h3>
+    <table>
+      <thead><tr><th>Filtro</th><th>O que faz</th></tr></thead>
+      <tbody>
+        <tr><td>Motivo de perda</td><td>Preço, concorrente, não era o momento, etc.</td></tr>
+        <tr><td>Concorrente escolhido</td><td>Para análise de mercado</td></tr>
+        <tr><td>Segmento</td><td>Farmácia, Padaria, Varejo</td></tr>
+        <tr><td>Período</td><td>Data em que foi marcado como perdido</td></tr>
+        <tr><td>Recontato vencido</td><td>Leads com data de recontato já passada — ação prioritária!</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Reativar um Lead Perdido</h3>
+    <ol class="steps">
+      <li>Encontre o lead na lista de Perdidos</li>
+      <li>Clique em <strong>Reativar Lead</strong></li>
+      <li>Selecione a <strong>etapa de destino</strong> no funil</li>
+      <li>Escreva uma observação sobre o contexto do recontato</li>
+      <li>Confirme — o lead volta ao Funil com o histórico preservado</li>
+    </ol>
+
+    <div class="tip-box">
+      <strong>Recontato futuro:</strong> Se ao marcar como perdido você definiu uma data de recontato, esse lead aparecerá com destaque quando a data chegar. Monitore os leads com recontato vencido no filtro.
+    </div>
+  </section>
+
+  <!-- ── AGENDA ── -->
+  <section class="section" id="agenda">
+    <div class="section-header">
+      <div class="section-icon">📅</div>
+      <div>
+        <h2>Agenda</h2>
+        <p>Reuniões, Google Calendar e Dashboard do dia</p>
+      </div>
+    </div>
+
+    <p>A Agenda integra o CRM ao seu Google Calendar. Reuniões criadas aqui aparecem automaticamente no seu Google Calendar e o lead recebe o convite por e-mail. Se a reunião for online, um link Google Meet é criado automaticamente.</p>
+
+    <h3>Conectar seu Google Calendar</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Configurações</strong> → aba <strong>Integrações</strong></li>
+      <li>Clique em <strong>Conectar Google Calendar</strong></li>
+      <li>Faça login na sua conta Google</li>
+      <li>Autorize o acesso (leitura e criação de eventos)</li>
+      <li>Você será redirecionado de volta ao CRM com a conta conectada</li>
+    </ol>
+
+    <div class="info-box">
+      <strong>Sem Google conectado:</strong> Você ainda pode criar eventos — eles ficam salvos no CRM, mas sem link Google Meet e sem convite automático para o lead.
+    </div>
+
+    <h3>Criar Nova Reunião</h3>
+    <p>Você pode criar uma reunião de 3 formas:</p>
+    <ul style="padding-left: 20px; font-size: 0.9rem; margin-bottom: 16px;">
+      <li style="margin-bottom: 6px;">Na <strong>tela do lead</strong> → aba Agenda → + Nova Reunião</li>
+      <li style="margin-bottom: 6px;">No <strong>histórico do lead</strong> → botão "Agendar Reunião"</li>
+      <li style="margin-bottom: 6px;">Na <strong>página Agenda</strong> → botão principal + Novo Evento</li>
+    </ul>
+
+    <h3>Campos da Reunião</h3>
+    <div class="field-list">
+      <div class="field-item">
+        <div class="field-name field-required">Título</div>
+        <div class="field-desc">Nome da reunião (ex: "Demo ProSystem — Farmácia São João")</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name field-required">Data e hora</div>
+        <div class="field-desc">Início e fim do evento</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name field-required">Lead vinculado</div>
+        <div class="field-desc">Selecione o lead relacionado (ou cliente)</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">Tipo</div>
+        <div class="field-desc">Reunião, Ligação, Visita, Apresentação, Follow-up, Demo</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">Local</div>
+        <div class="field-desc">Online (gera Meet) ou Presencial</div>
+      </div>
+      <div class="field-item">
+        <div class="field-name">Lembrete</div>
+        <div class="field-desc">0, 5, 10, 15, 30 ou 60 min antes</div>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <strong>Google Meet automático:</strong> Se você selecionar "Online", o link do Google Meet é criado automaticamente ao salvar. O link aparece no card da reunião — clique para entrar diretamente.
+    </div>
+
+    <h3>Status dos Eventos</h3>
+    <div class="status-row">
+      <span class="badge badge-blue">Agendado</span>
+      <span class="badge badge-green">Confirmado</span>
+      <span class="badge badge-green">Realizado ✅</span>
+      <span class="badge badge-yellow">Remarcado</span>
+      <span class="badge badge-red">Não compareceu</span>
+      <span class="badge badge-gray">Cancelado</span>
+    </div>
+
+    <h3>Registrar Resultado da Reunião</h3>
+    <ol class="steps">
+      <li>Na agenda ou no card do evento, clique nos três pontos (⋮)</li>
+      <li>Escolha <strong>Marcar como Realizado</strong>, <strong>Remarcar</strong> ou <strong>Não compareceu</strong></li>
+      <li>Preencha as observações e a duração real (para "Realizado")</li>
+      <li>Confirme — o histórico do lead é atualizado automaticamente</li>
+    </ol>
+
+    <div class="warn-box">
+      <strong>Não compareceu:</strong> Se o lead não aparecer na reunião, marque como "Não compareceu". Isso gera um alerta no Dashboard (semáforo vermelho) e registra no histórico do lead para acompanhamento.
+    </div>
+
+    <h3>Tarefas (Agenda)</h3>
+    <p>Além de reuniões, você pode criar <strong>Tarefas</strong> — lembretes e ações sem horário fixo. Acesse <strong>Agenda → Tarefas</strong> e crie uma tarefa com prazo, prioridade e lead vinculado.</p>
+
+    <table>
+      <thead><tr><th>Prioridade</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td>🔴 Alta</td><td>Ação urgente — aparece no topo do semáforo</td></tr>
+        <tr><td>🟡 Média</td><td>Importante mas não emergencial</td></tr>
+        <tr><td>⚪ Baixa</td><td>Quando der tempo</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Notificações da Agenda</h3>
+    <p>O sistema envia notificações automáticas em dois momentos:</p>
+    <ul style="padding-left: 20px; font-size: 0.9rem;">
+      <li style="margin-bottom: 6px;"><strong>10 minutos antes</strong> do evento — notificação toast no canto da tela com botão para abrir o Meet</li>
+      <li style="margin-bottom: 6px;"><strong>1 hora após</strong> o horário do evento (se não foi marcado como realizado) — lembrete para registrar o resultado</li>
+    </ul>
+  </section>
+
+  <!-- ── WHATSAPP ── -->
+  <section class="section" id="whatsapp">
+    <div class="section-header">
+      <div class="section-icon">💬</div>
+      <div>
+        <h2>WhatsApp — Conversas</h2>
+        <p>Receba e responda mensagens diretamente no CRM</p>
+      </div>
+    </div>
+
+    <p>Quando um lead envia uma mensagem para o WhatsApp Business da ProSystem, ela aparece automaticamente no CRM vinculada ao lead (pelo número de telefone). Você recebe uma notificação em tempo real e pode responder sem sair do sistema.</p>
+
+    <h3>Receber Mensagens</h3>
+    <p>Mensagens novas geram um <strong>badge vermelho</strong> no ícone de Conversas no menu lateral. Quando você abre a aba Conversas do lead, o badge é zerado.</p>
+
+    <ol class="steps">
+      <li>Clique no ícone de Conversas 💬 no menu ou no badge vermelho</li>
+      <li>Selecione a conversa do lead na lista</li>
+      <li>A thread aparece com mensagens do lead (cinza, esquerda) e suas respostas (azul, direita)</li>
+    </ol>
+
+    <h3>Responder uma Mensagem</h3>
+    <ol class="steps">
+      <li>Abra a conversa do lead</li>
+      <li>Digite sua resposta na caixa de texto abaixo da thread</li>
+      <li>Clique em <strong>Enviar</strong></li>
+    </ol>
+
+    <div class="warn-box">
+      <strong>Janela de 24 horas:</strong> O WhatsApp Business permite enviar mensagens de texto livre apenas dentro de 24 horas após a última mensagem recebida do lead. Se a janela expirou, você verá um seletor de <strong>templates</strong> — mensagens pré-aprovadas pela Meta — no lugar da caixa de texto.
+    </div>
+
+    <h3>Acessar Conversas pelo Lead</h3>
+    <p>Você também acessa as mensagens diretamente pela ficha do lead: aba <strong>Conversas</strong> (6ª aba). Lá a thread mostra todas as mensagens enviadas e recebidas em ordem cronológica.</p>
+
+    <h3>Tipos de Mídia</h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>O que acontece</th></tr></thead>
+      <tbody>
+        <tr><td>📝 Texto</td><td>Exibido na thread normalmente</td></tr>
+        <tr><td>🖼️ Imagem</td><td>Miniatura clicável para visualizar</td></tr>
+        <tr><td>📄 Documento</td><td>Link de download</td></tr>
+        <tr><td>🎵 Áudio</td><td>Player de áudio na thread</td></tr>
+        <tr><td>Outros</td><td>Exibido como "tipo não suportado" com referência</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <strong>Dica:</strong> A página <strong>/conversas</strong> no menu principal mostra todas as suas conversas ativas com preview da última mensagem — útil para ver quem não foi respondido.
+    </div>
+  </section>
+
+  <hr />
+
+  <!-- ── STATUS ── -->
+  <section class="section" id="status">
+    <div class="section-header">
+      <div class="section-icon">🏷️</div>
+      <div>
+        <h2>Referência de Status e Etapas</h2>
+        <p>Todos os status do sistema em um só lugar</p>
+      </div>
+    </div>
+
+    <h3>Status dos Leads (Etapas do Funil)</h3>
+    <table>
+      <thead><tr><th>Etapa</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-gray">Novo Lead</span></td><td>Recém cadastrado, ainda sem contato</td></tr>
+        <tr><td><span class="badge badge-blue">Primeiro Contato</span></td><td>Contato inicial realizado</td></tr>
+        <tr><td><span class="badge badge-blue">Qualificação</span></td><td>Necessidade levantada e perfil validado</td></tr>
+        <tr><td><span class="badge badge-purple">Apresentação Agendada</span></td><td>Demo ou apresentação marcada</td></tr>
+        <tr><td><span class="badge badge-yellow">Proposta Enviada</span></td><td>Proposta formal apresentada</td></tr>
+        <tr><td><span class="badge badge-yellow">Em Negociação</span></td><td>Cliente avaliando ou negociando termos</td></tr>
+        <tr><td><span class="badge badge-green">Fechado ✅</span></td><td>Venda realizada</td></tr>
+        <tr><td><span class="badge badge-red">Perdido ❌</span></td><td>Oportunidade não convertida</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Status das Atividades</h3>
+    <div class="status-row">
+      <span class="badge badge-yellow">Pendente</span>
+      <span class="badge badge-green">Concluída</span>
+      <span class="badge badge-red">Atrasada</span>
+      <span class="badge badge-gray">Cancelada</span>
+    </div>
+
+    <h3>Status das Propostas</h3>
+    <div class="status-row">
+      <span class="badge badge-gray">Rascunho</span>
+      <span class="badge badge-blue">Enviada</span>
+      <span class="badge badge-purple">Em Negociação</span>
+      <span class="badge badge-green">Aprovada</span>
+      <span class="badge badge-red">Reprovada</span>
+      <span class="badge badge-yellow">Vencida</span>
+      <span class="badge badge-gray">Cancelada</span>
+    </div>
+
+    <h3>Status de Pós-Venda (Contratos)</h3>
+    <div class="status-row">
+      <span class="badge badge-gray">Aguardando Contrato</span>
+      <span class="badge badge-blue">Contrato Enviado</span>
+      <span class="badge badge-blue">Contrato Assinado</span>
+      <span class="badge badge-yellow">Aguardando Pagamento</span>
+      <span class="badge badge-yellow">Entrada Paga</span>
+      <span class="badge badge-purple">Aguardando Implantação</span>
+      <span class="badge badge-purple">Em Implantação</span>
+      <span class="badge badge-green">Implantado</span>
+      <span class="badge badge-red">Cancelado</span>
+    </div>
+
+    <h3>Status dos Eventos de Agenda</h3>
+    <div class="status-row">
+      <span class="badge badge-blue">Agendado</span>
+      <span class="badge badge-green">Confirmado</span>
+      <span class="badge badge-green">Realizado</span>
+      <span class="badge badge-yellow">Remarcado</span>
+      <span class="badge badge-red">Não Compareceu</span>
+      <span class="badge badge-gray">Cancelado</span>
+    </div>
+
+    <h3>Temperatura do Lead</h3>
+    <table>
+      <thead><tr><th>Temperatura</th><th>Significado</th><th>Quando usar</th></tr></thead>
+      <tbody>
+        <tr><td>🔥 Quente</td><td>Alta probabilidade de fechar</td><td>Interesse confirmado, decisor engajado, proposta aceita informalmente</td></tr>
+        <tr><td>🌤️ Morno</td><td>Interesse mas sem urgência</td><td>Avaliando, comparando com concorrentes, aguardando aprovação interna</td></tr>
+        <tr><td>❄️ Frio</td><td>Baixa probabilidade no momento</td><td>Sem resposta, sem budget agora, não é decisor</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── GLOSSÁRIO ── -->
+  <section class="section" id="glossario">
+    <div class="section-header">
+      <div class="section-icon">📖</div>
+      <div>
+        <h2>Glossário</h2>
+        <p>Termos usados no CRM</p>
+      </div>
+    </div>
+
+    <div class="glossary">
+      <dl>
+        <dt>CRM</dt>
+        <dd>Customer Relationship Management — sistema para gerenciar o relacionamento com clientes e leads.</dd>
+
+        <dt>Lead</dt>
+        <dd>Potencial cliente que demonstrou interesse nos produtos/serviços da ProSystem.</dd>
+
+        <dt>Funil Comercial</dt>
+        <dd>Representação visual das etapas do processo de venda, do primeiro contato ao fechamento.</dd>
+
+        <dt>MRR (Monthly Recurring Revenue)</dt>
+        <dd>Receita Mensal Recorrente — soma das mensalidades de todos os contratos ativos. Principal indicador de crescimento.</dd>
+
+        <dt>Ticket Médio</dt>
+        <dd>Valor médio dos contratos fechados. Calculado dividindo a receita total pela quantidade de contratos.</dd>
+
+        <dt>Follow-up</dt>
+        <dd>Ação de acompanhamento — entrar em contato com um lead após um período para avançar a negociação.</dd>
+
+        <dt>Timeline</dt>
+        <dd>Histórico cronológico completo de todas as interações com um lead: atividades, mudanças de etapa, propostas, reuniões.</dd>
+
+        <dt>Google Meet</dt>
+        <dd>Ferramenta de videoconferência do Google. O CRM cria o link automaticamente ao criar uma reunião online.</dd>
+
+        <dt>OAuth2</dt>
+        <dd>Protocolo de autorização que permite conectar o CRM à sua conta do Google de forma segura, sem compartilhar sua senha.</dd>
+
+        <dt>Janela de 24h (WhatsApp)</dt>
+        <dd>Regra da Meta: após a última mensagem recebida de um contato, você tem 24 horas para responder com texto livre. Após isso, só pode usar templates aprovados.</dd>
+
+        <dt>Template (WhatsApp)</dt>
+        <dd>Mensagem pré-aprovada pela Meta para ser enviada fora da janela de 24h. Geralmente usada para recontato, confirmação de reunião, etc.</dd>
+
+        <dt>Kanban</dt>
+        <dd>Metodologia visual com colunas e cards. No Funil, cada coluna é uma etapa e cada card é um lead — você arrasta os cards entre colunas.</dd>
+
+        <dt>Segmento</dt>
+        <dd>Tipo de negócio do lead: Farmácia/Drogaria, Padaria/Confeitaria, Varejo Geral, ou outro.</dd>
+
+        <dt>Origem</dt>
+        <dd>Como o lead chegou até a ProSystem: Indicação, Site, Google Ads, Evento, Rede Social, Prospecção Ativa, etc.</dd>
+
+        <dt>Implantação</dt>
+        <dd>Processo de instalação e configuração do sistema ProSystem na empresa do cliente após o fechamento do contrato.</dd>
+
+        <dt>Semáforo do dia</dt>
+        <dd>Indicador visual (verde/amarelo/vermelho) no Dashboard que resume a saúde da sua carteira de leads e compromissos.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--gray-200); text-align: center; color: var(--gray-500); font-size: 0.8rem;">
+    <p>CRM Comercial ProSystem — Manual do Vendedor v1.0 — Maio/2026</p>
+    <p>ProSystem Sistemas · Vitória/ES · (27) 3327-6739 · suporte@prosystemnet.com.br</p>
+  </div>
+
+</main>
+
+<script>
+  // Highlight active sidebar link on scroll
+  const sections = document.querySelectorAll('.section, .cover');
+  const links = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-10% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

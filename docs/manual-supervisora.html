@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Comercial ProSystem — Manual da Supervisora</title>
+  <style>
+    :root {
+      --primary: #7c3aed;
+      --primary-dark: #5b21b6;
+      --primary-light: #ede9fe;
+      --accent: #0ea271;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --sidebar-width: 270px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--gray-50); color: var(--gray-800); line-height: 1.6; }
+
+    @media print {
+      .sidebar, .top-bar, .print-btn { display: none !important; }
+      .main { margin-left: 0 !important; padding: 24px !important; }
+      .section { break-inside: avoid; }
+    }
+
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 56px; background: var(--primary); color: white;
+      display: flex; align-items: center; padding: 0 24px; gap: 16px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.2);
+    }
+    .top-bar .logo { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .top-bar .logo span { opacity: 0.75; font-weight: 400; font-size: 0.9rem; }
+    .top-bar .spacer { flex: 1; }
+    .print-btn {
+      background: white; color: var(--primary); border: none; border-radius: 6px;
+      padding: 6px 16px; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    .print-btn:hover { background: var(--primary-light); }
+
+    .sidebar {
+      position: fixed; top: 56px; left: 0; bottom: 0; width: var(--sidebar-width);
+      background: white; border-right: 1px solid var(--gray-200); overflow-y: auto; padding: 16px 0;
+    }
+    .sidebar-section { padding: 8px 16px 4px; }
+    .sidebar-section h6 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-500); font-weight: 600; margin-bottom: 4px; }
+    .sidebar a {
+      display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-radius: 6px;
+      color: var(--gray-700); text-decoration: none; font-size: 0.875rem; transition: background 0.12s;
+    }
+    .sidebar a:hover { background: var(--primary-light); color: var(--primary); }
+    .sidebar a .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar a.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+
+    .main { margin-left: var(--sidebar-width); margin-top: 56px; padding: 40px 48px; max-width: 920px; }
+
+    .cover {
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 60%, #ec4899 100%);
+      border-radius: 16px; padding: 48px 40px; color: white; margin-bottom: 48px;
+    }
+    .cover .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; margin-bottom: 8px; }
+    .cover h1 { font-size: 2rem; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+    .cover p { opacity: 0.85; font-size: 1rem; max-width: 560px; }
+    .cover .meta { margin-top: 24px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .cover .meta-item { background: rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; }
+
+    .section { margin-bottom: 48px; scroll-margin-top: 80px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--gray-200); }
+    .section-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+    .section-header h2 { font-size: 1.35rem; font-weight: 700; color: var(--gray-900); }
+    .section-header p { font-size: 0.875rem; color: var(--gray-500); margin-top: 2px; }
+
+    h3 { font-size: 1rem; font-weight: 700; color: var(--gray-800); margin: 24px 0 10px; display: flex; align-items: center; gap: 8px; }
+    h3::before { content: ''; display: inline-block; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; flex-shrink: 0; }
+    p { color: var(--gray-700); font-size: 0.9rem; margin-bottom: 10px; }
+
+    .card { background: white; border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+
+    .info-box { border-left: 4px solid var(--primary); background: var(--primary-light); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; font-size: 0.875rem; color: var(--primary-dark); }
+    .tip-box { border-left: 4px solid var(--accent); background: #ecfdf5; border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; font-size: 0.875rem; color: #065f46; }
+    .warn-box { border-left: 4px solid var(--warning); background: #fffbeb; border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; font-size: 0.875rem; color: #92400e; }
+
+    .steps { list-style: none; counter-reset: step; }
+    .steps li { counter-increment: step; display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--gray-100); font-size: 0.9rem; }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before { content: counter(step); min-width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-green  { background: #d1fae5; color: #065f46; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-red    { background: #fee2e2; color: #991b1b; }
+    .badge-gray   { background: var(--gray-200); color: var(--gray-700); }
+    .badge-purple { background: #ede9fe; color: #5b21b6; }
+    .badge-pink   { background: #fce7f3; color: #9d174d; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 12px 0 20px; }
+    thead { background: var(--gray-100); }
+    th { text-align: left; padding: 8px 12px; font-weight: 600; color: var(--gray-700); border-bottom: 2px solid var(--gray-200); }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--gray-50); }
+
+    .field-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+    .field-item { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; }
+    .field-item .field-name { font-weight: 700; color: var(--gray-800); margin-bottom: 2px; }
+    .field-item .field-desc { color: var(--gray-500); font-size: 0.75rem; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
+    .kpi-card { background: white; border: 1px solid var(--gray-200); border-radius: 10px; padding: 14px 16px; }
+    .kpi-card .kpi-label { font-size: 0.75rem; color: var(--gray-500); margin-bottom: 4px; }
+    .kpi-card .kpi-value { font-size: 1.1rem; font-weight: 800; color: var(--gray-900); }
+
+    .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    hr { border: none; border-top: 1px solid var(--gray-200); margin: 32px 0; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 24px 16px; }
+      .field-list, .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">🟣 CRM Comercial ProSystem <span>/ Manual da Supervisora</span></div>
+  <div class="spacer"></div>
+  <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Exportar PDF</button>
+</div>
+
+<nav class="sidebar">
+  <div class="sidebar-section">
+    <a href="#inicio"><span class="icon">🏠</span> Início</a>
+    <a href="#visao-geral"><span class="icon">👁️</span> Visão Geral da Equipe</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Gestão da Equipe</h6>
+    <a href="#dashboard"><span class="icon">📊</span> Dashboard Supervisão</a>
+    <a href="#leads-equipe"><span class="icon">👥</span> Leads da Equipe</a>
+    <a href="#funil-equipe"><span class="icon">📋</span> Funil da Equipe</a>
+    <a href="#agenda-equipe"><span class="icon">📅</span> Agenda da Equipe</a>
+    <a href="#whatsapp"><span class="icon">💬</span> Conversas da Equipe</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Desempenho</h6>
+    <a href="#relatorios"><span class="icon">📈</span> Relatórios</a>
+    <a href="#ranking"><span class="icon">🏆</span> Ranking Comercial</a>
+    <a href="#metas"><span class="icon">🎯</span> Metas e Comissões</a>
+    <a href="#fechamento"><span class="icon">💰</span> Fechamento Mensal</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Operações</h6>
+    <a href="#contratos"><span class="icon">✅</span> Contratos</a>
+    <a href="#perdidos"><span class="icon">❌</span> Perdidos e Análise</a>
+    <a href="#churn"><span class="icon">🔄</span> Churn e Retenção</a>
+    <a href="#permissoes"><span class="icon">🔐</span> Permissões por Perfil</a>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- Cover -->
+  <div class="cover" id="inicio">
+    <div class="label">ProSystem Sistemas</div>
+    <h1>CRM Comercial<br>Manual da Supervisora</h1>
+    <p>Guia completo para gerenciar a equipe comercial: acompanhar todos os vendedores, configurar metas, analisar relatórios, fechar comissões e monitorar o desempenho do time.</p>
+    <div class="meta">
+      <div class="meta-item">📅 Versão 1.0 — Maio/2026</div>
+      <div class="meta-item">👤 Perfil: Supervisão</div>
+      <div class="meta-item">🔑 Acesso: todos os vendedores</div>
+    </div>
+  </div>
+
+  <!-- Visão Geral -->
+  <section class="section" id="visao-geral">
+    <div class="section-header">
+      <div class="section-icon">👁️</div>
+      <div>
+        <h2>O que a Supervisora pode fazer</h2>
+        <p>Diferenciais do perfil SUPERVISAO vs VENDEDOR</p>
+      </div>
+    </div>
+
+    <p>O perfil de Supervisora tem acesso completo à equipe. A principal diferença em relação ao vendedor é a <strong>visibilidade sobre todos os usuários</strong> e o controle de metas e comissões.</p>
+
+    <table>
+      <thead><tr><th>Funcionalidade</th><th>Vendedor</th><th>Supervisora</th></tr></thead>
+      <tbody>
+        <tr><td>Ver leads</td><td>Apenas os seus</td><td>Todos ✅</td></tr>
+        <tr><td>Ver conversas WhatsApp</td><td>Apenas as suas</td><td>Todas ✅</td></tr>
+        <tr><td>Ver agenda</td><td>Apenas a sua</td><td>Todos os vendedores ✅</td></tr>
+        <tr><td>Relatórios</td><td>❌</td><td>Todos os relatórios ✅</td></tr>
+        <tr><td>Ranking completo</td><td>Só posição própria</td><td>Ranking completo ✅</td></tr>
+        <tr><td>Configurar metas</td><td>❌</td><td>✅</td></tr>
+        <tr><td>Ver comissões</td><td>Só as suas</td><td>Toda a equipe ✅</td></tr>
+        <tr><td>Aprovar fechamento mensal</td><td>❌</td><td>✅</td></tr>
+        <tr><td>Exportar relatórios</td><td>❌</td><td>✅ (CSV + PDF)</td></tr>
+        <tr><td>Reativar lead perdido</td><td>❌</td><td>✅</td></tr>
+        <tr><td>Editar lead de outro vendedor</td><td>❌</td><td>✅</td></tr>
+        <tr><td>Transferir lead entre vendedores</td><td>❌</td><td>✅</td></tr>
+        <tr><td>Gestão de usuários</td><td>❌</td><td>❌ (só Admin)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Dashboard -->
+  <section class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-icon">📊</div>
+      <div>
+        <h2>Dashboard da Supervisão</h2>
+        <p>Visão gerencial em tempo real da equipe</p>
+      </div>
+    </div>
+
+    <p>Ao entrar no sistema, a supervisora vê um dashboard diferente do vendedor — com foco na equipe completa e nos gargalos do funil.</p>
+
+    <h3>KPIs da Equipe</h3>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Leads ativos</div><div class="kpi-value">Total de leads em aberto na equipe</div></div>
+      <div class="kpi-card"><div class="kpi-label">Leads parados</div><div class="kpi-value">Sem atividade há 3+ dias</div></div>
+      <div class="kpi-card"><div class="kpi-label">Follow-ups hoje</div><div class="kpi-value">De toda a equipe</div></div>
+      <div class="kpi-card"><div class="kpi-label">Propostas vencendo</div><div class="kpi-value">Próximas 48 horas</div></div>
+      <div class="kpi-card"><div class="kpi-label">Fechamentos no mês</div><div class="kpi-value">Contagem + MRR total</div></div>
+      <div class="kpi-card"><div class="kpi-label">Taxa de conversão</div><div class="kpi-value">Fechamentos ÷ Propostas × 100</div></div>
+    </div>
+
+    <h3>Gráficos do Dashboard</h3>
+    <table>
+      <thead><tr><th>Gráfico</th><th>O que mostra</th></tr></thead>
+      <tbody>
+        <tr><td>Funil por etapa (barras)</td><td>Quantidade de leads em cada etapa — identifica onde o time está travado</td></tr>
+        <tr><td>MRR mensal (linha)</td><td>Evolução da receita recorrente nos últimos meses</td></tr>
+        <tr><td>Origem dos leads (pizza)</td><td>Distribuição por canal de entrada (site, indicação, prospecção…)</td></tr>
+        <tr><td>Ranking rápido</td><td>Top 5 vendedores por fechamentos do mês</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Alertas de Gargalo</h3>
+    <p>O Dashboard destaca automaticamente:</p>
+    <ul style="padding-left: 20px; font-size: 0.9rem; margin-bottom: 12px;">
+      <li style="margin-bottom: 6px;">🔴 Vendedores com mais de 3 leads parados</li>
+      <li style="margin-bottom: 6px;">🟡 Propostas com validade em 48 horas sem movimentação</li>
+      <li style="margin-bottom: 6px;">⚠️ Leads no funil há mais de 14 dias sem avançar de etapa</li>
+    </ul>
+
+    <div class="tip-box">
+      <strong>Dica:</strong> Use o filtro de período no Dashboard para comparar este mês com o anterior. O sistema mostra a variação percentual (+12% em verde / -5% em vermelho) em cada KPI.
+    </div>
+  </section>
+
+  <!-- Leads da Equipe -->
+  <section class="section" id="leads-equipe">
+    <div class="section-header">
+      <div class="section-icon">👥</div>
+      <div>
+        <h2>Leads da Equipe</h2>
+        <p>Visibilidade e gestão de toda a carteira</p>
+      </div>
+    </div>
+
+    <p>A supervisora vê todos os leads de todos os vendedores em uma única lista. O filtro de vendedor fica visível e ativo por padrão mostrando "Todos".</p>
+
+    <h3>Filtros Disponíveis para Supervisão</h3>
+    <table>
+      <thead><tr><th>Filtro</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td>Vendedor</td><td>Filtrar por vendedor específico ou ver todos</td></tr>
+        <tr><td>Status / Etapa</td><td>Todos os status do funil</td></tr>
+        <tr><td>Segmento</td><td>Farmácia, Padaria, Varejo</td></tr>
+        <tr><td>Origem</td><td>Canal de entrada do lead</td></tr>
+        <tr><td>Temperatura</td><td>Quente / Morno / Frio</td></tr>
+        <tr><td>Leads parados</td><td>Sem atividade há 3+ dias — essencial para monitorar</td></tr>
+        <tr><td>Período</td><td>Intervalo de cadastro</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Transferir Lead entre Vendedores</h3>
+    <ol class="steps">
+      <li>Abra o lead que deseja transferir</li>
+      <li>Clique em <strong>Editar Lead</strong></li>
+      <li>No campo "Vendedor responsável", selecione o novo vendedor</li>
+      <li>Adicione uma observação sobre a transferência</li>
+      <li>Salve — o histórico registra a troca automaticamente</li>
+    </ol>
+
+    <h3>Editar Lead de Outro Vendedor</h3>
+    <p>A supervisora pode editar qualquer lead, incluindo os de outros vendedores. O histórico de alterações registra quem fez a mudança, o quê foi alterado e quando.</p>
+
+    <h3>Export da Carteira</h3>
+    <p>Na lista de leads, clique em <strong>Exportar CSV</strong> para baixar todos os leads filtrados. O arquivo inclui todos os campos: empresa, contato, etapa, vendedor, datas, temperatura.</p>
+  </section>
+
+  <!-- Funil da Equipe -->
+  <section class="section" id="funil-equipe">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <div>
+        <h2>Funil da Equipe</h2>
+        <p>Kanban completo com todos os vendedores</p>
+      </div>
+    </div>
+
+    <p>No Funil, a supervisora vê as colunas kanban com os leads de toda a equipe. Use o filtro por vendedor no topo do funil para focar em um vendedor por vez ou ver o quadro completo.</p>
+
+    <h3>Monitorar Gargalos</h3>
+    <p>Colunas muito cheias indicam onde a equipe está travada. As causas mais comuns:</p>
+
+    <table>
+      <thead><tr><th>Coluna cheia</th><th>Possível causa</th><th>Ação sugerida</th></tr></thead>
+      <tbody>
+        <tr><td>Qualificação</td><td>Leads não qualificados avançando sem critério</td><td>Revisar critérios de temperatura com a equipe</td></tr>
+        <tr><td>Proposta Enviada</td><td>Seguimento insuficiente após proposta</td><td>Definir prazo máximo de follow-up</td></tr>
+        <tr><td>Em Negociação</td><td>Leads parados em negociação longa</td><td>Entrar na negociação diretamente ou dar desconto estratégico</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <strong>Dica:</strong> Clique no card de qualquer lead no funil para abrir o drawer lateral. Você pode registrar uma atividade ou transferir o lead sem sair da visão kanban.
+    </div>
+  </section>
+
+  <!-- Relatórios -->
+  <section class="section" id="relatorios">
+    <div class="section-header">
+      <div class="section-icon">📈</div>
+      <div>
+        <h2>Relatórios Comerciais</h2>
+        <p>6 relatórios analíticos com export CSV e PDF</p>
+      </div>
+    </div>
+
+    <p>Acesse o menu <strong>Relatórios</strong> para gerar análises do período. Todos os relatórios têm: variação vs período anterior, filtro de vendedor e export em CSV ou PDF.</p>
+
+    <h3>Os 6 Relatórios Disponíveis</h3>
+
+    <div class="card">
+      <div class="card-title">📋 1. Relatório de Leads</div>
+      <p><strong>O que mostra:</strong> métricas gerais da carteira, conversão por etapa do funil, taxa de conversão geral.</p>
+      <p><strong>Métricas-chave:</strong> total de leads cadastrados, leads ativos, leads por etapa, taxa de avanço etapa a etapa.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📞 2. Relatório de Atividades</div>
+      <p><strong>O que mostra:</strong> volume de atividades por tipo, por vendedor e por resultado.</p>
+      <p><strong>Métricas-chave:</strong> ligações realizadas, reuniões feitas, taxa de "atendeu", vendedor mais ativo, resultado mais frequente.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📄 3. Relatório de Propostas</div>
+      <p><strong>O que mostra:</strong> propostas enviadas vs aprovadas, ticket médio, taxa de conversão proposta→fechamento.</p>
+      <p><strong>Métricas-chave:</strong> qtd propostas por vendedor, valor total proposto vs aprovado, tempo médio de aprovação.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✅ 4. Relatório de Fechamentos</div>
+      <p><strong>O que mostra:</strong> contratos fechados, MRR gerado, receita de instalação, breakdown por origem e segmento.</p>
+      <p><strong>Métricas-chave:</strong> MRR total do período, receita instalação, ticket médio, melhor origem de leads.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">❌ 5. Relatório de Perdas</div>
+      <p><strong>O que mostra:</strong> motivos de perda, concorrentes escolhidos, MRR perdido no período.</p>
+      <p><strong>Métricas-chave:</strong> motivo de perda mais frequente, concorrente principal, MRR que foi para o concorrente.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏆 6. Relatório de Produtividade</div>
+      <p><strong>O que mostra:</strong> ranking completo dos vendedores com todas as métricas combinadas.</p>
+      <p><strong>Métricas-chave:</strong> fechamentos, MRR, propostas enviadas, taxa de conversão, leads abordados — tudo por vendedor.</p>
+    </div>
+
+    <h3>Como Gerar um Relatório</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Relatórios</strong> no menu lateral</li>
+      <li>Selecione o tipo de relatório desejado</li>
+      <li>Defina o <strong>período</strong> (mês atual, mês anterior, trimestre, personalizado)</li>
+      <li>Selecione o vendedor ou deixe "Todos"</li>
+      <li>Clique em <strong>Gerar Relatório</strong></li>
+      <li>Para exportar: clique em <strong>CSV</strong> ou <strong>PDF</strong></li>
+    </ol>
+
+    <div class="info-box">
+      <strong>Cache:</strong> Relatórios são cacheados por 10 minutos. Se você acabou de registrar um dado e não aparece no relatório, aguarde alguns minutos ou use o botão "Atualizar".
+    </div>
+  </section>
+
+  <!-- Ranking -->
+  <section class="section" id="ranking">
+    <div class="section-header">
+      <div class="section-icon">🏆</div>
+      <div>
+        <h2>Ranking Comercial</h2>
+        <p>Desempenho comparativo da equipe com gamificação</p>
+      </div>
+    </div>
+
+    <p>O Ranking é um módulo dedicado ao acompanhamento de desempenho com histórico mensal, comparativo de períodos e badges de reconhecimento.</p>
+
+    <h3>Indicadores do Ranking</h3>
+    <table>
+      <thead><tr><th>Indicador</th><th>Como é calculado</th></tr></thead>
+      <tbody>
+        <tr><td>Fechamentos</td><td>Leads com status "fechado" no período</td></tr>
+        <tr><td>MRR Fechado</td><td>Soma das mensalidades dos contratos fechados</td></tr>
+        <tr><td>Propostas Enviadas</td><td>Propostas criadas no período</td></tr>
+        <tr><td>Taxa de Conversão</td><td>Fechamentos ÷ Propostas × 100</td></tr>
+        <tr><td>Ticket Médio</td><td>MRR Fechado ÷ Fechamentos</td></tr>
+        <tr><td>Leads Abordados</td><td>Leads com contato registrado no período</td></tr>
+        <tr><td>Pontuação Total</td><td>(Contratos×3) + (MRR÷100) + (Indicações conv.×2) + (Metas≥100%×5)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Configurar Metas do Ranking</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Ranking → Configurar Metas</strong></li>
+      <li>Selecione o mês e ano</li>
+      <li>Para cada vendedor, defina os valores das metas</li>
+      <li>Escolha quais metas contam para comissão e quais para ranking</li>
+      <li>Salve — as barras de progresso são atualizadas em tempo real</li>
+    </ol>
+
+    <h3>Badges de Reconhecimento</h3>
+    <table>
+      <thead><tr><th>Badge</th><th>Condição</th></tr></thead>
+      <tbody>
+        <tr><td>🥇 Campeão do Mês</td><td>1º lugar em MRR no mês</td></tr>
+        <tr><td>🎯 Meta Batida</td><td>Atingiu 100% da meta de fechamentos</td></tr>
+        <tr><td>💎 Maior Deal</td><td>Lead com maior mensalidade fechado no mês</td></tr>
+        <tr><td>🔥 Em Chamas</td><td>3 fechamentos consecutivos na mesma semana</td></tr>
+        <tr><td>📈 Crescimento</td><td>MRR deste mês maior que o mês anterior</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Filtros de Período</h3>
+    <div class="status-row">
+      <span class="badge badge-blue">Mês atual</span>
+      <span class="badge badge-blue">Mês anterior</span>
+      <span class="badge badge-purple">Trimestre</span>
+      <span class="badge badge-gray">Ano</span>
+    </div>
+
+    <div class="tip-box">
+      <strong>Coluna "vs. mês anterior":</strong> O ranking mostra a variação de cada indicador em relação ao mês anterior. Verde = crescimento, Vermelho = queda. Use para identificar quem está evoluindo e quem precisa de suporte.
+    </div>
+  </section>
+
+  <!-- Metas e Comissões -->
+  <section class="section" id="metas">
+    <div class="section-header">
+      <div class="section-icon">🎯</div>
+      <div>
+        <h2>Metas e Comissões</h2>
+        <p>Parametrização, acompanhamento e controle automático</p>
+      </div>
+    </div>
+
+    <p>O módulo de Metas e Comissões automatiza o cálculo de comissões dos vendedores. A supervisora configura as regras, o sistema calcula automaticamente a cada venda.</p>
+
+    <h3>1 — Cadastrar Metas por Vendedor</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Metas e Comissões → Metas</strong></li>
+      <li>Clique em <strong>+ Nova Meta</strong></li>
+      <li>Selecione o vendedor, mês e ano</li>
+      <li>Escolha o tipo de meta (13 tipos disponíveis)</li>
+      <li>Defina o valor ou quantidade da meta</li>
+      <li>Configure os flags: conta para comissão, conta para ranking, exige recebimento para liberar</li>
+      <li>Salve — a barra de progresso aparece imediatamente no dashboard do vendedor</li>
+    </ol>
+
+    <h3>Tipos de Meta Disponíveis</h3>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0;">
+      <span class="badge badge-blue">Contratos fechados</span>
+      <span class="badge badge-blue">MRR novo</span>
+      <span class="badge badge-blue">Receita de instalação</span>
+      <span class="badge badge-green">Propostas enviadas</span>
+      <span class="badge badge-green">Apresentações realizadas</span>
+      <span class="badge badge-green">Leads trabalhados</span>
+      <span class="badge badge-purple">Serviços vendidos</span>
+      <span class="badge badge-purple">Indicações realizadas</span>
+      <span class="badge badge-purple">Indicações convertidas</span>
+      <span class="badge badge-yellow">Receita por indicações</span>
+      <span class="badge badge-gray">Meta personalizada</span>
+    </div>
+
+    <h3>2 — Configurar Regras de Comissão</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Metas e Comissões → Regras de Comissão</strong></li>
+      <li>Clique em <strong>+ Nova Regra</strong></li>
+      <li>Defina o tipo: Percentual, Valor fixo, Por faixa, Mista, Manual ou Sem comissão</li>
+      <li>Escolha a base de cálculo (mensalidade, instalação, serviço, indicação…)</li>
+      <li>Aplique a um vendedor específico ou a todos (global)</li>
+      <li>Defina condições: depende de recebimento? de contrato assinado? de implantação?</li>
+      <li>Salve e ative a regra</li>
+    </ol>
+
+    <div class="info-box">
+      <strong>Automação:</strong> Ao fechar uma venda, o sistema calcula automaticamente a comissão prevista e cria o registro com status "Prevista". Quando o recebimento for lançado como "Recebido", a comissão muda para "Liberada" automaticamente.
+    </div>
+
+    <h3>Acompanhar Comissões da Equipe</h3>
+    <p>Acesse <strong>Metas e Comissões → Dashboard Supervisor</strong> para ver os 14 KPIs gerenciais:</p>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Comissões previstas (mês)</div><div class="kpi-value">Total em R$</div></div>
+      <div class="kpi-card"><div class="kpi-label">Comissões liberadas</div><div class="kpi-value">Prontas para pagar</div></div>
+      <div class="kpi-card"><div class="kpi-label">Comissões pagas</div><div class="kpi-value">Mês atual</div></div>
+      <div class="kpi-card"><div class="kpi-label">Comissões bloqueadas</div><div class="kpi-value">Aguardando condição</div></div>
+      <div class="kpi-card"><div class="kpi-label">Receita total recebida</div><div class="kpi-value">Mês atual</div></div>
+      <div class="kpi-card"><div class="kpi-label">Metas 100% atingidas</div><div class="kpi-value">Qtd de metas batidas</div></div>
+    </div>
+
+    <h3>Parceiros e Indicações</h3>
+    <p>A supervisora cadastra e gerencia os <strong>parceiros</strong> (empresas para quem os vendedores indicam clientes). Acesse <strong>Metas e Comissões → Parceiros</strong>.</p>
+
+    <table>
+      <thead><tr><th>Ação</th><th>Como fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Cadastrar parceiro</td><td>Parceiros → + Novo Parceiro (nome, categoria, comissão padrão)</td></tr>
+        <tr><td>Ver indicações</td><td>Parceiros → selecione o parceiro → aba Indicações</td></tr>
+        <tr><td>Aprovar indicação convertida</td><td>Indicações → selecione → Confirmar Conversão → libera comissão</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Fechamento Mensal -->
+  <section class="section" id="fechamento">
+    <div class="section-header">
+      <div class="section-icon">💰</div>
+      <div>
+        <h2>Fechamento Mensal de Comissões</h2>
+        <p>Ciclo completo: abertura → aprovação → pagamento</p>
+      </div>
+    </div>
+
+    <p>O Fechamento Mensal formaliza o pagamento das comissões liberadas no mês. É feito uma vez por mês após a virada do período.</p>
+
+    <h3>Fluxo do Fechamento</h3>
+    <ol class="steps">
+      <li><strong>ABERTO:</strong> Criado automaticamente pelo sistema no início do mês para as comissões liberadas</li>
+      <li><strong>EM REVISÃO:</strong> Supervisora revisa a lista de comissões por vendedor</li>
+      <li><strong>APROVADO:</strong> Supervisora aprova o fechamento — nenhuma comissão nova pode ser adicionada</li>
+      <li><strong>PAGO:</strong> CEO/Admin marca como pago — todas as comissões do período mudam para "Paga"</li>
+    </ol>
+
+    <h3>Como Aprovar o Fechamento</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Metas e Comissões → Fechamento Mensal</strong></li>
+      <li>Selecione o mês a fechar</li>
+      <li>Clique em <strong>Ver Preview</strong> — lista todas as comissões por vendedor com total a pagar</li>
+      <li>Confira os valores</li>
+      <li>Clique em <strong>Aprovar Fechamento</strong></li>
+      <li>Confirme — o status muda para APROVADO e o CEO pode marcar como pago</li>
+    </ol>
+
+    <div class="warn-box">
+      <strong>Atenção:</strong> Após aprovar, não é possível adicionar comissões ao fechamento. Se houver uma comissão que ficou de fora, ela entrará no fechamento do próximo mês.
+    </div>
+
+    <h3>Relatórios de Comissões (XLSX)</h3>
+    <p>Em <strong>Fechamento → Exportar</strong> você gera 4 tipos de planilha Excel:</p>
+    <table>
+      <thead><tr><th>Relatório</th><th>Conteúdo</th></tr></thead>
+      <tbody>
+        <tr><td>Metas</td><td>Vendedor, tipo, meta, realizado, % atingido por período</td></tr>
+        <tr><td>Comissões</td><td>Data, vendedor, origem, regra, valor base, % e valor comissão, status</td></tr>
+        <tr><td>Recebimentos</td><td>Cliente, vendedor, tipo receita, vendido, recebido, saldo, comissão prevista/liberada</td></tr>
+        <tr><td>Indicações</td><td>Vendedor, cliente, parceiro, produto, valor, comissão, status</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Agenda da Equipe -->
+  <section class="section" id="agenda-equipe">
+    <div class="section-header">
+      <div class="section-icon">📅</div>
+      <div>
+        <h2>Agenda da Equipe</h2>
+        <p>Visão de todos os compromissos dos vendedores</p>
+      </div>
+    </div>
+
+    <p>Na página de Agenda, a supervisora vê os eventos de todos os vendedores. Use o filtro por vendedor para focar em um específico.</p>
+
+    <h3>Monitorar Reuniões Não Realizadas</h3>
+    <p>Eventos com status <span class="badge badge-red">Não compareceu</span> ficam destacados em vermelho. Eles aparecem no semáforo e no Dashboard como alertas. Use esse filtro para identificar leads que precisam de recontato urgente.</p>
+
+    <h3>Relatório de Agenda</h3>
+    <p>Em <strong>Agenda → Exportar Relatório</strong>, gere um XLSX com:</p>
+    <ul style="padding-left: 20px; font-size: 0.9rem;">
+      <li style="margin-bottom: 6px;"><strong>Aba Resumo:</strong> total de eventos, taxa de conclusão, eventos por vendedor</li>
+      <li style="margin-bottom: 6px;"><strong>Aba Detalhe:</strong> data, vendedor, lead, tipo evento, status, duração real</li>
+    </ul>
+  </section>
+
+  <!-- WhatsApp -->
+  <section class="section" id="whatsapp">
+    <div class="section-header">
+      <div class="section-icon">💬</div>
+      <div>
+        <h2>Conversas WhatsApp</h2>
+        <p>Monitorar e apoiar o atendimento da equipe</p>
+      </div>
+    </div>
+
+    <p>A supervisora tem acesso a todas as conversas de WhatsApp de todos os vendedores. Use a página <strong>/conversas</strong> para um painel consolidado.</p>
+
+    <h3>Visão Consolidada de Conversas</h3>
+    <p>A lista mostra todas as conversas ativas com:</p>
+    <ul style="padding-left: 20px; font-size: 0.9rem; margin-bottom: 12px;">
+      <li>Nome do lead + preview da última mensagem</li>
+      <li>Vendedor responsável</li>
+      <li>Data e hora da última mensagem</li>
+      <li>Badge de mensagens não lidas</li>
+    </ul>
+
+    <p>Use o <strong>filtro por vendedor</strong> para ver somente as conversas de um vendedor específico.</p>
+
+    <div class="info-box">
+      <strong>Intervenção:</strong> A supervisora pode responder qualquer conversa, inclusive de leads de outros vendedores. Use com cautela — qualquer resposta aparece na thread e no histórico do lead.
+    </div>
+  </section>
+
+  <!-- Contratos -->
+  <section class="section" id="contratos">
+    <div class="section-header">
+      <div class="section-icon">✅</div>
+      <div>
+        <h2>Contratos e Pós-Venda</h2>
+        <p>Acompanhamento de toda a base de clientes</p>
+      </div>
+    </div>
+
+    <p>A supervisora vê todos os contratos de todos os vendedores. Além de atualizar status individualmente, pode filtrar por vendedor, plano e período.</p>
+
+    <h3>KPIs de Contratos</h3>
+    <table>
+      <thead><tr><th>KPI</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td>MRR Total</td><td>Receita mensal recorrente de todos os contratos ativos</td></tr>
+        <tr><td>Receita de Instalação</td><td>Soma dos valores de instalação do período</td></tr>
+        <tr><td>Ticket Médio</td><td>MRR ÷ quantidade de contratos ativos</td></tr>
+        <tr><td>Qtd. Contratos</td><td>Total de contratos no período selecionado</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Atualizar Status em Lote</h3>
+    <p>Na lista de contratos, selecione múltiplos contratos com o checkbox e use <strong>Ação em Lote</strong> para atualizar o status de vários ao mesmo tempo (ex: marcar todos de um vendedor como "Contrato Assinado").</p>
+  </section>
+
+  <!-- Perdidos -->
+  <section class="section" id="perdidos">
+    <div class="section-header">
+      <div class="section-icon">❌</div>
+      <div>
+        <h2>Análise de Perdidos</h2>
+        <p>Entenda por que a equipe perde e corrija a rota</p>
+      </div>
+    </div>
+
+    <p>A análise de perdidos é uma ferramenta estratégica. A supervisora usa o <strong>Relatório de Perdas</strong> e o módulo de Perdidos para identificar padrões e ajustar a abordagem da equipe.</p>
+
+    <h3>Análise Visual de Perdas</h3>
+    <p>No módulo Perdidos, há um gráfico de barras com os motivos de perda mais frequentes e um ranking de concorrentes escolhidos. Use para embasar decisões como revisão de pricing ou treinamentos específicos.</p>
+
+    <h3>Reativar Lead Perdido</h3>
+    <ol class="steps">
+      <li>Localize o lead em <strong>Perdidos</strong></li>
+      <li>Clique em <strong>Reativar Lead</strong></li>
+      <li>Escolha a etapa do funil de retorno</li>
+      <li>Escreva a observação (ex: "Cliente retornou pedindo proposta atualizada")</li>
+      <li>Atribua ao vendedor (pode mudar de responsável neste momento)</li>
+      <li>Confirme</li>
+    </ol>
+  </section>
+
+  <!-- Churn -->
+  <section class="section" id="churn">
+    <div class="section-header">
+      <div class="section-icon">🔄</div>
+      <div>
+        <h2>Churn e Retenção</h2>
+        <p>Identificar, diagnosticar e recuperar clientes em risco</p>
+      </div>
+    </div>
+
+    <p>O módulo de Churn é voltado para clientes que já contrataram e estão em risco de cancelamento. A supervisora acompanha os casos abertos e coordena as ações de retenção.</p>
+
+    <h3>Dashboard de Retenção — KPIs</h3>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Clientes em risco</div><div class="kpi-value">Risk Score ≥ 60</div></div>
+      <div class="kpi-card"><div class="kpi-label">Clientes recuperados</div><div class="kpi-value">Reativados no mês</div></div>
+      <div class="kpi-card"><div class="kpi-label">Taxa de sucesso</div><div class="kpi-value">Retenções ÷ Casos × 100%</div></div>
+      <div class="kpi-card"><div class="kpi-label">MRR em risco</div><div class="kpi-value">Soma das mensalidades dos casos abertos</div></div>
+    </div>
+
+    <h3>Score de Risco (Risk Score)</h3>
+    <p>O sistema calcula automaticamente um score de 0 a 100 para cada caso. Quanto maior o número, maior o risco de cancelamento.</p>
+    <table>
+      <thead><tr><th>Faixa</th><th>Nível</th><th>Ação recomendada</th></tr></thead>
+      <tbody>
+        <tr><td>0 – 39</td><td>🟢 Baixo</td><td>Monitorar mensalmente</td></tr>
+        <tr><td>40 – 59</td><td>🟡 Médio</td><td>Contato proativo nos próximos 7 dias</td></tr>
+        <tr><td>60 – 79</td><td>🟠 Alto</td><td>Ação urgente — criar plano de retenção</td></tr>
+        <tr><td>80 – 100</td><td>🔴 Crítico</td><td>Escalação imediata — alerta automático enviado</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Alertas Automáticos</h3>
+    <p>O sistema envia alertas nos seguintes horários:</p>
+    <table>
+      <thead><tr><th>Horário</th><th>Alerta</th></tr></thead>
+      <tbody>
+        <tr><td>06:30</td><td>Clientes com risk score ≥ 80 (críticos do dia)</td></tr>
+        <tr><td>08:00</td><td>Casos com contato vencido (prazo de follow-up passou)</td></tr>
+        <tr><td>12:00</td><td>Ações de retenção com mais de 3 dias sem execução</td></tr>
+        <tr><td>18:00</td><td>Metas do plano de retenção com prazo vencendo</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Criar Plano de Retenção</h3>
+    <ol class="steps">
+      <li>Abra o caso de churn do cliente</li>
+      <li>Preencha o diagnóstico (motivo, grau de insatisfação, avaliação)</li>
+      <li>Clique em <strong>+ Plano de Retenção</strong></li>
+      <li>Escolha a estratégia (desconto, upgrade, treinamento, visita…)</li>
+      <li>Adicione as ações com responsável e prazo</li>
+      <li>Ative o plano — o status muda para "Em Execução"</li>
+      <li>Acompanhe cada ação na timeline do caso</li>
+    </ol>
+  </section>
+
+  <!-- Permissões -->
+  <section class="section" id="permissoes">
+    <div class="section-header">
+      <div class="section-icon">🔐</div>
+      <div>
+        <h2>Permissões por Perfil</h2>
+        <p>O que cada perfil pode fazer no CRM</p>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Módulo / Ação</th>
+          <th>Vendedor</th>
+          <th>Supervisora</th>
+          <th>CEO</th>
+          <th>Admin</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Ver todos os leads</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Editar lead de outro vendedor</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Transferir lead</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Exportar leads (CSV)</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Relatórios completos</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Configurar metas</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Ver comissões de todos</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Aprovar fechamento mensal</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Marcar fechamento como PAGO</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Ver BI Avançado</td><td>❌</td><td>Parcial</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Configurar webhook WhatsApp</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Gerenciar usuários</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+        <tr><td>Configurações do sistema</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+      </tbody>
+    </table>
+
+    <div class="warn-box">
+      <strong>Atenção:</strong> A supervisora não pode gerenciar usuários nem alterar configurações do sistema. Para criar/bloquear usuários, solicite ao administrador.
+    </div>
+  </section>
+
+  <hr />
+
+  <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--gray-200); text-align: center; color: var(--gray-500); font-size: 0.8rem;">
+    <p>CRM Comercial ProSystem — Manual da Supervisora v1.0 — Maio/2026</p>
+    <p>ProSystem Sistemas · Vitória/ES · (27) 3327-6739 · suporte@prosystemnet.com.br</p>
+  </div>
+
+</main>
+
+<script>
+  const sections = document.querySelectorAll('.section, .cover');
+  const links = document.querySelectorAll('.sidebar a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-10% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

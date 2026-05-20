@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual do Portal do Cliente — ProSystem</title>
+  <style>
+    :root {
+      --primary: #1a56db;
+      --primary-dark: #1e40af;
+      --primary-light: #dbeafe;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --sidebar-w: 280px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    #sidebar {
+      width: var(--sidebar-w);
+      background: #0c1f4a;
+      position: fixed; top: 0; left: 0; bottom: 0;
+      overflow-y: auto; z-index: 100;
+      display: flex; flex-direction: column;
+    }
+    .sidebar-header { padding: 28px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; }
+    .sidebar-icon { width: 40px; height: 40px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .sidebar-brand { color: white; }
+    .sidebar-brand strong { display: block; font-size: 15px; }
+    .sidebar-brand span { font-size: 11px; color: rgba(255,255,255,0.5); }
+    .sidebar-badge { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; background: rgba(26,86,219,0.2); border: 1px solid rgba(26,86,219,0.4); color: #93c5fd; font-size: 11px; padding: 4px 10px; border-radius: 20px; }
+    nav { flex: 1; padding: 16px 0; }
+    .nav-section { padding: 6px 20px 4px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
+    nav a { display: flex; align-items: center; gap: 10px; padding: 9px 20px; color: rgba(255,255,255,0.65); text-decoration: none; font-size: 13.5px; transition: all 0.15s; border-left: 3px solid transparent; }
+    nav a:hover { color: white; background: rgba(255,255,255,0.06); }
+    nav a.active { color: #93c5fd; background: rgba(26,86,219,0.12); border-left-color: var(--primary); }
+    nav a .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: rgba(255,255,255,0.3); }
+
+    main { margin-left: var(--sidebar-w); flex: 1; }
+
+    .page-header { background: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #60a5fa 120%); padding: 48px 48px 40px; color: white; }
+    .header-tag { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.25); border-radius: 20px; padding: 4px 14px; font-size: 12px; margin-bottom: 16px; }
+    .page-header h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+    .page-header p { font-size: 16px; opacity: 0.85; max-width: 600px; }
+    .header-chips { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .chip { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 5px 14px; font-size: 12px; }
+
+    .content { padding: 40px 48px; max-width: 960px; }
+
+    section { margin-bottom: 56px; scroll-margin-top: 24px; }
+    h2 { font-size: 22px; font-weight: 700; color: var(--text); padding-bottom: 10px; border-bottom: 2px solid var(--primary-light); margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+    h2 .sec-icon { width: 36px; height: 36px; background: var(--primary-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 24px 0 12px; }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+    .kpi-icon { font-size: 28px; margin-bottom: 8px; }
+    .kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .kpi-value { font-size: 20px; font-weight: 700; color: var(--primary); }
+
+    .steps { list-style: none; }
+    .steps li { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .steps li:last-child { border-bottom: none; }
+    .step-num { width: 32px; height: 32px; min-width: 32px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+    .step-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .step-body p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0; }
+    .flow-item { background: var(--primary-light); border: 1.5px solid var(--primary); color: var(--primary-dark); border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; }
+    .flow-item.green { background: #dcfce7; border-color: #16a34a; color: #166534; }
+    .flow-item.red { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+    .flow-item.gray { background: #f1f5f9; border-color: #cbd5e1; color: var(--muted); }
+    .flow-arrow { color: var(--muted); font-size: 18px; }
+
+    .alert { border-radius: 10px; padding: 14px 18px; margin: 16px 0; display: flex; align-items: flex-start; gap: 12px; font-size: 13.5px; line-height: 1.6; }
+    .alert-icon { font-size: 18px; }
+    .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+    .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 16px 0; }
+    th { background: #f1f5f9; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: #fafafa; }
+
+    .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-yellow { background: #fef9c3; color: #854d0e; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+
+    .screen-mock { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; font-size: 13px; }
+    .screen-header { background: var(--primary); color: white; border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+
+    .divider { height: 1px; background: var(--border); margin: 32px 0; }
+
+    .print-btn { position: fixed; bottom: 28px; right: 28px; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 12px 22px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 20px rgba(26,86,219,0.4); z-index: 200; display: flex; align-items: center; gap: 8px; }
+    .print-btn:hover { background: var(--primary-dark); }
+
+    @media print { #sidebar, .print-btn { display: none !important; } main { margin-left: 0 !important; } }
+    @media (max-width: 800px) { #sidebar { display: none; } main { margin-left: 0; } .content { padding: 24px 20px; } .page-header { padding: 32px 20px; } }
+  </style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-icon">🌐</div>
+      <div class="sidebar-brand">
+        <strong>Portal do Cliente</strong>
+        <span>ProSystem Sistemas</span>
+      </div>
+    </div>
+    <div class="sidebar-badge">📖 Manual do Cliente</div>
+  </div>
+  <nav>
+    <div class="nav-section">Primeiros Passos</div>
+    <a href="#o-que-e" class="active"><span class="nav-icon">🌐</span> O que é o Portal</a>
+    <a href="#como-acessar"><span class="nav-icon">🔑</span> Como Acessar</a>
+    <a href="#primeiro-acesso"><span class="nav-icon">🔐</span> Primeiro Acesso</a>
+    <a href="#dashboard"><span class="nav-icon">🏠</span> Painel Inicial</a>
+
+    <div class="nav-section">Funcionalidades</div>
+    <a href="#propostas"><span class="nav-icon">📄</span> Propostas</a>
+    <a href="#aprovar-recusar"><span class="nav-icon">✅</span> Aprovar ou Recusar</a>
+    <a href="#contratos"><span class="nav-icon">📋</span> Contratos</a>
+    <a href="#servicos"><span class="nav-icon">🔧</span> Serviços</a>
+    <a href="#historico"><span class="nav-icon">📅</span> Histórico</a>
+
+    <div class="nav-section">Suporte</div>
+    <a href="#senha"><span class="nav-icon">🔒</span> Alterar Senha</a>
+    <a href="#duvidas"><span class="nav-icon">❓</span> Dúvidas Frequentes</a>
+  </nav>
+  <div class="sidebar-footer">ProSystem Sistemas · v1.0 · 2026</div>
+</aside>
+
+<main>
+  <div class="page-header">
+    <div class="header-tag">🌐 Sprint 32 · Portal do Cliente</div>
+    <h1>Portal do Cliente ProSystem</h1>
+    <p>Consulte suas propostas, contratos e serviços a qualquer hora, de qualquer lugar — sem precisar ligar para o seu vendedor.</p>
+    <div class="header-chips">
+      <span class="chip">📄 Propostas</span>
+      <span class="chip">✅ Aprovação online</span>
+      <span class="chip">📋 Contratos</span>
+      <span class="chip">🔧 Serviços</span>
+      <span class="chip">🔒 Acesso seguro</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <section id="o-que-e">
+      <h2><div class="sec-icon">🌐</div> O que é o Portal do Cliente?</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:20px;">O Portal do Cliente ProSystem é uma área exclusiva onde você pode acompanhar sua relação comercial com a ProSystem. Tudo que acontece entre você e seu vendedor fica registrado e acessível aqui.</p>
+      <div class="card-grid">
+        <div class="kpi-card"><div class="kpi-icon">📄</div><div class="kpi-label">Ver e baixar</div><div class="kpi-value">Propostas</div></div>
+        <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-label">Aprovar ou recusar</div><div class="kpi-value">Online</div></div>
+        <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">Acompanhar</div><div class="kpi-value">Contratos</div></div>
+        <div class="kpi-card"><div class="kpi-icon">🔧</div><div class="kpi-label">Consultar</div><div class="kpi-value">Serviços</div></div>
+      </div>
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <div><strong>Importante:</strong> O portal é somente para consulta e aprovação de propostas. Pagamentos e assinaturas formais são tratados diretamente com seu vendedor ProSystem.</div>
+      </div>
+    </section>
+
+    <section id="como-acessar">
+      <h2><div class="sec-icon">🔑</div> Como Acessar</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:16px;">Você receberá um e-mail do seu vendedor ProSystem com as instruções de acesso. Guarde esse e-mail — ele contém seu link, usuário e senha temporária.</p>
+
+      <h3>Passo a passo do primeiro acesso</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Verifique seu e-mail</h4>
+            <p>Procure um e-mail de <strong>noreply@prosystem.com.br</strong> com o assunto "Seu acesso ao Portal ProSystem". Verifique também a pasta de spam/lixo eletrônico.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Clique no link do portal</h4>
+            <p>O e-mail contém um botão ou link direto para o portal. Clique nele — o portal abrirá no seu navegador (Chrome, Firefox, Edge ou Safari).</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Digite seu e-mail e senha temporária</h4>
+            <p>Use o e-mail e a senha que estão no e-mail de convite. A senha temporária é uma combinação de 8 letras e números (ex.: <code>xK3mP9qA</code>).</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Crie sua senha definitiva</h4>
+            <p>No primeiro acesso, você será redirecionado para criar uma senha própria. A senha deve ter no mínimo 8 caracteres.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Pronto — você está no portal!</h4>
+            <p>O painel inicial mostra um resumo das suas propostas, contratos e histórico.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Não recebeu o e-mail?</strong> Verifique a pasta de spam. Se ainda assim não encontrar, entre em contato com seu vendedor ProSystem para reenvio do convite.</div>
+      </div>
+
+      <h3>Endereço do portal</h3>
+      <div class="card">
+        <p style="font-size:14px;color:var(--muted);">Acesse sempre pelo link oficial:</p>
+        <p style="font-size:18px;font-weight:700;color:var(--primary);margin-top:6px;">https://crm.prosystem.com.br/portal</p>
+        <p style="font-size:12px;color:var(--muted);margin-top:4px;">Salve este endereço nos favoritos do seu navegador para acesso rápido.</p>
+      </div>
+    </section>
+
+    <section id="primeiro-acesso">
+      <h2><div class="sec-icon">🔐</div> Criando sua Senha</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:16px;">No primeiro acesso com a senha temporária, o portal redireciona automaticamente para a tela de criação de senha.</p>
+
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Tela "Criar nova senha"</h4>
+            <p>Você verá um formulário com dois campos: "Nova senha" e "Confirmar senha".</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Escolha uma senha segura</h4>
+            <p>Use no mínimo 8 caracteres. Recomendamos combinar letras maiúsculas, minúsculas, números e símbolos (ex.: <code>Prosys@2026</code>).</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Digite novamente para confirmar</h4>
+            <p>Os dois campos devem ser idênticos.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Clique em "Salvar"</h4>
+            <p>Você será redirecionado automaticamente para o painel inicial do portal.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <div>Após criar sua senha, guarde-a em local seguro. Não compartilhe com ninguém — o acesso ao portal é pessoal e exclusivo para sua empresa.</div>
+      </div>
+    </section>
+
+    <section id="dashboard">
+      <h2><div class="sec-icon">🏠</div> Painel Inicial</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:20px;">Após o login, você vê o painel principal com um resumo da sua situação comercial com a ProSystem.</p>
+
+      <div class="screen-mock">
+        <div class="screen-header">
+          <span>🌐 ProSystem — Área do Cliente</span>
+          <span>João Silva | TechCorp</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">
+          <div style="background:white;border:1px solid #fde68a;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#d97706;">1</div>
+            <div style="font-size:11px;color:#92400e;">Proposta Pendente</div>
+          </div>
+          <div style="background:white;border:1px solid #bbf7d0;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#16a34a;">2</div>
+            <div style="font-size:11px;color:#166534;">Contratos Ativos</div>
+          </div>
+          <div style="background:white;border:1px solid #bfdbfe;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:13px;font-weight:700;color:#1e40af;">Histórico</div>
+            <div style="font-size:11px;color:#1d4ed8;">de comunicações</div>
+          </div>
+        </div>
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;">📄 Proposta recente</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:12px;">Proposta #2024-047 · R$ 4.500,00</div>
+            <span class="status-badge badge-yellow">⏳ Pendente</span>
+          </div>
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>Card</th><th>O que mostra</th><th>Ao clicar</th></tr></thead>
+        <tbody>
+          <tr><td>⏳ <strong>Propostas Pendentes</strong></td><td>Quantas propostas aguardam sua resposta</td><td>Vai para a lista de propostas</td></tr>
+          <tr><td>✅ <strong>Contratos Ativos</strong></td><td>Quantidade de contratos em vigor</td><td>Vai para a lista de contratos</td></tr>
+          <tr><td>📅 <strong>Histórico</strong></td><td>Atalho para a timeline de comunicações</td><td>Vai para o histórico</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Dados do seu Vendedor</h3>
+      <p style="color:var(--muted);font-size:13.5px;line-height:1.6;">No rodapé do painel inicial você encontra o nome, e-mail e telefone do seu vendedor ProSystem responsável. Em caso de dúvidas, entre em contato diretamente com ele.</p>
+    </section>
+
+    <section id="propostas">
+      <h2><div class="sec-icon">📄</div> Propostas Comerciais</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:20px;">Na seção <strong>Propostas</strong> você encontra todas as propostas enviadas pela ProSystem para a sua empresa, com status, valores e possibilidade de download do PDF.</p>
+
+      <h3>Status das propostas</h3>
+      <table>
+        <thead><tr><th>Status</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status-badge badge-yellow">⏳ Aguardando aprovação</span></td><td>A proposta foi enviada e está aguardando sua resposta</td></tr>
+          <tr><td><span class="status-badge badge-green">✅ Aprovada</span></td><td>Você aprovou esta proposta</td></tr>
+          <tr><td><span class="status-badge badge-red">❌ Recusada</span></td><td>Você recusou esta proposta</td></tr>
+          <tr><td><span class="status-badge badge-blue">🔵 Em negociação</span></td><td>Em ajuste com seu vendedor — aguarde nova versão</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Ver detalhes de uma proposta</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Clique em "Propostas" no menu lateral</h4>
+            <p>Você verá a lista de todas as propostas, da mais recente para a mais antiga.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Clique em "Ver detalhes →" na proposta desejada</h4>
+            <p>Abre a tela de detalhe com: título, valor total, data de validade, itens discriminados e histórico de versões.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Baixe o PDF (opcional)</h4>
+            <p>Clique em "📥 Baixar PDF da Proposta" para salvar ou imprimir o documento completo.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <div><strong>Versões da proposta:</strong> Quando seu vendedor ajusta e reenvia uma proposta, ela recebe uma nova versão (v1, v2...). Você sempre vê a versão atual, com o histórico de versões anteriores listado abaixo.</div>
+      </div>
+    </section>
+
+    <section id="aprovar-recusar">
+      <h2><div class="sec-icon">✅</div> Aprovar ou Recusar uma Proposta</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:20px;">Você pode responder propostas com status <strong>"⏳ Aguardando aprovação"</strong> diretamente pelo portal, sem precisar responder e-mail ou ir até a ProSystem.</p>
+
+      <h3>Fluxo de aprovação</h3>
+      <div class="flow">
+        <div class="flow-item">Abrir proposta</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Clicar "✅ Aprovar"</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Ler confirmação</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item green">Confirmar Aprovação</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item green">Vendedor notificado ✅</div>
+      </div>
+
+      <h3>Como aprovar</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Abra a proposta pendente</h4>
+            <p>Clique em "Ver detalhes" em qualquer proposta com status ⏳ Aguardando aprovação.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Leia os detalhes e clique em "✅ Aprovar Proposta"</h4>
+            <p>O botão verde aparece no final da página de detalhes.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Leia a mensagem de confirmação</h4>
+            <p>O portal exibe: <em>"Ao aprovar, você confirma o interesse nos termos da proposta. Isso não é um contrato assinado — seu vendedor entrará em contato para formalizar."</em></p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Clique em "Confirmar Aprovação"</h4>
+            <p>A proposta muda para status ✅ Aprovada. Seu vendedor é notificado automaticamente e entrará em contato para os próximos passos.</p>
+          </div>
+        </li>
+      </ol>
+
+      <h3>Como recusar</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Clique em "❌ Recusar Proposta"</h4>
+            <p>O botão vermelho aparece ao lado do botão de aprovação.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Informe o motivo (opcional)</h4>
+            <p>Você pode escrever o motivo da recusa para que seu vendedor entenda e possa fazer um ajuste. Ex.: "O valor ficou acima do nosso orçamento para este trimestre."</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Confirme a recusa</h4>
+            <p>A proposta muda para ❌ Recusada. Seu vendedor é notificado e pode enviar uma versão revisada.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Atenção:</strong> A aprovação no portal <strong>não substitui a assinatura de contrato</strong>. Ela indica o seu interesse comercial. Seu vendedor entrará em contato para formalizar o acordo com os documentos necessários.</div>
+      </div>
+    </section>
+
+    <section id="contratos">
+      <h2><div class="sec-icon">📋</div> Contratos</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:20px;">Na seção <strong>Contratos</strong> você consulta todos os contratos formalizados entre sua empresa e a ProSystem.</p>
+
+      <h3>O que você encontra em cada contrato</h3>
+      <table>
+        <thead><tr><th>Informação</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>📅 Vigência</td><td>Data de início e data de término do contrato</td></tr>
+          <tr><td>💰 Valor</td><td>Valor mensal ou total contratado</td></tr>
+          <tr><td>🔄 Modalidade</td><td>Mensal, trimestral ou anual</td></tr>
+          <tr><td>🔧 Serviços</td><td>Lista de serviços incluídos no contrato</td></tr>
+          <tr><td>📄 Status</td><td>Ativo (em vigor) ou Encerrado</td></tr>
+          <tr><td>📥 PDF</td><td>Download do contrato assinado (quando disponível)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <div>Contratos encerrados também ficam disponíveis para consulta e download. O histórico é mantido indefinidamente.</div>
+      </div>
+    </section>
+
+    <section id="servicos">
+      <h2><div class="sec-icon">🔧</div> Serviços Contratados</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:20px;">Na seção <strong>Serviços</strong> você acompanha cada serviço contratado individualmente, com seu status e próxima renovação.</p>
+
+      <table>
+        <thead><tr><th>Status do Serviço</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status-badge badge-green">🟢 Ativo</span></td><td>Serviço em funcionamento normal</td></tr>
+          <tr><td><span class="status-badge badge-yellow">🟡 Suspenso</span></td><td>Temporariamente pausado — entre em contato com seu vendedor</td></tr>
+          <tr><td><span class="status-badge badge-red">❌ Cancelado</span></td><td>Serviço encerrado</td></tr>
+        </tbody>
+      </table>
+
+      <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin-top:16px;">Para cada serviço você também vê: nome, valor mensal, data de início e data da próxima renovação.</p>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div>Se algum serviço aparecer como "Suspenso" de forma inesperada, entre em contato com seu vendedor ProSystem imediatamente.</div>
+      </div>
+    </section>
+
+    <section id="historico">
+      <h2><div class="sec-icon">📅</div> Histórico de Comunicações</h2>
+      <p style="color:var(--muted);line-height:1.7;margin-bottom:20px;">A seção <strong>Histórico</strong> mostra uma linha do tempo com os principais eventos da sua relação comercial com a ProSystem.</p>
+
+      <h3>O que aparece no histórico</h3>
+      <table>
+        <thead><tr><th>Evento</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>📄 Proposta enviada</td><td>Seu vendedor enviou uma nova proposta</td></tr>
+          <tr><td>✅ Proposta aprovada</td><td>Você aprovou uma proposta pelo portal</td></tr>
+          <tr><td>💬 Retorno por WhatsApp</td><td>Seu vendedor registrou uma resposta via WhatsApp</td></tr>
+          <tr><td>📋 Contrato criado</td><td>Um novo contrato foi formalizado</td></tr>
+        </tbody>
+      </table>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <div>O histórico mostra apenas eventos relevantes para você. Registros internos de gestão comercial não são exibidos — apenas as comunicações diretas com sua empresa.</div>
+      </div>
+    </section>
+
+    <section id="senha">
+      <h2><div class="sec-icon">🔒</div> Alterar Senha</h2>
+
+      <h3>Como alterar sua senha</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Clique no seu nome no canto superior direito</h4>
+            <p>Um menu dropdown abre com opções de perfil.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Selecione "Alterar Senha"</h4>
+            <p>A tela de alteração de senha abre.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Digite a senha atual e a nova senha</h4>
+            <p>A nova senha deve ter no mínimo 8 caracteres.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Clique em "Salvar"</h4>
+            <p>Sua senha é atualizada imediatamente. Na próxima vez, use a nova senha para entrar.</p>
+          </div>
+        </li>
+      </ol>
+
+      <h3>Esqueci minha senha</h3>
+      <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin-bottom:12px;">O portal não tem opção de "esqueci minha senha" automática por e-mail. Se esquecer a senha, entre em contato com seu vendedor ProSystem para solicitar o reenvio do convite com uma nova senha temporária.</p>
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div>Sua conta é bloqueada temporariamente (15 minutos) após 5 tentativas de login incorretas. Isso é uma medida de segurança.</div>
+      </div>
+    </section>
+
+    <section id="duvidas">
+      <h2><div class="sec-icon">❓</div> Dúvidas Frequentes</h2>
+
+      <div class="card">
+        <h3 style="margin-top:0;">🤔 Não consigo acessar o portal. O que fazer?</h3>
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin-top:8px;">Verifique: (1) você está usando o endereço correto <code>crm.prosystem.com.br/portal</code>; (2) o e-mail é o mesmo que recebeu o convite; (3) sua conta pode estar bloqueada por excesso de tentativas — aguarde 15 minutos. Se o problema persistir, contate seu vendedor.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">📄 Posso assinar o contrato pelo portal?</h3>
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin-top:8px;">Não. O portal permite <strong>aprovar propostas</strong> (indicando interesse comercial), mas a assinatura formal do contrato é feita por outros meios (contrato físico, DocuSign, etc.) conforme combinado com seu vendedor.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">🔐 Meu acesso é compartilhado com outros da minha empresa?</h3>
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin-top:8px;">O acesso é pessoal e vinculado ao e-mail cadastrado. Se outra pessoa da sua empresa também precisar acessar, solicite ao seu vendedor a criação de um acesso adicional.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">📥 Onde encontro os PDFs das propostas antigas?</h3>
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin-top:8px;">Todas as propostas ficam disponíveis na seção "Propostas", independentemente do status. Clique em qualquer proposta antiga e use o botão "📥 Baixar PDF".</p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">💬 Tenho uma dúvida que não está aqui. Como falo com a ProSystem?</h3>
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin-top:8px;">Os dados do seu vendedor responsável estão no painel inicial do portal (nome, e-mail e telefone). Entre em contato diretamente com ele para qualquer dúvida comercial.</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<button class="print-btn" onclick="window.print()">🖨️ Imprimir / Exportar PDF</button>
+
+<script>
+  const anchors = document.querySelectorAll('section[id]')
+  const links = document.querySelectorAll('nav a')
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'))
+        const active = document.querySelector(`nav a[href="#${entry.target.id}"]`)
+        if (active) active.classList.add('active')
+      }
+    })
+  }, { rootMargin: '-10% 0px -80% 0px' })
+  anchors.forEach(a => observer.observe(a))
+  document.querySelectorAll('nav a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault()
+      document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' })
+    })
+  })
+</script>
+</body>
+</html>

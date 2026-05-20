@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual do App Mobile — CRM Comercial ProSystem</title>
+  <style>
+    :root {
+      --primary: #16a34a;
+      --primary-dark: #15803d;
+      --primary-light: #dcfce7;
+      --accent: #1a56db;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --sidebar-w: 280px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    #sidebar {
+      width: var(--sidebar-w);
+      background: #0f2d1a;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-header {
+      padding: 28px 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-icon {
+      width: 40px; height: 40px;
+      background: var(--primary);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .sidebar-brand { color: white; }
+    .sidebar-brand strong { display: block; font-size: 15px; }
+    .sidebar-brand span { font-size: 11px; color: rgba(255,255,255,0.5); }
+    .sidebar-badge {
+      margin-top: 12px;
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(22,163,74,0.2);
+      border: 1px solid rgba(22,163,74,0.4);
+      color: #4ade80;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    nav { flex: 1; padding: 16px 0; }
+    .nav-section { padding: 6px 20px 4px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
+    nav a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 20px;
+      color: rgba(255,255,255,0.65);
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    nav a:hover { color: white; background: rgba(255,255,255,0.06); }
+    nav a.active { color: #4ade80; background: rgba(22,163,74,0.12); border-left-color: #16a34a; }
+    nav a .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px; color: rgba(255,255,255,0.3);
+    }
+
+    /* MAIN */
+    main { margin-left: var(--sidebar-w); flex: 1; }
+
+    .page-header {
+      background: linear-gradient(135deg, #166534 0%, #16a34a 60%, #4ade80 120%);
+      padding: 48px 48px 40px;
+      color: white;
+    }
+    .header-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+    .page-header h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+    .page-header p { font-size: 16px; opacity: 0.85; max-width: 600px; }
+    .header-chips { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .chip {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+    }
+
+    .content { padding: 40px 48px; max-width: 960px; }
+
+    /* SECTIONS */
+    section { margin-bottom: 56px; scroll-margin-top: 24px; }
+    h2 {
+      font-size: 22px; font-weight: 700;
+      color: var(--text);
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--primary-light);
+      margin-bottom: 24px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    h2 .sec-icon {
+      width: 36px; height: 36px;
+      background: var(--primary-light);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 24px 0 12px; }
+
+    /* CARDS */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .kpi-icon { font-size: 28px; margin-bottom: 8px; }
+    .kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .kpi-value { font-size: 20px; font-weight: 700; color: var(--primary); }
+
+    /* STEPS */
+    .steps { list-style: none; }
+    .steps li {
+      display: flex; gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .step-num {
+      width: 32px; height: 32px; min-width: 32px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px;
+    }
+    .step-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .step-body p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* FLOW */
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0;
+    }
+    .flow-item {
+      background: var(--primary-light);
+      border: 1.5px solid var(--primary);
+      color: var(--primary-dark);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .flow-item.gray {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: var(--muted);
+    }
+    .flow-item.blue {
+      background: #dbeafe;
+      border-color: #3b82f6;
+      color: #1d4ed8;
+    }
+    .flow-item.orange {
+      background: #fff7ed;
+      border-color: #f97316;
+      color: #c2410c;
+    }
+    .flow-arrow { color: var(--muted); font-size: 18px; }
+
+    /* SCREEN MOCK */
+    .phone-mock {
+      display: inline-block;
+      background: #1e293b;
+      border-radius: 36px;
+      padding: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin: 8px;
+    }
+    .phone-screen {
+      width: 240px;
+      background: #f8fafc;
+      border-radius: 26px;
+      overflow: hidden;
+      font-size: 11px;
+    }
+    .phone-status {
+      background: var(--primary);
+      color: white;
+      padding: 10px 14px 8px;
+      font-size: 10px;
+      display: flex; justify-content: space-between;
+    }
+    .phone-content { padding: 12px; }
+    .phone-tab-bar {
+      background: white;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      padding: 8px 0 4px;
+    }
+    .phone-tab { flex: 1; text-align: center; font-size: 9px; color: var(--muted); }
+    .phone-tab.active { color: var(--primary); }
+    .phone-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+    }
+    .phone-card .name { font-weight: 700; font-size: 11px; }
+    .phone-card .sub { color: var(--muted); font-size: 9px; }
+    .phone-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 8px;
+      font-weight: 600;
+    }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-orange { background: #fff7ed; color: #c2410c; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .phones-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 24px 0; }
+
+    /* ALERTS */
+    .alert {
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      display: flex; align-items: flex-start; gap: 12px;
+      font-size: 13.5px; line-height: 1.6;
+    }
+    .alert-icon { font-size: 18px; }
+    .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+    .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+    /* TABLE */
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 16px 0; }
+    th { background: #f1f5f9; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: #fafafa; }
+
+    /* CODE */
+    code {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: var(--primary-dark);
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 20px;
+      font-size: 12.5px;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin: 16px 0;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .kw { color: #7dd3fc; }
+    .str { color: #86efac; }
+    .cm { color: #64748b; font-style: italic; }
+    .fn { color: #fbbf24; }
+
+    /* CHECKLIST */
+    .checklist { list-style: none; }
+    .checklist li {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 13.5px;
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .check { color: var(--primary); font-size: 16px; }
+
+    /* PRINT BUTTON */
+    .print-btn {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--primary); color: white;
+      border: none; border-radius: 12px;
+      padding: 12px 22px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(22,163,74,0.4);
+      z-index: 200;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .print-btn:hover { background: var(--primary-dark); }
+
+    /* DIVIDER */
+    .divider { height: 1px; background: var(--border); margin: 32px 0; }
+
+    @media print {
+      #sidebar, .print-btn { display: none !important; }
+      main { margin-left: 0 !important; }
+      .page-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    @media (max-width: 800px) {
+      #sidebar { display: none; }
+      main { margin-left: 0; }
+      .content { padding: 24px 20px; }
+      .page-header { padding: 32px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-icon">📱</div>
+      <div class="sidebar-brand">
+        <strong>App Mobile</strong>
+        <span>CRM Comercial ProSystem</span>
+      </div>
+    </div>
+    <div class="sidebar-badge">📖 Manual Completo</div>
+  </div>
+
+  <nav>
+    <div class="nav-section">Instalação</div>
+    <a href="#visao-geral" class="active"><span class="nav-icon">🗺️</span> Visão Geral</a>
+    <a href="#instalacao"><span class="nav-icon">⬇️</span> Instalação</a>
+    <a href="#primeiro-acesso"><span class="nav-icon">🔑</span> Primeiro Acesso</a>
+    <a href="#biometria"><span class="nav-icon">👆</span> Biometria</a>
+    <a href="#notificacoes"><span class="nav-icon">🔔</span> Notificações Push</a>
+
+    <div class="nav-section">Utilização</div>
+    <a href="#dashboard"><span class="nav-icon">🏠</span> Home / Dashboard</a>
+    <a href="#leads"><span class="nav-icon">👥</span> Leads</a>
+    <a href="#funil"><span class="nav-icon">📊</span> Funil</a>
+    <a href="#atividades"><span class="nav-icon">✅</span> Atividades</a>
+    <a href="#agenda"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="#whatsapp"><span class="nav-icon">💬</span> WhatsApp</a>
+    <a href="#perfis"><span class="nav-icon">👤</span> Perfis de Acesso</a>
+
+    <div class="nav-section">Configuração Técnica</div>
+    <a href="#config-backend"><span class="nav-icon">⚙️</span> Backend — Push API</a>
+    <a href="#config-expo"><span class="nav-icon">🛠️</span> Configuração Expo</a>
+    <a href="#variaveis"><span class="nav-icon">🔧</span> Variáveis de Ambiente</a>
+    <a href="#build"><span class="nav-icon">🏗️</span> Build e Deploy</a>
+    <a href="#troubleshooting"><span class="nav-icon">🔍</span> Troubleshooting</a>
+  </nav>
+
+  <div class="sidebar-footer">
+    ProSystem Sistemas · v1.0 · 2026
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main>
+  <div class="page-header">
+    <div class="header-tag">📱 Sprint 31 · App Mobile</div>
+    <h1>Manual do App Mobile</h1>
+    <p>Guia completo de instalação, configuração e utilização do CRM Comercial ProSystem para iOS e Android.</p>
+    <div class="header-chips">
+      <span class="chip">📱 iOS &amp; Android</span>
+      <span class="chip">⚡ React Native + Expo</span>
+      <span class="chip">🔔 Push Notifications</span>
+      <span class="chip">👆 Biometria</span>
+      <span class="chip">💬 WhatsApp</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- VISÃO GERAL -->
+    <section id="visao-geral">
+      <h2><div class="sec-icon">🗺️</div> Visão Geral do App</h2>
+
+      <p style="color:var(--muted); line-height:1.7; margin-bottom:20px;">
+        O App Mobile do CRM Comercial ProSystem permite que vendedores e gestores acessem os dados comerciais em qualquer lugar — durante visitas, ligações externas ou reuniões. O app é sincronizado em tempo real com a versão web.
+      </p>
+
+      <div class="card-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon">📋</div>
+          <div class="kpi-label">Telas disponíveis</div>
+          <div class="kpi-value">8 telas</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📱</div>
+          <div class="kpi-label">Plataformas</div>
+          <div class="kpi-value">iOS + Android</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🔔</div>
+          <div class="kpi-label">Push Notifications</div>
+          <div class="kpi-value">3 eventos</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">⚡</div>
+          <div class="kpi-label">Sincronização</div>
+          <div class="kpi-value">Tempo real</div>
+        </div>
+      </div>
+
+      <h3>O que está disponível no app</h3>
+      <table>
+        <thead><tr><th>Funcionalidade</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>🏠 Home / Dashboard</td><td>Resumo do dia: leads ativos, atividades, próximo evento, WA não lidas</td></tr>
+          <tr><td>👥 Leads</td><td>Lista, busca, filtro por etapa, ficha completa do lead</td></tr>
+          <tr><td>📊 Funil</td><td>Visualização kanban simplificada com movimentação de etapas</td></tr>
+          <tr><td>✅ Atividades</td><td>Registrar ligação, visita ou e-mail diretamente na ficha do lead</td></tr>
+          <tr><td>📅 Agenda</td><td>Eventos do dia, criação rápida de reunião</td></tr>
+          <tr><td>💬 WhatsApp</td><td>Ver e responder conversas dos leads</td></tr>
+          <tr><td>🔔 Push Notifications</td><td>Alertas de atividades vencidas, eventos próximos e novas mensagens WA</td></tr>
+          <tr><td>👆 Biometria</td><td>Login rápido com Face ID ou Touch ID</td></tr>
+        </tbody>
+      </table>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <div>O app sincroniza com a mesma API do sistema web. Qualquer ação feita no celular aparece imediatamente no computador — e vice-versa.</div>
+      </div>
+    </section>
+
+    <!-- INSTALAÇÃO -->
+    <section id="instalacao">
+      <h2><div class="sec-icon">⬇️</div> Instalação</h2>
+
+      <h3>iOS — App Store</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Abra a App Store</h4>
+            <p>No iPhone ou iPad, toque no ícone da App Store (fundo azul com ícone "A").</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Busque "CRM ProSystem"</h4>
+            <p>Na barra de busca inferior, digite <strong>CRM ProSystem</strong> e toque em "Pesquisar".</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Toque em "Obter"</h4>
+            <p>Localize o app com o ícone verde da ProSystem e toque em "Obter". Confirme com Face ID, Touch ID ou senha do Apple ID.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Aguarde a instalação</h4>
+            <p>O app será baixado automaticamente. Aguarde o botão mudar de "Obter" para "Abrir".</p>
+          </div>
+        </li>
+      </ol>
+
+      <h3>Android — Google Play Store</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Abra a Play Store</h4>
+            <p>No celular ou tablet Android, toque no ícone da Google Play Store (triângulo colorido).</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Busque "CRM ProSystem"</h4>
+            <p>Toque na barra de busca no topo e digite <strong>CRM ProSystem</strong>.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Toque em "Instalar"</h4>
+            <p>Localize o app com o ícone verde e toque em "Instalar". O download inicia automaticamente.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Abra o app</h4>
+            <p>Após a instalação, toque em "Abrir" ou localize o ícone na tela inicial do celular.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Requisitos mínimos:</strong> iOS 15+ (iPhone 8 ou superior) · Android 10+ (API level 29+) · Conexão com internet (Wi-Fi ou 4G/5G)</div>
+      </div>
+    </section>
+
+    <!-- PRIMEIRO ACESSO -->
+    <section id="primeiro-acesso">
+      <h2><div class="sec-icon">🔑</div> Primeiro Acesso</h2>
+
+      <h3>Fluxo de login inicial</h3>
+      <div class="flow">
+        <div class="flow-item">Abrir o App</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Tela de Login</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Digitar E-mail e Senha</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Tocar "Entrar"</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item blue">Permissão de Notificações</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item blue">Ativar Biometria?</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Home / Dashboard</div>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Abra o app e aguarde a tela de login</h4>
+            <p>O app carrega automaticamente a tela de login com o logo ProSystem.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Digite seu e-mail e senha</h4>
+            <p>Use as mesmas credenciais que você usa no sistema web. O campo de senha tem o ícone 👁️ para revelar o texto.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Toque em "Entrar"</h4>
+            <p>O app valida suas credenciais com o servidor. Se a senha estiver errada, uma mensagem de erro aparece em vermelho.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Autorize as notificações push</h4>
+            <p>Uma janela de permissão aparecerá: <strong>toque em "Permitir"</strong> para receber alertas de atividades, eventos e WhatsApp. Esta autorização é essencial para o funcionamento correto do app.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Ative a biometria (opcional)</h4>
+            <p>Na primeira vez, o app perguntará se deseja usar Face ID ou Touch ID para entrar mais rápido da próxima vez. Recomendamos ativar.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h4>Pronto — você está na Home!</h4>
+            <p>O dashboard carrega automaticamente com os dados do seu dia.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="phones-row">
+        <!-- Phone: Login -->
+        <div class="phone-mock">
+          <div class="phone-screen">
+            <div class="phone-status">
+              <span>09:41</span><span>● ● ●</span>
+            </div>
+            <div class="phone-content" style="text-align:center; padding: 20px 12px;">
+              <div style="font-size:32px; margin-bottom:4px;">📱</div>
+              <div style="font-weight:800; color:#16a34a; font-size:16px;">CRM</div>
+              <div style="color:#64748b; font-size:10px; margin-bottom:16px;">Comercial ProSystem</div>
+              <div style="background:#f1f5f9; border-radius:8px; padding:8px; margin-bottom:6px; text-align:left; font-size:10px; color:#94a3b8;">E-mail</div>
+              <div style="background:#f1f5f9; border-radius:8px; padding:8px; margin-bottom:12px; text-align:left; font-size:10px; color:#94a3b8;">Senha</div>
+              <div style="background:#16a34a; border-radius:8px; padding:9px; color:white; font-size:11px; font-weight:700;">ENTRAR</div>
+              <div style="margin-top:10px; color:#16a34a; font-size:9px;">👆 Usar Face ID / Touch ID</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone: Home -->
+        <div class="phone-mock">
+          <div class="phone-screen">
+            <div class="phone-status" style="padding-bottom:12px;">
+              <span>Bom dia, Carlos! 👋</span>
+              <span>📶</span>
+            </div>
+            <div class="phone-content">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+                <div class="phone-card" style="text-align:center;"><div style="font-size:16px; font-weight:800; color:#16a34a;">47</div><div class="sub">Leads Ativos</div></div>
+                <div class="phone-card" style="text-align:center;"><div style="font-size:16px; font-weight:800; color:#16a34a;">5</div><div class="sub">Ativid. Hoje</div></div>
+                <div class="phone-card" style="text-align:center;"><div style="font-size:12px; font-weight:700; color:#16a34a;">14:30h</div><div class="sub">Próx. Evento</div></div>
+                <div class="phone-card" style="text-align:center;"><div style="font-size:16px; font-weight:800; color:#dc2626;">3</div><div class="sub">WA Não Lidas</div></div>
+              </div>
+              <div style="font-weight:600; font-size:10px; margin-bottom:6px;">Atividades hoje</div>
+              <div class="phone-card"><div class="name">📞 João Silva</div><div class="sub">TechCorp · Venceu ontem 🔴</div></div>
+              <div class="phone-card"><div class="name">🤝 Ana Paula</div><div class="sub">ABC Store · 15:00</div></div>
+            </div>
+            <div class="phone-tab-bar">
+              <div class="phone-tab active">🏠<br>Home</div>
+              <div class="phone-tab">👥<br>Leads</div>
+              <div class="phone-tab">📊<br>Funil</div>
+              <div class="phone-tab">📅<br>Agenda</div>
+              <div class="phone-tab">💬<br>WA</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BIOMETRIA -->
+    <section id="biometria">
+      <h2><div class="sec-icon">👆</div> Biometria (Face ID / Touch ID)</h2>
+
+      <p style="color:var(--muted); line-height:1.7; margin-bottom:20px;">
+        A biometria permite que você entre no app sem digitar e-mail e senha toda vez. Disponível em iPhones com Face ID, iPhones mais antigos com Touch ID e a maioria dos Androids com leitor de digital.
+      </p>
+
+      <h3>Como ativar</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Faça o primeiro login com e-mail e senha</h4>
+            <p>A opção de biometria aparece <em>após</em> o primeiro login bem-sucedido.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Aceite a sugestão na tela de login</h4>
+            <p>Na próxima abertura do app, o botão "Usar Face ID / Touch ID" aparece abaixo do botão Entrar.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Toque no botão de biometria</h4>
+            <p>O iPhone exibirá o Face ID automaticamente. No Android / iPhone antigo, posicione o dedo no leitor de digital.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Autenticação concluída</h4>
+            <p>Você entra direto no Dashboard sem digitar nada. O token de sessão foi mantido com segurança no dispositivo.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <div><strong>Se a biometria falhar 3 vezes:</strong> o app retorna para a tela de login com e-mail e senha como fallback de segurança.</div>
+      </div>
+
+      <h3>Como desativar</h3>
+      <p style="color:var(--muted); font-size:13.5px; line-height:1.6;">
+        Para desativar a biometria, faça logout nas configurações do app. Na próxima abertura, o app pedirá e-mail e senha novamente, sem oferecer a opção biométrica até um novo login.
+      </p>
+    </section>
+
+    <!-- NOTIFICAÇÕES -->
+    <section id="notificacoes">
+      <h2><div class="sec-icon">🔔</div> Notificações Push</h2>
+
+      <p style="color:var(--muted); line-height:1.7; margin-bottom:20px;">
+        O app envia notificações automáticas para manter você informado em campo. As notificações funcionam mesmo com o app fechado.
+      </p>
+
+      <h3>Tipos de notificação</h3>
+      <table>
+        <thead><tr><th>Notificação</th><th>Quando dispara</th><th>Onde leva ao tocar</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>⏰ <strong>Atividades vencidas</strong></td>
+            <td>Todo dia às 08:00 — se você tiver atividades vencidas</td>
+            <td>Tela de Leads</td>
+          </tr>
+          <tr>
+            <td>📅 <strong>Evento em 15 minutos</strong></td>
+            <td>15 minutos antes de cada evento na agenda</td>
+            <td>Tela de Agenda</td>
+          </tr>
+          <tr>
+            <td>💬 <strong>Nova mensagem WhatsApp</strong></td>
+            <td>Quando um lead envia mensagem no WhatsApp</td>
+            <td>Conversa do lead</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Passo a passo para ativar as notificações</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>No primeiro login, toque em "Permitir" na janela de permissão</h4>
+            <p>O sistema operacional exibe uma janela perguntando se deseja receber notificações do CRM ProSystem.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Se recusou por engano — reativar no iOS</h4>
+            <p>Vá em <strong>Ajustes → CRM ProSystem → Notificações</strong> e ative "Permitir notificações".</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Se recusou por engano — reativar no Android</h4>
+            <p>Vá em <strong>Configurações → Apps → CRM ProSystem → Notificações</strong> e ative as notificações.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Feche e reabra o app</h4>
+            <p>Após reativar nas configurações do sistema, feche e reabra o CRM para que o token de push seja registrado novamente.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Não recebendo notificações?</strong> Verifique: (1) permissões ativadas no sistema, (2) modo "Não Perturbe" desativado, (3) conexão com internet ativa, (4) app não foi forçado a parar nas configurações do Android.</div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard">
+      <h2><div class="sec-icon">🏠</div> Home / Dashboard</h2>
+
+      <p style="color:var(--muted); line-height:1.7; margin-bottom:20px;">
+        A tela inicial do app mostra um resumo personalizado do seu dia comercial. Tudo que você precisa ver de relance ao chegar no trabalho ou antes de uma visita.
+      </p>
+
+      <h3>Os 4 cards de resumo</h3>
+      <table>
+        <thead><tr><th>Card</th><th>O que mostra</th><th>Ao tocar</th></tr></thead>
+        <tbody>
+          <tr><td>🟢 <strong>Leads Ativos</strong></td><td>Total de leads não fechados/perdidos</td><td>Vai para Leads</td></tr>
+          <tr><td>🔵 <strong>Atividades Hoje</strong></td><td>Atividades agendadas para hoje</td><td>Vai para Leads</td></tr>
+          <tr><td>🕐 <strong>Próximo Evento</strong></td><td>Hora do próximo compromisso na agenda</td><td>Vai para Agenda</td></tr>
+          <tr><td>🔴 <strong>WA Não Lidas</strong></td><td>Total de mensagens WhatsApp não lidas</td><td>Vai para WhatsApp</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Lista de atividades do dia</h3>
+      <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-bottom:8px;">
+        Abaixo dos cards, aparecem as atividades agendadas para hoje. Cada item mostra o tipo (📞 ligação / 🤝 visita / ✉️ e-mail), o nome do lead e se está vencida (🔴) ou no horário.
+      </p>
+
+      <h3>Atualizar os dados</h3>
+      <p style="color:var(--muted); font-size:13.5px; line-height:1.6;">
+        Puxe a tela de cima para baixo (<strong>pull-to-refresh</strong>) para buscar os dados mais recentes do servidor. Os cards atualizam automaticamente a cada 5 minutos enquanto o app está aberto.
+      </p>
+    </section>
+
+    <!-- LEADS -->
+    <section id="leads">
+      <h2><div class="sec-icon">👥</div> Leads</h2>
+
+      <h3>Acessar a lista de leads</h3>
+      <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-bottom:16px;">
+        Toque em <strong>"Leads"</strong> na barra de navegação inferior. Você verá todos os seus leads ordenados por prioridade de contato.
+      </p>
+
+      <h3>Indicadores de inatividade</h3>
+      <div class="alert alert-info">
+        <span class="alert-icon">📌</span>
+        <div>Cada lead mostra o tempo desde o último contato:<br>
+        <strong style="color:#64748b;">• Texto cinza</strong> = menos de 3 dias (normal)<br>
+        <strong style="color:#d97706;">• Texto amarelo 🟡</strong> = 3 a 6 dias sem contato (atenção)<br>
+        <strong style="color:#dc2626;">• Texto vermelho 🔴</strong> = 7+ dias sem contato (urgente)
+        </div>
+      </div>
+
+      <h3>Buscar um lead</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Toque na barra de busca no topo</h4>
+            <p>Digite parte do nome ou empresa. A lista filtra automaticamente após 0,4 segundos.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Toque no lead desejado</h4>
+            <p>Abre a ficha completa com todas as informações do lead.</p>
+          </div>
+        </li>
+      </ol>
+
+      <h3>Filtrar por etapa do funil</h3>
+      <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-bottom:16px;">
+        Abaixo da busca há chips de etapa em scroll horizontal: <strong>[Todos] [Novo Lead] [Qualificação] [Proposta]...</strong> Toque em uma etapa para ver apenas os leads naquela fase.
+      </p>
+
+      <h3>Ficha do Lead</h3>
+      <table>
+        <thead><tr><th>Aba / Botão</th><th>O que faz</th></tr></thead>
+        <tbody>
+          <tr><td>📞 Ligar</td><td>Abre o discador nativo do celular com o número do lead</td></tr>
+          <tr><td>✉️ E-mail</td><td>Abre o app de e-mail com o endereço do lead</td></tr>
+          <tr><td>💬 WA</td><td>Vai para a conversa WhatsApp do lead</td></tr>
+          <tr><td>Aba Dados</td><td>Telefone, e-mail, empresa, endereço, etapa atual</td></tr>
+          <tr><td>Aba Histórico</td><td>Lista de todas as atividades e interações</td></tr>
+          <tr><td>Aba WA</td><td>Thread completa do WhatsApp do lead</td></tr>
+          <tr><td>➕ FAB (botão verde)</td><td>Registrar nova atividade no lead</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Alterar a etapa do lead</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Na ficha do lead, toque no campo "Etapa"</h4>
+            <p>Um seletor abre com todas as etapas disponíveis do funil.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Selecione a nova etapa</h4>
+            <p>O sistema atualiza automaticamente. O lead aparece na nova coluna no Funil.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- FUNIL -->
+    <section id="funil">
+      <h2><div class="sec-icon">📊</div> Funil Comercial</h2>
+
+      <p style="color:var(--muted); line-height:1.7; margin-bottom:20px;">
+        Visualize todos os seus leads organizados por etapa, como um quadro Kanban horizontal. Role para os lados para ver todas as colunas.
+      </p>
+
+      <h3>Navegar pelo funil</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Toque em "Funil" na barra inferior</h4>
+            <p>Você verá colunas com as etapas que têm leads. Colunas vazias não são exibidas.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Role horizontalmente para ver todas as etapas</h4>
+            <p>Deslize da esquerda para a direita para avançar pelas etapas do funil.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Toque em um card para abrir a ficha</h4>
+            <p>Um toque simples abre a ficha completa do lead.</p>
+          </div>
+        </li>
+      </ol>
+
+      <h3>Mover lead de etapa (Long-press)</h3>
+      <div class="flow">
+        <div class="flow-item gray">Pressionar e segurar o card</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Bottom sheet abre</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Selecionar nova etapa</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">Lead movido ✅</div>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Pressione e segure o card do lead por 1 segundo</h4>
+            <p>Um painel deslizante ("bottom sheet") sobe da parte inferior da tela.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Selecione a etapa de destino</h4>
+            <p>A lista mostra todas as etapas. A etapa atual está marcada.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Confirme</h4>
+            <p>O card some da coluna atual e aparece na nova. O histórico do lead registra a movimentação.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ATIVIDADES -->
+    <section id="atividades">
+      <h2><div class="sec-icon">✅</div> Registrar Atividades</h2>
+
+      <p style="color:var(--muted); line-height:1.7; margin-bottom:20px;">
+        Registre cada interação com um lead diretamente pelo app, em campo. As atividades aparecem instantaneamente no sistema web para a supervisora ver.
+      </p>
+
+      <h3>Como registrar uma atividade</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Abra a ficha do lead</h4>
+            <p>Na lista de Leads, toque no lead com quem você acabou de interagir.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Toque no botão verde ➕ (FAB)</h4>
+            <p>O botão flutuante fica no canto inferior direito da tela. Um painel de nova atividade sobe.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Selecione o tipo de atividade</h4>
+            <p>Escolha entre: 📞 Ligação | 🤝 Visita | ✉️ E-mail</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Digite o resultado</h4>
+            <p>Descreva brevemente o que aconteceu na interação. Ex.: "Cliente demonstrou interesse, pediu proposta até sexta."</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Defina a data do próximo contato</h4>
+            <p>Toque em "📅 Selecionar data/hora" e escolha quando fazer o próximo follow-up.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h4>Toque em "Registrar"</h4>
+            <p>A atividade é salva. O lead sai da lista de "inatividade" e o próximo contato fica agendado.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <div>Após registrar, o campo "Última atividade" do lead atualiza automaticamente — isso afeta seu ranking no sistema e remove o alerta de lead parado.</div>
+      </div>
+    </section>
+
+    <!-- AGENDA -->
+    <section id="agenda">
+      <h2><div class="sec-icon">📅</div> Agenda</h2>
+
+      <h3>Ver os eventos do dia</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Toque em "Agenda" na barra inferior</h4>
+            <p>Você vê os eventos do dia atual em lista. O seletor de dia no topo permite navegar para outros dias.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Toque em um evento para ver os detalhes</h4>
+            <p>Mostra: título, tipo (online/presencial), lead vinculado e link do Google Meet (se online).</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Para reunião online, toque em "Entrar na Reunião"</h4>
+            <p>O link do Google Meet abre no navegador do celular automaticamente.</p>
+          </div>
+        </li>
+      </ol>
+
+      <h3>Criar um evento rápido</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Toque no botão verde ➕ (FAB)</h4>
+            <p>Está no canto inferior direito da tela de Agenda.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Preencha o título e o tipo</h4>
+            <p>Escolha entre Online ou Presencial. Se online, o Meet link será gerado automaticamente.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Vincule ao lead (opcional)</h4>
+            <p>Digite o nome do lead no campo de busca e selecione na lista.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Defina data e hora</h4>
+            <p>O seletor de data/hora nativo do sistema aparece.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Toque em "Salvar"</h4>
+            <p>O evento é criado e sincronizado com o Google Calendar (se configurado).</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- WHATSAPP -->
+    <section id="whatsapp">
+      <h2><div class="sec-icon">💬</div> WhatsApp</h2>
+
+      <h3>Ver conversas</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Toque em "WA" na barra inferior</h4>
+            <p>A lista mostra todas as conversas dos seus leads, ordenadas pela mensagem mais recente.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>O badge vermelho mostra mensagens não lidas</h4>
+            <p>Cada conversa mostra o preview da última mensagem e quando foi enviada.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Toque na conversa para abrir o chat</h4>
+            <p>A thread completa abre com todas as mensagens em ordem cronológica. Mensagens do lead aparecem à esquerda (cinza), suas respostas à direita (azul).</p>
+          </div>
+        </li>
+      </ol>
+
+      <h3>Responder uma mensagem</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Abra a conversa do lead</h4>
+            <p>Veja as mensagens na thread.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Digite sua resposta no campo de texto</h4>
+            <p>O campo fica na parte inferior da tela.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Toque em enviar (→)</h4>
+            <p>A mensagem é enviada via API do WhatsApp Business e aparece na thread imediatamente.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Janela de 24 horas:</strong> Se o lead não enviou mensagem nas últimas 24 horas, o campo de texto fica bloqueado. Neste caso, somente templates aprovados podem ser enviados — entre em contato com a supervisora para usar um template.</div>
+      </div>
+    </section>
+
+    <!-- PERFIS -->
+    <section id="perfis">
+      <h2><div class="sec-icon">👤</div> Perfis de Acesso</h2>
+
+      <table>
+        <thead><tr><th>Funcionalidade</th><th>Vendedor</th><th>Supervisora</th><th>CEO</th></tr></thead>
+        <tbody>
+          <tr><td>Ver próprios leads</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Ver leads de toda a equipe</td><td>❌</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Dashboard da equipe</td><td>❌</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Filtrar leads por vendedor</td><td>❌</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Registrar atividades</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Ver e responder WhatsApp</td><td>✅ (próprios)</td><td>✅ (todos)</td><td>✅</td></tr>
+          <tr><td>Criar eventos na agenda</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Push notifications</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        </tbody>
+      </table>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <div>Supervisoras e CEO veem um seletor de vendedor no topo das telas de Leads e Dashboard para filtrar por colaborador.</div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+    <h2 style="font-size:18px; color:var(--muted); border:none; padding:0; margin-bottom:24px;">⚙️ Configuração Técnica</h2>
+
+    <!-- CONFIG BACKEND -->
+    <section id="config-backend">
+      <h2><div class="sec-icon">⚙️</div> Backend — Push Notifications API</h2>
+
+      <h3>Tabela PushToken (migration)</h3>
+      <pre><span class="cm">-- Executar no PostgreSQL</span>
+<span class="kw">CREATE TABLE</span> <span class="str">"PushToken"</span> (
+  <span class="str">"id"</span>           TEXT <span class="kw">NOT NULL PRIMARY KEY</span> <span class="kw">DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  <span class="str">"usuarioId"</span>    TEXT <span class="kw">NOT NULL</span>,
+  <span class="str">"token"</span>        TEXT <span class="kw">NOT NULL UNIQUE</span>,
+  <span class="str">"plataforma"</span>   TEXT <span class="kw">NOT NULL</span>,
+  <span class="str">"criadoEm"</span>     TIMESTAMP <span class="kw">NOT NULL DEFAULT NOW</span>(),
+  <span class="str">"atualizadoEm"</span> TIMESTAMP <span class="kw">NOT NULL</span>,
+  <span class="kw">CONSTRAINT</span> <span class="str">"PushToken_usuarioId_fkey"</span>
+    <span class="kw">FOREIGN KEY</span> (<span class="str">"usuarioId"</span>) <span class="kw">REFERENCES</span> <span class="str">"Usuario"</span>(<span class="str">"id"</span>) <span class="kw">ON DELETE CASCADE</span>
+);
+<span class="kw">CREATE INDEX</span> <span class="str">"PushToken_usuarioId_idx"</span> <span class="kw">ON</span> <span class="str">"PushToken"</span>(<span class="str">"usuarioId"</span>);</pre>
+
+      <h3>Novos endpoints</h3>
+      <table>
+        <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><span class="phone-badge badge-blue">POST</span></td><td><code>/api/push-tokens</code></td><td>Registra ou atualiza o token Expo do dispositivo logado</td></tr>
+          <tr><td><span class="phone-badge badge-red">DELETE</span></td><td><code>/api/push-tokens/:token</code></td><td>Remove o token ao fazer logout</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Registrar módulo no server.ts</h3>
+      <pre><span class="kw">import</span> { pushRoutes } <span class="kw">from</span> <span class="str">'./modules/push/push.routes'</span>
+
+fastify.<span class="fn">register</span>(pushRoutes, { prefix: <span class="str">'/api'</span> })</pre>
+
+      <h3>Pontos de disparo push existentes</h3>
+      <table>
+        <thead><tr><th>Arquivo</th><th>Evento</th><th>Quando adicionar</th></tr></thead>
+        <tbody>
+          <tr><td><code>crons/atividades-vencidas.cron.ts</code></td><td>Atividades vencidas</td><td>Após listar vendedores com vencidas</td></tr>
+          <tr><td><code>crons/agenda-alertas.cron.ts</code></td><td>Evento em 15min</td><td>Junto com o SSE já existente</td></tr>
+          <tr><td><code>modules/whatsapp/whatsapp.service.ts</code></td><td>Nova mensagem WA</td><td>Após <code>sseHub.notificarUsuario()</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- CONFIG EXPO -->
+    <section id="config-expo">
+      <h2><div class="sec-icon">🛠️</div> Configuração do Projeto Expo</h2>
+
+      <h3>Inicializar o projeto</h3>
+      <pre><span class="cm"># Dentro da pasta /mobile do repositório</span>
+<span class="fn">npx</span> create-expo-app@latest . --template blank-typescript
+<span class="fn">npx</span> expo install expo-router expo-secure-store expo-local-authentication \
+  expo-notifications expo-device expo-linking nativewind tailwindcss \
+  @tanstack/react-query axios date-fns lucide-react-native \
+  react-native-toast-message @react-native-community/datetimepicker</pre>
+
+      <h3>Configurar NativeWind (tailwind.config.js)</h3>
+      <pre><span class="cm">/** @type {import('tailwindcss').Config} */</span>
+<span class="kw">module</span>.exports = {
+  content: [<span class="str">"./app/**/*.{js,jsx,ts,tsx}"</span>, <span class="str">"./components/**/*.{js,jsx,ts,tsx}"</span>],
+  presets: [<span class="fn">require</span>(<span class="str">"nativewind/preset"</span>)],
+  theme: {
+    extend: {
+      colors: {
+        primary: <span class="str">"#16a34a"</span>,
+        danger: <span class="str">"#dc2626"</span>
+      }
+    }
+  }
+}</pre>
+
+      <h3>Configurar app.json</h3>
+      <pre>{
+  <span class="str">"expo"</span>: {
+    <span class="str">"name"</span>: <span class="str">"CRM ProSystem"</span>,
+    <span class="str">"slug"</span>: <span class="str">"crm-prosystem"</span>,
+    <span class="str">"version"</span>: <span class="str">"1.0.0"</span>,
+    <span class="str">"scheme"</span>: <span class="str">"crm"</span>,
+    <span class="str">"ios"</span>: {
+      <span class="str">"bundleIdentifier"</span>: <span class="str">"br.com.prosystem.crm"</span>,
+      <span class="str">"supportsTablet"</span>: <span class="kw">true</span>
+    },
+    <span class="str">"android"</span>: {
+      <span class="str">"package"</span>: <span class="str">"br.com.prosystem.crm"</span>,
+      <span class="str">"adaptiveIcon"</span>: {
+        <span class="str">"foregroundImage"</span>: <span class="str">"./assets/adaptive-icon.png"</span>,
+        <span class="str">"backgroundColor"</span>: <span class="str">"#16a34a"</span>
+      }
+    },
+    <span class="str">"plugins"</span>: [
+      <span class="str">"expo-router"</span>,
+      [<span class="str">"expo-notifications"</span>, { <span class="str">"icon"</span>: <span class="str">"./assets/notification-icon.png"</span> }],
+      <span class="str">"expo-secure-store"</span>,
+      <span class="str">"expo-local-authentication"</span>
+    ],
+    <span class="str">"extra"</span>: {
+      <span class="str">"eas"</span>: { <span class="str">"projectId"</span>: <span class="str">"&lt;SEU_PROJECT_ID_EXPO&gt;"</span> }
+    }
+  }
+}</pre>
+    </section>
+
+    <!-- VARIÁVEIS -->
+    <section id="variaveis">
+      <h2><div class="sec-icon">🔧</div> Variáveis de Ambiente</h2>
+
+      <h3>Arquivo .env (raiz do projeto mobile)</h3>
+      <pre><span class="cm"># URL da API (sem barra final)</span>
+<span class="str">EXPO_PUBLIC_API_URL</span>=https://api.crm.prosystem.com.br
+
+<span class="cm"># ID do projeto Expo (obtido em expo.dev)</span>
+<span class="str">EXPO_PUBLIC_PROJECT_ID</span>=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</pre>
+
+      <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div>Variáveis com prefixo <code>EXPO_PUBLIC_</code> ficam visíveis no bundle do app. Nunca coloque segredos (tokens de API, chaves privadas) com este prefixo — esses ficam apenas no backend.</div>
+      </div>
+
+      <h3>Variáveis adicionais no Backend (.env do servidor)</h3>
+      <pre><span class="cm"># Não há novas variáveis — o push usa a Expo Push API (sem SDK nativo)
+# A URL https://exp.host/--/api/v2/push/send é pública (sem autenticação)</span></pre>
+    </section>
+
+    <!-- BUILD E DEPLOY -->
+    <section id="build">
+      <h2><div class="sec-icon">🏗️</div> Build e Deploy</h2>
+
+      <h3>Pré-requisitos</h3>
+      <ul class="checklist">
+        <li><span class="check">✅</span> Conta em <strong>expo.dev</strong> (gratuita)</li>
+        <li><span class="check">✅</span> EAS CLI instalado: <code>npm install -g eas-cli</code></li>
+        <li><span class="check">✅</span> Conta de desenvolvedor <strong>Apple Developer</strong> (US$ 99/ano) para iOS</li>
+        <li><span class="check">✅</span> Conta <strong>Google Play Console</strong> (US$ 25 único) para Android</li>
+        <li><span class="check">✅</span> Project ID configurado no <code>app.json</code></li>
+      </ul>
+
+      <h3>Build com EAS (Expo Application Services)</h3>
+      <pre><span class="cm"># Login na conta Expo</span>
+<span class="fn">eas</span> login
+
+<span class="cm"># Configurar o projeto (primeira vez)</span>
+<span class="fn">eas</span> build:configure
+
+<span class="cm"># Build para Android (.aab para Play Store)</span>
+<span class="fn">eas</span> build --platform android --profile production
+
+<span class="cm"># Build para iOS (.ipa para App Store)</span>
+<span class="fn">eas</span> build --platform ios --profile production
+
+<span class="cm"># Enviar para as lojas automaticamente</span>
+<span class="fn">eas</span> submit --platform android
+<span class="fn">eas</span> submit --platform ios</pre>
+
+      <h3>Arquivo eas.json</h3>
+      <pre>{
+  <span class="str">"cli"</span>: { <span class="str">"version"</span>: <span class="str">">= 12.0.0"</span> },
+  <span class="str">"build"</span>: {
+    <span class="str">"development"</span>: {
+      <span class="str">"developmentClient"</span>: <span class="kw">true</span>,
+      <span class="str">"distribution"</span>: <span class="str">"internal"</span>
+    },
+    <span class="str">"preview"</span>: {
+      <span class="str">"distribution"</span>: <span class="str">"internal"</span>
+    },
+    <span class="str">"production"</span>: {
+      <span class="str">"autoIncrement"</span>: <span class="kw">true</span>
+    }
+  }
+}</pre>
+
+      <h3>Testar antes de publicar</h3>
+      <pre><span class="cm"># Rodar no simulador iOS (apenas macOS)</span>
+<span class="fn">npx</span> expo run:ios
+
+<span class="cm"># Rodar no emulador Android</span>
+<span class="fn">npx</span> expo run:android
+
+<span class="cm"># Expo Go para teste rápido (limitado)</span>
+<span class="fn">npx</span> expo start</pre>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div><strong>Dica:</strong> Use <code>eas build --profile preview</code> para gerar um APK/IPA de teste distribuível internamente, sem precisar passar pela revisão das lojas.</div>
+      </div>
+    </section>
+
+    <!-- TROUBLESHOOTING -->
+    <section id="troubleshooting">
+      <h2><div class="sec-icon">🔍</div> Troubleshooting</h2>
+
+      <h3>Problemas comuns e soluções</h3>
+
+      <div class="card">
+        <h3 style="margin-top:0;">❌ "Falha ao fazer login"</h3>
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-top:8px;">
+          <strong>Causa:</strong> Credenciais incorretas ou sem conexão com internet.<br>
+          <strong>Solução:</strong> (1) Verifique se o Wi-Fi ou dados móveis estão ativos. (2) Tente fazer login na versão web para confirmar as credenciais. (3) Se a senha foi alterada recentemente, use a nova senha.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">❌ Não recebo notificações push</h3>
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-top:8px;">
+          <strong>iOS:</strong> Ajustes → CRM ProSystem → Notificações → ativar "Permitir".<br>
+          <strong>Android:</strong> Configurações → Apps → CRM ProSystem → Notificações → ativar.<br>
+          <strong>Ambos:</strong> Feche e reabra o app após ativar. Verifique se o "Não Perturbe" está desativado.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">❌ Biometria não aparece / não funciona</h3>
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-top:8px;">
+          <strong>Causa:</strong> (1) Primeiro login não foi feito ainda. (2) Biometria não está configurada no celular.<br>
+          <strong>Solução:</strong> Configure Face ID / Touch ID / Digital nas configurações do sistema operacional antes de usar no app.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">❌ Dados desatualizados / não sincroniza</h3>
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-top:8px;">
+          <strong>Solução:</strong> (1) Faça o gesto de pull-to-refresh (puxar a tela de cima para baixo). (2) Verifique a conexão com internet. (3) Faça logout e login novamente se o problema persistir.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">❌ "Sessão expirada" — volta para o login sozinho</h3>
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-top:8px;">
+          <strong>Causa:</strong> Token de sessão expirou e não conseguiu renovar (sem internet).<br>
+          <strong>Solução:</strong> Faça login novamente com e-mail e senha. Isso é normal após períodos longos sem usar o app (mais de 7 dias) ou depois de trocar a senha.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">❌ Campo de WhatsApp bloqueado</h3>
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-top:8px;">
+          <strong>Causa:</strong> O lead não enviou mensagem nas últimas 24 horas (janela da Meta fechada).<br>
+          <strong>Solução:</strong> Entre em contato com a supervisora para envio de template aprovado. O campo de texto libera automaticamente quando o lead responder.
+        </p>
+      </div>
+
+      <h3>Logs de push para diagnóstico (backend)</h3>
+      <pre><span class="cm"># Verificar se tokens estão sendo salvos:</span>
+<span class="fn">SELECT</span> * <span class="kw">FROM</span> "PushToken" <span class="kw">WHERE</span> "usuarioId" = '<span class="str">id-do-usuario</span>';
+
+<span class="cm"># Se a tabela estiver vazia para um usuário, o app não registrou o token.
+# Verifique se o usuário autorizou notificações e se a rota POST /api/push-tokens está acessível.</span></pre>
+    </section>
+
+  </div><!-- /content -->
+</main>
+
+<button class="print-btn" onclick="window.print()">
+  🖨️ Imprimir / Exportar PDF
+</button>
+
+<script>
+  // Highlight seção ativa no sidebar
+  const anchors = document.querySelectorAll('section[id]')
+  const links = document.querySelectorAll('nav a')
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'))
+        const active = document.querySelector(`nav a[href="#${entry.target.id}"]`)
+        if (active) active.classList.add('active')
+      }
+    })
+  }, { rootMargin: '-10% 0px -80% 0px' })
+
+  anchors.forEach(a => observer.observe(a))
+
+  // Scroll suave
+  document.querySelectorAll('nav a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault()
+      const target = document.querySelector(a.getAttribute('href'))
+      if (target) target.scrollIntoView({ behavior: 'smooth' })
+    })
+  })
+</script>
+</body>
+</html>

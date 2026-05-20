@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual do Softphone Integrado — CRM ProSystem</title>
+<style>
+  :root {
+    --primary: #7c3aed;
+    --primary-dark: #5b21b6;
+    --primary-light: #ede9fe;
+    --sidebar-bg: #1e0a3c;
+    --sidebar-text: #c4b5fd;
+    --sidebar-active: #7c3aed;
+    --sidebar-hover: #2d1060;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --success: #16a34a;
+    --success-light: #dcfce7;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --info: #0284c7;
+    --info-light: #e0f2fe;
+    --neutral: #6b7280;
+    --neutral-light: #f3f4f6;
+    --badge-atendida: #16a34a;
+    --badge-nao: #dc2626;
+    --badge-ocupado: #d97706;
+    --badge-erro: #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f8fafc;
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* SIDEBAR */
+  nav {
+    width: 280px;
+    min-width: 280px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .nav-header {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(196,181,253,0.15);
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .nav-logo-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .nav-logo-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .nav-logo-sub {
+    font-size: 11px;
+    color: var(--sidebar-text);
+    font-weight: 400;
+  }
+
+  .nav-badge {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  nav ul {
+    list-style: none;
+    padding: 12px 0;
+    flex: 1;
+  }
+
+  nav ul li a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 13.5px;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  nav ul li a:hover,
+  nav ul li a.active {
+    background: var(--sidebar-hover);
+    color: #fff;
+    border-left-color: var(--primary);
+  }
+
+  nav ul li a .icon { font-size: 15px; width: 20px; text-align: center; }
+
+  .nav-section {
+    padding: 16px 24px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: rgba(196,181,253,0.5);
+    text-transform: uppercase;
+  }
+
+  .nav-footer {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(196,181,253,0.15);
+    font-size: 11px;
+    color: rgba(196,181,253,0.5);
+  }
+
+  /* MAIN */
+  main {
+    flex: 1;
+    padding: 48px 56px;
+    max-width: 900px;
+  }
+
+  .print-btn {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+    transition: background 0.15s;
+  }
+  .print-btn:hover { background: var(--primary-dark); }
+
+  /* HERO */
+  .hero {
+    background: linear-gradient(135deg, var(--primary) 0%, #5b21b6 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 40px 44px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '📞';
+    position: absolute;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 80px;
+    opacity: 0.15;
+  }
+  .hero h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+  .hero p { font-size: 15px; opacity: 0.85; max-width: 540px; line-height: 1.6; }
+  .hero-badges { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .hero-badge {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* SECTIONS */
+  section {
+    margin-bottom: 56px;
+    scroll-margin-top: 24px;
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-lead {
+    font-size: 14.5px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    line-height: 1.6;
+  }
+
+  .divider {
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-light), transparent);
+    margin-bottom: 28px;
+    border-radius: 2px;
+  }
+
+  /* CARDS */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* STEPS */
+  .steps { list-style: none; }
+  .steps li {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .step-body { flex: 1; padding-top: 4px; }
+  .step-body strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .step-body p, .step-body span { font-size: 13.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ALERTS */
+  .alert {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    font-size: 13.5px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .alert-icon { font-size: 16px; margin-top: 1px; }
+  .alert-success { background: var(--success-light); border-left: 4px solid var(--success); color: #14532d; }
+  .alert-warning { background: var(--warning-light); border-left: 4px solid var(--warning); color: #78350f; }
+  .alert-danger  { background: var(--danger-light);  border-left: 4px solid var(--danger);  color: #7f1d1d; }
+  .alert-info    { background: var(--info-light);    border-left: 4px solid var(--info);    color: #0c4a6e; }
+  .alert-purple  { background: var(--primary-light); border-left: 4px solid var(--primary); color: #3b0764; }
+
+  /* BADGES */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-atendida { background: #dcfce7; color: #14532d; }
+  .badge-nao      { background: #fee2e2; color: #7f1d1d; }
+  .badge-ocupado  { background: #fef3c7; color: #78350f; }
+  .badge-erro     { background: #f3f4f6; color: #374151; }
+  .badge-discando { background: #dbeafe; color: #1e3a8a; }
+
+  /* SCREEN MOCKUP */
+  .mockup-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 24px 0;
+  }
+
+  .mockup-widget {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    width: 320px;
+    overflow: hidden;
+    font-family: inherit;
+  }
+
+  .widget-header {
+    background: linear-gradient(135deg, var(--primary) 0%, #5b21b6 100%);
+    padding: 16px 20px;
+    color: #fff;
+  }
+  .widget-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 4px;
+  }
+  .widget-state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .dot-pulse {
+    width: 8px;
+    height: 8px;
+    background: #4ade80;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .widget-lead { font-size: 11px; opacity: 0.8; }
+  .widget-number { font-size: 11px; opacity: 0.65; }
+  .widget-minimize { background: rgba(255,255,255,0.2); border: none; color: #fff; width: 24px; height: 24px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+  .widget-timer {
+    text-align: center;
+    font-size: 36px;
+    font-weight: 800;
+    font-family: monospace;
+    letter-spacing: 2px;
+    padding: 20px;
+    color: var(--text);
+  }
+  .widget-actions {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px 20px;
+  }
+  .widget-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #f8fafc;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--text-muted);
+  }
+  .widget-btn-red {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+  }
+  .widget-btn-muted {
+    background: #fee2e2;
+    color: var(--danger);
+    border-color: #fca5a5;
+  }
+
+  .widget-mini {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 40px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    width: 240px;
+    margin: 8px auto;
+  }
+  .widget-mini-dot { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; }
+
+  /* STATES GRID */
+  .states-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .state-card {
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+  .state-card:hover { border-color: var(--primary); }
+  .state-icon { font-size: 28px; margin-bottom: 8px; }
+  .state-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .state-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+  .state-idle { border-color: #e2e8f0; }
+  .state-discando { border-color: #93c5fd; background: #eff6ff; }
+  .state-em-chamada { border-color: #86efac; background: #f0fdf4; }
+  .state-encerrada { border-color: #fca5a5; background: #fff5f5; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #faf5ff; }
+  th:first-child, td:first-child { border-radius: 0; padding-left: 16px; }
+
+  /* FLOW */
+  .flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px 0;
+  }
+  .flow-step {
+    background: #fff;
+    border: 2px solid var(--primary);
+    color: var(--primary-dark);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 100px;
+  }
+  .flow-arrow { color: var(--primary); font-size: 18px; font-weight: bold; }
+
+  /* CODE */
+  .code-block {
+    background: #1e0a3c;
+    color: #c4b5fd;
+    border-radius: 10px;
+    padding: 20px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+  .code-comment { color: #6d4aad; }
+  .code-key { color: #f0abfc; }
+  .code-value { color: #a5f3fc; }
+  .code-string { color: #86efac; }
+
+  /* GRID 2 COL */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  /* PERMS */
+  .perm-table { width: 100%; font-size: 13px; }
+  .perm-yes { color: var(--success); font-weight: 600; }
+  .perm-no  { color: var(--neutral);  }
+
+  /* REPORT MOCKUP */
+  .report-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .report-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .report-stat {
+    background: var(--primary-light);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .report-stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary-dark);
+  }
+  .report-stat-label {
+    font-size: 11px;
+    color: var(--primary);
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  /* SUPERVISOR PANEL */
+  .supervisor-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .supervisor-row:last-child { border-bottom: none; }
+  .sup-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    flex-shrink: 0;
+  }
+  .sup-info { flex: 1; }
+  .sup-name { font-size: 13px; font-weight: 600; }
+  .sup-lead { font-size: 12px; color: var(--text-muted); }
+  .sup-dur {
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+
+  @media print {
+    nav, .print-btn { display: none; }
+    main { padding: 24px; max-width: 100%; }
+    .hero { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    section { break-inside: avoid; }
+  }
+
+  @media (max-width: 768px) {
+    nav { display: none; }
+    main { padding: 24px 20px; }
+    .states-grid, .grid-2, .report-stats { grid-template-columns: 1fr; }
+    .report-stats { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav>
+  <div class="nav-header">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">📞</div>
+      <div>
+        <div class="nav-logo-text">Softphone</div>
+        <div class="nav-logo-sub">CRM ProSystem</div>
+      </div>
+    </div>
+    <span class="nav-badge">Sprint 33</span>
+  </div>
+
+  <div class="nav-section">Visão Geral</div>
+  <ul>
+    <li><a href="#intro"><span class="icon">🎯</span> O que é o Softphone</a></li>
+    <li><a href="#perfis"><span class="icon">👥</span> Quem pode usar</a></li>
+  </ul>
+
+  <div class="nav-section">Usando o Softphone</div>
+  <ul>
+    <li><a href="#iniciar"><span class="icon">📲</span> Iniciar uma chamada</a></li>
+    <li><a href="#widget"><span class="icon">🖥️</span> Widget flutuante</a></li>
+    <li><a href="#estados"><span class="icon">🔄</span> Estados da chamada</a></li>
+    <li><a href="#resultado"><span class="icon">📝</span> Registrar resultado</a></li>
+    <li><a href="#historico"><span class="icon">📋</span> Histórico de chamadas</a></li>
+  </ul>
+
+  <div class="nav-section">Gestão</div>
+  <ul>
+    <li><a href="#supervisor"><span class="icon">📊</span> Painel supervisor</a></li>
+    <li><a href="#relatorio"><span class="icon">📈</span> Relatórios</a></li>
+    <li><a href="#gravacao"><span class="icon">🎙️</span> Gravações</a></li>
+  </ul>
+
+  <div class="nav-section">Configuração</div>
+  <ul>
+    <li><a href="#config-sip"><span class="icon">⚙️</span> Configurar SIP</a></li>
+    <li><a href="#env"><span class="icon">🔐</span> Variáveis de ambiente</a></li>
+    <li><a href="#faq"><span class="icon">❓</span> Dúvidas frequentes</a></li>
+  </ul>
+
+  <div class="nav-footer">CRM ProSystem v2.0<br>Módulo Softphone</div>
+</nav>
+
+<!-- PRINT BUTTON -->
+<button class="print-btn" onclick="window.print()">🖨️ Exportar PDF</button>
+
+<!-- MAIN CONTENT -->
+<main>
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>Softphone Integrado</h1>
+    <p>Faça chamadas VoIP diretamente do CRM, sem precisar de nenhum aplicativo externo. O widget flutuante gerencia toda a chamada e registra o resultado automaticamente no histórico do lead.</p>
+    <div class="hero-badges">
+      <span class="hero-badge">📞 VoIP / SIP</span>
+      <span class="hero-badge">🔒 Criptografia AES-256</span>
+      <span class="hero-badge">📝 Registro automático</span>
+      <span class="hero-badge">📊 Relatórios em tempo real</span>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 1: O QUE É -->
+  <section id="intro">
+    <div class="section-title">🎯 O que é o Softphone Integrado</div>
+    <div class="divider"></div>
+    <p class="section-lead">O Softphone é um ramal virtual embutido no navegador. Ele se conecta ao seu servidor SIP (VoIP) e permite realizar chamadas telefônicas sem sair do CRM — com clique único na ficha do lead.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">✅ O que você pode fazer</div>
+        <ul style="list-style:none;font-size:13.5px;line-height:2">
+          <li>📞 Ligar para um lead com um clique</li>
+          <li>🔇 Mutar e desmutar durante a chamada</li>
+          <li>🕒 Ver cronômetro em tempo real</li>
+          <li>📝 Registrar resultado e próximo contato</li>
+          <li>📋 Ver histórico completo de chamadas</li>
+          <li>📊 Consultar relatórios e métricas</li>
+          <li>🎙️ Ouvir gravações (se ativado)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">🚫 O que não é necessário</div>
+        <ul style="list-style:none;font-size:13.5px;line-height:2;color:var(--text-muted)">
+          <li>❌ Instalar nenhum software</li>
+          <li>❌ Ramal físico ou headset especial</li>
+          <li>❌ Abrir outro programa para ligar</li>
+          <li>❌ Registrar chamadas manualmente</li>
+          <li>❌ Exportar relatórios por planilha</li>
+          <li>❌ Login separado</li>
+          <li>❌ Configuração por usuário</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="alert alert-purple">
+      <span class="alert-icon">🎧</span>
+      <span>Para usar o softphone é necessário um <strong>fone de ouvido com microfone</strong> (pode ser o do celular) e <strong>permitir o acesso ao microfone</strong> quando o navegador solicitar.</span>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 2: PERFIS -->
+  <section id="perfis">
+    <div class="section-title">👥 Quem pode usar</div>
+    <div class="divider"></div>
+    <p class="section-lead">Cada perfil tem acesso a funcionalidades diferentes do módulo Softphone:</p>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Funcionalidade</th>
+            <th>Vendedor</th>
+            <th>Supervisão</th>
+            <th>CEO</th>
+            <th>Admin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fazer chamadas</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+          </tr>
+          <tr>
+            <td>Ver histórico do próprio lead</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+          </tr>
+          <tr>
+            <td>Ver histórico de outros vendedores</td>
+            <td class="perm-no">❌ Não</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+          </tr>
+          <tr>
+            <td>Painel em andamento (tempo real)</td>
+            <td class="perm-no">❌ Não</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+          </tr>
+          <tr>
+            <td>Relatórios de chamadas</td>
+            <td class="perm-no">❌ Não</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+            <td class="perm-yes">✅ Sim</td>
+          </tr>
+          <tr>
+            <td>Configurar servidor SIP</td>
+            <td class="perm-no">❌ Não</td>
+            <td class="perm-no">❌ Não</td>
+            <td class="perm-no">❌ Não</td>
+            <td class="perm-yes">✅ Apenas Admin</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 3: INICIAR CHAMADA -->
+  <section id="iniciar">
+    <div class="section-title">📲 Iniciar uma chamada</div>
+    <div class="divider"></div>
+    <p class="section-lead">Para ligar para um lead, basta abrir a ficha dele no CRM e clicar no botão <strong>Ligar</strong>. Não há nenhum passo extra — o CRM busca as configurações do servidor VoIP automaticamente.</p>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">ℹ️</span>
+      <span>O botão <strong>📞 Ligar</strong> aparece na ficha do lead ao lado do número de telefone. Se o lead não tiver telefone cadastrado, o botão fica desabilitado automaticamente.</span>
+    </div>
+
+    <ul class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Abra a ficha do lead</strong>
+          <p>Na lista de leads ou no funil Kanban, clique no nome do lead para abrir a ficha completa.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Permita o microfone (primeira vez)</strong>
+          <p>Na primeira chamada do dia, o navegador pede permissão de microfone. Clique em <strong>Permitir</strong>. Esta permissão é salva para as próximas chamadas.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Clique em 📞 Ligar</strong>
+          <p>O widget flutuante aparece no canto inferior direito da tela no estado <span class="badge badge-discando">Discando...</span>. O CRM discou para o número do lead.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Aguarde a conexão</strong>
+          <p>Quando o destinatário atender, o widget muda para <span class="badge badge-atendida">Em chamada</span> e o cronômetro inicia automaticamente.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <strong>Encerre a chamada</strong>
+          <p>Clique em <strong>📴 Encerrar</strong> no widget. O CRM registra a chamada automaticamente e abre o drawer de resultado.</p>
+        </div>
+      </li>
+    </ul>
+
+    <div class="alert alert-warning">
+      <span class="alert-icon">⚠️</span>
+      <span>Só é possível ter <strong>uma chamada ativa por vez</strong> por usuário. Para iniciar outra chamada, encerre a atual primeiro.</span>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 4: WIDGET -->
+  <section id="widget">
+    <div class="section-title">🖥️ Widget flutuante</div>
+    <div class="divider"></div>
+    <p class="section-lead">O widget fica fixo no canto inferior direito do CRM durante toda a chamada. Você pode continuar navegando no sistema enquanto fala — o widget acompanha você por todas as páginas.</p>
+
+    <div class="mockup-wrapper">
+      <div>
+        <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:10px">Widget em chamada ativa</p>
+        <div class="mockup-widget">
+          <div class="widget-header">
+            <div class="widget-header-top">
+              <div>
+                <div class="widget-state">
+                  <span class="dot-pulse"></span>
+                  Em chamada
+                </div>
+                <div class="widget-lead" style="margin-top:4px">João Silva</div>
+                <div class="widget-number">(11) 99999-1234</div>
+              </div>
+              <button class="widget-minimize">—</button>
+            </div>
+          </div>
+          <div class="widget-timer">03:24</div>
+          <div class="widget-actions">
+            <button class="widget-btn widget-btn-muted">🔇 Mudo</button>
+            <button class="widget-btn widget-btn-red">📴 Encerrar</button>
+          </div>
+        </div>
+        <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:16px">Widget minimizado</p>
+        <div class="widget-mini">
+          <span class="widget-mini-dot"></span>
+          João Silva · 03:24
+          <span style="margin-left:auto;font-size:16px;color:var(--text-muted)">⛶</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎛️ Controles disponíveis durante a chamada</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Botão</th>
+            <th>Quando aparece</th>
+            <th>O que faz</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🔇 Mudo / 🎤 Falar</td>
+            <td>Em chamada ativa</td>
+            <td>Ativa/desativa o microfone. O lead não escuta você enquanto mudo.</td>
+          </tr>
+          <tr>
+            <td>📴 Encerrar</td>
+            <td>Discando ou em chamada</td>
+            <td>Encerra ou cancela a chamada imediatamente.</td>
+          </tr>
+          <tr>
+            <td>— Minimizar</td>
+            <td>Em chamada ativa</td>
+            <td>Colapsa o widget para uma barra pequena. A chamada continua normalmente.</td>
+          </tr>
+          <tr>
+            <td>⛶ Maximizar</td>
+            <td>Widget minimizado</td>
+            <td>Restaura o widget completo com cronômetro e controles.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 5: ESTADOS -->
+  <section id="estados">
+    <div class="section-title">🔄 Estados da chamada</div>
+    <div class="divider"></div>
+    <p class="section-lead">A chamada passa por diferentes estados desde o momento em que você clica em Ligar até o encerramento. Cada estado tem uma aparência visual diferente no widget:</p>
+
+    <div class="states-grid">
+      <div class="state-card state-idle">
+        <div class="state-icon">📵</div>
+        <div class="state-name">Sem chamada</div>
+        <div class="state-desc">Widget não aparece. Você pode iniciar uma nova chamada a qualquer momento.</div>
+      </div>
+      <div class="state-card state-discando">
+        <div class="state-icon">📡</div>
+        <div class="state-name">Discando...</div>
+        <div class="state-desc">SIP INVITE enviado. Aguardando o destinatário atender. Cronômetro não iniciou ainda.</div>
+      </div>
+      <div class="state-card state-em-chamada">
+        <div class="state-icon">✅</div>
+        <div class="state-name">Em chamada</div>
+        <div class="state-desc">Destinatário atendeu. Cronômetro rodando. Ícone de telefone pulsa em verde.</div>
+      </div>
+      <div class="state-card state-encerrada">
+        <div class="state-icon">📝</div>
+        <div class="state-name">Encerrada</div>
+        <div class="state-desc">Chamada finalizada. Drawer de resultado abre automaticamente para registro.</div>
+      </div>
+    </div>
+
+    <p style="font-size:14px;font-weight:600;margin-bottom:12px">Status finais registrados no histórico:</p>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Badge</th>
+            <th>Quando ocorre</th>
+            <th>Duração</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>ATENDIDA</strong></td>
+            <td><span class="badge badge-atendida">✅ Atendida</span></td>
+            <td>Destinatário atendeu (200 OK)</td>
+            <td>Tempo real de fala</td>
+          </tr>
+          <tr>
+            <td><strong>NÃO ATENDIDA</strong></td>
+            <td><span class="badge badge-nao">❌ Não atendida</span></td>
+            <td>Timeout SIP — ninguém atendeu</td>
+            <td>0 seg</td>
+          </tr>
+          <tr>
+            <td><strong>OCUPADO</strong></td>
+            <td><span class="badge badge-ocupado">📵 Ocupado</span></td>
+            <td>Destinatário retornou 486 Busy</td>
+            <td>0 seg</td>
+          </tr>
+          <tr>
+            <td><strong>ERRO</strong></td>
+            <td><span class="badge badge-erro">⚠️ Erro</span></td>
+            <td>Falha de conexão SIP / rede</td>
+            <td>0 seg</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 6: RESULTADO -->
+  <section id="resultado">
+    <div class="section-title">📝 Registrar resultado da chamada</div>
+    <div class="divider"></div>
+    <p class="section-lead">Ao encerrar qualquer chamada, o <strong>drawer de resultado</strong> abre automaticamente no lado direito da tela. Você pode registrar o que aconteceu e agendar o próximo contato.</p>
+
+    <div class="flow">
+      <div class="flow-step">Chamada encerra</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Drawer abre automaticamente</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Preenche resultado</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Salvar ou Pular</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Widget some — pronto para nova chamada</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Campos do drawer de resultado</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th>Obrigatório?</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Nome do lead</strong></td>
+            <td>— (informativo)</td>
+            <td>Exibido automaticamente, não editável aqui.</td>
+          </tr>
+          <tr>
+            <td><strong>Status / duração</strong></td>
+            <td>— (automático)</td>
+            <td>Preenchido pelo sistema: badge de status + tempo de fala.</td>
+          </tr>
+          <tr>
+            <td><strong>Resultado</strong></td>
+            <td>Opcional</td>
+            <td>Campo de texto livre. Ex.: "Pediu proposta até sexta", "Voltar em 30 dias".</td>
+          </tr>
+          <tr>
+            <td><strong>Próximo contato</strong></td>
+            <td>Opcional</td>
+            <td>Data e hora. Se preenchido, cria uma atividade de follow-up no lead.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">💾 Salvar Atividade</div>
+        <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Cria uma atividade do tipo <strong>Ligação</strong> no histórico do lead com o resultado e próximo contato. Um toast de confirmação aparece e o drawer fecha.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">⏭️ Pular</div>
+        <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Fecha o drawer sem criar atividade. A <strong>chamada já foi registrada</strong> automaticamente (status, duração, sipCallId). Apenas o resultado de texto é ignorado.</p>
+      </div>
+    </div>
+
+    <div class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <span>A chamada é registrada <strong>antes</strong> do drawer aparecer. Mesmo que você feche o drawer (Pular), a chamada já consta no histórico do lead com status e duração corretos.</span>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 7: HISTÓRICO -->
+  <section id="historico">
+    <div class="section-title">📋 Histórico de chamadas</div>
+    <div class="divider"></div>
+    <p class="section-lead">Na ficha de cada lead, a aba <strong>Chamadas</strong> exibe todas as ligações realizadas para aquele lead, com status, duração, data e opção de ouvir a gravação.</p>
+
+    <ul class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Abra a ficha do lead</strong>
+          <p>Clique no lead desejado na lista ou no funil Kanban.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Clique na aba "Chamadas"</strong>
+          <p>A aba fica nas abas da ficha, ao lado de Atividades, WhatsApp, etc.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Veja a lista de chamadas</strong>
+          <p>Ordenadas da mais recente para a mais antiga. Cada linha mostra: data/hora, duração, status e vendedor responsável.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Ouça a gravação (se disponível)</strong>
+          <p>Se o servidor VoIP enviar a URL de gravação, um botão <strong>▶ Ouvir</strong> aparece ao lado da chamada.</p>
+        </div>
+      </li>
+    </ul>
+
+    <div class="alert alert-warning">
+      <span class="alert-icon">🔒</span>
+      <span>Vendedores só visualizam chamadas de <strong>seus próprios leads</strong>. Supervisão, CEO e Admin visualizam chamadas de todos os vendedores.</span>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 8: SUPERVISOR -->
+  <section id="supervisor">
+    <div class="section-title">📊 Painel do Supervisor — Chamadas em andamento</div>
+    <div class="divider"></div>
+    <p class="section-lead">Supervisores, CEO e Admin têm acesso ao painel de chamadas em tempo real. Ele mostra todos os vendedores que estão em chamada neste exato momento, com atualização automática a cada 10 segundos.</p>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">📍</span>
+      <span>Acesse em: menu lateral → <strong>Softphone</strong> → <strong>Em Andamento</strong> (ou na seção de Relatórios).</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">👁️ Exemplo do painel em andamento</div>
+      <div class="supervisor-row">
+        <div class="sup-avatar">CA</div>
+        <div class="sup-info">
+          <div class="sup-name">Carlos Andrade</div>
+          <div class="sup-lead">Falando com: Empresa ABC Ltda</div>
+        </div>
+        <div class="sup-dur">04:12</div>
+      </div>
+      <div class="supervisor-row">
+        <div class="sup-avatar">MS</div>
+        <div class="sup-info">
+          <div class="sup-name">Maria Santos</div>
+          <div class="sup-lead">Falando com: Distribuidora XYZ</div>
+        </div>
+        <div class="sup-dur">01:48</div>
+      </div>
+      <div class="supervisor-row">
+        <div class="sup-avatar">PO</div>
+        <div class="sup-info">
+          <div class="sup-name">Paulo Oliveira</div>
+          <div class="sup-lead">Falando com: João Silva (PF)</div>
+        </div>
+        <div class="sup-dur">00:33</div>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);padding:10px 16px 4px">Atualizado automaticamente a cada 10 segundos</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📌 O que o painel mostra</div>
+      <ul style="list-style:none;font-size:13.5px;line-height:2">
+        <li>👤 Nome do vendedor</li>
+        <li>🏢 Nome do lead/empresa em chamada</li>
+        <li>⏱️ Duração atual da chamada (cronômetro ao vivo)</li>
+        <li>🔄 Atualização a cada 10s sem precisar recarregar</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 9: RELATÓRIOS -->
+  <section id="relatorio">
+    <div class="section-title">📈 Relatórios de chamadas</div>
+    <div class="divider"></div>
+    <p class="section-lead">O módulo de relatórios consolida todas as chamadas de um período com indicadores de desempenho. Disponível para Supervisão, CEO e Admin.</p>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">📍</span>
+      <span>Acesse em: menu lateral → <strong>Softphone</strong> → <strong>Relatórios</strong>.</span>
+    </div>
+
+    <ul class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Selecione o período</strong>
+          <p>Preencha a data de início e fim do relatório. Ex.: 01/05/2026 a 31/05/2026.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Filtre por vendedor (opcional)</strong>
+          <p>Se quiser ver apenas as chamadas de um vendedor específico, selecione no filtro. Deixe em branco para ver toda a equipe.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Consulte os indicadores</strong>
+          <p>Os cards de resumo são exibidos no topo. A tabela de detalhe fica abaixo com todas as chamadas do período.</p>
+        </div>
+      </li>
+    </ul>
+
+    <div class="report-card">
+      <div class="card-title">📊 Indicadores do relatório (exemplo)</div>
+      <div class="report-stats">
+        <div class="report-stat">
+          <div class="report-stat-num">142</div>
+          <div class="report-stat-label">Total de chamadas</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-num">89</div>
+          <div class="report-stat-label">Atendidas</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-num">4m 18s</div>
+          <div class="report-stat-label">Duração média</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-num">63%</div>
+          <div class="report-stat-label">Taxa de atendimento</div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Indicador</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Total</strong></td>
+            <td>Todas as chamadas iniciadas no período (incluindo não atendidas)</td>
+          </tr>
+          <tr>
+            <td><strong>Atendidas</strong></td>
+            <td>Chamadas com status ATENDIDA</td>
+          </tr>
+          <tr>
+            <td><strong>Não atendidas</strong></td>
+            <td>Chamadas com status NAO_ATENDIDA</td>
+          </tr>
+          <tr>
+            <td><strong>Ocupado</strong></td>
+            <td>Chamadas com status OCUPADO (486 Busy)</td>
+          </tr>
+          <tr>
+            <td><strong>Duração média</strong></td>
+            <td>Média de segundos apenas das chamadas ATENDIDAS</td>
+          </tr>
+          <tr>
+            <td><strong>Taxa de atendimento</strong></td>
+            <td>% das chamadas que foram atendidas (atendidas ÷ total × 100)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 10: GRAVAÇÃO -->
+  <section id="gravacao">
+    <div class="section-title">🎙️ Gravação de chamadas</div>
+    <div class="divider"></div>
+    <p class="section-lead">A gravação é feita pelo servidor VoIP (PABX) — não pelo CRM. Quando o servidor termina de processar o arquivo, ele envia a URL da gravação para o CRM via webhook.</p>
+
+    <div class="alert alert-warning">
+      <span class="alert-icon">⚠️</span>
+      <span>A <strong>gravação precisa ser habilitada no servidor VoIP</strong> e depende do plano contratado. Entre em contato com o suporte técnico para configurar.</span>
+    </div>
+
+    <div class="flow">
+      <div class="flow-step">Chamada encerra no servidor VoIP</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Servidor processa o áudio</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Webhook envia URL ao CRM</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Botão ▶ aparece na aba Chamadas</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">▶ Como ouvir uma gravação</div>
+      <ul class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <strong>Abra a ficha do lead</strong>
+            <p>Qualquer usuário com acesso ao lead pode ouvir a gravação.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <strong>Clique na aba "Chamadas"</strong>
+            <p>Localize a chamada desejada na lista.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <strong>Clique em ▶ Ouvir</strong>
+            <p>O áudio é aberto diretamente no navegador (player nativo). Se o botão não aparecer, a gravação ainda está sendo processada pelo servidor VoIP ou a função está desativada.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="alert alert-purple">
+      <span class="alert-icon">🔐</span>
+      <span>O webhook do servidor VoIP usa um <strong>token secreto</strong> (X-Webhook-Secret) para autenticar. Solicitações sem o token correto são rejeitadas com erro 403. Configure no ambiente do servidor VoIP o mesmo valor definido em <code>SOFTPHONE_WEBHOOK_SECRET</code>.</span>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 11: CONFIG SIP -->
+  <section id="config-sip">
+    <div class="section-title">⚙️ Configurar o servidor SIP (Admin)</div>
+    <div class="divider"></div>
+    <p class="section-lead">Apenas o perfil <strong>Admin</strong> pode configurar as credenciais do servidor VoIP. As configurações ficam criptografadas no banco de dados (AES-256-GCM) e se aplicam a todos os usuários do CRM.</p>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">📍</span>
+      <span>Acesse em: menu lateral → <strong>Configurações</strong> → <strong>Softphone / SIP</strong>.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔧 Campos de configuração SIP</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th>Exemplo</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Host do servidor SIP</strong></td>
+            <td>voip.suaempresa.com.br</td>
+            <td>Endereço do servidor PABX/VoIP. Sem https:// ou wss://.</td>
+          </tr>
+          <tr>
+            <td><strong>Usuário SIP</strong></td>
+            <td>crm_user</td>
+            <td>Ramal ou usuário cadastrado no servidor VoIP para o CRM.</td>
+          </tr>
+          <tr>
+            <td><strong>Senha SIP</strong></td>
+            <td>••••••••</td>
+            <td>Salva criptografada (AES-256-GCM). Nunca fica em texto plano.</td>
+          </tr>
+          <tr>
+            <td><strong>Porta</strong></td>
+            <td>5060</td>
+            <td>Porta WebSocket do servidor SIP. Padrão: 5060.</td>
+          </tr>
+          <tr>
+            <td><strong>Servidor STUN</strong></td>
+            <td>stun:stun.l.google.com:19302</td>
+            <td>Servidor STUN para ICE (NAT traversal). Padrão do Google funciona na maioria dos casos.</td>
+          </tr>
+          <tr>
+            <td><strong>Codec</strong></td>
+            <td>PCMU</td>
+            <td>Codec de áudio preferido. Opções comuns: PCMU (G.711 μ-law), PCMA (G.711 A-law), G.722.</td>
+          </tr>
+          <tr>
+            <td><strong>Gravação ativa</strong></td>
+            <td>Sim / Não</td>
+            <td>Habilita o recebimento de URLs de gravação via webhook.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <span>Após salvar, as configurações entram em vigor <strong>imediatamente</strong> para todos os usuários — sem necessidade de reiniciar o servidor ou fazer logout.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 Como verificar se o SIP está conectado</div>
+      <ul class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <strong>Salve as configurações SIP</strong>
+            <p>Clique em Salvar na tela de configuração.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <strong>Tente iniciar uma chamada de teste</strong>
+            <p>Abra qualquer ficha de lead com telefone e clique em Ligar.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <strong>Observe o console do navegador (F12)</strong>
+            <p>A mensagem <code>[SIP] Registrado</code> confirma que a conexão está ativa. <code>[SIP] Falha no registro</code> indica credenciais incorretas ou servidor inacessível.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 12: VARIÁVEIS DE AMBIENTE -->
+  <section id="env">
+    <div class="section-title">🔐 Variáveis de ambiente do servidor</div>
+    <div class="divider"></div>
+    <p class="section-lead">As variáveis abaixo devem estar configuradas no servidor backend (arquivo <code>.env</code>). Solicite ao time de TI se necessário:</p>
+
+    <div class="code-block">
+<span class="code-comment"># Chave de criptografia — 32 bytes em hex (64 caracteres)</span>
+<span class="code-comment"># Compartilhada com o módulo de integração Google Calendar</span>
+<span class="code-key">TOKEN_ENCRYPTION_KEY</span>=<span class="code-value">a3f2...d9e1</span>  <span class="code-comment"># 64 hex chars</span>
+
+<span class="code-comment"># Secret do webhook de gravação (combinado com o servidor VoIP)</span>
+<span class="code-key">SOFTPHONE_WEBHOOK_SECRET</span>=<span class="code-value">seu_secret_aqui_bem_longo</span>
+    </div>
+
+    <div class="alert alert-danger">
+      <span class="alert-icon">🚨</span>
+      <span><strong>Nunca compartilhe</strong> o <code>TOKEN_ENCRYPTION_KEY</code> ou o <code>SOFTPHONE_WEBHOOK_SECRET</code>. Eles protegem as credenciais SIP de todos os usuários. Se comprometidos, altere imediatamente e reconfigure as credenciais SIP.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔑 Gerar TOKEN_ENCRYPTION_KEY (se necessário)</div>
+      <div class="code-block"><span class="code-comment"># Execute no terminal do servidor:</span>
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</div>
+      <p style="font-size:13px;color:var(--text-muted)">Copie o resultado (64 caracteres hexadecimais) e cole como valor de <code>TOKEN_ENCRYPTION_KEY</code>.</p>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 13: FAQ -->
+  <section id="faq">
+    <div class="section-title">❓ Dúvidas frequentes</div>
+    <div class="divider"></div>
+
+    <div class="card">
+      <div class="card-title">🎤 O navegador pediu permissão de microfone mas eu cliquei em Bloquear. O que fazer?</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Clique no cadeado (🔒) na barra de endereço do navegador → <strong>Permissões</strong> → <strong>Microfone</strong> → altere para <strong>Permitir</strong>. Recarregue a página após a mudança.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📵 O botão Ligar está desabilitado (cinza). Por quê?</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Isso acontece quando o lead não tem <strong>número de telefone</strong> cadastrado. Edite a ficha do lead, adicione o telefone e tente novamente.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📡 O widget aparece "Discando" mas não conecta.</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Verifique: (1) as configurações SIP estão corretas (Admin → Configurações → Softphone); (2) o servidor VoIP está acessível pela internet; (3) a porta WebSocket (padrão 5060) não está bloqueada por firewall; (4) o console do navegador (F12) mostra <code>[SIP] Registrado</code>.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔊 Eu escuto o lead mas ele não me escuta.</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">O botão <strong>Mudo</strong> pode estar ativo (fundo vermelho). Clique nele para desativar. Se o problema persistir, verifique se o microfone correto está selecionado nas configurações de áudio do sistema operacional.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 Fechei o drawer sem preencher o resultado. A chamada foi registrada?</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Sim. A chamada é registrada automaticamente quando encerrada — <strong>antes</strong> do drawer aparecer. Fechar o drawer apenas ignora o campo de resultado de texto. O status e a duração já estão salvos no histórico.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎙️ A gravação não aparece na aba Chamadas.</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">A gravação depende do servidor VoIP. Verifique: (1) a opção <strong>Gravação ativa</strong> está marcada nas configurações SIP; (2) o servidor VoIP está configurado para enviar o webhook ao CRM com o URL correto e o header <code>X-Webhook-Secret</code>; (3) o arquivo de áudio foi processado (pode levar alguns minutos).</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Sou supervisora mas não consigo acessar os relatórios.</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Verifique se seu perfil está configurado como <strong>SUPERVISAO</strong> no CRM (não VENDEDOR). Entre em contato com o Admin para verificar e corrigir o perfil.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔄 Posso fazer duas chamadas ao mesmo tempo?</div>
+      <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6">Não. O softphone suporta apenas <strong>uma chamada ativa por vez</strong> por usuário. Para ligar para outro lead, encerre a chamada atual e aguarde o drawer fechar.</p>
+    </div>
+
+    <div style="margin-top:40px;padding:24px;background:var(--primary-light);border-radius:12px;text-align:center">
+      <p style="font-size:15px;font-weight:700;color:var(--primary-dark);margin-bottom:8px">Precisa de ajuda adicional?</p>
+      <p style="font-size:13.5px;color:var(--primary-dark);opacity:0.8">Entre em contato com o suporte da ProSystem Sistemas.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // Sidebar active link via IntersectionObserver
+  const sections = document.querySelectorAll('section[id]')
+  const links = document.querySelectorAll('nav ul li a')
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'))
+        const active = document.querySelector(`nav a[href="#${entry.target.id}"]`)
+        if (active) active.classList.add('active')
+      }
+    })
+  }, { threshold: 0.3 })
+
+  sections.forEach(s => obs.observe(s))
+
+  // Smooth scroll
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault()
+      const target = document.querySelector(link.getAttribute('href'))
+      if (target) target.scrollIntoView({ behavior: 'smooth' })
+    })
+  })
+</script>
+</body>
+</html>

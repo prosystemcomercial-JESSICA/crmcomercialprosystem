@@ -1,0 +1,691 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== USUARIOS =====
+model Usuario {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  role      String   // VENDEDOR|SUPERVISAO|CEO|ADMIN|FINANCEIRO|TECNICO
+  ativo     Boolean  @default(true)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([role])
+  @@index([email])
+}
+
+// ===== CLIENTES =====
+model Cliente {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  telefone  String?
+  empresa   String?
+  cidade    String?
+  estado    String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  caso_churn      CasoChurn[]
+  survey_churn    SurveyChurn[]
+  creditos        Credito[]
+  campanhas_disparo CampanhaDisparo[]
+  licencas        Licenca[]
+  tickets         TicketSuporte[]
+  indicacoes_feitas Indicacao[]  @relation("IndicacoesFeitas")
+  health_score    HealthScore?
+
+  @@index([email])
+  @@index([empresa])
+}
+
+// ===== SPRINT 28: CHURN E RETENCAO =====
+
+model CasoChurn {
+  id              String    @id @default(cuid())
+  clienteId       String
+  cliente         Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  status          String    @default("NOVO") // NOVO|DIAGNOSTICADO|PLANEJADO|EXECUTANDO|RECUPERADO|PERDIDO
+  risk_score      Float     @default(0)
+  motivo_principal String?
+
+  created_by      String
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  diagnosis       DiagnosisChurn?
+  survey_churn    SurveyChurn?
+  planos          PlanoRetencao[]
+  acoes           AcaoRetencao[]
+
+  @@index([status])
+  @@index([clienteId])
+  @@index([risk_score])
+  @@index([created_at])
+}
+
+model DiagnosisChurn {
+  id              String    @id @default(cuid())
+  caso_churn_id   String    @unique
+  caso_churn      CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
+
+  motivo_principal String
+  risco_score     Float
+  fatores         String[]  // Array de fatores de risco
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([caso_churn_id])
+}
+
+model PlanoRetencao {
+  id              String    @id @default(cuid())
+  caso_churn_id   String
+  caso_churn      CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
+
+  titulo          String
+  descricao       String?
+  status          String    @default("RASCUNHO") // RASCUNHO|ATIVO|CONCLUIDO
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  acoes           AcaoRetencao[]
+
+  @@index([caso_churn_id])
+}
+
+model AcaoRetencao {
+  id              String    @id @default(cuid())
+  caso_churn_id   String
+  caso_churn      CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
+
+  plano_id        String?
+  plano           PlanoRetencao? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
+
+  titulo          String
+  descricao       String?
+  tipo            String    // CONTATO|EMAIL|DESCONTO|PRODUTO|OUTRO
+  status          String    @default("NOVA") // NOVA|EM_PROGRESSO|CONCLUIDA|CANCELADA
+  responsavel_id  String?
+  data_vencimento DateTime?
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([caso_churn_id])
+  @@index([plano_id])
+}
+
+model HistoricoLead {
+  id              String    @id @default(cuid())
+  tipo            String    // caso_criado|status_alterado|acao_criada|survey_respondido|etc
+  descricao       String
+  relacionado_id  String?   // ID do caso/survey/acao relacionada
+
+  created_by      String
+  created_at      DateTime  @default(now())
+
+  @@index([relacionado_id])
+  @@index([tipo])
+}
+
+// ===== SPRINT 29: PESQUISA DE MOTIVOS =====
+
+model SurveyChurn {
+  id                String    @id @default(cuid())
+  casoChurnId       String    @unique
+  caso_churn        CasoChurn @relation(fields: [casoChurnId], references: [id], onDelete: Cascade)
+
+  clienteId         String
+  cliente           Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  status            String    @default("PENDING") // PENDING|OPENED|RESPONDED|EXPIRED
+
+  email_enviado     Boolean   @default(false)
+  enviado_em        DateTime?
+  email_aberto      Boolean   @default(false)
+
+  respondida        Boolean   @default(false)
+  respondido_em     DateTime?
+
+  expira_em         DateTime  // 30 days from creation
+
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  resposta          SurveyResposta?
+
+  @@index([status])
+  @@index([respondida])
+  @@index([expira_em])
+}
+
+model SurveyResposta {
+  id              String    @id @default(cuid())
+  surveyId        String    @unique
+  survey_churn    SurveyChurn @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  q1_resposta     String    @db.Text
+  q2_resposta     String?   @db.Text
+  q3_score        Int       // 1-10
+  q4_opcao        String    // sim|nao|talvez
+  q5_stars        Int       // 1-5
+
+  sentimento_q1   Float?    // -1.0 to +1.0
+  sentimento_q1_label String?
+  sentimento_q1_conf Int?    // 0-100
+
+  sentimento_q2   Float?
+  sentimento_q2_label String?
+  sentimento_q2_conf Int?
+
+  keywords_q1     String[]  // JSON array
+  keywords_q2     String[]
+
+  motivo_real     String?   // Enum 10 categorias
+  confianca       String?   // HIGH|MEDIUM|LOW|NONE
+  manual_corrected Boolean  @default(false)
+
+  ip_address      String?
+  responded_at    DateTime  @default(now())
+
+  @@index([sentimento_q1])
+  @@index([motivo_real])
+}
+
+// ===== SPRINT 30: CAMPANHAS =====
+
+model Campanha {
+  id                String    @id @default(cuid())
+  nome              String    @db.VarChar(100)
+  descricao         String?   @db.Text
+
+  status            String    @default("RASCUNHO") // RASCUNHO|ATIVA|PAUSADA|FINALIZADA|ARQUIVADA
+  data_inicio       DateTime
+  data_fim          DateTime
+
+  created_by        String
+  created_at        DateTime  @default(now())
+  updated_by        String?
+  updated_at        DateTime  @updatedAt
+
+  acoes             CampanhaAcao[]
+  disparos          CampanhaDisparo[]
+  auditoria         AuditoriaCompanha[]
+
+  @@index([status])
+  @@index([created_by])
+  @@index([data_inicio])
+}
+
+model CampanhaAcao {
+  id                String    @id @default(cuid())
+  campanha_id       String
+  campanha          Campanha  @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
+
+  tipo_trigger      String    // IMEDIATO|HORARIO|WEBHOOK
+  tipo_acao         String    // ENVIAR_EMAIL|ENVIAR_SMS|CRIAR_TASK|APLICAR_CREDITO|WEBHOOK
+  configuracao      Json      // {template_id, cron, webhook_url, etc}
+
+  ordem             Int       // sequência de execução
+  atraso_horas      Int       @default(0)
+
+  status            String    @default("CRIADA") // CRIADA|AGENDADA|EXECUTANDO|COMPLETA|ERRO
+  ultima_execucao   DateTime?
+  proxima_execucao  DateTime?
+
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  disparos          CampanhaDisparo[]
+
+  @@index([campanha_id])
+  @@unique([campanha_id, ordem])
+}
+
+model CampanhaDisparo {
+  id                String    @id @default(cuid())
+  campanha_id       String
+  campanha          Campanha  @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
+
+  cliente_id        String
+  cliente           Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  acao_id           String?
+  acao              CampanhaAcao? @relation(fields: [acao_id], references: [id], onDelete: SetNull)
+
+  tipo              String    // EMAIL|SMS|TASK|WEBHOOK
+  status            String    // ENVIADO|ERRO|BOUNCE|COMPLAINED|DELIVERED|ABERTO
+  message_id        String?
+
+  sent_at           DateTime?
+  delivered_at      DateTime?
+  bounced_at        DateTime?
+
+  email_aberto      Boolean   @default(false)
+  opened_at         DateTime?
+
+  link_clicado      Boolean   @default(false)
+  clicked_at        DateTime?
+
+  metadados         Json?
+
+  created_at        DateTime  @default(now())
+
+  @@index([campanha_id])
+  @@index([cliente_id])
+  @@index([status])
+}
+
+model Template {
+  id                String    @id @default(cuid())
+  nome              String    @db.VarChar(100)
+  assunto           String    @db.VarChar(200)
+  corpo             String    @db.Text // HTML
+
+  variaveis_tag     String[]
+  tags_indicadas    String[]  // [PRECO, SUPORTE]
+
+  versao            Int       @default(1)
+  ativa             Boolean   @default(true)
+
+  created_by        String
+  created_at        DateTime  @default(now())
+  updated_by        String?
+  updated_at        DateTime  @updatedAt
+
+  @@index([created_by])
+}
+
+model AuditoriaCompanha {
+  id                String    @id @default(cuid())
+  campanha_id       String
+  campanha          Campanha  @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
+
+  usuario_id        String
+  acao              String    // CREATE|UPDATE|ATIVA|PAUSADA|FINALIZADA
+
+  dados_antes       Json?
+  dados_depois      Json?
+  ip_address        String?
+
+  timestamp         DateTime  @default(now())
+
+  @@index([campanha_id])
+  @@index([usuario_id])
+}
+
+// ===== MODULO COMERCIAL =====
+
+model Lead {
+  id              String    @id @default(cuid())
+  nome            String
+  email           String?
+  telefone        String?
+  empresa         String?
+  cargo           String?
+  cidade          String?
+  estado          String?
+
+  origem          String    @default("MANUAL") // MANUAL|SITE|INDICACAO|CAMPANHA|EVENTO|OUTRO
+  status          String    @default("NOVO") // NOVO|QUALIFICADO|EM_CONTATO|PROPOSTA|NEGOCIACAO|GANHO|PERDIDO|NUTRICAO
+
+  etapa_funil     String    @default("PROSPECCAO") // PROSPECCAO|QUALIFICACAO|APRESENTACAO|PROPOSTA|NEGOCIACAO|FECHAMENTO
+  temperatura     String    @default("FRIO") // FRIO|MORNO|QUENTE
+  valor_estimado  Float?
+  probabilidade   Int?      // 0-100%
+
+  responsavel_id  String?
+  observacoes     String?   @db.Text
+
+  created_by      String
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  atividades      Atividade[]
+  propostas       Proposta[]
+  contrato        Contrato?
+  indicacoes      Indicacao[]
+
+  @@index([status])
+  @@index([etapa_funil])
+  @@index([responsavel_id])
+  @@index([created_at])
+}
+
+model Atividade {
+  id              String    @id @default(cuid())
+  lead_id         String
+  lead            Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  tipo            String    // LIGACAO|EMAIL|REUNIAO|WHATSAPP|VISITA|TAREFA|OUTRO
+  titulo          String
+  descricao       String?   @db.Text
+  status          String    @default("PENDENTE") // PENDENTE|CONCLUIDA|CANCELADA
+  resultado       String?   @db.Text
+
+  responsavel_id  String?
+  data_prevista   DateTime?
+  data_realizada  DateTime?
+
+  created_by      String
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([lead_id])
+  @@index([status])
+  @@index([data_prevista])
+  @@index([responsavel_id])
+}
+
+model Proposta {
+  id              String    @id @default(cuid())
+  lead_id         String
+  lead            Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  titulo          String
+  descricao       String?   @db.Text
+  valor           Float
+  validade        DateTime?
+  status          String    @default("RASCUNHO") // RASCUNHO|ENVIADA|VISUALIZADA|ACEITA|RECUSADA|EXPIRADA
+
+  produtos        Json?     // [{ nome, qtd, valor_unit }]
+  condicoes       String?   @db.Text
+  observacoes     String?   @db.Text
+
+  created_by      String
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  contrato        Contrato?
+
+  @@index([lead_id])
+  @@index([status])
+}
+
+model Contrato {
+  id              String    @id @default(cuid())
+  lead_id         String    @unique
+  lead            Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  proposta_id     String?   @unique
+  proposta        Proposta? @relation(fields: [proposta_id], references: [id], onDelete: SetNull)
+
+  numero          String?   @unique
+  valor           Float
+  recorrencia     String    @default("MENSAL") // UNICO|MENSAL|TRIMESTRAL|SEMESTRAL|ANUAL
+  data_inicio     DateTime
+  data_fim        DateTime?
+  status          String    @default("ATIVO") // ATIVO|SUSPENSO|CANCELADO|ENCERRADO
+
+  produtos        Json?
+  observacoes     String?   @db.Text
+
+  created_by      String
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([status])
+  @@index([lead_id])
+}
+
+// ===== METAS COMERCIAIS =====
+
+model Meta {
+  id              String    @id @default(cuid())
+  titulo          String
+  responsavel_id  String
+  tipo            String    // RECEITA|LEADS|PROPOSTAS|CONTRATOS|ATIVIDADES
+  valor_alvo      Float
+  valor_atual     Float     @default(0)
+  periodo         String    // MES_ANO format: "2026-05"
+  status          String    @default("ATIVA") // ATIVA|CONCLUIDA|CANCELADA
+
+  created_by      String
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([responsavel_id])
+  @@index([periodo])
+  @@index([tipo])
+}
+
+// ===== SERVICOS CONTRATADOS =====
+
+model PlanoServico {
+  id          String   @id @default(cuid())
+  nome        String
+  descricao   String?  @db.Text
+  segmento    String   @default("GERAL") // FARMACIA|PADARIA|VAREJO|GERAL
+  preco       Float
+  recorrencia String   @default("MENSAL") // MENSAL|ANUAL|UNICO
+  ativo       Boolean  @default(true)
+  features    String[]
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  licencas    Licenca[]
+
+  @@index([segmento])
+  @@index([ativo])
+}
+
+model Licenca {
+  id          String   @id @default(cuid())
+  cliente_id  String
+  cliente     Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  plano_id    String?
+  plano       PlanoServico? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
+
+  status      String   @default("ATIVA") // ATIVA|SUSPENSA|EXPIRADA|CANCELADA
+  data_inicio DateTime
+  data_fim    DateTime?
+  valor       Float
+  chave       String?  // license key
+
+  responsavel_id String?
+  observacoes String? @db.Text
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  onboardings Onboarding[]
+  renovacoes  Renovacao[]
+  tickets     TicketSuporte[]
+
+  @@index([cliente_id])
+  @@index([status])
+  @@index([data_fim])
+}
+
+model Onboarding {
+  id           String   @id @default(cuid())
+  licenca_id   String
+  licenca      Licenca  @relation(fields: [licenca_id], references: [id], onDelete: Cascade)
+  cliente_id   String
+
+  status       String   @default("PENDENTE") // PENDENTE|EM_ANDAMENTO|CONCLUIDO|PAUSADO
+  responsavel_id String?
+  etapas       Json     @default("[]") // [{titulo, concluido, data_conclusao}]
+  progresso    Int      @default(0) // 0-100
+
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([cliente_id])
+  @@index([status])
+  @@index([licenca_id])
+}
+
+model Renovacao {
+  id              String   @id @default(cuid())
+  licenca_id      String
+  licenca         Licenca  @relation(fields: [licenca_id], references: [id], onDelete: Cascade)
+
+  status          String   @default("PENDENTE") // PENDENTE|EM_NEGOCIACAO|RENOVADA|CANCELADA|PERDIDA
+  data_vencimento DateTime
+  valor_atual     Float
+  valor_novo      Float?
+
+  responsavel_id  String?
+  observacoes     String?  @db.Text
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([licenca_id])
+  @@index([status])
+  @@index([data_vencimento])
+}
+
+model TicketSuporte {
+  id           String   @id @default(cuid())
+  cliente_id   String
+  cliente      Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  licenca_id   String?
+  licenca      Licenca? @relation(fields: [licenca_id], references: [id], onDelete: SetNull)
+
+  titulo       String
+  descricao    String?  @db.Text
+  categoria    String   @default("TECNICO") // TECNICO|FISCAL|COMERCIAL|FINANCEIRO|TREINAMENTO
+  prioridade   String   @default("MEDIA") // BAIXA|MEDIA|ALTA|CRITICA
+  status       String   @default("ABERTO") // ABERTO|EM_ATENDIMENTO|AGUARDANDO_CLIENTE|RESOLVIDO|FECHADO
+
+  responsavel_id String?
+  sla_horas    Int?
+  resolucao_at DateTime?
+
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([cliente_id])
+  @@index([status])
+  @@index([prioridade])
+  @@index([created_at])
+}
+
+// ===== COMISSÕES E INDICAÇÕES =====
+
+model RegraComissao {
+  id             String   @id @default(cuid())
+  nome           String
+  responsavel_id String
+  tipo           String   @default("CONTRATO") // CONTRATO|PROPOSTA|LEAD
+  percentual     Float    // ex: 5.0 = 5%
+  ativo          Boolean  @default(true)
+  observacoes    String?
+
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  comissoes      Comissao[]
+
+  @@index([responsavel_id])
+  @@index([ativo])
+}
+
+model Comissao {
+  id             String   @id @default(cuid())
+  responsavel_id String
+  regra_id       String?
+  regra          RegraComissao? @relation(fields: [regra_id], references: [id], onDelete: SetNull)
+
+  tipo           String   // CONTRATO|PROPOSTA|LEAD|MANUAL|BONUS
+  referencia_id  String?  // ID do contrato/proposta/lead
+  descricao      String?
+
+  valor_base     Float
+  percentual     Float
+  valor_comissao Float
+
+  periodo        String   // "YYYY-MM"
+  status         String   @default("PENDENTE") // PENDENTE|APROVADA|PAGA|CANCELADA
+
+  created_by     String   @default("system")
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([responsavel_id])
+  @@index([periodo])
+  @@index([status])
+}
+
+model Indicacao {
+  id                   String   @id @default(cuid())
+  cliente_indicador_id String
+  cliente_indicador    Cliente  @relation("IndicacoesFeitas", fields: [cliente_indicador_id], references: [id], onDelete: Cascade)
+
+  lead_id              String?
+  lead                 Lead?    @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+
+  nome_indicado        String
+  email_indicado       String?
+  telefone_indicado    String?
+  empresa_indicado     String?
+
+  status               String   @default("PENDENTE") // PENDENTE|CONTATO|CONVERTIDO|PERDIDO
+  bonus_valor          Float    @default(0)
+  bonus_pago           Boolean  @default(false)
+  observacoes          String?
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  @@index([cliente_indicador_id])
+  @@index([status])
+}
+
+// ===== HEALTH SCORE =====
+
+model HealthScore {
+  id          String   @id @default(cuid())
+  cliente_id  String   @unique
+  cliente     Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  score       Float    // 0-100
+  nivel       String   @default("ATENCAO") // CRITICO|RISCO|ATENCAO|SAUDAVEL|EXCELENTE
+  fatores     Json     // {tickets_abertos, dias_sem_contato, nps_score, contratos_ativos, ...}
+
+  calculado_at DateTime @default(now())
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([nivel])
+  @@index([score])
+}
+
+// ===== UTILITARIOS =====
+
+model Credito {
+  id                String    @id @default(cuid())
+  cliente_id        String
+  cliente           Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  valor             Float
+  validade          DateTime
+  motivo            String?
+
+  criado_em         DateTime  @default(now())
+  utilizado_em      DateTime?
+
+  @@index([cliente_id])
+  @@index([validade])
+}

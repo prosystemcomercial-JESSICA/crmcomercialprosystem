@@ -1,0 +1,22 @@
+{
+  "squad": "crm-comercial-prosystem",
+  "project_status": "active",
+  "sprint": "Sprint 30 — Campanhas de Retenção (Fase 4)",
+  "step": { "current": 6, "total": 6, "label": "QA — Testes e Validação" },
+  "agents": [
+    { "id": "product-manager", "name": "André Vieira", "status": "completed", "stepIndex": 1, "desk": { "col": 1, "row": 1 }, "message": "✅ 8 US Campanhas" },
+    { "id": "ux-designer", "name": "Patrícia Moura", "status": "completed", "stepIndex": 2, "desk": { "col": 2, "row": 1 }, "message": "✅ 5 wireframes" },
+    { "id": "tech-lead", "name": "Daniel Mendes", "status": "completed", "stepIndex": 3, "desk": { "col": 3, "row": 1 }, "message": "✅ 5 tabelas + 12 routes" },
+    { "id": "backend-developer", "name": "Felipe Santos", "status": "completed", "stepIndex": 4, "desk": { "col": 1, "row": 2 }, "message": "✅ 4 Services + Sendgrid" },
+    { "id": "frontend-developer", "name": "Isabela Costa", "status": "completed", "stepIndex": 5, "desk": { "col": 2, "row": 2 }, "message": "✅ 15+ Componentes" },
+    { "id": "qa-engineer", "name": "Rodrigo Almeida", "status": "completed", "stepIndex": 6, "desk": { "col": 3, "row": 2 }, "message": "✅ 20 test cases" }
+  ],
+  "sprints_completed": [
+    { "number": 28, "name": "Churn e Retenção", "status": "completed", "completedAt": "2026-05-20T00:45:00Z" },
+    { "number": 29, "name": "Pesquisa de Motivos de Churn", "status": "completed", "completedAt": "2026-05-20T02:45:00Z" },
+    { "number": 30, "name": "Campanhas de Retenção", "status": "completed", "completedAt": "2026-05-20T03:30:00Z" }
+  ],
+  "handoff": "3 sprints complete → ready for development",
+  "startedAt": "2026-05-20T00:20:00Z",
+  "completedAt": "2026-05-20T03:30:00Z"
+}

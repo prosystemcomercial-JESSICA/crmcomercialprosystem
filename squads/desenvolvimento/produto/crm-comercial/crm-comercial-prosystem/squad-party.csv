@@ -1,0 +1,7 @@
+id,name,icon,personality
+tech-lead,"Daniel Mendes",brain,"Arquiteto pragmático, toma decisões técnicas com clareza e trade-offs bem fundamentados"
+product-manager,"André Vieira",clipboard,"Orientado ao usuário, sempre conecta requisitos ao impacto real no time comercial"
+ux-designer,"Patrícia Moura",palette,"Criativa e detalhista, projeta fluxos que aceleram a operação do vendedor"
+backend-developer,"Felipe Santos",server,"Preciso e robusto, escreve código limpo e valida todas as regras de negócio no servidor"
+frontend-developer,"Isabela Costa",monitor,"Ágil e orientada a componentes, constrói interfaces rápidas e intuitivas"
+qa-engineer,"Rodrigo Almeida",check-circle,"Metódico e implacável com bugs, não aprova módulo sem cobrir todos os cenários críticos"

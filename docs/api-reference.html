@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM ProSystem — Referência da API</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --green: #10b981;
+      --blue: #3b82f6;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a855f7;
+      --orange: #f97316;
+      --text: #e2e4f0;
+      --text-muted: #8b92b3;
+      --sidebar-width: 260px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }
+
+    @media print {
+      .sidebar, .top-bar, .print-btn { display: none !important; }
+      .main { margin-left: 0 !important; padding: 24px !important; }
+      body { background: white; color: #111; }
+      .endpoint-block { border: 1px solid #ccc; }
+      code, pre { background: #f4f4f4 !important; color: #111 !important; }
+    }
+
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 52px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 24px; gap: 16px;
+    }
+    .top-bar .logo { font-size: 1rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .top-bar .logo span { color: var(--text-muted); font-weight: 400; font-size: 0.875rem; }
+    .top-bar .version { background: var(--primary); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .top-bar .spacer { flex: 1; }
+    .print-btn { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 14px; font-size: 0.8rem; cursor: pointer; }
+    .print-btn:hover { background: var(--border); }
+
+    .sidebar {
+      position: fixed; top: 52px; left: 0; bottom: 0; width: var(--sidebar-width);
+      background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 12px 0;
+    }
+    .sidebar-section { padding: 6px 12px 2px; }
+    .sidebar-section h6 { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
+    .sidebar a { display: flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 4px; color: var(--text-muted); text-decoration: none; font-size: 0.8rem; transition: background 0.1s; }
+    .sidebar a:hover { background: var(--surface2); color: var(--text); }
+    .sidebar a .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .sidebar a.active { background: var(--surface2); color: var(--primary-light); }
+
+    .main { margin-left: var(--sidebar-width); margin-top: 52px; padding: 32px 40px; max-width: 1000px; }
+
+    .section { margin-bottom: 56px; scroll-margin-top: 68px; }
+    .section-header { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; }
+    .section-header p { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+
+    h3 { font-size: 0.95rem; font-weight: 700; color: var(--text); margin: 28px 0 10px; }
+    p { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 10px; }
+
+    /* ── Method badges ── */
+    .method { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; font-family: var(--mono); min-width: 50px; text-align: center; }
+    .GET    { background: rgba(16,185,129,0.15); color: #10b981; }
+    .POST   { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .PATCH  { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .DELETE { background: rgba(239,68,68,0.15);  color: #ef4444; }
+
+    /* ── Endpoint block ── */
+    .endpoint-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .endpoint-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; cursor: pointer;
+      user-select: none;
+    }
+    .endpoint-header:hover { background: var(--surface2); }
+    .endpoint-path {
+      font-family: var(--mono); font-size: 0.875rem; color: var(--text);
+      flex: 1;
+    }
+    .endpoint-summary { font-size: 0.8rem; color: var(--text-muted); }
+    .endpoint-body { padding: 14px 16px; border-top: 1px solid var(--border); display: none; }
+    .endpoint-block.open .endpoint-body { display: block; }
+
+    /* ── Permission chips ── */
+    .perm-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+    .perm { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 0.7rem; font-weight: 600; }
+    .perm-admin    { background: rgba(168,85,247,0.15); color: #a855f7; }
+    .perm-ceo      { background: rgba(59,130,246,0.15);  color: #60a5fa; }
+    .perm-super    { background: rgba(16,185,129,0.15); color: #10b981; }
+    .perm-vendor   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .perm-fin      { background: rgba(239,68,68,0.15); color: #f87171; }
+    .perm-all      { background: rgba(107,114,128,0.2); color: #9ca3af; }
+
+    /* ── Code blocks ── */
+    code { font-family: var(--mono); font-size: 0.8rem; background: var(--surface2); padding: 1px 5px; border-radius: 3px; color: #a5b4fc; }
+    pre { font-family: var(--mono); font-size: 0.8rem; background: var(--surface2); padding: 12px 14px; border-radius: 6px; overflow-x: auto; color: #a5b4fc; margin: 8px 0; line-height: 1.5; border: 1px solid var(--border); }
+    .pre-key   { color: #f472b6; }
+    .pre-str   { color: #86efac; }
+    .pre-num   { color: #fb923c; }
+    .pre-bool  { color: #60a5fa; }
+    .pre-null  { color: #94a3b8; }
+    .pre-comment { color: #4b5563; }
+
+    /* ── Info box ── */
+    .info-box { border-left: 3px solid var(--primary); background: rgba(99,102,241,0.08); border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 12px 0; font-size: 0.8rem; color: #a5b4fc; }
+    .warn-box { border-left: 3px solid var(--yellow); background: rgba(245,158,11,0.08); border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 12px 0; font-size: 0.8rem; color: #fbbf24; }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin: 10px 0 18px; }
+    thead { background: var(--surface2); }
+    th { text-align: left; padding: 7px 10px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); }
+    td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── Schema field ── */
+    .field-table td:first-child { font-family: var(--mono); color: #f472b6; font-size: 0.8rem; }
+    .field-table td:nth-child(2) { color: #86efac; }
+    .required-mark { color: var(--red); font-size: 0.65rem; margin-left: 3px; }
+
+    /* ── Status codes ── */
+    .status { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 0.75rem; font-weight: 700; font-family: var(--mono); }
+    .s200 { background: rgba(16,185,129,0.15); color: #10b981; }
+    .s201 { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .s204 { background: rgba(107,114,128,0.2); color: #9ca3af; }
+    .s400 { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .s401 { background: rgba(239,68,68,0.15); color: #f87171; }
+    .s403 { background: rgba(239,68,68,0.15); color: #f87171; }
+    .s404 { background: rgba(239,68,68,0.15); color: #f87171; }
+    .s409 { background: rgba(239,68,68,0.15); color: #f87171; }
+    .s422 { background: rgba(239,68,68,0.15); color: #f87171; }
+
+    /* ── Cover ── */
+    .api-cover {
+      background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 40px; margin-bottom: 40px;
+    }
+    .api-cover h1 { font-size: 1.75rem; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+    .api-cover .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; }
+    .api-cover .meta-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+    .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; color: var(--text-muted); }
+    .chip strong { color: var(--text); }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">
+    ⚡ CRM ProSystem API
+    <span>/ Referência Técnica</span>
+  </div>
+  <div class="version">v1.0</div>
+  <div class="spacer"></div>
+  <button class="print-btn" onclick="window.print()">🖨️ Exportar PDF</button>
+</div>
+
+<nav class="sidebar">
+  <div class="sidebar-section">
+    <a href="#intro"><span class="dot" style="background:#6366f1"></span>Introdução</a>
+    <a href="#auth"><span class="dot" style="background:#10b981"></span>Autenticação</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Módulos Core</h6>
+    <a href="#leads"><span class="dot" style="background:#3b82f6"></span>Leads</a>
+    <a href="#usuarios"><span class="dot" style="background:#a855f7"></span>Usuários</a>
+    <a href="#funil"><span class="dot" style="background:#f59e0b"></span>Funil</a>
+    <a href="#atividades"><span class="dot" style="background:#10b981"></span>Atividades</a>
+    <a href="#propostas"><span class="dot" style="background:#6366f1"></span>Propostas</a>
+    <a href="#contratos"><span class="dot" style="background:#10b981"></span>Contratos</a>
+    <a href="#perdidos"><span class="dot" style="background:#ef4444"></span>Perdidos</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Módulos Avançados</h6>
+    <a href="#agenda"><span class="dot" style="background:#60a5fa"></span>Agenda</a>
+    <a href="#whatsapp"><span class="dot" style="background:#10b981"></span>WhatsApp</a>
+    <a href="#relatorios"><span class="dot" style="background:#f97316"></span>Relatórios</a>
+    <a href="#bi"><span class="dot" style="background:#818cf8"></span>BI / Forecast</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Financeiro</h6>
+    <a href="#metas"><span class="dot" style="background:#f59e0b"></span>Metas</a>
+    <a href="#comissoes"><span class="dot" style="background:#a855f7"></span>Comissões</a>
+    <a href="#recebimentos"><span class="dot" style="background:#10b981"></span>Recebimentos</a>
+    <a href="#parceiros"><span class="dot" style="background:#60a5fa"></span>Parceiros</a>
+    <a href="#fechamento"><span class="dot" style="background:#f97316"></span>Fechamento</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Outros</h6>
+    <a href="#churn"><span class="dot" style="background:#ef4444"></span>Churn</a>
+    <a href="#ranking"><span class="dot" style="background:#f59e0b"></span>Ranking</a>
+    <a href="#erros"><span class="dot" style="background:#9ca3af"></span>Erros</a>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- Cover -->
+  <div class="api-cover" id="intro">
+    <h1>CRM Comercial ProSystem — API Reference</h1>
+    <div class="subtitle">Documentação técnica dos endpoints REST do backend Fastify</div>
+    <div class="meta-chips">
+      <div class="chip"><strong>Base URL:</strong> /api</div>
+      <div class="chip"><strong>Framework:</strong> Fastify + TypeScript</div>
+      <div class="chip"><strong>ORM:</strong> Prisma + PostgreSQL</div>
+      <div class="chip"><strong>Auth:</strong> JWT Bearer + httpOnly Cookie</div>
+      <div class="chip"><strong>Versão:</strong> 1.0 — Maio/2026</div>
+    </div>
+  </div>
+
+  <!-- Auth -->
+  <section class="section" id="auth">
+    <div class="section-header">
+      <h2>🔐 Autenticação</h2>
+      <p>JWT + Refresh Token em cookie httpOnly</p>
+    </div>
+
+    <h3>Fluxo de Autenticação</h3>
+    <p>Todas as rotas (exceto <code>POST /api/auth/login</code>) exigem o header <code>Authorization: Bearer &lt;token&gt;</code>. O token JWT expira em 15 minutos. Use o refresh token para renovar.</p>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/api/auth/login</span>
+        <span class="endpoint-summary">Autenticar usuário</span>
+      </div>
+      <div class="endpoint-body">
+        <p><strong>Body:</strong></p>
+        <pre><span class="pre-key">"email"</span>: <span class="pre-str">"usuario@prosystemnet.com.br"</span>,
+<span class="pre-key">"senha"</span>: <span class="pre-str">"senha123"</span></pre>
+        <p><strong>Response 200:</strong></p>
+        <pre><span class="pre-key">"accessToken"</span>: <span class="pre-str">"eyJ..."</span>,
+<span class="pre-key">"user"</span>: { <span class="pre-key">"id"</span>: <span class="pre-str">"..."</span>, <span class="pre-key">"name"</span>: <span class="pre-str">"..."</span>, <span class="pre-key">"perfil"</span>: <span class="pre-str">"VENDEDOR"</span> }
+<span class="pre-comment">// refreshToken via cookie httpOnly (7 dias)</span></pre>
+        <p><strong>Erros:</strong> <span class="status s401">401</span> Credenciais inválidas · <span class="status s401">401</span> Conta bloqueada (5 tentativas = 15 min)</p>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/api/auth/refresh</span>
+        <span class="endpoint-summary">Renovar access token</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Usa o cookie <code>refreshToken</code> enviado automaticamente pelo browser. Retorna novo <code>accessToken</code>.</p>
+        <p><strong>Response 200:</strong> <code>{"accessToken": "eyJ..."}</code></p>
+        <p><strong>Erros:</strong> <span class="status s401">401</span> Token inválido ou expirado</p>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/api/auth/logout</span>
+        <span class="endpoint-summary">Encerrar sessão</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Revoga o refreshToken no banco e limpa o cookie. Requer autenticação.</p>
+        <p><strong>Response:</strong> <span class="status s204">204</span></p>
+      </div>
+    </div>
+
+    <h3>Perfis e Roles</h3>
+    <table>
+      <thead><tr><th>Role</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="perm perm-vendor">VENDEDOR</span></td><td>Acesso apenas aos próprios leads, propostas e atividades</td></tr>
+        <tr><td><span class="perm perm-super">SUPERVISAO</span></td><td>Visão de toda a equipe, relatórios, metas, fechamento</td></tr>
+        <tr><td><span class="perm perm-ceo">CEO</span></td><td>Acesso gerencial completo + pagar comissões + BI</td></tr>
+        <tr><td><span class="perm perm-admin">ADMIN</span></td><td>Acesso total incluindo usuários e configurações</td></tr>
+        <tr><td><span class="perm perm-fin">FINANCEIRO</span></td><td>Acesso a recebimentos e comissões</td></tr>
+        <tr><td><code>TECNICO</code></td><td>Acesso de leitura a parceiros e dados de implantação</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Leads -->
+  <section class="section" id="leads">
+    <div class="section-header">
+      <h2>👤 Leads</h2>
+      <p>Módulo core — gestão completa de oportunidades comerciais</p>
+    </div>
+
+    <div class="info-box">
+      <strong>Filtro automático por role:</strong> VENDEDOR retorna apenas seus leads. SUPERVISAO/CEO/ADMIN retornam todos. Implementado no service.
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/api/leads</span>
+        <span class="endpoint-summary">Listar leads com filtros</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="perm-row"><span class="perm perm-all">Todos os perfis</span></div>
+        <p><strong>Query params:</strong> <code>status</code> <code>segmento</code> <code>temperatura</code> <code>vendedorId</code> <code>origem</code> <code>parados=true</code> <code>followupVencido=true</code> <code>search</code> <code>page=1</code> <code>limit=25</code></p>
+        <p><strong>Response 200:</strong></p>
+        <pre>{ <span class="pre-key">"data"</span>: [ {...lead} ], <span class="pre-key">"total"</span>: <span class="pre-num">84</span>, <span class="pre-key">"page"</span>: <span class="pre-num">1</span>, <span class="pre-key">"pages"</span>: <span class="pre-num">4</span> }</pre>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/api/leads</span>
+        <span class="endpoint-summary">Criar lead</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="perm-row"><span class="perm perm-all">Todos os perfis</span></div>
+        <p><strong>Body obrigatório:</strong></p>
+        <table class="field-table">
+          <thead><tr><th>Campo</th><th>Tipo</th><th>Notas</th></tr></thead>
+          <tbody>
+            <tr><td>empresa <span class="required-mark">*</span></td><td>string</td><td>ou <code>responsavel</code> — um dos dois</td></tr>
+            <tr><td>telefone <span class="required-mark">*</span></td><td>string</td><td></td></tr>
+            <tr><td>whatsapp <span class="required-mark">*</span></td><td>string</td><td></td></tr>
+            <tr><td>segmento <span class="required-mark">*</span></td><td>string</td><td>FARMACIA | PADARIA | VAREJO | OUTRO</td></tr>
+            <tr><td>origem <span class="required-mark">*</span></td><td>string</td><td>INDICACAO | SITE | GOOGLE | etc.</td></tr>
+            <tr><td>vendedorId <span class="required-mark">*</span></td><td>string (UUID)</td><td></td></tr>
+            <tr><td>temperatura</td><td>string</td><td>QUENTE | MORNO | FRIO</td></tr>
+            <tr><td>potencialMensalidade</td><td>number</td><td></td></tr>
+          </tbody>
+        </table>
+        <p><strong>Response:</strong> <span class="status s201">201</span> + lead criado com status = NOVO_LEAD</p>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/api/leads/:id</span>
+        <span class="endpoint-summary">Detalhe do lead</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="perm-row"><span class="perm perm-all">Todos — VENDEDOR só seus leads</span></div>
+        <p>Retorna lead com <code>historico</code>, contagem de propostas, última atividade.</p>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method PATCH">PATCH</span>
+        <span class="endpoint-path">/api/leads/:id/status</span>
+        <span class="endpoint-summary">Mover etapa do funil</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="perm-row"><span class="perm perm-all">Todos — VENDEDOR só seus leads</span></div>
+        <p><strong>Body:</strong> <code>{"status": "QUALIFICACAO", ...camposObrigatoriosEtapa}</code></p>
+        <p><strong>Erros:</strong> <span class="status s422">422</span> campos obrigatórios faltando + lista dos campos necessários</p>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method PATCH">PATCH</span>
+        <span class="endpoint-path">/api/leads/:id/perda</span>
+        <span class="endpoint-summary">Marcar como perdido</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="perm-row"><span class="perm perm-all">Todos</span></div>
+        <table class="field-table">
+          <thead><tr><th>Campo</th><th>Tipo</th></tr></thead>
+          <tbody>
+            <tr><td>motivoPerda <span class="required-mark">*</span></td><td>string</td></tr>
+            <tr><td>observacao <span class="required-mark">*</span></td><td>string</td></tr>
+            <tr><td>podeRecontatar <span class="required-mark">*</span></td><td>boolean</td></tr>
+            <tr><td>dataRecontato</td><td>date — obrigatório se podeRecontatar = true</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/api/leads/:id/historico</span>
+        <span class="endpoint-summary">Timeline do lead</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Array de eventos do HistoricoLead em ordem cronológica descendente.</p>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/api/leads/:id/atividades</span>
+        <span class="endpoint-summary">Registrar atividade no lead</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="perm-row"><span class="perm perm-all">Todos</span></div>
+        <p>Cria atividade + atualiza <code>dataUltimoContato</code> e <code>dataProximoContato</code> no lead automaticamente.</p>
+        <table class="field-table">
+          <thead><tr><th>Campo</th><th>Tipo</th></tr></thead>
+          <tbody>
+            <tr><td>tipo <span class="required-mark">*</span></td><td>LIGACAO | WHATSAPP | REUNIAO | EMAIL | VISITA | OUTRO</td></tr>
+            <tr><td>data <span class="required-mark">*</span></td><td>datetime</td></tr>
+            <tr><td>resultado</td><td>string (opções dinâmicas por tipo)</td></tr>
+            <tr><td>descricao</td><td>string</td></tr>
+            <tr><td>proximaAcao</td><td>string</td></tr>
+            <tr><td>dataProximoContato</td><td>date</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint-block">
+      <div class="endpoint-header" onclick="toggle(this.parentElement)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/api/leads/exportar</span>
+        <span class="endpoint-summary">Exportar CSV da carteira</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="perm-row"><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></div>
+        <p>Retorna CSV com BOM UTF-8. Aceita os mesmos query params do GET /leads.</p>
+        <p><strong>Erro:</strong> <span class="status s403">403</span> para perfil VENDEDOR</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Usuarios -->
+  <section class="section" id="usuarios">
+    <div class="section-header">
+      <h2>👥 Usuários e Autenticação</h2>
+      <p>Gestão de usuários do sistema (Admin-only para criar/alterar)</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/usuarios</code></td><td><span class="perm perm-admin">ADMIN</span></td><td>Listar todos os usuários</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/usuarios</code></td><td><span class="perm perm-admin">ADMIN</span></td><td>Criar usuário + enviar senha temporária por e-mail</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/usuarios/:id</code></td><td><span class="perm perm-admin">ADMIN</span></td><td>Detalhe do usuário</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/usuarios/:id</code></td><td><span class="perm perm-admin">ADMIN</span></td><td>Editar dados do usuário</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/usuarios/:id/status</code></td><td><span class="perm perm-admin">ADMIN</span></td><td>Ativar / Inativar usuário</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/usuarios/me</code></td><td><span class="perm perm-all">Todos</span></td><td>Perfil do usuário logado</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/usuarios/me</code></td><td><span class="perm perm-all">Todos</span></td><td>Editar próprio perfil (nome, foto)</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/auth/redefinir-senha</code></td><td><span class="perm perm-all">Todos</span></td><td>Trocar senha (com senha atual)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Funil -->
+  <section class="section" id="funil">
+    <div class="section-header">
+      <h2>📋 Funil Comercial</h2>
+      <p>Visualização kanban e movimentação de leads por etapa</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/funil</code></td><td><span class="perm perm-all">Todos</span></td><td>Leads agrupados por etapa com flags visuais</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/funil/:id/etapa</code></td><td><span class="perm perm-all">Todos</span></td><td>Mover lead (drag-and-drop) — delega ao LeadsService.alterarEtapa</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/funil/stats</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Estatísticas do funil por etapa</td></tr>
+      </tbody>
+    </table>
+
+    <p>Flags retornadas por lead no funil: <code>followupVencido</code> <code>leadParado</code> <code>propostaVencendo</code></p>
+  </section>
+
+  <!-- Propostas -->
+  <section class="section" id="propostas">
+    <div class="section-header">
+      <h2>📄 Propostas</h2>
+      <p>Ciclo completo da proposta comercial</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/propostas</code></td><td><span class="perm perm-all">Todos</span></td><td>Listar propostas (VENDEDOR: só suas)</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/propostas</code></td><td><span class="perm perm-all">Todos</span></td><td>Criar proposta para um lead</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/propostas/:id</code></td><td><span class="perm perm-all">Todos</span></td><td>Detalhe da proposta</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/propostas/:id</code></td><td><span class="perm perm-all">Todos</span></td><td>Atualizar proposta (rascunho/negociação)</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/propostas/:id/aprovar</code></td><td><span class="perm perm-all">Todos</span></td><td>Aprovar → move lead para fechado + cria contrato</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/propostas/:id/reprovar</code></td><td><span class="perm perm-all">Todos</span></td><td>Reprovar proposta</td></tr>
+      </tbody>
+    </table>
+
+    <div class="warn-box">
+      <strong>Regra ao aprovar:</strong> Valida que proposta está em status ENVIADA ou EM_NEGOCIACAO. Move lead para FECHADO via <code>LeadsService.alterarEtapa</code>. Registra <code>proposta_aprovada</code> no HistoricoLead. Dispara <code>calcularComissaoContrato</code>.
+    </div>
+  </section>
+
+  <!-- Contratos -->
+  <section class="section" id="contratos">
+    <div class="section-header">
+      <h2>✅ Contratos</h2>
+      <p>View sobre leads com status=FECHADO</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/contratos</code></td><td><span class="perm perm-all">Todos</span></td><td>Listar contratos — filtros: status, vendedor, plano, período</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/contratos/:leadId/status-posvenda</code></td><td><span class="perm perm-all">Todos</span></td><td>Atualizar status pós-venda (inline, sem modal)</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/contratos/kpis</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span></td><td>MRR total, receita instalação, ticket médio, quantidade</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Agenda -->
+  <section class="section" id="agenda">
+    <div class="section-header">
+      <h2>📅 Agenda — Google Calendar</h2>
+      <p>Integração OAuth2 com Google Calendar e Google Meet</p>
+    </div>
+
+    <h3>OAuth2 Google Calendar</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/agenda/auth/google</code></td><td>Redireciona para consentimento OAuth2 Google</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/agenda/auth/google/callback</code></td><td>Callback OAuth2 — salva tokens AES-256-GCM no banco</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/agenda/auth/status</code></td><td><code>{"conectado": bool, "email": string, "calendarId": string}</code></td></tr>
+        <tr><td><span class="method DELETE">DELETE</span></td><td><code>/api/agenda/auth/disconnect</code></td><td>Revoga token no Google + remove do banco</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Eventos</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/agenda/eventos</code></td><td><span class="perm perm-all">Todos</span></td><td>Listar eventos — filtros: inicio, fim, leadId, status, vendedorId*</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/agenda/eventos</code></td><td><span class="perm perm-all">Todos</span></td><td>Criar evento + Google Calendar + Meet link automático</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/agenda/eventos/:id</code></td><td><span class="perm perm-all">Criador ou SUPERVISAO+</span></td><td>Editar evento + sincroniza Google</td></tr>
+        <tr><td><span class="method DELETE">DELETE</span></td><td><code>/api/agenda/eventos/:id</code></td><td><span class="perm perm-all">Criador ou SUPERVISAO+</span></td><td>Cancelar evento + cancela no Google</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/agenda/hoje</code></td><td><span class="perm perm-all">Todos</span></td><td>Widget "Compromissos de hoje" para o Dashboard</td></tr>
+      </tbody>
+    </table>
+
+    <p>* <code>vendedorId</code> no filtro disponível apenas para SUPERVISAO/CEO/ADMIN</p>
+
+    <div class="info-box">
+      <strong>Google Meet automático:</strong> Se <code>tipoLocal = "ONLINE"</code> e o usuário tem Google conectado, o evento é criado com <code>conferenceDataVersion: 1</code> retornando <code>hangoutLink</code>. Se não tem Google conectado, evento é criado apenas localmente sem Meet.
+    </div>
+
+    <h3>Tarefas</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/tarefas</code></td><td>Listar tarefas do usuário (filtro: status, leadId, prioridade)</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/tarefas</code></td><td>Criar tarefa (titulo, prioridade, dataVencimento, leadId?)</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/tarefas/:id</code></td><td>Atualizar tarefa</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/tarefas/bulk</code></td><td>Atualizar múltiplas tarefas (marcar como concluída/cancelada)</td></tr>
+        <tr><td><span class="method DELETE">DELETE</span></td><td><code>/api/tarefas/:id</code></td><td>Deletar tarefa</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Dashboard do Dia</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/agenda/dashboard-dia</code></td><td>Semáforo (verde/amarelo/vermelho) + KPIs do dia. Cache 10min</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/agenda/relatorios</code></td><td>Relatório XLSX da agenda. Params: tipo=agenda, inicio, fim, vendedorId?</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- WhatsApp -->
+  <section class="section" id="whatsapp">
+    <div class="section-header">
+      <h2>💬 WhatsApp — Inbound</h2>
+      <p>Webhook da Meta para recebimento e resposta de mensagens</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/webhook/whatsapp</code></td><td>Público</td><td>Verificação do webhook pela Meta (hub.verify_token)</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/webhook/whatsapp</code></td><td>Público</td><td>Receber mensagens — valida HMAC X-Hub-Signature-256</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/conversas</code></td><td><span class="perm perm-all">Todos</span></td><td>Listar conversas ativas (VENDEDOR: só suas; SUPERVISAO+: todas)</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/conversas/:leadId</code></td><td><span class="perm perm-all">Todos</span></td><td>Thread de mensagens do lead</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/conversas/:leadId/responder</code></td><td><span class="perm perm-all">Todos</span></td><td>Responder mensagem (texto livre 24h ou template)</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/conversas/:leadId/lida</code></td><td><span class="perm perm-all">Todos</span></td><td>Marcar mensagens como lidas</td></tr>
+      </tbody>
+    </table>
+
+    <div class="warn-box">
+      <strong>Janela de 24h:</strong> Verificada automaticamente a partir do <code>timestamp</code> da última mensagem recebida do lead. Se expirada, o endpoint de resposta retorna os templates disponíveis ao invés de aceitar texto livre.
+    </div>
+  </section>
+
+  <!-- Relatórios -->
+  <section class="section" id="relatorios">
+    <div class="section-header">
+      <h2>📈 Relatórios Comerciais</h2>
+      <p>6 relatórios analíticos com cache 10 min e export CSV/PDF</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Relatório</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/relatorios/leads</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Leads — métricas e funil</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/relatorios/atividades</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Atividades — por tipo, vendedor, resultado</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/relatorios/propostas</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Propostas — enviadas, aprovadas, ticket médio</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/relatorios/fechamentos</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Fechamentos — MRR, instalação, por origem</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/relatorios/perdas</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Perdas — motivos, concorrentes, MRR perdido</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/relatorios/produtividade</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Produtividade — ranking de vendedores</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Query params comuns:</strong> <code>inicio</code> <code>fim</code> <code>vendedorId</code> <code>formato=csv|pdf</code></p>
+    <p>Todos os relatórios retornam <code>{"data": {...}, "variacao": {"percentual": 12.5}}</code> — variação vs período anterior calculada automaticamente.</p>
+  </section>
+
+  <!-- BI e Forecast -->
+  <section class="section" id="bi">
+    <div class="section-header">
+      <h2>🔬 BI Avançado e Forecast</h2>
+      <p>Analytics executivos — acesso SUPERVISAO/CEO/ADMIN</p>
+    </div>
+
+    <h3>BI Avançado</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/bi/kpis</code></td><td>6 KPIs com delta vs período anterior. Params: periodo, inicio, fim</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/bi/funil</code></td><td>Funil visual — contagem por etapa + % conversão etapa a etapa</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/bi/cohort</code></td><td>Tabela de cohort 6 meses — leads criados → proposta → fechado → contrato</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/bi/perdas</code></td><td>3 segmentações: por motivo, por etapa, por concorrente</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/bi/origens</code></td><td>Origem dos leads — taxa de conversão e receita gerada por canal</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/bi/exportar</code></td><td>Export XLSX ou PDF de qualquer seção. Param: secao=kpis|funil|cohort|perdas|origens</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Forecast</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/forecast</code></td><td>3 cards de MRR (fechado, provável, otimista) para mês atual e +2</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/forecast/vendedores</code></td><td>Forecast breakdown por vendedor</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/forecast/pipeline</code></td><td>Lista paginada de leads no pipeline com probabilidade aplicada</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/forecast/configuracoes</code></td><td>Probabilidades por etapa configuradas</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/forecast/configuracoes</code></td><td>Atualizar probabilidades por etapa. Roles: SUPERVISAO, ADMIN</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Metas -->
+  <section class="section" id="metas">
+    <div class="section-header">
+      <h2>🎯 Metas</h2>
+      <p>Parametrização e acompanhamento de metas por vendedor/mês</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/metas</code></td><td><span class="perm perm-all">Todos*</span></td><td>Listar metas — VENDEDOR: só suas. Params: mes, ano, vendedorId, status</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/metas/:id</code></td><td><span class="perm perm-all">Todos*</span></td><td>Detalhe — VENDEDOR: 403 se não é sua</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/metas</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Criar meta + calcula realizado automaticamente</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/metas/:id</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Atualizar meta + recalcula realizado</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/metas/recalcular</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Forçar recálculo — body: {mes, ano}</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Comissões -->
+  <section class="section" id="comissoes">
+    <div class="section-header">
+      <h2>💸 Comissões e Regras</h2>
+      <p>Motor de cálculo automático de comissões</p>
+    </div>
+
+    <h3>Regras de Comissão</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/regras-comissao</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Listar regras. Params: vendedorId, status, baseCalculo</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/regras-comissao</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Criar regra — 409 se já existe ativa para vendedor+base</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/regras-comissao/:id</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Atualizar regra</td></tr>
+        <tr><td><span class="method DELETE">DELETE</span></td><td><code>/api/regras-comissao/:id</code></td><td><span class="perm perm-admin">ADMIN</span></td><td>Deletar regra</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Comissões</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/comissoes</code></td><td><span class="perm perm-all">Todos*</span></td><td>VENDEDOR: só suas. Params: status, vendedorId</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/comissoes/:id/liberar</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Liberar comissão manualmente</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/comissoes/:id/bloquear</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Bloquear comissão com motivo</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/comissoes/:id/aprovar</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Aprovar comissão em aguardo de supervisão</td></tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <strong>Motor automático:</strong> Comissões são criadas automaticamente via hooks em <code>criarContrato</code>, <code>criarServico</code> e <code>atualizarStatusIndicacao(CONVERTIDA)</code>. Não é necessário criar comissões manualmente na maioria dos casos.
+    </div>
+  </section>
+
+  <!-- Recebimentos -->
+  <section class="section" id="recebimentos">
+    <div class="section-header">
+      <h2>💰 Recebimentos</h2>
+      <p>Registro de recebimentos — dispara liberação de comissões</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/recebimentos</code></td><td><span class="perm perm-all">Todos*</span></td><td>VENDEDOR: só seus. Params: vendedorId, status, tipo</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/recebimentos</code></td><td><span class="perm perm-fin">FINANCEIRO</span><span class="perm perm-super">SUPERVISAO+</span></td><td>Criar recebimento — se status=RECEBIDO, libera comissões automaticamente</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/recebimentos/:id</code></td><td><span class="perm perm-fin">FINANCEIRO</span><span class="perm perm-super">SUPERVISAO+</span></td><td>Atualizar — se muda para RECEBIDO, dispara liberação de comissão</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Parceiros -->
+  <section class="section" id="parceiros">
+    <div class="section-header">
+      <h2>🤝 Parceiros e Indicações</h2>
+    </div>
+
+    <h3>Parceiros</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/parceiros</code></td><td><span class="perm perm-all">Todos</span></td><td>VENDEDOR: só ATIVOS. Outros: filtro por status e categoria</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/parceiros/:id</code></td><td><span class="perm perm-all">Todos*</span></td><td>Detalhe do parceiro</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/parceiros</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Criar parceiro</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/parceiros/:id</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Atualizar parceiro</td></tr>
+        <tr><td><span class="method DELETE">DELETE</span></td><td><code>/api/parceiros/:id</code></td><td><span class="perm perm-admin">ADMIN</span></td><td>Deletar — 409 se tem indicações vinculadas</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Indicações de Parceiros</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/indicacoes</code></td><td><span class="perm perm-all">Todos*</span></td><td>VENDEDOR: só suas. Params: parceiroId, status, vendedorId</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/indicacoes</code></td><td><span class="perm perm-all">Todos</span></td><td>Lançar indicação — herda comissão padrão do parceiro</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/indicacoes/:id/status</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Atualizar status — ao CONVERTIDA: calcula comissão automaticamente</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/indicacoes/:id/aprovar</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Confirmar aprovação da supervisão</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Fechamento Mensal -->
+  <section class="section" id="fechamento">
+    <div class="section-header">
+      <h2>📅 Fechamento Mensal</h2>
+      <p>Ciclo ABERTO → APROVADO → PAGO das comissões</p>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/fechamentos</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Listar fechamentos paginados. Params: mes, ano, status</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/fechamentos</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Criar fechamento para o mês — lista comissões LIBERADAS</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/fechamentos/:id</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Fechamento com comissões agrupadas por vendedor</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/fechamentos/:id/preview</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Preview: total a pagar por vendedor</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/fechamentos/:id/aprovar</code></td><td><span class="perm perm-super">SUPERVISAO</span><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Aprovar fechamento → status APROVADO</td></tr>
+        <tr><td><span class="method PATCH">PATCH</span></td><td><code>/api/fechamentos/:id/pagar</code></td><td><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Marcar como PAGO → todas comissões → status PAGA</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Churn -->
+  <section class="section" id="churn">
+    <div class="section-header">
+      <h2>⚠️ Churn e Retenção</h2>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/churn/dashboard</code></td><td>KPIs: clientes em risco, recuperados, taxa sucesso, MRR em risco. Cache 10min</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/churn/casos</code></td><td>Listar casos. Params: status, risco, vendedorId</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/churn/casos</code></td><td>Abrir caso de churn para um cliente</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/churn/casos/:id</code></td><td>Detalhe do caso com diagnóstico e timeline de ações</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/churn/casos/:id/diagnostico</code></td><td>Preencher diagnóstico (motivo, grau, avaliação suporte)</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/churn/casos/:id/plano</code></td><td>Criar plano de retenção (apenas 1 ATIVO por caso)</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/churn/casos/:id/acoes</code></td><td>Registrar ação de retenção na timeline</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/churn/relatorios</code></td><td>Relatórios XLSX. Params: tipo=analise|detalhado|motivos</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Pesquisa de Motivos de Churn</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/pesquisa-churn</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Criar pesquisa vinculada a um caso de churn</td></tr>
+        <tr><td><span class="method POST">POST</span></td><td><code>/api/pesquisa-churn/:token/responder</code></td><td>Público</td><td>Endpoint público — cliente responde o formulário</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/pesquisa-churn/dashboard</code></td><td><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Dashboard NLP: taxa resposta, sentimento, motivo #1</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/pesquisa-churn/comparativo</code></td><td><span class="perm perm-ceo">CEO</span><span class="perm perm-admin">ADMIN</span></td><td>Motivo declarado vs motivo real (NLP) — divergências</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Ranking -->
+  <section class="section" id="ranking">
+    <div class="section-header">
+      <h2>🏆 Ranking Comercial</h2>
+    </div>
+
+    <table>
+      <thead><tr><th>Método</th><th>Rota</th><th>Roles</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/ranking</code></td><td><span class="perm perm-all">Todos</span></td><td>Ranking do mês. VENDEDOR: não vê comissão dos colegas. Params: mes, ano. Cache 10min</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/ranking/metas</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>Configurar metas do ranking por vendedor</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/ranking/meu-desempenho</code></td><td><span class="perm perm-all">Todos</span></td><td>Visão pessoal: posição, badges, histórico 6 meses</td></tr>
+        <tr><td><span class="method GET">GET</span></td><td><code>/api/ranking/exportar</code></td><td><span class="perm perm-super">SUPERVISAO+</span></td><td>CSV ou PDF do ranking. Params: mes, ano, formato</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Fórmula de pontuação:</strong> <code>(contratos × 3) + (MRR ÷ 100) + (indicações_convertidas × 2) + (metas_atingidas_100pct × 5)</code></p>
+  </section>
+
+  <!-- Erros -->
+  <section class="section" id="erros">
+    <div class="section-header">
+      <h2>⚠️ Códigos de Status HTTP</h2>
+    </div>
+
+    <table>
+      <thead><tr><th>Status</th><th>Quando ocorre</th></tr></thead>
+      <tbody>
+        <tr><td><span class="status s200">200 OK</span></td><td>Requisição bem-sucedida com body</td></tr>
+        <tr><td><span class="status s201">201 Created</span></td><td>Recurso criado com sucesso</td></tr>
+        <tr><td><span class="status s204">204 No Content</span></td><td>Operação bem-sucedida sem body (DELETE, logout)</td></tr>
+        <tr><td><span class="status s400">400 Bad Request</span></td><td>Dados inválidos no body ou query params</td></tr>
+        <tr><td><span class="status s401">401 Unauthorized</span></td><td>Token ausente, expirado ou inválido</td></tr>
+        <tr><td><span class="status s403">403 Forbidden</span></td><td>Role sem permissão para a operação</td></tr>
+        <tr><td><span class="status s404">404 Not Found</span></td><td>Recurso não encontrado</td></tr>
+        <tr><td><span class="status s409">409 Conflict</span></td><td>Conflito (ex: regra de comissão duplicada, parceiro com indicações)</td></tr>
+        <tr><td><span class="status s422">422 Unprocessable Entity</span></td><td>Campos obrigatórios da etapa do funil faltando — retorna lista de campos</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Formato de Erro</h3>
+    <pre>{
+  <span class="pre-key">"statusCode"</span>: <span class="pre-num">422</span>,
+  <span class="pre-key">"message"</span>: <span class="pre-str">"Campos obrigatórios para a etapa QUALIFICACAO"</span>,
+  <span class="pre-key">"campos"</span>: [<span class="pre-str">"sistemaAtual"</span>, <span class="pre-str">"dorPrincipal"</span>, <span class="pre-str">"planoSugerido"</span>]
+}</pre>
+
+    <h3>Variáveis de Ambiente Obrigatórias</h3>
+    <table>
+      <thead><tr><th>Variável</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>DATABASE_URL</code></td><td>PostgreSQL connection string</td></tr>
+        <tr><td><code>JWT_SECRET</code></td><td>Segredo para assinatura JWT</td></tr>
+        <tr><td><code>JWT_REFRESH_SECRET</code></td><td>Segredo para refresh token</td></tr>
+        <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>Google OAuth2 Client ID</td></tr>
+        <tr><td><code>GOOGLE_CLIENT_SECRET</code></td><td>Google OAuth2 Client Secret</td></tr>
+        <tr><td><code>TOKEN_ENCRYPTION_KEY</code></td><td>64 hex chars (32 bytes) para AES-256-GCM</td></tr>
+        <tr><td><code>WHATSAPP_VERIFY_TOKEN</code></td><td>Token de verificação webhook Meta</td></tr>
+        <tr><td><code>WHATSAPP_APP_SECRET</code></td><td>Segredo para validação HMAC X-Hub-Signature-256</td></tr>
+        <tr><td><code>WHATSAPP_PHONE_NUMBER_ID</code></td><td>ID do número no WhatsApp Business</td></tr>
+        <tr><td><code>WHATSAPP_ACCESS_TOKEN</code></td><td>Token de acesso à API WhatsApp Business</td></tr>
+        <tr><td><code>PORT</code></td><td>Porta do servidor Fastify (padrão: 3000)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.75rem;">
+    CRM Comercial ProSystem — API Reference v1.0 — Maio/2026 · ProSystem Sistemas · Vitória/ES
+  </div>
+
+</main>
+
+<script>
+  function toggle(block) {
+    block.classList.toggle('open');
+  }
+
+  const sections = document.querySelectorAll('.section');
+  const links = document.querySelectorAll('.sidebar a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-10% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Comercial ProSystem — Manual do CEO</title>
+  <style>
+    :root {
+      --primary: #0f4c81;
+      --primary-dark: #0a3460;
+      --primary-light: #e0f0ff;
+      --accent: #0ea271;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --gold: #f59e0b;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --sidebar-width: 265px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--gray-50); color: var(--gray-800); line-height: 1.6; }
+
+    @media print {
+      .sidebar, .top-bar, .print-btn { display: none !important; }
+      .main { margin-left: 0 !important; padding: 24px !important; }
+      .section { break-inside: avoid; }
+    }
+
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 56px; background: var(--primary); color: white;
+      display: flex; align-items: center; padding: 0 24px; gap: 16px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+    }
+    .top-bar .logo { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .top-bar .logo span { opacity: 0.75; font-weight: 400; font-size: 0.9rem; }
+    .top-bar .spacer { flex: 1; }
+    .print-btn {
+      background: white; color: var(--primary); border: none; border-radius: 6px;
+      padding: 6px 16px; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+    }
+    .print-btn:hover { background: var(--primary-light); }
+
+    .sidebar {
+      position: fixed; top: 56px; left: 0; bottom: 0; width: var(--sidebar-width);
+      background: white; border-right: 1px solid var(--gray-200); overflow-y: auto; padding: 16px 0;
+    }
+    .sidebar-section { padding: 8px 16px 4px; }
+    .sidebar-section h6 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-500); font-weight: 600; margin-bottom: 4px; }
+    .sidebar a { display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-radius: 6px; color: var(--gray-700); text-decoration: none; font-size: 0.875rem; transition: background 0.12s; }
+    .sidebar a:hover { background: var(--primary-light); color: var(--primary); }
+    .sidebar a .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar a.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+
+    .main { margin-left: var(--sidebar-width); margin-top: 56px; padding: 40px 48px; max-width: 920px; }
+
+    .cover {
+      background: linear-gradient(135deg, #0f4c81 0%, #1565c0 50%, #0891b2 100%);
+      border-radius: 16px; padding: 48px 40px; color: white; margin-bottom: 48px;
+    }
+    .cover .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; margin-bottom: 8px; }
+    .cover h1 { font-size: 2rem; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+    .cover p { opacity: 0.85; font-size: 1rem; max-width: 560px; }
+    .cover .meta { margin-top: 24px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .cover .meta-item { background: rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; }
+
+    .section { margin-bottom: 48px; scroll-margin-top: 80px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--gray-200); }
+    .section-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+    .section-header h2 { font-size: 1.35rem; font-weight: 700; color: var(--gray-900); }
+    .section-header p { font-size: 0.875rem; color: var(--gray-500); margin-top: 2px; }
+
+    h3 { font-size: 1rem; font-weight: 700; color: var(--gray-800); margin: 24px 0 10px; display: flex; align-items: center; gap: 8px; }
+    h3::before { content: ''; display: inline-block; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; flex-shrink: 0; }
+    p { color: var(--gray-700); font-size: 0.9rem; margin-bottom: 10px; }
+
+    .card { background: white; border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+    .card-title { font-weight: 700; font-size: 0.95rem; color: var(--gray-900); margin-bottom: 8px; }
+
+    .info-box { border-left: 4px solid var(--primary); background: var(--primary-light); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; font-size: 0.875rem; color: var(--primary-dark); }
+    .tip-box { border-left: 4px solid var(--accent); background: #ecfdf5; border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; font-size: 0.875rem; color: #065f46; }
+    .warn-box { border-left: 4px solid var(--warning); background: #fffbeb; border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; font-size: 0.875rem; color: #92400e; }
+    .gold-box { border-left: 4px solid #d97706; background: #fef3c7; border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; font-size: 0.875rem; color: #78350f; }
+
+    .steps { list-style: none; counter-reset: step; }
+    .steps li { counter-increment: step; display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--gray-100); font-size: 0.9rem; }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before { content: counter(step); min-width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-green  { background: #d1fae5; color: #065f46; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-red    { background: #fee2e2; color: #991b1b; }
+    .badge-gray   { background: var(--gray-200); color: var(--gray-700); }
+    .badge-purple { background: #ede9fe; color: #5b21b6; }
+    .badge-navy   { background: #e0f0ff; color: #0f4c81; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 12px 0 20px; }
+    thead { background: var(--gray-100); }
+    th { text-align: left; padding: 8px 12px; font-weight: 600; color: var(--gray-700); border-bottom: 2px solid var(--gray-200); }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--gray-50); }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
+    .kpi-card { background: white; border: 1px solid var(--gray-200); border-radius: 10px; padding: 14px 16px; }
+    .kpi-card .kpi-icon { font-size: 1.25rem; margin-bottom: 6px; }
+    .kpi-card .kpi-label { font-size: 0.75rem; color: var(--gray-500); margin-bottom: 4px; }
+    .kpi-card .kpi-value { font-size: 0.9rem; font-weight: 700; color: var(--gray-900); }
+
+    .big-kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 16px 0; }
+    .big-kpi-card { background: linear-gradient(135deg, #0f4c81, #1565c0); color: white; border-radius: 12px; padding: 20px 24px; }
+    .big-kpi-card .bk-label { font-size: 0.75rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .big-kpi-card .bk-value { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+    .big-kpi-card .bk-sub { font-size: 0.8rem; opacity: 0.75; }
+
+    .forecast-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
+    .forecast-card { background: white; border: 2px solid var(--gray-200); border-radius: 12px; padding: 16px; text-align: center; }
+    .forecast-card .fc-mes { font-size: 0.75rem; color: var(--gray-500); font-weight: 600; text-transform: uppercase; margin-bottom: 10px; }
+    .forecast-card .fc-fechado { font-size: 1.1rem; font-weight: 800; color: var(--accent); }
+    .forecast-card .fc-label { font-size: 0.7rem; color: var(--gray-500); }
+    .forecast-card .fc-provavel { font-size: 0.95rem; font-weight: 600; color: var(--primary); margin-top: 8px; }
+    .forecast-card .fc-otimista { font-size: 0.85rem; color: var(--warning); margin-top: 4px; }
+
+    .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    hr { border: none; border-top: 1px solid var(--gray-200); margin: 32px 0; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 24px 16px; }
+      .kpi-grid, .big-kpi-grid, .forecast-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">🏢 CRM Comercial ProSystem <span>/ Manual do CEO</span></div>
+  <div class="spacer"></div>
+  <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Exportar PDF</button>
+</div>
+
+<nav class="sidebar">
+  <div class="sidebar-section">
+    <a href="#inicio"><span class="icon">🏠</span> Início</a>
+    <a href="#visao-executiva"><span class="icon">👁️</span> O que o CEO vê</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Dashboards Estratégicos</h6>
+    <a href="#dashboard-ceo"><span class="icon">📊</span> Dashboard Executivo</a>
+    <a href="#bi-avancado"><span class="icon">🔬</span> BI Avançado</a>
+    <a href="#forecast"><span class="icon">🔭</span> Previsão de Receita</a>
+    <a href="#churn-ceo"><span class="icon">⚠️</span> Churn e Risco</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Desempenho</h6>
+    <a href="#ranking-ceo"><span class="icon">🏆</span> Ranking da Equipe</a>
+    <a href="#relatorios-ceo"><span class="icon">📈</span> Relatórios</a>
+    <a href="#pesquisa-churn"><span class="icon">📋</span> Pesquisa de Satisfação</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Financeiro</h6>
+    <a href="#comissoes-ceo"><span class="icon">💰</span> Pagar Comissões</a>
+    <a href="#mrr"><span class="icon">📉</span> Análise de MRR</a>
+  </div>
+  <div class="sidebar-section">
+    <h6>Referência</h6>
+    <a href="#acesso-ceo"><span class="icon">🔐</span> Acesso Exclusivo do CEO</a>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- Cover -->
+  <div class="cover" id="inicio">
+    <div class="label">ProSystem Sistemas</div>
+    <h1>CRM Comercial<br>Manual do CEO</h1>
+    <p>Visão executiva completa: BI avançado, forecast de receita, análise de churn, ranking da equipe e pagamento de comissões.</p>
+    <div class="meta">
+      <div class="meta-item">📅 Versão 1.0 — Maio/2026</div>
+      <div class="meta-item">👤 Perfil: CEO</div>
+      <div class="meta-item">🔑 Acesso total — exceto configurações de sistema</div>
+    </div>
+  </div>
+
+  <!-- Visão Executiva -->
+  <section class="section" id="visao-executiva">
+    <div class="section-header">
+      <div class="section-icon">👁️</div>
+      <div>
+        <h2>O que o CEO vê</h2>
+        <p>Recursos exclusivos e diferenciais do perfil CEO</p>
+      </div>
+    </div>
+
+    <p>O CEO tem acesso a tudo que a Supervisora vê, mais os seguintes recursos exclusivos:</p>
+
+    <table>
+      <thead><tr><th>Recurso</th><th>CEO</th><th>Supervisora</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboard Executivo (visão CEO)</td><td>✅ Layout exclusivo</td><td>✅ Layout diferente</td></tr>
+        <tr><td>BI Avançado com cohort</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Previsão de Fechamento (Forecast)</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Ranking completo com todos os períodos</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Pesquisa de Motivos de Churn</td><td>✅ Com alertas NLP</td><td>❌</td></tr>
+        <tr><td><strong>Marcar fechamento como PAGO</strong></td><td>✅ Exclusivo CEO</td><td>❌</td></tr>
+        <tr><td>Alertas automáticos de churn crítico</td><td>✅ Direto para CEO</td><td>Parcial</td></tr>
+        <tr><td>Configurar webhook WhatsApp</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Ver NPS e sentimento geral</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Gerenciar usuários/sistema</td><td>❌ (apenas Admin)</td><td>❌</td></tr>
+      </tbody>
+    </table>
+
+    <div class="gold-box">
+      <strong>Filosofia do painel CEO:</strong> Todos os dados são estratégicos — tendências, variações e alertas. Você não precisa acessar leads individuais no dia a dia. O foco é na saúde da operação, na receita e no risco.
+    </div>
+  </section>
+
+  <!-- Dashboard CEO -->
+  <section class="section" id="dashboard-ceo">
+    <div class="section-header">
+      <div class="section-icon">📊</div>
+      <div>
+        <h2>Dashboard Executivo</h2>
+        <p>Visão estratégica do negócio em tempo real</p>
+      </div>
+    </div>
+
+    <p>O Dashboard do CEO tem um layout exclusivo com foco em receita, conversão e tendências estratégicas. É a primeira tela ao entrar no sistema.</p>
+
+    <h3>KPIs Principais (com comparativo)</h3>
+    <div class="big-kpi-grid">
+      <div class="big-kpi-card">
+        <div class="bk-label">MRR do Mês</div>
+        <div class="bk-value">R$ —,—</div>
+        <div class="bk-sub">↑ +X% vs mês anterior</div>
+      </div>
+      <div class="big-kpi-card">
+        <div class="bk-label">Contratos Fechados</div>
+        <div class="bk-value">— contratos</div>
+        <div class="bk-sub">↑ +X vs mês anterior</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">Leads Ativos</div><div class="kpi-value">Todos os vendedores</div></div>
+      <div class="kpi-card"><div class="kpi-icon">📄</div><div class="kpi-label">Propostas Enviadas</div><div class="kpi-value">No mês atual</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🎯</div><div class="kpi-label">Taxa de Conversão</div><div class="kpi-value">Fechamentos ÷ Propostas</div></div>
+      <div class="kpi-card"><div class="kpi-icon">💎</div><div class="kpi-label">Ticket Médio</div><div class="kpi-value">MRR ÷ Contratos</div></div>
+      <div class="kpi-card"><div class="kpi-icon">❌</div><div class="kpi-label">MRR Perdido</div><div class="kpi-value">Leads perdidos no mês</div></div>
+      <div class="kpi-card"><div class="kpi-icon">⚠️</div><div class="kpi-label">Clientes em Risco</div><div class="kpi-value">Churn score ≥ 60</div></div>
+    </div>
+
+    <div class="info-box">
+      <strong>Variação colorida:</strong> Todos os KPIs mostram a variação vs o período anterior. Verde = crescimento, Vermelho = queda. Clique em qualquer KPI para ver o detalhe.
+    </div>
+
+    <h3>Gráficos do Dashboard CEO</h3>
+    <table>
+      <thead><tr><th>Gráfico</th><th>O que mostra</th><th>Decisão que apoia</th></tr></thead>
+      <tbody>
+        <tr><td>MRR Mensal (linha)</td><td>Evolução do MRR dos últimos 12 meses</td><td>Tendência de crescimento ou queda</td></tr>
+        <tr><td>Origem dos leads (pizza)</td><td>Distribuição por canal de aquisição</td><td>Onde investir em marketing</td></tr>
+        <tr><td>Motivos de perda (barras)</td><td>Top motivos de não-conversão</td><td>Revisão de pricing ou produto</td></tr>
+        <tr><td>Fechamentos por segmento</td><td>Farmácia vs Padaria vs Varejo</td><td>Foco comercial por nicho</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- BI Avançado -->
+  <section class="section" id="bi-avancado">
+    <div class="section-header">
+      <div class="section-icon">🔬</div>
+      <div>
+        <h2>BI Avançado</h2>
+        <p>Análises profundas: cohort, funil visual, origens e perdas</p>
+      </div>
+    </div>
+
+    <p>Acesse <strong>BI / Analytics</strong> no menu para o painel analítico completo. Todas as seções têm export em Excel ou PDF com logo ProSystem — ideal para reuniões de diretoria.</p>
+
+    <h3>Funil Visual de Conversão</h3>
+    <p>Gráfico de barras horizontais mostrando quantos leads estão em cada etapa e qual a <strong>taxa de conversão etapa a etapa</strong>. Por exemplo: "Dos leads que chegaram em Qualificação, 68% avançaram para Apresentação Agendada".</p>
+
+    <p>Use para identificar onde a equipe perde mais oportunidades ao longo do processo.</p>
+
+    <h3>Análise de Cohort</h3>
+    <p>A tabela de cohort responde: <em>"Dos leads criados em Janeiro, quantos % viraram proposta? E fechamento?"</em></p>
+
+    <table>
+      <thead>
+        <tr><th>Mês de entrada</th><th>Leads criados</th><th>Chegaram à Proposta</th><th>Fechados</th><th>Com Contrato</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Jan/2026</td><td>100%</td><td>45%</td><td>18%</td><td>15%</td></tr>
+        <tr><td>Fev/2026</td><td>100%</td><td>42%</td><td>16%</td><td>13%</td></tr>
+        <tr><td>Mar/2026</td><td>100%</td><td>48%</td><td>20%</td><td>17%</td></tr>
+      </tbody>
+    </table>
+
+    <p>A tabela usa heatmap de cores: verde = alta conversão, amarelo = médio, vermelho = baixo. Use para avaliar a qualidade da prospecção por mês.</p>
+
+    <h3>Análise de Perdas</h3>
+    <p>Três gráficos combinados que respondem às perguntas mais importantes sobre perdas:</p>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon">🔵</div>
+        <div class="kpi-label">Por qual motivo perdemos</div>
+        <div class="kpi-value">Pizza com top motivos</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">🔴</div>
+        <div class="kpi-label">Em qual etapa perdemos</div>
+        <div class="kpi-value">Pizza com etapa de perda</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">🟡</div>
+        <div class="kpi-label">Para qual concorrente</div>
+        <div class="kpi-value">Pizza por concorrente</div>
+      </div>
+    </div>
+
+    <h3>Análise por Origem</h3>
+    <p>Tabela classificando cada canal de aquisição pelo retorno gerado:</p>
+    <table>
+      <thead><tr><th>Origem</th><th>Total de Leads</th><th>% Convertidos</th><th>Receita Gerada</th></tr></thead>
+      <tbody>
+        <tr><td>Indicação</td><td>—</td><td>— %</td><td>R$ —</td></tr>
+        <tr><td>Google Ads</td><td>—</td><td>— %</td><td>R$ —</td></tr>
+        <tr><td>Site</td><td>—</td><td>— %</td><td>R$ —</td></tr>
+        <tr><td>Prospecção Ativa</td><td>—</td><td>— %</td><td>R$ —</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <strong>Decisão de alocação de marketing:</strong> Use a tabela de origens para saber qual canal traz leads com maior taxa de conversão e maior receita. Redirecione investimento para os mais eficientes.
+    </div>
+
+    <h3>Como Exportar do BI</h3>
+    <p>Em cada seção do BI há um botão <strong>Exportar</strong>:</p>
+    <ul style="padding-left: 20px; font-size: 0.9rem;">
+      <li style="margin-bottom: 6px;"><strong>Excel (XLSX):</strong> Dados brutos para análise offline no Excel ou Google Sheets</li>
+      <li style="margin-bottom: 6px;"><strong>PDF:</strong> Gráfico + tabela formatada com logo ProSystem, período e filtros no cabeçalho — pronto para apresentação</li>
+    </ul>
+  </section>
+
+  <!-- Forecast -->
+  <section class="section" id="forecast">
+    <div class="section-header">
+      <div class="section-icon">🔭</div>
+      <div>
+        <h2>Previsão de Fechamento (Forecast)</h2>
+        <p>Projeção de receita dos próximos 3 meses</p>
+      </div>
+    </div>
+
+    <p>Acesse <strong>Forecast</strong> no menu. O sistema usa probabilidades por etapa do funil para calcular 3 cenários de receita para o mês atual e os próximos 2 meses.</p>
+
+    <h3>Os 3 Cenários de Forecast</h3>
+    <div class="forecast-grid">
+      <div class="forecast-card">
+        <div class="fc-mes">Mês Atual</div>
+        <div class="fc-fechado">MRR Fechado</div>
+        <div class="fc-label">já confirmado</div>
+        <div class="fc-provavel">+ MRR Provável</div>
+        <div class="fc-label">ponderado por probabilidade</div>
+        <div class="fc-otimista">+ MRR Otimista</div>
+        <div class="fc-label">sem ponderação</div>
+      </div>
+      <div class="forecast-card">
+        <div class="fc-mes">Próximo Mês</div>
+        <div class="fc-fechado">Projeção</div>
+        <div class="fc-label">baseada no pipeline atual</div>
+        <div class="fc-provavel">+ probabilidade</div>
+        <div class="fc-label">por etapa do funil</div>
+        <div class="fc-otimista">Cenário otimista</div>
+        <div class="fc-label">100% das oportunidades</div>
+      </div>
+      <div class="forecast-card">
+        <div class="fc-mes">Mês + 2</div>
+        <div class="fc-fechado">Projeção</div>
+        <div class="fc-label">baseada no pipeline atual</div>
+        <div class="fc-provavel">+ probabilidade</div>
+        <div class="fc-label">por etapa do funil</div>
+        <div class="fc-otimista">Cenário otimista</div>
+        <div class="fc-label">100% das oportunidades</div>
+      </div>
+    </div>
+
+    <h3>Como o Forecast é Calculado</h3>
+    <table>
+      <thead><tr><th>Etapa do Funil</th><th>Probabilidade Padrão</th></tr></thead>
+      <tbody>
+        <tr><td>Novo Lead / Primeiro Contato</td><td>5%</td></tr>
+        <tr><td>Qualificação</td><td>15%</td></tr>
+        <tr><td>Apresentação Agendada</td><td>30%</td></tr>
+        <tr><td>Proposta Enviada</td><td>55%</td></tr>
+        <tr><td>Em Negociação</td><td>75%</td></tr>
+        <tr><td>Fechado</td><td>100% (contabilizado como real)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <strong>Personalização:</strong> A supervisora pode ajustar as probabilidades em <strong>Forecast → Configurações</strong> para refletir a realidade da ProSystem. Por exemplo, se o time fecha 80% das negociações, ajuste de 75% para 80%.
+    </div>
+
+    <h3>Forecast por Vendedor</h3>
+    <p>Abaixo dos cards de forecast há um ranking de pipeline por vendedor — quem tem mais MRR potencial no funil. Use para redistribuir esforço de suporte onde há mais oportunidade.</p>
+
+    <h3>Lista de Leads no Pipeline</h3>
+    <p>A tabela na parte inferior mostra cada lead que compõe o forecast com: etapa, vendedor, MRR potencial, probabilidade aplicada e valor ponderado. Clique no lead para ver os detalhes sem sair da tela.</p>
+  </section>
+
+  <!-- Churn CEO -->
+  <section class="section" id="churn-ceo">
+    <div class="section-header">
+      <div class="section-icon">⚠️</div>
+      <div>
+        <h2>Churn, Risco e Retenção</h2>
+        <p>Proteja a base de clientes ativos</p>
+      </div>
+    </div>
+
+    <p>O CEO recebe alertas diretos sobre clientes em situação crítica e acompanha o módulo de Churn e Retenção com uma visão estratégica da base.</p>
+
+    <h3>Alertas Automáticos para o CEO</h3>
+    <table>
+      <thead><tr><th>Horário</th><th>Alerta</th></tr></thead>
+      <tbody>
+        <tr><td>06:30 diário</td><td>Clientes com risk score ≥ 80 — requer atenção imediata</td></tr>
+        <tr><td>23:30 diário</td><td>Padrões de churn detectados pela análise de pesquisas — alerta consolidado do dia</td></tr>
+        <tr><td>A cada 30 dias</td><td>Resumo de clientes recuperados vs perdidos — análise estratégica mensal</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Dashboard de Churn — Visão CEO</h3>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-icon">⚠️</div><div class="kpi-label">Clientes em risco</div><div class="kpi-value">Score ≥ 60</div></div>
+      <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-label">Recuperados no mês</div><div class="kpi-value">Reativados com sucesso</div></div>
+      <div class="kpi-card"><div class="kpi-icon">📈</div><div class="kpi-label">Taxa de sucesso</div><div class="kpi-value">Retenções ÷ Casos × 100</div></div>
+      <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">MRR em risco</div><div class="kpi-value">R$ das mensalidades em jogo</div></div>
+    </div>
+
+    <h3>Matriz de Risco (5 Dimensões)</h3>
+    <p>O score de risco de cada cliente é calculado com base em 5 fatores:</p>
+    <table>
+      <thead><tr><th>Dimensão</th><th>Peso</th><th>O que avalia</th></tr></thead>
+      <tbody>
+        <tr><td>Diagnóstico (satisfação)</td><td>40%</td><td>Grau de insatisfação, motivo e sentimento</td></tr>
+        <tr><td>Receita (valor do cliente)</td><td>25%</td><td>MRR — clientes de maior valor têm mais atenção</td></tr>
+        <tr><td>Maturidade do contrato</td><td>15%</td><td>Contratos novos têm risco maior de churn</td></tr>
+        <tr><td>Uso do sistema</td><td>15%</td><td>Frequência de uso registrada</td></tr>
+        <tr><td>Tickets de suporte</td><td>5%</td><td>Volume e gravidade dos chamados</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Pesquisa de Satisfação -->
+  <section class="section" id="pesquisa-churn">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <div>
+        <h2>Pesquisa de Satisfação e Motivos de Churn</h2>
+        <p>NPS automatizado com análise de sentimento</p>
+      </div>
+    </div>
+
+    <p>Quando um cliente cancela, o sistema envia automaticamente uma pesquisa com 5 perguntas. As respostas são analisadas com NLP (processamento de linguagem natural) em português para extrair sentimento e categorizar o motivo real.</p>
+
+    <h3>Como Funciona</h3>
+    <ol class="steps">
+      <li>Cliente cancela → pesquisa enviada automaticamente por WhatsApp</li>
+      <li>Cliente responde 5 perguntas (formulário mobile-first)</li>
+      <li>Sistema analisa as respostas com NLP: sentimento -1.0 (muito negativo) a +1.0 (positivo)</li>
+      <li>Auto-categorização em 10 motivos: Preço, Suporte, Funcionalidade, Concorrente, etc.</li>
+      <li>Alerta enviado para CEO às 23:30 com padrões detectados</li>
+    </ol>
+
+    <h3>Dashboard da Pesquisa — CEO</h3>
+    <p>Acesse <strong>Churn → Pesquisas</strong> para o painel analítico:</p>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-label">Taxa de resposta</div><div class="kpi-value">% de ex-clientes que responderam</div></div>
+      <div class="kpi-card"><div class="kpi-icon">😊</div><div class="kpi-label">Sentimento médio</div><div class="kpi-value">Score NLP agregado</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🏷️</div><div class="kpi-label">Motivo #1</div><div class="kpi-value">Categoria mais frequente</div></div>
+    </div>
+
+    <h3>Análise Comparativa: Motivo Declarado vs Real</h3>
+    <p>Um dos recursos mais valiosos: o sistema compara o <strong>motivo declarado</strong> pelo vendedor ao fechar como perdido com o <strong>motivo real</strong> identificado pela NLP na pesquisa. Divergências frequentes indicam que a equipe está mascarando o real motivo de perda.</p>
+
+    <div class="gold-box">
+      <strong>Exemplo de insight:</strong> Se o time declara "não era o momento" como motivo de perda, mas as pesquisas indicam "preço" como motivo real em 60% dos casos — a ProSystem tem um problema de pricing, não de timing.
+    </div>
+  </section>
+
+  <!-- Ranking CEO -->
+  <section class="section" id="ranking-ceo">
+    <div class="section-header">
+      <div class="section-icon">🏆</div>
+      <div>
+        <h2>Ranking da Equipe</h2>
+        <p>Desempenho completo por qualquer período</p>
+      </div>
+    </div>
+
+    <p>O CEO tem acesso ao ranking completo com filtro por qualquer período (mês, trimestre, semestre, ano). Ideal para avaliações de desempenho anuais e revisões de metas.</p>
+
+    <h3>Indicadores do Ranking</h3>
+    <table>
+      <thead><tr><th>Indicador</th><th>Fórmula</th></tr></thead>
+      <tbody>
+        <tr><td>Pontuação Total</td><td>(Contratos×3) + (MRR÷100) + (Indicações conv.×2) + (Metas≥100%×5)</td></tr>
+        <tr><td>Fechamentos</td><td>Contratos fechados no período</td></tr>
+        <tr><td>MRR Fechado</td><td>R$ de mensalidade dos contratos</td></tr>
+        <tr><td>Taxa de Conversão</td><td>Fechamentos ÷ Propostas × 100</td></tr>
+        <tr><td>Ticket Médio</td><td>MRR ÷ Fechamentos</td></tr>
+        <tr><td>Leads Abordados</td><td>Contatos feitos no período</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Export do Ranking</h3>
+    <p>Clique em <strong>Exportar</strong> para baixar o ranking em CSV ou PDF com todos os indicadores, período selecionado e data/hora de geração.</p>
+  </section>
+
+  <!-- Relatórios CEO -->
+  <section class="section" id="relatorios-ceo">
+    <div class="section-header">
+      <div class="section-icon">📈</div>
+      <div>
+        <h2>Relatórios para o CEO</h2>
+        <p>Todos os 6 relatórios comerciais + 4 de comissões</p>
+      </div>
+    </div>
+
+    <p>O CEO tem acesso a todos os relatórios disponíveis na plataforma. Veja o resumo:</p>
+
+    <h3>Relatórios Comerciais (menu Relatórios)</h3>
+    <table>
+      <thead><tr><th>#</th><th>Relatório</th><th>Insight estratégico</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Leads</td><td>Volume e qualidade da prospecção</td></tr>
+        <tr><td>2</td><td>Atividades</td><td>Produtividade da equipe, esforço comercial</td></tr>
+        <tr><td>3</td><td>Propostas</td><td>Taxa de conversão proposta → fechamento</td></tr>
+        <tr><td>4</td><td>Fechamentos</td><td>MRR gerado, receita instalação, ticket médio</td></tr>
+        <tr><td>5</td><td>Perdas</td><td>Por que e para quem estamos perdendo</td></tr>
+        <tr><td>6</td><td>Produtividade</td><td>Ranking completo de desempenho por vendedor</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Relatórios de Comissões (menu Metas e Comissões)</h3>
+    <table>
+      <thead><tr><th>Relatório XLSX</th><th>Para que serve</th></tr></thead>
+      <tbody>
+        <tr><td>Metas</td><td>Atingimento de metas por vendedor e mês</td></tr>
+        <tr><td>Comissões</td><td>Detalhe de cada comissão calculada</td></tr>
+        <tr><td>Recebimentos</td><td>Fluxo de caixa comercial</td></tr>
+        <tr><td>Indicações</td><td>Conversão e comissão por parceiro</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Comissões CEO -->
+  <section class="section" id="comissoes-ceo">
+    <div class="section-header">
+      <div class="section-icon">💰</div>
+      <div>
+        <h2>Pagar Comissões — Exclusivo CEO</h2>
+        <p>Etapa final do ciclo de comissões</p>
+      </div>
+    </div>
+
+    <p>Após a supervisora aprovar o fechamento mensal, apenas o CEO (ou Admin) pode marcar o pagamento como efetuado.</p>
+
+    <h3>Como Pagar o Fechamento Mensal</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Metas e Comissões → Fechamento Mensal</strong></li>
+      <li>Localize o fechamento com status <span class="badge badge-purple">APROVADO</span></li>
+      <li>Clique em <strong>Ver Preview</strong> — confira o total a pagar por vendedor</li>
+      <li>Clique em <strong>Marcar como Pago</strong></li>
+      <li>Confirme — todas as comissões liberadas do fechamento mudam para status <span class="badge badge-green">PAGA</span></li>
+    </ol>
+
+    <div class="warn-box">
+      <strong>Ação irreversível:</strong> Marcar como PAGO não pode ser desfeito. Certifique-se de que a aprovação da supervisora está correta antes de confirmar o pagamento.
+    </div>
+
+    <h3>Ciclo Completo de Comissões</h3>
+    <table>
+      <thead><tr><th>Status</th><th>Quem faz</th><th>O que acontece</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-gray">Prevista</span></td><td>Sistema (automático)</td><td>Calculada ao fechar uma venda</td></tr>
+        <tr><td><span class="badge badge-blue">Liberada</span></td><td>Sistema (automático)</td><td>Recebimento registrado como "Recebido"</td></tr>
+        <tr><td><span class="badge badge-purple">Aprovada</span></td><td>Supervisora</td><td>Fechamento mensal aprovado</td></tr>
+        <tr><td><span class="badge badge-green">Paga ✅</span></td><td>CEO</td><td>Pagamento confirmado — ciclo encerrado</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- MRR -->
+  <section class="section" id="mrr">
+    <div class="section-header">
+      <div class="section-icon">📉</div>
+      <div>
+        <h2>Análise de MRR</h2>
+        <p>Saúde financeira recorrente da operação</p>
+      </div>
+    </div>
+
+    <p>O MRR (Monthly Recurring Revenue — Receita Mensal Recorrente) é o principal indicador de saúde do negócio da ProSystem. Acompanhe a evolução no gráfico de linha do Dashboard CEO e no Relatório de Fechamentos.</p>
+
+    <h3>Componentes do MRR</h3>
+    <table>
+      <thead><tr><th>Componente</th><th>Definição</th></tr></thead>
+      <tbody>
+        <tr><td>MRR Novo</td><td>Mensalidades dos contratos fechados no mês</td></tr>
+        <tr><td>MRR Churn</td><td>Mensalidades perdidas por cancelamentos (identificado no módulo de Churn)</td></tr>
+        <tr><td>MRR Líquido</td><td>MRR Novo − MRR Churn = crescimento real</td></tr>
+        <tr><td>MRR Total</td><td>Soma de todas as mensalidades ativas</td></tr>
+        <tr><td>MRR em Risco</td><td>Soma das mensalidades de clientes com churn score ≥ 60</td></tr>
+      </tbody>
+    </table>
+
+    <div class="gold-box">
+      <strong>Fórmula do crescimento saudável:</strong> <em>MRR Novo &gt; MRR Churn</em>. Se você está perdendo mais do que ganhando, o negócio está encolhendo mesmo com vendas acontecendo. Monitore o "MRR em Risco" no dashboard de Churn para agir antes do cancelamento.
+    </div>
+  </section>
+
+  <!-- Acesso Exclusivo -->
+  <section class="section" id="acesso-ceo">
+    <div class="section-header">
+      <div class="section-icon">🔐</div>
+      <div>
+        <h2>Acesso Exclusivo do CEO</h2>
+        <p>Ações que só o CEO pode executar</p>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Ação</th><th>Onde fazer</th></tr></thead>
+      <tbody>
+        <tr><td>Marcar fechamento mensal como PAGO</td><td>Metas e Comissões → Fechamento Mensal</td></tr>
+        <tr><td>Configurar webhook WhatsApp</td><td>Configurações → Integrações → WhatsApp Business</td></tr>
+        <tr><td>Ver alertas de padrões de churn (NLP)</td><td>Notificações → Alertas Críticos</td></tr>
+        <tr><td>Ver dashboard BI Cohort completo</td><td>BI / Analytics → Cohort de Conversão</td></tr>
+        <tr><td>Ver pesquisa de motivos de churn</td><td>Churn → Pesquisas → Dashboard</td></tr>
+        <tr><td>Aprovar/Rejeitar Regras de Comissão (Aguardando)</td><td>Metas e Comissões → Regras</td></tr>
+        <tr><td>Exportar dados em todos os módulos</td><td>Botão "Exportar" em qualquer página</td></tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <strong>Administração do sistema</strong> (criar usuários, alterar configurações de segurança, gerenciar integrações técnicas) é feito pelo <strong>Administrador</strong>, não pelo CEO. Se precisar de algo neste nível, entre em contato com a equipe de TI da ProSystem.
+    </div>
+  </section>
+
+  <hr />
+
+  <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--gray-200); text-align: center; color: var(--gray-500); font-size: 0.8rem;">
+    <p>CRM Comercial ProSystem — Manual do CEO v1.0 — Maio/2026</p>
+    <p>ProSystem Sistemas · Vitória/ES · (27) 3327-6739 · suporte@prosystemnet.com.br</p>
+  </div>
+
+</main>
+
+<script>
+  const sections = document.querySelectorAll('.section, .cover');
+  const links = document.querySelectorAll('.sidebar a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-10% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

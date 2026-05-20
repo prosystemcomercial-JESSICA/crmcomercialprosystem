@@ -1,0 +1,223 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ─── ProSystem Design Tokens ─────────────────────────────── */
+:root {
+  /* Brand Blues — extraídos do logo ProSystem */
+  --ps-50:  #EBF4FF;
+  --ps-100: #C3DCFC;
+  --ps-200: #90BEF0;
+  --ps-300: #6AAAE5;
+  --ps-400: #5699D6;
+  --ps-500: #4B8EC8;   /* ← ProSystem brand blue primário */
+  --ps-600: #2E6EAB;
+  --ps-700: #1A4E82;
+  --ps-800: #103A66;
+  --ps-900: #0D2A4D;
+  --ps-950: #071525;
+
+  /* Sidebar Navy */
+  --ps-navy:        #0D2238;
+  --ps-navy-hover:  #152E49;
+  --ps-navy-active: #1C3A5A;
+  --ps-navy-border: #1A3350;
+  --ps-nav-text:    #A8C8E8;
+  --ps-nav-muted:   #4A6E8A;
+
+  /* ─── shadcn overrides: ProSystem colors ─────────────── */
+  --background: oklch(0.988 0.004 220);      /* off-white with blue tint */
+  --foreground: oklch(0.16 0.018 222);       /* near-black blue */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.018 222);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.018 222);
+  --primary: oklch(0.582 0.108 222);         /* #4B8EC8 */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.012 220);
+  --secondary-foreground: oklch(0.25 0.025 222);
+  --muted: oklch(0.95 0.008 220);
+  --muted-foreground: oklch(0.52 0.03 222);
+  --accent: oklch(0.93 0.018 220);
+  --accent-foreground: oklch(0.30 0.04 222);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.90 0.014 220);
+  --input: oklch(0.90 0.014 220);
+  --ring: oklch(0.582 0.108 222);
+
+  /* Chart palette — família ProSystem blue */
+  --chart-1: oklch(0.582 0.108 222);   /* ps-500 */
+  --chart-2: oklch(0.49  0.088 222);   /* ps-600 */
+  --chart-3: oklch(0.38  0.07  222);   /* ps-700 */
+  --chart-4: oklch(0.72  0.07  195);   /* teal accent */
+  --chart-5: oklch(0.65  0.13  260);   /* indigo accent */
+
+  --radius: 0.5rem;
+
+  /* Sidebar — mapeado para o navy */
+  --sidebar: oklch(0.16 0.035 222);
+  --sidebar-foreground: oklch(0.85 0.03 220);
+  --sidebar-primary: oklch(0.582 0.108 222);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.22 0.04 222);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.22 0.035 222);
+  --sidebar-ring: oklch(0.582 0.108 222);
+}
+
+.dark {
+  --background: oklch(0.13 0.018 222);
+  --foreground: oklch(0.96 0.006 220);
+  --card: oklch(0.18 0.022 222);
+  --card-foreground: oklch(0.96 0.006 220);
+  --popover: oklch(0.18 0.022 222);
+  --popover-foreground: oklch(0.96 0.006 220);
+  --primary: oklch(0.65 0.12 222);
+  --primary-foreground: oklch(0.10 0.015 222);
+  --secondary: oklch(0.22 0.028 222);
+  --secondary-foreground: oklch(0.96 0.006 220);
+  --muted: oklch(0.22 0.022 222);
+  --muted-foreground: oklch(0.65 0.04 220);
+  --accent: oklch(0.25 0.03 222);
+  --accent-foreground: oklch(0.96 0.006 220);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.65 0.12 222);
+  --chart-1: oklch(0.65 0.12 222);
+  --chart-2: oklch(0.55 0.10 222);
+  --chart-3: oklch(0.45 0.08 222);
+  --chart-4: oklch(0.75 0.08 195);
+  --chart-5: oklch(0.68 0.14 260);
+  --sidebar: oklch(0.12 0.022 222);
+  --sidebar-foreground: oklch(0.85 0.03 220);
+  --sidebar-primary: oklch(0.65 0.12 222);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.20 0.03 222);
+  --sidebar-accent-foreground: oklch(0.96 0.006 220);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.65 0.12 222);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  ::selection {
+    background-color: var(--ps-200);
+    color: var(--ps-900);
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ps-200);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ps-400);
+  }
+}
+
+/* ─── ProSystem Utility Classes ───────────────────────────── */
+.ps-sidebar {
+  background-color: var(--ps-navy);
+}
+.ps-sidebar-item {
+  color: var(--ps-nav-text);
+  border-left: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+.ps-sidebar-item:hover {
+  background-color: var(--ps-navy-hover);
+  color: #ffffff;
+  border-left-color: var(--ps-400);
+}
+.ps-sidebar-item.active {
+  background-color: var(--ps-navy-active);
+  color: #ffffff;
+  border-left-color: var(--ps-500);
+}
+.ps-card {
+  background: #ffffff;
+  border: 1px solid var(--ps-100);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(13, 34, 56, 0.06), 0 1px 2px rgba(13, 34, 56, 0.04);
+}
+.ps-btn-primary {
+  background: linear-gradient(135deg, var(--ps-500) 0%, var(--ps-600) 100%);
+  color: #ffffff;
+  transition: all 0.15s ease;
+}
+.ps-btn-primary:hover {
+  background: linear-gradient(135deg, var(--ps-600) 0%, var(--ps-700) 100%);
+  box-shadow: 0 4px 12px rgba(75, 142, 200, 0.35);
+  transform: translateY(-1px);
+}
+.ps-kpi-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ps-700);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
