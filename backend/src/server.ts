@@ -19,6 +19,9 @@ import { servicosRoutes } from '@/routes/servicos';
 import { comissoesRoutes } from '@/routes/comissoes';
 import { healthScoreRoutes } from '@/routes/health-score';
 import { dashboardPowerRoutes } from '@/routes/dashboard-power';
+import { relatoriosComerciais } from '@/routes/relatorios-comerciais';
+import { usuariosRoutes } from '@/routes/usuarios';
+import { funilRoutes } from '@/routes/funil';
 
 // Initialize Prisma
 export const prisma = new PrismaClient({
@@ -75,6 +78,9 @@ fastify.register(async (fastify) => {
   fastify.register(comissoesRoutes, { prisma });
   fastify.register(healthScoreRoutes, { prisma });
   fastify.register(dashboardPowerRoutes, { prisma });
+  fastify.register(relatoriosComerciais, { prisma });
+  fastify.register(usuariosRoutes, { prisma });
+  fastify.register(funilRoutes, { prisma });
 });
 
 // Error handler

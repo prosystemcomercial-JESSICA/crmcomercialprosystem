@@ -2,7 +2,89 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const CreateClienteSchema = z.object({
+const FERRAMENTAS_LISTA = [
+  'API Domínios','Backup Mega - Externo - Terminal','CoteFácil','D-Pharma',
+  'Dashboard - Painel de Aferição de Indicadores','E-Diretor','Ello Mais','EntregaFarma',
+  'Farmácia Popular Prosystem','Farmácias App','Fidelimax','Figura Fiscal Avanti',
+  'Gerencial','Ifood','Imendes','Melhor Compra','Monnera','MultiFarma','MyPharma',
+  'Napp Esphera','Napp Solution Google','PAC Arquivos Fiscais','Pgfarma',
+  'Plano Basic','Plano Plus','Plano Pro','Prosystem MEI','QMoleza','Rede Soma',
+  'Rise','SmartPed','Tray','WebDecisor','Woo Commerce'
+];
+
+const TIPOS_SERVICO: Record<string, string[]> = {
+  'Suporte técnico': ['Sistema não abre','Erro de acesso','Lentidão','Falha no PDV','Problema com impressora','Problema de caixa','Problema de usuário/senha'],
+  'Fiscal': ['Erro NFE','Erro NFC-e','Certificado digital','Rejeição fiscal','Tributação','SAT/ECF/NFE','Farmácia Popular'],
+  'Financeiro': ['Boleto','Segunda via','Cobrança','Negociação','Mensalidade','Inadimplência','Cancelamento financeiro'],
+  'Comercial': ['Upgrade Plano Plus','Plano Pro','Novo módulo','Proposta enviada','Negociação em andamento','Cliente interessado em ferramenta'],
+  'Implantação': ['Conversão de dados','Virada de sistema','Configuração inicial','Treinamento inicial','Migração'],
+  'Treinamento': ['Dúvida de uso','Orientação de módulo','Reforço operacional'],
+  'Cadastro': ['Alteração razão social','Alteração CNPJ','Atualização contatos','Alteração endereço','Alteração responsável'],
+  'Integrações': ['Ifood','Imendes','PBM','Farmácia Popular','APIs','E-commerce'],
+  'Cancelamento': ['Pedido cancelamento','Risco churn','Tentativa retenção'],
+  'Ferramentas': ['Dashboard','Plano Pro','Plano Plus','Gerencial','Aplicativos adicionais']
+};
+
+const ClienteSchema = z.object({
+  codigo: z.string().optional(),
+  suporte: z.string().optional(),
+  nome: z.string().min(1),
+  razao_social: z.string().optional(),
+  fantasia: z.string().optional(),
+  email: z.string().email(),
+  cnpj: z.string().optional(),
+  grupo: z.string().optional(),
+  ibge: z.string().optional(),
+  inscricao: z.string().optional(),
+  redes: z.array(z.string()).optional(),
+  nfe: z.boolean().optional(),
+  ecf: z.boolean().optional(),
+  atencao_especial: z.boolean().optional(),
+  matriz: z.boolean().optional(),
+  observacao: z.string().optional(),
+  observacao_grupo: z.string().optional(),
+  ferramentas: z.array(z.string()).optional(),
+  // Endereço
+  cep: z.string().optional(),
+  endereco: z.string().optional(),
+  numero: z.string().optional(),
+  bairro: z.string().optional(),
+  cidade: z.string().optional(),
+  estado: z.string().optional(),
+  regiao: z.string().optional(),
+  complemento: z.string().optional(),
+  // Informações adicionais
+  responsavel_nome: z.string().optional(),
+  responsavel_celular: z.string().optional(),
+  contador_nome: z.string().optional(),
+  contador_celular: z.string().optional(),
+  contador_telefone: z.string().optional(),
+  contador_email: z.string().optional(),
+  // Legados
+  telefone: z.string().optional()
+});
+
+const ListClienteSchema = z.object({
+  page: z.coerce.number().default(0),
+  limit: z.coerce.number().default(20),
+  search: z.string().optional()
+});
+
+const SolicitacaoSchema = z.object({
+  contato_solicitante: z.string().optional(),
+  contato_telefone: z.string().optional(),
+  usuario_responsavel: z.string().optional(),
+  tipo_servico: z.string().min(1),
+  subtipo: z.string().optional(),
+  prioridade: z.enum(['BAIXA','MEDIA','ALTA','URGENTE']).default('MEDIA'),
+  status: z.enum(['ABERTA','EM_ATENDIMENTO','AGUARDANDO_CLIENTE','AGUARDANDO_SUPORTE_INTERNO','AGUARDANDO_FINANCEIRO','AGUARDANDO_COMERCIAL','FINALIZADA','CANCELADA','REABERTA']).default('ABERTA'),
+  descricao: z.string().optional(),
+  observacao_interna: z.string().optional(),
+  data_finalizacao: z.string().datetime().optional()
+});
+
+const ImportClienteItemSchema = z.object({
+  codigo: z.string().optional(),
   nome: z.string().min(1),
   email: z.string().email(),
   telefone: z.string().optional(),
@@ -11,83 +93,108 @@ const CreateClienteSchema = z.object({
   estado: z.string().optional()
 });
 
-const UpdateClienteSchema = CreateClienteSchema.partial();
-
-const ListClienteSchema = z.object({
-  page: z.coerce.number().default(0),
-  limit: z.coerce.number().default(20),
-  search: z.string().optional()
+const ImportClienteSchema = z.object({
+  clientes: z.array(ImportClienteItemSchema).min(1).max(5000),
+  modo: z.enum(['CRIAR','ATUALIZAR','UPSERT']).default('UPSERT')
 });
 
 export async function clientesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // Metadados (ferramentas + tipos de serviço)
+  fastify.get('/clientes/meta', async (request, reply) => {
+    return reply.send({ status: 'success', data: { ferramentas: FERRAMENTAS_LISTA, tipos_servico: TIPOS_SERVICO } });
+  });
+
+  // Template CSV
+  fastify.get('/clientes/template-csv', async (request, reply) => {
+    const csv = 'codigo,nome,email,telefone,empresa,cidade,estado\n001,João Silva,joao@empresa.com,(11) 99999-9999,Empresa ABC,São Paulo,SP\n';
+    reply.header('Content-Type', 'text/csv; charset=utf-8');
+    reply.header('Content-Disposition', 'attachment; filename="template_importacao_clientes.csv"');
+    return reply.send('﻿' + csv);
+  });
+
+  // Importação em massa
+  fastify.post('/clientes/importar', async (request, reply) => {
+    const body = ImportClienteSchema.safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.flatten() });
+
+    const { clientes, modo } = body.data;
+    let criados = 0, atualizados = 0;
+    const erros: { linha: number; email: string; motivo: string }[] = [];
+
+    for (let i = 0; i < clientes.length; i++) {
+      const c = clientes[i];
+      try {
+        const data: any = { ...c };
+        if (c.empresa) { data.fantasia = c.empresa; delete data.empresa; }
+        if (modo === 'CRIAR') { await prisma.cliente.create({ data }); criados++; }
+        else if (modo === 'ATUALIZAR') {
+          const ex = await prisma.cliente.findUnique({ where: { email: c.email } });
+          if (!ex) { erros.push({ linha: i + 1, email: c.email, motivo: 'Não encontrado' }); continue; }
+          await prisma.cliente.update({ where: { email: c.email }, data }); atualizados++;
+        } else {
+          const ex = await prisma.cliente.findUnique({ where: { email: c.email } });
+          if (ex) { await prisma.cliente.update({ where: { email: c.email }, data }); atualizados++; }
+          else { await prisma.cliente.create({ data }); criados++; }
+        }
+      } catch (err: any) {
+        erros.push({ linha: i + 1, email: c.email, motivo: err.code === 'P2002' ? 'Duplicado' : err.message });
+      }
+    }
+
+    return reply.send({ status: 'success', data: { total: clientes.length, criados, atualizados, erros_total: erros.length, erros: erros.slice(0, 50) } });
+  });
+
   // List clientes
   fastify.get('/clientes', async (request, reply) => {
     const query = ListClienteSchema.safeParse(request.query);
-    if (!query.success) {
-      return reply.status(400).send({ status: 'error', message: 'Invalid query', errors: query.error.errors });
-    }
+    if (!query.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
     const { page, limit, search } = query.data;
 
     const where = search ? {
       OR: [
         { nome: { contains: search, mode: 'insensitive' as const } },
+        { fantasia: { contains: search, mode: 'insensitive' as const } },
+        { razao_social: { contains: search, mode: 'insensitive' as const } },
         { empresa: { contains: search, mode: 'insensitive' as const } },
-        { email: { contains: search, mode: 'insensitive' as const } }
+        { email: { contains: search, mode: 'insensitive' as const } },
+        { codigo: { contains: search, mode: 'insensitive' as const } },
+        { suporte: { contains: search, mode: 'insensitive' as const } },
+        { cnpj: { contains: search, mode: 'insensitive' as const } }
       ]
     } : {};
 
     const [clientes, total] = await Promise.all([
-      prisma.cliente.findMany({
-        where,
-        skip: page * limit,
-        take: limit,
-        orderBy: { created_at: 'desc' },
-        include: {
-          _count: { select: { caso_churn: true } }
-        }
-      }),
+      prisma.cliente.findMany({ where, skip: page * limit, take: limit, orderBy: { created_at: 'desc' }, include: { _count: { select: { caso_churn: true } } } }),
       prisma.cliente.count({ where })
     ]);
 
-    return reply.send({
-      status: 'success',
-      data: { clientes, total, page, limit }
-    });
+    return reply.send({ status: 'success', data: { clientes, total, page, limit } });
   });
 
-  // Get cliente by id
+  // Get cliente by id (full)
   fastify.get('/clientes/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const cliente = await prisma.cliente.findUnique({
-      where: { id },
-      include: {
-        caso_churn: {
-          orderBy: { created_at: 'desc' },
-          take: 5
-        },
-        _count: { select: { caso_churn: true } }
-      }
-    });
+    const cliente = await prisma.cliente.findUnique({ where: { id }, include: { _count: { select: { caso_churn: true } } } });
     if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
-    return reply.send({ status: 'success', data: cliente });
+
+    // Load contacts and service requests via raw
+    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "ContatoCliente" WHERE cliente_id = $1 ORDER BY created_at ASC`, id);
+    const solicitacoes: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "SolicitacaoServico" WHERE cliente_id = $1 ORDER BY data_solicitacao DESC`, id);
+
+    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes } });
   });
 
   // Create cliente
   fastify.post('/clientes', async (request, reply) => {
-    const body = CreateClienteSchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
-    }
-
+    const body = ClienteSchema.safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
     try {
-      const cliente = await prisma.cliente.create({ data: body.data });
+      const cliente = await prisma.cliente.create({ data: body.data as any });
       return reply.status(201).send({ status: 'success', data: cliente });
     } catch (err: any) {
-      if (err.code === 'P2002') {
-        return reply.status(409).send({ status: 'error', message: 'Email já cadastrado' });
-      }
+      if (err.code === 'P2002') return reply.status(409).send({ status: 'error', message: 'Email ou código já cadastrado' });
       throw err;
     }
   });
@@ -95,18 +202,13 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
   // Update cliente
   fastify.patch('/clientes/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = UpdateClienteSchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
-    }
-
+    const body = ClienteSchema.partial().safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     try {
-      const cliente = await prisma.cliente.update({ where: { id }, data: body.data });
+      const cliente = await prisma.cliente.update({ where: { id }, data: body.data as any });
       return reply.send({ status: 'success', data: cliente });
     } catch (err: any) {
-      if (err.code === 'P2025') {
-        return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
-      }
+      if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
       throw err;
     }
   });
@@ -118,10 +220,106 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       await prisma.cliente.delete({ where: { id } });
       return reply.send({ status: 'success', message: 'Cliente removido' });
     } catch (err: any) {
-      if (err.code === 'P2025') {
-        return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
-      }
+      if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
       throw err;
     }
+  });
+
+  // ===== CONTATOS =====
+  fastify.get('/clientes/:id/contatos', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "ContatoCliente" WHERE cliente_id = $1 ORDER BY created_at ASC`, id);
+    return reply.send({ status: 'success', data: contatos });
+  });
+
+  fastify.post('/clientes/:id/contatos', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ nome: z.string().min(1), telefone: z.string().optional() }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `INSERT INTO "ContatoCliente" (cliente_id, nome, telefone) VALUES ($1, $2, $3) RETURNING *`,
+      id, body.data.nome, body.data.telefone || null
+    );
+    return reply.status(201).send({ status: 'success', data: rows[0] });
+  });
+
+  fastify.delete('/clientes/:id/contatos/:cid', async (request, reply) => {
+    const { cid } = request.params as { id: string; cid: string };
+    await prisma.$executeRawUnsafe(`DELETE FROM "ContatoCliente" WHERE id = $1`, cid);
+    return reply.send({ status: 'success', message: 'Contato removido' });
+  });
+
+  // ===== SOLICITAÇÕES DE SERVIÇO =====
+  fastify.get('/clientes/:id/solicitacoes', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "SolicitacaoServico" WHERE cliente_id = $1 ORDER BY data_solicitacao DESC`, id);
+    return reply.send({ status: 'success', data: rows });
+  });
+
+  fastify.post('/clientes/:id/solicitacoes', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = SolicitacaoSchema.safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.flatten() });
+
+    // Pega grupo e ferramentas do cliente
+    const cliente = await prisma.cliente.findUnique({ where: { id } });
+    if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+
+    const user = (request as any).user;
+    const grupoAtendimento = body.data.usuario_responsavel ? undefined : (cliente as any).grupo;
+    const planoAtual = ((cliente as any).ferramentas || []).filter((f: string) => f.startsWith('Plano')).join(', ') || null;
+
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `INSERT INTO "SolicitacaoServico" (
+        cliente_id, contato_solicitante, contato_telefone, usuario_responsavel,
+        grupo_atendimento, tipo_servico, subtipo, prioridade, status,
+        descricao, observacao_interna, plano_atual, data_finalizacao, created_by
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      id,
+      body.data.contato_solicitante || null,
+      body.data.contato_telefone || null,
+      body.data.usuario_responsavel || user?.nome || null,
+      (cliente as any).grupo || null,
+      body.data.tipo_servico,
+      body.data.subtipo || null,
+      body.data.prioridade,
+      body.data.status,
+      body.data.descricao || null,
+      body.data.observacao_interna || null,
+      planoAtual,
+      body.data.data_finalizacao ? new Date(body.data.data_finalizacao) : null,
+      user?.nome || user?.id || 'sistema'
+    );
+
+    return reply.status(201).send({ status: 'success', data: rows[0] });
+  });
+
+  fastify.patch('/clientes/:id/solicitacoes/:sid', async (request, reply) => {
+    const { sid } = request.params as { id: string; sid: string };
+    const body = SolicitacaoSchema.partial().safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+
+    const updates: string[] = ['updated_at = NOW()'];
+    const vals: any[] = [];
+    let i = 1;
+
+    const fields: (keyof typeof body.data)[] = ['contato_solicitante','contato_telefone','usuario_responsavel','tipo_servico','subtipo','prioridade','status','descricao','observacao_interna'];
+    for (const f of fields) {
+      if (body.data[f] !== undefined) { updates.push(`${f} = $${i++}`); vals.push(body.data[f]); }
+    }
+    if (body.data.data_finalizacao !== undefined) { updates.push(`data_finalizacao = $${i++}`); vals.push(new Date(body.data.data_finalizacao)); }
+    if (body.data.status === 'FINALIZADA' && !body.data.data_finalizacao) { updates.push(`data_finalizacao = NOW()`); }
+
+    vals.push(sid);
+    await prisma.$executeRawUnsafe(`UPDATE "SolicitacaoServico" SET ${updates.join(', ')} WHERE id = $${i}`, ...vals);
+
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "SolicitacaoServico" WHERE id = $1`, sid);
+    return reply.send({ status: 'success', data: rows[0] });
+  });
+
+  fastify.delete('/clientes/:id/solicitacoes/:sid', async (request, reply) => {
+    const { sid } = request.params as { id: string; sid: string };
+    await prisma.$executeRawUnsafe(`DELETE FROM "SolicitacaoServico" WHERE id = $1`, sid);
+    return reply.send({ status: 'success', message: 'Solicitação removida' });
   });
 }

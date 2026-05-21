@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api-client';
 
 interface Cliente {
   id: string;
+  codigo?: string;
   nome: string;
   email: string;
   telefone?: string;
@@ -19,6 +20,7 @@ interface Cliente {
 }
 
 interface ClienteForm {
+  codigo: string;
   nome: string;
   email: string;
   telefone: string;
@@ -27,11 +29,76 @@ interface ClienteForm {
   estado: string;
 }
 
-const emptyForm: ClienteForm = { nome: '', email: '', telefone: '', empresa: '', cidade: '', estado: '' };
+const emptyForm: ClienteForm = { codigo: '', nome: '', email: '', telefone: '', empresa: '', cidade: '', estado: '' };
+
+// CSV columns the system accepts
+const CSV_COLUMNS = ['codigo', 'nome', 'email', 'telefone', 'empresa', 'cidade', 'estado'] as const;
+type CsvCol = typeof CSV_COLUMNS[number];
+
+// Detect separator: semicolon (Excel PT) or comma
+function detectSep(line: string): string {
+  const semi = (line.match(/;/g) || []).length;
+  const comma = (line.match(/,/g) || []).length;
+  return semi >= comma ? ';' : ',';
+}
+
+// Parse CSV text → array of objects
+function parseCSV(text: string): Record<string, string>[] {
+  const clean = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = clean.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const sep = detectSep(lines[0]);
+
+  const splitRow = (row: string): string[] => {
+    const result: string[] = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < row.length; i++) {
+      const ch = row[i];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === sep && !inQ) { result.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    result.push(cur.trim());
+    return result;
+  };
+
+  const headers = splitRow(lines[0]).map(h => h.toLowerCase().trim());
+  return lines.slice(1).map(line => {
+    const vals = splitRow(line);
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { if (vals[i] !== undefined) obj[h] = vals[i]; });
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+// Map raw CSV header to known column
+function mapHeader(raw: string): CsvCol | null {
+  const n = raw.toLowerCase().replace(/[^a-z]/g, '');
+  const MAP: Record<string, CsvCol> = {
+    codigo: 'codigo', code: 'codigo', cod: 'codigo', codigocliente: 'codigo',
+    nome: 'nome', name: 'nome', nomecliente: 'nome', cliente: 'nome',
+    email: 'email', emailcliente: 'email', emailresponsavel: 'email',
+    telefone: 'telefone', fone: 'telefone', celular: 'telefone', phone: 'telefone', whatsapp: 'telefone',
+    empresa: 'empresa', razaosocial: 'empresa', nomefantasia: 'empresa', company: 'empresa',
+    cidade: 'cidade', municipio: 'cidade', city: 'cidade',
+    estado: 'estado', uf: 'estado', state: 'estado'
+  };
+  return MAP[n] || null;
+}
+
+type ImportStep = 'upload' | 'preview' | 'result';
+type ImportMode = 'UPSERT' | 'CRIAR' | 'ATUALIZAR';
+
+interface ImportResult {
+  total: number; criados: number; atualizados: number; erros_total: number;
+  erros: { linha: number; email: string; motivo: string }[];
+}
 
 export default function ClientesPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
+
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -43,6 +110,17 @@ export default function ClientesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const limit = 20;
+
+  // Import state
+  const [showImport, setShowImport] = useState(false);
+  const [importStep, setImportStep] = useState<ImportStep>('upload');
+  const [importMode, setImportMode] = useState<ImportMode>('UPSERT');
+  const [importRows, setImportRows] = useState<Record<string, string>[]>([]);
+  const [importMapping, setImportMapping] = useState<Record<string, CsvCol | ''>>({});
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -61,58 +139,102 @@ export default function ClientesPage() {
     }
   };
 
-  useEffect(() => {
-    if (isAuthenticated) fetchClientes();
-  }, [isAuthenticated, page, search]);
+  useEffect(() => { if (isAuthenticated) fetchClientes(); }, [isAuthenticated, page, search]);
 
-  const openCreate = () => {
-    setForm(emptyForm);
-    setEditingId(null);
-    setError('');
-    setShowModal(true);
-  };
-
+  const openCreate = () => { setForm(emptyForm); setEditingId(null); setError(''); setShowModal(true); };
   const openEdit = (c: Cliente) => {
-    setForm({ nome: c.nome, email: c.email, telefone: c.telefone || '', empresa: c.empresa || '', cidade: c.cidade || '', estado: c.estado || '' });
-    setEditingId(c.id);
-    setError('');
-    setShowModal(true);
+    setForm({ codigo: c.codigo || '', nome: c.nome, email: c.email, telefone: c.telefone || '', empresa: c.empresa || '', cidade: c.cidade || '', estado: c.estado || '' });
+    setEditingId(c.id); setError(''); setShowModal(true);
   };
 
   const handleSave = async () => {
-    setSaving(true);
-    setError('');
+    setSaving(true); setError('');
     try {
-      if (editingId) {
-        await apiClient.updateCliente(editingId, form);
-      } else {
-        await apiClient.createCliente(form);
-      }
-      setShowModal(false);
-      fetchClientes();
+      const payload: any = { ...form };
+      if (!payload.codigo) delete payload.codigo;
+      if (editingId) { await apiClient.client.patch(`/clientes/${editingId}`, payload); }
+      else { await apiClient.client.post('/clientes', payload); }
+      setShowModal(false); fetchClientes();
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Erro ao salvar');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja remover este cliente?')) return;
-    try {
-      await apiClient.deleteCliente(id);
-      fetchClientes();
-    } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao remover');
-    }
+    try { await apiClient.deleteCliente(id); fetchClientes(); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remover'); }
   };
 
+  // ===== IMPORT =====
+  const openImport = () => {
+    setImportStep('upload'); setImportRows([]); setImportMapping({}); setImportResult(null); setShowImport(true);
+  };
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCSV(text);
+      if (rows.length === 0) { alert('Arquivo vazio ou formato inválido.'); return; }
+
+      // Auto-map headers
+      const rawHeaders = Object.keys(rows[0]);
+      const mapping: Record<string, CsvCol | ''> = {};
+      rawHeaders.forEach(h => { mapping[h] = mapHeader(h) || ''; });
+      setImportMapping(mapping);
+      setImportRows(rows);
+      setImportStep('preview');
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  const downloadTemplate = () => {
+    window.open('/api/template-csv-clientes', '_blank');
+    // fallback: create blob
+    const csv = 'codigo,nome,email,telefone,empresa,cidade,estado\n001,João Silva,joao@empresa.com,(11) 99999-9999,Empresa ABC,São Paulo,SP\n';
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'template_importacao_clientes.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Convert mapped rows → import payload
+  const buildPayload = () => {
+    return importRows.map(row => {
+      const obj: any = {};
+      Object.entries(importMapping).forEach(([raw, col]) => {
+        if (col && row[raw] !== undefined) obj[col] = row[raw] || undefined;
+      });
+      return obj;
+    }).filter(r => r.nome && r.email);
+  };
+
+  const runImport = async () => {
+    const payload = buildPayload();
+    if (payload.length === 0) { alert('Nenhuma linha válida com nome e email encontrada.'); return; }
+    setImporting(true);
+    try {
+      const res = await apiClient.client.post('/clientes/importar', { clientes: payload, modo: importMode });
+      setImportResult(res.data.data);
+      setImportStep('result');
+      fetchClientes();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Erro ao importar. Verifique o arquivo.');
+    } finally { setImporting(false); }
+  };
+
+  const validRows = buildPayload().length;
+  const rawHeaders = importRows.length > 0 ? Object.keys(importRows[0]) : [];
+
   if (loading || !isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
   }
 
   return (
@@ -121,168 +243,400 @@ export default function ClientesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Clientes</h1>
-            <p className="text-gray-500 mt-1">{total} clientes cadastrados</p>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Clientes</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{total} clientes cadastrados</p>
           </div>
-          <button
-            onClick={openCreate}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            + Novo Cliente
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openImport}
+              className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
+              style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 8%, transparent)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              Importar CSV
+            </button>
+            <button
+              onClick={openCreate}
+              className="px-4 py-2 text-sm rounded-lg font-medium text-white transition-colors"
+              style={{ background: 'var(--t-primary)' }}
+            >
+              + Novo Cliente
+            </button>
+          </div>
         </div>
 
         {/* Search */}
         <div className="relative">
           <input
             type="text"
-            placeholder="Buscar por nome, empresa ou email..."
+            placeholder="Buscar por nome, empresa, email ou código..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            onChange={e => { setSearch(e.target.value); setPage(0); }}
+            className="w-full pl-10 pr-4 py-2.5 border rounded-lg outline-none text-sm"
+            style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
           />
-          <span className="absolute left-3 top-3 text-gray-400">🔍</span>
+          <span className="absolute left-3 top-2.5 text-gray-400 text-base">🔍</span>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)' }}>
           {dataLoading ? (
-            <div className="p-8 text-center text-gray-500">Carregando...</div>
+            <div className="p-8 text-center text-sm" style={{ color: 'var(--t-text-muted)' }}>Carregando...</div>
           ) : clientes.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-4xl mb-3">🏢</div>
-              <p className="text-gray-500">Nenhum cliente encontrado</p>
-              <button onClick={openCreate} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                Cadastrar primeiro cliente
-              </button>
+              <p style={{ color: 'var(--t-text-muted)' }}>Nenhum cliente encontrado</p>
+              <div className="flex justify-center gap-2 mt-4">
+                <button onClick={openCreate} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: 'var(--t-primary)' }}>Cadastrar cliente</button>
+                <button onClick={openImport} className="px-4 py-2 rounded-lg border text-sm" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Importar CSV</button>
+              </div>
             </div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contato</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Localização</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Casos</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {clientes.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
-                          {c.nome.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{c.nome}</p>
-                          <p className="text-sm text-gray-500">{c.empresa}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-900">{c.email}</p>
-                      <p className="text-sm text-gray-500">{c.telefone}</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {c.cidade && c.estado ? `${c.cidade}, ${c.estado}` : c.cidade || c.estado || '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        (c._count?.caso_churn || 0) > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                      }`}>
-                        {c._count?.caso_churn || 0} caso{(c._count?.caso_churn || 0) !== 1 ? 's' : ''}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => openEdit(c)} className="text-blue-600 hover:text-blue-800 text-sm mr-3">Editar</button>
-                      <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700 text-sm">Remover</button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead style={{ background: 'var(--t-content-bg)', borderBottom: `1px solid var(--t-card-border)` }}>
+                  <tr>
+                    {['Código','Cliente','Contato','Localização','Casos','Ações'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--t-text-muted)' }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {clientes.map((c) => (
+                    <tr key={c.id} className="border-b transition-colors cursor-pointer" style={{ borderColor: 'var(--t-card-border)' }}
+                      onClick={() => router.push(`/clientes/${c.id}`)}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-content-bg)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                      <td className="px-4 py-3">
+                        {c.codigo ? (
+                          <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)', border: `1px solid var(--t-card-border)` }}>{c.codigo}</span>
+                        ) : <span style={{ color: 'var(--t-text-muted)' }}>—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                            style={{ background: 'var(--t-primary)' }}>
+                            {c.nome.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm" style={{ color: 'var(--t-text-primary)' }}>{c.nome}</p>
+                            <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{c.empresa}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-xs" style={{ color: 'var(--t-text-primary)' }}>{c.email}</p>
+                        <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{c.telefone}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--t-text-secondary)' }}>
+                        {c.cidade && c.estado ? `${c.cidade}, ${c.estado}` : c.cidade || c.estado || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${(c._count?.caso_churn || 0) > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {c._count?.caso_churn || 0} caso{(c._count?.caso_churn || 0) !== 1 ? 's' : ''}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => openEdit(c)} className="text-xs mr-3 hover:underline" style={{ color: 'var(--t-primary)' }}>Editar</button>
+                        <button onClick={() => handleDelete(c.id)} className="text-xs text-red-500 hover:text-red-700">Remover</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
         {/* Pagination */}
         {total > limit && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Mostrando {page * limit + 1}–{Math.min((page + 1) * limit, total)} de {total}</p>
+          <div className="flex items-center justify-between text-sm">
+            <p style={{ color: 'var(--t-text-muted)' }}>Mostrando {page * limit + 1}–{Math.min((page + 1) * limit, total)} de {total}</p>
             <div className="flex gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={(page + 1) * limit >= total}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-              >
-                Próximo
-              </button>
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                className="px-3 py-1.5 border rounded-lg disabled:opacity-50 transition-colors"
+                style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }}>Anterior</button>
+              <button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * limit >= total}
+                className="px-3 py-1.5 border rounded-lg disabled:opacity-50 transition-colors"
+                style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }}>Próximo</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Modal */}
+      {/* ===== MODAL CRIAR/EDITAR ===== */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-5">
+          <div className="rounded-xl shadow-xl p-6 w-full max-w-lg mx-4" style={{ background: 'var(--t-card-bg)' }}>
+            <h2 className="text-lg font-bold mb-5" style={{ color: 'var(--t-text-primary)' }}>
               {editingId ? 'Editar Cliente' : 'Novo Cliente'}
             </h2>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Código do Cliente</label>
+                <input value={form.codigo} onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                  placeholder="ex: 001" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Nome *</label>
                 <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nome do responsável" />
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                  placeholder="Nome completo" />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Empresa</label>
                 <input value={form.empresa} onChange={e => setForm(f => ({ ...f, empresa: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nome da empresa" />
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                  placeholder="Nome da empresa" />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Email *</label>
                 <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="email@empresa.com" />
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                  placeholder="email@empresa.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Telefone</label>
                 <input value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="(27) 99999-0000" />
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                  placeholder="(11) 99999-0000" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Estado (UF)</label>
                 <input value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ES" maxLength={2} />
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                  placeholder="SP" maxLength={2} />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Cidade</label>
                 <input value={form.cidade} onChange={e => setForm(f => ({ ...f, cidade: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Vitória" />
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                  placeholder="São Paulo" />
               </div>
             </div>
-
-            <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                Cancelar
-              </button>
+            <div className="flex gap-3 mt-5 justify-end">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm rounded-lg transition-colors" style={{ color: 'var(--t-text-secondary)' }}>Cancelar</button>
               <button onClick={handleSave} disabled={saving || !form.nome || !form.email}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium">
+                className="px-5 py-2 text-sm rounded-lg text-white font-medium disabled:opacity-50"
+                style={{ background: 'var(--t-primary)' }}>
                 {saving ? 'Salvando...' : 'Salvar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL IMPORTAÇÃO ===== */}
+      {showImport && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setShowImport(false)}>
+          <div className="w-full max-w-3xl rounded-2xl shadow-2xl my-8" style={{ background: 'var(--t-card-bg)' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--t-card-border)' }}>
+              <div>
+                <h2 className="text-lg font-bold" style={{ color: 'var(--t-text-primary)' }}>Importar Clientes</h2>
+                <div className="flex items-center gap-3 mt-1">
+                  {(['upload','preview','result'] as ImportStep[]).map((s, i) => (
+                    <div key={s} className="flex items-center gap-1.5">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${importStep === s ? 'text-white' : i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? 'bg-green-500 text-white' : 'text-gray-400'}`}
+                        style={importStep === s ? { background: 'var(--t-primary)' } : i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? {} : { background: 'var(--t-card-border)' }}>
+                        {i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? '✓' : i + 1}
+                      </div>
+                      <span className="text-xs capitalize" style={{ color: importStep === s ? 'var(--t-text-primary)' : 'var(--t-text-muted)' }}>
+                        {s === 'upload' ? 'Arquivo' : s === 'preview' ? 'Conferir' : 'Resultado'}
+                      </span>
+                      {i < 2 && <div className="w-6 h-px mx-1" style={{ background: 'var(--t-card-border)' }} />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => setShowImport(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100" style={{ color: 'var(--t-text-muted)' }}>✕</button>
+            </div>
+
+            <div className="p-6">
+              {/* STEP 1: Upload */}
+              {importStep === 'upload' && (
+                <div className="space-y-4">
+                  <div
+                    className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${dragOver ? 'border-blue-400 bg-blue-50' : ''}`}
+                    style={{ borderColor: dragOver ? 'var(--t-primary)' : 'var(--t-card-border)' }}
+                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    <div className="text-4xl mb-3">📂</div>
+                    <p className="font-medium text-sm" style={{ color: 'var(--t-text-primary)' }}>Arraste seu arquivo CSV aqui</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>ou clique para selecionar — aceita vírgula ou ponto-e-vírgula como separador</p>
+                    <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+                  </div>
+
+                  <div className="rounded-xl p-4 border" style={{ background: 'var(--t-content-bg)', borderColor: 'var(--t-card-border)' }}>
+                    <p className="text-xs font-semibold mb-2" style={{ color: 'var(--t-text-muted)' }}>COLUNAS ACEITAS</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { col: 'codigo', desc: 'Código único do cliente (opcional)' },
+                        { col: 'nome', desc: 'Nome do responsável (obrigatório)' },
+                        { col: 'email', desc: 'Email — chave de identificação (obrigatório)' },
+                        { col: 'telefone', desc: 'Telefone ou WhatsApp' },
+                        { col: 'empresa', desc: 'Nome da empresa' },
+                        { col: 'cidade', desc: 'Cidade' },
+                        { col: 'estado', desc: 'Estado (UF, 2 letras)' }
+                      ].map(({ col, desc }) => (
+                        <span key={col} title={desc} className="text-xs font-mono px-2 py-0.5 rounded border cursor-help"
+                          style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>{col}</span>
+                      ))}
+                    </div>
+                    <p className="text-xs mt-2" style={{ color: 'var(--t-text-muted)' }}>O email é obrigatório e usado como chave para evitar duplicatas.</p>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <button onClick={downloadTemplate} className="text-xs underline" style={{ color: 'var(--t-primary)' }}>
+                      Baixar template CSV de exemplo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: Preview + mapping */}
+              {importStep === 'preview' && importRows.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium" style={{ color: 'var(--t-text-primary)' }}>
+                      {importRows.length} linha{importRows.length !== 1 ? 's' : ''} detectada{importRows.length !== 1 ? 's' : ''} — <span className="text-green-600">{validRows} válidas</span>
+                    </p>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span style={{ color: 'var(--t-text-muted)' }}>Modo:</span>
+                      {(['UPSERT','CRIAR','ATUALIZAR'] as ImportMode[]).map(m => (
+                        <button key={m} onClick={() => setImportMode(m)}
+                          className="px-3 py-1 rounded-full border text-xs font-medium transition-colors"
+                          style={importMode === m ? { background: 'var(--t-primary)', color: '#fff', borderColor: 'var(--t-primary)' } : { borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
+                          {m === 'UPSERT' ? 'Criar + Atualizar' : m === 'CRIAR' ? 'Só criar novos' : 'Só atualizar'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column mapping */}
+                  {rawHeaders.length > 0 && (
+                    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)' }}>
+                      <p className="text-xs font-semibold mb-3" style={{ color: 'var(--t-text-muted)' }}>MAPEAMENTO DE COLUNAS</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {rawHeaders.map(h => (
+                          <div key={h} className="flex items-center gap-2">
+                            <span className="text-xs font-mono w-24 truncate" style={{ color: 'var(--t-text-secondary)' }} title={h}>{h}</span>
+                            <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>→</span>
+                            <select value={importMapping[h] || ''} onChange={e => setImportMapping(m => ({ ...m, [h]: e.target.value as CsvCol | '' }))}
+                              className="flex-1 text-xs border rounded px-1.5 py-1"
+                              style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }}>
+                              <option value="">— ignorar —</option>
+                              {CSV_COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preview table */}
+                  <div className="overflow-x-auto rounded-xl border" style={{ borderColor: 'var(--t-card-border)' }}>
+                    <table className="w-full text-xs">
+                      <thead style={{ background: 'var(--t-content-bg)', borderBottom: `1px solid var(--t-card-border)` }}>
+                        <tr>
+                          {rawHeaders.map(h => (
+                            <th key={h} className="px-3 py-2 text-left font-semibold" style={{ color: 'var(--t-text-muted)' }}>
+                              {h}
+                              {importMapping[h] && <span className="ml-1 text-green-500">({importMapping[h]})</span>}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importRows.slice(0, 8).map((row, i) => (
+                          <tr key={i} style={{ borderBottom: `1px solid var(--t-card-border)` }}>
+                            {rawHeaders.map(h => (
+                              <td key={h} className="px-3 py-1.5" style={{ color: 'var(--t-text-primary)' }}>{row[h] || '—'}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {importRows.length > 8 && (
+                      <div className="px-3 py-2 text-xs" style={{ color: 'var(--t-text-muted)', background: 'var(--t-content-bg)' }}>
+                        ... e mais {importRows.length - 8} linhas
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <button onClick={() => setImportStep('upload')} className="text-sm px-4 py-2 rounded-lg border transition-colors"
+                      style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
+                      Voltar
+                    </button>
+                    <button onClick={runImport} disabled={importing || validRows === 0}
+                      className="text-sm px-6 py-2 rounded-lg font-medium text-white disabled:opacity-50"
+                      style={{ background: 'var(--t-primary)' }}>
+                      {importing ? 'Importando...' : `Importar ${validRows} cliente${validRows !== 1 ? 's' : ''}`}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Result */}
+              {importStep === 'result' && importResult && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'Total', value: importResult.total, color: 'text-gray-600', bg: 'bg-gray-50' },
+                      { label: 'Criados', value: importResult.criados, color: 'text-green-700', bg: 'bg-green-50' },
+                      { label: 'Atualizados', value: importResult.atualizados, color: 'text-blue-700', bg: 'bg-blue-50' },
+                      { label: 'Erros', value: importResult.erros_total, color: importResult.erros_total > 0 ? 'text-red-700' : 'text-gray-400', bg: importResult.erros_total > 0 ? 'bg-red-50' : 'bg-gray-50' }
+                    ].map(k => (
+                      <div key={k.label} className={`${k.bg} rounded-xl p-4 text-center`}>
+                        <p className="text-xs font-medium text-gray-500">{k.label}</p>
+                        <p className={`text-2xl font-bold mt-1 ${k.color}`}>{k.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {importResult.erros.length > 0 && (
+                    <div className="rounded-xl border border-red-200 overflow-hidden">
+                      <div className="px-4 py-2 bg-red-50 border-b border-red-200">
+                        <p className="text-xs font-semibold text-red-700">LINHAS COM ERRO</p>
+                      </div>
+                      <div className="divide-y divide-red-100 max-h-48 overflow-y-auto">
+                        {importResult.erros.map((e, i) => (
+                          <div key={i} className="px-4 py-2 flex items-start gap-3 text-xs">
+                            <span className="text-red-400 font-mono">L{e.linha}</span>
+                            <span className="text-gray-600">{e.email}</span>
+                            <span className="text-red-600 flex-1">{e.motivo}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {importResult.erros_total === 0 && (
+                    <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-center">
+                      <p className="text-green-700 font-medium">Importação concluída sem erros!</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => { setImportStep('upload'); setImportRows([]); }}
+                      className="text-sm px-4 py-2 border rounded-lg" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
+                      Importar outro arquivo
+                    </button>
+                    <button onClick={() => setShowImport(false)}
+                      className="text-sm px-6 py-2 rounded-lg font-medium text-white" style={{ background: 'var(--t-primary)' }}>
+                      Concluir
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

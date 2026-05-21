@@ -27,7 +27,7 @@ const UpdateLeadSchema = z.object({
   cidade: z.string().optional(),
   estado: z.string().optional(),
   status: z.enum(['NOVO', 'QUALIFICADO', 'EM_CONTATO', 'PROPOSTA', 'NEGOCIACAO', 'GANHO', 'PERDIDO', 'NUTRICAO']).optional(),
-  etapa_funil: z.enum(['PROSPECCAO', 'QUALIFICACAO', 'APRESENTACAO', 'PROPOSTA', 'NEGOCIACAO', 'FECHAMENTO']).optional(),
+  etapa_funil: z.string().optional(), // dinâmico — qualquer código de FunilEtapa
   temperatura: z.enum(['FRIO', 'MORNO', 'QUENTE']).optional(),
   valor_estimado: z.number().optional(),
   probabilidade: z.number().min(0).max(100).optional(),

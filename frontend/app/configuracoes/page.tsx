@@ -2,33 +2,77 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useTheme, ThemeColor, ThemeMode } from '@/lib/theme-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save } from 'lucide-react';
+
+// ─── Theme Definitions ────────────────────────────────────
+
+const THEMES: Array<{
+  id: ThemeColor;
+  name: string;
+  description: string;
+  primary: string;
+  dark: string;
+  light: string;
+  preview: string[];
+}> = [
+  {
+    id: 'azul',
+    name: 'Azul ProSystem',
+    description: 'Identidade oficial da marca. Seriedade e confiança.',
+    primary: '#4B8EC8',
+    dark: '#2E6EAB',
+    light: '#EBF4FF',
+    preview: ['#0D2238', '#4B8EC8', '#EBF4FF', '#F4F7FB'],
+  },
+  {
+    id: 'laranja',
+    name: 'Laranja Energia',
+    description: 'Alto contraste e dinamismo. Ideal para times comerciais.',
+    primary: '#E8711A',
+    dark: '#C45E10',
+    light: '#FFF4ED',
+    preview: ['#1C0E05', '#E8711A', '#FFF4ED', '#FFF8F4'],
+  },
+  {
+    id: 'verde',
+    name: 'Verde Crescimento',
+    description: 'Transmite crescimento e retenção. Foco em resultados.',
+    primary: '#1A9E5A',
+    dark: '#127A44',
+    light: '#EAFAF3',
+    preview: ['#052015', '#1A9E5A', '#EAFAF3', '#F4FAF7'],
+  },
+];
+
+// ─── Config sections ──────────────────────────────────────
 
 const SECOES = [
   {
     id: 'pipeline',
     label: 'Pipeline Comercial',
-    icon: '🔽',
+    icon: GitMerge,
     campos: [
       { key: 'etapas_funil', label: 'Etapas do Funil', tipo: 'info', valor: 'Prospecção → Qualificação → Apresentação → Proposta → Negociação → Fechamento' },
-      { key: 'prob_default', label: 'Probabilidade padrão por etapa', tipo: 'info', valor: 'Prospecção: 10% · Qualificação: 25% · Apresentação: 40% · Proposta: 60% · Negociação: 75% · Fechamento: 90%' },
+      { key: 'prob_default', label: 'Probabilidade padrão', tipo: 'info', valor: '10% → 25% → 40% → 60% → 75% → 90%' },
     ]
   },
   {
     id: 'leads',
     label: 'Leads',
-    icon: '🎯',
+    icon: Bell,
     campos: [
-      { key: 'origens', label: 'Origens disponíveis', tipo: 'info', valor: 'MANUAL, SITE, INDICACAO, CAMPANHA, EVENTO, OUTRO' },
-      { key: 'temperatura', label: 'Temperatura padrão ao criar', tipo: 'info', valor: 'FRIO' },
+      { key: 'origens', label: 'Origens disponíveis', tipo: 'info', valor: 'Manual, Site, Indicação, Campanha, Evento, Outro' },
+      { key: 'temperatura', label: 'Temperatura padrão', tipo: 'info', valor: 'FRIO' },
       { key: 'nutricao_dias', label: 'Dias sem atividade para alertar', tipo: 'number', valor: '7' },
     ]
   },
   {
     id: 'propostas',
     label: 'Propostas',
-    icon: '📄',
+    icon: FileText,
     campos: [
       { key: 'validade_default', label: 'Validade padrão (dias)', tipo: 'number', valor: '30' },
       { key: 'alerta_expiracao', label: 'Alertar antes de expirar (dias)', tipo: 'number', valor: '3' },
@@ -37,7 +81,7 @@ const SECOES = [
   {
     id: 'notificacoes',
     label: 'Notificações',
-    icon: '🔔',
+    icon: Bell,
     campos: [
       { key: 'alerta_atividade', label: 'Alertar atividades atrasadas', tipo: 'toggle', valor: 'true' },
       { key: 'alerta_proposta', label: 'Alertar propostas expirando', tipo: 'toggle', valor: 'true' },
@@ -46,8 +90,11 @@ const SECOES = [
   },
 ];
 
+// ─── Component ────────────────────────────────────────────
+
 export default function ConfiguracoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
+  const { color: themeColor, mode: themeMode, setColor, setMode } = useTheme();
   const router = useRouter();
   const [valores, setValores] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
@@ -64,83 +111,313 @@ export default function ConfiguracoesPage() {
 
   const handleSave = () => {
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   if (loading || !isAuthenticated) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--t-content-bg)' }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--t-primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    );
   }
 
-  const isCEO = user?.role === 'CEO' || user?.role === 'SUPERVISAO';
+  const isCEO = user?.role === 'CEO' || user?.role === 'SUPERVISAO' || user?.role === 'ADMIN';
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--t-card-bg)',
+    border: '1px solid var(--t-card-border)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 1px 3px var(--t-card-shadow)'
+  };
+
+  const sectionHeader: React.CSSProperties = {
+    padding: '14px 20px',
+    borderBottom: '1px solid var(--t-card-border)',
+    display: 'flex', alignItems: 'center', gap: 10,
+    background: 'var(--t-card-bg)'
+  };
+
+  const inputStyle: React.CSSProperties = {
+    padding: '6px 12px', border: '1px solid var(--t-card-border)',
+    borderRadius: 8, fontSize: 13, background: 'var(--t-card-bg)',
+    color: 'var(--t-text-primary)', outline: 'none', width: 100,
+    textAlign: 'right' as const
+  };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+
+        {/* Page header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Configurações Comerciais</h1>
-            <p className="text-gray-500 mt-1">Personalize o CRM para o seu processo de vendas</p>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 4 }}>
+              Configurações
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>
+              Personalize o CRM para o seu processo de vendas
+            </p>
           </div>
           {isCEO && (
-            <button onClick={handleSave}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${saved ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
-              {saved ? '✅ Salvo!' : 'Salvar configurações'}
+            <button
+              onClick={handleSave}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                color: '#fff', cursor: 'pointer', border: 'none',
+                background: saved
+                  ? 'linear-gradient(135deg, #16a34a, #15803d)'
+                  : 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
+                boxShadow: '0 2px 8px color-mix(in srgb, var(--t-primary) 25%, transparent)',
+                transition: 'all 0.2s'
+              }}>
+              {saved ? <><Check size={14} /> Salvo!</> : <><Save size={14} /> Salvar configurações</>}
             </button>
           )}
         </div>
 
         {!isCEO && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
-            ⚠️ Apenas CEO e Supervisão podem alterar configurações.
+          <div style={{
+            marginBottom: 20, padding: '12px 16px', borderRadius: 10,
+            background: '#fefce8', border: '1px solid #fde047',
+            fontSize: 13, color: '#ca8a04', display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <Info size={14} /> Apenas CEO, Supervisão e Administrador podem alterar configurações.
           </div>
         )}
 
-        <div className="space-y-4">
-          {SECOES.map(secao => (
-            <div key={secao.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                <span className="text-lg">{secao.icon}</span>
-                <h2 className="text-base font-semibold text-gray-900">{secao.label}</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* ══ APARÊNCIA ══════════════════════════════════════ */}
+          <div style={cardStyle}>
+            <div style={sectionHeader}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'var(--t-primary-light)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Palette size={16} color="var(--t-primary)" />
               </div>
-              <div className="divide-y divide-gray-50">
-                {secao.campos.map(campo => (
-                  <div key={campo.key} className="px-5 py-4 flex items-center justify-between gap-4">
-                    <label className="text-sm font-medium text-gray-700 flex-shrink-0 w-64">{campo.label}</label>
-                    {campo.tipo === 'info' && (
-                      <p className="text-sm text-gray-500 flex-1">{campo.valor}</p>
-                    )}
-                    {campo.tipo === 'number' && (
-                      <input
-                        type="number"
-                        value={valores[campo.key] || campo.valor}
-                        onChange={e => setValores(p => ({ ...p, [campo.key]: e.target.value }))}
-                        disabled={!isCEO}
-                        className="w-24 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
-                      />
-                    )}
-                    {campo.tipo === 'toggle' && (
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Aparência</h2>
+            </div>
+
+            <div style={{ padding: 20 }}>
+
+              {/* Modo claro / escuro */}
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                  Modo
+                </p>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {([
+                    { id: 'claro' as ThemeMode, icon: Sun, label: 'Claro', desc: 'Interface luminosa, ideal para ambientes iluminados' },
+                    { id: 'escuro' as ThemeMode, icon: Moon, label: 'Escuro', desc: 'Reduz a fadiga visual em ambientes com pouca luz' },
+                  ]).map(m => {
+                    const Icon = m.icon;
+                    const isSelected = themeMode === m.id;
+                    return (
                       <button
-                        onClick={() => isCEO && setValores(p => ({ ...p, [campo.key]: p[campo.key] === 'true' ? 'false' : 'true' }))}
-                        disabled={!isCEO}
-                        className={`relative w-11 h-6 rounded-full transition-colors ${valores[campo.key] !== 'false' ? 'bg-blue-600' : 'bg-gray-200'} disabled:opacity-60`}>
-                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${valores[campo.key] !== 'false' ? 'translate-x-6' : 'translate-x-1'}`} />
+                        key={m.id}
+                        onClick={() => setMode(m.id)}
+                        style={{
+                          flex: 1, padding: '16px', borderRadius: 12, cursor: 'pointer',
+                          border: `2px solid ${isSelected ? 'var(--t-primary)' : 'var(--t-card-border)'}`,
+                          background: isSelected ? 'var(--t-primary-light)' : 'var(--t-card-bg)',
+                          textAlign: 'left' as const,
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{
+                            width: 36, height: 36, borderRadius: 8,
+                            background: isSelected ? 'var(--t-primary)' : 'var(--t-card-border)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            <Icon size={18} color={isSelected ? '#fff' : 'var(--t-text-muted)'} />
+                          </div>
+                          {isSelected && (
+                            <div style={{
+                              width: 20, height: 20, borderRadius: '50%',
+                              background: 'var(--t-primary)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                              <Check size={11} color="#fff" />
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 3 }}>{m.label}</div>
+                        <div style={{ fontSize: 11, color: 'var(--t-text-muted)', lineHeight: 1.4 }}>{m.desc}</div>
                       </button>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tema de cor */}
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                  Tema de Cor
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                  {THEMES.map(t => {
+                    const isSelected = themeColor === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setColor(t.id)}
+                        style={{
+                          padding: '16px', borderRadius: 12, cursor: 'pointer',
+                          border: `2px solid ${isSelected ? t.primary : 'var(--t-card-border)'}`,
+                          background: isSelected ? t.light : 'var(--t-card-bg)',
+                          textAlign: 'left' as const,
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {/* Color preview strip */}
+                        <div style={{ display: 'flex', gap: 4, marginBottom: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', gap: 3 }}>
+                            {t.preview.map((c, i) => (
+                              <div key={i} style={{
+                                width: 20, height: 20, borderRadius: 6,
+                                background: c,
+                                border: '1px solid rgba(0,0,0,0.1)'
+                              }} />
+                            ))}
+                          </div>
+                          {isSelected && (
+                            <div style={{
+                              width: 22, height: 22, borderRadius: '50%',
+                              background: t.primary,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              flexShrink: 0
+                            }}>
+                              <Check size={12} color="#fff" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sidebar miniatura */}
+                        <div style={{
+                          display: 'flex', gap: 4, marginBottom: 10,
+                          padding: 8, borderRadius: 8,
+                          background: t.preview[0], border: '1px solid rgba(255,255,255,0.08)'
+                        }}>
+                          <div style={{ width: 3, height: 32, borderRadius: 2, background: t.primary }} />
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {[14, 10, 10].map((w, i) => (
+                              <div key={i} style={{ height: 4, borderRadius: 2, background: i === 0 ? t.primary : 'rgba(255,255,255,0.15)', width: `${w * 5}%` }} />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 3 }}>{t.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--t-text-muted)', lineHeight: 1.4 }}>{t.description}</div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* Info do sistema */}
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Informações do Sistema</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div><p className="text-gray-400">Versão</p><p className="font-medium text-gray-700">1.0.0</p></div>
-            <div><p className="text-gray-400">Backend</p><p className="font-medium text-gray-700">Fastify + Prisma</p></div>
-            <div><p className="text-gray-400">Banco</p><p className="font-medium text-gray-700">PostgreSQL 16</p></div>
-            <div><p className="text-gray-400">Frontend</p><p className="font-medium text-gray-700">Next.js 14</p></div>
+          {/* ══ CONFIG SECTIONS ════════════════════════════════ */}
+          {SECOES.map(secao => {
+            const Icon = secao.icon;
+            return (
+              <div key={secao.id} style={cardStyle}>
+                <div style={sectionHeader}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: 'var(--t-primary-light)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <Icon size={16} color="var(--t-primary)" />
+                  </div>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>{secao.label}</h2>
+                </div>
+                <div>
+                  {secao.campos.map((campo, idx) => (
+                    <div
+                      key={campo.key}
+                      style={{
+                        padding: '14px 20px',
+                        borderTop: idx > 0 ? '1px solid var(--t-card-border)' : 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                        opacity: campo.tipo !== 'info' && !isCEO ? 0.6 : 1
+                      }}
+                    >
+                      <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--t-text-primary)', flex: 1 }}>
+                        {campo.label}
+                      </label>
+
+                      {campo.tipo === 'info' && (
+                        <p style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'right' as const, maxWidth: 320 }}>
+                          {campo.valor}
+                        </p>
+                      )}
+
+                      {campo.tipo === 'number' && (
+                        <input
+                          type="number"
+                          value={valores[campo.key] || campo.valor}
+                          onChange={e => setValores(p => ({ ...p, [campo.key]: e.target.value }))}
+                          disabled={!isCEO}
+                          style={inputStyle}
+                        />
+                      )}
+
+                      {campo.tipo === 'toggle' && (
+                        <button
+                          onClick={() => isCEO && setValores(p => ({ ...p, [campo.key]: p[campo.key] === 'true' ? 'false' : 'true' }))}
+                          disabled={!isCEO}
+                          style={{
+                            position: 'relative', width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+                            border: 'none', cursor: isCEO ? 'pointer' : 'default',
+                            background: valores[campo.key] !== 'false' ? 'var(--t-primary)' : 'var(--t-card-border)',
+                            transition: 'background 0.2s'
+                          }}
+                        >
+                          <span style={{
+                            position: 'absolute', top: 3,
+                            width: 18, height: 18, background: '#fff', borderRadius: '50%',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                            transform: `translateX(${valores[campo.key] !== 'false' ? '23px' : '3px'})`,
+                            transition: 'transform 0.2s'
+                          }} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* ══ INFO DO SISTEMA ════════════════════════════════ */}
+          <div style={{ ...cardStyle, padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <Info size={14} color="var(--t-text-muted)" />
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Informações do Sistema
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
+              {[
+                { label: 'Versão', value: '2.0.0' },
+                { label: 'Backend', value: 'Fastify + Prisma' },
+                { label: 'Banco', value: 'PostgreSQL 16' },
+                { label: 'Frontend', value: 'Next.js 14' },
+                { label: 'Empresa', value: 'ProSystem™' },
+                { label: 'Desde', value: '2008' },
+              ].map(i => (
+                <div key={i.label}>
+                  <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 2 }}>{i.label}</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{i.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

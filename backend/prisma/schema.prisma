@@ -376,8 +376,16 @@ model Atividade {
   tipo            String    // LIGACAO|EMAIL|REUNIAO|WHATSAPP|VISITA|TAREFA|OUTRO
   titulo          String
   descricao       String?   @db.Text
-  status          String    @default("PENDENTE") // PENDENTE|CONCLUIDA|CANCELADA
+  status          String    @default("PENDENTE") // PENDENTE|CONFIRMADA|REALIZADA|CANCELADA|REMARCADA
   resultado       String?   @db.Text
+
+  // Reunião fields
+  google_event_id     String?
+  google_meet_link    String?
+  resumo_reuniao      String?   @db.Text
+  motivo_cancelamento String?   @db.Text
+  nova_data_remarcada DateTime?
+  duracao_minutos     Int?
 
   responsavel_id  String?
   data_prevista   DateTime?
@@ -391,6 +399,16 @@ model Atividade {
   @@index([status])
   @@index([data_prevista])
   @@index([responsavel_id])
+}
+
+model CalendarToken {
+  id            String   @id @default(cuid())
+  user_id       String   @unique
+  access_token  String   @db.Text
+  refresh_token String   @db.Text
+  expiry_date   BigInt
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }
 
 model Proposta {
@@ -436,12 +454,18 @@ model Contrato {
   produtos        Json?
   observacoes     String?   @db.Text
 
+  // Soft-delete: registro mantido para auditoria
+  deleted_at      DateTime?
+  deleted_by      String?
+  motivo_exclusao String?
+
   created_by      String
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
 
   @@index([status])
   @@index([lead_id])
+  @@index([deleted_at])
 }
 
 // ===== METAS COMERCIAIS =====

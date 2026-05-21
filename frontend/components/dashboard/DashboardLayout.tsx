@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
+import { useTheme } from '@/lib/theme-context';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -9,7 +10,7 @@ import {
   TrendingDown, Megaphone, Trophy, Medal, Building2, Users, DollarSign,
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
-  Settings, BarChart2, LineChart, LogOut, ChevronRight, User,
+  Settings, BarChart2, LineChart, LogOut, Moon, Sun, User,
   MessageSquare, Shield,
 } from 'lucide-react';
 
@@ -74,19 +75,19 @@ const navGroups = [
   {
     label: 'Ferramentas',
     items: [
-      { href: '/agenda',      icon: CalendarDays, label: 'Agenda' },
-      { href: '/alertas',     icon: Bell,         label: 'Alertas' },
-      { href: '/previsao',    icon: TrendingUp,   label: 'Previsão' },
-      { href: '/nutricao',    icon: Sprout,       label: 'Nutrição' },
-      { href: '/importacao',  icon: Upload,       label: 'Importar Leads' },
-      { href: '/configuracoes', icon: Settings,   label: 'Configurações' },
+      { href: '/agenda',        icon: CalendarDays, label: 'Agenda' },
+      { href: '/alertas',       icon: Bell,         label: 'Alertas' },
+      { href: '/previsao',      icon: TrendingUp,   label: 'Previsão' },
+      { href: '/nutricao',      icon: Sprout,       label: 'Nutrição' },
+      { href: '/importacao',    icon: Upload,       label: 'Importar Leads' },
+      { href: '/configuracoes', icon: Settings,     label: 'Configurações' },
     ],
   },
   {
     label: 'Relatórios',
     items: [
-      { href: '/relatorios-comerciais', icon: BarChart2,  label: 'Comercial' },
-      { href: '/relatorios',            icon: LineChart,  label: 'Retenção' },
+      { href: '/relatorios-comerciais', icon: BarChart2, label: 'Comercial' },
+      { href: '/relatorios',            icon: LineChart, label: 'Retenção' },
     ],
   },
 ];
@@ -102,6 +103,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { mode, toggleMode } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -118,65 +120,112 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .toUpperCase() || 'U';
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#F4F7FB' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
 
       {/* ── Topbar ─────────────────────────────────────────── */}
-      <header
-        className="flex-shrink-0 flex items-center justify-between px-6 h-14 border-b bg-white"
-        style={{ borderColor: '#D8E8F5', boxShadow: '0 1px 0 0 rgba(75,142,200,0.08)' }}
-      >
-        {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2.5 select-none">
-          <Image
-            src="/logo-prosystem.png"
-            alt="ProSystem"
-            width={140}
-            height={36}
-            className="h-8 w-auto object-contain"
-            priority
-          />
+      <header className="ps-topbar flex-shrink-0 flex items-center justify-between px-5 h-16">
+
+        {/* Logo área — responsivo */}
+        <Link href="/dashboard" className="flex items-center gap-3 select-none group" style={{ minWidth: 180 }}>
+          <div style={{
+            position: 'relative',
+            width: 44, height: 44, borderRadius: 10,
+            background: 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, overflow: 'hidden',
+            boxShadow: '0 2px 8px color-mix(in srgb, var(--t-primary) 30%, transparent)'
+          }}>
+            <Image
+              src="/logo-prosystem.png"
+              alt="ProSystem"
+              width={34}
+              height={34}
+              className="object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+              priority
+            />
+          </div>
+          <div className="hidden sm:block leading-tight">
+            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--t-text-primary)' }}>
+              ProSystem
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--t-text-muted)' }}>
+              CRM Comercial
+            </div>
+          </div>
         </Link>
 
-        {/* Right: user info + logout */}
-        <div className="flex items-center gap-3">
+        {/* Right actions */}
+        <div className="flex items-center gap-2">
+
+          {/* Dark mode toggle */}
           <button
-            className="relative p-1.5 rounded-lg transition-colors"
-            style={{ color: '#7AAACB' }}
-            title="Alertas"
+            onClick={toggleMode}
+            title={mode === 'claro' ? 'Ativar modo escuro' : 'Ativar modo claro'}
+            style={{
+              width: 36, height: 36, borderRadius: 8, border: '1.5px solid var(--t-card-border)',
+              background: 'var(--t-card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--t-text-muted)', flexShrink: 0
+            }}
           >
-            <Bell size={18} />
+            {mode === 'claro' ? <Moon size={15} /> : <Sun size={15} />}
           </button>
 
-          <div
-            className="h-7 w-px"
-            style={{ background: '#D8E8F5' }}
-          />
+          {/* Separator */}
+          <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
 
+          {/* Bell */}
+          <button
+            title="Alertas"
+            style={{
+              width: 36, height: 36, borderRadius: 8, border: '1.5px solid var(--t-card-border)',
+              background: 'var(--t-card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--t-text-muted)', flexShrink: 0
+            }}
+          >
+            <Bell size={15} />
+          </button>
+
+          {/* Separator */}
+          <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
+
+          {/* User */}
           <div className="flex items-center gap-2.5">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #4B8EC8 0%, #2E6EAB 100%)' }}
+              style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'linear-gradient(135deg, var(--t-avatar-from) 0%, var(--t-avatar-to) 100%)',
+                color: '#fff', fontSize: 12, fontWeight: 700,
+                boxShadow: '0 2px 6px color-mix(in srgb, var(--t-primary) 25%, transparent)'
+              }}
             >
               {initials}
             </div>
-            <div className="leading-tight hidden sm:block">
-              <p className="text-sm font-semibold" style={{ color: '#0D2238' }}>
+            <div className="hidden md:block leading-tight">
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>
                 {user?.nome}
               </p>
-              <p className="text-xs" style={{ color: '#7AAACB' }}>
+              <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
                 {ROLE_LABELS[user?.role || ''] || user?.role}
               </p>
             </div>
           </div>
 
+          {/* Logout */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
-            style={{ color: '#4B8EC8', borderColor: '#C3DCFC', background: '#EBF4FF' }}
+            className="flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all border"
+            style={{
+              padding: '6px 12px',
+              color: 'var(--t-primary)',
+              borderColor: 'var(--t-primary-border)',
+              background: 'var(--t-primary-light)'
+            }}
             title="Sair"
           >
             <LogOut size={13} />
-            Sair
+            <span className="hidden sm:inline">Sair</span>
           </button>
         </div>
       </header>
@@ -186,15 +235,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Sidebar */}
         <aside
-          className="w-56 flex-shrink-0 flex flex-col overflow-y-auto"
-          style={{ background: '#0D2238', borderRight: '1px solid #1A3350' }}
+          className="ps-sidebar w-56 flex-shrink-0 flex flex-col overflow-y-auto"
         >
-          <nav className="flex-1 py-4 px-2 space-y-5">
+          {/* Logo marca no sidebar — destaque extra */}
+          <div style={{
+            padding: '20px 16px 12px',
+            borderBottom: '1px solid var(--t-sidebar-border)',
+            display: 'flex', alignItems: 'center', gap: 10
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px color-mix(in srgb, var(--t-primary) 35%, transparent)',
+              overflow: 'hidden'
+            }}>
+              <Image
+                src="/logo-prosystem.png"
+                alt="ProSystem"
+                width={38}
+                height={38}
+                className="object-contain"
+                style={{ filter: 'brightness(0) invert(1)' }}
+                priority
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.1 }}>
+                ProSystem
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--t-sidebar-text)', opacity: 0.7, marginTop: 2 }}>
+                CRM v2.0
+              </div>
+            </div>
+          </div>
+
+          <nav className="flex-1 py-3 px-2 space-y-4 overflow-y-auto">
             {navGroups.map((group) => (
               <div key={group.label}>
                 <p
                   className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest"
-                  style={{ color: '#2D5A7A' }}
+                  style={{ color: 'var(--t-sidebar-muted)' }}
                 >
                   {group.label}
                 </p>
@@ -208,27 +289,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all select-none group ${
+                        className={`ps-sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium select-none ${
                           isActive ? 'active' : ''
-                        } ps-sidebar-item`}
-                        style={
-                          isActive
-                            ? {
-                                background: '#1C3A5A',
-                                color: '#ffffff',
-                                borderLeft: '2px solid #4B8EC8',
-                                paddingLeft: '10px',
-                              }
-                            : {
-                                color: '#A8C8E8',
-                                borderLeft: '2px solid transparent',
-                              }
-                        }
+                        }`}
+                        style={isActive ? {
+                          background: 'var(--t-sidebar-active)',
+                          color: '#ffffff',
+                          borderLeft: '2px solid var(--t-sidebar-active-border)',
+                          paddingLeft: '10px',
+                        } : {
+                          borderLeft: '2px solid transparent',
+                          color: 'var(--t-sidebar-text)',
+                        }}
                       >
                         <Icon
                           size={14}
                           className="flex-shrink-0"
-                          style={{ opacity: isActive ? 1 : 0.7 }}
+                          style={{ opacity: isActive ? 1 : 0.75 }}
                         />
                         {item.label}
                       </Link>
@@ -242,19 +319,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Sidebar footer */}
           <div
             className="px-3 py-3 mx-2 mb-3 rounded-xl"
-            style={{ background: '#152E49', border: '1px solid #1E3D5C' }}
+            style={{
+              background: 'var(--t-sidebar-footer-bg)',
+              border: '1px solid var(--t-sidebar-footer-border)'
+            }}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: '#2D5A7A' }}>
-              ProSystem
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5"
+              style={{ color: 'var(--t-sidebar-muted)' }}>
+              ProSystem Sistemas
             </p>
-            <p className="text-[11px]" style={{ color: '#4B7A9C' }}>
-              CRM Comercial v2.0
+            <p className="text-[11px]" style={{ color: 'var(--t-sidebar-text)', opacity: 0.6 }}>
+              Vitória · ES · Desde 2008
             </p>
           </div>
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto" style={{ background: '#F4F7FB' }}>
+        <main className="ps-content flex-1 overflow-auto">
           <div className="p-6 lg:p-8">
             {children}
           </div>

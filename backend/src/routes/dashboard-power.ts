@@ -39,8 +39,8 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes } } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior } } }),
 
-      prisma.contrato.count({ where: { status: 'ATIVO' } }),
-      prisma.contrato.count({ where: { status: 'ATIVO', created_at: { gte: inicioMes } } }),
+      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null } }),
+      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, created_at: { gte: inicioMes } } }),
 
       prisma.proposta.count({ where: { status: { in: ['ENVIADA', 'VISUALIZADA'] } } }),
       prisma.proposta.count({ where: { status: 'ACEITA', updated_at: { gte: inicioMes } } }),
@@ -87,13 +87,13 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
 
     // MRR dos contratos ativos
     const mrr_result = await prisma.contrato.aggregate({
-      where: { status: 'ATIVO' },
+      where: { status: 'ATIVO', deleted_at: null },
       _sum: { valor: true }
     });
 
     // MRR mês anterior
     const mrr_anterior = await prisma.contrato.aggregate({
-      where: { status: 'ATIVO', created_at: { lte: fimMesAnterior } },
+      where: { status: 'ATIVO', deleted_at: null, created_at: { lte: fimMesAnterior } },
       _sum: { valor: true }
     });
 

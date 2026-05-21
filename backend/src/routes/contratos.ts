@@ -17,6 +17,13 @@ const UpdateContratoSchema = z.object({
   observacoes: z.string().optional()
 });
 
+const DeleteContratoSchema = z.object({
+  motivo: z.string().optional()
+});
+
+// Filtro padrão: nunca retorna excluídos
+const NAO_EXCLUIDO = { deleted_at: null };
+
 export async function contratosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -25,7 +32,7 @@ export async function contratosRoutes(fastify: FastifyInstance, options: { prism
     if (!query.success) return reply.status(400).send({ status: 'error', message: 'Invalid query' });
     const { page, limit, status, recorrencia } = query.data;
 
-    const where: any = {};
+    const where: any = { ...NAO_EXCLUIDO };
     if (status) where.status = status;
     if (recorrencia) where.recorrencia = recorrencia;
 
@@ -48,12 +55,9 @@ export async function contratosRoutes(fastify: FastifyInstance, options: { prism
 
   fastify.get('/contratos/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const contrato = await prisma.contrato.findUnique({
-      where: { id },
-      include: {
-        lead: true,
-        proposta: true
-      }
+    const contrato = await prisma.contrato.findFirst({
+      where: { id, ...NAO_EXCLUIDO },
+      include: { lead: true, proposta: true }
     });
     if (!contrato) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
     return reply.send({ status: 'success', data: contrato });
@@ -63,6 +67,10 @@ export async function contratosRoutes(fastify: FastifyInstance, options: { prism
     const { id } = request.params as { id: string };
     const body = UpdateContratoSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+
+    // Garante que não atualiza contrato excluído
+    const existe = await prisma.contrato.findFirst({ where: { id, ...NAO_EXCLUIDO } });
+    if (!existe) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
 
     try {
       const data: any = { ...body.data };
@@ -75,23 +83,59 @@ export async function contratosRoutes(fastify: FastifyInstance, options: { prism
     }
   });
 
+  // Soft-delete — registra exclusão sem remover do banco
+  fastify.delete('/contratos/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = DeleteContratoSchema.safeParse(request.body || {});
+    const motivo = body.success ? (body.data.motivo || 'Excluído pelo usuário') : 'Excluído pelo usuário';
+
+    const existe = await prisma.contrato.findFirst({ where: { id, ...NAO_EXCLUIDO } });
+    if (!existe) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
+
+    const user = (request as any).user;
+    const deletedBy = user?.nome || user?.id || 'sistema';
+
+    await prisma.contrato.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+        deleted_by: deletedBy,
+        motivo_exclusao: motivo
+      } as any
+    });
+
+    fastify.log.info(`[AUDITORIA] Contrato ${id} (nº ${existe.numero || '-'}) excluído por "${deletedBy}" — motivo: ${motivo}`);
+
+    return reply.send({
+      status: 'success',
+      message: 'Contrato excluído e registrado em auditoria',
+      data: {
+        id,
+        numero: existe.numero,
+        deleted_at: new Date().toISOString(),
+        deleted_by: deletedBy,
+        motivo
+      }
+    });
+  });
+
   fastify.get('/contratos/stats/resumo', async (request, reply) => {
     const [total, ativos, suspensos, cancelados, encerrados] = await Promise.all([
-      prisma.contrato.count(),
-      prisma.contrato.count({ where: { status: 'ATIVO' } }),
-      prisma.contrato.count({ where: { status: 'SUSPENSO' } }),
-      prisma.contrato.count({ where: { status: 'CANCELADO' } }),
-      prisma.contrato.count({ where: { status: 'ENCERRADO' } })
+      prisma.contrato.count({ where: { ...NAO_EXCLUIDO } }),
+      prisma.contrato.count({ where: { status: 'ATIVO', ...NAO_EXCLUIDO } }),
+      prisma.contrato.count({ where: { status: 'SUSPENSO', ...NAO_EXCLUIDO } }),
+      prisma.contrato.count({ where: { status: 'CANCELADO', ...NAO_EXCLUIDO } }),
+      prisma.contrato.count({ where: { status: 'ENCERRADO', ...NAO_EXCLUIDO } })
     ]);
 
     const mrr = await prisma.contrato.aggregate({
       _sum: { valor: true },
-      where: { status: 'ATIVO', recorrencia: 'MENSAL' }
+      where: { status: 'ATIVO', recorrencia: 'MENSAL', ...NAO_EXCLUIDO }
     });
 
     const arr = await prisma.contrato.aggregate({
       _sum: { valor: true },
-      where: { status: 'ATIVO', recorrencia: 'ANUAL' }
+      where: { status: 'ATIVO', recorrencia: 'ANUAL', ...NAO_EXCLUIDO }
     });
 
     return reply.send({
@@ -102,5 +146,19 @@ export async function contratosRoutes(fastify: FastifyInstance, options: { prism
         arr: (arr._sum.valor || 0) + ((mrr._sum.valor || 0) * 12)
       }
     });
+  });
+
+  // Auditoria — lista contratos excluídos (acesso restrito)
+  fastify.get('/contratos/auditoria/excluidos', async (request, reply) => {
+    const excluidos = await prisma.contrato.findMany({
+      where: { deleted_at: { not: null } },
+      orderBy: { deleted_at: 'desc' },
+      select: {
+        id: true, numero: true, valor: true, status: true,
+        deleted_at: true, deleted_by: true, motivo_exclusao: true, created_at: true,
+        lead: { select: { nome: true, empresa: true } }
+      }
+    });
+    return reply.send({ status: 'success', data: excluidos });
   });
 }

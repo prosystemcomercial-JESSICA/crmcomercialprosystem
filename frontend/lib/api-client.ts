@@ -16,7 +16,7 @@ export interface User {
 }
 
 class ApiClient {
-  private client: AxiosInstance;
+  public client: AxiosInstance;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
 
@@ -288,8 +288,12 @@ class ApiClient {
   }
 
   // Atividades endpoints
-  async getAtividades(params?: { status?: string; tipo?: string; lead_id?: string; responsavel_id?: string }) {
+  async getAtividades(params?: { status?: string; tipo?: string; lead_id?: string; responsavel_id?: string; page?: number; limit?: number }) {
     return this.client.get('/atividades', { params });
+  }
+
+  async getAtividadeById(id: string) {
+    return this.client.get(`/atividades/${id}`);
   }
 
   async getAgenda() {
@@ -306,6 +310,38 @@ class ApiClient {
 
   async deleteAtividade(id: string) {
     return this.client.delete(`/atividades/${id}`);
+  }
+
+  async concluirAtividade(id: string, data: { resultado: string; duracao_minutos?: number; data_realizada?: string }) {
+    return this.client.post(`/atividades/${id}/concluir`, data);
+  }
+
+  async cancelarAtividade(id: string, motivo_cancelamento: string) {
+    return this.client.post(`/atividades/${id}/cancelar`, { motivo_cancelamento });
+  }
+
+  async remarcarAtividade(id: string, data: { nova_data_remarcada: string; motivo?: string }) {
+    return this.client.post(`/atividades/${id}/remarcar`, data);
+  }
+
+  async confirmarAtividade(id: string) {
+    return this.client.post(`/atividades/${id}/confirmar`);
+  }
+
+  async criarMeetLink(atividadeId: string) {
+    return this.client.post(`/atividades/${atividadeId}/criar-meet`);
+  }
+
+  async getRelatorioAtividades(params?: { data_inicio?: string; data_fim?: string; responsavel_id?: string; status?: string; tipo?: string; lead_id?: string }) {
+    return this.client.get('/atividades/relatorio', { params });
+  }
+
+  async getGoogleAuthUrl() {
+    return this.client.get('/agenda/google/auth');
+  }
+
+  async getGoogleStatus() {
+    return this.client.get('/agenda/google/status');
   }
 
   // Propostas endpoints

@@ -152,6 +152,7 @@ export default function Home() {
             <p className="font-semibold mb-1.5" style={{ color: '#1A4E82' }}>
               Credenciais de desenvolvimento
             </p>
+            <p><strong>Desenvolvedora (CEO):</strong> jessica@prosystemnet.com.br / J140215l</p>
             <p>CEO: ceo@prosystem.com.br / senha123</p>
             <p>Supervisão: supervisao@prosystem.com.br / senha123</p>
             <p>Técnico: tecnico@prosystem.com.br / senha123</p>
