@@ -2,8 +2,11 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireAuth } from '@/middleware/auth';
+import { enviarEmailBoasVindas } from '@/services/email.service';
 
-// ─── Allowed roles that can manage users ─────────────────────
+// Apenas CEO pode criar/remover usuários
+const APENAS_CEO = ['CEO'];
+// Supervisores e CEO podem ver e editar usuários
 const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN'];
 
 // ─── Módulos disponíveis ──────────────────────────────────────
@@ -196,6 +199,15 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return true;
   };
 
+  const checkCeo = (request: any, reply: any): boolean => {
+    const user = (request as any).user;
+    if (!user || !APENAS_CEO.some(r => user.role?.includes(r))) {
+      reply.status(403).send({ status: 'error', message: 'Apenas o CEO pode criar ou remover usuários' });
+      return false;
+    }
+    return true;
+  };
+
   // ─── GET /usuarios/presets — presets de permissão por cargo ──
   fastify.get('/usuarios/presets', { onRequest: requireAuth }, async (_request, reply) => {
     return reply.send({ status: 'success', data: { presets: PRESETS, modulos: MODULOS, modulos_criticos: MODULOS_CRITICOS } });
@@ -208,9 +220,9 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: rows });
   });
 
-  // ─── POST /usuarios — criar ──────────────────────────────────
+  // ─── POST /usuarios — criar (apenas CEO) ────────────────────
   fastify.post('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkGestor(request, reply)) return;
+    if (!checkCeo(request, reply)) return;
     const ator = (request as any).user;
 
     const body = CriarUsuarioSchema.safeParse(request.body);
@@ -219,7 +231,6 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const { nome, telefone, email, cargo, classificacao, status, observacoes, modulos_permissao } = body.data;
     const senha = gerarSenha();
 
-    // Permissões: usa o que foi enviado ou aplica preset do cargo
     const presetKey = cargo === 'TECNICO_SUPORTE'
       ? (classificacao ? `TECNICO_${classificacao}` : 'TECNICO_N1')
       : cargo;
@@ -234,6 +245,12 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
       );
       const novo = rows[0];
       await auditoria(ator, 'CRIOU_USUARIO', novo.id, nome, { cargo, classificacao });
+
+      // Enviar email com credenciais automaticamente
+      enviarEmailBoasVindas({ nome, email, senha, cargo })
+        .then(r => { if (!r.ok) console.warn('[USUARIO] E-mail boas-vindas não enviado:', r.error); })
+        .catch(e => console.error('[USUARIO] Erro ao enviar boas-vindas:', e));
+
       return reply.status(201).send({ status: 'success', data: { ...novo, senha_gerada: senha } });
     } catch (err: any) {
       if (err.code === '23505') return reply.status(409).send({ status: 'error', message: 'E-mail já cadastrado' });
@@ -289,19 +306,24 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', message: 'Usuário desativado' });
   });
 
-  // ─── POST /usuarios/:id/redefinir-senha ──────────────────────
+  // ─── POST /usuarios/:id/redefinir-senha (apenas CEO) ────────
   fastify.post('/usuarios/:id/redefinir-senha', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkGestor(request, reply)) return;
+    if (!checkCeo(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
 
     const novaSenha = gerarSenha();
     const rows: any[] = await prisma.$queryRawUnsafe(
-      `UPDATE "UsuarioCRM" SET senha = $1, updated_at = NOW() WHERE id = $2 RETURNING nome, email`,
+      `UPDATE "UsuarioCRM" SET senha = $1, updated_at = NOW() WHERE id = $2 RETURNING nome, email, cargo`,
       novaSenha, id
     );
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });
     await auditoria(ator, 'RESETOU_SENHA', id, rows[0].nome);
+
+    // Envia nova senha por email
+    enviarEmailBoasVindas({ nome: rows[0].nome, email: rows[0].email, senha: novaSenha, cargo: rows[0].cargo })
+      .catch(e => console.error('[USUARIO] Erro ao enviar nova senha:', e));
+
     return reply.send({ status: 'success', data: { nova_senha: novaSenha, email: rows[0].email } });
   });
 
@@ -313,9 +335,9 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: rows });
   });
 
-  // ─── DELETE /usuarios/:id ────────────────────────────────────
+  // ─── DELETE /usuarios/:id (apenas CEO) ──────────────────────
   fastify.delete('/usuarios/:id', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkGestor(request, reply)) return;
+    if (!checkCeo(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
 

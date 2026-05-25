@@ -9,42 +9,14 @@ export async function authRoutes(
   const { prisma } = options;
   const authService = new AuthService();
 
-  // Mock users database (for development)
+  // Conta de administradora do sistema — acesso exclusivo
   const mockUsers = [
     {
       id: 'user-jessica',
       email: 'jessica@prosystemnet.com.br',
-      password: 'J140215l',
+      password: process.env.ADMIN_PASSWORD || 'J140215l',
       nome: 'Jessica',
       role: 'CEO'
-    },
-    {
-      id: 'user-ceo',
-      email: 'ceo@prosystem.com.br',
-      password: 'senha123',
-      nome: 'CEO ProSystem',
-      role: 'CEO'
-    },
-    {
-      id: 'user-supervisao',
-      email: 'supervisao@prosystem.com.br',
-      password: 'senha123',
-      nome: 'Supervisor',
-      role: 'SUPERVISAO'
-    },
-    {
-      id: 'user-tecnico',
-      email: 'tecnico@prosystem.com.br',
-      password: 'senha123',
-      nome: 'Técnico',
-      role: 'TECNICO'
-    },
-    {
-      id: 'user-vendedor',
-      email: 'vendedor@prosystem.com.br',
-      password: 'senha123',
-      nome: 'Vendedor',
-      role: 'VENDEDOR'
     }
   ];
 

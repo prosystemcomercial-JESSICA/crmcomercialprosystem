@@ -691,3 +691,182 @@ export async function enviarEmailProposta(proposta: Parameters<typeof buildPropo
     return { ok: false, error: err.message };
   }
 }
+
+// ─── Email de boas-vindas para novo usuário ───────────────────────────────────
+
+export async function enviarEmailBoasVindas(params: {
+  nome: string;
+  email: string;
+  senha: string;
+  cargo: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.SMTP_USER) {
+    console.warn('[EMAIL] SMTP_USER não configurado — e-mail não enviado');
+    return { ok: false, error: 'SMTP não configurado' };
+  }
+
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
+  const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
+  const appUrl    = process.env.FRONTEND_URL     || 'https://crmcomercialprosystem-eu96iiiml.vercel.app';
+
+  const cargoLabel: Record<string, string> = {
+    CEO: 'CEO / Administrador',
+    SUPERVISAO_COMERCIAL: 'Supervisão Comercial',
+    SUPERVISAO_TECNICA: 'Supervisão Técnica',
+    TECNICO_SUPORTE: 'Técnico de Suporte',
+    VENDEDOR: 'Vendedor(a)',
+  };
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F4F7FB;font-family:'Segoe UI',Arial,sans-serif;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F4F7FB;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table cellpadding="0" cellspacing="0" border="0" width="600"
+               style="background:#ffffff;border-radius:16px;overflow:hidden;
+                       box-shadow:0 4px 24px rgba(13,34,56,0.10);max-width:600px;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0D2238 0%,#1A4E82 100%);padding:40px 40px 36px;">
+              <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">
+                Pro<span style="color:#90BEF0;">System</span>
+              </p>
+              <p style="margin:0;font-size:12px;color:#6AAAE5;letter-spacing:2px;text-transform:uppercase;">
+                CRM Comercial · Acesso Liberado
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px 40px 0;">
+              <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0D2238;">
+                Bem-vindo(a), ${params.nome}!
+              </h2>
+              <p style="margin:0 0 24px;font-size:14px;color:#4A6E8A;line-height:1.7;">
+                Sua conta no <strong style="color:#1A4E82;">CRM Comercial ProSystem</strong> foi criada.
+                Use as credenciais abaixo para acessar o sistema.
+              </p>
+
+              <!-- Credenciais -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="background:linear-gradient(135deg,#EBF4FF,#F4F7FB);
+                             border:1px solid #C3DCFC;border-radius:12px;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <p style="margin:0 0 20px;font-size:13px;font-weight:700;color:#1A4E82;
+                               text-transform:uppercase;letter-spacing:1px;">
+                      Suas credenciais de acesso
+                    </p>
+
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding-bottom:14px;">
+                          <p style="margin:0 0 4px;font-size:11px;color:#7AAACB;
+                                     text-transform:uppercase;letter-spacing:1px;font-weight:600;">E-mail</p>
+                          <p style="margin:0;font-size:16px;color:#0D2238;font-weight:600;
+                                     background:#fff;border:1px solid #C3DCFC;border-radius:8px;
+                                     padding:10px 14px;font-family:monospace;">
+                            ${params.email}
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:14px;">
+                          <p style="margin:0 0 4px;font-size:11px;color:#7AAACB;
+                                     text-transform:uppercase;letter-spacing:1px;font-weight:600;">Senha temporária</p>
+                          <p style="margin:0;font-size:22px;color:#1A4E82;font-weight:800;
+                                     background:#fff;border:2px solid #4B8EC8;border-radius:8px;
+                                     padding:12px 14px;font-family:monospace;letter-spacing:4px;">
+                            ${params.senha}
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <p style="margin:0 0 4px;font-size:11px;color:#7AAACB;
+                                     text-transform:uppercase;letter-spacing:1px;font-weight:600;">Perfil de acesso</p>
+                          <p style="margin:0;font-size:14px;color:#0D2238;font-weight:600;">
+                            ${cargoLabel[params.cargo] || params.cargo}
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="background:linear-gradient(135deg,#0D2238,#1A4E82);border-radius:12px;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:28px 32px;text-align:center;">
+                    <p style="margin:0 0 16px;font-size:14px;color:#A8C8E8;">
+                      Clique no botão abaixo para acessar o CRM
+                    </p>
+                    <a href="${appUrl}"
+                       style="display:inline-block;background:#4B8EC8;color:#ffffff;
+                               font-size:15px;font-weight:700;text-decoration:none;
+                               padding:14px 36px;border-radius:8px;letter-spacing:0.3px;">
+                      Acessar o CRM
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 8px;font-size:13px;color:#7AAACB;line-height:1.7;">
+                Por segurança, guarde esta senha em local seguro. Em caso de problemas de acesso,
+                entre em contato com o administrador do sistema.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:32px 40px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="border-top:1px solid #E8F0F8;padding-top:24px;">
+                <tr>
+                  <td>
+                    <p style="margin:0;font-size:11px;color:#7AAACB;line-height:1.6;">
+                      <strong style="color:#1A4E82;">ProSystem Sistemas</strong> · Vitória, ES<br>
+                      Este e-mail foi enviado automaticamente. Não responda a este e-mail.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from:    `"${fromName}" <${fromEmail}>`,
+      to:      params.email,
+      bcc:     fromEmail,
+      replyTo: fromEmail,
+      subject: `Seu acesso ao CRM ProSystem — ${params.nome}`,
+      html,
+      headers: {
+        'X-Mailer':   'ProSystem CRM 2.0',
+        'X-Priority': '1',
+        'Importance': 'high',
+      },
+    });
+    console.log(`[EMAIL] Boas-vindas enviado para ${params.email}`);
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[EMAIL] Erro ao enviar boas-vindas:', err.message);
+    return { ok: false, error: err.message };
+  }
+}
