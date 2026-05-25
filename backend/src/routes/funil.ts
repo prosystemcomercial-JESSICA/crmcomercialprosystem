@@ -58,85 +58,82 @@ const MoverSchema = z.object({
 export async function funilRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // ─── Tabelas ────────────────────────────────────────────────
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "FunilEtapa" (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      codigo VARCHAR(50) UNIQUE NOT NULL,
-      nome VARCHAR(100) NOT NULL,
-      cor VARCHAR(20) DEFAULT '#6b7280',
-      ordem INTEGER DEFAULT 99,
-      tipo VARCHAR(20) DEFAULT 'ANDAMENTO',
-      conta_pipeline BOOLEAN DEFAULT TRUE,
-      visivel_vendedor BOOLEAN DEFAULT TRUE,
-      ativa BOOLEAN DEFAULT TRUE,
-      fixo BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
-
-  // Adiciona coluna fixo em tabelas já existentes (migration idempotente)
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "FunilEtapa" ADD COLUMN IF NOT EXISTS fixo BOOLEAN DEFAULT FALSE
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "LeadPerda" (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      lead_id VARCHAR(255) NOT NULL,
-      lead_nome VARCHAR(255),
-      etapa_anterior VARCHAR(50),
-      etapa_destino VARCHAR(50),
-      motivo VARCHAR(100),
-      motivo_outro TEXT,
-      observacoes TEXT,
-      valor_oportunidade NUMERIC(12,2),
-      vendedor_id VARCHAR(255),
-      vendedor_nome VARCHAR(255),
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "LeadHistorico" (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      lead_id VARCHAR(255) NOT NULL,
-      lead_nome VARCHAR(255),
-      acao VARCHAR(100),
-      etapa_anterior VARCHAR(50),
-      etapa_destino VARCHAR(50),
-      ator_id VARCHAR(255),
-      ator_nome VARCHAR(255),
-      detalhes JSONB,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "MetaVendedor" (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      vendedor_id VARCHAR(255) NOT NULL,
-      vendedor_nome VARCHAR(255),
-      ano INTEGER NOT NULL,
-      mes INTEGER,
-      trimestre INTEGER,
-      meta_valor NUMERIC(12,2) NOT NULL,
-      bonus_valor NUMERIC(12,2),
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE(vendedor_id, ano, mes, trimestre)
-    )
-  `);
-
-  // ─── Seed: insere/atualiza etapas padrão garantindo fixo correto ────
-  for (const e of ETAPAS_PADRAO) {
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "FunilEtapa" (codigo, nome, cor, ordem, tipo, conta_pipeline, fixo)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT (codigo) DO UPDATE SET fixo = EXCLUDED.fixo, nome = EXCLUDED.nome`,
-      e.codigo, e.nome, e.cor, e.ordem, e.tipo, e.conta_pipeline, e.fixo
-    );
-  }
+  // ─── Tabelas + Seed (não bloqueante — falha silenciosa no startup) ─────────
+  Promise.all([
+    prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "FunilEtapa" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        codigo VARCHAR(50) UNIQUE NOT NULL,
+        nome VARCHAR(100) NOT NULL,
+        cor VARCHAR(20) DEFAULT '#6b7280',
+        ordem INTEGER DEFAULT 99,
+        tipo VARCHAR(20) DEFAULT 'ANDAMENTO',
+        conta_pipeline BOOLEAN DEFAULT TRUE,
+        visivel_vendedor BOOLEAN DEFAULT TRUE,
+        ativa BOOLEAN DEFAULT TRUE,
+        fixo BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `),
+    // Adiciona coluna fixo em tabelas já existentes (migration idempotente)
+    prisma.$executeRawUnsafe(`
+      ALTER TABLE "FunilEtapa" ADD COLUMN IF NOT EXISTS fixo BOOLEAN DEFAULT FALSE
+    `),
+    prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "LeadPerda" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        lead_id VARCHAR(255) NOT NULL,
+        lead_nome VARCHAR(255),
+        etapa_anterior VARCHAR(50),
+        etapa_destino VARCHAR(50),
+        motivo VARCHAR(100),
+        motivo_outro TEXT,
+        observacoes TEXT,
+        valor_oportunidade NUMERIC(12,2),
+        vendedor_id VARCHAR(255),
+        vendedor_nome VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `),
+    prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "LeadHistorico" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        lead_id VARCHAR(255) NOT NULL,
+        lead_nome VARCHAR(255),
+        acao VARCHAR(100),
+        etapa_anterior VARCHAR(50),
+        etapa_destino VARCHAR(50),
+        ator_id VARCHAR(255),
+        ator_nome VARCHAR(255),
+        detalhes JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `),
+    prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "MetaVendedor" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        vendedor_id VARCHAR(255) NOT NULL,
+        vendedor_nome VARCHAR(255),
+        ano INTEGER NOT NULL,
+        mes INTEGER,
+        trimestre INTEGER,
+        meta_valor NUMERIC(12,2) NOT NULL,
+        bonus_valor NUMERIC(12,2),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(vendedor_id, ano, mes, trimestre)
+      )
+    `),
+    // ─── Seed: insere/atualiza etapas padrão garantindo fixo correto ────
+    ...ETAPAS_PADRAO.map(e =>
+      prisma.$executeRawUnsafe(
+        `INSERT INTO "FunilEtapa" (codigo, nome, cor, ordem, tipo, conta_pipeline, fixo)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT (codigo) DO UPDATE SET fixo = EXCLUDED.fixo, nome = EXCLUDED.nome`,
+        e.codigo, e.nome, e.cor, e.ordem, e.tipo, e.conta_pipeline, e.fixo
+      )
+    ),
+  ]).catch(e => console.warn('[funil.ts] Aviso ao inicializar:', e.message));
 
   // ─── Helpers ─────────────────────────────────────────────────
   const getEtapas = async (): Promise<any[]> =>

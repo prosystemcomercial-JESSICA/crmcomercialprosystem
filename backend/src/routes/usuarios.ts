@@ -145,38 +145,39 @@ const AtualizarUsuarioSchema = CriarUsuarioSchema.partial().omit({ email: true }
 export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // ─── Criar tabelas se não existirem ─────────────────────────
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "UsuarioCRM" (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      nome VARCHAR(255) NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      telefone VARCHAR(50),
-      senha VARCHAR(20) NOT NULL,
-      cargo VARCHAR(50) NOT NULL,
-      classificacao VARCHAR(5),
-      status VARCHAR(20) DEFAULT 'ATIVO',
-      observacoes TEXT,
-      modulos_permissao JSONB DEFAULT '{}',
-      created_by VARCHAR(255),
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "AuditoriaUsuario" (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      ator_id VARCHAR(255),
-      ator_nome VARCHAR(255),
-      ator_role VARCHAR(50),
-      acao VARCHAR(100),
-      alvo_id VARCHAR(255),
-      alvo_nome VARCHAR(255),
-      detalhes JSONB,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
+  // ─── Criar tabelas de forma não-bloqueante (não trava o startup) ──
+  Promise.all([
+    prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "UsuarioCRM" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nome VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        telefone VARCHAR(50),
+        senha VARCHAR(20) NOT NULL,
+        cargo VARCHAR(50) NOT NULL,
+        classificacao VARCHAR(5),
+        status VARCHAR(20) DEFAULT 'ATIVO',
+        observacoes TEXT,
+        modulos_permissao JSONB DEFAULT '{}',
+        created_by VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `),
+    prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "AuditoriaUsuario" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ator_id VARCHAR(255),
+        ator_nome VARCHAR(255),
+        ator_role VARCHAR(50),
+        acao VARCHAR(100),
+        alvo_id VARCHAR(255),
+        alvo_nome VARCHAR(255),
+        detalhes JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+  ]).catch(e => console.warn('[USUARIOS] Aviso ao criar tabelas:', e.message));
 
   // ─── Helper: registrar auditoria ────────────────────────────
   const auditoria = async (ator: any, acao: string, alvo_id: string, alvo_nome: string, detalhes?: any) => {
