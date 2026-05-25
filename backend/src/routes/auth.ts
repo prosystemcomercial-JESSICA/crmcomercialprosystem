@@ -33,33 +33,47 @@ export async function authRoutes(
           password: raw.password.trim()
         };
 
-        // 1) Contas de sistema (mockUsers) têm prioridade absoluta — role nunca é sobrescrita pelo DB
-        let user: { id: string; email: string; nome: string; role: string } | null = null;
+        // 1) Admin — resposta imediata, sem tocar no banco
         const systemAccount = mockUsers.find(u => u.email.toLowerCase() === data.email && u.password === data.password);
         if (systemAccount) {
-          user = { id: systemAccount.id, email: systemAccount.email, nome: systemAccount.nome, role: systemAccount.role };
+          const tokens = authService.generateTokens({
+            userId: systemAccount.id,
+            email: systemAccount.email,
+            nome: systemAccount.nome,
+            role: systemAccount.role
+          });
+          return reply.status(200).send({
+            status: 'success',
+            data: {
+              accessToken: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+              expiresIn: tokens.expiresIn,
+              user: { id: systemAccount.id, email: systemAccount.email, nome: systemAccount.nome, role: systemAccount.role }
+            }
+          });
         }
 
-        // 2) Checar na tabela UsuarioCRM apenas se não for conta de sistema
-        if (!user) {
-          try {
-            const rows: any[] = await prisma.$queryRawUnsafe(
+        // 2) Usuários do banco (com timeout de 5s para não travar)
+        let user: { id: string; email: string; nome: string; role: string } | null = null;
+        try {
+          const rows: any[] = await Promise.race([
+            prisma.$queryRawUnsafe(
               `SELECT id::text, email, nome, cargo as role, status FROM "UsuarioCRM" WHERE LOWER(email) = $1 AND senha = $2 LIMIT 1`,
               data.email, data.password
-            );
-            if (rows.length > 0 && rows[0].status !== 'INATIVO' && rows[0].status !== 'SUSPENSO') {
-              user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
-            }
-          } catch {
-            // tabela ainda não existe
+            ),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+          ]) as any[];
+          if (rows.length > 0 && rows[0].status !== 'INATIVO' && rows[0].status !== 'SUSPENSO') {
+            user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
           }
+        } catch {
+          // banco indisponível ou timeout — nega acesso
         }
 
         if (!user) {
           return reply.status(401).send({ status: 'error', message: 'Email ou senha inválidos' });
         }
 
-        // Generate tokens
         const tokens = authService.generateTokens({
           userId: user.id,
           email: user.email,
