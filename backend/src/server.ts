@@ -29,22 +29,20 @@ import { etiquetasRoutes } from '@/routes/etiquetas';
 import { dashboardComercialRoutes } from '@/routes/dashboard-comercial';
 import { contratosComerciais } from '@/routes/contratos-comerciais';
 
-// Initialize Prisma
+// Initialize Prisma (conexão lazy — não conecta até primeiro query)
 export const prisma = new PrismaClient({
   log: ['warn', 'error']
 });
 
-// Initialize Fastify
+// Initialize Fastify — pino-pretty só em dev (não funciona bem em containers)
+const isProd = process.env.NODE_ENV === 'production';
 const fastify = Fastify({
-  logger: {
-    level: process.env.LOG_LEVEL || 'info',
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true
+  logger: isProd
+    ? { level: process.env.LOG_LEVEL || 'info' }
+    : {
+        level: process.env.LOG_LEVEL || 'info',
+        transport: { target: 'pino-pretty', options: { colorize: true } }
       }
-    }
-  }
 });
 
 // Register plugins
