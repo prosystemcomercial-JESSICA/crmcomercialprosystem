@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npx prisma generate && tsc",
+    "build": "npx prisma generate",
     "start": "npx tsx src/server.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
