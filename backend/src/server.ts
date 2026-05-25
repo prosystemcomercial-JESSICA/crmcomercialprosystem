@@ -133,7 +133,7 @@ process.on('SIGTERM', async () => {
 // Start server
 const start = async () => {
   try {
-    const port = parseInt(process.env.FASTIFY_PORT || '3001');
+    const port = parseInt(process.env.PORT || process.env.FASTIFY_PORT || '3001');
     await fastify.listen({ port, host: '0.0.0.0' });
 
     fastify.log.info(`🚀 Server running on http://localhost:${port}`);
