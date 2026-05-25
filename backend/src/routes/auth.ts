@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { AuthService } from '@/services/auth.service';
 import { LoginSchema, RefreshTokenSchema, TokenResponseDTO } from '@/types/dto';
+import { enviarEmailBoasVindas } from '@/services/email.service';
 
 export async function authRoutes(
   fastify: FastifyInstance,
@@ -164,11 +165,58 @@ export async function authRoutes(
 
   // POST /auth/logout - Logout (client-side token cleanup)
   fastify.post('/auth/logout', async (request, reply) => {
-    // Token cleanup happens on client side
-    // Server just confirms logout
-    return reply.status(200).send({
-      status: 'success',
-      message: 'Logout successful'
-    });
+    return reply.status(200).send({ status: 'success', message: 'Logout successful' });
+  });
+
+  // POST /auth/forgot-password - Recuperação de senha
+  fastify.post<{ Body: { email: string } }>('/auth/forgot-password', async (request, reply) => {
+    const { email } = request.body || {};
+    if (!email || !email.includes('@')) {
+      return reply.status(400).send({ status: 'error', message: 'E-mail inválido' });
+    }
+
+    const emailNorm = email.trim().toLowerCase();
+
+    // Conta de administradora — não usa recuperação automática
+    const isAdmin = mockUsers.some(u => u.email.toLowerCase() === emailNorm);
+    if (isAdmin) {
+      // Retorna sucesso genérico por segurança (não revela que é conta de sistema)
+      return reply.status(200).send({ status: 'success' });
+    }
+
+    try {
+      // Busca usuário no banco
+      const rows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT id::text, nome, email, cargo FROM "UsuarioCRM" WHERE LOWER(email) = $1 AND status = 'ATIVO' LIMIT 1`,
+        emailNorm
+      );
+
+      if (rows.length > 0) {
+        const usuario = rows[0];
+        // Gera nova senha aleatória
+        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let novaSenha = '';
+        for (let i = 0; i < 8; i++) novaSenha += chars[Math.floor(Math.random() * chars.length)];
+
+        // Salva no banco
+        await prisma.$executeRawUnsafe(
+          `UPDATE "UsuarioCRM" SET senha = $1, updated_at = NOW() WHERE id::text = $2`,
+          novaSenha, usuario.id
+        );
+
+        // Envia email com nova senha
+        enviarEmailBoasVindas({
+          nome: usuario.nome,
+          email: usuario.email,
+          senha: novaSenha,
+          cargo: usuario.cargo
+        }).catch(e => console.error('[AUTH] Erro ao enviar email recuperação:', e));
+      }
+    } catch (e) {
+      console.error('[AUTH] Erro recuperação senha:', e);
+    }
+
+    // Sempre retorna sucesso (não revela se o email existe)
+    return reply.status(200).send({ status: 'success' });
   });
 }
