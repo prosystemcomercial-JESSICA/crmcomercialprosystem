@@ -5,7 +5,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme, ThemeColor, ThemeMode } from '@/lib/theme-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save } from 'lucide-react';
+import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 
 // ─── Theme Definitions ────────────────────────────────────
 
@@ -99,6 +100,22 @@ export default function ConfiguracoesPage() {
   const [valores, setValores] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
 
+  // ZapSign
+  const [zapConfig, setZapConfig] = useState({
+    ZAPSIGN_API_TOKEN: '',
+    ZAPSIGN_ENVIRONMENT: 'sandbox',
+    ZAPSIGN_WEBHOOK_SECRET: '',
+    ZAPSIGN_TEMPLATE_PRO: '',
+    ZAPSIGN_TEMPLATE_PLUS: '',
+    ZAPSIGN_TEMPLATE_FARMA_PRO: '',
+    ZAPSIGN_TEMPLATE_FARMA_PLUS: '',
+    ZAPSIGN_TEMPLATE_PADARIA_PRO: '',
+    ZAPSIGN_TEMPLATE_PADARIA_PLUS: '',
+  });
+  const [zapSaving, setZapSaving] = useState(false);
+  const [zapSaved, setZapSaved] = useState(false);
+  const [zapLoading, setZapLoading] = useState(false);
+
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
   }, [isAuthenticated, loading]);
@@ -108,6 +125,38 @@ export default function ConfiguracoesPage() {
     SECOES.forEach(s => s.campos.forEach(c => { initial[c.key] = c.valor; }));
     setValores(initial);
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setZapLoading(true);
+    apiClient.getConfiguracoesIntegracoes()
+      .then(res => {
+        const d = res.data.data || {};
+        setZapConfig(prev => ({
+          ...prev,
+          ZAPSIGN_API_TOKEN:          d.ZAPSIGN_API_TOKEN          || '',
+          ZAPSIGN_ENVIRONMENT:        d.ZAPSIGN_ENVIRONMENT        || 'sandbox',
+          ZAPSIGN_WEBHOOK_SECRET:     d.ZAPSIGN_WEBHOOK_SECRET     || '',
+          ZAPSIGN_TEMPLATE_PRO:       d.ZAPSIGN_TEMPLATE_PRO       || '',
+          ZAPSIGN_TEMPLATE_PLUS:      d.ZAPSIGN_TEMPLATE_PLUS      || '',
+          ZAPSIGN_TEMPLATE_FARMA_PRO: d.ZAPSIGN_TEMPLATE_FARMA_PRO || '',
+          ZAPSIGN_TEMPLATE_FARMA_PLUS:d.ZAPSIGN_TEMPLATE_FARMA_PLUS|| '',
+          ZAPSIGN_TEMPLATE_PADARIA_PRO: d.ZAPSIGN_TEMPLATE_PADARIA_PRO || '',
+          ZAPSIGN_TEMPLATE_PADARIA_PLUS:d.ZAPSIGN_TEMPLATE_PADARIA_PLUS|| '',
+        }));
+      })
+      .catch(() => {})
+      .finally(() => setZapLoading(false));
+  }, [isAuthenticated]);
+
+  const handleSaveZap = async () => {
+    setZapSaving(true);
+    try {
+      await apiClient.saveConfiguracoesIntegracoes(zapConfig);
+      setZapSaved(true);
+      setTimeout(() => setZapSaved(false), 2500);
+    } catch { /* ignore */ } finally { setZapSaving(false); }
+  };
 
   const handleSave = () => {
     setSaved(true);
@@ -394,6 +443,128 @@ export default function ConfiguracoesPage() {
               </div>
             );
           })}
+
+          {/* ══ ZAPSIGN — INTEGRAÇÃO ══════════════════════════ */}
+          <div style={cardStyle}>
+            <div style={sectionHeader}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Zap size={16} color="#7c3aed" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>ZapSign — Assinatura Eletrônica</h2>
+                <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Configure a integração para envio automático de contratos</p>
+              </div>
+              <a href="https://app.zapsign.com.br/conta/integracoes" target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 11, color: '#7c3aed', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                Acessar ZapSign <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div style={{ padding: 20 }}>
+              {zapLoading ? (
+                <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Carregando configurações...</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                  {/* Token + Ambiente */}
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>
+                        API Token ZapSign
+                        <span style={{ fontSize: 10, color: '#7c3aed', marginLeft: 6 }}>→ Conta &gt; Configurações &gt; Integrações &gt; API ZAPSIGN</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={zapConfig.ZAPSIGN_API_TOKEN}
+                        onChange={e => setZapConfig(p => ({ ...p, ZAPSIGN_API_TOKEN: e.target.value }))}
+                        placeholder="bed57172-05f3-46da-..."
+                        className="ps-input w-full"
+                        style={{ fontFamily: 'monospace', fontSize: 12 }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>Ambiente</label>
+                        <select
+                          value={zapConfig.ZAPSIGN_ENVIRONMENT}
+                          onChange={e => setZapConfig(p => ({ ...p, ZAPSIGN_ENVIRONMENT: e.target.value }))}
+                          className="ps-input w-full"
+                        >
+                          <option value="sandbox">Sandbox (testes)</option>
+                          <option value="production">Produção</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>Webhook Secret (opcional)</label>
+                        <input
+                          value={zapConfig.ZAPSIGN_WEBHOOK_SECRET}
+                          onChange={e => setZapConfig(p => ({ ...p, ZAPSIGN_WEBHOOK_SECRET: e.target.value }))}
+                          placeholder="chave para validar webhooks"
+                          className="ps-input w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Templates por plano */}
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      Modelos de Contrato por Plano
+                    </p>
+                    <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 12 }}>
+                      Cole o <strong>Token do Modelo</strong> obtido em ZapSign &gt; Modelos &gt; Gerenciar (código na URL do modelo).
+                      Esses modelos são usados para gerar e enviar contratos automaticamente quando uma proposta é aceita.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {([
+                        ['ZAPSIGN_TEMPLATE_PRO',         'Plano Pro'],
+                        ['ZAPSIGN_TEMPLATE_PLUS',        'Plano Plus'],
+                        ['ZAPSIGN_TEMPLATE_FARMA_PRO',   'Farma Pro'],
+                        ['ZAPSIGN_TEMPLATE_FARMA_PLUS',  'Farma Plus'],
+                        ['ZAPSIGN_TEMPLATE_PADARIA_PRO',  'Padaria Pro'],
+                        ['ZAPSIGN_TEMPLATE_PADARIA_PLUS', 'Padaria Plus'],
+                      ] as [string, string][]).map(([key, label]) => (
+                        <div key={key}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>{label}</label>
+                          <input
+                            value={(zapConfig as any)[key]}
+                            onChange={e => setZapConfig(p => ({ ...p, [key]: e.target.value }))}
+                            placeholder="token-modelo-zapsign"
+                            className="ps-input w-full"
+                            style={{ fontFamily: 'monospace', fontSize: 11 }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* URL do webhook */}
+                  <div style={{ background: '#f5f3ff', borderRadius: 8, padding: '10px 14px', fontSize: 11 }}>
+                    <p style={{ fontWeight: 700, color: '#7c3aed', marginBottom: 4 }}>URL do Webhook ZapSign</p>
+                    <p style={{ fontFamily: 'monospace', color: '#4c1d95', background: '#ede9fe', padding: '4px 8px', borderRadius: 5, display: 'inline-block' }}>
+                      {typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:3001/webhook/zapsign` : 'http://localhost:3001/webhook/zapsign'}
+                    </p>
+                    <p style={{ color: '#7c3aed', marginTop: 4 }}>Configure essa URL em: ZapSign &gt; Configurações &gt; Webhooks &gt; URL de Notificação</p>
+                  </div>
+
+                  <button
+                    onClick={handleSaveZap}
+                    disabled={zapSaving}
+                    className="flex items-center gap-2"
+                    style={{
+                      alignSelf: 'flex-start',
+                      padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                      background: zapSaved ? '#16a34a' : '#7c3aed',
+                      color: '#fff', border: 'none', cursor: zapSaving ? 'not-allowed' : 'pointer',
+                      opacity: zapSaving ? 0.7 : 1, transition: 'background 0.2s',
+                    }}>
+                    {zapSaved ? <><Check size={13} /> Configurações salvas!</> : <><Save size={13} /> {zapSaving ? 'Salvando...' : 'Salvar configurações ZapSign'}</>}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* ══ INFO DO SISTEMA ════════════════════════════════ */}
           <div style={{ ...cardStyle, padding: '16px 20px' }}>

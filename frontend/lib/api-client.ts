@@ -287,6 +287,68 @@ class ApiClient {
     return this.client.get('/leads/stats/resumo');
   }
 
+  async getLeadsKanban() {
+    return this.client.get('/leads/kanban');
+  }
+
+  async getLeadObservacoes(id: string) {
+    return this.client.get(`/leads/${id}/observacoes`);
+  }
+
+  async addLeadObservacao(id: string, data: any) {
+    return this.client.post(`/leads/${id}/observacoes`, data);
+  }
+
+  async saveLeadOnboarding(id: string, data: any) {
+    return this.client.put(`/leads/${id}/onboarding`, data);
+  }
+
+  async enviarParaExecucao(id: string) {
+    return this.client.post(`/leads/${id}/enviar-execucao`, {});
+  }
+
+  async saveLeadExecucao(id: string, data: any) {
+    return this.client.put(`/leads/${id}/execucao`, data);
+  }
+
+  async gerarPropostaDeLead(id: string) {
+    return this.client.post(`/leads/${id}/gerar-proposta`, {});
+  }
+
+  // Kanban columns
+  async getKanbanColunas() {
+    return this.client.get('/kanban-colunas');
+  }
+
+  async createKanbanColuna(data: { nome: string; cor?: string; ordem?: number }) {
+    return this.client.post('/kanban-colunas', data);
+  }
+
+  async updateKanbanColuna(id: string, data: any) {
+    return this.client.patch(`/kanban-colunas/${id}`, data);
+  }
+
+  async deleteKanbanColuna(id: string) {
+    return this.client.delete(`/kanban-colunas/${id}`);
+  }
+
+  // Etiquetas
+  async getEtiquetas() {
+    return this.client.get('/etiquetas');
+  }
+
+  async createEtiqueta(data: { nome: string; cor?: string; descricao?: string }) {
+    return this.client.post('/etiquetas', data);
+  }
+
+  async addEtiquetaToLead(leadId: string, etiquetaId: string) {
+    return this.client.post(`/leads/${leadId}/etiquetas/${etiquetaId}`, {});
+  }
+
+  async removeEtiquetaFromLead(leadId: string, etiquetaId: string) {
+    return this.client.delete(`/leads/${leadId}/etiquetas/${etiquetaId}`);
+  }
+
   // Atividades endpoints
   async getAtividades(params?: { status?: string; tipo?: string; lead_id?: string; responsavel_id?: string; page?: number; limit?: number }) {
     return this.client.get('/atividades', { params });
@@ -328,8 +390,20 @@ class ApiClient {
     return this.client.post(`/atividades/${id}/confirmar`);
   }
 
+  async naoCompareceuAtividade(id: string, observacao?: string) {
+    return this.client.post(`/atividades/${id}/nao-compareceu`, { observacao });
+  }
+
+  async aguardarRetornoAtividade(id: string, observacao?: string) {
+    return this.client.post(`/atividades/${id}/aguardar-retorno`, { observacao });
+  }
+
   async criarMeetLink(atividadeId: string) {
     return this.client.post(`/atividades/${atividadeId}/criar-meet`);
+  }
+
+  async criarMeetTemp(data: { titulo: string; data_prevista?: string; duracao_minutos?: number; lead_email?: string }) {
+    return this.client.post('/agenda/criar-meet-temp', data);
   }
 
   async getRelatorioAtividades(params?: { data_inicio?: string; data_fim?: string; responsavel_id?: string; status?: string; tipo?: string; lead_id?: string }) {
@@ -388,6 +462,47 @@ class ApiClient {
 
   async getContratosStats() {
     return this.client.get('/contratos/stats/resumo');
+  }
+
+  // ── Contratos Comerciais (novo módulo ZapSign)
+  async getContratosComerciais(params?: { status?: string; search?: string }) {
+    return this.client.get('/contratos-comerciais', { params });
+  }
+
+  async getContratoComercial(id: string) {
+    return this.client.get(`/contratos-comerciais/${id}`);
+  }
+
+  async createContratoComercial(data: any) {
+    return this.client.post('/contratos-comerciais', data);
+  }
+
+  async createContratoFromProposta(propostaId: string) {
+    return this.client.post(`/contratos-comerciais/from-proposta/${propostaId}`);
+  }
+
+  async updateContratoComercial(id: string, data: any) {
+    return this.client.patch(`/contratos-comerciais/${id}`, data);
+  }
+
+  async deleteContratoComercial(id: string) {
+    return this.client.delete(`/contratos-comerciais/${id}`);
+  }
+
+  async getContratoPreview(id: string) {
+    return this.client.get(`/contratos-comerciais/${id}/preview`);
+  }
+
+  async enviarContratoZapSign(id: string) {
+    return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);
+  }
+
+  async getConfiguracoesIntegracoes() {
+    return this.client.get('/configuracoes/integracoes');
+  }
+
+  async saveConfiguracoesIntegracoes(data: Record<string, string>) {
+    return this.client.put('/configuracoes/integracoes', data);
   }
 
   // Metas endpoints
@@ -539,6 +654,43 @@ class ApiClient {
     return this.client.patch(`/indicacoes/${id}`, data);
   }
 
+  async getUsuarios() {
+    return this.client.get('/usuarios');
+  }
+
+  // Vendas Adicionais endpoints
+  async getParceiros() {
+    return this.client.get('/parceiros');
+  }
+
+  async createParceiro(data: any) {
+    return this.client.post('/parceiros', data);
+  }
+
+  async updateParceiro(id: string, data: any) {
+    return this.client.patch(`/parceiros/${id}`, data);
+  }
+
+  async deleteParceiro(id: string) {
+    return this.client.delete(`/parceiros/${id}`);
+  }
+
+  async getVendasAdicionais(params?: { status?: string; vendedor_id?: string; parceiro_id?: string; periodo?: string }) {
+    return this.client.get('/vendas-adicionais', { params });
+  }
+
+  async createVendaAdicional(data: any) {
+    return this.client.post('/vendas-adicionais', data);
+  }
+
+  async updateVendaAdicional(id: string, data: any) {
+    return this.client.patch(`/vendas-adicionais/${id}`, data);
+  }
+
+  async deleteVendaAdicional(id: string) {
+    return this.client.delete(`/vendas-adicionais/${id}`);
+  }
+
   // Health Score endpoints
   async getHealthScores(params?: { nivel?: string; page?: number }) {
     return this.client.get('/health-scores', { params });
@@ -560,6 +712,47 @@ class ApiClient {
   // Dashboard Power
   async getDashboardPower() {
     return this.client.get('/dashboard/power');
+  }
+
+  async getDashboardComercial() {
+    return this.client.get('/dashboard/comercial');
+  }
+
+  // Propostas Comerciais endpoints
+  async getPropostasComerciais(params?: { status?: string; vendedor?: string; page?: number; limit?: number }) {
+    return this.client.get('/propostas-comerciais', { params });
+  }
+
+  async getPropostaComercialById(id: string) {
+    return this.client.get(`/propostas-comerciais/${id}`);
+  }
+
+  async createPropostaComercial(data: any) {
+    return this.client.post('/propostas-comerciais', data);
+  }
+
+  async updatePropostaComercial(id: string, data: any) {
+    return this.client.patch(`/propostas-comerciais/${id}`, data);
+  }
+
+  async deletePropostaComercial(id: string) {
+    return this.client.delete(`/propostas-comerciais/${id}`);
+  }
+
+  async regenerarTokenProposta(id: string) {
+    return this.client.post(`/propostas-comerciais/${id}/regenerar-token`);
+  }
+
+  async renegociarProposta(id: string, data: any) {
+    return this.client.post(`/propostas-comerciais/${id}/renegociar`, data);
+  }
+
+  async getPropostaHistorico(id: string) {
+    return this.client.get(`/propostas-comerciais/${id}/historico`);
+  }
+
+  async getRelatorioComissoes(params?: { mes?: string; vendedor_id?: string; status?: string }) {
+    return this.client.get('/propostas-comerciais/relatorio/comissoes', { params });
   }
 }
 

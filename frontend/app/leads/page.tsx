@@ -1,397 +1,1457 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import {
+  Plus, Search, X, RefreshCw, Phone, Mail, MapPin, User,
+  Building2, FileText, MessageSquare, Loader2, Send,
+  Flame, Thermometer, Snowflake, Zap, Tag, Clock,
+  ChevronDown, Settings, Paperclip, Save, CheckCircle2,
+} from 'lucide-react';
 
-interface Lead {
-  id: string;
-  nome: string;
-  email?: string;
-  telefone?: string;
-  empresa?: string;
-  cargo?: string;
-  origem: string;
-  status: string;
-  etapa_funil: string;
-  temperatura: string;
-  valor_estimado?: number;
-  probabilidade?: number;
-  responsavel_id?: string;
-  created_at: string;
-  _count?: { atividades: number; propostas: number };
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface KanbanColuna {
+  id: string; chave: string; nome: string; cor: string; ordem: number;
+  ativa: boolean; fixa: boolean;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  NOVO: 'bg-gray-100 text-gray-700',
-  QUALIFICADO: 'bg-blue-100 text-blue-700',
-  EM_CONTATO: 'bg-purple-100 text-purple-700',
-  PROPOSTA: 'bg-yellow-100 text-yellow-700',
-  NEGOCIACAO: 'bg-orange-100 text-orange-700',
-  GANHO: 'bg-green-100 text-green-700',
-  PERDIDO: 'bg-red-100 text-red-700',
-  NUTRICAO: 'bg-teal-100 text-teal-700',
+interface Etiqueta { id: string; nome: string; cor: string; descricao?: string; }
+
+interface LeadEtiqueta { etiqueta: Etiqueta; }
+
+interface Lead {
+  id: string; nome: string; razao_social?: string; nome_fantasia?: string;
+  cnpj?: string; segmento?: string; cidade?: string; estado?: string;
+  qtd_lojas?: number; qtd_caixas?: number; sistema_atual?: string;
+  responsavel_nome?: string; responsavel_cargo?: string;
+  responsavel_telefone?: string; responsavel_email?: string; responsavel_horario?: string;
+  vendedor_nome?: string; supervisor_nome?: string;
+  temperatura: string; origem: string; etapa_comercial: string;
+  status_atendimento?: string; motivo_perda?: string;
+  valor_estimado?: number; proximo_contato?: string; ultima_obs_at?: string;
+  observacoes?: string;
+  // UTM
+  utm_source?: string; utm_medium?: string; utm_campaign?: string;
+  campanha_nome?: string; plataforma?: string;
+  etiquetas_lead?: LeadEtiqueta[];
+  created_at: string; updated_at: string;
+  _count?: { atividades: number; propostas: number; observacoes_lead: number };
+}
+
+interface Observacao {
+  id: string; tipo: string; descricao: string;
+  proxima_acao?: string; data_proximo_retorno?: string;
+  created_by_name?: string; created_at: string;
+  coluna_anterior?: string; coluna_nova?: string;
+  temperatura_anterior?: string; temperatura_nova?: string;
+}
+
+// ── Temperature config ────────────────────────────────────────────────────────
+
+const TEMP_CONFIG = {
+  MUITO_QUENTE: { icon: Zap,         color: '#dc2626', bg: '#fef2f2', label: 'Muito Quente', emoji: '🔥' },
+  QUENTE:       { icon: Flame,       color: '#ea580c', bg: '#fff7ed', label: 'Quente',       emoji: '🟠' },
+  MORNO:        { icon: Thermometer, color: '#d97706', bg: '#fffbeb', label: 'Morno',        emoji: '🟡' },
+  FRIO:         { icon: Snowflake,   color: '#2563eb', bg: '#eff6ff', label: 'Frio',         emoji: '🔵' },
 };
 
-const TEMP_ICON: Record<string, string> = { FRIO: '🔵', MORNO: '🟡', QUENTE: '🔴' };
+const ORIGENS_MANUAL = [
+  'Indicação','Prospecção ativa','WhatsApp','Instagram','Facebook',
+  'Google','Visita comercial','Cliente antigo','Site','Telefone','Evento','Outro',
+];
 
-const emptyForm = {
-  nome: '', email: '', telefone: '', empresa: '', cargo: '',
-  cidade: '', estado: '', origem: 'MANUAL', temperatura: 'FRIO',
-  valor_estimado: '', probabilidade: '', observacoes: ''
+const SEGMENTOS = [
+  'Farmácia','Drogaria','Farmácia de Manipulação','Padaria',
+  'Varejo em Geral','Supermercado','Restaurante','Autopeças','Posto de Combustível','Outro',
+];
+
+const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+const OBS_TIPOS = [
+  { value: 'LIGACAO',              label: '📞 Ligação realizada' },
+  { value: 'WHATSAPP',             label: '💬 WhatsApp enviado' },
+  { value: 'EMAIL',                label: '✉️ E-mail enviado' },
+  { value: 'REUNIAO',              label: '🤝 Reunião realizada' },
+  { value: 'TENTATIVA_SEM_RESP',   label: '📵 Tentativa sem resposta' },
+  { value: 'PEDIU_RETORNO',        label: '🔔 Cliente pediu retorno' },
+  { value: 'PEDIU_DESCONTO',       label: '💰 Cliente pediu desconto' },
+  { value: 'PEDIU_PROPOSTA',       label: '📄 Cliente pediu proposta' },
+  { value: 'INFO_IMPORTANTE',      label: '⭐ Informação importante' },
+  { value: 'OBSERVACAO_INTERNA',   label: '🔒 Observação interna' },
+];
+
+const OBS_ICON: Record<string, string> = {
+  LIGACAO:'📞', WHATSAPP:'💬', EMAIL:'✉️', REUNIAO:'🤝',
+  TENTATIVA_SEM_RESP:'📵', PEDIU_RETORNO:'🔔', PEDIU_DESCONTO:'💰',
+  PEDIU_PROPOSTA:'📄', INFO_IMPORTANTE:'⭐', OBSERVACAO_INTERNA:'🔒', SISTEMA:'⚙️',
 };
+
+// ── Status mapping for auto-status ────────────────────────────────────────────
+const OBS_STATUS_MAP: Record<string, string> = {
+  LIGACAO: 'CONTATO_TENTADO', WHATSAPP: 'CONTATO_TENTADO', EMAIL: 'CONTATO_TENTADO',
+  REUNIAO: 'EM_CONVERSA', TENTATIVA_SEM_RESP: 'CONTATO_TENTADO',
+  PEDIU_RETORNO: 'AGUARDANDO_RETORNO', PEDIU_PROPOSTA: 'PROPOSTA_NECESSARIA',
+};
+
+const fmtDateTime = (s?: string | null) => s
+  ? new Date(s).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  : null;
+
+const fmtBRL = (v?: number | null) =>
+  v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// ── Proposta form data ────────────────────────────────────────────────────────
+
+const MODULOS_PROP = [
+  'Frente de Caixa', 'Estoque', 'Financeiro', 'Relatórios', 'Multi-empresa',
+  'Controle de Acesso', 'Vendas Online', 'Delivery', 'NFe/NFCe', 'SAT/MFE',
+];
+const SERVICOS_PROP = [
+  'TEF', 'Pacote Fiscal', 'Dashboard', 'WhatsApp / Mensageria',
+  'Imendes / Avant', 'Migração / Conversão de Dados', 'Treinamento', 'Suporte Prioritário',
+];
+const TIPOS_LOJA_PROP = ['Nova Implantação', 'Migração', 'Upgrade', 'Filial', 'Reativação'];
+const ORIGENS_PROP = ['Indicação', 'Prospecção', 'WhatsApp', 'Visita', 'Tráfego Pago', 'Cliente Antigo', 'Evento'];
+const SEGMENTOS_PROP = ['Varejo', 'Supermercado', 'Farmácia', 'Drogaria', 'Padaria', 'Restaurante', 'Posto de Combustível', 'Autopeças', 'Outro'];
+
+const MENSAGENS_PROP: Record<string, { titulo: string; hero: string; valor: string }[]> = {
+  farmacia: [
+    { titulo: 'Farmácia com mais controle e menos perda', hero: 'Sua farmácia merece mais controle, menos perdas e decisões mais inteligentes.', valor: 'A Prosystem é uma solução ideal para farmácias que precisam controlar vendas, estoque, caixa, compras e indicadores com mais segurança. Com o Plano Plus, o cliente ganha visão gerencial, relatórios estratégicos, suporte ativo e ferramentas que ajudam a reduzir perdas e melhorar a operação todos os dias.' },
+    { titulo: 'Gestão inteligente para drogarias', hero: 'Transforme sua drogaria em uma operação mais rápida, segura e inteligente.', valor: 'A Prosystem ajuda drogarias a organizar a rotina do balcão ao financeiro, integrando vendas, estoque, compras e relatórios. O Plano Plus amplia essa gestão com dashboard, indicadores e recursos que facilitam decisões mais rápidas e reduzem retrabalho.' },
+    { titulo: 'Mais velocidade no balcão e no caixa', hero: 'Venda mais rápido, atenda melhor e tenha mais controle da sua farmácia.', valor: 'Para farmácias, velocidade no atendimento e segurança nas informações são essenciais. A Prosystem oferece um sistema preparado para melhorar o fluxo de vendas, reduzir falhas operacionais e garantir mais clareza sobre estoque, caixa e resultados.' },
+    { titulo: 'Farmácia preparada para crescer', hero: 'Sua farmácia pronta para crescer com controle, suporte e tecnologia.', valor: 'A Prosystem acompanha o crescimento da farmácia com recursos que organizam a operação, facilitam a gestão e dão mais segurança ao empresário. Com suporte ativo das 7h às 22h e treinamento de 5 meses para novos clientes, a implantação acontece com mais tranquilidade.' },
+    { titulo: 'Plano Plus para farmácias exigentes', hero: 'O Plano Plus leva sua farmácia para uma gestão mais estratégica.', valor: 'O Plano Plus é indicado para farmácias que querem mais do que operar vendas. Ele oferece recursos para acompanhar indicadores, entender resultados, melhorar processos e ter uma visão mais completa da empresa, com apoio da equipe Prosystem em toda a jornada.' },
+  ],
+  padaria: [
+    { titulo: 'Padaria com mais controle e menos desperdício', hero: 'Sua padaria merece mais controle, menos desperdício e mais resultado.', valor: 'A Prosystem é ideal para padarias que precisam controlar vendas, estoque, produção, compras, caixa e financeiro com mais clareza. O Plano Plus ajuda o cliente a acompanhar indicadores e tomar decisões melhores para reduzir perdas e aumentar a rentabilidade.' },
+    { titulo: 'Gestão inteligente para panificadoras', hero: 'Transforme sua padaria em uma operação mais organizada e lucrativa.', valor: 'A rotina de uma padaria exige controle constante de produção, insumos, vendas e fluxo de caixa. Com a Prosystem, o cliente consegue organizar melhor esses processos, reduzir retrabalho e ter uma visão mais segura do negócio.' },
+    { titulo: 'Menos perda, mais margem', hero: 'Reduza perdas e acompanhe melhor a margem da sua padaria.', valor: 'Em padarias, pequenos desperdícios podem comprometer o resultado. A Prosystem ajuda o cliente a acompanhar estoque, compras, vendas e relatórios, facilitando a identificação de pontos de perda e oportunidades de melhoria.' },
+    { titulo: 'Plano Plus para padarias que querem mais gestão', hero: 'O Plano Plus leva sua padaria para uma gestão mais estratégica.', valor: 'O Plano Plus é indicado para padarias que desejam mais controle, análise e segurança na tomada de decisão. Com recursos gerenciais, suporte próximo e ferramentas de acompanhamento, o cliente passa a ter uma visão mais completa da operação.' },
+  ],
+};
+
+const TIPO_OP_MAP: Record<string, string> = {
+  NOVA_IMPLANTACAO: 'Nova Implantação', MIGRACAO: 'Migração',
+  UPGRADE: 'Upgrade', FILIAL: 'Filial', REATIVACAO: 'Reativação',
+};
+
+// ── Small form helpers ────────────────────────────────────────────────────────
+
+function Inp({ label, value, onChange, type = 'text', placeholder = '', required = false }: any) {
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>
+        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
+      <input type={type} value={value ?? ''} onChange={onChange} placeholder={placeholder}
+        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+        style={{ borderColor: '#D8E8F5', color: '#0D2238' }} />
+    </div>
+  );
+}
+
+function Sel({ label, value, onChange, options, required = false }: any) {
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>
+        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
+      <select value={value ?? ''} onChange={onChange}
+        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+        style={{ borderColor: '#D8E8F5', color: '#0D2238' }}>
+        <option value="">Selecione</option>
+        {options.map((o: any) => (
+          <option key={typeof o === 'string' ? o : o.value} value={typeof o === 'string' ? o : o.value}>
+            {typeof o === 'string' ? o : o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function Txt({ label, value, onChange, rows = 3 }: any) {
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>{label}</label>
+      <textarea value={value ?? ''} onChange={onChange} rows={rows}
+        className="w-full px-3 py-2 rounded-lg border text-sm outline-none resize-none"
+        style={{ borderColor: '#D8E8F5', color: '#0D2238' }} />
+    </div>
+  );
+}
+
+function FormField({ label, children, col }: { label: string; children: React.ReactNode; col?: number }) {
+  return (
+    <div style={{ gridColumn: col === 2 ? 'span 2' : undefined }}>
+      <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+// ── Kanban Card ───────────────────────────────────────────────────────────────
+
+function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => void; onDragStart: (e: React.DragEvent) => void }) {
+  const temp = TEMP_CONFIG[lead.temperatura as keyof typeof TEMP_CONFIG] || TEMP_CONFIG.FRIO;
+  const empresa = lead.razao_social || lead.nome_fantasia || lead.nome;
+  const resp  = lead.responsavel_nome;
+  const tel   = lead.responsavel_telefone;
+  const tags  = lead.etiquetas_lead || [];
+  const utmOrig = lead.campanha_nome || lead.utm_campaign || lead.plataforma;
+
+  const wppLink = tel
+    ? `https://wa.me/55${tel.replace(/\D/g, '')}`
+    : null;
+
+  return (
+    <div onClick={onClick}
+      draggable
+      onDragStart={onDragStart}
+      className="relative group rounded-xl p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+      style={{ background: 'white', border: '1px solid #D8E8F5', boxShadow: '0 1px 2px rgba(13,34,56,.05)' }}>
+
+      {/* Temp indicator strip */}
+      <div className="h-0.5 rounded-full mb-2.5 -mx-3 -mt-3 rounded-t-xl" style={{ background: temp.color }} />
+
+
+      <div className="flex items-start justify-between mb-1.5">
+        <p className="text-[11px] font-extrabold truncate flex-1 leading-tight" style={{ color: '#0D2238' }}>{empresa}</p>
+        <span className="text-[10px] ml-1.5 flex-shrink-0">{temp.emoji}</span>
+      </div>
+
+      {resp && (
+        <div className="flex items-center gap-1 mb-1">
+          <User size={9} style={{ color: '#7AAACB' }} />
+          <span className="text-[10px] truncate" style={{ color: '#4B7A9C' }}>{resp}</span>
+        </div>
+      )}
+      {tel && (
+        <div className="flex items-center gap-1 mb-1">
+          <Phone size={9} style={{ color: '#7AAACB' }} />
+          <span className="text-[10px]" style={{ color: '#4B7A9C' }}>{tel}</span>
+        </div>
+      )}
+      {lead.segmento && (
+        <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded mb-1"
+          style={{ background: '#EBF4FF', color: '#2E6EAB' }}>{lead.segmento}</span>
+      )}
+      {utmOrig && (
+        <div className="flex items-center gap-1 mb-1">
+          <Tag size={9} style={{ color: '#7AAACB' }} />
+          <span className="text-[10px] truncate" style={{ color: '#7AAACB' }}>{utmOrig}</span>
+        </div>
+      )}
+
+      {/* Tags */}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5 mb-1">
+          {tags.slice(0, 3).map(t => (
+            <span key={t.etiqueta.id} className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: `${t.etiqueta.cor}20`, color: t.etiqueta.cor, border: `1px solid ${t.etiqueta.cor}40` }}>
+              {t.etiqueta.nome}
+            </span>
+          ))}
+          {tags.length > 3 && (
+            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#EBF4FF', color: '#2E6EAB' }}>
+              +{tags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mt-2 pt-1.5" style={{ borderTop: '1px solid #F4F7FB' }}>
+        <span className="text-[9px]" style={{ color: '#7AAACB' }}>
+          {lead.origem?.toLowerCase().replace(/_/g, ' ')}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {lead.proximo_contato && new Date(lead.proximo_contato) <= new Date() && (
+            <Clock size={9} style={{ color: '#dc2626' }} />
+          )}
+          {(lead._count?.observacoes_lead || 0) > 0 && (
+            <span className="text-[9px]" style={{ color: '#7AAACB' }}>{lead._count?.observacoes_lead}</span>
+          )}
+          {wppLink && (
+            <a
+              href={wppLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              onDragStart={e => e.preventDefault()}
+              title={`WhatsApp: ${tel}`}
+              style={{
+                width: 22, height: 22,
+                borderRadius: '50%',
+                background: '#25D366',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 5px rgba(37,211,102,.45)',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="white">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.559 4.122 1.532 5.847L.057 23.617a.75.75 0 0 0 .921.921l5.696-1.489A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.667-.523-5.181-1.432l-.371-.218-3.383.885.898-3.285-.237-.385A9.958 9.958 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+              </svg>
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function LeadsPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+
+  const [colunas, setColunas]     = useState<KanbanColuna[]>([]);
+  const [kanban, setKanban]       = useState<Record<string, Lead[]>>({});
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<any>(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [historicoModal, setHistoricoModal] = useState(false);
-  const [historicoLead, setHistoricoLead] = useState<Lead | null>(null);
-  const [historicoData, setHistoricoData] = useState<any>(null);
-  const [historicoLoading, setHistoricoLoading] = useState(false);
-  const limit = 20;
+  const [search, setSearch]       = useState('');
 
-  useEffect(() => {
-    if (!isAuthenticated && !loading) router.push('/');
-  }, [isAuthenticated, loading]);
+  // Detail panel
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [detailTab, setDetailTab] = useState<'dados'|'atendimento'|'proposta'|'arquivos'>('dados');
+  const [editForm, setEditForm]   = useState<any>({});
+  const [savingLead, setSavingLead] = useState(false);
 
-  const fetchData = async () => {
+  // Observações
+  const [observacoes, setObservacoes] = useState<Observacao[]>([]);
+  const [obsLoading, setObsLoading] = useState(false);
+  const [obsForm, setObsForm] = useState({ tipo: '', descricao: '', proxima_acao: '', data_proximo_retorno: '' });
+  const [addingObs, setAddingObs] = useState(false);
+
+  // Modals
+  const [showNewLead, setShowNewLead]     = useState(false);
+  const [showNewCol, setShowNewCol]       = useState(false);
+  const [showNewEtiq, setShowNewEtiq]     = useState(false);
+  const [showPerda, setShowPerda]         = useState(false);
+
+  const [newLeadForm, setNewLeadForm] = useState<any>({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [] });
+  const [newLeadSection, setNewLeadSection] = useState(0);
+  const [savingNewLead, setSavingNewLead] = useState(false);
+
+  const [newColForm, setNewColForm]   = useState({ nome: '', cor: '#6b7280' });
+  const [newEtiqForm, setNewEtiqForm] = useState({ nome: '', cor: '#4B8EC8', descricao: '' });
+  const [perdaMotivo, setPerdaMotivo] = useState('');
+  const [movingToPerda, setMovingToPerda] = useState<Lead | null>(null);
+
+  // Drag-and-drop
+  const [draggingLead, setDraggingLead] = useState<Lead | null>(null);
+  const [dragOverCol, setDragOverCol]   = useState<string | null>(null);
+
+  // Proposta form inside lead detail
+  const [propostaForm, setPropostaForm] = useState<any>({});
+  const [propostaSection, setPropostaSection] = useState(0);
+  const [pModeloSeg, setPModeloSeg]     = useState('');
+  const [pModeloIdx, setPModeloIdx]     = useState('');
+  const [savingProposta, setSavingProposta] = useState(false);
+  const [propostaGerada, setPropostaGerada] = useState<any>(null);
+
+  useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading]);
+
+  const loadData = useCallback(async () => {
     setDataLoading(true);
     try {
-      const params: any = { page, limit };
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-
-      const [leadsRes, statsRes] = await Promise.all([
-        apiClient.getLeads(params),
-        apiClient.getLeadsStats()
+      const [kanbanRes, etiqRes] = await Promise.all([
+        apiClient.getLeadsKanban(),
+        apiClient.getEtiquetas(),
       ]);
-      setLeads(leadsRes.data.data.leads);
-      setTotal(leadsRes.data.data.total);
-      setStats(statsRes.data.data);
+      const kd = kanbanRes.data.data;
+      setColunas(kd.colunas || []);
+      setKanban(kd.leads || {});
+      setEtiquetas(etiqRes.data.data || []);
     } catch (e) { console.error(e); }
     finally { setDataLoading(false); }
+  }, []);
+
+  useEffect(() => { if (isAuthenticated) loadData(); }, [isAuthenticated]);
+
+  const openLead = async (lead: Lead) => {
+    setSelectedLead(lead);
+    setDetailTab('dados');
+    setEditForm({ ...lead });
+    setObservacoes([]);
+    setObsLoading(true);
+    try {
+      const res = await apiClient.getLeadObservacoes(lead.id);
+      setObservacoes(res.data.data || []);
+    } catch { /**/ } finally { setObsLoading(false); }
   };
+
+  const setF = (k: string, v: any) => setEditForm((p: any) => ({ ...p, [k]: v }));
+
+  const saveLead = async () => {
+    if (!selectedLead) return;
+    setSavingLead(true);
+    try {
+      const payload: any = { ...editForm };
+      if (payload.valor_estimado) payload.valor_estimado = parseFloat(payload.valor_estimado); else delete payload.valor_estimado;
+      if (!payload.responsavel_email) delete payload.responsavel_email;
+      await apiClient.updateLead(selectedLead.id, payload);
+      await loadData();
+      setSelectedLead(p => p ? { ...p, ...payload } : p);
+    } catch (e) { console.error(e); } finally { setSavingLead(false); }
+  };
+
+  const moveColumn = async (lead: Lead, etapa: string) => {
+    if (etapa === 'PERDIDO') {
+      setMovingToPerda(lead);
+      setShowPerda(true);
+      return;
+    }
+    try {
+      await apiClient.updateLead(lead.id, { etapa_comercial: etapa });
+      await loadData();
+      if (selectedLead?.id === lead.id) {
+        setSelectedLead(p => p ? { ...p, etapa_comercial: etapa } : p);
+        const res = await apiClient.getLeadObservacoes(lead.id);
+        setObservacoes(res.data.data || []);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const confirmPerda = async () => {
+    if (!movingToPerda || !perdaMotivo) return;
+    try {
+      await apiClient.updateLead(movingToPerda.id, { etapa_comercial: 'PERDIDO', motivo_perda: perdaMotivo, status_atendimento: 'PERDIDO' });
+      await loadData();
+    } catch (e) { console.error(e); }
+    setShowPerda(false); setMovingToPerda(null); setPerdaMotivo('');
+  };
+
+  const addObs = async () => {
+    if (!selectedLead || !obsForm.tipo || !obsForm.descricao) return;
+    setAddingObs(true);
+    try {
+      const statusApos = OBS_STATUS_MAP[obsForm.tipo];
+      await apiClient.addLeadObservacao(selectedLead.id, {
+        ...obsForm,
+        status_apos: statusApos,
+        created_by_name: (user as any)?.nome || 'Usuário',
+        data_proximo_retorno: obsForm.data_proximo_retorno || undefined,
+      });
+      const res = await apiClient.getLeadObservacoes(selectedLead.id);
+      setObservacoes(res.data.data || []);
+      setObsForm({ tipo: '', descricao: '', proxima_acao: '', data_proximo_retorno: '' });
+      await loadData();
+    } catch (e) { console.error(e); } finally { setAddingObs(false); }
+  };
+
+  const toggleEtiqueta = async (etiquetaId: string) => {
+    if (!selectedLead) return;
+    const aplicadas = selectedLead.etiquetas_lead?.map(e => e.etiqueta.id) || [];
+    try {
+      if (aplicadas.includes(etiquetaId)) {
+        await apiClient.removeEtiquetaFromLead(selectedLead.id, etiquetaId);
+      } else {
+        await apiClient.addEtiquetaToLead(selectedLead.id, etiquetaId);
+      }
+      await loadData();
+      // Refresh selected lead's etiquetas optimistically
+      const etq = etiquetas.find(e => e.id === etiquetaId);
+      if (!etq) return;
+      if (aplicadas.includes(etiquetaId)) {
+        setSelectedLead(p => p ? { ...p, etiquetas_lead: (p.etiquetas_lead || []).filter(e => e.etiqueta.id !== etiquetaId) } : p);
+      } else {
+        setSelectedLead(p => p ? { ...p, etiquetas_lead: [...(p.etiquetas_lead || []), { etiqueta: etq }] } : p);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const initPropostaForm = useCallback((lead: Lead) => {
+    setPropostaForm({
+      razao_social:         (lead as any).razao_social || lead.nome || '',
+      nome_fantasia:        lead.nome_fantasia || '',
+      cnpj:                 lead.cnpj || '',
+      segmento:             lead.segmento || '',
+      cidade:               lead.cidade || '',
+      estado:               lead.estado || '',
+      maquinas:             lead.qtd_caixas?.toString() || '',
+      tipo_loja:            TIPO_OP_MAP[(lead as any).tipo_oportunidade || ''] || '',
+      sistema_atual:        lead.sistema_atual || '',
+      data_virada:          '',
+      responsavel_nome:     lead.responsavel_nome || '',
+      responsavel_telefone: lead.responsavel_telefone || '',
+      responsavel_email:    lead.responsavel_email || '',
+      responsavel_cpf:      '',
+      responsavel_cargo:    lead.responsavel_cargo || '',
+      responsavel_horario:  lead.responsavel_horario || '',
+      vendedor_nome:        lead.vendedor_nome || '',
+      vendedor_telefone:    '',
+      supervisor_nome:      lead.supervisor_nome || '',
+      campanha:             (lead as any).campanha_nome || lead.utm_campaign || '',
+      validade:             '',
+      origem:               lead.origem || '',
+      plano_selecionado:    (lead as any).plano_indicado || (lead as any).plano_interesse || '',
+      plano_recomendado:    (lead as any).plano_recomendado || '',
+      mensalidade_pro:      '',
+      mensalidade_plus:     (lead as any).mensalidade_estimada?.toString() || '',
+      modulos_inclusos:     (lead as any).modulos_inclusos || [],
+      servicos_adicionais:  (lead as any).servicos_adicionais || [],
+      valor_implantacao:    (lead as any).valor_setup?.toString() || '',
+      valor_conversao:      (lead as any).valor_conversao?.toString() || '',
+      desconto:             '',
+      entrada:              (lead as any).entrada?.toString() || '',
+      parcelas:             (lead as any).parcelamento?.toString() || '',
+      data_vencimento:      '',
+      observacao_cobranca:  '',
+      condicao_especial:    (lead as any).condicao_especial || '',
+      titulo_proposta:      '',
+      frase_hero:           (lead as any).frase_hero || '',
+      texto_valor:          (lead as any).texto_valor || '',
+      observacoes:          (lead as any).observacoes_comerciais || lead.observacoes || '',
+      status:               'RASCUNHO',
+    });
+    setPropostaSection(0);
+    setPModeloSeg('');
+    setPModeloIdx('');
+    setPropostaGerada(null);
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated) fetchData();
-  }, [isAuthenticated, page, search, statusFilter]);
+    if (detailTab === 'proposta' && selectedLead) initPropostaForm(selectedLead);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailTab, selectedLead?.id]);
 
-  const openCreate = () => { setForm(emptyForm); setEditingId(null); setError(''); setShowModal(true); };
-  const openEdit = (l: Lead) => {
-    setForm({
-      nome: l.nome, email: l.email || '', telefone: l.telefone || '',
-      empresa: l.empresa || '', cargo: l.cargo || '', cidade: '',
-      estado: '', origem: l.origem, temperatura: l.temperatura,
-      valor_estimado: l.valor_estimado?.toString() || '', probabilidade: l.probabilidade?.toString() || '',
-      observacoes: ''
-    });
-    setEditingId(l.id);
-    setError('');
-    setShowModal(true);
-  };
+  const setPF = (k: string, v: any) => setPropostaForm((p: any) => ({ ...p, [k]: v }));
+  const togglePF = (k: 'modulos_inclusos' | 'servicos_adicionais', val: string) =>
+    setPropostaForm((p: any) => ({ ...p, [k]: (p[k] as string[]).includes(val) ? (p[k] as string[]).filter((x: string) => x !== val) : [...(p[k] as string[]), val] }));
 
-  const handleSave = async () => {
-    setSaving(true);
-    setError('');
+  const handleSaveProposta = async () => {
+    if (!selectedLead) return;
+    if (!propostaForm.razao_social?.trim()) { alert('Razão social é obrigatória'); return; }
+    setSavingProposta(true);
     try {
-      const payload: any = { ...form };
-      if (payload.valor_estimado) payload.valor_estimado = parseFloat(payload.valor_estimado);
-      else delete payload.valor_estimado;
-      if (payload.probabilidade) payload.probabilidade = parseInt(payload.probabilidade);
-      else delete payload.probabilidade;
-      if (!payload.email) delete payload.email;
+      const pNum = (v: any) => v ? parseFloat(v) : undefined;
+      const impl = pNum(propostaForm.valor_implantacao) || 0;
+      const conv = pNum(propostaForm.valor_conversao) || 0;
+      const desc = pNum(propostaForm.desconto) || 0;
+      const vFinal = impl + conv - desc;
+      const ent  = pNum(propostaForm.entrada) || 0;
+      const parc = parseInt(propostaForm.parcelas) || 0;
+      const parcVal = parc > 0 ? (vFinal - ent) / parc : undefined;
 
-      if (editingId) await apiClient.updateLead(editingId, payload);
-      else await apiClient.createLead(payload);
-      setShowModal(false);
-      fetchData();
+      const payload: any = {
+        ...propostaForm,
+        lead_id:          selectedLead.id,
+        maquinas:         pNum(propostaForm.maquinas),
+        mensalidade_pro:  pNum(propostaForm.mensalidade_pro),
+        mensalidade_plus: pNum(propostaForm.mensalidade_plus),
+        valor_implantacao:pNum(propostaForm.valor_implantacao),
+        valor_conversao:  pNum(propostaForm.valor_conversao),
+        desconto:         pNum(propostaForm.desconto),
+        valor_final:      vFinal || undefined,
+        entrada:          pNum(propostaForm.entrada),
+        parcelas:         parc || undefined,
+        valor_parcela:    parcVal,
+        validade:         propostaForm.validade ? new Date(propostaForm.validade).toISOString() : undefined,
+      };
+      Object.keys(payload).forEach(k => { if (payload[k] === '') delete payload[k]; });
+
+      const res = await apiClient.createPropostaComercial(payload);
+      setPropostaGerada(res.data.data);
+      const obsRes = await apiClient.getLeadObservacoes(selectedLead.id);
+      setObservacoes(obsRes.data.data || []);
+      await loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Erro ao salvar');
-    } finally { setSaving(false); }
+      alert(e?.response?.data?.message || 'Erro ao salvar proposta');
+    } finally {
+      setSavingProposta(false);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remover este lead?')) return;
-    try { await apiClient.deleteLead(id); fetchData(); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remover'); }
-  };
-
-  const handleUpdateStatus = async (id: string, status: string) => {
-    try { await apiClient.updateLead(id, { status }); fetchData(); }
-    catch (e) { console.error(e); }
-  };
-
-  const openHistorico = async (lead: Lead) => {
-    setHistoricoLead(lead);
-    setHistoricoModal(true);
-    setHistoricoData(null);
-    setHistoricoLoading(true);
+  const createNewCol = async () => {
+    if (!newColForm.nome) return;
     try {
-      const res = await apiClient.getLeadHistorico(lead.id);
-      setHistoricoData(res.data.data);
+      await apiClient.createKanbanColuna(newColForm);
+      await loadData();
+      setShowNewCol(false); setNewColForm({ nome: '', cor: '#6b7280' });
     } catch (e) { console.error(e); }
-    finally { setHistoricoLoading(false); }
   };
+
+  const createNewEtiq = async () => {
+    if (!newEtiqForm.nome) return;
+    try {
+      await apiClient.createEtiqueta(newEtiqForm);
+      const res = await apiClient.getEtiquetas();
+      setEtiquetas(res.data.data || []);
+      setShowNewEtiq(false); setNewEtiqForm({ nome: '', cor: '#4B8EC8', descricao: '' });
+    } catch (e) { console.error(e); }
+  };
+
+  const createNewLead = async () => {
+    setSavingNewLead(true);
+    try {
+      const payload: any = { ...newLeadForm };
+      if (!payload.nome) payload.nome = payload.razao_social || payload.responsavel_nome || 'Lead';
+      if (payload.qtd_lojas) payload.qtd_lojas = parseInt(payload.qtd_lojas); else delete payload.qtd_lojas;
+      if (payload.qtd_caixas) payload.qtd_caixas = parseInt(payload.qtd_caixas); else delete payload.qtd_caixas;
+      if (!payload.responsavel_email) delete payload.responsavel_email;
+      await apiClient.createLead(payload);
+      await loadData();
+      setShowNewLead(false); setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [] }); setNewLeadSection(0);
+    } catch (e) { console.error(e); } finally { setSavingNewLead(false); }
+  };
+
+  // Filtered kanban
+  const filtered = Object.fromEntries(Object.entries(kanban).map(([col, leads]) => [
+    col, search ? leads.filter(l => [l.nome, l.razao_social, l.responsavel_nome, l.segmento].some(v => v?.toLowerCase().includes(search.toLowerCase()))) : leads,
+  ]));
+
+  const colConfig = (chave: string) => colunas.find(c => c.chave === chave) || { nome: chave, cor: '#6b7280' };
 
   if (loading || !isAuthenticated) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>;
+    return <div className="flex items-center justify-center min-h-screen" style={{ background: '#0D2238' }}><Loader2 size={28} className="animate-spin text-white" /></div>;
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+      <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-6 py-3 flex-shrink-0 bg-white" style={{ borderBottom: '1px solid #D8E8F5' }}>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Leads</h1>
-            <p className="text-gray-500 mt-1">{total} leads no pipeline</p>
+            <h1 className="text-xl font-extrabold" style={{ color: '#0D2238' }}>Pipeline Comercial</h1>
+            <p className="text-xs" style={{ color: '#7AAACB' }}>{Object.values(kanban).reduce((s, a) => s + a.length, 0)} leads</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => router.push('/funil')} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
-              🎯 Ver Funil
-            </button>
-            <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
-              + Novo Lead
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-            {[
-              { label: 'Total', value: stats.total, color: 'text-gray-700', bg: 'bg-gray-50' },
-              { label: 'Novos', value: stats.novos, color: 'text-blue-700', bg: 'bg-blue-50' },
-              { label: 'Em Contato', value: stats.emContato, color: 'text-purple-700', bg: 'bg-purple-50' },
-              { label: 'Ganhos', value: stats.ganhos, color: 'text-green-700', bg: 'bg-green-50' },
-              { label: 'Perdidos', value: stats.perdidos, color: 'text-red-700', bg: 'bg-red-50' },
-              { label: 'Pipeline', value: `R$ ${(stats.valor_pipeline / 1000).toFixed(1)}k`, color: 'text-orange-700', bg: 'bg-orange-50' },
-              { label: 'Conversão', value: `${stats.taxa_conversao}%`, color: 'text-teal-700', bg: 'bg-teal-50' },
-            ].map(s => (
-              <div key={s.label} className={`${s.bg} rounded-xl p-3`}>
-                <p className="text-xs font-medium text-gray-500">{s.label}</p>
-                <p className={`text-xl font-bold ${s.color} mt-0.5`}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Search + Filter */}
-        <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-48">
-            <input type="text" placeholder="Buscar leads..."
-              value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
-            <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto">
-            {['', 'NOVO', 'QUALIFICADO', 'EM_CONTATO', 'PROPOSTA', 'NEGOCIACAO', 'GANHO', 'PERDIDO'].map(s => (
-              <button key={s} onClick={() => { setStatusFilter(s); setPage(0); }}
-                className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                {s === '' ? 'Todos' : s}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {dataLoading ? (
-            <div className="p-8 text-center text-gray-500">Carregando...</div>
-          ) : leads.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="text-4xl mb-3">🎯</div>
-              <p className="text-gray-500">Nenhum lead encontrado</p>
-              <button onClick={openCreate} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Adicionar primeiro lead</button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#7AAACB' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="pl-8 pr-3 py-2 text-xs rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', width: 180, color: '#0D2238' }} />
             </div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Lead</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Temperatura</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Valor</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Atividades</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {leads.map(lead => (
-                  <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-semibold">
-                          {lead.nome.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{lead.nome}</p>
-                          <p className="text-xs text-gray-500">{lead.empresa} {lead.cargo ? `· ${lead.cargo}` : ''}</p>
-                          <p className="text-xs text-gray-400">{lead.telefone || lead.email}</p>
-                        </div>
+            <button onClick={loadData} className="p-2 rounded-lg" style={{ border: '1px solid #D8E8F5' }}>
+              <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: '#4B8EC8' }} />
+            </button>
+            <button onClick={() => setShowNewEtiq(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+              style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
+              <Tag size={12} /> Etiqueta
+            </button>
+            <button onClick={() => setShowNewCol(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+              style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
+              <Plus size={12} /> Coluna
+            </button>
+            <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [], vendedor_nome: (user as any)?.nome || '' }); setShowNewLead(true); }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
+              <Plus size={13} /> Novo Lead
+            </button>
+          </div>
+        </div>
+
+        {/* ── Kanban ──────────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden" style={{ background: '#F4F7FB' }}
+          onDragEnd={() => { setDraggingLead(null); setDragOverCol(null); }}>
+          <div className="flex h-full gap-3 p-4" style={{ minWidth: `${colunas.length * 230}px` }}>
+            {colunas.map(col => {
+              const colLeads = filtered[col.chave] || [];
+              const isOver   = dragOverCol === col.chave;
+              const isDraggingToSame = draggingLead?.etapa_comercial === col.chave;
+              return (
+                <div key={col.chave}
+                  className="flex flex-col rounded-xl flex-shrink-0 transition-all"
+                  style={{
+                    width: 224,
+                    background: isOver && !isDraggingToSame ? `${col.cor}08` : 'white',
+                    border: isOver && !isDraggingToSame ? `2px solid ${col.cor}` : `1px solid ${col.cor}22`,
+                    transform: isOver && !isDraggingToSame ? 'scale(1.01)' : 'scale(1)',
+                    boxShadow: isOver && !isDraggingToSame ? `0 0 0 4px ${col.cor}18` : 'none',
+                  }}
+                  onDragOver={e => { e.preventDefault(); setDragOverCol(col.chave); }}
+                  onDragEnter={e => { e.preventDefault(); setDragOverCol(col.chave); }}
+                  onDragLeave={e => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCol(null);
+                  }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setDragOverCol(null);
+                    if (draggingLead && draggingLead.etapa_comercial !== col.chave) {
+                      moveColumn(draggingLead, col.chave);
+                    }
+                    setDraggingLead(null);
+                  }}
+                >
+                  <div className="px-3 py-2 flex items-center justify-between flex-shrink-0" style={{ borderBottom: `2px solid ${col.cor}44`, background: `${col.cor}08` }}>
+                    <span className="text-[11px] font-extrabold truncate" style={{ color: col.cor }}>{col.nome}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1" style={{ background: `${col.cor}18`, color: col.cor }}>{colLeads.length}</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                    {colLeads.map(lead => (
+                      <div key={lead.id} style={{ opacity: draggingLead?.id === lead.id ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <LeadCard
+                          lead={lead}
+                          onClick={() => openLead(lead)}
+                          onDragStart={e => {
+                            setDraggingLead(lead);
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', lead.id);
+                          }}
+                        />
                       </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="text-lg" title={lead.temperatura}>{TEMP_ICON[lead.temperatura]}</span>
-                      <p className="text-xs text-gray-500">{lead.origem}</p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <select value={lead.status} onChange={e => handleUpdateStatus(lead.id, e.target.value)}
-                        className={`text-xs font-medium px-2 py-1 rounded-full border-0 focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer ${STATUS_COLORS[lead.status]}`}>
-                        {['NOVO', 'QUALIFICADO', 'EM_CONTATO', 'PROPOSTA', 'NEGOCIACAO', 'GANHO', 'PERDIDO', 'NUTRICAO'].map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-5 py-4">
-                      {lead.valor_estimado ? (
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">R$ {lead.valor_estimado.toLocaleString('pt-BR')}</p>
-                          {lead.probabilidade && <p className="text-xs text-gray-400">{lead.probabilidade}% prob.</p>}
-                        </div>
-                      ) : <span className="text-gray-400 text-sm">—</span>}
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="text-sm text-gray-600">{lead._count?.atividades || 0} ativ. · {lead._count?.propostas || 0} prop.</p>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <button onClick={() => openHistorico(lead)} className="text-gray-500 hover:text-gray-700 text-sm mr-3">Histórico</button>
-                      <button onClick={() => openEdit(lead)} className="text-blue-600 hover:text-blue-800 text-sm mr-3">Editar</button>
-                      <button onClick={() => handleDelete(lead.id)} className="text-red-500 hover:text-red-700 text-sm">Remover</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Pagination */}
-        {total > limit && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Mostrando {page * limit + 1}–{Math.min((page + 1) * limit, total)} de {total}</p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50">Anterior</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * limit >= total}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50">Próximo</button>
-            </div>
+                    ))}
+                    {colLeads.length === 0 && (
+                      <p className="text-center text-[10px] py-5" style={{ color: isOver ? col.cor : `${col.cor}66` }}>
+                        {isOver && draggingLead ? '⬇ Soltar aqui' : 'Vazio'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-5">{editingId ? 'Editar Lead' : 'Novo Lead'}</h2>
-            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+      {/* ── Lead Detail Panel ────────────────────────────────────────────── */}
+      {selectedLead && (
+        <div className="fixed inset-0 z-40 flex" style={{ background: 'rgba(13,34,56,.5)' }} onClick={() => setSelectedLead(null)}>
+          <div className="ml-auto flex h-full" style={{ width: '90vw', maxWidth: 1120 }} onClick={e => e.stopPropagation()}>
 
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { key: 'nome', label: 'Nome *', placeholder: 'Nome do lead', colSpan: 2 },
-                { key: 'empresa', label: 'Empresa', placeholder: 'Nome da empresa', colSpan: 1 },
-                { key: 'cargo', label: 'Cargo', placeholder: 'Cargo / função', colSpan: 1 },
-                { key: 'telefone', label: 'Telefone', placeholder: '(27) 99999-0000', colSpan: 1 },
-                { key: 'email', label: 'Email', placeholder: 'email@empresa.com', colSpan: 1 },
-                { key: 'cidade', label: 'Cidade', placeholder: 'Vitória', colSpan: 1 },
-                { key: 'estado', label: 'Estado', placeholder: 'ES', colSpan: 1 },
-                { key: 'valor_estimado', label: 'Valor Estimado (R$)', placeholder: '0.00', colSpan: 1 },
-                { key: 'probabilidade', label: 'Probabilidade (%)', placeholder: '50', colSpan: 1 },
-              ].map(f => (
-                <div key={f.key} className={f.colSpan === 2 ? 'col-span-2' : ''}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
-                  <input value={form[f.key]} onChange={e => setForm((p: any) => ({ ...p, [f.key]: e.target.value }))}
-                    placeholder={f.placeholder}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+            {/* LEFT: ficha */}
+            <div className="flex flex-col flex-1 bg-white overflow-hidden" style={{ borderLeft: '1px solid #D8E8F5' }}>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid #D8E8F5' }}>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-sm font-extrabold truncate" style={{ color: '#0D2238' }}>
+                    {selectedLead.razao_social || selectedLead.nome_fantasia || selectedLead.nome}
+                  </h2>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {selectedLead.segmento && <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: '#EBF4FF', color: '#2E6EAB' }}>{selectedLead.segmento}</span>}
+                    {(() => {
+                      const col = colConfig(selectedLead.etapa_comercial);
+                      return <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: `${col.cor}18`, color: col.cor }}>{col.nome}</span>;
+                    })()}
+                    {(() => {
+                      const t = TEMP_CONFIG[selectedLead.temperatura as keyof typeof TEMP_CONFIG] || TEMP_CONFIG.FRIO;
+                      return <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: t.bg, color: t.color }}>{t.emoji} {t.label}</span>;
+                    })()}
+                  </div>
                 </div>
-              ))}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
-                <select value={form.origem} onChange={e => setForm((p: any) => ({ ...p, origem: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-                  {['MANUAL', 'SITE', 'INDICACAO', 'CAMPANHA', 'EVENTO', 'OUTRO'].map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
+                <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
+                  <button onClick={() => setDetailTab('proposta')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#16a34a' }}>
+                    <FileText size={11} /> Gerar Proposta
+                  </button>
+                  {(() => {
+                    const tel = selectedLead.responsavel_telefone;
+                    if (!tel) return null;
+                    return (
+                      <a
+                        href={`https://wa.me/55${tel.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`WhatsApp: ${tel}`}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                        style={{ background: '#25D366' }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="white" style={{ flexShrink: 0 }}>
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                          <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.559 4.122 1.532 5.847L.057 23.617a.75.75 0 0 0 .921.921l5.696-1.489A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.667-.523-5.181-1.432l-.371-.218-3.383.885.898-3.285-.237-.385A9.958 9.958 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                        </svg>
+                        WhatsApp
+                      </a>
+                    );
+                  })()}
+                  <button onClick={() => setSelectedLead(null)} className="p-1.5 rounded-lg hover:bg-gray-100"><X size={15} style={{ color: '#7AAACB' }} /></button>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Temperatura</label>
-                <select value={form.temperatura} onChange={e => setForm((p: any) => ({ ...p, temperatura: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-                  {['FRIO', 'MORNO', 'QUENTE'].map(t => <option key={t} value={t}>{TEMP_ICON[t]} {t}</option>)}
-                </select>
+
+              {/* Stage mover */}
+              <div className="flex items-center gap-1 px-4 py-1.5 overflow-x-auto flex-shrink-0" style={{ borderBottom: '1px solid #EBF4FF', background: '#F8FBFF' }}>
+                {colunas.map(col => (
+                  <button key={col.chave} onClick={() => moveColumn(selectedLead, col.chave)}
+                    className="flex-shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full transition-all"
+                    style={{ background: selectedLead.etapa_comercial === col.chave ? col.cor : `${col.cor}15`, color: selectedLead.etapa_comercial === col.chave ? 'white' : col.cor }}>
+                    {col.nome}
+                  </button>
+                ))}
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                <textarea value={form.observacoes} onChange={e => setForm((p: any) => ({ ...p, observacoes: e.target.value }))}
-                  rows={2} placeholder="Notas sobre o lead..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none" />
+
+              {/* Tabs */}
+              <div className="flex px-5 flex-shrink-0" style={{ borderBottom: '1px solid #D8E8F5' }}>
+                {([
+                  { key: 'dados',       label: 'Dados',       icon: Building2 },
+                  { key: 'atendimento', label: 'Atendimento',  icon: MessageSquare },
+                  { key: 'proposta',    label: 'Proposta',     icon: FileText },
+                  { key: 'arquivos',    label: 'Arquivos',     icon: Paperclip },
+                ] as any[]).map(({ key, label, icon: Icon }) => (
+                  <button key={key} onClick={() => setDetailTab(key)}
+                    className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2"
+                    style={{ borderColor: detailTab === key ? '#4B8EC8' : 'transparent', color: detailTab === key ? '#4B8EC8' : '#7AAACB' }}>
+                    <Icon size={12} /> {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab content */}
+              <div className="flex-1 overflow-y-auto p-5">
+
+                {/* Dados */}
+                {detailTab === 'dados' && (
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#4B8EC8' }}>Empresa</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Inp label="Razão Social" value={editForm.razao_social} onChange={(e: any) => setF('razao_social', e.target.value)} />
+                        <Inp label="Nome Fantasia" value={editForm.nome_fantasia} onChange={(e: any) => setF('nome_fantasia', e.target.value)} />
+                        <Inp label="CNPJ" value={editForm.cnpj} onChange={(e: any) => setF('cnpj', e.target.value)} />
+                        <Sel label="Segmento" value={editForm.segmento} onChange={(e: any) => setF('segmento', e.target.value)} options={SEGMENTOS} />
+                        <Inp label="Cidade" value={editForm.cidade} onChange={(e: any) => setF('cidade', e.target.value)} />
+                        <Sel label="Estado" value={editForm.estado} onChange={(e: any) => setF('estado', e.target.value)} options={ESTADOS_BR} />
+                        <Inp label="Qtd. Lojas" type="number" value={editForm.qtd_lojas} onChange={(e: any) => setF('qtd_lojas', e.target.value)} />
+                        <Inp label="Qtd. Caixas/Terminais" type="number" value={editForm.qtd_caixas} onChange={(e: any) => setF('qtd_caixas', e.target.value)} />
+                        <Inp label="Sistema atual" value={editForm.sistema_atual} onChange={(e: any) => setF('sistema_atual', e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#4B8EC8' }}>Responsável</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Inp label="Nome" value={editForm.responsavel_nome} onChange={(e: any) => setF('responsavel_nome', e.target.value)} />
+                        <Inp label="Cargo" value={editForm.responsavel_cargo} onChange={(e: any) => setF('responsavel_cargo', e.target.value)} />
+                        <Inp label="Telefone/WhatsApp" value={editForm.responsavel_telefone} onChange={(e: any) => setF('responsavel_telefone', e.target.value)} />
+                        <Inp label="E-mail" type="email" value={editForm.responsavel_email} onChange={(e: any) => setF('responsavel_email', e.target.value)} />
+                        <Inp label="Melhor horário" value={editForm.responsavel_horario} onChange={(e: any) => setF('responsavel_horario', e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#4B8EC8' }}>Classificação</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Sel label="Temperatura" value={editForm.temperatura} onChange={(e: any) => setF('temperatura', e.target.value)}
+                          options={Object.entries(TEMP_CONFIG).map(([v, c]) => ({ value: v, label: `${c.emoji} ${c.label}` }))} />
+                        <Sel label="Origem" value={editForm.origem} onChange={(e: any) => setF('origem', e.target.value)} options={ORIGENS_MANUAL} />
+                        <Inp label="Vendedor responsável" value={editForm.vendedor_nome} onChange={(e: any) => setF('vendedor_nome', e.target.value)} />
+                        <Inp label="Valor estimado (R$)" type="number" value={editForm.valor_estimado} onChange={(e: any) => setF('valor_estimado', e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#4B8EC8' }}>Etiquetas</p>
+                      <div className="flex flex-wrap gap-2">
+                        {etiquetas.map(etq => {
+                          const aplicada = (selectedLead.etiquetas_lead || []).some(e => e.etiqueta.id === etq.id);
+                          return (
+                            <button key={etq.id} onClick={() => toggleEtiqueta(etq.id)}
+                              className="text-xs px-2.5 py-1 rounded-full font-semibold transition-all"
+                              style={{ background: aplicada ? etq.cor : `${etq.cor}15`, color: aplicada ? 'white' : etq.cor, border: `1px solid ${etq.cor}40` }}>
+                              {etq.nome}
+                            </button>
+                          );
+                        })}
+                        <button onClick={() => setShowNewEtiq(true)}
+                          className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                          style={{ background: '#F4F7FB', color: '#7AAACB', border: '1px dashed #D8E8F5' }}>
+                          + Nova etiqueta
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button onClick={saveLead} disabled={savingLead}
+                        className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
+                        {savingLead ? <Loader2 size={14} className="animate-spin" /> : null} Salvar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Atendimento */}
+                {detailTab === 'atendimento' && (
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#4B8EC8' }}>Acompanhamento</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Sel label="Status de atendimento" value={editForm.status_atendimento} onChange={(e: any) => setF('status_atendimento', e.target.value)}
+                          options={['NOVO','SEM_CONTATO','CONTATO_TENTADO','EM_CONVERSA','QUALIFICADO','AGUARDANDO_RETORNO','PROPOSTA_NECESSARIA','PROPOSTA_ENVIADA','EM_NEGOCIACAO','ACEITO','FECHADO','PERDIDO'].map(v => ({ value: v, label: v.replace(/_/g, ' ') }))} />
+                        <Inp label="Próximo contato" type="datetime-local" value={editForm.proximo_contato?.slice?.(0,16)} onChange={(e: any) => setF('proximo_contato', e.target.value)} />
+                        <Inp label="Vendedor responsável" value={editForm.vendedor_nome} onChange={(e: any) => setF('vendedor_nome', e.target.value)} />
+                        <Inp label="Supervisora" value={editForm.supervisor_nome} onChange={(e: any) => setF('supervisor_nome', e.target.value)} />
+                      </div>
+                      <div className="mt-3">
+                        <Txt label="Observação comercial principal" value={editForm.observacoes} onChange={(e: any) => setF('observacoes', e.target.value)} rows={3} />
+                      </div>
+                    </div>
+                    <div className="text-xs p-3 rounded-lg" style={{ background: '#F8FBFF', border: '1px solid #EBF4FF' }}>
+                      <p style={{ color: '#7AAACB' }}>Última obs: <span style={{ color: '#0D2238' }}>{fmtDateTime(selectedLead.ultima_obs_at) || '—'}</span></p>
+                      <p className="mt-0.5" style={{ color: '#7AAACB' }}>Próximo contato: <span style={{ color: selectedLead.proximo_contato && new Date(selectedLead.proximo_contato) <= new Date() ? '#dc2626' : '#0D2238' }}>{fmtDateTime(selectedLead.proximo_contato) || '—'}</span></p>
+                    </div>
+                    <div className="flex justify-end">
+                      <button onClick={saveLead} disabled={savingLead}
+                        className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
+                        {savingLead ? <Loader2 size={14} className="animate-spin" /> : null} Salvar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Proposta */}
+                {detailTab === 'proposta' && (() => {
+                  const pImpl  = propostaForm.valor_implantacao ? parseFloat(propostaForm.valor_implantacao) : 0;
+                  const pConv  = propostaForm.valor_conversao   ? parseFloat(propostaForm.valor_conversao)   : 0;
+                  const pDesc  = propostaForm.desconto          ? parseFloat(propostaForm.desconto)          : 0;
+                  const pFinal = pImpl + pConv - pDesc;
+                  const pEnt   = propostaForm.entrada ? parseFloat(propostaForm.entrada) : 0;
+                  const pParc  = parseInt(propostaForm.parcelas) || 0;
+                  const pPVal  = pParc > 0 ? (pFinal - pEnt) / pParc : 0;
+                  const SECTIONS = ['Empresa','Responsável','Comercial','Plano & Produtos','Valores','Conteúdo'];
+
+                  if (propostaGerada) {
+                    return (
+                      <div className="space-y-4">
+                        <div className="rounded-xl p-5 text-center" style={{ background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+                          <CheckCircle2 size={32} style={{ color: '#16a34a', margin: '0 auto 10px' }} />
+                          <h3 className="font-bold text-sm mb-1" style={{ color: '#15803d' }}>Proposta criada com sucesso!</h3>
+                          <p className="text-xs mb-3" style={{ color: '#4ade80' }}>
+                            {propostaGerada.razao_social} — {propostaGerada.plano_selecionado || 'sem plano'}
+                          </p>
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              onClick={() => { setPropostaGerada(null); initPropostaForm(selectedLead); }}
+                              className="px-4 py-2 text-xs font-semibold rounded-xl"
+                              style={{ background: '#F0FDF4', color: '#16a34a', border: '1px solid #BBF7D0' }}>
+                              Nova proposta
+                            </button>
+                            <a href="/propostas-comerciais" target="_blank"
+                              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl text-white"
+                              style={{ background: '#16a34a' }}>
+                              <FileText size={12} /> Ver propostas
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Stepper */}
+                      <div className="flex gap-0 border-b overflow-x-auto -mx-4 px-4" style={{ borderColor: '#D8E8F5' }}>
+                        {SECTIONS.map((s, i) => (
+                          <button key={s} onClick={() => setPropostaSection(i)}
+                            className="px-3 py-2 text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
+                            style={{
+                              background: 'transparent', border: 'none', cursor: 'pointer',
+                              borderBottom: propostaSection === i ? '2px solid #4B8EC8' : '2px solid transparent',
+                              color: propostaSection === i ? '#4B8EC8' : '#7AAACB',
+                            }}>
+                            {i + 1}. {s}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Section 0 — Empresa */}
+                      {propostaSection === 0 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField label="Razão Social *" col={2}>
+                            <input value={propostaForm.razao_social || ''} onChange={e => setPF('razao_social', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Razão social completa" />
+                          </FormField>
+                          <FormField label="Nome Fantasia">
+                            <input value={propostaForm.nome_fantasia || ''} onChange={e => setPF('nome_fantasia', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Nome fantasia" />
+                          </FormField>
+                          <FormField label="CNPJ">
+                            <input value={propostaForm.cnpj || ''} onChange={e => setPF('cnpj', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="00.000.000/0001-00" />
+                          </FormField>
+                          <FormField label="Segmento">
+                            <select value={propostaForm.segmento || ''} onChange={e => setPF('segmento', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              <option value="">Selecione...</option>
+                              {SEGMENTOS_PROP.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </FormField>
+                          <FormField label="Cidade">
+                            <input value={propostaForm.cidade || ''} onChange={e => setPF('cidade', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Cidade" />
+                          </FormField>
+                          <FormField label="Estado">
+                            <select value={propostaForm.estado || ''} onChange={e => setPF('estado', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              <option value="">UF</option>
+                              {ESTADOS_BR.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </FormField>
+                          <FormField label="Qtd. Máquinas / Terminais">
+                            <input type="number" value={propostaForm.maquinas || ''} onChange={e => setPF('maquinas', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: 3" />
+                          </FormField>
+                          <FormField label="Tipo de Implantação">
+                            <select value={propostaForm.tipo_loja || ''} onChange={e => setPF('tipo_loja', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              <option value="">Selecione...</option>
+                              {TIPOS_LOJA_PROP.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </FormField>
+                          {(propostaForm.tipo_loja === 'Migração' || propostaForm.tipo_loja === 'Upgrade') && (
+                            <FormField label="Sistema Atual" col={2}>
+                              <input value={propostaForm.sistema_atual || ''} onChange={e => setPF('sistema_atual', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Sistema que utiliza hoje" />
+                            </FormField>
+                          )}
+                          <FormField label="Data Desejada para Virada" col={2}>
+                            <input type="date" value={propostaForm.data_virada || ''} onChange={e => setPF('data_virada', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} />
+                          </FormField>
+                        </div>
+                      )}
+
+                      {/* Section 1 — Responsável */}
+                      {propostaSection === 1 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField label="Nome do Responsável" col={2}>
+                            <input value={propostaForm.responsavel_nome || ''} onChange={e => setPF('responsavel_nome', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Nome completo" />
+                          </FormField>
+                          <FormField label="Telefone / WhatsApp">
+                            <input value={propostaForm.responsavel_telefone || ''} onChange={e => setPF('responsavel_telefone', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="(27) 99999-0000" />
+                          </FormField>
+                          <FormField label="E-mail">
+                            <input type="email" value={propostaForm.responsavel_email || ''} onChange={e => setPF('responsavel_email', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="email@empresa.com" />
+                          </FormField>
+                          <FormField label="CPF">
+                            <input value={propostaForm.responsavel_cpf || ''} onChange={e => setPF('responsavel_cpf', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="000.000.000-00" />
+                          </FormField>
+                          <FormField label="Cargo / Função">
+                            <input value={propostaForm.responsavel_cargo || ''} onChange={e => setPF('responsavel_cargo', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Sócio, Gerente..." />
+                          </FormField>
+                          <FormField label="Melhor Horário de Contato" col={2}>
+                            <input value={propostaForm.responsavel_horario || ''} onChange={e => setPF('responsavel_horario', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: manhã das 9h às 12h" />
+                          </FormField>
+                        </div>
+                      )}
+
+                      {/* Section 2 — Comercial */}
+                      {propostaSection === 2 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField label="Vendedor Responsável">
+                            <input value={propostaForm.vendedor_nome || ''} onChange={e => setPF('vendedor_nome', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Nome do vendedor" />
+                          </FormField>
+                          <FormField label="Telefone do Vendedor">
+                            <input value={propostaForm.vendedor_telefone || ''} onChange={e => setPF('vendedor_telefone', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="(27) 99999-0000" />
+                          </FormField>
+                          <FormField label="Supervisor Responsável">
+                            <input value={propostaForm.supervisor_nome || ''} onChange={e => setPF('supervisor_nome', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Nome do supervisor" />
+                          </FormField>
+                          <FormField label="Campanha Comercial">
+                            <input value={propostaForm.campanha || ''} onChange={e => setPF('campanha', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: Campanha Junho 2026" />
+                          </FormField>
+                          <FormField label="Validade da Proposta">
+                            <input type="date" value={propostaForm.validade || ''} onChange={e => setPF('validade', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} />
+                          </FormField>
+                          <FormField label="Origem do Lead">
+                            <select value={propostaForm.origem || ''} onChange={e => setPF('origem', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              <option value="">Selecione...</option>
+                              {ORIGENS_PROP.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </FormField>
+                          <FormField label="Status da Proposta" col={2}>
+                            <select value={propostaForm.status || 'RASCUNHO'} onChange={e => setPF('status', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              {['RASCUNHO','ENVIADA','EM_NEGOCIACAO','ACEITA','RECUSADA'].map(s => (
+                                <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
+                              ))}
+                            </select>
+                          </FormField>
+                        </div>
+                      )}
+
+                      {/* Section 3 — Plano & Produtos */}
+                      {propostaSection === 3 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField label="Plano Selecionado">
+                            <select value={propostaForm.plano_selecionado || ''} onChange={e => setPF('plano_selecionado', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              <option value="">Selecione...</option>
+                              <option value="Pro">Pro</option>
+                              <option value="Plus">Plus</option>
+                              <option value="Personalizado">Personalizado</option>
+                            </select>
+                          </FormField>
+                          <FormField label="Plano Recomendado">
+                            <select value={propostaForm.plano_recomendado || ''} onChange={e => setPF('plano_recomendado', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              <option value="">Selecione...</option>
+                              <option value="Pro">Pro</option>
+                              <option value="Plus">Plus</option>
+                            </select>
+                          </FormField>
+                          <FormField label="Mensalidade Plano Pro (R$)">
+                            <input type="number" value={propostaForm.mensalidade_pro || ''} onChange={e => setPF('mensalidade_pro', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: 350" />
+                          </FormField>
+                          <FormField label="Mensalidade Plano Plus (R$)">
+                            <input type="number" value={propostaForm.mensalidade_plus || ''} onChange={e => setPF('mensalidade_plus', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: 520" />
+                          </FormField>
+                          <FormField label="Módulos Inclusos" col={2}>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {MODULOS_PROP.map(m => {
+                                const sel = (propostaForm.modulos_inclusos || []).includes(m);
+                                return (
+                                  <button key={m} type="button" onClick={() => togglePF('modulos_inclusos', m)}
+                                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                                    style={{ border: `1.5px solid ${sel ? '#4B8EC8' : '#D8E8F5'}`, background: sel ? '#EBF4FF' : 'transparent', color: sel ? '#4B8EC8' : '#7AAACB' }}>
+                                    {m}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </FormField>
+                          <FormField label="Serviços Adicionais" col={2}>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {SERVICOS_PROP.map(s => {
+                                const sel = (propostaForm.servicos_adicionais || []).includes(s);
+                                return (
+                                  <button key={s} type="button" onClick={() => togglePF('servicos_adicionais', s)}
+                                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                                    style={{ border: `1.5px solid ${sel ? '#16a34a' : '#D8E8F5'}`, background: sel ? '#dcfce7' : 'transparent', color: sel ? '#16a34a' : '#7AAACB' }}>
+                                    {s}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </FormField>
+                        </div>
+                      )}
+
+                      {/* Section 4 — Valores */}
+                      {propostaSection === 4 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField label="Valor de Implantação / Setup (R$)">
+                            <input type="number" value={propostaForm.valor_implantacao || ''} onChange={e => setPF('valor_implantacao', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="0,00" />
+                          </FormField>
+                          <FormField label="Valor de Conversão de Dados (R$)">
+                            <input type="number" value={propostaForm.valor_conversao || ''} onChange={e => setPF('valor_conversao', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="0,00" />
+                          </FormField>
+                          <FormField label="Desconto (R$)">
+                            <input type="number" value={propostaForm.desconto || ''} onChange={e => setPF('desconto', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="0,00" />
+                          </FormField>
+                          <FormField label="Valor Final (calculado)">
+                            <div className="px-3 py-2 rounded-lg text-sm font-bold" style={{ background: '#EBF4FF', color: '#4B8EC8', border: '1.5px solid #B8D8F5' }}>{fmtBRL(pFinal)}</div>
+                          </FormField>
+                          <FormField label="Entrada (R$)">
+                            <input type="number" value={propostaForm.entrada || ''} onChange={e => setPF('entrada', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="0,00" />
+                          </FormField>
+                          <FormField label="Número de Parcelas">
+                            <input type="number" value={propostaForm.parcelas || ''} onChange={e => setPF('parcelas', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: 12" />
+                          </FormField>
+                          <FormField label="Valor da Parcela (calculado)" col={2}>
+                            <div className="px-3 py-2 rounded-lg text-sm font-bold" style={{ background: '#dcfce7', color: '#16a34a', border: '1.5px solid #86efac' }}>
+                              {pParc > 0 ? `${pParc}x de ${fmtBRL(pPVal)}` : '—'}
+                            </div>
+                          </FormField>
+                          <FormField label="Data de Vencimento das Parcelas">
+                            <input value={propostaForm.data_vencimento || ''} onChange={e => setPF('data_vencimento', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: dia 10 de cada mês" />
+                          </FormField>
+                          <FormField label="Observação de Cobrança">
+                            <input value={propostaForm.observacao_cobranca || ''} onChange={e => setPF('observacao_cobranca', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Obs. cobrança..." />
+                          </FormField>
+                          <FormField label="Condição Especial" col={2}>
+                            <input value={propostaForm.condicao_especial || ''} onChange={e => setPF('condicao_especial', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: Desconto especial válido até..." />
+                          </FormField>
+                        </div>
+                      )}
+
+                      {/* Section 5 — Conteúdo */}
+                      {propostaSection === 5 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField label="Título Principal da Proposta" col={2}>
+                            <input value={propostaForm.titulo_proposta || ''} onChange={e => setPF('titulo_proposta', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: Proposta Comercial Prosystem — Plano Plus" />
+                          </FormField>
+                          {/* Message template pickers */}
+                          <FormField label="Segmento (modelos de mensagem)">
+                            <select value={pModeloSeg} onChange={e => { setPModeloSeg(e.target.value); setPModeloIdx(''); }}
+                              className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }}>
+                              <option value="">Selecione segmento...</option>
+                              <option value="farmacia">Farmácia / Drogaria</option>
+                              <option value="padaria">Padaria / Panificadora</option>
+                            </select>
+                          </FormField>
+                          <FormField label="Modelo de mensagem">
+                            <select value={pModeloIdx} onChange={e => {
+                              const idx = e.target.value;
+                              setPModeloIdx(idx);
+                              if (idx && idx !== 'outro' && pModeloSeg && MENSAGENS_PROP[pModeloSeg]) {
+                                const m = MENSAGENS_PROP[pModeloSeg][Number(idx)];
+                                setPF('frase_hero', m.hero);
+                                setPF('texto_valor', m.valor);
+                                if (!propostaForm.titulo_proposta) setPF('titulo_proposta', m.titulo);
+                              } else if (idx === 'outro') {
+                                setPF('frase_hero', '');
+                                setPF('texto_valor', '');
+                              }
+                            }} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} disabled={!pModeloSeg}>
+                              <option value="">Selecione modelo...</option>
+                              {(MENSAGENS_PROP[pModeloSeg] || []).map((m, i) => (
+                                <option key={i} value={String(i)}>{m.titulo}</option>
+                              ))}
+                              <option value="outro">Escrever manualmente</option>
+                            </select>
+                          </FormField>
+                          <FormField label="Frase do Hero (destaque)" col={2}>
+                            <input value={propostaForm.frase_hero || ''} onChange={e => setPF('frase_hero', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} placeholder="Ex: Seu negócio merece um sistema que cresce com ele" readOnly={!!(pModeloIdx && pModeloIdx !== 'outro')} />
+                          </FormField>
+                          <FormField label="Texto de Valor para o Cliente" col={2}>
+                            <textarea value={propostaForm.texto_valor || ''} onChange={e => setPF('texto_valor', e.target.value)} rows={4}
+                              className="w-full px-3 py-2 text-sm rounded-lg border outline-none resize-none" style={{ borderColor: '#D8E8F5' }}
+                              placeholder="Por que a Prosystem é a melhor escolha para este cliente..."
+                              readOnly={!!(pModeloIdx && pModeloIdx !== 'outro')} />
+                          </FormField>
+                          <FormField label="Observações Comerciais" col={2}>
+                            <textarea value={propostaForm.observacoes || ''} onChange={e => setPF('observacoes', e.target.value)} rows={3}
+                              className="w-full px-3 py-2 text-sm rounded-lg border outline-none resize-none" style={{ borderColor: '#D8E8F5' }}
+                              placeholder="Condições especiais, contexto da negociação..." />
+                          </FormField>
+                        </div>
+                      )}
+
+                      {/* Navigation + Save */}
+                      <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: '#D8E8F5' }}>
+                        <div className="flex gap-2">
+                          {propostaSection > 0 && (
+                            <button onClick={() => setPropostaSection(s => s - 1)}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg"
+                              style={{ border: '1px solid #D8E8F5', color: '#7AAACB', background: 'transparent' }}>
+                              ← Anterior
+                            </button>
+                          )}
+                          {propostaSection < SECTIONS.length - 1 && (
+                            <button onClick={() => setPropostaSection(s => s + 1)}
+                              className="px-3 py-1.5 text-xs font-semibold rounded-lg text-white"
+                              style={{ background: '#4B8EC8', border: 'none' }}>
+                              Próximo →
+                            </button>
+                          )}
+                        </div>
+                        <button onClick={handleSaveProposta} disabled={savingProposta}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+                          style={{ background: '#16a34a' }}>
+                          {savingProposta ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                          {savingProposta ? 'Salvando...' : 'Salvar Proposta'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Arquivos */}
+                {detailTab === 'arquivos' && (
+                  <div className="text-center py-12" style={{ color: '#7AAACB' }}>
+                    <Paperclip size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+                    <p className="text-sm font-semibold mb-1">Nenhum arquivo anexado</p>
+                    <p className="text-xs">Funcionalidade de upload em breve.</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-              <button onClick={handleSave} disabled={saving || !form.nome}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium">
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
+            {/* RIGHT: Observações */}
+            <div className="flex flex-col bg-white flex-shrink-0 overflow-hidden" style={{ width: 310, borderLeft: '1px solid #D8E8F5' }}>
+              <div className="px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid #D8E8F5', background: '#F8FBFF' }}>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: '#4B8EC8' }}>Histórico de Contatos</p>
+                <p className="text-[9px] mt-0.5" style={{ color: '#7AAACB' }}>Toda a trilha do atendimento</p>
+              </div>
+
+              {/* Add obs form */}
+              <div className="p-3 flex-shrink-0 space-y-2" style={{ borderBottom: '1px solid #EBF4FF' }}>
+                <select value={obsForm.tipo} onChange={e => setObsForm(p => ({ ...p, tipo: e.target.value }))}
+                  className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }}>
+                  <option value="">Tipo de contato...</option>
+                  {OBS_TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                <textarea value={obsForm.descricao} onChange={e => setObsForm(p => ({ ...p, descricao: e.target.value }))}
+                  placeholder="O que aconteceu..." rows={3}
+                  className="w-full text-xs px-2.5 py-2 rounded-lg resize-none outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }} />
+                <input value={obsForm.proxima_acao} onChange={e => setObsForm(p => ({ ...p, proxima_acao: e.target.value }))}
+                  placeholder="Próxima ação..."
+                  className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }} />
+                <input type="datetime-local" value={obsForm.data_proximo_retorno} onChange={e => setObsForm(p => ({ ...p, data_proximo_retorno: e.target.value }))}
+                  className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }} />
+                <button onClick={addObs} disabled={addingObs || !obsForm.tipo || !obsForm.descricao}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40"
+                  style={{ background: '#4B8EC8' }}>
+                  {addingObs ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Registrar
+                </button>
+              </div>
+
+              {/* Timeline */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {obsLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin" style={{ color: '#4B8EC8' }} /></div>
+                ) : observacoes.length === 0 ? (
+                  <p className="text-center text-[11px] py-6" style={{ color: '#7AAACB' }}>Nenhum contato registrado.</p>
+                ) : observacoes.map(obs => (
+                  <div key={obs.id} className="flex gap-2">
+                    <div className="flex-shrink-0 text-sm leading-none mt-0.5">{OBS_ICON[obs.tipo] || '📌'}</div>
+                    <div className="flex-1 rounded-lg p-2.5" style={{ background: obs.tipo === 'SISTEMA' ? '#F8FBFF' : 'white', border: '1px solid #EBF4FF' }}>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[10px] font-bold" style={{ color: '#0D2238' }}>{obs.created_by_name || 'Sistema'}</span>
+                        <span className="text-[9px]" style={{ color: '#7AAACB' }}>{fmtDateTime(obs.created_at)}</span>
+                      </div>
+                      <p className="text-[11px] leading-snug" style={{ color: '#374151' }}>{obs.descricao}</p>
+                      {obs.proxima_acao && <p className="text-[10px] mt-1 font-semibold" style={{ color: '#d97706' }}>→ {obs.proxima_acao}</p>}
+                      {obs.data_proximo_retorno && <p className="text-[9px] mt-0.5" style={{ color: '#7AAACB' }}>📅 {fmtDateTime(obs.data_proximo_retorno)}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       )}
-      {/* Modal Histórico */}
-      {historicoModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Histórico do Lead</h2>
-                {historicoLead && <p className="text-sm text-gray-500">{historicoLead.nome}{historicoLead.empresa ? ` · ${historicoLead.empresa}` : ''}</p>}
-              </div>
-              <button onClick={() => setHistoricoModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+
+      {/* ── New Lead Modal ───────────────────────────────────────────────── */}
+      {showNewLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.6)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl flex flex-col" style={{ width: 620, maxHeight: '88vh' }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #D8E8F5' }}>
+              <h2 className="text-sm font-extrabold" style={{ color: '#0D2238' }}>Novo Lead</h2>
+              <button onClick={() => setShowNewLead(false)}><X size={16} style={{ color: '#7AAACB' }} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              {historicoLoading ? (
-                <div className="text-center py-8 text-gray-400">Carregando timeline...</div>
-              ) : !historicoData ? (
-                <div className="text-center py-8 text-gray-400">Sem dados disponíveis</div>
-              ) : (
-                <div className="space-y-3">
-                  {historicoData.timeline.map((item: any, idx: number) => (
-                    <div key={idx} className="flex gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm">
-                        {item.icon}
-                      </div>
-                      <div className="flex-1 min-w-0 pb-3 border-b border-gray-50 last:border-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium text-gray-900 text-sm">{item.titulo}</p>
-                          {item.status && (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">{item.status}</span>
-                          )}
-                        </div>
-                        {item.descricao && <p className="text-xs text-gray-500 mt-0.5 truncate">{item.descricao}</p>}
-                        <p className="text-xs text-gray-400 mt-1">{new Date(item.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {historicoData.timeline.length === 0 && (
-                    <p className="text-center text-gray-400 py-6 text-sm">Nenhuma atividade registrada ainda</p>
-                  )}
+            <div className="flex gap-0 px-6 flex-shrink-0" style={{ borderBottom: '1px solid #D8E8F5' }}>
+              {['Empresa','Responsável','Comercial'].map((s, i) => (
+                <button key={s} onClick={() => setNewLeadSection(i)}
+                  className="px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors"
+                  style={{ borderColor: newLeadSection === i ? '#4B8EC8' : 'transparent', color: newLeadSection === i ? '#4B8EC8' : '#7AAACB' }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {newLeadSection === 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2"><Inp label="Razão Social *" required value={newLeadForm.razao_social} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, razao_social: e.target.value, nome: e.target.value }))} /></div>
+                  <Inp label="Nome Fantasia" value={newLeadForm.nome_fantasia} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, nome_fantasia: e.target.value }))} />
+                  <Inp label="CNPJ" value={newLeadForm.cnpj} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, cnpj: e.target.value }))} />
+                  <Sel label="Segmento" value={newLeadForm.segmento} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, segmento: e.target.value }))} options={SEGMENTOS} />
+                  <Sel label="Estado" value={newLeadForm.estado} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, estado: e.target.value }))} options={ESTADOS_BR} />
+                  <Inp label="Cidade" value={newLeadForm.cidade} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, cidade: e.target.value }))} />
+                  <Inp label="Sistema atual" value={newLeadForm.sistema_atual} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, sistema_atual: e.target.value }))} />
+                  <Inp label="Qtd. Caixas/Terminais" type="number" value={newLeadForm.qtd_caixas} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, qtd_caixas: e.target.value }))} />
+                  <Inp label="Qtd. Lojas" type="number" value={newLeadForm.qtd_lojas} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, qtd_lojas: e.target.value }))} />
                 </div>
               )}
+              {newLeadSection === 1 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2"><Inp label="Nome do responsável" value={newLeadForm.responsavel_nome} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, responsavel_nome: e.target.value }))} /></div>
+                  <Inp label="Cargo/Função" value={newLeadForm.responsavel_cargo} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, responsavel_cargo: e.target.value }))} />
+                  <Inp label="Melhor horário" value={newLeadForm.responsavel_horario} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, responsavel_horario: e.target.value }))} />
+                  <Inp label="Telefone/WhatsApp" value={newLeadForm.responsavel_telefone} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, responsavel_telefone: e.target.value }))} />
+                  <Inp label="E-mail" type="email" value={newLeadForm.responsavel_email} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, responsavel_email: e.target.value }))} />
+                </div>
+              )}
+              {newLeadSection === 2 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Sel label="Origem *" required value={newLeadForm.origem} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, origem: e.target.value }))} options={ORIGENS_MANUAL} />
+                  <Sel label="Temperatura" value={newLeadForm.temperatura} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, temperatura: e.target.value }))}
+                    options={Object.entries(TEMP_CONFIG).map(([v, c]) => ({ value: v, label: `${c.emoji} ${c.label}` }))} />
+                  <Inp label="Vendedor responsável" value={newLeadForm.vendedor_nome} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, vendedor_nome: e.target.value }))} />
+                  <Inp label="Valor estimado (R$)" type="number" value={newLeadForm.valor_estimado} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, valor_estimado: e.target.value }))} />
+                  <div className="col-span-2"><Txt label="Observações" value={newLeadForm.observacoes} onChange={(e: any) => setNewLeadForm((p: any) => ({ ...p, observacoes: e.target.value }))} rows={3} /></div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid #D8E8F5' }}>
+              <div className="flex gap-1">{[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full" style={{ background: newLeadSection === i ? '#4B8EC8' : '#D8E8F5' }} />)}</div>
+              <div className="flex gap-2">
+                {newLeadSection > 0 && <button onClick={() => setNewLeadSection(p => p-1)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>Anterior</button>}
+                {newLeadSection < 2
+                  ? <button onClick={() => setNewLeadSection(p => p+1)} className="px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#4B8EC8' }}>Próximo</button>
+                  : <button onClick={createNewLead} disabled={savingNewLead || !newLeadForm.razao_social || !newLeadForm.origem}
+                      className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                      style={{ background: '#16a34a' }}>
+                      {savingNewLead ? <Loader2 size={12} className="animate-spin" /> : null} Criar Lead
+                    </button>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── New Column Modal ─────────────────────────────────────────────── */}
+      {showNewCol && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.6)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6" style={{ width: 380 }}>
+            <div className="flex justify-between mb-4">
+              <h3 className="font-extrabold text-sm" style={{ color: '#0D2238' }}>Nova Coluna do Kanban</h3>
+              <button onClick={() => setShowNewCol(false)}><X size={16} style={{ color: '#7AAACB' }} /></button>
+            </div>
+            <div className="space-y-3">
+              <Inp label="Nome da coluna *" value={newColForm.nome} onChange={(e: any) => setNewColForm(p => ({ ...p, nome: e.target.value }))} />
+              <div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>Cor</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={newColForm.cor} onChange={e => setNewColForm(p => ({ ...p, cor: e.target.value }))} className="w-10 h-10 rounded cursor-pointer" style={{ border: '1px solid #D8E8F5' }} />
+                  {['#6b7280','#2563eb','#7c3aed','#d97706','#dc2626','#16a34a','#0891b2','#db2777'].map(c => (
+                    <button key={c} onClick={() => setNewColForm(p => ({ ...p, cor: c }))} className="w-6 h-6 rounded-full" style={{ background: c, outline: newColForm.cor === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }} />
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowNewCol(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid #D8E8F5', color: '#7AAACB' }}>Cancelar</button>
+                <button onClick={createNewCol} disabled={!newColForm.nome}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#4B8EC8' }}>
+                  Criar Coluna
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── New Etiqueta Modal ───────────────────────────────────────────── */}
+      {showNewEtiq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.6)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6" style={{ width: 380 }}>
+            <div className="flex justify-between mb-4">
+              <h3 className="font-extrabold text-sm" style={{ color: '#0D2238' }}>Nova Etiqueta</h3>
+              <button onClick={() => setShowNewEtiq(false)}><X size={16} style={{ color: '#7AAACB' }} /></button>
+            </div>
+            <div className="space-y-3">
+              <Inp label="Nome da etiqueta *" value={newEtiqForm.nome} onChange={(e: any) => setNewEtiqForm(p => ({ ...p, nome: e.target.value }))} />
+              <div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>Cor</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={newEtiqForm.cor} onChange={e => setNewEtiqForm(p => ({ ...p, cor: e.target.value }))} className="w-10 h-10 rounded cursor-pointer" style={{ border: '1px solid #D8E8F5' }} />
+                  {['#0891b2','#d97706','#7c3aed','#2563eb','#dc2626','#16a34a','#1877f2','#f59e0b'].map(c => (
+                    <button key={c} onClick={() => setNewEtiqForm(p => ({ ...p, cor: c }))} className="w-6 h-6 rounded-full" style={{ background: c, outline: newEtiqForm.cor === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }} />
+                  ))}
+                </div>
+              </div>
+              <Txt label="Descrição (opcional)" value={newEtiqForm.descricao} onChange={(e: any) => setNewEtiqForm(p => ({ ...p, descricao: e.target.value }))} rows={2} />
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowNewEtiq(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid #D8E8F5', color: '#7AAACB' }}>Cancelar</button>
+                <button onClick={createNewEtiq} disabled={!newEtiqForm.nome}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#4B8EC8' }}>
+                  Criar Etiqueta
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Motivo de Perda Modal ────────────────────────────────────────── */}
+      {showPerda && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.7)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6" style={{ width: 400 }}>
+            <div className="flex justify-between mb-4">
+              <h3 className="font-extrabold text-sm" style={{ color: '#dc2626' }}>⚠️ Motivo da Perda</h3>
+              <button onClick={() => { setShowPerda(false); setMovingToPerda(null); }}><X size={16} style={{ color: '#7AAACB' }} /></button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: '#7AAACB' }}>Informe o motivo da perda para melhorar a estratégia comercial.</p>
+            <div className="space-y-2 mb-4">
+              {['Sem resposta','Preço','Cliente sem interesse','Fechou com concorrente','Momento inadequado','Não tem perfil','Sem orçamento','Duplicado','Contato inválido','Outro'].map(m => (
+                <button key={m} onClick={() => setPerdaMotivo(m)}
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all"
+                  style={{ background: perdaMotivo === m ? '#FEF2F2' : '#F8FBFF', color: perdaMotivo === m ? '#dc2626' : '#0D2238', border: `1px solid ${perdaMotivo === m ? '#FCA5A5' : '#EBF4FF'}` }}>
+                  {m}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setShowPerda(false); setMovingToPerda(null); }} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid #D8E8F5', color: '#7AAACB' }}>Cancelar</button>
+              <button onClick={confirmPerda} disabled={!perdaMotivo}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#dc2626' }}>
+                Confirmar Perda
+              </button>
             </div>
           </div>
         </div>

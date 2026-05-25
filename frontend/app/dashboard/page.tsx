@@ -8,18 +8,22 @@ import { apiClient } from '@/lib/api-client';
 import {
   RefreshCw, AlertTriangle, TrendingUp, TrendingDown,
   DollarSign, FileCheck2, BarChart3, Star, Target,
-  Percent, FileText, Headphones, Activity,
+  Percent, FileText, Headphones, Activity, XCircle,
+  Flame, Thermometer, Snowflake, CheckCircle2, ClipboardList,
 } from 'lucide-react';
 
 interface DashboardPower {
   kpis: {
     mrr: number; mrr_delta: number; leads_mes: number;
     leads_ganhos_mes: number; leads_ganhos_mes_anterior: number;
+    leads_perdidos_mes: number; leads_perdidos_mes_anterior: number;
+    valor_perdido_mes: number;
     taxa_conversao: number; contratos_ativos: number; contratos_mes: number;
     propostas_abertas: number; propostas_aceitas_mes: number;
     pipeline_valor: number; tickets_abertos: number; tickets_criticos: number;
     renovacoes_criticas: number; hs_criticos: number; nps_score: number | null;
   };
+  ranking_motivos_perda: { motivo: string; total: number; valor_total: number; pct: number }[];
   pipeline_funil: { etapa: string; count: number; valor: number }[];
   top_leads: {
     id: string; nome: string; empresa?: string; valor_estimado: number;
@@ -33,6 +37,14 @@ interface DashboardPower {
     id: string; tipo: string; titulo: string; data_prevista: string;
     lead?: { nome: string; empresa?: string };
   }[];
+  pipeline_propostas: {
+    total: number;
+    fechado: { count: number; mrr: number; setup: number };
+    quente:  { count: number; mrr: number; setup: number };
+    morno:   { count: number; mrr: number; setup: number };
+    frio:    { count: number; mrr: number; setup: number };
+    perdido: { count: number };
+  };
   alertas: {
     atividades_atrasadas: number; atividades_hoje: number;
     tickets_criticos: number; renovacoes_criticas: number; hs_em_risco: number;
@@ -269,6 +281,242 @@ export default function DashboardPage() {
                   icon={Headphones}
                   accent={data.kpis.tickets_criticos > 0 ? '#dc2626' : '#4B8EC8'} />
               </div>
+            </div>
+
+            {/* ── Pipeline de Propostas ──────────────────────── */}
+            {data.pipeline_propostas && (
+              <div>
+                <SectionLabel>Pipeline de Propostas Comerciais</SectionLabel>
+
+                {/* Overview KPIs */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <KpiCard
+                    label="Total de Propostas"
+                    value={fmtNum(data.pipeline_propostas.total)}
+                    sub={`${data.pipeline_propostas.perdido.count} perdida${data.pipeline_propostas.perdido.count !== 1 ? 's' : ''}`}
+                    icon={ClipboardList}
+                    accent="#4B8EC8"
+                  />
+                  <KpiCard
+                    label="MRR em Pipeline"
+                    value={fmt(
+                      data.pipeline_propostas.fechado.mrr +
+                      data.pipeline_propostas.quente.mrr +
+                      data.pipeline_propostas.morno.mrr +
+                      data.pipeline_propostas.frio.mrr
+                    )}
+                    sub="mensalidades em negociação"
+                    icon={DollarSign}
+                    accent="#16a34a"
+                  />
+                  <KpiCard
+                    label="SETUP em Pipeline"
+                    value={fmt(
+                      data.pipeline_propostas.fechado.setup +
+                      data.pipeline_propostas.quente.setup +
+                      data.pipeline_propostas.morno.setup +
+                      data.pipeline_propostas.frio.setup
+                    )}
+                    sub="implantações em negociação"
+                    icon={BarChart3}
+                    accent="#7c3aed"
+                  />
+                  <KpiCard
+                    label="Já Fechado"
+                    value={fmt(data.pipeline_propostas.fechado.setup)}
+                    sub={`MRR +${fmt(data.pipeline_propostas.fechado.mrr)}/mês · ${data.pipeline_propostas.fechado.count} prop.`}
+                    icon={CheckCircle2}
+                    accent="#15803d"
+                  />
+                </div>
+
+                {/* Breakdown por temperatura */}
+                <PsCard className="p-5">
+                  <h2 className="text-sm font-bold mb-4" style={{ color: '#0D2238' }}>
+                    Breakdown por Temperatura
+                  </h2>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                    {/* Quente — Em Negociação */}
+                    {[
+                      {
+                        label: 'Quente — A Fechar',
+                        sub: 'Em Negociação',
+                        icon: Flame,
+                        data: data.pipeline_propostas.quente,
+                        bg: '#FEF2F2',
+                        border: '#FECACA',
+                        accent: '#dc2626',
+                        dot: '#ef4444',
+                      },
+                      {
+                        label: 'Morno — Enviada',
+                        sub: 'Aguardando retorno',
+                        icon: Thermometer,
+                        data: data.pipeline_propostas.morno,
+                        bg: '#FFFBEB',
+                        border: '#FDE68A',
+                        accent: '#d97706',
+                        dot: '#f59e0b',
+                      },
+                      {
+                        label: 'Frio — Rascunho',
+                        sub: 'Ainda não enviada',
+                        icon: Snowflake,
+                        data: data.pipeline_propostas.frio,
+                        bg: '#EFF6FF',
+                        border: '#BFDBFE',
+                        accent: '#2563eb',
+                        dot: '#3b82f6',
+                      },
+                    ].map(({ label, sub, icon: Icon, data: d, bg, border, accent, dot }) => (
+                      <div
+                        key={label}
+                        className="rounded-xl p-4"
+                        style={{ background: bg, border: `1px solid ${border}` }}
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${accent}20` }}>
+                            <Icon size={14} style={{ color: accent }} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold" style={{ color: accent }}>{label}</p>
+                            <p className="text-[10px]" style={{ color: `${accent}99` }}>{sub}</p>
+                          </div>
+                          <span
+                            className="ml-auto text-xs font-extrabold px-2 py-0.5 rounded-full"
+                            style={{ background: `${accent}18`, color: accent }}
+                          >
+                            {d.count}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-medium" style={{ color: '#6B7280' }}>MRR</span>
+                            <span className="text-sm font-extrabold" style={{ color: accent }}>{fmt(d.mrr)}</span>
+                          </div>
+                          <div className="w-full h-px" style={{ background: border }} />
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-medium" style={{ color: '#6B7280' }}>SETUP</span>
+                            <span className="text-sm font-extrabold" style={{ color: accent }}>{fmt(d.setup)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Barra visual de proporção */}
+                  {(() => {
+                    const total = data.pipeline_propostas.quente.count + data.pipeline_propostas.morno.count + data.pipeline_propostas.frio.count;
+                    if (total === 0) return null;
+                    const pctQ = Math.round((data.pipeline_propostas.quente.count / total) * 100);
+                    const pctM = Math.round((data.pipeline_propostas.morno.count / total) * 100);
+                    const pctF = 100 - pctQ - pctM;
+                    return (
+                      <div className="mt-4">
+                        <div className="flex rounded-full overflow-hidden h-2">
+                          {pctQ > 0 && <div style={{ width: `${pctQ}%`, background: '#ef4444' }} />}
+                          {pctM > 0 && <div style={{ width: `${pctM}%`, background: '#f59e0b' }} />}
+                          {pctF > 0 && <div style={{ width: `${pctF}%`, background: '#3b82f6' }} />}
+                        </div>
+                        <div className="flex items-center gap-4 mt-1.5">
+                          {[
+                            { color: '#ef4444', label: `Quente ${pctQ}%` },
+                            { color: '#f59e0b', label: `Morno ${pctM}%` },
+                            { color: '#3b82f6', label: `Frio ${pctF}%` },
+                          ].map(({ color, label }) => (
+                            <div key={label} className="flex items-center gap-1">
+                              <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+                              <span className="text-[10px]" style={{ color: '#7AAACB' }}>{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </PsCard>
+              </div>
+            )}
+
+            {/* ── Negócios Perdidos ───────────────────────────── */}
+            <div>
+              <SectionLabel>Negócios Perdidos</SectionLabel>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* KPIs de perda */}
+                <KpiCard
+                  label="Perdidos no Mês"
+                  value={fmtNum(data.kpis.leads_perdidos_mes)}
+                  sub={`anterior: ${data.kpis.leads_perdidos_mes_anterior}`}
+                  icon={XCircle}
+                  accent="#dc2626"
+                  delta={data.kpis.leads_perdidos_mes_anterior > 0
+                    ? Math.round(((data.kpis.leads_perdidos_mes - data.kpis.leads_perdidos_mes_anterior) / data.kpis.leads_perdidos_mes_anterior) * 100)
+                    : undefined}
+                />
+                <KpiCard
+                  label="Valor Perdido no Mês"
+                  value={fmt(data.kpis.valor_perdido_mes)}
+                  sub="oportunidades não convertidas"
+                  icon={TrendingDown}
+                  accent="#dc2626"
+                />
+                <KpiCard
+                  label="Taxa de Perda"
+                  value={`${data.kpis.leads_mes > 0 ? Math.round((data.kpis.leads_perdidos_mes / data.kpis.leads_mes) * 100) : 0}%`}
+                  sub={`${data.kpis.leads_ganhos_mes} ganhos vs ${data.kpis.leads_perdidos_mes} perdidos`}
+                  icon={Percent}
+                  accent={data.kpis.leads_perdidos_mes > data.kpis.leads_ganhos_mes ? '#dc2626' : '#d97706'}
+                />
+              </div>
+
+              {/* Ranking de motivos */}
+              {data.ranking_motivos_perda && data.ranking_motivos_perda.length > 0 && (
+                <PsCard className="mt-4 p-5">
+                  <h2 className="text-sm font-bold mb-4" style={{ color: '#0D2238' }}>
+                    Ranking de Motivos de Perda
+                  </h2>
+                  <div className="space-y-3">
+                    {data.ranking_motivos_perda.map((item, i) => (
+                      <div key={item.motivo}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                              style={{ background: i === 0 ? '#dc2626' : i === 1 ? '#ef4444' : i === 2 ? '#f87171' : '#fca5a5' }}
+                            >
+                              {i + 1}
+                            </span>
+                            <span className="text-xs font-medium truncate" style={{ color: '#0D2238' }}>{item.motivo}</span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                            <span className="text-xs font-bold" style={{ color: '#dc2626' }}>
+                              {item.total}x
+                            </span>
+                            <span className="text-xs" style={{ color: '#7AAACB' }}>
+                              {fmt(item.valor_total)}
+                            </span>
+                            <span
+                              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full w-10 text-center"
+                              style={{ background: '#FEF2F2', color: '#991B1B' }}
+                            >
+                              {item.pct}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full rounded-full h-1.5" style={{ background: '#FEF2F2' }}>
+                          <div
+                            className="h-1.5 rounded-full"
+                            style={{ width: `${item.pct}%`, background: 'linear-gradient(90deg, #dc2626, #ef4444)' }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] mt-3" style={{ color: '#7AAACB' }}>
+                    Baseado em todos os negócios perdidos registrados no funil comercial.
+                  </p>
+                </PsCard>
+              )}
             </div>
 
             {/* ── Pipeline + Top Leads ────────────────────────── */}

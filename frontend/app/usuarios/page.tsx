@@ -101,7 +101,8 @@ export default function UsuariosPage() {
   });
   const [perms, setPerms] = useState<ModulosPermissao>(buildEmptyPerms());
 
-  const isGestor = user?.role === 'CEO' || user?.role === 'SUPERVISAO' || user?.role === 'SUPERVISAO_COMERCIAL' || user?.role === 'SUPERVISAO_TECNICA';
+  const ROLES_GESTOR = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
+  const isGestor = ROLES_GESTOR.some(r => user?.role?.includes(r));
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');

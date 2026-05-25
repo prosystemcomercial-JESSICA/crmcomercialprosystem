@@ -11,7 +11,7 @@ import {
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun, User,
-  MessageSquare, Shield,
+  MessageSquare, Shield, ClipboardList,
 } from 'lucide-react';
 
 const navGroups = [
@@ -24,20 +24,22 @@ const navGroups = [
   {
     label: 'Comercial',
     items: [
-      { href: '/leads',       icon: Target,       label: 'Leads' },
-      { href: '/funil',       icon: GitMerge,     label: 'Funil Comercial' },
-      { href: '/atividades',  icon: CalendarCheck,label: 'Atividades' },
-      { href: '/propostas',   icon: FileText,     label: 'Propostas' },
-      { href: '/contratos',   icon: FileCheck2,   label: 'Contratos' },
-      { href: '/perdidos',    icon: TrendingDown, label: 'Perdidos' },
-      { href: '/campanhas',   icon: Megaphone,    label: 'Campanhas' },
+      { href: '/leads',                 icon: Target,        label: 'Leads' },
+      { href: '/funil',                 icon: GitMerge,      label: 'Funil Comercial' },
+      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades' },
+      { href: '/propostas',             icon: FileText,      label: 'Propostas' },
+      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Gerador de Proposta' },
+      { href: '/contratos',             icon: FileCheck2,    label: 'Contratos' },
+      { href: '/perdidos',              icon: TrendingDown,  label: 'Perdidos' },
+      { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas' },
     ],
   },
   {
     label: 'Performance',
     items: [
-      { href: '/metas',   icon: Trophy, label: 'Metas Comerciais' },
-      { href: '/ranking', icon: Medal,  label: 'Ranking' },
+      { href: '/comercial', icon: BarChart2,    label: 'Radar Comercial' },
+      { href: '/metas',     icon: Trophy,       label: 'Metas Comerciais' },
+      { href: '/ranking',   icon: Medal,        label: 'Ranking' },
     ],
   },
   {

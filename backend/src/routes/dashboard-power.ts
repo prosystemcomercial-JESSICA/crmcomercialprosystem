@@ -17,6 +17,8 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
     const [
       // Comercial
       leads_total, leads_mes, leads_ganhos_mes, leads_ganhos_mes_anterior,
+      // Perdidos
+      leads_perdidos_mes, leads_perdidos_mes_anterior,
       // Contratos / MRR
       contratos_ativos, contratos_mes,
       // Propostas
@@ -38,6 +40,9 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.lead.count({ where: { created_at: { gte: inicioMes } } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes } } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior } } }),
+      // Perdidos este mês (via LeadPerda — registra o momento real da perda)
+      prisma.$queryRawUnsafe(`SELECT COUNT(*)::int as n FROM "LeadPerda" WHERE created_at >= $1`, inicioMes).then((r: any) => r[0]?.n || 0).catch(() => 0),
+      prisma.$queryRawUnsafe(`SELECT COUNT(*)::int as n FROM "LeadPerda" WHERE created_at >= $1 AND created_at <= $2`, inicioMesAnterior, fimMesAnterior).then((r: any) => r[0]?.n || 0).catch(() => 0),
 
       prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null } }),
       prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, created_at: { gte: inicioMes } } }),
@@ -85,6 +90,42 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       })
     ]);
 
+    // PropostaComercial — pipeline breakdown por status/temperatura
+    const pipeline_propostas_raw: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        status,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(valor_final), 0)::float AS setup_total,
+        COALESCE(SUM(
+          CASE
+            WHEN plano_selecionado = 'PLUS' THEN COALESCE(mensalidade_plus, 0)
+            WHEN plano_selecionado = 'PRO'  THEN COALESCE(mensalidade_pro,  0)
+            ELSE COALESCE(mensalidade_plus, COALESCE(mensalidade_pro, 0))
+          END
+        ), 0)::float AS mrr_total
+      FROM "PropostaComercial"
+      GROUP BY status
+    `).catch(() => []);
+
+    const ppBucket = (statuses: string[]) => {
+      const rows = pipeline_propostas_raw.filter(r => statuses.includes(r.status));
+      return {
+        count: rows.reduce((s, r) => s + r.count, 0),
+        mrr:   Math.round(rows.reduce((s, r) => s + r.mrr_total, 0)),
+        setup: Math.round(rows.reduce((s, r) => s + r.setup_total, 0)),
+      };
+    };
+
+    const propostas_total_count = pipeline_propostas_raw.reduce((s, r) => s + r.count, 0);
+    const pipeline_propostas = {
+      total:   propostas_total_count,
+      fechado: ppBucket(['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO']),
+      quente:  ppBucket(['EM_NEGOCIACAO']),
+      morno:   ppBucket(['ENVIADA']),
+      frio:    ppBucket(['RASCUNHO']),
+      perdido: { count: pipeline_propostas_raw.filter(r => ['RECUSADA','PERDIDA'].includes(r.status)).reduce((s,r)=>s+r.count,0) },
+    };
+
     // MRR dos contratos ativos
     const mrr_result = await prisma.contrato.aggregate({
       where: { status: 'ATIVO', deleted_at: null },
@@ -115,6 +156,29 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       orderBy: { data_prevista: 'asc' },
       take: 8
     });
+
+    // Valor total perdido no mês
+    const valor_perdido_mes_result: any[] = await prisma.$queryRawUnsafe(
+      `SELECT COALESCE(SUM(valor_oportunidade),0)::float as total FROM "LeadPerda" WHERE created_at >= $1`, inicioMes
+    ).catch(() => [{ total: 0 }]);
+    const valor_perdido_mes = Math.round(valor_perdido_mes_result[0]?.total || 0);
+
+    // Ranking de motivos de perda (todos os tempos, top 8)
+    const ranking_motivos_raw: any[] = await prisma.$queryRawUnsafe(
+      `SELECT motivo, COUNT(*)::int as total, COALESCE(SUM(valor_oportunidade),0)::float as valor_total
+       FROM "LeadPerda"
+       WHERE motivo IS NOT NULL
+       GROUP BY motivo
+       ORDER BY total DESC
+       LIMIT 8`
+    ).catch(() => []);
+    const total_perdas = ranking_motivos_raw.reduce((s, r) => s + r.total, 0);
+    const ranking_motivos = ranking_motivos_raw.map(r => ({
+      motivo: r.motivo,
+      total: r.total,
+      valor_total: Math.round(r.valor_total),
+      pct: total_perdas > 0 ? Math.round((r.total / total_perdas) * 100) : 0
+    }));
 
     // NPS rápido
     const nps_total = await prisma.surveyResposta.count();
@@ -149,6 +213,9 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
           leads_mes,
           leads_ganhos_mes,
           leads_ganhos_mes_anterior,
+          leads_perdidos_mes: Number(leads_perdidos_mes),
+          leads_perdidos_mes_anterior: Number(leads_perdidos_mes_anterior),
+          valor_perdido_mes,
           taxa_conversao,
           contratos_ativos,
           contratos_mes,
@@ -161,11 +228,13 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
           hs_criticos,
           nps_score
         },
+        ranking_motivos_perda: ranking_motivos,
         pipeline_funil,
         top_leads: top_leads.map(l => ({
           ...l,
           valor_ponderado: Math.round((l.valor_estimado || 0) * ((l.probabilidade || 50) / 100))
         })),
+        pipeline_propostas,
         agenda_hoje: atividades_hoje_lista,
         atividades_atrasadas: atividades_atrasadas_lista,
         alertas: {

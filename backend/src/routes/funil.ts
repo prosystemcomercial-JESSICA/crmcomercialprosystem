@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const GESTORES = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN'];
+const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN'];
 const SUPERVISAO = [...GESTORES, 'SUPERVISAO_TECNICA'];
 
 // ─── Tipos de etapa ──────────────────────────────────────────

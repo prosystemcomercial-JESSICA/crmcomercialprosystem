@@ -46,6 +46,7 @@ model Cliente {
   tickets         TicketSuporte[]
   indicacoes_feitas Indicacao[]  @relation("IndicacoesFeitas")
   health_score    HealthScore?
+  vendas_adicionais VendaAdicional[]
 
   @@index([email])
   @@index([empresa])
@@ -334,21 +335,91 @@ model AuditoriaCompanha {
 
 model Lead {
   id              String    @id @default(cuid())
-  nome            String
-  email           String?
-  telefone        String?
-  empresa         String?
-  cargo           String?
+
+  // Dados da empresa
+  nome            String    // nome do lead / razão social resumida
+  razao_social    String?
+  nome_fantasia   String?
+  cnpj            String?
+  empresa         String?   // alias legado de razao_social
+  segmento        String?
   cidade          String?
   estado          String?
+  endereco        String?
+  tipo_negocio    String?
+  qtd_lojas       Int?
+  qtd_caixas      Int?
+  sistema_atual   String?
+  tipo_oportunidade String? // NOVA_IMPLANTACAO|MIGRACAO|UPGRADE|REATIVACAO|VENDA_ADICIONAL|FILIAL
 
-  origem          String    @default("MANUAL") // MANUAL|SITE|INDICACAO|CAMPANHA|EVENTO|OUTRO
-  status          String    @default("NOVO") // NOVO|QUALIFICADO|EM_CONTATO|PROPOSTA|NEGOCIACAO|GANHO|PERDIDO|NUTRICAO
+  // Responsável
+  responsavel_nome    String?
+  responsavel_cargo   String?  // alias cargo
+  cargo               String?  // legado
+  responsavel_telefone String?
+  responsavel_email   String?
+  email               String?  // legado
+  telefone            String?  // legado
+  responsavel_cpf     String?
+  responsavel_horario String?
 
-  etapa_funil     String    @default("PROSPECCAO") // PROSPECCAO|QUALIFICACAO|APRESENTACAO|PROPOSTA|NEGOCIACAO|FECHAMENTO
-  temperatura     String    @default("FRIO") // FRIO|MORNO|QUENTE
+  // Dados comerciais do lead
+  vendedor_nome       String?
+  vendedor_telefone   String?
+  supervisor_nome     String?
+  campanha            String?
+  plano_indicado      String?
+  plano_interesse     String?
+  valor_setup         Float?
+  valor_conversao     Float?
+  mensalidade_estimada Float?
+  entrada             Float?
+  parcelamento        Int?
+  validade_proposta   DateTime?
+  observacoes_comerciais String? @db.Text
+  condicao_especial   String?
+
+  // Dados para proposta (pré-preenchimento)
+  frase_hero          String?
+  texto_valor         String? @db.Text
+  segmento_proposta   String?
+  plano_recomendado   String?
+  modulos_inclusos    String[]
+  servicos_adicionais String[]
+
+  // Pipeline / Kanban comercial
+  etapa_comercial    String @default("NOVO_LEAD")
+  status_atendimento String @default("NOVO")
+  // NOVO|SEM_CONTATO|CONTATO_TENTADO|EM_CONVERSA|QUALIFICADO|AGUARDANDO_RETORNO
+  // |PROPOSTA_NECESSARIA|PROPOSTA_ENVIADA|EM_NEGOCIACAO|ACEITO|FECHADO|PERDIDO
+
+  origem          String    @default("MANUAL")
+  status          String    @default("NOVO")
+  etapa_funil     String    @default("PROSPECCAO")
+  temperatura     String    @default("FRIO") // FRIO|MORNO|QUENTE|MUITO_QUENTE
   valor_estimado  Float?
-  probabilidade   Int?      // 0-100%
+  probabilidade   Int?
+  motivo_perda    String?
+
+  // UTM / Campanha tracking
+  utm_source      String?
+  utm_medium      String?
+  utm_campaign    String?
+  utm_content     String?
+  utm_term        String?
+  fbclid          String?
+  gclid           String?
+  campaign_id     String?
+  adset_id        String?
+  ad_id           String?
+  campanha_nome   String?
+  conjunto_nome   String?
+  anuncio_nome    String?
+  plataforma      String?
+  link_origem     String?
+
+  proximo_contato    DateTime?
+  ultima_obs_at      DateTime?
 
   responsavel_id  String?
   observacoes     String?   @db.Text
@@ -361,11 +432,156 @@ model Lead {
   propostas       Proposta[]
   contrato        Contrato?
   indicacoes      Indicacao[]
+  observacoes_lead  LeadObservacao[]
+  etiquetas_lead    LeadEtiquetaAplicada[]
+  onboarding        LeadOnboarding?
+  execucao          ExecucaoTecnica?
 
   @@index([status])
+  @@index([etapa_comercial])
+  @@index([status_atendimento])
+  @@index([temperatura])
   @@index([etapa_funil])
   @@index([responsavel_id])
   @@index([created_at])
+  @@index([vendedor_nome])
+}
+
+model LeadObservacao {
+  id               String   @id @default(cuid())
+  lead_id          String
+  lead             Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  tipo             String
+  descricao        String   @db.Text
+  proxima_acao     String?
+  data_proximo_retorno DateTime?
+  status_apos      String?
+
+  // Rastreamento automático de mudanças
+  coluna_anterior      String?
+  coluna_nova          String?
+  temperatura_anterior String?
+  temperatura_nova     String?
+
+  created_by       String
+  created_by_name  String?
+  created_at       DateTime @default(now())
+
+  @@index([lead_id])
+  @@index([tipo])
+  @@index([created_at])
+}
+
+model KanbanColuna {
+  id        String   @id @default(cuid())
+  chave     String   @unique
+  nome      String
+  cor       String   @default("#6b7280")
+  ordem     Int      @default(99)
+  ativa     Boolean  @default(true)
+  fixa      Boolean  @default(false)
+  created_by String   @default("system")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([ordem])
+  @@index([ativa])
+}
+
+model Etiqueta {
+  id          String   @id @default(cuid())
+  nome        String
+  cor         String   @default("#4B8EC8")
+  descricao   String?
+  ativa       Boolean  @default(true)
+  created_by  String
+  created_at  DateTime @default(now())
+
+  leads       LeadEtiquetaAplicada[]
+
+  @@index([ativa])
+}
+
+model LeadEtiquetaAplicada {
+  id          String   @id @default(cuid())
+  lead_id     String
+  lead        Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  etiqueta_id String
+  etiqueta    Etiqueta @relation(fields: [etiqueta_id], references: [id], onDelete: Cascade)
+  created_at  DateTime @default(now())
+
+  @@unique([lead_id, etiqueta_id])
+  @@index([lead_id])
+  @@index([etiqueta_id])
+}
+
+model LeadOnboarding {
+  id               String   @id @default(cuid())
+  lead_id          String   @unique
+  lead             Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  data_prevista_implantacao DateTime?
+  data_virada      String?
+  sistema_anterior String?
+  necessita_conversao Boolean @default(false)
+
+  responsavel_interno_nome     String?
+  responsavel_interno_telefone String?
+  horario_contato  String?
+  qtd_maquinas     Int?
+  qtd_usuarios     Int?
+
+  tem_certificado  Boolean @default(false)
+  tem_contador     Boolean @default(false)
+  nome_contador    String?
+  contato_contador String?
+
+  usa_fiscal       Boolean @default(false)
+  usa_tef          Boolean @default(false)
+  usa_balanca      Boolean @default(false)
+  usa_etiqueta     Boolean @default(false)
+  usa_convenio     Boolean @default(false)
+
+  observacoes_tecnicas String? @db.Text
+  status           String  @default("EM_PREENCHIMENTO") // EM_PREENCHIMENTO|CONCLUIDO|ENVIADO_EXECUCAO
+
+  created_by       String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+}
+
+model ExecucaoTecnica {
+  id               String   @id @default(cuid())
+  lead_id          String   @unique
+  lead             Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  tecnico_id       String?
+  tecnico_nome     String?
+  supervisora_nome String?
+
+  data_prevista_inicio     DateTime?
+  data_prevista_conclusao  DateTime?
+  data_conclusao           DateTime?
+
+  prioridade       String   @default("NORMAL") // BAIXA|NORMAL|ALTA|URGENTE
+  tipo_execucao    String?
+  // IMPLANTACAO_NOVA|MIGRACAO|CONVERSAO_DADOS|ATIVACAO_MODULO
+  // |CONFIGURACAO_TEF|CONFIGURACAO_FISCAL|TREINAMENTO|SUPORTE_POS_IMPLANTACAO
+
+  status           String   @default("AGUARDANDO_DESIGNACAO")
+  // AGUARDANDO_DESIGNACAO|DESIGNADO|EM_ANALISE|EM_CONFIGURACAO
+  // |EM_CONVERSAO|EM_TREINAMENTO|AGUARDANDO_CLIENTE|FINALIZADO|PENDENTE
+
+  observacoes_supervisao String? @db.Text
+  checklist        Json?
+
+  created_by       String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([status])
+  @@index([tecnico_id])
 }
 
 model Atividade {
@@ -677,6 +893,184 @@ model Indicacao {
   @@index([status])
 }
 
+// ===== GERADOR DE PROPOSTA COMERCIAL =====
+
+model PropostaComercial {
+  id                   String    @id @default(cuid())
+
+  // Dados da empresa
+  razao_social         String
+  nome_fantasia        String?
+  cnpj                 String?
+  segmento             String?
+  cidade               String?
+  estado               String?
+  maquinas             Int?
+  tipo_loja            String?   // NOVA_IMPLANTACAO | MIGRACAO | UPGRADE | FILIAL | REATIVACAO
+  sistema_atual        String?
+  data_virada          String?
+
+  // Responsável
+  responsavel_nome     String?
+  responsavel_telefone String?
+  responsavel_email    String?
+  responsavel_cpf      String?
+  responsavel_cargo    String?
+  responsavel_horario  String?
+
+  // Dados comerciais
+  vendedor_nome        String?
+  vendedor_telefone    String?
+  supervisor_nome      String?
+  campanha             String?
+  validade             DateTime?
+  origem               String?   // INDICACAO | PROSPECCAO | WHATSAPP | VISITA | TRAFEGO | CLIENTE_ANTIGO
+
+  // Plano e produtos
+  plano_selecionado    String?   // PRO | PLUS | PERSONALIZADO
+  plano_recomendado    String?
+  mensalidade_pro      Float?
+  mensalidade_plus     Float?
+  modulos_inclusos     String[]
+  servicos_adicionais  String[]
+
+  // Valores
+  valor_implantacao    Float?
+  valor_conversao      Float?
+  desconto             Float?
+  valor_final          Float?
+  entrada              Float?
+  parcelas             Int?
+  valor_parcela        Float?
+  data_vencimento      String?
+  observacao_cobranca  String?
+  condicao_especial    String?
+
+  // Conteúdo editorial da proposta
+  titulo_proposta      String?
+  frase_hero           String?
+  texto_valor          String?   @db.Text
+  observacoes          String?   @db.Text
+
+  // Rastreamento de quem gerou
+  created_by           String
+  created_by_name      String?
+  created_by_role      String?
+  vendedor_id          String?
+  vendedor_email       String?
+  supervisor_id        String?
+  supervisor_email     String?
+
+  // Comissões
+  comissao_vendedor_pct      Float    @default(15)
+  comissao_vendedor_valor    Float?
+  comissao_supervisor_pct    Float    @default(5)
+  comissao_supervisor_valor  Float?
+  comissao_confirmada        Boolean  @default(false)
+
+  // Datas de lifecycle
+  data_aceite          DateTime?
+  data_fechamento      DateTime?
+  data_contrato_gerado DateTime?
+
+  // Metadados
+  status               String    @default("RASCUNHO")
+  // RASCUNHO | ENVIADA | EM_NEGOCIACAO | ACEITA | RECUSADA | PERDIDA
+  // CONTRATO_EM_GERACAO | CONTRATO_ENVIADO | CONTRATO_ASSINADO
+
+  public_token         String?   @unique
+
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  historico  PropostaHistorico[]
+
+  @@index([status])
+  @@index([created_by])
+  @@index([vendedor_id])
+  @@index([created_at])
+  @@index([public_token])
+}
+
+model PropostaHistorico {
+  id             String   @id @default(cuid())
+  proposta_id    String
+  proposta       PropostaComercial @relation(fields: [proposta_id], references: [id], onDelete: Cascade)
+
+  tipo           String   // CRIACAO | RENEGOCIACAO | STATUS | ENVIO
+  campo_alterado String?
+  valor_anterior String?  @db.Text
+  valor_novo     String?  @db.Text
+  motivo         String?  @db.Text
+  observacao     String?  @db.Text
+
+  feito_por_id   String?
+  feito_por_nome String?
+  feito_por_role String?
+
+  created_at     DateTime @default(now())
+
+  @@index([proposta_id])
+  @@index([created_at])
+}
+
+// ===== VENDAS ADICIONAIS (Cross-sell base de clientes) =====
+
+model Parceiro {
+  id                      String   @id @default(cuid())
+  nome                    String
+  categoria               String   // FISCAL | TEF | TRIBUTARIO | COMUNICACAO | UPGRADE | OUTRO
+  pitch                   String?  @db.Text
+  comissao_valor          Float    @default(50)
+  tabela_valores          String?  @db.Text
+  valor_referencia        Float?   // valor fixo para cálculo de comissão da supervisão (ex: R$100 fiscal, R$350 upgrade)
+  comissao_supervisao_pct Float    @default(5) // percentual da supervisão (5%)
+  ativo                   Boolean  @default(true)
+
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  vendas         VendaAdicional[]
+
+  @@index([categoria])
+  @@index([ativo])
+}
+
+model VendaAdicional {
+  id              String   @id @default(cuid())
+  cliente_id      String
+  cliente         Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  parceiro_id     String
+  parceiro        Parceiro @relation(fields: [parceiro_id], references: [id])
+
+  vendedor_id     String
+  supervisao_id   String?  // quem registrou (supervisor que faz o cadastro)
+
+  valor_venda     Float?
+  plano_anterior  String?
+  plano_novo      String?
+
+  comissao_valor           Float    @default(50)
+  comissao_paga            Boolean  @default(false)
+  comissao_paga_em         DateTime?
+  comissao_supervisao_valor Float?   // calculado automaticamente ao confirmar
+
+  status          String   @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
+
+  observacoes     String?  @db.Text
+
+  created_by      String
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([cliente_id])
+  @@index([parceiro_id])
+  @@index([vendedor_id])
+  @@index([status])
+  @@index([created_at])
+}
+
 // ===== HEALTH SCORE =====
 
 model HealthScore {
@@ -712,4 +1106,100 @@ model Credito {
 
   @@index([cliente_id])
   @@index([validade])
+}
+
+// ===== CONTRATOS COMERCIAIS (fluxo Proposta → Contrato → ZapSign) =====
+
+model ContratoComercial {
+  id                      String    @id @default(cuid())
+
+  // Número sequencial
+  numero_contrato         String    @unique   // "33/2026"
+  sequencia               Int
+  ano                     Int
+
+  // Vínculo com proposta
+  proposta_comercial_id   String?   @unique
+
+  // Empresa contratante
+  razao_social            String
+  nome_fantasia           String?
+  cnpj                    String?
+  endereco                String?
+  numero_endereco         String?
+  bairro                  String?
+  cidade                  String?
+  estado                  String?
+  cep                     String?
+
+  // Representante legal
+  representante_nome      String?
+  representante_cpf       String?
+  representante_email     String?
+  representante_telefone  String?
+  representante_cargo     String?
+
+  // Plano e mensalidade
+  plano_contratado        String?
+  software_nome           String?
+  software_versao         String?
+  mensalidade             Float?
+  dia_vencimento          Int?
+
+  // Setup / instalação
+  valor_setup_total       Float?
+  valor_setup_entrada     Float?
+  setup_parcelas          Int?
+  valor_setup_parcela     Float?
+  setup_a_vista           Boolean   @default(false)
+  setup_condicao_especial String?
+
+  // Equipe comercial
+  vendedor_nome           String?
+  supervisor_nome         String?
+  campanha                String?
+  condicao_especial       String?
+  data_contrato           DateTime  @default(now())
+
+  // Modelo ZapSign usado
+  modelo_contrato         String?   // "Pro" | "Plus" | "Farma Pro" | etc
+  zapsign_template_token  String?   // token do modelo no ZapSign
+
+  // Kanban status
+  status                  String    @default("A_GERAR")
+  // A_GERAR | GERADO | ENVIADO_ASSINATURA | AGUARDANDO_ASSINATURA | ASSINADO | PENDENTE_CORRECAO | CANCELADO
+
+  // ZapSign campos de rastreamento
+  zapsign_doc_token       String?
+  zapsign_signer_token    String?
+  zapsign_signing_url     String?
+  zapsign_signed_file_url String?
+  zapsign_status          String?
+  sent_to_sign_at         DateTime?
+  signed_at               DateTime?
+
+  created_by              String    @default("system")
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+
+  @@index([status])
+  @@index([created_at])
+  @@index([numero_contrato])
+  @@index([proposta_comercial_id])
+}
+
+model ContratoSequencia {
+  id         String   @id @default(cuid())
+  ano        Int      @unique
+  ultima_seq Int      @default(0)
+  updated_at DateTime @updatedAt
+}
+
+model ConfiguracaoIntegracao {
+  id         String   @id @default(cuid())
+  chave      String   @unique
+  valor      String   @db.Text
+  descricao  String?
+  updated_at DateTime @updatedAt
+  updated_by String?  @default("system")
 }

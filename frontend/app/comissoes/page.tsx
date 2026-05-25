@@ -26,6 +26,18 @@ const STATUS_COLOR: Record<string, string> = {
   CANCELADA: 'bg-gray-100 text-gray-500',
 };
 
+const TIPO_LABEL: Record<string, { label: string; color: string }> = {
+  CONTRATO:                    { label: 'Contrato',          color: 'bg-blue-100 text-blue-700' },
+  PROPOSTA:                    { label: 'Proposta',           color: 'bg-purple-100 text-purple-700' },
+  LEAD:                        { label: 'Lead',               color: 'bg-indigo-100 text-indigo-700' },
+  MANUAL:                      { label: 'Manual',             color: 'bg-gray-100 text-gray-600' },
+  BONUS:                       { label: 'Bônus',              color: 'bg-pink-100 text-pink-700' },
+  VENDA_ADICIONAL:             { label: 'Venda Adicional',    color: 'bg-green-100 text-green-700' },
+  SUPERVISAO_VENDA_ADICIONAL:  { label: 'Supervisão',         color: 'bg-teal-100 text-teal-700' },
+};
+
+const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIRETOR'];
+
 const USUARIOS_NAMES: Record<string, string> = {
   'user-ceo': 'CEO',
   'user-supervisao': 'Supervisão',
@@ -56,9 +68,14 @@ export default function ComissoesPage() {
   }, [isAuthenticated, loading]);
 
   const loadData = () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     setDataLoading(true);
-    apiClient.getComissoes({ periodo })
+    // Vendedor vê apenas as próprias comissões; gestor vê todas
+    const params: any = { periodo };
+    if (!ROLES_GESTOR.includes(user.role || '')) {
+      params.responsavel_id = user.id;
+    }
+    apiClient.getComissoes(params)
       .then(res => {
         setComissoes(res.data.data.comissoes);
         setTotais(res.data.data.totais);
@@ -99,7 +116,8 @@ export default function ComissoesPage() {
   };
 
   const nomeVendedor = (id: string) => USUARIOS_NAMES[id] || id;
-  const isCEO = user?.role === 'CEO' || user?.role === 'SUPERVISAO';
+  const isGestor = ROLES_GESTOR.includes(user?.role || '');
+  const isCEO = isGestor; // mantém compatibilidade
 
   const periods = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
@@ -117,7 +135,9 @@ export default function ComissoesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Comissões</h1>
-            <p className="text-gray-500 mt-1">Extrato de comissões por vendedor e período</p>
+            <p className="text-gray-500 mt-1">
+              {isGestor ? 'Extrato completo de comissões por vendedor e período' : 'Suas comissões do período'}
+            </p>
           </div>
           <div className="flex gap-2">
             {isCEO && (
@@ -163,10 +183,10 @@ export default function ComissoesPage() {
           </div>
         )}
 
-        {/* Resumo por vendedor */}
-        {resumo.length > 0 && (
+        {/* Resumo por vendedor — apenas gestores */}
+        {isGestor && resumo.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-base font-semibold text-gray-900 mb-3">Por Vendedor</h2>
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Por Vendedor / Responsável</h2>
             <div className="space-y-2">
               {resumo.map((r: any) => (
                 <div key={r.responsavel_id} className="flex items-center gap-4">
@@ -213,7 +233,14 @@ export default function ComissoesPage() {
                 {comissoes.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-4 text-sm font-medium text-gray-900">{nomeVendedor(c.responsavel_id)}</td>
-                    <td className="px-5 py-4 text-sm text-gray-600">{c.descricao || c.tipo}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${(TIPO_LABEL[c.tipo] || TIPO_LABEL.MANUAL).color}`}>
+                          {(TIPO_LABEL[c.tipo] || TIPO_LABEL.MANUAL).label}
+                        </span>
+                        <span className="text-sm text-gray-600">{c.descricao || c.tipo}</span>
+                      </div>
+                    </td>
                     <td className="px-5 py-4 text-right text-sm text-gray-600">R$ {c.valor_base.toLocaleString('pt-BR')}</td>
                     <td className="px-5 py-4 text-right text-sm text-gray-600">{c.percentual}%</td>
                     <td className="px-5 py-4 text-right text-sm font-bold text-green-700">R$ {c.valor_comissao.toLocaleString('pt-BR')}</td>

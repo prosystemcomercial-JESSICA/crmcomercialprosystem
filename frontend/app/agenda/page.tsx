@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Users, BarChart2, AlertCircle,
   Wifi, WifiOff, Phone, Mail, MessageCircle, MapPin, FileText,
   CheckCircle2, XCircle, RotateCcw, Filter, Search, ExternalLink,
-  CalendarDays, TrendingUp, TrendingDown
+  CalendarDays, Copy, UserX, Hourglass
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────
@@ -46,26 +46,42 @@ const TIPO_CONFIG: Record<string, { label: string; icon: any; color: string; bg:
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  PENDENTE:   { label: 'Pendente',   color: '#ca8a04', bg: '#fefce8', border: '#fde047' },
-  CONFIRMADA: { label: 'Confirmada', color: '#4B8EC8', bg: '#EBF4FF', border: '#C3DCFC' },
-  REALIZADA:  { label: 'Realizada',  color: '#16a34a', bg: '#dcfce7', border: '#86efac' },
-  CANCELADA:  { label: 'Cancelada',  color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
-  REMARCADA:  { label: 'Remarcada',  color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd' }
+  PENDENTE:               { label: 'Agendada',               color: '#ca8a04', bg: '#fefce8', border: '#fde047' },
+  CONFIRMADA:             { label: 'Confirmada',             color: '#4B8EC8', bg: '#EBF4FF', border: '#C3DCFC' },
+  REALIZADA:              { label: 'Realizada',              color: '#16a34a', bg: '#dcfce7', border: '#86efac' },
+  CANCELADA:              { label: 'Cancelada',              color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+  REMARCADA:              { label: 'Reagendada',             color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd' },
+  CLIENTE_NAO_COMPARECEU: { label: 'Não compareceu',         color: '#9a3412', bg: '#fff7ed', border: '#fed7aa' },
+  AGUARDANDO_RETORNO:     { label: 'Aguardando retorno',     color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4' }
 };
 
-const RESUMO_TEMPLATE = `Prezado(a) [NOME],
+const DURACAO_OPCOES = [
+  { value: 15,  label: '15 min' },
+  { value: 30,  label: '30 min' },
+  { value: 45,  label: '45 min' },
+  { value: 60,  label: '1 hora' },
+  { value: 90,  label: '1h 30min' },
+  { value: 120, label: '2 horas' },
+  { value: 180, label: '3 horas' },
+];
 
-Sua reunião com a equipe ProSystem está confirmada para [DATA] às [HORA].
+// ─── WhatsApp Templates ───────────────────────────────────
 
-⚠️ É muito importante a sua presença nesta reunião. Caso seja necessária ausência ou adiamento, pedimos que nos informe com antecedência para que possamos reorganizar a agenda e atendê-lo(a) com mais qualidade e satisfação.
+function buildWhatsApp(template: number, atividade: Partial<Atividade> & { nome?: string; data_prevista?: string; duracao_minutos?: number; google_meet_link?: string }) {
+  const nome = atividade.lead?.nome || atividade.nome || '[NOME]';
+  const data = atividade.data_prevista ? new Date(atividade.data_prevista).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }) : '[DATA]';
+  const hora = atividade.data_prevista ? new Date(atividade.data_prevista).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '[HORA]';
+  const dur = atividade.duracao_minutos ? DURACAO_OPCOES.find(d => d.value === atividade.duracao_minutos)?.label || `${atividade.duracao_minutos} min` : '';
+  const meet = atividade.google_meet_link || '';
 
-Você pode entrar em contato pelos nossos canais:
-📱 WhatsApp: [TELEFONE]
-📧 E-mail: [EMAIL]
-
-Aguardamos você!
-
-Equipe ProSystem™`;
+  if (template === 1) {
+    return `Olá ${nome}! 👋\n\nConfirmamos sua reunião com a equipe ProSystem:\n📅 ${data}\n🕐 ${hora}${dur ? `\n⏱ Duração: ${dur}` : ''}${meet ? `\n💻 Link: ${meet}` : ''}\n\nQualquer dúvida, estamos à disposição!\nEquipe ProSystem™`;
+  }
+  if (template === 2) {
+    return `Olá ${nome}! ⏰\n\n*Lembrete:* Amanhã você tem reunião com a ProSystem!\n📅 ${data}\n🕐 ${hora}${meet ? `\n🔗 ${meet}` : ''}\n\nConfirme sua presença respondendo essa mensagem. 😊\nEquipe ProSystem™`;
+  }
+  return `Olá ${nome}! 😊\n\nObrigado por participar da nossa reunião hoje!\n\n${atividade.resumo_reuniao ? `📋 *Resumo:*\n${atividade.resumo_reuniao}\n\n` : ''}Em caso de dúvidas, estamos à disposição.\n\nEquipe ProSystem™`;
+}
 
 // ─── Sub-components ───────────────────────────────────────
 
@@ -112,6 +128,27 @@ function formatTime(d?: string) {
   return new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <button onClick={copy} title="Copiar mensagem"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+        border: '1px solid #C3DCFC', background: copied ? '#dcfce7' : '#fff',
+        color: copied ? '#16a34a' : '#4B8EC8', cursor: 'pointer'
+      }}>
+      <Copy size={11} /> {copied ? 'Copiado!' : 'Copiar'}
+    </button>
+  );
+}
+
 // ─── Modal wrapper ────────────────────────────────────────
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
@@ -122,9 +159,9 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
       background: 'rgba(13,34,56,0.45)', backdropFilter: 'blur(4px)', padding: 16
     }}>
       <div style={{
-        background: '#fff', borderRadius: 16, width: '100%', maxWidth: wide ? 680 : 520,
+        background: '#fff', borderRadius: 16, width: '100%', maxWidth: wide ? 720 : 540,
         boxShadow: '0 20px 60px rgba(13,34,56,0.2)',
-        maxHeight: '90vh', display: 'flex', flexDirection: 'column'
+        maxHeight: '92vh', display: 'flex', flexDirection: 'column'
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -142,10 +179,80 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
   );
 }
 
+// ─── WhatsApp Panel ───────────────────────────────────────
+
+function WhatsAppPanel({ atividade }: { atividade: Partial<Atividade> }) {
+  const [activeTab, setActiveTab] = useState(1);
+  const rawTel = atividade.lead?.telefone?.replace(/\D/g, '') || '';
+  const telefone = rawTel.startsWith('55') ? rawTel : rawTel ? `55${rawTel}` : '';
+  const msg = buildWhatsApp(activeTab, atividade);
+  const waUrl = `https://wa.me/${telefone}?text=${encodeURIComponent(msg)}`;
+
+  const TABS = [
+    { id: 1, label: '✅ Confirmação' },
+    { id: 2, label: '⏰ Lembrete D-1' },
+    { id: 3, label: '📋 Pós-reunião' }
+  ];
+
+  return (
+    <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 10, padding: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <MessageCircle size={14} color="#16a34a" />
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>Mensagens WhatsApp</span>
+        {atividade.google_meet_link && (
+          <span style={{ fontSize: 10, background: '#dcfce7', color: '#16a34a', padding: '2px 7px', borderRadius: 20, fontWeight: 600 }}>
+            Link Meet incluído ✓
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            style={{
+              padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+              border: 'none', cursor: 'pointer',
+              background: activeTab === t.id ? '#16a34a' : '#dcfce7',
+              color: activeTab === t.id ? '#fff' : '#16a34a'
+            }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <pre style={{
+        fontSize: 12, lineHeight: 1.8, color: '#0D2238',
+        background: '#fff', borderRadius: 8, padding: '12px 14px',
+        border: '1px solid #86efac', whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit'
+      }}>
+        {msg}
+      </pre>
+      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+        <CopyButton text={msg} />
+        <a href={waUrl} target="_blank" rel="noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+            border: 'none', background: '#25D366', color: '#fff',
+            textDecoration: 'none', cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(37,211,102,0.3)'
+          }}>
+          <MessageCircle size={13} />
+          {telefone ? `Enviar para ${atividade.lead?.nome?.split(' ')[0] || 'cliente'}` : 'Abrir WhatsApp'}
+        </a>
+      </div>
+      {!telefone && (
+        <p style={{ fontSize: 10, color: '#7AAACB', marginTop: 6 }}>
+          Sem telefone cadastrado — mensagem abrirá sem número pré-preenchido.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── Atividade Detail component ───────────────────────────
 
 function AtividadeDetail({
-  atividade, onConcluir, onCancelar, onRemarcar, onCriarMeet, onConfirmar, creatinguMeet
+  atividade, onConcluir, onCancelar, onRemarcar, onCriarMeet, onConfirmar,
+  onNaoCompareceu, onAguardarRetorno, creatinguMeet
 }: {
   atividade: Atividade;
   onConcluir: () => void;
@@ -153,6 +260,8 @@ function AtividadeDetail({
   onRemarcar: () => void;
   onCriarMeet: () => void;
   onConfirmar: () => void;
+  onNaoCompareceu: () => void;
+  onAguardarRetorno: () => void;
   creatinguMeet: boolean;
 }) {
   const cfg = TIPO_CONFIG[atividade.tipo] || TIPO_CONFIG.OUTRO;
@@ -187,8 +296,8 @@ function AtividadeDetail({
         {atividade.lead?.telefone && row('Telefone', atividade.lead.telefone)}
         {row('Data prevista', formatDateTime(atividade.data_prevista))}
         {atividade.data_realizada && row('Realizada em', formatDateTime(atividade.data_realizada))}
-        {atividade.duracao_minutos && row('Duração', `${atividade.duracao_minutos} minutos`)}
-        {atividade.nova_data_remarcada && row('Remarcado para', formatDateTime(atividade.nova_data_remarcada))}
+        {atividade.duracao_minutos && row('Duração', DURACAO_OPCOES.find(d => d.value === atividade.duracao_minutos)?.label || `${atividade.duracao_minutos} min`)}
+        {atividade.nova_data_remarcada && row('Reagendado para', formatDateTime(atividade.nova_data_remarcada))}
       </div>
 
       {atividade.descricao && (
@@ -196,15 +305,6 @@ function AtividadeDetail({
           <div style={{ fontSize: 12, fontWeight: 600, color: '#4A6E8A', marginBottom: 6 }}>Descrição</div>
           <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, background: '#F4F7FB', borderRadius: 8, padding: '10px 12px' }}>
             {atividade.descricao}
-          </div>
-        </div>
-      )}
-
-      {atividade.resumo_reuniao && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#4A6E8A', marginBottom: 6 }}>Resumo / Mensagem para o cliente</div>
-          <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.7, background: '#EBF4FF', borderRadius: 8, padding: '12px 14px', whiteSpace: 'pre-wrap', border: '1px solid #C3DCFC' }}>
-            {atividade.resumo_reuniao}
           </div>
         </div>
       )}
@@ -241,6 +341,13 @@ function AtividadeDetail({
         </div>
       )}
 
+      {/* WhatsApp templates - show for active meetings with phone */}
+      {isActive && atividade.tipo === 'REUNIAO' && atividade.lead && (
+        <div style={{ marginBottom: 16 }}>
+          <WhatsAppPanel atividade={atividade} />
+        </div>
+      )}
+
       {isActive && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid #D8E8F5', paddingTop: 16, marginTop: 8 }}>
           {atividade.tipo === 'REUNIAO' && !atividade.google_meet_link && (
@@ -271,13 +378,29 @@ function AtividadeDetail({
             }}>
             <CheckCircle2 size={13} /> Concluído
           </button>
+          <button onClick={onNaoCompareceu}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+              borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              color: '#fff', background: 'linear-gradient(135deg, #ea580c, #c2410c)', border: 'none'
+            }}>
+            <UserX size={13} /> Não compareceu
+          </button>
+          <button onClick={onAguardarRetorno}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+              borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              color: '#fff', background: 'linear-gradient(135deg, #0f766e, #0d9488)', border: 'none'
+            }}>
+            <Hourglass size={13} /> Aguardar retorno
+          </button>
           <button onClick={onRemarcar}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
               borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               color: '#fff', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', border: 'none'
             }}>
-            <RotateCcw size={13} /> Remarcar
+            <RotateCcw size={13} /> Reagendar
           </button>
           <button onClick={onCancelar}
             style={{
@@ -298,8 +421,8 @@ function AtividadeDetail({
 export default function AgendaPage() {
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'semana' | 'lista' | 'relatorio'>('semana');
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [view, setView] = useState<'mes' | 'semana' | 'lista' | 'relatorio'>('semana');
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
   const [search, setSearch] = useState('');
@@ -313,8 +436,13 @@ export default function AgendaPage() {
 
   const [formData, setFormData] = useState({
     titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '',
-    resumo_reuniao: RESUMO_TEMPLATE, data_prevista: '', responsavel_id: ''
+    resumo_reuniao: '', data_prevista: '', responsavel_id: '',
+    duracao_minutos: 60
   });
+  const [meetLinkForm, setMeetLinkForm] = useState('');
+  const [generatingMeet, setGeneratingMeet] = useState(false);
+  const [meetError, setMeetError] = useState('');
+  const [showWaPreview, setShowWaPreview] = useState(false);
   const [concluirForm, setConcluirForm] = useState({ resultado: '', duracao_minutos: '' });
   const [cancelarForm, setCancelarForm] = useState({ motivo_cancelamento: '' });
   const [remarcarForm, setRemarcarForm] = useState({ nova_data_remarcada: '', motivo: '' });
@@ -327,7 +455,7 @@ export default function AgendaPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { limit: 200 };
+      const params: any = { limit: 300 };
       if (filterStatus) params.status = filterStatus;
       if (filterTipo) params.tipo = filterTipo;
       const res = await apiClient.getAtividades(params);
@@ -339,14 +467,15 @@ export default function AgendaPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    apiClient.getLeads({ limit: 100 }).then(r => setLeads(r.data.data?.leads || [])).catch(() => {});
+    apiClient.getLeads({ limit: 200 }).then(r => setLeads(r.data.data?.leads || [])).catch(() => {});
     apiClient.getGoogleStatus().then(r => setGoogleConnected(r.data.data?.connected)).catch(() => {});
     const params = new URLSearchParams(window.location.search);
     if (params.get('google_connected')) { setGoogleConnected(true); window.history.replaceState({}, '', '/agenda'); }
   }, []);
 
+  // ── Week helpers ──────────────────────────────────────────
   const getWeekDays = () => {
-    const start = new Date(currentWeek);
+    const start = new Date(currentDate);
     start.setDate(start.getDate() - start.getDay() + 1);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
@@ -355,8 +484,25 @@ export default function AgendaPage() {
     });
   };
 
+  // ── Month helpers ─────────────────────────────────────────
+  const getMonthGrid = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    // Start from Monday
+    let startDow = firstDay.getDay(); // 0=Sun
+    if (startDow === 0) startDow = 7;
+    const days: (Date | null)[] = [];
+    for (let i = 1; i < startDow; i++) days.push(null);
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, month, d));
+    while (days.length % 7 !== 0) days.push(null);
+    return days;
+  };
+
   const weekDays = getWeekDays();
   const DAY_NAMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  const today = new Date();
 
   const atividadesForDay = (day: Date) =>
     atividades.filter(a => {
@@ -368,17 +514,63 @@ export default function AgendaPage() {
   const filteredLista = atividades.filter(a => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return a.titulo.toLowerCase().includes(s) || a.lead?.nome?.toLowerCase().includes(s) || (a.lead?.empresa?.toLowerCase().includes(s) ?? false);
+    return a.titulo.toLowerCase().includes(s) || (a.lead?.nome?.toLowerCase().includes(s) ?? false) || (a.lead?.empresa?.toLowerCase().includes(s) ?? false);
   });
+
+  // ── Handlers ─────────────────────────────────────────────
+  const handleGerarMeetForm = async () => {
+    if (!formData.titulo || !formData.data_prevista) {
+      setMeetError('Preencha o título e a data antes de gerar o link.');
+      return;
+    }
+    setGeneratingMeet(true);
+    setMeetError('');
+    try {
+      const lead = leads.find((l: any) => l.id === formData.lead_id);
+      const res = await apiClient.criarMeetTemp({
+        titulo: formData.titulo,
+        data_prevista: new Date(formData.data_prevista).toISOString(),
+        duracao_minutos: formData.duracao_minutos,
+        lead_email: lead?.email || undefined
+      });
+      if (res.data.data?.need_auth) {
+        const authRes = await apiClient.getGoogleAuthUrl();
+        window.location.href = authRes.data.data.auth_url;
+        return;
+      }
+      const link = res.data.data?.meet_link || '';
+      if (link) {
+        setMeetLinkForm(link);
+        setShowWaPreview(true);
+      } else {
+        setMeetError('Link não retornado. Tente conectar o Google novamente ou cole o link manualmente.');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || '';
+      const detail = err?.response?.data?.details || '';
+      const needAuth = err?.response?.data?.need_auth;
+      if (needAuth) {
+        setMeetError('Google Calendar não conectado ou token expirado. Clique em "Conectar Google" no topo da página.');
+      } else {
+        setMeetError(`${msg}${detail ? ` — ${detail}` : ''}`  || 'Erro ao gerar link. Conecte o Google Calendar ou cole o link manualmente.');
+      }
+    }
+    setGeneratingMeet(false);
+  };
 
   const handleCreate = async () => {
     setSaving(true);
     try {
       const data: any = { ...formData };
       if (data.data_prevista) data.data_prevista = new Date(data.data_prevista).toISOString();
+      if (!data.duracao_minutos) delete data.duracao_minutos;
+      if (meetLinkForm) data.google_meet_link = meetLinkForm;
       await apiClient.createAtividade(data);
       setShowCreate(false);
-      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: RESUMO_TEMPLATE, data_prevista: '', responsavel_id: '' });
+      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: '', duracao_minutos: 60 });
+      setMeetLinkForm('');
+      setMeetError('');
+      setShowWaPreview(false);
       load();
     } catch { /* ignore */ }
     setSaving(false);
@@ -431,6 +623,16 @@ export default function AgendaPage() {
     load();
   };
 
+  const handleNaoCompareceu = async (id: string) => {
+    await apiClient.naoCompareceuAtividade(id);
+    load();
+  };
+
+  const handleAguardarRetorno = async (id: string) => {
+    await apiClient.aguardarRetornoAtividade(id);
+    load();
+  };
+
   const handleCriarMeet = async (id: string) => {
     setCreatingMeet(id);
     try {
@@ -439,6 +641,11 @@ export default function AgendaPage() {
         const authRes = await apiClient.getGoogleAuthUrl();
         window.location.href = authRes.data.data.auth_url;
         return;
+      }
+      const meetLink: string = res.data.data?.meet_link || '';
+      if (meetLink) {
+        setShowDetail(prev => prev?.id === id ? { ...prev, google_meet_link: meetLink } : prev);
+        setAtividades(prev => prev.map(a => a.id === id ? { ...a, google_meet_link: meetLink } : a));
       }
       load();
     } catch { /* ignore */ }
@@ -466,6 +673,18 @@ export default function AgendaPage() {
 
   useEffect(() => { if (view === 'relatorio') loadRelatorio(); }, [view]);
 
+  // ── Helpers for creating the WhatsApp preview lead ────────
+  const selectedLead = leads.find((l: any) => l.id === formData.lead_id);
+  const previewAtividade: Partial<Atividade> = {
+    titulo: formData.titulo,
+    data_prevista: formData.data_prevista ? new Date(formData.data_prevista).toISOString() : undefined,
+    duracao_minutos: formData.duracao_minutos,
+    resumo_reuniao: formData.resumo_reuniao,
+    google_meet_link: meetLinkForm || undefined,
+    lead: selectedLead ? { id: selectedLead.id, nome: selectedLead.nome, telefone: selectedLead.telefone, empresa: selectedLead.empresa } : undefined
+  };
+
+  // ── Styles ────────────────────────────────────────────────
   const card: React.CSSProperties = {
     background: '#fff', border: '1px solid #D8E8F5',
     borderRadius: 12, boxShadow: '0 1px 3px rgba(13,34,56,0.06)'
@@ -493,7 +712,27 @@ export default function AgendaPage() {
 
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#4A6E8A', marginBottom: 4 };
 
-  const today = new Date();
+  // ── Navigate month/week ───────────────────────────────────
+  const prevPeriod = () => {
+    const d = new Date(currentDate);
+    if (view === 'mes') d.setMonth(d.getMonth() - 1);
+    else d.setDate(d.getDate() - 7);
+    setCurrentDate(d);
+  };
+  const nextPeriod = () => {
+    const d = new Date(currentDate);
+    if (view === 'mes') d.setMonth(d.getMonth() + 1);
+    else d.setDate(d.getDate() + 7);
+    setCurrentDate(d);
+  };
+
+  const periodLabel = () => {
+    if (view === 'mes') {
+      return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    }
+    const days = getWeekDays();
+    return `${days[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${days[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+  };
 
   return (
     <DashboardLayout>
@@ -503,7 +742,7 @@ export default function AgendaPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0D2238', marginBottom: 2 }}>Agenda</h1>
-            <p style={{ fontSize: 13, color: '#4A6E8A' }}>Gerencie reuniões, tarefas e atividades com integração Google Calendar</p>
+            <p style={{ fontSize: 13, color: '#4A6E8A' }}>Reuniões, atividades e integração com Google Calendar e WhatsApp</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button
@@ -526,7 +765,7 @@ export default function AgendaPage() {
         {/* View tabs + filters */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', gap: 4, background: '#E8F0F8', borderRadius: 8, padding: 4 }}>
-            {(['semana', 'lista', 'relatorio'] as const).map(v => (
+            {(['mes', 'semana', 'lista', 'relatorio'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
                 style={{
                   padding: '6px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600,
@@ -535,7 +774,7 @@ export default function AgendaPage() {
                   color: view === v ? '#4B8EC8' : '#4A6E8A',
                   boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
                 }}>
-                {v === 'semana' ? 'Semana' : v === 'lista' ? 'Lista' : 'Relatório'}
+                {v === 'mes' ? 'Mês' : v === 'semana' ? 'Semana' : v === 'lista' ? 'Lista' : 'Relatório'}
               </button>
             ))}
           </div>
@@ -563,96 +802,134 @@ export default function AgendaPage() {
           )}
         </div>
 
-        {/* ── SEMANA VIEW ── */}
-        {view === 'semana' && (
+        {/* ── MÊS VIEW ── */}
+        {(view === 'mes' || view === 'semana') && (
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #D8E8F5' }}>
-              <button onClick={() => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d); }}
-                style={{ ...btnOutline, padding: '6px 12px' }}>
+              <button onClick={prevPeriod} style={{ ...btnOutline, padding: '6px 12px' }}>
                 <ChevronLeft size={14} />
               </button>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#0D2238' }}>
-                {weekDays[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} –{' '}
-                {weekDays[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#0D2238', textTransform: 'capitalize' }}>
+                {periodLabel()}
               </span>
-              <button onClick={() => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d); }}
-                style={{ ...btnOutline, padding: '6px 12px' }}>
+              <button onClick={nextPeriod} style={{ ...btnOutline, padding: '6px 12px' }}>
                 <ChevronRight size={14} />
               </button>
             </div>
 
+            {/* Day headers */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #EBF4FF' }}>
-              {weekDays.map((day, i) => {
-                const isToday = day.toDateString() === today.toDateString();
-                return (
-                  <div key={i} style={{
-                    padding: '10px 8px', textAlign: 'center',
-                    borderRight: i < 6 ? '1px solid #EBF4FF' : 'none',
-                    background: isToday ? '#EBF4FF' : 'transparent'
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#7AAACB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{DAY_NAMES[i]}</div>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%', margin: '4px auto 0',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 14, fontWeight: 700,
-                      background: isToday ? '#4B8EC8' : 'transparent',
-                      color: isToday ? '#fff' : '#0D2238'
-                    }}>{day.getDate()}</div>
-                  </div>
-                );
-              })}
+              {DAY_NAMES.map((name, i) => (
+                <div key={i} style={{
+                  padding: '8px 6px', textAlign: 'center',
+                  borderRight: i < 6 ? '1px solid #EBF4FF' : 'none'
+                }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#7AAACB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{name}</span>
+                </div>
+              ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 400 }}>
-              {weekDays.map((day, i) => {
-                const dayAtividades = atividadesForDay(day);
-                const isToday = day.toDateString() === today.toDateString();
-                return (
-                  <div key={i} style={{
-                    borderRight: i < 6 ? '1px solid #EBF4FF' : 'none',
-                    padding: '8px 6px', background: isToday ? '#FAFCFF' : 'transparent',
-                    minHeight: 400
-                  }}>
-                    {dayAtividades.map(a => {
-                      const cfg = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.OUTRO;
-                      const sCfg = STATUS_CONFIG[a.status] || STATUS_CONFIG.PENDENTE;
-                      const Icon = cfg.icon;
-                      return (
-                        <div key={a.id}
-                          onClick={() => setShowDetail(a)}
-                          style={{
-                            marginBottom: 6, padding: '6px 8px', borderRadius: 8, cursor: 'pointer',
-                            background: cfg.bg, border: `1.5px solid ${sCfg.border}`,
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                            <Icon size={11} color={cfg.color} />
-                            <span style={{ fontSize: 10, fontWeight: 600, color: cfg.color }}>{formatTime(a.data_prevista)}</span>
+            {view === 'semana' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 400 }}>
+                {weekDays.map((day, i) => {
+                  const dayAtividades = atividadesForDay(day);
+                  const isToday = day.toDateString() === today.toDateString();
+                  return (
+                    <div key={i} style={{
+                      borderRight: i < 6 ? '1px solid #EBF4FF' : 'none',
+                      padding: '8px 6px', background: isToday ? '#FAFCFF' : 'transparent',
+                      minHeight: 400
+                    }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', margin: '0 auto 6px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 700,
+                        background: isToday ? '#4B8EC8' : 'transparent',
+                        color: isToday ? '#fff' : '#0D2238'
+                      }}>{day.getDate()}</div>
+                      {dayAtividades.map(a => {
+                        const cfg = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.OUTRO;
+                        const sCfg = STATUS_CONFIG[a.status] || STATUS_CONFIG.PENDENTE;
+                        const Icon = cfg.icon;
+                        return (
+                          <div key={a.id} onClick={() => setShowDetail(a)}
+                            style={{ marginBottom: 6, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', background: cfg.bg, border: `1.5px solid ${sCfg.border}` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                              <Icon size={11} color={cfg.color} />
+                              <span style={{ fontSize: 10, fontWeight: 600, color: cfg.color }}>{formatTime(a.data_prevista)}</span>
+                            </div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2238', lineHeight: 1.3 }} title={a.titulo}>
+                              {a.titulo.length > 22 ? a.titulo.slice(0, 22) + '…' : a.titulo}
+                            </div>
+                            {a.lead && <div style={{ fontSize: 10, color: '#4A6E8A' }}>{a.lead.nome}</div>}
+                            {a.google_meet_link && (
+                              <a href={a.google_meet_link} target="_blank" rel="noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 10, color: '#4B8EC8', textDecoration: 'none' }}>
+                                <Video size={9} /> Meet
+                              </a>
+                            )}
                           </div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2238', lineHeight: 1.3, marginBottom: 2 }}
-                            title={a.titulo}>
-                            {a.titulo.length > 24 ? a.titulo.slice(0, 24) + '…' : a.titulo}
-                          </div>
-                          {a.lead && <div style={{ fontSize: 10, color: '#4A6E8A' }}>{a.lead.nome}</div>}
-                          {a.google_meet_link && (
-                            <a href={a.google_meet_link} target="_blank" rel="noreferrer"
-                              onClick={e => e.stopPropagation()}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 10, color: '#4B8EC8', textDecoration: 'none' }}>
-                              <Video size={9} /> Meet
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {dayAtividades.length === 0 && (
-                      <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 11, color: '#D8E8F5' }}>—</span>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {view === 'mes' && (() => {
+              const grid = getMonthGrid();
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                  {grid.map((day, i) => {
+                    if (!day) return (
+                      <div key={i} style={{
+                        borderRight: i % 7 < 6 ? '1px solid #EBF4FF' : 'none',
+                        borderBottom: '1px solid #EBF4FF',
+                        minHeight: 90, background: '#FAFAFA'
+                      }} />
+                    );
+                    const dayAtividades = atividadesForDay(day);
+                    const isToday = day.toDateString() === today.toDateString();
+                    const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                    return (
+                      <div key={i} style={{
+                        borderRight: i % 7 < 6 ? '1px solid #EBF4FF' : 'none',
+                        borderBottom: '1px solid #EBF4FF',
+                        padding: '6px 5px', minHeight: 90,
+                        background: isToday ? '#FAFCFF' : isCurrentMonth ? '#fff' : '#FAFAFA'
+                      }}>
+                        <div style={{
+                          width: 24, height: 24, borderRadius: '50%', marginBottom: 4,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: isToday ? 700 : 500,
+                          background: isToday ? '#4B8EC8' : 'transparent',
+                          color: isToday ? '#fff' : isCurrentMonth ? '#0D2238' : '#C3DCFC'
+                        }}>{day.getDate()}</div>
+                        {dayAtividades.slice(0, 3).map(a => {
+                          const cfg = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.OUTRO;
+                          return (
+                            <div key={a.id} onClick={() => setShowDetail(a)}
+                              style={{
+                                marginBottom: 2, padding: '2px 5px', borderRadius: 4, cursor: 'pointer',
+                                background: cfg.bg, fontSize: 10, fontWeight: 600,
+                                color: cfg.color, lineHeight: 1.4,
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                              }} title={a.titulo}>
+                              {formatTime(a.data_prevista)} {a.titulo}
+                            </div>
+                          );
+                        })}
+                        {dayAtividades.length > 3 && (
+                          <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 600 }}>+{dayAtividades.length - 3} mais</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -671,18 +948,10 @@ export default function AgendaPage() {
               const Icon = cfg.icon;
               const isActive = a.status === 'PENDENTE' || a.status === 'CONFIRMADA';
               return (
-                <div key={a.id} style={{
-                  ...card, padding: '14px 16px',
-                  display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap'
-                }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: cfg.bg
-                  }}>
+                <div key={a.id} style={{ ...card, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: cfg.bg }}>
                     <Icon size={18} color={cfg.color} />
                   </div>
-
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                       <span style={{ fontSize: 14, fontWeight: 600, color: '#0D2238' }}>{a.titulo}</span>
@@ -704,41 +973,32 @@ export default function AgendaPage() {
                       )}
                     </div>
                   </div>
-
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
                     {isActive && a.tipo === 'REUNIAO' && !a.google_meet_link && (
-                      <button
-                        onClick={() => handleCriarMeet(a.id)}
-                        disabled={creatinguMeet === a.id}
+                      <button onClick={() => handleCriarMeet(a.id)} disabled={creatinguMeet === a.id}
                         style={{ ...btnOutline, padding: '5px 10px', fontSize: 12 }}>
-                        <Video size={12} />
-                        {creatinguMeet === a.id ? '...' : 'Meet'}
+                        <Video size={12} />{creatinguMeet === a.id ? '...' : 'Meet'}
                       </button>
                     )}
                     {isActive && a.status === 'PENDENTE' && (
-                      <button onClick={() => handleConfirmar(a.id)}
-                        style={{ ...btnOutline, padding: '5px 10px', fontSize: 12 }}>
+                      <button onClick={() => handleConfirmar(a.id)} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12 }}>
                         <Check size={12} /> Confirmar
                       </button>
                     )}
                     {isActive && (
                       <>
-                        <button onClick={() => setShowConcluir(a)}
-                          style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#16a34a', border: '1.5px solid #86efac' }}>
-                          <CheckCircle2 size={12} /> Concluído
+                        <button onClick={() => setShowConcluir(a)} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#16a34a', border: '1.5px solid #86efac' }}>
+                          <CheckCircle2 size={12} />
                         </button>
-                        <button onClick={() => setShowRemarcar(a)}
-                          style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#7c3aed', border: '1.5px solid #c4b5fd' }}>
-                          <RotateCcw size={12} /> Remarcar
+                        <button onClick={() => setShowRemarcar(a)} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#7c3aed', border: '1.5px solid #c4b5fd' }}>
+                          <RotateCcw size={12} />
                         </button>
-                        <button onClick={() => setShowCancelar(a)}
-                          style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#dc2626', border: '1.5px solid #fca5a5' }}>
-                          <XCircle size={12} /> Cancelar
+                        <button onClick={() => setShowCancelar(a)} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#dc2626', border: '1.5px solid #fca5a5' }}>
+                          <XCircle size={12} />
                         </button>
                       </>
                     )}
-                    <button onClick={() => setShowDetail(a)}
-                      style={{ ...btnOutline, padding: '5px 10px', fontSize: 12 }}>
+                    <button onClick={() => setShowDetail(a)} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12 }}>
                       Ver
                     </button>
                   </div>
@@ -755,30 +1015,22 @@ export default function AgendaPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 12 }}>
                 <div>
                   <label style={labelStyle}>Data início</label>
-                  <input type="date" value={relFiltros.data_inicio}
-                    onChange={e => setRelFiltros(p => ({ ...p, data_inicio: e.target.value }))}
-                    style={inputStyle} />
+                  <input type="date" value={relFiltros.data_inicio} onChange={e => setRelFiltros(p => ({ ...p, data_inicio: e.target.value }))} style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Data fim</label>
-                  <input type="date" value={relFiltros.data_fim}
-                    onChange={e => setRelFiltros(p => ({ ...p, data_fim: e.target.value }))}
-                    style={inputStyle} />
+                  <input type="date" value={relFiltros.data_fim} onChange={e => setRelFiltros(p => ({ ...p, data_fim: e.target.value }))} style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Status</label>
-                  <select value={relFiltros.status}
-                    onChange={e => setRelFiltros(p => ({ ...p, status: e.target.value }))}
-                    style={inputStyle}>
+                  <select value={relFiltros.status} onChange={e => setRelFiltros(p => ({ ...p, status: e.target.value }))} style={inputStyle}>
                     <option value="">Todos</option>
                     {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={labelStyle}>Tipo</label>
-                  <select value={relFiltros.tipo}
-                    onChange={e => setRelFiltros(p => ({ ...p, tipo: e.target.value }))}
-                    style={inputStyle}>
+                  <select value={relFiltros.tipo} onChange={e => setRelFiltros(p => ({ ...p, tipo: e.target.value }))} style={inputStyle}>
                     <option value="">Todos</option>
                     {Object.entries(TIPO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
@@ -791,14 +1043,14 @@ export default function AgendaPage() {
 
             {relatorio && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                   {[
                     { label: 'Total', value: relatorio.total, icon: BarChart2, color: '#4B8EC8' },
                     { label: 'Reuniões', value: relatorio.reunioes_total, icon: Video, color: '#7c3aed' },
                     { label: 'Realizadas', value: relatorio.reunioes_realizadas, icon: CheckCircle2, color: '#16a34a' },
                     { label: 'Canceladas', value: relatorio.reunioes_canceladas, icon: XCircle, color: '#dc2626' },
-                    { label: 'Remarcadas', value: relatorio.reunioes_remarcadas, icon: RotateCcw, color: '#ea580c' },
-                    { label: 'Horas em reunião', value: relatorio.duracao_total_horas + 'h', icon: Clock, color: '#0891b2' },
+                    { label: 'Reagendadas', value: relatorio.reunioes_remarcadas, icon: RotateCcw, color: '#ea580c' },
+                    { label: 'Horas em reunião', value: (relatorio.duracao_total_horas || 0) + 'h', icon: Clock, color: '#0891b2' },
                   ].map((k, i) => {
                     const Icon = k.icon;
                     return (
@@ -854,50 +1106,141 @@ export default function AgendaPage() {
 
       {/* ══ MODAL: Create ════════════════════════════════════════ */}
       {showCreate && (
-        <Modal title="Nova Atividade" onClose={() => setShowCreate(false)}>
+        <Modal title="Nova Atividade / Reunião" onClose={() => setShowCreate(false)} wide>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <label style={labelStyle}>Tipo</label>
+                <label style={labelStyle}>Tipo *</label>
                 <select value={formData.tipo} onChange={e => setFormData(p => ({ ...p, tipo: e.target.value }))} style={inputStyle}>
                   {Object.entries(TIPO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Data e Hora</label>
+                <label style={labelStyle}>Data e Hora *</label>
                 <input type="datetime-local" value={formData.data_prevista}
                   onChange={e => setFormData(p => ({ ...p, data_prevista: e.target.value }))} style={inputStyle} />
               </div>
             </div>
+
             <div>
               <label style={labelStyle}>Título *</label>
               <input placeholder="Ex: Reunião de apresentação do sistema" value={formData.titulo}
                 onChange={e => setFormData(p => ({ ...p, titulo: e.target.value }))} style={inputStyle} />
             </div>
-            <div>
-              <label style={labelStyle}>Lead / Contato</label>
-              <select value={formData.lead_id} onChange={e => setFormData(p => ({ ...p, lead_id: e.target.value }))} style={inputStyle}>
-                <option value="">Selecione...</option>
-                {leads.map((l: any) => <option key={l.id} value={l.id}>{l.nome}{l.empresa ? ` – ${l.empresa}` : ''}</option>)}
-              </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Lead / Contato *</label>
+                <select value={formData.lead_id} onChange={e => setFormData(p => ({ ...p, lead_id: e.target.value }))} style={inputStyle}>
+                  <option value="">Selecione...</option>
+                  {leads.map((l: any) => <option key={l.id} value={l.id}>{l.nome}{l.empresa ? ` – ${l.empresa}` : ''}</option>)}
+                </select>
+              </div>
+              {formData.tipo === 'REUNIAO' && (
+                <div>
+                  <label style={labelStyle}>Duração</label>
+                  <select value={formData.duracao_minutos}
+                    onChange={e => setFormData(p => ({ ...p, duracao_minutos: parseInt(e.target.value) }))} style={inputStyle}>
+                    {DURACAO_OPCOES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
+
             <div>
-              <label style={labelStyle}>Descrição</label>
+              <label style={labelStyle}>Descrição / Pauta</label>
               <textarea value={formData.descricao}
                 onChange={e => setFormData(p => ({ ...p, descricao: e.target.value }))}
-                rows={2} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Informações adicionais..." />
+                rows={2} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Pontos a tratar, informações adicionais..." />
             </div>
+
             {formData.tipo === 'REUNIAO' && (
               <div>
                 <label style={labelStyle}>
-                  Resumo da Reunião
-                  <span style={{ marginLeft: 6, fontSize: 10, color: '#7AAACB', fontWeight: 400 }}>Personalize para o cliente</span>
+                  Resumo / Pauta para o cliente
+                  <span style={{ marginLeft: 6, fontSize: 10, color: '#7AAACB', fontWeight: 400 }}>Aparece nas mensagens WhatsApp</span>
                 </label>
                 <textarea value={formData.resumo_reuniao}
                   onChange={e => setFormData(p => ({ ...p, resumo_reuniao: e.target.value }))}
-                  rows={8} style={{ ...inputStyle, resize: 'vertical', fontSize: 12, lineHeight: 1.6 }} />
+                  rows={2} style={{ ...inputStyle, resize: 'vertical', fontSize: 12, lineHeight: 1.6 }}
+                  placeholder="Descreva o objetivo da reunião para o cliente..." />
               </div>
             )}
+
+            {/* Google Meet link generator */}
+            {formData.tipo === 'REUNIAO' && (
+              <div style={{ background: '#EBF4FF', borderRadius: 10, padding: 14, border: '1px solid #C3DCFC' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: meetLinkForm ? 10 : 0 }}>
+                  <Video size={14} color="#4B8EC8" />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#4B8EC8', flex: 1 }}>Google Meet</span>
+                  {!meetLinkForm && (
+                    <button onClick={handleGerarMeetForm} disabled={generatingMeet || !formData.titulo || !formData.data_prevista}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        border: 'none', cursor: 'pointer',
+                        background: generatingMeet ? '#C3DCFC' : 'linear-gradient(135deg, #4B8EC8, #2E6EAB)',
+                        color: '#fff', opacity: (!formData.titulo || !formData.data_prevista) ? 0.5 : 1
+                      }}>
+                      <Video size={12} /> {generatingMeet ? 'Gerando...' : 'Gerar Link Meet'}
+                    </button>
+                  )}
+                </div>
+                {meetError && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: '#dc2626', padding: '8px 10px', background: '#fef2f2', borderRadius: 6, marginBottom: 8 }}>
+                      ⚠️ {meetError}
+                    </div>
+                    {/* Manual entry fallback */}
+                    <label style={{ ...labelStyle, marginBottom: 4 }}>Ou cole o link do Meet manualmente:</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input placeholder="https://meet.google.com/xxx-xxx-xxx" value={meetLinkForm}
+                        onChange={e => { setMeetLinkForm(e.target.value); if (e.target.value) { setMeetError(''); setShowWaPreview(true); } }}
+                        style={{ ...inputStyle, flex: 1, fontSize: 12 }} />
+                    </div>
+                  </div>
+                )}
+                {meetLinkForm && !meetError && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                    <a href={meetLinkForm} target="_blank" rel="noreferrer"
+                      style={{ fontSize: 12, color: '#4B8EC8', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Video size={12} /> {meetLinkForm}
+                    </a>
+                    <CopyButton text={meetLinkForm} />
+                    <button onClick={() => { setMeetLinkForm(''); setMeetError(''); }}
+                      style={{ fontSize: 11, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>
+                      Remover
+                    </button>
+                  </div>
+                )}
+                {!meetLinkForm && !meetError && !formData.titulo && (
+                  <p style={{ fontSize: 11, color: '#7AAACB', marginTop: 6 }}>Preencha o título e a data para gerar o link.</p>
+                )}
+              </div>
+            )}
+
+            {/* WhatsApp messages — auto-show when lead selected */}
+            {formData.tipo === 'REUNIAO' && formData.lead_id && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#16a34a' }}>Mensagens WhatsApp</span>
+                  <button onClick={() => setShowWaPreview(v => !v)}
+                    style={{ fontSize: 11, color: '#7AAACB', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    {showWaPreview ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                </div>
+                {(showWaPreview || meetLinkForm) && (
+                  <WhatsAppPanel atividade={previewAtividade} />
+                )}
+                {!showWaPreview && !meetLinkForm && (
+                  <button onClick={() => setShowWaPreview(true)}
+                    style={{ ...btnOutline, color: '#16a34a', border: '1.5px solid #86efac', fontSize: 12, padding: '6px 12px', width: '100%', justifyContent: 'center' }}>
+                    <MessageCircle size={13} /> Ver mensagens WhatsApp
+                  </button>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
               <button style={btnOutline} onClick={() => setShowCreate(false)}>Cancelar</button>
               <button style={btnPrimary} onClick={handleCreate} disabled={saving || !formData.titulo || !formData.lead_id}>
@@ -925,10 +1268,21 @@ export default function AgendaPage() {
             </div>
             <div>
               <label style={labelStyle}>Duração (minutos)</label>
-              <input type="number" value={concluirForm.duracao_minutos} min={1} max={480}
+              <select value={concluirForm.duracao_minutos}
                 onChange={e => setConcluirForm(p => ({ ...p, duracao_minutos: e.target.value }))}
-                style={inputStyle} placeholder="Ex: 60" />
+                style={inputStyle}>
+                <option value="">Não informado</option>
+                {DURACAO_OPCOES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
             </div>
+            {showConcluir.tipo === 'REUNIAO' && showConcluir.lead && (
+              <div style={{ marginTop: 4 }}>
+                <WhatsAppPanel atividade={{
+                  ...showConcluir,
+                  resumo_reuniao: concluirForm.resultado || showConcluir.resumo_reuniao
+                }} />
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
               <button style={btnOutline} onClick={() => setShowConcluir(null)}>Cancelar</button>
               <button style={{ ...btnPrimary, background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
@@ -969,7 +1323,7 @@ export default function AgendaPage() {
 
       {/* ══ MODAL: Remarcar ══════════════════════════════════════ */}
       {showRemarcar && (
-        <Modal title="Remarcar Atividade" onClose={() => setShowRemarcar(null)}>
+        <Modal title="Reagendar Atividade" onClose={() => setShowRemarcar(null)}>
           <div style={{ marginBottom: 12, padding: 12, background: '#f5f3ff', borderRadius: 8 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#0D2238' }}>{showRemarcar.titulo}</div>
             {showRemarcar.data_prevista && (
@@ -996,7 +1350,7 @@ export default function AgendaPage() {
               <button style={btnOutline} onClick={() => setShowRemarcar(null)}>Cancelar</button>
               <button style={{ ...btnPrimary, background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}
                 onClick={handleRemarcar} disabled={saving || !remarcarForm.nova_data_remarcada}>
-                <RotateCcw size={13} /> {saving ? '...' : 'Remarcar'}
+                <RotateCcw size={13} /> {saving ? '...' : 'Reagendar'}
               </button>
             </div>
           </div>
@@ -1013,6 +1367,8 @@ export default function AgendaPage() {
             onRemarcar={() => { setShowDetail(null); setShowRemarcar(showDetail); }}
             onCriarMeet={() => handleCriarMeet(showDetail.id)}
             onConfirmar={() => { handleConfirmar(showDetail.id); setShowDetail(null); }}
+            onNaoCompareceu={() => { handleNaoCompareceu(showDetail.id); setShowDetail(null); }}
+            onAguardarRetorno={() => { handleAguardarRetorno(showDetail.id); setShowDetail(null); }}
             creatinguMeet={creatinguMeet === showDetail.id}
           />
         </Modal>

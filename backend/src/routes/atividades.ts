@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const STATUS = ['PENDENTE', 'CONFIRMADA', 'REALIZADA', 'CANCELADA', 'REMARCADA'] as const;
+const STATUS = ['PENDENTE', 'CONFIRMADA', 'REALIZADA', 'CANCELADA', 'REMARCADA', 'CLIENTE_NAO_COMPARECEU', 'AGUARDANDO_RETORNO'] as const;
 const TIPOS = ['LIGACAO', 'EMAIL', 'REUNIAO', 'WHATSAPP', 'VISITA', 'TAREFA', 'OUTRO'] as const;
 
 const CreateAtividadeSchema = z.object({
@@ -441,7 +441,46 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     return reply.send({ status: 'success', data: { connected: !!token } });
   });
 
-  // Create Google Meet link for a meeting
+  // Cliente não compareceu
+  fastify.post('/atividades/:id/nao-compareceu', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ observacao: z.string().optional() }).safeParse(request.body);
+    try {
+      const atividade = await prisma.atividade.update({
+        where: { id },
+        data: {
+          status: 'CLIENTE_NAO_COMPARECEU',
+          resultado: (body.success && body.data.observacao) ? body.data.observacao : 'Cliente não compareceu à reunião.',
+          data_realizada: new Date()
+        }
+      });
+      return reply.send({ status: 'success', data: atividade });
+    } catch (err: any) {
+      if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
+      throw err;
+    }
+  });
+
+  // Aguardar retorno
+  fastify.post('/atividades/:id/aguardar-retorno', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ observacao: z.string().optional() }).safeParse(request.body);
+    try {
+      const atividade = await prisma.atividade.update({
+        where: { id },
+        data: {
+          status: 'AGUARDANDO_RETORNO',
+          resultado: (body.success && body.data.observacao) ? body.data.observacao : 'Aguardando retorno do cliente.'
+        }
+      });
+      return reply.send({ status: 'success', data: atividade });
+    } catch (err: any) {
+      if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
+      throw err;
+    }
+  });
+
+  // Create Google Meet link for an existing atividade
   fastify.post('/atividades/:id/criar-meet', async (request, reply) => {
     const { id } = request.params as { id: string };
     const user = (request as any).user;
@@ -455,63 +494,189 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     if (!atividade) return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
     if (atividade.tipo !== 'REUNIAO') return reply.status(400).send({ status: 'error', message: 'Apenas reuniões podem ter link Meet' });
 
+    const startTime = atividade.data_prevista || new Date();
+    const endTime = new Date(startTime.getTime() + (atividade.duracao_minutos || 60) * 60 * 1000);
+
+    // 1) Tentar N8N primeiro
+    let meetLink = await callN8nMeet({
+      titulo: atividade.titulo,
+      data_prevista: startTime.toISOString(),
+      fim: endTime.toISOString(),
+      lead_email: atividade.lead?.email || undefined
+    });
+
+    let eventId = '';
+
+    // 2) Fallback: Google Calendar direto
+    if (!meetLink) {
+      const calToken = await getValidToken(userId);
+      if (!calToken) {
+        return reply.status(403).send({ status: 'error', message: 'Google Calendar não conectado e N8N não disponível.', need_auth: true });
+      }
+      try {
+        const result = await callGoogleMeetDirect({
+          titulo: atividade.titulo,
+          startTime, endTime,
+          lead_email: atividade.lead?.email || undefined,
+          token: calToken.access_token
+        });
+        if (result.error) {
+          return reply.status(502).send({ status: 'error', message: 'Erro ao criar evento no Google Calendar', details: result.error });
+        }
+        meetLink = result.meetLink;
+        eventId = result.eventId;
+      } catch (err) {
+        fastify.log.error(err);
+        throw err;
+      }
+    }
+
+    const updated = await prisma.atividade.update({
+      where: { id },
+      data: { google_meet_link: meetLink, ...(eventId ? { google_event_id: eventId } : {}) }
+    });
+
+    return reply.send({ status: 'success', data: { atividade: updated, meet_link: meetLink, event_id: eventId } });
+  });
+
+  // ── N8N helper — tenta gerar Meet via webhook N8N ────────
+  async function callN8nMeet(params: {
+    titulo: string;
+    data_prevista: string;
+    fim: string;
+    lead_email?: string;
+  }): Promise<string | null> {
+    const n8nUrl = process.env.N8N_CRIAR_MEET_WEBHOOK;
+    if (!n8nUrl) return null;
+
+    try {
+      const res = await fetch(n8nUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(process.env.N8N_WEBHOOK_SECRET ? { 'x-webhook-token': process.env.N8N_WEBHOOK_SECRET } : {})
+        },
+        body: JSON.stringify(params),
+        signal: AbortSignal.timeout(20000)
+      });
+
+      if (!res.ok) {
+        fastify.log.warn(`N8N webhook responded ${res.status}`);
+        return null;
+      }
+
+      const data = await res.json() as any;
+      const link = data.meet_link || data.data?.meet_link || '';
+      fastify.log.info(`N8N Meet link: ${link}`);
+      return link || null;
+    } catch (err) {
+      fastify.log.warn('N8N webhook call failed: ' + err);
+      return null;
+    }
+  }
+
+  // ── Helper — gera Meet via Google Calendar direto (fallback) ─
+  async function callGoogleMeetDirect(params: {
+    titulo: string;
+    startTime: Date;
+    endTime: Date;
+    lead_email?: string;
+    token: string;
+  }): Promise<{ meetLink: string; eventId: string; error?: string }> {
+    const reqId = `crm-${Date.now()}`;
+
+    const buildPayload = (confType: string) => ({
+      summary: params.titulo || 'Reunião ProSystem',
+      start: { dateTime: params.startTime.toISOString(), timeZone: 'America/Sao_Paulo' },
+      end:   { dateTime: params.endTime.toISOString(),   timeZone: 'America/Sao_Paulo' },
+      conferenceData: {
+        createRequest: { requestId: reqId, conferenceSolutionKey: { type: confType } }
+      },
+      ...(params.lead_email ? { attendees: [{ email: params.lead_email }] } : {})
+    });
+
+    const postEv = (pl: any) =>
+      fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${params.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(pl)
+      });
+
+    let res = await postEv(buildPayload('hangoutsMeet'));
+    let eventData = await res.json() as any;
+
+    if (!res.ok) {
+      fastify.log.warn('hangoutsMeet failed: ' + JSON.stringify(eventData?.error));
+      res = await postEv(buildPayload('eventHangout'));
+      eventData = await res.json() as any;
+    }
+
+    if (!res.ok) {
+      return { meetLink: '', eventId: '', error: eventData?.error?.message || JSON.stringify(eventData?.error) };
+    }
+
+    const meetLink =
+      eventData.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri ||
+      eventData.hangoutLink || '';
+
+    return { meetLink, eventId: eventData.id || '' };
+  }
+
+  // Generate Meet link from form data (before saving atividade)
+  fastify.post('/agenda/criar-meet-temp', async (request, reply) => {
+    const body = z.object({
+      titulo: z.string().min(1),
+      data_prevista: z.string().datetime().optional(),
+      duracao_minutos: z.number().optional(),
+      lead_email: z.string().optional()
+    }).safeParse(request.body);
+
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+
+    const startTime = body.data.data_prevista ? new Date(body.data.data_prevista) : new Date();
+    const durMin = body.data.duracao_minutos || 60;
+    const endTime = new Date(startTime.getTime() + durMin * 60 * 1000);
+
+    // 1) Tentar N8N primeiro
+    const n8nLink = await callN8nMeet({
+      titulo: body.data.titulo,
+      data_prevista: startTime.toISOString(),
+      fim: endTime.toISOString(),
+      lead_email: body.data.lead_email
+    });
+
+    if (n8nLink) {
+      return reply.send({ status: 'success', data: { meet_link: n8nLink, via: 'n8n' } });
+    }
+
+    // 2) Fallback: Google Calendar direto (requer token salvo no CRM)
+    const user = (request as any).user;
+    const userId = user?.id || 'default';
     const calToken = await getValidToken(userId);
+
     if (!calToken) {
-      return reply.status(403).send({ status: 'error', message: 'Google Calendar não conectado', need_auth: true });
+      return reply.status(503).send({
+        status: 'error',
+        message: process.env.N8N_CRIAR_MEET_WEBHOOK
+          ? 'N8N não respondeu e o Google Calendar não está conectado no CRM. Verifique o fluxo N8N ou clique em "Conectar Google".'
+          : 'Configure N8N_CRIAR_MEET_WEBHOOK no .env ou conecte o Google Calendar.',
+        need_auth: true
+      });
     }
 
     try {
-      const startTime = atividade.data_prevista || new Date();
-      const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-
-      const eventPayload = {
-        summary: atividade.titulo,
-        description: atividade.resumo_reuniao || atividade.descricao || '',
-        start: { dateTime: startTime.toISOString(), timeZone: 'America/Sao_Paulo' },
-        end: { dateTime: endTime.toISOString(), timeZone: 'America/Sao_Paulo' },
-        conferenceData: {
-          createRequest: {
-            requestId: `crm-${id}-${Date.now()}`,
-            conferenceSolutionKey: { type: 'hangoutsMeet' }
-          }
-        },
-        attendees: atividade.lead?.email ? [{ email: atividade.lead.email }] : []
-      };
-
-      const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${calToken.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(eventPayload)
-        }
-      );
-
-      const eventData = await res.json() as any;
-
-      if (!res.ok) {
-        fastify.log.error('Google Calendar error: ' + JSON.stringify(eventData));
-        // If 401, token may have been revoked
-        if (res.status === 401) {
-          return reply.status(403).send({ status: 'error', message: 'Token Google expirado. Reconecte o Google Calendar.', need_auth: true });
-        }
-        return reply.status(502).send({ status: 'error', message: 'Erro ao criar evento no Google Calendar', details: eventData?.error?.message || eventData });
-      }
-
-      const meetLink = eventData.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri || '';
-
-      const updated = await prisma.atividade.update({
-        where: { id },
-        data: {
-          google_event_id: eventData.id,
-          google_meet_link: meetLink
-        }
+      const { meetLink, eventId, error } = await callGoogleMeetDirect({
+        titulo: body.data.titulo,
+        startTime, endTime,
+        lead_email: body.data.lead_email,
+        token: calToken.access_token
       });
 
-      return reply.send({ status: 'success', data: { atividade: updated, meet_link: meetLink, event_id: eventData.id } });
+      if (error) {
+        return reply.status(502).send({ status: 'error', message: 'Erro ao criar evento no Google Calendar', details: error });
+      }
+
+      return reply.send({ status: 'success', data: { meet_link: meetLink, eventId, via: 'google_direct' } });
     } catch (err) {
       fastify.log.error(err);
       throw err;

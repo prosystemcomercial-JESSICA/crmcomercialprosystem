@@ -60,24 +60,26 @@ export async function authRoutes(
           password: raw.password.trim()
         };
 
-        // 1) Checar na tabela UsuarioCRM (usuários cadastrados pelo sistema)
+        // 1) Contas de sistema (mockUsers) têm prioridade absoluta — role nunca é sobrescrita pelo DB
         let user: { id: string; email: string; nome: string; role: string } | null = null;
-        try {
-          const rows: any[] = await prisma.$queryRawUnsafe(
-            `SELECT id::text, email, nome, cargo as role, status FROM "UsuarioCRM" WHERE LOWER(email) = $1 AND senha = $2 LIMIT 1`,
-            data.email, data.password
-          );
-          if (rows.length > 0 && rows[0].status !== 'INATIVO' && rows[0].status !== 'SUSPENSO') {
-            user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
-          }
-        } catch {
-          // tabela ainda não existe — cai no fallback abaixo
+        const systemAccount = mockUsers.find(u => u.email.toLowerCase() === data.email && u.password === data.password);
+        if (systemAccount) {
+          user = { id: systemAccount.id, email: systemAccount.email, nome: systemAccount.nome, role: systemAccount.role };
         }
 
-        // 2) Fallback: checar na lista fixa (contas de sistema) - case insensitive email
+        // 2) Checar na tabela UsuarioCRM apenas se não for conta de sistema
         if (!user) {
-          const found = mockUsers.find(u => u.email.toLowerCase() === data.email && u.password === data.password);
-          if (found) user = { id: found.id, email: found.email, nome: found.nome, role: found.role };
+          try {
+            const rows: any[] = await prisma.$queryRawUnsafe(
+              `SELECT id::text, email, nome, cargo as role, status FROM "UsuarioCRM" WHERE LOWER(email) = $1 AND senha = $2 LIMIT 1`,
+              data.email, data.password
+            );
+            if (rows.length > 0 && rows[0].status !== 'INATIVO' && rows[0].status !== 'SUSPENSO') {
+              user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
+            }
+          } catch {
+            // tabela ainda não existe
+          }
         }
 
         if (!user) {
@@ -127,19 +129,21 @@ export async function authRoutes(
           });
         }
 
-        // Find user: first in DB, then in mockUsers
+        // Contas de sistema têm prioridade — role sempre vem do mockUsers
         let user: { id: string; email: string; nome: string; role: string } | null = null;
-        try {
-          const rows: any[] = await prisma.$queryRawUnsafe(
-            `SELECT id::text, email, nome, cargo as role FROM "UsuarioCRM" WHERE id::text = $1 LIMIT 1`,
-            decoded.userId
-          );
-          if (rows.length > 0) user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
-        } catch { }
+        const systemAccount = mockUsers.find((u) => u.id === decoded.userId);
+        if (systemAccount) {
+          user = { id: systemAccount.id, email: systemAccount.email, nome: systemAccount.nome, role: systemAccount.role };
+        }
 
         if (!user) {
-          const found = mockUsers.find((u) => u.id === decoded.userId);
-          if (found) user = { id: found.id, email: found.email, nome: found.nome, role: found.role };
+          try {
+            const rows: any[] = await prisma.$queryRawUnsafe(
+              `SELECT id::text, email, nome, cargo as role FROM "UsuarioCRM" WHERE id::text = $1 LIMIT 1`,
+              decoded.userId
+            );
+            if (rows.length > 0) user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
+          } catch { }
         }
 
         if (!user) {

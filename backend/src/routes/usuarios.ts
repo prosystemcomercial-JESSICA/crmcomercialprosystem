@@ -1,9 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { requireAuth } from '@/middleware/auth';
 
 // ─── Allowed roles that can manage users ─────────────────────
-const GESTORES = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN'];
+const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN'];
 
 // ─── Módulos disponíveis ──────────────────────────────────────
 export const MODULOS = [
@@ -196,18 +197,19 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   };
 
   // ─── GET /usuarios/presets — presets de permissão por cargo ──
-  fastify.get('/usuarios/presets', async (_request, reply) => {
+  fastify.get('/usuarios/presets', { onRequest: requireAuth }, async (_request, reply) => {
     return reply.send({ status: 'success', data: { presets: PRESETS, modulos: MODULOS, modulos_criticos: MODULOS_CRITICOS } });
   });
 
   // ─── GET /usuarios — listar ──────────────────────────────────
-  fastify.get('/usuarios', async (request, reply) => {
+  fastify.get('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
+    if (!checkGestor(request, reply)) return;
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "UsuarioCRM" ORDER BY created_at ASC`);
     return reply.send({ status: 'success', data: rows });
   });
 
   // ─── POST /usuarios — criar ──────────────────────────────────
-  fastify.post('/usuarios', async (request, reply) => {
+  fastify.post('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
 
@@ -226,7 +228,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     try {
       const rows: any[] = await prisma.$queryRawUnsafe(
         `INSERT INTO "UsuarioCRM" (nome, email, telefone, senha, cargo, classificacao, status, observacoes, modulos_permissao, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10) RETURNING *`,
         nome, email, telefone, senha, cargo, classificacao || null,
         status, observacoes || null, JSON.stringify(permissoes), ator?.id || null
       );
@@ -240,7 +242,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ─── PATCH /usuarios/:id — atualizar ─────────────────────────
-  fastify.patch('/usuarios/:id', async (request, reply) => {
+  fastify.patch('/usuarios/:id', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
@@ -254,8 +256,9 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const d = body.data as any;
     for (const [key, val] of Object.entries(d)) {
       if (val !== undefined) {
-        sets.push(`${key === 'modulos_permissao' ? `modulos_permissao` : key} = $${n++}`);
-        vals.push(key === 'modulos_permissao' ? JSON.stringify(val) : val);
+        const isJson = key === 'modulos_permissao';
+        sets.push(`${key} = $${n++}${isJson ? '::jsonb' : ''}`);
+        vals.push(isJson ? JSON.stringify(val) : val);
       }
     }
     if (!sets.length) return reply.status(400).send({ status: 'error', message: 'Nenhum campo para atualizar' });
@@ -273,7 +276,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ─── POST /usuarios/:id/desativar ────────────────────────────
-  fastify.post('/usuarios/:id/desativar', async (request, reply) => {
+  fastify.post('/usuarios/:id/desativar', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
@@ -287,7 +290,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ─── POST /usuarios/:id/redefinir-senha ──────────────────────
-  fastify.post('/usuarios/:id/redefinir-senha', async (request, reply) => {
+  fastify.post('/usuarios/:id/redefinir-senha', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
@@ -303,7 +306,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ─── GET /usuarios/auditoria — histórico de ações ────────────
-  fastify.get('/usuarios/auditoria', async (request, reply) => {
+  fastify.get('/usuarios/auditoria', { onRequest: requireAuth }, async (request, reply) => {
     const rows: any[] = await prisma.$queryRawUnsafe(
       `SELECT * FROM "AuditoriaUsuario" ORDER BY created_at DESC LIMIT 200`
     );
@@ -311,7 +314,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ─── DELETE /usuarios/:id ────────────────────────────────────
-  fastify.delete('/usuarios/:id', async (request, reply) => {
+  fastify.delete('/usuarios/:id', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };

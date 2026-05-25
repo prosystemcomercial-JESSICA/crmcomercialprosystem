@@ -22,6 +22,12 @@ import { dashboardPowerRoutes } from '@/routes/dashboard-power';
 import { relatoriosComerciais } from '@/routes/relatorios-comerciais';
 import { usuariosRoutes } from '@/routes/usuarios';
 import { funilRoutes } from '@/routes/funil';
+import { vendasAdicionaisRoutes } from '@/routes/vendas-adicionais';
+import { propostasComerciais } from '@/routes/propostas-comerciais';
+import { kanbanColunasRoutes } from '@/routes/kanban-colunas';
+import { etiquetasRoutes } from '@/routes/etiquetas';
+import { dashboardComercialRoutes } from '@/routes/dashboard-comercial';
+import { contratosComerciais } from '@/routes/contratos-comerciais';
 
 // Initialize Prisma
 export const prisma = new PrismaClient({
@@ -42,8 +48,19 @@ const fastify = Fastify({
 });
 
 // Register plugins
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(o => o.trim());
+
 fastify.register(cors, {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000'
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.some(o => origin.startsWith(o))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not allowed by CORS'), false);
+    }
+  },
+  credentials: true
 });
 
 fastify.register(helmet, {
@@ -81,6 +98,12 @@ fastify.register(async (fastify) => {
   fastify.register(relatoriosComerciais, { prisma });
   fastify.register(usuariosRoutes, { prisma });
   fastify.register(funilRoutes, { prisma });
+  fastify.register(vendasAdicionaisRoutes, { prisma });
+  fastify.register(propostasComerciais, { prisma });
+  fastify.register(kanbanColunasRoutes, { prisma });
+  fastify.register(etiquetasRoutes, { prisma });
+  fastify.register(dashboardComercialRoutes, { prisma });
+  fastify.register(contratosComerciais, { prisma });
 });
 
 // Error handler
