@@ -3,715 +3,1645 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manual CRM Comercial - ProSystem</title>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+  <!-- SEO Primary -->
+  <title>Manual Completo do CRM Comercial ProSystem — Guia Passo a Passo de Todas as Funcionalidades</title>
+  <meta name="description" content="Manual oficial e completo do CRM Comercial ProSystem. Aprenda passo a passo como usar dashboard, funil de vendas, leads, propostas, contratos, retenção, comissões, metas, relatórios e mais de 30 módulos. Guia para iniciantes e times comerciais de farmácias, padarias e varejo.">
+  <meta name="keywords" content="manual CRM, CRM ProSystem, CRM comercial, gestão de vendas, funil de vendas, pipeline comercial, retenção de clientes, churn, health score, NPS, comissões, propostas comerciais, ERP farmácia, ERP padaria, sistema de vendas, CRM passo a passo, treinamento CRM, manual de uso CRM">
+  <meta name="author" content="ProSystem Sistemas">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="language" content="pt-BR">
+  <link rel="canonical" href="https://prosystemnet.com.br/manual-crm">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="ProSystem Sistemas">
+  <meta property="og:title" content="Manual Completo do CRM Comercial ProSystem">
+  <meta property="og:description" content="Guia passo a passo de todas as funcionalidades do CRM ProSystem: funil, leads, propostas, retenção, comissões, relatórios e muito mais.">
+  <meta property="og:url" content="https://prosystemnet.com.br/manual-crm">
+  <meta property="og:image" content="assets/tela-dashboard.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Manual Completo do CRM Comercial ProSystem">
+  <meta name="twitter:description" content="Guia passo a passo de todas as funcionalidades do CRM ProSystem.">
+  <meta name="twitter:image" content="assets/tela-dashboard.png">
+
+  <!-- Theme color & favicon -->
+  <meta name="theme-color" content="#0D2238">
+  <link rel="icon" type="image/png" href="frontend/public/logo-prosystem.png">
+
+  <!-- Fontes ProSystem -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Structured Data (Schema.org) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "Manual Completo do CRM Comercial ProSystem",
+    "description": "Guia passo a passo de todas as funcionalidades do CRM ProSystem.",
+    "author": {
+      "@type": "Organization",
+      "name": "ProSystem Sistemas",
+      "url": "https://prosystemnet.com.br"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "ProSystem Sistemas",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://prosystemnet.com.br/logo-prosystem.png"
+      }
+    },
+    "inLanguage": "pt-BR",
+    "datePublished": "2026-05-26",
+    "dateModified": "2026-05-26",
+    "about": {
+      "@type": "SoftwareApplication",
+      "name": "CRM Comercial ProSystem",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web"
+    }
+  }
+  </script>
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ═══════════════════════════════════════════════════════════
+       ProSystem Design System — Tokens
+       ═══════════════════════════════════════════════════════════ */
+    :root {
+      --ps-50:  #EBF4FF;
+      --ps-100: #C3DCFC;
+      --ps-200: #90BEF0;
+      --ps-300: #6AAAE5;
+      --ps-400: #5699D6;
+      --ps-500: #4B8EC8;
+      --ps-600: #2E6EAB;
+      --ps-700: #1A4E82;
+      --ps-800: #103A66;
+      --ps-900: #0D2A4D;
+      --ps-navy: #0D2238;
+      --ps-navy-hover: #152E49;
+      --ps-text-primary: #0D2238;
+      --ps-text-secondary: #4A6E8A;
+      --ps-text-muted: #7AAACB;
+      --ps-bg-page: #F4F7FB;
+      --ps-bg-card: #FFFFFF;
+      --ps-border: #D8E8F5;
+      --ps-shadow: rgba(13,34,56,0.06);
+      --ps-shadow-hover: rgba(13,34,56,0.12);
+      --ps-success: #16a34a;
+      --ps-warning: #ea580c;
+      --ps-danger: #dc2626;
+      --ps-radius: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-      color: #1f2937;
-      background: #f9fafb;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--ps-text-primary);
+      background: var(--ps-bg-page);
+      -webkit-font-smoothing: antialiased;
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-    header {
-      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-      color: white;
-      padding: 40px 20px;
-      border-radius: 12px;
-      margin-bottom: 30px;
-      box-shadow: 0 10px 30px rgba(30, 64, 175, 0.2);
-    }
-    header h1 { font-size: 2.5rem; margin-bottom: 10px; }
-    header p { font-size: 1.1rem; opacity: 0.95; }
-    .badge {
-      display: inline-block;
-      background: rgba(255,255,255,0.2);
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      margin-top: 10px;
-    }
-    nav {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      margin-bottom: 30px;
+
+    /* ═══ Layout ═══ */
+    .wrapper { display: grid; grid-template-columns: 280px 1fr; max-width: 1440px; margin: 0 auto; }
+
+    /* ═══ Sidebar (TOC) ═══ */
+    .sidebar {
+      background: var(--ps-navy);
+      color: #A8C8E8;
+      padding: 32px 24px;
+      min-height: 100vh;
       position: sticky;
-      top: 20px;
-      z-index: 10;
+      top: 0;
+      max-height: 100vh;
+      overflow-y: auto;
     }
-    nav h3 { color: #1e40af; margin-bottom: 12px; }
-    nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
-    nav a {
-      color: #3b82f6;
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 12px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #1A3350;
+      margin-bottom: 24px;
+    }
+    .sidebar-brand .logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--ps-500), var(--ps-700));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; color: #fff; font-size: 18px;
+    }
+    .sidebar-brand h2 { font-size: 16px; color: #fff; font-weight: 700; line-height: 1.2; }
+    .sidebar-brand p { font-size: 12px; color: var(--ps-text-muted); margin-top: 2px; }
+    .sidebar nav ul { list-style: none; }
+    .sidebar nav > ul > li { margin-bottom: 4px; }
+    .sidebar nav .group-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: #4A6E8A;
+      padding: 16px 8px 8px;
+    }
+    .sidebar nav a {
+      display: block;
+      padding: 8px 12px;
+      color: #A8C8E8;
       text-decoration: none;
-      padding: 6px 14px;
-      border: 1px solid #dbeafe;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      transition: all 0.2s;
-    }
-    nav a:hover { background: #3b82f6; color: white; }
-    section {
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      margin-bottom: 30px;
-    }
-    h2 {
-      color: #1e40af;
-      font-size: 1.8rem;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 3px solid #dbeafe;
-    }
-    h3 {
-      color: #1f2937;
-      font-size: 1.3rem;
-      margin: 20px 0 12px;
-    }
-    h4 {
-      color: #4b5563;
-      font-size: 1.1rem;
-      margin: 16px 0 8px;
-    }
-    p { margin-bottom: 12px; }
-    ul, ol { margin-left: 24px; margin-bottom: 16px; }
-    li { margin-bottom: 6px; }
-    code {
-      background: #f3f4f6;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-family: 'Consolas', 'Monaco', monospace;
-      font-size: 0.9em;
-      color: #dc2626;
-    }
-    pre {
-      background: #1f2937;
-      color: #f9fafb;
-      padding: 16px;
       border-radius: 8px;
-      overflow-x: auto;
-      margin: 12px 0;
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
     }
-    pre code { background: transparent; color: inherit; padding: 0; }
+    .sidebar nav a:hover { background: var(--ps-navy-hover); color: #fff; }
+    .sidebar nav a.active { background: #1C3A5A; color: #fff; border-left-color: var(--ps-500); }
+
+    /* ═══ Main content ═══ */
+    .main { padding: 48px 64px; max-width: 1100px; }
+
+    /* ═══ Hero ═══ */
+    .hero {
+      background: linear-gradient(135deg, var(--ps-navy) 0%, var(--ps-700) 100%);
+      color: #fff;
+      padding: 56px 48px;
+      border-radius: 16px;
+      margin-bottom: 40px;
+      box-shadow: 0 20px 50px rgba(13,34,56,0.20);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%; right: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(75,142,200,0.25), transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .hero .eyebrow {
+      display: inline-block;
+      background: rgba(75,142,200,0.25);
+      border: 1px solid rgba(75,142,200,0.4);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+    .hero p.lead {
+      font-size: 18px;
+      max-width: 720px;
+      color: #C3DCFC;
+      line-height: 1.6;
+    }
+    .hero-meta {
+      display: flex; gap: 24px; margin-top: 28px;
+      padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);
+      flex-wrap: wrap;
+    }
+    .hero-meta .item { font-size: 13px; color: #A8C8E8; }
+    .hero-meta .item strong { color: #fff; font-weight: 600; }
+
+    /* ═══ Section blocks ═══ */
+    section.module, section.intro {
+      background: var(--ps-bg-card);
+      border: 1px solid var(--ps-border);
+      border-radius: var(--ps-radius);
+      padding: 40px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px var(--ps-shadow);
+      scroll-margin-top: 24px;
+    }
+
+    h1, h2, h3, h4 { font-weight: 700; color: var(--ps-text-primary); letter-spacing: -0.2px; }
+    h2 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    h2 .icon {
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--ps-500), var(--ps-700));
+      color: #fff;
+      border-radius: 10px;
+      font-size: 20px;
+    }
+    h3 { font-size: 18px; margin: 24px 0 12px; color: var(--ps-700); }
+    h4 { font-size: 15px; margin: 18px 0 8px; color: var(--ps-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+
+    .subtitle {
+      color: var(--ps-text-secondary);
+      font-size: 15px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--ps-border);
+    }
+
+    p { margin-bottom: 14px; color: #2a3f55; }
+    p strong { color: var(--ps-text-primary); font-weight: 600; }
+
+    ul, ol { margin: 12px 0 16px 24px; }
+    li { margin-bottom: 8px; color: #2a3f55; }
+    ol li::marker { font-weight: 700; color: var(--ps-600); }
+
+    /* ═══ Cards & callouts ═══ */
+    .why-box {
+      background: linear-gradient(135deg, var(--ps-50), #fff);
+      border-left: 4px solid var(--ps-500);
+      padding: 20px 24px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .why-box h4 {
+      color: var(--ps-700);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .why-box p { margin: 0; color: var(--ps-text-primary); font-weight: 500; }
+
+    .tip {
+      background: #f0fdf4;
+      border-left: 4px solid var(--ps-success);
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 14.5px;
+    }
+    .tip strong { color: #15803d; }
+
+    .warning {
+      background: #fff7ed;
+      border-left: 4px solid var(--ps-warning);
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 14.5px;
+    }
+    .warning strong { color: #c2410c; }
+
+    .step-list { counter-reset: step; list-style: none; margin-left: 0; }
+    .step-list > li {
+      counter-increment: step;
+      position: relative;
+      padding: 12px 0 12px 48px;
+      border-bottom: 1px dashed var(--ps-border);
+    }
+    .step-list > li:last-child { border-bottom: none; }
+    .step-list > li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0; top: 12px;
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--ps-500), var(--ps-700));
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    /* ═══ Tables ═══ */
     table {
       width: 100%;
-      border-collapse: collapse;
-      margin: 16px 0;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 16px 0 24px;
+      border: 1px solid var(--ps-border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 14.5px;
     }
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    th {
-      background: #f3f4f6;
+    th { background: var(--ps-50); color: var(--ps-700); font-weight: 700; text-align: left; padding: 12px 16px; }
+    td { padding: 12px 16px; border-top: 1px solid var(--ps-border); }
+    tr:nth-child(even) td { background: #fafcfe; }
+
+    /* ═══ Code / kbd ═══ */
+    code {
+      background: var(--ps-50);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+      font-size: 13px;
+      color: var(--ps-700);
       font-weight: 600;
-      color: #1f2937;
     }
-    tr:hover { background: #f9fafb; }
-    .info-box {
-      background: #eff6ff;
-      border-left: 4px solid #3b82f6;
-      padding: 16px;
-      border-radius: 8px;
-      margin: 16px 0;
+    kbd {
+      background: #fff;
+      border: 1px solid var(--ps-border);
+      border-bottom-width: 2px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 12px;
+      box-shadow: 0 1px 0 var(--ps-shadow);
     }
-    .warning-box {
-      background: #fef3c7;
-      border-left: 4px solid #f59e0b;
-      padding: 16px;
-      border-radius: 8px;
-      margin: 16px 0;
-    }
-    .success-box {
-      background: #d1fae5;
-      border-left: 4px solid #10b981;
-      padding: 16px;
-      border-radius: 8px;
-      margin: 16px 0;
-    }
-    .grid {
+
+    /* ═══ TOC inline ═══ */
+    .toc-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-      margin: 20px 0;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
     }
-    .card {
-      background: #f9fafb;
-      padding: 20px;
-      border-radius: 8px;
-      border: 1px solid #e5e7eb;
+    .toc-card {
+      background: #fff;
+      border: 1px solid var(--ps-border);
+      border-radius: 10px;
+      padding: 16px;
+      text-decoration: none;
+      color: var(--ps-text-primary);
+      transition: all 0.2s;
+      display: flex; flex-direction: column; gap: 4px;
     }
-    .card h4 { color: #1e40af; margin-bottom: 8px; }
-    .role-badge {
+    .toc-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px var(--ps-shadow-hover);
+      border-color: var(--ps-500);
+    }
+    .toc-card .num {
+      font-size: 11px; font-weight: 700; color: var(--ps-500);
+      letter-spacing: 1px;
+    }
+    .toc-card .title { font-weight: 700; font-size: 15px; }
+    .toc-card .desc { font-size: 12.5px; color: var(--ps-text-secondary); }
+
+    /* ═══ Module header badge ═══ */
+    .module-tag {
       display: inline-block;
+      background: var(--ps-50);
+      color: var(--ps-700);
+      font-size: 11px;
+      font-weight: 700;
       padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin: 2px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 12px;
     }
-    .role-ceo { background: #fee2e2; color: #991b1b; }
-    .role-supervisao { background: #dbeafe; color: #1e40af; }
-    .role-tecnico { background: #fef3c7; color: #92400e; }
-    .role-vendedor { background: #d1fae5; color: #065f46; }
-    .mermaid {
-      text-align: center;
-      margin: 20px 0;
-      padding: 20px;
-      background: #f9fafb;
-      border-radius: 8px;
-    }
+
+    /* ═══ Footer ═══ */
     footer {
+      margin-top: 60px;
+      padding: 40px 0;
+      border-top: 2px solid var(--ps-border);
       text-align: center;
-      padding: 30px;
-      color: #6b7280;
-      font-size: 0.9rem;
+      color: var(--ps-text-secondary);
+      font-size: 14px;
     }
-    .status-indicator {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-right: 6px;
+    footer strong { color: var(--ps-text-primary); }
+    footer a { color: var(--ps-600); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ═══ Responsive ═══ */
+    @media (max-width: 1024px) {
+      .wrapper { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; min-height: auto; }
+      .main { padding: 32px 24px; }
+      .hero { padding: 40px 28px; }
+      .hero h1 { font-size: 32px; }
+      section.module, section.intro { padding: 28px 22px; }
     }
-    .status-novo { background: #3b82f6; }
-    .status-diagnosticado { background: #10b981; }
-    .status-planejado { background: #f59e0b; }
-    .status-executando { background: #8b5cf6; }
-    .status-recuperado { background: #10b981; }
-    .status-perdido { background: #ef4444; }
-    .risk-baixo { color: #10b981; font-weight: 600; }
-    .risk-medio { color: #f59e0b; font-weight: 600; }
-    .risk-alto { color: #ef4444; font-weight: 600; }
+    @media (max-width: 640px) {
+      h2 { font-size: 22px; }
+      h2 .icon { width: 36px; height: 36px; font-size: 16px; }
+      .hero h1 { font-size: 26px; }
+      .hero p.lead { font-size: 15px; }
+    }
+
+    /* ═══ Print ═══ */
+    @media print {
+      .sidebar { display: none; }
+      .wrapper { grid-template-columns: 1fr; }
+      .main { padding: 0; }
+      .hero { box-shadow: none; }
+      section.module { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
 
-    <header>
-      <h1>📊 CRM Comercial - Manual do Usuário</h1>
-      <p>Sistema de Gestão de Churn e Retenção de Clientes - ProSystem</p>
-      <span class="badge">Versão 1.0 | Maio 2026</span>
-    </header>
+<div class="wrapper">
 
-    <nav>
-      <h3>📑 Índice</h3>
+  <!-- ═════════════ SIDEBAR ═════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">PS</div>
+      <div>
+        <h2>CRM Comercial</h2>
+        <p>ProSystem Sistemas</p>
+      </div>
+    </div>
+    <nav aria-label="Sumário do manual">
+      <div class="group-title">Início</div>
       <ul>
-        <li><a href="#visao-geral">1. Visão Geral</a></li>
-        <li><a href="#arquitetura">2. Arquitetura</a></li>
-        <li><a href="#instalacao">3. Instalação</a></li>
-        <li><a href="#primeiros-passos">4. Primeiros Passos</a></li>
-        <li><a href="#fluxo-completo">5. Fluxo Completo</a></li>
-        <li><a href="#perfis-usuario">6. Perfis de Usuário</a></li>
-        <li><a href="#funcionalidades">7. Funcionalidades</a></li>
-        <li><a href="#api">8. API Reference</a></li>
-        <li><a href="#troubleshooting">9. Troubleshooting</a></li>
-        <li><a href="#suporte">10. Suporte</a></li>
+        <li><a href="#introducao">Introdução</a></li>
+        <li><a href="#primeiro-acesso">Primeiro acesso</a></li>
+        <li><a href="#interface">Conhecendo a interface</a></li>
+        <li><a href="#dashboard">Dashboard</a></li>
+      </ul>
+
+      <div class="group-title">Captação & Vendas</div>
+      <ul>
+        <li><a href="#leads">Leads</a></li>
+        <li><a href="#funil">Funil Comercial</a></li>
+        <li><a href="#propostas">Propostas Comerciais</a></li>
+        <li><a href="#contratos">Contratos</a></li>
+        <li><a href="#catalogo">Catálogo de Serviços</a></li>
+        <li><a href="#importacao">Importação de Leads</a></li>
+        <li><a href="#previsao">Previsão de Fechamento</a></li>
+        <li><a href="#perdidos">Perdidos</a></li>
+      </ul>
+
+      <div class="group-title">Clientes & Retenção</div>
+      <ul>
+        <li><a href="#clientes">Clientes</a></li>
+        <li><a href="#casos">Churn &amp; Retenção</a></li>
+        <li><a href="#health-score">Health Score</a></li>
+        <li><a href="#nps">NPS</a></li>
+        <li><a href="#renovacoes">Renovações</a></li>
+        <li><a href="#nutricao">Nutrição/Recontato</a></li>
+        <li><a href="#onboarding">Onboarding</a></li>
+        <li><a href="#indicacoes">Vendas Adicionais</a></li>
+      </ul>
+
+      <div class="group-title">Time Comercial</div>
+      <ul>
+        <li><a href="#agenda">Agenda</a></li>
+        <li><a href="#atividades">Atividades</a></li>
+        <li><a href="#metas">Metas</a></li>
+        <li><a href="#comissoes">Comissões</a></li>
+        <li><a href="#ranking">Ranking</a></li>
+        <li><a href="#campanhas">Campanhas</a></li>
+      </ul>
+
+      <div class="group-title">Análises</div>
+      <ul>
+        <li><a href="#relatorios">Relatórios Comerciais</a></li>
+        <li><a href="#alertas">Alertas</a></li>
+      </ul>
+
+      <div class="group-title">Operação</div>
+      <ul>
+        <li><a href="#licencas">Licenças</a></li>
+        <li><a href="#suporte">Suporte Técnico</a></li>
+        <li><a href="#usuarios">Usuários e Permissões</a></li>
+        <li><a href="#configuracoes">Configurações</a></li>
+      </ul>
+
+      <div class="group-title">Apêndice</div>
+      <ul>
+        <li><a href="#desenvolvimento">Desenvolvimento</a></li>
+        <li><a href="#glossario">Glossário</a></li>
+        <li><a href="#faq">FAQ</a></li>
       </ul>
     </nav>
+  </aside>
 
-    <section id="visao-geral">
-      <h2>1. 🎯 Visão Geral</h2>
+  <!-- ═════════════ MAIN ═════════════ -->
+  <main class="main">
+
+    <!-- HERO -->
+    <header class="hero" role="banner">
+      <div class="hero-content">
+        <span class="eyebrow">Manual oficial · v1.0 · 2026</span>
+        <h1>Manual Completo do CRM Comercial ProSystem</h1>
+        <p class="lead">
+          Guia passo a passo, escrito para iniciantes e times comerciais, sobre todas as funcionalidades
+          do CRM ProSystem — do primeiro login à análise de resultados. Aprenda a captar leads,
+          gerenciar o funil, fechar propostas, reter clientes e bater metas em um só lugar.
+        </p>
+        <div class="hero-meta">
+          <span class="item"><strong>30+</strong> módulos documentados</span>
+          <span class="item"><strong>Passo a passo</strong> para leigos</span>
+          <span class="item"><strong>Visão estratégica</strong> de cada área</span>
+          <span class="item"><strong>Suporte:</strong> (27) 3327-6739</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- INTRODUÇÃO -->
+    <section id="introducao" class="intro" aria-labelledby="introducao-h">
+      <h2 id="introducao-h"><span class="icon">📘</span>Introdução</h2>
+      <p class="subtitle">O que é o CRM Comercial ProSystem e por que ele importa para o seu negócio.</p>
+
       <p>
-        O <strong>CRM Comercial ProSystem</strong> é uma plataforma completa para gestão de
-        churn e retenção de clientes, desenvolvida especificamente para o setor de varejo
-        (farmácias, padarias e lojas).
+        O <strong>CRM Comercial ProSystem</strong> é a plataforma de gestão comercial criada
+        especialmente para empresas do varejo brasileiro — com foco em farmácias, padarias e
+        lojas que vendem o ERP ProSystem. Ele centraliza, em uma única tela, todo o ciclo de
+        vida do cliente: da captação do lead à renovação do contrato.
       </p>
 
-      <h3>Objetivos Principais</h3>
-      <div class="grid">
-        <div class="card">
-          <h4>🎯 Identificar Risco</h4>
-          <p>Score automático de 0-100 para detectar clientes em risco de cancelamento</p>
-        </div>
-        <div class="card">
-          <h4>🔍 Diagnosticar Causas</h4>
-          <p>Análise dos motivos reais que levam ao churn baseada em dados</p>
-        </div>
-        <div class="card">
-          <h4>📋 Planejar Ações</h4>
-          <p>Criar planos personalizados de retenção com ações específicas</p>
-        </div>
-        <div class="card">
-          <h4>📊 Medir Resultados</h4>
-          <p>Dashboard executivo com KPIs de recuperação e retenção</p>
-        </div>
-      </div>
-
-      <div class="info-box">
-        <strong>💡 Setor Foco:</strong> Varejo especializado da ProSystem (farmácias, padarias,
-        lojas de varejo) que utilizam sistemas ERP e PDV.
-      </div>
-    </section>
-
-    <section id="arquitetura">
-      <h2>2. 🏗️ Arquitetura do Sistema</h2>
-
-      <h3>Stack Tecnológico</h3>
-      <table>
-        <tr><th>Camada</th><th>Tecnologia</th><th>Porta</th></tr>
-        <tr><td>Frontend</td><td>Next.js 16 + React 19 + TailwindCSS</td><td>3000</td></tr>
-        <tr><td>Backend API</td><td>Fastify 5 + TypeScript + Zod</td><td>3001</td></tr>
-        <tr><td>Database</td><td>PostgreSQL 16 (Docker)</td><td>5433</td></tr>
-        <tr><td>ORM</td><td>Prisma 5.22</td><td>-</td></tr>
-        <tr><td>Autenticação</td><td>JWT (HS256)</td><td>-</td></tr>
-        <tr><td>Testes E2E</td><td>Playwright</td><td>-</td></tr>
-      </table>
-
-      <h3>Diagrama de Arquitetura</h3>
-      <div class="mermaid">
-graph TB
-    subgraph "Cliente"
-        U[👤 Usuário]
-    end
-    subgraph "Frontend - Port 3000"
-        N[Next.js App]
-        LP[Login Page]
-        DP[Dashboard]
-        CP[Casos Page]
-    end
-    subgraph "Backend - Port 3001"
-        API[Fastify API]
-        AUTH[Auth Service<br/>JWT]
-        SVC[Services Layer]
-    end
-    subgraph "Database - Port 5433"
-        DB[(PostgreSQL)]
-        T1[Cliente]
-        T2[CasoChurn]
-        T3[PlanoRetencao]
-        T4[AcaoRetencao]
-    end
-    U --> N
-    N --> LP
-    LP -->|POST /auth/login| API
-    API --> AUTH
-    AUTH -->|JWT Token| LP
-    LP -->|Token| DP
-    DP -->|GET /dashboard/retencao| API
-    DP --> CP
-    CP -->|GET /casos-churn| API
-    API --> SVC
-    SVC --> DB
-    DB --> T1
-    DB --> T2
-    DB --> T3
-    DB --> T4
-      </div>
-    </section>
-
-    <section id="instalacao">
-      <h2>3. ⚙️ Instalação e Setup</h2>
-
-      <h3>Pré-requisitos</h3>
+      <h3>Para quem é este manual</h3>
       <ul>
-        <li><strong>Node.js</strong> 20+ (LTS)</li>
-        <li><strong>npm</strong> 10+</li>
-        <li><strong>Docker Desktop</strong> (para PostgreSQL)</li>
-        <li><strong>Git</strong> (para versionamento)</li>
+        <li><strong>Vendedores e SDRs</strong> que precisam saber operar leads, propostas e funil no dia a dia.</li>
+        <li><strong>Gestores comerciais</strong> que acompanham metas, comissões, ranking e relatórios.</li>
+        <li><strong>Equipe de retenção/CS</strong> responsável por churn, health score, NPS e renovações.</li>
+        <li><strong>Administradores</strong> que cuidam de usuários, permissões e configurações.</li>
+        <li><strong>Novos colaboradores</strong> em onboarding — leitura obrigatória nos primeiros dias.</li>
       </ul>
 
-      <h3>Passo a Passo</h3>
+      <h3>O que você vai encontrar em cada módulo</h3>
+      <ol>
+        <li><strong>Para que serve</strong> — explicação direta da função.</li>
+        <li><strong>Por que é importante</strong> — impacto no negócio e justificativa estratégica.</li>
+        <li><strong>Passo a passo</strong> — como usar, do clique inicial ao resultado.</li>
+        <li><strong>Boas práticas</strong> — dicas de quem já usa.</li>
+        <li><strong>Erros comuns</strong> — o que evitar.</li>
+      </ol>
 
-      <h4>1️⃣ Subir o banco de dados</h4>
-      <pre><code>cd backend
-docker-compose up -d</code></pre>
+      <div class="why-box">
+        <h4>💡 Filosofia do CRM ProSystem</h4>
+        <p>
+          "Resolver o problema do cliente, não apenas vender." Cada módulo do sistema foi pensado
+          para apoiar uma abordagem consultiva — entender a dor, qualificar, propor a solução
+          certa e construir um relacionamento de longo prazo.
+        </p>
+      </div>
 
-      <h4>2️⃣ Instalar dependências do Backend</h4>
-      <pre><code>cd backend
-npm install
-npx prisma generate
-npx prisma db push
-npx tsx prisma/seed.ts</code></pre>
-
-      <h4>3️⃣ Instalar dependências do Frontend</h4>
-      <pre><code>cd frontend
-npm install</code></pre>
-
-      <h4>4️⃣ Iniciar os servidores</h4>
-      <pre><code># Terminal 1 - Backend
-cd backend
-npm run dev
-
-# Terminal 2 - Frontend
-cd frontend
-npm run dev</code></pre>
-
-      <div class="success-box">
-        ✅ Pronto! Acesse <code>http://localhost:3000</code> para usar o sistema.
+      <h3>Mapa rápido de funcionalidades</h3>
+      <div class="toc-grid">
+        <a class="toc-card" href="#dashboard"><span class="num">01</span><span class="title">Dashboard</span><span class="desc">Visão executiva do dia</span></a>
+        <a class="toc-card" href="#leads"><span class="num">02</span><span class="title">Leads</span><span class="desc">Capture e organize contatos</span></a>
+        <a class="toc-card" href="#funil"><span class="num">03</span><span class="title">Funil</span><span class="desc">Kanban da venda</span></a>
+        <a class="toc-card" href="#propostas"><span class="num">04</span><span class="title">Propostas</span><span class="desc">Crie e envie comerciais</span></a>
+        <a class="toc-card" href="#contratos"><span class="num">05</span><span class="title">Contratos</span><span class="desc">Assinatura via ZapSign</span></a>
+        <a class="toc-card" href="#clientes"><span class="num">06</span><span class="title">Clientes</span><span class="desc">Base unificada</span></a>
+        <a class="toc-card" href="#casos"><span class="num">07</span><span class="title">Churn &amp; Retenção</span><span class="desc">Gestão de risco</span></a>
+        <a class="toc-card" href="#health-score"><span class="num">08</span><span class="title">Health Score</span><span class="desc">Saúde da carteira</span></a>
+        <a class="toc-card" href="#nps"><span class="num">09</span><span class="title">NPS</span><span class="desc">Satisfação medida</span></a>
+        <a class="toc-card" href="#metas"><span class="num">10</span><span class="title">Metas</span><span class="desc">Objetivos do time</span></a>
+        <a class="toc-card" href="#comissoes"><span class="num">11</span><span class="title">Comissões</span><span class="desc">Remuneração variável</span></a>
+        <a class="toc-card" href="#relatorios"><span class="num">12</span><span class="title">Relatórios</span><span class="desc">Análise comercial</span></a>
       </div>
     </section>
 
-    <section id="primeiros-passos">
-      <h2>4. 🚀 Primeiros Passos</h2>
+    <!-- PRIMEIRO ACESSO -->
+    <section id="primeiro-acesso" class="module" aria-labelledby="primeiro-acesso-h">
+      <span class="module-tag">Começando</span>
+      <h2 id="primeiro-acesso-h"><span class="icon">🔐</span>Primeiro acesso</h2>
+      <p class="subtitle">Como entrar no sistema pela primeira vez e configurar seu acesso.</p>
 
-      <h3>Credenciais de Teste</h3>
-      <table>
-        <tr><th>Email</th><th>Senha</th><th>Perfil</th></tr>
-        <tr><td>ceo@prosystem.com.br</td><td>senha123</td><td><span class="role-badge role-ceo">CEO</span></td></tr>
-        <tr><td>supervisao@prosystem.com.br</td><td>senha123</td><td><span class="role-badge role-supervisao">SUPERVISAO</span></td></tr>
-        <tr><td>tecnico@prosystem.com.br</td><td>senha123</td><td><span class="role-badge role-tecnico">TECNICO</span></td></tr>
-        <tr><td>vendedor@prosystem.com.br</td><td>senha123</td><td><span class="role-badge role-vendedor">VENDEDOR</span></td></tr>
-      </table>
-
-      <h3>Fluxo de Login</h3>
-      <div class="mermaid">
-sequenceDiagram
-    participant U as Usuário
-    participant F as Frontend
-    participant B as Backend
-    participant DB as Database
-    U->>F: Acessa localhost:3000
-    F->>U: Exibe formulário de login
-    U->>F: Digita email + senha
-    F->>B: POST /auth/login
-    B->>B: Valida credenciais
-    B->>B: Gera JWT (access + refresh)
-    B->>F: Retorna tokens + user
-    F->>F: Salva tokens em localStorage
-    F->>U: Redireciona para /dashboard
-    F->>B: GET /dashboard/retencao (com token)
-    B->>DB: Consulta KPIs
-    DB->>B: Retorna dados
-    B->>F: KPIs + métricas
-    F->>U: Exibe dashboard
-      </div>
-    </section>
-
-    <section id="fluxo-completo">
-      <h2>5. 🔄 Fluxo Completo do CRM</h2>
-
-      <h3>Ciclo de Vida do Caso de Churn</h3>
-      <div class="mermaid">
-stateDiagram-v2
-    [*] --> NOVO: Cliente identificado em risco
-    NOVO --> DIAGNOSTICADO: Análise de causas
-    DIAGNOSTICADO --> PLANEJADO: Criar plano de retenção
-    PLANEJADO --> EXECUTANDO: Iniciar ações
-    EXECUTANDO --> RECUPERADO: ✅ Cliente retido
-    EXECUTANDO --> PERDIDO: ❌ Cliente cancelou
-    RECUPERADO --> [*]
-    PERDIDO --> [*]
-      </div>
-
-      <h3>Fluxo de Trabalho Detalhado</h3>
-      <div class="mermaid">
-flowchart TD
-    A[🔍 Detectar Cliente em Risco] --> B{Risk Score?}
-    B -->|< 30| C[BAIXO - Monitorar]
-    B -->|30-70| D[MÉDIO - Atenção]
-    B -->|> 70| E[ALTO - Ação Imediata]
-    C --> F[Manter no Watchlist]
-    D --> G[Criar Caso de Churn]
-    E --> G
-    G --> H[Status: NOVO]
-    H --> I[Diagnóstico]
-    I --> J[Análise de Fatores]
-    J --> K{Motivo Real?}
-    K -->|Preço| L[Plano: Desconto/Oferta]
-    K -->|Suporte| M[Plano: Acompanhamento]
-    K -->|Produto| N[Plano: Treinamento]
-    L --> O[Criar Ações Específicas]
-    M --> O
-    N --> O
-    O --> P[Status: PLANEJADO]
-    P --> Q[Executar Ações]
-    Q --> R[Status: EXECUTANDO]
-    R --> S{Cliente Retido?}
-    S -->|Sim| T[✅ RECUPERADO]
-    S -->|Não| U[❌ PERDIDO]
-    T --> V[Análise de Sucesso]
-    U --> W[Análise de Perda]
-    V --> X[Aprendizados]
-    W --> X
-      </div>
-
-      <h3>Cálculo do Risk Score</h3>
-      <div class="info-box">
-        <strong>📐 Algoritmo de Risk Score (0-100):</strong>
-        <p>O score é calculado em 5 dimensões com pesos diferentes:</p>
-        <ul>
-          <li><strong>Dias sem interação</strong> (peso 30%) — 0-30 pontos</li>
-          <li><strong>Valor mensal contratado</strong> (peso 20%) — 0-20 pontos</li>
-          <li><strong>Frequência de chamados no suporte</strong> (peso 20%) — 0-20 pontos</li>
-          <li><strong>Tempo como cliente</strong> (peso 15%) — 0-15 pontos</li>
-          <li><strong>Motivo reportado</strong> (peso 15%) — 0-15 pontos</li>
-        </ul>
-      </div>
-
-      <table>
-        <tr><th>Faixa</th><th>Classificação</th><th>Ação Recomendada</th></tr>
-        <tr><td>0-30</td><td><span class="risk-baixo">🟢 BAIXO</span></td><td>Manter monitoramento padrão</td></tr>
-        <tr><td>31-70</td><td><span class="risk-medio">🟡 MÉDIO</span></td><td>Iniciar diagnóstico preventivo</td></tr>
-        <tr><td>71-100</td><td><span class="risk-alto">🔴 ALTO</span></td><td>Ação imediata - escalada para CEO</td></tr>
-      </table>
-    </section>
-
-    <section id="perfis-usuario">
-      <h2>6. 👥 Perfis de Usuário e Permissões</h2>
-
-      <div class="grid">
-        <div class="card">
-          <h4><span class="role-badge role-ceo">CEO</span></h4>
-          <p><strong>Acesso completo</strong></p>
-          <ul>
-            <li>Visualiza todos os dashboards</li>
-            <li>Cria casos de churn</li>
-            <li>Aprova planos estratégicos</li>
-            <li>Acesso a relatórios executivos</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4><span class="role-badge role-supervisao">SUPERVISAO</span></h4>
-          <p><strong>Gestão operacional</strong></p>
-          <ul>
-            <li>Cria e edita casos</li>
-            <li>Aprova diagnósticos</li>
-            <li>Cria planos de retenção</li>
-            <li>Atribui ações à equipe</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4><span class="role-badge role-tecnico">TECNICO</span></h4>
-          <p><strong>Execução técnica</strong></p>
-          <ul>
-            <li>Realiza diagnósticos</li>
-            <li>Executa ações atribuídas</li>
-            <li>Atualiza status de ações</li>
-            <li>Documenta interações</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4><span class="role-badge role-vendedor">VENDEDOR</span></h4>
-          <p><strong>Atendimento comercial</strong></p>
-          <ul>
-            <li>Visualiza casos atribuídos</li>
-            <li>Registra interações</li>
-            <li>Atualiza dados de cliente</li>
-            <li>Executa ações de venda</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section id="funcionalidades">
-      <h2>7. ⚡ Funcionalidades Principais</h2>
-
-      <h3>7.1 Dashboard Executivo</h3>
-      <p>Visão geral em tempo real dos indicadores chave:</p>
+      <h3>O que você precisa antes de começar</h3>
       <ul>
-        <li><strong>KPI Cards:</strong> Total de casos, Taxa de Diagnóstico, Taxa de Planejamento, Taxa de Recuperação</li>
-        <li><strong>Distribuição de Risco:</strong> Gráfico de barras BAIXO / MÉDIO / ALTO</li>
-        <li><strong>Casos Recentes:</strong> Tabela com últimos 10 casos abertos</li>
-        <li><strong>Valor em Risco:</strong> Soma do valor mensal dos clientes em risco</li>
+        <li>Um <strong>e-mail corporativo</strong> cadastrado pelo administrador do CRM.</li>
+        <li>A <strong>senha inicial</strong> recebida por e-mail.</li>
+        <li>Um navegador moderno (Chrome, Edge ou Firefox atualizado).</li>
+        <li>Conexão estável com a internet — o CRM é 100% online.</li>
       </ul>
 
-      <h3>7.2 Status dos Casos</h3>
+      <h3>Passo a passo do login</h3>
+      <ol class="step-list">
+        <li>Acesse o endereço do CRM informado pelo seu gestor (ex.: <code>crm.prosystem.com.br</code>).</li>
+        <li>Digite seu <strong>e-mail</strong> no campo "seu@email.com".</li>
+        <li>Digite a <strong>senha</strong> recebida.</li>
+        <li>Clique em <strong>Entrar</strong>. Você será direcionado ao Dashboard.</li>
+        <li>No primeiro acesso, clique no seu avatar (canto superior direito) → <strong>Alterar senha</strong> e defina uma senha pessoal forte.</li>
+      </ol>
+
+      <div class="tip"><strong>Dica:</strong> Use uma senha com 8+ caracteres, misturando letras maiúsculas, minúsculas, números e símbolos. Nunca compartilhe com colegas.</div>
+
+      <h3>Esqueci minha senha</h3>
+      <ol class="step-list">
+        <li>Na tela de login, clique em <strong>"Esqueci minha senha"</strong>.</li>
+        <li>Informe seu e-mail cadastrado.</li>
+        <li>Você receberá em poucos minutos um link de recuperação válido por 24 horas.</li>
+        <li>Clique no link e defina uma nova senha.</li>
+      </ol>
+
+      <div class="warning"><strong>Atenção:</strong> Se não receber o e-mail em 10 minutos, confira sua caixa de spam. Persistindo, chame o administrador do sistema na sua empresa.</div>
+    </section>
+
+    <!-- INTERFACE -->
+    <section id="interface" class="module" aria-labelledby="interface-h">
+      <span class="module-tag">Começando</span>
+      <h2 id="interface-h"><span class="icon">🧭</span>Conhecendo a interface</h2>
+      <p class="subtitle">Os 4 elementos visuais que aparecem em todas as telas do CRM.</p>
+
+      <h3>1. Menu lateral (barra azul à esquerda)</h3>
+      <p>Lista todos os módulos do CRM, agrupados por área (Comercial, Retenção, Análises, Configurações). Clique em qualquer item para navegar — o módulo ativo fica destacado em azul mais claro.</p>
+
+      <h3>2. Topbar (barra superior)</h3>
+      <p>Mostra o nome da tela atual, busca rápida, notificações (sino) e seu avatar com menu de perfil. Use o sino para ver alertas pendentes em tempo real.</p>
+
+      <h3>3. Conteúdo principal</h3>
+      <p>Onde acontece a ação: tabelas, kanban, formulários e gráficos. A maioria das telas tem o padrão <em>"título + filtros + ação principal (botão azul) + corpo"</em>.</p>
+
+      <h3>4. Painéis laterais e modais</h3>
+      <p>Ao criar ou editar registros, o CRM abre um <strong>painel deslizante à direita</strong> em vez de mudar de tela. Isso preserva seu contexto. Para fechar, clique no <kbd>X</kbd> ou pressione <kbd>Esc</kbd>.</p>
+
+      <div class="tip"><strong>Tema personalizado:</strong> Em <em>Configurações → Aparência</em> você pode escolher entre os temas Azul (padrão ProSystem), Laranja, Verde e o modo Claro/Escuro.</div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="module" aria-labelledby="dashboard-h">
+      <span class="module-tag">Painel Central</span>
+      <h2 id="dashboard-h"><span class="icon">📊</span>Dashboard</h2>
+      <p class="subtitle">A primeira tela que você vê ao entrar no CRM — o resumo executivo do seu dia.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        O Dashboard reúne os indicadores mais importantes do seu trabalho em um só lugar:
+        agenda do dia, atividades atrasadas, saúde da carteira, leads quentes, propostas em aberto
+        e desempenho da equipe. É o ponto de partida da rotina comercial.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Vendedor sem dashboard começa o dia perdido. Com ele, você abre o sistema e em 30 segundos
+          já sabe: quem ligar, qual proposta cobrar, quais clientes estão em risco e como está o mês.
+          Isso transforma reatividade em estratégia.
+        </p>
+      </div>
+
+      <h3>O que você vê no Dashboard</h3>
       <table>
-        <tr><th>Status</th><th>Descrição</th></tr>
-        <tr><td><span class="status-indicator status-novo"></span> NOVO</td><td>Caso criado, aguardando diagnóstico</td></tr>
-        <tr><td><span class="status-indicator status-diagnosticado"></span> DIAGNOSTICADO</td><td>Análise concluída, motivos identificados</td></tr>
-        <tr><td><span class="status-indicator status-planejado"></span> PLANEJADO</td><td>Plano de retenção criado</td></tr>
-        <tr><td><span class="status-indicator status-executando"></span> EXECUTANDO</td><td>Ações em andamento</td></tr>
-        <tr><td><span class="status-indicator status-recuperado"></span> RECUPERADO</td><td>✅ Cliente retido com sucesso</td></tr>
-        <tr><td><span class="status-indicator status-perdido"></span> PERDIDO</td><td>❌ Cliente cancelou</td></tr>
+        <thead>
+          <tr><th>Bloco</th><th>O que mostra</th><th>Por que olhar</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Agenda de Hoje</strong></td><td>Compromissos, reuniões e ligações do dia</td><td>Não perde nenhum follow-up agendado</td></tr>
+          <tr><td><strong>Atividades Atrasadas</strong></td><td>Tarefas vencidas que precisam atenção</td><td>Resolve débitos antes que virem perda</td></tr>
+          <tr><td><strong>Saúde dos Clientes</strong></td><td>Health score consolidado da carteira</td><td>Identifica risco de churn cedo</td></tr>
+          <tr><td><strong>KPIs Comerciais</strong></td><td>Vendas, conversão, ticket médio do mês</td><td>Sabe se está no caminho da meta</td></tr>
+          <tr><td><strong>Pipeline em valor</strong></td><td>Quanto há de oportunidade aberta</td><td>Projeta receita do mês</td></tr>
+        </tbody>
       </table>
 
-      <h3>7.3 Tipos de Ação</h3>
+      <h3>Passo a passo: rotina diária de 5 minutos</h3>
+      <ol class="step-list">
+        <li>Abra o CRM e fique no Dashboard.</li>
+        <li>Leia a <strong>Agenda de Hoje</strong> — anote mentalmente seus 3 compromissos prioritários.</li>
+        <li>Verifique <strong>Atividades Atrasadas</strong> — reprograme ou execute uma delas imediatamente.</li>
+        <li>Confira <strong>Saúde dos Clientes</strong> — se algum cliente importante caiu para "Em risco", abra um caso de retenção.</li>
+        <li>Cheque os <strong>KPIs do mês</strong> — está acima, igual ou abaixo do esperado?</li>
+        <li>Só então vá para o Funil ou Leads operar.</li>
+      </ol>
+
+      <div class="tip"><strong>Boa prática:</strong> Faça esse ritual todo dia ao chegar, antes do café. Vendedores que abrem o Dashboard cedo fecham, em média, 30% mais.</div>
+    </section>
+
+    <!-- LEADS -->
+    <section id="leads" class="module" aria-labelledby="leads-h">
+      <span class="module-tag">Captação</span>
+      <h2 id="leads-h"><span class="icon">🎯</span>Leads</h2>
+      <p class="subtitle">A porta de entrada de toda nova oportunidade comercial.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        O módulo de <strong>Leads</strong> armazena todo contato que ainda não é cliente: indicações,
+        formulários do site, listas compradas, prospects identificados pelo SDR. Cada lead tem
+        nome, empresa, telefone, segmento, origem e status de qualificação.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Lead perdido é venda perdida. Sem um registro organizado, contatos se diluem em planilhas,
+          WhatsApp e cabeça do vendedor. O módulo garante que <em>nenhum prospect vira esquecido</em>
+          e que toda a equipe enxergue o pipeline real de captação.
+        </p>
+      </div>
+
+      <h3>Como cadastrar um novo lead</h3>
+      <ol class="step-list">
+        <li>No menu lateral, clique em <strong>Leads</strong>.</li>
+        <li>Clique no botão azul <strong>+ Novo Lead</strong> (canto superior direito).</li>
+        <li>Preencha os campos obrigatórios: <em>nome do contato, empresa, telefone, e-mail, segmento</em> (farmácia, padaria, varejo).</li>
+        <li>Selecione a <strong>origem</strong> (Site, Indicação, Lista, Evento, Outbound).</li>
+        <li>Adicione uma <strong>observação</strong> com o contexto inicial (ex.: "interessado em PDV, tem 2 lojas").</li>
+        <li>Clique em <strong>Salvar</strong>. O lead aparece na lista com status "Novo".</li>
+      </ol>
+
+      <h3>Qualificando um lead</h3>
+      <ol class="step-list">
+        <li>Clique no nome do lead para abrir a ficha.</li>
+        <li>Preencha o <strong>perfil de qualificação</strong>: número de PDVs, faturamento estimado, sistema atual.</li>
+        <li>Marque o status: <strong>Qualificado</strong> (vai virar oportunidade) ou <strong>Desqualificado</strong> (não tem fit).</li>
+        <li>Se qualificado, clique em <strong>Mover para Funil</strong> — o lead vira oportunidade no Pipeline Comercial.</li>
+      </ol>
+
+      <h3>Boas práticas</h3>
       <ul>
-        <li><strong>CONTATO:</strong> Ligação ou reunião com o cliente</li>
-        <li><strong>EMAIL:</strong> Envio de proposta ou comunicação</li>
-        <li><strong>DESCONTO:</strong> Aplicar desconto na renovação</li>
-        <li><strong>PRODUTO:</strong> Demonstração ou upgrade</li>
-        <li><strong>OUTRO:</strong> Ações personalizadas</li>
+        <li>Cadastre o lead <strong>no mesmo dia</strong> do contato — memória recente = dados melhores.</li>
+        <li>Use <strong>etiquetas</strong> para segmentar (ex.: "Evento ABRAFARMA", "Cliente Top").</li>
+        <li>Sempre informe a <strong>origem</strong> — é a base do relatório de canais que mais convertem.</li>
+        <li>Não duplique: antes de criar, busque pelo CNPJ ou telefone na barra de busca.</li>
       </ul>
 
-      <h3>7.4 Fluxo de Diagnóstico</h3>
-      <div class="mermaid">
-flowchart LR
-    A[Caso NOVO] --> B[Coletar Dados]
-    B --> C[Dias sem interação]
-    B --> D[Valor mensal]
-    B --> E[Chamados suporte]
-    B --> F[Tempo cliente]
-    B --> G[Motivo reportado]
-    C --> H[Calcular Score]
-    D --> H
-    E --> H
-    F --> H
-    G --> H
-    H --> I[Identificar Fatores]
-    I --> J[Salvar Diagnóstico]
-    J --> K[Status: DIAGNOSTICADO]
+      <div class="warning"><strong>Erro comum:</strong> Tratar todo contato como cliente. Lead ≠ Cliente. Só vira cliente após contrato assinado.</div>
+    </section>
+
+    <!-- FUNIL -->
+    <section id="funil" class="module" aria-labelledby="funil-h">
+      <span class="module-tag">Vendas</span>
+      <h2 id="funil-h"><span class="icon">🗂️</span>Funil Comercial</h2>
+      <p class="subtitle">O kanban visual onde cada oportunidade caminha até o fechamento.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        O <strong>Funil</strong> é uma representação visual em colunas (estilo Kanban/Trello) das etapas
+        de venda. Cada card é uma oportunidade — você arrasta da esquerda para a direita conforme
+        a venda avança: Prospecção → Qualificação → Proposta → Negociação → Fechamento.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          O funil é o coração da gestão comercial. Sem ele, você não sabe quantas oportunidades
+          estão paradas, em que etapa o time tem mais dificuldade, e qual o tempo médio de venda.
+          Empresas com funil estruturado convertem 2x mais.
+        </p>
+      </div>
+
+      <h3>Anatomia do Funil</h3>
+      <ul>
+        <li><strong>Colunas:</strong> cada uma representa uma etapa configurável (em Configurações → Kanban).</li>
+        <li><strong>Cards:</strong> uma oportunidade com nome do prospect, valor, vendedor responsável e dias na etapa.</li>
+        <li><strong>Cabeçalho da coluna:</strong> mostra a quantidade de cards e o valor total da etapa.</li>
+        <li><strong>Filtros:</strong> por vendedor, segmento, valor mínimo, etiqueta.</li>
+      </ul>
+
+      <h3>Movendo uma oportunidade</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Funil Comercial</strong> no menu.</li>
+        <li>Encontre o card da oportunidade (use a busca se necessário).</li>
+        <li>Clique e segure o card, arraste para a coluna da etapa atual e solte.</li>
+        <li>O CRM pede confirmação e atualiza o histórico do cliente.</li>
+        <li>Se moveu para "Fechado-Ganho", o sistema abre o fluxo de criação de contrato automaticamente.</li>
+      </ol>
+
+      <h3>Criando uma nova coluna (gestor)</h3>
+      <ol class="step-list">
+        <li>Clique em <strong>+ Nova Coluna</strong> ao final do funil.</li>
+        <li>Dê um nome (ex.: "Aguardando documentos").</li>
+        <li>Escolha uma cor para identificação rápida.</li>
+        <li>Defina se é uma <strong>etapa de ganho, perda ou intermediária</strong>.</li>
+        <li>Salve. A coluna estará disponível para arrastar cards.</li>
+      </ol>
+
+      <div class="tip"><strong>Dica de gestor:</strong> Não tenha mais de 7 colunas. Funil enxuto = visualização clara. Etapas demais confundem o time.</div>
+    </section>
+
+    <!-- PROPOSTAS -->
+    <section id="propostas" class="module" aria-labelledby="propostas-h">
+      <span class="module-tag">Vendas</span>
+      <h2 id="propostas-h"><span class="icon">📄</span>Propostas Comerciais</h2>
+      <p class="subtitle">Crie, envie e acompanhe propostas profissionais com poucos cliques.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Centraliza o ciclo de propostas: <strong>criação</strong> com base em templates aprovados
+        (Solution Basic, Plus, Pro, MEI), <strong>envio</strong> por e-mail/WhatsApp, controle de
+        <strong>visualização</strong> e <strong>aceite</strong> pelo prospect.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Propostas no Word são perdidas, divergentes e descontroladas. Aqui, cada proposta segue o
+          padrão da ProSystem, fica versionada, e você sabe exatamente quando o cliente abriu o PDF.
+          Isso encurta o ciclo de venda e protege a marca.
+        </p>
+      </div>
+
+      <h3>Passo a passo: criar uma proposta</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Propostas Comerciais</strong> no menu.</li>
+        <li>Clique em <strong>+ Nova Proposta</strong>.</li>
+        <li>Escolha o <strong>cliente/oportunidade</strong> vinculada (busca por nome ou CNPJ).</li>
+        <li>Selecione o <strong>plano base</strong> (Basic, MEI, Plus ou Pro) — preenche valores automaticamente.</li>
+        <li>Ajuste itens: módulos extras, descontos, condições de pagamento, validade.</li>
+        <li>Visualize o preview em PDF e clique em <strong>Gerar Proposta</strong>.</li>
+        <li>Envie por e-mail (botão "Enviar") ou copie o link para colar no WhatsApp.</li>
+      </ol>
+
+      <h3>Acompanhando o aceite</h3>
+      <p>Na listagem, o status muda de <em>Rascunho → Enviada → Visualizada → Aceita / Recusada</em> à medida que o cliente interage. Você recebe notificação no sino quando ele abre o documento.</p>
+
+      <h3>Visualização Lista vs Kanban</h3>
+      <p>Use os dois ícones no topo direito para alternar:</p>
+      <ul>
+        <li><strong>Lista:</strong> melhor para conferir grandes volumes e filtrar por vendedor.</li>
+        <li><strong>Kanban:</strong> melhor para ver o status visual e priorizar follow-ups.</li>
+      </ul>
+
+      <div class="tip"><strong>Boa prática:</strong> Toda proposta enviada gera uma <em>atividade de follow-up</em> automática 48h depois. Não deixe esfriar.</div>
+    </section>
+
+    <!-- CONTRATOS -->
+    <section id="contratos" class="module" aria-labelledby="contratos-h">
+      <span class="module-tag">Vendas</span>
+      <h2 id="contratos-h"><span class="icon">📝</span>Contratos Comerciais</h2>
+      <p class="subtitle">Geração e assinatura eletrônica de contratos via ZapSign.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Quando a proposta é aceita, o CRM gera um <strong>contrato baseado nas minutas oficiais</strong>
+        da ProSystem (Aditivo Fiscal, Solution Basic/MEI/Plus/Pro) e envia para assinatura
+        eletrônica integrada via <strong>ZapSign</strong>.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Contrato físico atrasa fechamento em dias. Com assinatura eletrônica integrada, o cliente
+          assina em minutos pelo celular, você ganha vínculo legal imediato e elimina o "depois eu
+          assino" — um dos maiores motivos de venda travada.
+        </p>
+      </div>
+
+      <h3>Passo a passo</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Contratos</strong> ou clique em "Gerar Contrato" dentro da proposta aceita.</li>
+        <li>Confirme o <strong>modelo de minuta</strong> compatível com o plano vendido.</li>
+        <li>Confira dados do cliente (CNPJ, endereço, representante legal) — vêm preenchidos da ficha.</li>
+        <li>Adicione signatários (cliente + ProSystem) com nome e e-mail.</li>
+        <li>Clique em <strong>Enviar para Assinatura</strong>. O ZapSign envia link por e-mail e WhatsApp.</li>
+        <li>Acompanhe o status: <em>Aguardando → Assinado pelo cliente → Concluído</em>.</li>
+        <li>Quando concluído, o cliente é movido automaticamente para a base de <strong>Clientes Ativos</strong>.</li>
+      </ol>
+
+      <div class="warning"><strong>Atenção:</strong> Não altere a minuta manualmente sem aval do jurídico. As versões oficiais estão em <code>MODELOS DE PROPOSTAS/</code>.</div>
+    </section>
+
+    <!-- CATÁLOGO -->
+    <section id="catalogo" class="module" aria-labelledby="catalogo-h">
+      <span class="module-tag">Vendas</span>
+      <h2 id="catalogo-h"><span class="icon">🛍️</span>Catálogo de Serviços</h2>
+      <p class="subtitle">A vitrine dos planos, módulos e serviços que sua empresa vende.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Centraliza todos os <strong>planos</strong> (Basic, MEI, Plus, Pro), módulos adicionais
+        (NF-e, controle de validade, integrações), serviços (implantação, treinamento) e seus
+        respectivos preços de tabela. É a fonte da verdade usada pelas propostas.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Vendedor que improvisa preço derruba margem. O catálogo padroniza valores, evita propostas
+          fora da política comercial e dá ao gestor controle sobre o que está sendo vendido.
+        </p>
+      </div>
+
+      <h3>Cadastrando um novo plano</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Catálogo de Serviços</strong>.</li>
+        <li>Clique em <strong>+ Novo Plano</strong>.</li>
+        <li>Preencha: nome, descrição, preço mensal, preço de implantação, quantidade de PDVs.</li>
+        <li>Liste os <strong>módulos inclusos</strong> e <strong>opcionais</strong>.</li>
+        <li>Defina o segmento-alvo (farmácia, padaria, varejo geral).</li>
+        <li>Salve. Esse plano agora aparece como opção ao criar propostas.</li>
+      </ol>
+    </section>
+
+    <!-- IMPORTAÇÃO -->
+    <section id="importacao" class="module" aria-labelledby="importacao-h">
+      <span class="module-tag">Captação</span>
+      <h2 id="importacao-h"><span class="icon">📥</span>Importação de Leads</h2>
+      <p class="subtitle">Suba listas inteiras em segundos — CSV, planilha ou colagem direta.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Permite carregar centenas de leads de uma vez, vindos de feiras, listas compradas, exportações
+        de outras plataformas ou pesquisas. Economiza horas de digitação manual.
+      </p>
+
+      <h3>Como importar</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Importação de Leads</strong>.</li>
+        <li>Baixe o <strong>modelo CSV</strong> de exemplo.</li>
+        <li>Preencha as colunas (nome, empresa, telefone, e-mail, segmento, origem).</li>
+        <li>Salve em CSV e carregue no botão <strong>Selecionar arquivo</strong>, ou cole diretamente o conteúdo na caixa de texto.</li>
+        <li>O CRM mostra um preview com erros destacados — corrija se necessário.</li>
+        <li>Clique em <strong>Importar</strong>. Os leads entram na base com status "Novo".</li>
+      </ol>
+
+      <div class="warning"><strong>Cuidado com duplicidade:</strong> O sistema avisa se o telefone ou e-mail já existe. Decida manter, atualizar ou pular.</div>
+    </section>
+
+    <!-- PREVISÃO -->
+    <section id="previsao" class="module" aria-labelledby="previsao-h">
+      <span class="module-tag">Vendas</span>
+      <h2 id="previsao-h"><span class="icon">🔮</span>Previsão de Fechamento</h2>
+      <p class="subtitle">Saiba quanto você provavelmente vai fechar no mês — antes que o mês acabe.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Combina valor das oportunidades em aberto com a probabilidade de cada etapa do funil
+        para gerar um <strong>forecast realista</strong>. Mostra cenários otimista, realista e
+        pessimista, além das <strong>top oportunidades</strong> que mais impactam a receita.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Gestão sem forecast vira surpresa no fim do mês. Com previsão, você sabe quando precisa
+          acelerar, oferecer desconto pontual ou contratar reforço — decisões tomadas com 15 dias
+          de antecedência custam menos.
+        </p>
+      </div>
+
+      <h3>Lendo a tela</h3>
+      <ul>
+        <li><strong>Cenários:</strong> três valores (otimista, realista, pessimista) com base na taxa de conversão histórica.</li>
+        <li><strong>Top Oportunidades:</strong> ranking das 10 vendas mais relevantes do mês.</li>
+        <li><strong>Comparativo:</strong> previsão x meta. Se vermelho, ação imediata.</li>
+      </ul>
+    </section>
+
+    <!-- PERDIDOS -->
+    <section id="perdidos" class="module" aria-labelledby="perdidos-h">
+      <span class="module-tag">Vendas</span>
+      <h2 id="perdidos-h"><span class="icon">📉</span>Perdidos</h2>
+      <p class="subtitle">Aprenda com cada "não" — leads e oportunidades que não fecharam.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Concentra todas as oportunidades perdidas com o <strong>motivo da perda</strong> (preço,
+        concorrência, timing, sem fit, sem retorno). Apresenta análises por <em>etapa</em> e
+        <em>origem</em>, mostrando onde o funil mais vaza.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Perda sem registro é perda repetida. Ao mapear motivos, você descobre se o problema é
+          de preço (ajuste a tabela), de timing (crie campanha de recontato) ou de fit (mude o
+          ICP). É um dos relatórios mais ricos do CRM.
+        </p>
+      </div>
+
+      <h3>Reativando um perdido</h3>
+      <ol class="step-list">
+        <li>Filtre por perdidos há mais de 90 dias.</li>
+        <li>Selecione perdas por motivo "preço" ou "timing".</li>
+        <li>Mova para a campanha de <strong>Recontato</strong> em massa.</li>
+        <li>A equipe de SDR retoma a abordagem com novos argumentos.</li>
+      </ol>
+    </section>
+
+    <!-- CLIENTES -->
+    <section id="clientes" class="module" aria-labelledby="clientes-h">
+      <span class="module-tag">Clientes</span>
+      <h2 id="clientes-h"><span class="icon">👥</span>Clientes</h2>
+      <p class="subtitle">Sua base unificada — quem comprou, o que comprou e como está hoje.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        A ficha 360° de cada cliente ativo: dados cadastrais (CNPJ, endereço, contatos), histórico
+        de propostas, contratos vigentes, atividades recentes, health score, NPS e tickets de suporte.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          É <strong>5x mais barato manter um cliente</strong> do que conquistar outro. A ficha
+          de Clientes é a base da estratégia de retenção e expansão — você só vende mais para quem já
+          é cliente se conhecer profundamente cada conta.
+        </p>
+      </div>
+
+      <h3>Buscando um cliente</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Clientes</strong>.</li>
+        <li>Use a barra de busca por nome, empresa, e-mail ou código.</li>
+        <li>Clique no resultado para abrir a ficha completa.</li>
+      </ol>
+
+      <h3>Atualizando informações</h3>
+      <ol class="step-list">
+        <li>Na ficha, clique em <strong>Editar</strong>.</li>
+        <li>Atualize os campos mudados (endereço, telefone, responsável).</li>
+        <li>Salve. O sistema mantém histórico de alterações para auditoria.</li>
+      </ol>
+
+      <div class="tip"><strong>Boa prática:</strong> Toda visita ou ligação deve gerar uma atividade no cliente — isso alimenta o histórico e o health score.</div>
+    </section>
+
+    <!-- CASOS -->
+    <section id="casos" class="module" aria-labelledby="casos-h">
+      <span class="module-tag">Retenção</span>
+      <h2 id="casos-h"><span class="icon">🚨</span>Churn &amp; Retenção (Casos)</h2>
+      <p class="subtitle">Gerenciamento ativo de clientes em risco — antes que cancelem.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Quando um cliente dá sinal de risco (baixo uso, reclamação, atraso de pagamento, queda no
+        NPS), abre-se um <strong>caso de retenção</strong>. Cada caso passa por <em>Diagnóstico →
+        Plano → Ações → Resultado</em>, com responsável e prazo definidos.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Cliente que cancela sem ninguém perceber é falha grave. Aqui cada risco vira <strong>caso
+          rastreável</strong>, com algoritmo de risco em 5 dimensões (uso, financeiro, suporte,
+          relacionamento, contratual). Você reage cedo e salva contas.
+        </p>
+      </div>
+
+      <h3>Abrindo um caso</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Churn &amp; Retenção</strong>.</li>
+        <li>Clique em <strong>+ Novo Caso</strong>.</li>
+        <li>Selecione o cliente e o <strong>motivo de risco</strong> (baixo uso, ticket aberto, vencimento, etc.).</li>
+        <li>O sistema calcula o <strong>risk score</strong> e sugere ações com base em casos similares.</li>
+        <li>Crie o <strong>diagnóstico</strong> (causa raiz) e o <strong>plano de retenção</strong>.</li>
+        <li>Liste as <strong>ações</strong> (ligação, visita, desconto, treinamento) com prazos.</li>
+        <li>Acompanhe execução até o desfecho: <em>Retido / Cancelado / Renegociado</em>.</li>
+      </ol>
+    </section>
+
+    <!-- HEALTH SCORE -->
+    <section id="health-score" class="module" aria-labelledby="health-score-h">
+      <span class="module-tag">Retenção</span>
+      <h2 id="health-score-h"><span class="icon">💚</span>Health Score</h2>
+      <p class="subtitle">Termômetro automático da saúde de cada conta.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Cada cliente recebe uma nota de <strong>0 a 100</strong> baseada em uso do sistema,
+        engajamento, ticket de suporte, financeiro e relacionamento. É colorido em três faixas:
+        verde (saudável), amarelo (atenção) e vermelho (risco).
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Health score é o primeiro alarme antes do churn. Quem usa health score em CRM tem
+          churn 40% menor — porque a equipe atua na cor amarela, evitando a vermelha.
+        </p>
+      </div>
+
+      <h3>Como ler</h3>
+      <table>
+        <thead><tr><th>Faixa</th><th>Significado</th><th>Ação recomendada</th></tr></thead>
+        <tbody>
+          <tr><td>80–100 (verde)</td><td>Cliente engajado, satisfeito</td><td>Oferta de upsell / indicação</td></tr>
+          <tr><td>50–79 (amarelo)</td><td>Sinais de atenção</td><td>Ligação proativa de CS</td></tr>
+          <tr><td>0–49 (vermelho)</td><td>Risco real de churn</td><td>Abrir caso de retenção imediato</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- NPS -->
+    <section id="nps" class="module" aria-labelledby="nps-h">
+      <span class="module-tag">Retenção</span>
+      <h2 id="nps-h"><span class="icon">⭐</span>NPS — Net Promoter Score</h2>
+      <p class="subtitle">A pergunta mais valiosa do mundo respondida pelos seus clientes.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Envia pesquisas periódicas perguntando "<em>Em uma escala de 0 a 10, o quanto você
+        recomendaria a ProSystem?</em>" e classifica respondentes em <strong>Promotores</strong>
+        (9-10), <strong>Neutros</strong> (7-8) e <strong>Detratores</strong> (0-6).
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          NPS é o KPI mais correlacionado com crescimento sustentável. Promotores indicam, neutros
+          ficam, detratores cancelam e falam mal. Medir e agir mensalmente muda a curva.
+        </p>
+      </div>
+
+      <h3>Painel NPS</h3>
+      <ul>
+        <li><strong>Distribuição de Scores:</strong> gráfico de notas 0-10.</li>
+        <li><strong>NPS consolidado:</strong> % Promotores - % Detratores.</li>
+        <li><strong>Respostas Recentes:</strong> comentários abertos dos clientes — leia todos.</li>
+      </ul>
+
+      <div class="tip"><strong>Regra de ouro:</strong> Todo detrator gera um caso de retenção automaticamente. Ligue em 24h.</div>
+    </section>
+
+    <!-- RENOVAÇÕES -->
+    <section id="renovacoes" class="module" aria-labelledby="renovacoes-h">
+      <span class="module-tag">Retenção</span>
+      <h2 id="renovacoes-h"><span class="icon">🔄</span>Renovações</h2>
+      <p class="subtitle">Antecipe vencimentos e nunca perca um contrato por descuido.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Lista todos os contratos vigentes ordenados por <strong>data de vencimento</strong>, com
+        alerta nos que estão a 60, 30 e 15 dias de expirar. Permite ação proativa: cobrança,
+        renegociação, upgrade de plano.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Contrato vencido sem renovação é receita perdida silenciosamente. Aqui você renova
+          <em>antes</em> da data — com mais força de negociação e menos chance de troca por concorrente.
+        </p>
       </div>
     </section>
 
-    <section id="api">
-      <h2>8. 🔌 API Reference</h2>
-      <p>Base URL: <code>http://localhost:3001</code></p>
+    <!-- NUTRIÇÃO -->
+    <section id="nutricao" class="module" aria-labelledby="nutricao-h">
+      <span class="module-tag">Retenção</span>
+      <h2 id="nutricao-h"><span class="icon">📩</span>Nutrição / Recontato</h2>
+      <p class="subtitle">Mantenha o relacionamento aceso mesmo quando não há venda imediata.</p>
 
-      <h3>Autenticação</h3>
+      <h3>Para que serve</h3>
+      <p>
+        Gerencia cadências de e-mail, WhatsApp e ligações para leads frios, perdidos antigos e
+        clientes inativos. Programa toques periódicos (conteúdos, novidades, ofertas) sem precisar
+        lembrar manualmente.
+      </p>
 
-      <h4>POST /auth/login</h4>
-      <pre><code>{
-  "email": "ceo@prosystem.com.br",
-  "password": "senha123"
-}</code></pre>
-      <p><strong>Resposta:</strong></p>
-      <pre><code>{
-  "status": "success",
-  "data": {
-    "accessToken": "eyJ...",
-    "refreshToken": "eyJ...",
-    "expiresIn": 604800,
-    "user": {
-      "id": "user-ceo",
-      "email": "ceo@prosystem.com.br",
-      "nome": "CEO ProSystem",
-      "role": "CEO"
-    }
-  }
-}</code></pre>
-
-      <h4>POST /auth/refresh</h4>
-      <p>Renova o access token usando o refresh token.</p>
-
-      <h4>POST /auth/logout</h4>
-      <p>Encerra a sessão do usuário (cleanup client-side).</p>
-
-      <h3>Casos de Churn</h3>
-      <table>
-        <tr><th>Método</th><th>Endpoint</th><th>Descrição</th><th>Roles</th></tr>
-        <tr><td>GET</td><td>/casos-churn</td><td>Listar casos (paginado)</td><td>Todos autenticados</td></tr>
-        <tr><td>POST</td><td>/casos-churn</td><td>Criar novo caso</td><td>CEO, SUPERVISAO</td></tr>
-        <tr><td>GET</td><td>/casos-churn/:id</td><td>Detalhes do caso</td><td>Todos autenticados</td></tr>
-        <tr><td>PATCH</td><td>/casos-churn/:id</td><td>Atualizar caso</td><td>CEO, SUPERVISAO</td></tr>
-      </table>
-
-      <h3>Dashboard</h3>
-      <table>
-        <tr><th>Método</th><th>Endpoint</th><th>Descrição</th></tr>
-        <tr><td>GET</td><td>/dashboard/retencao</td><td>KPIs principais</td></tr>
-        <tr><td>GET</td><td>/dashboard/retencao/chart/status</td><td>Gráfico por status</td></tr>
-        <tr><td>GET</td><td>/dashboard/retencao/chart/risco</td><td>Distribuição de risco</td></tr>
-        <tr><td>GET</td><td>/dashboard/retencao/top-risco</td><td>Top clientes em risco</td></tr>
-      </table>
-
-      <h3>Diagnóstico</h3>
-      <table>
-        <tr><th>Método</th><th>Endpoint</th><th>Descrição</th></tr>
-        <tr><td>POST</td><td>/casos/:id/diagnostico</td><td>Criar diagnóstico</td></tr>
-        <tr><td>GET</td><td>/casos/:id/diagnostico</td><td>Obter diagnóstico</td></tr>
-      </table>
-
-      <h3>Planos e Ações</h3>
-      <table>
-        <tr><th>Método</th><th>Endpoint</th><th>Descrição</th></tr>
-        <tr><td>POST</td><td>/casos/:id/planos</td><td>Criar plano</td></tr>
-        <tr><td>GET</td><td>/casos/:id/planos</td><td>Listar planos</td></tr>
-        <tr><td>PATCH</td><td>/planos/:id</td><td>Atualizar plano</td></tr>
-        <tr><td>POST</td><td>/casos/:id/acoes</td><td>Criar ação</td></tr>
-        <tr><td>GET</td><td>/casos/:id/acoes</td><td>Listar ações</td></tr>
-        <tr><td>PATCH</td><td>/acoes/:id</td><td>Atualizar ação</td></tr>
-      </table>
-
-      <div class="info-box">
-        <strong>🔐 Autenticação:</strong> Todas as rotas (exceto /auth/login) requerem o header:
-        <br><code>Authorization: Bearer &lt;access_token&gt;</code>
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          80% dos leads viram clientes depois do 5º toque. Sem nutrição, você desiste no 2º. É
+          aqui que vendas de ciclo longo se diferenciam de tentativas perdidas.
+        </p>
       </div>
     </section>
 
-    <section id="troubleshooting">
-      <h2>9. 🔧 Troubleshooting</h2>
+    <!-- ONBOARDING -->
+    <section id="onboarding" class="module" aria-labelledby="onboarding-h">
+      <span class="module-tag">Retenção</span>
+      <h2 id="onboarding-h"><span class="icon">🚀</span>Onboarding de Clientes</h2>
+      <p class="subtitle">Os primeiros 90 dias decidem se o cliente fica ou cancela.</p>
 
-      <h3>Problemas Comuns</h3>
+      <h3>Para que serve</h3>
+      <p>
+        Trilha estruturada que cada novo cliente percorre: <em>boas-vindas, kickoff, treinamento,
+        go-live, primeira fatura, primeira revisão</em>. Cada etapa tem responsável, prazo e checklist.
+      </p>
 
-      <h4>❌ Backend não inicia (port 3001 em uso)</h4>
-      <pre><code># Windows PowerShell
-Get-NetTCPConnection -LocalPort 3001 | Select-Object OwningProcess
-Stop-Process -Id &lt;PID&gt; -Force</code></pre>
-
-      <h4>❌ Database connection failed</h4>
-      <pre><code>cd backend
-docker-compose ps  # Verificar se postgres está rodando
-docker-compose restart postgres</code></pre>
-
-      <h4>❌ Frontend mostra erro 500</h4>
-      <p>Verifique se o backend está rodando em http://localhost:3001/health</p>
-
-      <h4>❌ Login falha com "jwt.sign is not a function"</h4>
-      <p>Reinstale o jsonwebtoken: <code>cd backend && npm install jsonwebtoken</code></p>
-
-      <h4>❌ Tests E2E falhando</h4>
-      <pre><code>cd frontend
-npx playwright install chromium</code></pre>
-
-      <div class="warning-box">
-        <strong>⚠️ Em Produção:</strong> Sempre altere as variáveis JWT_SECRET e JWT_REFRESH_SECRET
-        antes de fazer deploy. Use valores aleatórios de no mínimo 64 caracteres.
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Churn nos primeiros 90 dias é o mais caro — você gastou para vender e nem amortizou. Um
+          onboarding bem executado <strong>reduz churn precoce em até 60%</strong>.
+        </p>
       </div>
     </section>
 
-    <section id="suporte">
-      <h2>10. 📞 Suporte e Contato</h2>
+    <!-- INDICAÇÕES (Vendas Adicionais) -->
+    <section id="indicacoes" class="module" aria-labelledby="indicacoes-h">
+      <span class="module-tag">Expansão</span>
+      <h2 id="indicacoes-h"><span class="icon">📈</span>Vendas Adicionais &amp; Indicações</h2>
+      <p class="subtitle">Faça mais com quem já é cliente: upsell, cross-sell e indicações.</p>
 
-      <div class="grid">
-        <div class="card">
-          <h4>📧 Email</h4>
-          <p>suporte@prosystemnet.com.br</p>
-        </div>
-        <div class="card">
-          <h4>📱 WhatsApp</h4>
-          <p>(27) 99779-8103</p>
-        </div>
-        <div class="card">
-          <h4>☎️ Telefone</h4>
-          <p>(27) 3327-6739</p>
-        </div>
-        <div class="card">
-          <h4>🌐 Website</h4>
-          <p>prosystemnet.com.br</p>
-        </div>
+      <h3>Para que serve</h3>
+      <p>
+        Registra todas as vendas extras feitas para a base ativa — novos PDVs, módulos opcionais,
+        treinamentos, serviços. Também controla o programa de indicações: cliente indica, ganha
+        bonificação, e a equipe recebe lead pré-qualificado.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          A venda mais barata é para quem já confia em você. Cada cliente saudável vale 1,3x sua
+          receita atual em potencial de expansão.
+        </p>
+      </div>
+    </section>
+
+    <!-- AGENDA -->
+    <section id="agenda" class="module" aria-labelledby="agenda-h">
+      <span class="module-tag">Operação</span>
+      <h2 id="agenda-h"><span class="icon">📅</span>Agenda</h2>
+      <p class="subtitle">Compromissos, reuniões e Meet integrados ao CRM.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Calendário do vendedor com integração ao <strong>Google Calendar/Meet</strong>. Cria
+        reuniões com cliente, gera link de Meet automático e envia convite por e-mail/WhatsApp.
+      </p>
+
+      <h3>Marcando uma reunião</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Agenda</strong>.</li>
+        <li>Clique no horário desejado ou em <strong>+ Novo Compromisso</strong>.</li>
+        <li>Preencha título, cliente, data, hora e participantes.</li>
+        <li>Marque "Criar link do Meet" se for reunião remota.</li>
+        <li>Salve. Convite enviado, link gerado, lembrete automático configurado.</li>
+      </ol>
+    </section>
+
+    <!-- ATIVIDADES -->
+    <section id="atividades" class="module" aria-labelledby="atividades-h">
+      <span class="module-tag">Operação</span>
+      <h2 id="atividades-h"><span class="icon">✅</span>Atividades</h2>
+      <p class="subtitle">Tarefas, follow-ups e ligações — nada cai no esquecimento.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Lista de tarefas associadas a leads, oportunidades, propostas ou clientes. Cada atividade
+        tem <em>tipo</em> (ligação, e-mail, visita, WhatsApp), prazo, responsável e prioridade.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Vendas se perdem entre o "ligo amanhã" e o "deixei pra depois". Atividades organizadas
+          forçam disciplina — e disciplina vende.
+        </p>
       </div>
 
-      <h3>Localização</h3>
-      <p>📍 Av. Prof. Fernando Duarte Rabelo, 330 Sala 02 – Goiabeiras – Vitória/ES CEP 29.072-335</p>
+      <h3>Criando uma atividade</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Atividades</strong> ou crie direto de dentro da ficha de um cliente/lead.</li>
+        <li>Clique em <strong>Nova Atividade</strong>.</li>
+        <li>Escolha o tipo (Ex: "Ligação de follow-up").</li>
+        <li>Defina prazo, prioridade e vincule ao registro relacionado.</li>
+        <li>Salve. Aparece na sua lista do dia e no Dashboard.</li>
+      </ol>
+    </section>
 
-      <div class="success-box">
-        <strong>🎉 Sistema CRM Comercial 100% funcional!</strong>
-        <p>10/10 testes E2E passando • Backend + Frontend + Database integrados</p>
+    <!-- METAS -->
+    <section id="metas" class="module" aria-labelledby="metas-h">
+      <span class="module-tag">Equipe</span>
+      <h2 id="metas-h"><span class="icon">🎯</span>Metas Comerciais</h2>
+      <p class="subtitle">Objetivos claros para indivíduos, times e empresa.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Cadastra metas por vendedor, equipe ou unidade, com período e indicador (receita, novos
+        clientes, propostas enviadas, MRR). Acompanha progresso em barra visual e alimenta o
+        Dashboard e o Ranking.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Time sem meta não tem direção. Meta sem acompanhamento não tem força. O módulo torna
+          ambas as coisas explícitas e visíveis para todos.
+        </p>
       </div>
+
+      <h3>Criando uma meta</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Metas Comerciais</strong>.</li>
+        <li>Clique em <strong>Nova Meta</strong>.</li>
+        <li>Escolha o vendedor (ou todos), o indicador e o período (mês/trimestre).</li>
+        <li>Defina o valor-alvo e clique em Salvar.</li>
+        <li>Acompanhe o progresso na lista — verde acima de 70%, amarelo 50-70%, vermelho abaixo.</li>
+      </ol>
+    </section>
+
+    <!-- COMISSÕES -->
+    <section id="comissoes" class="module" aria-labelledby="comissoes-h">
+      <span class="module-tag">Equipe</span>
+      <h2 id="comissoes-h"><span class="icon">💰</span>Comissões</h2>
+      <p class="subtitle">Cálculo automático e transparente da remuneração variável.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Calcula comissões com base em regras configuráveis (% sobre receita, valor fixo por venda,
+        escalonamento por meta). Mostra <em>por vendedor</em>, <em>por mês</em> e permite
+        lançamentos manuais (bônus, ajustes).
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Cálculo manual de comissão gera erro, atraso e desconfiança no time. Aqui, cada vendedor
+          enxerga em tempo real quanto vai receber — isso é o melhor combustível motivacional.
+        </p>
+      </div>
+
+      <h3>Lançando comissão manual (gestor)</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Comissões</strong>.</li>
+        <li>Clique em <strong>Lançar Comissão Manual</strong>.</li>
+        <li>Selecione vendedor, mês, valor e descrição (bônus de meta, indicação, etc.).</li>
+        <li>Salve. Entra no fechamento mensal automaticamente.</li>
+      </ol>
+    </section>
+
+    <!-- RANKING -->
+    <section id="ranking" class="module" aria-labelledby="ranking-h">
+      <span class="module-tag">Equipe</span>
+      <h2 id="ranking-h"><span class="icon">🏆</span>Ranking Comercial</h2>
+      <p class="subtitle">Competição saudável que puxa o time pra cima.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Classifica os vendedores por receita, número de fechamentos, ticket médio ou taxa de
+        conversão. Pódio visível para todo o time, com filtros por período.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Gamificação funciona. Ranking visível em painel comum cria pressão social positiva,
+          identifica top performers para mentoria e mostra rapidamente quem precisa de apoio.
+        </p>
+      </div>
+    </section>
+
+    <!-- CAMPANHAS -->
+    <section id="campanhas" class="module" aria-labelledby="campanhas-h">
+      <span class="module-tag">Equipe</span>
+      <h2 id="campanhas-h"><span class="icon">📣</span>Campanhas</h2>
+      <p class="subtitle">Ações comerciais coordenadas com começo, meio e fim.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Cria campanhas temáticas (Black Friday, queima de estoque, novo módulo) com público-alvo,
+        oferta especial, vendedores designados e prazo. Acompanha resultados em tempo real.
+      </p>
+
+      <h3>Criando uma campanha</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Campanhas</strong>.</li>
+        <li>Clique em <strong>Nova Campanha</strong>.</li>
+        <li>Defina nome, período, oferta e público-alvo (filtros: segmento, região, perdidos há X dias).</li>
+        <li>Designe vendedores responsáveis.</li>
+        <li>Inicie. Cada contato gera uma atividade automática para o time.</li>
+      </ol>
+    </section>
+
+    <!-- RELATÓRIOS -->
+    <section id="relatorios" class="module" aria-labelledby="relatorios-h">
+      <span class="module-tag">Análises</span>
+      <h2 id="relatorios-h"><span class="icon">📈</span>Relatórios Comerciais</h2>
+      <p class="subtitle">A inteligência por trás das decisões — números que contam histórias.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Centro de análises com <strong>Resultado Mensal</strong> consolidado, análises por vendedor,
+        canal de origem, segmento, ticket médio, ciclo de venda, taxa de conversão por etapa do funil
+        e tendências de churn.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Decisão sem dado é palpite. Aqui você descobre que indicação converte 4x mais que outbound,
+          que farmácias têm ciclo mais curto que padarias, que vendedor X precisa de coaching em
+          objeção de preço. <strong>Dado dirige ação.</strong>
+        </p>
+      </div>
+
+      <h3>Principais relatórios</h3>
+      <ul>
+        <li><strong>Resultado Mensal</strong> — receita, deals fechados, ticket médio, comparativo mês anterior.</li>
+        <li><strong>Análise Comercial</strong> — dados consolidados do CRM por dimensão.</li>
+        <li><strong>Pipeline Health</strong> — distribuição do funil em valor e quantidade.</li>
+        <li><strong>Conversão por Etapa</strong> — onde o funil vaza mais.</li>
+        <li><strong>Tempo médio por etapa</strong> — gargalos do processo.</li>
+      </ul>
+
+      <h3>Exportando</h3>
+      <p>Clique em <strong>Exportar</strong> no canto superior direito de qualquer relatório para baixar em <strong>PDF</strong> (apresentações) ou <strong>Excel</strong> (análise aprofundada).</p>
+    </section>
+
+    <!-- ALERTAS -->
+    <section id="alertas" class="module" aria-labelledby="alertas-h">
+      <span class="module-tag">Análises</span>
+      <h2 id="alertas-h"><span class="icon">🔔</span>Alertas e Notificações</h2>
+      <p class="subtitle">O CRM avisa você — sem precisar ficar checando.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Centraliza notificações: proposta visualizada, atividade vencida, cliente em risco, meta
+        próxima do prazo, novo NPS detrator. Aparece no sino da topbar e em e-mail (opcional).
+      </p>
+
+      <h3>Configurando alertas</h3>
+      <p>Em <em>Configurações → Notificações</em>, escolha quais eventos disparam notificação e por qual canal (sistema, e-mail, WhatsApp).</p>
+    </section>
+
+    <!-- LICENÇAS -->
+    <section id="licencas" class="module" aria-labelledby="licencas-h">
+      <span class="module-tag">Operação</span>
+      <h2 id="licencas-h"><span class="icon">🔑</span>Licenças</h2>
+      <p class="subtitle">Controle de licenças do ERP vendidas a cada cliente.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Registra licenças ativas, suas datas de início/fim, quantidade de PDVs autorizados e
+        renovações. Vinculadas a clientes e contratos.
+      </p>
+    </section>
+
+    <!-- SUPORTE -->
+    <section id="suporte" class="module" aria-labelledby="suporte-h">
+      <span class="module-tag">Operação</span>
+      <h2 id="suporte-h"><span class="icon">🛠️</span>Suporte Técnico</h2>
+      <p class="subtitle">Tickets, SLAs e histórico de atendimento conectados ao CRM.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Permite abrir tickets para a equipe técnica diretamente da ficha do cliente. Acompanha
+        SLA, prioridade, status e histórico — alimentando o health score.
+      </p>
+
+      <h3>Abrindo um ticket</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Suporte Técnico</strong>.</li>
+        <li>Clique em <strong>Abrir Ticket</strong>.</li>
+        <li>Selecione cliente, prioridade e categoria.</li>
+        <li>Descreva o problema brevemente.</li>
+        <li>Anexe prints ou logs se houver.</li>
+        <li>Envie. O time técnico é notificado automaticamente.</li>
+      </ol>
+    </section>
+
+    <!-- USUÁRIOS -->
+    <section id="usuarios" class="module" aria-labelledby="usuarios-h">
+      <span class="module-tag">Administração</span>
+      <h2 id="usuarios-h"><span class="icon">👤</span>Usuários e Permissões</h2>
+      <p class="subtitle">Quem entra no CRM e o que cada um pode fazer.</p>
+
+      <h3>Para que serve</h3>
+      <p>
+        Cadastro de usuários da equipe com <strong>6 níveis de permissão</strong> (CEO, Diretor,
+        Gerente, Vendedor, SDR, CS). Cada perfil enxerga e edita apenas o que é compatível com seu
+        papel.
+      </p>
+
+      <div class="why-box">
+        <h4>🎯 Por que é importante</h4>
+        <p>
+          Permissão granular evita acidente (vendedor excluindo lead alheio) e protege dados
+          sensíveis (comissões, contratos). É segurança operacional sem burocracia.
+        </p>
+      </div>
+
+      <h3>Cadastrando um novo usuário (apenas CEO/Admin)</h3>
+      <ol class="step-list">
+        <li>Acesse <strong>Usuários e Permissões</strong>.</li>
+        <li>Clique em <strong>+ Novo Usuário</strong>.</li>
+        <li>Preencha nome, e-mail e telefone.</li>
+        <li>Escolha o <strong>perfil</strong>.</li>
+        <li>Defina senha temporária (o usuário troca no primeiro acesso).</li>
+        <li>Salve. O usuário recebe e-mail de boas-vindas com instruções.</li>
+      </ol>
+
+      <div class="warning"><strong>Restrição:</strong> Apenas o CEO pode cadastrar novos usuários, por motivos de segurança e controle de acesso.</div>
+    </section>
+
+    <!-- CONFIGURAÇÕES -->
+    <section id="configuracoes" class="module" aria-labelledby="configuracoes-h">
+      <span class="module-tag">Administração</span>
+      <h2 id="configuracoes-h"><span class="icon">⚙️</span>Configurações</h2>
+      <p class="subtitle">Personalize o CRM para a sua empresa.</p>
+
+      <h3>Seções disponíveis</h3>
+      <ul>
+        <li><strong>Aparência</strong> — tema (azul, laranja, verde), modo claro/escuro, logo da empresa.</li>
+        <li><strong>ZapSign</strong> — token de API e ambiente para integração de assinatura eletrônica.</li>
+        <li><strong>Google Workspace</strong> — OAuth para Calendar/Meet/Gmail.</li>
+        <li><strong>SMTP</strong> — servidor de e-mail para envio de propostas e notificações.</li>
+        <li><strong>Kanban</strong> — etapas do funil, cores e regras de automação.</li>
+        <li><strong>Etiquetas</strong> — tags customizadas para classificar leads e clientes.</li>
+        <li><strong>Notificações</strong> — quais eventos disparam alerta e por qual canal.</li>
+      </ul>
+
+      <div class="warning"><strong>Atenção:</strong> Alterações em integrações (ZapSign, SMTP, Google) podem afetar todo o time. Comunique antes de mudar.</div>
+    </section>
+
+    <!-- DESENVOLVIMENTO -->
+    <section id="desenvolvimento" class="module" aria-labelledby="desenvolvimento-h">
+      <span class="module-tag">Apêndice técnico</span>
+      <h2 id="desenvolvimento-h"><span class="icon">⚡</span>Desenvolvimento do CRM</h2>
+      <p class="subtitle">Como o sistema foi construído — uma nota técnica para curiosos e parceiros.</p>
+
+      <h3>Etapas do desenvolvimento</h3>
+      <ol class="step-list">
+        <li><strong>Sprint 0 — Discovery (2026-04):</strong> Mapeamento do processo comercial atual da ProSystem, entrevistas com vendedores e CS, definição do escopo do MVP.</li>
+        <li><strong>Sprint 1-27 — Construção do backend:</strong> Arquitetura em Node.js + Fastify + Prisma. Banco de dados PostgreSQL com 43 tabelas relacionadas. APIs RESTful com 26 grupos de rotas cobrindo todas as áreas (vendas, retenção, financeiro).</li>
+        <li><strong>Sprint 28 — Auditoria de backend:</strong> 39 testes de integração, 70% de cobertura, RBAC com 6 perfis, algoritmo de risco em 5 dimensões para churn, dashboard com 7 KPIs.</li>
+        <li><strong>Sprint 29 — Frontend Next.js:</strong> Construção das 35 telas com Next.js 16, React 19, TailwindCSS 4 e shadcn/ui. Tema ProSystem (azul navy <code>#0D2238</code>) implementado como design system com tokens CSS.</li>
+        <li><strong>Sprint 30 — Integrações:</strong> ZapSign (assinatura eletrônica), Google Workspace (Calendar/Meet), SMTP customizado, importação CSV.</li>
+        <li><strong>Sprint 31 — Deploy em produção:</strong> Backend em <strong>Railway</strong>, frontend em <strong>Vercel</strong>, banco de dados gerenciado em <strong>Supabase</strong>. Autenticação JWT (HS256) com access token de 7 dias + refresh de 30 dias.</li>
+        <li><strong>Sprint 32 — Segurança e hardening:</strong> Remoção de credenciais públicas do login, restrição de criação de usuários ao CEO, helmet + CORS configurado, healthcheck resiliente.</li>
+      </ol>
+
+      <h3>Stack técnica</h3>
+      <table>
+        <thead><tr><th>Camada</th><th>Tecnologia</th><th>Por quê</th></tr></thead>
+        <tbody>
+          <tr><td>Backend</td><td>Node.js 20 + Fastify 4</td><td>Performance e baixo overhead</td></tr>
+          <tr><td>ORM</td><td>Prisma 5</td><td>Type-safety total no acesso a dados</td></tr>
+          <tr><td>Banco</td><td>PostgreSQL (Supabase)</td><td>Relacional, robusto, gerenciado</td></tr>
+          <tr><td>Frontend</td><td>Next.js 16 + React 19</td><td>SSR, performance, ecossistema</td></tr>
+          <tr><td>UI</td><td>Tailwind 4 + shadcn/ui + Inter</td><td>Design system consistente</td></tr>
+          <tr><td>Auth</td><td>JWT + NextAuth</td><td>Padrão de mercado, seguro</td></tr>
+          <tr><td>E2E</td><td>Playwright</td><td>Smoke tests reais em navegador</td></tr>
+          <tr><td>Deploy</td><td>Railway + Vercel</td><td>Zero DevOps, escala automática</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- GLOSSÁRIO -->
+    <section id="glossario" class="module" aria-labelledby="glossario-h">
+      <span class="module-tag">Apêndice</span>
+      <h2 id="glossario-h"><span class="icon">📚</span>Glossário</h2>
+      <p class="subtitle">Termos do CRM em linguagem simples.</p>
+
+      <table>
+        <thead><tr><th>Termo</th><th>O que significa</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Lead</strong></td><td>Contato ainda não cliente — possível futura venda.</td></tr>
+          <tr><td><strong>Oportunidade</strong></td><td>Lead qualificado que entrou no funil com valor estimado.</td></tr>
+          <tr><td><strong>Pipeline</strong></td><td>Conjunto de oportunidades em andamento.</td></tr>
+          <tr><td><strong>Funil</strong></td><td>Representação visual em etapas do pipeline.</td></tr>
+          <tr><td><strong>SDR</strong></td><td>Sales Development Rep — quem qualifica leads antes do closer.</td></tr>
+          <tr><td><strong>Closer</strong></td><td>Vendedor responsável por fechar a venda.</td></tr>
+          <tr><td><strong>Churn</strong></td><td>Taxa de cancelamento de clientes.</td></tr>
+          <tr><td><strong>Health Score</strong></td><td>Nota 0-100 da saúde do relacionamento com o cliente.</td></tr>
+          <tr><td><strong>NPS</strong></td><td>Net Promoter Score — mede recomendação dos clientes.</td></tr>
+          <tr><td><strong>MRR</strong></td><td>Monthly Recurring Revenue — receita mensal recorrente.</td></tr>
+          <tr><td><strong>Ticket médio</strong></td><td>Valor médio por venda fechada.</td></tr>
+          <tr><td><strong>CAC</strong></td><td>Custo de Aquisição de Cliente.</td></tr>
+          <tr><td><strong>LTV</strong></td><td>Lifetime Value — quanto um cliente gera ao longo do tempo.</td></tr>
+          <tr><td><strong>Upsell</strong></td><td>Vender plano maior para cliente atual.</td></tr>
+          <tr><td><strong>Cross-sell</strong></td><td>Vender produto complementar para cliente atual.</td></tr>
+          <tr><td><strong>RBAC</strong></td><td>Role-Based Access Control — permissões por papel.</td></tr>
+          <tr><td><strong>CRM</strong></td><td>Customer Relationship Management — gestão do relacionamento.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="module" aria-labelledby="faq-h">
+      <span class="module-tag">Apêndice</span>
+      <h2 id="faq-h"><span class="icon">❓</span>Perguntas Frequentes (FAQ)</h2>
+      <p class="subtitle">Dúvidas mais comuns dos usuários.</p>
+
+      <h3>Posso acessar o CRM pelo celular?</h3>
+      <p>Sim. O CRM é responsivo e funciona em qualquer navegador moderno (Chrome, Safari, Edge). Para uso intenso (criar propostas, configurar metas), recomendamos desktop.</p>
+
+      <h3>Meus dados ficam seguros?</h3>
+      <p>Sim. Os dados são armazenados em PostgreSQL gerenciado pela Supabase, com backups automáticos diários, TLS em todas as conexões e autenticação JWT. Apenas usuários cadastrados acessam.</p>
+
+      <h3>Quantos usuários posso ter?</h3>
+      <p>Ilimitado dentro da licença contratada. Fale com o administrador da sua empresa para criar novos perfis.</p>
+
+      <h3>Posso integrar com meu sistema atual?</h3>
+      <p>Sim. O CRM expõe APIs RESTful e oferece integração nativa com ZapSign, Google Workspace e SMTP. Outras integrações sob demanda — fale com a ProSystem.</p>
+
+      <h3>O CRM funciona offline?</h3>
+      <p>Não. Como é uma aplicação web, exige conexão com a internet. Em caso de queda local, o sistema continua disponível em outras filiais.</p>
+
+      <h3>E se eu apagar um cliente por engano?</h3>
+      <p>O CRM faz <em>soft delete</em> — o registro é marcado como excluído mas mantido em base. Um administrador pode restaurar.</p>
+
+      <h3>Como peço uma nova funcionalidade?</h3>
+      <p>Envie sua sugestão para <a href="mailto:suporte@prosystemnet.com.br">suporte@prosystemnet.com.br</a> com o título "Sugestão CRM" — todas as ideias entram no backlog de avaliação trimestral.</p>
+
+      <h3>Quem ligar em caso de problema?</h3>
+      <p>Suporte ProSystem: <strong>(27) 3327-6739</strong> · WhatsApp: <strong>(27) 99779-8103</strong> · E-mail: <a href="mailto:suporte@prosystemnet.com.br">suporte@prosystemnet.com.br</a>.</p>
     </section>
 
     <footer>
-      <p>📊 <strong>CRM Comercial ProSystem</strong> v1.0 - Manual do Usuário</p>
-      <p>© 2026 ProSystem Sistemas - Todos os direitos reservados</p>
-      <p>Desenvolvido com ❤️ pela equipe ProSystem em Maio 2026</p>
+      <p><strong>CRM Comercial ProSystem</strong> — Manual oficial v1.0</p>
+      <p>© 2026 ProSystem Sistemas · Av. Prof. Fernando Duarte Rabelo, 330 sala 02, Goiabeiras, Vitória/ES · CEP 29.072-335</p>
+      <p>📞 (27) 3327-6739 · 📱 (27) 99779-8103 · ✉ <a href="mailto:suporte@prosystemnet.com.br">suporte@prosystemnet.com.br</a> · 🌐 <a href="https://prosystemnet.com.br">prosystemnet.com.br</a></p>
+      <p style="margin-top:16px; font-size:12px; color:#7AAACB;">Documento gerado em 2026-05-26 · Atualizações regulares conforme novas versões do CRM</p>
     </footer>
+  </main>
+</div>
 
-  </div>
+<script>
+  // Realça o item ativo da sidebar conforme rolagem
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.sidebar nav a');
 
-  <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'default',
-      themeVariables: {
-        primaryColor: '#3b82f6',
-        primaryTextColor: '#fff',
-        primaryBorderColor: '#1e40af',
-        lineColor: '#3b82f6',
-        secondaryColor: '#dbeafe',
-        tertiaryColor: '#f3f4f6'
-      },
-      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
-      sequence: { useMaxWidth: true, showSequenceNumbers: false }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+        });
+      }
     });
-  </script>
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
 </body>
 </html>
