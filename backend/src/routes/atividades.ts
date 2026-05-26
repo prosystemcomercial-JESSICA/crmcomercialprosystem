@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { enviarEmailConfirmacaoAgendamento } from '../services/email.service';
 
 const STATUS = ['PENDENTE', 'CONFIRMADA', 'REALIZADA', 'CANCELADA', 'REMARCADA', 'CLIENTE_NAO_COMPARECEU', 'AGUARDANDO_RETORNO'] as const;
 const TIPOS = ['LIGACAO', 'EMAIL', 'REUNIAO', 'WHATSAPP', 'VISITA', 'TAREFA', 'OUTRO'] as const;
@@ -118,6 +119,28 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       data,
       include: { lead: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } } }
     });
+
+    // Envia e-mail de confirmação imediato para reuniões com e-mail do lead
+    if (atividade.tipo === 'REUNIAO' && atividade.lead?.email && atividade.data_prevista) {
+      const responsavel = user?.nome || user?.name || user?.email || undefined;
+      enviarEmailConfirmacaoAgendamento({
+        cliente_nome: atividade.lead.nome,
+        cliente_email: atividade.lead.email,
+        cliente_empresa: atividade.lead.empresa || undefined,
+        responsavel_nome: responsavel,
+        titulo: atividade.titulo,
+        data_prevista: atividade.data_prevista,
+        duracao_minutos: atividade.duracao_minutos || undefined,
+        meet_link: atividade.google_meet_link || undefined,
+        descricao: atividade.descricao || undefined,
+      }).then(() => {
+        prisma.atividade.update({
+          where: { id: atividade.id },
+          data: { email_confirmacao_em: new Date() }
+        }).catch(() => {});
+      }).catch((err: any) => fastify.log.warn('Email confirmação falhou: ' + err?.message));
+    }
+
     return reply.status(201).send({ status: 'success', data: atividade });
   });
 

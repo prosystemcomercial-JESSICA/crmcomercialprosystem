@@ -98,6 +98,62 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
+// 8a) Scheduler: envia lembrete 2h antes das reuniões
+function iniciarSchedulerLembretes() {
+  if (!prismaClient) return;
+  const { enviarEmailLembreteAgendamento } = require('./services/email.service');
+
+  const verificarLembretes = async () => {
+    try {
+      const agora = new Date();
+      const em115min = new Date(agora.getTime() + 115 * 60 * 1000);
+      const em135min = new Date(agora.getTime() + 135 * 60 * 1000);
+
+      const pendentes = await prismaClient.atividade.findMany({
+        where: {
+          tipo: 'REUNIAO',
+          status: { in: ['PENDENTE', 'CONFIRMADA'] },
+          data_prevista: { gte: em115min, lte: em135min },
+          lembrete_enviado_em: null,
+          lead: { email: { not: null } }
+        },
+        include: { lead: { select: { nome: true, empresa: true, email: true } } }
+      });
+
+      for (const at of pendentes) {
+        if (!at.lead?.email) continue;
+        try {
+          await enviarEmailLembreteAgendamento({
+            cliente_nome: at.lead.nome,
+            cliente_email: at.lead.email,
+            cliente_empresa: at.lead.empresa || undefined,
+            titulo: at.titulo,
+            data_prevista: at.data_prevista,
+            duracao_minutos: at.duracao_minutos || undefined,
+            meet_link: at.google_meet_link || undefined,
+            descricao: at.descricao || undefined,
+          });
+          await prismaClient.atividade.update({
+            where: { id: at.id },
+            data: { lembrete_enviado_em: new Date() }
+          });
+          console.log(`[LEMBRETE] E-mail enviado para ${at.lead.email} — reunião: ${at.titulo}`);
+        } catch (err: any) {
+          console.error(`[LEMBRETE] Falha ao enviar para ${at.lead.email}:`, err?.message);
+        }
+      }
+    } catch (err: any) {
+      console.error('[LEMBRETE] Erro no scheduler:', err?.message);
+    }
+  };
+
+  // Verifica a cada 5 minutos
+  setInterval(verificarLembretes, 5 * 60 * 1000);
+  // Primeira verificação 1 min após o boot
+  setTimeout(verificarLembretes, 60 * 1000);
+  console.log('[BOOT] Scheduler de lembretes iniciado (intervalo: 5 min)');
+}
+
 // 8) Carrega rotas dinamicamente — cada uma isolada em try/catch.
 //    Se UMA rota falhar ao importar/registrar, as outras continuam funcionando
 //    e o /health permanece respondendo.
@@ -170,6 +226,7 @@ const start = async () => {
     await fastify.listen({ port, host: '0.0.0.0' });
     console.log(`[BOOT] ✅ Servidor escutando em 0.0.0.0:${port}`);
     console.log(`[BOOT] Health: http://0.0.0.0:${port}/health`);
+    iniciarSchedulerLembretes();
   } catch (err: any) {
     console.error('[BOOT] ❌ Falha no fastify.listen:', err?.message || err);
     if (err?.stack) console.error(err.stack);

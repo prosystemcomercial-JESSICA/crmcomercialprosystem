@@ -712,6 +712,17 @@ export default function AgendaPage() {
 
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#4A6E8A', marginBottom: 4 };
 
+  // Abre modal de criação pré-preenchido com o dia clicado (09:00)
+  const handleDayClick = (day: Date) => {
+    const dateStr = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9, 0)
+      .toISOString().slice(0, 16);
+    setFormData(prev => ({ ...prev, data_prevista: dateStr }));
+    setMeetLinkForm('');
+    setMeetError('');
+    setShowWaPreview(false);
+    setShowCreate(true);
+  };
+
   // ── Navigate month/week ───────────────────────────────────
   const prevPeriod = () => {
     const d = new Date(currentDate);
@@ -838,21 +849,26 @@ export default function AgendaPage() {
                     <div key={i} style={{
                       borderRight: i < 6 ? '1px solid #EBF4FF' : 'none',
                       padding: '8px 6px', background: isToday ? '#FAFCFF' : 'transparent',
-                      minHeight: 400
-                    }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: '50%', margin: '0 auto 6px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 13, fontWeight: 700,
-                        background: isToday ? '#4B8EC8' : 'transparent',
-                        color: isToday ? '#fff' : '#0D2238'
-                      }}>{day.getDate()}</div>
+                      minHeight: 400, cursor: 'pointer', position: 'relative'
+                    }}
+                      onClick={() => handleDayClick(day)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, gap: 4 }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 700,
+                          background: isToday ? '#4B8EC8' : 'transparent',
+                          color: isToday ? '#fff' : '#0D2238'
+                        }}>{day.getDate()}</div>
+                        <Plus size={12} color="#4B8EC8" style={{ opacity: 0.5 }} />
+                      </div>
                       {dayAtividades.map(a => {
                         const cfg = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.OUTRO;
                         const sCfg = STATUS_CONFIG[a.status] || STATUS_CONFIG.PENDENTE;
                         const Icon = cfg.icon;
                         return (
-                          <div key={a.id} onClick={() => setShowDetail(a)}
+                          <div key={a.id} onClick={e => { e.stopPropagation(); setShowDetail(a); }}
                             style={{ marginBottom: 6, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', background: cfg.bg, border: `1.5px solid ${sCfg.border}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
                               <Icon size={11} color={cfg.color} />
@@ -897,20 +913,25 @@ export default function AgendaPage() {
                       <div key={i} style={{
                         borderRight: i % 7 < 6 ? '1px solid #EBF4FF' : 'none',
                         borderBottom: '1px solid #EBF4FF',
-                        padding: '6px 5px', minHeight: 90,
+                        padding: '6px 5px', minHeight: 90, cursor: 'pointer',
                         background: isToday ? '#FAFCFF' : isCurrentMonth ? '#fff' : '#FAFAFA'
-                      }}>
-                        <div style={{
-                          width: 24, height: 24, borderRadius: '50%', marginBottom: 4,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 12, fontWeight: isToday ? 700 : 500,
-                          background: isToday ? '#4B8EC8' : 'transparent',
-                          color: isToday ? '#fff' : isCurrentMonth ? '#0D2238' : '#C3DCFC'
-                        }}>{day.getDate()}</div>
+                      }}
+                        onClick={() => handleDayClick(day)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 4 }}>
+                          <div style={{
+                            width: 24, height: 24, borderRadius: '50%',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 12, fontWeight: isToday ? 700 : 500,
+                            background: isToday ? '#4B8EC8' : 'transparent',
+                            color: isToday ? '#fff' : isCurrentMonth ? '#0D2238' : '#C3DCFC'
+                          }}>{day.getDate()}</div>
+                          {isCurrentMonth && <Plus size={10} color="#4B8EC8" style={{ opacity: 0.4 }} />}
+                        </div>
                         {dayAtividades.slice(0, 3).map(a => {
                           const cfg = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.OUTRO;
                           return (
-                            <div key={a.id} onClick={() => setShowDetail(a)}
+                            <div key={a.id} onClick={e => { e.stopPropagation(); setShowDetail(a); }}
                               style={{
                                 marginBottom: 2, padding: '2px 5px', borderRadius: 4, cursor: 'pointer',
                                 background: cfg.bg, fontSize: 10, fontWeight: 600,
