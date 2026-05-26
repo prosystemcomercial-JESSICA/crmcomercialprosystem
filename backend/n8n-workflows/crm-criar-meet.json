@@ -1,0 +1,102 @@
+{
+  "name": "CRM — Criar Reunião Google Meet",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-criar-meet",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-001",
+      "name": "Receber Dados da Reunião",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "crm-meet-webhook-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara os dados para criar o evento\nconst item = $input.item.json;\n\nconst start = new Date(item.data_prevista || new Date().toISOString());\nconst durMin = Number(item.duracao_minutos) || 60;\nconst end = new Date(start.getTime() + durMin * 60 * 1000);\n\nconst body = {\n  summary: item.titulo || 'Reunião ProSystem',\n  start: { dateTime: start.toISOString(), timeZone: 'America/Sao_Paulo' },\n  end:   { dateTime: end.toISOString(),   timeZone: 'America/Sao_Paulo' },\n  conferenceData: {\n    createRequest: {\n      requestId: 'crm-n8n-' + Date.now(),\n      conferenceSolutionKey: { type: 'hangoutsMeet' }\n    }\n  }\n};\n\nif (item.lead_email) {\n  body.attendees = [{ email: item.lead_email }];\n}\n\nreturn { json: { body: JSON.stringify(body), titulo: item.titulo } };"
+      },
+      "id": "code-001",
+      "name": "Montar Body do Evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "http-001",
+      "name": "Criar Evento no Google Calendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [640, 300],
+      "credentials": {
+        "oAuth2Api": {
+          "id": "SUBSTITUA_PELO_ID_DA_CREDENCIAL_GOOGLE",
+          "name": "Google Calendar OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $input.item.json;\n\n// Tenta extrair o link do Meet de diferentes formatos\nconst meetLink =\n  event.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri ||\n  event.hangoutLink ||\n  '';\n\nif (!meetLink) {\n  // Loga o evento para diagnóstico\n  console.error('Evento sem link Meet:', JSON.stringify(event?.conferenceData));\n  // Retorna erro legível\n  return {\n    json: {\n      success: false,\n      meet_link: '',\n      event_id: event.id || '',\n      error: 'Link Meet não gerado. Verifique se sua conta Google tem Google Meet habilitado.'\n    }\n  };\n}\n\nreturn {\n  json: {\n    success: true,\n    meet_link: meetLink,\n    event_id: event.id || ''\n  }\n};"
+      },
+      "id": "code-002",
+      "name": "Extrair Link Meet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-001",
+      "name": "Responder ao CRM",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    }
+  ],
+  "connections": {
+    "Receber Dados da Reunião": {
+      "main": [[{ "node": "Montar Body do Evento", "type": "main", "index": 0 }]]
+    },
+    "Montar Body do Evento": {
+      "main": [[{ "node": "Criar Evento no Google Calendar", "type": "main", "index": 0 }]]
+    },
+    "Criar Evento no Google Calendar": {
+      "main": [[{ "node": "Extrair Link Meet", "type": "main", "index": 0 }]]
+    },
+    "Extrair Link Meet": {
+      "main": [[{ "node": "Responder ao CRM", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "crm-prosystem"
+  },
+  "id": "crm-criar-meet-v1"
+}
