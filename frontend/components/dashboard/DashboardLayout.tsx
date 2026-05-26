@@ -25,7 +25,7 @@ const navGroups = [
     label: 'Comercial',
     items: [
       { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial' },
-      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades' },
+      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades & Agenda' },
       { href: '/propostas',             icon: FileText,      label: 'Propostas' },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Gerador de Proposta' },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos' },
@@ -76,7 +76,6 @@ const navGroups = [
   {
     label: 'Ferramentas',
     items: [
-      { href: '/agenda',        icon: CalendarDays, label: 'Agenda' },
       { href: '/alertas',       icon: Bell,         label: 'Alertas' },
       { href: '/previsao',      icon: TrendingUp,   label: 'Previsão' },
       { href: '/nutricao',      icon: Sprout,       label: 'Nutrição' },

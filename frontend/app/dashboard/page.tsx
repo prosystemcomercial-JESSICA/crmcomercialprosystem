@@ -602,79 +602,109 @@ export default function DashboardPage() {
               </PsCard>
             </div>
 
-            {/* ── Agenda + Atrasadas ──────────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* ── Minhas Atividades (unificado por prioridade + vencimento) ── */}
+            {(() => {
+              type Item = {
+                id: string; tipo: string; titulo: string; data_prevista: string;
+                lead?: { nome: string; empresa?: string };
+                _atrasada: boolean;
+              };
+              const seen = new Set<string>();
+              const merged: Item[] = [];
+              data.atividades_atrasadas.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: true }); seen.add(a.id); } });
+              data.agenda_hoje.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: false }); seen.add(a.id); } });
 
-              <PsCard>
-                <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #EBF4FF' }}>
-                  <h2 className="text-sm font-bold" style={{ color: '#0D2238' }}>Agenda de Hoje</h2>
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: '#EBF4FF', color: '#2E6EAB' }}
-                  >
-                    {data.alertas.atividades_hoje} atividade{data.alertas.atividades_hoje !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {data.agenda_hoje.length === 0 ? (
-                  <p className="p-8 text-center text-xs" style={{ color: '#7AAACB' }}>Nenhuma atividade para hoje</p>
-                ) : (
-                  <div>
-                    {data.agenda_hoje.map(a => {
-                      const t = TIPO_LABEL[a.tipo] || { icon: '📌', color: '#6B7280' };
-                      return (
-                        <div key={a.id} className="px-5 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #F4F7FB' }}>
-                          <span className="text-base flex-shrink-0">{t.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: '#0D2238' }}>{a.titulo}</p>
-                            {a.lead?.nome && <p className="text-xs truncate" style={{ color: '#7AAACB' }}>{a.lead.nome}</p>}
-                          </div>
-                          <span className="text-xs font-medium flex-shrink-0" style={{ color: '#4B8EC8' }}>
-                            {new Date(a.data_prevista).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      );
-                    })}
+              const prioCfg = (it: Item) => {
+                if (it._atrasada) return { label: 'Atrasada',           cor: '#dc2626', bg: '#FEE2E2', ordem: 0 };
+                const hoje = new Date(); hoje.setHours(0,0,0,0);
+                const prazo = new Date(it.data_prevista);
+                const dias = Math.floor((prazo.getTime() - hoje.getTime()) / 86400000);
+                if (dias < 0)  return { label: 'Atrasada',          cor: '#dc2626', bg: '#FEE2E2', ordem: 0 };
+                if (dias <= 3) return { label: 'Prioridade máxima', cor: '#ea580c', bg: '#FFEDD5', ordem: 1 };
+                if (dias <= 7) return { label: 'Próxima',           cor: '#d97706', bg: '#FEF3C7', ordem: 2 };
+                return                  { label: 'Dentro do prazo', cor: '#16a34a', bg: '#DCFCE7', ordem: 3 };
+              };
+
+              const ordered = merged
+                .map(it => ({ it, cfg: prioCfg(it) }))
+                .sort((a, b) => {
+                  const o = a.cfg.ordem - b.cfg.ordem;
+                  if (o !== 0) return o;
+                  return new Date(a.it.data_prevista).getTime() - new Date(b.it.data_prevista).getTime();
+                });
+
+              const totais = {
+                atrasadas: ordered.filter(o => o.cfg.label === 'Atrasada').length,
+                maxima:    ordered.filter(o => o.cfg.label === 'Prioridade máxima').length,
+              };
+
+              return (
+                <PsCard>
+                  <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #EBF4FF' }}>
+                    <div>
+                      <h2 className="text-sm font-bold" style={{ color: '#0D2238' }}>Minhas Atividades</h2>
+                      <p className="text-[10px] mt-0.5" style={{ color: '#7AAACB' }}>
+                        Ordenadas por prioridade automática e vencimento
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {totais.atrasadas > 0 && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#FEE2E2', color: '#991B1B' }}>
+                          {totais.atrasadas} atrasada{totais.atrasadas !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {totais.maxima > 0 && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#FFEDD5', color: '#9A3412' }}>
+                          {totais.maxima} expirando
+                        </span>
+                      )}
+                      <a href="/atividades" className="text-xs font-semibold" style={{ color: '#4B8EC8' }}>Ver todas →</a>
+                    </div>
                   </div>
-                )}
-              </PsCard>
-
-              <PsCard>
-                <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #EBF4FF' }}>
-                  <h2 className="text-sm font-bold" style={{ color: '#0D2238' }}>Atividades Atrasadas</h2>
-                  {data.alertas.atividades_atrasadas > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#FEE2E2', color: '#991B1B' }}>
-                      {data.alertas.atividades_atrasadas} pendente{data.alertas.atividades_atrasadas !== 1 ? 's' : ''}
-                    </span>
+                  {ordered.length === 0 ? (
+                    <p className="p-8 text-center text-xs font-semibold" style={{ color: '#16a34a' }}>✅ Sem atividades urgentes</p>
+                  ) : (
+                    <div>
+                      {ordered.slice(0, 10).map(({ it, cfg }) => {
+                        const t = TIPO_LABEL[it.tipo] || { icon: '📌', color: '#6B7280' };
+                        const hoje = new Date(); hoje.setHours(0,0,0,0);
+                        const prazo = new Date(it.data_prevista);
+                        const dias = Math.floor((prazo.getTime() - hoje.getTime()) / 86400000);
+                        const diasLabel = dias < 0 ? `${Math.abs(dias)}d atrasada` : dias === 0 ? 'hoje' : `em ${dias}d`;
+                        return (
+                          <a key={it.id} href="/atividades"
+                            className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors"
+                            style={{ borderBottom: '1px solid #F4F7FB', borderLeft: `3px solid ${cfg.cor}` }}>
+                            <span className="text-base flex-shrink-0">{t.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-medium truncate" style={{ color: '#0D2238' }}>{it.titulo}</p>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: cfg.bg, color: cfg.cor }}>
+                                  {cfg.label}
+                                </span>
+                              </div>
+                              {it.lead && (
+                                <p className="text-xs truncate" style={{ color: '#7AAACB' }}>
+                                  {it.lead.nome}{it.lead.empresa ? ` · ${it.lead.empresa}` : ''}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold flex-shrink-0" style={{ color: cfg.cor }}>
+                              {diasLabel}
+                            </span>
+                          </a>
+                        );
+                      })}
+                      {ordered.length > 10 && (
+                        <a href="/atividades" className="block text-center text-xs font-semibold py-3 hover:bg-gray-50" style={{ color: '#4B8EC8', borderTop: '1px solid #F4F7FB' }}>
+                          + {ordered.length - 10} atividades adicionais — ver todas
+                        </a>
+                      )}
+                    </div>
                   )}
-                </div>
-                {data.atividades_atrasadas.length === 0 ? (
-                  <p className="p-8 text-center text-xs font-semibold" style={{ color: '#16a34a' }}>✅ Nenhuma atividade atrasada</p>
-                ) : (
-                  <div>
-                    {data.atividades_atrasadas.map(a => {
-                      const t = TIPO_LABEL[a.tipo] || { icon: '📌', color: '#6B7280' };
-                      const dias = Math.floor((Date.now() - new Date(a.data_prevista).getTime()) / 86400000);
-                      return (
-                        <div key={a.id} className="px-5 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #F4F7FB' }}>
-                          <span className="text-base flex-shrink-0">{t.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: '#0D2238' }}>{a.titulo}</p>
-                            {a.lead && (
-                              <p className="text-xs truncate" style={{ color: '#7AAACB' }}>
-                                {a.lead.nome}{a.lead.empresa ? ` · ${a.lead.empresa}` : ''}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-xs font-bold flex-shrink-0" style={{ color: '#dc2626' }}>
-                            {dias === 0 ? 'hoje' : `${dias}d`}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </PsCard>
-            </div>
+                </PsCard>
+              );
+            })()}
 
             {/* ── Saúde dos Clientes ──────────────────────────── */}
             <PsCard className="p-5">
