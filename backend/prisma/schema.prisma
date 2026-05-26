@@ -607,6 +607,10 @@ model Atividade {
   data_prevista   DateTime?
   data_realizada  DateTime?
 
+  // Rastreamento de e-mails automáticos (confirmação imediata + lembrete 2h)
+  email_confirmacao_em DateTime?
+  lembrete_enviado_em  DateTime?
+
   created_by      String
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt

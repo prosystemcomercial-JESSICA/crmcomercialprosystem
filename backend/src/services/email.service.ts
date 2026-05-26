@@ -870,3 +870,253 @@ export async function enviarEmailBoasVindas(params: {
     return { ok: false, error: err.message };
   }
 }
+
+// ─── Agendamento: confirmação imediata + lembrete 2h antes ──────────────────
+
+type AgendaParams = {
+  cliente_nome: string;
+  cliente_email: string;
+  cliente_empresa?: string;
+  responsavel_nome?: string;
+  responsavel_telefone?: string;
+  titulo: string;
+  data_prevista: Date;
+  duracao_minutos?: number;
+  meet_link?: string;
+  descricao?: string;
+};
+
+function fmtDataAgenda(d: Date) {
+  return d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+}
+function fmtHoraAgenda(d: Date) {
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function buildEmailAgendamentoBase(params: AgendaParams, modo: 'confirmacao' | 'lembrete'): { subject: string; html: string } {
+  const data       = fmtDataAgenda(params.data_prevista);
+  const hora       = fmtHoraAgenda(params.data_prevista);
+  const duracao    = params.duracao_minutos || 60;
+  const horaFim    = fmtHoraAgenda(new Date(params.data_prevista.getTime() + duracao * 60_000));
+  const empresa    = params.cliente_empresa ? ` da <strong>${params.cliente_empresa}</strong>` : '';
+  const meetBlock  = params.meet_link
+    ? `<a href="${params.meet_link}" target="_blank" style="display:inline-block;background:#16a34a;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;letter-spacing:0.3px;">🎥 Entrar na reunião</a>`
+    : `<p style="margin:0;font-size:13px;color:#A8C8E8;">A reunião acontecerá no formato combinado com o seu vendedor responsável.</p>`;
+
+  const eyebrow = modo === 'confirmacao'
+    ? 'CRM Comercial · Agenda Confirmada'
+    : 'CRM Comercial · Lembrete · Sua apresentação é HOJE';
+
+  const headline = modo === 'confirmacao'
+    ? `Sua apresentação ProSystem foi agendada, ${params.cliente_nome.split(' ')[0]}!`
+    : `Sua apresentação começa em 2 horas, ${params.cliente_nome.split(' ')[0]} ⏰`;
+
+  const subject = modo === 'confirmacao'
+    ? `✅ Confirmação: Apresentação ProSystem em ${data.replace(/^[a-záé-]+, /i, '')} às ${hora}`
+    : `⏰ Lembrete: Sua apresentação ProSystem é em 2 horas (hoje às ${hora})`;
+
+  const intro = modo === 'confirmacao'
+    ? `É um prazer ter você${empresa} na nossa agenda. Reservamos um espaço dedicado para mostrar como a ProSystem pode transformar a operação do seu negócio.`
+    : `Em <strong style="color:#dc2626;">2 horas</strong> começa a sua apresentação personalizada do sistema ProSystem. Este é o momento de descobrir, ao vivo, como a gente pode reduzir perdas, dar mais controle e fazer seu negócio crescer com tecnologia de gente que entende do seu setor.`;
+
+  const valor = modo === 'confirmacao'
+    ? `<h3 style="margin:0 0 10px;font-size:15px;font-weight:700;color:#0D2238;">Por que essa apresentação importa?</h3>
+       <ul style="margin:0;padding-left:20px;color:#1A4E82;font-size:13.5px;line-height:1.7;">
+         <li><strong>Decisões mais inteligentes:</strong> você vê com seus próprios olhos como o sistema resolve dores reais do seu dia a dia.</li>
+         <li><strong>Tempo bem investido:</strong> ${duracao} minutos que podem economizar meses de retrabalho e perdas operacionais.</li>
+         <li><strong>Acesso direto:</strong> tire suas dúvidas com quem entende de varejo, farmácia, padaria — sem rodeios.</li>
+         <li><strong>Plano sob medida:</strong> ao final, você recebe uma proposta ajustada à realidade do seu negócio.</li>
+       </ul>`
+    : `<div style="background:#FEF2F2;border-left:4px solid #dc2626;border-radius:8px;padding:14px 18px;margin-bottom:14px;">
+         <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#991B1B;">⏱️ A importância de comparecer no horário</p>
+         <p style="margin:0;font-size:13px;color:#7F1D1D;line-height:1.6;">
+           Cada minuto importa — tanto na sua agenda quanto na do nosso especialista. Atrasos reduzem o tempo
+           útil de apresentação, e ausências representam meses de oportunidade desperdiçada (a sua e a nossa).
+         </p>
+       </div>
+       <h3 style="margin:0 0 10px;font-size:15px;font-weight:700;color:#0D2238;">Para extrair o máximo dos próximos ${duracao} minutos:</h3>
+       <ul style="margin:0;padding-left:20px;color:#1A4E82;font-size:13.5px;line-height:1.7;">
+         <li><strong>Tenha em mãos suas principais dúvidas</strong> sobre gestão, controle de estoque, vendas e fiscal.</li>
+         <li><strong>Avise quem for participar com você</strong> — sócio, gerente, financeiro. Decisão em equipe é mais rápida.</li>
+         <li><strong>Esteja em local com boa internet</strong> e sem interrupções para aproveitar 100% do encontro.</li>
+         <li><strong>Se houver qualquer imprevisto</strong>, fale com a gente AGORA para reagendarmos — sua oportunidade não some.</li>
+       </ul>`;
+
+  const rescheduleBlock = `
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:18px 22px;">
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#9A3412;">📞 Precisa reagendar ou tem alguma dúvida?</p>
+          <p style="margin:0;font-size:13px;color:#7C2D12;line-height:1.6;">
+            ${params.responsavel_nome ? `Fale diretamente com <strong>${params.responsavel_nome}</strong>` : 'Fale com a equipe ProSystem'}${params.responsavel_telefone ? ` pelo telefone <a href="tel:${params.responsavel_telefone.replace(/\D/g, '')}" style="color:#9A3412;font-weight:700;">${params.responsavel_telefone}</a>` : ''}
+            ou responda este e-mail. Vamos achar o melhor horário juntos.
+          </p>
+        </td>
+      </tr>
+    </table>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F4F7FB;font-family:'Segoe UI',Arial,sans-serif;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F4F7FB;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(13,34,56,.10);max-width:600px;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0D2238 0%,#1A4E82 100%);padding:36px 40px 32px;">
+              <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
+                Pro<span style="color:#90BEF0;">System</span>
+              </p>
+              <p style="margin:0;font-size:12px;color:#6AAAE5;letter-spacing:2px;text-transform:uppercase;">
+                ${eyebrow}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px 40px 0;">
+              <h2 style="margin:0 0 10px;font-size:22px;font-weight:700;color:#0D2238;line-height:1.3;">
+                ${headline}
+              </h2>
+              <p style="margin:0 0 24px;font-size:14px;color:#4A6E8A;line-height:1.7;">
+                ${intro}
+              </p>
+
+              <!-- Card data/hora -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:linear-gradient(135deg,#EBF4FF,#F4F7FB);border:1px solid #C3DCFC;border-radius:12px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:24px 28px;">
+                    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#1A4E82;text-transform:uppercase;letter-spacing:1px;">${modo === 'confirmacao' ? '📅 Data marcada' : '📅 Hoje'}</p>
+                    <p style="margin:0 0 16px;font-size:18px;color:#0D2238;font-weight:700;text-transform:capitalize;">
+                      ${data}
+                    </p>
+                    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#1A4E82;text-transform:uppercase;letter-spacing:1px;">🕐 Horário</p>
+                    <p style="margin:0 0 16px;font-size:18px;color:#0D2238;font-weight:700;">
+                      ${hora} <span style="font-weight:400;color:#7AAACB;">— até ${horaFim} (${duracao} min)</span>
+                    </p>
+                    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#1A4E82;text-transform:uppercase;letter-spacing:1px;">🎯 Assunto</p>
+                    <p style="margin:0;font-size:14px;color:#0D2238;font-weight:600;">
+                      ${params.titulo}
+                    </p>
+                    ${params.descricao ? `
+                    <p style="margin:14px 0 6px;font-size:11px;font-weight:700;color:#1A4E82;text-transform:uppercase;letter-spacing:1px;">📝 Observações</p>
+                    <p style="margin:0;font-size:13px;color:#4A6E8A;line-height:1.6;">${params.descricao}</p>
+                    ` : ''}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Meet block -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:linear-gradient(135deg,#0D2238,#1A4E82);border-radius:12px;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:26px 32px;text-align:center;">
+                    <p style="margin:0 0 14px;font-size:14px;color:#A8C8E8;">
+                      ${params.meet_link ? 'Sua sala virtual já está preparada:' : 'Combine o canal da reunião com seu vendedor:'}
+                    </p>
+                    ${meetBlock}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Valor / motivação -->
+              <div style="margin-bottom:26px;">
+                ${valor}
+              </div>
+
+              ${rescheduleBlock}
+
+              <p style="margin:0 0 8px;font-size:13px;color:#4A6E8A;line-height:1.7;">
+                ${modo === 'confirmacao'
+                  ? 'Estamos ansiosos para te receber. Até lá! 👋'
+                  : 'A gente te espera no horário marcado. Não perca essa oportunidade. 🚀'}
+              </p>
+              <p style="margin:0 0 8px;font-size:13px;color:#1A4E82;font-weight:700;">
+                Equipe ProSystem Sistemas
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 40px 32px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-top:1px solid #E8F0F8;padding-top:20px;">
+                <tr>
+                  <td>
+                    <p style="margin:0;font-size:11px;color:#7AAACB;line-height:1.6;">
+                      <strong style="color:#1A4E82;">ProSystem Sistemas</strong> · Vitória, ES<br>
+                      Av. Prof. Fernando Duarte Rabelo, 330 · Goiabeiras · CEP 29.072-335<br>
+                      📞 (27) 3327-6739 · 📱 (27) 99779-8103 · ✉ suporte@prosystemnet.com.br
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return { subject, html };
+}
+
+export async function enviarEmailConfirmacaoAgendamento(params: AgendaParams): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.SMTP_USER) {
+    console.warn('[EMAIL] SMTP_USER não configurado — confirmação não enviada');
+    return { ok: false, error: 'SMTP não configurado' };
+  }
+  const { subject, html } = buildEmailAgendamentoBase(params, 'confirmacao');
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
+  const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from:    `"${fromName}" <${fromEmail}>`,
+      to:      params.cliente_email,
+      bcc:     fromEmail,
+      replyTo: fromEmail,
+      subject,
+      html,
+      headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'X-Priority': '1', 'Importance': 'high' },
+    });
+    console.log(`[EMAIL] Confirmação de agendamento enviada para ${params.cliente_email}`);
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[EMAIL] Erro confirmação agendamento:', err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+export async function enviarEmailLembreteAgendamento(params: AgendaParams): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.SMTP_USER) {
+    console.warn('[EMAIL] SMTP_USER não configurado — lembrete não enviado');
+    return { ok: false, error: 'SMTP não configurado' };
+  }
+  const { subject, html } = buildEmailAgendamentoBase(params, 'lembrete');
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
+  const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from:    `"${fromName}" <${fromEmail}>`,
+      to:      params.cliente_email,
+      bcc:     fromEmail,
+      replyTo: fromEmail,
+      subject,
+      html,
+      headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'X-Priority': '1', 'Importance': 'high' },
+    });
+    console.log(`[EMAIL] Lembrete 2h enviado para ${params.cliente_email}`);
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[EMAIL] Erro lembrete agendamento:', err.message);
+    return { ok: false, error: err.message };
+  }
+}
