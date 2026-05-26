@@ -10,6 +10,8 @@ import {
   Building2, FileText, MessageSquare, Loader2, Send,
   Flame, Thermometer, Snowflake, Zap, Tag, Clock,
   ChevronDown, Settings, Paperclip, Save, CheckCircle2,
+  TrendingUp, Trophy, Target as TargetIcon, BarChart3, Users as UsersIcon,
+  DollarSign, Sparkles, ListChecks, Wrench,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -49,6 +51,35 @@ interface Observacao {
   coluna_anterior?: string; coluna_nova?: string;
   temperatura_anterior?: string; temperatura_nova?: string;
 }
+
+// Métricas do funil
+interface Metricas {
+  leads_ativos: number; pipeline_total: number; vendido_mes: number;
+  fechados_mes: number; perdidos_mes: number;
+  meta_valor: number; meta_falta: number; meta_pct: number;
+  meta_trim_valor: number; vendido_trim: number; bonus_valor: number;
+  bonus_pct: number; bonus_falta: number; taxa_conversao: number;
+  meu_papel: string; eh_vendedor: boolean;
+}
+
+// Etapas do funil (config)
+interface EtapaFunil {
+  id: string; codigo: string; nome: string; cor: string; ordem: number;
+  tipo: 'ANDAMENTO'|'FECHAMENTO'|'PERDIDA'|'SEM_PERFIL'|'REATIVACAO';
+  conta_pipeline: boolean; visivel_vendedor: boolean; ativa: boolean; fixo: boolean;
+}
+
+// Régua motivacional (do funil)
+function reguaMotivacional(pct: number): { titulo: string; texto: string; cor: string } {
+  if (pct >= 100) return { titulo: 'Você é campeão/campeã! 🏆', texto: 'Meta batida! Agora é hora de superar o próprio resultado.', cor: '#16a34a' };
+  if (pct >= 81)  return { titulo: 'Só mais um pouquinho! 🚀', texto: 'Você está muito perto de bater a meta do mês.', cor: '#22c55e' };
+  if (pct >= 61)  return { titulo: 'Quase lá! 💪', texto: 'Só mais um pouco para chegar na meta. Priorize propostas em negociação.', cor: '#84cc16' };
+  if (pct >= 41)  return { titulo: 'Você está indo bem! 🔥', texto: 'A meta está cada vez mais próxima. Continue focando nas oportunidades quentes.', cor: '#eab308' };
+  if (pct >= 21)  return { titulo: 'Vamos lá, você está construindo resultado! ✨', texto: 'Continue alimentando o funil e mantendo os retornos em dia.', cor: '#f97316' };
+  return                   { titulo: 'Vamos começar um bom mês! 🎯', texto: 'Cada contato é uma nova oportunidade. Bora movimentar esse funil.', cor: '#3b82f6' };
+}
+
+const fmtBRL2 = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 // ── Temperature config ────────────────────────────────────────────────────────
 
@@ -347,6 +378,19 @@ export default function LeadsPage() {
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null);
   const [dragOverCol, setDragOverCol]   = useState<string | null>(null);
 
+  // Funil — métricas, etapas, controle total
+  const [metricas, setMetricas]     = useState<Metricas | null>(null);
+  const [etapasFunil, setEtapasFunil] = useState<EtapaFunil[]>([]);
+  const [showConfigFunil, setShowConfigFunil] = useState(false);
+  const [showControle, setShowControle] = useState(false);
+  const [controleData, setControleData] = useState<any[]>([]);
+  const [showNovaEtapa, setShowNovaEtapa] = useState(false);
+  const [formEtapa, setFormEtapa] = useState({ codigo: '', nome: '', cor: '#6b7280', ordem: 99, tipo: 'ANDAMENTO' as EtapaFunil['tipo'], conta_pipeline: true });
+
+  const isGestor   = user?.role === 'CEO' || user?.role?.includes('SUPERVISAO') || user?.role === 'ADMIN';
+  const isVendedor = user?.role === 'VENDEDOR';
+  const regua      = metricas ? reguaMotivacional(metricas.meta_pct) : null;
+
   // Proposta form inside lead detail
   const [propostaForm, setPropostaForm] = useState<any>({});
   const [propostaSection, setPropostaSection] = useState(0);
@@ -360,17 +404,57 @@ export default function LeadsPage() {
   const loadData = useCallback(async () => {
     setDataLoading(true);
     try {
-      const [kanbanRes, etiqRes] = await Promise.all([
+      const [kanbanRes, etiqRes, metricasRes, boardRes] = await Promise.all([
         apiClient.getLeadsKanban(),
         apiClient.getEtiquetas(),
+        apiClient.client.get('/funil/metricas').catch(() => null),
+        apiClient.client.get('/funil/board').catch(() => null),
       ]);
       const kd = kanbanRes.data.data;
       setColunas(kd.colunas || []);
       setKanban(kd.leads || {});
       setEtiquetas(etiqRes.data.data || []);
+      if (metricasRes) setMetricas(metricasRes.data.data || null);
+      if (boardRes) setEtapasFunil((boardRes.data.data.etapas || []).map((e: any) => ({
+        id: e.id, codigo: e.codigo, nome: e.nome, cor: e.cor, ordem: e.ordem,
+        tipo: e.tipo, conta_pipeline: e.conta_pipeline,
+        visivel_vendedor: e.visivel_vendedor, ativa: e.ativa, fixo: e.fixo,
+      })));
     } catch (e) { console.error(e); }
     finally { setDataLoading(false); }
   }, []);
+
+  // Funil: editar/criar/remover etapas
+  const editarEtapaFunil = async (etapa: EtapaFunil, dados: Partial<EtapaFunil>) => {
+    try {
+      await apiClient.client.patch(`/funil/etapas/${etapa.id}`, dados);
+      await loadData();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+  };
+  const removerEtapaFunil = async (etapa: EtapaFunil) => {
+    if (etapa.fixo) { alert(`A etapa "${etapa.nome}" é fixa e não pode ser removida.`); return; }
+    if (!confirm(`Remover a etapa "${etapa.nome}"?`)) return;
+    try {
+      await apiClient.client.delete(`/funil/etapas/${etapa.id}`);
+      await loadData();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remover etapa'); }
+  };
+  const criarNovaEtapaFunil = async () => {
+    if (!formEtapa.codigo || !formEtapa.nome) return alert('Código e nome são obrigatórios');
+    try {
+      await apiClient.client.post('/funil/etapas', formEtapa);
+      setShowNovaEtapa(false);
+      setFormEtapa({ codigo: '', nome: '', cor: '#6b7280', ordem: 99, tipo: 'ANDAMENTO', conta_pipeline: true });
+      await loadData();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao criar etapa'); }
+  };
+  const abrirControle = async () => {
+    try {
+      const res = await apiClient.client.get('/funil/controle-total');
+      setControleData(res.data.data.por_vendedor || []);
+      setShowControle(true);
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao carregar controle total'); }
+  };
 
   useEffect(() => { if (isAuthenticated) loadData(); }, [isAuthenticated]);
 
@@ -612,22 +696,34 @@ export default function LeadsPage() {
     return <div className="flex items-center justify-center min-h-screen" style={{ background: '#0D2238' }}><Loader2 size={28} className="animate-spin text-white" /></div>;
   }
 
+  const totalLeads = Object.values(kanban).reduce((s, a) => s + a.length, 0);
+
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+      <div className="w-full px-4 sm:px-6 py-4 space-y-4" style={{ background: '#F4F7FB', minHeight: 'calc(100vh - 64px)' }}>
 
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-3 flex-shrink-0 bg-white" style={{ borderBottom: '1px solid #D8E8F5' }}>
-          <div>
-            <h1 className="text-xl font-extrabold" style={{ color: '#0D2238' }}>Pipeline Comercial</h1>
-            <p className="text-xs" style={{ color: '#7AAACB' }}>{Object.values(kanban).reduce((s, a) => s + a.length, 0)} leads</p>
+        {/* ═══ 1. HEADER + AÇÕES ═══════════════════════════════════════════ */}
+        <div className="rounded-2xl bg-white p-4 sm:p-5 flex items-center justify-between flex-wrap gap-3"
+          style={{ border: '1px solid #D8E8F5', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
+              <TargetIcon size={20} color="white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-extrabold" style={{ color: '#0D2238' }}>Pipeline Comercial</h1>
+              <p className="text-xs" style={{ color: '#7AAACB' }}>
+                {isVendedor ? 'Acompanhe seus leads, metas e bônus' : 'Painel de performance da equipe comercial'}
+                {' · '}{totalLeads} leads no funil
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#7AAACB' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="pl-8 pr-3 py-2 text-xs rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', width: 180, color: '#0D2238' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 py-2 text-xs rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', width: 190, color: '#0D2238' }} />
             </div>
-            <button onClick={loadData} className="p-2 rounded-lg" style={{ border: '1px solid #D8E8F5' }}>
+            <button onClick={loadData} title="Atualizar" className="p-2 rounded-lg" style={{ border: '1px solid #D8E8F5' }}>
               <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: '#4B8EC8' }} />
             </button>
             <button onClick={() => setShowNewEtiq(true)}
@@ -640,6 +736,20 @@ export default function LeadsPage() {
               style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
               <Plus size={12} /> Coluna
             </button>
+            {isGestor && (
+              <>
+                <button onClick={() => setShowConfigFunil(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                  style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
+                  <Wrench size={12} /> Configurar Funil
+                </button>
+                <button onClick={abrirControle}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                  style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
+                  <BarChart3 size={12} /> Controle Total
+                </button>
+              </>
+            )}
             <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [], vendedor_nome: (user as any)?.nome || '' }); setShowNewLead(true); }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white"
               style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
@@ -648,9 +758,96 @@ export default function LeadsPage() {
           </div>
         </div>
 
-        {/* ── Kanban ──────────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden" style={{ background: '#F4F7FB' }}
-          onDragEnd={() => { setDraggingLead(null); setDragOverCol(null); }}>
+        {/* ═══ 2. KPI CARDS ═══════════════════════════════════════════════ */}
+        {metricas && (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <KpiCard icon={UsersIcon}     label="Leads ativos"   value={metricas.leads_ativos.toString()} color="#3b82f6" />
+            <KpiCard icon={TrendingUp}    label="Pipeline"       value={fmtBRL2(metricas.pipeline_total)} color="#8b5cf6" />
+            <KpiCard icon={DollarSign}    label="Vendido no mês" value={fmtBRL2(metricas.vendido_mes)}    color="#22c55e" />
+            {isVendedor && metricas.meta_valor > 0 && (
+              <KpiCard icon={TargetIcon}  label="Meta do mês"    value={fmtBRL2(metricas.meta_valor)}     color="#f97316" />
+            )}
+            {isVendedor && metricas.meta_valor > 0 && (
+              <KpiCard icon={Trophy}      label="% Meta"
+                value={`${metricas.meta_pct.toFixed(1)}%`}
+                color={metricas.meta_pct >= 100 ? '#16a34a' : metricas.meta_pct >= 60 ? '#eab308' : '#ef4444'} />
+            )}
+            {isVendedor && metricas.meta_trim_valor > 0 && (
+              <KpiCard icon={Sparkles}    label="Bônus trim."    value={`${metricas.bonus_pct.toFixed(0)}%`} color="#7c3aed" />
+            )}
+            <KpiCard icon={BarChart3}     label="Conversão"      value={`${metricas.taxa_conversao.toFixed(1)}%`} color="#0ea5e9" />
+            <KpiCard icon={X}             label="Perdidos mês"   value={metricas.perdidos_mes.toString()} color="#ef4444" />
+          </div>
+        )}
+
+        {/* ═══ 3. BLOCO MOTIVACIONAL (vendedor com meta) ══════════════════ */}
+        {isVendedor && metricas && metricas.meta_valor > 0 && regua && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Meta mensal */}
+            <div className="rounded-2xl bg-white p-5" style={{ border: '1px solid #D8E8F5' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: '#7AAACB' }}>Minha meta do mês</p>
+                  <p className="text-2xl font-extrabold mt-0.5" style={{ color: '#0D2238' }}>{fmtBRL2(metricas.meta_valor)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px]" style={{ color: '#7AAACB' }}>Falta</p>
+                  <p className="text-lg font-bold" style={{ color: regua.cor }}>{fmtBRL2(metricas.meta_falta)}</p>
+                </div>
+              </div>
+              <div className="h-3 rounded-full overflow-hidden mb-2" style={{ background: '#F4F7FB' }}>
+                <div className="h-full transition-all" style={{ width: `${Math.min(100, metricas.meta_pct)}%`, background: regua.cor }} />
+              </div>
+              <p className="text-xs mb-3" style={{ color: '#7AAACB' }}>
+                Vendido: <strong style={{ color: '#0D2238' }}>{fmtBRL2(metricas.vendido_mes)}</strong> · {metricas.meta_pct.toFixed(1)}% da meta
+              </p>
+              <div className="rounded-xl p-3 border-l-4" style={{ background: '#F8FBFF', borderLeftColor: regua.cor }}>
+                <p className="text-sm font-bold" style={{ color: regua.cor }}>{regua.titulo}</p>
+                <p className="text-xs mt-0.5" style={{ color: '#4A6E8A' }}>{regua.texto}</p>
+              </div>
+            </div>
+            {/* Bônus trimestral */}
+            {metricas.meta_trim_valor > 0 && (
+              <div className="rounded-2xl bg-white p-5" style={{ border: '1px solid #D8E8F5' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: '#7AAACB' }}>Meu bônus trimestral</p>
+                    <p className="text-2xl font-extrabold mt-0.5" style={{ color: '#0D2238' }}>{fmtBRL2(metricas.bonus_valor)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px]" style={{ color: '#7AAACB' }}>Progresso</p>
+                    <p className="text-lg font-bold" style={{ color: '#7c3aed' }}>{metricas.bonus_pct.toFixed(1)}%</p>
+                  </div>
+                </div>
+                <div className="h-3 rounded-full overflow-hidden mb-2" style={{ background: '#F4F7FB' }}>
+                  <div className="h-full transition-all" style={{ width: `${Math.min(100, metricas.bonus_pct)}%`, background: '#7c3aed' }} />
+                </div>
+                <p className="text-xs mb-3" style={{ color: '#7AAACB' }}>
+                  Meta tri.: <strong style={{ color: '#0D2238' }}>{fmtBRL2(metricas.meta_trim_valor)}</strong> · Vendido: <strong style={{ color: '#0D2238' }}>{fmtBRL2(metricas.vendido_trim)}</strong> · Falta: <strong style={{ color: '#0D2238' }}>{fmtBRL2(metricas.bonus_falta)}</strong>
+                </p>
+                <div className="rounded-xl p-3 border-l-4" style={{ background: '#F8FBFF', borderLeftColor: '#7c3aed' }}>
+                  <p className="text-xs" style={{ color: '#4A6E8A' }}>
+                    {metricas.bonus_pct >= 100 ? '🎉 Bônus liberado! Mantenha o ritmo para superar.' : 'Você está no caminho certo para liberar seu bônus. Mantenha o ritmo!'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ 4. KANBAN PRINCIPAL ════════════════════════════════════════ */}
+        <div className="rounded-2xl bg-white overflow-hidden"
+          style={{ border: '1px solid #D8E8F5', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
+          <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid #D8E8F5', background: '#F8FBFF' }}>
+            <div className="flex items-center gap-2">
+              <ListChecks size={14} style={{ color: '#4B8EC8' }} />
+              <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: '#4B8EC8' }}>Quadro de Leads</p>
+            </div>
+            <p className="text-[10px]" style={{ color: '#7AAACB' }}>Arraste os cards para mover entre etapas · Mover para "Perdido" exige justificativa</p>
+          </div>
+          <div className="overflow-x-auto overflow-y-hidden"
+            style={{ height: 'min(72vh, 720px)' }}
+            onDragEnd={() => { setDraggingLead(null); setDragOverCol(null); }}>
           <div className="flex h-full gap-3 p-4" style={{ minWidth: `${colunas.length * 230}px` }}>
             {colunas.map(col => {
               const colLeads = filtered[col.chave] || [];
@@ -708,7 +905,9 @@ export default function LeadsPage() {
               );
             })}
           </div>
+          </div>
         </div>
+
       </div>
 
       {/* ── Lead Detail Panel ────────────────────────────────────────────── */}
@@ -1428,6 +1627,161 @@ export default function LeadsPage() {
         </div>
       )}
 
+      {/* ── Configurar Funil Modal (gestor) ──────────────────────────────── */}
+      {showConfigFunil && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: 'rgba(13,34,56,.6)' }} onClick={() => setShowConfigFunil(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl my-6 w-full" style={{ maxWidth: 900 }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #D8E8F5' }}>
+              <h2 className="text-sm font-extrabold" style={{ color: '#0D2238' }}>⚙ Configurar Etapas do Funil</h2>
+              <button onClick={() => setShowConfigFunil(false)}><X size={16} style={{ color: '#7AAACB' }} /></button>
+            </div>
+            <div className="p-6 space-y-2 max-h-[70vh] overflow-y-auto">
+              {etapasFunil.length === 0 ? (
+                <p className="text-center py-8 text-sm" style={{ color: '#7AAACB' }}>Nenhuma etapa de funil configurada ainda.</p>
+              ) : etapasFunil.map(et => (
+                <div key={et.id} className="grid grid-cols-12 gap-2 items-center p-3 rounded-lg"
+                  style={{ border: `1px solid ${et.fixo ? '#4B8EC8' : '#D8E8F5'}`, background: et.fixo ? '#F8FBFF' : 'white' }}>
+                  {et.fixo && <span className="col-span-12 text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: '#4B8EC8' }}>🔒 Coluna fixa do sistema</span>}
+                  <input value={et.nome}
+                    onChange={e => setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, nome: e.target.value } : p))}
+                    onBlur={() => editarEtapaFunil(et, { nome: et.nome })}
+                    className="col-span-4 px-2 py-1.5 border rounded text-sm"
+                    style={{ borderColor: '#D8E8F5', color: '#0D2238' }} />
+                  <input type="color" value={et.cor}
+                    onChange={e => setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, cor: e.target.value } : p))}
+                    onBlur={() => editarEtapaFunil(et, { cor: et.cor })}
+                    className="col-span-1 w-full h-8 border rounded" style={{ borderColor: '#D8E8F5' }} />
+                  <input type="number" value={et.ordem}
+                    onChange={e => setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, ordem: Number(e.target.value) } : p))}
+                    onBlur={() => editarEtapaFunil(et, { ordem: et.ordem })}
+                    className="col-span-1 px-2 py-1.5 border rounded text-sm text-center"
+                    style={{ borderColor: '#D8E8F5', color: '#0D2238' }} />
+                  {et.fixo ? (
+                    <span className="col-span-3 px-2 py-1.5 rounded text-xs font-medium" style={{ background: '#F4F7FB', color: '#7AAACB' }}>
+                      {et.tipo === 'ANDAMENTO' ? 'Andamento' : et.tipo === 'FECHAMENTO' ? 'Fechamento' : et.tipo === 'PERDIDA' ? 'Perdida' : et.tipo === 'SEM_PERFIL' ? 'Sem perfil' : 'Reativação'}
+                    </span>
+                  ) : (
+                    <select value={et.tipo}
+                      onChange={e => { const novo = e.target.value as EtapaFunil['tipo']; setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, tipo: novo } : p)); editarEtapaFunil(et, { tipo: novo }); }}
+                      className="col-span-3 px-2 py-1.5 border rounded text-xs" style={{ borderColor: '#D8E8F5', color: '#0D2238' }}>
+                      <option value="ANDAMENTO">Andamento</option>
+                      <option value="FECHAMENTO">Fechamento</option>
+                      <option value="PERDIDA">Perdida</option>
+                      <option value="SEM_PERFIL">Sem perfil</option>
+                      <option value="REATIVACAO">Reativação</option>
+                    </select>
+                  )}
+                  <span className="col-span-2 text-xs truncate" style={{ color: '#7AAACB' }}>{et.codigo}</span>
+                  {et.fixo ? (
+                    <span className="col-span-1 text-center text-sm" title="Coluna fixa — não pode ser removida">🔒</span>
+                  ) : (
+                    <button onClick={() => removerEtapaFunil(et)} className="col-span-1 text-red-500 text-xs hover:underline">Remover</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid #D8E8F5' }}>
+              <p className="text-xs" style={{ color: '#7AAACB' }}>🔒 Colunas fixas não podem ser removidas. Tipo "Perdida" exige motivo ao mover.</p>
+              <button onClick={() => { setFormEtapa({ codigo: '', nome: '', cor: '#6b7280', ordem: 99, tipo: 'ANDAMENTO', conta_pipeline: true }); setShowNovaEtapa(true); }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#4B8EC8' }}>
+                + Nova Etapa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Nova Etapa do Funil Modal ────────────────────────────────────── */}
+      {showNovaEtapa && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(13,34,56,.7)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6" style={{ width: 420 }}>
+            <div className="flex justify-between mb-4">
+              <h3 className="font-extrabold text-sm" style={{ color: '#0D2238' }}>+ Nova Etapa de Funil</h3>
+              <button onClick={() => setShowNovaEtapa(false)}><X size={16} style={{ color: '#7AAACB' }} /></button>
+            </div>
+            <div className="space-y-3">
+              <Inp label="Código (ex: REATIVACAO_FUTURA) *" value={formEtapa.codigo}
+                onChange={(e: any) => setFormEtapa(f => ({ ...f, codigo: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_') }))} />
+              <Inp label="Nome visível *" value={formEtapa.nome} onChange={(e: any) => setFormEtapa(f => ({ ...f, nome: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>Cor</label>
+                  <input type="color" value={formEtapa.cor} onChange={e => setFormEtapa(f => ({ ...f, cor: e.target.value }))} className="w-full h-10 border rounded" style={{ borderColor: '#D8E8F5' }} />
+                </div>
+                <Inp label="Ordem" type="number" value={formEtapa.ordem} onChange={(e: any) => setFormEtapa(f => ({ ...f, ordem: Number(e.target.value) || 99 }))} />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>Tipo da etapa</label>
+                <select value={formEtapa.tipo} onChange={e => setFormEtapa(f => ({ ...f, tipo: e.target.value as EtapaFunil['tipo'] }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }}>
+                  <option value="ANDAMENTO">Andamento</option>
+                  <option value="FECHAMENTO">Fechamento</option>
+                  <option value="PERDIDA">Perdida</option>
+                  <option value="SEM_PERFIL">Sem perfil</option>
+                  <option value="REATIVACAO">Reativação</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={formEtapa.conta_pipeline}
+                  onChange={e => setFormEtapa(f => ({ ...f, conta_pipeline: e.target.checked }))}
+                  className="w-4 h-4" style={{ accentColor: '#4B8EC8' }} />
+                <span style={{ color: '#0D2238' }}>Contar no pipeline</span>
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button onClick={() => setShowNovaEtapa(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid #D8E8F5', color: '#7AAACB' }}>Cancelar</button>
+              <button onClick={criarNovaEtapaFunil} className="px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#4B8EC8' }}>Criar Etapa</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Controle Total Modal (gestor) ────────────────────────────────── */}
+      {showControle && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: 'rgba(13,34,56,.6)' }} onClick={() => setShowControle(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl my-6 w-full" style={{ maxWidth: 980 }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #D8E8F5' }}>
+              <h2 className="text-sm font-extrabold" style={{ color: '#0D2238' }}>📊 Controle Total do Comercial</h2>
+              <button onClick={() => setShowControle(false)}><X size={16} style={{ color: '#7AAACB' }} /></button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {controleData.length === 0 ? (
+                <p className="text-sm text-center py-8" style={{ color: '#7AAACB' }}>Nenhum dado disponível</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead style={{ background: '#F8FBFF', borderBottom: '1px solid #D8E8F5' }}>
+                      <tr>
+                        {['#','Vendedor','Leads ativos','Pipeline','Vendido (mês)','Fechados','Perdidos'].map(h => (
+                          <th key={h} className="px-3 py-2 text-left text-xs font-semibold" style={{ color: '#7AAACB' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {controleData.map((v, i) => (
+                        <tr key={v.vendedor_id} style={{ borderBottom: '1px solid #EBF4FF', background: i % 2 === 0 ? 'white' : '#FAFCFE' }}>
+                          <td className="px-3 py-2">
+                            <span className="text-xs font-bold" style={{ color: i === 0 ? '#eab308' : '#7AAACB' }}>
+                              {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 font-medium" style={{ color: '#0D2238' }}>{v.vendedor_id}</td>
+                          <td className="px-3 py-2" style={{ color: '#4A6E8A' }}>{v.leads_ativos}</td>
+                          <td className="px-3 py-2" style={{ color: '#4A6E8A' }}>{fmtBRL2(v.pipeline)}</td>
+                          <td className="px-3 py-2 font-bold text-green-600">{fmtBRL2(v.vendido_mes)}</td>
+                          <td className="px-3 py-2" style={{ color: '#4A6E8A' }}>{v.fechados_mes}</td>
+                          <td className="px-3 py-2 text-red-500">{v.perdidos_mes}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Motivo de Perda Modal ────────────────────────────────────────── */}
       {showPerda && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.7)' }}>
@@ -1457,5 +1811,24 @@ export default function LeadsPage() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+// ─── Componentes auxiliares (KPI Card) ────────────────────────────────────────
+function KpiCard({ icon: Icon, label, value, color }: {
+  icon: React.ComponentType<any>; label: string; value: string; color: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white p-3 flex items-center gap-3 transition-all hover:shadow-md"
+      style={{ border: '1px solid #D8E8F5', boxShadow: '0 1px 2px rgba(13,34,56,.04)' }}>
+      <div className="flex items-center justify-center rounded-lg flex-shrink-0"
+        style={{ width: 36, height: 36, background: `${color}18`, color }}>
+        <Icon size={16} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wider font-semibold truncate" style={{ color: '#7AAACB' }}>{label}</p>
+        <p className="text-base font-extrabold leading-tight truncate" style={{ color }}>{value}</p>
+      </div>
+    </div>
   );
 }

@@ -24,8 +24,7 @@ const navGroups = [
   {
     label: 'Comercial',
     items: [
-      { href: '/leads',                 icon: Target,        label: 'Leads' },
-      { href: '/funil',                 icon: GitMerge,      label: 'Funil Comercial' },
+      { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial' },
       { href: '/atividades',            icon: CalendarCheck, label: 'Atividades' },
       { href: '/propostas',             icon: FileText,      label: 'Propostas' },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Gerador de Proposta' },
