@@ -8,8 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import {
   Plus, Search, RefreshCw, X, Loader2, CalendarDays, ListChecks, LayoutGrid,
   AlertOctagon, Clock, CheckCircle2, Calendar as CalendarIcon, Users as UsersIcon,
-  Filter, ChevronLeft, ChevronRight, Trash2, Check, Phone, Mail, MessageSquare,
-  MapPin, ClipboardList, Sparkles, AlertTriangle, UserCheck,
+  Trash2, Check, Sparkles, AlertTriangle, UserCheck,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -117,17 +116,14 @@ export default function AtividadesPage() {
   const [usuarios, setUsuarios]     = useState<Usuario[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // View toggle
-  const [view, setView] = useState<'kanban' | 'lista' | 'calendario'>('kanban');
+  // View toggle (Calendário foi removido — Google Calendar fica em /agenda)
+  const [view, setView] = useState<'kanban' | 'lista'>('kanban');
 
   // Filters
   const [search, setSearch]         = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [escopo, setEscopo]         = useState<'minhas' | 'todas'>('minhas');
-
-  // Calendar
-  const [refDate, setRefDate] = useState(new Date());
 
   // Modal
   const [showModal, setShowModal] = useState(false);
@@ -308,34 +304,6 @@ export default function AtividadesPage() {
     } catch (e) { console.error(e); }
   };
 
-  // ─── Calendar helpers ──────────────────────────────────────────────────────
-  const calendarDays = useMemo(() => {
-    const start = new Date(refDate.getFullYear(), refDate.getMonth(), 1);
-    const end   = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0);
-    const startDow = start.getDay();
-    const days: Array<{ date: Date; current: boolean; atividades: Atividade[] }> = [];
-    // padding before
-    for (let i = startDow; i > 0; i--) {
-      const d = new Date(start);
-      d.setDate(d.getDate() - i);
-      days.push({ date: d, current: false, atividades: [] });
-    }
-    for (let d = 1; d <= end.getDate(); d++) {
-      const date = new Date(refDate.getFullYear(), refDate.getMonth(), d);
-      const dStr = date.toDateString();
-      const ats = filtered.filter(a => a.data_prevista && new Date(a.data_prevista).toDateString() === dStr);
-      days.push({ date, current: true, atividades: ats });
-    }
-    // padding after (até completar semana)
-    while (days.length % 7 !== 0) {
-      const last = days[days.length - 1].date;
-      const d = new Date(last);
-      d.setDate(d.getDate() + 1);
-      days.push({ date: d, current: false, atividades: [] });
-    }
-    return days;
-  }, [refDate, filtered]);
-
   const usuarioNome = (id?: string) => {
     if (!id) return null;
     return usuarios.find(u => u.id === id)?.nome || null;
@@ -372,6 +340,11 @@ export default function AtividadesPage() {
             <button onClick={fetchData} title="Atualizar" className="p-2 rounded-lg" style={{ border: '1px solid #D8E8F5' }}>
               <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: '#4B8EC8' }} />
             </button>
+            <a href="/agenda"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+              style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
+              <CalendarIcon size={12} /> Agenda Google
+            </a>
             <button onClick={() => openCreate()}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white"
               style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
@@ -427,9 +400,8 @@ export default function AtividadesPage() {
           {/* View toggle */}
           <div className="flex p-0.5 rounded-lg" style={{ background: '#F4F7FB' }}>
             {([
-              { key: 'kanban',     label: 'Kanban',     icon: LayoutGrid },
-              { key: 'lista',      label: 'Lista',      icon: ListChecks },
-              { key: 'calendario', label: 'Calendário', icon: CalendarIcon },
+              { key: 'kanban', label: 'Kanban', icon: LayoutGrid },
+              { key: 'lista',  label: 'Lista',  icon: ListChecks },
             ] as const).map(v => (
               <button key={v.key} onClick={() => setView(v.key)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
@@ -558,67 +530,6 @@ export default function AtividadesPage() {
           </div>
         )}
 
-        {/* ═══ VIEW: CALENDÁRIO ═══════════════════════════════════════════ */}
-        {view === 'calendario' && (
-          <div className="rounded-2xl bg-white overflow-hidden" style={{ border: '1px solid #D8E8F5' }}>
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #D8E8F5', background: '#F8FBFF' }}>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setRefDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                  className="p-1.5 rounded-lg hover:bg-white">
-                  <ChevronLeft size={14} style={{ color: '#4B8EC8' }} />
-                </button>
-                <p className="text-sm font-extrabold capitalize" style={{ color: '#0D2238', minWidth: 180, textAlign: 'center' }}>
-                  {refDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                </p>
-                <button onClick={() => setRefDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                  className="p-1.5 rounded-lg hover:bg-white">
-                  <ChevronRight size={14} style={{ color: '#4B8EC8' }} />
-                </button>
-              </div>
-              <button onClick={() => setRefDate(new Date())} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
-                Hoje
-              </button>
-            </div>
-            <div className="grid grid-cols-7 text-center" style={{ borderBottom: '1px solid #EBF4FF', background: '#F4F7FB' }}>
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                <div key={d} className="py-2 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: '#7AAACB' }}>{d}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7">
-              {calendarDays.map((d, i) => {
-                const hoje = d.date.toDateString() === new Date().toDateString();
-                return (
-                  <div key={i} className="min-h-[110px] p-1.5 border-b border-r" style={{ borderColor: '#EBF4FF', background: d.current ? 'white' : '#FAFCFE' }}>
-                    <p className="text-[11px] font-bold mb-1" style={{
-                      color: hoje ? '#4B8EC8' : (d.current ? '#0D2238' : '#C3DCFC'),
-                      background: hoje ? '#EBF4FF' : 'transparent',
-                      borderRadius: 4,
-                      display: 'inline-block',
-                      padding: hoje ? '1px 6px' : '0',
-                    }}>{d.date.getDate()}</p>
-                    <div className="space-y-0.5">
-                      {d.atividades.slice(0, 3).map(at => {
-                        const cfg = PRIORIDADE_CONFIG[calcularPrioridade(at)];
-                        return (
-                          <button key={at.id} onClick={() => setSelected(at)}
-                            className="w-full text-left text-[9px] truncate rounded px-1 py-0.5 hover:opacity-80"
-                            style={{ background: cfg.bg, color: cfg.cor }}>
-                            {TIPO_ICON[at.tipo]} {at.titulo}
-                          </button>
-                        );
-                      })}
-                      {d.atividades.length > 3 && (
-                        <p className="text-[9px] text-center font-semibold" style={{ color: '#7AAACB' }}>
-                          +{d.atividades.length - 3} mais
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ═══ MODAL: Nova / Editar Atividade ═════════════════════════════ */}

@@ -25,7 +25,8 @@ const navGroups = [
     label: 'Comercial',
     items: [
       { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial' },
-      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades & Agenda' },
+      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades' },
+      { href: '/agenda',                icon: CalendarDays,  label: 'Agenda (Google)' },
       { href: '/propostas',             icon: FileText,      label: 'Propostas' },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Gerador de Proposta' },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos' },
