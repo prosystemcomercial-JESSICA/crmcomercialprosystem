@@ -99,9 +99,9 @@ process.on('SIGTERM', async () => {
 });
 
 // 8a) Scheduler: envia lembrete 2h antes das reuniões
-function iniciarSchedulerLembretes() {
+async function iniciarSchedulerLembretes() {
   if (!prismaClient) return;
-  const { enviarEmailLembreteAgendamento } = require('./services/email.service');
+  const { enviarEmailLembreteAgendamento } = await import('./services/email.service.js');
 
   const verificarLembretes = async () => {
     try {
