@@ -59,7 +59,7 @@ const MoverSchema = z.object({
 export async function funilRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // ─── Tabelas + Seed (não bloqueante — falha silenciosa no startup) ─────────
+  // ─── Tabelas primeiro, depois seed (não bloqueante) ─────────────────────────
   Promise.all([
     prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS FunilEtapa (
@@ -121,16 +121,17 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
         UNIQUE KEY uq_meta (vendedor_id, ano, mes, trimestre)
       )
     `),
-    // ─── Seed: insere/atualiza etapas padrão garantindo fixo correto ────
-    ...ETAPAS_PADRAO.map(e =>
+  ]).then(() =>
+    // Seed após criação garantida das tabelas
+    Promise.all(ETAPAS_PADRAO.map(e =>
       prisma.$executeRawUnsafe(
         `INSERT INTO FunilEtapa (id, codigo, nome, cor, ordem, tipo, conta_pipeline, fixo)
          VALUES (UUID(),?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE fixo=VALUES(fixo), nome=VALUES(nome)`,
         e.codigo, e.nome, e.cor, e.ordem, e.tipo, e.conta_pipeline, e.fixo
       )
-    ),
-  ]).catch(e => console.warn('[funil.ts] Aviso ao inicializar:', e.message));
+    ))
+  ).catch(e => console.warn('[funil.ts] Aviso ao inicializar:', e.message));
 
   // ─── Helpers ─────────────────────────────────────────────────
   const getEtapas = async (): Promise<any[]> =>
