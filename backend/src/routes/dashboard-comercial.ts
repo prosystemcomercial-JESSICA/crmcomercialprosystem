@@ -20,12 +20,12 @@ export async function dashboardComercialRoutes(
     const sem_contato: any[] = await prisma.$queryRawUnsafe(`
       SELECT l.id, l.nome, l.nome_fantasia, l.segmento, l.temperatura,
              l.etapa_comercial, l.vendedor_nome, l.created_at,
-             EXTRACT(EPOCH FROM (NOW() - l.created_at))/3600 AS horas_sem_contato
-      FROM "Lead" l
+             TIMESTAMPDIFF(SECOND, l.created_at, NOW())/3600 AS horas_sem_contato
+      FROM Lead l
       WHERE l.etapa_comercial NOT IN ('FECHADO','PERDIDO')
-        AND l.created_at < $1
+        AND l.created_at < ?
         AND NOT EXISTS (
-          SELECT 1 FROM "LeadObservacao" lo
+          SELECT 1 FROM LeadObservacao lo
           WHERE lo.lead_id = l.id
             AND lo.tipo IN ('LIGACAO','WHATSAPP','EMAIL','REUNIAO')
         )
@@ -51,12 +51,12 @@ export async function dashboardComercialRoutes(
     const quentes_sem_proposta: any[] = await prisma.$queryRawUnsafe(`
       SELECT l.id, l.nome, l.nome_fantasia, l.temperatura, l.etapa_comercial,
              l.vendedor_nome, l.segmento, l.updated_at,
-             EXTRACT(EPOCH FROM (NOW() - l.updated_at))/86400 AS dias_parado
-      FROM "Lead" l
+             TIMESTAMPDIFF(SECOND, l.updated_at, NOW())/86400 AS dias_parado
+      FROM Lead l
       WHERE l.temperatura IN ('QUENTE','MUITO_QUENTE')
         AND l.etapa_comercial NOT IN ('FECHADO','PERDIDO')
         AND NOT EXISTS (
-          SELECT 1 FROM "PropostaComercial" pc WHERE pc.lead_id = l.id
+          SELECT 1 FROM PropostaComercial pc WHERE pc.lead_id = l.id
         )
       ORDER BY l.temperatura DESC, l.updated_at ASC
       LIMIT 30
@@ -80,11 +80,11 @@ export async function dashboardComercialRoutes(
     const proposta_sem_followup: any[] = await prisma.$queryRawUnsafe(`
       SELECT l.id, l.nome, l.nome_fantasia, l.temperatura, l.etapa_comercial,
              l.vendedor_nome, l.ultima_obs_at, l.segmento,
-             EXTRACT(EPOCH FROM (NOW() - COALESCE(l.ultima_obs_at, l.updated_at)))/86400 AS dias_sem_followup
-      FROM "Lead" l
+             TIMESTAMPDIFF(SECOND, COALESCE(l.ultima_obs_at, l.updated_at), NOW())/86400 AS dias_sem_followup
+      FROM Lead l
       WHERE l.etapa_comercial = 'PROPOSTA_ENVIADA'
-        AND (l.ultima_obs_at IS NULL OR l.ultima_obs_at < $1)
-      ORDER BY l.ultima_obs_at ASC NULLS FIRST
+        AND (l.ultima_obs_at IS NULL OR l.ultima_obs_at < ?)
+      ORDER BY l.ultima_obs_at ASC
       LIMIT 30
     `, d3).catch(() => []);
 
@@ -108,16 +108,16 @@ export async function dashboardComercialRoutes(
     const vendedores_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         l.vendedor_nome,
-        COUNT(*)::int                                                              AS total_leads,
-        COUNT(CASE WHEN l.etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END)::int AS ativos,
-        COUNT(CASE WHEN l.etapa_comercial = 'FECHADO'  THEN 1 END)::int           AS fechados,
-        COUNT(CASE WHEN l.etapa_comercial = 'PERDIDO'  THEN 1 END)::int           AS perdidos,
-        COUNT(CASE WHEN l.temperatura = 'MUITO_QUENTE' THEN 1 END)::int           AS muito_quente,
-        COUNT(CASE WHEN l.temperatura = 'QUENTE'       THEN 1 END)::int           AS quente,
-        COUNT(CASE WHEN l.temperatura = 'MORNO'        THEN 1 END)::int           AS morno,
-        COUNT(CASE WHEN l.temperatura = 'FRIO'         THEN 1 END)::int           AS frio,
-        COUNT(CASE WHEN l.created_at >= $1             THEN 1 END)::int           AS leads_mes
-      FROM "Lead" l
+        COUNT(*)                                                              AS total_leads,
+        COUNT(CASE WHEN l.etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
+        COUNT(CASE WHEN l.etapa_comercial = 'FECHADO'  THEN 1 END)           AS fechados,
+        COUNT(CASE WHEN l.etapa_comercial = 'PERDIDO'  THEN 1 END)           AS perdidos,
+        COUNT(CASE WHEN l.temperatura = 'MUITO_QUENTE' THEN 1 END)           AS muito_quente,
+        COUNT(CASE WHEN l.temperatura = 'QUENTE'       THEN 1 END)           AS quente,
+        COUNT(CASE WHEN l.temperatura = 'MORNO'        THEN 1 END)           AS morno,
+        COUNT(CASE WHEN l.temperatura = 'FRIO'         THEN 1 END)           AS frio,
+        COUNT(CASE WHEN l.created_at >= ?              THEN 1 END)           AS leads_mes
+      FROM Lead l
       WHERE l.vendedor_nome IS NOT NULL
       GROUP BY l.vendedor_nome
       ORDER BY total_leads DESC
@@ -127,8 +127,8 @@ export async function dashboardComercialRoutes(
       SELECT
         lo.created_by_name,
         lo.tipo,
-        COUNT(*)::int AS total
-      FROM "LeadObservacao" lo
+        COUNT(*) AS total
+      FROM LeadObservacao lo
       WHERE lo.tipo NOT IN ('SISTEMA','COLUNA_ALTERADA','TEMPERATURA_ALTERADA')
         AND lo.created_by_name IS NOT NULL
       GROUP BY lo.created_by_name, lo.tipo
@@ -137,17 +137,17 @@ export async function dashboardComercialRoutes(
     const propostas_vendedor_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         l.vendedor_nome,
-        COUNT(pc.id)::int AS propostas_geradas,
-        COUNT(CASE WHEN pc.status IN ('ACEITA','CONTRATO_EM_GERACAO','CONTRATO_ENVIADO','CONTRATO_ASSINADO') THEN 1 END)::int AS aceitas,
+        COUNT(pc.id) AS propostas_geradas,
+        COUNT(CASE WHEN pc.status IN ('ACEITA','CONTRATO_EM_GERACAO','CONTRATO_ENVIADO','CONTRATO_ASSINADO') THEN 1 END) AS aceitas,
         COALESCE(SUM(CASE WHEN pc.status IN ('ACEITA','CONTRATO_EM_GERACAO','CONTRATO_ENVIADO','CONTRATO_ASSINADO')
-            THEN COALESCE(pc.valor_final, 0) END), 0)::float AS setup_fechado,
+            THEN COALESCE(pc.valor_final, 0) END), 0) AS setup_fechado,
         COALESCE(SUM(CASE WHEN pc.status IN ('ACEITA','CONTRATO_EM_GERACAO','CONTRATO_ENVIADO','CONTRATO_ASSINADO')
             THEN CASE WHEN pc.plano_selecionado = 'PLUS' THEN COALESCE(pc.mensalidade_plus,0)
                       WHEN pc.plano_selecionado = 'PRO'  THEN COALESCE(pc.mensalidade_pro,0)
                       ELSE COALESCE(pc.mensalidade_plus, COALESCE(pc.mensalidade_pro,0)) END
-            END), 0)::float AS mrr_fechado
-      FROM "Lead" l
-      LEFT JOIN "PropostaComercial" pc ON pc.lead_id = l.id
+            END), 0) AS mrr_fechado
+      FROM Lead l
+      LEFT JOIN PropostaComercial pc ON pc.lead_id = l.id
       WHERE l.vendedor_nome IS NOT NULL
       GROUP BY l.vendedor_nome
     `).catch(() => []);
@@ -186,11 +186,11 @@ export async function dashboardComercialRoutes(
     const origens: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         origem,
-        COUNT(*)::int                                                              AS total,
-        COUNT(CASE WHEN etapa_comercial = 'FECHADO'            THEN 1 END)::int   AS fechados,
-        COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END)::int AS ativos,
-        COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END)::int AS quentes
-      FROM "Lead"
+        COUNT(*)                                                              AS total,
+        COUNT(CASE WHEN etapa_comercial = 'FECHADO'            THEN 1 END)   AS fechados,
+        COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
+        COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END) AS quentes
+      FROM Lead
       GROUP BY origem
       ORDER BY total DESC
     `).catch(() => []);
@@ -201,11 +201,11 @@ export async function dashboardComercialRoutes(
       SELECT
         COALESCE(NULLIF(campanha_nome,''), NULLIF(utm_campaign,''), 'Sem nome')  AS campanha,
         COALESCE(NULLIF(plataforma,''), NULLIF(utm_source,''), 'Desconhecido')   AS plataforma,
-        COUNT(*)::int                                                              AS total,
-        COUNT(CASE WHEN etapa_comercial = 'FECHADO'            THEN 1 END)::int   AS fechados,
-        COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END)::int AS ativos,
-        COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END)::int AS quentes
-      FROM "Lead"
+        COUNT(*)                                                              AS total,
+        COUNT(CASE WHEN etapa_comercial = 'FECHADO'            THEN 1 END)   AS fechados,
+        COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
+        COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END) AS quentes
+      FROM Lead
       WHERE utm_source IS NOT NULL OR campanha_nome IS NOT NULL
       GROUP BY campanha, plataforma
       ORDER BY total DESC
@@ -217,10 +217,10 @@ export async function dashboardComercialRoutes(
     const temperaturas: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         temperatura,
-        COUNT(*)::int                                                              AS total,
-        COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END)::int AS ativos,
-        COUNT(CASE WHEN etapa_comercial = 'FECHADO'                  THEN 1 END)::int AS fechados
-      FROM "Lead"
+        COUNT(*)                                                              AS total,
+        COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
+        COUNT(CASE WHEN etapa_comercial = 'FECHADO'                  THEN 1 END) AS fechados
+      FROM Lead
       GROUP BY temperatura
     `).catch(() => []);
 
@@ -229,8 +229,8 @@ export async function dashboardComercialRoutes(
     const atividades_tipo: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         tipo,
-        COUNT(*)::int AS total
-      FROM "LeadObservacao"
+        COUNT(*) AS total
+      FROM LeadObservacao
       WHERE tipo NOT IN ('SISTEMA','COLUNA_ALTERADA','TEMPERATURA_ALTERADA')
       GROUP BY tipo
       ORDER BY total DESC

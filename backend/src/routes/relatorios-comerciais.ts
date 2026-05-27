@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 const ROLES_PERMITIDOS = ['SUPERVISAO', 'CEO', 'ADMIN'];
 
@@ -62,29 +63,31 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     ]);
 
     // Evolução mensal de contratos (últimos 12 meses)
-    const contratosRaw = await prisma.$queryRaw<any[]>`
-      SELECT
-        DATE_TRUNC('month', created_at) AS mes,
+    const contratosRaw = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT
+        DATE_FORMAT(created_at, '%Y-%m-01') AS mes,
         COUNT(*) AS total,
         SUM(valor) AS mrr
-      FROM "Contrato"
-      WHERE created_at >= ${dozeAtras}
+      FROM Contrato
+      WHERE created_at >= ?
         AND deleted_at IS NULL
-      GROUP BY DATE_TRUNC('month', created_at)
-      ORDER BY mes ASC
-    `;
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m-01')
+      ORDER BY mes ASC`,
+      dozeAtras
+    );
 
-    const canceladosRaw = await prisma.$queryRaw<any[]>`
-      SELECT
-        DATE_TRUNC('month', updated_at) AS mes,
+    const canceladosRaw = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT
+        DATE_FORMAT(updated_at, '%Y-%m-01') AS mes,
         COUNT(*) AS total,
         SUM(valor) AS mrr_perdido
-      FROM "Contrato"
+      FROM Contrato
       WHERE status = 'CANCELADO'
-        AND updated_at >= ${dozeAtras}
-      GROUP BY DATE_TRUNC('month', updated_at)
-      ORDER BY mes ASC
-    `;
+        AND updated_at >= ?
+      GROUP BY DATE_FORMAT(updated_at, '%Y-%m-01')
+      ORDER BY mes ASC`,
+      dozeAtras
+    );
 
     // Performance por vendedor (leads ganhos + contratos)
     const vendedoresPerf = await prisma.lead.groupBy({
@@ -146,11 +149,15 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     const anoInt = parseInt(ano);
 
     const relatorios: any[] = await prisma.$queryRawUnsafe(
-      `SELECT r.*, json_agg(v.*) FILTER (WHERE v.id IS NOT NULL) AS vendedores
-       FROM "RelatorioMensal" r
-       LEFT JOIN "RelatorioVendedor" v ON v.relatorio_id = r.id
-       WHERE r.ano = $1
-       GROUP BY r.id
+      `SELECT r.*,
+        (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+          'id', v.id, 'relatorio_id', v.relatorio_id, 'vendedor_id', v.vendedor_id,
+          'vendedor_nome', v.vendedor_nome, 'contatos_realizados', v.contatos_realizados,
+          'leads_qualificados', v.leads_qualificados, 'propostas_enviadas', v.propostas_enviadas,
+          'contratos_fechados', v.contratos_fechados, 'mrr_vendido', v.mrr_vendido
+        )) FROM RelatorioVendedor v WHERE v.relatorio_id = r.id) AS vendedores
+       FROM RelatorioMensal r
+       WHERE r.ano = ?
        ORDER BY r.mes ASC`,
       anoInt
     );
@@ -173,11 +180,15 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     const { ano, mes } = request.params as { ano: string; mes: string };
 
     const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT r.*, json_agg(v.* ORDER BY v.vendedor_nome) FILTER (WHERE v.id IS NOT NULL) AS vendedores
-       FROM "RelatorioMensal" r
-       LEFT JOIN "RelatorioVendedor" v ON v.relatorio_id = r.id
-       WHERE r.ano = $1 AND r.mes = $2
-       GROUP BY r.id`,
+      `SELECT r.*,
+        (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+          'id', v.id, 'relatorio_id', v.relatorio_id, 'vendedor_id', v.vendedor_id,
+          'vendedor_nome', v.vendedor_nome, 'contatos_realizados', v.contatos_realizados,
+          'leads_qualificados', v.leads_qualificados, 'propostas_enviadas', v.propostas_enviadas,
+          'contratos_fechados', v.contratos_fechados, 'mrr_vendido', v.mrr_vendido
+        ) ORDER BY v.vendedor_nome) FROM RelatorioVendedor v WHERE v.relatorio_id = r.id) AS vendedores
+       FROM RelatorioMensal r
+       WHERE r.ano = ? AND r.mes = ?`,
       parseInt(ano), parseInt(mes)
     );
 
@@ -199,7 +210,7 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
 
     // Upsert do relatório principal
     const existing: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id FROM "RelatorioMensal" WHERE ano = $1 AND mes = $2`,
+      `SELECT id FROM RelatorioMensal WHERE ano = ? AND mes = ?`,
       anoInt, mesInt
     );
 
@@ -208,12 +219,12 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     if (existing.length > 0) {
       relatorioId = existing[0].id;
       await prisma.$executeRawUnsafe(
-        `UPDATE "RelatorioMensal" SET
-          meta_contratos = $1, contratos_fechados = $2, propostas_pipeline = $3,
-          mrr_potencial = $4, mrr_novo = $5, ticket_medio = $6,
-          cancelamentos = $7, mrr_perdido = $8, motivos_cancelamento = $9,
-          observacoes = $10, fonte = 'MANUAL', updated_at = NOW()
-         WHERE id = $11`,
+        `UPDATE RelatorioMensal SET
+          meta_contratos = ?, contratos_fechados = ?, propostas_pipeline = ?,
+          mrr_potencial = ?, mrr_novo = ?, ticket_medio = ?,
+          cancelamentos = ?, mrr_perdido = ?, motivos_cancelamento = ?,
+          observacoes = ?, fonte = 'MANUAL', updated_at = NOW()
+         WHERE id = ?`,
         campos.meta_contratos ?? 10,
         campos.contratos_fechados ?? null,
         campos.propostas_pipeline ?? null,
@@ -227,12 +238,12 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
         relatorioId
       );
     } else {
-      const rows: any[] = await prisma.$queryRawUnsafe(
-        `INSERT INTO "RelatorioMensal" (ano, mes, fonte, meta_contratos, contratos_fechados, propostas_pipeline,
+      relatorioId = randomUUID();
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO RelatorioMensal (id, ano, mes, fonte, meta_contratos, contratos_fechados, propostas_pipeline,
           mrr_potencial, mrr_novo, ticket_medio, cancelamentos, mrr_perdido, motivos_cancelamento, observacoes, created_by)
-         VALUES ($1, $2, 'MANUAL', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         RETURNING id`,
-        anoInt, mesInt,
+         VALUES (?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        relatorioId, anoInt, mesInt,
         campos.meta_contratos ?? 10,
         campos.contratos_fechados ?? null,
         campos.propostas_pipeline ?? null,
@@ -245,17 +256,16 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
         campos.observacoes ?? null,
         user?.nome || user?.id || 'sistema'
       );
-      relatorioId = rows[0].id;
     }
 
     // Substituir vendedores
     if (vendedores !== undefined) {
-      await prisma.$executeRawUnsafe(`DELETE FROM "RelatorioVendedor" WHERE relatorio_id = $1`, relatorioId);
+      await prisma.$executeRawUnsafe(`DELETE FROM RelatorioVendedor WHERE relatorio_id = ?`, relatorioId);
       for (const v of vendedores) {
         await prisma.$executeRawUnsafe(
-          `INSERT INTO "RelatorioVendedor" (relatorio_id, vendedor_id, vendedor_nome,
+          `INSERT INTO RelatorioVendedor (relatorio_id, vendedor_id, vendedor_nome,
             contatos_realizados, leads_qualificados, propostas_enviadas, contratos_fechados, mrr_vendido)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           relatorioId, v.vendedor_id ?? null, v.vendedor_nome,
           v.contatos_realizados ?? null, v.leads_qualificados ?? null,
           v.propostas_enviadas ?? null, v.contratos_fechados ?? null,
@@ -317,30 +327,30 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
 
     // Upsert
     const existing: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id FROM "RelatorioMensal" WHERE ano = $1 AND mes = $2`, anoInt, mesInt
+      `SELECT id FROM RelatorioMensal WHERE ano = ? AND mes = ?`, anoInt, mesInt
     );
 
     let relatorioId: string;
     if (existing.length > 0) {
       relatorioId = existing[0].id;
       await prisma.$executeRawUnsafe(
-        `UPDATE "RelatorioMensal" SET
-          contratos_fechados=$1, propostas_pipeline=$2, mrr_potencial=$3, mrr_novo=$4,
-          ticket_medio=$5, cancelamentos=$6, mrr_perdido=$7, fonte='AUTO', gerado_em=NOW(), updated_at=NOW()
-         WHERE id=$8`,
+        `UPDATE RelatorioMensal SET
+          contratos_fechados=?, propostas_pipeline=?, mrr_potencial=?, mrr_novo=?,
+          ticket_medio=?, cancelamentos=?, mrr_perdido=?, fonte='AUTO', gerado_em=NOW(), updated_at=NOW()
+         WHERE id=?`,
         contratos_fechados, propostas_pipeline, mrr_potencial, mrr_novo,
         ticket_medio, cancelamentos, mrr_perdido, relatorioId
       );
     } else {
-      const rows: any[] = await prisma.$queryRawUnsafe(
-        `INSERT INTO "RelatorioMensal" (ano, mes, fonte, meta_contratos, contratos_fechados, propostas_pipeline,
+      relatorioId = randomUUID();
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO RelatorioMensal (id, ano, mes, fonte, meta_contratos, contratos_fechados, propostas_pipeline,
           mrr_potencial, mrr_novo, ticket_medio, cancelamentos, mrr_perdido, gerado_em, created_by)
-         VALUES ($1,$2,'AUTO',10,$3,$4,$5,$6,$7,$8,$9,NOW(),$10) RETURNING id`,
-        anoInt, mesInt, contratos_fechados, propostas_pipeline, mrr_potencial,
+         VALUES (?,?,'AUTO',10,?,?,?,?,?,?,?,NOW(),?)`,
+        relatorioId, anoInt, mesInt, contratos_fechados, propostas_pipeline, mrr_potencial,
         mrr_novo, ticket_medio, cancelamentos, mrr_perdido,
         user?.nome || 'sistema'
       );
-      relatorioId = rows[0].id;
     }
 
     // Vendedores — agrupa contratos fechados por responsavel_id
@@ -368,11 +378,11 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     }
 
     // Substitui vendedores
-    await prisma.$executeRawUnsafe(`DELETE FROM "RelatorioVendedor" WHERE relatorio_id = $1`, relatorioId);
+    await prisma.$executeRawUnsafe(`DELETE FROM RelatorioVendedor WHERE relatorio_id = ?`, relatorioId);
     for (const [vid, dados] of Object.entries(vendedoresMap)) {
       await prisma.$executeRawUnsafe(
-        `INSERT INTO "RelatorioVendedor" (relatorio_id, vendedor_id, vendedor_nome, contratos_fechados, mrr_vendido, leads_qualificados)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
+        `INSERT INTO RelatorioVendedor (relatorio_id, vendedor_id, vendedor_nome, contratos_fechados, mrr_vendido, leads_qualificados)
+         VALUES (?,?,?,?,?,?)`,
         relatorioId, vid, dados.nome, dados.contratos, dados.mrr, dados.leads
       );
     }
@@ -393,7 +403,7 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     const rows: any[] = await prisma.$queryRawUnsafe(
       `SELECT mes, fonte, meta_contratos, contratos_fechados, propostas_pipeline,
               mrr_potencial, mrr_novo, ticket_medio, cancelamentos, mrr_perdido, motivos_cancelamento
-       FROM "RelatorioMensal" WHERE ano = $1 ORDER BY mes`,
+       FROM RelatorioMensal WHERE ano = ? ORDER BY mes`,
       parseInt(ano)
     );
 

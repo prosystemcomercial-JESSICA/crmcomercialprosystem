@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 const FERRAMENTAS_LISTA = [
   'API Domínios','Backup Mega - Externo - Terminal','CoteFácil','D-Pharma',
@@ -180,8 +181,8 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
 
     // Load contacts and service requests via raw
-    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "ContatoCliente" WHERE cliente_id = $1 ORDER BY created_at ASC`, id);
-    const solicitacoes: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "SolicitacaoServico" WHERE cliente_id = $1 ORDER BY data_solicitacao DESC`, id);
+    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE cliente_id = ? ORDER BY created_at ASC`, id);
+    const solicitacoes: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE cliente_id = ? ORDER BY data_solicitacao DESC`, id);
 
     return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes } });
   });
@@ -228,7 +229,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
   // ===== CONTATOS =====
   fastify.get('/clientes/:id/contatos', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "ContatoCliente" WHERE cliente_id = $1 ORDER BY created_at ASC`, id);
+    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE cliente_id = ? ORDER BY created_at ASC`, id);
     return reply.send({ status: 'success', data: contatos });
   });
 
@@ -236,23 +237,25 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const { id } = request.params as { id: string };
     const body = z.object({ nome: z.string().min(1), telefone: z.string().optional() }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `INSERT INTO "ContatoCliente" (cliente_id, nome, telefone) VALUES ($1, $2, $3) RETURNING *`,
-      id, body.data.nome, body.data.telefone || null
+    const newId = randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO ContatoCliente (id, cliente_id, nome, telefone) VALUES (?, ?, ?, ?)`,
+      newId, id, body.data.nome, body.data.telefone || null
     );
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE id = ?`, newId);
     return reply.status(201).send({ status: 'success', data: rows[0] });
   });
 
   fastify.delete('/clientes/:id/contatos/:cid', async (request, reply) => {
     const { cid } = request.params as { id: string; cid: string };
-    await prisma.$executeRawUnsafe(`DELETE FROM "ContatoCliente" WHERE id = $1`, cid);
+    await prisma.$executeRawUnsafe(`DELETE FROM ContatoCliente WHERE id = ?`, cid);
     return reply.send({ status: 'success', message: 'Contato removido' });
   });
 
   // ===== SOLICITAÇÕES DE SERVIÇO =====
   fastify.get('/clientes/:id/solicitacoes', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "SolicitacaoServico" WHERE cliente_id = $1 ORDER BY data_solicitacao DESC`, id);
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE cliente_id = ? ORDER BY data_solicitacao DESC`, id);
     return reply.send({ status: 'success', data: rows });
   });
 
@@ -269,12 +272,14 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const grupoAtendimento = body.data.usuario_responsavel ? undefined : (cliente as any).grupo;
     const planoAtual = ((cliente as any).ferramentas || []).filter((f: string) => f.startsWith('Plano')).join(', ') || null;
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `INSERT INTO "SolicitacaoServico" (
-        cliente_id, contato_solicitante, contato_telefone, usuario_responsavel,
+    const newId = randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO SolicitacaoServico (
+        id, cliente_id, contato_solicitante, contato_telefone, usuario_responsavel,
         grupo_atendimento, tipo_servico, subtipo, prioridade, status,
         descricao, observacao_interna, plano_atual, data_finalizacao, created_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      newId,
       id,
       body.data.contato_solicitante || null,
       body.data.contato_telefone || null,
@@ -290,6 +295,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       body.data.data_finalizacao ? new Date(body.data.data_finalizacao) : null,
       user?.nome || user?.id || 'sistema'
     );
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE id = ?`, newId);
 
     return reply.status(201).send({ status: 'success', data: rows[0] });
   });
@@ -301,25 +307,24 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
     const updates: string[] = ['updated_at = NOW()'];
     const vals: any[] = [];
-    let i = 1;
 
     const fields: (keyof typeof body.data)[] = ['contato_solicitante','contato_telefone','usuario_responsavel','tipo_servico','subtipo','prioridade','status','descricao','observacao_interna'];
     for (const f of fields) {
-      if (body.data[f] !== undefined) { updates.push(`${f} = $${i++}`); vals.push(body.data[f]); }
+      if (body.data[f] !== undefined) { updates.push(`${f} = ?`); vals.push(body.data[f]); }
     }
-    if (body.data.data_finalizacao !== undefined) { updates.push(`data_finalizacao = $${i++}`); vals.push(new Date(body.data.data_finalizacao)); }
+    if (body.data.data_finalizacao !== undefined) { updates.push(`data_finalizacao = ?`); vals.push(new Date(body.data.data_finalizacao)); }
     if (body.data.status === 'FINALIZADA' && !body.data.data_finalizacao) { updates.push(`data_finalizacao = NOW()`); }
 
     vals.push(sid);
-    await prisma.$executeRawUnsafe(`UPDATE "SolicitacaoServico" SET ${updates.join(', ')} WHERE id = $${i}`, ...vals);
+    await prisma.$executeRawUnsafe(`UPDATE SolicitacaoServico SET ${updates.join(', ')} WHERE id = ?`, ...vals);
 
-    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "SolicitacaoServico" WHERE id = $1`, sid);
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE id = ?`, sid);
     return reply.send({ status: 'success', data: rows[0] });
   });
 
   fastify.delete('/clientes/:id/solicitacoes/:sid', async (request, reply) => {
     const { sid } = request.params as { id: string; sid: string };
-    await prisma.$executeRawUnsafe(`DELETE FROM "SolicitacaoServico" WHERE id = $1`, sid);
+    await prisma.$executeRawUnsafe(`DELETE FROM SolicitacaoServico WHERE id = ?`, sid);
     return reply.send({ status: 'success', message: 'Solicitação removida' });
   });
 }

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN'];
 const SUPERVISAO = [...GESTORES, 'SUPERVISAO_TECNICA'];
@@ -61,8 +62,8 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
   // ─── Tabelas + Seed (não bloqueante — falha silenciosa no startup) ─────────
   Promise.all([
     prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "FunilEtapa" (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      CREATE TABLE IF NOT EXISTS FunilEtapa (
+        id CHAR(36) NOT NULL PRIMARY KEY,
         codigo VARCHAR(50) UNIQUE NOT NULL,
         nome VARCHAR(100) NOT NULL,
         cor VARCHAR(20) DEFAULT '#6b7280',
@@ -72,17 +73,13 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
         visivel_vendedor BOOLEAN DEFAULT TRUE,
         ativa BOOLEAN DEFAULT TRUE,
         fixo BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        created_at DATETIME DEFAULT NOW(),
+        updated_at DATETIME DEFAULT NOW()
       )
     `),
-    // Adiciona coluna fixo em tabelas já existentes (migration idempotente)
     prisma.$executeRawUnsafe(`
-      ALTER TABLE "FunilEtapa" ADD COLUMN IF NOT EXISTS fixo BOOLEAN DEFAULT FALSE
-    `),
-    prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "LeadPerda" (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      CREATE TABLE IF NOT EXISTS LeadPerda (
+        id CHAR(36) NOT NULL PRIMARY KEY,
         lead_id VARCHAR(255) NOT NULL,
         lead_nome VARCHAR(255),
         etapa_anterior VARCHAR(50),
@@ -90,15 +87,15 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
         motivo VARCHAR(100),
         motivo_outro TEXT,
         observacoes TEXT,
-        valor_oportunidade NUMERIC(12,2),
+        valor_oportunidade DECIMAL(12,2),
         vendedor_id VARCHAR(255),
         vendedor_nome VARCHAR(255),
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at DATETIME DEFAULT NOW()
       )
     `),
     prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "LeadHistorico" (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      CREATE TABLE IF NOT EXISTS LeadHistorico (
+        id CHAR(36) NOT NULL PRIMARY KEY,
         lead_id VARCHAR(255) NOT NULL,
         lead_nome VARCHAR(255),
         acao VARCHAR(100),
@@ -106,30 +103,30 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
         etapa_destino VARCHAR(50),
         ator_id VARCHAR(255),
         ator_nome VARCHAR(255),
-        detalhes JSONB,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        detalhes JSON,
+        created_at DATETIME DEFAULT NOW()
       )
     `),
     prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "MetaVendedor" (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      CREATE TABLE IF NOT EXISTS MetaVendedor (
+        id CHAR(36) NOT NULL PRIMARY KEY,
         vendedor_id VARCHAR(255) NOT NULL,
         vendedor_nome VARCHAR(255),
         ano INTEGER NOT NULL,
         mes INTEGER,
         trimestre INTEGER,
-        meta_valor NUMERIC(12,2) NOT NULL,
-        bonus_valor NUMERIC(12,2),
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(vendedor_id, ano, mes, trimestre)
+        meta_valor DECIMAL(12,2) NOT NULL,
+        bonus_valor DECIMAL(12,2),
+        created_at DATETIME DEFAULT NOW(),
+        UNIQUE KEY uq_meta (vendedor_id, ano, mes, trimestre)
       )
     `),
     // ─── Seed: insere/atualiza etapas padrão garantindo fixo correto ────
     ...ETAPAS_PADRAO.map(e =>
       prisma.$executeRawUnsafe(
-        `INSERT INTO "FunilEtapa" (codigo, nome, cor, ordem, tipo, conta_pipeline, fixo)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
-         ON CONFLICT (codigo) DO UPDATE SET fixo = EXCLUDED.fixo, nome = EXCLUDED.nome`,
+        `INSERT INTO FunilEtapa (id, codigo, nome, cor, ordem, tipo, conta_pipeline, fixo)
+         VALUES (UUID(),?,?,?,?,?,?,?)
+         ON DUPLICATE KEY UPDATE fixo=VALUES(fixo), nome=VALUES(nome)`,
         e.codigo, e.nome, e.cor, e.ordem, e.tipo, e.conta_pipeline, e.fixo
       )
     ),
@@ -137,13 +134,14 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
 
   // ─── Helpers ─────────────────────────────────────────────────
   const getEtapas = async (): Promise<any[]> =>
-    prisma.$queryRawUnsafe(`SELECT * FROM "FunilEtapa" WHERE ativa = TRUE ORDER BY ordem ASC`);
+    prisma.$queryRawUnsafe(`SELECT * FROM FunilEtapa WHERE ativa = TRUE ORDER BY ordem ASC`);
 
   const audit = async (lead_id: string, lead_nome: string, acao: string, etapa_ant: string|null, etapa_dest: string|null, ator: any, detalhes?: any) => {
     try {
+      const histId = randomUUID();
       await prisma.$executeRawUnsafe(
-        `INSERT INTO "LeadHistorico" (lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        lead_id, lead_nome, acao, etapa_ant, etapa_dest, ator?.id||'sistema', ator?.nome||'sistema',
+        `INSERT INTO LeadHistorico (id, lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes) VALUES (?,?,?,?,?,?,?,?,?)`,
+        histId, lead_id, lead_nome, acao, etapa_ant, etapa_dest, ator?.id||'sistema', ator?.nome||'sistema',
         detalhes ? JSON.stringify(detalhes) : null
       );
     } catch { }
@@ -173,13 +171,15 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
     const d = body.data;
     try {
-      const rows: any[] = await prisma.$queryRawUnsafe(
-        `INSERT INTO "FunilEtapa" (codigo, nome, cor, ordem, tipo, conta_pipeline, visivel_vendedor) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-        d.codigo, d.nome, d.cor, d.ordem, d.tipo, d.conta_pipeline, d.visivel_vendedor
+      const novoId = randomUUID();
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO FunilEtapa (id, codigo, nome, cor, ordem, tipo, conta_pipeline, visivel_vendedor) VALUES (?,?,?,?,?,?,?,?)`,
+        novoId, d.codigo, d.nome, d.cor, d.ordem, d.tipo, d.conta_pipeline, d.visivel_vendedor
       );
+      const rows: any[] = await prisma.$queryRawUnsafe('SELECT * FROM FunilEtapa WHERE id = ?', novoId);
       return reply.status(201).send({ status: 'success', data: rows[0] });
     } catch (err: any) {
-      if (err.code === '23505') return reply.status(409).send({ status: 'error', message: 'Código já existe' });
+      if (err.code === 'ER_DUP_ENTRY' || err.message?.includes('Duplicate entry')) return reply.status(409).send({ status: 'error', message: 'Código já existe' });
       throw err;
     }
   });
@@ -192,19 +192,20 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
 
     // Etapas fixas não podem ter o tipo alterado
     if (body.data.tipo !== undefined) {
-      const atual: any[] = await prisma.$queryRawUnsafe(`SELECT fixo FROM "FunilEtapa" WHERE id = $1`, id);
+      const atual: any[] = await prisma.$queryRawUnsafe(`SELECT fixo FROM FunilEtapa WHERE id = ?`, id);
       if (atual.length && atual[0].fixo) {
         return reply.status(400).send({ status: 'error', message: 'Etapas fixas não podem ter o tipo alterado' });
       }
     }
 
-    const sets: string[] = []; const vals: any[] = []; let n = 1;
+    const sets: string[] = []; const vals: any[] = [];
     for (const [k, v] of Object.entries(body.data)) {
-      if (v !== undefined) { sets.push(`${k} = $${n++}`); vals.push(v); }
+      if (v !== undefined) { sets.push(`${k} = ?`); vals.push(v); }
     }
     if (!sets.length) return reply.status(400).send({ status: 'error', message: 'Nada para atualizar' });
     sets.push(`updated_at = NOW()`); vals.push(id);
-    const rows: any[] = await prisma.$queryRawUnsafe(`UPDATE "FunilEtapa" SET ${sets.join(', ')} WHERE id = $${n} RETURNING *`, ...vals);
+    await prisma.$executeRawUnsafe(`UPDATE FunilEtapa SET ${sets.join(', ')} WHERE id = ?`, ...vals);
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM FunilEtapa WHERE id = ?`, id);
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Etapa não encontrada' });
     return reply.send({ status: 'success', data: rows[0] });
   });
@@ -214,14 +215,14 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     const { id } = request.params as { id: string };
 
     // Impede exclusão de etapas fixas
-    const etapa: any[] = await prisma.$queryRawUnsafe(`SELECT fixo, nome FROM "FunilEtapa" WHERE id = $1`, id);
+    const etapa: any[] = await prisma.$queryRawUnsafe(`SELECT fixo, nome FROM FunilEtapa WHERE id = ?`, id);
     if (!etapa.length) return reply.status(404).send({ status: 'error', message: 'Etapa não encontrada' });
     if (etapa[0].fixo) {
       return reply.status(400).send({ status: 'error', message: `A etapa "${etapa[0].nome}" é fixa e não pode ser removida` });
     }
 
     // Soft delete — marca como inativa para preservar histórico
-    await prisma.$executeRawUnsafe(`UPDATE "FunilEtapa" SET ativa = FALSE WHERE id = $1`, id);
+    await prisma.$executeRawUnsafe(`UPDATE FunilEtapa SET ativa = FALSE WHERE id = ?`, id);
     return reply.send({ status: 'success', message: 'Etapa removida' });
   });
 
@@ -230,7 +231,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     const body = z.object({ ordem: z.array(z.object({ id: z.string(), ordem: z.number() })) }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     for (const item of body.data.ordem) {
-      await prisma.$executeRawUnsafe(`UPDATE "FunilEtapa" SET ordem = $1 WHERE id = $2`, item.ordem, item.id);
+      await prisma.$executeRawUnsafe(`UPDATE FunilEtapa SET ordem = ? WHERE id = ?`, item.ordem, item.id);
     }
     return reply.send({ status: 'success' });
   });
@@ -279,7 +280,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
 
     // Buscar etapa destino
-    const etapas: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "FunilEtapa" WHERE codigo = $1 LIMIT 1`, etapa_funil);
+    const etapas: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM FunilEtapa WHERE codigo = ? LIMIT 1`, etapa_funil);
     if (!etapas.length) return reply.status(400).send({ status: 'error', message: 'Etapa de destino inválida' });
     const etapa = etapas[0];
 
@@ -293,8 +294,8 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
       }
       // Registrar perda
       await prisma.$executeRawUnsafe(
-        `INSERT INTO "LeadPerda" (lead_id, lead_nome, etapa_anterior, etapa_destino, motivo, motivo_outro, observacoes, valor_oportunidade, vendedor_id, vendedor_nome) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        id, lead.nome, lead.etapa_funil, etapa_funil, perda.motivo, perda.motivo_outro || null,
+        `INSERT INTO LeadPerda (id, lead_id, lead_nome, etapa_anterior, etapa_destino, motivo, motivo_outro, observacoes, valor_oportunidade, vendedor_id, vendedor_nome) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        randomUUID(), id, lead.nome, lead.etapa_funil, etapa_funil, perda.motivo, perda.motivo_outro || null,
         perda.observacoes || null, lead.valor_estimado || 0, lead.responsavel_id || null, ator?.nome || null
       );
     }
@@ -325,7 +326,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
   fastify.get('/leads/:id/historico-funil', async (request, reply) => {
     const { id } = request.params as { id: string };
     const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "LeadHistorico" WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 100`, id
+      `SELECT * FROM LeadHistorico WHERE lead_id = ? ORDER BY created_at DESC LIMIT 100`, id
     );
     return reply.send({ status: 'success', data: rows });
   });
@@ -338,7 +339,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     const vendedor = isVendedor(request);
 
     const where = vendedor && user?.id ? `WHERE vendedor_id = '${user.id.replace(/'/g, "''")}'` : '';
-    const perdas: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "LeadPerda" ${where} ORDER BY created_at DESC LIMIT 500`);
+    const perdas: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM LeadPerda ${where} ORDER BY created_at DESC LIMIT 500`);
 
     // Agregações
     const total = perdas.length;
@@ -367,7 +368,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
 
     // Pipeline ativo: etapas ANDAMENTO
     const etapasAndamento: any[] = await prisma.$queryRawUnsafe(
-      `SELECT codigo FROM "FunilEtapa" WHERE tipo = 'ANDAMENTO' AND ativa = TRUE`
+      `SELECT codigo FROM FunilEtapa WHERE tipo = 'ANDAMENTO' AND ativa = TRUE`
     );
     const codigosAndamento = etapasAndamento.map(e => e.codigo);
 
@@ -386,7 +387,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     if (vendedor && user?.id) {
       const trimestre = Math.floor(now.getMonth() / 3) + 1;
       const metas: any[] = await prisma.$queryRawUnsafe(
-        `SELECT meta_valor, mes, trimestre, bonus_valor FROM "MetaVendedor" WHERE vendedor_id = $1 AND ano = $2`,
+        `SELECT meta_valor, mes, trimestre, bonus_valor FROM MetaVendedor WHERE vendedor_id = ? AND ano = ?`,
         user.id, now.getFullYear()
       );
       const metaMes = metas.find(m => m.mes === now.getMonth() + 1);
@@ -439,7 +440,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!checkGestor(request) && !isVendedor(request)) return reply.status(403).send({ status: 'error', message: 'Sem permissão' });
     const user = (request as any).user;
     const where = isVendedor(request) ? `WHERE vendedor_id = '${user.id.replace(/'/g, "''")}'` : '';
-    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "MetaVendedor" ${where} ORDER BY ano DESC, mes DESC, trimestre DESC`);
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM MetaVendedor ${where} ORDER BY ano DESC, mes DESC, trimestre DESC`);
     return reply.send({ status: 'success', data: rows });
   });
 
@@ -456,13 +457,16 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     const d = body.data;
+    const metaId = randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO MetaVendedor (id, vendedor_id, vendedor_nome, ano, mes, trimestre, meta_valor, bonus_valor)
+       VALUES (?,?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE meta_valor=VALUES(meta_valor), bonus_valor=VALUES(bonus_valor)`,
+      metaId, d.vendedor_id, d.vendedor_nome || null, d.ano, d.mes || null, d.trimestre || null, d.meta_valor, d.bonus_valor || null
+    );
     const rows: any[] = await prisma.$queryRawUnsafe(
-      `INSERT INTO "MetaVendedor" (vendedor_id, vendedor_nome, ano, mes, trimestre, meta_valor, bonus_valor)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT (vendedor_id, ano, mes, trimestre) DO UPDATE
-       SET meta_valor = EXCLUDED.meta_valor, bonus_valor = EXCLUDED.bonus_valor
-       RETURNING *`,
-      d.vendedor_id, d.vendedor_nome || null, d.ano, d.mes || null, d.trimestre || null, d.meta_valor, d.bonus_valor || null
+      `SELECT * FROM MetaVendedor WHERE vendedor_id = ? AND ano = ? AND mes <=> ? AND trimestre <=> ? LIMIT 1`,
+      d.vendedor_id, d.ano, d.mes || null, d.trimestre || null
     );
     return reply.send({ status: 'success', data: rows[0] });
   });
@@ -484,7 +488,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
       select: { id: true, responsavel_id: true, status: true, etapa_funil: true, valor_estimado: true, updated_at: true }
     });
 
-    const etapasAndamento: any[] = await prisma.$queryRawUnsafe(`SELECT codigo FROM "FunilEtapa" WHERE tipo = 'ANDAMENTO'`);
+    const etapasAndamento: any[] = await prisma.$queryRawUnsafe(`SELECT codigo FROM FunilEtapa WHERE tipo = 'ANDAMENTO'`);
     const codigosAndamento = new Set(etapasAndamento.map(e => e.codigo));
 
     const porVendedor: Record<string, any> = {};

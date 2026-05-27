@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -85,7 +85,7 @@ model DiagnosisChurn {
 
   motivo_principal String
   risco_score     Float
-  fatores         String[]  // Array de fatores de risco
+  fatores         Json      // Array de fatores de risco
 
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
@@ -195,8 +195,8 @@ model SurveyResposta {
   sentimento_q2_label String?
   sentimento_q2_conf Int?
 
-  keywords_q1     String[]  // JSON array
-  keywords_q2     String[]
+  keywords_q1     Json      // JSON array
+  keywords_q2     Json
 
   motivo_real     String?   // Enum 10 categorias
   confianca       String?   // HIGH|MEDIUM|LOW|NONE
@@ -299,8 +299,8 @@ model Template {
   assunto           String    @db.VarChar(200)
   corpo             String    @db.Text // HTML
 
-  variaveis_tag     String[]
-  tags_indicadas    String[]  // [PRECO, SUPORTE]
+  variaveis_tag     Json
+  tags_indicadas    Json      // [PRECO, SUPORTE]
 
   versao            Int       @default(1)
   ativa             Boolean   @default(true)
@@ -384,8 +384,8 @@ model Lead {
   texto_valor         String? @db.Text
   segmento_proposta   String?
   plano_recomendado   String?
-  modulos_inclusos    String[]
-  servicos_adicionais String[]
+  modulos_inclusos    Json
+  servicos_adicionais Json
 
   // Pipeline / Kanban comercial
   etapa_comercial    String @default("NOVO_LEAD")
@@ -719,7 +719,7 @@ model PlanoServico {
   preco       Float
   recorrencia String   @default("MENSAL") // MENSAL|ANUAL|UNICO
   ativo       Boolean  @default(true)
-  features    String[]
+  features    Json
 
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
@@ -935,8 +935,8 @@ model PropostaComercial {
   plano_recomendado    String?
   mensalidade_pro      Float?
   mensalidade_plus     Float?
-  modulos_inclusos     String[]
-  servicos_adicionais  String[]
+  modulos_inclusos     Json
+  servicos_adicionais  Json
 
   // Valores
   valor_implantacao    Float?

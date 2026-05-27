@@ -41,8 +41,8 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes } } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior } } }),
       // Perdidos este mês (via LeadPerda — registra o momento real da perda)
-      prisma.$queryRawUnsafe(`SELECT COUNT(*)::int as n FROM "LeadPerda" WHERE created_at >= $1`, inicioMes).then((r: any) => r[0]?.n || 0).catch(() => 0),
-      prisma.$queryRawUnsafe(`SELECT COUNT(*)::int as n FROM "LeadPerda" WHERE created_at >= $1 AND created_at <= $2`, inicioMesAnterior, fimMesAnterior).then((r: any) => r[0]?.n || 0).catch(() => 0),
+      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ?`, inicioMes).then((r: any) => r[0]?.n || 0).catch(() => 0),
+      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ? AND created_at <= ?`, inicioMesAnterior, fimMesAnterior).then((r: any) => r[0]?.n || 0).catch(() => 0),
 
       prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null } }),
       prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, created_at: { gte: inicioMes } } }),
@@ -94,16 +94,16 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
     const pipeline_propostas_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         status,
-        COUNT(*)::int AS count,
-        COALESCE(SUM(valor_final), 0)::float AS setup_total,
+        COUNT(*) AS count,
+        COALESCE(SUM(valor_final), 0) AS setup_total,
         COALESCE(SUM(
           CASE
             WHEN plano_selecionado = 'PLUS' THEN COALESCE(mensalidade_plus, 0)
             WHEN plano_selecionado = 'PRO'  THEN COALESCE(mensalidade_pro,  0)
             ELSE COALESCE(mensalidade_plus, COALESCE(mensalidade_pro, 0))
           END
-        ), 0)::float AS mrr_total
-      FROM "PropostaComercial"
+        ), 0) AS mrr_total
+      FROM PropostaComercial
       GROUP BY status
     `).catch(() => []);
 
@@ -159,14 +159,14 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
 
     // Valor total perdido no mês
     const valor_perdido_mes_result: any[] = await prisma.$queryRawUnsafe(
-      `SELECT COALESCE(SUM(valor_oportunidade),0)::float as total FROM "LeadPerda" WHERE created_at >= $1`, inicioMes
+      `SELECT COALESCE(SUM(valor_oportunidade),0) as total FROM LeadPerda WHERE created_at >= ?`, inicioMes
     ).catch(() => [{ total: 0 }]);
     const valor_perdido_mes = Math.round(valor_perdido_mes_result[0]?.total || 0);
 
     // Ranking de motivos de perda (todos os tempos, top 8)
     const ranking_motivos_raw: any[] = await prisma.$queryRawUnsafe(
-      `SELECT motivo, COUNT(*)::int as total, COALESCE(SUM(valor_oportunidade),0)::float as valor_total
-       FROM "LeadPerda"
+      `SELECT motivo, COUNT(*) as total, COALESCE(SUM(valor_oportunidade),0) as valor_total
+       FROM LeadPerda
        WHERE motivo IS NOT NULL
        GROUP BY motivo
        ORDER BY total DESC
