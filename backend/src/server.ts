@@ -59,14 +59,10 @@ fastify.get('/', async () => ({
 
 // 5) CORS + Helmet — também protegidos
 try {
-  const defaultOrigins = [
-    'http://localhost:3000',
-    'https://frontend-production-3a79.up.railway.app',
-  ];
-  const envOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map(o => o.trim()).filter(Boolean)
-    : [];
-  const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
+  const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 
   await fastify.register(cors, {
     origin: (origin, cb) => {
