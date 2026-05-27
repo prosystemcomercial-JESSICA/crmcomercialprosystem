@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd.exe /c start http://localhost:3000)",
+      "Bash(git checkout *)",
+      "Bash(powershell -NoProfile -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 2; Get-Process node -ErrorAction SilentlyContinue | Measure-Object | ForEach-Object Count\")",
+      "Bash(Start-Process npm *)",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(Invoke-RestMethod http://localhost:3001/health)",
+      "Bash(grep -Hm1 ^description: 'c:\\\\Users\\\\prosy\\\\Documents\\\\CRM COMERCIAL PROSYSTEM/.claude/skills/*/SKILL.md')",
+      "Bash(echo \"no project skills found\")",
+      "PowerShell(Get-Content \"$env:TEMP\\\\crm-frontend.txt\" -ErrorAction SilentlyContinue | Select-Object -Last 10)",
+      "PowerShell(Start-Process \"https://supabase.com/dashboard/project/ufmodroepuoyldcyaewm/settings/database\")",
+      "Bash(supabase --version)",
+      "Bash(supabase projects *)",
+      "Bash(railway --version)",
+      "Bash(railway variables *)",
+      "Bash(railway status *)",
+      "Bash(railway link *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('DATABASE_URL',''\\)\\)\")",
+      "Bash(DATABASE_URL=\"postgresql://postgres:Crm%40ProSystem2026!@db.ufmodroepuoyldcyaewm.supabase.co:5432/postgres\" npx prisma db push --skip-generate)",
+      "Bash(node -e ' *)",
+      "PowerShell(Start-Process \"https://supabase.com/dashboard/project/ufmodroepuoyldcyaewm/sql/new\")",
+      "Bash(railway deployments *)",
+      "Bash(railway deployment *)",
+      "Bash(railway logs *)",
+      "PowerShell(Start-Process \"https://supabase.com/dashboard/project/ptmfadqdjgvmpqexuqkg/settings/database\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(findstr DATABASE_URL)",
+      "Bash(railway up *)",
+      "Bash(Start-Sleep -Seconds 25)",
+      "Bash(Select-Object -First 60)",
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\CRM COMERCIAL PROSYSTEM\\\\backend\"; $env:DATABASE_URL=\"postgresql://postgres:Crm%40ProSystem2026!@db.ufmodroepuoyldcyaewm.supabase.co:5432/postgres\"; npx prisma db push --accept-data-loss 2>&1)",
+      "Bash(railway add *)"
+    ]
+  }
+}

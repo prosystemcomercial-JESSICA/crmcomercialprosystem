@@ -58,7 +58,7 @@ export async function authRoutes(
         try {
           const rows: any[] = await Promise.race([
             prisma.$queryRawUnsafe(
-              `SELECT id::text, email, nome, cargo as role, status FROM "UsuarioCRM" WHERE LOWER(email) = $1 AND senha = $2 LIMIT 1`,
+              `SELECT id, email, nome, cargo as role, status FROM UsuarioCRM WHERE LOWER(email) = ? AND senha = ? LIMIT 1`,
               data.email, data.password
             ),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
@@ -126,7 +126,7 @@ export async function authRoutes(
         if (!user) {
           try {
             const rows: any[] = await prisma.$queryRawUnsafe(
-              `SELECT id::text, email, nome, cargo as role FROM "UsuarioCRM" WHERE id::text = $1 LIMIT 1`,
+              `SELECT id, email, nome, cargo as role FROM UsuarioCRM WHERE id = ? LIMIT 1`,
               decoded.userId
             );
             if (rows.length > 0) user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
@@ -201,7 +201,7 @@ export async function authRoutes(
     try {
       // Busca usuário no banco
       const rows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id::text, nome, email, cargo FROM "UsuarioCRM" WHERE LOWER(email) = $1 AND status = 'ATIVO' LIMIT 1`,
+        `SELECT id, nome, email, cargo FROM UsuarioCRM WHERE LOWER(email) = ? AND status = 'ATIVO' LIMIT 1`,
         emailNorm
       );
 
@@ -231,7 +231,7 @@ export async function authRoutes(
 
         // Salva no banco
         await prisma.$executeRawUnsafe(
-          `UPDATE "UsuarioCRM" SET senha = $1, updated_at = NOW() WHERE id::text = $2`,
+          `UPDATE UsuarioCRM SET senha = ?, updated_at = NOW() WHERE id = ?`,
           novaSenha, usuario.id
         );
 
@@ -283,7 +283,7 @@ export async function authRoutes(
       try {
         // Verifica senha atual
         const rows: any[] = await prisma.$queryRawUnsafe(
-          `SELECT id::text, nome, email, cargo FROM "UsuarioCRM" WHERE id::text = $1 AND senha = $2 AND status = 'ATIVO' LIMIT 1`,
+          `SELECT id, nome, email, cargo FROM UsuarioCRM WHERE id = ? AND senha = ? AND status = 'ATIVO' LIMIT 1`,
           userId, senha_atual
         );
 
@@ -293,7 +293,7 @@ export async function authRoutes(
 
         // Atualiza para a nova senha
         await prisma.$executeRawUnsafe(
-          `UPDATE "UsuarioCRM" SET senha = $1, updated_at = NOW() WHERE id::text = $2`,
+          `UPDATE UsuarioCRM SET senha = ?, updated_at = NOW() WHERE id = ?`,
           nova_senha, userId
         );
 

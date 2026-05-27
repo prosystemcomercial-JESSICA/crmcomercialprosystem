@@ -1,0 +1,74 @@
+squad:
+  code: reuniao-alinhamento
+  setor: administrativo
+  grupo: reunioes
+  sessao: alinhamento
+  name: Reunião de Alinhamento Mensal
+  description: Squad responsável por produzir a apresentação padrão da reunião mensal de alinhamento da ProSystem — coleta dados de todos os departamentos (suporte técnico, marketing, negociações, churn, avaliações Google) e gera slides no Google Slides.
+  icon: presentation-chart-bar
+  version: "1.0.0"
+
+  company: "_expxagents/_memory/company.md"
+  preferences: "_expxagents/_memory/preferences.md"
+  memory: "squads/administrativo/reunioes/alinhamento/reuniao-alinhamento/_memory/memories.md"
+
+  design_system: "squads/administrativo/reunioes/alinhamento/reuniao-alinhamento/_memory/design-tokens.md"
+  brand_guidelines: "squads/administrativo/reunioes/alinhamento/reuniao-alinhamento/_memory/brand-guidelines.md"
+  assets_path: "_expxagents/_assets/"
+
+  target_audience: "Equipe ProSystem: diretores, supervisores, coordenadores de todos os departamentos"
+  platform: "Google Slides"
+  format: "presentation"
+
+  visual_templates:
+    enabled: true
+    format: "16:9"
+    count: 5
+
+  schedule:
+    enabled: true
+
+  skills:
+    - web_search
+    - web_fetch
+
+  data: []
+
+  agents:
+    - id: pesquisador
+      name: "Gabriel Oliveira"
+      icon: magnifying-glass
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Gabriel"
+      prompt: squads/administrativo/reunioes/alinhamento/reuniao-alinhamento/agents/pesquisador.md
+
+    - id: redator
+      name: "Camila Santos"
+      icon: pencil
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Camila"
+      prompt: squads/administrativo/reunioes/alinhamento/reuniao-alinhamento/agents/redator.md
+
+    - id: designer
+      name: "Thiago Nascimento"
+      icon: square-3-stack-3d
+      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Thiago"
+      prompt: squads/administrativo/reunioes/alinhamento/reuniao-alinhamento/agents/designer.md
+
+  pipeline:
+    steps:
+      - id: step-01
+        agent: pesquisador
+        label: "Pesquisar dados dos departamentos para a reunião do mês"
+        execution: inline
+
+      - id: step-02
+        agent: redator
+        label: "Estruturar roteiro e textos da apresentação"
+        deliverFrom: pesquisador
+        execution: inline
+
+      - id: step-03
+        agent: designer
+        label: "Produzir slides no Google Slides com identidade visual ProSystem"
+        deliverFrom: redator
+        execution: inline
+        produces_format: true

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 import { requireAuth } from '@/middleware/auth';
 import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
 
@@ -127,7 +128,6 @@ function gerarSenha(): string {
   const digits  = '23456789';
   const special = '@#$!';
   const all     = upper + lower + digits + special;
-  // Garante pelo menos 1 de cada categoria
   let senha = [
     upper[Math.floor(Math.random() * upper.length)],
     upper[Math.floor(Math.random() * upper.length)],
@@ -138,7 +138,6 @@ function gerarSenha(): string {
     special[Math.floor(Math.random() * special.length)],
     ...Array.from({ length: 3 }, () => all[Math.floor(Math.random() * all.length)])
   ];
-  // Embaralha para não ficar previsível
   for (let i = senha.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [senha[i], senha[j]] = [senha[j], senha[i]];
@@ -163,11 +162,11 @@ const AtualizarUsuarioSchema = CriarUsuarioSchema.partial().omit({ email: true }
 export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // ─── Criar tabelas de forma não-bloqueante (não trava o startup) ──
+  // ─── Criar tabelas de forma não-bloqueante (MySQL-compatible) ──
   Promise.all([
     prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "UsuarioCRM" (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      CREATE TABLE IF NOT EXISTS UsuarioCRM (
+        id CHAR(36) NOT NULL PRIMARY KEY,
         nome VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         telefone VARCHAR(50),
@@ -176,23 +175,23 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
         classificacao VARCHAR(5),
         status VARCHAR(20) DEFAULT 'ATIVO',
         observacoes TEXT,
-        modulos_permissao JSONB DEFAULT '{}',
+        modulos_permissao JSON,
         created_by VARCHAR(255),
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        created_at DATETIME DEFAULT NOW(),
+        updated_at DATETIME DEFAULT NOW()
       )
     `),
     prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "AuditoriaUsuario" (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      CREATE TABLE IF NOT EXISTS AuditoriaUsuario (
+        id CHAR(36) NOT NULL PRIMARY KEY,
         ator_id VARCHAR(255),
         ator_nome VARCHAR(255),
         ator_role VARCHAR(50),
         acao VARCHAR(100),
         alvo_id VARCHAR(255),
         alvo_nome VARCHAR(255),
-        detalhes JSONB,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        detalhes JSON,
+        created_at DATETIME DEFAULT NOW()
       )
     `)
   ]).catch(e => console.warn('[USUARIOS] Aviso ao criar tabelas:', e.message));
@@ -200,9 +199,10 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   // ─── Helper: registrar auditoria ────────────────────────────
   const auditoria = async (ator: any, acao: string, alvo_id: string, alvo_nome: string, detalhes?: any) => {
     try {
+      const audId = randomUUID();
       await prisma.$executeRawUnsafe(
-        `INSERT INTO "AuditoriaUsuario" (ator_id, ator_nome, ator_role, acao, alvo_id, alvo_nome, detalhes) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        ator?.id || 'sistema', ator?.nome || 'sistema', ator?.role || '', acao, alvo_id, alvo_nome,
+        `INSERT INTO AuditoriaUsuario (id, ator_id, ator_nome, ator_role, acao, alvo_id, alvo_nome, detalhes) VALUES (?,?,?,?,?,?,?,?)`,
+        audId, ator?.id || 'sistema', ator?.nome || 'sistema', ator?.role || '', acao, alvo_id, alvo_nome,
         detalhes ? JSON.stringify(detalhes) : null
       );
     } catch { /* auditoria não deve quebrar a operação principal */ }
@@ -227,19 +227,19 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return true;
   };
 
-  // ─── GET /usuarios/presets — presets de permissão por cargo ──
+  // ─── GET /usuarios/presets ────────────────────────────────────
   fastify.get('/usuarios/presets', { onRequest: requireAuth }, async (_request, reply) => {
     return reply.send({ status: 'success', data: { presets: PRESETS, modulos: MODULOS, modulos_criticos: MODULOS_CRITICOS } });
   });
 
-  // ─── GET /usuarios — listar ──────────────────────────────────
+  // ─── GET /usuarios ───────────────────────────────────────────
   fastify.get('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
-    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "UsuarioCRM" ORDER BY created_at ASC`);
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM ORDER BY created_at ASC`);
     return reply.send({ status: 'success', data: rows });
   });
 
-  // ─── POST /usuarios — criar (apenas CEO) ────────────────────
+  // ─── POST /usuarios (apenas CEO) ────────────────────────────
   fastify.post('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkCeo(request, reply)) return;
     const ator = (request as any).user;
@@ -249,6 +249,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
 
     const { nome, telefone, email, cargo, classificacao, status, observacoes, modulos_permissao } = body.data;
     const senha = gerarSenha();
+    const novoId = randomUUID();
 
     const presetKey = cargo === 'TECNICO_SUPORTE'
       ? (classificacao ? `TECNICO_${classificacao}` : 'TECNICO_N1')
@@ -256,28 +257,30 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const permissoes = modulos_permissao || PRESETS[presetKey] || {};
 
     try {
-      const rows: any[] = await prisma.$queryRawUnsafe(
-        `INSERT INTO "UsuarioCRM" (nome, email, telefone, senha, cargo, classificacao, status, observacoes, modulos_permissao, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10) RETURNING *`,
-        nome, email, telefone, senha, cargo, classificacao || null,
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO UsuarioCRM (id, nome, email, telefone, senha, cargo, classificacao, status, observacoes, modulos_permissao, created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        novoId, nome, email, telefone, senha, cargo, classificacao || null,
         status, observacoes || null, JSON.stringify(permissoes), ator?.id || null
       );
+      const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM WHERE id = ?`, novoId);
       const novo = rows[0];
       await auditoria(ator, 'CRIOU_USUARIO', novo.id, nome, { cargo, classificacao });
 
-      // Enviar email com credenciais automaticamente
       enviarEmailBoasVindas({ nome, email, senha, cargo })
         .then(r => { if (!r.ok) console.warn('[USUARIO] E-mail boas-vindas não enviado:', r.error); })
         .catch(e => console.error('[USUARIO] Erro ao enviar boas-vindas:', e));
 
       return reply.status(201).send({ status: 'success', data: { ...novo, senha_gerada: senha } });
     } catch (err: any) {
-      if (err.code === '23505') return reply.status(409).send({ status: 'error', message: 'E-mail já cadastrado' });
+      if (err.code === 'ER_DUP_ENTRY' || err.message?.includes('Duplicate entry')) {
+        return reply.status(409).send({ status: 'error', message: 'E-mail já cadastrado' });
+      }
       throw err;
     }
   });
 
-  // ─── PATCH /usuarios/:id — atualizar ─────────────────────────
+  // ─── PATCH /usuarios/:id ─────────────────────────────────────
   fastify.patch('/usuarios/:id', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
@@ -288,12 +291,11 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
 
     const sets: string[] = [];
     const vals: any[] = [];
-    let n = 1;
     const d = body.data as any;
     for (const [key, val] of Object.entries(d)) {
       if (val !== undefined) {
         const isJson = key === 'modulos_permissao';
-        sets.push(`${key} = $${n++}${isJson ? '::jsonb' : ''}`);
+        sets.push(`${key} = ?`);
         vals.push(isJson ? JSON.stringify(val) : val);
       }
     }
@@ -302,10 +304,11 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     sets.push(`updated_at = NOW()`);
     vals.push(id);
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `UPDATE "UsuarioCRM" SET ${sets.join(', ')} WHERE id = $${n} RETURNING *`,
+    await prisma.$executeRawUnsafe(
+      `UPDATE UsuarioCRM SET ${sets.join(', ')} WHERE id = ?`,
       ...vals
     );
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM WHERE id = ?`, id);
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });
     await auditoria(ator, 'EDITOU_USUARIO', id, rows[0].nome, body.data);
     return reply.send({ status: 'success', data: rows[0] });
@@ -317,9 +320,10 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `UPDATE "UsuarioCRM" SET status = 'INATIVO', updated_at = NOW() WHERE id = $1 RETURNING *`, id
+    await prisma.$executeRawUnsafe(
+      `UPDATE UsuarioCRM SET status = 'INATIVO', updated_at = NOW() WHERE id = ?`, id
     );
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM WHERE id = ?`, id);
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });
     await auditoria(ator, 'DESATIVOU_USUARIO', id, rows[0].nome);
     return reply.send({ status: 'success', message: 'Usuário desativado' });
@@ -332,24 +336,24 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const { id } = request.params as { id: string };
 
     const novaSenha = gerarSenha();
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `UPDATE "UsuarioCRM" SET senha = $1, updated_at = NOW() WHERE id = $2 RETURNING nome, email, cargo`,
+    await prisma.$executeRawUnsafe(
+      `UPDATE UsuarioCRM SET senha = ?, updated_at = NOW() WHERE id = ?`,
       novaSenha, id
     );
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT nome, email, cargo FROM UsuarioCRM WHERE id = ?`, id);
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });
     await auditoria(ator, 'RESETOU_SENHA', id, rows[0].nome);
 
-    // Envia email de redefinição de senha (template dedicado)
     enviarEmailRedefinicaoSenha({ nome: rows[0].nome, email: rows[0].email, senha: novaSenha, cargo: rows[0].cargo, solicitadoPor: 'admin' })
       .catch(e => console.error('[USUARIO] Erro ao enviar email de redefinição:', e));
 
     return reply.send({ status: 'success', data: { nova_senha: novaSenha, email: rows[0].email } });
   });
 
-  // ─── GET /usuarios/auditoria — histórico de ações ────────────
+  // ─── GET /usuarios/auditoria ─────────────────────────────────
   fastify.get('/usuarios/auditoria', { onRequest: requireAuth }, async (request, reply) => {
     const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "AuditoriaUsuario" ORDER BY created_at DESC LIMIT 200`
+      `SELECT * FROM AuditoriaUsuario ORDER BY created_at DESC LIMIT 200`
     );
     return reply.send({ status: 'success', data: rows });
   });
@@ -360,9 +364,11 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
 
-    const rows: any[] = await prisma.$queryRawUnsafe(`DELETE FROM "UsuarioCRM" WHERE id = $1 RETURNING nome`, id);
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT nome FROM UsuarioCRM WHERE id = ?`, id);
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });
-    await auditoria(ator, 'REMOVEU_USUARIO', id, rows[0].nome);
+    const nome = rows[0].nome;
+    await prisma.$executeRawUnsafe(`DELETE FROM UsuarioCRM WHERE id = ?`, id);
+    await auditoria(ator, 'REMOVEU_USUARIO', id, nome);
     return reply.send({ status: 'success', message: 'Usuário removido' });
   });
 }
