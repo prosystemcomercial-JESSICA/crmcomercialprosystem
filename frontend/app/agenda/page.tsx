@@ -445,6 +445,8 @@ export default function AgendaPage() {
     resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '',
     duracao_minutos: 60
   });
+  const [novoLead, setNovoLead] = useState(false);
+  const [novoLeadData, setNovoLeadData] = useState({ nome: '', telefone: '', email: '', empresa: '' });
   const [meetLinkForm, setMeetLinkForm] = useState('');
   const [generatingMeet, setGeneratingMeet] = useState(false);
   const [meetError, setMeetError] = useState('');
@@ -533,11 +535,12 @@ export default function AgendaPage() {
     setMeetError('');
     try {
       const lead = leads.find((l: any) => l.id === formData.lead_id);
+      const leadEmail = novoLead ? novoLeadData.email : lead?.email;
       const res = await apiClient.criarMeetTemp({
         titulo: formData.titulo,
         data_prevista: new Date(formData.data_prevista).toISOString(),
         duracao_minutos: formData.duracao_minutos,
-        lead_email: lead?.email || undefined
+        lead_email: leadEmail || undefined
       });
       if (res.data.data?.need_auth) {
         const authRes = await apiClient.getGoogleAuthUrl();
@@ -568,17 +571,43 @@ export default function AgendaPage() {
     setSaving(true);
     try {
       const data: any = { ...formData };
+
+      // Se marcou "Lead não cadastrado", cria o lead primeiro
+      if (novoLead) {
+        if (!novoLeadData.nome || !novoLeadData.telefone) {
+          alert('Informe pelo menos nome e telefone do novo lead');
+          setSaving(false);
+          return;
+        }
+        const novoLeadRes = await apiClient.createLead({
+          nome: novoLeadData.nome,
+          telefone: novoLeadData.telefone,
+          email: novoLeadData.email || undefined,
+          empresa: novoLeadData.empresa || undefined,
+          origem: 'AGENDA',
+          status: 'NOVO'
+        });
+        const created = novoLeadRes.data?.data || novoLeadRes.data;
+        data.lead_id = created.id;
+        // Atualiza lista local de leads
+        setLeads(prev => [created, ...prev]);
+      }
+
       if (data.data_prevista) data.data_prevista = new Date(data.data_prevista).toISOString();
       if (!data.duracao_minutos) delete data.duracao_minutos;
       if (meetLinkForm) data.google_meet_link = meetLinkForm;
       await apiClient.createAtividade(data);
       setShowCreate(false);
       setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '', duracao_minutos: 60 });
+      setNovoLead(false);
+      setNovoLeadData({ nome: '', telefone: '', email: '', empresa: '' });
       setMeetLinkForm('');
       setMeetError('');
       setShowWaPreview(false);
       load();
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      alert('Erro ao criar atividade: ' + (err?.response?.data?.message || err?.message || 'desconhecido'));
+    }
     setSaving(false);
   };
 
@@ -1166,10 +1195,26 @@ export default function AgendaPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label style={labelStyle}>Lead / Contato *</label>
-                <select value={formData.lead_id} onChange={e => setFormData(p => ({ ...p, lead_id: e.target.value }))} style={inputStyle}>
+                <select
+                  value={formData.lead_id}
+                  onChange={e => setFormData(p => ({ ...p, lead_id: e.target.value }))}
+                  disabled={novoLead}
+                  style={{ ...inputStyle, opacity: novoLead ? 0.5 : 1 }}>
                   <option value="">Selecione...</option>
                   {leads.map((l: any) => <option key={l.id} value={l.id}>{l.nome}{l.empresa ? ` – ${l.empresa}` : ''}</option>)}
                 </select>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, color: '#4A6E8A', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={novoLead}
+                    onChange={e => {
+                      setNovoLead(e.target.checked);
+                      if (e.target.checked) setFormData(p => ({ ...p, lead_id: '' }));
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Lead não cadastrado — criar agora
+                </label>
               </div>
               {formData.tipo === 'REUNIAO' && (
                 <div>
@@ -1181,6 +1226,35 @@ export default function AgendaPage() {
                 </div>
               )}
             </div>
+
+            {/* Campos do novo lead — exibidos quando checkbox marcado */}
+            {novoLead && (
+              <div style={{ background: '#FEF9E7', border: '1px solid #FDE68A', borderRadius: 10, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ gridColumn: '1 / -1', fontSize: 12, fontWeight: 700, color: '#92400E', marginBottom: 2 }}>
+                  Cadastrar novo lead
+                </div>
+                <div>
+                  <label style={labelStyle}>Nome *</label>
+                  <input placeholder="Nome do contato" value={novoLeadData.nome}
+                    onChange={e => setNovoLeadData(p => ({ ...p, nome: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Telefone *</label>
+                  <input placeholder="(00) 00000-0000" value={novoLeadData.telefone}
+                    onChange={e => setNovoLeadData(p => ({ ...p, telefone: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Email</label>
+                  <input type="email" placeholder="email@empresa.com" value={novoLeadData.email}
+                    onChange={e => setNovoLeadData(p => ({ ...p, email: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Empresa</label>
+                  <input placeholder="Nome da empresa" value={novoLeadData.empresa}
+                    onChange={e => setNovoLeadData(p => ({ ...p, empresa: e.target.value }))} style={inputStyle} />
+                </div>
+              </div>
+            )}
 
             <div>
               <label style={labelStyle}>Descrição / Pauta</label>
@@ -1278,7 +1352,7 @@ export default function AgendaPage() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
               <button style={btnOutline} onClick={() => setShowCreate(false)}>Cancelar</button>
-              <button style={btnPrimary} onClick={handleCreate} disabled={saving || !formData.titulo || !formData.lead_id}>
+              <button style={btnPrimary} onClick={handleCreate} disabled={saving || !formData.titulo || (!novoLead && !formData.lead_id) || (novoLead && (!novoLeadData.nome || !novoLeadData.telefone))}>
                 {saving ? 'Salvando...' : <><Plus size={13} /> Criar</>}
               </button>
             </div>
