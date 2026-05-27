@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth-context';
 import {
   Calendar, Clock, Plus, Video, Check, X, RefreshCw,
   ChevronLeft, ChevronRight, Users, BarChart2, AlertCircle,
@@ -418,7 +419,12 @@ function AtividadeDetail({
 
 // ─── Main Component ───────────────────────────────────────
 
+const ADMIN_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO', 'GERENTE'];
+
 export default function AgendaPage() {
+  const { user } = useAuth();
+  const isAdmin = ADMIN_ROLES.includes((user?.role || '').toUpperCase());
+
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'mes' | 'semana' | 'lista' | 'relatorio'>('semana');
@@ -436,7 +442,7 @@ export default function AgendaPage() {
 
   const [formData, setFormData] = useState({
     titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '',
-    resumo_reuniao: '', data_prevista: '', responsavel_id: '',
+    resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '',
     duracao_minutos: 60
   });
   const [meetLinkForm, setMeetLinkForm] = useState('');
@@ -567,7 +573,7 @@ export default function AgendaPage() {
       if (meetLinkForm) data.google_meet_link = meetLinkForm;
       await apiClient.createAtividade(data);
       setShowCreate(false);
-      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: '', duracao_minutos: 60 });
+      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '', duracao_minutos: 60 });
       setMeetLinkForm('');
       setMeetError('');
       setShowWaPreview(false);
@@ -756,17 +762,25 @@ export default function AgendaPage() {
             <p style={{ fontSize: 13, color: '#4A6E8A' }}>Reuniões, atividades e integração com Google Calendar e WhatsApp</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <button
-              onClick={googleConnected ? undefined : handleGoogleConnect}
-              style={{
-                ...btnOutline,
-                color: googleConnected ? '#16a34a' : '#4A6E8A',
-                border: `1.5px solid ${googleConnected ? '#86efac' : '#C3DCFC'}`
-              }}
-            >
-              {googleConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-              {googleConnected ? 'Google Conectado' : 'Conectar Google'}
-            </button>
+            {/* Botão Google Calendar — visível apenas para administradores */}
+            {isAdmin && (
+              <button
+                onClick={googleConnected ? undefined : handleGoogleConnect}
+                style={{
+                  ...btnOutline,
+                  color: googleConnected ? '#16a34a' : '#4A6E8A',
+                  border: `1.5px solid ${googleConnected ? '#86efac' : '#C3DCFC'}`
+                }}
+              >
+                {googleConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
+                {googleConnected ? 'Google Conectado' : 'Conectar Google'}
+              </button>
+            )}
+            {!isAdmin && googleConnected && (
+              <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Wifi size={13} /> Google Ativo
+              </span>
+            )}
             <button style={btnPrimary} onClick={() => setShowCreate(true)}>
               <Plus size={14} /> Nova Atividade
             </button>
