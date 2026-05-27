@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireAuth } from '@/middleware/auth';
-import { enviarEmailBoasVindas } from '@/services/email.service';
+import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
 
 // Apenas CEO pode criar/remover usuários
 const APENAS_CEO = ['CEO'];
@@ -120,12 +120,30 @@ export const PRESETS: Record<string, ModulosPermissao> = {
   },
 };
 
-// ─── Senha aleatória 5 chars (letras + números) ───────────────
+// ─── Senha aleatória segura (10 chars: maiúscula + minúscula + número + especial) ─
 function gerarSenha(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let s = '';
-  for (let i = 0; i < 5; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+  const upper   = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  const lower   = 'abcdefghjkmnpqrstuvwxyz';
+  const digits  = '23456789';
+  const special = '@#$!';
+  const all     = upper + lower + digits + special;
+  // Garante pelo menos 1 de cada categoria
+  let senha = [
+    upper[Math.floor(Math.random() * upper.length)],
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    special[Math.floor(Math.random() * special.length)],
+    ...Array.from({ length: 3 }, () => all[Math.floor(Math.random() * all.length)])
+  ];
+  // Embaralha para não ficar previsível
+  for (let i = senha.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [senha[i], senha[j]] = [senha[j], senha[i]];
+  }
+  return senha.join('');
 }
 
 // ─── Schemas ──────────────────────────────────────────────────
@@ -321,9 +339,9 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });
     await auditoria(ator, 'RESETOU_SENHA', id, rows[0].nome);
 
-    // Envia nova senha por email
-    enviarEmailBoasVindas({ nome: rows[0].nome, email: rows[0].email, senha: novaSenha, cargo: rows[0].cargo })
-      .catch(e => console.error('[USUARIO] Erro ao enviar nova senha:', e));
+    // Envia email de redefinição de senha (template dedicado)
+    enviarEmailRedefinicaoSenha({ nome: rows[0].nome, email: rows[0].email, senha: novaSenha, cargo: rows[0].cargo, solicitadoPor: 'admin' })
+      .catch(e => console.error('[USUARIO] Erro ao enviar email de redefinição:', e));
 
     return reply.send({ status: 'success', data: { nova_senha: novaSenha, email: rows[0].email } });
   });

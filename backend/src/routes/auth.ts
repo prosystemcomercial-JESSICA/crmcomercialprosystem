@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { AuthService } from '@/services/auth.service';
 import { LoginSchema, RefreshTokenSchema, TokenResponseDTO } from '@/types/dto';
-import { enviarEmailBoasVindas } from '@/services/email.service';
+import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
 
 export async function authRoutes(
   fastify: FastifyInstance,
@@ -207,10 +207,27 @@ export async function authRoutes(
 
       if (rows.length > 0) {
         const usuario = rows[0];
-        // Gera nova senha aleatória
-        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-        let novaSenha = '';
-        for (let i = 0; i < 8; i++) novaSenha += chars[Math.floor(Math.random() * chars.length)];
+        // Gera nova senha segura
+        const gerarSenhaSegura = (): string => {
+          const upper = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+          const lower = 'abcdefghjkmnpqrstuvwxyz';
+          const digits = '23456789';
+          const special = '@#$!';
+          const all = upper + lower + digits + special;
+          let s = [
+            upper[Math.floor(Math.random() * upper.length)],
+            lower[Math.floor(Math.random() * lower.length)],
+            digits[Math.floor(Math.random() * digits.length)],
+            special[Math.floor(Math.random() * special.length)],
+            ...Array.from({ length: 6 }, () => all[Math.floor(Math.random() * all.length)])
+          ];
+          for (let i = s.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [s[i], s[j]] = [s[j], s[i]];
+          }
+          return s.join('');
+        };
+        const novaSenha = gerarSenhaSegura();
 
         // Salva no banco
         await prisma.$executeRawUnsafe(
@@ -218,12 +235,13 @@ export async function authRoutes(
           novaSenha, usuario.id
         );
 
-        // Envia email com nova senha
-        enviarEmailBoasVindas({
+        // Envia email de redefinição com template dedicado ProSystem
+        enviarEmailRedefinicaoSenha({
           nome: usuario.nome,
           email: usuario.email,
           senha: novaSenha,
-          cargo: usuario.cargo
+          cargo: usuario.cargo,
+          solicitadoPor: 'usuario'
         }).catch(e => console.error('[AUTH] Erro ao enviar email recuperação:', e));
       }
     } catch (e) {
@@ -233,4 +251,57 @@ export async function authRoutes(
     // Sempre retorna sucesso (não revela se o email existe)
     return reply.status(200).send({ status: 'success' });
   });
+
+  // POST /auth/alterar-senha — usuário logado troca própria senha
+  fastify.post<{ Body: { senha_atual: string; nova_senha: string } }>(
+    '/auth/alterar-senha',
+    async (request, reply) => {
+      const user = (request as any).user;
+      if (!user?.userId && !user?.id) {
+        return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+      }
+
+      const { senha_atual, nova_senha } = request.body || {};
+      if (!senha_atual || !nova_senha) {
+        return reply.status(400).send({ status: 'error', message: 'Senha atual e nova senha são obrigatórias' });
+      }
+      if (nova_senha.length < 6) {
+        return reply.status(400).send({ status: 'error', message: 'A nova senha deve ter no mínimo 6 caracteres' });
+      }
+      if (nova_senha === senha_atual) {
+        return reply.status(400).send({ status: 'error', message: 'A nova senha não pode ser igual à senha atual' });
+      }
+
+      const userId = user?.id || user?.userId;
+
+      // Conta de administradora do sistema não pode alterar senha por aqui
+      const isAdmin = mockUsers.some(u => u.id === userId);
+      if (isAdmin) {
+        return reply.status(403).send({ status: 'error', message: 'Conta de sistema — altere a senha pela configuração do servidor' });
+      }
+
+      try {
+        // Verifica senha atual
+        const rows: any[] = await prisma.$queryRawUnsafe(
+          `SELECT id::text, nome, email, cargo FROM "UsuarioCRM" WHERE id::text = $1 AND senha = $2 AND status = 'ATIVO' LIMIT 1`,
+          userId, senha_atual
+        );
+
+        if (!rows.length) {
+          return reply.status(401).send({ status: 'error', message: 'Senha atual incorreta' });
+        }
+
+        // Atualiza para a nova senha
+        await prisma.$executeRawUnsafe(
+          `UPDATE "UsuarioCRM" SET senha = $1, updated_at = NOW() WHERE id::text = $2`,
+          nova_senha, userId
+        );
+
+        return reply.send({ status: 'success', message: 'Senha alterada com sucesso' });
+      } catch (e) {
+        console.error('[AUTH] Erro ao alterar senha:', e);
+        throw e;
+      }
+    }
+  );
 }

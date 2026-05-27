@@ -122,6 +122,14 @@ class ApiClient {
     }
   }
 
+  async forgotPassword(email: string) {
+    return this.client.post('/auth/forgot-password', { email });
+  }
+
+  async alterarSenha(senha_atual: string, nova_senha: string) {
+    return this.client.post('/auth/alterar-senha', { senha_atual, nova_senha });
+  }
+
   // Cases endpoints
   async getCasos(page = 0, limit = 20, status?: string, risco_min?: number, risco_max?: number) {
     const params: any = { page, limit };

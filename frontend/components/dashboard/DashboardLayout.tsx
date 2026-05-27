@@ -213,6 +213,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
+          {/* Alterar Senha */}
+          <Link href="/alterar-senha"
+            className="flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all border"
+            style={{
+              padding: '6px 12px',
+              color: '#4A6E8A',
+              borderColor: 'var(--t-primary-border)',
+              background: 'var(--t-primary-light)',
+              textDecoration: 'none'
+            }}
+            title="Alterar senha"
+          >
+            <KeyRound size={13} />
+            <span className="hidden sm:inline">Senha</span>
+          </Link>
+
           {/* Logout */}
           <button
             onClick={handleLogout}

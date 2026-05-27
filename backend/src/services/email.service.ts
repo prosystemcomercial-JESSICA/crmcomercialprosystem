@@ -699,6 +699,7 @@ export async function enviarEmailBoasVindas(params: {
   email: string;
   senha: string;
   cargo: string;
+  tipo?: 'cadastro' | 'reset';
 }): Promise<{ ok: boolean; error?: string }> {
   if (!process.env.SMTP_USER) {
     console.warn('[EMAIL] SMTP_USER não configurado — e-mail não enviado');
@@ -867,6 +868,224 @@ export async function enviarEmailBoasVindas(params: {
     return { ok: true };
   } catch (err: any) {
     console.error('[EMAIL] Erro ao enviar boas-vindas:', err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+// ─── Email de redefinição de senha ───────────────────────────────────────────
+
+export async function enviarEmailRedefinicaoSenha(params: {
+  nome: string;
+  email: string;
+  senha: string;
+  cargo: string;
+  solicitadoPor?: 'usuario' | 'admin';
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.SMTP_USER) {
+    console.warn('[EMAIL] SMTP_USER não configurado — e-mail não enviado');
+    return { ok: false, error: 'SMTP não configurado' };
+  }
+
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
+  const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
+  const appUrl    = process.env.FRONTEND_URL     || 'https://crmcomercialprosystem-eu96iiiml.vercel.app';
+
+  const cargoLabel: Record<string, string> = {
+    CEO: 'CEO / Administrador',
+    SUPERVISAO_COMERCIAL: 'Supervisão Comercial',
+    SUPERVISAO_TECNICA: 'Supervisão Técnica',
+    TECNICO_SUPORTE: 'Técnico de Suporte',
+    VENDEDOR: 'Vendedor(a)',
+  };
+
+  const motivoTexto = params.solicitadoPor === 'admin'
+    ? 'Um administrador solicitou a redefinição da sua senha de acesso ao CRM ProSystem.'
+    : 'Recebemos uma solicitação de redefinição de senha para sua conta no CRM ProSystem.';
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F4F7FB;font-family:'Segoe UI',Arial,sans-serif;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F4F7FB;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table cellpadding="0" cellspacing="0" border="0" width="600"
+               style="background:#ffffff;border-radius:16px;overflow:hidden;
+                       box-shadow:0 4px 24px rgba(13,34,56,0.10);max-width:600px;">
+
+          <!-- Header laranja/alerta -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0D2238 0%,#1A4E82 60%,#2E6EAB 100%);padding:40px 40px 36px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">
+                      Pro<span style="color:#90BEF0;">System</span>
+                    </p>
+                    <p style="margin:0;font-size:12px;color:#6AAAE5;letter-spacing:2px;text-transform:uppercase;">
+                      CRM Comercial · Redefinição de Senha
+                    </p>
+                  </td>
+                  <td align="right" valign="middle">
+                    <div style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);border-radius:20px;padding:6px 14px;font-size:12px;color:#FCA5A5;font-weight:600;">
+                      🔒 Segurança
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Alerta de segurança -->
+          <tr>
+            <td style="padding:0 40px;">
+              <div style="background:#FEF2F2;border-left:4px solid #DC2626;border-radius:0 8px 8px 0;padding:14px 18px;margin:24px 0 0;">
+                <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#991B1B;">🔐 Alerta de segurança</p>
+                <p style="margin:0;font-size:13px;color:#7F1D1D;line-height:1.6;">
+                  ${motivoTexto} Se não foi você, entre em contato com o administrador imediatamente.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0D2238;">
+                Olá, ${params.nome}!
+              </h2>
+              <p style="margin:0 0 24px;font-size:14px;color:#4A6E8A;line-height:1.7;">
+                Sua senha de acesso ao <strong style="color:#1A4E82;">CRM Comercial ProSystem</strong> foi redefinida.
+                Utilize a senha temporária abaixo para fazer login e, em seguida, crie uma senha pessoal.
+              </p>
+
+              <!-- Nova senha card -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="background:linear-gradient(135deg,#EBF4FF,#F4F7FB);border:2px solid #4B8EC8;border-radius:12px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:#1A4E82;
+                               text-transform:uppercase;letter-spacing:1px;">
+                      🔑 Sua nova senha temporária
+                    </p>
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding-bottom:14px;">
+                          <p style="margin:0 0 4px;font-size:11px;color:#7AAACB;text-transform:uppercase;letter-spacing:1px;font-weight:600;">E-mail de acesso</p>
+                          <p style="margin:0;font-size:15px;color:#0D2238;font-weight:600;background:#fff;border:1px solid #C3DCFC;border-radius:8px;padding:10px 14px;font-family:monospace;">
+                            ${params.email}
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:14px;">
+                          <p style="margin:0 0 4px;font-size:11px;color:#7AAACB;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Senha temporária</p>
+                          <p style="margin:0;font-size:28px;color:#1A4E82;font-weight:800;background:#fff;border:2px solid #4B8EC8;border-radius:8px;padding:14px;font-family:monospace;letter-spacing:6px;text-align:center;">
+                            ${params.senha}
+                          </p>
+                          <p style="margin:6px 0 0;font-size:11px;color:#DC2626;font-weight:600;text-align:center;">
+                            ⚠️ Esta é uma senha temporária. Troque-a após o login.
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <p style="margin:0 0 4px;font-size:11px;color:#7AAACB;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Perfil de acesso</p>
+                          <p style="margin:0;font-size:14px;color:#0D2238;font-weight:600;">${cargoLabel[params.cargo] || params.cargo}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="background:linear-gradient(135deg,#0D2238,#1A4E82);border-radius:12px;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:28px 32px;text-align:center;">
+                    <p style="margin:0 0 8px;font-size:13px;color:#A8C8E8;">Clique para acessar o CRM e trocar sua senha</p>
+                    <a href="${appUrl}/alterar-senha"
+                       style="display:inline-block;background:#4B8EC8;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;letter-spacing:0.3px;">
+                      🔒 Acessar e Criar Nova Senha
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Dicas de segurança -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="background:#F4F7FB;border:1px solid #D8E8F5;border-radius:12px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:22px 26px;">
+                    <p style="margin:0 0 14px;font-size:13px;font-weight:700;color:#0D2238;">🛡️ Dicas de segurança para sua nova senha</p>
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                      ${[
+                        ['✅', 'Use no mínimo 8 caracteres com letras e números'],
+                        ['✅', 'Evite datas de aniversário ou nomes próprios'],
+                        ['✅', 'Não compartilhe sua senha com ninguém, nem com colegas'],
+                        ['✅', 'Use uma senha diferente para cada sistema'],
+                        ['🚫', 'Nunca responda e-mails pedindo sua senha'],
+                      ].map(([icon, tip]) => `
+                      <tr>
+                        <td width="28" valign="top" style="padding-bottom:8px;">
+                          <span style="font-size:14px;">${icon}</span>
+                        </td>
+                        <td style="font-size:13px;color:#4A6E8A;padding-bottom:8px;line-height:1.5;">${tip}</td>
+                      </tr>`).join('')}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 24px;font-size:13px;color:#7AAACB;line-height:1.7;">
+                Em caso de dúvidas ou se você não solicitou esta redefinição, entre em contato com o administrador
+                pelo e-mail <a href="mailto:suporte@prosystemnet.com.br" style="color:#4B8EC8;">suporte@prosystemnet.com.br</a>
+                ou pelo WhatsApp <a href="https://wa.me/5527997798103" style="color:#4B8EC8;">(27) 99779-8103</a>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 40px 32px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-top:1px solid #E8F0F8;padding-top:20px;">
+                <tr>
+                  <td>
+                    <p style="margin:0;font-size:11px;color:#7AAACB;line-height:1.6;">
+                      <strong style="color:#1A4E82;">ProSystem Sistemas</strong> · Vitória, ES<br>
+                      Av. Prof. Fernando Duarte Rabelo, 330 · Goiabeiras · CEP 29.072-335<br>
+                      📞 (27) 3327-6739 · 📱 (27) 99779-8103 · ✉ suporte@prosystemnet.com.br<br><br>
+                      Este e-mail foi enviado automaticamente pelo CRM ProSystem. Não responda.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from:    `"${fromName}" <${fromEmail}>`,
+      to:      params.email,
+      bcc:     fromEmail,
+      replyTo: fromEmail,
+      subject: `🔒 Redefinição de senha — CRM ProSystem`,
+      html,
+      headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'X-Priority': '1', 'Importance': 'high' },
+    });
+    console.log(`[EMAIL] Redefinição de senha enviada para ${params.email}`);
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[EMAIL] Erro ao enviar redefinição de senha:', err.message);
     return { ok: false, error: err.message };
   }
 }
