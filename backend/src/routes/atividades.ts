@@ -65,17 +65,32 @@ const RelatorioSchema = z.object({
 export async function atividadesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  const ADMIN_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO', 'GERENTE'];
+  const isAdmin = (user: any) => !user || ADMIN_ROLES.includes(user?.role?.toUpperCase());
+
   // List all atividades
   fastify.get('/atividades', async (request, reply) => {
     const query = ListAtividadeSchema.safeParse(request.query);
     if (!query.success) return reply.status(400).send({ status: 'error', message: 'Invalid query' });
     const { page, limit, status, tipo, responsavel_id, lead_id } = query.data;
+    const user = (request as any).user;
 
     const where: any = {};
     if (status) where.status = status;
     if (tipo) where.tipo = tipo;
-    if (responsavel_id) where.responsavel_id = responsavel_id;
     if (lead_id) where.lead_id = lead_id;
+
+    // Não-admins veem apenas suas próprias atividades
+    if (!isAdmin(user)) {
+      const userId = user?.id;
+      if (responsavel_id && responsavel_id !== userId) {
+        // Tentativa de ver atividades de outro usuário — retorna vazio
+        return reply.send({ status: 'success', data: { atividades: [], total: 0, page, limit } });
+      }
+      where.OR = [{ responsavel_id: userId }, { created_by: userId }];
+    } else if (responsavel_id) {
+      where.responsavel_id = responsavel_id;
+    }
 
     const [atividades, total] = await Promise.all([
       prisma.atividade.findMany({
@@ -112,7 +127,12 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
 
     const user = (request as any).user;
-    const data: any = { ...body.data, created_by: user?.id || 'system' };
+    const userId = user?.id || 'system';
+    const data: any = {
+      ...body.data,
+      created_by: userId,
+      responsavel_id: body.data.responsavel_id || userId
+    };
     if (data.data_prevista) data.data_prevista = new Date(data.data_prevista);
 
     const atividade = await prisma.atividade.create({
@@ -327,9 +347,9 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
 
   // ── Google Calendar helpers ───────────────────────────
 
-  async function getValidToken(userId: string): Promise<{ access_token: string } | null> {
-    // Try by real userId, then by 'default' as fallback (OAuth callback stores without JWT)
-    let token = await prisma.calendarToken.findUnique({ where: { user_id: userId } });
+  async function getValidToken(_userId?: string): Promise<{ access_token: string } | null> {
+    // Sempre usa o token único do sistema — um único Google Calendar para toda a empresa
+    let token = await prisma.calendarToken.findUnique({ where: { user_id: 'system' } });
     if (!token) token = await prisma.calendarToken.findUnique({ where: { user_id: 'default' } });
     if (!token) return null;
 
@@ -366,21 +386,24 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     }
   }
 
-  // ── Google Calendar OAuth ─────────────────────────────
+  // ── Google Calendar OAuth — conta única do sistema ────
+  // Apenas admin conecta; todos os Meet links usam esse token.
 
   fastify.get('/agenda/google/auth', async (request, reply) => {
+    const user = (request as any).user;
+    if (!isAdmin(user)) {
+      return reply.status(403).send({ status: 'error', message: 'Apenas administradores podem conectar o Google Calendar' });
+    }
+
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/agenda/google/callback';
 
     if (!clientId) {
       return reply.status(503).send({
         status: 'error',
-        message: 'Google Calendar não configurado. Adicione GOOGLE_CLIENT_ID no .env'
+        message: 'Google Calendar não configurado. Adicione GOOGLE_CLIENT_ID no Railway'
       });
     }
-
-    const user = (request as any).user;
-    const state = user?.id || 'default';
 
     const scopes = [
       'https://www.googleapis.com/auth/calendar',
@@ -393,14 +416,14 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       `response_type=code&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `access_type=offline&prompt=consent&` +
-      `state=${encodeURIComponent(state)}`;
+      `state=system`;
 
     return reply.send({ status: 'success', data: { auth_url: authUrl } });
   });
 
   fastify.get('/agenda/google/callback', async (request, reply) => {
-    const { code, error, state } = request.query as { code?: string; error?: string; state?: string };
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const { code, error } = request.query as { code?: string; error?: string; state?: string };
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')[0].trim();
 
     if (error || !code) {
       return reply.redirect(`${frontendUrl}/agenda?google_error=acesso_negado`);
@@ -409,9 +432,6 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     const clientId = process.env.GOOGLE_CLIENT_ID!;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/agenda/google/callback';
-
-    // userId was passed in state during auth URL generation
-    const userId = state || 'default';
 
     try {
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -427,17 +447,17 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       });
 
       const tokenData = await tokenRes.json() as any;
-      fastify.log.info('Google token response: ' + JSON.stringify({ has_access: !!tokenData.access_token, has_refresh: !!tokenData.refresh_token }));
 
       if (!tokenData.access_token) {
         fastify.log.error('Google token error: ' + JSON.stringify(tokenData));
         return reply.redirect(`${frontendUrl}/agenda?google_error=token_invalido`);
       }
 
+      // Salva sempre como 'system' — token único compartilhado
       await prisma.calendarToken.upsert({
-        where: { user_id: userId },
+        where: { user_id: 'system' },
         create: {
-          user_id: userId,
+          user_id: 'system',
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token || '',
           expiry_date: BigInt(Date.now() + (tokenData.expires_in || 3600) * 1000)
@@ -449,7 +469,7 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
         }
       });
 
-      fastify.log.info(`Google Calendar token saved for userId: ${userId}`);
+      fastify.log.info('Google Calendar system token saved');
       return reply.redirect(`${frontendUrl}/agenda?google_connected=1`);
     } catch (err) {
       fastify.log.error(err);
@@ -458,9 +478,7 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
   });
 
   fastify.get('/agenda/google/status', async (request, reply) => {
-    const user = (request as any).user;
-    const userId = user?.id || 'default';
-    const token = await getValidToken(userId);
+    const token = await getValidToken();
     return reply.send({ status: 'success', data: { connected: !!token } });
   });
 
