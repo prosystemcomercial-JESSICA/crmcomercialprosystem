@@ -76,8 +76,14 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     const user = (request as any).user;
 
     const where: any = {};
-    if (status) where.status = status;
-    if (tipo) where.tipo = tipo;
+    if (status) {
+      const statuses = status.split(',').map((s: string) => s.trim()).filter(Boolean);
+      where.status = statuses.length === 1 ? statuses[0] : { in: statuses };
+    }
+    if (tipo) {
+      const tipos = tipo.split(',').map((t: string) => t.trim()).filter(Boolean);
+      where.tipo = tipos.length === 1 ? tipos[0] : { in: tipos };
+    }
     if (lead_id) where.lead_id = lead_id;
 
     // Não-admins veem apenas suas próprias atividades
