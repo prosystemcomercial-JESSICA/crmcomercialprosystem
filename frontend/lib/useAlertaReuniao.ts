@@ -6,6 +6,7 @@ import { apiClient } from './api-client';
 export type AlertaReuniao = {
   id: string;
   titulo: string;
+  tipo: string;
   lead_nome: string;
   data_prevista: Date;
   google_meet_link?: string;
@@ -80,9 +81,9 @@ export function useAlertaReuniao(onAlerta: OnAlertaFn) {
     );
 
     try {
+      // Busca TODOS os tipos de compromisso (reuniões, ligações, visitas, tarefas etc)
       const res = await apiClient.getAtividades({
-        status: 'PENDENTE,CONFIRMADA',
-        tipo: 'REUNIAO',
+        status: 'PENDENTE,CONFIRMADA,AGUARDANDO_RETORNO',
         limit: 50
       });
 
@@ -109,6 +110,7 @@ export function useAlertaReuniao(onAlerta: OnAlertaFn) {
             onAlertaRef.current({
               id: at.id,
               titulo: at.titulo,
+              tipo: at.tipo || 'TAREFA',
               lead_nome: at.lead?.nome || '',
               data_prevista: data,
               google_meet_link: at.google_meet_link,

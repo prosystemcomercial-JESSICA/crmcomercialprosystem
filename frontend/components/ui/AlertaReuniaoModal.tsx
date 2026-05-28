@@ -27,8 +27,13 @@ export function AlertaReuniaoModal() {
 
     // Notificação nativa do browser (se permitido)
     if (typeof window !== 'undefined' && 'Notification' in window) {
+      const tipoLabel: Record<string, string> = {
+        REUNIAO: 'Reunião', LIGACAO: 'Ligação', EMAIL: 'E-mail',
+        WHATSAPP: 'WhatsApp', VISITA: 'Visita', TAREFA: 'Tarefa', OUTRO: 'Compromisso'
+      };
+      const titulo = tipoLabel[alerta.tipo] || 'Compromisso';
       if (Notification.permission === 'granted') {
-        new Notification('⏰ Reunião em breve — ProSystem CRM', {
+        new Notification(`⏰ ${titulo} em breve — ProSystem CRM`, {
           body: `${alerta.titulo}${alerta.lead_nome ? ` · ${alerta.lead_nome}` : ''} — em ${alerta.minutos_restantes} min`,
           icon: '/logo-prosystem.png'
         });
@@ -74,7 +79,7 @@ export function AlertaReuniaoModal() {
                 </div>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#4B8EC8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Reunião em {alerta.minutos_restantes === 0 ? 'instantes' : `${alerta.minutos_restantes} min`}
+                    {({REUNIAO:'Reunião',LIGACAO:'Ligação',EMAIL:'E-mail',WHATSAPP:'WhatsApp',VISITA:'Visita',TAREFA:'Tarefa',OUTRO:'Compromisso'} as any)[alerta.tipo] || 'Compromisso'} em {alerta.minutos_restantes === 0 ? 'instantes' : `${alerta.minutos_restantes} min`}
                   </div>
                 </div>
               </div>
