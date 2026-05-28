@@ -43,8 +43,11 @@ const emptyForm: CampanhaForm = {
   data_fim: nextMonth.toISOString().slice(0, 16)
 };
 
+const ROLES_GERENCIAR_CAMPANHAS = ['CEO', 'ADMIN', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'GERENTE', 'DIRETOR'];
+
 export default function CampanhasPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
+  const podeGerenciar = ROLES_GERENCIAR_CAMPANHAS.includes((user?.role || '').toUpperCase());
   const router = useRouter();
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [total, setTotal] = useState(0);
@@ -154,12 +157,29 @@ export default function CampanhasPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Campanhas</h1>
-            <p className="text-gray-500 mt-1">Gerencie campanhas de engajamento e retenção</p>
+            <p className="text-gray-500 mt-1">
+              {podeGerenciar
+                ? 'Gerencie campanhas de engajamento e retenção'
+                : 'Acompanhe as campanhas ativas e seus detalhes'}
+            </p>
           </div>
-          <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
-            + Nova Campanha
-          </button>
+          {podeGerenciar && (
+            <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+              + Nova Campanha
+            </button>
+          )}
         </div>
+
+        {/* Aviso para vendedor */}
+        {!podeGerenciar && (
+          <div style={{ background: '#EBF4FF', border: '1px solid #C3DCFC', borderRadius: 10, padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>📢</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#4B8EC8' }}>Visualização da equipe comercial</div>
+              <div style={{ fontSize: 12, color: '#4A6E8A' }}>Apenas CEO, Diretor e Supervisores podem criar ou editar campanhas. Acompanhe abaixo as campanhas ativas no momento.</div>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         {stats && (
@@ -225,23 +245,31 @@ export default function CampanhasPage() {
                   <p>📨 {c._count?.disparos || 0} disparos • {c._count?.acoes || 0} ações</p>
                 </div>
 
-                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                  <select
-                    value={c.status}
-                    onChange={e => handleChangeStatus(c.id, e.target.value)}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 flex-1 focus:ring-1 focus:ring-blue-500 outline-none"
-                  >
-                    {['RASCUNHO', 'ATIVA', 'PAUSADA', 'FINALIZADA', 'ARQUIVADA'].map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                  <button onClick={() => openEdit(c)} className="px-3 py-1 text-xs text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50">
-                    Editar
-                  </button>
-                  <button onClick={() => handleDelete(c.id)} className="px-3 py-1 text-xs text-red-500 border border-red-200 rounded-lg hover:bg-red-50">
-                    Remover
-                  </button>
-                </div>
+                {podeGerenciar ? (
+                  <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <select
+                      value={c.status}
+                      onChange={e => handleChangeStatus(c.id, e.target.value)}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 flex-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                    >
+                      {['RASCUNHO', 'ATIVA', 'PAUSADA', 'FINALIZADA', 'ARQUIVADA'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <button onClick={() => openEdit(c)} className="px-3 py-1 text-xs text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50">
+                      Editar
+                    </button>
+                    <button onClick={() => handleDelete(c.id)} className="px-3 py-1 text-xs text-red-500 border border-red-200 rounded-lg hover:bg-red-50">
+                      Remover
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <span className={`text-xs font-semibold px-3 py-1 rounded-full ${STATUS_COLORS[c.status] || 'bg-gray-100 text-gray-700'}`}>
+                      {c.status === 'ATIVA' ? '🟢 Ativa' : c.status === 'PAUSADA' ? '⏸ Pausada' : c.status === 'FINALIZADA' ? '🏁 Finalizada' : c.status === 'RASCUNHO' ? '📝 Rascunho' : '📦 Arquivada'}
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

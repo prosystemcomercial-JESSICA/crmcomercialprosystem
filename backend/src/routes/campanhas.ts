@@ -63,8 +63,20 @@ export async function campanhasRoutes(fastify: FastifyInstance, options: { prism
     return reply.send({ status: 'success', data: campanha });
   });
 
-  // Create campanha
+  // Cargos autorizados a gerenciar campanhas
+  const PODE_GERENCIAR = ['CEO', 'ADMIN', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'GERENTE', 'DIRETOR'];
+  const checkGestor = (request: any, reply: any): boolean => {
+    const user = (request as any).user;
+    if (!user || !PODE_GERENCIAR.includes((user.role || '').toUpperCase())) {
+      reply.status(403).send({ status: 'error', message: 'Apenas CEO, Diretor e Supervisores podem gerenciar campanhas' });
+      return false;
+    }
+    return true;
+  };
+
+  // Create campanha — só gestores
   fastify.post('/campanhas', async (request, reply) => {
+    if (!checkGestor(request, reply)) return;
     const body = CreateCampanhaSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
 
@@ -80,8 +92,9 @@ export async function campanhasRoutes(fastify: FastifyInstance, options: { prism
     return reply.status(201).send({ status: 'success', data: campanha });
   });
 
-  // Update campanha
+  // Update campanha — só gestores
   fastify.patch('/campanhas/:id', async (request, reply) => {
+    if (!checkGestor(request, reply)) return;
     const { id } = request.params as { id: string };
     const body = UpdateCampanhaSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
@@ -98,8 +111,9 @@ export async function campanhasRoutes(fastify: FastifyInstance, options: { prism
     }
   });
 
-  // Delete campanha
+  // Delete campanha — só gestores
   fastify.delete('/campanhas/:id', async (request, reply) => {
+    if (!checkGestor(request, reply)) return;
     const { id } = request.params as { id: string };
     try {
       await prisma.campanha.delete({ where: { id } });
