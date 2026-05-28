@@ -538,6 +538,144 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     });
   });
 
+  // ── Fechar venda (marcar lead como ACEITO/GANHO) ──────────────────────────
+  const FechamentoSchema = z.object({
+    plano: z.enum(['BASIC', 'MEI', 'PRO', 'PLUS']),
+    valor_instalacao: z.number().min(0),
+    mrr: z.number().min(0),
+    valor_entrada: z.number().min(0),
+    forma_entrada: z.enum(['PIX', 'BOLETO', 'CARTAO', 'TRANSFERENCIA']),
+    parcelas_instalacao: z.number().int().min(1).max(36).default(1),
+    data_1cob: z.string().datetime().optional(),
+    observacoes: z.string().optional()
+  });
+
+  fastify.post('/leads/:id/fechar', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = (request as any).user;
+    const body = FechamentoSchema.safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
+
+    try {
+      const lead = await prisma.lead.update({
+        where: { id },
+        data: {
+          status: 'GANHO',
+          etapa_funil: 'FECHAMENTO',
+          etapa_comercial: 'ACEITO',
+          status_atendimento: 'ACEITO',
+          fechamento_plano: body.data.plano,
+          fechamento_valor_inst: body.data.valor_instalacao,
+          fechamento_mrr: body.data.mrr,
+          fechamento_valor_entrada: body.data.valor_entrada,
+          fechamento_forma_entrada: body.data.forma_entrada,
+          fechamento_parcelas_inst: body.data.parcelas_instalacao,
+          fechamento_data_1cob: body.data.data_1cob ? new Date(body.data.data_1cob) : null,
+          fechamento_obs: body.data.observacoes || null,
+          fechamento_data: new Date(),
+          fechamento_por: user?.id || 'system'
+        }
+      });
+      await registrarObsSistema(prisma, id, 'FECHAMENTO',
+        `Lead fechado — Plano ${body.data.plano} | Instalação R$ ${body.data.valor_instalacao.toFixed(2)} | MRR R$ ${body.data.mrr.toFixed(2)}`,
+        user?.id);
+      return reply.send({ status: 'success', data: lead });
+    } catch (err: any) {
+      if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+      throw err;
+    }
+  });
+
+  // ── Métricas comerciais (MRR, instalação, médias, ranking) ────────────────
+  fastify.get('/leads/metricas-comerciais', async (request, reply) => {
+    const user = (request as any).user;
+    const ADMIN = ['CEO','ADMIN','SUPERVISAO','SUPERVISAO_COMERCIAL','SUPERVISAO_TECNICA','GERENTE','DIRETOR'];
+    const isAdmin = user && ADMIN.includes((user.role || '').toUpperCase());
+
+    const q = request.query as { data_inicio?: string; data_fim?: string };
+    const where: any = { status: 'GANHO', fechamento_data: { not: null } };
+    if (q.data_inicio || q.data_fim) {
+      where.fechamento_data = { not: null };
+      if (q.data_inicio) where.fechamento_data.gte = new Date(q.data_inicio);
+      if (q.data_fim) where.fechamento_data.lte = new Date(q.data_fim);
+    }
+    // Não admin: só vê próprios fechamentos
+    if (!isAdmin) where.fechamento_por = user?.id;
+
+    const ganhos = await prisma.lead.findMany({
+      where,
+      select: {
+        id: true, nome: true, razao_social: true,
+        fechamento_plano: true, fechamento_valor_inst: true, fechamento_mrr: true,
+        fechamento_valor_entrada: true, fechamento_forma_entrada: true,
+        fechamento_parcelas_inst: true, fechamento_data: true, fechamento_por: true
+      }
+    });
+
+    // Mapa de usuários
+    const usuariosRaw: any[] = await prisma.$queryRawUnsafe(`SELECT id, nome, email, cargo FROM UsuarioCRM`);
+    const userMap: Record<string, any> = {};
+    for (const u of usuariosRaw) userMap[u.id] = u;
+    userMap['user-jessica'] = { id: 'user-jessica', nome: 'Jessica', email: 'jessica@prosystemnet.com.br', cargo: 'CEO' };
+
+    // Totais
+    let totalInstalacao = 0, totalMRR = 0, totalEntrada = 0;
+    const porPlano: Record<string, { count: number; mrr: number; inst: number }> = {};
+    const porVendedor: Record<string, any> = {};
+    const porForma: Record<string, number> = {};
+
+    for (const g of ganhos) {
+      const inst = Number(g.fechamento_valor_inst || 0);
+      const mrr = Number(g.fechamento_mrr || 0);
+      const ent = Number(g.fechamento_valor_entrada || 0);
+      totalInstalacao += inst;
+      totalMRR += mrr;
+      totalEntrada += ent;
+
+      const plano = g.fechamento_plano || 'OUTRO';
+      if (!porPlano[plano]) porPlano[plano] = { count: 0, mrr: 0, inst: 0 };
+      porPlano[plano].count += 1;
+      porPlano[plano].mrr += mrr;
+      porPlano[plano].inst += inst;
+
+      const forma = g.fechamento_forma_entrada || 'OUTRO';
+      porForma[forma] = (porForma[forma] || 0) + 1;
+
+      const vid = g.fechamento_por || 'sem-vendedor';
+      if (!porVendedor[vid]) {
+        const u = userMap[vid] || {};
+        porVendedor[vid] = {
+          id: vid,
+          nome: u.nome ? u.nome.split(' ')[0] : 'Vendedor',
+          cargo: u.cargo || '',
+          fechamentos: 0, mrr_total: 0, inst_total: 0
+        };
+      }
+      porVendedor[vid].fechamentos += 1;
+      porVendedor[vid].mrr_total += mrr;
+      porVendedor[vid].inst_total += inst;
+    }
+
+    const total = ganhos.length;
+    const ranking = Object.values(porVendedor).sort((a: any, b: any) => b.mrr_total - a.mrr_total);
+
+    return reply.send({
+      status: 'success',
+      data: {
+        total_fechamentos: total,
+        total_instalacao: Math.round(totalInstalacao * 100) / 100,
+        total_mrr: Math.round(totalMRR * 100) / 100,
+        total_entrada: Math.round(totalEntrada * 100) / 100,
+        media_instalacao: total > 0 ? Math.round((totalInstalacao / total) * 100) / 100 : 0,
+        media_mrr: total > 0 ? Math.round((totalMRR / total) * 100) / 100 : 0,
+        media_entrada: total > 0 ? Math.round((totalEntrada / total) * 100) / 100 : 0,
+        por_plano: porPlano,
+        por_forma_entrada: porForma,
+        ranking_vendedores: ranking
+      }
+    });
+  });
+
   // ── Funil (legado) ────────────────────────────────────────────────────────
   fastify.get('/leads/funil', async (request, reply) => {
     const etapas = ['PROSPECCAO','QUALIFICACAO','APRESENTACAO','PROPOSTA','NEGOCIACAO','FECHAMENTO'];

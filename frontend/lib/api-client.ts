@@ -279,6 +279,23 @@ class ApiClient {
     return this.client.post('/leads', data);
   }
 
+  async fecharLead(id: string, data: {
+    plano: 'BASIC' | 'MEI' | 'PRO' | 'PLUS';
+    valor_instalacao: number;
+    mrr: number;
+    valor_entrada: number;
+    forma_entrada: 'PIX' | 'BOLETO' | 'CARTAO' | 'TRANSFERENCIA';
+    parcelas_instalacao?: number;
+    data_1cob?: string;
+    observacoes?: string;
+  }) {
+    return this.client.post(`/leads/${id}/fechar`, data);
+  }
+
+  async getMetricasComerciais(params?: { data_inicio?: string; data_fim?: string }) {
+    return this.client.get('/leads/metricas-comerciais', { params });
+  }
+
   async updateLead(id: string, data: any) {
     return this.client.patch(`/leads/${id}`, data);
   }

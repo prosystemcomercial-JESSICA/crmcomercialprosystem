@@ -424,6 +424,18 @@ model Lead {
   responsavel_id  String?
   observacoes     String?   @db.Text
 
+  // ─── Dados de fechamento (preenchidos ao mover para ACEITO) ──
+  fechamento_plano        String?   // 'BASIC' | 'MEI' | 'PRO' | 'PLUS'
+  fechamento_valor_inst   Float?    // valor único de instalação
+  fechamento_mrr          Float?    // mensalidade recorrente (MRR)
+  fechamento_valor_entrada Float?   // valor da entrada
+  fechamento_forma_entrada String?  // 'PIX' | 'BOLETO' | 'CARTAO' | 'TRANSFERENCIA'
+  fechamento_parcelas_inst Int?     // parcelas da instalação
+  fechamento_data_1cob    DateTime? // data da 1ª cobrança da mensalidade
+  fechamento_obs          String?   @db.Text
+  fechamento_data         DateTime? // quando foi marcado como aceito
+  fechamento_por          String?   // user id de quem fechou
+
   created_by      String
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
