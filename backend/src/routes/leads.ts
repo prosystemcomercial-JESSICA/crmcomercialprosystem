@@ -255,6 +255,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     if (data.responsavel_email === '') delete data.responsavel_email;
     // Campos Json obrigatórios no schema — default vazio
     if (data.modulos_inclusos === undefined) data.modulos_inclusos = {};
+    if (data.servicos_adicionais === undefined) data.servicos_adicionais = {};
 
     const lead = await prisma.lead.create({ data });
 
