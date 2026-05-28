@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import { FecharLeadModal } from '@/components/ui/FecharLeadModal';
 import {
   Plus, Search, X, RefreshCw, Phone, Mail, MapPin, User,
   Building2, FileText, MessageSquare, Loader2, Send,
@@ -374,6 +375,10 @@ export default function LeadsPage() {
   const [perdaMotivo, setPerdaMotivo] = useState('');
   const [movingToPerda, setMovingToPerda] = useState<Lead | null>(null);
 
+  // Modal de fechamento (lead movido para ACEITO/FECHADO)
+  const [showFechamento, setShowFechamento] = useState(false);
+  const [movingToFechamento, setMovingToFechamento] = useState<Lead | null>(null);
+
   // Drag-and-drop
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null);
   const [dragOverCol, setDragOverCol]   = useState<string | null>(null);
@@ -489,6 +494,12 @@ export default function LeadsPage() {
     if (etapa === 'PERDIDO') {
       setMovingToPerda(lead);
       setShowPerda(true);
+      return;
+    }
+    // Lead movido para ACEITO/FECHADO/GANHO → abre modal de fechamento
+    if (etapa === 'ACEITO' || etapa === 'FECHADO') {
+      setMovingToFechamento(lead);
+      setShowFechamento(true);
       return;
     }
     try {
@@ -1809,6 +1820,23 @@ export default function LeadsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Modal de Fechamento — lead movido para ACEITO ──────────────── */}
+      {showFechamento && movingToFechamento && (
+        <FecharLeadModal
+          leadId={movingToFechamento.id}
+          leadNome={movingToFechamento.nome || movingToFechamento.razao_social || 'Lead'}
+          onClose={() => { setShowFechamento(false); setMovingToFechamento(null); }}
+          onSuccess={async () => {
+            await loadData();
+            if (selectedLead?.id === movingToFechamento.id) {
+              setSelectedLead(p => p ? { ...p, etapa_comercial: 'ACEITO', status: 'GANHO' } : p);
+            }
+            setShowFechamento(false);
+            setMovingToFechamento(null);
+          }}
+        />
       )}
     </DashboardLayout>
   );
