@@ -591,11 +591,13 @@ export default function AgendaPage() {
   const DAY_NAMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   const today = new Date();
 
+  // Status que vão para o histórico (não aparecem mais no calendário/lista ativa)
+  const STATUS_HISTORICO = ['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA', 'REALIZADA'];
+
   const atividadesForDay = (day: Date) =>
     atividades.filter(a => {
       if (!a.data_prevista) return false;
-      // Esconde canceladas, não compareceu e remarcadas (histórico) do calendário
-      if (['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA'].includes(a.status)) return false;
+      if (STATUS_HISTORICO.includes(a.status)) return false;
       const d = new Date(a.data_prevista);
       return d.getDate() === day.getDate() && d.getMonth() === day.getMonth() && d.getFullYear() === day.getFullYear();
     });
@@ -606,15 +608,14 @@ export default function AgendaPage() {
     return a.titulo.toLowerCase().includes(s) || (a.lead?.nome?.toLowerCase().includes(s) ?? false) || (a.lead?.empresa?.toLowerCase().includes(s) ?? false);
   };
 
-  // Lista principal — ativas (PENDENTE/CONFIRMADA/REALIZADA/AGUARDANDO_RETORNO)
-  // REMARCADA é histórico, vai para a seção de problemas
+  // Lista principal — só ativas (PENDENTE/CONFIRMADA/AGUARDANDO_RETORNO)
   const filteredLista = atividades.filter(a =>
-    !['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA'].includes(a.status) && matchesSearch(a)
+    !STATUS_HISTORICO.includes(a.status) && matchesSearch(a)
   );
 
-  // Histórico — canceladas, não compareceu e remarcadas
+  // Histórico — canceladas, não compareceu, remarcadas e realizadas
   const filteredProblemas = atividades.filter(a =>
-    ['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA'].includes(a.status) && matchesSearch(a)
+    STATUS_HISTORICO.includes(a.status) && matchesSearch(a)
   );
 
   // Métricas
@@ -1312,9 +1313,9 @@ export default function AgendaPage() {
             {filteredProblemas.length > 0 && (
               <div style={{ marginTop: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <div style={{ width: 4, height: 22, background: '#dc2626', borderRadius: 2 }} />
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#dc2626' }}>
-                    Histórico — canceladas, não compareceu e remarcadas ({filteredProblemas.length})
+                  <div style={{ width: 4, height: 22, background: '#64748b', borderRadius: 2 }} />
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0D2238' }}>
+                    Histórico — realizadas, canceladas, não compareceu e reagendadas ({filteredProblemas.length})
                   </h3>
                 </div>
                 {filteredProblemas.map(a => {
@@ -1322,11 +1323,21 @@ export default function AgendaPage() {
                   const Icon = cfg.icon;
                   const statusLabel = a.status === 'CANCELADA' ? '✗ Cancelada'
                     : a.status === 'CLIENTE_NAO_COMPARECEU' ? '✗ Não compareceu'
+                    : a.status === 'REALIZADA' ? '✓ Concluída'
                     : '↻ Reagendada';
-                  const statusCor = a.status === 'REMARCADA' ? '#7c3aed' : '#dc2626';
-                  const statusBg = a.status === 'REMARCADA' ? '#f5f3ff' : '#fee2e2';
-                  const cardBg = a.status === 'REMARCADA' ? '#faf5ff' : '#fef2f2';
-                  const cardBorder = a.status === 'REMARCADA' ? '#c4b5fd' : '#fca5a5';
+                  // Cores: REALIZADA verde, REMARCADA roxa, demais vermelhas
+                  const statusCor = a.status === 'REALIZADA' ? '#16a34a'
+                    : a.status === 'REMARCADA' ? '#7c3aed'
+                    : '#dc2626';
+                  const statusBg = a.status === 'REALIZADA' ? '#dcfce7'
+                    : a.status === 'REMARCADA' ? '#f5f3ff'
+                    : '#fee2e2';
+                  const cardBg = a.status === 'REALIZADA' ? '#f0fdf4'
+                    : a.status === 'REMARCADA' ? '#faf5ff'
+                    : '#fef2f2';
+                  const cardBorder = a.status === 'REALIZADA' ? '#86efac'
+                    : a.status === 'REMARCADA' ? '#c4b5fd'
+                    : '#fca5a5';
                   return (
                     <div key={a.id} style={{
                       ...card,
@@ -1340,7 +1351,11 @@ export default function AgendaPage() {
                         <Icon size={18} color={statusCor} />
                       </div>
                       <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0D2238', textDecoration: 'line-through', textDecorationColor: statusCor }}>{a.titulo}</div>
+                        <div style={{
+                          fontSize: 14, fontWeight: 700, color: '#0D2238',
+                          textDecoration: a.status === 'REALIZADA' ? 'none' : 'line-through',
+                          textDecorationColor: statusCor
+                        }}>{a.titulo}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: statusCor, padding: '2px 8px', background: statusBg, borderRadius: 20 }}>
                             {statusLabel}
@@ -1359,9 +1374,9 @@ export default function AgendaPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        {/* Botão Reagendar só para CANCELADA/NÃO_COMPARECEU.
-                            REMARCADA já foi reagendada, então só mostra "Ver" */}
-                        {a.status !== 'REMARCADA' && (
+                        {/* Botão Reagendar só para CANCELADA e CLIENTE_NAO_COMPARECEU.
+                            REMARCADA já foi reagendada; REALIZADA já foi concluída */}
+                        {(a.status === 'CANCELADA' || a.status === 'CLIENTE_NAO_COMPARECEU') && (
                           <button onClick={() => handleReagendarRapido(a.id, a.titulo)}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -1381,6 +1396,16 @@ export default function AgendaPage() {
                             border: '1px solid #c4b5fd', fontSize: 12, fontWeight: 600
                           }}>
                             <Clock size={11} /> Nova data: {formatDateTime(a.nova_data_remarcada)}
+                          </span>
+                        )}
+                        {a.status === 'REALIZADA' && a.data_realizada && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '8px 12px', borderRadius: 8,
+                            background: '#dcfce7', color: '#16a34a',
+                            border: '1px solid #86efac', fontSize: 12, fontWeight: 600
+                          }}>
+                            <CheckCircle2 size={11} /> Concluída em {formatDateTime(a.data_realizada)}
                           </span>
                         )}
                         <button onClick={() => setShowDetail(a)} style={{ ...btnOutline, padding: '8px 12px', fontSize: 12 }}>
