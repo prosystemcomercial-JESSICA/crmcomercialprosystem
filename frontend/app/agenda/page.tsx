@@ -271,6 +271,7 @@ function AtividadeDetail({
   const cfg = TIPO_CONFIG[atividade.tipo] || TIPO_CONFIG.OUTRO;
   const Icon = cfg.icon;
   const isActive = atividade.status === 'PENDENTE' || atividade.status === 'CONFIRMADA';
+  const isProblema = atividade.status === 'CANCELADA' || atividade.status === 'CLIENTE_NAO_COMPARECEU';
 
   const row = (label: string, value: React.ReactNode) => (
     <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -280,13 +281,21 @@ function AtividadeDetail({
   );
 
   return (
-    <div>
+    <div style={isProblema ? { background: '#fef2f2', border: '2px solid #fca5a5', borderRadius: 12, padding: 14, margin: -8 } : undefined}>
+      {isProblema && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#fee2e2', borderRadius: 8, marginBottom: 14 }}>
+          <XCircle size={16} color="#dc2626" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>
+            {atividade.status === 'CANCELADA' ? 'Atividade cancelada' : 'Cliente não compareceu'}
+          </span>
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: cfg.bg, flexShrink: 0 }}>
-          <Icon size={20} color={cfg.color} />
+        <div style={{ width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isProblema ? '#fee2e2' : cfg.bg, flexShrink: 0 }}>
+          <Icon size={20} color={isProblema ? '#dc2626' : cfg.color} />
         </div>
         <div style={{ flex: 1 }}>
-          <h4 style={{ fontSize: 16, fontWeight: 700, color: '#0D2238', marginBottom: 6 }}>{atividade.titulo}</h4>
+          <h4 style={{ fontSize: 16, fontWeight: 700, color: isProblema ? '#7c2d12' : '#0D2238', marginBottom: 6, textDecoration: isProblema ? 'line-through' : 'none', textDecorationColor: '#dc2626' }}>{atividade.titulo}</h4>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Badge status={atividade.status} />
             <TipoBadge tipo={atividade.tipo} />
@@ -413,6 +422,21 @@ function AtividadeDetail({
               color: '#fff', background: 'linear-gradient(135deg, #dc2626, #b91c1c)', border: 'none'
             }}>
             <XCircle size={13} /> Cancelar
+          </button>
+        </div>
+      )}
+
+      {/* Quando cancelada ou cliente não compareceu — botão Reagendar destacado */}
+      {isProblema && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1.5px solid #fca5a5', paddingTop: 16, marginTop: 16 }}>
+          <button onClick={onRemarcar}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px',
+              borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              color: '#fff', background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)', border: 'none',
+              boxShadow: '0 2px 8px rgba(75,142,200,0.3)'
+            }}>
+            <RotateCcw size={14} /> Reagendar agora
           </button>
         </div>
       )}
@@ -655,10 +679,19 @@ export default function AgendaPage() {
     if (!showCancelar) return;
     setSaving(true);
     try {
-      await apiClient.cancelarAtividade(showCancelar.id, cancelarForm.motivo_cancelamento);
+      const id = showCancelar.id;
+      const titulo = showCancelar.titulo;
+      await apiClient.cancelarAtividade(id, cancelarForm.motivo_cancelamento);
       setShowCancelar(null);
       setCancelarForm({ motivo_cancelamento: '' });
-      load();
+      const querReagendar = window.confirm(
+        `Atividade CANCELADA.\n\nDeseja reagendar "${titulo}" agora?`
+      );
+      if (querReagendar) {
+        await handleReagendarRapido(id, titulo);
+      } else {
+        load();
+      }
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -683,9 +716,17 @@ export default function AgendaPage() {
     load();
   };
 
-  const handleNaoCompareceu = async (id: string) => {
+  const handleNaoCompareceu = async (id: string, titulo?: string) => {
     await apiClient.naoCompareceuAtividade(id);
-    load();
+    // Após marcar não compareceu, pergunta se quer reagendar agora
+    const querReagendar = window.confirm(
+      `Marcado como NÃO COMPARECEU.\n\nDeseja reagendar "${titulo || 'esta atividade'}" agora?`
+    );
+    if (querReagendar) {
+      await handleReagendarRapido(id, titulo || 'Atividade');
+    } else {
+      load();
+    }
   };
 
   const handleAguardarRetorno = async (id: string) => {
@@ -1612,7 +1653,7 @@ export default function AgendaPage() {
             onRemarcar={() => { setShowDetail(null); setShowRemarcar(showDetail); }}
             onCriarMeet={() => handleCriarMeet(showDetail.id)}
             onConfirmar={() => { handleConfirmar(showDetail.id); setShowDetail(null); }}
-            onNaoCompareceu={() => { handleNaoCompareceu(showDetail.id); setShowDetail(null); }}
+            onNaoCompareceu={() => { handleNaoCompareceu(showDetail.id, showDetail.titulo); setShowDetail(null); }}
             onAguardarRetorno={() => { handleAguardarRetorno(showDetail.id); setShowDetail(null); }}
             creatinguMeet={creatinguMeet === showDetail.id}
           />
