@@ -218,7 +218,7 @@ function generateHTML(data: any): string {
         <span>Prosystem Sistemas</span>
       </div>
       <div class="nav-actions">
-        <button class="btn btn-secondary" onclick="downloadHTML()">Baixar HTML</button>
+        <button class="btn btn-secondary" onclick="downloadHTML(event)">Baixar HTML</button>
         <button class="btn btn-secondary" onclick="downloadXML()">Baixar XML</button>
         <button class="btn btn-green" onclick="copyWhatsAppText()">Copiar resumo WhatsApp</button>
         <a class="btn btn-primary" href="#proposta">Ver proposta</a>
@@ -438,7 +438,7 @@ function generateHTML(data: any): string {
         <div class="whats-box-body">
           <textarea class="whats-text" id="whatsText" readonly></textarea>
           <div class="action-row">
-            <button class="btn btn-secondary" onclick="downloadHTML()">Baixar HTML</button>
+            <button class="btn btn-secondary" onclick="downloadHTML(event)">Baixar HTML</button>
             <button class="btn btn-secondary" onclick="downloadXML()">Baixar XML</button>
           </div>
         </div>
@@ -554,7 +554,53 @@ function generateHTML(data: any): string {
       const a=document.createElement("a");a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
     }
     function downloadXML(){downloadFile("proposta-prosystem.xml",generateXML(),"application/xml");}
-    function downloadHTML(){downloadFile("proposta-prosystem.html",document.documentElement.outerHTML,"text/html");}
+    // Baixar HTML offline: converte todas as imagens para base64 inline
+    // antes de gerar o arquivo, garantindo que tudo seja visível sem internet
+    async function imgToDataUrl(src){
+      try{
+        const res = await fetch(src);
+        if(!res.ok) return null;
+        const blob = await res.blob();
+        return await new Promise((resolve)=>{
+          const r = new FileReader();
+          r.onloadend = ()=>resolve(r.result);
+          r.onerror = ()=>resolve(null);
+          r.readAsDataURL(blob);
+        });
+      }catch(e){return null;}
+    }
+    async function downloadHTML(){
+      // Mostra feedback visual durante a conversão
+      const btn = event && event.target;
+      const txtOriginal = btn ? btn.textContent : null;
+      if(btn){ btn.textContent='Preparando...'; btn.disabled=true; }
+      try{
+        // Clona o DOM para não alterar a página em uso
+        const clone = document.documentElement.cloneNode(true);
+        const imgs = clone.querySelectorAll('img');
+        const conversoes = Array.from(imgs).map(async (img)=>{
+          const src = img.getAttribute('src');
+          if(!src || src.startsWith('data:')) return;
+          // URL absoluta a partir da página atual
+          const abs = new URL(src, window.location.href).href;
+          const dataUrl = await imgToDataUrl(abs);
+          if(dataUrl){
+            img.setAttribute('src', dataUrl);
+            // Remove o onerror que esconde a imagem em caso de falha legada
+            img.removeAttribute('onerror');
+          }
+        });
+        await Promise.all(conversoes);
+
+        // Também resolve background-image inline (caso futuro)
+        const conteudo = '<!DOCTYPE html>\\n' + clone.outerHTML;
+        downloadFile("proposta-prosystem.html", conteudo, "text/html");
+      }catch(e){
+        alert('Erro ao preparar HTML: '+(e&&e.message||'desconhecido'));
+      }finally{
+        if(btn && txtOriginal){ btn.textContent=txtOriginal; btn.disabled=false; }
+      }
+    }
     function init(){
       buildPlanTable();buildPlusFeatures();buildClientChips();
       renderProposalSummary();buildAcceptLink();buildWhatsAppSummary();
