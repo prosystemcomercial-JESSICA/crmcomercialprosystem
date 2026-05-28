@@ -80,6 +80,32 @@ try {
   console.error('[BOOT] Falha ao registrar CORS/Helmet:', err?.message || err);
 }
 
+// 5b) Hook global de auth opcional — popula request.user se houver Bearer token
+// Não bloqueia se não tiver. Permite rotas públicas + identificação automática
+// em rotas autenticadas que não usam requireAuth explicitamente.
+try {
+  const { AuthService } = await import('./services/auth.service.js');
+  const _authService = new AuthService();
+  fastify.addHook('onRequest', async (request) => {
+    const auth = request.headers.authorization;
+    if (!auth) return;
+    const token = auth.replace(/^Bearer\s+/i, '').trim();
+    if (!token) return;
+    try {
+      const decoded: any = _authService.verifyAccessToken(token);
+      (request as any).user = {
+        id: decoded.userId,
+        nome: decoded.nome,
+        email: decoded.email,
+        role: decoded.role
+      };
+    } catch { /* token inválido — segue sem user */ }
+  });
+  console.log('[BOOT] Hook global de auth opcional registrado');
+} catch (err: any) {
+  console.error('[BOOT] Falha ao registrar hook global de auth:', err?.message || err);
+}
+
 // 6) Error handler global do Fastify
 fastify.setErrorHandler((error, _request, reply) => {
   fastify.log.error({ err: error }, 'ERROR HANDLER');
