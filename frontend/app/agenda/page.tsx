@@ -1431,16 +1431,19 @@ export default function AgendaPage() {
                   <button style={{ ...btnPrimary, background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}
                     onClick={async () => {
                       try {
-                        const res = await apiClient.getDashboardProdutividade({
+                        const params: any = {
                           data_inicio: relFiltros.data_inicio || undefined,
                           data_fim: relFiltros.data_fim || undefined
-                        });
+                        };
+                        // Aplica filtro por colaborador se selecionado nos chips no topo
+                        if (filtroColaborador) params.responsavel_id = filtroColaborador;
+                        const res = await apiClient.getDashboardProdutividade(params);
                         setDashboardProd(res.data.data);
                       } catch (err: any) {
                         alert('Erro: ' + (err?.response?.data?.message || err?.message));
                       }
                     }}>
-                    <BarChart2 size={13} /> Dashboard Produtividade
+                    <BarChart2 size={13} /> Dashboard Produtividade {filtroColaborador && '· filtrado'}
                   </button>
                 )}
               </div>

@@ -283,42 +283,48 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       return reply.status(403).send({ status: 'error', message: 'Apenas administradores' });
     }
 
-    const query = request.query as { data_inicio?: string; data_fim?: string };
+    const query = request.query as { data_inicio?: string; data_fim?: string; responsavel_id?: string };
     const where: any = {};
     if (query.data_inicio || query.data_fim) {
       where.data_prevista = {};
       if (query.data_inicio) where.data_prevista.gte = new Date(query.data_inicio);
       if (query.data_fim) where.data_prevista.lte = new Date(query.data_fim);
     }
+    if (query.responsavel_id) {
+      where.OR = [
+        { responsavel_id: query.responsavel_id },
+        { created_by: query.responsavel_id }
+      ];
+    }
 
-    // Agrupa por responsavel + status
-    const rows: any[] = await prisma.$queryRawUnsafe(`
-      SELECT
-        a.responsavel_id,
-        u.nome AS responsavel_nome,
-        u.email AS responsavel_email,
-        a.status,
-        a.tipo,
-        COUNT(*) as total,
-        AVG(a.percepcao_nota) as nota_media
-      FROM Atividade a
-      LEFT JOIN UsuarioCRM u ON u.id = a.responsavel_id
-      ${query.data_inicio || query.data_fim ? `WHERE a.data_prevista BETWEEN ? AND ?` : ''}
-      GROUP BY a.responsavel_id, u.nome, u.email, a.status, a.tipo
-    `, ...(query.data_inicio || query.data_fim ? [
-      query.data_inicio || '2000-01-01',
-      query.data_fim || '2999-12-31'
-    ] : []));
+    // Busca todas as atividades via Prisma (evita problema de collation no JOIN)
+    const atividades = await prisma.atividade.findMany({
+      where,
+      select: {
+        responsavel_id: true, created_by: true, status: true, tipo: true,
+        percepcao_nota: true, percepcao_tags: true
+      }
+    });
 
-    // Estrutura por usuário
+    // Busca todos os usuários numa query separada (escapa do collation issue)
+    const usuariosRaw: any[] = await prisma.$queryRawUnsafe(`SELECT id, nome, email, cargo FROM UsuarioCRM`);
+    const usuariosMap: Record<string, any> = {};
+    for (const u of usuariosRaw) usuariosMap[u.id] = u;
+    // Inclui Jessica (mock) também
+    usuariosMap['user-jessica'] = { id: 'user-jessica', nome: 'Jessica', email: 'jessica@prosystemnet.com.br', cargo: 'CEO' };
+
+    // Agrupa em memória — confiável e sem dependência de collation
     const porUsuario: Record<string, any> = {};
-    for (const r of rows) {
-      const uid = r.responsavel_id || 'sem-responsavel';
+    for (const a of atividades) {
+      // Atribui ao responsável; se não houver, ao criador
+      const uid = a.responsavel_id || a.created_by || 'sem-responsavel';
+      const userInfo = usuariosMap[uid] || { nome: 'Sem responsável', email: '', cargo: '' };
       if (!porUsuario[uid]) {
         porUsuario[uid] = {
           id: uid,
-          nome: r.responsavel_nome || 'Sem responsável',
-          email: r.responsavel_email || '',
+          nome: userInfo.nome,
+          email: userInfo.email,
+          cargo: userInfo.cargo,
           total: 0, agendadas: 0, realizadas: 0, canceladas: 0,
           nao_compareceu: 0, remarcadas: 0,
           reunioes: 0, ligacoes: 0, visitas: 0, tarefas: 0,
@@ -326,20 +332,19 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
         };
       }
       const u = porUsuario[uid];
-      const t = Number(r.total);
-      u.total += t;
-      if (r.status === 'PENDENTE' || r.status === 'CONFIRMADA') u.agendadas += t;
-      if (r.status === 'REALIZADA') u.realizadas += t;
-      if (r.status === 'CANCELADA') u.canceladas += t;
-      if (r.status === 'CLIENTE_NAO_COMPARECEU') u.nao_compareceu += t;
-      if (r.status === 'REMARCADA') u.remarcadas += t;
-      if (r.tipo === 'REUNIAO') u.reunioes += t;
-      if (r.tipo === 'LIGACAO') u.ligacoes += t;
-      if (r.tipo === 'VISITA') u.visitas += t;
-      if (r.tipo === 'TAREFA') u.tarefas += t;
-      if (r.nota_media != null) {
-        u.notas_sum += Number(r.nota_media) * t;
-        u.notas_count += t;
+      u.total += 1;
+      if (a.status === 'PENDENTE' || a.status === 'CONFIRMADA') u.agendadas += 1;
+      if (a.status === 'REALIZADA') u.realizadas += 1;
+      if (a.status === 'CANCELADA') u.canceladas += 1;
+      if (a.status === 'CLIENTE_NAO_COMPARECEU') u.nao_compareceu += 1;
+      if (a.status === 'REMARCADA') u.remarcadas += 1;
+      if (a.tipo === 'REUNIAO') u.reunioes += 1;
+      if (a.tipo === 'LIGACAO') u.ligacoes += 1;
+      if (a.tipo === 'VISITA') u.visitas += 1;
+      if (a.tipo === 'TAREFA') u.tarefas += 1;
+      if (a.percepcao_nota != null) {
+        u.notas_sum += Number(a.percepcao_nota);
+        u.notas_count += 1;
       }
     }
 
@@ -353,9 +358,9 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       return u;
     }).sort((a: any, b: any) => b.realizadas - a.realizadas);
 
-    // Distribuição de percepções (consolidado)
+    // Distribuição de percepções (consolidado) — só onde tags foi preenchido
     const reunioesRealizadas = await prisma.atividade.findMany({
-      where: { ...where, status: 'REALIZADA', tipo: 'REUNIAO', percepcao_tags: { not: undefined } },
+      where: { ...where, status: 'REALIZADA', tipo: 'REUNIAO' },
       select: { percepcao_tags: true, percepcao_nota: true }
     });
 
