@@ -591,8 +591,8 @@ export default function AgendaPage() {
   const atividadesForDay = (day: Date) =>
     atividades.filter(a => {
       if (!a.data_prevista) return false;
-      // Esconde canceladas e não compareceu das views de calendário
-      if (['CANCELADA', 'CLIENTE_NAO_COMPARECEU'].includes(a.status)) return false;
+      // Esconde canceladas, não compareceu e remarcadas (histórico) do calendário
+      if (['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA'].includes(a.status)) return false;
       const d = new Date(a.data_prevista);
       return d.getDate() === day.getDate() && d.getMonth() === day.getMonth() && d.getFullYear() === day.getFullYear();
     });
@@ -603,14 +603,15 @@ export default function AgendaPage() {
     return a.titulo.toLowerCase().includes(s) || (a.lead?.nome?.toLowerCase().includes(s) ?? false) || (a.lead?.empresa?.toLowerCase().includes(s) ?? false);
   };
 
-  // Lista principal — ativas (PENDENTE/CONFIRMADA/REALIZADA/REMARCADA/AGUARDANDO_RETORNO)
+  // Lista principal — ativas (PENDENTE/CONFIRMADA/REALIZADA/AGUARDANDO_RETORNO)
+  // REMARCADA é histórico, vai para a seção de problemas
   const filteredLista = atividades.filter(a =>
-    !['CANCELADA', 'CLIENTE_NAO_COMPARECEU'].includes(a.status) && matchesSearch(a)
+    !['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA'].includes(a.status) && matchesSearch(a)
   );
 
-  // Problemas — canceladas e não compareceu (para reagendamento rápido)
+  // Histórico — canceladas, não compareceu e remarcadas
   const filteredProblemas = atividades.filter(a =>
-    ['CANCELADA', 'CLIENTE_NAO_COMPARECEU'].includes(a.status) && matchesSearch(a)
+    ['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA'].includes(a.status) && matchesSearch(a)
   );
 
   // Métricas
@@ -1304,30 +1305,36 @@ export default function AgendaPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 4, height: 22, background: '#dc2626', borderRadius: 2 }} />
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: '#dc2626' }}>
-                    Pendências de reagendamento — {filteredProblemas.length}
+                    Histórico — canceladas, não compareceu e remarcadas ({filteredProblemas.length})
                   </h3>
                 </div>
                 {filteredProblemas.map(a => {
                   const cfg = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.OUTRO;
                   const Icon = cfg.icon;
-                  const isCancelada = a.status === 'CANCELADA';
+                  const statusLabel = a.status === 'CANCELADA' ? '✗ Cancelada'
+                    : a.status === 'CLIENTE_NAO_COMPARECEU' ? '✗ Não compareceu'
+                    : '↻ Reagendada';
+                  const statusCor = a.status === 'REMARCADA' ? '#7c3aed' : '#dc2626';
+                  const statusBg = a.status === 'REMARCADA' ? '#f5f3ff' : '#fee2e2';
+                  const cardBg = a.status === 'REMARCADA' ? '#faf5ff' : '#fef2f2';
+                  const cardBorder = a.status === 'REMARCADA' ? '#c4b5fd' : '#fca5a5';
                   return (
                     <div key={a.id} style={{
                       ...card,
                       padding: '14px 16px',
                       display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-                      background: '#fef2f2',
-                      border: '1.5px solid #fca5a5',
+                      background: cardBg,
+                      border: `1.5px solid ${cardBorder}`,
                       marginBottom: 8
                     }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fee2e2' }}>
-                        <Icon size={18} color="#dc2626" />
+                      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: statusBg }}>
+                        <Icon size={18} color={statusCor} />
                       </div>
                       <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0D2238', textDecoration: 'line-through', textDecorationColor: '#dc2626' }}>{a.titulo}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0D2238', textDecoration: 'line-through', textDecorationColor: statusCor }}>{a.titulo}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', padding: '2px 8px', background: '#fee2e2', borderRadius: 20 }}>
-                            {isCancelada ? '✗ Cancelada' : '✗ Não compareceu'}
+                          <span style={{ fontSize: 11, fontWeight: 700, color: statusCor, padding: '2px 8px', background: statusBg, borderRadius: 20 }}>
+                            {statusLabel}
                           </span>
                           {a.lead && <span style={{ fontSize: 12, color: '#7c2d12' }}>{a.lead.nome}</span>}
                           {a.data_prevista && (
@@ -1343,16 +1350,30 @@ export default function AgendaPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => handleReagendarRapido(a.id, a.titulo)}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 6,
-                            padding: '8px 14px', borderRadius: 8,
-                            background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)',
-                            color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                            boxShadow: '0 2px 6px rgba(75,142,200,0.3)'
+                        {/* Botão Reagendar só para CANCELADA/NÃO_COMPARECEU.
+                            REMARCADA já foi reagendada, então só mostra "Ver" */}
+                        {a.status !== 'REMARCADA' && (
+                          <button onClick={() => handleReagendarRapido(a.id, a.titulo)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 6,
+                              padding: '8px 14px', borderRadius: 8,
+                              background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)',
+                              color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                              boxShadow: '0 2px 6px rgba(75,142,200,0.3)'
+                            }}>
+                            <RotateCcw size={13} /> Reagendar
+                          </button>
+                        )}
+                        {a.status === 'REMARCADA' && a.nova_data_remarcada && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '8px 12px', borderRadius: 8,
+                            background: '#f5f3ff', color: '#7c3aed',
+                            border: '1px solid #c4b5fd', fontSize: 12, fontWeight: 600
                           }}>
-                          <RotateCcw size={13} /> Reagendar
-                        </button>
+                            <Clock size={11} /> Nova data: {formatDateTime(a.nova_data_remarcada)}
+                          </span>
+                        )}
                         <button onClick={() => setShowDetail(a)} style={{ ...btnOutline, padding: '8px 12px', fontSize: 12 }}>
                           Ver
                         </button>

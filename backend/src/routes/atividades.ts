@@ -390,10 +390,19 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
         }
       });
 
-      // Marca original como remarcada
+      // Preserva o status original.
+      // - Se for CANCELADA ou CLIENTE_NAO_COMPARECEU → mantém o status (NÃO sobrescreve)
+      //   apenas registra a nova_data_remarcada para rastreamento
+      // - Se for PENDENTE/CONFIRMADA → marca como REMARCADA (reagendamento voluntário)
+      const statusPreserva = ['CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REALIZADA'];
+      const novoStatusOriginal = statusPreserva.includes(original.status) ? original.status : 'REMARCADA';
+
       await prisma.atividade.update({
         where: { id },
-        data: { status: 'REMARCADA', nova_data_remarcada: new Date(body.data.data_prevista) }
+        data: {
+          status: novoStatusOriginal,
+          nova_data_remarcada: new Date(body.data.data_prevista)
+        }
       });
 
       return reply.status(201).send({ status: 'success', data: nova });
