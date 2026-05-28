@@ -393,7 +393,7 @@ class ApiClient {
     return this.client.post(`/atividades/${id}/concluir`, data);
   }
 
-  async getDashboardProdutividade(params?: { data_inicio?: string; data_fim?: string }) {
+  async getDashboardProdutividade(params?: { data_inicio?: string; data_fim?: string; responsavel_id?: string }) {
     return this.client.get('/atividades/dashboard-produtividade', { params });
   }
 
