@@ -98,6 +98,13 @@ export function useAlertaReuniao(onAlerta: OnAlertaFn) {
       10
     );
 
+    // Decodifica o userId do JWT pra filtrar quem RECEBE alarme
+    let meuUserId: string | null = null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      meuUserId = payload.userId || null;
+    } catch { /* ignora */ }
+
     try {
       const res = await apiClient.getAtividades({
         status: 'PENDENTE,CONFIRMADA,AGUARDANDO_RETORNO',
@@ -111,14 +118,27 @@ export function useAlertaReuniao(onAlerta: OnAlertaFn) {
       for (const at of atividades) {
         if (!at.data_prevista) continue;
 
+        // ALARME só toca se EU SOU diretamente envolvido:
+        // - Responsável OU criador OU convidado
+        // Mesmo para CEO/Supervisor: se NÃO está envolvido pessoalmente, sem alarme.
+        // (eles continuam vendo o compromisso no dashboard, mas sem som)
+        const convidados: string[] = Array.isArray(at.convidados_ids) ? at.convidados_ids : [];
+        const envolvido = meuUserId && (
+          at.responsavel_id === meuUserId ||
+          at.created_by === meuUserId ||
+          convidados.includes(meuUserId)
+        );
+        if (!envolvido) continue;
+
         const data = new Date(at.data_prevista);
         const diffMs = data.getTime() - agora.getTime();
         const diffMin = diffMs / 60000;
 
+        // Atividade já realizada/cancelada — não toca
+        if (['REALIZADA', 'CANCELADA', 'CLIENTE_NAO_COMPARECEU', 'REMARCADA'].includes(at.status)) continue;
+
         // Janela: entre -10 min (passou) e +minutos (vai chegar)
-        // Continua disparando até a reunião + 10 min depois do horário
         if (diffMin <= minutos && diffMin > -10) {
-          // Verifica snooze
           const snoozeAte = snoozeMap[at.id];
           if (snoozeAte && Date.now() < snoozeAte) continue;
 

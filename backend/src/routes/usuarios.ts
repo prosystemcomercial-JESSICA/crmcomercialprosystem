@@ -234,7 +234,8 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
 
   // ─── GET /usuarios ───────────────────────────────────────────
   fastify.get('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkGestor(request, reply)) return;
+    const ator = (request as any).user;
+    const isGestor = ator && GESTORES.some(r => ator.role?.includes(r));
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM ORDER BY created_at ASC`);
 
     // Inclui a conta de administradora do sistema (mock fora do banco)
@@ -254,6 +255,20 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     };
     const jaExiste = rows.some(r => r.id === 'user-jessica' || r.email === 'jessica@prosystemnet.com.br');
     const todosUsuarios = jaExiste ? rows : [adminProSystem, ...rows];
+
+    // Não-gestores: devolve apenas campos básicos (id, nome, email, cargo, status)
+    // para que possam convidar colegas na agenda sem ver permissões/observações
+    if (!isGestor) {
+      const basicos = todosUsuarios.map(u => ({
+        id: u.id,
+        nome: u.nome,
+        email: u.email,
+        cargo: u.cargo,
+        classificacao: u.classificacao,
+        status: u.status
+      }));
+      return reply.send({ status: 'success', data: basicos });
+    }
 
     return reply.send({ status: 'success', data: todosUsuarios });
   });
