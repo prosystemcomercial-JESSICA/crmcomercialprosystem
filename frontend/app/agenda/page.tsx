@@ -484,10 +484,22 @@ export default function AgendaPage() {
     const hash = id.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
     return cores[hash % cores.length];
   };
+  const CARGO_CURTO: Record<string, string> = {
+    CEO: 'CEO',
+    ADMIN: 'Admin',
+    SUPERVISAO_COMERCIAL: 'Sup. Comercial',
+    SUPERVISAO_TECNICA: 'Sup. Técnica',
+    TECNICO_SUPORTE: 'Suporte',
+    VENDEDOR: 'Vendedor',
+    FINANCEIRO: 'Financeiro',
+  };
   const nomeColaborador = (id: string | undefined | null) => {
     if (!id) return 'Sem responsável';
     const col = colaboradores.find((c: any) => c.id === id);
-    return col?.nome || col?.email || 'Colaborador';
+    if (!col) return 'Colaborador';
+    const primeiroNome = (col.nome || col.email || '').split(' ')[0] || 'Colaborador';
+    const cargo = CARGO_CURTO[(col.cargo || col.role || '').toUpperCase()] || col.cargo || '';
+    return cargo ? `${primeiroNome} · ${cargo}` : primeiroNome;
   };
 
   const [showCreate, setShowCreate] = useState(false);
@@ -974,7 +986,7 @@ export default function AgendaPage() {
                     display: 'inline-flex', alignItems: 'center', gap: 5
                   }}>
                   <span style={{ width: 6, height: 6, borderRadius: 50, background: ativo ? '#fff' : cor }} />
-                  {col.nome || col.email}
+                  {nomeColaborador(col.id)}
                 </button>
               );
             })}
