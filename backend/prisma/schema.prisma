@@ -603,6 +603,10 @@ model Atividade {
   nova_data_remarcada DateTime?
   duracao_minutos     Int?
 
+  // Transcrição da reunião (Web Speech API ou manual)
+  transcricao         String?   @db.Text
+  transcricao_origem  String?   // 'AUTOMATICA' | 'MANUAL'
+
   responsavel_id  String?
   data_prevista   DateTime?
   data_realizada  DateTime?
