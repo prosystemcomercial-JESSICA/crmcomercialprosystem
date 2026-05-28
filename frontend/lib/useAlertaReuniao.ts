@@ -16,7 +16,8 @@ export type AlertaReuniao = {
 type OnAlertaFn = (alerta: AlertaReuniao) => void;
 
 const STORAGE_KEY = 'crm_alertas_disparados';
-const MINUTOS_ANTECEDENCIA = 15; // padrão — usuário pode sobrescrever via localStorage
+const SNOOZE_KEY = 'crm_alertas_snooze'; // { [atividadeId]: timestamp_ate_quando_silenciar }
+const MINUTOS_ANTECEDENCIA = 15;
 
 function getAlertasDisparados(): Set<string> {
   try {
@@ -30,13 +31,32 @@ function getAlertasDisparados(): Set<string> {
 function marcarAlertaDisparado(chave: string) {
   const disparados = getAlertasDisparados();
   disparados.add(chave);
-  // Limpa alertas antigos (mais de 24h) para não acumular indefinidamente
   const agora = Date.now();
   const filtrados = [...disparados].filter(k => {
     const ts = parseInt(k.split('_').pop() || '0', 10);
     return agora - ts < 24 * 60 * 60 * 1000;
   });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtrados));
+}
+
+export function getSnoozeMap(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(SNOOZE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function setSnooze(id: string, minutos: number) {
+  const map = getSnoozeMap();
+  map[id] = Date.now() + minutos * 60 * 1000;
+  localStorage.setItem(SNOOZE_KEY, JSON.stringify(map));
+}
+
+export function clearSnooze(id: string) {
+  const map = getSnoozeMap();
+  delete map[id];
+  localStorage.setItem(SNOOZE_KEY, JSON.stringify(map));
 }
 
 export function tocarSomAlarme() {
@@ -57,13 +77,11 @@ export function tocarSomAlarme() {
       osc.stop(ctx.currentTime + inicio + duracao + 0.1);
     };
 
-    // Três notas — chime suave
-    tocar(880, 0.0, 0.4);
-    tocar(1108, 0.3, 0.4);
-    tocar(1320, 0.6, 0.6);
-    tocar(880, 1.0, 0.8, 0.3);
+    tocar(880, 0.0, 0.2);
+    tocar(1108, 0.2, 0.2);
+    tocar(1320, 0.4, 0.3);
   } catch {
-    // AudioContext bloqueado (sem interação do usuário) — silencia sem erro
+    // ignora — AudioContext bloqueado
   }
 }
 
@@ -81,7 +99,6 @@ export function useAlertaReuniao(onAlerta: OnAlertaFn) {
     );
 
     try {
-      // Busca TODOS os tipos de compromisso (reuniões, ligações, visitas, tarefas etc)
       const res = await apiClient.getAtividades({
         status: 'PENDENTE,CONFIRMADA,AGUARDANDO_RETORNO',
         limit: 50
@@ -89,6 +106,7 @@ export function useAlertaReuniao(onAlerta: OnAlertaFn) {
 
       const atividades: any[] = res.data.data?.atividades || [];
       const agora = new Date();
+      const snoozeMap = getSnoozeMap();
 
       for (const at of atividades) {
         if (!at.data_prevista) continue;
@@ -97,38 +115,40 @@ export function useAlertaReuniao(onAlerta: OnAlertaFn) {
         const diffMs = data.getTime() - agora.getTime();
         const diffMin = diffMs / 60000;
 
-        // Dentro da janela de alerta (entre 0 e minutos+1 para não perder por timing)
-        if (diffMin <= minutos && diffMin > -1) {
-          const chave = `${at.id}_${Math.floor(data.getTime() / 60000)}_${Date.now()}`;
+        // Janela: entre -10 min (passou) e +minutos (vai chegar)
+        // Continua disparando até a reunião + 10 min depois do horário
+        if (diffMin <= minutos && diffMin > -10) {
+          // Verifica snooze
+          const snoozeAte = snoozeMap[at.id];
+          if (snoozeAte && Date.now() < snoozeAte) continue;
+
+          onAlertaRef.current({
+            id: at.id,
+            titulo: at.titulo,
+            tipo: at.tipo || 'TAREFA',
+            lead_nome: at.lead?.nome || '',
+            data_prevista: data,
+            google_meet_link: at.google_meet_link,
+            minutos_restantes: Math.round(diffMin)
+          });
+
+          // Marca uma vez para histórico (não bloqueia repetição)
           const chaveBase = `${at.id}_${Math.floor(data.getTime() / 60000)}`;
-
           const disparados = getAlertasDisparados();
-          const jaDisparou = [...disparados].some(k => k.startsWith(chaveBase));
-
-          if (!jaDisparou) {
-            marcarAlertaDisparado(chave);
-            onAlertaRef.current({
-              id: at.id,
-              titulo: at.titulo,
-              tipo: at.tipo || 'TAREFA',
-              lead_nome: at.lead?.nome || '',
-              data_prevista: data,
-              google_meet_link: at.google_meet_link,
-              minutos_restantes: Math.max(0, Math.round(diffMin))
-            });
+          if (![...disparados].some(k => k.startsWith(chaveBase))) {
+            marcarAlertaDisparado(`${chaveBase}_${Date.now()}`);
           }
         }
       }
     } catch {
-      // silencia erros de rede
+      // ignora
     }
   }, []);
 
   useEffect(() => {
-    // Verificação inicial após 5s (aguarda app carregar)
     const inicial = setTimeout(verificar, 5000);
-    // Depois verifica a cada 60s
-    const intervalo = setInterval(verificar, 60 * 1000);
+    // Verifica a cada 30 segundos
+    const intervalo = setInterval(verificar, 30 * 1000);
 
     return () => {
       clearTimeout(inicial);

@@ -14,81 +14,91 @@ import {
   MessageSquare, Shield, ClipboardList,
 } from 'lucide-react';
 
-const navGroups = [
+// Cargos do CRM
+const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
+const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
+const TECNICO = ['CEO', 'ADMIN', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'];
+const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
+const SO_CEO = ['CEO', 'ADMIN'];
+
+type NavItem = { href: string; icon: any; label: string; roles?: string[] };
+type NavGroup = { label: string; items: NavItem[] };
+
+const navGroups: NavGroup[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ALL },
     ],
   },
   {
     label: 'Comercial',
     items: [
-      { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial' },
-      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades' },
-      { href: '/agenda',                icon: CalendarDays,  label: 'Agenda (Google)' },
-      { href: '/propostas',             icon: FileText,      label: 'Propostas' },
-      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Gerador de Proposta' },
-      { href: '/contratos',             icon: FileCheck2,    label: 'Contratos' },
-      { href: '/perdidos',              icon: TrendingDown,  label: 'Perdidos' },
-      { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas' },
+      { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial', roles: COMERCIAL },
+      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',         roles: ALL },
+      { href: '/agenda',                icon: CalendarDays,  label: 'Agenda (Google)',    roles: ALL },
+      { href: '/propostas',             icon: FileText,      label: 'Propostas',          roles: COMERCIAL },
+      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Gerador de Proposta',roles: COMERCIAL },
+      { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
+      { href: '/perdidos',              icon: TrendingDown,  label: 'Perdidos',           roles: COMERCIAL },
+      { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
     ],
   },
   {
     label: 'Performance',
     items: [
-      { href: '/comercial', icon: BarChart2,    label: 'Radar Comercial' },
-      { href: '/metas',     icon: Trophy,       label: 'Metas Comerciais' },
-      { href: '/ranking',   icon: Medal,        label: 'Ranking' },
+      { href: '/comercial', icon: BarChart2,    label: 'Radar Comercial', roles: COMERCIAL },
+      { href: '/metas',     icon: Trophy,       label: 'Metas Comerciais',roles: COMERCIAL },
+      { href: '/ranking',   icon: Medal,        label: 'Ranking',         roles: COMERCIAL },
     ],
   },
   {
     label: 'Base',
     items: [
-      { href: '/clientes', icon: Building2, label: 'Clientes' },
-      { href: '/usuarios', icon: Users,     label: 'Usuários' },
+      { href: '/clientes', icon: Building2, label: 'Clientes', roles: ALL },
+      { href: '/usuarios', icon: Users,     label: 'Usuários', roles: GESTORES },
     ],
   },
   {
     label: 'Incentivos',
     items: [
-      { href: '/comissoes',  icon: DollarSign, label: 'Comissões' },
-      { href: '/indicacoes', icon: Handshake,  label: 'Indicações' },
+      { href: '/comissoes',  icon: DollarSign, label: 'Comissões',  roles: COMERCIAL },
+      { href: '/indicacoes', icon: Handshake,  label: 'Indicações', roles: COMERCIAL },
     ],
   },
   {
     label: 'Retenção',
     items: [
-      { href: '/casos',        icon: Flame,    label: 'Churn & Retenção' },
-      { href: '/health-score', icon: Activity, label: 'Health Score' },
-      { href: '/nps',          icon: Star,     label: 'NPS' },
+      { href: '/casos',        icon: Flame,    label: 'Churn & Retenção', roles: TECNICO },
+      { href: '/health-score', icon: Activity, label: 'Health Score',     roles: TECNICO },
+      { href: '/nps',          icon: Star,     label: 'NPS',              roles: TECNICO },
     ],
   },
   {
     label: 'Serviços',
     items: [
-      { href: '/catalogo',   icon: Package,    label: 'Catálogo' },
-      { href: '/licencas',   icon: KeyRound,   label: 'Licenças' },
-      { href: '/onboarding', icon: Rocket,     label: 'Onboarding' },
-      { href: '/renovacoes', icon: RefreshCw,  label: 'Renovações' },
-      { href: '/suporte',    icon: Headphones, label: 'Suporte' },
+      { href: '/catalogo',   icon: Package,    label: 'Catálogo',   roles: GESTORES },
+      { href: '/licencas',   icon: KeyRound,   label: 'Licenças',   roles: GESTORES },
+      { href: '/onboarding', icon: Rocket,     label: 'Onboarding', roles: TECNICO },
+      { href: '/renovacoes', icon: RefreshCw,  label: 'Renovações', roles: TECNICO },
+      { href: '/suporte',    icon: Headphones, label: 'Suporte',    roles: TECNICO },
     ],
   },
   {
     label: 'Ferramentas',
     items: [
-      { href: '/alertas',       icon: Bell,         label: 'Alertas' },
-      { href: '/previsao',      icon: TrendingUp,   label: 'Previsão' },
-      { href: '/nutricao',      icon: Sprout,       label: 'Nutrição' },
-      { href: '/importacao',    icon: Upload,       label: 'Importar Leads' },
-      { href: '/configuracoes', icon: Settings,     label: 'Configurações' },
+      { href: '/alertas',       icon: Bell,         label: 'Alertas',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/previsao',      icon: TrendingUp,   label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/nutricao',      icon: Sprout,       label: 'Nutrição',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/importacao',    icon: Upload,       label: 'Importar Leads',  roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/configuracoes', icon: Settings,     label: 'Configurações',   roles: SO_CEO },
     ],
   },
   {
     label: 'Relatórios',
     items: [
-      { href: '/relatorios-comerciais', icon: BarChart2, label: 'Comercial' },
-      { href: '/relatorios',            icon: LineChart, label: 'Retenção' },
+      { href: '/relatorios-comerciais', icon: BarChart2, label: 'Comercial', roles: ['CEO','ADMIN','SUPERVISAO_COMERCIAL'] },
+      { href: '/relatorios',            icon: LineChart, label: 'Retenção',  roles: TECNICO },
     ],
   },
 ];
@@ -288,7 +298,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <nav className="flex-1 py-3 px-2 space-y-4 overflow-y-auto">
-            {navGroups.map((group) => (
+            {(() => {
+              const userRole = (user?.role || '').toUpperCase();
+              const filteredGroups = navGroups
+                .map(group => ({
+                  ...group,
+                  items: group.items.filter(item => !item.roles || item.roles.includes(userRole))
+                }))
+                .filter(group => group.items.length > 0);
+              return filteredGroups;
+            })().map((group) => (
               <div key={group.label}>
                 <p
                   className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest"
