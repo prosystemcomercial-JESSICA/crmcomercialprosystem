@@ -394,6 +394,14 @@ class ApiClient {
     return this.client.post(`/atividades/${id}/remarcar`, data);
   }
 
+  async reagendarRapido(id: string, data_prevista: string) {
+    return this.client.post(`/atividades/${id}/reagendar-rapido`, { data_prevista });
+  }
+
+  async getAtividadeMetricas(params?: { data_inicio?: string; data_fim?: string; tipo?: string }) {
+    return this.client.get('/atividades/metricas', { params });
+  }
+
   async confirmarAtividade(id: string) {
     return this.client.post(`/atividades/${id}/confirmar`);
   }

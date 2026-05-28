@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
+import { TranscricaoReuniao } from '@/components/ui/TranscricaoReuniao';
 import {
   Calendar, Clock, Plus, Video, Check, X, RefreshCw,
   ChevronLeft, ChevronRight, Users, BarChart2, AlertCircle,
@@ -31,6 +32,8 @@ interface Atividade {
   responsavel_id?: string;
   data_prevista?: string;
   data_realizada?: string;
+  transcricao?: string;
+  transcricao_origem?: 'AUTOMATICA' | 'MANUAL';
   created_at: string;
 }
 
@@ -515,15 +518,37 @@ export default function AgendaPage() {
   const atividadesForDay = (day: Date) =>
     atividades.filter(a => {
       if (!a.data_prevista) return false;
+      // Esconde canceladas e não compareceu das views de calendário
+      if (['CANCELADA', 'CLIENTE_NAO_COMPARECEU'].includes(a.status)) return false;
       const d = new Date(a.data_prevista);
       return d.getDate() === day.getDate() && d.getMonth() === day.getMonth() && d.getFullYear() === day.getFullYear();
     });
 
-  const filteredLista = atividades.filter(a => {
+  const matchesSearch = (a: any) => {
     if (!search) return true;
     const s = search.toLowerCase();
     return a.titulo.toLowerCase().includes(s) || (a.lead?.nome?.toLowerCase().includes(s) ?? false) || (a.lead?.empresa?.toLowerCase().includes(s) ?? false);
-  });
+  };
+
+  // Lista principal — ativas (PENDENTE/CONFIRMADA/REALIZADA/REMARCADA/AGUARDANDO_RETORNO)
+  const filteredLista = atividades.filter(a =>
+    !['CANCELADA', 'CLIENTE_NAO_COMPARECEU'].includes(a.status) && matchesSearch(a)
+  );
+
+  // Problemas — canceladas e não compareceu (para reagendamento rápido)
+  const filteredProblemas = atividades.filter(a =>
+    ['CANCELADA', 'CLIENTE_NAO_COMPARECEU'].includes(a.status) && matchesSearch(a)
+  );
+
+  // Métricas
+  const metricas = {
+    agendadas: atividades.filter(a => ['PENDENTE', 'CONFIRMADA'].includes(a.status)).length,
+    realizadas: atividades.filter(a => a.status === 'REALIZADA').length,
+    canceladas: atividades.filter(a => a.status === 'CANCELADA').length,
+    naoCompareceu: atividades.filter(a => a.status === 'CLIENTE_NAO_COMPARECEU').length,
+  };
+  const totalConcluidas = metricas.realizadas + metricas.canceladas + metricas.naoCompareceu;
+  const taxaSucesso = totalConcluidas > 0 ? Math.round((metricas.realizadas / totalConcluidas) * 100) : 0;
 
   // ── Handlers ─────────────────────────────────────────────
   const handleGerarMeetForm = async () => {
@@ -666,6 +691,28 @@ export default function AgendaPage() {
   const handleAguardarRetorno = async (id: string) => {
     await apiClient.aguardarRetornoAtividade(id);
     load();
+  };
+
+  // Reagendar com 1 clique — abre prompt simples de data
+  const handleReagendarRapido = async (id: string, tituloOriginal: string) => {
+    const sugestao = new Date();
+    sugestao.setDate(sugestao.getDate() + 1);
+    sugestao.setHours(10, 0, 0, 0);
+    const sugestaoStr = sugestao.toISOString().slice(0, 16);
+
+    const novaData = window.prompt(
+      `Reagendar "${tituloOriginal}"\nInforme a nova data e hora (AAAA-MM-DD HH:MM):`,
+      sugestaoStr.replace('T', ' ')
+    );
+    if (!novaData) return;
+
+    try {
+      const iso = new Date(novaData.replace(' ', 'T')).toISOString();
+      await apiClient.reagendarRapido(id, iso);
+      load();
+    } catch (err: any) {
+      alert('Erro ao reagendar: ' + (err?.response?.data?.message || 'data inválida'));
+    }
   };
 
   const handleCriarMeet = async (id: string) => {
@@ -1000,8 +1047,32 @@ export default function AgendaPage() {
         {/* ── LISTA VIEW ── */}
         {view === 'lista' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Métricas resumo */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 8 }}>
+              <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #4B8EC8' }}>
+                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Agendadas</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#0D2238', marginTop: 2 }}>{metricas.agendadas}</div>
+              </div>
+              <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #16a34a' }}>
+                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizadas</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a', marginTop: 2 }}>{metricas.realizadas}</div>
+              </div>
+              <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #dc2626' }}>
+                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Canceladas</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626', marginTop: 2 }}>{metricas.canceladas}</div>
+              </div>
+              <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #ea580c' }}>
+                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Não Compareceu</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#ea580c', marginTop: 2 }}>{metricas.naoCompareceu}</div>
+              </div>
+              <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #7c3aed' }}>
+                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Taxa Sucesso</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#7c3aed', marginTop: 2 }}>{taxaSucesso}%</div>
+              </div>
+            </div>
+
             {loading && <div style={{ textAlign: 'center', padding: 40, color: '#7AAACB' }}>Carregando...</div>}
-            {!loading && filteredLista.length === 0 && (
+            {!loading && filteredLista.length === 0 && filteredProblemas.length === 0 && (
               <div style={{ ...card, padding: 40, textAlign: 'center', color: '#7AAACB' }}>
                 <CalendarDays size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
                 <p>Nenhuma atividade encontrada</p>
@@ -1069,6 +1140,71 @@ export default function AgendaPage() {
                 </div>
               );
             })}
+
+            {/* ── Seção VERMELHA — Canceladas / Não Compareceu ── */}
+            {filteredProblemas.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <div style={{ width: 4, height: 22, background: '#dc2626', borderRadius: 2 }} />
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#dc2626' }}>
+                    Pendências de reagendamento — {filteredProblemas.length}
+                  </h3>
+                </div>
+                {filteredProblemas.map(a => {
+                  const cfg = TIPO_CONFIG[a.tipo] || TIPO_CONFIG.OUTRO;
+                  const Icon = cfg.icon;
+                  const isCancelada = a.status === 'CANCELADA';
+                  return (
+                    <div key={a.id} style={{
+                      ...card,
+                      padding: '14px 16px',
+                      display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                      background: '#fef2f2',
+                      border: '1.5px solid #fca5a5',
+                      marginBottom: 8
+                    }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fee2e2' }}>
+                        <Icon size={18} color="#dc2626" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0D2238', textDecoration: 'line-through', textDecorationColor: '#dc2626' }}>{a.titulo}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', padding: '2px 8px', background: '#fee2e2', borderRadius: 20 }}>
+                            {isCancelada ? '✗ Cancelada' : '✗ Não compareceu'}
+                          </span>
+                          {a.lead && <span style={{ fontSize: 12, color: '#7c2d12' }}>{a.lead.nome}</span>}
+                          {a.data_prevista && (
+                            <span style={{ fontSize: 12, color: '#7c2d12', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Clock size={11} /> {formatDateTime(a.data_prevista)}
+                            </span>
+                          )}
+                        </div>
+                        {a.motivo_cancelamento && (
+                          <div style={{ fontSize: 11, color: '#7c2d12', marginTop: 4, fontStyle: 'italic' }}>
+                            Motivo: {a.motivo_cancelamento}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => handleReagendarRapido(a.id, a.titulo)}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                            padding: '8px 14px', borderRadius: 8,
+                            background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)',
+                            color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(75,142,200,0.3)'
+                          }}>
+                          <RotateCcw size={13} /> Reagendar
+                        </button>
+                        <button onClick={() => setShowDetail(a)} style={{ ...btnOutline, padding: '8px 12px', fontSize: 12 }}>
+                          Ver
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1480,6 +1616,19 @@ export default function AgendaPage() {
             onAguardarRetorno={() => { handleAguardarRetorno(showDetail.id); setShowDetail(null); }}
             creatinguMeet={creatinguMeet === showDetail.id}
           />
+          {/* Transcrição — visível para reuniões */}
+          {showDetail.tipo === 'REUNIAO' && (
+            <TranscricaoReuniao
+              atividadeId={showDetail.id}
+              transcricaoInicial={(showDetail as any).transcricao || ''}
+              origemInicial={(showDetail as any).transcricao_origem}
+              onSalvar={async (texto, origem) => {
+                await apiClient.updateAtividade(showDetail.id, { transcricao: texto, transcricao_origem: origem });
+                setShowDetail({ ...showDetail, transcricao: texto, transcricao_origem: origem } as any);
+                load();
+              }}
+            />
+          )}
         </Modal>
       )}
     </DashboardLayout>

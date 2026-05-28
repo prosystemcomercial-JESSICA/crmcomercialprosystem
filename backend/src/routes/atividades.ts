@@ -26,7 +26,13 @@ const UpdateAtividadeSchema = z.object({
   data_prevista: z.string().datetime().optional(),
   data_realizada: z.string().datetime().optional(),
   responsavel_id: z.string().optional(),
-  google_meet_link: z.string().optional()
+  google_meet_link: z.string().optional(),
+  transcricao: z.string().optional(),
+  transcricao_origem: z.enum(['AUTOMATICA', 'MANUAL']).optional()
+});
+
+const ReagendarSchema2 = z.object({
+  data_prevista: z.string().datetime()
 });
 
 const ListAtividadeSchema = z.object({
@@ -184,6 +190,105 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       return reply.send({ status: 'success', data: atividade });
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
+      throw err;
+    }
+  });
+
+  // Métricas de atividades (agendadas/realizadas/canceladas/no-show)
+  fastify.get('/atividades/metricas', async (request, reply) => {
+    const query = request.query as { data_inicio?: string; data_fim?: string; tipo?: string };
+    const user = (request as any).user;
+
+    const where: any = {};
+    if (query.tipo) where.tipo = query.tipo;
+    if (query.data_inicio || query.data_fim) {
+      where.data_prevista = {};
+      if (query.data_inicio) where.data_prevista.gte = new Date(query.data_inicio);
+      if (query.data_fim) where.data_prevista.lte = new Date(query.data_fim);
+    }
+    if (!isAdmin(user)) {
+      const uid = user?.id;
+      where.OR = [{ responsavel_id: uid }, { created_by: uid }];
+    }
+
+    const grouped = await prisma.atividade.groupBy({
+      by: ['status', 'tipo'],
+      where,
+      _count: { _all: true }
+    });
+
+    const total = grouped.reduce((sum, g) => sum + g._count._all, 0);
+    const byStatus: Record<string, number> = {};
+    const byTipo: Record<string, Record<string, number>> = {};
+
+    for (const g of grouped) {
+      byStatus[g.status] = (byStatus[g.status] || 0) + g._count._all;
+      if (!byTipo[g.tipo]) byTipo[g.tipo] = {};
+      byTipo[g.tipo][g.status] = g._count._all;
+    }
+
+    const agendadas = (byStatus.PENDENTE || 0) + (byStatus.CONFIRMADA || 0);
+    const realizadas = byStatus.REALIZADA || 0;
+    const canceladas = byStatus.CANCELADA || 0;
+    const naoCompareceu = byStatus.CLIENTE_NAO_COMPARECEU || 0;
+    const remarcadas = byStatus.REMARCADA || 0;
+
+    const concluidas = realizadas + canceladas + naoCompareceu;
+    const taxaSucesso = concluidas > 0 ? Math.round((realizadas / concluidas) * 100) : 0;
+    const taxaNoShow = concluidas > 0 ? Math.round((naoCompareceu / concluidas) * 100) : 0;
+    const taxaCancelamento = concluidas > 0 ? Math.round((canceladas / concluidas) * 100) : 0;
+
+    return reply.send({
+      status: 'success',
+      data: {
+        total,
+        agendadas,
+        realizadas,
+        canceladas,
+        nao_compareceu: naoCompareceu,
+        remarcadas,
+        taxa_sucesso: taxaSucesso,
+        taxa_no_show: taxaNoShow,
+        taxa_cancelamento: taxaCancelamento,
+        by_status: byStatus,
+        by_tipo: byTipo
+      }
+    });
+  });
+
+  // Reagendar atividade (um clique — copia para nova data)
+  fastify.post('/atividades/:id/reagendar-rapido', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = ReagendarSchema2.safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Data inválida' });
+
+    try {
+      const original = await prisma.atividade.findUnique({ where: { id } });
+      if (!original) return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
+
+      const user = (request as any).user;
+      const nova = await prisma.atividade.create({
+        data: {
+          lead_id: original.lead_id,
+          tipo: original.tipo,
+          titulo: original.titulo,
+          descricao: original.descricao,
+          duracao_minutos: original.duracao_minutos,
+          responsavel_id: original.responsavel_id,
+          data_prevista: new Date(body.data.data_prevista),
+          status: 'PENDENTE',
+          created_by: user?.id || 'system'
+        }
+      });
+
+      // Marca original como remarcada
+      await prisma.atividade.update({
+        where: { id },
+        data: { status: 'REMARCADA', nova_data_remarcada: new Date(body.data.data_prevista) }
+      });
+
+      return reply.status(201).send({ status: 'success', data: nova });
+    } catch (err: any) {
       throw err;
     }
   });
