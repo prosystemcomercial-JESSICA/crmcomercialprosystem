@@ -436,6 +436,13 @@ model Lead {
   fechamento_data         DateTime? // quando foi marcado como aceito
   fechamento_por          String?   // user id de quem fechou
 
+  // ─── Contrato ZapSign ──
+  zapsign_doc_token       String?   // token do documento no ZapSign
+  zapsign_doc_status      String?   // pending|signed|cancelled
+  zapsign_signed_url      String?   @db.Text // URL para o cliente assinar
+  zapsign_signed_file_url String?   @db.Text // URL do arquivo já assinado
+  zapsign_enviado_em      DateTime?
+
   created_by      String
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt

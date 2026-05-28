@@ -676,6 +676,150 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     });
   });
 
+  // ── ZapSign: enviar contrato para assinatura ──────────────────────────────
+  fastify.post('/leads/:id/enviar-contrato', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = (request as any).user;
+
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+
+    if (!lead.fechamento_plano) {
+      return reply.status(400).send({ status: 'error', message: 'Lead precisa estar fechado (status ACEITO) para enviar contrato' });
+    }
+
+    try {
+      const { getTemplateIdParaPlano, criarDocPorTemplate, formatBRL, formatDate } = await import('../services/zapsign.service.js');
+
+      const templateId = getTemplateIdParaPlano(lead.fechamento_plano);
+      if (!templateId) {
+        return reply.status(400).send({
+          status: 'error',
+          message: `Template ZapSign do plano ${lead.fechamento_plano} ainda não foi configurado. Suba o modelo no painel ZapSign e configure ZAPSIGN_TPL_${lead.fechamento_plano} no Railway.`
+        });
+      }
+
+      // Busca nome do vendedor
+      let vendedorNome = 'Equipe ProSystem';
+      if (lead.fechamento_por) {
+        const rows: any[] = await prisma.$queryRawUnsafe(`SELECT nome FROM UsuarioCRM WHERE id = ? LIMIT 1`, lead.fechamento_por);
+        if (rows.length) vendedorNome = rows[0].nome;
+        else if (lead.fechamento_por === 'user-jessica') vendedorNome = 'Jessica';
+      }
+
+      const data: Record<string, string> = {
+        cliente_nome: lead.responsavel_nome || lead.nome || '',
+        cliente_razao_social: lead.razao_social || lead.empresa || lead.nome || '',
+        cliente_cnpj: lead.cnpj || '',
+        cliente_endereco: lead.endereco || '',
+        cliente_cidade_uf: `${lead.cidade || ''}${lead.estado ? ' / ' + lead.estado : ''}`,
+        cliente_email: lead.responsavel_email || lead.email || '',
+        cliente_telefone: lead.responsavel_telefone || lead.telefone || '',
+        plano: lead.fechamento_plano,
+        valor_instalacao: formatBRL(lead.fechamento_valor_inst || 0),
+        valor_mensal_mrr: formatBRL(lead.fechamento_mrr || 0),
+        valor_entrada: formatBRL(lead.fechamento_valor_entrada || 0),
+        forma_pagamento_entrada: lead.fechamento_forma_entrada || '',
+        parcelas_instalacao: `${lead.fechamento_parcelas_inst || 1}x`,
+        data_1_cobranca: formatDate(lead.fechamento_data_1cob),
+        data_assinatura: formatDate(new Date()),
+        vendedor_nome: vendedorNome,
+      };
+
+      // Limpa telefone do cliente (apenas dígitos para ZapSign)
+      const rawPhone = (lead.responsavel_telefone || lead.telefone || '').replace(/\D/g, '');
+      const phoneCountry = rawPhone.startsWith('55') ? '55' : '55';
+      const phoneNumber = rawPhone.startsWith('55') ? rawPhone.slice(2) : rawPhone;
+
+      const result = await criarDocPorTemplate({
+        template_id: templateId,
+        signer: {
+          name: lead.responsavel_nome || lead.nome || 'Cliente',
+          email: lead.responsavel_email || lead.email || undefined,
+          phone_country: phoneCountry,
+          phone_number: phoneNumber || undefined,
+          auth_mode: 'assinaturaTela',
+          send_via_email: !!(lead.responsavel_email || lead.email),
+          send_via_whatsapp: !!phoneNumber,
+        },
+        data,
+        doc_name: `Contrato ProSystem - ${lead.razao_social || lead.nome} - ${lead.fechamento_plano}`,
+        external_id: lead.id,
+      });
+
+      // Salva referência do contrato no lead
+      const updated = await prisma.lead.update({
+        where: { id },
+        data: {
+          zapsign_doc_token: result.token || result.open_id || null,
+          zapsign_doc_status: 'pending',
+          zapsign_signed_url: result.signers?.[0]?.sign_url || null,
+          zapsign_enviado_em: new Date(),
+        }
+      });
+
+      await registrarObsSistema(prisma, id, 'CONTRATO',
+        `Contrato ${lead.fechamento_plano} enviado via ZapSign para ${lead.responsavel_nome || lead.nome}.`,
+        user?.id);
+
+      return reply.send({
+        status: 'success',
+        data: {
+          lead: updated,
+          zapsign: result,
+          sign_url: result.signers?.[0]?.sign_url || null
+        }
+      });
+    } catch (err: any) {
+      fastify.log.error('[ZapSign] erro: ' + (err?.message || err));
+      return reply.status(500).send({ status: 'error', message: err?.message || 'Erro ao enviar contrato' });
+    }
+  });
+
+  // Status do contrato (consulta direta no ZapSign)
+  fastify.get('/leads/:id/contrato-status', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+    if (!lead.zapsign_doc_token) return reply.send({ status: 'success', data: { status: 'not_sent' } });
+
+    try {
+      const { obterDoc } = await import('../services/zapsign.service.js');
+      const doc = await obterDoc(lead.zapsign_doc_token);
+      const novoStatus = doc.status || 'pending';
+
+      // Atualiza status local se mudou
+      if (novoStatus !== lead.zapsign_doc_status || doc.signed_file_url) {
+        await prisma.lead.update({
+          where: { id },
+          data: {
+            zapsign_doc_status: novoStatus,
+            zapsign_signed_file_url: doc.signed_file_url || lead.zapsign_signed_file_url
+          }
+        });
+      }
+      return reply.send({ status: 'success', data: doc });
+    } catch (err: any) {
+      return reply.status(500).send({ status: 'error', message: err?.message });
+    }
+  });
+
+  // Listar templates configurados (admin)
+  fastify.get('/zapsign/templates', async (request, reply) => {
+    const user = (request as any).user;
+    const ADMIN = ['CEO','ADMIN','SUPERVISAO','SUPERVISAO_COMERCIAL','SUPERVISAO_TECNICA','GERENTE','DIRETOR'];
+    if (!user || !ADMIN.includes((user.role || '').toUpperCase())) {
+      return reply.status(403).send({ status: 'error', message: 'Apenas administradores' });
+    }
+    try {
+      const { listarTemplates } = await import('../services/zapsign.service.js');
+      const data = await listarTemplates();
+      return reply.send({ status: 'success', data });
+    } catch (err: any) {
+      return reply.status(500).send({ status: 'error', message: err?.message });
+    }
+  });
+
   // ── Funil (legado) ────────────────────────────────────────────────────────
   fastify.get('/leads/funil', async (request, reply) => {
     const etapas = ['PROSPECCAO','QUALIFICACAO','APRESENTACAO','PROPOSTA','NEGOCIACAO','FECHAMENTO'];
