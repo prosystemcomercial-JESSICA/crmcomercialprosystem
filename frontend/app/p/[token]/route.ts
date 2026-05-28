@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+// Cache em memória das imagens convertidas para base64 (sobrevive até o restart)
+const imageCache: Record<string, string> = {};
+
+async function loadImageAsDataUrl(filename: string): Promise<string> {
+  if (imageCache[filename]) return imageCache[filename];
+  try {
+    const filePath = path.join(process.cwd(), 'public', filename);
+    const buf = await fs.readFile(filePath);
+    const ext = filename.toLowerCase().endsWith('.png') ? 'png'
+      : filename.toLowerCase().endsWith('.jpg') || filename.toLowerCase().endsWith('.jpeg') ? 'jpeg'
+      : 'png';
+    const dataUrl = `data:image/${ext};base64,${buf.toString('base64')}`;
+    imageCache[filename] = dataUrl;
+    return dataUrl;
+  } catch (err) {
+    return ''; // se falhar, retorna vazio (img source ficará vazio)
+  }
+}
 
 function buildProposalData(p: any) {
   const plano = p.plano_selecionado || 'Plano Plus';
@@ -66,7 +87,9 @@ function buildProposalData(p: any) {
   };
 }
 
-function generateHTML(data: any): string {
+function generateHTML(data: any, images: Record<string, string> = {}): string {
+  // Helper para imagem inline com fallback
+  const imgSrc = (key: string, fallbackPath: string) => images[key] || fallbackPath;
   const dataJson = JSON.stringify(data);
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -214,11 +237,11 @@ function generateHTML(data: any): string {
   <nav class="nav">
     <div class="container nav-inner">
       <div class="brand">
-        <img src="/logo-prosystem.png" alt="Prosystem" onerror="this.style.display='none'">
+        <img src="${imgSrc('logo', '/logo-prosystem.png')}" alt="Prosystem" onerror="this.style.display='none'">
         <span>Prosystem Sistemas</span>
       </div>
       <div class="nav-actions">
-        <button class="btn btn-secondary" onclick="downloadHTML(event)">Baixar HTML</button>
+        <button class="btn btn-secondary" onclick="downloadHTML()">Baixar HTML</button>
         <button class="btn btn-secondary" onclick="downloadXML()">Baixar XML</button>
         <button class="btn btn-green" onclick="copyWhatsAppText()">Copiar resumo WhatsApp</button>
         <a class="btn btn-primary" href="#proposta">Ver proposta</a>
@@ -244,7 +267,7 @@ function generateHTML(data: any): string {
       <div class="hero-panel">
         <div class="hero-image-wrap">
           <div class="hero-image-frame">
-            <img src="/imagem-hero.png" alt="Prosystem — Sistema de gestão" />
+            <img src="${imgSrc('hero', '/imagem-hero.png')}" alt="Prosystem — Sistema de gestão" />
             <div class="hero-image-overlay"></div>
           </div>
         </div>
@@ -301,7 +324,7 @@ function generateHTML(data: any): string {
           <div class="check-list" id="plusFeaturesList"></div>
         </div>
         <div class="screen-box">
-          <img src="/tela-dashboard.png" alt="Dashboard Prosystem" style="border-radius:18px;width:100%;height:auto;" onerror="this.parentNode.innerHTML='<div style=&quot;border-radius:18px;width:100%;height:260px;background:linear-gradient(135deg,rgba(0,191,209,.18),rgba(39,209,127,.12));display:flex;align-items:center;justify-content:center;font-size:14px;color:rgba(255,255,255,.6);font-weight:700;&quot;>Dashboard Prosystem</div>'" />
+          <img src="${imgSrc('dashboard', '/tela-dashboard.png')}" alt="Dashboard Prosystem" style="border-radius:18px;width:100%;height:auto;" />
         </div>
       </div>
     </div>
@@ -333,15 +356,15 @@ function generateHTML(data: any): string {
       <p class="section-subtitle">Conheça as principais telas do sistema e veja como a Prosystem apoia a operação no dia a dia.</p>
       <div class="screens-grid">
         <article class="screen-gallery-card">
-          <div class="thumb"><img src="/tela-dashboard.png" alt="Dashboard Prosystem"></div>
+          <div class="thumb"><img src="${imgSrc('dashboard', '/tela-dashboard.png')}" alt="Dashboard Prosystem"></div>
           <div class="content"><h4>Dashboard gerencial</h4><p>Visão de indicadores, desempenho e acompanhamento do negócio em tempo real.</p></div>
         </article>
         <article class="screen-gallery-card">
-          <div class="thumb"><img src="/tela-whatsapp.png" alt="Mensageria e WhatsApp"></div>
+          <div class="thumb"><img src="${imgSrc('whatsapp', '/tela-whatsapp.png')}" alt="Mensageria e WhatsApp"></div>
           <div class="content"><h4>Mensageria e relacionamento</h4><p>Recurso importante para agilizar o contato com o cliente e organizar a comunicação.</p></div>
         </article>
         <article class="screen-gallery-card">
-          <div class="thumb"><img src="/tela-relatorios.png" alt="Relatórios e análises"></div>
+          <div class="thumb"><img src="${imgSrc('relatorios', '/tela-relatorios.png')}" alt="Relatórios e análises"></div>
           <div class="content"><h4>Relatórios e análises</h4><p>Ferramentas que ajudam a entender vendas, perdas, rentabilidade e comportamento da operação.</p></div>
         </article>
       </div>
@@ -438,7 +461,7 @@ function generateHTML(data: any): string {
         <div class="whats-box-body">
           <textarea class="whats-text" id="whatsText" readonly></textarea>
           <div class="action-row">
-            <button class="btn btn-secondary" onclick="downloadHTML(event)">Baixar HTML</button>
+            <button class="btn btn-secondary" onclick="downloadHTML()">Baixar HTML</button>
             <button class="btn btn-secondary" onclick="downloadXML()">Baixar XML</button>
           </div>
         </div>
@@ -554,52 +577,10 @@ function generateHTML(data: any): string {
       const a=document.createElement("a");a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
     }
     function downloadXML(){downloadFile("proposta-prosystem.xml",generateXML(),"application/xml");}
-    // Baixar HTML offline: converte todas as imagens para base64 inline
-    // antes de gerar o arquivo, garantindo que tudo seja visível sem internet
-    async function imgToDataUrl(src){
-      try{
-        const res = await fetch(src);
-        if(!res.ok) return null;
-        const blob = await res.blob();
-        return await new Promise((resolve)=>{
-          const r = new FileReader();
-          r.onloadend = ()=>resolve(r.result);
-          r.onerror = ()=>resolve(null);
-          r.readAsDataURL(blob);
-        });
-      }catch(e){return null;}
-    }
-    async function downloadHTML(){
-      // Mostra feedback visual durante a conversão
-      const btn = event && event.target;
-      const txtOriginal = btn ? btn.textContent : null;
-      if(btn){ btn.textContent='Preparando...'; btn.disabled=true; }
-      try{
-        // Clona o DOM para não alterar a página em uso
-        const clone = document.documentElement.cloneNode(true);
-        const imgs = clone.querySelectorAll('img');
-        const conversoes = Array.from(imgs).map(async (img)=>{
-          const src = img.getAttribute('src');
-          if(!src || src.startsWith('data:')) return;
-          // URL absoluta a partir da página atual
-          const abs = new URL(src, window.location.href).href;
-          const dataUrl = await imgToDataUrl(abs);
-          if(dataUrl){
-            img.setAttribute('src', dataUrl);
-            // Remove o onerror que esconde a imagem em caso de falha legada
-            img.removeAttribute('onerror');
-          }
-        });
-        await Promise.all(conversoes);
-
-        // Também resolve background-image inline (caso futuro)
-        const conteudo = '<!DOCTYPE html>\\n' + clone.outerHTML;
-        downloadFile("proposta-prosystem.html", conteudo, "text/html");
-      }catch(e){
-        alert('Erro ao preparar HTML: '+(e&&e.message||'desconhecido'));
-      }finally{
-        if(btn && txtOriginal){ btn.textContent=txtOriginal; btn.disabled=false; }
-      }
+    // Imagens já vêm embutidas em base64 do servidor — basta clonar e salvar
+    function downloadHTML(){
+      const conteudo = '<!DOCTYPE html>\\n' + document.documentElement.outerHTML;
+      downloadFile("proposta-prosystem.html", conteudo, "text/html");
     }
     function init(){
       buildPlanTable();buildPlusFeatures();buildClientChips();
@@ -635,7 +616,19 @@ export async function GET(
     }
 
     const data = buildProposalData(json.data);
-    const html = generateHTML(data);
+
+    // Carrega TODAS as imagens como base64 inline — assim a proposta
+    // funciona perfeitamente tanto na web quanto em downloads offline
+    const [logo, hero, dashboard, whatsapp, relatorios] = await Promise.all([
+      loadImageAsDataUrl('logo-prosystem.png'),
+      loadImageAsDataUrl('imagem-hero.png'),
+      loadImageAsDataUrl('tela-dashboard.png'),
+      loadImageAsDataUrl('tela-whatsapp.png'),
+      loadImageAsDataUrl('tela-relatorios.png'),
+    ]);
+    const images = { logo, hero, dashboard, whatsapp, relatorios };
+
+    const html = generateHTML(data, images);
     return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   } catch {
     return new NextResponse(
