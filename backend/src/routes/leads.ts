@@ -253,6 +253,8 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     const data: any = { ...body.data, created_by: user?.id || 'system' };
     if (data.email === '') delete data.email;
     if (data.responsavel_email === '') delete data.responsavel_email;
+    // Campos Json obrigatórios no schema — default vazio
+    if (data.modulos_inclusos === undefined) data.modulos_inclusos = {};
 
     const lead = await prisma.lead.create({ data });
 
