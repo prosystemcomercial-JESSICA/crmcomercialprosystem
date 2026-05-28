@@ -79,7 +79,7 @@ const RelatorioSchema = z.object({
 export async function atividadesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  const ADMIN_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO', 'GERENTE'];
+  const ADMIN_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'GERENTE', 'DIRETOR'];
   const isAdmin = (user: any) => !user || ADMIN_ROLES.includes(user?.role?.toUpperCase());
 
   // List all atividades
@@ -109,7 +109,8 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       }
       where.OR = [{ responsavel_id: userId }, { created_by: userId }];
     } else if (responsavel_id) {
-      where.responsavel_id = responsavel_id;
+      // Admin filtrou por colaborador — pega atividades onde ele é responsável OU criou
+      where.OR = [{ responsavel_id: responsavel_id }, { created_by: responsavel_id }];
     }
 
     const [atividades, total] = await Promise.all([

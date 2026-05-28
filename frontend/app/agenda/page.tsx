@@ -30,6 +30,7 @@ interface Atividade {
   google_meet_link?: string;
   duracao_minutos?: number;
   responsavel_id?: string;
+  created_by?: string;
   data_prevista?: string;
   data_realizada?: string;
   transcricao?: string;
@@ -446,7 +447,7 @@ function AtividadeDetail({
 
 // ─── Main Component ───────────────────────────────────────
 
-const ADMIN_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO', 'GERENTE'];
+const ADMIN_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'GERENTE', 'DIRETOR'];
 
 const PERCEPCAO_OPCOES: Array<{ value: string; label: string; emoji: string; color: string; bg: string }> = [
   { value: 'PRODUTIVA',           label: 'Produtiva',                emoji: '🚀', color: '#16a34a', bg: '#dcfce7' },
@@ -1100,19 +1101,22 @@ export default function AgendaPage() {
                             </div>
                             {a.lead && <div style={{ fontSize: 10, color: '#4A6E8A' }}>{a.lead.nome}</div>}
                             {/* Etiqueta de colaborador (só admin) */}
-                            {isAdmin && a.responsavel_id && (
-                              <div style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 2,
-                                fontSize: 9, fontWeight: 600,
-                                padding: '1px 5px', borderRadius: 6,
-                                background: corColaborador(a.responsavel_id) + '20',
-                                color: corColaborador(a.responsavel_id),
-                                border: `1px solid ${corColaborador(a.responsavel_id)}`
-                              }}>
-                                <span style={{ width: 4, height: 4, borderRadius: 50, background: corColaborador(a.responsavel_id) }} />
-                                {nomeColaborador(a.responsavel_id).slice(0, 12)}
-                              </div>
-                            )}
+                            {isAdmin && (a.responsavel_id || a.created_by) && (() => {
+                              const cid = a.responsavel_id || a.created_by;
+                              return (
+                                <div style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 2,
+                                  fontSize: 9, fontWeight: 600,
+                                  padding: '1px 5px', borderRadius: 6,
+                                  background: corColaborador(cid) + '20',
+                                  color: corColaborador(cid),
+                                  border: `1px solid ${corColaborador(cid)}`
+                                }}>
+                                  <span style={{ width: 4, height: 4, borderRadius: 50, background: corColaborador(cid) }} />
+                                  {nomeColaborador(cid).split(' · ')[0].slice(0, 10)}
+                                </div>
+                              );
+                            })()}
                             {a.google_meet_link && (
                               <a href={a.google_meet_link} target="_blank" rel="noreferrer"
                                 onClick={e => e.stopPropagation()}
@@ -1238,18 +1242,21 @@ export default function AgendaPage() {
                       <Badge status={a.status} />
                       <TipoBadge tipo={a.tipo} />
                       {/* Etiqueta colorida do colaborador (só admin) */}
-                      {isAdmin && a.responsavel_id && (
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                          background: corColaborador(a.responsavel_id) + '20',
-                          color: corColaborador(a.responsavel_id),
-                          border: `1px solid ${corColaborador(a.responsavel_id)}`
-                        }}>
-                          <span style={{ width: 6, height: 6, borderRadius: 50, background: corColaborador(a.responsavel_id) }} />
-                          {nomeColaborador(a.responsavel_id)}
-                        </span>
-                      )}
+                      {isAdmin && (a.responsavel_id || a.created_by) && (() => {
+                        const cid = a.responsavel_id || a.created_by;
+                        return (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                            background: corColaborador(cid) + '20',
+                            color: corColaborador(cid),
+                            border: `1px solid ${corColaborador(cid)}`
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 50, background: corColaborador(cid) }} />
+                            {nomeColaborador(cid)}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       {a.lead && <span style={{ fontSize: 12, color: '#4A6E8A' }}>{a.lead.nome}{a.lead.empresa ? ` · ${a.lead.empresa}` : ''}</span>}

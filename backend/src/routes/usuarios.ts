@@ -236,7 +236,26 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   fastify.get('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkGestor(request, reply)) return;
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM ORDER BY created_at ASC`);
-    return reply.send({ status: 'success', data: rows });
+
+    // Inclui a conta de administradora do sistema (mock fora do banco)
+    const adminProSystem = {
+      id: 'user-jessica',
+      nome: 'Jessica',
+      email: 'jessica@prosystemnet.com.br',
+      cargo: 'CEO',
+      status: 'ATIVO',
+      classificacao: null,
+      telefone: null,
+      observacoes: null,
+      modulos_permissao: null,
+      created_by: null,
+      created_at: new Date('2024-01-01'),
+      updated_at: new Date()
+    };
+    const jaExiste = rows.some(r => r.id === 'user-jessica' || r.email === 'jessica@prosystemnet.com.br');
+    const todosUsuarios = jaExiste ? rows : [adminProSystem, ...rows];
+
+    return reply.send({ status: 'success', data: todosUsuarios });
   });
 
   // ─── POST /usuarios (apenas CEO) ────────────────────────────
