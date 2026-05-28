@@ -607,6 +607,11 @@ model Atividade {
   transcricao         String?   @db.Text
   transcricao_origem  String?   // 'AUTOMATICA' | 'MANUAL'
 
+  // Percepção pós-reunião (vendedor avalia ao concluir)
+  percepcao_tags      Json?     // ["PRODUTIVA", "COM_OBJECOES", ...]
+  percepcao_nota      Int?      // 1-5 estrelas
+  percepcao_observ    String?   @db.Text
+
   responsavel_id  String?
   data_prevista   DateTime?
   data_realizada  DateTime?

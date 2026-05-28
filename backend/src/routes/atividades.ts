@@ -44,10 +44,18 @@ const ListAtividadeSchema = z.object({
   lead_id: z.string().optional()
 });
 
+const PERCEPCAO_TAGS = [
+  'PRODUTIVA', 'POUCO_COMUNICATIVA', 'CLIENTE_NAO_ANIMADO', 'COM_OBJECOES',
+  'CLIENTE_INTERESSADO', 'TECNICA_DEMO', 'AVANCOU_FUNIL', 'SEM_DECISAO'
+] as const;
+
 const ConcluirSchema = z.object({
   resultado: z.string().min(1),
   duracao_minutos: z.number().optional(),
-  data_realizada: z.string().datetime().optional()
+  data_realizada: z.string().datetime().optional(),
+  percepcao_tags: z.array(z.enum(PERCEPCAO_TAGS)).optional(),
+  percepcao_nota: z.number().int().min(1).max(5).optional(),
+  percepcao_observ: z.string().optional()
 });
 
 const CancelarSchema = z.object({
@@ -256,6 +264,107 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     });
   });
 
+  // Dashboard de produtividade por usuário (admin only)
+  fastify.get('/atividades/dashboard-produtividade', async (request, reply) => {
+    const user = (request as any).user;
+    if (!isAdmin(user)) {
+      return reply.status(403).send({ status: 'error', message: 'Apenas administradores' });
+    }
+
+    const query = request.query as { data_inicio?: string; data_fim?: string };
+    const where: any = {};
+    if (query.data_inicio || query.data_fim) {
+      where.data_prevista = {};
+      if (query.data_inicio) where.data_prevista.gte = new Date(query.data_inicio);
+      if (query.data_fim) where.data_prevista.lte = new Date(query.data_fim);
+    }
+
+    // Agrupa por responsavel + status
+    const rows: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        a.responsavel_id,
+        u.nome AS responsavel_nome,
+        u.email AS responsavel_email,
+        a.status,
+        a.tipo,
+        COUNT(*) as total,
+        AVG(a.percepcao_nota) as nota_media
+      FROM Atividade a
+      LEFT JOIN UsuarioCRM u ON u.id = a.responsavel_id
+      ${query.data_inicio || query.data_fim ? `WHERE a.data_prevista BETWEEN ? AND ?` : ''}
+      GROUP BY a.responsavel_id, u.nome, u.email, a.status, a.tipo
+    `, ...(query.data_inicio || query.data_fim ? [
+      query.data_inicio || '2000-01-01',
+      query.data_fim || '2999-12-31'
+    ] : []));
+
+    // Estrutura por usuário
+    const porUsuario: Record<string, any> = {};
+    for (const r of rows) {
+      const uid = r.responsavel_id || 'sem-responsavel';
+      if (!porUsuario[uid]) {
+        porUsuario[uid] = {
+          id: uid,
+          nome: r.responsavel_nome || 'Sem responsável',
+          email: r.responsavel_email || '',
+          total: 0, agendadas: 0, realizadas: 0, canceladas: 0,
+          nao_compareceu: 0, remarcadas: 0,
+          reunioes: 0, ligacoes: 0, visitas: 0, tarefas: 0,
+          nota_media: null, notas_count: 0, notas_sum: 0
+        };
+      }
+      const u = porUsuario[uid];
+      const t = Number(r.total);
+      u.total += t;
+      if (r.status === 'PENDENTE' || r.status === 'CONFIRMADA') u.agendadas += t;
+      if (r.status === 'REALIZADA') u.realizadas += t;
+      if (r.status === 'CANCELADA') u.canceladas += t;
+      if (r.status === 'CLIENTE_NAO_COMPARECEU') u.nao_compareceu += t;
+      if (r.status === 'REMARCADA') u.remarcadas += t;
+      if (r.tipo === 'REUNIAO') u.reunioes += t;
+      if (r.tipo === 'LIGACAO') u.ligacoes += t;
+      if (r.tipo === 'VISITA') u.visitas += t;
+      if (r.tipo === 'TAREFA') u.tarefas += t;
+      if (r.nota_media != null) {
+        u.notas_sum += Number(r.nota_media) * t;
+        u.notas_count += t;
+      }
+    }
+
+    // Calcula taxa de sucesso e nota média
+    const ranking = Object.values(porUsuario).map((u: any) => {
+      const concluidas = u.realizadas + u.canceladas + u.nao_compareceu;
+      u.taxa_sucesso = concluidas > 0 ? Math.round((u.realizadas / concluidas) * 100) : 0;
+      u.taxa_no_show = concluidas > 0 ? Math.round((u.nao_compareceu / concluidas) * 100) : 0;
+      u.nota_media = u.notas_count > 0 ? Math.round((u.notas_sum / u.notas_count) * 10) / 10 : null;
+      delete u.notas_sum; delete u.notas_count;
+      return u;
+    }).sort((a: any, b: any) => b.realizadas - a.realizadas);
+
+    // Distribuição de percepções (consolidado)
+    const reunioesRealizadas = await prisma.atividade.findMany({
+      where: { ...where, status: 'REALIZADA', tipo: 'REUNIAO', percepcao_tags: { not: undefined } },
+      select: { percepcao_tags: true, percepcao_nota: true }
+    });
+
+    const tagsCount: Record<string, number> = {};
+    let notasSum = 0; let notasN = 0;
+    for (const r of reunioesRealizadas) {
+      const tags = (r.percepcao_tags as string[] | null) || [];
+      for (const t of tags) tagsCount[t] = (tagsCount[t] || 0) + 1;
+      if (r.percepcao_nota) { notasSum += r.percepcao_nota; notasN++; }
+    }
+
+    return reply.send({
+      status: 'success',
+      data: {
+        ranking,
+        total_usuarios: ranking.length,
+        percepcoes: { tags: tagsCount, nota_media_geral: notasN > 0 ? Math.round((notasSum / notasN) * 10) / 10 : null }
+      }
+    });
+  });
+
   // Reagendar atividade (um clique — copia para nova data)
   fastify.post('/atividades/:id/reagendar-rapido', async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -320,6 +429,9 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
         data_realizada: body.data.data_realizada ? new Date(body.data.data_realizada) : new Date()
       };
       if (body.data.duracao_minutos !== undefined) data.duracao_minutos = body.data.duracao_minutos;
+      if (body.data.percepcao_tags !== undefined) data.percepcao_tags = body.data.percepcao_tags;
+      if (body.data.percepcao_nota !== undefined) data.percepcao_nota = body.data.percepcao_nota;
+      if (body.data.percepcao_observ !== undefined) data.percepcao_observ = body.data.percepcao_observ;
 
       const atividade = await prisma.atividade.update({ where: { id }, data });
       return reply.send({ status: 'success', data: atividade });

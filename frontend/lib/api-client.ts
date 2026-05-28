@@ -382,8 +382,19 @@ class ApiClient {
     return this.client.delete(`/atividades/${id}`);
   }
 
-  async concluirAtividade(id: string, data: { resultado: string; duracao_minutos?: number; data_realizada?: string }) {
+  async concluirAtividade(id: string, data: {
+    resultado: string;
+    duracao_minutos?: number;
+    data_realizada?: string;
+    percepcao_tags?: string[];
+    percepcao_nota?: number;
+    percepcao_observ?: string;
+  }) {
     return this.client.post(`/atividades/${id}/concluir`, data);
+  }
+
+  async getDashboardProdutividade(params?: { data_inicio?: string; data_fim?: string }) {
+    return this.client.get('/atividades/dashboard-produtividade', { params });
   }
 
   async cancelarAtividade(id: string, motivo_cancelamento: string) {
