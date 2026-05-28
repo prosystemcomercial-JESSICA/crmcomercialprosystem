@@ -35,6 +35,7 @@ interface Atividade {
   data_realizada?: string;
   transcricao?: string;
   transcricao_origem?: 'AUTOMATICA' | 'MANUAL';
+  convidados_ids?: string[];
   created_at: string;
 }
 
@@ -512,7 +513,8 @@ export default function AgendaPage() {
   const [formData, setFormData] = useState({
     titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '',
     resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '',
-    duracao_minutos: 60
+    duracao_minutos: 60,
+    convidados_ids: [] as string[]
   });
   const [novoLead, setNovoLead] = useState(false);
   const [novoLeadData, setNovoLeadData] = useState({ nome: '', telefone: '', email: '', empresa: '' });
@@ -549,10 +551,10 @@ export default function AgendaPage() {
 
   useEffect(() => {
     apiClient.getLeads({ limit: 200 }).then(r => setLeads(r.data.data?.leads || [])).catch(() => {});
-    // Admin carrega lista de colaboradores
-    if (isAdmin) {
-      apiClient.getUsuarios().then(r => setColaboradores(r.data.data?.usuarios || r.data.data || [])).catch(() => {});
-    }
+    // Todos carregam lista de colaboradores (vendedor precisa pra convidar colegas)
+    apiClient.getUsuarios()
+      .then(r => setColaboradores(r.data.data?.usuarios || r.data.data || []))
+      .catch(() => setColaboradores([]));
     apiClient.getGoogleStatus().then(r => setGoogleConnected(r.data.data?.connected)).catch(() => {});
     const params = new URLSearchParams(window.location.search);
     if (params.get('google_connected')) { setGoogleConnected(true); window.history.replaceState({}, '', '/agenda'); }
@@ -698,7 +700,7 @@ export default function AgendaPage() {
       if (meetLinkForm) data.google_meet_link = meetLinkForm;
       await apiClient.createAtividade(data);
       setShowCreate(false);
-      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '', duracao_minutos: 60 });
+      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '', duracao_minutos: 60, convidados_ids: [] });
       setNovoLead(false);
       setNovoLeadData({ nome: '', telefone: '', email: '', empresa: '' });
       setMeetLinkForm('');
@@ -1666,6 +1668,47 @@ export default function AgendaPage() {
                 </div>
               )}
             </div>
+
+            {/* Convidados — outros colaboradores da empresa */}
+            {colaboradores.length > 0 && (
+              <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 10, padding: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Users size={13} color="#0891b2" />
+                  <label style={{ ...labelStyle, marginBottom: 0, color: '#0891b2' }}>Convidados (outros colaboradores da empresa)</label>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {colaboradores
+                    .filter((c: any) => c.id !== user?.id && c.id !== formData.responsavel_id && (c.status || 'ATIVO') !== 'INATIVO')
+                    .map((col: any) => {
+                      const ativo = formData.convidados_ids.includes(col.id);
+                      const cor = corColaborador(col.id);
+                      return (
+                        <button key={col.id} type="button"
+                          onClick={() => setFormData(p => ({
+                            ...p,
+                            convidados_ids: ativo
+                              ? p.convidados_ids.filter(id => id !== col.id)
+                              : [...p.convidados_ids, col.id]
+                          }))}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '5px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                            background: ativo ? cor : '#fff',
+                            color: ativo ? '#fff' : cor,
+                            border: `1.5px solid ${cor}`, cursor: 'pointer'
+                          }}>
+                          {ativo && '✓ '}{nomeColaborador(col.id)}
+                        </button>
+                      );
+                    })}
+                </div>
+                {formData.convidados_ids.length > 0 && (
+                  <div style={{ fontSize: 11, color: '#0891b2', marginTop: 6 }}>
+                    {formData.convidados_ids.length} convidado{formData.convidados_ids.length > 1 ? 's' : ''} — receberão alarme do compromisso
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Campos do novo lead — exibidos quando checkbox marcado */}
             {novoLead && (

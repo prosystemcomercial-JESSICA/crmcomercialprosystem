@@ -112,14 +112,26 @@ export default function UsuariosPage() {
 
   const fetchData = useCallback(async () => {
     setFetching(true);
+    // Busca isolada — uma falha não derruba a outra nem esvazia listas existentes
     try {
-      const [usersRes, presetsRes] = await Promise.all([
-        apiClient.client.get('/usuarios'),
-        apiClient.client.get('/usuarios/presets'),
-      ]);
-      setUsuarios(usersRes.data.data || []);
-      setPresets(presetsRes.data.data.presets || {});
-    } catch { } finally { setFetching(false); }
+      const usersRes = await apiClient.client.get('/usuarios');
+      const arr = usersRes.data?.data;
+      if (Array.isArray(arr)) {
+        // Filtra o mock user-jessica (não é usuário gerenciável neste módulo)
+        setUsuarios(arr.filter((u: any) => u.id !== 'user-jessica'));
+      }
+    } catch (e: any) {
+      console.error('[USUARIOS] erro ao carregar lista:', e?.response?.data || e?.message);
+      // NÃO esvazia a lista — mantém a anterior
+    }
+    try {
+      const presetsRes = await apiClient.client.get('/usuarios/presets');
+      const p = presetsRes.data?.data?.presets;
+      if (p) setPresets(p);
+    } catch (e: any) {
+      console.error('[USUARIOS] erro ao carregar presets:', e?.response?.data || e?.message);
+    }
+    setFetching(false);
   }, []);
 
   const openCreate = () => {

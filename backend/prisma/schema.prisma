@@ -612,6 +612,9 @@ model Atividade {
   percepcao_nota      Int?      // 1-5 estrelas
   percepcao_observ    String?   @db.Text
 
+  // Convidados internos da empresa (outros colaboradores com cadastro no CRM)
+  convidados_ids      Json?     // ["userId1", "userId2", ...]
+
   responsavel_id  String?
   data_prevista   DateTime?
   data_realizada  DateTime?

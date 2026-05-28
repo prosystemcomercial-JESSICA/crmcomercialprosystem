@@ -14,7 +14,8 @@ const CreateAtividadeSchema = z.object({
   resumo_reuniao: z.string().optional(),
   responsavel_id: z.string().optional(),
   data_prevista: z.string().datetime().optional(),
-  google_meet_link: z.string().optional()
+  google_meet_link: z.string().optional(),
+  convidados_ids: z.array(z.string()).optional()
 });
 
 const UpdateAtividadeSchema = z.object({
@@ -28,7 +29,8 @@ const UpdateAtividadeSchema = z.object({
   responsavel_id: z.string().optional(),
   google_meet_link: z.string().optional(),
   transcricao: z.string().optional(),
-  transcricao_origem: z.enum(['AUTOMATICA', 'MANUAL']).optional()
+  transcricao_origem: z.enum(['AUTOMATICA', 'MANUAL']).optional(),
+  convidados_ids: z.array(z.string()).optional()
 });
 
 const ReagendarSchema2 = z.object({
@@ -100,17 +102,25 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     }
     if (lead_id) where.lead_id = lead_id;
 
-    // Não-admins veem apenas suas próprias atividades
+    // Não-admins veem apenas suas próprias atividades (responsável, criador ou convidado)
     if (!isAdmin(user)) {
       const userId = user?.id;
       if (responsavel_id && responsavel_id !== userId) {
-        // Tentativa de ver atividades de outro usuário — retorna vazio
         return reply.send({ status: 'success', data: { atividades: [], total: 0, page, limit } });
       }
-      where.OR = [{ responsavel_id: userId }, { created_by: userId }];
+      // OR amplo: é responsável, criou, ou foi convidado
+      where.OR = [
+        { responsavel_id: userId },
+        { created_by: userId },
+        // convidados_ids é JSON array — usa raw query indireta via String contains
+        ...(userId ? [{ convidados_ids: { string_contains: `"${userId}"` } as any }] : [])
+      ];
     } else if (responsavel_id) {
-      // Admin filtrou por colaborador — pega atividades onde ele é responsável OU criou
-      where.OR = [{ responsavel_id: responsavel_id }, { created_by: responsavel_id }];
+      where.OR = [
+        { responsavel_id: responsavel_id },
+        { created_by: responsavel_id },
+        { convidados_ids: { string_contains: `"${responsavel_id}"` } as any }
+      ];
     }
 
     const [atividades, total] = await Promise.all([
@@ -155,6 +165,7 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       responsavel_id: body.data.responsavel_id || userId
     };
     if (data.data_prevista) data.data_prevista = new Date(data.data_prevista);
+    if (data.convidados_ids !== undefined) data.convidados_ids = data.convidados_ids;
 
     const atividade = await prisma.atividade.create({
       data,
