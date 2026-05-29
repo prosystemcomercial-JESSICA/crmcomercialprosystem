@@ -11,7 +11,7 @@ import {
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun, User,
-  MessageSquare, Shield, ClipboardList,
+  MessageSquare, Shield, ClipboardList, BookOpen,
 } from 'lucide-react';
 
 // Cargos do CRM
@@ -29,6 +29,7 @@ const navGroups: NavGroup[] = [
     label: 'Principal',
     items: [
       { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ALL },
+      { href: '/manual',    icon: BookOpen,        label: 'Manual do CRM', roles: ALL },
     ],
   },
   {
