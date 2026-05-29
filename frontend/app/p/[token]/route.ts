@@ -25,9 +25,13 @@ async function loadImageAsDataUrl(filename: string): Promise<string> {
 
 function buildProposalData(p: any) {
   const plano = p.plano_selecionado || 'Plano Plus';
-  const monthly = plano.toLowerCase().includes('plus')
-    ? (p.mensalidade_plus ?? 0)
-    : (p.mensalidade_pro ?? 0);
+  const monthlyPro  = p.mensalidade_pro  ?? 0;
+  const monthlyPlus = p.mensalidade_plus ?? 0;
+  // Plus é sempre o plano recomendado → a mensalidade-destaque é a do Plus
+  // (fallback para a lógica do plano selecionado se a do Plus não foi preenchida)
+  const monthly = monthlyPlus > 0
+    ? monthlyPlus
+    : (plano.toLowerCase().includes('plus') ? monthlyPlus : monthlyPro);
 
   const originalValue = (p.valor_implantacao ?? 0) + (p.valor_conversao ?? 0);
   const finalValue = p.valor_final ?? originalValue;
@@ -63,7 +67,10 @@ function buildProposalData(p: any) {
     sellerName: p.vendedor_nome || '',
     sellerPhone: p.vendedor_telefone || '',
     selectedPlan: plano,
+    recommendedPlan: 'Plus',
     monthlyValue: monthly,
+    monthlyPro,
+    monthlyPlus,
     setupOriginal: originalValue,
     setupFinal: finalValue,
     entryValue: p.entrada ?? 0,
@@ -410,21 +417,41 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .max700 { max-width: 700px; width: 100%; }
 
     /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .mod-layout { grid-template-columns: 1fr; gap: 24px; }
+      .mod-layout .mod-img-wrap { order: -1; }   /* imagem acima do texto no mobile */
+    }
     @media (max-width: 768px) {
       #three-canvas { display: none; }
-      #module-hub .hub-grid { grid-template-columns: 1fr; }
-      .mod-layout { grid-template-columns: 1fr; }
+      .hub-grid { grid-template-columns: 1fr; }
       .proof-grid { grid-template-columns: repeat(2,1fr); }
-      .display-xl { font-size: clamp(28px, 7vw, 44px); }
+      .display-xl { font-size: clamp(28px, 8vw, 44px); }
+      .display-lg { font-size: clamp(26px, 7vw, 40px); }
+      .display-md { font-size: clamp(20px, 5.5vw, 32px); }
+
+      /* Slides rolam verticalmente — conteúdo nunca é cortado no celular */
+      .slide {
+        align-items: flex-start;
+        justify-content: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 76px 16px 56px;
+      }
+      .mod-img-wrap { max-height: 230px; }
+      .metric-pill { padding: 12px 16px; }
+      .metric-pill .val { font-size: 22px; }
+      .price-card { padding: 18px; }
+      .price-card.featured .pc-val { font-size: 32px; }
+      .plan-table th, .plan-table td { padding: 9px 8px; font-size: 12px; }
+      .plan-table th:first-child, .plan-table td:first-child { min-width: 150px; }
     }
     @media (max-width: 600px) {
       #top-nav { padding: 0 14px; }
       .nav-brand span { display: none; }
       #mode-btn-top { display: none; }
+      #nav-hint { display: none; }
       .copy-label { display: none; }
       .nav-pill-copy { padding: 8px 14px; font-size: 14px; }
-    }
-    @media (max-width: 480px) {
       .proof-grid { grid-template-columns: 1fr 1fr; }
     }
     @media print {
@@ -833,21 +860,35 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <h2 class="display-lg">Proposta exclusiva para<br><span id="s18-company" style="color:#F59E0B;">${data.companyName || 'sua empresa'}</span></h2>
         <p class="body-md mt8">Preparada especialmente para sua operação, com condições que refletem o perfil do seu negócio.</p>
       </div>
+      <!-- Implantação -->
       <div class="flex gap12 flex-wrap">
-        <div class="price-card" style="flex:1;min-width:160px;">
+        <div class="price-card" style="flex:1;min-width:200px;">
           <div class="pc-label">Implantação original</div>
           <div class="pc-old" id="s18-original">R$ 0,00</div>
           <div class="pc-sub">Valor de tabela</div>
         </div>
-        <div class="price-card featured" style="flex:1;min-width:160px;">
+        <div class="price-card featured" style="flex:1;min-width:200px;">
           <div class="pc-label">Valor especial negociado</div>
           <div class="pc-val" id="s18-final">R$ 0,00</div>
           <div class="pc-sub" style="color:#ffb49a;">Condição exclusiva</div>
         </div>
-        <div class="price-card monthly" style="flex:1;min-width:160px;">
-          <div class="pc-label">Mensalidade do plano</div>
-          <div class="pc-val" id="s18-monthly">R$ 0,00</div>
-          <div class="pc-sub">Recorrente mensal</div>
+      </div>
+
+      <!-- Mensalidade: Pro x Plus lado a lado -->
+      <div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Mensalidade recorrente &mdash; compare os planos</div>
+        <div class="flex gap12 flex-wrap" id="s18-monthly-row">
+          <div class="price-card" id="s18-pro-card" style="flex:1;min-width:180px;">
+            <div class="pc-label">Mensalidade <span id="s18-pro-name">Pro</span></div>
+            <div class="pc-val" id="s18-monthly-pro">R$ 0,00</div>
+            <div class="pc-sub">Plano intermediário</div>
+          </div>
+          <div class="price-card featured" id="s18-plus-card" style="flex:1;min-width:180px;position:relative;">
+            <span class="rec-badge" style="position:absolute;top:14px;right:14px;margin:0;">&#9733; Recomendado</span>
+            <div class="pc-label">Mensalidade <span id="s18-plus-name2">Plus</span></div>
+            <div class="pc-val" id="s18-monthly-plus" style="color:var(--accent);">R$ 0,00</div>
+            <div class="pc-sub" style="color:#ffb49a;">Mais gestão e crescimento</div>
+          </div>
         </div>
       </div>
       <div class="plus-highlight-box">
@@ -1181,7 +1222,15 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     set('s18-company',  proposalData.companyName || 'sua empresa');
     set('s18-original', formatMoney(proposalData.setupOriginal));
     set('s18-final',    formatMoney(proposalData.setupFinal));
-    set('s18-monthly',  formatMoney(proposalData.monthlyValue));
+    set('s18-pro-name',   nomes.pro);
+    set('s18-plus-name2', nomes.plus);
+    set('s18-monthly-pro',  formatMoney(proposalData.monthlyPro));
+    set('s18-monthly-plus', formatMoney(proposalData.monthlyPlus > 0 ? proposalData.monthlyPlus : proposalData.monthlyValue));
+    // Esconde o card Pro se a mensalidade Pro não foi preenchida (mostra só o Plus)
+    if (!(proposalData.monthlyPro > 0)) {
+      const proCard = getEl('s18-pro-card');
+      if (proCard) proCard.style.display = 'none';
+    }
     set('s18-plan',     nomes.plus);
     set('s18-valid',    proposalData.validUntil || '—');
 
@@ -1225,8 +1274,9 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       'Segue o resumo da proposta comercial da ProSystem para ' + p.companyName + ':',
       '',
       '--- PROPOSTA ---',
-      '• Plano recomendado: ' + nomes.plus,
-      '• Mensalidade: ' + formatMoney(p.monthlyValue),
+      '• Plano recomendado: ' + nomes.plus + ' (mais indicado)',
+      '• Mensalidade ' + nomes.plus + ': ' + formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue),
+      p.monthlyPro > 0 ? '• Mensalidade ' + nomes.pro + ' (alternativa): ' + formatMoney(p.monthlyPro) : null,
       '• Implantação (valor especial): ' + formatMoney(p.setupFinal),
       p.setupOriginal > p.setupFinal ? '  (Tabela original: ' + formatMoney(p.setupOriginal) + ')' : null,
       p.entryValue > 0 ? '• Entrada: ' + formatMoney(p.entryValue) : null,
