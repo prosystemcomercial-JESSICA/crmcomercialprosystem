@@ -1,6 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 
+// MySQL via $queryRawUnsafe devolve BigInt em COUNT/SUM.
+// Helper que converte com segurança em number para aritmética.
+const num = (v: any): number => {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === 'bigint') return Number(v);
+  return Number(v) || 0;
+};
+
 export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -41,8 +49,8 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes } } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior } } }),
       // Perdidos este mês (via LeadPerda — registra o momento real da perda)
-      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ?`, inicioMes).then((r: any) => r[0]?.n || 0).catch(() => 0),
-      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ? AND created_at <= ?`, inicioMesAnterior, fimMesAnterior).then((r: any) => r[0]?.n || 0).catch(() => 0),
+      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ?`, inicioMes).then((r: any) => num(r[0]?.n)).catch(() => 0),
+      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ? AND created_at <= ?`, inicioMesAnterior, fimMesAnterior).then((r: any) => num(r[0]?.n)).catch(() => 0),
 
       prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null } }),
       prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, created_at: { gte: inicioMes } } }),
@@ -110,20 +118,20 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
     const ppBucket = (statuses: string[]) => {
       const rows = pipeline_propostas_raw.filter(r => statuses.includes(r.status));
       return {
-        count: rows.reduce((s, r) => s + r.count, 0),
-        mrr:   Math.round(rows.reduce((s, r) => s + r.mrr_total, 0)),
-        setup: Math.round(rows.reduce((s, r) => s + r.setup_total, 0)),
+        count: rows.reduce((s, r) => s + num(r.count), 0),
+        mrr:   Math.round(rows.reduce((s, r) => s + num(r.mrr_total), 0)),
+        setup: Math.round(rows.reduce((s, r) => s + num(r.setup_total), 0)),
       };
     };
 
-    const propostas_total_count = pipeline_propostas_raw.reduce((s, r) => s + r.count, 0);
+    const propostas_total_count = pipeline_propostas_raw.reduce((s, r) => s + num(r.count), 0);
     const pipeline_propostas = {
       total:   propostas_total_count,
       fechado: ppBucket(['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO']),
       quente:  ppBucket(['EM_NEGOCIACAO']),
       morno:   ppBucket(['ENVIADA']),
       frio:    ppBucket(['RASCUNHO']),
-      perdido: { count: pipeline_propostas_raw.filter(r => ['RECUSADA','PERDIDA'].includes(r.status)).reduce((s,r)=>s+r.count,0) },
+      perdido: { count: pipeline_propostas_raw.filter(r => ['RECUSADA','PERDIDA'].includes(r.status)).reduce((s,r)=>s+num(r.count),0) },
     };
 
     // MRR dos contratos ativos
@@ -161,7 +169,7 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
     const valor_perdido_mes_result: any[] = await prisma.$queryRawUnsafe(
       `SELECT COALESCE(SUM(valor_oportunidade),0) as total FROM LeadPerda WHERE created_at >= ?`, inicioMes
     ).catch(() => [{ total: 0 }]);
-    const valor_perdido_mes = Math.round(valor_perdido_mes_result[0]?.total || 0);
+    const valor_perdido_mes = Math.round(num(valor_perdido_mes_result[0]?.total));
 
     // Ranking de motivos de perda (todos os tempos, top 8)
     const ranking_motivos_raw: any[] = await prisma.$queryRawUnsafe(
@@ -172,12 +180,12 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
        ORDER BY total DESC
        LIMIT 8`
     ).catch(() => []);
-    const total_perdas = ranking_motivos_raw.reduce((s, r) => s + r.total, 0);
+    const total_perdas = ranking_motivos_raw.reduce((s, r) => s + num(r.total), 0);
     const ranking_motivos = ranking_motivos_raw.map(r => ({
       motivo: r.motivo,
-      total: r.total,
-      valor_total: Math.round(r.valor_total),
-      pct: total_perdas > 0 ? Math.round((r.total / total_perdas) * 100) : 0
+      total: num(r.total),
+      valor_total: Math.round(num(r.valor_total)),
+      pct: total_perdas > 0 ? Math.round((num(r.total) / total_perdas) * 100) : 0
     }));
 
     // NPS rápido
