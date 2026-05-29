@@ -99,7 +99,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <title>Proposta ProSystem — ${data.companyName}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <style>
@@ -111,6 +111,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       --secondary-light: #7AAACB;
       --accent: #FF6B35;
       --accent-glow: rgba(255,107,53,0.3);
+      --gold: #F59E0B;
       --green: #27C97F;
       --bg-deep: #061a2b;
       --bg-mid: #0c2741;
@@ -121,8 +122,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       --text-accent: #4B8EC8;
       --border: rgba(255,255,255,0.08);
       --border-accent: rgba(75,142,200,0.25);
+      --border-plus: rgba(255,107,53,0.35);
       --shadow-lg: 0 24px 60px rgba(0,0,0,0.35);
       --shadow-glow: 0 0 40px rgba(75,142,200,0.15);
+      --shadow-plus: 0 0 48px rgba(255,107,53,0.18);
       --radius: 16px;
       --radius-lg: 24px;
       --font: 'Inter', sans-serif;
@@ -171,6 +174,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       cursor: pointer; transition: .2s;
     }
     .nav-pill:hover { background: var(--bg-card); }
+    .nav-pill-copy {
+      border-color: rgba(39,201,127,0.45); color: var(--green);
+      background: rgba(39,201,127,0.1); font-weight: 800;
+    }
+    .nav-pill-copy:hover { background: rgba(39,201,127,0.2); }
+    .nav-pill-copy.copied { background: var(--green); color: #04150d; border-color: var(--green); }
     .mode-btn {
       font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
       padding: 6px 14px; border-radius: 999px;
@@ -278,7 +287,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .check-icon svg { width: 10px; height: 10px; stroke: var(--green); fill: none; stroke-width: 2.5; }
 
     /* ── MODULE HUB ── */
-    #module-hub .hub-grid {
+    .hub-grid {
       display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
       width: min(860px, 100%);
     }
@@ -300,42 +309,6 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .module-card .mc-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
     .module-card .mc-arrow { position: absolute; top: 20px; right: 20px; width: 28px; height: 28px; border-radius: 50%; background: var(--bg-surface); display: flex; align-items: center; justify-content: center; transition: .3s; }
     .module-card:hover .mc-arrow { background: var(--border-accent); }
-
-    /* ── PLAN TABLE ── */
-    .plan-table { width: 100%; border-collapse: collapse; }
-    .plan-table th, .plan-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; }
-    .plan-table th:first-child, .plan-table td:first-child { text-align: left; font-weight: 600; color: var(--text-primary); min-width: 200px; }
-    .plan-table th { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-secondary); padding-bottom: 14px; }
-    .plan-table .plus-col { background: rgba(75,142,200,0.06); }
-    .cell-yes { color: var(--green); font-weight: 800; }
-    .cell-no { color: rgba(255,255,255,0.25); font-weight: 600; }
-    .cell-plus { color: var(--secondary); font-weight: 800; }
-    .plan-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .badge-lite { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
-    .badge-pro  { background: rgba(75,142,200,0.12); color: var(--secondary-light); }
-    .badge-plus { background: rgba(75,142,200,0.2); color: #9ecfff; border: 1px solid var(--border-accent); }
-
-    /* ── PRICE CARD ── */
-    .price-card {
-      padding: 24px; border-radius: var(--radius);
-      background: var(--bg-card); border: 1px solid var(--border);
-    }
-    .price-card .pc-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
-    .price-card .pc-old { font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.2); text-decoration: line-through; }
-    .price-card .pc-val { font-size: 32px; font-weight: 900; letter-spacing: -0.05em; color: var(--text-primary); line-height: 1.1; }
-    .price-card.featured { border-color: var(--border-accent); background: rgba(75,142,200,0.08); }
-    .price-card.featured .pc-val { color: var(--secondary-light); font-size: 42px; }
-
-    /* ── WHATSAPP BOX ── */
-    .whats-box { padding: 24px; border-radius: var(--radius-lg); background: var(--bg-card); border: 1px solid var(--border); }
-    .whats-text {
-      width: 100%; min-height: 140px; border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 14px; resize: vertical;
-      font-family: var(--font); font-size: 13px; line-height: 1.6;
-      color: var(--text-primary); background: rgba(0,0,0,0.2);
-    }
-    .whats-text:focus { outline: none; border-color: var(--border-accent); }
-    .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
     /* ── BACK BTN ── */
     #back-btn {
@@ -376,18 +349,48 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .mod-placeholder .ph-icon { font-size: 48px; opacity: 0.5; }
     .mod-placeholder .ph-text { font-size: 13px; color: var(--text-secondary); font-weight: 600; letter-spacing: .06em; }
 
-    /* ── RESPONSIVE ── */
-    @media (max-width: 768px) {
-      #three-canvas { display: none; }
-      #module-hub .hub-grid { grid-template-columns: 1fr; }
-      .mod-layout { grid-template-columns: 1fr; }
-      .proof-grid { grid-template-columns: repeat(2,1fr); }
-      .display-xl { font-size: clamp(28px, 7vw, 44px); }
+    /* ── PLAN TABLE ── */
+    .plan-table { width: 100%; border-collapse: collapse; }
+    .plan-table th, .plan-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; vertical-align: middle; }
+    .plan-table th:first-child, .plan-table td:first-child { text-align: left; font-weight: 600; color: var(--text-primary); min-width: 190px; }
+    .plan-table th { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-secondary); padding-bottom: 14px; }
+    .col-plus { background: rgba(255,107,53,0.07); position: relative; }
+    .th-plus { background: rgba(255,107,53,0.1); border-top: 2px solid var(--accent) !important; color: #ffb49a !important; }
+    .cell-yes { color: var(--green); font-weight: 800; }
+    .cell-no { color: rgba(255,255,255,0.22); font-weight: 600; }
+    .cell-adv { color: var(--accent); font-weight: 700; }
+    .cell-int { color: var(--secondary-light); font-weight: 700; }
+    .cell-bas { color: var(--text-secondary); font-weight: 600; }
+    .plan-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .badge-basic { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .badge-pro   { background: rgba(75,142,200,0.12); color: var(--secondary-light); }
+    .badge-plus  { background: rgba(255,107,53,0.18); color: #ffb49a; border: 1px solid var(--border-plus); }
+    .rec-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; background: var(--accent); color: #fff; margin-left: 6px; vertical-align: middle; }
+
+    /* ── PRICE CARDS ── */
+    .price-card { padding: 24px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
+    .price-card .pc-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
+    .price-card .pc-old { font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.2); text-decoration: line-through; }
+    .price-card .pc-val { font-size: 30px; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); line-height: 1.1; }
+    .price-card .pc-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .price-card.featured { border-color: var(--border-plus); background: rgba(255,107,53,0.07); box-shadow: var(--shadow-plus); }
+    .price-card.featured .pc-val { color: var(--accent); font-size: 40px; }
+    .price-card.monthly { border-color: rgba(39,201,127,0.3); background: rgba(39,201,127,0.06); }
+    .price-card.monthly .pc-val { color: var(--green); }
+
+    /* ── PLAN HIGHLIGHT BOX (Plus destaque) ── */
+    .plus-highlight-box {
+      padding: 20px 24px; border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(255,107,53,0.12), rgba(255,107,53,0.04));
+      border: 1px solid var(--border-plus);
+      box-shadow: var(--shadow-plus);
     }
-    @media (max-width: 480px) {
-      .proof-grid { grid-template-columns: 1fr 1fr; }
-      #top-nav { padding: 0 16px; }
-    }
+
+    /* ── WHATSAPP BOX ── */
+    .whats-box { padding: 24px; border-radius: var(--radius-lg); background: var(--bg-card); border: 1px solid var(--border); }
+    .whats-text { width: 100%; min-height: 140px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; resize: vertical; font-family: var(--font); font-size: 13px; line-height: 1.6; color: var(--text-primary); background: rgba(0,0,0,0.2); }
+    .whats-text:focus { outline: none; border-color: var(--border-accent); }
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
     /* ── UTIL ── */
     .w100 { width: 100%; }
@@ -405,6 +408,31 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .scroll-x { overflow-x: auto; }
     .max900 { max-width: 900px; width: 100%; }
     .max700 { max-width: 700px; width: 100%; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      #three-canvas { display: none; }
+      #module-hub .hub-grid { grid-template-columns: 1fr; }
+      .mod-layout { grid-template-columns: 1fr; }
+      .proof-grid { grid-template-columns: repeat(2,1fr); }
+      .display-xl { font-size: clamp(28px, 7vw, 44px); }
+    }
+    @media (max-width: 600px) {
+      #top-nav { padding: 0 14px; }
+      .nav-brand span { display: none; }
+      #mode-btn-top { display: none; }
+      .copy-label { display: none; }
+      .nav-pill-copy { padding: 8px 14px; font-size: 14px; }
+    }
+    @media (max-width: 480px) {
+      .proof-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media print {
+      #top-nav, #progress-bar, #slide-counter, #nav-hint, #back-btn, #three-canvas { display: none !important; }
+      .slide { position: relative !important; opacity: 1 !important; pointer-events: all !important; page-break-after: always; }
+      body, html { overflow: visible !important; }
+      #deck { position: relative !important; overflow: visible !important; }
+    }
   </style>
 </head>
 <body>
@@ -418,7 +446,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     <span>ProSystem Sistemas</span>
   </div>
   <div class="nav-right">
-    <span class="nav-pill" id="slide-info-nav">Apresentação Comercial</span>
+    <button class="nav-pill nav-pill-copy" id="copy-resumo-nav" onclick="copyWhatsAppText()">&#128203;<span class="copy-label">&nbsp; Copiar resumo p/ WhatsApp</span></button>
     <button class="mode-btn" onclick="toggleMode()" id="mode-btn-top">Modo: Apresentador</button>
   </div>
 </nav>
@@ -432,24 +460,23 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 <!-- PROGRESS -->
 <div id="progress-bar"><div id="progress-fill"></div></div>
 <div id="slide-counter"></div>
-<div id="nav-hint">← → Navegar &nbsp;|&nbsp; ESC Módulos</div>
+<div id="nav-hint">&#8592; &#8594; Navegar &nbsp;|&nbsp; ESC Módulos</div>
 
 <!-- DECK -->
 <div id="deck">
 
-  <!-- ═══════════════════════════════════════════════════════
-       SLIDE 0 — COVER
-  ═══════════════════════════════════════════════════════ -->
+  <!-- ===== SLIDE 0 — CAPA ===== -->
   <div class="slide" id="slide-0" data-slide="0">
     <div class="flex-col items-center text-center max700" style="gap:28px;">
       <div>
-        <div class="eyebrow" style="justify-content:center;">Proposta Comercial &nbsp;•&nbsp; <span id="s0-company">${data.companyName}</span></div>
+        <img src="${imgSrc('logo', '/logo-prosystem.png')}" alt="ProSystem" style="height:52px;object-fit:contain;margin-bottom:20px;" onerror="this.style.display='none'">
+        <div class="eyebrow" style="justify-content:center;">Proposta Comercial &nbsp;&bull;&nbsp; <span id="s0-company">${data.companyName}</span></div>
         <h1 class="display-xl mt8">
           Mais controle, agilidade e<br>
           <span class="gradient-text">inteligência para a sua operação</span>
         </h1>
         <p class="body-lg mt16" style="max-width:560px;margin-left:auto;margin-right:auto;">
-          A ProSystem foi criada para resolver exatamente isso — 16 anos construindo soluções que fazem a operação trabalhar por você.
+          A ProSystem foi criada para resolver exatamente isso &mdash; 16 anos construindo soluções que fazem a operação trabalhar por você.
         </p>
       </div>
       <div class="flex gap12 flex-wrap justify-center mt8">
@@ -458,12 +485,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           <span class="lbl">No mercado</span>
         </div>
         <div class="metric-pill">
-          <span class="val" data-counter-text="24/7">—</span>
+          <span class="val" data-counter-text="7h–22h">—</span>
           <span class="lbl">Suporte ativo</span>
         </div>
         <div class="metric-pill">
-          <span class="val" data-counter="3" data-suffix=" segmentos">0</span>
-          <span class="lbl">Atendidos</span>
+          <span class="val" data-counter="5" data-suffix=" meses">0</span>
+          <span class="lbl">Treinamento</span>
         </div>
       </div>
       <div class="flex gap12 flex-wrap justify-center mt8">
@@ -473,26 +500,24 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       SLIDE 1 — QUEM SOMOS
-  ═══════════════════════════════════════════════════════ -->
+  <!-- ===== SLIDE 1 — QUEM SOMOS ===== -->
   <div class="slide" id="slide-1" data-slide="1">
     <div class="flex-col max900" style="gap:32px;">
       <div>
         <div class="eyebrow">Nossa história</div>
         <h2 class="display-lg">16 anos transformando<br>o varejo brasileiro</h2>
         <p class="body-lg mt12 max700">
-          A ProSystem nasceu da necessidade real do varejo: um sistema que entende a operação, resolve problemas do dia a dia e cresce junto com o negócio. Hoje atendemos farmácias, padarias e varejo com a mesma dedicação desde o início.
+          A ProSystem nasceu da necessidade real do varejo: um sistema que entende a operação, resolve problemas do dia a dia e cresce junto com o negócio. Atendemos farmácias, padarias e varejo com a mesma dedicação desde o primeiro dia.
         </p>
       </div>
       <div class="flex gap12 flex-wrap">
         <div class="glass-accent" style="padding:20px 24px;flex:1;min-width:180px;">
           <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--secondary);margin-bottom:8px;">Farmácias</div>
-          <div style="font-size:14px;color:var(--text-secondary);">PBMs, NF-e, controle de receituário e compliance farmacêutico integrado</div>
+          <div style="font-size:14px;color:var(--text-secondary);">SNGPC, PBMs, NF-e, controle de receituário e compliance farmacêutico integrado</div>
         </div>
         <div class="glass-accent" style="padding:20px 24px;flex:1;min-width:180px;">
-          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;">Padarias</div>
-          <div style="font-size:14px;color:var(--text-secondary);">PDV ágil, produção, perdas e controle de validade com operação em tempo real</div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;">Padarias &amp; Lojas</div>
+          <div style="font-size:14px;color:var(--text-secondary);">PDV ágil, controle de estoque, encomendas e entrega em domicílio em tempo real</div>
         </div>
         <div class="glass-accent" style="padding:20px 24px;flex:1;min-width:180px;">
           <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:8px;">Varejo geral</div>
@@ -502,9 +527,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       SLIDE 2 — O DESAFIO
-  ═══════════════════════════════════════════════════════ -->
+  <!-- ===== SLIDE 2 — O DESAFIO ===== -->
   <div class="slide" id="slide-2" data-slide="2">
     <div class="flex-col max900" style="gap:32px;">
       <div>
@@ -516,17 +539,17 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       </div>
       <div class="flex gap12 flex-wrap">
         <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
-          <div style="font-size:24px;margin-bottom:12px;">⚖️</div>
+          <div style="font-size:24px;margin-bottom:12px;">&#9878;&#65039;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Compliance fiscal</div>
           <div class="body-md">Medo de multas, NF-e incorreta, SPED desatualizado. O risco tributário pesa sobre cada operação.</div>
         </div>
         <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
-          <div style="font-size:24px;margin-bottom:12px;">📉</div>
+          <div style="font-size:24px;margin-bottom:12px;">&#128201;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Falta de visibilidade</div>
-          <div class="body-md">Não saber o que está acontecendo em tempo real é tomar decisões no escuro — e perder margem.</div>
+          <div class="body-md">Não saber o que acontece em tempo real é tomar decisões no escuro &mdash; e perder margem.</div>
         </div>
         <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
-          <div style="font-size:24px;margin-bottom:12px;">🔁</div>
+          <div style="font-size:24px;margin-bottom:12px;">&#128257;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Retrabalho constante</div>
           <div class="body-md">Processos manuais consomem tempo, geram erros e impedem o crescimento da operação.</div>
         </div>
@@ -534,158 +557,146 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       SLIDE 3 — A SOLUÇÃO
-  ═══════════════════════════════════════════════════════ -->
+  <!-- ===== SLIDE 3 — A SOLUÇÃO ===== -->
   <div class="slide" id="slide-3" data-slide="3">
     <div class="flex-col max900" style="gap:32px;">
       <div>
         <div class="eyebrow">A resposta certa</div>
         <h2 class="display-lg">A ProSystem foi criada para<br><span class="gradient-text">resolver exatamente isso</span></h2>
         <p class="body-lg mt12 max700">
-          Um ERP que faz a operação trabalhar por você — integrando vendas, estoque, financeiro e compliance em uma plataforma única, com suporte humano de verdade.
+          Um ERP que faz a operação trabalhar por você &mdash; integrando vendas, estoque, financeiro e compliance em uma plataforma única, com suporte humano de verdade.
         </p>
       </div>
       <div class="flex gap12 flex-wrap">
         <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
-          <div style="width:40px;height:40px;border-radius:12px;background:rgba(75,142,200,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">🔗</div>
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(75,142,200,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">&#128279;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">ERP Integrado</div>
           <div class="body-md">Vendas, estoque, financeiro em um só sistema. Sem planilhas, sem retrabalho, sem informação perdida.</div>
         </div>
         <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
-          <div style="width:40px;height:40px;border-radius:12px;background:rgba(39,201,127,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">✅</div>
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(39,201,127,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">&#10003;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">Compliance Total</div>
-          <div class="body-md">NF-e, NFC-e, SPED, PBMs — tudo incluído e atualizado automaticamente para manter sua operação segura.</div>
+          <div class="body-md">NF-e, NFC-e, SPED, SNGPC, PBMs &mdash; tudo incluso e atualizado para manter sua operação segura.</div>
         </div>
         <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
-          <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,107,53,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">🤝</div>
-          <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">Suporte Ativo</div>
-          <div class="body-md">Atendimento humanizado das 7h às 22h, com técnicos preparados para resolver e orientar de verdade.</div>
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,107,53,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">&#129309;</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">Suporte Ativo Humanizado</div>
+          <div class="body-md">Atendimento humano das 7h às 22h, com técnicos prontos para resolver e orientar de verdade.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       SLIDE 4 — MODULE HUB
-  ═══════════════════════════════════════════════════════ -->
-  <div class="slide" id="slide-4" data-slide="4" id="module-hub">
+  <!-- ===== SLIDE 4 — MODULE HUB ===== -->
+  <div class="slide" id="slide-4" data-slide="4">
     <div class="flex-col items-center" style="gap:28px;width:100%;">
       <div class="text-center">
         <div class="eyebrow" style="justify-content:center;">Explore a proposta</div>
         <h2 class="display-md">Escolha um módulo para aprofundar</h2>
-        <p class="body-md mt8" style="max-width:500px;margin:8px auto 0;">Use as teclas 1–4 ou clique nos cards para navegar pelos módulos</p>
+        <p class="body-md mt8" style="max-width:500px;margin:8px auto 0;">Use as teclas 1&ndash;4 ou clique nos cards para navegar pelos módulos</p>
       </div>
       <div class="hub-grid" id="hub-grid"></div>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       MÓDULO 1 — GESTÃO DO NEGÓCIO (slides 5–8)
-  ═══════════════════════════════════════════════════════ -->
-  <!-- SLIDE 5: Contexto -->
+  <!-- ===== MÓDULO 1 — GESTÃO DO NEGÓCIO (slides 5–8) ===== -->
   <div class="slide" id="slide-5" data-slide="5" data-module="1">
     <div class="mod-layout">
       <div>
-        <div class="eyebrow" style="color:#4B8EC8;">Módulo 1 — Gestão do Negócio</div>
+        <div class="eyebrow" style="color:#4B8EC8;">Módulo 1 &mdash; Gestão do Negócio</div>
         <h2 class="display-lg">Sua operação<br><span class="text-accent">em um só lugar</span></h2>
-        <p class="body-lg mt12">PDV, Estoque e Compras integrados — sem gaps de informação, sem retrabalho, sem surpresa no fechamento.</p>
+        <p class="body-lg mt12">PDV, Estoque e Compras integrados &mdash; sem lacunas de informação, sem retrabalho, sem surpresa no fechamento do dia.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>PDV ágil com NFC-e integrado</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Estoque em tempo real, por produto e localização</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Compras e sugestão automática de reposição</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Fechamento de caixa simplificado</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Estoque em tempo real, por produto</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Sugestão automática de reposição</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Entrega em domicílio e encomendas</span></div>
         </div>
       </div>
       <div class="mod-img-wrap">
         <img src="${imgSrc('hero', '/imagem-hero.png')}" alt="Gestão do Negócio" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">🏪</div><div class="ph-text">PDV & Estoque</div></div>
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#127978;</div><div class="ph-text">PDV &amp; Estoque</div></div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 6: PDV/Estoque -->
   <div class="slide" id="slide-6" data-slide="6" data-module="1">
     <div class="mod-layout">
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">🖥️</div><div class="ph-text">Tela PDV</div></div>
+        <div class="mod-placeholder"><div class="ph-icon">&#128187;</div><div class="ph-text">Tela PDV</div></div>
       </div>
       <div>
-        <div class="eyebrow" style="color:#4B8EC8;">PDV & Estoque</div>
+        <div class="eyebrow" style="color:#4B8EC8;">PDV &amp; Fiscal</div>
         <h2 class="display-lg">Velocidade na<br>frente de caixa</h2>
-        <p class="body-lg mt12">O PDV da ProSystem foi projetado para fluxo intenso — emissão de NFC-e em menos de 2 segundos, integrado direto com o estoque e o financeiro.</p>
+        <p class="body-lg mt12">Emissão de NFC-e integrada, SPED Fiscal atualizado e cadastro completo de produtos e clientes &mdash; tudo em uma interface projetada para fluxo intenso.</p>
         <div class="flex gap12 flex-wrap mt24">
-          <div class="metric-pill"><span class="val">&lt;2s</span><span class="lbl">Emissão NFC-e</span></div>
+          <div class="metric-pill"><span class="val">NFC-e</span><span class="lbl">Integrado</span></div>
+          <div class="metric-pill"><span class="val">SPED</span><span class="lbl">Automático</span></div>
           <div class="metric-pill"><span class="val">100%</span><span class="lbl">Compliance fiscal</span></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 7: Integração -->
   <div class="slide" id="slide-7" data-slide="7" data-module="1">
     <div class="mod-layout">
       <div>
-        <div class="eyebrow" style="color:#4B8EC8;">Integração</div>
-        <h2 class="display-lg">Compras que<br><span class="text-accent">se reposicionam sozinhas</span></h2>
-        <p class="body-lg mt12">O módulo de compras analisa histórico de vendas, estoque mínimo e curva ABC para gerar sugestões automáticas — reduzindo ruptura e excesso.</p>
+        <div class="eyebrow" style="color:#4B8EC8;">Compras &amp; Estoque</div>
+        <h2 class="display-lg">Reposição inteligente,<br><span class="text-accent">zero ruptura</span></h2>
+        <p class="body-lg mt12">O módulo de compras analisa histórico de vendas e estoque mínimo para gerar sugestões automáticas &mdash; reduzindo ruptura, excesso e perda.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Sugestão automática de pedido de compra</span></div>
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Curva ABC de produtos integrada</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Indicador de perda e ruptura de estoque</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Indicador de ruptura de estoque em tempo real</span></div>
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">📦</div><div class="ph-text">Módulo Compras</div></div>
+        <div class="mod-placeholder"><div class="ph-icon">&#128230;</div><div class="ph-text">Módulo Compras</div></div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 8: Resultado -->
   <div class="slide" id="slide-8" data-slide="8" data-module="1">
     <div class="flex-col items-center text-center max700" style="gap:24px;">
       <div class="eyebrow" style="justify-content:center;color:#4B8EC8;">Resultado esperado</div>
       <h2 class="display-lg">Operação integrada,<br><span class="gradient-text">resultado visível</span></h2>
-      <p class="body-lg">Com PDV, Estoque e Compras no mesmo sistema, sua equipe trabalha menos e entrega mais — com menos erros e mais visibilidade para o gestor.</p>
+      <p class="body-lg">Com PDV, Estoque e Compras no mesmo sistema, sua equipe trabalha menos e entrega mais &mdash; com menos erros e mais visibilidade para o gestor.</p>
       <button class="btn btn-primary" onclick="returnToHub()">Ver outros módulos</button>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       MÓDULO 2 — CONTROLE FINANCEIRO (slides 9–12)
-  ═══════════════════════════════════════════════════════ -->
-  <!-- SLIDE 9: Contexto -->
+  <!-- ===== MÓDULO 2 — CONTROLE FINANCEIRO & GERENCIAL (slides 9–12) ===== -->
   <div class="slide" id="slide-9" data-slide="9" data-module="2">
     <div class="mod-layout">
       <div>
-        <div class="eyebrow" style="color:#27C97F;">Módulo 2 — Controle Financeiro</div>
+        <div class="eyebrow" style="color:#27C97F;">Módulo 2 &mdash; Controle Financeiro &amp; Gerencial</div>
         <h2 class="display-lg">Saiba exatamente<br><span class="text-green">onde está o dinheiro</span></h2>
-        <p class="body-lg mt12">Dashboard gerencial, análise de rentabilidade e relatórios estratégicos — tudo para que o gestor tome decisões com dados, não com intuição.</p>
+        <p class="body-lg mt12">Dashboard gerencial, análise de rentabilidade e relatórios estratégicos &mdash; <strong style="color:#ffb49a;">diferenciais exclusivos do Plano Plus</strong> para quem quer crescer com gestão.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Contas a pagar e receber integradas</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Fluxo de caixa em tempo real</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Conciliação bancária automática</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>DRE gerencial por período</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Fluxo de caixa e conciliação bancária</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Dashboard gerencial em tempo real</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Análise de rentabilidade por produto</span></div>
         </div>
       </div>
       <div class="mod-img-wrap">
         <img src="${imgSrc('relatorios', '/tela-relatorios.png')}" alt="Controle Financeiro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">📊</div><div class="ph-text">Painel Financeiro</div></div>
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#128202;</div><div class="ph-text">Painel Financeiro</div></div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 10: Dashboard -->
   <div class="slide" id="slide-10" data-slide="10" data-module="2">
     <div class="mod-layout">
       <div class="mod-img-wrap">
         <img src="${imgSrc('dashboard', '/tela-dashboard.png')}" alt="Dashboard" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">📈</div><div class="ph-text">Dashboard Gerencial</div></div>
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#128200;</div><div class="ph-text">Dashboard Gerencial</div></div>
       </div>
       <div>
-        <div class="eyebrow" style="color:#27C97F;">Dashboard</div>
-        <h2 class="display-lg">O negócio inteiro<br>em uma tela</h2>
-        <p class="body-lg mt12">O dashboard do Plano Plus consolida vendas, margem, inadimplência e estoque — atualizado em tempo real, disponível de qualquer dispositivo.</p>
+        <div class="eyebrow" style="color:#27C97F;">Dashboard Gerencial</div>
+        <h2 class="display-lg">O negócio inteiro<br><span class="text-green">em uma tela</span></h2>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(255,107,53,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#ffb49a;">Exclusivo Plano Plus</div>
+        <p class="body-lg mt12">Consolida vendas, margem, inadimplência e estoque &mdash; atualizado em tempo real, disponível em qualquer dispositivo. Tomar decisão deixa de ser intuição.</p>
         <div class="flex gap12 flex-wrap mt24">
           <div class="metric-pill"><span class="val">Tempo real</span><span class="lbl">Atualização</span></div>
           <div class="metric-pill"><span class="val">Plano Plus</span><span class="lbl">Exclusivo</span></div>
@@ -694,124 +705,119 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- SLIDE 11: Rentabilidade -->
   <div class="slide" id="slide-11" data-slide="11" data-module="2">
     <div class="mod-layout">
       <div>
-        <div class="eyebrow" style="color:#27C97F;">Rentabilidade</div>
+        <div class="eyebrow" style="color:#27C97F;">Rentabilidade &amp; Indicadores</div>
         <h2 class="display-lg">Margem real,<br><span class="text-green">produto por produto</span></h2>
-        <p class="body-lg mt12">Identifique quais produtos realmente lucram, quais apenas giram e onde está a perda de margem — com análise de rentabilidade detalhada e comparativa.</p>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(255,107,53,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#ffb49a;">Exclusivo Plano Plus</div>
+        <p class="body-lg mt12">Identifique quais produtos realmente lucram, quais apenas giram e onde está o indicador de perda de vendas &mdash; análise detalhada e comparativa.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Margem bruta por produto e categoria</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Indicador de perda de vendas</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Comparativo por período e por vendedor</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Indicador de perda de vendas integrado</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Relatórios e análises gerenciais avançados</span></div>
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">💹</div><div class="ph-text">Análise de Rentabilidade</div></div>
+        <div class="mod-placeholder"><div class="ph-icon">&#128185;</div><div class="ph-text">Análise de Rentabilidade</div></div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 12: Decisões -->
   <div class="slide" id="slide-12" data-slide="12" data-module="2">
     <div class="flex-col items-center text-center max700" style="gap:24px;">
       <div class="eyebrow" style="justify-content:center;color:#27C97F;">Resultado esperado</div>
       <h2 class="display-lg">Decisões baseadas<br><span class="gradient-text">em dados reais</span></h2>
-      <p class="body-lg">Com o Controle Financeiro da ProSystem, o gestor sai da intuição e passa a gerir com indicadores — reduzindo perdas e aumentando a margem real da operação.</p>
+      <p class="body-lg">Com o Controle Financeiro &amp; Gerencial do Plano Plus, o gestor sai da intuição e passa a gerir com indicadores &mdash; reduzindo perdas e aumentando a margem real.</p>
+      <div style="padding:16px 24px;border-radius:var(--radius);background:rgba(255,107,53,0.1);border:1px solid var(--border-plus);font-size:13px;color:#ffb49a;font-weight:600;max-width:480px;">
+        Dashboard, Rentabilidade e Indicador de Perda são recursos exclusivos do Plano Plus &mdash; a escolha de quem quer crescer com gestão.
+      </div>
       <button class="btn btn-green" onclick="returnToHub()">Ver outros módulos</button>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       MÓDULO 3 — SUPORTE & TREINAMENTO (slides 13–16)
-  ═══════════════════════════════════════════════════════ -->
-  <!-- SLIDE 13: Contexto -->
+  <!-- ===== MÓDULO 3 — SUPORTE & TREINAMENTO (slides 13–16) ===== -->
   <div class="slide" id="slide-13" data-slide="13" data-module="3">
     <div class="mod-layout">
       <div>
-        <div class="eyebrow" style="color:#FF6B35;">Módulo 3 — Suporte & Treinamento</div>
+        <div class="eyebrow" style="color:#FF6B35;">Módulo 3 &mdash; Suporte &amp; Treinamento</div>
         <h2 class="display-lg">Suporte que<br><span class="text-orange">resolve de verdade</span></h2>
-        <p class="body-lg mt12">Não é um chatbot. Não é uma fila de e-mail. É atendimento humano, ativo e especializado — das 7h às 22h, todos os dias úteis.</p>
+        <p class="body-lg mt12">Não é um chatbot. Não é uma fila de e-mail. É atendimento humano, ativo e especializado &mdash; das 7h às 22h, todos os dias úteis.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Atendimento humanizado por técnicos especializados</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Canal direto — sem fila, sem ticket perdido</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Canal direto &mdash; sem fila, sem ticket perdido</span></div>
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Resposta ágil dentro da janela operacional</span></div>
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Suporte assistido durante os 5 meses de treinamento</span></div>
         </div>
       </div>
       <div class="mod-img-wrap">
         <img src="${imgSrc('whatsapp', '/tela-whatsapp.png')}" alt="Suporte ProSystem" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">🤝</div><div class="ph-text">Canal de Suporte</div></div>
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#129309;</div><div class="ph-text">Canal de Suporte</div></div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 14: Horários -->
   <div class="slide" id="slide-14" data-slide="14" data-module="3">
     <div class="flex-col items-center text-center max700" style="gap:28px;">
       <div>
         <div class="eyebrow" style="justify-content:center;color:#FF6B35;">Disponibilidade</div>
-        <h2 class="display-lg">7h às 22h — <span class="text-orange">todos os dias úteis</span></h2>
+        <h2 class="display-lg">7h às 22h &mdash; <span class="text-orange">todos os dias úteis</span></h2>
         <p class="body-lg mt12">A janela de suporte da ProSystem cobre toda a operação do varejo, do recebimento matutino ao fechamento noturno.</p>
       </div>
       <div class="flex gap12 flex-wrap justify-center">
         <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.25);text-align:center;">
-          <div style="font-size:42px;font-weight:900;letter-spacing:-0.05em;color:var(--accent);">7h–22h</div>
+          <div style="font-size:40px;font-weight:900;letter-spacing:-0.05em;color:var(--accent);">7h&ndash;22h</div>
           <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Janela de atendimento</div>
         </div>
         <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(75,142,200,0.1);border:1px solid var(--border-accent);text-align:center;">
-          <div style="font-size:42px;font-weight:900;letter-spacing:-0.05em;color:var(--secondary);">5 meses</div>
+          <div style="font-size:40px;font-weight:900;letter-spacing:-0.05em;color:var(--secondary);">5 meses</div>
           <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Treinamento incluso</div>
         </div>
         <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(39,201,127,0.1);border:1px solid rgba(39,201,127,0.25);text-align:center;">
-          <div style="font-size:42px;font-weight:900;letter-spacing:-0.05em;color:var(--green);">Humano</div>
+          <div style="font-size:40px;font-weight:900;letter-spacing:-0.05em;color:var(--green);">Humano</div>
           <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Técnico real, não bot</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 15: Treinamento -->
   <div class="slide" id="slide-15" data-slide="15" data-module="3">
     <div class="mod-layout">
       <div>
         <div class="eyebrow" style="color:#FF6B35;">Treinamento</div>
         <h2 class="display-lg">5 meses para<br><span class="text-orange">dominar o sistema</span></h2>
-        <p class="body-lg mt12">O programa de treinamento da ProSystem acompanha o cliente desde a implantação até a operação autônoma — com suporte assistido em cada etapa.</p>
+        <p class="body-lg mt12">O programa acompanha o cliente desde a implantação até a operação autônoma &mdash; com suporte assistido em cada etapa do processo.</p>
         <div class="check-list mt24">
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 1–2: Implantação e configuração assistida</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 1&ndash;2: Implantação e configuração assistida</span></div>
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 3: Treinamento da equipe operacional</span></div>
-          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 4–5: Uso avançado e gestão gerencial</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 4&ndash;5: Uso avançado e gestão gerencial</span></div>
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Suporte técnico ativo durante todo o período</span></div>
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">🎓</div><div class="ph-text">Programa de Treinamento</div></div>
+        <div class="mod-placeholder"><div class="ph-icon">&#127891;</div><div class="ph-text">Programa de Treinamento</div></div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 16: Compromisso -->
   <div class="slide" id="slide-16" data-slide="16" data-module="3">
     <div class="flex-col items-center text-center max700" style="gap:24px;">
       <div class="eyebrow" style="justify-content:center;color:#FF6B35;">Compromisso ProSystem</div>
       <h2 class="display-lg">Não vendemos software.<br><span class="text-orange">Vendemos resultado.</span></h2>
-      <p class="body-lg">Nosso compromisso começa na implantação e não termina nunca. O suporte ativo é um diferencial que mantemos há 16 anos — e é o que nossos clientes mais valorizam.</p>
+      <p class="body-lg">Nosso compromisso começa na implantação e não termina nunca. O suporte ativo é um diferencial que mantemos há 16 anos &mdash; e é o que nossos clientes mais valorizam.</p>
       <button class="btn btn-accent" onclick="returnToHub()">Ver outros módulos</button>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       MÓDULO 4 — PROPOSTA COMERCIAL (slides 17–20)
-  ═══════════════════════════════════════════════════════ -->
+  <!-- ===== MÓDULO 4 — PROPOSTA COMERCIAL (slides 17–20) ===== -->
+
   <!-- SLIDE 17: Comparativo Planos -->
   <div class="slide" id="slide-17" data-slide="17" data-module="4">
-    <div class="flex-col max900" style="gap:24px;">
+    <div class="flex-col max900" style="gap:20px;">
       <div>
-        <div class="eyebrow" style="color:#F59E0B;">Módulo 4 — Proposta Comercial</div>
+        <div class="eyebrow" style="color:#F59E0B;">Módulo 4 &mdash; Proposta Comercial</div>
         <h2 class="display-md">Comparativo de planos</h2>
-        <p class="body-md mt8">Veja o que cada plano inclui e por que o <span id="s17-plan" style="color:#9ecfff;font-weight:800;">${data.selectedPlan}</span> é a recomendação para sua operação.</p>
+        <p class="body-md mt8">Veja o que cada plano inclui e por que o <span id="s17-plus-name" style="color:#ffb49a;font-weight:800;">Plus</span> é a recomendação para sua operação.</p>
       </div>
       <div class="glass scroll-x" style="padding:20px;">
         <table class="plan-table" id="plan-table-main"></table>
@@ -819,42 +825,46 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- SLIDE 18: Valores Especiais -->
+  <!-- SLIDE 18: Valores -->
   <div class="slide" id="slide-18" data-slide="18" data-module="4">
-    <div class="flex-col max900" style="gap:24px;">
+    <div class="flex-col max900" style="gap:22px;">
       <div>
         <div class="eyebrow" style="color:#F59E0B;">Condição especial</div>
         <h2 class="display-lg">Proposta exclusiva para<br><span id="s18-company" style="color:#F59E0B;">${data.companyName || 'sua empresa'}</span></h2>
-        <p class="body-md mt8">Esta proposta foi preparada especialmente para sua operação, com condições que refletem o volume e o perfil do seu negócio.</p>
+        <p class="body-md mt8">Preparada especialmente para sua operação, com condições que refletem o perfil do seu negócio.</p>
       </div>
       <div class="flex gap12 flex-wrap">
         <div class="price-card" style="flex:1;min-width:160px;">
           <div class="pc-label">Implantação original</div>
           <div class="pc-old" id="s18-original">R$ 0,00</div>
+          <div class="pc-sub">Valor de tabela</div>
         </div>
         <div class="price-card featured" style="flex:1;min-width:160px;">
           <div class="pc-label">Valor especial negociado</div>
           <div class="pc-val" id="s18-final">R$ 0,00</div>
+          <div class="pc-sub" style="color:#ffb49a;">Condição exclusiva</div>
         </div>
-        <div class="price-card" style="flex:1;min-width:160px;">
+        <div class="price-card monthly" style="flex:1;min-width:160px;">
           <div class="pc-label">Mensalidade do plano</div>
-          <div class="pc-val" style="color:var(--green);" id="s18-monthly">R$ 0,00</div>
+          <div class="pc-val" id="s18-monthly">R$ 0,00</div>
+          <div class="pc-sub">Recorrente mensal</div>
         </div>
       </div>
-      <div class="glass" style="padding:16px 20px;">
+      <div class="plus-highlight-box">
         <div class="flex gap12 flex-wrap items-center">
           <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">Plano recomendado:</div>
-          <div style="font-size:16px;font-weight:800;color:var(--text-primary);" id="s18-plan">${data.selectedPlan}</div>
+          <div style="font-size:16px;font-weight:800;color:#ffb49a;" id="s18-plan">${data.selectedPlan}</div>
+          <span class="rec-badge">Recomendado</span>
           <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-left:auto;">Válida até:</div>
-          <div style="font-size:15px;font-weight:800;color:var(--accent);" id="s18-valid">${data.validUntil || '—'}</div>
+          <div style="font-size:15px;font-weight:800;color:var(--accent);" id="s18-valid">${data.validUntil || '&mdash;'}</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDE 19: Formas de Pagamento -->
+  <!-- SLIDE 19: Condições de pagamento -->
   <div class="slide" id="slide-19" data-slide="19" data-module="4">
-    <div class="flex-col max900" style="gap:24px;">
+    <div class="flex-col max900" style="gap:22px;">
       <div>
         <div class="eyebrow" style="color:#F59E0B;">Condições de pagamento</div>
         <h2 class="display-md">Formas de pagamento<br>para a implantação</h2>
@@ -862,15 +872,15 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div class="flex gap12 flex-wrap">
         <div class="price-card" style="flex:1;min-width:200px;">
           <div class="pc-label">Entrada</div>
-          <div class="pc-val" id="s19-entry">—</div>
+          <div class="pc-val" id="s19-entry">&mdash;</div>
         </div>
         <div class="price-card" style="flex:1;min-width:200px;">
           <div class="pc-label">Parcelamento</div>
-          <div class="pc-val" id="s19-installments">—</div>
+          <div class="pc-val" id="s19-installments">&mdash;</div>
         </div>
         <div class="price-card featured" style="flex:2;min-width:220px;">
           <div class="pc-label">Total implantação</div>
-          <div class="pc-val" id="s19-total">—</div>
+          <div class="pc-val" id="s19-total">&mdash;</div>
         </div>
       </div>
       <div class="glass" style="padding:16px 20px;">
@@ -880,16 +890,19 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>5 meses de treinamento e suporte assistido inclusos</span></div>
         </div>
       </div>
+      <div class="glass" style="padding:14px 20px;">
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">Vendedor: <strong style="color:var(--text-primary);" id="s19-seller">${data.sellerName || '&mdash;'}</strong> &nbsp;|&nbsp; <span id="s19-seller-phone">${data.sellerPhone || ''}</span></div>
+      </div>
     </div>
   </div>
 
-  <!-- SLIDE 20: Validade + WhatsApp -->
+  <!-- SLIDE 20: Aceite + WhatsApp -->
   <div class="slide" id="slide-20" data-slide="20" data-module="4">
-    <div class="flex-col max900" style="gap:20px;">
+    <div class="flex-col max900" style="gap:18px;">
       <div>
         <div class="eyebrow" style="color:#F59E0B;">Aceite a proposta</div>
-        <h2 class="display-md">Esta proposta é válida até <span class="text-orange" id="s20-valid">${data.validUntil || '—'}</span></h2>
-        <p class="body-md mt8">Entre em contato com <strong style="color:var(--text-primary);" id="s20-seller">${data.sellerName}</strong> para confirmar e dar início à implantação.</p>
+        <h2 class="display-md">Válida até <span class="text-orange" id="s20-valid">${data.validUntil || '&mdash;'}</span></h2>
+        <p class="body-md mt8">Entre em contato com <strong style="color:var(--text-primary);" id="s20-seller">${data.sellerName || '&mdash;'}</strong> para confirmar e dar início à implantação.</p>
       </div>
       <div class="flex gap12 flex-wrap">
         <button class="btn btn-green" id="accept-whatsapp-btn">Aceitar via WhatsApp</button>
@@ -906,16 +919,14 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       SLIDE 21 — PROVA SOCIAL
-  ═══════════════════════════════════════════════════════ -->
+  <!-- ===== SLIDE 21 — PROVA SOCIAL ===== -->
   <div class="slide" id="slide-21" data-slide="21">
     <div class="flex-col items-center text-center" style="gap:28px;width:100%;">
       <div>
         <div class="eyebrow" style="justify-content:center;">16 anos de confiança</div>
         <h2 class="display-lg">O varejo escolhe<br><span class="gradient-text">a ProSystem há 16 anos</span></h2>
         <p class="body-lg mt12" style="max-width:560px;margin-left:auto;margin-right:auto;">
-          Não somos uma startup prometendo transformação digital. Somos um parceiro operacional testado pelo tempo — com suporte real e resultados mensuráveis.
+          Não somos uma startup prometendo transformação digital. Somos um parceiro operacional testado pelo tempo &mdash; especialistas em farmácias, padarias e varejo.
         </p>
       </div>
       <div class="proof-grid">
@@ -924,31 +935,29 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           <div class="pl">No mercado varejista</div>
         </div>
         <div class="proof-card">
-          <div class="pv" style="color:var(--accent);" data-counter="3" data-suffix=" segmentos">0</div>
-          <div class="pl">Farmácias, padarias e varejo</div>
+          <div class="pv" style="color:var(--accent);">Farma</div>
+          <div class="pl">Farmácias e Manipulação</div>
         </div>
         <div class="proof-card">
-          <div class="pv" style="color:var(--green);">7h–22h</div>
+          <div class="pv" style="color:var(--green);">7h&ndash;22h</div>
           <div class="pl">Janela de suporte ativo</div>
         </div>
         <div class="proof-card">
-          <div class="pv" style="color:#F59E0B);" data-counter="5" data-suffix=" meses">0</div>
+          <div class="pv" style="color:var(--gold);" data-counter="5" data-suffix=" meses">0</div>
           <div class="pl">Treinamento para novos clientes</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       SLIDE 22 — CTA FINAL
-  ═══════════════════════════════════════════════════════ -->
+  <!-- ===== SLIDE 22 — CTA FINAL ===== -->
   <div class="slide" id="slide-22" data-slide="22">
     <div class="flex-col items-center text-center max700" style="gap:28px;">
       <div>
         <div class="eyebrow" style="justify-content:center;">Próximo passo</div>
         <h1 class="display-xl">Vamos começar?</h1>
         <p class="body-lg mt16">
-          A proposta é válida até <strong class="text-accent" id="cta-valid">${data.validUntil || '—'}</strong>.<br>
+          A proposta é válida até <strong class="text-accent" id="cta-valid">${data.validUntil || '&mdash;'}</strong>.<br>
           Responda no WhatsApp agora e comece a transformar sua operação.
         </p>
       </div>
@@ -969,14 +978,60 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   // ── DATA ────────────────────────────────────────────────
   const proposalData = ${dataJson};
 
+  // ── PLAN FAMILY ─────────────────────────────────────────
+  function getPlanFamily(segment) {
+    const s = (segment || '').toLowerCase()
+      .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+    if (/farma|farmacia|manipula/i.test(s)) {
+      return { familia: 'FARMA', nomes: { basic: 'Farma Basic', pro: 'Farma Pro', plus: 'Farma Plus' } };
+    }
+    if (/\\bmei\\b/i.test(s)) {
+      return { familia: 'MEI', nomes: { basic: 'MEI', pro: 'MEI', plus: 'Prosystem MEI' } };
+    }
+    return { familia: 'LOJA', nomes: { basic: 'Loja Basic', pro: 'Loja Pro', plus: 'Loja Plus' } };
+  }
+
+  const planFamily = getPlanFamily(proposalData.segment);
+
+  // ── FALLBACK COMPARISON TABLE ────────────────────────────
+  const LOJA_ROWS = [
+    { feature: 'PDV / Frente de Caixa',             basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Gestão de Estoque',                 basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Gestão de Compras',                 basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Cadastro de Produtos e Clientes',   basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Nota Fiscal Eletrônica (NF-e/NFC-e)', basic: 'Sim', pro: 'Sim',           plus: 'Sim' },
+    { feature: 'SPED Fiscal',                       basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Controle Financeiro',               basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Contas a Pagar/Receber e Caixa',    basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Auditoria e Controle de Acessos',   basic: 'Básico',pro: 'Intermediário', plus: 'Avançado' },
+    { feature: 'Dashboard Gerencial',               basic: 'Não',   pro: 'Não',           plus: 'Sim' },
+    { feature: 'Análise de Rentabilidade',          basic: 'Não',   pro: 'Não',           plus: 'Sim' },
+    { feature: 'Indicador de Perda de Vendas',      basic: 'Não',   pro: 'Não',           plus: 'Sim' },
+    { feature: 'Relatórios e Análises Gerenciais',  basic: 'Básico',pro: 'Intermediário', plus: 'Avançado' },
+    { feature: 'Entregas em Domicílio',             basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Controle de Encomendas',            basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Suporte Ativo 7h-22h',              basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Treinamento 5 meses',               basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+  ];
+  const FARMA_EXTRA = [
+    { feature: 'SNGPC (Medicamentos Controlados)',  basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'PBM - Programas de Benefícios',     basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
+  ];
+
+  function getComparisonRows() {
+    const base = LOJA_ROWS;
+    if (planFamily.familia === 'FARMA') return [...base, ...FARMA_EXTRA];
+    return base;
+  }
+
   // ── SLIDES CONFIG ───────────────────────────────────────
   const TOTAL_SLIDES = 23;
   const HUB_SLIDE = 4;
   const modules = [
-    { id:1, name:'Gestão do Negócio',   desc:'PDV, Estoque e Compras integrados para sua operação', icon:'🏪', color:'#4B8EC8', slides:[5,6,7,8] },
-    { id:2, name:'Controle Financeiro', desc:'Dashboard, Rentabilidade e Análises gerenciais',        icon:'📊', color:'#27C97F', slides:[9,10,11,12] },
-    { id:3, name:'Suporte & Treinamento',desc:'7h–22h, atendimento humano, 5 meses de treinamento',  icon:'🤝', color:'#FF6B35', slides:[13,14,15,16] },
-    { id:4, name:'Proposta Comercial',  desc:'Condições especiais personalizadas para o seu negócio', icon:'📋', color:'#F59E0B', slides:[17,18,19,20] },
+    { id:1, name:'Gestão do Negócio',              desc:'PDV, Estoque, Compras e Fiscal integrados',           icon:'&#127978;', color:'#4B8EC8', slides:[5,6,7,8]   },
+    { id:2, name:'Controle Financeiro &amp; Gerencial', desc:'Dashboard, Rentabilidade e Análises — exclusivo Plus', icon:'&#128202;', color:'#27C97F', slides:[9,10,11,12] },
+    { id:3, name:'Suporte &amp; Treinamento',           desc:'7h–22h, atendimento humano, 5 meses de treinamento',  icon:'&#129309;', color:'#FF6B35', slides:[13,14,15,16] },
+    { id:4, name:'Proposta Comercial',              desc:'Condições especiais personalizadas para você',         icon:'&#128203;', color:'#F59E0B', slides:[17,18,19,20] },
   ];
 
   let currentSlide = 0;
@@ -1051,9 +1106,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   // ── BUILD HUB GRID ──────────────────────────────────────
   function buildHubGrid() {
     const grid = document.getElementById('hub-grid');
-    grid.innerHTML = modules.map((m,i) => \`
-      <div class="module-card" onclick="goToModule(\${m.id})" style="--mc:#\${m.color.replace('#','')}">
-        <div class="mc-num">Módulo \${m.id} &nbsp; <kbd style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.08);font-family:monospace;">\${m.id}</kbd></div>
+    if (!grid) return;
+    grid.innerHTML = modules.map(m => \`
+      <div class="module-card" onclick="goToModule(\${m.id})">
+        <div class="mc-num">Módulo \${m.id} &nbsp;<kbd style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.08);font-family:monospace;">\${m.id}</kbd></div>
         <div class="mc-icon">\${m.icon}</div>
         <div class="mc-name" style="color:\${m.color}">\${m.name}</div>
         <div class="mc-desc">\${m.desc}</div>
@@ -1068,105 +1124,165 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   function buildPlanTable() {
     const tbl = document.getElementById('plan-table-main');
     if (!tbl) return;
-    const rows = proposalData.planComparison.map(row => {
-      const fmtCell = (v, col) => {
-        if (v === 'Sim') return \`<span class="cell-yes">✓ Sim</span>\`;
-        if (v === 'Não') return \`<span class="cell-no">— Não</span>\`;
-        return \`<span class="cell-\${col}">\${v}</span>\`;
-      };
-      return \`<tr>
-        <td>\${row.feature}</td>
-        <td>\${fmtCell(row.lite,'lite')}</td>
-        <td>\${fmtCell(row.pro,'pro')}</td>
-        <td class="plus-col">\${fmtCell(row.plus,'plus')}</td>
-      </tr>\`;
-    }).join('');
+    const nomes = planFamily.nomes;
+
+    // Prefer CRM data if available and meaningful, else use fallback
+    let sourceRows = [];
+    if (Array.isArray(proposalData.planComparison) && proposalData.planComparison.length > 2) {
+      sourceRows = proposalData.planComparison
+        .filter(r => r.feature !== 'Destaque recomendado')
+        .map(r => ({ feature: r.feature, basic: r.lite || r.basic || '', pro: r.pro || '', plus: r.plus || '' }));
+    } else {
+      sourceRows = getComparisonRows();
+    }
+
+    const fmtCell = (v, isPlus) => {
+      if (v === 'Sim')           return \`<span class="cell-yes">&#10003; Sim</span>\`;
+      if (v === 'Não')           return \`<span class="cell-no">&mdash; Não</span>\`;
+      if (v === 'Avançado')      return \`<span class="cell-adv">Avançado</span>\`;
+      if (v === 'Intermediário') return \`<span class="cell-int">Intermediário</span>\`;
+      if (v === 'Básico')        return \`<span class="cell-bas">Básico</span>\`;
+      return \`<span style="color:\${isPlus ? '#ffb49a' : 'var(--text-secondary)'}">\${v}</span>\`;
+    };
+
+    const rows = sourceRows.map(row => \`<tr>
+      <td>\${row.feature}</td>
+      <td>\${fmtCell(row.basic, false)}</td>
+      <td>\${fmtCell(row.pro, false)}</td>
+      <td class="col-plus">\${fmtCell(row.plus, true)}</td>
+    </tr>\`).join('');
+
     tbl.innerHTML = \`<thead><tr>
       <th>Funcionalidade</th>
-      <th><span class="plan-badge badge-lite">Lite</span></th>
-      <th><span class="plan-badge badge-pro">Pro</span></th>
-      <th class="plus-col"><span class="plan-badge badge-plus">Plus ★</span></th>
+      <th><span class="plan-badge badge-basic">\${nomes.basic}</span></th>
+      <th><span class="plan-badge badge-pro">\${nomes.pro}</span></th>
+      <th class="col-plus th-plus"><span class="plan-badge badge-plus">\${nomes.plus} &#9733;</span><span class="rec-badge">Recomendado</span></th>
     </tr></thead><tbody>\${rows}</tbody>\`;
+
+    // Update plus name references
+    const plusNameEl = document.getElementById('s17-plus-name');
+    if (plusNameEl) plusNameEl.textContent = nomes.plus;
   }
 
   // ── PROPOSAL DATA INJECTION ─────────────────────────────
   function injectProposalData() {
-    const $ = id => document.getElementById(id);
-    const set = (id, txt) => { const el=$(id); if(el) el.textContent = txt; };
+    const getEl = id => document.getElementById(id);
+    const set = (id, txt) => { const el = getEl(id); if (el) el.textContent = txt; };
+    const setHTML = (id, html) => { const el = getEl(id); if (el) el.innerHTML = html; };
+    const nomes = planFamily.nomes;
 
+    // Cover
+    set('s0-company', proposalData.companyName || '');
+
+    // Slide 17
+    set('s17-plus-name', nomes.plus);
+
+    // Slide 18
+    set('s18-company',  proposalData.companyName || 'sua empresa');
     set('s18-original', formatMoney(proposalData.setupOriginal));
     set('s18-final',    formatMoney(proposalData.setupFinal));
     set('s18-monthly',  formatMoney(proposalData.monthlyValue));
-    set('s18-plan',     proposalData.selectedPlan);
+    set('s18-plan',     nomes.plus);
     set('s18-valid',    proposalData.validUntil || '—');
-    set('s17-plan',     proposalData.selectedPlan);
-    set('s18-company',  proposalData.companyName || 'sua empresa');
 
-    set('s19-entry', proposalData.entryValue > 0 ? formatMoney(proposalData.entryValue) : 'A combinar');
+    // Slide 19
+    set('s19-entry', proposalData.entryValue > 0
+      ? formatMoney(proposalData.entryValue) : 'A combinar');
     set('s19-installments', proposalData.installments > 0
       ? \`\${proposalData.installments}x de \${formatMoney(proposalData.installmentValue)}\`
       : 'À vista');
-    set('s19-total', formatMoney(proposalData.setupFinal));
+    set('s19-total',         formatMoney(proposalData.setupFinal));
+    set('s19-seller',        proposalData.sellerName  || '—');
+    set('s19-seller-phone',  proposalData.sellerPhone || '');
 
+    // Slide 20
     set('s20-valid',  proposalData.validUntil || '—');
     set('s20-seller', proposalData.sellerName  || '—');
+
+    // CTA
     set('cta-valid',  proposalData.validUntil  || '—');
     set('cta-seller', proposalData.sellerName  || '—');
     set('cta-phone',  proposalData.sellerPhone || '—');
 
-    // CTA accept links
+    // WhatsApp accept buttons
     const acceptMsg = encodeURIComponent(
-      'Olá, quero aceitar a proposta da ProSystem para ' + proposalData.companyName + '. Podemos dar sequência.'
+      'Olá! Gostaria de aceitar a proposta da ProSystem para ' + proposalData.companyName + '. Podemos dar sequência?'
     );
     const sellerNum = '55' + onlyNumbers(proposalData.sellerPhone);
-    const setHref = (id, url) => { const el=$(id); if(el) el.onclick = () => window.open(url,'_blank'); };
-    setHref('accept-whatsapp-btn', \`https://wa.me/\${sellerNum}?text=\${acceptMsg}\`);
-    setHref('cta-whatsapp-btn',    \`https://wa.me/\${sellerNum}?text=\${acceptMsg}\`);
+    const acceptUrl = 'https://wa.me/' + sellerNum + '?text=' + acceptMsg;
+    const setClick = (id, url) => { const el = getEl(id); if (el) el.onclick = () => window.open(url, '_blank'); };
+    setClick('accept-whatsapp-btn', acceptUrl);
+    setClick('cta-whatsapp-btn',    acceptUrl);
   }
 
   // ── WHATSAPP SUMMARY ────────────────────────────────────
   function buildWhatsAppSummary() {
     const p = proposalData;
+    const nomes = planFamily.nomes;
     const lines = [
-      \`Olá, \${p.clientName}! Tudo bem?\`,
+      'Olá, ' + (p.clientName || 'tudo bem?') + '!',
       '',
-      \`Segue a proposta comercial da ProSystem para \${p.companyName}.\`,
+      'Segue o resumo da proposta comercial da ProSystem para ' + p.companyName + ':',
       '',
-      'Resumo da proposta:',
-      \`• Plano recomendado: \${p.selectedPlan}\`,
-      \`• Mensalidade: \${formatMoney(p.monthlyValue)}\`,
-      \`• Valor original da implantação: \${formatMoney(p.setupOriginal)}\`,
-      \`• Valor especial da implantação: \${formatMoney(p.setupFinal)}\`,
-      p.entryValue > 0 ? \`• Entrada: \${formatMoney(p.entryValue)}\` : null,
-      p.installments > 0 ? \`• Parcelamento: \${p.installments}x de \${formatMoney(p.installmentValue)}\` : null,
-      \`• Validade da proposta: \${p.validUntil || 'A combinar'}\`,
+      '--- PROPOSTA ---',
+      '• Plano recomendado: ' + nomes.plus,
+      '• Mensalidade: ' + formatMoney(p.monthlyValue),
+      '• Implantação (valor especial): ' + formatMoney(p.setupFinal),
+      p.setupOriginal > p.setupFinal ? '  (Tabela original: ' + formatMoney(p.setupOriginal) + ')' : null,
+      p.entryValue > 0 ? '• Entrada: ' + formatMoney(p.entryValue) : null,
+      p.installments > 0 ? '• Parcelamento: ' + p.installments + 'x de ' + formatMoney(p.installmentValue) : null,
+      '• Validade: ' + (p.validUntil || 'A combinar'),
       '',
-      'Destaques inclusos:',
-      ...p.plusFeatures.slice(0,4).map(f => '• ' + f),
-      '',
-      'Diferenciais ProSystem:',
+      '--- DESTAQUES DO PLANO ---',
+      '• PDV, Estoque, Compras e Fiscal integrados',
+      '• Dashboard gerencial em tempo real',
+      '• Análise de rentabilidade por produto',
+      '• Indicador de perda de vendas',
       '• Suporte ativo e humanizado das 7h às 22h',
-      '• Técnicos prontos para auxiliar no dia a dia',
-      '• Treinamento de 5 meses para novos clientes',
-      '• 16 anos de experiência no varejo',
+      '• Treinamento de 5 meses incluso',
+      ...(p.plusFeatures && p.plusFeatures.length > 0
+        ? p.plusFeatures.slice(0, 3).map(f => '• ' + f)
+        : []),
       '',
-      'Fico à disposição para dar sequência.',
+      '16 anos de especialização no varejo.',
+      'Fico à disposição para qualquer dúvida!',
       '',
-      'Atenciosamente,',
-      p.sellerName,
-      p.sellerPhone,
-    ].filter(l => l !== null);
+      p.sellerName || '',
+      p.sellerPhone || '',
+    ].filter(l => l !== null && l !== undefined);
+
     const ta = document.getElementById('whats-text-area');
     if (ta) ta.value = lines.join('\\n');
   }
 
+  function flashCopyFeedback() {
+    // Botão fixo no topo
+    const nav = document.getElementById('copy-resumo-nav');
+    if (nav) {
+      const original = nav.innerHTML;
+      nav.classList.add('copied');
+      nav.innerHTML = '&#10003;&nbsp; Resumo copiado!';
+      setTimeout(() => { nav.classList.remove('copied'); nav.innerHTML = original; }, 2200);
+    }
+  }
+
   function copyWhatsAppText() {
     const ta = document.getElementById('whats-text-area');
-    if (!ta) return;
-    ta.select(); ta.setSelectionRange(0,99999);
-    try { document.execCommand('copy'); } catch(e) { navigator.clipboard && navigator.clipboard.writeText(ta.value); }
-    alert('Resumo copiado com sucesso!');
+    const text = ta ? ta.value : '';
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(flashCopyFeedback).catch(() => {
+        if (ta) { ta.select(); ta.setSelectionRange(0, 99999); try { document.execCommand('copy'); } catch(e) {} }
+        flashCopyFeedback();
+      });
+    } else if (ta) {
+      ta.select();
+      ta.setSelectionRange(0, 99999);
+      try { document.execCommand('copy'); } catch(e) {}
+      flashCopyFeedback();
+    }
   }
+
   function openWhatsApp() {
     const ta = document.getElementById('whats-text-area');
     const text = ta ? ta.value : '';
@@ -1181,28 +1297,23 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     const next = slideEls[index];
     if (!next) return;
 
-    const dir = direction || (index > currentSlide ? 1 : -1);
+    const dir = direction !== undefined ? direction : (index > currentSlide ? 1 : -1);
 
-    // Hide current
     if (prev && prev !== next) {
       gsap.to(prev, {
         opacity: 0, x: dir * -60, duration: 0.4, ease: 'power2.in',
-        onComplete: () => { prev.classList.remove('active'); prev.style.pointerEvents='none'; gsap.set(prev,{x:0}); }
+        onComplete: () => { prev.classList.remove('active'); prev.style.pointerEvents = 'none'; gsap.set(prev, {x:0}); }
       });
     }
 
     currentSlide = index;
     updateUI();
 
-    // Prepare next
     gsap.set(next, { opacity: 0, x: dir * 80 });
     next.classList.add('active');
     next.style.pointerEvents = 'all';
-
-    // Animate in
     gsap.to(next, { opacity: 1, x: 0, duration: 0.55, ease: 'power3.out' });
 
-    // Stagger children
     const children = Array.from(next.children);
     if (children.length) {
       gsap.fromTo(children,
@@ -1211,7 +1322,6 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       );
     }
 
-    // Counters
     next.querySelectorAll('[data-counter]').forEach(el => {
       const target = parseInt(el.dataset.counter, 10);
       const suffix = el.dataset.suffix || '';
@@ -1224,7 +1334,6 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       setTimeout(() => { el.textContent = el.dataset.counterText; }, 400);
     });
 
-    // Module state
     const modId = next.dataset.module ? parseInt(next.dataset.module) : null;
     inModule = !!modId;
     currentModuleId = modId;
@@ -1240,19 +1349,13 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     showSlide(m.slides[0]);
   }
 
-  function returnToHub() {
-    showSlide(HUB_SLIDE, -1);
-  }
+  function returnToHub() { showSlide(HUB_SLIDE, -1); }
 
   function nextSlide() {
     if (currentSlide >= TOTAL_SLIDES - 1) return;
-    // If in module, clamp to module boundary then go back to hub
     if (inModule && currentModuleId) {
       const m = modules.find(x => x.id === currentModuleId);
-      if (m) {
-        const lastModSlide = m.slides[m.slides.length - 1];
-        if (currentSlide === lastModSlide) { returnToHub(); return; }
-      }
+      if (m && currentSlide === m.slides[m.slides.length - 1]) { returnToHub(); return; }
     }
     showSlide(currentSlide + 1);
   }
@@ -1265,9 +1368,9 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   // ── UPDATE UI ───────────────────────────────────────────
   function updateUI() {
     const fill = document.getElementById('progress-fill');
-    if (fill) fill.style.width = ((currentSlide / (TOTAL_SLIDES-1)) * 100) + '%';
+    if (fill) fill.style.width = ((currentSlide / (TOTAL_SLIDES - 1)) * 100) + '%';
     const counter = document.getElementById('slide-counter');
-    if (counter) counter.textContent = (currentSlide+1) + ' / ' + TOTAL_SLIDES;
+    if (counter) counter.textContent = (currentSlide + 1) + ' / ' + TOTAL_SLIDES;
   }
 
   // ── MODE TOGGLE ─────────────────────────────────────────
@@ -1280,13 +1383,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 
   // ── KEYBOARD ────────────────────────────────────────────
   document.addEventListener('keydown', e => {
-    if (!hasKeyboard) {
-      hasKeyboard = true;
-      clearTimeout(selfServiceTimer);
-    }
-    switch(e.key) {
+    if (!hasKeyboard) { hasKeyboard = true; clearTimeout(selfServiceTimer); }
+    switch (e.key) {
       case 'ArrowRight': case ' ': e.preventDefault(); nextSlide(); break;
-      case 'ArrowLeft':  e.preventDefault(); prevSlide(); break;
+      case 'ArrowLeft':             e.preventDefault(); prevSlide(); break;
       case 'Escape': if (inModule) { e.preventDefault(); returnToHub(); } break;
       case '1': if (currentSlide === HUB_SLIDE) goToModule(1); break;
       case '2': if (currentSlide === HUB_SLIDE) goToModule(2); break;
@@ -1315,7 +1415,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     }, 8000);
   }
 
-  // ── INIT ─────────────────────────────────────────────────
+  // ── INIT ────────────────────────────────────────────────
   function init() {
     buildHubGrid();
     buildPlanTable();
