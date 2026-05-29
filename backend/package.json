@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npx prisma generate && npx prisma db push --accept-data-loss --skip-generate",
+    "build": "npx prisma generate && npx prisma db push --skip-generate",
     "start": "npx tsx src/server.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
