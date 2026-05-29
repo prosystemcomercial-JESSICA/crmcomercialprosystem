@@ -16,6 +16,7 @@ process.on('unhandledRejection', (reason: any) => {
 
 // Log imediato para sabermos que o módulo carregou
 console.log('[BOOT] server.ts carregado — Node', process.version, '— NODE_ENV=', process.env.NODE_ENV);
+console.log('[BOOT] build rev: dashboard-bigint-fix-2026-05-29');
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
