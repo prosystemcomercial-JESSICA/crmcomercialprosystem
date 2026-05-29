@@ -88,499 +88,1245 @@ function buildProposalData(p: any) {
 }
 
 function generateHTML(data: any, images: Record<string, string> = {}): string {
-  // Helper para imagem inline com fallback
   const imgSrc = (key: string, fallbackPath: string) => images[key] || fallbackPath;
   const dataJson = JSON.stringify(data);
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Proposta Comercial Prosystem — ${data.companyName}</title>
+  <title>Proposta ProSystem — ${data.companyName}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <style>
-    :root{
-      --bg:#061a2b;--bg-soft:#0b2740;--bg-card:#0d3150;
-      --primary:#123e67;--primary-2:#1f5f99;
-      --accent:#00bfd1;--accent-2:#27d17f;--accent-3:#78e0ea;
-      --orange:#ff8b2b;--white:#ffffff;--text:#10283f;--muted:#69809a;
-      --line:#dce9f5;--light:#f4f9fc;
-      --shadow:0 18px 45px rgba(5,25,46,0.12);
-      --radius:24px;--radius-lg:34px;--max:1180px;
+    :root {
+      --primary: #0D2238;
+      --primary-light: #1a3a5c;
+      --primary-dark: #061422;
+      --secondary: #4B8EC8;
+      --secondary-light: #7AAACB;
+      --accent: #FF6B35;
+      --accent-glow: rgba(255,107,53,0.3);
+      --green: #27C97F;
+      --bg-deep: #061a2b;
+      --bg-mid: #0c2741;
+      --bg-surface: rgba(255,255,255,0.05);
+      --bg-card: rgba(255,255,255,0.08);
+      --text-primary: rgba(255,255,255,0.92);
+      --text-secondary: rgba(255,255,255,0.62);
+      --text-accent: #4B8EC8;
+      --border: rgba(255,255,255,0.08);
+      --border-accent: rgba(75,142,200,0.25);
+      --shadow-lg: 0 24px 60px rgba(0,0,0,0.35);
+      --shadow-glow: 0 0 40px rgba(75,142,200,0.15);
+      --radius: 16px;
+      --radius-lg: 24px;
+      --font: 'Inter', sans-serif;
     }
-    *{margin:0;padding:0;box-sizing:border-box;}
-    html{scroll-behavior:smooth;}
-    body{font-family:'Inter',sans-serif;background:linear-gradient(180deg,#eef5fb 0%,#f7fbfe 100%);color:var(--text);line-height:1.55;}
-    img{max-width:100%;display:block;}
-    a{text-decoration:none;color:inherit;}
-    .container{width:min(var(--max),calc(100% - 32px));margin:0 auto;}
-    .section{padding:82px 0;}
-    .section-title{font-size:clamp(28px,4vw,48px);line-height:1.08;letter-spacing:-0.04em;font-weight:900;color:#08223b;margin-bottom:14px;}
-    .section-subtitle{font-size:18px;color:var(--muted);max-width:760px;}
-    .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:var(--accent);margin-bottom:18px;}
-    .nav{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(10,45,76,.08);}
-    .nav-inner{min-height:78px;display:flex;align-items:center;justify-content:space-between;gap:20px;}
-    .brand{display:flex;align-items:center;gap:12px;font-weight:900;color:#123e67;font-size:18px;}
-    .brand img{width:42px;height:42px;object-fit:contain;}
-    .nav-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:none;cursor:pointer;font-family:inherit;padding:14px 20px;border-radius:999px;font-weight:800;transition:.25s ease;white-space:nowrap;}
-    .btn:hover{transform:translateY(-2px);}
-    .btn-primary{color:#fff;background:linear-gradient(135deg,#123e67 0%,#1f5f99 60%,#00bfd1 100%);box-shadow:0 16px 35px rgba(18,62,103,.24);}
-    .btn-secondary{color:#123e67;background:#fff;border:1px solid #cfe2f2;}
-    .btn-green{color:#fff;background:linear-gradient(135deg,#1dbf73 0%,#27d17f 100%);box-shadow:0 16px 35px rgba(39,209,127,.20);}
-    .btn-orange{color:#fff;background:linear-gradient(135deg,#ff8b2b 0%,#ffad63 100%);box-shadow:0 16px 35px rgba(255,139,43,.22);}
-    .hero{position:relative;overflow:hidden;background:radial-gradient(circle at 12% 20%,rgba(0,191,209,.20),transparent 28%),radial-gradient(circle at 85% 18%,rgba(39,209,127,.14),transparent 22%),linear-gradient(135deg,#061a2b 0%,#0c2741 55%,#123e67 100%);color:#fff;}
-    .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,black 65%,transparent 100%);}
-    .hero-inner{position:relative;z-index:2;display:grid;grid-template-columns:1.05fr .95fr;gap:34px;align-items:center;min-height:calc(100vh - 78px);padding:46px 0 70px;}
-    .hero h1{font-size:clamp(38px,5.6vw,72px);line-height:1.02;letter-spacing:-0.06em;font-weight:900;margin-bottom:18px;}
-    .hero h1 span{color:#8ff6ff;}
-    .hero p{color:rgba(255,255,255,.78);font-size:18px;max-width:700px;margin-bottom:28px;}
-    .hero-badges{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px;}
-    .hero-badge{padding:10px 14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#d8fbff;}
-    .hero-actions{display:flex;flex-wrap:wrap;gap:14px;}
-    .hero-panel{position:relative;min-height:560px;}
-    .panel-shell{position:absolute;inset:0;border-radius:30px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(0,0,0,.25);overflow:hidden;padding:26px;}
-    .panel-shell::before{content:"";position:absolute;inset:18px;border-radius:24px;border:1px solid rgba(255,255,255,.10);}
-    .screen-stack{position:relative;display:grid;gap:16px;z-index:2;}
-    .screen-card{background:rgba(255,255,255,.96);border-radius:20px;padding:10px;box-shadow:0 18px 30px rgba(0,0,0,.16);}
-    .screen-card img{border-radius:14px;width:100%;object-fit:cover;}
-    .screen-placeholder{border-radius:14px;width:100%;height:120px;background:linear-gradient(135deg,rgba(0,191,209,.15),rgba(39,209,127,.10));display:flex;align-items:center;justify-content:center;font-size:13px;color:rgba(255,255,255,.5);font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
-    @keyframes heroFloat{0%,100%{transform:translateY(0px);}50%{transform:translateY(-14px);}}
-    @keyframes heroGlow{0%,100%{box-shadow:0 24px 60px rgba(0,191,209,.18),0 0 0 0 rgba(0,191,209,0);}60%{box-shadow:0 32px 80px rgba(0,191,209,.32),0 0 40px 8px rgba(0,191,209,.10);}}
-    @keyframes fadeSlideUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
-    .hero-image-wrap{position:relative;z-index:2;animation:heroFloat 5.5s ease-in-out infinite;}
-    .hero-image-frame{border-radius:24px;overflow:hidden;animation:heroGlow 5.5s ease-in-out infinite;border:1.5px solid rgba(0,191,209,.28);}
-    .hero-image-frame img{display:block;width:100%;height:auto;border-radius:22px;}
-    .hero-image-overlay{position:absolute;inset:0;border-radius:24px;background:linear-gradient(180deg,transparent 55%,rgba(6,26,43,.55) 100%);pointer-events:none;}
-    .pill-animated{animation:fadeSlideUp .7s ease both;}.pill-a{animation-delay:.2s;}.pill-b{animation-delay:.45s;}.pill-c{animation-delay:.65s;}
-    .float-pill{position:absolute;display:flex;flex-direction:column;gap:4px;min-width:160px;padding:14px 16px;border-radius:20px;background:rgba(255,255,255,.95);color:#123e67;box-shadow:0 18px 40px rgba(0,0,0,.14);z-index:3;}
-    .float-pill small{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#69809a;font-weight:800;}
-    .float-pill strong{font-size:18px;line-height:1.1;letter-spacing:-0.04em;}
-    .pill-a{top:18px;right:-10px;}.pill-b{bottom:84px;left:-18px;}.pill-c{bottom:18px;right:22px;}
-    .cards-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:32px;}
-    .feature-card{background:#fff;border:1px solid #e1ecf5;border-radius:26px;padding:28px;box-shadow:var(--shadow);}
-    .feature-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,#e8f6fb 0%,#eaf5ff 100%);font-size:26px;margin-bottom:16px;}
-    .feature-card h3{font-size:22px;font-weight:800;letter-spacing:-0.03em;color:#123e67;margin-bottom:10px;}
-    .feature-card p{color:#68819a;font-size:15px;}
-    .plus-highlight{background:linear-gradient(135deg,#0b2740 0%,#123e67 55%,#17688a 100%);color:#fff;overflow:hidden;position:relative;}
-    .plus-highlight::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 10% 10%,rgba(0,191,209,.14),transparent 25%),radial-gradient(circle at 90% 80%,rgba(39,209,127,.14),transparent 22%);}
-    .plus-grid{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;margin-top:34px;}
-    .glass-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:28px;padding:28px;backdrop-filter:blur(12px);}
-    .glass-card h3{font-size:30px;line-height:1.05;letter-spacing:-0.04em;font-weight:900;margin-bottom:14px;}
-    .glass-card p{color:rgba(255,255,255,.82);}
-    .check-list{display:grid;gap:12px;margin-top:22px;}
-    .check-item{display:flex;align-items:flex-start;gap:10px;color:rgba(255,255,255,.9);font-size:15px;}
-    .check-item span:first-child{color:#8effc9;font-weight:900;}
-    .screen-box{border-radius:28px;background:#fff;padding:16px;box-shadow:0 18px 45px rgba(0,0,0,.18);}
-    .screen-box img{border-radius:18px;width:100%;height:auto;object-fit:cover;}
-    .comparison-wrap{margin-top:30px;background:#fff;border:1px solid #e1ecf5;border-radius:28px;overflow:hidden;box-shadow:var(--shadow);}
-    .comparison-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 24px;border-bottom:1px solid #e8f0f7;background:#f7fbfe;}
-    .comparison-head h3{font-size:24px;color:#123e67;letter-spacing:-0.03em;font-weight:900;}
-    .comparison-head p{color:#6a829d;font-size:14px;max-width:640px;}
-    .plan-table{width:100%;border-collapse:collapse;min-width:850px;}
-    .plan-table th,.plan-table td{padding:15px 16px;border-bottom:1px solid #edf3f8;text-align:center;font-size:14px;}
-    .plan-table th:first-child,.plan-table td:first-child{text-align:left;font-weight:700;color:#153e67;min-width:240px;}
-    .plan-table th{background:#fff;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#6e869f;position:sticky;top:0;}
-    .plan-table .plus-col{background:linear-gradient(180deg,rgba(0,191,209,.08),rgba(39,209,127,.08));}
-    .plan-tag{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;}
-    .tag-lite{background:#eff5fb;color:#506b87;}.tag-pro{background:#e9f3ff;color:#1f5f99;}.tag-plus{background:#dafaf1;color:#0f8d57;}
-    .yes{color:#0a9c5d;font-weight:800;}.no{color:#bf4458;font-weight:800;}
-    .screens-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:32px;}
-    .screen-gallery-card{background:#fff;border:1px solid #e1ecf5;border-radius:24px;overflow:hidden;box-shadow:var(--shadow);}
-    .screen-gallery-card .thumb{padding:14px;background:#f5fbff;border-bottom:1px solid #ecf2f8;}
-    .screen-gallery-card img{width:100%;border-radius:14px;object-fit:cover;}
-    .screen-gallery-card .content{padding:20px;}
-    .screen-gallery-card h4{font-size:20px;color:#123e67;margin-bottom:8px;letter-spacing:-0.03em;}
-    .screen-gallery-card p{color:#68819a;font-size:14px;}
-    .support-section{background:linear-gradient(135deg,#08223b 0%,#123e67 52%,#1a7392 100%);color:#fff;position:relative;overflow:hidden;}
-    .support-section::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 15% 20%,rgba(0,191,209,.18),transparent 24%),radial-gradient(circle at 90% 75%,rgba(39,209,127,.16),transparent 22%);}
-    .support-grid{position:relative;z-index:2;display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center;margin-top:34px;}
-    .support-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:28px;padding:28px;backdrop-filter:blur(10px);}
-    .support-card h3{font-size:28px;letter-spacing:-0.04em;margin-bottom:12px;font-weight:900;}
-    .support-card p{color:rgba(255,255,255,.82);}
-    .support-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:22px;}
-    .kpi{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10);border-radius:22px;padding:20px;}
-    .kpi strong{display:block;font-size:30px;line-height:1;letter-spacing:-0.05em;margin-bottom:8px;}
-    .kpi span{color:#d8f5ff;font-size:14px;display:block;}
-    .proposal-box{background:#fff;border:1px solid #e0ebf5;border-radius:30px;box-shadow:var(--shadow);overflow:hidden;margin-top:32px;}
-    .proposal-top{display:grid;grid-template-columns:1.05fr .95fr;gap:0;}
-    .proposal-left{padding:32px;}.proposal-right{padding:32px;background:linear-gradient(135deg,#0d3150 0%,#123e67 65%,#167997 100%);color:#fff;}
-    .client-chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px;}
-    .chip{padding:9px 12px;border-radius:999px;background:#eef6fc;color:#123e67;font-size:12px;font-weight:800;}
-    .price-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;}
-    .price-card{background:#f8fbfe;border:1px solid #e0ebf5;border-radius:22px;padding:22px;}
-    .price-card small{display:block;font-size:12px;font-weight:800;text-transform:uppercase;color:#6e869f;margin-bottom:8px;letter-spacing:.08em;}
-    .price-card .old{font-size:24px;font-weight:900;color:#97a8ba;text-decoration:line-through;}
-    .price-card .new{font-size:40px;font-weight:900;line-height:1;letter-spacing:-0.06em;color:#123e67;}
-    .proposal-right .highlight-price{font-size:52px;font-weight:900;line-height:.98;letter-spacing:-0.06em;margin-top:10px;margin-bottom:14px;color:#9af7ff;}
-    .proposal-right p{color:rgba(255,255,255,.84);}
-    .summary-list{display:grid;gap:12px;margin-top:18px;}
-    .summary-list div{display:flex;justify-content:space-between;gap:20px;border-bottom:1px dashed rgba(255,255,255,.18);padding-bottom:10px;font-size:15px;}
-    .summary-list span:last-child{font-weight:800;color:#fff;}
-    .whats-box{margin-top:30px;background:#fff;border:1px solid #e1ecf5;border-radius:24px;overflow:hidden;box-shadow:var(--shadow);}
-    .whats-box-head{padding:18px 22px;background:#f7fbfe;border-bottom:1px solid #e8f0f7;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-    .whats-box-head h3{color:#123e67;font-size:22px;font-weight:900;letter-spacing:-0.03em;}
-    .whats-box-body{padding:22px;}
-    .whats-text{width:100%;min-height:220px;border:1px solid #dce9f5;border-radius:18px;padding:18px;resize:vertical;font-family:inherit;font-size:15px;line-height:1.6;color:#1c3550;background:#fbfdff;}
-    .action-row{margin-top:18px;display:flex;gap:12px;flex-wrap:wrap;}
-    .footer{padding:24px 0;background:#071a2d;color:rgba(255,255,255,.72);margin-top:40px;}
-    .footer-inner{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;}
-    .scroll-x{overflow-x:auto;}
-    @media(max-width:1100px){.hero-inner,.plus-grid,.support-grid,.proposal-top{grid-template-columns:1fr;}.hero-panel{min-height:auto;}.panel-shell{position:relative;inset:auto;}.cards-3,.screens-grid{grid-template-columns:1fr 1fr;}}
-    @media(max-width:760px){.nav-inner{flex-direction:column;align-items:flex-start;justify-content:center;padding:12px 0;}.nav-actions{width:100%;}.nav-actions .btn{width:100%;}.cards-3,.screens-grid,.price-grid,.support-kpis{grid-template-columns:1fr;}.hero-actions{flex-direction:column;}.hero-actions .btn{width:100%;}.pill-a,.pill-b,.pill-c{position:relative;inset:auto;margin-top:12px;}.float-pill{width:100%;}.proposal-left,.proposal-right{padding:24px;}.section{padding:64px 0;}.section-subtitle{font-size:16px;}}
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: var(--font); background: var(--bg-deep); color: var(--text-primary); }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── CANVAS ── */
+    #three-canvas {
+      position: fixed; inset: 0; z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── DECK ── */
+    #deck {
+      position: fixed; inset: 0; z-index: 1;
+      overflow: hidden;
+    }
+    .slide {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: none;
+      padding: 24px;
+    }
+    .slide.active { opacity: 1; pointer-events: all; }
+
+    /* ── TOP NAV ── */
+    #top-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px;
+      background: rgba(6,26,43,0.75);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; letter-spacing: -0.02em; }
+    .nav-brand img { width: 34px; height: 34px; object-fit: contain; }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-pill {
+      font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      padding: 6px 14px; border-radius: 999px;
+      border: 1px solid var(--border-accent); color: var(--secondary-light);
+      cursor: pointer; transition: .2s;
+    }
+    .nav-pill:hover { background: var(--bg-card); }
+    .mode-btn {
+      font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      padding: 6px 14px; border-radius: 999px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-secondary); cursor: pointer; transition: .2s;
+    }
+    .mode-btn:hover { color: var(--text-primary); }
+
+    /* ── PROGRESS ── */
+    #progress-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      height: 3px; background: rgba(255,255,255,0.06);
+    }
+    #progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--secondary), var(--accent));
+      transition: width .4s ease;
+    }
+    #slide-counter {
+      position: fixed; bottom: 12px; right: 20px; z-index: 100;
+      font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: .06em;
+    }
+    #nav-hint {
+      position: fixed; bottom: 12px; left: 20px; z-index: 100;
+      font-size: 11px; color: var(--text-secondary); letter-spacing: .04em;
+    }
+
+    /* ── GLASS CARD ── */
+    .glass {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(20px);
+    }
+    .glass-accent {
+      background: var(--bg-card);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(20px);
+    }
+
+    /* ── EYEBROW ── */
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--secondary); margin-bottom: 16px;
+    }
+    .eyebrow::before { content: ''; width: 24px; height: 2px; background: var(--secondary); border-radius: 2px; }
+
+    /* ── TYPOGRAPHY ── */
+    .display-xl { font-size: clamp(38px, 5.5vw, 80px); font-weight: 900; line-height: 1.0; letter-spacing: -0.05em; }
+    .display-lg { font-size: clamp(30px, 4vw, 58px); font-weight: 900; line-height: 1.05; letter-spacing: -0.04em; }
+    .display-md { font-size: clamp(22px, 3vw, 40px); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; }
+    .body-lg { font-size: clamp(15px, 1.5vw, 18px); color: var(--text-secondary); line-height: 1.65; }
+    .body-md { font-size: clamp(13px, 1.2vw, 15px); color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── ACCENT TEXT ── */
+    .text-accent { color: var(--secondary); }
+    .text-orange { color: var(--accent); }
+    .text-green { color: var(--green); }
+    .gradient-text {
+      background: linear-gradient(135deg, var(--secondary-light) 0%, var(--secondary) 50%, var(--accent) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 24px; border-radius: 999px;
+      font-family: var(--font); font-size: 13px; font-weight: 700; letter-spacing: .02em;
+      border: none; cursor: pointer; transition: .25s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--secondary) 0%, #2a6eaf 100%);
+      color: #fff; box-shadow: 0 12px 30px rgba(75,142,200,0.3);
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent) 0%, #e85a25 100%);
+      color: #fff; box-shadow: 0 12px 30px var(--accent-glow);
+    }
+    .btn-green {
+      background: linear-gradient(135deg, var(--green) 0%, #1aaa68 100%);
+      color: #fff; box-shadow: 0 12px 30px rgba(39,201,127,0.3);
+    }
+    .btn-ghost {
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+    .btn-ghost:hover { color: var(--text-primary); border-color: var(--border-accent); }
+
+    /* ── METRIC PILL ── */
+    .metric-pill {
+      display: flex; flex-direction: column; gap: 2px;
+      padding: 16px 22px; border-radius: var(--radius);
+      background: var(--bg-card); border: 1px solid var(--border-accent);
+    }
+    .metric-pill .val { font-size: 26px; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); }
+    .metric-pill .lbl { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-secondary); }
+
+    /* ── CHECK LIST ── */
+    .check-list { display: grid; gap: 10px; }
+    .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--text-secondary); }
+    .check-icon { width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%; background: rgba(39,201,127,0.15); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .check-icon svg { width: 10px; height: 10px; stroke: var(--green); fill: none; stroke-width: 2.5; }
+
+    /* ── MODULE HUB ── */
+    #module-hub .hub-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+      width: min(860px, 100%);
+    }
+    .module-card {
+      padding: 28px; border-radius: var(--radius-lg);
+      background: var(--bg-card); border: 1px solid var(--border);
+      cursor: pointer; transition: .3s ease;
+      position: relative; overflow: hidden;
+    }
+    .module-card::before {
+      content: ''; position: absolute; inset: 0; opacity: 0;
+      transition: opacity .3s;
+    }
+    .module-card:hover { border-color: var(--border-accent); transform: translateY(-4px); box-shadow: var(--shadow-glow); }
+    .module-card:hover::before { opacity: 1; }
+    .module-card .mc-icon { font-size: 32px; margin-bottom: 14px; }
+    .module-card .mc-num { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; }
+    .module-card .mc-name { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .module-card .mc-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
+    .module-card .mc-arrow { position: absolute; top: 20px; right: 20px; width: 28px; height: 28px; border-radius: 50%; background: var(--bg-surface); display: flex; align-items: center; justify-content: center; transition: .3s; }
+    .module-card:hover .mc-arrow { background: var(--border-accent); }
+
+    /* ── PLAN TABLE ── */
+    .plan-table { width: 100%; border-collapse: collapse; }
+    .plan-table th, .plan-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; }
+    .plan-table th:first-child, .plan-table td:first-child { text-align: left; font-weight: 600; color: var(--text-primary); min-width: 200px; }
+    .plan-table th { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-secondary); padding-bottom: 14px; }
+    .plan-table .plus-col { background: rgba(75,142,200,0.06); }
+    .cell-yes { color: var(--green); font-weight: 800; }
+    .cell-no { color: rgba(255,255,255,0.25); font-weight: 600; }
+    .cell-plus { color: var(--secondary); font-weight: 800; }
+    .plan-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .badge-lite { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .badge-pro  { background: rgba(75,142,200,0.12); color: var(--secondary-light); }
+    .badge-plus { background: rgba(75,142,200,0.2); color: #9ecfff; border: 1px solid var(--border-accent); }
+
+    /* ── PRICE CARD ── */
+    .price-card {
+      padding: 24px; border-radius: var(--radius);
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .price-card .pc-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
+    .price-card .pc-old { font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.2); text-decoration: line-through; }
+    .price-card .pc-val { font-size: 32px; font-weight: 900; letter-spacing: -0.05em; color: var(--text-primary); line-height: 1.1; }
+    .price-card.featured { border-color: var(--border-accent); background: rgba(75,142,200,0.08); }
+    .price-card.featured .pc-val { color: var(--secondary-light); font-size: 42px; }
+
+    /* ── WHATSAPP BOX ── */
+    .whats-box { padding: 24px; border-radius: var(--radius-lg); background: var(--bg-card); border: 1px solid var(--border); }
+    .whats-text {
+      width: 100%; min-height: 140px; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px; resize: vertical;
+      font-family: var(--font); font-size: 13px; line-height: 1.6;
+      color: var(--text-primary); background: rgba(0,0,0,0.2);
+    }
+    .whats-text:focus { outline: none; border-color: var(--border-accent); }
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+    /* ── BACK BTN ── */
+    #back-btn {
+      position: fixed; top: 70px; left: 20px; z-index: 99;
+      display: none;
+      align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 999px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      font-size: 12px; font-weight: 700; color: var(--text-secondary);
+      cursor: pointer; transition: .2s;
+    }
+    #back-btn:hover { color: var(--text-primary); border-color: var(--border-accent); }
+    #back-btn.visible { display: flex; }
+
+    /* ── SOCIAL PROOF ── */
+    .proof-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-top: 32px; width: min(900px,100%); }
+    .proof-card { padding: 24px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); text-align: center; }
+    .proof-card .pv { font-size: 36px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
+    .proof-card .pl { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-top: 6px; line-height: 1.4; }
+
+    /* ── MODULE CONTENT LAYOUT ── */
+    .mod-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; max-width: 1100px; width: 100%; }
+    .mod-layout.full { grid-template-columns: 1fr; max-width: 800px; }
+    .mod-img-wrap {
+      border-radius: var(--radius-lg); overflow: hidden;
+      border: 1px solid var(--border-accent);
+      box-shadow: var(--shadow-lg);
+      aspect-ratio: 16/10;
+      background: var(--bg-mid);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mod-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .mod-placeholder {
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, rgba(75,142,200,0.12), rgba(255,107,53,0.06));
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    }
+    .mod-placeholder .ph-icon { font-size: 48px; opacity: 0.5; }
+    .mod-placeholder .ph-text { font-size: 13px; color: var(--text-secondary); font-weight: 600; letter-spacing: .06em; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      #three-canvas { display: none; }
+      #module-hub .hub-grid { grid-template-columns: 1fr; }
+      .mod-layout { grid-template-columns: 1fr; }
+      .proof-grid { grid-template-columns: repeat(2,1fr); }
+      .display-xl { font-size: clamp(28px, 7vw, 44px); }
+    }
+    @media (max-width: 480px) {
+      .proof-grid { grid-template-columns: 1fr 1fr; }
+      #top-nav { padding: 0 16px; }
+    }
+
+    /* ── UTIL ── */
+    .w100 { width: 100%; }
+    .mt8 { margin-top: 8px; }
+    .mt12 { margin-top: 12px; }
+    .mt16 { margin-top: 16px; }
+    .mt24 { margin-top: 24px; }
+    .mt32 { margin-top: 32px; }
+    .gap12 { gap: 12px; }
+    .flex { display: flex; }
+    .flex-col { display: flex; flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .text-center { text-align: center; }
+    .scroll-x { overflow-x: auto; }
+    .max900 { max-width: 900px; width: 100%; }
+    .max700 { max-width: 700px; width: 100%; }
   </style>
 </head>
 <body>
 
-  <nav class="nav">
-    <div class="container nav-inner">
-      <div class="brand">
-        <img src="${imgSrc('logo', '/logo-prosystem.png')}" alt="Prosystem" onerror="this.style.display='none'">
-        <span>Prosystem Sistemas</span>
-      </div>
-      <div class="nav-actions">
-        <a class="btn btn-primary" href="#proposta">Ver proposta</a>
-      </div>
-    </div>
-  </nav>
+<canvas id="three-canvas"></canvas>
 
-  <header class="hero">
-    <div class="container hero-inner">
+<!-- TOP NAV -->
+<nav id="top-nav">
+  <div class="nav-brand">
+    <img src="${imgSrc('logo', '/logo-prosystem.png')}" alt="ProSystem" onerror="this.style.display='none'">
+    <span>ProSystem Sistemas</span>
+  </div>
+  <div class="nav-right">
+    <span class="nav-pill" id="slide-info-nav">Apresentação Comercial</span>
+    <button class="mode-btn" onclick="toggleMode()" id="mode-btn-top">Modo: Apresentador</button>
+  </div>
+</nav>
+
+<!-- BACK BUTTON (inside modules) -->
+<button id="back-btn" onclick="returnToHub()">
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2L4 6l4 4"/></svg>
+  Módulos
+</button>
+
+<!-- PROGRESS -->
+<div id="progress-bar"><div id="progress-fill"></div></div>
+<div id="slide-counter"></div>
+<div id="nav-hint">← → Navegar &nbsp;|&nbsp; ESC Módulos</div>
+
+<!-- DECK -->
+<div id="deck">
+
+  <!-- ═══════════════════════════════════════════════════════
+       SLIDE 0 — COVER
+  ═══════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-0" data-slide="0">
+    <div class="flex-col items-center text-center max700" style="gap:28px;">
       <div>
-        <div class="hero-badges">
-          <span class="hero-badge">Proposta Comercial</span>
-          <span class="hero-badge" id="planBadge">Plano em destaque</span>
-          <span class="hero-badge">Suporte ativo das 7h às 22h</span>
+        <div class="eyebrow" style="justify-content:center;">Proposta Comercial &nbsp;•&nbsp; <span id="s0-company">${data.companyName}</span></div>
+        <h1 class="display-xl mt8">
+          Mais controle, agilidade e<br>
+          <span class="gradient-text">inteligência para a sua operação</span>
+        </h1>
+        <p class="body-lg mt16" style="max-width:560px;margin-left:auto;margin-right:auto;">
+          A ProSystem foi criada para resolver exatamente isso — 16 anos construindo soluções que fazem a operação trabalhar por você.
+        </p>
+      </div>
+      <div class="flex gap12 flex-wrap justify-center mt8">
+        <div class="metric-pill">
+          <span class="val" data-counter="16" data-suffix=" anos">0</span>
+          <span class="lbl">No mercado</span>
         </div>
-        <h1>Mais controle, agilidade e <span>inteligência para a sua operação</span></h1>
-        <p>A Prosystem entrega uma proposta comercial moderna, com foco em produtividade, gestão em tempo real, automação, suporte especializado e uma operação mais segura para o cliente.</p>
-        <div class="hero-actions">
-          <a class="btn btn-orange" href="#proposta">Ver condições comerciais</a>
-          <a class="btn btn-primary" href="#comparativo">Comparar planos</a>
+        <div class="metric-pill">
+          <span class="val" data-counter-text="24/7">—</span>
+          <span class="lbl">Suporte ativo</span>
+        </div>
+        <div class="metric-pill">
+          <span class="val" data-counter="3" data-suffix=" segmentos">0</span>
+          <span class="lbl">Atendidos</span>
         </div>
       </div>
-      <div class="hero-panel">
-        <div class="hero-image-wrap">
-          <div class="hero-image-frame">
-            <img src="${imgSrc('hero', '/imagem-hero.png')}" alt="Prosystem — Sistema de gestão" />
-            <div class="hero-image-overlay"></div>
-          </div>
+      <div class="flex gap12 flex-wrap justify-center mt8">
+        <button class="btn btn-primary" onclick="goToSlide(1)">Conheça a ProSystem</button>
+        <button class="btn btn-accent" onclick="goToModule(4)">Ver proposta comercial</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SLIDE 1 — QUEM SOMOS
+  ═══════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-1" data-slide="1">
+    <div class="flex-col max900" style="gap:32px;">
+      <div>
+        <div class="eyebrow">Nossa história</div>
+        <h2 class="display-lg">16 anos transformando<br>o varejo brasileiro</h2>
+        <p class="body-lg mt12 max700">
+          A ProSystem nasceu da necessidade real do varejo: um sistema que entende a operação, resolve problemas do dia a dia e cresce junto com o negócio. Hoje atendemos farmácias, padarias e varejo com a mesma dedicação desde o início.
+        </p>
+      </div>
+      <div class="flex gap12 flex-wrap">
+        <div class="glass-accent" style="padding:20px 24px;flex:1;min-width:180px;">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--secondary);margin-bottom:8px;">Farmácias</div>
+          <div style="font-size:14px;color:var(--text-secondary);">PBMs, NF-e, controle de receituário e compliance farmacêutico integrado</div>
         </div>
-        <div class="float-pill pill-a pill-animated">
-          <small>Plano em destaque</small>
-          <strong id="pillPlan">Plus com visão gerencial</strong>
+        <div class="glass-accent" style="padding:20px 24px;flex:1;min-width:180px;">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;">Padarias</div>
+          <div style="font-size:14px;color:var(--text-secondary);">PDV ágil, produção, perdas e controle de validade com operação em tempo real</div>
         </div>
-        <div class="float-pill pill-b pill-animated">
-          <small>Suporte Prosystem</small>
-          <strong>Ativo, imediato e acessível</strong>
-        </div>
-        <div class="float-pill pill-c pill-animated">
-          <small>Treinamento</small>
-          <strong>5 meses para novos clientes</strong>
+        <div class="glass-accent" style="padding:20px 24px;flex:1;min-width:180px;">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:8px;">Varejo geral</div>
+          <div style="font-size:14px;color:var(--text-secondary);">ERP completo com estoque, compras, financeiro e análises gerenciais avançadas</div>
         </div>
       </div>
     </div>
-  </header>
+  </div>
 
-  <section class="section">
-    <div class="container">
-      <div class="eyebrow">Proposta de valor</div>
-      <h2 class="section-title">Uma proposta pensada para vender mais, reduzir retrabalho e melhorar a gestão.</h2>
-      <p class="section-subtitle">O objetivo desta proposta é apresentar de forma clara os diferenciais da Prosystem, destacando a força do Plano Plus, as diferenças entre os planos e os recursos que tornam a operação do cliente mais eficiente e segura.</p>
-      <div class="cards-3">
-        <article class="feature-card">
-          <div class="feature-icon">📊</div>
-          <h3>Gestão em tempo real</h3>
-          <p>Indicadores, relatórios, acompanhamento de vendas, análise de desempenho e visão mais clara do negócio para decisões rápidas.</p>
-        </article>
-        <article class="feature-card">
-          <div class="feature-icon">⚙️</div>
-          <h3>Operação integrada</h3>
-          <p>ERP com integração entre vendas, estoque, compras, financeiro e rotinas operacionais, reduzindo falhas e processos manuais.</p>
-        </article>
-        <article class="feature-card">
-          <div class="feature-icon">🤝</div>
-          <h3>Suporte que resolve</h3>
-          <p>Suporte humanizado, de fácil acesso, com técnicos preparados para atender o cliente com agilidade no dia a dia.</p>
-        </article>
+  <!-- ═══════════════════════════════════════════════════════
+       SLIDE 2 — O DESAFIO
+  ═══════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-2" data-slide="2">
+    <div class="flex-col max900" style="gap:32px;">
+      <div>
+        <div class="eyebrow">O cenário do varejo</div>
+        <h2 class="display-lg">Gerir varejo no Brasil é<br><span class="text-orange">lidar com complexidade real</span></h2>
+        <p class="body-lg mt12 max700">
+          Compliance fiscal, margens apertadas e tecnologia que não conversa. Cada dia sem visibilidade é um dia perdendo dinheiro.
+        </p>
       </div>
-    </div>
-  </section>
-
-  <section class="section plus-highlight">
-    <div class="container">
-      <div class="eyebrow">Plano Plus</div>
-      <h2 class="section-title" style="color:#fff;">O Plano Plus foi pensado para quem quer mais controle, mais inteligência e mais apoio na operação.</h2>
-      <p class="section-subtitle" style="color:rgba(255,255,255,.78);">Nesta proposta, o Plano Plus é o grande destaque por entregar recursos mais avançados para acompanhamento da operação, gestão gerencial e mais valor estratégico no dia a dia do cliente.</p>
-      <div class="plus-grid">
-        <div class="glass-card">
-          <h3>Por que destacar o Plus?</h3>
-          <p>Porque ele reúne funcionalidades e módulos que ampliam a capacidade de gestão da empresa, oferecendo uma experiência mais completa e preparada para crescimento.</p>
-          <div class="check-list" id="plusFeaturesList"></div>
+      <div class="flex gap12 flex-wrap">
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
+          <div style="font-size:24px;margin-bottom:12px;">⚖️</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Compliance fiscal</div>
+          <div class="body-md">Medo de multas, NF-e incorreta, SPED desatualizado. O risco tributário pesa sobre cada operação.</div>
         </div>
-        <div class="screen-box">
-          <img src="${imgSrc('dashboard', '/tela-dashboard.png')}" alt="Dashboard Prosystem" style="border-radius:18px;width:100%;height:auto;" />
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
+          <div style="font-size:24px;margin-bottom:12px;">📉</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Falta de visibilidade</div>
+          <div class="body-md">Não saber o que está acontecendo em tempo real é tomar decisões no escuro — e perder margem.</div>
+        </div>
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
+          <div style="font-size:24px;margin-bottom:12px;">🔁</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Retrabalho constante</div>
+          <div class="body-md">Processos manuais consomem tempo, geram erros e impedem o crescimento da operação.</div>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <section class="section" id="comparativo">
-    <div class="container">
-      <div class="eyebrow">Diferenças entre planos</div>
-      <h2 class="section-title">Comparativo de planos com destaque para o Plus</h2>
-      <p class="section-subtitle">Aqui o cliente consegue visualizar, de forma simples, como o Plano Plus se diferencia, especialmente em recursos de análise, operação e apoio gerencial.</p>
-      <div class="comparison-wrap">
-        <div class="comparison-head">
-          <div>
-            <h3>Comparativo simplificado</h3>
-            <p>Tabela resumida para apresentação comercial com os principais recursos de cada plano.</p>
-          </div>
+  <!-- ═══════════════════════════════════════════════════════
+       SLIDE 3 — A SOLUÇÃO
+  ═══════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-3" data-slide="3">
+    <div class="flex-col max900" style="gap:32px;">
+      <div>
+        <div class="eyebrow">A resposta certa</div>
+        <h2 class="display-lg">A ProSystem foi criada para<br><span class="gradient-text">resolver exatamente isso</span></h2>
+        <p class="body-lg mt12 max700">
+          Um ERP que faz a operação trabalhar por você — integrando vendas, estoque, financeiro e compliance em uma plataforma única, com suporte humano de verdade.
+        </p>
+      </div>
+      <div class="flex gap12 flex-wrap">
+        <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(75,142,200,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">🔗</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">ERP Integrado</div>
+          <div class="body-md">Vendas, estoque, financeiro em um só sistema. Sem planilhas, sem retrabalho, sem informação perdida.</div>
         </div>
-        <div class="scroll-x">
-          <table class="plan-table" id="planTable"></table>
+        <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(39,201,127,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">✅</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">Compliance Total</div>
+          <div class="body-md">NF-e, NFC-e, SPED, PBMs — tudo incluído e atualizado automaticamente para manter sua operação segura.</div>
+        </div>
+        <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,107,53,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">🤝</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">Suporte Ativo</div>
+          <div class="body-md">Atendimento humanizado das 7h às 22h, com técnicos preparados para resolver e orientar de verdade.</div>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <section class="section">
-    <div class="container">
-      <div class="eyebrow">Telas do sistema</div>
-      <h2 class="section-title">Ferramentas que mostram valor na prática</h2>
-      <p class="section-subtitle">Conheça as principais telas do sistema e veja como a Prosystem apoia a operação no dia a dia.</p>
-      <div class="screens-grid">
-        <article class="screen-gallery-card">
-          <div class="thumb"><img src="${imgSrc('dashboard', '/tela-dashboard.png')}" alt="Dashboard Prosystem"></div>
-          <div class="content"><h4>Dashboard gerencial</h4><p>Visão de indicadores, desempenho e acompanhamento do negócio em tempo real.</p></div>
-        </article>
-        <article class="screen-gallery-card">
-          <div class="thumb"><img src="${imgSrc('whatsapp', '/tela-whatsapp.png')}" alt="Mensageria e WhatsApp"></div>
-          <div class="content"><h4>Mensageria e relacionamento</h4><p>Recurso importante para agilizar o contato com o cliente e organizar a comunicação.</p></div>
-        </article>
-        <article class="screen-gallery-card">
-          <div class="thumb"><img src="${imgSrc('relatorios', '/tela-relatorios.png')}" alt="Relatórios e análises"></div>
-          <div class="content"><h4>Relatórios e análises</h4><p>Ferramentas que ajudam a entender vendas, perdas, rentabilidade e comportamento da operação.</p></div>
-        </article>
+  <!-- ═══════════════════════════════════════════════════════
+       SLIDE 4 — MODULE HUB
+  ═══════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-4" data-slide="4" id="module-hub">
+    <div class="flex-col items-center" style="gap:28px;width:100%;">
+      <div class="text-center">
+        <div class="eyebrow" style="justify-content:center;">Explore a proposta</div>
+        <h2 class="display-md">Escolha um módulo para aprofundar</h2>
+        <p class="body-md mt8" style="max-width:500px;margin:8px auto 0;">Use as teclas 1–4 ou clique nos cards para navegar pelos módulos</p>
+      </div>
+      <div class="hub-grid" id="hub-grid"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MÓDULO 1 — GESTÃO DO NEGÓCIO (slides 5–8)
+  ═══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 5: Contexto -->
+  <div class="slide" id="slide-5" data-slide="5" data-module="1">
+    <div class="mod-layout">
+      <div>
+        <div class="eyebrow" style="color:#4B8EC8;">Módulo 1 — Gestão do Negócio</div>
+        <h2 class="display-lg">Sua operação<br><span class="text-accent">em um só lugar</span></h2>
+        <p class="body-lg mt12">PDV, Estoque e Compras integrados — sem gaps de informação, sem retrabalho, sem surpresa no fechamento.</p>
+        <div class="check-list mt24">
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>PDV ágil com NFC-e integrado</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Estoque em tempo real, por produto e localização</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Compras e sugestão automática de reposição</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Fechamento de caixa simplificado</span></div>
+        </div>
+      </div>
+      <div class="mod-img-wrap">
+        <img src="${imgSrc('hero', '/imagem-hero.png')}" alt="Gestão do Negócio" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">🏪</div><div class="ph-text">PDV & Estoque</div></div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <section class="section support-section">
-    <div class="container">
-      <div class="eyebrow" style="color:#8ff6ff;">Suporte Prosystem</div>
-      <h2 class="section-title" style="color:#fff;">Suporte ativo, imediato e de fácil acesso para o cliente</h2>
-      <p class="section-subtitle" style="color:rgba(255,255,255,.78);">Um dos grandes diferenciais da Prosystem é a atuação do suporte: atendimento rápido, humano, acessível e com técnicos preparados para auxiliar o cliente quando ele precisa.</p>
-      <div class="support-grid">
-        <div class="support-card">
-          <h3>Atendimento preparado para a rotina do cliente</h3>
-          <p>O suporte da Prosystem foi pensado para oferecer segurança operacional, agilidade no contato e apoio real no uso do sistema.</p>
-          <div class="check-list">
-            <div class="check-item"><span>✓</span><span>Suporte ativo e fácil de acessar</span></div>
-            <div class="check-item"><span>✓</span><span>Atendimento imediato dentro da rotina operacional</span></div>
-            <div class="check-item"><span>✓</span><span>Técnicos prontos e preparados para auxiliar</span></div>
-            <div class="check-item"><span>✓</span><span>Atendimento das <strong>7h às 22h</strong></span></div>
-            <div class="check-item"><span>✓</span><span>Treinamento de <strong>5 meses</strong> para novos clientes com suporte assistido</span></div>
-          </div>
-        </div>
-        <div class="support-card">
-          <h3>Números que geram confiança</h3>
-          <div class="support-kpis">
-            <div class="kpi"><strong>7h–22h</strong><span>Janela de atendimento e apoio operacional</span></div>
-            <div class="kpi"><strong>5 meses</strong><span>Treinamento para novos clientes</span></div>
-            <div class="kpi"><strong>Ativo</strong><span>Suporte de fácil acesso e acompanhamento próximo</span></div>
-            <div class="kpi"><strong>Humano</strong><span>Técnicos preparados para resolver e orientar</span></div>
-          </div>
+  <!-- SLIDE 6: PDV/Estoque -->
+  <div class="slide" id="slide-6" data-slide="6" data-module="1">
+    <div class="mod-layout">
+      <div class="mod-img-wrap">
+        <div class="mod-placeholder"><div class="ph-icon">🖥️</div><div class="ph-text">Tela PDV</div></div>
+      </div>
+      <div>
+        <div class="eyebrow" style="color:#4B8EC8;">PDV & Estoque</div>
+        <h2 class="display-lg">Velocidade na<br>frente de caixa</h2>
+        <p class="body-lg mt12">O PDV da ProSystem foi projetado para fluxo intenso — emissão de NFC-e em menos de 2 segundos, integrado direto com o estoque e o financeiro.</p>
+        <div class="flex gap12 flex-wrap mt24">
+          <div class="metric-pill"><span class="val">&lt;2s</span><span class="lbl">Emissão NFC-e</span></div>
+          <div class="metric-pill"><span class="val">100%</span><span class="lbl">Compliance fiscal</span></div>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <section class="section" id="proposta">
-    <div class="container">
-      <div class="eyebrow">Condição comercial</div>
-      <h2 class="section-title">Resumo da proposta comercial</h2>
-      <p class="section-subtitle">Abaixo estão as condições comerciais desta proposta, formatadas para apresentação ao cliente.</p>
-      <div class="proposal-box">
-        <div class="proposal-top">
-          <div class="proposal-left">
-            <div class="client-chips" id="clientChips"></div>
-            <h3 style="font-size:30px;color:#123e67;font-weight:900;letter-spacing:-0.04em;">Proposta personalizada para <span id="companyNameText"></span></h3>
-            <p style="color:#68819a;margin-top:12px;">Estruturamos esta proposta para entregar ao cliente uma solução mais completa, com destaque ao <strong>Plano Plus</strong>, recursos gerenciais, suporte especializado e uma jornada de implantação mais segura.</p>
-            <div class="price-grid">
-              <div class="price-card">
-                <small>Valor original</small>
-                <div class="old" id="setupOriginalText">R$ 0,00</div>
-              </div>
-              <div class="price-card">
-                <small>Valor especial</small>
-                <div class="new" id="setupFinalText">R$ 0,00</div>
-              </div>
-              <div class="price-card">
-                <small>Entrada</small>
-                <div class="new" style="font-size:28px;" id="entryText">R$ 0,00</div>
-              </div>
-              <div class="price-card">
-                <small>Parcelamento</small>
-                <div class="new" style="font-size:28px;" id="installmentsText">—</div>
-              </div>
-            </div>
-          </div>
-          <div class="proposal-right">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:#bdeeff;">Plano recomendado</div>
-            <div style="font-size:34px;font-weight:900;letter-spacing:-0.05em;margin-top:8px;" id="selectedPlanText">Plano Plus</div>
-            <div class="highlight-price" id="monthlyText">R$ 0,00</div>
-            <p>Mensalidade estimada da solução recomendada para a operação do cliente.</p>
-            <div class="summary-list">
-              <div><span>Vendedor responsável</span><span id="sellerNameText"></span></div>
-              <div><span>Contato comercial</span><span id="sellerPhoneText"></span></div>
-              <div><span>Responsável do cliente</span><span id="clientNameText"></span></div>
-              <div><span>Validade da proposta</span><span id="validityText"></span></div>
-            </div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;">
-              <a class="btn btn-green" id="acceptBtn" href="#" target="_blank">Aceitar via WhatsApp</a>
-              <button class="btn btn-secondary" onclick="window.print()">Salvar em PDF</button>
-            </div>
-          </div>
+  <!-- SLIDE 7: Integração -->
+  <div class="slide" id="slide-7" data-slide="7" data-module="1">
+    <div class="mod-layout">
+      <div>
+        <div class="eyebrow" style="color:#4B8EC8;">Integração</div>
+        <h2 class="display-lg">Compras que<br><span class="text-accent">se reposicionam sozinhas</span></h2>
+        <p class="body-lg mt12">O módulo de compras analisa histórico de vendas, estoque mínimo e curva ABC para gerar sugestões automáticas — reduzindo ruptura e excesso.</p>
+        <div class="check-list mt24">
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Sugestão automática de pedido de compra</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Curva ABC de produtos integrada</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Indicador de perda e ruptura de estoque</span></div>
         </div>
       </div>
+      <div class="mod-img-wrap">
+        <div class="mod-placeholder"><div class="ph-icon">📦</div><div class="ph-text">Módulo Compras</div></div>
+      </div>
+    </div>
+  </div>
 
+  <!-- SLIDE 8: Resultado -->
+  <div class="slide" id="slide-8" data-slide="8" data-module="1">
+    <div class="flex-col items-center text-center max700" style="gap:24px;">
+      <div class="eyebrow" style="justify-content:center;color:#4B8EC8;">Resultado esperado</div>
+      <h2 class="display-lg">Operação integrada,<br><span class="gradient-text">resultado visível</span></h2>
+      <p class="body-lg">Com PDV, Estoque e Compras no mesmo sistema, sua equipe trabalha menos e entrega mais — com menos erros e mais visibilidade para o gestor.</p>
+      <button class="btn btn-primary" onclick="returnToHub()">Ver outros módulos</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MÓDULO 2 — CONTROLE FINANCEIRO (slides 9–12)
+  ═══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 9: Contexto -->
+  <div class="slide" id="slide-9" data-slide="9" data-module="2">
+    <div class="mod-layout">
+      <div>
+        <div class="eyebrow" style="color:#27C97F;">Módulo 2 — Controle Financeiro</div>
+        <h2 class="display-lg">Saiba exatamente<br><span class="text-green">onde está o dinheiro</span></h2>
+        <p class="body-lg mt12">Dashboard gerencial, análise de rentabilidade e relatórios estratégicos — tudo para que o gestor tome decisões com dados, não com intuição.</p>
+        <div class="check-list mt24">
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Contas a pagar e receber integradas</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Fluxo de caixa em tempo real</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Conciliação bancária automática</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>DRE gerencial por período</span></div>
+        </div>
+      </div>
+      <div class="mod-img-wrap">
+        <img src="${imgSrc('relatorios', '/tela-relatorios.png')}" alt="Controle Financeiro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">📊</div><div class="ph-text">Painel Financeiro</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: Dashboard -->
+  <div class="slide" id="slide-10" data-slide="10" data-module="2">
+    <div class="mod-layout">
+      <div class="mod-img-wrap">
+        <img src="${imgSrc('dashboard', '/tela-dashboard.png')}" alt="Dashboard" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">📈</div><div class="ph-text">Dashboard Gerencial</div></div>
+      </div>
+      <div>
+        <div class="eyebrow" style="color:#27C97F;">Dashboard</div>
+        <h2 class="display-lg">O negócio inteiro<br>em uma tela</h2>
+        <p class="body-lg mt12">O dashboard do Plano Plus consolida vendas, margem, inadimplência e estoque — atualizado em tempo real, disponível de qualquer dispositivo.</p>
+        <div class="flex gap12 flex-wrap mt24">
+          <div class="metric-pill"><span class="val">Tempo real</span><span class="lbl">Atualização</span></div>
+          <div class="metric-pill"><span class="val">Plano Plus</span><span class="lbl">Exclusivo</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: Rentabilidade -->
+  <div class="slide" id="slide-11" data-slide="11" data-module="2">
+    <div class="mod-layout">
+      <div>
+        <div class="eyebrow" style="color:#27C97F;">Rentabilidade</div>
+        <h2 class="display-lg">Margem real,<br><span class="text-green">produto por produto</span></h2>
+        <p class="body-lg mt12">Identifique quais produtos realmente lucram, quais apenas giram e onde está a perda de margem — com análise de rentabilidade detalhada e comparativa.</p>
+        <div class="check-list mt24">
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Margem bruta por produto e categoria</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Indicador de perda de vendas</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Comparativo por período e por vendedor</span></div>
+        </div>
+      </div>
+      <div class="mod-img-wrap">
+        <div class="mod-placeholder"><div class="ph-icon">💹</div><div class="ph-text">Análise de Rentabilidade</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 12: Decisões -->
+  <div class="slide" id="slide-12" data-slide="12" data-module="2">
+    <div class="flex-col items-center text-center max700" style="gap:24px;">
+      <div class="eyebrow" style="justify-content:center;color:#27C97F;">Resultado esperado</div>
+      <h2 class="display-lg">Decisões baseadas<br><span class="gradient-text">em dados reais</span></h2>
+      <p class="body-lg">Com o Controle Financeiro da ProSystem, o gestor sai da intuição e passa a gerir com indicadores — reduzindo perdas e aumentando a margem real da operação.</p>
+      <button class="btn btn-green" onclick="returnToHub()">Ver outros módulos</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MÓDULO 3 — SUPORTE & TREINAMENTO (slides 13–16)
+  ═══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 13: Contexto -->
+  <div class="slide" id="slide-13" data-slide="13" data-module="3">
+    <div class="mod-layout">
+      <div>
+        <div class="eyebrow" style="color:#FF6B35;">Módulo 3 — Suporte & Treinamento</div>
+        <h2 class="display-lg">Suporte que<br><span class="text-orange">resolve de verdade</span></h2>
+        <p class="body-lg mt12">Não é um chatbot. Não é uma fila de e-mail. É atendimento humano, ativo e especializado — das 7h às 22h, todos os dias úteis.</p>
+        <div class="check-list mt24">
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Atendimento humanizado por técnicos especializados</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Canal direto — sem fila, sem ticket perdido</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Resposta ágil dentro da janela operacional</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Suporte assistido durante os 5 meses de treinamento</span></div>
+        </div>
+      </div>
+      <div class="mod-img-wrap">
+        <img src="${imgSrc('whatsapp', '/tela-whatsapp.png')}" alt="Suporte ProSystem" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="mod-placeholder" style="display:none"><div class="ph-icon">🤝</div><div class="ph-text">Canal de Suporte</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 14: Horários -->
+  <div class="slide" id="slide-14" data-slide="14" data-module="3">
+    <div class="flex-col items-center text-center max700" style="gap:28px;">
+      <div>
+        <div class="eyebrow" style="justify-content:center;color:#FF6B35;">Disponibilidade</div>
+        <h2 class="display-lg">7h às 22h — <span class="text-orange">todos os dias úteis</span></h2>
+        <p class="body-lg mt12">A janela de suporte da ProSystem cobre toda a operação do varejo, do recebimento matutino ao fechamento noturno.</p>
+      </div>
+      <div class="flex gap12 flex-wrap justify-center">
+        <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.25);text-align:center;">
+          <div style="font-size:42px;font-weight:900;letter-spacing:-0.05em;color:var(--accent);">7h–22h</div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Janela de atendimento</div>
+        </div>
+        <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(75,142,200,0.1);border:1px solid var(--border-accent);text-align:center;">
+          <div style="font-size:42px;font-weight:900;letter-spacing:-0.05em;color:var(--secondary);">5 meses</div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Treinamento incluso</div>
+        </div>
+        <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(39,201,127,0.1);border:1px solid rgba(39,201,127,0.25);text-align:center;">
+          <div style="font-size:42px;font-weight:900;letter-spacing:-0.05em;color:var(--green);">Humano</div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Técnico real, não bot</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 15: Treinamento -->
+  <div class="slide" id="slide-15" data-slide="15" data-module="3">
+    <div class="mod-layout">
+      <div>
+        <div class="eyebrow" style="color:#FF6B35;">Treinamento</div>
+        <h2 class="display-lg">5 meses para<br><span class="text-orange">dominar o sistema</span></h2>
+        <p class="body-lg mt12">O programa de treinamento da ProSystem acompanha o cliente desde a implantação até a operação autônoma — com suporte assistido em cada etapa.</p>
+        <div class="check-list mt24">
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 1–2: Implantação e configuração assistida</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 3: Treinamento da equipe operacional</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Mês 4–5: Uso avançado e gestão gerencial</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Suporte técnico ativo durante todo o período</span></div>
+        </div>
+      </div>
+      <div class="mod-img-wrap">
+        <div class="mod-placeholder"><div class="ph-icon">🎓</div><div class="ph-text">Programa de Treinamento</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 16: Compromisso -->
+  <div class="slide" id="slide-16" data-slide="16" data-module="3">
+    <div class="flex-col items-center text-center max700" style="gap:24px;">
+      <div class="eyebrow" style="justify-content:center;color:#FF6B35;">Compromisso ProSystem</div>
+      <h2 class="display-lg">Não vendemos software.<br><span class="text-orange">Vendemos resultado.</span></h2>
+      <p class="body-lg">Nosso compromisso começa na implantação e não termina nunca. O suporte ativo é um diferencial que mantemos há 16 anos — e é o que nossos clientes mais valorizam.</p>
+      <button class="btn btn-accent" onclick="returnToHub()">Ver outros módulos</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MÓDULO 4 — PROPOSTA COMERCIAL (slides 17–20)
+  ═══════════════════════════════════════════════════════ -->
+  <!-- SLIDE 17: Comparativo Planos -->
+  <div class="slide" id="slide-17" data-slide="17" data-module="4">
+    <div class="flex-col max900" style="gap:24px;">
+      <div>
+        <div class="eyebrow" style="color:#F59E0B;">Módulo 4 — Proposta Comercial</div>
+        <h2 class="display-md">Comparativo de planos</h2>
+        <p class="body-md mt8">Veja o que cada plano inclui e por que o <span id="s17-plan" style="color:#9ecfff;font-weight:800;">${data.selectedPlan}</span> é a recomendação para sua operação.</p>
+      </div>
+      <div class="glass scroll-x" style="padding:20px;">
+        <table class="plan-table" id="plan-table-main"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 18: Valores Especiais -->
+  <div class="slide" id="slide-18" data-slide="18" data-module="4">
+    <div class="flex-col max900" style="gap:24px;">
+      <div>
+        <div class="eyebrow" style="color:#F59E0B;">Condição especial</div>
+        <h2 class="display-lg">Proposta exclusiva para<br><span id="s18-company" style="color:#F59E0B;">${data.companyName || 'sua empresa'}</span></h2>
+        <p class="body-md mt8">Esta proposta foi preparada especialmente para sua operação, com condições que refletem o volume e o perfil do seu negócio.</p>
+      </div>
+      <div class="flex gap12 flex-wrap">
+        <div class="price-card" style="flex:1;min-width:160px;">
+          <div class="pc-label">Implantação original</div>
+          <div class="pc-old" id="s18-original">R$ 0,00</div>
+        </div>
+        <div class="price-card featured" style="flex:1;min-width:160px;">
+          <div class="pc-label">Valor especial negociado</div>
+          <div class="pc-val" id="s18-final">R$ 0,00</div>
+        </div>
+        <div class="price-card" style="flex:1;min-width:160px;">
+          <div class="pc-label">Mensalidade do plano</div>
+          <div class="pc-val" style="color:var(--green);" id="s18-monthly">R$ 0,00</div>
+        </div>
+      </div>
+      <div class="glass" style="padding:16px 20px;">
+        <div class="flex gap12 flex-wrap items-center">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">Plano recomendado:</div>
+          <div style="font-size:16px;font-weight:800;color:var(--text-primary);" id="s18-plan">${data.selectedPlan}</div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-left:auto;">Válida até:</div>
+          <div style="font-size:15px;font-weight:800;color:var(--accent);" id="s18-valid">${data.validUntil || '—'}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 19: Formas de Pagamento -->
+  <div class="slide" id="slide-19" data-slide="19" data-module="4">
+    <div class="flex-col max900" style="gap:24px;">
+      <div>
+        <div class="eyebrow" style="color:#F59E0B;">Condições de pagamento</div>
+        <h2 class="display-md">Formas de pagamento<br>para a implantação</h2>
+      </div>
+      <div class="flex gap12 flex-wrap">
+        <div class="price-card" style="flex:1;min-width:200px;">
+          <div class="pc-label">Entrada</div>
+          <div class="pc-val" id="s19-entry">—</div>
+        </div>
+        <div class="price-card" style="flex:1;min-width:200px;">
+          <div class="pc-label">Parcelamento</div>
+          <div class="pc-val" id="s19-installments">—</div>
+        </div>
+        <div class="price-card featured" style="flex:2;min-width:220px;">
+          <div class="pc-label">Total implantação</div>
+          <div class="pc-val" id="s19-total">—</div>
+        </div>
+      </div>
+      <div class="glass" style="padding:16px 20px;">
+        <div class="check-list">
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Implantação inclui configuração completa do sistema</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Conversão de dados do sistema anterior (se aplicável)</span></div>
+          <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>5 meses de treinamento e suporte assistido inclusos</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 20: Validade + WhatsApp -->
+  <div class="slide" id="slide-20" data-slide="20" data-module="4">
+    <div class="flex-col max900" style="gap:20px;">
+      <div>
+        <div class="eyebrow" style="color:#F59E0B;">Aceite a proposta</div>
+        <h2 class="display-md">Esta proposta é válida até <span class="text-orange" id="s20-valid">${data.validUntil || '—'}</span></h2>
+        <p class="body-md mt8">Entre em contato com <strong style="color:var(--text-primary);" id="s20-seller">${data.sellerName}</strong> para confirmar e dar início à implantação.</p>
+      </div>
+      <div class="flex gap12 flex-wrap">
+        <button class="btn btn-green" id="accept-whatsapp-btn">Aceitar via WhatsApp</button>
+        <button class="btn btn-ghost" onclick="window.print()">Salvar em PDF</button>
+      </div>
       <div class="whats-box">
-        <div class="whats-box-head">
-          <h3>Resumo da proposta para enviar no WhatsApp</h3>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-green" onclick="copyWhatsAppText()">Copiar texto</button>
-            <button class="btn btn-primary" onclick="openWhatsApp()">Abrir no WhatsApp</button>
-          </div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:14px;">Resumo para enviar no WhatsApp</div>
+        <textarea class="whats-text" id="whats-text-area" readonly></textarea>
+        <div class="action-row">
+          <button class="btn btn-green" onclick="copyWhatsAppText()">Copiar resumo WhatsApp</button>
+          <button class="btn btn-primary" onclick="openWhatsApp()">Abrir no WhatsApp</button>
         </div>
-        <div class="whats-box-body">
-          <textarea class="whats-text" id="whatsText" readonly></textarea>
-          </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <footer class="footer">
-    <div class="container footer-inner">
-      <div>Prosystem Sistemas • Proposta comercial</div>
-      <div id="footerValidity"></div>
+  <!-- ═══════════════════════════════════════════════════════
+       SLIDE 21 — PROVA SOCIAL
+  ═══════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-21" data-slide="21">
+    <div class="flex-col items-center text-center" style="gap:28px;width:100%;">
+      <div>
+        <div class="eyebrow" style="justify-content:center;">16 anos de confiança</div>
+        <h2 class="display-lg">O varejo escolhe<br><span class="gradient-text">a ProSystem há 16 anos</span></h2>
+        <p class="body-lg mt12" style="max-width:560px;margin-left:auto;margin-right:auto;">
+          Não somos uma startup prometendo transformação digital. Somos um parceiro operacional testado pelo tempo — com suporte real e resultados mensuráveis.
+        </p>
+      </div>
+      <div class="proof-grid">
+        <div class="proof-card">
+          <div class="pv" style="color:var(--secondary);" data-counter="16" data-suffix=" anos">0</div>
+          <div class="pl">No mercado varejista</div>
+        </div>
+        <div class="proof-card">
+          <div class="pv" style="color:var(--accent);" data-counter="3" data-suffix=" segmentos">0</div>
+          <div class="pl">Farmácias, padarias e varejo</div>
+        </div>
+        <div class="proof-card">
+          <div class="pv" style="color:var(--green);">7h–22h</div>
+          <div class="pl">Janela de suporte ativo</div>
+        </div>
+        <div class="proof-card">
+          <div class="pv" style="color:#F59E0B);" data-counter="5" data-suffix=" meses">0</div>
+          <div class="pl">Treinamento para novos clientes</div>
+        </div>
+      </div>
     </div>
-  </footer>
+  </div>
 
-  <script>
-    const proposalData = ${dataJson};
+  <!-- ═══════════════════════════════════════════════════════
+       SLIDE 22 — CTA FINAL
+  ═══════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-22" data-slide="22">
+    <div class="flex-col items-center text-center max700" style="gap:28px;">
+      <div>
+        <div class="eyebrow" style="justify-content:center;">Próximo passo</div>
+        <h1 class="display-xl">Vamos começar?</h1>
+        <p class="body-lg mt16">
+          A proposta é válida até <strong class="text-accent" id="cta-valid">${data.validUntil || '—'}</strong>.<br>
+          Responda no WhatsApp agora e comece a transformar sua operação.
+        </p>
+      </div>
+      <div class="flex gap12 flex-wrap justify-center">
+        <button class="btn btn-green" id="cta-whatsapp-btn" style="font-size:15px;padding:16px 32px;">Aceitar via WhatsApp</button>
+        <button class="btn btn-ghost" onclick="goToModule(4)" style="font-size:15px;padding:16px 24px;">Rever proposta comercial</button>
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary);">
+        Vendedor: <strong style="color:var(--text-primary);" id="cta-seller">${data.sellerName}</strong> &nbsp;|&nbsp;
+        <span id="cta-phone">${data.sellerPhone}</span>
+      </div>
+    </div>
+  </div>
 
-    function formatMoney(value){
-      return Number(value||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+</div><!-- /deck -->
+
+<script>
+  // ── DATA ────────────────────────────────────────────────
+  const proposalData = ${dataJson};
+
+  // ── SLIDES CONFIG ───────────────────────────────────────
+  const TOTAL_SLIDES = 23;
+  const HUB_SLIDE = 4;
+  const modules = [
+    { id:1, name:'Gestão do Negócio',   desc:'PDV, Estoque e Compras integrados para sua operação', icon:'🏪', color:'#4B8EC8', slides:[5,6,7,8] },
+    { id:2, name:'Controle Financeiro', desc:'Dashboard, Rentabilidade e Análises gerenciais',        icon:'📊', color:'#27C97F', slides:[9,10,11,12] },
+    { id:3, name:'Suporte & Treinamento',desc:'7h–22h, atendimento humano, 5 meses de treinamento',  icon:'🤝', color:'#FF6B35', slides:[13,14,15,16] },
+    { id:4, name:'Proposta Comercial',  desc:'Condições especiais personalizadas para o seu negócio', icon:'📋', color:'#F59E0B', slides:[17,18,19,20] },
+  ];
+
+  let currentSlide = 0;
+  let presenterMode = true;
+  let selfServiceTimer = null;
+  let hasKeyboard = false;
+  let inModule = false;
+  let currentModuleId = null;
+  const slideEls = Array.from(document.querySelectorAll('.slide'));
+
+  // ── UTILS ───────────────────────────────────────────────
+  function formatMoney(v) {
+    return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  }
+  function onlyNumbers(v) { return String(v||'').replace(/\\D/g,''); }
+
+  // ── THREE.JS PARTICLES ──────────────────────────────────
+  (function initThree() {
+    if (window.innerWidth < 769) return;
+    const canvas = document.getElementById('three-canvas');
+    if (!window.THREE) return;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
+
+    const count = 2000;
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const c1 = new THREE.Color('#4B8EC8');
+    const c2 = new THREE.Color('#FF6B35');
+    for (let i = 0; i < count; i++) {
+      positions[i*3]   = (Math.random() - 0.5) * 14;
+      positions[i*3+1] = (Math.random() - 0.5) * 14;
+      positions[i*3+2] = (Math.random() - 0.5) * 8;
+      const mix = Math.random();
+      const col = c1.clone().lerp(c2, mix);
+      colors[i*3]   = col.r;
+      colors[i*3+1] = col.g;
+      colors[i*3+2] = col.b;
     }
-    function onlyNumbers(value){
-      return String(value||"").replace(/\\D/g,"");
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const mat = new THREE.PointsMaterial({ size: 0.04, vertexColors: true, transparent: true, opacity: 0.55 });
+    const points = new THREE.Points(geo, mat);
+    scene.add(points);
+
+    let lastTime = 0;
+    const FPS_CAP = 30;
+    function animate(time) {
+      requestAnimationFrame(animate);
+      if (time - lastTime < 1000/FPS_CAP) return;
+      lastTime = time;
+      if (document.hidden) return;
+      points.rotation.y += 0.0008;
+      points.rotation.x += 0.0003;
+      renderer.render(scene, camera);
     }
-    function buildPlanTable(){
-      const table=document.getElementById("planTable");
-      const rows=proposalData.planComparison.map(item=>\`
-        <tr>
-          <td>\${item.feature}</td>
-          <td>\${formatPlanCell(item.lite,"lite")}</td>
-          <td>\${formatPlanCell(item.pro,"pro")}</td>
-          <td class="plus-col">\${formatPlanCell(item.plus,"plus")}</td>
-        </tr>\`).join("");
-      table.innerHTML=\`<thead><tr>
-        <th>Funcionalidade</th>
-        <th><span class="plan-tag tag-lite">Lite / Básico</span></th>
-        <th><span class="plan-tag tag-pro">Pro</span></th>
-        <th class="plus-col"><span class="plan-tag tag-plus">Plus</span></th>
-      </tr></thead><tbody>\${rows}</tbody>\`;
+    animate(0);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  })();
+
+  // ── BUILD HUB GRID ──────────────────────────────────────
+  function buildHubGrid() {
+    const grid = document.getElementById('hub-grid');
+    grid.innerHTML = modules.map((m,i) => \`
+      <div class="module-card" onclick="goToModule(\${m.id})" style="--mc:#\${m.color.replace('#','')}">
+        <div class="mc-num">Módulo \${m.id} &nbsp; <kbd style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.08);font-family:monospace;">\${m.id}</kbd></div>
+        <div class="mc-icon">\${m.icon}</div>
+        <div class="mc-name" style="color:\${m.color}">\${m.name}</div>
+        <div class="mc-desc">\${m.desc}</div>
+        <div class="mc-arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 2l4 3-4 3"/></svg>
+        </div>
+      </div>
+    \`).join('');
+  }
+
+  // ── BUILD PLAN TABLE ────────────────────────────────────
+  function buildPlanTable() {
+    const tbl = document.getElementById('plan-table-main');
+    if (!tbl) return;
+    const rows = proposalData.planComparison.map(row => {
+      const fmtCell = (v, col) => {
+        if (v === 'Sim') return \`<span class="cell-yes">✓ Sim</span>\`;
+        if (v === 'Não') return \`<span class="cell-no">— Não</span>\`;
+        return \`<span class="cell-\${col}">\${v}</span>\`;
+      };
+      return \`<tr>
+        <td>\${row.feature}</td>
+        <td>\${fmtCell(row.lite,'lite')}</td>
+        <td>\${fmtCell(row.pro,'pro')}</td>
+        <td class="plus-col">\${fmtCell(row.plus,'plus')}</td>
+      </tr>\`;
+    }).join('');
+    tbl.innerHTML = \`<thead><tr>
+      <th>Funcionalidade</th>
+      <th><span class="plan-badge badge-lite">Lite</span></th>
+      <th><span class="plan-badge badge-pro">Pro</span></th>
+      <th class="plus-col"><span class="plan-badge badge-plus">Plus ★</span></th>
+    </tr></thead><tbody>\${rows}</tbody>\`;
+  }
+
+  // ── PROPOSAL DATA INJECTION ─────────────────────────────
+  function injectProposalData() {
+    const $ = id => document.getElementById(id);
+    const set = (id, txt) => { const el=$(id); if(el) el.textContent = txt; };
+
+    set('s18-original', formatMoney(proposalData.setupOriginal));
+    set('s18-final',    formatMoney(proposalData.setupFinal));
+    set('s18-monthly',  formatMoney(proposalData.monthlyValue));
+    set('s18-plan',     proposalData.selectedPlan);
+    set('s18-valid',    proposalData.validUntil || '—');
+    set('s17-plan',     proposalData.selectedPlan);
+    set('s18-company',  proposalData.companyName || 'sua empresa');
+
+    set('s19-entry', proposalData.entryValue > 0 ? formatMoney(proposalData.entryValue) : 'A combinar');
+    set('s19-installments', proposalData.installments > 0
+      ? \`\${proposalData.installments}x de \${formatMoney(proposalData.installmentValue)}\`
+      : 'À vista');
+    set('s19-total', formatMoney(proposalData.setupFinal));
+
+    set('s20-valid',  proposalData.validUntil || '—');
+    set('s20-seller', proposalData.sellerName  || '—');
+    set('cta-valid',  proposalData.validUntil  || '—');
+    set('cta-seller', proposalData.sellerName  || '—');
+    set('cta-phone',  proposalData.sellerPhone || '—');
+
+    // CTA accept links
+    const acceptMsg = encodeURIComponent(
+      'Olá, quero aceitar a proposta da ProSystem para ' + proposalData.companyName + '. Podemos dar sequência.'
+    );
+    const sellerNum = '55' + onlyNumbers(proposalData.sellerPhone);
+    const setHref = (id, url) => { const el=$(id); if(el) el.onclick = () => window.open(url,'_blank'); };
+    setHref('accept-whatsapp-btn', \`https://wa.me/\${sellerNum}?text=\${acceptMsg}\`);
+    setHref('cta-whatsapp-btn',    \`https://wa.me/\${sellerNum}?text=\${acceptMsg}\`);
+  }
+
+  // ── WHATSAPP SUMMARY ────────────────────────────────────
+  function buildWhatsAppSummary() {
+    const p = proposalData;
+    const lines = [
+      \`Olá, \${p.clientName}! Tudo bem?\`,
+      '',
+      \`Segue a proposta comercial da ProSystem para \${p.companyName}.\`,
+      '',
+      'Resumo da proposta:',
+      \`• Plano recomendado: \${p.selectedPlan}\`,
+      \`• Mensalidade: \${formatMoney(p.monthlyValue)}\`,
+      \`• Valor original da implantação: \${formatMoney(p.setupOriginal)}\`,
+      \`• Valor especial da implantação: \${formatMoney(p.setupFinal)}\`,
+      p.entryValue > 0 ? \`• Entrada: \${formatMoney(p.entryValue)}\` : null,
+      p.installments > 0 ? \`• Parcelamento: \${p.installments}x de \${formatMoney(p.installmentValue)}\` : null,
+      \`• Validade da proposta: \${p.validUntil || 'A combinar'}\`,
+      '',
+      'Destaques inclusos:',
+      ...p.plusFeatures.slice(0,4).map(f => '• ' + f),
+      '',
+      'Diferenciais ProSystem:',
+      '• Suporte ativo e humanizado das 7h às 22h',
+      '• Técnicos prontos para auxiliar no dia a dia',
+      '• Treinamento de 5 meses para novos clientes',
+      '• 16 anos de experiência no varejo',
+      '',
+      'Fico à disposição para dar sequência.',
+      '',
+      'Atenciosamente,',
+      p.sellerName,
+      p.sellerPhone,
+    ].filter(l => l !== null);
+    const ta = document.getElementById('whats-text-area');
+    if (ta) ta.value = lines.join('\\n');
+  }
+
+  function copyWhatsAppText() {
+    const ta = document.getElementById('whats-text-area');
+    if (!ta) return;
+    ta.select(); ta.setSelectionRange(0,99999);
+    try { document.execCommand('copy'); } catch(e) { navigator.clipboard && navigator.clipboard.writeText(ta.value); }
+    alert('Resumo copiado com sucesso!');
+  }
+  function openWhatsApp() {
+    const ta = document.getElementById('whats-text-area');
+    const text = ta ? ta.value : '';
+    const phone = onlyNumbers(proposalData.clientPhone);
+    window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank');
+  }
+
+  // ── SLIDE NAVIGATION ────────────────────────────────────
+  function showSlide(index, direction) {
+    if (index < 0 || index >= TOTAL_SLIDES) return;
+    const prev = slideEls[currentSlide];
+    const next = slideEls[index];
+    if (!next) return;
+
+    const dir = direction || (index > currentSlide ? 1 : -1);
+
+    // Hide current
+    if (prev && prev !== next) {
+      gsap.to(prev, {
+        opacity: 0, x: dir * -60, duration: 0.4, ease: 'power2.in',
+        onComplete: () => { prev.classList.remove('active'); prev.style.pointerEvents='none'; gsap.set(prev,{x:0}); }
+      });
     }
-    function formatPlanCell(value,plan){
-      if(value==="Sim") return \`<span class="yes">Sim</span>\`;
-      if(value==="Não") return \`<span class="no">Não</span>\`;
-      return \`<strong style="color:\${plan==="plus"?"#0f8d57":"#123e67"}">\${value}</strong>\`;
+
+    currentSlide = index;
+    updateUI();
+
+    // Prepare next
+    gsap.set(next, { opacity: 0, x: dir * 80 });
+    next.classList.add('active');
+    next.style.pointerEvents = 'all';
+
+    // Animate in
+    gsap.to(next, { opacity: 1, x: 0, duration: 0.55, ease: 'power3.out' });
+
+    // Stagger children
+    const children = Array.from(next.children);
+    if (children.length) {
+      gsap.fromTo(children,
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 0.65, ease: 'power3.out', stagger: 0.08, delay: 0.12 }
+      );
     }
-    function buildPlusFeatures(){
-      const target=document.getElementById("plusFeaturesList");
-      target.innerHTML=proposalData.plusFeatures.map(item=>\`
-        <div class="check-item"><span>✓</span><span>\${item}</span></div>\`).join("");
+
+    // Counters
+    next.querySelectorAll('[data-counter]').forEach(el => {
+      const target = parseInt(el.dataset.counter, 10);
+      const suffix = el.dataset.suffix || '';
+      gsap.to({v:0}, {
+        v: target, duration: 1.8, ease: 'power2.out', delay: 0.3,
+        onUpdate: function() { el.textContent = Math.round(this.targets()[0].v) + suffix; }
+      });
+    });
+    next.querySelectorAll('[data-counter-text]').forEach(el => {
+      setTimeout(() => { el.textContent = el.dataset.counterText; }, 400);
+    });
+
+    // Module state
+    const modId = next.dataset.module ? parseInt(next.dataset.module) : null;
+    inModule = !!modId;
+    currentModuleId = modId;
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) backBtn.classList.toggle('visible', inModule);
+  }
+
+  function goToSlide(index) { showSlide(index); }
+
+  function goToModule(modId) {
+    const m = modules.find(x => x.id === modId);
+    if (!m) return;
+    showSlide(m.slides[0]);
+  }
+
+  function returnToHub() {
+    showSlide(HUB_SLIDE, -1);
+  }
+
+  function nextSlide() {
+    if (currentSlide >= TOTAL_SLIDES - 1) return;
+    // If in module, clamp to module boundary then go back to hub
+    if (inModule && currentModuleId) {
+      const m = modules.find(x => x.id === currentModuleId);
+      if (m) {
+        const lastModSlide = m.slides[m.slides.length - 1];
+        if (currentSlide === lastModSlide) { returnToHub(); return; }
+      }
     }
-    function buildClientChips(){
-      const chips=[
-        proposalData.companyName,
-        proposalData.cnpj?("CNPJ: "+proposalData.cnpj):null,
-        proposalData.segment||null,
-        (proposalData.city&&proposalData.state)?(proposalData.city+"/"+proposalData.state):null,
-        proposalData.clientName?("Responsável: "+proposalData.clientName):null,
-      ].filter(Boolean);
-      document.getElementById("clientChips").innerHTML=chips.map(item=>\`<span class="chip">\${item}</span>\`).join("");
+    showSlide(currentSlide + 1);
+  }
+
+  function prevSlide() {
+    if (currentSlide <= 0) return;
+    showSlide(currentSlide - 1, -1);
+  }
+
+  // ── UPDATE UI ───────────────────────────────────────────
+  function updateUI() {
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = ((currentSlide / (TOTAL_SLIDES-1)) * 100) + '%';
+    const counter = document.getElementById('slide-counter');
+    if (counter) counter.textContent = (currentSlide+1) + ' / ' + TOTAL_SLIDES;
+  }
+
+  // ── MODE TOGGLE ─────────────────────────────────────────
+  function toggleMode() {
+    presenterMode = !presenterMode;
+    const btn = document.getElementById('mode-btn-top');
+    if (btn) btn.textContent = 'Modo: ' + (presenterMode ? 'Apresentador' : 'Auto-serviço');
+    document.body.classList.toggle('self-service', !presenterMode);
+  }
+
+  // ── KEYBOARD ────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (!hasKeyboard) {
+      hasKeyboard = true;
+      clearTimeout(selfServiceTimer);
     }
-    function renderProposalSummary(){
-      document.getElementById("companyNameText").textContent=proposalData.companyName;
-      document.getElementById("setupOriginalText").textContent=formatMoney(proposalData.setupOriginal);
-      document.getElementById("setupFinalText").textContent=formatMoney(proposalData.setupFinal);
-      document.getElementById("entryText").textContent=formatMoney(proposalData.entryValue);
-      document.getElementById("installmentsText").textContent=proposalData.installments>0?(\`\${proposalData.installments}x de \${formatMoney(proposalData.installmentValue)}\`):"À vista";
-      document.getElementById("selectedPlanText").textContent=proposalData.selectedPlan;
-      document.getElementById("monthlyText").textContent=formatMoney(proposalData.monthlyValue);
-      document.getElementById("sellerNameText").textContent=proposalData.sellerName;
-      document.getElementById("sellerPhoneText").textContent=proposalData.sellerPhone;
-      document.getElementById("clientNameText").textContent=proposalData.clientName;
-      document.getElementById("validityText").textContent=proposalData.validUntil||"—";
-      if(document.getElementById("planBadge")) document.getElementById("planBadge").textContent=proposalData.selectedPlan+" em destaque";
-      if(document.getElementById("pillPlan")) document.getElementById("pillPlan").textContent=proposalData.selectedPlan+" com visão gerencial";
-      if(document.getElementById("footerValidity")) document.getElementById("footerValidity").textContent=proposalData.validUntil?"Válida até "+proposalData.validUntil:"";
+    switch(e.key) {
+      case 'ArrowRight': case ' ': e.preventDefault(); nextSlide(); break;
+      case 'ArrowLeft':  e.preventDefault(); prevSlide(); break;
+      case 'Escape': if (inModule) { e.preventDefault(); returnToHub(); } break;
+      case '1': if (currentSlide === HUB_SLIDE) goToModule(1); break;
+      case '2': if (currentSlide === HUB_SLIDE) goToModule(2); break;
+      case '3': if (currentSlide === HUB_SLIDE) goToModule(3); break;
+      case '4': if (currentSlide === HUB_SLIDE) goToModule(4); break;
     }
-    function buildAcceptLink(){
-      const msg="Olá, quero aceitar a proposta da Prosystem para "+proposalData.companyName+". Podemos dar sequência. Seguem meus dados: Nome completo, CPF e e-mail.";
-      const phone=onlyNumbers(proposalData.sellerPhone);
-      document.getElementById("acceptBtn").href="https://wa.me/55"+phone+"?text="+encodeURIComponent(msg);
-    }
-    function buildWhatsAppSummary(){
-      const text="Olá, "+proposalData.clientName+"! Tudo bem?\\n\\nSegue a proposta comercial da Prosystem para a "+proposalData.companyName+".\\n\\nResumo da proposta:\\n• Plano recomendado: "+proposalData.selectedPlan+"\\n• Mensalidade: "+formatMoney(proposalData.monthlyValue)+"\\n• Valor original da implantação: "+formatMoney(proposalData.setupOriginal)+"\\n• Valor especial da implantação: "+formatMoney(proposalData.setupFinal)+(proposalData.entryValue>0?"\\n• Entrada: "+formatMoney(proposalData.entryValue):"")+(proposalData.installments>0?"\\n• Parcelamento: "+proposalData.installments+"x de "+formatMoney(proposalData.installmentValue):"")+("\\n• Validade da proposta: "+(proposalData.validUntil||"A combinar"))+"\\n\\nDestaques:\\n"+proposalData.plusFeatures.slice(0,4).map(f=>"• "+f).join("\\n")+"\\n\\nDiferenciais Prosystem:\\n• Suporte ativo, imediato e de fácil acesso\\n• Técnicos prontos e preparados para auxiliar\\n• Atendimento das 7h às 22h\\n• Treinamento de 5 meses para novos clientes\\n\\nFico à disposição para dar sequência.\\n\\nAtenciosamente,\\n"+proposalData.sellerName+"\\n"+proposalData.sellerPhone;
-      document.getElementById("whatsText").value=text;
-    }
-    function copyWhatsAppText(){
-      const ta=document.getElementById("whatsText");ta.select();ta.setSelectionRange(0,99999);document.execCommand("copy");alert("Resumo copiado com sucesso.");
-    }
-    function openWhatsApp(){
-      const phone=onlyNumbers(proposalData.clientPhone);
-      const text=document.getElementById("whatsText").value;
-      window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(text),"_blank");
-    }
-    function escapeXML(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");}
-    function generateXML(){
-      return '<?xml version="1.0" encoding="UTF-8"?>\\n<proposal>\\n'+
-        '  <companyName>'+escapeXML(proposalData.companyName)+'</companyName>\\n'+
-        '  <tradeName>'+escapeXML(proposalData.tradeName)+'</tradeName>\\n'+
-        '  <cnpj>'+escapeXML(proposalData.cnpj)+'</cnpj>\\n'+
-        '  <segment>'+escapeXML(proposalData.segment)+'</segment>\\n'+
-        '  <selectedPlan>'+escapeXML(proposalData.selectedPlan)+'</selectedPlan>\\n'+
-        '  <monthlyValue>'+escapeXML(proposalData.monthlyValue)+'</monthlyValue>\\n'+
-        '  <setupFinal>'+escapeXML(proposalData.setupFinal)+'</setupFinal>\\n'+
-        '  <installments>'+escapeXML(proposalData.installments)+'</installments>\\n'+
-        '  <installmentValue>'+escapeXML(proposalData.installmentValue)+'</installmentValue>\\n'+
-        '  <validUntil>'+escapeXML(proposalData.validUntil)+'</validUntil>\\n'+
-        '  <sellerName>'+escapeXML(proposalData.sellerName)+'</sellerName>\\n'+
-        '  <sellerPhone>'+escapeXML(proposalData.sellerPhone)+'</sellerPhone>\\n'+
-        '  <clientName>'+escapeXML(proposalData.clientName)+'</clientName>\\n'+
-        '</proposal>';
-    }
-    function downloadFile(filename,content,type){
-      const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);
-      const a=document.createElement("a");a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
-    }
-    function downloadXML(){downloadFile("proposta-prosystem.xml",generateXML(),"application/xml");}
-    // Imagens já vêm embutidas em base64 do servidor — basta clonar e salvar
-    function downloadHTML(){
-      const conteudo = '<!DOCTYPE html>\\n' + document.documentElement.outerHTML;
-      downloadFile("proposta-prosystem.html", conteudo, "text/html");
-    }
-    function init(){
-      buildPlanTable();buildPlusFeatures();buildClientChips();
-      renderProposalSummary();buildAcceptLink();buildWhatsAppSummary();
-    }
-    init();
-  </script>
+  });
+
+  // ── TOUCH SWIPE ─────────────────────────────────────────
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', e => {
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) { dx > 0 ? nextSlide() : prevSlide(); }
+  }, {passive:true});
+
+  // ── SELF-SERVICE TIMER ──────────────────────────────────
+  function startSelfServiceTimer() {
+    selfServiceTimer = setTimeout(() => {
+      if (!hasKeyboard) {
+        presenterMode = false;
+        document.body.classList.add('self-service');
+        const btn = document.getElementById('mode-btn-top');
+        if (btn) btn.textContent = 'Modo: Auto-serviço';
+      }
+    }, 8000);
+  }
+
+  // ── INIT ─────────────────────────────────────────────────
+  function init() {
+    buildHubGrid();
+    buildPlanTable();
+    injectProposalData();
+    buildWhatsAppSummary();
+    showSlide(0);
+    startSelfServiceTimer();
+    updateUI();
+  }
+  init();
+</script>
 </body>
 </html>`;
 }
@@ -595,7 +1341,7 @@ export async function GET(
     const res = await fetch(`${API_URL}/p/${token}`, { cache: 'no-store' });
     if (!res.ok) {
       return new NextResponse(
-        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#eef5fb"><h2 style="color:#123e67">Proposta não encontrada ou expirada.</h2></body></html>',
+        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#061a2b;color:#fff"><h2>Proposta não encontrada ou expirada.</h2></body></html>',
         { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
@@ -603,7 +1349,7 @@ export async function GET(
     const json = await res.json();
     if (json.status !== 'success' || !json.data) {
       return new NextResponse(
-        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#eef5fb"><h2 style="color:#123e67">Proposta não encontrada.</h2></body></html>',
+        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#061a2b;color:#fff"><h2>Proposta não encontrada.</h2></body></html>',
         { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
@@ -625,7 +1371,7 @@ export async function GET(
     return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   } catch {
     return new NextResponse(
-      '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#eef5fb"><h2 style="color:#123e67">Erro ao carregar proposta.</h2></body></html>',
+      '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#061a2b;color:#fff"><h2>Erro ao carregar proposta.</h2></body></html>',
       { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
     );
   }
