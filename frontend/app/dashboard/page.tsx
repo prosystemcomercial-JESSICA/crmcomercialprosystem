@@ -141,12 +141,19 @@ export default function DashboardPage() {
     if (!isAuthenticated && !loading) router.push('/');
   }, [isAuthenticated, loading]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const loadData = () => {
     if (!isAuthenticated) return;
     setDataLoading(true);
+    setLoadError(null);
     apiClient.getDashboardPower()
       .then(res => { setData(res.data.data); setLastUpdate(new Date()); })
-      .catch(console.error)
+      .catch((err) => {
+        console.error('[Dashboard] erro:', err);
+        const msg = err?.response?.data?.message || err?.message || 'Erro desconhecido';
+        setLoadError(msg);
+      })
       .finally(() => setDataLoading(false));
   };
 
@@ -203,7 +210,28 @@ export default function DashboardPage() {
             <p className="text-sm" style={{ color: '#7AAACB' }}>Carregando dados...</p>
           </div>
         ) : !data ? (
-          <div className="text-center py-20" style={{ color: '#7AAACB' }}>Erro ao carregar dados.</div>
+          <div style={{ background: '#fff', borderRadius: 14, padding: '32px 28px', textAlign: 'center', border: '1px solid #fca5a5', maxWidth: 560, margin: '40px auto' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <span style={{ fontSize: 28 }}>⚠️</span>
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0D2238', marginBottom: 6 }}>Não foi possível carregar o dashboard</h3>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+              {loadError || 'Algum dado pode estar temporariamente indisponível.'}
+            </p>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 18 }}>
+              <strong>Seus registros foram preservados</strong> — nenhuma informação foi perdida.
+              Os dashboards apenas leem dados, não modificam.
+            </p>
+            <button onClick={loadData}
+              style={{
+                background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)',
+                color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8,
+                fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6
+              }}>
+              ↻ Tentar novamente
+            </button>
+          </div>
         ) : (
           <>
             {/* ── Alertas ─────────────────────────────────────── */}
