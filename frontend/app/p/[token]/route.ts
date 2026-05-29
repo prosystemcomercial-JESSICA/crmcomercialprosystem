@@ -374,6 +374,20 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .badge-plus  { background: rgba(255,107,53,0.18); color: #ffb49a; border: 1px solid var(--border-plus); }
     .rec-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; background: var(--accent); color: #fff; margin-left: 6px; vertical-align: middle; }
 
+    /* ── PLAN CARDS (mobile) ── */
+    .plan-cards { display: none; }
+    .plan-mc { padding: 18px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
+    .plan-mc.featured { border-color: var(--border-plus); background: rgba(255,107,53,0.07); box-shadow: var(--shadow-plus); }
+    .plan-mc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .plan-mc-list { display: grid; gap: 9px; }
+    .pmc-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); line-height: 1.3; }
+    .pmc-row.off { color: rgba(255,255,255,0.3); }
+    .pmc-check { color: var(--green); font-weight: 800; flex-shrink: 0; width: 16px; text-align: center; }
+    .pmc-x { color: rgba(255,255,255,0.25); font-weight: 700; flex-shrink: 0; width: 16px; text-align: center; }
+    .pmc-feat { flex: 1; }
+    .pmc-lvl { font-size: 11px; font-weight: 700; color: var(--secondary-light); white-space: nowrap; }
+    .plan-mc.featured .pmc-lvl { color: var(--accent); }
+
     /* ── PRICE CARDS ── */
     .price-card { padding: 24px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
     .price-card .pc-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
@@ -457,6 +471,9 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       /* Cards de preço empilham e ocupam largura total (evita corte de valores) */
       .price-row { flex-direction: column; }
       .price-row .price-card { min-width: 0 !important; width: 100%; }
+      /* Comparativo: tabela vira cartões empilhados por plano */
+      .plan-table-wrap { display: none; }
+      .plan-cards { display: grid; gap: 14px; }
     }
     @media print {
       #top-nav, #progress-bar, #slide-counter, #nav-hint, #back-btn, #three-canvas { display: none !important; }
@@ -850,9 +867,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <h2 class="display-md">Comparativo de planos</h2>
         <p class="body-md mt8">Veja o que cada plano inclui e por que o <span id="s17-plus-name" style="color:#ffb49a;font-weight:800;">Plus</span> é a recomendação para sua operação.</p>
       </div>
-      <div class="glass scroll-x" style="padding:20px;">
+      <div class="glass scroll-x plan-table-wrap" style="padding:20px;">
         <table class="plan-table" id="plan-table-main"></table>
       </div>
+      <div class="plan-cards" id="plan-cards"></div>
     </div>
   </div>
 
@@ -1207,6 +1225,37 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     // Update plus name references
     const plusNameEl = document.getElementById('s17-plus-name');
     if (plusNameEl) plusNameEl.textContent = nomes.plus;
+
+    // ── Versão em cartões empilhados (celular) — mesma fonte de dados ──
+    const cardsEl = document.getElementById('plan-cards');
+    if (cardsEl) {
+      const planDefs = [
+        { key: 'plus',  name: nomes.plus,  cls: 'badge-plus',  featured: true  },
+        { key: 'pro',   name: nomes.pro,   cls: 'badge-pro',   featured: false },
+        { key: 'basic', name: nomes.basic, cls: 'badge-basic', featured: false },
+      ];
+      cardsEl.innerHTML = planDefs.map(function(pd) {
+        const items = sourceRows.map(function(row) {
+          const v = row[pd.key];
+          const isNo = (v === 'Não');
+          const isYes = (v === 'Sim');
+          const lvl = (!isNo && !isYes) ? v : '';
+          const icon = isNo
+            ? '<span class="pmc-x">&#10005;</span>'
+            : '<span class="pmc-check">&#10003;</span>';
+          return '<div class="pmc-row' + (isNo ? ' off' : '') + '">' + icon +
+                 '<span class="pmc-feat">' + row.feature + '</span>' +
+                 (lvl ? '<span class="pmc-lvl">' + lvl + '</span>' : '') + '</div>';
+        }).join('');
+        return '<div class="plan-mc' + (pd.featured ? ' featured' : '') + '">' +
+                 '<div class="plan-mc-head">' +
+                   '<span class="plan-badge ' + pd.cls + '">' + pd.name + (pd.featured ? ' &#9733;' : '') + '</span>' +
+                   (pd.featured ? '<span class="rec-badge">Recomendado</span>' : '') +
+                 '</div>' +
+                 '<div class="plan-mc-list">' + items + '</div>' +
+               '</div>';
+      }).join('');
+    }
   }
 
   // ── PROPOSAL DATA INJECTION ─────────────────────────────
