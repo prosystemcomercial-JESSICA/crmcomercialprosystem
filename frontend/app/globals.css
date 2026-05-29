@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
+/* Vendorizado de shadcn/dist/tailwind.css — evita depender do pacote 'shadcn'
+   (CLI em devDependency) durante o build de produção no Railway. */
+@import "./shadcn-tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
