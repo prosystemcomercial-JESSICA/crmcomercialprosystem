@@ -408,6 +408,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .mt32 { margin-top: 32px; }
     .gap12 { gap: 12px; }
     .flex { display: flex; }
+    .flex-wrap { flex-wrap: wrap; }
     .flex-col { display: flex; flex-direction: column; }
     .items-center { align-items: center; }
     .justify-center { justify-content: center; }
@@ -453,6 +454,9 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       .copy-label { display: none; }
       .nav-pill-copy { padding: 8px 14px; font-size: 14px; }
       .proof-grid { grid-template-columns: 1fr 1fr; }
+      /* Cards de preço empilham e ocupam largura total (evita corte de valores) */
+      .price-row { flex-direction: column; }
+      .price-row .price-card { min-width: 0 !important; width: 100%; }
     }
     @media print {
       #top-nav, #progress-bar, #slide-counter, #nav-hint, #back-btn, #three-canvas { display: none !important; }
@@ -861,7 +865,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <p class="body-md mt8">Preparada especialmente para sua operação, com condições que refletem o perfil do seu negócio.</p>
       </div>
       <!-- Implantação -->
-      <div class="flex gap12 flex-wrap">
+      <div class="flex gap12 flex-wrap price-row">
         <div class="price-card" style="flex:1;min-width:200px;">
           <div class="pc-label">Implantação original</div>
           <div class="pc-old" id="s18-original">R$ 0,00</div>
@@ -877,14 +881,14 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <!-- Mensalidade: Pro x Plus lado a lado -->
       <div>
         <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Mensalidade recorrente &mdash; compare os planos</div>
-        <div class="flex gap12 flex-wrap" id="s18-monthly-row">
+        <div class="flex gap12 flex-wrap price-row" id="s18-monthly-row">
           <div class="price-card" id="s18-pro-card" style="flex:1;min-width:180px;">
             <div class="pc-label">Mensalidade <span id="s18-pro-name">Pro</span></div>
             <div class="pc-val" id="s18-monthly-pro">R$ 0,00</div>
             <div class="pc-sub">Plano intermediário</div>
           </div>
-          <div class="price-card featured" id="s18-plus-card" style="flex:1;min-width:180px;position:relative;">
-            <span class="rec-badge" style="position:absolute;top:14px;right:14px;margin:0;">&#9733; Recomendado</span>
+          <div class="price-card featured" id="s18-plus-card" style="flex:1;min-width:180px;">
+            <span class="rec-badge" style="margin:0 0 10px;">&#9733; Recomendado</span>
             <div class="pc-label">Mensalidade <span id="s18-plus-name2">Plus</span></div>
             <div class="pc-val" id="s18-monthly-plus" style="color:var(--accent);">R$ 0,00</div>
             <div class="pc-sub" style="color:#ffb49a;">Mais gestão e crescimento</div>
@@ -896,7 +900,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">Plano recomendado:</div>
           <div style="font-size:16px;font-weight:800;color:#ffb49a;" id="s18-plan">${data.selectedPlan}</div>
           <span class="rec-badge">Recomendado</span>
-          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-left:auto;">Válida até:</div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">&bull;&nbsp; Válida até:</div>
           <div style="font-size:15px;font-weight:800;color:var(--accent);" id="s18-valid">${data.validUntil || '&mdash;'}</div>
         </div>
       </div>
@@ -910,7 +914,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <div class="eyebrow" style="color:#F59E0B;">Condições de pagamento</div>
         <h2 class="display-md">Formas de pagamento<br>para a implantação</h2>
       </div>
-      <div class="flex gap12 flex-wrap">
+      <div class="flex gap12 flex-wrap price-row">
         <div class="price-card" style="flex:1;min-width:200px;">
           <div class="pc-label">Entrada</div>
           <div class="pc-val" id="s19-entry">&mdash;</div>
