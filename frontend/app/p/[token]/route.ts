@@ -241,9 +241,6 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <span>Prosystem Sistemas</span>
       </div>
       <div class="nav-actions">
-        <button class="btn btn-secondary" onclick="downloadHTML()">Baixar HTML</button>
-        <button class="btn btn-secondary" onclick="downloadXML()">Baixar XML</button>
-        <button class="btn btn-green" onclick="copyWhatsAppText()">Copiar resumo WhatsApp</button>
         <a class="btn btn-primary" href="#proposta">Ver proposta</a>
       </div>
     </div>
@@ -460,11 +457,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
         <div class="whats-box-body">
           <textarea class="whats-text" id="whatsText" readonly></textarea>
-          <div class="action-row">
-            <button class="btn btn-secondary" onclick="downloadHTML()">Baixar HTML</button>
-            <button class="btn btn-secondary" onclick="downloadXML()">Baixar XML</button>
           </div>
-        </div>
       </div>
     </div>
   </section>
