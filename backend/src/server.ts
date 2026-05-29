@@ -47,6 +47,7 @@ const fastify = Fastify({
 // 4) Health check ANTES de tudo — se chegamos aqui, o app está vivo
 fastify.get('/health', async () => ({
   status: 'ok',
+  rev: 'bigint-fix-v2',
   timestamp: new Date().toISOString(),
   uptime: process.uptime(),
   prisma: !!prismaClient
