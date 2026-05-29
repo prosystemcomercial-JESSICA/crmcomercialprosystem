@@ -151,7 +151,6 @@ export class DashboardRetencaoService {
     const casos = await this.prisma.casoChurn.findMany({
       orderBy: { risk_score: 'desc' },
       take: limit,
-      include: { cliente: true },
       select: {
         id: true,
         cliente: { select: { id: true, nome: true, email: true } },

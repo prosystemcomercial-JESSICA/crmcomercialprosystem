@@ -296,10 +296,6 @@ class ApiClient {
     return this.client.get('/leads/metricas-comerciais', { params });
   }
 
-  async enviarContratoZapSign(leadId: string) {
-    return this.client.post(`/leads/${leadId}/enviar-contrato`);
-  }
-
   async getContratoStatus(leadId: string) {
     return this.client.get(`/leads/${leadId}/contrato-status`);
   }
