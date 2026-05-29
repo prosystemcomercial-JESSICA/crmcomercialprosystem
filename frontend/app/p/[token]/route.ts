@@ -111,28 +111,30 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <style>
     :root {
-      --primary: #0D2238;
-      --primary-light: #1a3a5c;
-      --primary-dark: #061422;
-      --secondary: #4B8EC8;
-      --secondary-light: #7AAACB;
-      --accent: #FF6B35;
-      --accent-glow: rgba(255,107,53,0.3);
-      --gold: #F59E0B;
-      --green: #27C97F;
-      --bg-deep: #061a2b;
-      --bg-mid: #0c2741;
-      --bg-surface: rgba(255,255,255,0.05);
-      --bg-card: rgba(255,255,255,0.08);
-      --text-primary: rgba(255,255,255,0.92);
-      --text-secondary: rgba(255,255,255,0.62);
-      --text-accent: #4B8EC8;
-      --border: rgba(255,255,255,0.08);
-      --border-accent: rgba(75,142,200,0.25);
-      --border-plus: rgba(255,107,53,0.35);
-      --shadow-lg: 0 24px 60px rgba(0,0,0,0.35);
-      --shadow-glow: 0 0 40px rgba(75,142,200,0.15);
-      --shadow-plus: 0 0 48px rgba(255,107,53,0.18);
+      /* ── Tema CLARO — paleta real Prosystem (prosystemnet.com) ── */
+      --primary: #081330;          /* navy hero da marca */
+      --primary-light: #16264a;
+      --primary-dark: #050d22;
+      --secondary: #417ABC;        /* azul Prosystem */
+      --secondary-light: #356AA6;  /* azul legível sobre branco (usado em texto) */
+      --accent: #CC3366;           /* magenta — destaque do Plus/Recomendado */
+      --accent-glow: rgba(204,51,102,0.22);
+      --gold: #F9A01B;             /* laranja de apoio */
+      --green: #1FA45A;            /* verde — apenas para ✓ "Sim"/sucesso */
+      --bg-deep: #FFFFFF;
+      --bg-mid: #EAF1F7;
+      --bg-soft: #F5F8FB;
+      --bg-surface: #F1F5FA;
+      --bg-card: #FFFFFF;
+      --text-primary: #1B2A3D;
+      --text-secondary: #69727D;
+      --text-accent: #417ABC;
+      --border: #E1E8F0;
+      --border-accent: rgba(65,122,188,0.30);
+      --border-plus: rgba(204,51,102,0.40);
+      --shadow-lg: 0 16px 44px rgba(8,19,48,0.12);
+      --shadow-glow: 0 6px 24px rgba(65,122,188,0.14);
+      --shadow-plus: 0 10px 34px rgba(204,51,102,0.16);
       --radius: 16px;
       --radius-lg: 24px;
       --font: 'Inter', sans-serif;
@@ -167,7 +169,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       height: 60px;
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px;
-      background: rgba(6,26,43,0.75);
+      background: rgba(255,255,255,0.88);
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border);
     }
@@ -198,7 +200,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     /* ── PROGRESS ── */
     #progress-bar {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-      height: 3px; background: rgba(255,255,255,0.06);
+      height: 3px; background: rgba(8,19,48,0.08);
     }
     #progress-fill {
       height: 100%; background: linear-gradient(90deg, var(--secondary), var(--accent));
@@ -218,13 +220,13 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-lg);
     }
     .glass-accent {
-      background: var(--bg-card);
+      background: var(--bg-soft);
       border: 1px solid var(--border-accent);
       border-radius: var(--radius-lg);
-      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-glow);
     }
 
     /* ── EYEBROW ── */
@@ -247,7 +249,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .text-orange { color: var(--accent); }
     .text-green { color: var(--green); }
     .gradient-text {
-      background: linear-gradient(135deg, var(--secondary-light) 0%, var(--secondary) 50%, var(--accent) 100%);
+      background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 45%, var(--accent) 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
 
@@ -265,7 +267,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       color: #fff; box-shadow: 0 12px 30px rgba(75,142,200,0.3);
     }
     .btn-accent {
-      background: linear-gradient(135deg, var(--accent) 0%, #e85a25 100%);
+      background: linear-gradient(135deg, var(--accent) 0%, #a8284f 100%);
       color: #fff; box-shadow: 0 12px 30px var(--accent-glow);
     }
     .btn-green {
@@ -350,7 +352,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .mod-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .mod-placeholder {
       width: 100%; height: 100%;
-      background: linear-gradient(135deg, rgba(75,142,200,0.12), rgba(255,107,53,0.06));
+      background: linear-gradient(135deg, rgba(75,142,200,0.12), rgba(204,51,102,0.06));
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
     }
     .mod-placeholder .ph-icon { font-size: 48px; opacity: 0.5; }
@@ -361,40 +363,51 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .plan-table th, .plan-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; vertical-align: middle; }
     .plan-table th:first-child, .plan-table td:first-child { text-align: left; font-weight: 600; color: var(--text-primary); min-width: 190px; }
     .plan-table th { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-secondary); padding-bottom: 14px; }
-    .col-plus { background: rgba(255,107,53,0.07); position: relative; }
-    .th-plus { background: rgba(255,107,53,0.1); border-top: 2px solid var(--accent) !important; color: #ffb49a !important; }
+    .col-plus { background: rgba(204,51,102,0.07); position: relative; }
+    .th-plus { background: rgba(204,51,102,0.1); border-top: 2px solid var(--accent) !important; color: #B32A57 !important; }
     .cell-yes { color: var(--green); font-weight: 800; }
-    .cell-no { color: rgba(255,255,255,0.22); font-weight: 600; }
+    .cell-no { color: rgba(27,42,61,0.32); font-weight: 600; }
     .cell-adv { color: var(--accent); font-weight: 700; }
     .cell-int { color: var(--secondary-light); font-weight: 700; }
     .cell-bas { color: var(--text-secondary); font-weight: 600; }
     .plan-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .badge-basic { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .badge-basic { background: rgba(8,19,48,0.06); color: var(--text-secondary); }
     .badge-pro   { background: rgba(75,142,200,0.12); color: var(--secondary-light); }
-    .badge-plus  { background: rgba(255,107,53,0.18); color: #ffb49a; border: 1px solid var(--border-plus); }
+    .badge-plus  { background: rgba(204,51,102,0.18); color: #B32A57; border: 1px solid var(--border-plus); }
     .rec-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; background: var(--accent); color: #fff; margin-left: 6px; vertical-align: middle; }
 
     /* ── PLAN CARDS (mobile) ── */
     .plan-cards { display: none; }
     .plan-mc { padding: 18px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
-    .plan-mc.featured { border-color: var(--border-plus); background: rgba(255,107,53,0.07); box-shadow: var(--shadow-plus); }
+    .plan-mc.featured { border-color: var(--border-plus); background: rgba(204,51,102,0.07); box-shadow: var(--shadow-plus); }
     .plan-mc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .plan-mc-list { display: grid; gap: 9px; }
     .pmc-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); line-height: 1.3; }
-    .pmc-row.off { color: rgba(255,255,255,0.3); }
+    .pmc-row.off { color: rgba(27,42,61,0.4); }
     .pmc-check { color: var(--green); font-weight: 800; flex-shrink: 0; width: 16px; text-align: center; }
-    .pmc-x { color: rgba(255,255,255,0.25); font-weight: 700; flex-shrink: 0; width: 16px; text-align: center; }
+    .pmc-x { color: rgba(27,42,61,0.28); font-weight: 700; flex-shrink: 0; width: 16px; text-align: center; }
     .pmc-feat { flex: 1; }
     .pmc-lvl { font-size: 11px; font-weight: 700; color: var(--secondary-light); white-space: nowrap; }
     .plan-mc.featured .pmc-lvl { color: var(--accent); }
 
+    /* ── TOOLS GRID (Ferramentas) ── */
+    .tools-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; width: min(940px, 100%); }
+    .tool-card { padding: 18px 20px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); box-shadow: var(--shadow-glow); display: flex; gap: 14px; align-items: flex-start; transition: .25s ease; }
+    .tool-card:hover { transform: translateY(-3px); border-color: var(--border-accent); box-shadow: var(--shadow-lg); }
+    .tool-card .tc-icon { font-size: 24px; line-height: 1.1; flex-shrink: 0; }
+    .tool-card .tc-name { font-size: 15px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; margin-bottom: 4px; }
+    .tool-card .tc-name .tc-tag { font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); background: rgba(204,51,102,0.1); padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+    .tool-card .tc-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: min(840px,100%); }
+    .chip { font-size: 12px; font-weight: 600; color: var(--secondary-light); background: var(--bg-soft); border: 1px solid var(--border); padding: 7px 13px; border-radius: 999px; }
+
     /* ── PRICE CARDS ── */
     .price-card { padding: 24px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
     .price-card .pc-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
-    .price-card .pc-old { font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.2); text-decoration: line-through; }
+    .price-card .pc-old { font-size: 20px; font-weight: 800; color: rgba(27,42,61,0.32); text-decoration: line-through; }
     .price-card .pc-val { font-size: 30px; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); line-height: 1.1; }
     .price-card .pc-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
-    .price-card.featured { border-color: var(--border-plus); background: rgba(255,107,53,0.07); box-shadow: var(--shadow-plus); }
+    .price-card.featured { border-color: var(--border-plus); background: rgba(204,51,102,0.07); box-shadow: var(--shadow-plus); }
     .price-card.featured .pc-val { color: var(--accent); font-size: 40px; }
     .price-card.monthly { border-color: rgba(39,201,127,0.3); background: rgba(39,201,127,0.06); }
     .price-card.monthly .pc-val { color: var(--green); }
@@ -402,14 +415,14 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     /* ── PLAN HIGHLIGHT BOX (Plus destaque) ── */
     .plus-highlight-box {
       padding: 20px 24px; border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, rgba(255,107,53,0.12), rgba(255,107,53,0.04));
+      background: linear-gradient(135deg, rgba(204,51,102,0.12), rgba(204,51,102,0.04));
       border: 1px solid var(--border-plus);
       box-shadow: var(--shadow-plus);
     }
 
     /* ── WHATSAPP BOX ── */
     .whats-box { padding: 24px; border-radius: var(--radius-lg); background: var(--bg-card); border: 1px solid var(--border); }
-    .whats-text { width: 100%; min-height: 140px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; resize: vertical; font-family: var(--font); font-size: 13px; line-height: 1.6; color: var(--text-primary); background: rgba(0,0,0,0.2); }
+    .whats-text { width: 100%; min-height: 140px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; resize: vertical; font-family: var(--font); font-size: 13px; line-height: 1.6; color: var(--text-primary); background: var(--bg-soft); }
     .whats-text:focus { outline: none; border-color: var(--border-accent); }
     .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
@@ -439,6 +452,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     @media (max-width: 768px) {
       #three-canvas { display: none; }
       .hub-grid { grid-template-columns: 1fr; }
+      .tools-grid { grid-template-columns: 1fr; }
       .proof-grid { grid-template-columns: repeat(2,1fr); }
       .display-xl { font-size: clamp(28px, 8vw, 44px); }
       .display-lg { font-size: clamp(26px, 7vw, 40px); }
@@ -543,7 +557,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       </div>
       <div class="flex gap12 flex-wrap justify-center mt8">
         <button class="btn btn-primary" onclick="goToSlide(1)">Conheça a ProSystem</button>
-        <button class="btn btn-accent" onclick="goToModule(4)">Ver proposta comercial</button>
+        <button class="btn btn-accent" onclick="goToModule(5)">Ver proposta comercial</button>
       </div>
     </div>
   </div>
@@ -586,17 +600,17 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </p>
       </div>
       <div class="flex gap12 flex-wrap">
-        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(204,51,102,0.08);border:1px solid rgba(204,51,102,0.2);">
           <div style="font-size:24px;margin-bottom:12px;">&#9878;&#65039;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Compliance fiscal</div>
           <div class="body-md">Medo de multas, NF-e incorreta, SPED desatualizado. O risco tributário pesa sobre cada operação.</div>
         </div>
-        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(204,51,102,0.08);border:1px solid rgba(204,51,102,0.2);">
           <div style="font-size:24px;margin-bottom:12px;">&#128201;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Falta de visibilidade</div>
           <div class="body-md">Não saber o que acontece em tempo real é tomar decisões no escuro &mdash; e perder margem.</div>
         </div>
-        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);">
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(204,51,102,0.08);border:1px solid rgba(204,51,102,0.2);">
           <div style="font-size:24px;margin-bottom:12px;">&#128257;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Retrabalho constante</div>
           <div class="body-md">Processos manuais consomem tempo, geram erros e impedem o crescimento da operação.</div>
@@ -627,7 +641,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           <div class="body-md">NF-e, NFC-e, SPED, SNGPC, PBMs &mdash; tudo incluso e atualizado para manter sua operação segura.</div>
         </div>
         <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
-          <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,107,53,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">&#129309;</div>
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(204,51,102,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">&#129309;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">Suporte Ativo Humanizado</div>
           <div class="body-md">Atendimento humano das 7h às 22h, com técnicos prontos para resolver e orientar de verdade.</div>
         </div>
@@ -719,7 +733,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div>
         <div class="eyebrow" style="color:#27C97F;">Módulo 2 &mdash; Controle Financeiro &amp; Gerencial</div>
         <h2 class="display-lg">Saiba exatamente<br><span class="text-green">onde está o dinheiro</span></h2>
-        <p class="body-lg mt12">Dashboard gerencial, análise de rentabilidade e relatórios estratégicos &mdash; <strong style="color:#ffb49a;">diferenciais exclusivos do Plano Plus</strong> para quem quer crescer com gestão.</p>
+        <p class="body-lg mt12">Dashboard gerencial, análise de rentabilidade e relatórios estratégicos &mdash; <strong style="color:#B32A57;">diferenciais exclusivos do Plano Plus</strong> para quem quer crescer com gestão.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Contas a pagar e receber integradas</span></div>
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Fluxo de caixa e conciliação bancária</span></div>
@@ -743,7 +757,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div>
         <div class="eyebrow" style="color:#27C97F;">Dashboard Gerencial</div>
         <h2 class="display-lg">O negócio inteiro<br><span class="text-green">em uma tela</span></h2>
-        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(255,107,53,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#ffb49a;">Exclusivo Plano Plus</div>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(204,51,102,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#B32A57;">Exclusivo Plano Plus</div>
         <p class="body-lg mt12">Consolida vendas, margem, inadimplência e estoque &mdash; atualizado em tempo real, disponível em qualquer dispositivo. Tomar decisão deixa de ser intuição.</p>
         <div class="flex gap12 flex-wrap mt24">
           <div class="metric-pill"><span class="val">Tempo real</span><span class="lbl">Atualização</span></div>
@@ -758,7 +772,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div>
         <div class="eyebrow" style="color:#27C97F;">Rentabilidade &amp; Indicadores</div>
         <h2 class="display-lg">Margem real,<br><span class="text-green">produto por produto</span></h2>
-        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(255,107,53,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#ffb49a;">Exclusivo Plano Plus</div>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(204,51,102,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#B32A57;">Exclusivo Plano Plus</div>
         <p class="body-lg mt12">Identifique quais produtos realmente lucram, quais apenas giram e onde está o indicador de perda de vendas &mdash; análise detalhada e comparativa.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Margem bruta por produto e categoria</span></div>
@@ -777,7 +791,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div class="eyebrow" style="justify-content:center;color:#27C97F;">Resultado esperado</div>
       <h2 class="display-lg">Decisões baseadas<br><span class="gradient-text">em dados reais</span></h2>
       <p class="body-lg">Com o Controle Financeiro &amp; Gerencial do Plano Plus, o gestor sai da intuição e passa a gerir com indicadores &mdash; reduzindo perdas e aumentando a margem real.</p>
-      <div style="padding:16px 24px;border-radius:var(--radius);background:rgba(255,107,53,0.1);border:1px solid var(--border-plus);font-size:13px;color:#ffb49a;font-weight:600;max-width:480px;">
+      <div style="padding:16px 24px;border-radius:var(--radius);background:rgba(204,51,102,0.1);border:1px solid var(--border-plus);font-size:13px;color:#B32A57;font-weight:600;max-width:480px;">
         Dashboard, Rentabilidade e Indicador de Perda são recursos exclusivos do Plano Plus &mdash; a escolha de quem quer crescer com gestão.
       </div>
       <button class="btn btn-green" onclick="returnToHub()">Ver outros módulos</button>
@@ -788,7 +802,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-13" data-slide="13" data-module="3">
     <div class="mod-layout">
       <div>
-        <div class="eyebrow" style="color:#FF6B35;">Módulo 3 &mdash; Suporte &amp; Treinamento</div>
+        <div class="eyebrow" style="color:#F9A01B;">Módulo 3 &mdash; Suporte &amp; Treinamento</div>
         <h2 class="display-lg">Suporte que<br><span class="text-orange">resolve de verdade</span></h2>
         <p class="body-lg mt12">Não é um chatbot. Não é uma fila de e-mail. É atendimento humano, ativo e especializado &mdash; das 7h às 22h, todos os dias úteis.</p>
         <div class="check-list mt24">
@@ -808,12 +822,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-14" data-slide="14" data-module="3">
     <div class="flex-col items-center text-center max700" style="gap:28px;">
       <div>
-        <div class="eyebrow" style="justify-content:center;color:#FF6B35;">Disponibilidade</div>
+        <div class="eyebrow" style="justify-content:center;color:#F9A01B;">Disponibilidade</div>
         <h2 class="display-lg">7h às 22h &mdash; <span class="text-orange">todos os dias úteis</span></h2>
         <p class="body-lg mt12">A janela de suporte da ProSystem cobre toda a operação do varejo, do recebimento matutino ao fechamento noturno.</p>
       </div>
       <div class="flex gap12 flex-wrap justify-center">
-        <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.25);text-align:center;">
+        <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(204,51,102,0.1);border:1px solid rgba(204,51,102,0.25);text-align:center;">
           <div style="font-size:40px;font-weight:900;letter-spacing:-0.05em;color:var(--accent);">7h&ndash;22h</div>
           <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Janela de atendimento</div>
         </div>
@@ -832,7 +846,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-15" data-slide="15" data-module="3">
     <div class="mod-layout">
       <div>
-        <div class="eyebrow" style="color:#FF6B35;">Treinamento</div>
+        <div class="eyebrow" style="color:#F9A01B;">Treinamento</div>
         <h2 class="display-lg">5 meses para<br><span class="text-orange">dominar o sistema</span></h2>
         <p class="body-lg mt12">O programa acompanha o cliente desde a implantação até a operação autônoma &mdash; com suporte assistido em cada etapa do processo.</p>
         <div class="check-list mt24">
@@ -850,7 +864,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 
   <div class="slide" id="slide-16" data-slide="16" data-module="3">
     <div class="flex-col items-center text-center max700" style="gap:24px;">
-      <div class="eyebrow" style="justify-content:center;color:#FF6B35;">Compromisso ProSystem</div>
+      <div class="eyebrow" style="justify-content:center;color:#F9A01B;">Compromisso ProSystem</div>
       <h2 class="display-lg">Não vendemos software.<br><span class="text-orange">Vendemos resultado.</span></h2>
       <p class="body-lg">Nosso compromisso começa na implantação e não termina nunca. O suporte ativo é um diferencial que mantemos há 16 anos &mdash; e é o que nossos clientes mais valorizam.</p>
       <button class="btn btn-accent" onclick="returnToHub()">Ver outros módulos</button>
@@ -860,12 +874,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <!-- ===== MÓDULO 4 — PROPOSTA COMERCIAL (slides 17–20) ===== -->
 
   <!-- SLIDE 17: Comparativo Planos -->
-  <div class="slide" id="slide-17" data-slide="17" data-module="4">
+  <div class="slide" id="slide-17" data-slide="17" data-module="5">
     <div class="flex-col max900" style="gap:20px;">
       <div>
-        <div class="eyebrow" style="color:#F59E0B;">Módulo 4 &mdash; Proposta Comercial</div>
+        <div class="eyebrow" style="color:#CC3366;">Módulo 5 &mdash; Proposta Comercial</div>
         <h2 class="display-md">Comparativo de planos</h2>
-        <p class="body-md mt8">Veja o que cada plano inclui e por que o <span id="s17-plus-name" style="color:#ffb49a;font-weight:800;">Plus</span> é a recomendação para sua operação.</p>
+        <p class="body-md mt8">Veja o que cada plano inclui e por que o <span id="s17-plus-name" style="color:#B32A57;font-weight:800;">Plus</span> é a recomendação para sua operação.</p>
       </div>
       <div class="glass scroll-x plan-table-wrap" style="padding:20px;">
         <table class="plan-table" id="plan-table-main"></table>
@@ -875,11 +889,11 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   </div>
 
   <!-- SLIDE 18: Valores -->
-  <div class="slide" id="slide-18" data-slide="18" data-module="4">
+  <div class="slide" id="slide-18" data-slide="18" data-module="5">
     <div class="flex-col max900" style="gap:22px;">
       <div>
-        <div class="eyebrow" style="color:#F59E0B;">Condição especial</div>
-        <h2 class="display-lg">Proposta exclusiva para<br><span id="s18-company" style="color:#F59E0B;">${data.companyName || 'sua empresa'}</span></h2>
+        <div class="eyebrow" style="color:#CC3366;">Condição especial</div>
+        <h2 class="display-lg">Proposta exclusiva para<br><span id="s18-company" style="color:#CC3366;">${data.companyName || 'sua empresa'}</span></h2>
         <p class="body-md mt8">Preparada especialmente para sua operação, com condições que refletem o perfil do seu negócio.</p>
       </div>
       <!-- Implantação -->
@@ -892,7 +906,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <div class="price-card featured" style="flex:1;min-width:200px;">
           <div class="pc-label">Valor especial negociado</div>
           <div class="pc-val" id="s18-final">R$ 0,00</div>
-          <div class="pc-sub" style="color:#ffb49a;">Condição exclusiva</div>
+          <div class="pc-sub" style="color:#B32A57;">Condição exclusiva</div>
         </div>
       </div>
 
@@ -909,14 +923,14 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
             <span class="rec-badge" style="margin:0 0 10px;">&#9733; Recomendado</span>
             <div class="pc-label">Mensalidade <span id="s18-plus-name2">Plus</span></div>
             <div class="pc-val" id="s18-monthly-plus" style="color:var(--accent);">R$ 0,00</div>
-            <div class="pc-sub" style="color:#ffb49a;">Mais gestão e crescimento</div>
+            <div class="pc-sub" style="color:#B32A57;">Mais gestão e crescimento</div>
           </div>
         </div>
       </div>
       <div class="plus-highlight-box">
         <div class="flex gap12 flex-wrap items-center">
           <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">Plano recomendado:</div>
-          <div style="font-size:16px;font-weight:800;color:#ffb49a;" id="s18-plan">${data.selectedPlan}</div>
+          <div style="font-size:16px;font-weight:800;color:#B32A57;" id="s18-plan">${data.selectedPlan}</div>
           <span class="rec-badge">Recomendado</span>
           <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">&bull;&nbsp; Válida até:</div>
           <div style="font-size:15px;font-weight:800;color:var(--accent);" id="s18-valid">${data.validUntil || '&mdash;'}</div>
@@ -926,10 +940,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   </div>
 
   <!-- SLIDE 19: Condições de pagamento -->
-  <div class="slide" id="slide-19" data-slide="19" data-module="4">
+  <div class="slide" id="slide-19" data-slide="19" data-module="5">
     <div class="flex-col max900" style="gap:22px;">
       <div>
-        <div class="eyebrow" style="color:#F59E0B;">Condições de pagamento</div>
+        <div class="eyebrow" style="color:#CC3366;">Condições de pagamento</div>
         <h2 class="display-md">Formas de pagamento<br>para a implantação</h2>
       </div>
       <div class="flex gap12 flex-wrap price-row">
@@ -960,10 +974,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   </div>
 
   <!-- SLIDE 20: Aceite + WhatsApp -->
-  <div class="slide" id="slide-20" data-slide="20" data-module="4">
+  <div class="slide" id="slide-20" data-slide="20" data-module="5">
     <div class="flex-col max900" style="gap:18px;">
       <div>
-        <div class="eyebrow" style="color:#F59E0B;">Aceite a proposta</div>
+        <div class="eyebrow" style="color:#CC3366;">Aceite a proposta</div>
         <h2 class="display-md">Válida até <span class="text-orange" id="s20-valid">${data.validUntil || '&mdash;'}</span></h2>
         <p class="body-md mt8">Entre em contato com <strong style="color:var(--text-primary);" id="s20-seller">${data.sellerName || '&mdash;'}</strong> para confirmar e dar início à implantação.</p>
       </div>
@@ -982,8 +996,32 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- ===== SLIDE 21 — PROVA SOCIAL ===== -->
-  <div class="slide" id="slide-21" data-slide="21">
+  <!-- ===== MÓDULO 4 — FERRAMENTAS (slides 21–22) ===== -->
+  <div class="slide" id="slide-21" data-slide="21" data-module="4">
+    <div class="flex-col items-center" style="gap:24px;width:100%;">
+      <div class="text-center">
+        <div class="eyebrow" style="justify-content:center;color:#00A6B8;">Módulo 4 &mdash; Ferramentas</div>
+        <h2 class="display-md">Ferramentas que <span class="text-accent">geram resultado</span></h2>
+        <p class="body-md mt8" style="max-width:580px;margin:8px auto 0;" id="tools-intro">Recursos do Prosystem que ajudam sua operação a vender melhor, reduzir perdas e decidir com base em dados reais.</p>
+      </div>
+      <div class="tools-grid" id="tools-grid"></div>
+    </div>
+  </div>
+
+  <div class="slide" id="slide-22" data-slide="22" data-module="4">
+    <div class="flex-col items-center text-center max900" style="gap:22px;">
+      <div>
+        <div class="eyebrow" style="justify-content:center;color:#00A6B8;">E o sistema ainda conta com</div>
+        <h2 class="display-md">Um ecossistema completo<br>para a sua operação</h2>
+      </div>
+      <div class="chips" id="tools-chips"></div>
+      <p class="body-lg" id="tools-closing" style="max-width:700px;">A Prosystem oferece ferramentas avançadas para gestão comercial, estoque, compras, vendas, equipe e atendimento &mdash; ajudando sua empresa a vender melhor, reduzir perdas e tomar decisões com base em dados reais da operação.</p>
+      <button class="btn btn-primary" onclick="goToModule(5)">Ver a proposta comercial</button>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 23 — PROVA SOCIAL ===== -->
+  <div class="slide" id="slide-23" data-slide="23">
     <div class="flex-col items-center text-center" style="gap:28px;width:100%;">
       <div>
         <div class="eyebrow" style="justify-content:center;">16 anos de confiança</div>
@@ -1013,8 +1051,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     </div>
   </div>
 
-  <!-- ===== SLIDE 22 — CTA FINAL ===== -->
-  <div class="slide" id="slide-22" data-slide="22">
+  <!-- ===== SLIDE 24 — CTA FINAL ===== -->
+  <div class="slide" id="slide-24" data-slide="24">
     <div class="flex-col items-center text-center max700" style="gap:28px;">
       <div>
         <div class="eyebrow" style="justify-content:center;">Próximo passo</div>
@@ -1026,7 +1064,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       </div>
       <div class="flex gap12 flex-wrap justify-center">
         <button class="btn btn-green" id="cta-whatsapp-btn" style="font-size:15px;padding:16px 32px;">Aceitar via WhatsApp</button>
-        <button class="btn btn-ghost" onclick="goToModule(4)" style="font-size:15px;padding:16px 24px;">Rever proposta comercial</button>
+        <button class="btn btn-ghost" onclick="goToModule(5)" style="font-size:15px;padding:16px 24px;">Rever proposta comercial</button>
       </div>
       <div style="font-size:13px;color:var(--text-secondary);">
         Vendedor: <strong style="color:var(--text-primary);" id="cta-seller">${data.sellerName}</strong> &nbsp;|&nbsp;
@@ -1087,14 +1125,59 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     return base;
   }
 
+  // ── FERRAMENTAS (biblioteca comercial) ──────────────────
+  const isFarmaSegment = planFamily.familia === 'FARMA';
+  const TOOLS = [
+    { icon:'&#128202;',          nome:'Dashboard Gerencial',          desc:'Vendas, ticket médio, formas de pagamento e metas em tempo real para decidir com clareza.' },
+    { icon:'&#128241;',          nome:'Avisos via WhatsApp',          desc:'Automatize avisos, lembretes e notificações, dando mais agilidade ao atendimento ao cliente.' },
+    { icon:'&#128201;',          nome:'Indicador de Perda de Vendas', desc:'Registre o motivo de cada venda não concluída e aja para recuperar vendas perdidas.' },
+    { icon:'&#128197;',          nome:'Vendas Semestrais',            desc:'Analise a saída dos produtos nos últimos 6 meses e planeje a reposição pelo histórico real.' },
+    { icon:'&#128230;',          nome:'Estoque Mínimo e Máximo',      desc:'Cálculo automático das quantidades ideais — menos ruptura e menos capital parado.' },
+    { icon:'&#128722;',          nome:'Sugestão de Compras',          desc:'Reposição inteligente por estoque, média de vendas e curva ABC XYZ.' },
+    { icon:'&#127991;&#65039;',  nome:'Análise de Descontos',         desc:'Veja o impacto dos descontos na margem e proteja a rentabilidade da loja.' },
+    { icon:'&#9201;&#65039;',    nome:'Registro de Ponto',            desc:'Controle de entrada, saída e jornada da equipe, integrado à rotina do caixa.' },
+    { icon:'&#127919;',          nome:'Metas de Funcionários',        desc:'Defina metas por colaborador e acompanhe o desempenho para estimular a produtividade.' },
+    { icon:'&#129658;',          nome:'Atenção Farmacêutica',         desc:'Registre atendimentos, histórico do paciente e procedimentos com mais profissionalismo.', farma:true },
+  ];
+  const EXTRA_TOOLS = [
+    'Cadastro de produtos','Precificação','Curva ABC XYZ','Contagem de estoque','Produtos sem giro','Estoque em excesso',
+    'Controle financeiro','Plano de contas','Centro de custos','Contas bancárias','Cartões de crédito e débito',
+    'Entrada de notas via XML','Entrada automática pela SEFAZ','Controle de clientes','Cartão fidelidade',
+    { t:'Uso contínuo', farma:true }, { t:'SNGPC', farma:true }, { t:'Farmácia Popular', farma:true }, { t:'PBM e-Pharma', farma:true },
+    'Entregas em domicílio','Registro de encomendas','Fechamento de caixa','Sangria e suprimento','Controle de acessos',
+    'Auditoria de usuários','Backup em nuvem','Integrações com e-commerce','Prosystem Fiscal','Suporte remoto',
+  ];
+
+  function buildToolsGrid() {
+    const grid = document.getElementById('tools-grid');
+    if (grid) {
+      const tools = TOOLS.filter(function(t) { return isFarmaSegment || !t.farma; });
+      grid.innerHTML = tools.map(function(t) {
+        return '<div class="tool-card">' +
+          '<div class="tc-icon">' + t.icon + '</div>' +
+          '<div><div class="tc-name">' + t.nome + (t.farma ? '<span class="tc-tag">Farma</span>' : '') + '</div>' +
+          '<div class="tc-desc">' + t.desc + '</div></div>' +
+        '</div>';
+      }).join('');
+    }
+    const chips = document.getElementById('tools-chips');
+    if (chips) {
+      const extras = EXTRA_TOOLS
+        .filter(function(x) { return isFarmaSegment || !(x && x.farma); })
+        .map(function(x) { return (typeof x === 'string') ? x : x.t; });
+      chips.innerHTML = extras.map(function(x) { return '<span class="chip">' + x + '</span>'; }).join('');
+    }
+  }
+
   // ── SLIDES CONFIG ───────────────────────────────────────
-  const TOTAL_SLIDES = 23;
+  const TOTAL_SLIDES = 25;
   const HUB_SLIDE = 4;
   const modules = [
-    { id:1, name:'Gestão do Negócio',              desc:'PDV, Estoque, Compras e Fiscal integrados',           icon:'&#127978;', color:'#4B8EC8', slides:[5,6,7,8]   },
-    { id:2, name:'Controle Financeiro &amp; Gerencial', desc:'Dashboard, Rentabilidade e Análises — exclusivo Plus', icon:'&#128202;', color:'#27C97F', slides:[9,10,11,12] },
-    { id:3, name:'Suporte &amp; Treinamento',           desc:'7h–22h, atendimento humano, 5 meses de treinamento',  icon:'&#129309;', color:'#FF6B35', slides:[13,14,15,16] },
-    { id:4, name:'Proposta Comercial',              desc:'Condições especiais personalizadas para você',         icon:'&#128203;', color:'#F59E0B', slides:[17,18,19,20] },
+    { id:1, name:'Gestão do Negócio',              desc:'PDV, Estoque, Compras e Fiscal integrados',           icon:'&#127978;', color:'#417ABC', slides:[5,6,7,8]   },
+    { id:2, name:'Controle Financeiro &amp; Gerencial', desc:'Dashboard, Rentabilidade e Análises — exclusivo Plus', icon:'&#128202;', color:'#1FA45A', slides:[9,10,11,12] },
+    { id:3, name:'Suporte &amp; Treinamento',           desc:'7h–22h, atendimento humano, 5 meses de treinamento',  icon:'&#129309;', color:'#F9A01B', slides:[13,14,15,16] },
+    { id:4, name:'Ferramentas que geram resultado', desc:'Dashboard, Indicador de Perdas, Sugestão de Compras e mais', icon:'&#128736;&#65039;', color:'#00A6B8', slides:[21,22] },
+    { id:5, name:'Proposta Comercial',              desc:'Condições especiais personalizadas para você',         icon:'&#128203;', color:'#CC3366', slides:[17,18,19,20] },
   ];
 
   let currentSlide = 0;
@@ -1127,8 +1210,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     const count = 2000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
-    const c1 = new THREE.Color('#4B8EC8');
-    const c2 = new THREE.Color('#FF6B35');
+    const c1 = new THREE.Color('#417ABC');
+    const c2 = new THREE.Color('#081330');
     for (let i = 0; i < count; i++) {
       positions[i*3]   = (Math.random() - 0.5) * 14;
       positions[i*3+1] = (Math.random() - 0.5) * 14;
@@ -1142,7 +1225,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    const mat = new THREE.PointsMaterial({ size: 0.04, vertexColors: true, transparent: true, opacity: 0.55 });
+    const mat = new THREE.PointsMaterial({ size: 0.03, vertexColors: true, transparent: true, opacity: 0.22 });
     const points = new THREE.Points(geo, mat);
     scene.add(points);
 
@@ -1172,7 +1255,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     if (!grid) return;
     grid.innerHTML = modules.map(m => \`
       <div class="module-card" onclick="goToModule(\${m.id})">
-        <div class="mc-num">Módulo \${m.id} &nbsp;<kbd style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.08);font-family:monospace;">\${m.id}</kbd></div>
+        <div class="mc-num">Módulo \${m.id} &nbsp;<kbd style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(8,19,48,0.08);font-family:monospace;">\${m.id}</kbd></div>
         <div class="mc-icon">\${m.icon}</div>
         <div class="mc-name" style="color:\${m.color}">\${m.name}</div>
         <div class="mc-desc">\${m.desc}</div>
@@ -1199,13 +1282,19 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       sourceRows = getComparisonRows();
     }
 
+    // Farmácia: garante as linhas específicas (SNGPC, PBM) mesmo usando a tabela do CRM
+    if (planFamily.familia === 'FARMA') {
+      const have = new Set(sourceRows.map(r => (r.feature || '').toLowerCase()));
+      FARMA_EXTRA.forEach(function(r) { if (!have.has(r.feature.toLowerCase())) sourceRows.push(r); });
+    }
+
     const fmtCell = (v, isPlus) => {
       if (v === 'Sim')           return \`<span class="cell-yes">&#10003; Sim</span>\`;
       if (v === 'Não')           return \`<span class="cell-no">&mdash; Não</span>\`;
       if (v === 'Avançado')      return \`<span class="cell-adv">Avançado</span>\`;
       if (v === 'Intermediário') return \`<span class="cell-int">Intermediário</span>\`;
       if (v === 'Básico')        return \`<span class="cell-bas">Básico</span>\`;
-      return \`<span style="color:\${isPlus ? '#ffb49a' : 'var(--text-secondary)'}">\${v}</span>\`;
+      return \`<span style="color:\${isPlus ? '#B32A57' : 'var(--text-secondary)'}">\${v}</span>\`;
     };
 
     const rows = sourceRows.map(row => \`<tr>
@@ -1339,8 +1428,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       '--- DESTAQUES DO PLANO ---',
       '• PDV, Estoque, Compras e Fiscal integrados',
       '• Dashboard gerencial em tempo real',
-      '• Análise de rentabilidade por produto',
-      '• Indicador de perda de vendas',
+      '• Indicador de perda de vendas e análise de rentabilidade',
+      '• Sugestão de Compras + Estoque Mínimo e Máximo inteligentes',
+      '• Avisos via WhatsApp e Metas de Funcionários',
+      isFarmaSegment ? '• Atenção Farmacêutica, SNGPC, PBM e Farmácia Popular' : null,
       '• Suporte ativo e humanizado das 7h às 22h',
       '• Treinamento de 5 meses incluso',
       ...(p.plusFeatures && p.plusFeatures.length > 0
@@ -1495,6 +1586,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       case '2': if (currentSlide === HUB_SLIDE) goToModule(2); break;
       case '3': if (currentSlide === HUB_SLIDE) goToModule(3); break;
       case '4': if (currentSlide === HUB_SLIDE) goToModule(4); break;
+      case '5': if (currentSlide === HUB_SLIDE) goToModule(5); break;
     }
   });
 
@@ -1522,6 +1614,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   function init() {
     buildHubGrid();
     buildPlanTable();
+    buildToolsGrid();
     injectProposalData();
     buildWhatsAppSummary();
     showSlide(0);
@@ -1544,7 +1637,7 @@ export async function GET(
     const res = await fetch(`${API_URL}/p/${token}`, { cache: 'no-store' });
     if (!res.ok) {
       return new NextResponse(
-        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#061a2b;color:#fff"><h2>Proposta não encontrada ou expirada.</h2></body></html>',
+        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#fff;color:#081330"><h2>Proposta não encontrada ou expirada.</h2></body></html>',
         { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
@@ -1552,7 +1645,7 @@ export async function GET(
     const json = await res.json();
     if (json.status !== 'success' || !json.data) {
       return new NextResponse(
-        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#061a2b;color:#fff"><h2>Proposta não encontrada.</h2></body></html>',
+        '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#fff;color:#081330"><h2>Proposta não encontrada.</h2></body></html>',
         { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
@@ -1574,7 +1667,7 @@ export async function GET(
     return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   } catch {
     return new NextResponse(
-      '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#061a2b;color:#fff"><h2>Erro ao carregar proposta.</h2></body></html>',
+      '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#fff;color:#081330"><h2>Erro ao carregar proposta.</h2></body></html>',
       { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
     );
   }
