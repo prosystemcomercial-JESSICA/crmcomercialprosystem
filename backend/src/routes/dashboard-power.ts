@@ -12,7 +12,12 @@ const num = (v: any): number => {
 export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // Helper para serializar BigInt com segurança em qualquer nível da resposta
+  const safeJson = (data: any) =>
+    JSON.parse(JSON.stringify(data, (_, v) => (typeof v === 'bigint' ? Number(v) : v)));
+
   fastify.get('/dashboard/power', async (request, reply) => {
+    try {
     const now = new Date();
     const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
     const inicioMesAnterior = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -212,47 +217,55 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       };
     });
 
-    return reply.send({
-      status: 'success',
-      data: {
-        kpis: {
-          mrr: Math.round(mrr_atual),
-          mrr_delta,
-          leads_mes,
-          leads_ganhos_mes,
-          leads_ganhos_mes_anterior,
-          leads_perdidos_mes: Number(leads_perdidos_mes),
-          leads_perdidos_mes_anterior: Number(leads_perdidos_mes_anterior),
-          valor_perdido_mes,
-          taxa_conversao,
-          contratos_ativos,
-          contratos_mes,
-          propostas_abertas,
-          propostas_aceitas_mes,
-          pipeline_valor: Math.round(pipeline_valor),
-          tickets_abertos,
-          tickets_criticos,
-          renovacoes_criticas,
-          hs_criticos,
-          nps_score
-        },
-        ranking_motivos_perda: ranking_motivos,
-        pipeline_funil,
-        top_leads: top_leads.map(l => ({
-          ...l,
-          valor_ponderado: Math.round((l.valor_estimado || 0) * ((l.probabilidade || 50) / 100))
-        })),
-        pipeline_propostas,
-        agenda_hoje: atividades_hoje_lista,
-        atividades_atrasadas: atividades_atrasadas_lista,
-        alertas: {
-          atividades_atrasadas,
-          atividades_hoje,
-          tickets_criticos,
-          renovacoes_criticas,
-          hs_em_risco: hs_criticos + hs_risco
-        }
+    const responseData = safeJson({
+      kpis: {
+        mrr: Math.round(mrr_atual),
+        mrr_delta,
+        leads_mes,
+        leads_ganhos_mes,
+        leads_ganhos_mes_anterior,
+        leads_perdidos_mes: Number(leads_perdidos_mes),
+        leads_perdidos_mes_anterior: Number(leads_perdidos_mes_anterior),
+        valor_perdido_mes,
+        taxa_conversao,
+        contratos_ativos,
+        contratos_mes,
+        propostas_abertas,
+        propostas_aceitas_mes,
+        pipeline_valor: Math.round(pipeline_valor),
+        tickets_abertos,
+        tickets_criticos,
+        renovacoes_criticas,
+        hs_criticos,
+        nps_score
+      },
+      ranking_motivos_perda: ranking_motivos,
+      pipeline_funil,
+      top_leads: top_leads.map(l => ({
+        ...l,
+        valor_ponderado: Math.round((l.valor_estimado || 0) * ((l.probabilidade || 50) / 100))
+      })),
+      pipeline_propostas,
+      agenda_hoje: atividades_hoje_lista,
+      atividades_atrasadas: atividades_atrasadas_lista,
+      alertas: {
+        atividades_atrasadas,
+        atividades_hoje,
+        tickets_criticos,
+        renovacoes_criticas,
+        hs_em_risco: hs_criticos + hs_risco
       }
     });
+
+    return reply.send({ status: 'success', data: responseData });
+
+    } catch (err: any) {
+      fastify.log.error({ err, url: '/dashboard/power' }, 'DASHBOARD_POWER_ERROR');
+      return reply.status(500).send({
+        status: 'error',
+        message: `Erro no dashboard: ${err?.message || 'desconhecido'}`,
+        code: err?.code || null
+      });
+    }
   });
 }
