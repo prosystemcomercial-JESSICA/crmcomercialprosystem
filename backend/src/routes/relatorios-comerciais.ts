@@ -407,8 +407,8 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
       parseInt(ano)
     );
 
-    const totalContratos = rows.reduce((s, r) => s + (r.contratos_fechados || 0), 0);
-    const totalCancelamentos = rows.reduce((s, r) => s + (r.cancelamentos || 0), 0);
+    const totalContratos = rows.reduce((s, r) => s + Number(r.contratos_fechados || 0), 0);
+    const totalCancelamentos = rows.reduce((s, r) => s + Number(r.cancelamentos || 0), 0);
     const totalMrrNovo = rows.reduce((s, r) => s + Number(r.mrr_novo || 0), 0);
     const totalMrrPerdido = rows.reduce((s, r) => s + Number(r.mrr_perdido || 0), 0);
 

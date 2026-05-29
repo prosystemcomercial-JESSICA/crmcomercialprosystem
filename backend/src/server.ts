@@ -107,13 +107,40 @@ try {
 }
 
 // 6) Error handler global do Fastify
-fastify.setErrorHandler((error, _request, reply) => {
-  fastify.log.error({ err: error }, 'ERROR HANDLER');
-  reply.status(500).send({
+fastify.setErrorHandler((error: any, request, reply) => {
+  // Detecta erros conhecidos para retornar status + mensagem amigável
+  const msg = error?.message || 'Unknown error';
+  let statusCode = 500;
+  let userMsg = 'Erro interno. Sua ação foi salva se chegou no banco — tente recarregar.';
+
+  if (error?.code === 'P2002') { statusCode = 409; userMsg = 'Já existe um registro com esses dados.'; }
+  else if (error?.code === 'P2025') { statusCode = 404; userMsg = 'Registro não encontrado.'; }
+  else if (error?.code === 'P2003') { statusCode = 400; userMsg = 'Referência inválida (registro relacionado não existe).'; }
+  else if (msg.includes('BigInt')) { userMsg = 'Erro de conversão numérica — comunicado aos desenvolvedores.'; }
+  else if (msg.includes('timeout')) { statusCode = 504; userMsg = 'Tempo de resposta excedido. Tente novamente.'; }
+  else if (error?.statusCode) { statusCode = error.statusCode; userMsg = msg; }
+
+  fastify.log.error({
+    err: error,
+    url: request.url,
+    method: request.method,
+    user: (request as any).user?.id
+  }, 'ERROR HANDLER');
+
+  reply.status(statusCode).send({
     status: 'error',
-    message: 'Internal server error',
-    error: error?.message || 'Unknown error'
+    message: userMsg,
+    error: msg,
+    code: error?.code || null
   });
+});
+
+// Catch all unhandled rejections/exceptions — NUNCA matar o processo
+process.on('unhandledRejection', (reason: any) => {
+  fastify.log.error({ err: reason }, 'UNHANDLED REJECTION (capturado, processo continua)');
+});
+process.on('uncaughtException', (err: any) => {
+  fastify.log.error({ err }, 'UNCAUGHT EXCEPTION (capturado, processo continua)');
 });
 
 // 7) Graceful shutdown
