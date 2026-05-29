@@ -1,9 +1,7 @@
-# Railway / Nixpacks — build config para o frontend Next.js 16
-# Aumenta o heap do Node durante o build para evitar crash do Turbopack
-# (OOM) no container do Railway.
-
-[phases.build]
-cmds = ["npm run build"]
+# Railway / Nixpacks — config do frontend Next.js 16
+# Apenas define variáveis de ambiente. NÃO sobrescreve as fases de
+# install/build do Nixpacks (deixa a auto-detecção do Next.js funcionar).
+# NODE_OPTIONS aumenta o heap para evitar OOM do Turbopack no build.
 
 [variables]
 NODE_OPTIONS = "--max-old-space-size=4096"
