@@ -866,10 +866,17 @@ export default function PropostasComerciais() {
                         {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
                       </select>
                     </FormField>
-                    <FormField label="Mensalidade Plano Pro (R$)">
-                      <input type="number" value={form.mensalidade_pro as string} onChange={e => setField('mensalidade_pro', e.target.value)} className="ps-input w-full" placeholder="Ex: 350" />
-                    </FormField>
-                    <FormField label="Mensalidade Plano Plus (R$)">
+                    {!(form.plano_selecionado === 'MEI' || form.plano_recomendado === 'MEI') && (
+                      <FormField label={`Mensalidade ${/farm/i.test(form.segmento as string) ? 'Farma' : 'Loja'} Pro (R$)`}>
+                        <input type="number" value={form.mensalidade_pro as string} onChange={e => setField('mensalidade_pro', e.target.value)} className="ps-input w-full" placeholder="Ex: 350" />
+                      </FormField>
+                    )}
+                    <FormField
+                      label={(form.plano_selecionado === 'MEI' || form.plano_recomendado === 'MEI')
+                        ? 'Mensalidade do plano MEI (R$)'
+                        : `Mensalidade ${/farm/i.test(form.segmento as string) ? 'Farma' : 'Loja'} Plus (R$)`}
+                      col={(form.plano_selecionado === 'MEI' || form.plano_recomendado === 'MEI') ? 2 : undefined}
+                    >
                       <input type="number" value={form.mensalidade_plus as string} onChange={e => setField('mensalidade_plus', e.target.value)} className="ps-input w-full" placeholder="Ex: 520" />
                     </FormField>
 
