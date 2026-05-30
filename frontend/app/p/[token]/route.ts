@@ -960,8 +960,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     <div class="flex-col max900" style="gap:20px;">
       <div>
         <div class="eyebrow" style="color:#0B7384;">Módulo 5 &mdash; Proposta Comercial</div>
-        <h2 class="display-md">Comparativo de planos</h2>
-        <p class="body-md mt8">Veja o que cada plano inclui e por que o <span id="s17-plus-name" style="color:#0B7384;font-weight:800;">Plus</span> é a recomendação para sua operação.</p>
+        <h2 class="display-md" id="s17-title">Comparativo de planos</h2>
+        <p class="body-md mt8" id="s17-sub">Veja o que cada plano inclui e por que o <span id="s17-plus-name" style="color:var(--accent-ink);font-weight:800;">Plus</span> é a recomendação para sua operação.</p>
       </div>
       <div class="glass scroll-x plan-table-wrap" style="padding:20px;">
         <table class="plan-table" id="plan-table-main"></table>
@@ -994,7 +994,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 
       <!-- Mensalidade: Pro x Plus lado a lado -->
       <div>
-        <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Mensalidade recorrente &mdash; compare os planos</div>
+        <div id="s18-monthly-label" style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Mensalidade recorrente &mdash; compare os planos</div>
         <div class="flex gap12 flex-wrap price-row" id="s18-monthly-row">
           <div class="price-card" id="s18-pro-card" style="flex:1;min-width:180px;">
             <div class="pc-label">Mensalidade <span id="s18-pro-name">Pro</span></div>
@@ -1261,6 +1261,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     const p = proposalData;
     const nomes = planFamily.nomes;
     const segNoun = isFarmaSegment ? 'farmácia' : 'operação';
+    const isMEI = planFamily.familia === 'MEI';
     const logoEl = document.querySelector('.nav-brand img');
     const logo = (logoEl && logoEl.src) ? logoEl.src : '/logo-prosystem.png';
 
@@ -1358,17 +1359,43 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       return '<div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:' + TXT + ';margin-bottom:6px;line-height:1.4;"><span style="color:' + CYAN + ';font-weight:900;flex-shrink:0;">&#9733;</span><span>' + t + '</span></div>';
     };
 
-    const page2 =
-      '<section class="print-page" style="background:#fff;color:' + TXT + ';">' +
-        header2 +
-        eyebrow('Comparativo de planos &mdash; por que o ' + nomes.plus, NAVY) +
-        cmpTable +
-
-        '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
+    // Bloco de planos: comparativo (Basic/Pro/Plus) ou plano único MEI
+    const MEI_FEATS = ['PDV / Frente de Caixa ágil', 'Controle de estoque essencial', 'Emissão fiscal (NFC-e / SAT)', 'Cadastro de produtos e clientes', 'Relatórios básicos de vendas', 'Suporte ativo das 7h às 22h', 'Treinamento e implantação assistida'];
+    const meiList =
+      '<div style="border:1px solid ' + CYAN + ';border-radius:12px;padding:14px 16px;background:rgba(var(--accent-rgb),0.06);margin:6px 0 16px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:15px;font-weight:900;color:' + INK + ';">Plano MEI</span><span style="font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;background:rgba(var(--accent-rgb),0.16);color:' + INK + ';padding:3px 9px;border-radius:999px;">Plano único</span></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">' + MEI_FEATS.map(check).join('') + '</div>' +
+      '</div>';
+    const compBlock = isMEI
+      ? eyebrow('O que o plano MEI inclui', NAVY) + meiList
+      : eyebrow('Comparativo de planos &mdash; por que o ' + nomes.plus, NAVY) + cmpTable;
+    const valuesBlock = isMEI
+      ? '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
+          valBox('Implantação', formatMoney(p.setupFinal), 'Condição exclusiva', true, p.setupOriginal > p.setupFinal ? formatMoney(p.setupOriginal) : '') +
+          valBox('Mensalidade MEI', formatMoney(p.monthlyValue), 'Plano único', true) +
+        '</div>'
+      : '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
           valBox('Implantação', formatMoney(p.setupFinal), 'Condição exclusiva', true, p.setupOriginal > p.setupFinal ? formatMoney(p.setupOriginal) : '') +
           proBox +
           valBox('Mensalidade ' + nomes.plus + ' &#9733;', formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue), 'Plano recomendado', true) +
-        '</div>' +
+        '</div>';
+    const tipsBlock = isMEI
+      ? eyebrow('Por que começar com o plano MEI', NAVY) +
+        tip('Simples de usar: ideal para quem está organizando a pequena empresa.') +
+        tip('Tudo num só lugar: PDV, estoque e emissão fiscal integrados.') +
+        tip('Suporte humano de verdade das 7h às 22h, sem fila.') +
+        tip('Cresceu? Migre para Loja Basic, Pro ou Plus quando precisar.')
+      : eyebrow('Por que decidir pelo ' + nomes.plus, NAVY) +
+        tip('Decisões com base em dados reais: Dashboard e rentabilidade em tempo real.') +
+        tip('Menos perdas: indicador de perda de vendas e reposição inteligente.') +
+        tip('Mais margem: análise de descontos protege o seu lucro.') +
+        tip('Equipe produtiva: metas por colaborador e avisos via WhatsApp.');
+
+    const page2 =
+      '<section class="print-page" style="background:#fff;color:' + TXT + ';">' +
+        header2 +
+        compBlock +
+        valuesBlock +
         '<div style="font-size:11.5px;color:' + TXT + ';margin-bottom:16px;padding:10px 14px;border:1px solid ' + BD + ';border-radius:10px;">' +
           '<b style="color:' + NAVY + ';">Pagamento:</b> ' +
           'Entrada ' + (p.entryValue > 0 ? formatMoney(p.entryValue) : 'a combinar') + ' &nbsp;&bull;&nbsp; ' +
@@ -1378,11 +1405,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 
         '<div style="display:flex;gap:14px;margin-bottom:16px;">' +
           '<div style="flex:1;border:1px solid ' + BD + ';border-radius:12px;padding:14px 16px;">' +
-            eyebrow('Por que decidir pelo ' + nomes.plus, NAVY) +
-            tip('Decisões com base em dados reais: Dashboard e rentabilidade em tempo real.') +
-            tip('Menos perdas: indicador de perda de vendas e reposição inteligente.') +
-            tip('Mais margem: análise de descontos protege o seu lucro.') +
-            tip('Equipe produtiva: metas por colaborador e avisos via WhatsApp.') +
+            tipsBlock +
           '</div>' +
         '</div>' +
 
@@ -1501,6 +1524,38 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     if (!tbl) return;
     const nomes = planFamily.nomes;
 
+    // ── MEI: plano ÚNICO (pequena empresa do varejo) — sem comparativo ──
+    if (planFamily.familia === 'MEI') {
+      const meiFeatures = [
+        'PDV / Frente de Caixa ágil',
+        'Controle de estoque essencial',
+        'Emissão fiscal (NFC-e / SAT)',
+        'Cadastro de produtos e clientes',
+        'Relatórios básicos de vendas',
+        'Suporte ativo das 7h às 22h',
+        'Treinamento e implantação assistida',
+      ];
+      const titleEl = document.getElementById('s17-title');
+      if (titleEl) titleEl.textContent = 'Plano MEI';
+      const subEl = document.getElementById('s17-sub');
+      if (subEl) subEl.innerHTML = 'O plano ideal para a <b style="color:var(--accent-ink);">pequena empresa do varejo</b> &mdash; simples, completo e com tudo o que você precisa para começar com organização.';
+      const headBadge = '<span class="plan-badge badge-plus">' + nomes.plus + ' &#9733;</span> <span class="rec-badge">Plano único</span>';
+      tbl.innerHTML = '<thead><tr><th colspan="2" style="text-align:left;min-width:0;padding-bottom:14px;">' + headBadge + '</th></tr></thead><tbody>' +
+        meiFeatures.map(function(f) {
+          return '<tr><td style="width:30px;min-width:30px;text-align:center;"><span class="cell-yes">&#10003;</span></td>' +
+                 '<td style="text-align:left;min-width:0;">' + f + '</td></tr>';
+        }).join('') + '</tbody>';
+      const cardsEl = document.getElementById('plan-cards');
+      if (cardsEl) {
+        cardsEl.innerHTML = '<div class="plan-mc featured"><div class="plan-mc-head">' + headBadge + '</div><div class="plan-mc-list">' +
+          meiFeatures.map(function(f) { return '<div class="pmc-row"><span class="pmc-check">&#10003;</span><span class="pmc-feat">' + f + '</span></div>'; }).join('') +
+          '</div></div>';
+      }
+      const plusNameEl = document.getElementById('s17-plus-name');
+      if (plusNameEl) plusNameEl.textContent = nomes.plus;
+      return;
+    }
+
     // Prefer CRM data if available and meaningful, else use fallback
     let sourceRows = [];
     if (Array.isArray(proposalData.planComparison) && proposalData.planComparison.length > 2) {
@@ -1597,10 +1652,23 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     set('s18-plus-name2', nomes.plus);
     set('s18-monthly-pro',  formatMoney(proposalData.monthlyPro));
     set('s18-monthly-plus', formatMoney(proposalData.monthlyPlus > 0 ? proposalData.monthlyPlus : proposalData.monthlyValue));
-    // Esconde o card Pro se a mensalidade Pro não foi preenchida (mostra só o Plus)
-    if (!(proposalData.monthlyPro > 0)) {
+    const isMEI = planFamily.familia === 'MEI';
+    // Esconde o card Pro se a mensalidade Pro não foi preenchida (ou se for MEI = plano único)
+    if (isMEI || !(proposalData.monthlyPro > 0)) {
       const proCard = getEl('s18-pro-card');
       if (proCard) proCard.style.display = 'none';
+    }
+    if (isMEI) {
+      // MEI: mensalidade única — sem comparação, sem badge "Recomendado"
+      set('s18-monthly-label', 'Mensalidade do plano MEI');
+      set('s18-plus-name2', 'MEI');
+      const plusCard = getEl('s18-plus-card');
+      if (plusCard) {
+        const badge = plusCard.querySelector('.rec-badge');
+        if (badge) badge.style.display = 'none';
+        const sub = plusCard.querySelector('.pc-sub');
+        if (sub) sub.textContent = 'Plano único para pequenas empresas';
+      }
     }
     set('s18-plan',     nomes.plus);
     set('s18-valid',    proposalData.validUntil || '—');
@@ -1639,15 +1707,18 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   function buildWhatsAppSummary() {
     const p = proposalData;
     const nomes = planFamily.nomes;
+    const isMEI = planFamily.familia === 'MEI';
     const lines = [
       'Olá, ' + (p.clientName || 'tudo bem?') + '!',
       '',
       'Segue o resumo da proposta comercial da ProSystem para ' + p.companyName + ':',
       '',
       '--- PROPOSTA ---',
-      '• Plano recomendado: ' + nomes.plus + ' (mais indicado)',
-      '• Mensalidade ' + nomes.plus + ': ' + formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue),
-      p.monthlyPro > 0 ? '• Mensalidade ' + nomes.pro + ' (alternativa): ' + formatMoney(p.monthlyPro) : null,
+      isMEI ? '• Plano: MEI (plano único para pequenas empresas)'
+            : '• Plano recomendado: ' + nomes.plus + ' (mais indicado)',
+      isMEI ? '• Mensalidade MEI: ' + formatMoney(p.monthlyValue)
+            : '• Mensalidade ' + nomes.plus + ': ' + formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue),
+      (!isMEI && p.monthlyPro > 0) ? '• Mensalidade ' + nomes.pro + ' (alternativa): ' + formatMoney(p.monthlyPro) : null,
       '• Implantação (valor especial): ' + formatMoney(p.setupFinal),
       p.setupOriginal > p.setupFinal ? '  (Tabela original: ' + formatMoney(p.setupOriginal) + ')' : null,
       p.entryValue > 0 ? '• Entrada: ' + formatMoney(p.entryValue) : null,
@@ -1655,12 +1726,19 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       '• Validade: ' + (p.validUntil || 'A combinar'),
       '',
       '--- DESTAQUES DO PLANO ---',
-      '• PDV, Estoque, Compras e Fiscal integrados',
-      '• Dashboard gerencial em tempo real',
-      '• Indicador de perda de vendas e análise de rentabilidade',
-      '• Sugestão de Compras + Estoque Mínimo e Máximo inteligentes',
-      '• Avisos via WhatsApp e Metas de Funcionários',
-      isFarmaSegment ? '• Atenção Farmacêutica, SNGPC, PBM e Farmácia Popular' : null,
+      ...(isMEI ? [
+        '• PDV / Frente de Caixa ágil',
+        '• Controle de estoque essencial',
+        '• Emissão fiscal (NFC-e / SAT)',
+        '• Relatórios básicos de vendas',
+      ] : [
+        '• PDV, Estoque, Compras e Fiscal integrados',
+        '• Dashboard gerencial em tempo real',
+        '• Indicador de perda de vendas e análise de rentabilidade',
+        '• Sugestão de Compras + Estoque Mínimo e Máximo inteligentes',
+        '• Avisos via WhatsApp e Metas de Funcionários',
+        isFarmaSegment ? '• Atenção Farmacêutica, SNGPC, PBM e Farmácia Popular' : null,
+      ]),
       '• Suporte ativo e humanizado das 7h às 22h',
       '• Treinamento de 5 meses incluso',
       ...(p.plusFeatures && p.plusFeatures.length > 0
