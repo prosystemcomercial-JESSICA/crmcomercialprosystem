@@ -114,6 +114,13 @@ const KANBAN_COLUMNS = [
 const MODULOS = ['Frente de Caixa','Estoque','Financeiro','Relatórios','Multi-empresa','Controle de Acesso','Vendas Online','Delivery','NFe/NFCe','SAT/MFE'];
 const SERVICOS = ['TEF','Pacote Fiscal','Dashboard','WhatsApp / Mensageria','Imendes / Avant','Migração / Conversão de Dados','Treinamento','Suporte Prioritário'];
 const SEGMENTOS = ['Varejo','Supermercado','Farmácia','Padaria','Restaurante','Posto de Combustível','Autopeças','Outro'];
+
+// Planos disponíveis por segmento: Farmácia usa a linha Farma; os demais (varejo
+// geral, padaria, etc.) usam MEI + Loja. MEI = plano único para pequenas empresas.
+const PLANOS_FARMA = ['Farma Basic', 'Farma Pro', 'Farma Plus'];
+const PLANOS_LOJA  = ['MEI', 'Loja Basic', 'Loja Pro', 'Loja Plus'];
+const planosPorSegmento = (seg?: string): string[] =>
+  /farm/i.test(seg || '') ? PLANOS_FARMA : PLANOS_LOJA;
 const TIPOS_LOJA = ['Nova Implantação','Migração','Upgrade','Filial','Reativação'];
 const ORIGENS = ['Indicação','Prospecção','WhatsApp','Visita','Tráfego Pago','Cliente Antigo','Evento'];
 const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
@@ -1003,19 +1010,18 @@ export default function PropostasPage() {
               {/* 3 — Plano & Produtos */}
               {activeSection === 3 && (
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Plano Selecionado">
+                  <FormField label={`Plano Selecionado${form.segmento ? ` — ${planosPorSegmento(form.segmento as string) === PLANOS_FARMA ? 'Farmácia' : 'Varejo / Padaria'}` : ''}`}>
                     <select value={form.plano_selecionado as string} onChange={e => setField('plano_selecionado', e.target.value)} className="ps-input w-full">
-                      <option value="">Selecione...</option>
-                      <option value="Pro">Pro</option>
-                      <option value="Plus">Plus</option>
-                      <option value="Personalizado">Personalizado</option>
+                      {!form.segmento && <option value="">Selecione o segmento (aba Empresa) primeiro…</option>}
+                      {form.segmento && <option value="">Selecione…</option>}
+                      {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
                     </select>
                   </FormField>
                   <FormField label="Plano Recomendado">
                     <select value={form.plano_recomendado as string} onChange={e => setField('plano_recomendado', e.target.value)} className="ps-input w-full">
-                      <option value="">Selecione...</option>
-                      <option value="Pro">Pro</option>
-                      <option value="Plus">Plus</option>
+                      {!form.segmento && <option value="">Selecione o segmento primeiro…</option>}
+                      {form.segmento && <option value="">Selecione…</option>}
+                      {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
                     </select>
                   </FormField>
                   <FormField label="Mensalidade Plano Pro (R$)">

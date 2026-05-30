@@ -126,6 +126,12 @@ const SERVICOS = [
 ];
 
 const SEGMENTOS = ['Varejo', 'Supermercado', 'Farmácia', 'Padaria', 'Restaurante', 'Posto de Combustível', 'Autopeças', 'Outro'];
+
+// Planos por segmento: Farmácia → linha Farma; demais (varejo/padaria/...) → MEI + Loja.
+const PLANOS_FARMA = ['Farma Basic', 'Farma Pro', 'Farma Plus'];
+const PLANOS_LOJA  = ['MEI', 'Loja Basic', 'Loja Pro', 'Loja Plus'];
+const planosPorSegmento = (seg?: string): string[] =>
+  /farm/i.test(seg || '') ? PLANOS_FARMA : PLANOS_LOJA;
 const TIPOS_LOJA = ['Nova Implantação', 'Migração', 'Upgrade', 'Filial', 'Reativação'];
 const ORIGENS = ['Indicação', 'Prospecção', 'WhatsApp', 'Visita', 'Tráfego Pago', 'Cliente Antigo', 'Evento'];
 const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
@@ -846,40 +852,18 @@ export default function PropostasComerciais() {
                 {/* Seção 3 — Plano & Produtos */}
                 {activeSection === 3 && (
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField label="Plano Selecionado">
+                    <FormField label={`Plano Selecionado${form.segmento ? ` — ${planosPorSegmento(form.segmento as string) === PLANOS_FARMA ? 'Farmácia' : 'Varejo / Padaria'}` : ''}`}>
                       <select value={form.plano_selecionado as string} onChange={e => setField('plano_selecionado', e.target.value)} className="ps-input w-full">
-                        <option value="">Selecione...</option>
-                        <optgroup label="Geral">
-                          <option value="MEI">MEI</option>
-                        </optgroup>
-                        <optgroup label="Varejo / Padaria">
-                          <option value="Loja Basic">Loja Basic</option>
-                          <option value="Loja Pro">Loja Pro</option>
-                          <option value="Loja Plus">Loja Plus</option>
-                        </optgroup>
-                        <optgroup label="Farmácia">
-                          <option value="Farma Basic">Farma Basic</option>
-                          <option value="Farma Pro">Farma Pro</option>
-                          <option value="Farma Plus">Farma Plus</option>
-                        </optgroup>
+                        {!form.segmento && <option value="">Selecione o segmento (aba Empresa) primeiro…</option>}
+                        {form.segmento && <option value="">Selecione…</option>}
+                        {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
                       </select>
                     </FormField>
                     <FormField label="Plano Recomendado">
                       <select value={form.plano_recomendado as string} onChange={e => setField('plano_recomendado', e.target.value)} className="ps-input w-full">
-                        <option value="">Selecione...</option>
-                        <optgroup label="Geral">
-                          <option value="MEI">MEI</option>
-                        </optgroup>
-                        <optgroup label="Varejo / Padaria">
-                          <option value="Loja Basic">Loja Basic</option>
-                          <option value="Loja Pro">Loja Pro</option>
-                          <option value="Loja Plus">Loja Plus</option>
-                        </optgroup>
-                        <optgroup label="Farmácia">
-                          <option value="Farma Basic">Farma Basic</option>
-                          <option value="Farma Pro">Farma Pro</option>
-                          <option value="Farma Plus">Farma Plus</option>
-                        </optgroup>
+                        {!form.segmento && <option value="">Selecione o segmento primeiro…</option>}
+                        {form.segmento && <option value="">Selecione…</option>}
+                        {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
                       </select>
                     </FormField>
                     <FormField label="Mensalidade Plano Pro (R$)">
