@@ -1182,7 +1182,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     }
   }
 
-  // ── DOCUMENTO PDF COMERCIAL (2 páginas: capa + valores) ──
+  // ── DOCUMENTO PDF COMERCIAL (2 páginas: capa azul + detalhes) ──
   function buildPrintDoc() {
     const el = document.getElementById('print-doc');
     if (!el) return;
@@ -1192,111 +1192,134 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     const logoEl = document.querySelector('.nav-brand img');
     const logo = (logoEl && logoEl.src) ? logoEl.src : '/logo-prosystem.png';
 
-    // paleta de marca (farmácia): azul, ciano, branco, preto
+    // paleta de marca (farmácia): azul #417ABC, ciano #00BFD1, branco, preto
     const NAVY = '#0B2740', BLUE = '#417ABC', CYAN = '#00BFD1', INK = '#0B7384',
           TXT = '#14222E', MUT = '#69727D', BD = '#E1E8F0', GR = '#1FA45A';
 
     const eyebrow = function(t, color) {
-      return '<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:' + (color || MUT) + ';margin-bottom:6px;">' + t + '</div>';
+      return '<div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:' + (color || MUT) + ';margin-bottom:6px;">' + t + '</div>';
     };
     const check = function(t) {
-      return '<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:' + TXT + ';margin-bottom:8px;line-height:1.4;"><span style="color:' + GR + ';font-weight:800;flex-shrink:0;">&#10003;</span><span>' + t + '</span></div>';
+      return '<div style="display:flex;gap:8px;align-items:flex-start;font-size:11.5px;color:' + TXT + ';margin-bottom:7px;line-height:1.4;"><span style="color:' + GR + ';font-weight:800;flex-shrink:0;">&#10003;</span><span>' + t + '</span></div>';
     };
 
-    const highlights = [
-      'PDV, Estoque, Compras e Fiscal (NF-e / NFC-e / SPED) integrados',
-      'Dashboard gerencial e análise de rentabilidade em tempo real',
-      'Indicador de perda de vendas e sugestão inteligente de compras',
-      'Suporte ativo e humanizado das 7h às 22h',
-      'Implantação assistida e treinamento por 5 meses',
-    ];
-    if (isFarmaSegment) highlights.push('Atenção Farmacêutica, SNGPC, PBM e Farmácia Popular');
-
-    const header = function(right) {
-      return '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ' + BLUE + ';padding-bottom:12px;margin-bottom:22px;">' +
-        '<img src="' + logo + '" style="height:40px;object-fit:contain;" onerror="this.style.display=\\'none\\'">' +
-        '<div style="text-align:right;">' +
-          '<div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:' + BLUE + ';">' + right + '</div>' +
-          '<div style="font-size:11px;color:' + MUT + ';">Válida até ' + (p.validUntil || 'a combinar') + '</div>' +
-        '</div></div>';
+    // ===================== PÁGINA 1 — CAPA AZUL =====================
+    const pill = function(val, lbl) {
+      return '<div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.28);border-radius:14px;padding:11px 18px;text-align:center;min-width:90px;">' +
+        '<div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:-0.02em;">' + val + '</div>' +
+        '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.72);margin-top:2px;">' + lbl + '</div></div>';
     };
-
-    const card = function(opts) {
-      const border = opts.accent ? CYAN : BD;
-      const bg = opts.accent ? 'rgba(0,191,209,0.07)' : '#fff';
-      return '<div style="flex:1;min-width:0;border:1px solid ' + border + ';border-radius:12px;padding:15px 16px;background:' + bg + ';">' +
-        eyebrow(opts.label, opts.accent ? INK : MUT) +
-        (opts.old ? '<div style="font-size:15px;font-weight:800;color:' + MUT + ';text-decoration:line-through;">' + opts.old + '</div>' : '') +
-        '<div style="font-size:' + (opts.big ? '26px' : '20px') + ';font-weight:900;letter-spacing:-0.02em;color:' + (opts.accent ? INK : NAVY) + ';line-height:1.1;">' + opts.value + '</div>' +
-        (opts.sub ? '<div style="font-size:11px;color:' + MUT + ';margin-top:4px;">' + opts.sub + '</div>' : '') +
-      '</div>';
-    };
-
-    // ===== PÁGINA 1 — CAPA / APRESENTAÇÃO =====
     const page1 =
-      '<section class="print-page">' +
-        header('Proposta Comercial') +
-        eyebrow('Preparada para sua ' + segNoun, INK) +
-        '<h1 style="font-size:29px;line-height:1.14;font-weight:900;letter-spacing:-0.02em;color:' + NAVY + ';margin-bottom:14px;">Mais controle, agilidade e <span style="color:' + BLUE + ';">inteligência</span> para a sua ' + segNoun + '.</h1>' +
-        '<p style="font-size:12.5px;line-height:1.65;color:' + TXT + ';margin-bottom:22px;max-width:155mm;">A ProSystem tem 16 anos de especialização no varejo, com um sistema que entende a operação, resolve o dia a dia e cresce junto com o negócio. Esta proposta foi preparada especialmente para <b>' + (p.companyName || 'sua empresa') + '</b>.</p>' +
-        '<div style="display:flex;gap:14px;margin-bottom:24px;">' +
-          '<div style="flex:1.4;border:1px solid ' + BD + ';border-radius:12px;padding:15px 16px;">' +
-            eyebrow('Empresa', MUT) +
-            '<div style="font-size:16px;font-weight:800;color:' + NAVY + ';line-height:1.2;">' + (p.companyName || '&mdash;') + '</div>' +
-            '<div style="font-size:11.5px;color:' + MUT + ';margin-top:5px;">' + [p.cnpj, [p.city, p.state].filter(Boolean).join('/')].filter(Boolean).join('&nbsp;&bull;&nbsp;') + '</div>' +
-            (p.clientName ? '<div style="font-size:11.5px;color:' + MUT + ';">Responsável: ' + p.clientName + '</div>' : '') +
+      '<section class="print-page" style="background:linear-gradient(165deg, #0B2740 0%, ' + BLUE + ' 58%, #356AA6 100%);color:#fff;display:flex;flex-direction:column;align-items:center;text-align:center;">' +
+        '<div style="font-size:11px;font-weight:800;letter-spacing:.32em;text-transform:uppercase;color:' + CYAN + ';">Proposta Comercial</div>' +
+        '<div style="width:46px;height:3px;background:' + CYAN + ';border-radius:3px;margin:10px auto 0;"></div>' +
+
+        '<div style="margin:auto 0;display:flex;flex-direction:column;align-items:center;">' +
+          '<div style="background:#fff;border-radius:22px;padding:22px 34px;box-shadow:0 18px 50px rgba(0,0,0,0.28);margin-bottom:26px;">' +
+            '<img src="' + logo + '" style="height:62px;object-fit:contain;display:block;" onerror="this.style.display=\\'none\\'">' +
           '</div>' +
-          '<div style="flex:1;border:1px solid ' + CYAN + ';border-radius:12px;padding:15px 16px;background:rgba(0,191,209,0.07);">' +
-            eyebrow('Plano recomendado', INK) +
-            '<div style="font-size:20px;font-weight:900;color:' + INK + ';">' + nomes.plus + ' &#9733;</div>' +
-            '<div style="font-size:11px;color:' + MUT + ';margin-top:4px;">A escolha de quem quer crescer com gestão.</div>' +
+          '<div style="font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,0.75);margin-bottom:10px;">Preparada com dedicação para</div>' +
+          '<div style="font-size:36px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;color:#fff;max-width:170mm;">' + (p.companyName || 'sua empresa') + '</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:10px;">' + [p.cnpj, [p.city, p.state].filter(Boolean).join('/')].filter(Boolean).join('&nbsp;&bull;&nbsp;') + '</div>' +
+          '<p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.9);max-width:150mm;margin:22px auto 0;">Mais controle, agilidade e <b style="color:' + CYAN + ';">inteligência</b> para a sua ' + segNoun + ' &mdash; com 16 anos de especialização no varejo e suporte humano de verdade.</p>' +
+          '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px;">' +
+            pill('16 anos', 'de mercado') + pill('7h&ndash;22h', 'suporte ativo') + pill(nomes.plus, 'plano recomendado') +
           '</div>' +
         '</div>' +
-        eyebrow('O que sua ' + segNoun + ' ganha com a ProSystem', NAVY) +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 28px;margin-top:4px;">' + highlights.map(check).join('') + '</div>' +
-        '<div style="position:absolute;left:16mm;right:16mm;bottom:13mm;border-top:1px solid ' + BD + ';padding-top:10px;display:flex;justify-content:space-between;font-size:11px;color:' + MUT + ';">' +
-          '<span>Vendedor: <b style="color:' + TXT + ';">' + (p.sellerName || '&mdash;') + '</b></span>' +
-          '<span>' + (p.sellerPhone || '') + '</span>' +
+
+        // CTA forte
+        '<div style="width:100%;background:' + CYAN + ';border-radius:18px;padding:20px 24px;color:' + NAVY + ';box-shadow:0 16px 40px rgba(0,0,0,0.25);">' +
+          '<div style="font-size:21px;font-weight:900;letter-spacing:-0.02em;">Vamos começar? Aceite sua proposta hoje mesmo.</div>' +
+          '<div style="font-size:13px;font-weight:600;margin-top:6px;color:#0B3a44;">Fale com ' + (p.sellerName || 'seu consultor') + (p.sellerPhone ? ' no WhatsApp <b>' + p.sellerPhone + '</b>' : '') + ' &nbsp;&bull;&nbsp; Condições válidas até <b>' + (p.validUntil || 'a combinar') + '</b></div>' +
         '</div>' +
+        '<div style="font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,0.6);margin-top:14px;">ProSystem Sistemas &bull; 16 anos transformando o varejo brasileiro</div>' +
       '</section>';
 
-    // ===== PÁGINA 2 — VALORES =====
-    const proCardP2 = (p.monthlyPro > 0)
-      ? card({ label: 'Mensalidade ' + nomes.pro, value: formatMoney(p.monthlyPro), sub: 'Plano intermediário' })
-      : '';
+    // ===================== PÁGINA 2 — DETALHES =====================
+    const header2 =
+      '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ' + BLUE + ';padding-bottom:12px;margin-bottom:18px;">' +
+        '<img src="' + logo + '" style="height:34px;object-fit:contain;" onerror="this.style.display=\\'none\\'">' +
+        '<div style="text-align:right;"><div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:' + BLUE + ';">Sua proposta em detalhes</div>' +
+        '<div style="font-size:11px;color:' + MUT + ';">' + (p.companyName || '') + '</div></div></div>';
+
+    // Comparativo compacto de planos
+    const cmp = [
+      ['PDV, Estoque, Compras e Fiscal', 1, 1, 1],
+      ['Controle Financeiro', 0, 1, 1],
+      ['Dashboard Gerencial', 0, 0, 1],
+      ['Análise de Rentabilidade', 0, 0, 1],
+      ['Indicador de Perda de Vendas', 0, 0, 1],
+      ['Sugestão de Compras + Estoque Mín/Máx', 0, 1, 1],
+      ['Metas, Avisos WhatsApp e Ponto', 0, 1, 1],
+      ['Suporte 7h–22h + Treinamento 5 meses', 1, 1, 1],
+    ];
+    if (isFarmaSegment) cmp.push(['SNGPC, PBM e Atenção Farmacêutica', 1, 1, 1]);
+    const mark = function(v, plus) {
+      const inner = v ? '<span style="color:' + GR + ';font-weight:800;">&#10003;</span>' : '<span style="color:' + MUT + ';">&ndash;</span>';
+      return '<td style="text-align:center;padding:6px 6px;border-bottom:1px solid ' + BD + ';font-size:11px;' + (plus ? 'background:rgba(0,191,209,0.09);' : '') + '">' + inner + '</td>';
+    };
+    const cmpRows = cmp.map(function(r) {
+      return '<tr><td style="padding:6px 8px;border-bottom:1px solid ' + BD + ';font-size:11px;font-weight:600;color:' + TXT + ';">' + r[0] + '</td>' +
+        mark(r[1], false) + mark(r[2], false) + mark(r[3], true) + '</tr>';
+    }).join('');
+    const cmpTable =
+      '<table style="width:100%;border-collapse:collapse;margin:6px 0 16px;">' +
+        '<thead><tr>' +
+          '<th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:' + MUT + ';">Funcionalidade</th>' +
+          '<th style="padding:6px;font-size:10px;font-weight:800;text-transform:uppercase;color:' + MUT + ';">' + nomes.basic + '</th>' +
+          '<th style="padding:6px;font-size:10px;font-weight:800;text-transform:uppercase;color:' + BLUE + ';">' + nomes.pro + '</th>' +
+          '<th style="padding:6px;font-size:10px;font-weight:900;text-transform:uppercase;color:' + INK + ';background:rgba(0,191,209,0.12);border-top:2px solid ' + CYAN + ';">' + nomes.plus + ' &#9733;</th>' +
+        '</tr></thead><tbody>' + cmpRows + '</tbody></table>';
+
+    // Valores (linha compacta)
+    const valBox = function(label, value, sub, accent, old) {
+      return '<div style="flex:1;border:1px solid ' + (accent ? CYAN : BD) + ';border-radius:12px;padding:13px 15px;' + (accent ? 'background:rgba(0,191,209,0.08);' : '') + '">' +
+        eyebrow(label, accent ? INK : MUT) +
+        (old ? '<div style="font-size:13px;font-weight:800;color:' + MUT + ';text-decoration:line-through;line-height:1;">' + old + '</div>' : '') +
+        '<div style="font-size:' + (accent ? '23px' : '19px') + ';font-weight:900;letter-spacing:-0.02em;color:' + (accent ? INK : NAVY) + ';line-height:1.15;">' + value + '</div>' +
+        (sub ? '<div style="font-size:10.5px;color:' + MUT + ';margin-top:3px;">' + sub + '</div>' : '') + '</div>';
+    };
+    const proBox = (p.monthlyPro > 0) ? valBox('Mensalidade ' + nomes.pro, formatMoney(p.monthlyPro), 'Plano intermediário', false) : '';
+
+    // Dicas comerciais (persuasão)
+    const tip = function(t) {
+      return '<div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:' + TXT + ';margin-bottom:6px;line-height:1.4;"><span style="color:' + CYAN + ';font-weight:900;flex-shrink:0;">&#9733;</span><span>' + t + '</span></div>';
+    };
+
     const page2 =
-      '<section class="print-page">' +
-        header('Condições Comerciais') +
-        '<h2 style="font-size:24px;font-weight:900;letter-spacing:-0.02em;color:' + NAVY + ';margin-bottom:4px;">Proposta exclusiva para ' + (p.companyName || 'sua empresa') + '</h2>' +
-        '<p style="font-size:12px;color:' + MUT + ';margin-bottom:20px;">Condições especiais que refletem o perfil do seu negócio.</p>' +
-        eyebrow('Investimento de implantação', NAVY) +
-        '<div style="display:flex;gap:14px;margin:8px 0 20px;">' +
-          card({ label: 'Implantação (tabela)', value: formatMoney(p.setupOriginal), sub: 'Valor de referência' }) +
-          card({ label: 'Valor especial negociado', value: formatMoney(p.setupFinal), sub: 'Condição exclusiva', accent: true, big: true }) +
+      '<section class="print-page" style="background:#fff;color:' + TXT + ';">' +
+        header2 +
+        eyebrow('Comparativo de planos &mdash; por que o ' + nomes.plus, NAVY) +
+        cmpTable +
+
+        '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
+          valBox('Implantação', formatMoney(p.setupFinal), 'Condição exclusiva', true, p.setupOriginal > p.setupFinal ? formatMoney(p.setupOriginal) : '') +
+          proBox +
+          valBox('Mensalidade ' + nomes.plus + ' &#9733;', formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue), 'Plano recomendado', true) +
         '</div>' +
-        eyebrow('Mensalidade recorrente', NAVY) +
-        '<div style="display:flex;gap:14px;margin:8px 0 20px;">' +
-          proCardP2 +
-          card({ label: 'Mensalidade ' + nomes.plus + ' &#9733; Recomendado', value: formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue), sub: 'Mais gestão e crescimento', accent: true, big: true }) +
+        '<div style="font-size:11.5px;color:' + TXT + ';margin-bottom:16px;padding:10px 14px;border:1px solid ' + BD + ';border-radius:10px;">' +
+          '<b style="color:' + NAVY + ';">Pagamento:</b> ' +
+          'Entrada ' + (p.entryValue > 0 ? formatMoney(p.entryValue) : 'a combinar') + ' &nbsp;&bull;&nbsp; ' +
+          (p.installments > 0 ? p.installments + 'x de ' + formatMoney(p.installmentValue) : 'à vista') + ' &nbsp;&bull;&nbsp; Total ' + formatMoney(p.setupFinal) +
+          ' &nbsp;|&nbsp; <span style="color:' + MUT + ';">Implantação + conversão de dados + 5 meses de treinamento inclusos.</span>' +
         '</div>' +
-        '<div style="border:1px solid ' + BD + ';border-radius:12px;padding:15px 16px;margin-bottom:16px;">' +
-          eyebrow('Condições de pagamento', NAVY) +
-          '<div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:' + TXT + ';">' +
-            '<span>Entrada: <b>' + (p.entryValue > 0 ? formatMoney(p.entryValue) : 'A combinar') + '</b></span>' +
-            '<span>Parcelamento: <b>' + (p.installments > 0 ? p.installments + 'x de ' + formatMoney(p.installmentValue) : 'À vista') + '</b></span>' +
-            '<span>Total implantação: <b style="color:' + INK + ';">' + formatMoney(p.setupFinal) + '</b></span>' +
+
+        '<div style="display:flex;gap:14px;margin-bottom:16px;">' +
+          '<div style="flex:1;border:1px solid ' + BD + ';border-radius:12px;padding:14px 16px;">' +
+            eyebrow('Por que decidir pelo ' + nomes.plus, NAVY) +
+            tip('Decisões com base em dados reais: Dashboard e rentabilidade em tempo real.') +
+            tip('Menos perdas: indicador de perda de vendas e reposição inteligente.') +
+            tip('Mais margem: análise de descontos protege o seu lucro.') +
+            tip('Equipe produtiva: metas por colaborador e avisos via WhatsApp.') +
           '</div>' +
         '</div>' +
-        eyebrow('Já incluso na proposta', NAVY) +
-        '<div style="margin:6px 0 18px;">' +
-          check('Configuração completa do sistema e conversão de dados do sistema anterior') +
-          check('5 meses de treinamento e suporte assistido') +
-          check('Suporte ativo e humanizado das 7h às 22h') +
+
+        '<div style="position:absolute;left:16mm;right:16mm;bottom:13mm;">' +
+          '<div style="background:linear-gradient(135deg, ' + NAVY + ' 0%, ' + BLUE + ' 100%);border-radius:16px;padding:18px 22px;color:#fff;box-shadow:0 14px 36px rgba(11,39,64,0.25);">' +
+            '<div style="font-size:18px;font-weight:900;letter-spacing:-0.02em;">Aceite agora e comece a transformar sua ' + segNoun + '.</div>' +
+            '<div style="font-size:12.5px;margin-top:5px;color:rgba(255,255,255,0.9);">Fale com <b>' + (p.sellerName || 'seu consultor') + '</b>' + (p.sellerPhone ? ' no WhatsApp <b style="color:' + CYAN + ';">' + p.sellerPhone + '</b>' : '') + ' &nbsp;&bull;&nbsp; Proposta válida até <b style="color:' + CYAN + ';">' + (p.validUntil || 'a combinar') + '</b></div>' +
+          '</div>' +
         '</div>' +
-        '<div style="border:1px solid ' + CYAN + ';background:rgba(0,191,209,0.07);border-radius:12px;padding:15px 16px;">' +
-          '<div style="font-size:13px;color:' + TXT + ';line-height:1.5;">Para aceitar, fale com <b>' + (p.sellerName || 'seu consultor') + '</b>' + (p.sellerPhone ? ' no WhatsApp <b style="color:' + INK + ';">' + p.sellerPhone + '</b>' : '') + '. Proposta válida até <b>' + (p.validUntil || 'a combinar') + '</b>.</div>' +
-        '</div>' +
-        '<div style="position:absolute;left:16mm;right:16mm;bottom:13mm;border-top:1px solid ' + BD + ';padding-top:10px;text-align:center;font-size:10.5px;color:' + MUT + ';">ProSystem Sistemas &bull; 16 anos transformando o varejo brasileiro</div>' +
       '</section>';
 
     el.innerHTML = page1 + page2;
