@@ -655,7 +655,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div class="text-center">
         <div class="eyebrow" style="justify-content:center;">Explore a proposta</div>
         <h2 class="display-md">Escolha um módulo para aprofundar</h2>
-        <p class="body-md mt8" style="max-width:500px;margin:8px auto 0;">Use as teclas 1&ndash;4 ou clique nos cards para navegar pelos módulos</p>
+        <p class="body-md mt8" style="max-width:500px;margin:8px auto 0;">Use as teclas 1&ndash;5 ou clique nos cards para navegar pelos módulos</p>
       </div>
       <div class="hub-grid" id="hub-grid"></div>
     </div>
