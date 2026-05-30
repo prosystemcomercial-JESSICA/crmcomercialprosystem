@@ -402,6 +402,47 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: min(840px,100%); }
     .chip { font-size: 12px; font-weight: 600; color: var(--secondary-light); background: var(--bg-soft); border: 1px solid var(--border); padding: 7px 13px; border-radius: 999px; }
 
+    /* ── SETAS DE NAVEGAÇÃO (cliente) ── */
+    .nav-arrow {
+      position: fixed; top: 50%; transform: translateY(-50%); z-index: 95;
+      width: 48px; height: 48px; border-radius: 50%;
+      background: #fff; border: 1px solid var(--border); color: var(--primary);
+      box-shadow: 0 8px 24px rgba(8,19,48,0.16);
+      display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .2s;
+    }
+    .nav-arrow:hover { background: var(--secondary); color: #fff; }
+    .nav-arrow svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+    #nav-prev { left: 18px; }
+    #nav-next { right: 18px; }
+    .nav-arrow.disabled { opacity: 0; pointer-events: none; }
+    body.self-service .nav-arrow { border-color: var(--border-accent); }
+    body.self-service #nav-next:not(.disabled) { animation: pulseArrow 1.8s ease-in-out infinite; }
+    @keyframes pulseArrow {
+      0%,100% { box-shadow: 0 8px 24px rgba(65,122,188,0.30); }
+      50%     { box-shadow: 0 10px 34px rgba(0,191,209,0.55); }
+    }
+
+    /* dica do cliente (modo auto-serviço) */
+    #client-hint {
+      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 96;
+      display: none; align-items: center; gap: 8px;
+      background: var(--primary); color: #fff;
+      font-size: 12px; font-weight: 700; padding: 9px 16px; border-radius: 999px;
+      box-shadow: var(--shadow-lg); max-width: calc(100% - 120px);
+    }
+    body.self-service #client-hint { display: inline-flex; }
+    body.self-service #nav-hint { display: none; }
+
+    /* coach inicial (aponta a seta) */
+    #coach {
+      position: fixed; z-index: 97; right: 76px; top: 50%; transform: translateY(-50%);
+      background: var(--accent); color: #04303a; font-size: 12px; font-weight: 800;
+      padding: 8px 13px; border-radius: 10px; box-shadow: var(--shadow-lg);
+      opacity: 0; pointer-events: none; transition: opacity .4s; white-space: nowrap;
+    }
+    #coach.show { opacity: 1; }
+    #coach::after { content: ''; position: absolute; right: -6px; top: 50%; transform: translateY(-50%); border: 6px solid transparent; border-left-color: var(--accent); }
+
     /* ── PRICE CARDS ── */
     .price-card { padding: 24px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
     .price-card .pc-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
@@ -483,6 +524,13 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       .copy-label { display: none; }
       .nav-pill-copy { padding: 8px 14px; font-size: 14px; }
       .proof-grid { grid-template-columns: 1fr 1fr; }
+      /* Setas vão para os cantos inferiores (alcance do polegar) */
+      .nav-arrow { top: auto; bottom: 64px; transform: none; width: 44px; height: 44px; }
+      .nav-arrow:hover { transform: none; }
+      #nav-prev { left: 14px; } #nav-next { right: 14px; }
+      body.self-service #nav-next:not(.disabled) { animation: none; }
+      #coach { display: none; }
+      #client-hint { bottom: 16px; font-size: 11px; padding: 8px 14px; max-width: calc(100% - 130px); }
       /* Cards de preço empilham e ocupam largura total (evita corte de valores) */
       .price-row { flex-direction: column; }
       .price-row .price-card { min-width: 0 !important; width: 100%; }
@@ -495,7 +543,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     @media print {
       @page { size: A4; margin: 0; }
       html, body { overflow: visible !important; height: auto !important; background: #fff !important; }
-      #top-nav, #progress-bar, #slide-counter, #nav-hint, #back-btn, #three-canvas, #deck { display: none !important; }
+      #top-nav, #progress-bar, #slide-counter, #nav-hint, #back-btn, #three-canvas, #deck, #nav-prev, #nav-next, #client-hint, #coach { display: none !important; }
       #print-doc { display: block !important; }
       .print-page {
         width: 210mm; min-height: 296mm; padding: 15mm 16mm 13mm; box-sizing: border-box;
@@ -533,6 +581,21 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 <div id="progress-bar"><div id="progress-fill"></div></div>
 <div id="slide-counter"></div>
 <div id="nav-hint">&#8592; &#8594; Navegar &nbsp;|&nbsp; ESC Módulos</div>
+
+<!-- SETAS DE NAVEGAÇÃO (essenciais p/ o cliente) -->
+<button id="nav-prev" class="nav-arrow" onclick="prevSlide()" aria-label="Anterior">
+  <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+</button>
+<button id="nav-next" class="nav-arrow" onclick="nextSlide()" aria-label="Próximo">
+  <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+</button>
+<div id="coach">Toque para avançar &#8594;</div>
+
+<!-- DICA DO CLIENTE (modo auto-serviço) -->
+<div id="client-hint">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 5l7 7-7 7"/></svg>
+  Deslize ou use as setas para navegar pela proposta
+</div>
 
 <!-- DECK -->
 <div id="deck">
@@ -1339,6 +1402,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   let currentSlide = 0;
   let presenterMode = true;
   let selfServiceTimer = null;
+  let coachTimer = null;
   let hasKeyboard = false;
   let inModule = false;
   let currentModuleId = null;
@@ -1643,6 +1707,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   // ── SLIDE NAVIGATION ────────────────────────────────────
   function showSlide(index, direction) {
     if (index < 0 || index >= TOTAL_SLIDES) return;
+    hideCoach();
     const prev = slideEls[currentSlide];
     const next = slideEls[index];
     if (!next) return;
@@ -1721,15 +1786,35 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     if (fill) fill.style.width = ((currentSlide / (TOTAL_SLIDES - 1)) * 100) + '%';
     const counter = document.getElementById('slide-counter');
     if (counter) counter.textContent = (currentSlide + 1) + ' / ' + TOTAL_SLIDES;
+    // Setas: esconde a "anterior" no 1º slide e a "próxima" no último
+    const prev = document.getElementById('nav-prev');
+    const next = document.getElementById('nav-next');
+    if (prev) prev.classList.toggle('disabled', currentSlide === 0);
+    if (next) next.classList.toggle('disabled', currentSlide >= TOTAL_SLIDES - 1);
   }
 
-  // ── MODE TOGGLE ─────────────────────────────────────────
-  function toggleMode() {
-    presenterMode = !presenterMode;
-    const btn = document.getElementById('mode-btn-top');
-    if (btn) btn.textContent = 'Modo: ' + (presenterMode ? 'Apresentador' : 'Auto-serviço');
-    document.body.classList.toggle('self-service', !presenterMode);
+  function hideCoach() {
+    const c = document.getElementById('coach');
+    if (c) c.classList.remove('show');
   }
+
+  // ── MODE ────────────────────────────────────────────────
+  // Apresentador: vendedor conduz (teclado/atalhos visíveis).
+  // Auto-serviço (cliente): foco em navegação intuitiva — setas em destaque,
+  // dica "deslize ou use as setas", atalhos de teclado ocultos.
+  function setMode(presenter) {
+    presenterMode = presenter;
+    const btn = document.getElementById('mode-btn-top');
+    if (btn) btn.textContent = 'Modo: ' + (presenter ? 'Apresentador' : 'Auto-serviço (cliente)');
+    document.body.classList.toggle('self-service', !presenter);
+    if (presenter) {
+      hideCoach();
+    } else {
+      const c = document.getElementById('coach');
+      if (c) { c.classList.add('show'); clearTimeout(coachTimer); coachTimer = setTimeout(hideCoach, 4800); }
+    }
+  }
+  function toggleMode() { setMode(!presenterMode); }
 
   // ── KEYBOARD ────────────────────────────────────────────
   document.addEventListener('keydown', e => {
@@ -1757,12 +1842,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   // ── SELF-SERVICE TIMER ──────────────────────────────────
   function startSelfServiceTimer() {
     selfServiceTimer = setTimeout(() => {
-      if (!hasKeyboard) {
-        presenterMode = false;
-        document.body.classList.add('self-service');
-        const btn = document.getElementById('mode-btn-top');
-        if (btn) btn.textContent = 'Modo: Auto-serviço';
-      }
+      if (!hasKeyboard) setMode(false);
     }, 8000);
   }
 
@@ -1775,8 +1855,13 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     injectProposalData();
     buildWhatsAppSummary();
     showSlide(0);
-    startSelfServiceTimer();
     updateUI();
+    // Em telas de toque (cliente abrindo pelo link no WhatsApp), já entra no
+    // modo cliente intuitivo. No desktop, mantém Apresentador e migra após 8s.
+    const isTouch = ('ontouchstart' in window) ||
+      (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
+    if (isTouch) { setMode(false); }
+    else { startSelfServiceTimer(); }
   }
   init();
 </script>
