@@ -98,6 +98,14 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   const imgSrc = (key: string, fallbackPath: string) => images[key] || fallbackPath;
   const dataJson = JSON.stringify(data);
 
+  // Tema do accent por segmento/plano: farmácia = ciano; varejo/padaria/MEI = laranja
+  const themeKey = `${data.selectedPlan || ''} ${data.segment || ''}`
+    .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const isFarmaTheme = /farma|farmacia|manipula/.test(themeKey);
+  const ACC = isFarmaTheme ? '#00BFD1' : '#FF8103';      // ciano farma / laranja varejo
+  const ACC_INK = isFarmaTheme ? '#0B7384' : '#C2540A';  // versão escura legível
+  const ACC_RGB = isFarmaTheme ? '0,191,209' : '255,129,3';
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -117,9 +125,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       --primary-dark: #050d22;
       --secondary: #417ABC;        /* azul Prosystem (cor principal da marca) */
       --secondary-light: #356AA6;  /* azul legível sobre branco (usado em texto) */
-      --accent: #00BFD1;           /* ciano — destaque do Plus/Recomendado */
-      --accent-ink: #0B7384;       /* ciano escuro legível sobre branco (texto) */
-      --accent-glow: rgba(0,191,209,0.22);
+      --accent: ${ACC};            /* destaque do Plus/Recomendado (ciano farma / laranja varejo) */
+      --accent-ink: ${ACC_INK};    /* versão escura legível sobre branco (texto) */
+      --accent-rgb: ${ACC_RGB};    /* componentes do accent p/ tints rgba(var(--accent-rgb),x) */
+      --accent-glow: rgba(var(--accent-rgb),0.22);
       --gold: #F9A01B;             /* laranja de apoio (módulo Suporte) */
       --green: #1FA45A;            /* verde — apenas para ✓ "Sim"/sucesso e WhatsApp */
       --bg-deep: #FFFFFF;
@@ -132,10 +141,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       --text-accent: #417ABC;
       --border: #E1E8F0;
       --border-accent: rgba(65,122,188,0.30);
-      --border-plus: rgba(0,191,209,0.40);
+      --border-plus: rgba(var(--accent-rgb),0.40);
       --shadow-lg: 0 16px 44px rgba(8,19,48,0.12);
       --shadow-glow: 0 6px 24px rgba(65,122,188,0.14);
-      --shadow-plus: 0 10px 34px rgba(0,191,209,0.16);
+      --shadow-plus: 0 10px 34px rgba(var(--accent-rgb),0.16);
       --radius: 16px;
       --radius-lg: 24px;
       --font: 'Inter', sans-serif;
@@ -353,7 +362,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .mod-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .mod-placeholder {
       width: 100%; height: 100%;
-      background: linear-gradient(135deg, rgba(75,142,200,0.12), rgba(0,191,209,0.06));
+      background: linear-gradient(135deg, rgba(75,142,200,0.12), rgba(var(--accent-rgb),0.06));
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
     }
     .mod-placeholder .ph-icon { font-size: 48px; opacity: 0.5; }
@@ -364,8 +373,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .plan-table th, .plan-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; vertical-align: middle; }
     .plan-table th:first-child, .plan-table td:first-child { text-align: left; font-weight: 600; color: var(--text-primary); min-width: 190px; }
     .plan-table th { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-secondary); padding-bottom: 14px; }
-    .col-plus { background: rgba(0,191,209,0.07); position: relative; }
-    .th-plus { background: rgba(0,191,209,0.1); border-top: 2px solid var(--accent) !important; color: #0B7384 !important; }
+    .col-plus { background: rgba(var(--accent-rgb),0.07); position: relative; }
+    .th-plus { background: rgba(var(--accent-rgb),0.1); border-top: 2px solid var(--accent) !important; color: #0B7384 !important; }
     .cell-yes { color: var(--green); font-weight: 800; }
     .cell-no { color: rgba(27,42,61,0.32); font-weight: 600; }
     .cell-adv { color: var(--accent-ink); font-weight: 700; }
@@ -374,13 +383,13 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .plan-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     .badge-basic { background: rgba(8,19,48,0.06); color: var(--text-secondary); }
     .badge-pro   { background: rgba(75,142,200,0.12); color: var(--secondary-light); }
-    .badge-plus  { background: rgba(0,191,209,0.18); color: #0B7384; border: 1px solid var(--border-plus); }
+    .badge-plus  { background: rgba(var(--accent-rgb),0.18); color: #0B7384; border: 1px solid var(--border-plus); }
     .rec-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; background: var(--accent-ink); color: #fff; margin-left: 6px; vertical-align: middle; }
 
     /* ── PLAN CARDS (mobile) ── */
     .plan-cards { display: none; }
     .plan-mc { padding: 18px; border-radius: var(--radius); background: var(--bg-card); border: 1px solid var(--border); }
-    .plan-mc.featured { border-color: var(--border-plus); background: rgba(0,191,209,0.07); box-shadow: var(--shadow-plus); }
+    .plan-mc.featured { border-color: var(--border-plus); background: rgba(var(--accent-rgb),0.07); box-shadow: var(--shadow-plus); }
     .plan-mc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .plan-mc-list { display: grid; gap: 9px; }
     .pmc-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); line-height: 1.3; }
@@ -397,7 +406,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .tool-card:hover { transform: translateY(-3px); border-color: var(--border-accent); box-shadow: var(--shadow-lg); }
     .tool-card .tc-icon { font-size: 24px; line-height: 1.1; flex-shrink: 0; }
     .tool-card .tc-name { font-size: 15px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; margin-bottom: 4px; }
-    .tool-card .tc-name .tc-tag { font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); background: rgba(0,191,209,0.1); padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+    .tool-card .tc-name .tc-tag { font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); background: rgba(var(--accent-rgb),0.1); padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
     .tool-card .tc-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: min(840px,100%); }
     .chip { font-size: 12px; font-weight: 600; color: var(--secondary-light); background: var(--bg-soft); border: 1px solid var(--border); padding: 7px 13px; border-radius: 999px; }
@@ -419,7 +428,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     body.self-service #nav-next:not(.disabled) { animation: pulseArrow 1.8s ease-in-out infinite; }
     @keyframes pulseArrow {
       0%,100% { box-shadow: 0 8px 24px rgba(65,122,188,0.30); }
-      50%     { box-shadow: 0 10px 34px rgba(0,191,209,0.55); }
+      50%     { box-shadow: 0 10px 34px rgba(var(--accent-rgb),0.55); }
     }
 
     /* dica do cliente (modo auto-serviço) */
@@ -449,7 +458,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .price-card .pc-old { font-size: 20px; font-weight: 800; color: rgba(27,42,61,0.32); text-decoration: line-through; }
     .price-card .pc-val { font-size: 30px; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); line-height: 1.1; }
     .price-card .pc-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
-    .price-card.featured { border-color: var(--border-plus); background: rgba(0,191,209,0.07); box-shadow: var(--shadow-plus); }
+    .price-card.featured { border-color: var(--border-plus); background: rgba(var(--accent-rgb),0.07); box-shadow: var(--shadow-plus); }
     .price-card.featured .pc-val { color: var(--accent-ink); font-size: 40px; }
     .price-card.monthly { border-color: rgba(39,201,127,0.3); background: rgba(39,201,127,0.06); }
     .price-card.monthly .pc-val { color: var(--green); }
@@ -457,7 +466,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     /* ── PLAN HIGHLIGHT BOX (Plus destaque) ── */
     .plus-highlight-box {
       padding: 20px 24px; border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, rgba(0,191,209,0.12), rgba(0,191,209,0.04));
+      background: linear-gradient(135deg, rgba(var(--accent-rgb),0.12), rgba(var(--accent-rgb),0.04));
       border: 1px solid var(--border-plus);
       box-shadow: var(--shadow-plus);
     }
@@ -673,17 +682,17 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </p>
       </div>
       <div class="flex gap12 flex-wrap">
-        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(0,191,209,0.08);border:1px solid rgba(0,191,209,0.2);">
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.08);border:1px solid rgba(var(--accent-rgb),0.2);">
           <div style="font-size:24px;margin-bottom:12px;">&#9878;&#65039;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Compliance fiscal</div>
           <div class="body-md">Medo de multas, NF-e incorreta, SPED desatualizado. O risco tributário pesa sobre cada operação.</div>
         </div>
-        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(0,191,209,0.08);border:1px solid rgba(0,191,209,0.2);">
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.08);border:1px solid rgba(var(--accent-rgb),0.2);">
           <div style="font-size:24px;margin-bottom:12px;">&#128201;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Falta de visibilidade</div>
           <div class="body-md">Não saber o que acontece em tempo real é tomar decisões no escuro &mdash; e perder margem.</div>
         </div>
-        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(0,191,209,0.08);border:1px solid rgba(0,191,209,0.2);">
+        <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.08);border:1px solid rgba(var(--accent-rgb),0.2);">
           <div style="font-size:24px;margin-bottom:12px;">&#128257;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Retrabalho constante</div>
           <div class="body-md">Processos manuais consomem tempo, geram erros e impedem o crescimento da operação.</div>
@@ -714,7 +723,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           <div class="body-md">NF-e, NFC-e, SPED, SNGPC, PBMs &mdash; tudo incluso e atualizado para manter sua operação segura.</div>
         </div>
         <div class="glass-accent" style="padding:24px;flex:1;min-width:220px;">
-          <div style="width:40px;height:40px;border-radius:12px;background:rgba(0,191,209,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">&#129309;</div>
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(var(--accent-rgb),0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;">&#129309;</div>
           <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:var(--text-primary);">Suporte Ativo Humanizado</div>
           <div class="body-md">Atendimento humano das 7h às 22h, com técnicos prontos para resolver e orientar de verdade.</div>
         </div>
@@ -830,7 +839,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div>
         <div class="eyebrow" style="color:#27C97F;">Dashboard Gerencial</div>
         <h2 class="display-lg">O negócio inteiro<br><span class="text-green">em uma tela</span></h2>
-        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(0,191,209,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0B7384;">Exclusivo Plano Plus</div>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(var(--accent-rgb),0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0B7384;">Exclusivo Plano Plus</div>
         <p class="body-lg mt12">Consolida vendas, margem, inadimplência e estoque &mdash; atualizado em tempo real, disponível em qualquer dispositivo. Tomar decisão deixa de ser intuição.</p>
         <div class="flex gap12 flex-wrap mt24">
           <div class="metric-pill"><span class="val">Tempo real</span><span class="lbl">Atualização</span></div>
@@ -845,7 +854,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div>
         <div class="eyebrow" style="color:#27C97F;">Rentabilidade &amp; Indicadores</div>
         <h2 class="display-lg">Margem real,<br><span class="text-green">produto por produto</span></h2>
-        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(0,191,209,0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0B7384;">Exclusivo Plano Plus</div>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:rgba(var(--accent-rgb),0.15);border:1px solid var(--border-plus);margin:12px 0 0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0B7384;">Exclusivo Plano Plus</div>
         <p class="body-lg mt12">Identifique quais produtos realmente lucram, quais apenas giram e onde está o indicador de perda de vendas &mdash; análise detalhada e comparativa.</p>
         <div class="check-list mt24">
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Margem bruta por produto e categoria</span></div>
@@ -864,7 +873,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div class="eyebrow" style="justify-content:center;color:#27C97F;">Resultado esperado</div>
       <h2 class="display-lg">Decisões baseadas<br><span class="gradient-text">em dados reais</span></h2>
       <p class="body-lg">Com o Controle Financeiro &amp; Gerencial do Plano Plus, o gestor sai da intuição e passa a gerir com indicadores &mdash; reduzindo perdas e aumentando a margem real.</p>
-      <div style="padding:16px 24px;border-radius:var(--radius);background:rgba(0,191,209,0.1);border:1px solid var(--border-plus);font-size:13px;color:#0B7384;font-weight:600;max-width:480px;">
+      <div style="padding:16px 24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.1);border:1px solid var(--border-plus);font-size:13px;color:#0B7384;font-weight:600;max-width:480px;">
         Dashboard, Rentabilidade e Indicador de Perda são recursos exclusivos do Plano Plus &mdash; a escolha de quem quer crescer com gestão.
       </div>
       <button class="btn btn-green" onclick="returnToHub()">Ver outros módulos</button>
@@ -900,7 +909,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <p class="body-lg mt12">A janela de suporte da ProSystem cobre toda a operação do varejo, do recebimento matutino ao fechamento noturno.</p>
       </div>
       <div class="flex gap12 flex-wrap justify-center">
-        <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(0,191,209,0.1);border:1px solid rgba(0,191,209,0.25);text-align:center;">
+        <div style="padding:24px 32px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.1);border:1px solid rgba(var(--accent-rgb),0.25);text-align:center;">
           <div style="font-size:40px;font-weight:900;letter-spacing:-0.05em;color:var(--accent-ink);">7h&ndash;22h</div>
           <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">Janela de atendimento</div>
         </div>
@@ -1156,8 +1165,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   const proposalData = ${dataJson};
 
   // ── PLAN FAMILY ─────────────────────────────────────────
-  function getPlanFamily(segment) {
-    const s = (segment || '').toLowerCase()
+  function getPlanFamily(segment, plano) {
+    const s = ((plano || '') + ' ' + (segment || '')).toLowerCase()
       .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
     if (/farma|farmacia|manipula/i.test(s)) {
       return { familia: 'FARMA', nomes: { basic: 'Farma Basic', pro: 'Farma Pro', plus: 'Farma Plus' } };
@@ -1168,7 +1177,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     return { familia: 'LOJA', nomes: { basic: 'Loja Basic', pro: 'Loja Pro', plus: 'Loja Plus' } };
   }
 
-  const planFamily = getPlanFamily(proposalData.segment);
+  const planFamily = getPlanFamily(proposalData.segment, proposalData.selectedPlan);
 
   // ── FALLBACK COMPARISON TABLE ────────────────────────────
   const LOJA_ROWS = [
@@ -1255,8 +1264,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     const logoEl = document.querySelector('.nav-brand img');
     const logo = (logoEl && logoEl.src) ? logoEl.src : '/logo-prosystem.png';
 
-    // paleta de marca (farmácia): azul #417ABC, ciano #00BFD1, branco, preto
-    const NAVY = '#0B2740', BLUE = '#417ABC', CYAN = '#00BFD1', INK = '#0B7384',
+    // paleta: azul #417ABC base; accent segue o tema (ciano farma / laranja varejo)
+    const NAVY = '#0B2740', BLUE = '#417ABC', CYAN = 'var(--accent)', INK = 'var(--accent-ink)',
           TXT = '#14222E', MUT = '#69727D', BD = '#E1E8F0', GR = '#1FA45A';
 
     const eyebrow = function(t, color) {
@@ -1319,7 +1328,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     if (isFarmaSegment) cmp.push(['SNGPC, PBM e Atenção Farmacêutica', 1, 1, 1]);
     const mark = function(v, plus) {
       const inner = v ? '<span style="color:' + GR + ';font-weight:800;">&#10003;</span>' : '<span style="color:' + MUT + ';">&ndash;</span>';
-      return '<td style="text-align:center;padding:6px 6px;border-bottom:1px solid ' + BD + ';font-size:11px;' + (plus ? 'background:rgba(0,191,209,0.09);' : '') + '">' + inner + '</td>';
+      return '<td style="text-align:center;padding:6px 6px;border-bottom:1px solid ' + BD + ';font-size:11px;' + (plus ? 'background:rgba(var(--accent-rgb),0.09);' : '') + '">' + inner + '</td>';
     };
     const cmpRows = cmp.map(function(r) {
       return '<tr><td style="padding:6px 8px;border-bottom:1px solid ' + BD + ';font-size:11px;font-weight:600;color:' + TXT + ';">' + r[0] + '</td>' +
@@ -1331,12 +1340,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           '<th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:' + MUT + ';">Funcionalidade</th>' +
           '<th style="padding:6px;font-size:10px;font-weight:800;text-transform:uppercase;color:' + MUT + ';">' + nomes.basic + '</th>' +
           '<th style="padding:6px;font-size:10px;font-weight:800;text-transform:uppercase;color:' + BLUE + ';">' + nomes.pro + '</th>' +
-          '<th style="padding:6px;font-size:10px;font-weight:900;text-transform:uppercase;color:' + INK + ';background:rgba(0,191,209,0.12);border-top:2px solid ' + CYAN + ';">' + nomes.plus + ' &#9733;</th>' +
+          '<th style="padding:6px;font-size:10px;font-weight:900;text-transform:uppercase;color:' + INK + ';background:rgba(var(--accent-rgb),0.12);border-top:2px solid ' + CYAN + ';">' + nomes.plus + ' &#9733;</th>' +
         '</tr></thead><tbody>' + cmpRows + '</tbody></table>';
 
     // Valores (linha compacta)
     const valBox = function(label, value, sub, accent, old) {
-      return '<div style="flex:1;border:1px solid ' + (accent ? CYAN : BD) + ';border-radius:12px;padding:13px 15px;' + (accent ? 'background:rgba(0,191,209,0.08);' : '') + '">' +
+      return '<div style="flex:1;border:1px solid ' + (accent ? CYAN : BD) + ';border-radius:12px;padding:13px 15px;' + (accent ? 'background:rgba(var(--accent-rgb),0.08);' : '') + '">' +
         eyebrow(label, accent ? INK : MUT) +
         (old ? '<div style="font-size:13px;font-weight:800;color:' + MUT + ';text-decoration:line-through;line-height:1;">' + old + '</div>' : '') +
         '<div style="font-size:' + (accent ? '23px' : '19px') + ';font-weight:900;letter-spacing:-0.02em;color:' + (accent ? INK : NAVY) + ';line-height:1.15;">' + value + '</div>' +

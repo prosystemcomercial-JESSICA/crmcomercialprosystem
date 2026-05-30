@@ -849,16 +849,37 @@ export default function PropostasComerciais() {
                     <FormField label="Plano Selecionado">
                       <select value={form.plano_selecionado as string} onChange={e => setField('plano_selecionado', e.target.value)} className="ps-input w-full">
                         <option value="">Selecione...</option>
-                        <option value="Pro">Pro</option>
-                        <option value="Plus">Plus</option>
-                        <option value="Personalizado">Personalizado</option>
+                        <optgroup label="Geral">
+                          <option value="MEI">MEI</option>
+                        </optgroup>
+                        <optgroup label="Varejo / Padaria">
+                          <option value="Loja Basic">Loja Basic</option>
+                          <option value="Loja Pro">Loja Pro</option>
+                          <option value="Loja Plus">Loja Plus</option>
+                        </optgroup>
+                        <optgroup label="Farmácia">
+                          <option value="Farma Basic">Farma Basic</option>
+                          <option value="Farma Pro">Farma Pro</option>
+                          <option value="Farma Plus">Farma Plus</option>
+                        </optgroup>
                       </select>
                     </FormField>
                     <FormField label="Plano Recomendado">
                       <select value={form.plano_recomendado as string} onChange={e => setField('plano_recomendado', e.target.value)} className="ps-input w-full">
                         <option value="">Selecione...</option>
-                        <option value="Pro">Pro</option>
-                        <option value="Plus">Plus</option>
+                        <optgroup label="Geral">
+                          <option value="MEI">MEI</option>
+                        </optgroup>
+                        <optgroup label="Varejo / Padaria">
+                          <option value="Loja Basic">Loja Basic</option>
+                          <option value="Loja Pro">Loja Pro</option>
+                          <option value="Loja Plus">Loja Plus</option>
+                        </optgroup>
+                        <optgroup label="Farmácia">
+                          <option value="Farma Basic">Farma Basic</option>
+                          <option value="Farma Pro">Farma Pro</option>
+                          <option value="Farma Plus">Farma Plus</option>
+                        </optgroup>
                       </select>
                     </FormField>
                     <FormField label="Mensalidade Plano Pro (R$)">
