@@ -368,6 +368,23 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .mod-visual .mv-text { font-size: 15px; font-weight: 800; letter-spacing: .01em; color: var(--primary); }
     .mod-visual .mv-sub { font-size: 12px; color: var(--text-secondary); max-width: 250px; line-height: 1.5; }
 
+    /* ── ECOSSISTEMA FARMA (cinematográfico) ── */
+    .eco-wrap { aspect-ratio: 1 / 1; background: radial-gradient(circle at 50% 46%, rgba(var(--accent-rgb),0.13), var(--bg-soft) 72%); }
+    .eco { position: relative; width: min(430px, 100%); aspect-ratio: 1 / 1; margin: auto; }
+    .eco-halo { position: absolute; inset: 9%; border-radius: 50%; background: conic-gradient(from 0deg, rgba(var(--accent-rgb),0), rgba(var(--accent-rgb),0.20), rgba(65,122,188,0.20), rgba(var(--accent-rgb),0)); filter: blur(16px); animation: ecoSpin 16s linear infinite; }
+    .eco-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .eco-line { stroke: var(--accent); stroke-width: 1.6; fill: none; opacity: .45; stroke-dasharray: 4 9; animation: ecoFlow 1.6s linear infinite; }
+    .eco-ring { stroke: var(--border-accent); stroke-width: 1; fill: none; opacity: .6; stroke-dasharray: 2 7; }
+    .eco-hub { position: absolute; top: 50%; left: 50%; width: 84px; height: 84px; transform: translate(-50%,-50%); border-radius: 24px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 42px; z-index: 3; box-shadow: var(--shadow-lg), 0 0 0 8px rgba(var(--accent-rgb),0.08); animation: ecoPulse 2.8s ease-in-out infinite; }
+    .eco-node { position: absolute; transform: translate(-50%,-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .eco-node .chip { width: 48px; height: 48px; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow-glow); display: flex; align-items: center; justify-content: center; font-size: 23px; animation: ecoFloat 3.6s ease-in-out infinite; }
+    .eco-node .lbl { font-size: 10px; font-weight: 700; color: var(--text-secondary); }
+    @keyframes ecoSpin  { to { transform: rotate(360deg); } }
+    @keyframes ecoFlow  { to { stroke-dashoffset: -39; } }
+    @keyframes ecoPulse { 0%,100% { box-shadow: var(--shadow-lg), 0 0 0 8px rgba(var(--accent-rgb),0.08); } 50% { box-shadow: var(--shadow-lg), 0 0 0 15px rgba(var(--accent-rgb),0.15); } }
+    @keyframes ecoFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @media (prefers-reduced-motion: reduce) { .eco-halo,.eco-line,.eco-hub,.eco-node .chip { animation: none; } }
+
     /* ── PLAN TABLE ── */
     .plan-table { width: 100%; border-collapse: collapse; }
     .plan-table th, .plan-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; vertical-align: middle; }
@@ -518,6 +535,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         padding: 76px 16px 56px;
       }
       .mod-img-wrap { max-height: 230px; }
+      .eco-wrap { max-height: none; aspect-ratio: 1 / 1; }
+      .eco { width: min(300px, 88%); }
       .metric-pill { padding: 12px 16px; }
       .metric-pill .val { font-size: 22px; }
       .price-card { padding: 18px; }
@@ -757,8 +776,30 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
           <div class="check-item"><div class="check-icon"><svg viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,3"/></svg></div><span>Entrega em domicílio e encomendas</span></div>
         </div>
       </div>
-      <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#127978;</div><div class="mv-text">Operação integrada</div><div class="mv-sub">PDV, Estoque e Compras em um só sistema</div></div>
+      <div class="mod-img-wrap eco-wrap">
+        <div class="eco">
+          <div class="eco-halo"></div>
+          <svg class="eco-lines" viewBox="0 0 320 320" preserveAspectRatio="xMidYMid meet">
+            <circle class="eco-ring" cx="160" cy="160" r="125"></circle>
+            <line class="eco-line" x1="160" y1="160" x2="160" y2="35"  style="animation-delay:0s"></line>
+            <line class="eco-line" x1="160" y1="160" x2="248" y2="72"  style="animation-delay:.2s"></line>
+            <line class="eco-line" x1="160" y1="160" x2="285" y2="160" style="animation-delay:.4s"></line>
+            <line class="eco-line" x1="160" y1="160" x2="248" y2="248" style="animation-delay:.6s"></line>
+            <line class="eco-line" x1="160" y1="160" x2="160" y2="285" style="animation-delay:.8s"></line>
+            <line class="eco-line" x1="160" y1="160" x2="72"  y2="248" style="animation-delay:1s"></line>
+            <line class="eco-line" x1="160" y1="160" x2="35"  y2="160" style="animation-delay:1.2s"></line>
+            <line class="eco-line" x1="160" y1="160" x2="72"  y2="72"  style="animation-delay:1.4s"></line>
+          </svg>
+          <div class="eco-hub">&#128138;</div>
+          <div class="eco-node" style="top:11%;left:50%"><div class="chip" style="animation-delay:0s">&#128722;</div><div class="lbl">PDV</div></div>
+          <div class="eco-node" style="top:22%;left:78%"><div class="chip" style="animation-delay:.3s">&#128230;</div><div class="lbl">Estoque</div></div>
+          <div class="eco-node" style="top:50%;left:89%"><div class="chip" style="animation-delay:.6s">&#128666;</div><div class="lbl">Compras</div></div>
+          <div class="eco-node" style="top:78%;left:78%"><div class="chip" style="animation-delay:.9s">&#128176;</div><div class="lbl">Financeiro</div></div>
+          <div class="eco-node" style="top:89%;left:50%"><div class="chip" style="animation-delay:1.2s">&#128101;</div><div class="lbl">Clientes</div></div>
+          <div class="eco-node" style="top:78%;left:22%"><div class="chip" style="animation-delay:1.5s">&#9877;&#65039;</div><div class="lbl">SNGPC</div></div>
+          <div class="eco-node" style="top:50%;left:11%"><div class="chip" style="animation-delay:1.8s">&#128757;</div><div class="lbl">Delivery</div></div>
+          <div class="eco-node" style="top:22%;left:22%"><div class="chip" style="animation-delay:2.1s">&#128196;</div><div class="lbl">NF-e</div></div>
+        </div>
       </div>
     </div>
   </div>
