@@ -241,7 +241,9 @@ export default function RadarComercialPage() {
               Radar Comercial
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              Inteligência comercial — leads, vendedores, origens e campanhas
+              {isGestor
+                ? 'Inteligência comercial — leads, vendedores, origens e campanhas'
+                : 'Seus leads e atividades — o que precisa de ação agora'}
             </p>
           </div>
           <button
