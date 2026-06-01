@@ -1226,16 +1226,21 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   // ── FERRAMENTAS (biblioteca comercial) ──────────────────
   const isFarmaSegment = planFamily.familia === 'FARMA';
   const TOOLS = [
-    { icon:'&#128202;',          nome:'Dashboard Gerencial',          desc:'Vendas, ticket médio, formas de pagamento e metas em tempo real para decidir com clareza.' },
-    { icon:'&#128241;',          nome:'Avisos via WhatsApp',          desc:'Automatize avisos, lembretes e notificações, dando mais agilidade ao atendimento ao cliente.' },
-    { icon:'&#128201;',          nome:'Indicador de Perda de Vendas', desc:'Registre o motivo de cada venda não concluída e aja para recuperar vendas perdidas.' },
-    { icon:'&#128197;',          nome:'Vendas Semestrais',            desc:'Analise a saída dos produtos nos últimos 6 meses e planeje a reposição pelo histórico real.' },
-    { icon:'&#128230;',          nome:'Estoque Mínimo e Máximo',      desc:'Cálculo automático das quantidades ideais — menos ruptura e menos capital parado.' },
-    { icon:'&#128722;',          nome:'Sugestão de Compras',          desc:'Reposição inteligente por estoque, média de vendas e curva ABC XYZ.' },
-    { icon:'&#127991;&#65039;',  nome:'Análise de Descontos',         desc:'Veja o impacto dos descontos na margem e proteja a rentabilidade da loja.' },
-    { icon:'&#9201;&#65039;',    nome:'Registro de Ponto',            desc:'Controle de entrada, saída e jornada da equipe, integrado à rotina do caixa.' },
-    { icon:'&#127919;',          nome:'Metas de Funcionários',        desc:'Defina metas por colaborador e acompanhe o desempenho para estimular a produtividade.' },
-    { icon:'&#129658;',          nome:'Atenção Farmacêutica',         desc:'Registre atendimentos, histórico do paciente e procedimentos com mais profissionalismo.', farma:true },
+    { icon:'&#128202;',          nome:'Dashboard Gerencial',          desc:'Vendas, estoque e atendimentos em tempo real numa só tela — decisões rápidas, sem depender de relatórios manuais.' },
+    { icon:'&#128201;',          nome:'Indicador de Perda de Vendas', desc:'Descubra por que vendas não se concretizam e aja para recuperar a receita que hoje escapa do caixa.' },
+    { icon:'&#127991;&#65039;',  nome:'Análise de Descontos',         desc:'Desconto médio e rentabilidade por produto, grupo e subgrupo — proteja a sua margem de lucro.' },
+    { icon:'&#128200;',          nome:'Rentabilidade do Negócio',     desc:'Saiba o lucro real sobre o investimento e enxergue onde a operação realmente ganha dinheiro.' },
+    { icon:'&#128722;',          nome:'Sugestão de Compras',          desc:'Pedidos de compra automáticos para o enorme mix da farmácia — compre certo, sem ruptura nem esquecimento.' },
+    { icon:'&#128230;',          nome:'Estoque Mínimo e Máximo',      desc:'Quantidades ideais calculadas pelo histórico de vendas: menos falta de produto e menos capital parado.' },
+    { icon:'&#128290;',          nome:'Curva ABC XYZ',                desc:'Classifique o estoque por importância e foque energia no que realmente gira e lucra.' },
+    { icon:'&#9851;&#65039;',    nome:'Produtos sem Giro e Excesso',  desc:'Identifique itens parados e compras em excesso antes de virarem vencimento e prejuízo.' },
+    { icon:'&#128197;',          nome:'Vendas Semestrais',            desc:'Analise os últimos 6 meses por produto, grupo e fabricante para planejar compras com segurança.' },
+    { icon:'&#128241;',          nome:'Avisos via WhatsApp',          desc:'Relatórios e avisos automáticos pelo WhatsApp — gestor e equipe sempre informados, sem esforço.' },
+    { icon:'&#127919;',          nome:'Metas de Funcionários',        desc:'Metas por colaborador acompanhadas em tempo real — mais produtividade e foco no resultado.' },
+    { icon:'&#128179;',          nome:'Cartão Fidelidade / Fidelimax',desc:'Fidelize com pontos e marketing automatizado: o cliente compra mais e volta mais vezes.' },
+    { icon:'&#128138;',          nome:'Uso Contínuo Ativo',           desc:'Gerencie clientes de medicação contínua e faça um pós-venda recorrente que aumenta o tíquete.', farma:true },
+    { icon:'&#129658;',          nome:'Atenção Farmacêutica',         desc:'Registre o atendimento farmacêutico e o histórico do paciente com mais profissionalismo e segurança.', farma:true },
+    { icon:'&#129534;',          nome:'Inteligência Tributária',      desc:'Revisão tributária (Avant / Imendes) que pode reduzir os impostos da sua farmácia.', farma:true },
   ];
   const EXTRA_TOOLS = [
     'Cadastro de produtos','Precificação','Curva ABC XYZ','Contagem de estoque','Produtos sem giro','Estoque em excesso',
