@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { scopeUserId, requireGestor } from '@/lib/scope';
 
 const CreateMetaSchema = z.object({
   titulo: z.string().min(1),
@@ -31,8 +32,11 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
 
     const where: any = {};
     if (periodo) where.periodo = periodo;
-    if (responsavel_id) where.responsavel_id = responsavel_id;
     if (tipo) where.tipo = tipo;
+    // Escopo: vendedor só vê a própria meta; gestor vê todas (ou filtra por responsavel_id).
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null) where.responsavel_id = scopeId;
+    else if (responsavel_id) where.responsavel_id = responsavel_id;
 
     const metas = await prisma.meta.findMany({
       where,
@@ -80,6 +84,7 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
 
   // Ranking — vendedores com mais contratos/leads ganhos no período
   fastify.get('/metas/ranking', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // ranking só p/ supervisão
     const query = z.object({
       periodo: z.string().optional()
     }).safeParse(request.query);

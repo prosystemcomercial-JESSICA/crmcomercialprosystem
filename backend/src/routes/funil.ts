@@ -153,9 +153,10 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     return !!(user && GESTORES.some(r => user.role?.includes(r)));
   };
 
+  // Restrito ao próprio dado = qualquer um que NÃO seja gestor (vendedor e demais).
+  // fail-closed: sem usuário também é tratado como restrito (não vaza o funil de todos).
   const isVendedor = (request: any): boolean => {
-    const user = (request as any).user;
-    return user?.role === 'VENDEDOR';
+    return !checkGestor(request);
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -247,8 +248,9 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     const etapas = await getEtapas();
 
     // Lead filter: vendedor vê só os próprios; supervisão e CEO veem tudo
+    // fail-closed: restrito sem id cai em '__no_user__' (não vaza)
     const where: any = {};
-    if (vendedor && user?.id) where.responsavel_id = user.id;
+    if (vendedor) where.responsavel_id = user?.id || '__no_user__';
 
     const leads = await prisma.lead.findMany({
       where,
@@ -339,7 +341,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     const user = (request as any).user;
     const vendedor = isVendedor(request);
 
-    const where = vendedor && user?.id ? `WHERE vendedor_id = '${user.id.replace(/'/g, "''")}'` : '';
+    const where = vendedor ? `WHERE vendedor_id = '${(user?.id || '__no_user__').replace(/'/g, "''")}'` : '';
     const perdas: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM LeadPerda ${where} ORDER BY created_at DESC LIMIT 500`);
 
     // Agregações
@@ -365,7 +367,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const baseFilter: any = {};
-    if (vendedor && user?.id) baseFilter.responsavel_id = user.id;
+    if (vendedor) baseFilter.responsavel_id = user?.id || '__no_user__';
 
     // Pipeline ativo: etapas ANDAMENTO
     const etapasAndamento: any[] = await prisma.$queryRawUnsafe(
@@ -438,9 +440,10 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
   // METAS — CRUD
   // ═══════════════════════════════════════════════════════════
   fastify.get('/funil/metas', async (request, reply) => {
-    if (!checkGestor(request) && !isVendedor(request)) return reply.status(403).send({ status: 'error', message: 'Sem permissão' });
     const user = (request as any).user;
-    const where = isVendedor(request) ? `WHERE vendedor_id = '${user.id.replace(/'/g, "''")}'` : '';
+    if (!user) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    // Gestor vê metas de todos; vendedor só as próprias.
+    const where = checkGestor(request) ? '' : `WHERE vendedor_id = '${(user.id || '__no_user__').replace(/'/g, "''")}'`;
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM MetaVendedor ${where} ORDER BY ano DESC, mes DESC, trimestre DESC`);
     return reply.send({ status: 'success', data: rows });
   });

@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { enviarEmailProposta } from '@/services/email.service';
+import { ownerWhere, scopeUserId } from '@/lib/scope';
+import { gerarIdPropostaUnico } from '@/lib/ids';
 
 const PropostaSchema = z.object({
   razao_social:         z.string().min(1),
@@ -92,7 +94,9 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       limit:    z.coerce.number().default(20),
     }).safeParse(request.query);
 
-    const where: any = {};
+    // Escopo: vendedor só vê as próprias propostas; gestor vê todas.
+    const esc = ownerWhere(request, 'PropostaComercial');
+    const where: any = { ...esc };
     if (query.data?.status) where.status = query.data.status;
     if (query.data?.vendedor) where.vendedor_nome = { contains: query.data.vendedor, mode: 'insensitive' };
 
@@ -108,13 +112,13 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     ]);
 
     const stats = {
-      total:           await prisma.propostaComercial.count(),
-      rascunho:        await prisma.propostaComercial.count({ where: { status: 'RASCUNHO' } }),
-      enviada:         await prisma.propostaComercial.count({ where: { status: 'ENVIADA' } }),
-      aceita:          await prisma.propostaComercial.count({ where: { status: 'ACEITA' } }),
-      em_negociacao:   await prisma.propostaComercial.count({ where: { status: 'EM_NEGOCIACAO' } }),
+      total:           await prisma.propostaComercial.count({ where: { ...esc } }),
+      rascunho:        await prisma.propostaComercial.count({ where: { status: 'RASCUNHO', ...esc } }),
+      enviada:         await prisma.propostaComercial.count({ where: { status: 'ENVIADA', ...esc } }),
+      aceita:          await prisma.propostaComercial.count({ where: { status: 'ACEITA', ...esc } }),
+      em_negociacao:   await prisma.propostaComercial.count({ where: { status: 'EM_NEGOCIACAO', ...esc } }),
       contrato_ativo:  await prisma.propostaComercial.count({
-        where: { status: { in: ['CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'] } }
+        where: { status: { in: ['CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'] }, ...esc }
       }),
     };
 
@@ -173,8 +177,12 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
 
     const public_token = crypto.randomBytes(12).toString('hex');
 
+    // ID rastreável: 3 primeiros do id do vendedor + CNPJ do cliente (contrato herda).
+    const propostaId = await gerarIdPropostaUnico(prisma, data.vendedor_id || user?.id, data.cnpj);
+
     const proposta = await prisma.propostaComercial.create({
       data: {
+        id:                  propostaId,
         ...data,
         validade: data.validade ? new Date(data.validade) : undefined,
         modulos_inclusos:    data.modulos_inclusos || [],
@@ -456,8 +464,12 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     }).safeParse(request.query);
 
     const where: any = {};
-    if (query.data?.vendedor_id) where.vendedor_id = query.data.vendedor_id;
     if (query.data?.status) where.status = query.data.status;
+    // Escopo de comissões: gestor vê de todos (ou filtra por vendedor_id na query);
+    // vendedor só vê as próprias, ignorando vendedor_id de outra pessoa.
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null) where.vendedor_id = scopeId;
+    else if (query.data?.vendedor_id) where.vendedor_id = query.data.vendedor_id;
 
     const propostas = await prisma.propostaComercial.findMany({
       where,

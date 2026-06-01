@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { ownerWhere } from '@/lib/scope';
 
 export async function complementosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -84,10 +85,14 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     const trintaAtras = new Date(now);
     trintaAtras.setDate(trintaAtras.getDate() - 30);
 
+    // Cada alerta é escopado ao dono: vendedor vê só os seus; gestor vê todos.
+    const escAtiv = ownerWhere(request, 'Atividade');
+    const escLead = ownerWhere(request, 'Lead');
+    const escProp = ownerWhere(request, 'Proposta');
     const [atrasadas, vencem_hoje, sem_atividade, propostas_expiram] = await Promise.all([
       // Atividades atrasadas (vencidas e ainda pendentes)
       prisma.atividade.findMany({
-        where: { status: 'PENDENTE', data_prevista: { lt: now } },
+        where: { status: 'PENDENTE', data_prevista: { lt: now }, ...escAtiv },
         include: { lead: { select: { id: true, nome: true, empresa: true } } },
         orderBy: { data_prevista: 'asc' },
         take: 20
@@ -99,7 +104,8 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
           data_prevista: {
             gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
             lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
-          }
+          },
+          ...escAtiv
         },
         include: { lead: { select: { id: true, nome: true, empresa: true } } },
         take: 20
@@ -108,7 +114,8 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       prisma.lead.findMany({
         where: {
           status: { notIn: ['GANHO', 'PERDIDO'] },
-          updated_at: { lt: seteAtras }
+          updated_at: { lt: seteAtras },
+          ...escLead
         },
         orderBy: { updated_at: 'asc' },
         take: 15
@@ -117,7 +124,8 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       prisma.proposta.findMany({
         where: {
           status: { in: ['ENVIADA', 'VISUALIZADA'] },
-          validade: { gt: now, lt: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) }
+          validade: { gt: now, lt: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) },
+          ...escProp
         },
         include: { lead: { select: { id: true, nome: true, empresa: true } } },
         take: 10
@@ -237,7 +245,9 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     const leads = await prisma.lead.findMany({
       where: {
         status: { notIn: ['GANHO', 'PERDIDO', 'NUTRICAO'] },
-        valor_estimado: { gt: 0 }
+        valor_estimado: { gt: 0 },
+        // Previsão é sobre a meta/pipeline do PRÓPRIO vendedor; gestor vê tudo.
+        ...ownerWhere(request, 'Lead')
       },
       orderBy: { probabilidade: 'desc' }
     });
@@ -279,6 +289,16 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         status: l.status
       }));
 
+    // Meta do próprio vendedor (definida pela supervisão) — período atual
+    const agora = new Date();
+    const periodoAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+    const metasReceita = await prisma.meta.findMany({
+      where: { tipo: 'RECEITA', periodo: periodoAtual, ...ownerWhere(request, 'Meta') },
+    });
+    const metaValor  = metasReceita.reduce((s, m) => s + (m.valor_alvo || 0), 0);
+    const metaAtual  = metasReceita.reduce((s, m) => s + (m.valor_atual || 0), 0);
+    const metaPctEvolucao = metaValor > 0 ? Math.round((metaAtual / metaValor) * 100) : 0;
+
     return reply.send({
       status: 'success',
       data: {
@@ -290,7 +310,15 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         total_oportunidades: previsao.total_oportunidades,
         valor_total_pipeline: Math.round(previsao.valor_total_pipeline),
         top_oportunidades: top,
-        periodo_dias: dias
+        periodo_dias: dias,
+        // Meta do vendedor + evolução (para a previsão focar na meta própria)
+        meta: {
+          periodo: periodoAtual,
+          valor_alvo: Math.round(metaValor),
+          valor_atual: Math.round(metaAtual),
+          pct_evolucao: metaPctEvolucao,
+          falta_para_meta: Math.max(0, Math.round(metaValor - metaAtual)),
+        }
       }
     });
   });

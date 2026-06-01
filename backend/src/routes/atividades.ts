@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { enviarEmailConfirmacaoAgendamento } from '../services/email.service';
+import { ownerWhere } from '@/lib/scope';
 
 const STATUS = ['PENDENTE', 'CONFIRMADA', 'REALIZADA', 'CANCELADA', 'REMARCADA', 'CLIENTE_NAO_COMPARECEU', 'AGUARDANDO_RETORNO'] as const;
 const TIPOS = ['LIGACAO', 'EMAIL', 'REUNIAO', 'WHATSAPP', 'VISITA', 'TAREFA', 'OUTRO'] as const;
@@ -81,8 +82,10 @@ const RelatorioSchema = z.object({
 export async function atividadesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // Gestores enxergam a agenda de todos; demais (vendedor/técnico N1) só a própria.
+  // IMPORTANTE: fail-closed — sem usuário autenticado NÃO é admin (não vaza tudo).
   const ADMIN_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'GERENTE', 'DIRETOR'];
-  const isAdmin = (user: any) => !user || ADMIN_ROLES.includes(user?.role?.toUpperCase());
+  const isAdmin = (user: any) => !!user && ADMIN_ROLES.includes((user?.role || '').toUpperCase());
 
   // List all atividades
   fastify.get('/atividades', async (request, reply) => {
@@ -540,6 +543,8 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     if (query.data.status) where.status = query.data.status;
     if (query.data.tipo) where.tipo = query.data.tipo;
     if (query.data.lead_id) where.lead_id = query.data.lead_id;
+    // Vendedor só vê o próprio relatório; gestor vê tudo.
+    Object.assign(where, ownerWhere(request, 'Atividade'));
 
     const [atividades, totalPorStatus, totalPorTipo] = await Promise.all([
       prisma.atividade.findMany({
@@ -583,7 +588,9 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     const atividades = await prisma.atividade.findMany({
       where: {
         status: { in: ['PENDENTE', 'CONFIRMADA'] },
-        data_prevista: { gte: today, lte: nextWeek }
+        data_prevista: { gte: today, lte: nextWeek },
+        // "Lidar apenas com a própria agenda": vendedor vê só a sua; gestor, todas.
+        ...ownerWhere(request, 'Atividade')
       },
       orderBy: { data_prevista: 'asc' },
       include: {

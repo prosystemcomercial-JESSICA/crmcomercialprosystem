@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 
 interface Previsao { otimista: number; realista: number; pessimista: number; }
+interface MetaInfo { periodo: string; valor_alvo: number; valor_atual: number; pct_evolucao: number; falta_para_meta: number; }
 interface TopOportunidade {
   id: string;
   nome: string;
@@ -27,6 +28,7 @@ export default function PrevisaoPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [previsao, setPrevisao] = useState<Previsao | null>(null);
+  const [meta, setMeta] = useState<MetaInfo | null>(null);
   const [top, setTop] = useState<TopOportunidade[]>([]);
   const [totalOps, setTotalOps] = useState(0);
   const [pipeline, setPipeline] = useState(0);
@@ -44,6 +46,7 @@ export default function PrevisaoPage() {
       .then(res => {
         const d = res.data.data;
         setPrevisao(d.previsao);
+        setMeta(d.meta || null);
         setTop(d.top_oportunidades);
         setTotalOps(d.total_oportunidades);
         setPipeline(d.valor_total_pipeline);
@@ -64,7 +67,7 @@ export default function PrevisaoPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Previsão de Fechamento</h1>
-            <p className="text-gray-500 mt-1">Estimativa de receita baseada no pipeline atual</p>
+            <p className="text-gray-500 mt-1">Sua meta do período e a estimativa de receita do seu pipeline</p>
           </div>
           <div className="flex gap-2">
             {[15, 30, 60, 90].map(d => (
@@ -75,6 +78,25 @@ export default function PrevisaoPage() {
             ))}
           </div>
         </div>
+
+        {/* Meta do período (definida pela supervisão) + evolução */}
+        {meta && meta.valor_alvo > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900">Minha meta — {meta.periodo}</h2>
+              <span className="text-sm font-bold text-blue-700">{meta.pct_evolucao}% atingido</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-4 mb-3">
+              <div className={`h-4 rounded-full transition-all ${meta.pct_evolucao >= 100 ? 'bg-green-500' : meta.pct_evolucao >= 70 ? 'bg-yellow-500' : 'bg-blue-500'}`}
+                style={{ width: `${Math.min(100, meta.pct_evolucao)}%` }} />
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div><p className="text-gray-500">Meta</p><p className="font-bold text-gray-800">{fmt(meta.valor_alvo)}</p></div>
+              <div><p className="text-gray-500">Realizado</p><p className="font-bold text-green-700">{fmt(meta.valor_atual)}</p></div>
+              <div><p className="text-gray-500">Falta</p><p className="font-bold text-gray-800">{fmt(meta.falta_para_meta)}</p></div>
+            </div>
+          </div>
+        )}
 
         {dataLoading ? (
           <div className="text-center p-12 text-gray-500">Calculando previsão...</div>

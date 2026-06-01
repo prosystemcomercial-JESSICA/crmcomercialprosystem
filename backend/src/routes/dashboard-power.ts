@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import { podeVerTudo, getUser } from '@/lib/scope';
 
 // MySQL via $queryRawUnsafe devolve BigInt em COUNT/SUM.
 // Helper que converte com segurança em number para aritmética.
@@ -18,6 +19,11 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
 
   fastify.get('/dashboard/power', async (request, reply) => {
     try {
+    // Painel executivo (MRR, contratos, renovações, projeções) — só gestão comercial.
+    // O vendedor não acessa: é "dado apenas para supervisão".
+    if (!podeVerTudo(getUser(request))) {
+      return reply.status(403).send({ status: 'error', message: 'Painel executivo restrito a Supervisão e CEO' });
+    }
     const now = new Date();
     const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
     const inicioMesAnterior = new Date(now.getFullYear(), now.getMonth() - 1, 1);

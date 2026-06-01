@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, useRequireGestorRedirect } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
@@ -33,6 +33,7 @@ function periodoAtual() {
 export default function RankingPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  const { blocked } = useRequireGestorRedirect();  // ranking só p/ supervisão
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [periodo, setPeriodo] = useState(periodoAtual());
   const [dataLoading, setDataLoading] = useState(true);
@@ -58,7 +59,7 @@ export default function RankingPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  if (loading || !isAuthenticated) {
+  if (loading || !isAuthenticated || blocked) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>;
   }
 
