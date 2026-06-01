@@ -136,6 +136,44 @@ const fmtDateTime = (s?: string | null) => s
 const fmtBRL = (v?: number | null) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+// ── Trilha / auditoria ────────────────────────────────────────────────────────
+const ETAPA_TRILHA_LABEL: Record<string, string> = {
+  PROSPECCAO: 'Prospecção', QUALIFICACAO: 'Qualificação', APRESENTACAO: 'Apresentação',
+  PROPOSTA: 'Proposta', NEGOCIACAO: 'Negociação', FECHAMENTO: 'Fechamento',
+};
+
+type TrilhaItem = { data: string; titulo: string; descricao?: string; ator?: string | null; cor: string };
+
+// Junta LeadHistorico (etapas + alterações de dados + atribuição) e observações
+// numa única linha do tempo ordenada (mais recente no topo).
+function buildTrilhaItens(trilha: any): TrilhaItem[] {
+  const itens: TrilhaItem[] = [];
+  const corAcao: Record<string, string> = {
+    MOVEU_ETAPA: '#417ABC', FECHOU_VENDA: '#16a34a', MARCOU_PERDIDO: '#dc2626',
+    ALTEROU_DADOS: '#7c3aed', ATRIBUIU: '#00BFD1',
+  };
+  for (const h of (trilha?.trilha || [])) {
+    let titulo = h.acao || 'Evento';
+    let descricao: string | undefined;
+    if (h.acao === 'MOVEU_ETAPA') { titulo = 'Mudou de etapa'; descricao = `${ETAPA_TRILHA_LABEL[h.etapa_anterior] || h.etapa_anterior || '—'} → ${ETAPA_TRILHA_LABEL[h.etapa_destino] || h.etapa_destino || '—'}`; }
+    else if (h.acao === 'FECHOU_VENDA') { titulo = '✅ Venda fechada'; descricao = `Etapa: ${ETAPA_TRILHA_LABEL[h.etapa_destino] || h.etapa_destino}`; }
+    else if (h.acao === 'MARCOU_PERDIDO') { titulo = '❌ Marcado como perdido'; }
+    else if (h.acao === 'ALTEROU_DADOS') {
+      titulo = 'Dados alterados';
+      try {
+        const d = typeof h.detalhes === 'string' ? JSON.parse(h.detalhes) : h.detalhes;
+        descricao = (d?.mudancas || []).map((m: any) => `${m.label}: ${m.de} → ${m.para}`).join(' · ');
+      } catch {}
+    }
+    itens.push({ data: h.created_at, titulo, descricao, ator: h.ator_nome, cor: corAcao[h.acao] || '#6b7280' });
+  }
+  for (const o of (trilha?.observacoes || [])) {
+    if (o.tipo === 'SISTEMA' && (o.coluna_nova || o.temperatura_nova)) continue; // já coberto pela trilha de etapas
+    itens.push({ data: o.created_at, titulo: o.tipo || 'Observação', descricao: o.descricao, ator: o.created_by_name, cor: '#0891b2' });
+  }
+  return itens.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+}
+
 // ── Proposta form data ────────────────────────────────────────────────────────
 
 const MODULOS_PROP = [
@@ -354,7 +392,10 @@ export default function LeadsPage() {
 
   // Detail panel
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [detailTab, setDetailTab] = useState<'dados'|'atendimento'|'proposta'|'arquivos'>('dados');
+  const [detailTab, setDetailTab] = useState<'dados'|'atendimento'|'proposta'|'arquivos'|'trilha'>('dados');
+  // Trilha / auditoria do lead (só supervisão)
+  const [trilha, setTrilha] = useState<any | null>(null);
+  const [trilhaLoading, setTrilhaLoading] = useState(false);
   const [editForm, setEditForm]   = useState<any>({});
   const [savingLead, setSavingLead] = useState(false);
 
@@ -637,6 +678,18 @@ export default function LeadsPage() {
 
   useEffect(() => {
     if (detailTab === 'proposta' && selectedLead) initPropostaForm(selectedLead);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailTab, selectedLead?.id]);
+
+  // Carrega a trilha/auditoria ao abrir a aba (só supervisão)
+  useEffect(() => {
+    if (detailTab === 'trilha' && selectedLead && isGestor) {
+      setTrilha(null); setTrilhaLoading(true);
+      apiClient.getLeadAuditoria(selectedLead.id)
+        .then(r => setTrilha(r.data.data))
+        .catch(() => setTrilha(null))
+        .finally(() => setTrilhaLoading(false));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailTab, selectedLead?.id]);
 
@@ -1030,6 +1083,8 @@ export default function LeadsPage() {
                   { key: 'atendimento', label: 'Atendimento',  icon: MessageSquare },
                   { key: 'proposta',    label: 'Proposta',     icon: FileText },
                   { key: 'arquivos',    label: 'Arquivos',     icon: Paperclip },
+                  // Trilha de auditoria — só para a supervisão
+                  ...(isGestor ? [{ key: 'trilha', label: 'Trilha / Auditoria', icon: Clock }] : []),
                 ] as any[]).map(({ key, label, icon: Icon }) => (
                   <button key={key} onClick={() => setDetailTab(key)}
                     className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2"
@@ -1485,6 +1540,68 @@ export default function LeadsPage() {
                     <p className="text-sm font-semibold mb-1">Nenhum arquivo anexado</p>
                     <p className="text-xs">Funcionalidade de upload em breve.</p>
                   </div>
+                )}
+
+                {/* Trilha / Auditoria — só supervisão */}
+                {detailTab === 'trilha' && isGestor && (
+                  trilhaLoading ? (
+                    <div className="text-center py-12 text-sm" style={{ color: '#7AAACB' }}>Carregando trilha...</div>
+                  ) : !trilha ? (
+                    <div className="text-center py-12 text-sm" style={{ color: '#7AAACB' }}>Sem trilha disponível.</div>
+                  ) : (
+                    <div className="space-y-5">
+                      {/* Resumo do ciclo */}
+                      {trilha.ciclo && (
+                        <div className="rounded-xl border p-4" style={{ borderColor: '#D8E8F5', background: '#F8FBFF' }}>
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#4B8EC8' }}>Ciclo do lead</p>
+                            <span className="text-xs font-bold" style={{ color: trilha.ciclo.em_aberto ? '#ea580c' : '#16a34a' }}>
+                              {trilha.ciclo.assinado_em ? `Assinado em ${fmtDateTime(trilha.ciclo.assinado_em)}` : 'Em aberto'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3 text-center mb-3">
+                            <div><p className="text-[10px] text-gray-500">Entrada</p><p className="text-xs font-semibold text-gray-800">{trilha.ciclo.criado_em ? fmtDateTime(trilha.ciclo.criado_em) : '—'}</p></div>
+                            <div><p className="text-[10px] text-gray-500">Ciclo total</p><p className="text-lg font-extrabold" style={{ color: '#417ABC' }}>{trilha.ciclo.ciclo_dias ?? '—'} <span className="text-xs font-medium">dias</span></p></div>
+                            <div><p className="text-[10px] text-gray-500">Etapas</p><p className="text-xs font-semibold text-gray-800">{trilha.ciclo.etapas?.length || 0}</p></div>
+                          </div>
+                          <div className="space-y-1.5">
+                            {(trilha.ciclo.etapas || []).map((e: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between text-xs">
+                                <span className="text-gray-700">{ETAPA_TRILHA_LABEL[e.etapa] || e.etapa}</span>
+                                <span className="font-semibold" style={{ color: '#0D2238' }}>{e.dias} dias{e.saiu_em ? '' : ' (atual)'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Linha do tempo completa (auditoria) */}
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#4B8EC8' }}>Linha do tempo (auditoria completa)</p>
+                        <div className="space-y-3">
+                          {buildTrilhaItens(trilha).map((it, i) => (
+                            <div key={i} className="flex gap-3">
+                              <div className="flex flex-col items-center">
+                                <span className="w-2.5 h-2.5 rounded-full mt-1.5" style={{ background: it.cor }} />
+                                {i < buildTrilhaItens(trilha).length - 1 && <span className="flex-1 w-px" style={{ background: '#E3E9F0' }} />}
+                              </div>
+                              <div className="flex-1 pb-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-xs font-semibold text-gray-800">{it.titulo}</p>
+                                  <span className="text-[10px] text-gray-400 shrink-0">{fmtDateTime(it.data)}</span>
+                                </div>
+                                {it.descricao && <p className="text-[11px] text-gray-500 mt-0.5">{it.descricao}</p>}
+                                {it.ator && <p className="text-[10px] text-gray-400 mt-0.5">por {it.ator}</p>}
+                              </div>
+                            </div>
+                          ))}
+                          {buildTrilhaItens(trilha).length === 0 && (
+                            <p className="text-xs text-gray-400">Sem eventos registrados ainda.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             </div>
