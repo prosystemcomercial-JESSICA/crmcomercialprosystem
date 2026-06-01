@@ -190,7 +190,7 @@ export default function RadarComercialPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push('/login');
+    if (!authLoading && !user) router.push('/');  // login fica na raiz, não existe /login
   }, [user, authLoading, router]);
 
   useEffect(() => {
