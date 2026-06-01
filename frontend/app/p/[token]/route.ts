@@ -1179,35 +1179,48 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 
   const planFamily = getPlanFamily(proposalData.segment, proposalData.selectedPlan);
 
-  // ── FALLBACK COMPARISON TABLE ────────────────────────────
+  // ── MATRIZ OFICIAL DE PLANOS (Prosystem 2025) ────────────
+  // Loja (varejo geral / padaria) — Basic / Pro / Plus
   const LOJA_ROWS = [
-    { feature: 'PDV / Frente de Caixa',             basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Gestão de Estoque',                 basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Gestão de Compras',                 basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Cadastro de Produtos e Clientes',   basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Nota Fiscal Eletrônica (NF-e/NFC-e)', basic: 'Sim', pro: 'Sim',           plus: 'Sim' },
-    { feature: 'SPED Fiscal',                       basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Controle Financeiro',               basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Contas a Pagar/Receber e Caixa',    basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Auditoria e Controle de Acessos',   basic: 'Básico',pro: 'Intermediário', plus: 'Avançado' },
-    { feature: 'Dashboard Gerencial',               basic: 'Não',   pro: 'Não',           plus: 'Sim' },
-    { feature: 'Análise de Rentabilidade',          basic: 'Não',   pro: 'Não',           plus: 'Sim' },
-    { feature: 'Indicador de Perda de Vendas',      basic: 'Não',   pro: 'Não',           plus: 'Sim' },
-    { feature: 'Relatórios e Análises Gerenciais',  basic: 'Básico',pro: 'Intermediário', plus: 'Avançado' },
-    { feature: 'Entregas em Domicílio',             basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Controle de Encomendas',            basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Suporte Ativo 7h-22h',              basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'Treinamento 5 meses',               basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
+    { feature: 'Frente de Caixa (PDV)',          basic: 'Sim', pro: 'Sim', plus: 'Sim' },
+    { feature: 'NF-e / NFC-e',                   basic: 'Sim', pro: 'Sim', plus: 'Sim' },
+    { feature: 'ECF / Fiscal',                   basic: 'Sim', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Entregas em Domicílio',          basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Conferência Cega',               basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Pesquisa Analítica',             basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Financeiro Completo',            basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Transporte',                     basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Integrações Extras',             basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Atendimento de Plantão',         basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Banco',                          basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Fluxo de Caixa',                 basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Boletos',                        basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Extintor',                       basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Dashboard Gerencial',            basic: 'Não', pro: 'Não', plus: 'Sim' },
   ];
-  const FARMA_EXTRA = [
-    { feature: 'SNGPC (Medicamentos Controlados)',  basic: 'Sim',   pro: 'Sim',           plus: 'Sim' },
-    { feature: 'PBM - Programas de Benefícios',     basic: 'Não',   pro: 'Sim',           plus: 'Sim' },
+  // Farmácia — Basic / Pro / Plus
+  const FARMA_ROWS = [
+    { feature: 'Frente de Caixa (PDV)',          basic: 'Sim', pro: 'Sim', plus: 'Sim' },
+    { feature: 'NF-e / NFC-e',                   basic: 'Sim', pro: 'Sim', plus: 'Sim' },
+    { feature: 'ECF / Fiscal',                   basic: 'Sim', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Cadastros Farmacêuticos',        basic: 'Sim', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Entregas em Domicílio',          basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Conferência Cega',               basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Pesquisa Analítica',             basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Financeiro Completo',            basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'PBM (e-Pharma, Vidalink)',       basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Transporte',                     basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Integrações Extras',             basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Atendimento de Plantão',         basic: 'Não', pro: 'Sim', plus: 'Sim' },
+    { feature: 'Banco',                          basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Fluxo de Caixa',                 basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Boletos',                        basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Dashboard Gerencial',            basic: 'Não', pro: 'Não', plus: 'Sim' },
+    { feature: 'Manipulação',                    basic: 'Não', pro: 'Não', plus: 'Sim' },
   ];
 
   function getComparisonRows() {
-    const base = LOJA_ROWS;
-    if (planFamily.familia === 'FARMA') return [...base, ...FARMA_EXTRA];
-    return base;
+    return planFamily.familia === 'FARMA' ? FARMA_ROWS : LOJA_ROWS;
   }
 
   // ── FERRAMENTAS (biblioteca comercial) ──────────────────
@@ -1315,18 +1328,30 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         '<div style="text-align:right;"><div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:' + BLUE + ';">Sua proposta em detalhes</div>' +
         '<div style="font-size:11px;color:' + MUT + ';">' + (p.companyName || '') + '</div></div></div>';
 
-    // Comparativo compacto de planos
-    const cmp = [
-      ['PDV, Estoque, Compras e Fiscal', 1, 1, 1],
-      ['Controle Financeiro', 0, 1, 1],
-      ['Dashboard Gerencial', 0, 0, 1],
-      ['Análise de Rentabilidade', 0, 0, 1],
-      ['Indicador de Perda de Vendas', 0, 0, 1],
-      ['Sugestão de Compras + Estoque Mín/Máx', 0, 1, 1],
-      ['Metas, Avisos WhatsApp e Ponto', 0, 1, 1],
-      ['Suporte 7h–22h + Treinamento 5 meses', 1, 1, 1],
-    ];
-    if (isFarmaSegment) cmp.push(['SNGPC, PBM e Atenção Farmacêutica', 1, 1, 1]);
+    // Comparativo compacto = matriz oficial (curada para caber em 1 página)
+    const cmp = isFarmaSegment
+      ? [
+          ['Frente de Caixa (PDV) e NF-e', 1, 1, 1],
+          ['Entregas em Domicílio', 0, 1, 1],
+          ['Financeiro Completo', 0, 1, 1],
+          ['PBM (e-Pharma, Vidalink)', 0, 1, 1],
+          ['Conferência Cega', 0, 1, 1],
+          ['Atendimento de Plantão', 0, 1, 1],
+          ['Banco, Fluxo de Caixa e Boletos', 0, 0, 1],
+          ['Dashboard Gerencial', 0, 0, 1],
+          ['Manipulação', 0, 0, 1],
+        ]
+      : [
+          ['Frente de Caixa (PDV) e NF-e', 1, 1, 1],
+          ['Entregas em Domicílio', 0, 1, 1],
+          ['Financeiro Completo', 0, 1, 1],
+          ['Conferência Cega e Pesquisa Analítica', 0, 1, 1],
+          ['Transporte e Integrações', 0, 1, 1],
+          ['Atendimento de Plantão', 0, 1, 1],
+          ['Banco, Fluxo de Caixa e Boletos', 0, 0, 1],
+          ['Dashboard Gerencial', 0, 0, 1],
+          ['Extintor', 0, 0, 1],
+        ];
     const mark = function(v, plus) {
       const inner = v ? '<span style="color:' + GR + ';font-weight:800;">&#10003;</span>' : '<span style="color:' + MUT + ';">&ndash;</span>';
       return '<td style="text-align:center;padding:6px 6px;border-bottom:1px solid ' + BD + ';font-size:11px;' + (plus ? 'background:rgba(var(--accent-rgb),0.09);' : '') + '">' + inner + '</td>';
@@ -1360,7 +1385,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     };
 
     // Bloco de planos: comparativo (Basic/Pro/Plus) ou plano único MEI
-    const MEI_FEATS = ['PDV / Frente de Caixa ágil', 'Controle de estoque essencial', 'Emissão fiscal (NFC-e / SAT)', 'Cadastro de produtos e clientes', 'Relatórios básicos de vendas', 'Suporte ativo das 7h às 22h', 'Treinamento e implantação assistida'];
+    const MEI_FEATS = ['Frente de Caixa (PDV)', 'Cadastros básicos de produtos e clientes', 'Contas a receber', 'Controle simples da operação', 'Suporte e treinamento Prosystem'];
     const meiList =
       '<div style="border:1px solid ' + CYAN + ';border-radius:12px;padding:14px 16px;background:rgba(var(--accent-rgb),0.06);margin:6px 0 16px;">' +
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:15px;font-weight:900;color:' + INK + ';">Plano MEI</span><span style="font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;background:rgba(var(--accent-rgb),0.16);color:' + INK + ';padding:3px 9px;border-radius:999px;">Plano único</span></div>' +
@@ -1527,13 +1552,11 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     // ── MEI: plano ÚNICO (pequena empresa do varejo) — sem comparativo ──
     if (planFamily.familia === 'MEI') {
       const meiFeatures = [
-        'PDV / Frente de Caixa ágil',
-        'Controle de estoque essencial',
-        'Emissão fiscal (NFC-e / SAT)',
-        'Cadastro de produtos e clientes',
-        'Relatórios básicos de vendas',
-        'Suporte ativo das 7h às 22h',
-        'Treinamento e implantação assistida',
+        'Frente de Caixa (PDV)',
+        'Cadastros básicos de produtos e clientes',
+        'Contas a receber',
+        'Controle simples da operação',
+        'Suporte e treinamento Prosystem',
       ];
       const titleEl = document.getElementById('s17-title');
       if (titleEl) titleEl.textContent = 'Plano MEI';
@@ -1556,21 +1579,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       return;
     }
 
-    // Prefer CRM data if available and meaningful, else use fallback
-    let sourceRows = [];
-    if (Array.isArray(proposalData.planComparison) && proposalData.planComparison.length > 2) {
-      sourceRows = proposalData.planComparison
-        .filter(r => r.feature !== 'Destaque recomendado')
-        .map(r => ({ feature: r.feature, basic: r.lite || r.basic || '', pro: r.pro || '', plus: r.plus || '' }));
-    } else {
-      sourceRows = getComparisonRows();
-    }
-
-    // Farmácia: garante as linhas específicas (SNGPC, PBM) mesmo usando a tabela do CRM
-    if (planFamily.familia === 'FARMA') {
-      const have = new Set(sourceRows.map(r => (r.feature || '').toLowerCase()));
-      FARMA_EXTRA.forEach(function(r) { if (!have.has(r.feature.toLowerCase())) sourceRows.push(r); });
-    }
+    // Comparativo = matriz oficial de planos (Prosystem 2025), por família
+    const sourceRows = getComparisonRows();
 
     const fmtCell = (v, isPlus) => {
       if (v === 'Sim')           return \`<span class="cell-yes">&#10003; Sim</span>\`;
@@ -1727,17 +1737,15 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       '',
       '--- DESTAQUES DO PLANO ---',
       ...(isMEI ? [
-        '• PDV / Frente de Caixa ágil',
-        '• Controle de estoque essencial',
-        '• Emissão fiscal (NFC-e / SAT)',
-        '• Relatórios básicos de vendas',
+        '• Frente de Caixa (PDV)',
+        '• Cadastros básicos de produtos e clientes',
+        '• Contas a receber e controle simples',
       ] : [
-        '• PDV, Estoque, Compras e Fiscal integrados',
-        '• Dashboard gerencial em tempo real',
-        '• Indicador de perda de vendas e análise de rentabilidade',
-        '• Sugestão de Compras + Estoque Mínimo e Máximo inteligentes',
-        '• Avisos via WhatsApp e Metas de Funcionários',
-        isFarmaSegment ? '• Atenção Farmacêutica, SNGPC, PBM e Farmácia Popular' : null,
+        '• Frente de Caixa, NF-e e gestão fiscal',
+        '• Financeiro Completo e Entregas em Domicílio',
+        '• Banco, Fluxo de Caixa, Boletos e Dashboard Gerencial',
+        '• Conferência cega, transporte e integrações extras',
+        isFarmaSegment ? '• PBM (e-Pharma, Vidalink) e Manipulação' : null,
       ]),
       '• Suporte ativo e humanizado das 7h às 22h',
       '• Treinamento de 5 meses incluso',
