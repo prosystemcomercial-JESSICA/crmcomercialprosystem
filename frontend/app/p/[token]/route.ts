@@ -351,22 +351,22 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     /* ── MODULE CONTENT LAYOUT ── */
     .mod-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; max-width: 1100px; width: 100%; }
     .mod-layout.full { grid-template-columns: 1fr; max-width: 800px; }
+    /* ── PAINEL VISUAL DO MÓDULO (sem screenshots — ícone + benefício) ── */
     .mod-img-wrap {
       border-radius: var(--radius-lg); overflow: hidden;
       border: 1px solid var(--border-accent);
-      box-shadow: var(--shadow-lg);
-      aspect-ratio: 16/10;
-      background: var(--bg-mid);
+      box-shadow: var(--shadow-glow);
+      aspect-ratio: 16/11;
+      background: linear-gradient(150deg, var(--bg-soft) 0%, rgba(var(--accent-rgb),0.10) 100%);
       display: flex; align-items: center; justify-content: center;
     }
-    .mod-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .mod-placeholder {
-      width: 100%; height: 100%;
-      background: linear-gradient(135deg, rgba(75,142,200,0.12), rgba(var(--accent-rgb),0.06));
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    .mod-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 26px; }
+    .mod-visual .mv-icon {
+      width: 92px; height: 92px; border-radius: 24px; background: #fff;
+      box-shadow: var(--shadow-lg); display: flex; align-items: center; justify-content: center; font-size: 44px;
     }
-    .mod-placeholder .ph-icon { font-size: 48px; opacity: 0.5; }
-    .mod-placeholder .ph-text { font-size: 13px; color: var(--text-secondary); font-weight: 600; letter-spacing: .06em; }
+    .mod-visual .mv-text { font-size: 15px; font-weight: 800; letter-spacing: .01em; color: var(--primary); }
+    .mod-visual .mv-sub { font-size: 12px; color: var(--text-secondary); max-width: 250px; line-height: 1.5; }
 
     /* ── PLAN TABLE ── */
     .plan-table { width: 100%; border-collapse: collapse; }
@@ -758,8 +758,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <img src="${imgSrc('hero', '/imagem-hero.png')}" alt="Gestão do Negócio" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#127978;</div><div class="ph-text">PDV &amp; Estoque</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#127978;</div><div class="mv-text">Operação integrada</div><div class="mv-sub">PDV, Estoque e Compras em um só sistema</div></div>
       </div>
     </div>
   </div>
@@ -767,7 +766,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-6" data-slide="6" data-module="1">
     <div class="mod-layout">
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">&#128187;</div><div class="ph-text">Tela PDV</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#128187;</div><div class="mv-text">Frente de caixa ágil</div><div class="mv-sub">NFC-e e SPED integrados, sem fila no caixa</div></div>
       </div>
       <div>
         <div class="eyebrow" style="color:#4B8EC8;">PDV &amp; Fiscal</div>
@@ -795,7 +794,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">&#128230;</div><div class="ph-text">Módulo Compras</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#128230;</div><div class="mv-text">Compras inteligentes</div><div class="mv-sub">Sugestão automática de reposição, sem ruptura</div></div>
       </div>
     </div>
   </div>
@@ -824,8 +823,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <img src="${imgSrc('relatorios', '/tela-relatorios.png')}" alt="Controle Financeiro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#128202;</div><div class="ph-text">Painel Financeiro</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#128202;</div><div class="mv-text">Financeiro &amp; Gerencial</div><div class="mv-sub">Contas, fluxo de caixa e indicadores no controle</div></div>
       </div>
     </div>
   </div>
@@ -833,8 +831,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-10" data-slide="10" data-module="2">
     <div class="mod-layout">
       <div class="mod-img-wrap">
-        <img src="${imgSrc('dashboard', '/tela-dashboard.png')}" alt="Dashboard" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#128200;</div><div class="ph-text">Dashboard Gerencial</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#128200;</div><div class="mv-text">Dashboard em tempo real</div><div class="mv-sub">O negócio inteiro em uma só tela</div></div>
       </div>
       <div>
         <div class="eyebrow" style="color:#27C97F;">Dashboard Gerencial</div>
@@ -863,7 +860,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">&#128185;</div><div class="ph-text">Análise de Rentabilidade</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#128185;</div><div class="mv-text">Rentabilidade por produto</div><div class="mv-sub">Margem real e perdas sob controle</div></div>
       </div>
     </div>
   </div>
@@ -895,8 +892,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <img src="${imgSrc('whatsapp', '/tela-whatsapp.png')}" alt="Suporte ProSystem" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="mod-placeholder" style="display:none"><div class="ph-icon">&#129309;</div><div class="ph-text">Canal de Suporte</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#129309;</div><div class="mv-text">Suporte humano 7h&ndash;22h</div><div class="mv-sub">Atendimento que resolve de verdade, sem robô</div></div>
       </div>
     </div>
   </div>
@@ -939,7 +935,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-placeholder"><div class="ph-icon">&#127891;</div><div class="ph-text">Programa de Treinamento</div></div>
+        <div class="mod-visual"><div class="mv-icon">&#127891;</div><div class="mv-text">5 meses de treinamento</div><div class="mv-sub">Da implantação à operação autônoma</div></div>
       </div>
     </div>
   </div>
@@ -1994,16 +1990,10 @@ export async function GET(
 
     const data = buildProposalData(json.data);
 
-    // Carrega TODAS as imagens como base64 inline — assim a proposta
-    // funciona perfeitamente tanto na web quanto em downloads offline
-    const [logo, hero, dashboard, whatsapp, relatorios] = await Promise.all([
-      loadImageAsDataUrl('logo-prosystem.png'),
-      loadImageAsDataUrl('imagem-hero.png'),
-      loadImageAsDataUrl('tela-dashboard.png'),
-      loadImageAsDataUrl('tela-whatsapp.png'),
-      loadImageAsDataUrl('tela-relatorios.png'),
-    ]);
-    const images = { logo, hero, dashboard, whatsapp, relatorios };
+    // Apenas a logo é embutida (base64). Os screenshots foram removidos da
+    // apresentação — os módulos usam painéis visuais (ícone + benefício).
+    const logo = await loadImageAsDataUrl('logo-prosystem.png');
+    const images = { logo };
 
     const html = generateHTML(data, images);
     return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
