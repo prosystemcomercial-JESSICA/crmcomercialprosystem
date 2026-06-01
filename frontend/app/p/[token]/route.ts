@@ -385,6 +385,60 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     @keyframes ecoFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
     @media (prefers-reduced-motion: reduce) { .eco-halo,.eco-line,.eco-hub,.eco-node .chip { animation: none; } }
 
+    /* ── VISUAIS ANIMADOS DOS MÓDULOS (tecnológico, com movimento) ── */
+    .fx-wrap { background: radial-gradient(circle at 50% 42%, rgba(var(--accent-rgb),0.11), var(--bg-soft) 74%); }
+    .fx { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 26px; }
+    @keyframes fxPulse { 0%,100% { box-shadow: var(--shadow-glow); } 50% { box-shadow: 0 0 0 8px rgba(var(--accent-rgb),0.14); } }
+    @keyframes fxBob   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    @keyframes fxSpinSlow { to { transform: translateX(-50%) rotate(360deg); } }
+
+    /* FLOW — pipeline vertical com pulso viajando (PDV, Treinamento) */
+    .fx-flow { position: relative; display: flex; flex-direction: column; gap: 10px; width: min(290px,100%); }
+    .fx-flow .track { position: absolute; left: 24px; top: 26px; bottom: 26px; width: 3px; background: var(--border-accent); border-radius: 3px; overflow: hidden; }
+    .fx-flow .track::after { content: ''; position: absolute; left: -1px; width: 5px; height: 30px; border-radius: 5px; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: fxTravel 2.6s linear infinite; }
+    @keyframes fxTravel { 0% { top: -30px; } 100% { top: 100%; } }
+    .fx-step { display: flex; align-items: center; gap: 14px; position: relative; z-index: 2; }
+    .fx-step .d { width: 50px; height: 50px; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow-glow); display: flex; align-items: center; justify-content: center; font-size: 23px; flex-shrink: 0; animation: fxPulse 4s ease-in-out infinite; }
+    .fx-step .t { font-size: 13px; font-weight: 800; color: var(--primary); line-height: 1.2; }
+    .fx-step .t small { display: block; font-size: 11px; font-weight: 500; color: var(--text-secondary); }
+
+    /* FUNNEL — funil de compras */
+    .fx-funnel { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .fx-funnel .top { display: flex; gap: 8px; }
+    .fx-funnel .top span { width: 30px; height: 30px; border-radius: 9px; background: #fff; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: var(--shadow-glow); animation: fxBob 2.4s ease-in-out infinite; }
+    .fx-funnel .top span:nth-child(2){ animation-delay:.3s } .fx-funnel .top span:nth-child(3){ animation-delay:.6s } .fx-funnel .top span:nth-child(4){ animation-delay:.9s }
+    .fx-funnel .cone { position: relative; width: 0; height: 0; border-left: 78px solid transparent; border-right: 78px solid transparent; border-top: 64px solid rgba(var(--accent-rgb),0.20); }
+    .fx-funnel .cone .gear { position: absolute; top: -54px; left: 50%; transform: translateX(-50%); font-size: 26px; animation: fxSpinSlow 6s linear infinite; }
+    .fx-funnel .cone .drop { position: absolute; top: -64px; left: 50%; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: fxDrop 1.8s ease-in infinite; }
+    .fx-funnel .cone .drop:nth-child(3){ animation-delay:.6s } .fx-funnel .cone .drop:nth-child(4){ animation-delay:1.2s }
+    @keyframes fxDrop { 0% { top:-64px; opacity:0; } 20% { opacity:1; } 100% { top:6px; opacity:0; } }
+    .fx-funnel .out { margin-top: 4px; width: 56px; height: 56px; border-radius: 16px; background: #fff; border: 1px solid var(--accent); box-shadow: var(--shadow-plus); display: flex; align-items: center; justify-content: center; font-size: 27px; animation: fxPulse 2.4s ease-in-out infinite; }
+    .fx-cap { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-align: center; margin-top: 6px; }
+
+    /* BARS — gráfico de barras (Dashboard, Financeiro) */
+    .fx-bars { display: flex; align-items: flex-end; gap: 13px; height: 150px; }
+    .fx-bars i { display: block; width: 26px; border-radius: 7px 7px 0 0; background: linear-gradient(var(--accent), rgba(var(--accent-rgb),0.45)); animation: fxBar 2.8s ease-in-out infinite; }
+    @keyframes fxBar { 0%,100% { height: 26%; } 50% { height: var(--h,80%); } }
+
+    /* LINE — linha de margem subindo (Rentabilidade) */
+    .fx-line { position: relative; }
+    .fx-line svg { width: 240px; height: 150px; overflow: visible; }
+    .fx-line .area { fill: rgba(var(--accent-rgb),0.14); opacity: 0; animation: fxArea 3.4s ease-in-out infinite; }
+    .fx-line .ln { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 360; stroke-dashoffset: 360; animation: fxDraw 3.4s ease-in-out infinite; }
+    .fx-line .pt { fill: var(--accent); animation: fxPt 3.4s ease-in-out infinite; opacity: 0; }
+    @keyframes fxDraw { 0% { stroke-dashoffset: 360; } 55%,100% { stroke-dashoffset: 0; } }
+    @keyframes fxArea { 0%,40% { opacity: 0; } 75%,100% { opacity: 1; } }
+    @keyframes fxPt   { 0%,55% { opacity: 0; } 70%,100% { opacity: 1; } }
+
+    /* WAVES — ondas de sinal (Suporte) */
+    .fx-waves { position: relative; width: 170px; height: 170px; display: flex; align-items: center; justify-content: center; }
+    .fx-waves .core { width: 86px; height: 86px; border-radius: 26px; background: #fff; box-shadow: var(--shadow-lg); display: flex; align-items: center; justify-content: center; font-size: 40px; z-index: 2; }
+    .fx-waves b { position: absolute; inset: 0; margin: auto; width: 86px; height: 86px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: fxRipple 2.6s ease-out infinite; }
+    .fx-waves b:nth-child(2){ animation-delay:.9s } .fx-waves b:nth-child(3){ animation-delay:1.8s }
+    @keyframes fxRipple { 0% { transform: scale(.55); opacity: .55; } 100% { transform: scale(2.2); opacity: 0; } }
+
+    @media (prefers-reduced-motion: reduce) { .fx-step .d,.fx-flow .track::after,.fx-funnel .top span,.fx-funnel .cone .gear,.fx-funnel .cone .drop,.fx-funnel .out,.fx-bars i,.fx-line .ln,.fx-line .area,.fx-line .pt,.fx-waves b { animation: none; } }
+
     /* ── PLAN TABLE ── */
     .plan-table { width: 100%; border-collapse: collapse; }
     .plan-table th, .plan-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; vertical-align: middle; }
@@ -807,7 +861,15 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-6" data-slide="6" data-module="1">
     <div class="mod-layout">
       <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#128187;</div><div class="mv-text">Frente de caixa ágil</div><div class="mv-sub">NFC-e e SPED integrados, sem fila no caixa</div></div>
+        <div class="fx">
+          <div class="fx-flow">
+            <div class="track"></div>
+            <div class="fx-step"><div class="d">&#128722;</div><div class="t">Produto<small>Leitura ágil no caixa</small></div></div>
+            <div class="fx-step"><div class="d">&#128179;</div><div class="t">Pagamento<small>TEF, Pix e carteira digital</small></div></div>
+            <div class="fx-step"><div class="d">&#128196;</div><div class="t">NFC-e<small>Emissão automática</small></div></div>
+            <div class="fx-step"><div class="d">&#9989;</div><div class="t">Venda concluída<small>Estoque e caixa atualizados</small></div></div>
+          </div>
+        </div>
       </div>
       <div>
         <div class="eyebrow" style="color:#4B8EC8;">PDV &amp; Fiscal</div>
@@ -835,7 +897,14 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#128230;</div><div class="mv-text">Compras inteligentes</div><div class="mv-sub">Sugestão automática de reposição, sem ruptura</div></div>
+        <div class="fx">
+          <div class="fx-funnel">
+            <div class="top"><span>&#128138;</span><span>&#129657;</span><span>&#129701;</span><span>&#128137;</span></div>
+            <div class="cone"><div class="gear">&#9881;&#65039;</div><div class="drop"></div><div class="drop"></div><div class="drop"></div></div>
+            <div class="out">&#128230;</div>
+            <div class="fx-cap">Mix analisado &rarr; pedido certo, sem ruptura</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -864,7 +933,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#128202;</div><div class="mv-text">Financeiro &amp; Gerencial</div><div class="mv-sub">Contas, fluxo de caixa e indicadores no controle</div></div>
+        <div class="fx">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+            <div class="fx-bars"><i style="--h:55%;animation-delay:0s"></i><i style="--h:80%;animation-delay:.2s"></i><i style="--h:46%;animation-delay:.4s"></i><i style="--h:92%;animation-delay:.6s"></i><i style="--h:70%;animation-delay:.8s"></i></div>
+            <div class="fx-cap">Contas, fluxo de caixa e DRE no controle</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -872,7 +946,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-10" data-slide="10" data-module="2">
     <div class="mod-layout">
       <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#128200;</div><div class="mv-text">Dashboard em tempo real</div><div class="mv-sub">O negócio inteiro em uma só tela</div></div>
+        <div class="fx">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+            <div class="fx-bars"><i style="--h:50%;animation-delay:0s"></i><i style="--h:72%;animation-delay:.15s"></i><i style="--h:60%;animation-delay:.3s"></i><i style="--h:95%;animation-delay:.45s"></i><i style="--h:78%;animation-delay:.6s"></i><i style="--h:88%;animation-delay:.75s"></i></div>
+            <div class="fx-cap">Vendas, margem e metas em tempo real</div>
+          </div>
+        </div>
       </div>
       <div>
         <div class="eyebrow" style="color:#27C97F;">Dashboard Gerencial</div>
@@ -901,7 +980,16 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#128185;</div><div class="mv-text">Rentabilidade por produto</div><div class="mv-sub">Margem real e perdas sob controle</div></div>
+        <div class="fx">
+          <div class="fx-line">
+            <svg viewBox="0 0 240 150">
+              <path class="area" d="M8,120 L60,96 L112,102 L162,56 L232,26 L232,150 L8,150 Z"></path>
+              <path class="ln" d="M8,120 L60,96 L112,102 L162,56 L232,26"></path>
+              <circle class="pt" cx="232" cy="26" r="5"></circle>
+            </svg>
+            <div class="fx-cap">Margem real subindo, produto a produto</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -933,7 +1021,12 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#129309;</div><div class="mv-text">Suporte humano 7h&ndash;22h</div><div class="mv-sub">Atendimento que resolve de verdade, sem robô</div></div>
+        <div class="fx">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:18px;">
+            <div class="fx-waves"><b></b><b></b><b></b><div class="core">&#127911;</div></div>
+            <div class="fx-cap">Atendimento humano das 7h às 22h, sem robô</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -976,7 +1069,15 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
       <div class="mod-img-wrap">
-        <div class="mod-visual"><div class="mv-icon">&#127891;</div><div class="mv-text">5 meses de treinamento</div><div class="mv-sub">Da implantação à operação autônoma</div></div>
+        <div class="fx">
+          <div class="fx-flow">
+            <div class="track"></div>
+            <div class="fx-step"><div class="d" style="font-size:15px;font-weight:900;color:var(--accent-ink);">1&ndash;2</div><div class="t">Implantação<small>Configuração assistida</small></div></div>
+            <div class="fx-step"><div class="d" style="font-size:16px;font-weight:900;color:var(--accent-ink);">3</div><div class="t">Treinamento<small>Equipe operacional</small></div></div>
+            <div class="fx-step"><div class="d" style="font-size:15px;font-weight:900;color:var(--accent-ink);">4&ndash;5</div><div class="t">Gestão avançada<small>Uso pleno do sistema</small></div></div>
+            <div class="fx-step"><div class="d">&#127881;</div><div class="t">Autonomia total<small>Operação no controle</small></div></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
