@@ -509,6 +509,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     }
     body.self-service #client-hint { display: inline-flex; }
     body.self-service #nav-hint { display: none; }
+    body.self-service #back-btn { display: none !important; }  /* cliente: fluxo linear, sem voltar ao hub */
 
     /* coach inicial (aponta a seta) */
     #coach {
@@ -682,7 +683,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 <!-- DICA DO CLIENTE (modo auto-serviço) -->
 <div id="client-hint">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 5l7 7-7 7"/></svg>
-  Deslize ou use as setas para navegar pela proposta
+  Deslize ou toque na seta para avançar &mdash; do início ao fim
 </div>
 
 <!-- DECK -->
@@ -920,7 +921,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div class="eyebrow" style="justify-content:center;color:#4B8EC8;">Resultado esperado</div>
       <h2 class="display-lg">Operação integrada,<br><span class="gradient-text">resultado visível</span></h2>
       <p class="body-lg">Com PDV, Estoque e Compras no mesmo sistema, sua equipe trabalha menos e entrega mais &mdash; com menos erros e mais visibilidade para o gestor.</p>
-      <button class="btn btn-primary" onclick="returnToHub()">Ver outros módulos</button>
+      <button class="btn btn-primary js-continue" onclick="returnToHub()">Ver outros módulos</button>
     </div>
   </div>
 
@@ -1008,7 +1009,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div style="padding:16px 24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.1);border:1px solid var(--border-plus);font-size:13px;color:#0B7384;font-weight:600;max-width:480px;">
         Dashboard, Rentabilidade e Indicador de Perda são recursos exclusivos do Plano Plus &mdash; a escolha de quem quer crescer com gestão.
       </div>
-      <button class="btn btn-green" onclick="returnToHub()">Ver outros módulos</button>
+      <button class="btn btn-green js-continue" onclick="returnToHub()">Ver outros módulos</button>
     </div>
   </div>
 
@@ -1093,7 +1094,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       <div class="eyebrow" style="justify-content:center;color:#F9A01B;">Compromisso ProSystem</div>
       <h2 class="display-lg">Não vendemos software.<br><span class="text-orange">Vendemos resultado.</span></h2>
       <p class="body-lg">Nosso compromisso começa na implantação e não termina nunca. O suporte ativo é um diferencial que mantemos há 16 anos &mdash; e é o que nossos clientes mais valorizam.</p>
-      <button class="btn btn-accent" onclick="returnToHub()">Ver outros módulos</button>
+      <button class="btn btn-accent js-continue" onclick="returnToHub()">Ver outros módulos</button>
     </div>
   </div>
 
@@ -2032,9 +2033,29 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     showSlide(m.slides[0]);
   }
 
-  function returnToHub() { showSlide(HUB_SLIDE, -1); }
+  // Fluxo linear guiado para o CLIENTE (auto-serviço): sem hub, sem vai-e-volta.
+  // Ordem narrativa: capa → quem somos/desafio/solução → módulos 1-3 →
+  // Ferramentas (21-22) → Proposta (17-20) → prova social → CTA. (pula o hub 4)
+  const clientOrder = [0,1,2,3, 5,6,7,8, 9,10,11,12, 13,14,15,16, 21,22, 17,18,19,20, 23,24];
+  function clientPos(slide) {
+    let i = clientOrder.indexOf(slide);
+    if (i !== -1) return i;
+    for (let k = 0; k < clientOrder.length; k++) if (clientOrder[k] > slide) return k - 1;
+    return clientOrder.length - 1;
+  }
+
+  function returnToHub() {
+    if (!presenterMode) { nextSlide(); return; }   // cliente: botões de fim de módulo avançam
+    showSlide(HUB_SLIDE, -1);
+  }
 
   function nextSlide() {
+    if (!presenterMode) {                            // CLIENTE — linear guiado
+      const i = clientPos(currentSlide);
+      if (i < clientOrder.length - 1) showSlide(clientOrder[i + 1], 1);
+      return;
+    }
+    // APRESENTADOR — comportamento original (hub + módulos)
     if (currentSlide >= TOTAL_SLIDES - 1) return;
     if (inModule && currentModuleId) {
       const m = modules.find(x => x.id === currentModuleId);
@@ -2044,21 +2065,29 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   }
 
   function prevSlide() {
+    if (!presenterMode) {                            // CLIENTE — linear guiado
+      const i = clientPos(currentSlide);
+      if (i > 0) showSlide(clientOrder[i - 1], -1);
+      return;
+    }
     if (currentSlide <= 0) return;
     showSlide(currentSlide - 1, -1);
   }
 
   // ── UPDATE UI ───────────────────────────────────────────
   function updateUI() {
+    // No modo cliente, posição/progresso seguem o fluxo linear (clientOrder)
+    const pos = presenterMode ? currentSlide : clientPos(currentSlide);
+    const total = presenterMode ? TOTAL_SLIDES : clientOrder.length;
     const fill = document.getElementById('progress-fill');
-    if (fill) fill.style.width = ((currentSlide / (TOTAL_SLIDES - 1)) * 100) + '%';
+    if (fill) fill.style.width = ((pos / (total - 1)) * 100) + '%';
     const counter = document.getElementById('slide-counter');
-    if (counter) counter.textContent = (currentSlide + 1) + ' / ' + TOTAL_SLIDES;
-    // Setas: esconde a "anterior" no 1º slide e a "próxima" no último
+    if (counter) counter.textContent = (pos + 1) + ' / ' + total;
+    // Setas: esconde a "anterior" no início e a "próxima" no fim (de cada fluxo)
     const prev = document.getElementById('nav-prev');
     const next = document.getElementById('nav-next');
-    if (prev) prev.classList.toggle('disabled', currentSlide === 0);
-    if (next) next.classList.toggle('disabled', currentSlide >= TOTAL_SLIDES - 1);
+    if (prev) prev.classList.toggle('disabled', pos === 0);
+    if (next) next.classList.toggle('disabled', pos >= total - 1);
   }
 
   function hideCoach() {
@@ -2075,12 +2104,17 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     const btn = document.getElementById('mode-btn-top');
     if (btn) btn.textContent = 'Modo: ' + (presenter ? 'Apresentador' : 'Auto-serviço (cliente)');
     document.body.classList.toggle('self-service', !presenter);
+    // Botões de fim de módulo: no cliente avançam ("Continuar"), no apresentador voltam ao hub
+    document.querySelectorAll('.js-continue').forEach(function(el) {
+      el.textContent = presenter ? 'Ver outros módulos' : 'Continuar →';
+    });
     if (presenter) {
       hideCoach();
     } else {
       const c = document.getElementById('coach');
       if (c) { c.classList.add('show'); clearTimeout(coachTimer); coachTimer = setTimeout(hideCoach, 4800); }
     }
+    updateUI();
   }
   function toggleMode() { setMode(!presenterMode); }
 
