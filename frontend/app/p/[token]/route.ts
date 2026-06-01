@@ -510,6 +510,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     body.self-service #client-hint { display: inline-flex; }
     body.self-service #nav-hint { display: none; }
     body.self-service #back-btn { display: none !important; }  /* cliente: fluxo linear, sem voltar ao hub */
+    /* ferramentas do VENDEDOR — só no modo apresentador, o cliente nunca vê o resumo p/ copiar */
+    body.self-service .seller-only { display: none !important; }
 
     /* coach inicial (aponta a seta) */
     #coach {
@@ -655,7 +657,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     <span>ProSystem Sistemas</span>
   </div>
   <div class="nav-right">
-    <button class="nav-pill nav-pill-copy" id="copy-resumo-nav" onclick="copyWhatsAppText()">&#128203;<span class="copy-label">&nbsp; Copiar resumo p/ WhatsApp</span></button>
+    <button class="nav-pill nav-pill-copy seller-only" id="copy-resumo-nav" onclick="copyWhatsAppText()">&#128203;<span class="copy-label">&nbsp; Copiar resumo p/ WhatsApp</span></button>
     <button class="mode-btn" onclick="toggleMode()" id="mode-btn-top">Modo: Apresentador</button>
   </div>
 </nav>
@@ -1219,8 +1221,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <button class="btn btn-green" id="accept-whatsapp-btn">Aceitar via WhatsApp</button>
         <button class="btn btn-ghost" onclick="window.print()">&#128196; Baixar proposta em PDF</button>
       </div>
-      <div class="whats-box">
-        <div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:14px;">Resumo para enviar no WhatsApp</div>
+      <div class="whats-box seller-only">
+        <div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:14px;">Resumo para enviar no WhatsApp <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--text-secondary);opacity:.8;">(ferramenta do vendedor)</span></div>
         <textarea class="whats-text" id="whats-text-area" readonly></textarea>
         <div class="action-row">
           <button class="btn btn-green" onclick="copyWhatsAppText()">Copiar resumo WhatsApp</button>
