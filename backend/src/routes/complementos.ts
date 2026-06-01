@@ -132,7 +132,30 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       })
     ]);
 
+    // Novos leads atribuídos pela supervisão (ainda não vistos pelo vendedor)
+    // Escopo por dono via SQL (atribuicao_vista pode não existir em bases antigas → catch).
+    const escNovo = ownerWhere(request, 'Lead');
+    let novos_atribuidos: any[] = [];
+    if (escNovo.OR || escNovo.responsavel_id) {
+      const uid = (request as any).user?.id || '__no_user__';
+      novos_atribuidos = await prisma.$queryRawUnsafe(
+        `SELECT id, nome, empresa, atribuido_em FROM Lead
+         WHERE atribuicao_vista = 0 AND atribuido_em IS NOT NULL
+           AND (responsavel_id = ? OR created_by = ?)
+         ORDER BY atribuido_em DESC LIMIT 20`, uid, uid
+      ).catch(() => []);
+    }
+
     const alertas = [
+      ...novos_atribuidos.map((l: any) => ({
+        id: `nl-${l.id}`,
+        tipo: 'NOVO_LEAD_RECEBIDO',
+        urgencia: 'ALTA',
+        titulo: `Novo lead recebido: ${l.nome}`,
+        descricao: `${l.empresa || ''} · atribuído a você — faça o primeiro contato`,
+        data: l.atribuido_em,
+        link: `/leads?id=${l.id}`
+      })),
       ...atrasadas.map(a => ({
         id: `at-${a.id}`,
         tipo: 'ATIVIDADE_ATRASADA',
