@@ -184,7 +184,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       border-bottom: 1px solid var(--border);
     }
     .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; letter-spacing: -0.02em; }
-    .nav-brand img { width: 34px; height: 34px; object-fit: contain; }
+    .nav-brand img { width: 46px; height: 46px; object-fit: contain; }
     .nav-right { display: flex; align-items: center; gap: 12px; }
     .nav-pill {
       font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
@@ -351,13 +351,10 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     /* ── MODULE CONTENT LAYOUT ── */
     .mod-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; max-width: 1100px; width: 100%; }
     .mod-layout.full { grid-template-columns: 1fr; max-width: 800px; }
-    /* ── PAINEL VISUAL DO MÓDULO (sem screenshots — ícone + benefício) ── */
+    /* ── PAINEL VISUAL DO MÓDULO (sem retângulo — só a animação) ── */
     .mod-img-wrap {
-      border-radius: var(--radius-lg); overflow: hidden;
-      border: 1px solid var(--border-accent);
-      box-shadow: var(--shadow-glow);
       aspect-ratio: 16/11;
-      background: linear-gradient(150deg, var(--bg-soft) 0%, rgba(var(--accent-rgb),0.10) 100%);
+      background: transparent; border: none; box-shadow: none;
       display: flex; align-items: center; justify-content: center;
     }
     .mod-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 26px; }
@@ -369,7 +366,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     .mod-visual .mv-sub { font-size: 12px; color: var(--text-secondary); max-width: 250px; line-height: 1.5; }
 
     /* ── ECOSSISTEMA FARMA (cinematográfico) ── */
-    .eco-wrap { aspect-ratio: 1 / 1; background: radial-gradient(circle at 50% 46%, rgba(var(--accent-rgb),0.13), var(--bg-soft) 72%); }
+    .eco-wrap { aspect-ratio: 1 / 1; background: transparent; }
     .eco { position: relative; width: min(430px, 100%); aspect-ratio: 1 / 1; margin: auto; }
     .eco-halo { position: absolute; inset: 9%; border-radius: 50%; background: conic-gradient(from 0deg, rgba(var(--accent-rgb),0), rgba(var(--accent-rgb),0.20), rgba(65,122,188,0.20), rgba(var(--accent-rgb),0)); filter: blur(16px); animation: ecoSpin 16s linear infinite; }
     .eco-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
@@ -386,7 +383,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     @media (prefers-reduced-motion: reduce) { .eco-halo,.eco-line,.eco-hub,.eco-node .chip { animation: none; } }
 
     /* ── VISUAIS ANIMADOS DOS MÓDULOS (tecnológico, com movimento) ── */
-    .fx-wrap { background: radial-gradient(circle at 50% 42%, rgba(var(--accent-rgb),0.11), var(--bg-soft) 74%); }
+    .fx-wrap { background: transparent; }
     .fx { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 26px; }
     @keyframes fxPulse { 0%,100% { box-shadow: var(--shadow-glow); } 50% { box-shadow: 0 0 0 8px rgba(var(--accent-rgb),0.14); } }
     @keyframes fxBob   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
@@ -620,6 +617,15 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
       .plan-table-wrap { display: none; }
       .plan-cards { display: grid; gap: 14px; }
     }
+    /* Telas baixas (laptops curtos / landscape): slide rola em vez de cortar */
+    @media (min-width: 769px) and (max-height: 760px) {
+      .slide { align-items: flex-start; justify-content: center; overflow-y: auto; padding-top: 80px; padding-bottom: 48px; }
+    }
+    /* Telas muito largas: limita e centraliza o conteúdo */
+    @media (min-width: 1500px) {
+      .mod-layout { max-width: 1180px; }
+      .max900 { max-width: 980px; }
+    }
     /* ── PDF COMERCIAL (2 páginas) ── */
     #print-doc { display: none; }
     @media print {
@@ -686,7 +692,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
   <div class="slide" id="slide-0" data-slide="0">
     <div class="flex-col items-center text-center max700" style="gap:28px;">
       <div>
-        <img src="${imgSrc('logo', '/logo-prosystem.png')}" alt="ProSystem" style="height:52px;object-fit:contain;margin-bottom:20px;" onerror="this.style.display='none'">
+        <img src="${imgSrc('logo', '/logo-prosystem.png')}" alt="ProSystem" style="height:84px;object-fit:contain;margin-bottom:22px;" onerror="this.style.display='none'">
         <div class="eyebrow" style="justify-content:center;">Proposta Comercial &nbsp;&bull;&nbsp; <span id="s0-company">${data.companyName}</span></div>
         <h1 class="display-xl mt8">
           Mais controle, agilidade e<br>
@@ -844,7 +850,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
             <line class="eco-line" x1="160" y1="160" x2="35"  y2="160" style="animation-delay:1.2s"></line>
             <line class="eco-line" x1="160" y1="160" x2="72"  y2="72"  style="animation-delay:1.4s"></line>
           </svg>
-          <div class="eco-hub">&#128138;</div>
+          <div class="eco-hub" id="eco-hub">&#128138;</div>
           <div class="eco-node" style="top:11%;left:50%"><div class="chip" style="animation-delay:0s">&#128722;</div><div class="lbl">PDV</div></div>
           <div class="eco-node" style="top:22%;left:78%"><div class="chip" style="animation-delay:.3s">&#128230;</div><div class="lbl">Estoque</div></div>
           <div class="eco-node" style="top:50%;left:89%"><div class="chip" style="animation-delay:.6s">&#128666;</div><div class="lbl">Compras</div></div>
@@ -1130,30 +1136,37 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </div>
       </div>
 
-      <!-- Mensalidade: Pro x Plus lado a lado -->
+      <!-- Mensalidade: Pro x Plus (Plus dominante) -->
       <div>
-        <div id="s18-monthly-label" style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Mensalidade recorrente &mdash; compare os planos</div>
-        <div class="flex gap12 flex-wrap price-row" id="s18-monthly-row">
-          <div class="price-card" id="s18-pro-card" style="flex:1;min-width:180px;">
+        <div id="s18-monthly-label" style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Mensalidade recorrente &mdash; compare e escolha</div>
+        <div class="flex gap12 flex-wrap price-row" id="s18-monthly-row" style="align-items:stretch;">
+          <div class="price-card" id="s18-pro-card" style="flex:0.8;min-width:170px;opacity:.92;">
             <div class="pc-label">Mensalidade <span id="s18-pro-name">Pro</span></div>
-            <div class="pc-val" id="s18-monthly-pro">R$ 0,00</div>
+            <div class="pc-val" id="s18-monthly-pro" style="font-size:28px;">R$ 0,00</div>
             <div class="pc-sub">Plano intermediário</div>
           </div>
-          <div class="price-card featured" id="s18-plus-card" style="flex:1;min-width:180px;">
-            <span class="rec-badge" style="margin:0 0 10px;">&#9733; Recomendado</span>
+          <div class="price-card featured" id="s18-plus-card" style="flex:1.3;min-width:230px;border-width:2px;">
+            <span class="rec-badge" style="margin:0 0 10px;">&#9733; Recomendado &middot; mais escolhido</span>
             <div class="pc-label">Mensalidade <span id="s18-plus-name2">Plus</span></div>
-            <div class="pc-val" id="s18-monthly-plus" style="color:var(--accent-ink);">R$ 0,00</div>
-            <div class="pc-sub" style="color:#0B7384;">Mais gestão e crescimento</div>
+            <div class="pc-val" id="s18-monthly-plus" style="color:var(--accent-ink);font-size:46px;">R$ 0,00</div>
+            <div class="pc-sub" style="color:var(--accent-ink);font-weight:800;">A escolha mais completa</div>
+            <div id="s18-plus-benefits" style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;">
+              <span style="font-size:11.5px;color:var(--text-secondary);"><b style="color:var(--green);">&#10003;</b> Tudo incluso</span>
+              <span style="font-size:11.5px;color:var(--text-secondary);"><b style="color:var(--green);">&#10003;</b> Dashboard gerencial</span>
+              <span style="font-size:11.5px;color:var(--text-secondary);"><b style="color:var(--green);">&#10003;</b> Gestão completa</span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="plus-highlight-box">
-        <div class="flex gap12 flex-wrap items-center">
-          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">Plano recomendado:</div>
-          <div style="font-size:16px;font-weight:800;color:#0B7384;" id="s18-plan">${data.selectedPlan}</div>
-          <span class="rec-badge">Recomendado</span>
-          <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">&bull;&nbsp; Válida até:</div>
-          <div style="font-size:15px;font-weight:800;color:var(--accent-ink);" id="s18-valid">${data.validUntil || '&mdash;'}</div>
+      <div class="plus-highlight-box" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <span class="rec-badge" style="font-size:11px;padding:5px 12px;">&#9733; Recomendado</span>
+        <div style="flex:1;min-width:220px;">
+          <div style="font-size:16px;font-weight:900;color:var(--accent-ink);" id="s18-plan-line">O Plano <span id="s18-plan">Plus</span> é a escolha mais completa para o seu negócio</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Tudo incluso, gestão completa e suporte humano das 7h às 22h.</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);">Válida até</div>
+          <div style="font-size:18px;font-weight:900;color:var(--accent-ink);" id="s18-valid">${data.validUntil || '&mdash;'}</div>
         </div>
       </div>
     </div>
@@ -1317,6 +1330,16 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 
   const planFamily = getPlanFamily(proposalData.segment, proposalData.selectedPlan);
 
+  // Perfil do segmento (personalização): farmácia / padaria / varejo
+  function getSegInfo(segment, plano) {
+    const s = ((plano || '') + ' ' + (segment || '')).toLowerCase()
+      .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+    if (/farma|farmacia|manipula/.test(s)) return { noun: 'farmácia', hub: '&#128138;' };       // 💊
+    if (/padar|panific/.test(s))           return { noun: 'padaria',  hub: '&#129366;' };        // 🥖
+    return { noun: 'operação', hub: '&#127978;' };                                               // 🏪
+  }
+  const segInfo = getSegInfo(proposalData.segment, proposalData.selectedPlan);
+
   // ── MATRIZ OFICIAL DE PLANOS (Prosystem 2025) ────────────
   // Loja (varejo geral / padaria) — Basic / Pro / Plus
   const LOJA_ROWS = [
@@ -1416,7 +1439,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     if (!el) return;
     const p = proposalData;
     const nomes = planFamily.nomes;
-    const segNoun = isFarmaSegment ? 'farmácia' : 'operação';
+    const segNoun = segInfo.noun;
     const isMEI = planFamily.familia === 'MEI';
     const logoEl = document.querySelector('.nav-brand img');
     const logo = (logoEl && logoEl.src) ? logoEl.src : '/logo-prosystem.png';
@@ -1619,7 +1642,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     if (window.innerWidth < 769) return;
     const canvas = document.getElementById('three-canvas');
     if (!window.THREE) return;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:true, premultipliedAlpha:false });
+    renderer.setClearColor(0x000000, 0); // fundo transparente — tema claro por baixo
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -1794,6 +1818,9 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     // Cover
     set('s0-company', proposalData.companyName || '');
 
+    // Personalização por segmento: ícone do hub do ecossistema (💊 / 🥖 / 🏪)
+    setHTML('eco-hub', segInfo.hub);
+
     // Slide 17
     set('s17-plus-name', nomes.plus);
 
@@ -1822,6 +1849,9 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         const sub = plusCard.querySelector('.pc-sub');
         if (sub) sub.textContent = 'Plano único para pequenas empresas';
       }
+      const benefits = getEl('s18-plus-benefits');
+      if (benefits) benefits.style.display = 'none';
+      setHTML('s18-plan-line', 'O Plano <b style="color:var(--accent-ink);">MEI</b> é ideal para a sua pequena empresa do varejo');
     }
     set('s18-plan',     nomes.plus);
     set('s18-valid',    proposalData.validUntil || '—');
