@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
+import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 
 const ETAPAS_COMERCIAIS = [
   'NOVO_LEAD','PRIMEIRO_CONTATO','EM_ATENDIMENTO','AGUARDANDO_RETORNO',
@@ -235,6 +236,81 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     return reply.send({ status: 'success', data: { distribuidos: leads.length, por_vendedor: porVendedor } });
   });
 
+  // ── AUDITORIA / TRILHA do lead (entrada → assinatura, tempo por etapa) ─────
+  fastify.get('/leads/:id/auditoria', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    // Escopo: vendedor só audita os próprios leads; gestor, qualquer um.
+    const esc = ownerWhere(request, 'Lead');
+    const lead = await prisma.lead.findFirst({ where: { id, ...esc }, select: { id: true } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado ou sem acesso' });
+
+    // Trilha completa (todas as ações: etapas, alterações de dados, atribuição…)
+    const trilha: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes, created_at
+       FROM LeadHistorico WHERE lead_id = ? ORDER BY created_at ASC`, id
+    ).catch(() => []);
+    // Observações do sistema também entram na trilha (coluna/temperatura/contatos)
+    const obs = await prisma.leadObservacao.findMany({
+      where: { lead_id: id }, orderBy: { created_at: 'asc' },
+      select: { id: true, tipo: true, descricao: true, created_by_name: true, created_at: true,
+                coluna_anterior: true, coluna_nova: true, temperatura_anterior: true, temperatura_nova: true },
+    });
+    const ciclo = await calcularCicloLead(prisma, id);
+
+    return reply.send({ status: 'success', data: { trilha, observacoes: obs, ciclo } });
+  });
+
+  // ── RELATÓRIO DE CICLO DE VENDAS (agregado, SUPERVISÃO) ───────────────────
+  fastify.get('/leads/ciclo-vendas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = request.query as { data_inicio?: string; data_fim?: string };
+
+    const where: any = {};
+    if (q.data_inicio || q.data_fim) {
+      where.created_at = {};
+      if (q.data_inicio) where.created_at.gte = new Date(q.data_inicio);
+      if (q.data_fim) where.created_at.lte = new Date(q.data_fim);
+    }
+    const leads = await prisma.lead.findMany({
+      where, select: { id: true }, orderBy: { created_at: 'desc' }, take: 1000,
+    });
+
+    // Acumula tempo por etapa e ciclo total dos leads que já fecharam (assinatura)
+    const porEtapa: Record<string, { totalDias: number; n: number }> = {};
+    let ciclosFechados: number[] = [];
+    let fechados = 0, emAberto = 0;
+
+    for (const l of leads) {
+      const c = await calcularCicloLead(prisma, l.id);
+      if (!c) continue;
+      for (const e of c.etapas) {
+        if (!porEtapa[e.etapa]) porEtapa[e.etapa] = { totalDias: 0, n: 0 };
+        porEtapa[e.etapa].totalDias += e.dias;
+        porEtapa[e.etapa].n += 1;
+      }
+      if (c.assinado_em && c.ciclo_dias != null) { ciclosFechados.push(c.ciclo_dias); fechados++; }
+      else if (c.em_aberto) emAberto++;
+    }
+
+    const tempo_medio_por_etapa = Object.entries(porEtapa)
+      .map(([etapa, v]) => ({ etapa, dias_medio: +(v.totalDias / Math.max(1, v.n)).toFixed(1), amostras: v.n }))
+      .sort((a, b) => b.dias_medio - a.dias_medio);
+    const ciclo_medio_dias = ciclosFechados.length
+      ? +(ciclosFechados.reduce((s, d) => s + d, 0) / ciclosFechados.length).toFixed(1) : 0;
+    const ciclo_min = ciclosFechados.length ? +Math.min(...ciclosFechados).toFixed(1) : 0;
+    const ciclo_max = ciclosFechados.length ? +Math.max(...ciclosFechados).toFixed(1) : 0;
+
+    return reply.send({
+      status: 'success',
+      data: {
+        total_leads: leads.length,
+        fechados, em_aberto: emAberto,
+        ciclo_medio_dias, ciclo_min, ciclo_max,
+        tempo_medio_por_etapa,
+      },
+    });
+  });
+
   // List leads ────────────────────────────────────────────────────────────
   fastify.get('/leads', async (request, reply) => {
     const q = ListLeadSchema.safeParse(request.query);
@@ -364,11 +440,14 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       if (data.email === '') delete data.email;
       if (data.responsavel_email === '') delete data.responsavel_email;
 
-      const before = await prisma.lead.findUnique({
-        where: { id },
-        select: { etapa_comercial: true, status: true, temperatura: true },
-      });
+      // Snapshot completo ANTES (para auditoria campo-a-campo)
+      const before = await prisma.lead.findUnique({ where: { id } });
       const lead = await prisma.lead.update({ where: { id }, data });
+
+      // Trilha de auditoria: registra cada campo alterado (quem, quando, de→para)
+      if (before) {
+        await auditarAlteracoesLead(prisma, id, before.nome, before as any, data, { id: user?.id, nome: user?.nome });
+      }
 
       // Auto-register column change
       if (before && data.etapa_comercial && data.etapa_comercial !== before.etapa_comercial) {
