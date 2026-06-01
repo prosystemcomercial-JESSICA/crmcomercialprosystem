@@ -232,6 +232,15 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { presets: PRESETS, modulos: MODULOS, modulos_criticos: MODULOS_CRITICOS } });
   });
 
+  // ─── GET /usuarios/vendedores — lista enxuta p/ atribuição de leads ──
+  // Vendedores ATIVOS (id, nome). Usado pela supervisão no dropdown de atribuir.
+  fastify.get('/usuarios/vendedores', { onRequest: requireAuth }, async (_request, reply) => {
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome, email FROM UsuarioCRM WHERE cargo = 'VENDEDOR' AND status = 'ATIVO' ORDER BY nome ASC`
+    ).catch(() => []);
+    return reply.send({ status: 'success', data: rows });
+  });
+
   // ─── GET /usuarios ───────────────────────────────────────────
   fastify.get('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
     const ator = (request as any).user;

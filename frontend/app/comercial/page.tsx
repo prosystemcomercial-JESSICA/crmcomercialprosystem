@@ -177,6 +177,29 @@ export default function RadarComercialPage() {
   // Vendedor não vê o comparativo entre vendedores (dado de supervisão).
   const isGestor = podeVerTudo(user?.role);
 
+  // Atribuição de leads (só supervisão). Nome distinto p/ não colidir com
+  // o array "vendedores" (métricas por vendedor) que vem do dashboard.
+  const [vendedoresLista, setVendedoresLista] = useState<{ id: string; nome: string }[]>([]);
+  const [atribuindo, setAtribuindo] = useState(false);
+  useEffect(() => {
+    if (isGestor) apiClient.getVendedores().then(r => setVendedoresLista(r.data?.data || [])).catch(() => {});
+  }, [isGestor]);
+
+  const atribuir = async (leadIds: string[], vendedorId: string) => {
+    if (!vendedorId || !leadIds.length) return;
+    setAtribuindo(true);
+    try { await apiClient.atribuirLeads(leadIds, vendedorId); await load(); setSelectedRadar(null); }
+    catch { setError('Erro ao atribuir lead.'); }
+    finally { setAtribuindo(false); }
+  };
+  const distribuirIgual = async (leadIds: string[]) => {
+    if (!leadIds.length) return;
+    setAtribuindo(true);
+    try { await apiClient.distribuirLeads({ lead_ids: leadIds }); await load(); setSelectedRadar(null); }
+    catch { setError('Erro ao distribuir leads.'); }
+    finally { setAtribuindo(false); }
+  };
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -347,21 +370,51 @@ export default function RadarComercialPage() {
                   {selectedRadar.title}
                   <span className="ml-auto text-xs text-gray-400">{selectedRadar.leads.length} leads</span>
                 </h3>
+
+                {/* Supervisão: distribuir todos igualmente entre os vendedores */}
+                {isGestor && vendedoresLista.length > 0 && (
+                  <div className="flex items-center justify-between gap-2 mb-3 p-2 rounded-lg bg-blue-50 border border-blue-100">
+                    <span className="text-xs text-blue-700">Atribuir estes leads aos vendedores</span>
+                    <button
+                      onClick={() => distribuirIgual(selectedRadar.leads.map(l => l.id))}
+                      disabled={atribuindo}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {atribuindo ? 'Distribuindo...' : '⚖️ Distribuir igualmente'}
+                    </button>
+                  </div>
+                )}
+
                 <div className="max-h-80 overflow-y-auto">
                   {selectedRadar.leads.map(lead => (
-                    <LeadRow
-                      key={lead.id}
-                      lead={lead}
-                      subtitle={
-                        lead.proximo_contato
-                          ? `Retorno era ${fmtDate(lead.proximo_contato)}`
-                          : lead.dias_parado
-                          ? `Parado ${Math.floor(Number(lead.dias_parado))}d`
-                          : lead.horas_sem_contato
-                          ? `${Math.floor(Number(lead.horas_sem_contato))}h sem contato`
-                          : undefined
-                      }
-                    />
+                    <div key={lead.id} className="flex items-center gap-2 border-b last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <LeadRow
+                          lead={lead}
+                          subtitle={
+                            lead.proximo_contato
+                              ? `Retorno era ${fmtDate(lead.proximo_contato)}`
+                              : lead.dias_parado
+                              ? `Parado ${Math.floor(Number(lead.dias_parado))}d`
+                              : lead.horas_sem_contato
+                              ? `${Math.floor(Number(lead.horas_sem_contato))}h sem contato`
+                              : undefined
+                          }
+                        />
+                      </div>
+                      {isGestor && vendedoresLista.length > 0 && (
+                        <select
+                          defaultValue=""
+                          disabled={atribuindo}
+                          onChange={e => { if (e.target.value) atribuir([lead.id], e.target.value); }}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 shrink-0 bg-white"
+                          title="Atribuir a um vendedor"
+                        >
+                          <option value="">Atribuir a…</option>
+                          {vendedoresLista.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                        </select>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

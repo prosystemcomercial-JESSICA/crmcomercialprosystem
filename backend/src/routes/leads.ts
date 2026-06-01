@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { ownerWhere, scopeUserId } from '@/lib/scope';
+import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 
 const ETAPAS_COMERCIAIS = [
   'NOVO_LEAD','PRIMEIRO_CONTATO','EM_ATENDIMENTO','AGUARDANDO_RETORNO',
@@ -162,7 +162,80 @@ async function registrarObsSistema(
 export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // ── List leads ────────────────────────────────────────────────────────────
+  // ── Colunas de atribuição (não-bloqueante; padrão raw do projeto) ──
+  // atribuido_em: quando a supervisão atribuiu o lead ao vendedor.
+  // atribuicao_vista: o vendedor já viu/tratou o "novo lead recebido"?
+  Promise.all([
+    prisma.$executeRawUnsafe(`ALTER TABLE Lead ADD COLUMN atribuido_em DATETIME NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Lead ADD COLUMN atribuicao_vista TINYINT(1) NOT NULL DEFAULT 1`).catch(() => {}),
+  ]).catch(() => {});
+
+  // ── Atribuir / distribuir leads (SUPERVISÃO) ──────────────────────────────
+  // Atribui 1 ou vários leads a um vendedor (seta responsavel_id + vendedor_nome,
+  // marca atribuido_em e zera atribuicao_vista → vira alerta no sininho do vendedor).
+  fastify.post('/leads/atribuir', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const body = z.object({
+      lead_ids: z.array(z.string()).min(1),
+      vendedor_id: z.string().min(1),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe lead_ids e vendedor_id' });
+
+    const vend: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome FROM UsuarioCRM WHERE id = ? AND cargo = 'VENDEDOR' LIMIT 1`, body.data.vendedor_id
+    ).catch(() => []);
+    if (!vend.length) return reply.status(404).send({ status: 'error', message: 'Vendedor não encontrado' });
+    const vendedor = vend[0];
+
+    const placeholders = body.data.lead_ids.map(() => '?').join(',');
+    await prisma.$executeRawUnsafe(
+      `UPDATE Lead SET responsavel_id = ?, vendedor_nome = ?, atribuido_em = NOW(), atribuicao_vista = 0, updated_at = NOW()
+       WHERE id IN (${placeholders})`,
+      vendedor.id, vendedor.nome, ...body.data.lead_ids
+    );
+    return reply.send({ status: 'success', data: { atribuidos: body.data.lead_ids.length, vendedor: vendedor.nome } });
+  });
+
+  // Distribui igualmente os leads SEM responsável entre os vendedores ativos (round-robin).
+  fastify.post('/leads/distribuir', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const body = z.object({
+      // opcional: restringir a leads de campanha (sem vendedor) ou a uma lista
+      lead_ids: z.array(z.string()).optional(),
+      vendedor_ids: z.array(z.string()).optional(),
+    }).safeParse(request.body);
+    const data = body.success ? body.data : {};
+
+    // Vendedores-alvo
+    let vendedores: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome FROM UsuarioCRM WHERE cargo = 'VENDEDOR' AND status = 'ATIVO' ORDER BY nome ASC`
+    ).catch(() => []);
+    if (data.vendedor_ids?.length) vendedores = vendedores.filter(v => data.vendedor_ids!.includes(v.id));
+    if (!vendedores.length) return reply.status(400).send({ status: 'error', message: 'Nenhum vendedor ativo para distribuir' });
+
+    // Leads-alvo: os informados, ou todos sem responsável e ainda em aberto
+    const leads = await prisma.lead.findMany({
+      where: data.lead_ids?.length
+        ? { id: { in: data.lead_ids } }
+        : { responsavel_id: null, etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] } },
+      select: { id: true },
+      orderBy: { created_at: 'asc' },
+    });
+    if (!leads.length) return reply.send({ status: 'success', data: { distribuidos: 0, por_vendedor: {} } });
+
+    const porVendedor: Record<string, number> = {};
+    for (let i = 0; i < leads.length; i++) {
+      const v = vendedores[i % vendedores.length];
+      await prisma.$executeRawUnsafe(
+        `UPDATE Lead SET responsavel_id = ?, vendedor_nome = ?, atribuido_em = NOW(), atribuicao_vista = 0, updated_at = NOW() WHERE id = ?`,
+        v.id, v.nome, leads[i].id
+      );
+      porVendedor[v.nome] = (porVendedor[v.nome] || 0) + 1;
+    }
+    return reply.send({ status: 'success', data: { distribuidos: leads.length, por_vendedor: porVendedor } });
+  });
+
+  // List leads ────────────────────────────────────────────────────────────
   fastify.get('/leads', async (request, reply) => {
     const q = ListLeadSchema.safeParse(request.query);
     if (!q.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
@@ -249,6 +322,13 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       },
     });
     if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+
+    // Vendedor abriu o lead recém-atribuído → marca como visto (some do sininho).
+    const uid = (request as any).user?.id;
+    if (uid && (lead.responsavel_id === uid || lead.created_by === uid)) {
+      prisma.$executeRawUnsafe(`UPDATE Lead SET atribuicao_vista = 1 WHERE id = ? AND atribuicao_vista = 0`, id).catch(() => {});
+    }
+
     return reply.send({ status: 'success', data: lead });
   });
 

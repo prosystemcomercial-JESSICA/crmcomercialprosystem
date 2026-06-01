@@ -710,6 +710,17 @@ class ApiClient {
     return this.client.get('/usuarios');
   }
 
+  // Vendedores (dropdown de atribuição) + atribuir/distribuir leads
+  async getVendedores() {
+    return this.client.get('/usuarios/vendedores');
+  }
+  async atribuirLeads(lead_ids: string[], vendedor_id: string) {
+    return this.client.post('/leads/atribuir', { lead_ids, vendedor_id });
+  }
+  async distribuirLeads(payload?: { lead_ids?: string[]; vendedor_ids?: string[] }) {
+    return this.client.post('/leads/distribuir', payload || {});
+  }
+
   // Vendas Adicionais endpoints
   async getParceiros() {
     return this.client.get('/parceiros');

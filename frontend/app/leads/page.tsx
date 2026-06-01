@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
@@ -32,7 +32,7 @@ interface Lead {
   qtd_lojas?: number; qtd_caixas?: number; sistema_atual?: string;
   responsavel_nome?: string; responsavel_cargo?: string;
   responsavel_telefone?: string; responsavel_email?: string; responsavel_horario?: string;
-  vendedor_nome?: string; supervisor_nome?: string;
+  vendedor_nome?: string; supervisor_nome?: string; responsavel_id?: string;
   temperatura: string; origem: string; etapa_comercial: string;
   status_atendimento?: string; motivo_perda?: string;
   valor_estimado?: number; proximo_contato?: string; ultima_obs_at?: string;
@@ -342,6 +342,10 @@ export default function LeadsPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
+  // Atribuição de vendedor (só supervisão) — isGestor já é declarado mais abaixo
+  const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
+  const [atribuindo, setAtribuindo] = useState(false);
+
   const [colunas, setColunas]     = useState<KanbanColuna[]>([]);
   const [kanban, setKanban]       = useState<Record<string, Lead[]>>({});
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
@@ -426,8 +430,28 @@ export default function LeadsPage() {
         visivel_vendedor: e.visivel_vendedor, ativa: e.ativa, fixo: e.fixo,
       })));
     } catch (e) { console.error(e); }
+    // (vendedores p/ atribuição carregados à parte abaixo)
     finally { setDataLoading(false); }
   }, []);
+
+  // Carrega vendedores p/ o dropdown de atribuição (supervisão)
+  useEffect(() => {
+    if (isGestor) apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => {});
+  }, [isGestor]);
+
+  // Atribui o lead aberto a um vendedor (cria alerta no sininho dele)
+  const atribuirVendedor = async (leadId: string, vendedorId: string) => {
+    if (!vendedorId) return;
+    setAtribuindo(true);
+    try {
+      await apiClient.atribuirLeads([leadId], vendedorId);
+      const v = vendedores.find(x => x.id === vendedorId);
+      setSelectedLead(prev => prev && prev.id === leadId
+        ? { ...prev, responsavel_id: vendedorId, vendedor_nome: v?.nome } as Lead : prev);
+      await loadData();
+    } catch { alert('Erro ao atribuir vendedor.'); }
+    finally { setAtribuindo(false); }
+  };
 
   // Funil: editar/criar/remover etapas
   const editarEtapaFunil = async (etapa: EtapaFunil, dados: Partial<EtapaFunil>) => {
@@ -971,6 +995,19 @@ export default function LeadsPage() {
                       </a>
                     );
                   })()}
+                  {isGestor && vendedores.length > 0 && (
+                    <select
+                      value={selectedLead.responsavel_id || ''}
+                      disabled={atribuindo}
+                      onChange={e => atribuirVendedor(selectedLead.id, e.target.value)}
+                      title="Atribuir a um vendedor"
+                      className="text-xs border rounded-lg px-2 py-1.5 bg-white"
+                      style={{ borderColor: '#D8E8F5', color: '#0D2238' }}
+                    >
+                      <option value="">👤 Atribuir vendedor…</option>
+                      {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                    </select>
+                  )}
                   <button onClick={() => setSelectedLead(null)} className="p-1.5 rounded-lg hover:bg-gray-100"><X size={15} style={{ color: '#7AAACB' }} /></button>
                 </div>
               </div>
