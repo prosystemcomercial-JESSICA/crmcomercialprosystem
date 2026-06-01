@@ -721,6 +721,14 @@ class ApiClient {
     return this.client.post('/leads/distribuir', payload || {});
   }
 
+  // Auditoria / trilha do lead + ciclo de vendas agregado
+  async getLeadAuditoria(leadId: string) {
+    return this.client.get(`/leads/${leadId}/auditoria`);
+  }
+  async getCicloVendas(params?: { data_inicio?: string; data_fim?: string }) {
+    return this.client.get('/leads/ciclo-vendas', { params });
+  }
+
   // Vendas Adicionais endpoints
   async getParceiros() {
     return this.client.get('/parceiros');
