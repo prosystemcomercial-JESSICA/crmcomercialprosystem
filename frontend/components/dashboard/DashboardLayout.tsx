@@ -32,8 +32,11 @@ const navGroups: NavGroup[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ALL },
-      { href: '/manual',    icon: BookOpen,        label: 'Manual do CRM', roles: ALL },
+      // Painel executivo (KPIs/projeções) — só gestão. Vendedor não vê Dashboard.
+      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',       roles: GESTORES },
+      // Radar Comercial é a primeira tela do vendedor (atividades dos próprios leads).
+      { href: '/comercial', icon: BarChart2,       label: 'Radar Comercial', roles: ['VENDEDOR'] },
+      { href: '/manual',    icon: BookOpen,        label: 'Manual do CRM',   roles: ALL },
     ],
   },
   {
@@ -52,7 +55,8 @@ const navGroups: NavGroup[] = [
   {
     label: 'Performance',
     items: [
-      { href: '/comercial', icon: BarChart2,    label: 'Radar Comercial', roles: COMERCIAL },
+      // Para o vendedor, o Radar fica em "Principal" (1ª tela); aqui só p/ gestão.
+      { href: '/comercial', icon: BarChart2,    label: 'Radar Comercial', roles: GESTAO_COMERCIAL },
       { href: '/metas',     icon: Trophy,       label: 'Metas Comerciais',roles: COMERCIAL },
       { href: '/ranking',   icon: Medal,        label: 'Ranking',         roles: GESTAO_COMERCIAL },
     ],

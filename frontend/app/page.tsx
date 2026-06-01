@@ -1,12 +1,12 @@
 'use client';
 
 import { redirect } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import LoginForm from '@/components/auth/LoginForm';
 import Image from 'next/image';
 
 export default function Home() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -28,7 +28,8 @@ export default function Home() {
   }
 
   if (isAuthenticated) {
-    redirect('/dashboard');
+    // Vendedor entra direto no Radar Comercial; gestão no painel executivo.
+    redirect(podeVerTudo(user?.role) ? '/dashboard' : '/comercial');
   }
 
   return (
