@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { ownerWhere, scopeUserId } from '@/lib/scope';
 
 const ETAPAS_COMERCIAIS = [
   'NOVO_LEAD','PRIMEIRO_CONTATO','EM_ATENDIMENTO','AGUARDANDO_RETORNO',
@@ -182,6 +183,12 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
         { responsavel_telefone: { contains: search, mode: 'insensitive' } },
       ];
     }
+    // Escopo: vendedor só vê os próprios leads; gestor vê todos.
+    // (usa AND para não conflitar com o OR da busca textual)
+    const escopo = ownerWhere(request, 'Lead');
+    if (escopo.OR || escopo.responsavel_id || escopo.created_by) {
+      where.AND = [...(where.AND || []), escopo];
+    }
 
     const [leads, total] = await Promise.all([
       prisma.lead.findMany({
@@ -198,6 +205,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   // ── Kanban — all leads grouped by etapa_comercial ─────────────────────────
   fastify.get('/leads/kanban', async (request, reply) => {
     const leads = await prisma.lead.findMany({
+      where: { ...ownerWhere(request, 'Lead') },  // vendedor: só o próprio funil
       orderBy: { updated_at: 'desc' },
       include: {
         _count: { select: { atividades: true, propostas: true, observacoes_lead: true } },
@@ -513,18 +521,20 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   fastify.get('/leads/stats/resumo', async (request, reply) => {
+    // Vendedor: estatísticas só dos próprios leads; gestor: de todos.
+    const esc = ownerWhere(request, 'Lead');
     const [total, novos, qualificados, ganhos, perdidos, emContato] = await Promise.all([
-      prisma.lead.count(),
-      prisma.lead.count({ where: { etapa_comercial: 'NOVO_LEAD' } }),
-      prisma.lead.count({ where: { status: 'QUALIFICADO' } }),
-      prisma.lead.count({ where: { status: 'GANHO' } }),
-      prisma.lead.count({ where: { etapa_comercial: 'PERDIDO' } }),
-      prisma.lead.count({ where: { etapa_comercial: 'EM_ATENDIMENTO' } }),
+      prisma.lead.count({ where: { ...esc } }),
+      prisma.lead.count({ where: { etapa_comercial: 'NOVO_LEAD', ...esc } }),
+      prisma.lead.count({ where: { status: 'QUALIFICADO', ...esc } }),
+      prisma.lead.count({ where: { status: 'GANHO', ...esc } }),
+      prisma.lead.count({ where: { etapa_comercial: 'PERDIDO', ...esc } }),
+      prisma.lead.count({ where: { etapa_comercial: 'EM_ATENDIMENTO', ...esc } }),
     ]);
 
     const [valorPipeline, valorGanho] = await Promise.all([
-      prisma.lead.aggregate({ _sum: { valor_estimado: true }, where: { status: { notIn: ['GANHO','PERDIDO'] } } }),
-      prisma.lead.aggregate({ _sum: { valor_estimado: true }, where: { status: 'GANHO' } }),
+      prisma.lead.aggregate({ _sum: { valor_estimado: true }, where: { status: { notIn: ['GANHO','PERDIDO'] }, ...esc } }),
+      prisma.lead.aggregate({ _sum: { valor_estimado: true }, where: { status: 'GANHO', ...esc } }),
     ]);
 
     return reply.send({
@@ -588,10 +598,6 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
 
   // ── Métricas comerciais (MRR, instalação, médias, ranking) ────────────────
   fastify.get('/leads/metricas-comerciais', async (request, reply) => {
-    const user = (request as any).user;
-    const ADMIN = ['CEO','ADMIN','SUPERVISAO','SUPERVISAO_COMERCIAL','SUPERVISAO_TECNICA','GERENTE','DIRETOR'];
-    const isAdmin = user && ADMIN.includes((user.role || '').toUpperCase());
-
     const q = request.query as { data_inicio?: string; data_fim?: string };
     const where: any = { status: 'GANHO', fechamento_data: { not: null } };
     if (q.data_inicio || q.data_fim) {
@@ -599,8 +605,10 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       if (q.data_inicio) where.fechamento_data.gte = new Date(q.data_inicio);
       if (q.data_fim) where.fechamento_data.lte = new Date(q.data_fim);
     }
-    // Não admin: só vê próprios fechamentos
-    if (!isAdmin) where.fechamento_por = user?.id;
+    // Escopo: gestor vê o ranking de todos; vendedor só os próprios fechamentos.
+    // fail-closed: anônimo cai em '__no_user__' (não vaza nada).
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null) where.fechamento_por = scopeId;
 
     const ganhos = await prisma.lead.findMany({
       where,

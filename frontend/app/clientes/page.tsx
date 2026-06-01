@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
@@ -96,8 +96,10 @@ interface ImportResult {
 }
 
 export default function ClientesPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  // Vendedor só consulta clientes; não cadastra/importa/edita/remove.
+  const isGestor = podeVerTudo(user?.role);
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [total, setTotal] = useState(0);
@@ -246,24 +248,26 @@ export default function ClientesPage() {
             <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Clientes</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{total} clientes cadastrados</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={openImport}
-              className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
-              style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 8%, transparent)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              Importar CSV
-            </button>
-            <button
-              onClick={openCreate}
-              className="px-4 py-2 text-sm rounded-lg font-medium text-white transition-colors"
-              style={{ background: 'var(--t-primary)' }}
-            >
-              + Novo Cliente
-            </button>
-          </div>
+          {isGestor && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={openImport}
+                className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
+                style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 8%, transparent)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                Importar CSV
+              </button>
+              <button
+                onClick={openCreate}
+                className="px-4 py-2 text-sm rounded-lg font-medium text-white transition-colors"
+                style={{ background: 'var(--t-primary)' }}
+              >
+                + Novo Cliente
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Search */}
@@ -287,10 +291,12 @@ export default function ClientesPage() {
             <div className="p-12 text-center">
               <div className="text-4xl mb-3">🏢</div>
               <p style={{ color: 'var(--t-text-muted)' }}>Nenhum cliente encontrado</p>
-              <div className="flex justify-center gap-2 mt-4">
-                <button onClick={openCreate} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: 'var(--t-primary)' }}>Cadastrar cliente</button>
-                <button onClick={openImport} className="px-4 py-2 rounded-lg border text-sm" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Importar CSV</button>
-              </div>
+              {isGestor && (
+                <div className="flex justify-center gap-2 mt-4">
+                  <button onClick={openCreate} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: 'var(--t-primary)' }}>Cadastrar cliente</button>
+                  <button onClick={openImport} className="px-4 py-2 rounded-lg border text-sm" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Importar CSV</button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -360,8 +366,14 @@ export default function ClientesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => openEdit(c)} className="text-xs mr-3 hover:underline" style={{ color: 'var(--t-primary)' }}>Editar</button>
-                        <button onClick={() => handleDelete(c.id)} className="text-xs text-red-500 hover:text-red-700">Remover</button>
+                        {isGestor ? (
+                          <>
+                            <button onClick={() => openEdit(c)} className="text-xs mr-3 hover:underline" style={{ color: 'var(--t-primary)' }}>Editar</button>
+                            <button onClick={() => handleDelete(c.id)} className="text-xs text-red-500 hover:text-red-700">Remover</button>
+                          </>
+                        ) : (
+                          <button onClick={() => router.push(`/clientes/${c.id}`)} className="text-xs hover:underline" style={{ color: 'var(--t-primary)' }}>Ver</button>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
+import { requireGestor } from '@/lib/scope';
 
 const FERRAMENTAS_LISTA = [
   'API Domínios','Backup Mega - Externo - Terminal','CoteFácil','D-Pharma',
@@ -117,6 +118,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
   // Importação em massa
   fastify.post('/clientes/importar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // importação só p/ Supervisão
     const body = ImportClienteSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.flatten() });
 
@@ -189,6 +191,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
   // Create cliente
   fastify.post('/clientes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // vendedor não cadastra cliente
     const body = ClienteSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
     try {
@@ -202,6 +205,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
   // Update cliente
   fastify.patch('/clientes/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // vendedor não altera cadastro de cliente
     const { id } = request.params as { id: string };
     const body = ClienteSchema.partial().safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
@@ -216,6 +220,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
   // Delete cliente
   fastify.delete('/clientes/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // vendedor não exclui cliente
     const { id } = request.params as { id: string };
     try {
       await prisma.cliente.delete({ where: { id } });

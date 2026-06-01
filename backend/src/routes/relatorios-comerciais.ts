@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
-const ROLES_PERMITIDOS = ['SUPERVISAO', 'CEO', 'ADMIN'];
+const ROLES_PERMITIDOS = ['SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'CEO', 'ADMIN'];
 
 const UpsertRelatorioSchema = z.object({
   meta_contratos: z.number().int().default(10),

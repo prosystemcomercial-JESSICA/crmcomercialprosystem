@@ -5,6 +5,8 @@ import { useTheme } from '@/lib/theme-context';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState, useEffect, useRef } from 'react';
+import { apiClient } from '@/lib/api-client';
 import {
   LayoutDashboard, Target, GitMerge, CalendarCheck, FileText, FileCheck2,
   TrendingDown, Megaphone, Trophy, Medal, Building2, Users, DollarSign,
@@ -19,6 +21,8 @@ const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECN
 const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
 const TECNICO = ['CEO', 'ADMIN', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'];
 const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
+// Gestão comercial — visão total de KPIs/projeções/importações/ranking (sem vendedor)
+const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN'];
 
 type NavItem = { href: string; icon: any; label: string; roles?: string[] };
@@ -50,7 +54,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/comercial', icon: BarChart2,    label: 'Radar Comercial', roles: COMERCIAL },
       { href: '/metas',     icon: Trophy,       label: 'Metas Comerciais',roles: COMERCIAL },
-      { href: '/ranking',   icon: Medal,        label: 'Ranking',         roles: COMERCIAL },
+      { href: '/ranking',   icon: Medal,        label: 'Ranking',         roles: GESTAO_COMERCIAL },
     ],
   },
   {
@@ -91,7 +95,7 @@ const navGroups: NavGroup[] = [
       { href: '/alertas',       icon: Bell,         label: 'Alertas',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/previsao',      icon: TrendingUp,   label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/nutricao',      icon: Sprout,       label: 'Nutrição',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/importacao',    icon: Upload,       label: 'Importar Leads',  roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/importacao',    icon: Upload,       label: 'Importar Leads',  roles: GESTAO_COMERCIAL },
       { href: '/configuracoes', icon: Settings,     label: 'Configurações',   roles: SO_CEO },
     ],
   },
@@ -118,6 +122,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { mode, toggleMode } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+
+  // ── Alertas no sininho (ficam até serem vistos e tratados) ──
+  type Alerta = { id: string; tipo: string; urgencia: string; titulo: string; descricao: string; link: string };
+  const [alertas, setAlertas] = useState<Alerta[]>([]);
+  const [alertasOpen, setAlertasOpen] = useState(false);
+  const [seen, setSeen] = useState<Set<string>>(new Set());
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  // Carrega "vistos" do localStorage (por usuário)
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const raw = localStorage.getItem(`alertas_seen_${user.id}`);
+      if (raw) setSeen(new Set(JSON.parse(raw)));
+    } catch {}
+  }, [user?.id]);
+
+  // Busca alertas e revalida a cada 60s (alerta some sozinho quando o item é tratado no backend)
+  useEffect(() => {
+    if (!user) return;
+    let ativo = true;
+    const carregar = () => {
+      apiClient.getAlertas()
+        .then(res => { if (ativo) setAlertas(res.data?.data?.alertas || []); })
+        .catch(() => {});
+    };
+    carregar();
+    const t = setInterval(carregar, 60000);
+    return () => { ativo = false; clearInterval(t); };
+  }, [user]);
+
+  // Fecha o dropdown ao clicar fora
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setAlertasOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const naoVistos = alertas.filter(a => !seen.has(a.id)).length;
+
+  const abrirAlertas = () => {
+    const novo = !alertasOpen;
+    setAlertasOpen(novo);
+    // Ao abrir, marca todos como VISTOS (mas continuam na lista até serem tratados)
+    if (novo && user?.id) {
+      const ids = new Set(alertas.map(a => a.id));
+      setSeen(ids);
+      try { localStorage.setItem(`alertas_seen_${user.id}`, JSON.stringify([...ids])); } catch {}
+    }
+  };
+
+  const urgenciaCor = (u: string) => u === 'ALTA' ? '#dc2626' : u === 'MEDIA' ? '#d97706' : '#6b7280';
 
   const handleLogout = async () => {
     await logout();
@@ -186,17 +244,68 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Separator */}
           <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
 
-          {/* Bell */}
-          <button
-            title="Alertas"
-            style={{
-              width: 36, height: 36, borderRadius: 8, border: '1.5px solid var(--t-card-border)',
-              background: 'var(--t-card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'var(--t-text-muted)', flexShrink: 0
-            }}
-          >
-            <Bell size={15} />
-          </button>
+          {/* Bell — alertas ficam aqui até serem vistos e tratados */}
+          <div ref={bellRef} style={{ position: 'relative' }}>
+            <button
+              title="Alertas"
+              onClick={abrirAlertas}
+              style={{
+                width: 36, height: 36, borderRadius: 8, border: '1.5px solid var(--t-card-border)',
+                background: 'var(--t-card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--t-text-muted)', flexShrink: 0, position: 'relative'
+              }}
+            >
+              <Bell size={15} />
+              {naoVistos > 0 && (
+                <span style={{
+                  position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, padding: '0 4px',
+                  borderRadius: 9, background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                  boxShadow: '0 0 0 2px var(--t-card-bg)'
+                }}>{naoVistos > 9 ? '9+' : naoVistos}</span>
+              )}
+            </button>
+
+            {alertasOpen && (
+              <div style={{
+                position: 'absolute', right: 0, top: 44, width: 360, maxHeight: 460, overflowY: 'auto',
+                background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12,
+                boxShadow: '0 16px 40px rgba(13,34,56,0.18)', zIndex: 80
+              }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--t-card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>Alertas</span>
+                  <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{alertas.length} pendente{alertas.length !== 1 ? 's' : ''}</span>
+                </div>
+                {alertas.length === 0 ? (
+                  <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--t-text-muted)', fontSize: 13 }}>
+                    🎉 Nenhum alerta — tudo em dia!
+                  </div>
+                ) : (
+                  alertas.map(a => (
+                    <button key={a.id}
+                      onClick={() => { setAlertasOpen(false); router.push(a.link); }}
+                      style={{
+                        width: '100%', textAlign: 'left', padding: '11px 16px', display: 'flex', gap: 10,
+                        borderBottom: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: 4, marginTop: 5, flexShrink: 0, background: urgenciaCor(a.urgencia) }} />
+                      <span style={{ flex: 1 }}>
+                        <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--t-text-primary)' }}>{a.titulo}</span>
+                        <span style={{ display: 'block', fontSize: 11.5, color: 'var(--t-text-muted)', marginTop: 2 }}>{a.descricao}</span>
+                      </span>
+                    </button>
+                  ))
+                )}
+                <button
+                  onClick={() => { setAlertasOpen(false); router.push('/alertas'); }}
+                  style={{ width: '100%', padding: '10px 16px', fontSize: 12, fontWeight: 600, color: 'var(--t-primary)', background: 'transparent', cursor: 'pointer' }}
+                >
+                  Ver todos os alertas
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Separator */}
           <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />

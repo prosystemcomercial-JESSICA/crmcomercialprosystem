@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
@@ -41,8 +41,10 @@ function periodoAtual() {
 const emptyForm = { titulo: '', responsavel_id: '', tipo: 'RECEITA', valor_alvo: '', periodo: periodoAtual() };
 
 export default function MetasPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  // Definir/editar metas é ação de gestão; vendedor só visualiza a própria.
+  const isGestor = podeVerTudo(user?.role);
   const [metas, setMetas] = useState<Meta[]>([]);
   const [periodoFilter, setPeriodoFilter] = useState(periodoAtual());
   const [dataLoading, setDataLoading] = useState(true);
@@ -111,12 +113,14 @@ export default function MetasPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Metas Comerciais</h1>
-            <p className="text-gray-500 mt-1">Acompanhe metas por vendedor e período</p>
+            <p className="text-gray-500 mt-1">{isGestor ? 'Acompanhe metas por vendedor e período' : 'Acompanhe a sua meta no período'}</p>
           </div>
-          <button onClick={() => { setForm(emptyForm); setError(''); setShowModal(true); }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-            + Nova Meta
-          </button>
+          {isGestor && (
+            <button onClick={() => { setForm(emptyForm); setError(''); setShowModal(true); }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+              + Nova Meta
+            </button>
+          )}
         </div>
 
         {/* Period selector */}
@@ -136,7 +140,9 @@ export default function MetasPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
             <div className="text-4xl mb-3">🎯</div>
             <p className="text-gray-500">Nenhuma meta definida para {periodoFilter}</p>
-            <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Criar primeira meta</button>
+            {isGestor && (
+              <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Criar primeira meta</button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -174,7 +180,9 @@ export default function MetasPage() {
                       onBlur={e => handleUpdateProgress(meta.id, parseFloat(e.target.value))}
                       className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none"
                       placeholder="Atualizar progresso" />
-                    <button onClick={() => handleDelete(meta.id)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                    {isGestor && (
+                      <button onClick={() => handleDelete(meta.id)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                    )}
                   </div>
                 </div>
               );

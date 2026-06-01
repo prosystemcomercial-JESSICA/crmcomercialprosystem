@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
@@ -131,20 +131,27 @@ function KpiCard({
 }
 
 export default function DashboardPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardPower | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
+  // Painel executivo é só de gestão. Vendedor é levado ao seu Radar Comercial.
+  const isGestor = podeVerTudo(user?.role);
+
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
   }, [isAuthenticated, loading]);
 
+  useEffect(() => {
+    if (!loading && isAuthenticated && user && !isGestor) router.replace('/comercial');
+  }, [loading, isAuthenticated, user, isGestor, router]);
+
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !isGestor) return;  // vendedor não chama o /dashboard/power
     setDataLoading(true);
     setLoadError(null);
     apiClient.getDashboardPower()
@@ -157,9 +164,10 @@ export default function DashboardPage() {
       .finally(() => setDataLoading(false));
   };
 
-  useEffect(() => { loadData(); }, [isAuthenticated]);
+  useEffect(() => { loadData(); }, [isAuthenticated, isGestor]);
 
-  if (loading || !isAuthenticated) {
+  // Enquanto carrega, não autenticado, ou redirecionando vendedor → spinner.
+  if (loading || !isAuthenticated || (user && !isGestor)) {
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ background: '#0D2238' }}>
         <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#4B8EC8', borderTopColor: 'transparent' }} />

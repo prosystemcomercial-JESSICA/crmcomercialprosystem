@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { scopeUserId } from '@/lib/scope';
 
 const PARCEIROS_DEFAULT = [
   {
@@ -175,8 +176,11 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
 
     const filters: any = {};
     if (query.data?.status) filters.status = query.data.status;
-    if (query.data?.vendedor_id) filters.vendedor_id = query.data.vendedor_id;
     if (query.data?.parceiro_id) filters.parceiro_id = query.data.parceiro_id;
+    // Escopo: vendedor só vê as próprias vendas adicionais; gestor vê todas.
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null) filters.vendedor_id = scopeId;
+    else if (query.data?.vendedor_id) filters.vendedor_id = query.data.vendedor_id;
     if (query.data?.periodo) {
       const [year, month] = query.data.periodo.split('-').map(Number);
       filters.created_at = {

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { scopeUserId } from '@/lib/scope';
 
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -54,9 +55,13 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     }).safeParse(request.query);
 
     const where: any = {};
-    if (query.data?.responsavel_id) where.responsavel_id = query.data.responsavel_id;
     if (query.data?.periodo) where.periodo = query.data.periodo;
     if (query.data?.status) where.status = query.data.status;
+    // Escopo: vendedor só vê a própria comissão (ignora responsavel_id de outro);
+    // gestor vê todas (ou filtra por responsavel_id da query).
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null) where.responsavel_id = scopeId;
+    else if (query.data?.responsavel_id) where.responsavel_id = query.data.responsavel_id;
 
     const comissoes = await prisma.comissao.findMany({
       where,

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient, User } from './api-client';
 
 interface AuthContextType {
@@ -89,4 +90,37 @@ export function useAuth() {
     throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
+}
+
+// ── Papéis com visão TOTAL (espelha backend/src/lib/scope.ts) ──
+// CEO, ADMIN e Supervisão Comercial veem todos os vendedores / KPIs / projeções.
+// Demais (vendedor) só veem o próprio resultado.
+const ROLES_VISAO_TOTAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
+
+export function podeVerTudo(role?: string | null): boolean {
+  const r = (role || '').toUpperCase();
+  return ROLES_VISAO_TOTAL.some(x => r.includes(x));
+}
+
+/** Hook prático: true = gestor (vê tudo); false = vendedor (só o próprio). */
+export function useIsGestor(): boolean {
+  const { user } = useAuth();
+  return podeVerTudo(user?.role);
+}
+
+/**
+ * Hook de guarda de página: redireciona não-gestores para `redirectTo`.
+ * Retorna { isGestor, blocked } — use `blocked` para mostrar spinner enquanto sai.
+ *   const { isGestor, blocked } = useRequireGestorRedirect();
+ *   if (blocked) return <Spinner/>;
+ */
+export function useRequireGestorRedirect(redirectTo = '/comercial') {
+  const { user, isAuthenticated, loading } = useAuth();
+  const router = useRouter();
+  const isGestor = podeVerTudo(user?.role);
+  const blocked = !loading && isAuthenticated && !!user && !isGestor;
+  useEffect(() => {
+    if (blocked) router.replace(redirectTo);
+  }, [blocked, redirectTo, router]);
+  return { isGestor, blocked };
 }

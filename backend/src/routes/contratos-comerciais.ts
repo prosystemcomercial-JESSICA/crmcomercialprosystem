@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { scopeUserId } from '@/lib/scope';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -219,6 +220,25 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         { numero_contrato: { contains: search, mode: 'insensitive' } },
       ];
     }
+    // Escopo: gestor vê todos. Vendedor vê o contrato se ELE gerou
+    // OU se é o vendedor da proposta de origem (supervisor pode ter gerado por ele).
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null) {
+      const minhasPropostas = await prisma.propostaComercial.findMany({
+        where: { OR: [{ vendedor_id: scopeId }, { created_by: scopeId }] },
+        select: { id: true },
+      });
+      const propostaIds = minhasPropostas.map(p => p.id);
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { created_by: scopeId },
+            ...(propostaIds.length ? [{ proposta_comercial_id: { in: propostaIds } }] : []),
+          ],
+        },
+      ];
+    }
 
     const [contratos, total] = await Promise.all([
       prisma.contratoComercial.findMany({
@@ -254,8 +274,17 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     // Gera número sequencial
     const { numero, seq, ano } = await gerarNumeroContrato(prisma);
 
+    // Rastreabilidade: o contrato HERDA o id da proposta de origem (mesmo id da proposta).
+    // Se já existir um contrato com esse id (regerar), cai no cuid() padrão para não colidir.
+    let contratoId: string | undefined = data.proposta_comercial_id || undefined;
+    if (contratoId) {
+      const jaExiste = await prisma.contratoComercial.findUnique({ where: { id: contratoId }, select: { id: true } });
+      if (jaExiste) contratoId = undefined;  // deixa o Prisma gerar cuid()
+    }
+
     const contrato = await prisma.contratoComercial.create({
       data: {
+        ...(contratoId ? { id: contratoId } : {}),
         numero_contrato: numero,
         sequencia: seq,
         ano,

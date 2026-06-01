@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
@@ -174,6 +174,9 @@ export default function RadarComercialPage() {
   const [tab, setTab]         = useState<'radar' | 'vendedores' | 'origens' | 'campanhas'>('radar');
   const [selectedRadar, setSelectedRadar] = useState<{ leads: RadarLead[]; title: string } | null>(null);
 
+  // Vendedor não vê o comparativo entre vendedores (dado de supervisão).
+  const isGestor = podeVerTudo(user?.role);
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -250,6 +253,32 @@ export default function RadarComercialPage() {
           </button>
         </div>
 
+        {/* Destaque: NOVOS LEADS — o que precisa de ação agora */}
+        <button
+          onClick={() => { setTab('radar'); if (radar.sem_contato?.length) setSelectedRadar({ leads: radar.sem_contato, title: 'Novos leads sem contato' }); }}
+          className="w-full text-left rounded-2xl p-5 border-2 transition-all hover:shadow-md"
+          style={{ borderColor: '#f59e0b', background: 'linear-gradient(90deg, #fffbeb 0%, #ffffff 60%)' }}
+        >
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: '#fef3c7' }}>
+                <Clock size={24} style={{ color: '#d97706' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Novos leads para atender</p>
+                <p className="text-3xl font-extrabold text-gray-900 leading-none mt-1">
+                  {radar.totals.sem_contato}
+                  <span className="text-base font-medium text-gray-500"> aguardando primeiro contato</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 text-center">
+              <div><p className="text-2xl font-bold" style={{ color: '#ea580c' }}>{radar.totals.quentes_sem_proposta}</p><p className="text-xs text-gray-500">Quentes s/ proposta</p></div>
+              <div><p className="text-2xl font-bold" style={{ color: '#dc2626' }}>{radar.totals.retorno_vencido}</p><p className="text-xs text-gray-500">Retornos vencidos</p></div>
+            </div>
+          </div>
+        </button>
+
         {/* KPI row */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
@@ -270,7 +299,8 @@ export default function RadarComercialPage() {
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
           {[
             { key: 'radar',     label: `⚠️ Radar (${totalAlertas})` },
-            { key: 'vendedores',label: `👥 Vendedores (${vendedores.length})` },
+            // Aba "Vendedores" (comparativo) só para gestão comercial.
+            ...(isGestor ? [{ key: 'vendedores', label: `👥 Vendedores (${vendedores.length})` }] : []),
             { key: 'origens',   label: `📍 Origens` },
             { key: 'campanhas', label: `📢 Campanhas` },
           ].map(t => (

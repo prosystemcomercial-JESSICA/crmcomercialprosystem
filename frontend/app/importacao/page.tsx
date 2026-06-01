@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, useRequireGestorRedirect } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -43,6 +43,7 @@ function parseCSV(text: string): ParsedLead[] {
 export default function ImportacaoPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  const { blocked } = useRequireGestorRedirect();  // importação só p/ Supervisão
   const [csvText, setCsvText] = useState('');
   const [parsed, setParsed] = useState<ParsedLead[]>([]);
   const [parseError, setParseError] = useState('');
@@ -91,7 +92,7 @@ export default function ImportacaoPage() {
     reader.readAsText(file, 'UTF-8');
   };
 
-  if (loading || !isAuthenticated) {
+  if (loading || !isAuthenticated || blocked) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>;
   }
 

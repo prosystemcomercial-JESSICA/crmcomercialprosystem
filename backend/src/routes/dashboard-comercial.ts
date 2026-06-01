@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import { ownerSql, ownerWhere, scopeUserId } from '@/lib/scope';
 
 export async function dashboardComercialRoutes(
   fastify: FastifyInstance,
@@ -7,7 +8,12 @@ export async function dashboardComercialRoutes(
 ) {
   const { prisma } = options;
 
-  fastify.get('/dashboard/comercial', async (_req, reply) => {
+  fastify.get('/dashboard/comercial', async (request, reply) => {
+    // ── Escopo de dados: gestor vê tudo; vendedor vê só o próprio ──
+    // (CEO/ADMIN/SUPERVISAO_COMERCIAL → sem filtro; demais → filtra pelo dono)
+    const sc  = ownerSql(request, 'Lead', 'l');     // ' AND (l.responsavel_id = ? OR l.created_by = ?)' ou ''
+    const sc0 = ownerSql(request, 'Lead');           // mesma cláusula sem alias (FROM Lead direto)
+    const restrito = scopeUserId(request) !== null;  // true = vendedor (visão própria)
     const now   = new Date();
     const h24   = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const d3    = new Date(now.getTime() - 3  * 24 * 60 * 60 * 1000);
@@ -23,7 +29,7 @@ export async function dashboardComercialRoutes(
              TIMESTAMPDIFF(SECOND, l.created_at, NOW())/3600 AS horas_sem_contato
       FROM Lead l
       WHERE l.etapa_comercial NOT IN ('FECHADO','PERDIDO')
-        AND l.created_at < ?
+        AND l.created_at < ?${sc.clause}
         AND NOT EXISTS (
           SELECT 1 FROM LeadObservacao lo
           WHERE lo.lead_id = l.id
@@ -31,13 +37,14 @@ export async function dashboardComercialRoutes(
         )
       ORDER BY l.created_at ASC
       LIMIT 30
-    `, h24).catch(() => []);
+    `, h24, ...sc.params).catch(() => []);
 
     // 2. Retornos vencidos (proximo_contato passou)
     const retorno_vencido = await prisma.lead.findMany({
       where: {
         etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] },
         proximo_contato: { lt: now, not: null },
+        ...ownerWhere(request, 'Lead'),
       },
       select: {
         id: true, nome: true, nome_fantasia: true, temperatura: true,
@@ -54,19 +61,20 @@ export async function dashboardComercialRoutes(
              TIMESTAMPDIFF(SECOND, l.updated_at, NOW())/86400 AS dias_parado
       FROM Lead l
       WHERE l.temperatura IN ('QUENTE','MUITO_QUENTE')
-        AND l.etapa_comercial NOT IN ('FECHADO','PERDIDO')
+        AND l.etapa_comercial NOT IN ('FECHADO','PERDIDO')${sc.clause}
         AND NOT EXISTS (
           SELECT 1 FROM PropostaComercial pc WHERE pc.lead_id = l.id
         )
       ORDER BY l.temperatura DESC, l.updated_at ASC
       LIMIT 30
-    `).catch(() => []);
+    `, ...sc.params).catch(() => []);
 
     // 4. Leads parados > 7 dias sem atualização
     const leads_parados = await prisma.lead.findMany({
       where: {
         etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] },
         updated_at: { lt: d7 },
+        ...ownerWhere(request, 'Lead'),
       },
       select: {
         id: true, nome: true, nome_fantasia: true, temperatura: true,
@@ -83,13 +91,14 @@ export async function dashboardComercialRoutes(
              TIMESTAMPDIFF(SECOND, COALESCE(l.ultima_obs_at, l.updated_at), NOW())/86400 AS dias_sem_followup
       FROM Lead l
       WHERE l.etapa_comercial = 'PROPOSTA_ENVIADA'
-        AND (l.ultima_obs_at IS NULL OR l.ultima_obs_at < ?)
+        AND (l.ultima_obs_at IS NULL OR l.ultima_obs_at < ?)${sc.clause}
       ORDER BY l.ultima_obs_at ASC
       LIMIT 30
-    `, d3).catch(() => []);
+    `, d3, ...sc.params).catch(() => []);
 
     // 6. Leads de campanha sem vendedor responsável
-    const campanha_sem_vendedor = await prisma.lead.findMany({
+    //    É um item de gestão (distribuir leads órfãos) — o vendedor não vê.
+    const campanha_sem_vendedor = restrito ? [] : await prisma.lead.findMany({
       where: {
         etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] },
         OR: [{ utm_source: { not: null } }, { campanha_nome: { not: null } }],
@@ -118,10 +127,10 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN l.temperatura = 'FRIO'         THEN 1 END)           AS frio,
         COUNT(CASE WHEN l.created_at >= ?              THEN 1 END)           AS leads_mes
       FROM Lead l
-      WHERE l.vendedor_nome IS NOT NULL
+      WHERE l.vendedor_nome IS NOT NULL${sc.clause}
       GROUP BY l.vendedor_nome
       ORDER BY total_leads DESC
-    `, inicioMes).catch(() => []);
+    `, inicioMes, ...sc.params).catch(() => []);
 
     const obs_vendedor_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
@@ -130,9 +139,9 @@ export async function dashboardComercialRoutes(
         COUNT(*) AS total
       FROM LeadObservacao lo
       WHERE lo.tipo NOT IN ('SISTEMA','COLUNA_ALTERADA','TEMPERATURA_ALTERADA')
-        AND lo.created_by_name IS NOT NULL
+        AND lo.created_by_name IS NOT NULL${restrito ? ' AND lo.created_by = ?' : ''}
       GROUP BY lo.created_by_name, lo.tipo
-    `).catch(() => []);
+    `, ...(restrito ? [scopeUserId(request)!] : [])).catch(() => []);
 
     const propostas_vendedor_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
@@ -148,9 +157,9 @@ export async function dashboardComercialRoutes(
             END), 0) AS mrr_fechado
       FROM Lead l
       LEFT JOIN PropostaComercial pc ON pc.lead_id = l.id
-      WHERE l.vendedor_nome IS NOT NULL
+      WHERE l.vendedor_nome IS NOT NULL${sc.clause}
       GROUP BY l.vendedor_nome
-    `).catch(() => []);
+    `, ...sc.params).catch(() => []);
 
     const vendedores = vendedores_raw.map(v => {
       const obs_rows = obs_vendedor_raw.filter(o => o.created_by_name === v.vendedor_nome);
@@ -191,9 +200,10 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
         COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END) AS quentes
       FROM Lead
+      WHERE 1=1${sc0.clause}
       GROUP BY origem
       ORDER BY total DESC
-    `).catch(() => []);
+    `, ...sc0.params).catch(() => []);
 
     // ── Métricas por campanha UTM ─────────────────────────────────────────────
 
@@ -206,11 +216,11 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
         COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END) AS quentes
       FROM Lead
-      WHERE utm_source IS NOT NULL OR campanha_nome IS NOT NULL
+      WHERE (utm_source IS NOT NULL OR campanha_nome IS NOT NULL)${sc0.clause}
       GROUP BY campanha, plataforma
       ORDER BY total DESC
       LIMIT 25
-    `).catch(() => []);
+    `, ...sc0.params).catch(() => []);
 
     // ── Distribuição por temperatura ──────────────────────────────────────────
 
@@ -221,8 +231,9 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
         COUNT(CASE WHEN etapa_comercial = 'FECHADO'                  THEN 1 END) AS fechados
       FROM Lead
+      WHERE 1=1${sc0.clause}
       GROUP BY temperatura
-    `).catch(() => []);
+    `, ...sc0.params).catch(() => []);
 
     // ── Resumo de atividades por tipo ─────────────────────────────────────────
 
@@ -231,17 +242,18 @@ export async function dashboardComercialRoutes(
         tipo,
         COUNT(*) AS total
       FROM LeadObservacao
-      WHERE tipo NOT IN ('SISTEMA','COLUNA_ALTERADA','TEMPERATURA_ALTERADA')
+      WHERE tipo NOT IN ('SISTEMA','COLUNA_ALTERADA','TEMPERATURA_ALTERADA')${restrito ? ' AND created_by = ?' : ''}
       GROUP BY tipo
       ORDER BY total DESC
-    `).catch(() => []);
+    `, ...(restrito ? [scopeUserId(request)!] : [])).catch(() => []);
 
     // ── Totais globais de leads ───────────────────────────────────────────────
+    const escopoLead = ownerWhere(request, 'Lead');  // {} para gestor, filtro para vendedor
     const [total_leads, ativos_total, fechados_total, perdidos_total] = await Promise.all([
-      prisma.lead.count(),
-      prisma.lead.count({ where: { etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] } } }),
-      prisma.lead.count({ where: { etapa_comercial: 'FECHADO' } }),
-      prisma.lead.count({ where: { etapa_comercial: 'PERDIDO' } }),
+      prisma.lead.count({ where: { ...escopoLead } }),
+      prisma.lead.count({ where: { etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] }, ...escopoLead } }),
+      prisma.lead.count({ where: { etapa_comercial: 'FECHADO', ...escopoLead } }),
+      prisma.lead.count({ where: { etapa_comercial: 'PERDIDO', ...escopoLead } }),
     ]);
 
     const taxa_global = total_leads > 0
