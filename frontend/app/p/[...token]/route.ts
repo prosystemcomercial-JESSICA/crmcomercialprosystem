@@ -2222,9 +2222,11 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ token: string | string[] }> }
 ) {
-  const { token } = await params;
+  const raw = (await params).token;
+  // Rota catch-all: /p/<token> ou /p/<token>/<slug-do-nome>. O 1º segmento é o token real.
+  const token = Array.isArray(raw) ? raw[0] : raw;
 
   try {
     const res = await fetch(`${API_URL}/p/${token}`, { cache: 'no-store' });
