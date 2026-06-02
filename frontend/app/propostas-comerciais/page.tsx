@@ -230,7 +230,8 @@ export default function PropostasComerciais() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ ...BLANK_FORM });
+    // Já preenche o vendedor com o usuário logado (quem está gerando a proposta).
+    setForm({ ...BLANK_FORM, vendedor_nome: user?.nome || '' });
     setActiveSection(0);
     setShowForm(true);
   };
@@ -894,6 +895,7 @@ export default function PropostasComerciais() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField label="Vendedor Responsável">
                       <input value={form.vendedor_nome as string} onChange={e => setField('vendedor_nome', e.target.value)} className="ps-input w-full" placeholder="Nome do vendedor" />
+                      <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 4 }}>Preenchido com o seu perfil; ajuste se gerar para outro vendedor.</p>
                     </FormField>
                     <FormField label="Telefone do Vendedor">
                       <input value={form.vendedor_telefone as string} onChange={e => setField('vendedor_telefone', e.target.value)} className="ps-input w-full" placeholder="(27) 99999-0000" />
