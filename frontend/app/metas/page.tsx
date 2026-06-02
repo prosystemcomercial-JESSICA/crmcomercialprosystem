@@ -24,6 +24,10 @@ interface Meta {
   meta_preco_inst?: number | null;
   meta_preco_mensal?: number | null;
   meta_valor_total?: number | null;
+  realizado?: {
+    contratos: number; valor_total: number; mrr_total: number;
+    preco_medio_inst: number; preco_medio_mensal: number;
+  } | null;
 }
 
 interface UsuarioOpt { id: string; nome: string; cargo?: string }
@@ -137,11 +141,6 @@ export default function MetasPage() {
     } finally { setSaving(false); }
   };
 
-  const handleUpdateProgress = async (id: string, valor_atual: number) => {
-    try { await apiClient.updateMeta(id, { valor_atual }); fetchData(); }
-    catch (e) { console.error(e); }
-  };
-
   const handleDelete = async (id: string) => {
     if (!confirm('Remover esta meta?')) return;
     try { await apiClient.deleteMeta(id); fetchData(); }
@@ -182,8 +181,9 @@ export default function MetasPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {metas.map(meta => {
+              const rz = meta.realizado || { contratos: 0, valor_total: 0, mrr_total: 0, preco_medio_inst: 0, preco_medio_mensal: 0 };
               const alvo = meta.meta_valor_total ?? meta.valor_alvo ?? 0;
-              const pct = alvo > 0 ? Math.min(100, (meta.valor_atual / alvo) * 100) : 0;
+              const pct = alvo > 0 ? Math.min(100, (rz.valor_total / alvo) * 100) : 0;
               const responsaveis = (meta.responsaveis_ids && meta.responsaveis_ids.length)
                 ? meta.responsaveis_ids : [meta.responsavel_id];
               return (
@@ -207,45 +207,42 @@ export default function MetasPage() {
                     ))}
                   </div>
 
-                  {/* Alvos comerciais */}
+                  {/* Alvos comerciais — realizado (automático) × meta */}
                   <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
                     <div className="bg-gray-50 rounded-lg p-2">
                       <p className="text-gray-500">Contratos</p>
-                      <p className="font-bold text-gray-800">{meta.meta_contratos ?? '—'}</p>
+                      <p className="font-bold text-gray-800">{rz.contratos}<span className="text-gray-400 font-normal"> / {meta.meta_contratos ?? '—'}</span></p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2">
                       <p className="text-gray-500">Total em valores</p>
-                      <p className="font-bold text-gray-800">{fmtBRL(meta.meta_valor_total)}</p>
+                      <p className="font-bold text-gray-800">{fmtBRL(rz.valor_total)}<span className="text-gray-400 font-normal"> / {fmtBRL(meta.meta_valor_total)}</span></p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2">
                       <p className="text-gray-500">Preço médio instal.</p>
-                      <p className="font-bold text-gray-800">{fmtBRL(meta.meta_preco_inst)}</p>
+                      <p className="font-bold text-gray-800">{fmtBRL(rz.preco_medio_inst)}<span className="text-gray-400 font-normal"> / {fmtBRL(meta.meta_preco_inst)}</span></p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2">
                       <p className="text-gray-500">Preço médio mensal.</p>
-                      <p className="font-bold text-gray-800">{fmtBRL(meta.meta_preco_mensal)}</p>
+                      <p className="font-bold text-gray-800">{fmtBRL(rz.preco_medio_mensal)}<span className="text-gray-400 font-normal"> / {fmtBRL(meta.meta_preco_mensal)}</span></p>
                     </div>
                   </div>
 
-                  {/* Evolução (total em valores) */}
-                  <div className="mb-2">
+                  {/* Evolução (total em valores) — realizado automático */}
+                  <div className="mb-1">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Realizado {fmtBRL(meta.valor_atual)}</span>
+                      <span>Realizado {fmtBRL(rz.valor_total)}</span>
                       <span>Meta {fmtBRL(alvo)}</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2.5">
                       <div className={`h-2.5 rounded-full transition-all ${pct >= 100 ? 'bg-green-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-blue-500'}`}
                         style={{ width: `${pct}%` }} />
                     </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Atualizado automaticamente pelos fechamentos do período.</p>
                   </div>
 
                   {isGestor && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <input type="number" defaultValue={meta.valor_atual}
-                        onBlur={e => handleUpdateProgress(meta.id, parseFloat(e.target.value))}
-                        className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none"
-                        placeholder="Atualizar realizado (R$)" />
-                      <button onClick={() => handleDelete(meta.id)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                    <div className="flex justify-end mt-2">
+                      <button onClick={() => handleDelete(meta.id)} className="text-red-400 hover:text-red-600 text-xs">Excluir meta</button>
                     </div>
                   )}
                 </div>

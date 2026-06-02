@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, requireGestor } from '@/lib/scope';
+import { calcularRealizadoMeta } from '@/lib/meta-progress';
 
 const CreateMetaSchema = z.object({
   titulo: z.string().min(1),
@@ -74,7 +75,13 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
       orderBy: [{ created_at: 'desc' }]
     });
 
-    return reply.send({ status: 'success', data: metas });
+    // Calcula o REALIZADO automático de cada meta (fechamentos reais no período)
+    const comRealizado = await Promise.all(metas.map(async (m) => {
+      const realizado = await calcularRealizadoMeta(prisma, m).catch(() => null);
+      return { ...m, realizado };
+    }));
+
+    return reply.send({ status: 'success', data: comRealizado });
   });
 
   fastify.post('/metas', async (request, reply) => {
