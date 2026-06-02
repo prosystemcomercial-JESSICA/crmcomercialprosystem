@@ -144,6 +144,92 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     return reply.send({ status: 'success', data: proposta });
   });
 
+  // ===== ACEITE PÚBLICO (cliente clica em "Aceitar") — sem auth =====
+  // Move o status p/ ACEITA → CONTRATO_EM_GERACAO, registra histórico, e casa/cria
+  // o lead no funil em FECHAMENTO (GANHO) com os dados de fechamento, de modo que
+  // Dashboard, Ciclo de Vendas e Metas passem a contabilizar automaticamente.
+  fastify.post('/p/:token/aceitar', { config: { skipAuth: true } }, async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const p = await prisma.propostaComercial.findUnique({ where: { public_token: token } });
+    if (!p) return reply.status(404).send({ status: 'error', message: 'Proposta não encontrada ou expirada' });
+
+    const jaAceita = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'].includes(p.status);
+
+    // valores p/ fechamento
+    const mrr = p.plano_selecionado === 'PRO'
+      ? Number(p.mensalidade_pro || 0)
+      : Number(p.mensalidade_plus || p.mensalidade_pro || 0);
+    const inst = Number(p.valor_implantacao ?? p.valor_final ?? 0);
+    const agora = new Date();
+
+    if (!jaAceita) {
+      // 1) Proposta → ACEITA e já marcada para geração de contrato
+      await prisma.propostaComercial.update({
+        where: { id: p.id },
+        data: {
+          status: 'CONTRATO_EM_GERACAO',
+          data_aceite: agora,
+          data_contrato_gerado: agora,
+        },
+      });
+      // 2) Histórico da proposta
+      await prisma.propostaHistorico.create({
+        data: {
+          proposta_id: p.id,
+          tipo: 'ACEITE_CLIENTE',
+          valor_novo: 'Cliente aceitou a proposta pelo link · enviada para geração de contrato',
+          feito_por_nome: p.razao_social || 'Cliente',
+          feito_por_role: 'CLIENTE',
+        },
+      }).catch(() => {});
+    }
+
+    // 3) Casa/cria o lead pelo CNPJ e move para FECHAMENTO (GANHO) — alimenta dashboard/metas
+    try {
+      const cnpjDigits = (p.cnpj || '').replace(/\D/g, '');
+      let lead = null as any;
+      if (cnpjDigits) {
+        // Casa por CNPJ tolerando formatação: busca os leads cujo CNPJ tenha os
+        // mesmos dígitos (comparação feita em JS para evitar SQL cru frágil).
+        const candidatos = await prisma.lead.findMany({
+          where: { cnpj: { not: null } },
+          select: { id: true, cnpj: true },
+          take: 2000,
+        }).catch(() => [] as any[]);
+        lead = candidatos.find(c => (c.cnpj || '').replace(/\D/g, '') === cnpjDigits) || null;
+      }
+      const fechamentoData = {
+        etapa_funil: 'FECHAMENTO', etapa_comercial: 'ACEITO', status: 'GANHO',
+        status_atendimento: 'FECHADO',
+        fechamento_data: agora, fechamento_mrr: mrr, fechamento_valor_inst: inst,
+        fechamento_plano: p.plano_selecionado || null,
+        fechamento_por: p.vendedor_id || p.created_by,
+      };
+      if (lead) {
+        await prisma.lead.update({ where: { id: lead.id }, data: fechamentoData as any });
+      } else {
+        // cria o lead já fechado (aparece no funil/dashboard)
+        await prisma.lead.create({
+          data: {
+            nome: p.razao_social, razao_social: p.razao_social, nome_fantasia: p.nome_fantasia || undefined,
+            cnpj: p.cnpj || undefined, segmento: p.segmento || undefined,
+            cidade: p.cidade || undefined, estado: p.estado || undefined,
+            vendedor_nome: p.vendedor_nome || undefined,
+            responsavel_id: p.vendedor_id || undefined,
+            origem: 'PROPOSTA', temperatura: 'MUITO_QUENTE',
+            created_by: p.vendedor_id || p.created_by,
+            modulos_inclusos: {}, servicos_adicionais: {},
+            ...fechamentoData,
+          } as any,
+        });
+      }
+    } catch (e) {
+      request.log?.warn({ err: e }, 'aceite: falha ao casar/criar lead (proposta segue aceita)');
+    }
+
+    return reply.send({ status: 'success', data: { aceita: true, ja_estava: jaAceita } });
+  });
+
   // ===== CRIAR =====
   fastify.post('/propostas-comerciais', async (request, reply) => {
     const user = (request as any).user;

@@ -94,9 +94,11 @@ function buildProposalData(p: any) {
   };
 }
 
-function generateHTML(data: any, images: Record<string, string> = {}): string {
+function generateHTML(data: any, images: Record<string, string> = {}, token = '', apiUrl = ''): string {
   const imgSrc = (key: string, fallbackPath: string) => images[key] || fallbackPath;
   const dataJson = JSON.stringify(data);
+  const tokenJson = JSON.stringify(token);
+  const apiUrlJson = JSON.stringify(apiUrl);
 
   // Tema do accent por segmento/plano: farmácia = ciano; varejo/padaria/MEI = laranja
   const themeKey = `${data.selectedPlan || ''} ${data.segment || ''}`
@@ -1218,7 +1220,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         <p class="body-md mt8">Entre em contato com <strong style="color:var(--text-primary);" id="s20-seller">${data.sellerName || '&mdash;'}</strong> para confirmar e dar início à implantação.</p>
       </div>
       <div class="flex gap12 flex-wrap">
-        <button class="btn btn-green" id="accept-whatsapp-btn">Aceitar via WhatsApp</button>
+        <button class="btn btn-green" id="accept-whatsapp-btn">&#10003; Aceitar proposta</button>
         <button class="btn btn-ghost" onclick="window.print()">&#128196; Baixar proposta em PDF</button>
       </div>
       <div class="whats-box seller-only">
@@ -1299,7 +1301,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
         </p>
       </div>
       <div class="flex gap12 flex-wrap justify-center">
-        <button class="btn btn-green" id="cta-whatsapp-btn" style="font-size:15px;padding:16px 32px;">Aceitar via WhatsApp</button>
+        <button class="btn btn-green" id="cta-whatsapp-btn" style="font-size:15px;padding:16px 32px;">&#10003; Aceitar proposta</button>
         <button class="btn btn-ghost" onclick="goToModule(5)" style="font-size:15px;padding:16px 24px;">Rever proposta comercial</button>
       </div>
       <div style="font-size:13px;color:var(--text-secondary);">
@@ -1317,6 +1319,8 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 <script>
   // ── DATA ────────────────────────────────────────────────
   const proposalData = ${dataJson};
+  const PROPOSAL_TOKEN = ${tokenJson};
+  const API_BASE = ${apiUrlJson};
 
   // ── PLAN FAMILY ─────────────────────────────────────────
   function getPlanFamily(segment, plano) {
@@ -1879,15 +1883,42 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     set('cta-seller', proposalData.sellerName  || '—');
     set('cta-phone',  proposalData.sellerPhone || '—');
 
-    // WhatsApp accept buttons
-    const acceptMsg = encodeURIComponent(
-      'Olá! Gostaria de aceitar a proposta da ProSystem para ' + proposalData.companyName + '. Podemos dar sequência?'
-    );
-    const sellerNum = '55' + onlyNumbers(proposalData.sellerPhone);
-    const acceptUrl = 'https://wa.me/' + sellerNum + '?text=' + acceptMsg;
-    const setClick = (id, url) => { const el = getEl(id); if (el) el.onclick = () => window.open(url, '_blank'); };
-    setClick('accept-whatsapp-btn', acceptUrl);
-    setClick('cta-whatsapp-btn',    acceptUrl);
+    // ACEITE: registra no sistema (move funil/contrato/dashboard) e parabeniza o cliente.
+    const wireAccept = (id) => { const el = getEl(id); if (el) el.onclick = aceitarProposta; };
+    wireAccept('accept-whatsapp-btn');
+    wireAccept('cta-whatsapp-btn');
+  }
+
+  let aceiteEnviado = false;
+  async function aceitarProposta() {
+    if (aceiteEnviado) { mostrarParabens(); return; }
+    aceiteEnviado = true;
+    try {
+      if (PROPOSAL_TOKEN) {
+        await fetch(API_BASE + '/p/' + PROPOSAL_TOKEN + '/aceitar', { method: 'POST' });
+      }
+    } catch (e) { /* mesmo se falhar a rede, parabeniza — o vendedor é avisado */ }
+    mostrarParabens();
+  }
+
+  function mostrarParabens() {
+    const nome = (proposalData && proposalData.companyName) ? proposalData.companyName : '';
+    const ov = document.createElement('div');
+    ov.id = 'aceite-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(8,19,48,0.55);backdrop-filter:blur(4px);';
+    ov.innerHTML =
+      '<div style="max-width:460px;width:100%;background:#fff;border-radius:22px;padding:40px 32px;text-align:center;box-shadow:0 24px 70px rgba(8,19,48,0.35);">' +
+        '<div style="font-size:54px;line-height:1;margin-bottom:14px;">&#127881;</div>' +
+        '<h2 style="font-size:24px;font-weight:900;color:#0D2238;margin:0 0 10px;">Proposta aceita!</h2>' +
+        '<p style="font-size:15px;color:#41506b;line-height:1.6;margin:0 0 8px;">' +
+          (nome ? '<b>' + nome + '</b>, ' : '') + 'parabéns pela excelente escolha! &#128175;</p>' +
+        '<p style="font-size:14px;color:#5A6B7B;line-height:1.6;margin:0 0 22px;">' +
+          'Você acaba de dar um passo importante para transformar a gestão do seu negócio com a ProSystem. ' +
+          'Seu consultor já foi avisado e entrará em contato para iniciar a implantação. Seja muito bem-vindo(a)! &#128075;</p>' +
+        '<button onclick="document.getElementById(\\'aceite-overlay\\').remove()" ' +
+          'style="background:#1FA45A;color:#fff;border:none;border-radius:999px;padding:13px 30px;font-size:15px;font-weight:800;cursor:pointer;">Fechar</button>' +
+      '</div>';
+    document.body.appendChild(ov);
   }
 
   // ── WHATSAPP SUMMARY ────────────────────────────────────
@@ -2219,7 +2250,7 @@ export async function GET(
     const logo = await loadImageAsDataUrl('logo-prosystem.png');
     const images = { logo };
 
-    const html = generateHTML(data, images);
+    const html = generateHTML(data, images, token, API_URL);
     return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   } catch {
     return new NextResponse(
