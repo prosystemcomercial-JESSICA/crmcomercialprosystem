@@ -232,6 +232,19 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { presets: PRESETS, modulos: MODULOS, modulos_criticos: MODULOS_CRITICOS } });
   });
 
+  // ─── GET /usuarios/me — perfil completo do usuário logado (com telefone) ──
+  // Usado para auto-preencher o vendedor (nome + telefone) ao gerar proposta.
+  fastify.get('/usuarios/me', { onRequest: requireAuth }, async (request, reply) => {
+    const user = (request as any).user;
+    if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome, email, telefone, cargo FROM UsuarioCRM WHERE id = ? LIMIT 1`, user.id
+    ).catch(() => []);
+    // fallback: dados do token (admin mock fora do banco)
+    const me = rows[0] || { id: user.id, nome: user.nome, email: user.email, telefone: null, cargo: user.role };
+    return reply.send({ status: 'success', data: me });
+  });
+
   // ─── GET /usuarios/vendedores — lista enxuta p/ atribuição de leads ──
   // Vendedores ATIVOS (id, nome). Usado pela supervisão no dropdown de atribuir.
   fastify.get('/usuarios/vendedores', { onRequest: requireAuth }, async (_request, reply) => {

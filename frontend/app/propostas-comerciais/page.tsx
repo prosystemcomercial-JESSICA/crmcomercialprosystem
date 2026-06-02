@@ -204,6 +204,12 @@ export default function PropostasComerciais() {
   const [previewProposta, setPreviewProposta] = useState<PropostaComercial | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Perfil completo do vendedor logado (nome + telefone) p/ auto-preencher a proposta
+  const [meuPerfil, setMeuPerfil] = useState<{ nome?: string; telefone?: string } | null>(null);
+  useEffect(() => {
+    apiClient.getMeuPerfil().then(r => setMeuPerfil(r.data?.data || null)).catch(() => {});
+  }, []);
+
   const [viewMode, setViewMode] = useState<'lista' | 'kanban'>('kanban');
   const [draggingProposta, setDraggingProposta] = useState<PropostaComercial | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
@@ -230,8 +236,12 @@ export default function PropostasComerciais() {
 
   const openNew = () => {
     setEditingId(null);
-    // Já preenche o vendedor com o usuário logado (quem está gerando a proposta).
-    setForm({ ...BLANK_FORM, vendedor_nome: user?.nome || '' });
+    // Já preenche o vendedor (nome + telefone) com o cadastro do usuário logado.
+    setForm({
+      ...BLANK_FORM,
+      vendedor_nome: meuPerfil?.nome || user?.nome || '',
+      vendedor_telefone: meuPerfil?.telefone || '',
+    });
     setActiveSection(0);
     setShowForm(true);
   };
