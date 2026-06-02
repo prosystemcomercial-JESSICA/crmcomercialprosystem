@@ -718,6 +718,10 @@ class ApiClient {
   async getResponsaveis() {
     return this.client.get('/usuarios/responsaveis');
   }
+  // Perfil completo do usuário logado (inclui telefone) — auto-preenche o vendedor
+  async getMeuPerfil() {
+    return this.client.get('/usuarios/me');
+  }
   async atribuirLeads(lead_ids: string[], vendedor_id: string) {
     return this.client.post('/leads/atribuir', { lead_ids, vendedor_id });
   }

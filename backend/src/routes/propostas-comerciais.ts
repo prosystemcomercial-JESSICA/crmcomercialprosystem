@@ -152,10 +152,18 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
 
     const data = { ...body.data };
 
-    // Auto-fill vendedor a partir do usuário logado se não foi informado
-    if (!data.vendedor_nome && user?.nome) data.vendedor_nome = user.nome;
-    if (!data.vendedor_email && user?.email) data.vendedor_email = user.email;
-    if (!data.vendedor_id && user?.id) data.vendedor_id = user.id;
+    // Auto-fill vendedor a partir do CADASTRO do usuário logado (nome, telefone, email).
+    // O token só tem nome/email; o telefone vem da UsuarioCRM.
+    if (user?.id) {
+      const perfilRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT nome, email, telefone FROM UsuarioCRM WHERE id = ? LIMIT 1`, user.id
+      ).catch(() => []);
+      const perfil = perfilRows[0] || {};
+      if (!data.vendedor_nome)     data.vendedor_nome = perfil.nome || user.nome || undefined;
+      if (!data.vendedor_telefone) data.vendedor_telefone = perfil.telefone || undefined;
+      if (!data.vendedor_email)    data.vendedor_email = perfil.email || user.email || undefined;
+      if (!data.vendedor_id)       data.vendedor_id = user.id;
+    }
 
     // Calcular valor_final se não informado
     if (!data.valor_final && data.valor_implantacao !== undefined) {
