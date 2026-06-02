@@ -241,6 +241,19 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: rows });
   });
 
+  // ─── GET /usuarios/responsaveis — usuários ATIVOS (id, nome, cargo) ──
+  // Usado no dropdown de responsável das metas (nomes e cargos reais cadastrados).
+  fastify.get('/usuarios/responsaveis', { onRequest: requireAuth }, async (_request, reply) => {
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome, cargo FROM UsuarioCRM WHERE status = 'ATIVO' ORDER BY nome ASC`
+    ).catch(() => []);
+    // inclui a conta admin do sistema (mock fora do banco), se não estiver no banco
+    if (!rows.some(r => r.id === 'user-jessica')) {
+      rows.unshift({ id: 'user-jessica', nome: 'Jessica', cargo: 'CEO' });
+    }
+    return reply.send({ status: 'success', data: rows });
+  });
+
   // ─── GET /usuarios ───────────────────────────────────────────
   fastify.get('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
     const ator = (request as any).user;

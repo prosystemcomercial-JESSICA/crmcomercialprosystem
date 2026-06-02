@@ -714,6 +714,10 @@ class ApiClient {
   async getVendedores() {
     return this.client.get('/usuarios/vendedores');
   }
+  // Usuários ativos (id, nome, cargo) para o dropdown de responsável das metas
+  async getResponsaveis() {
+    return this.client.get('/usuarios/responsaveis');
+  }
   async atribuirLeads(lead_ids: string[], vendedor_id: string) {
     return this.client.post('/leads/atribuir', { lead_ids, vendedor_id });
   }
