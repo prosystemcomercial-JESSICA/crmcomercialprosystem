@@ -183,6 +183,13 @@ const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS',
 const fmtBRL = (v?: number | null) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+// Nome do cliente vira um "slug" legível no link (sem acento/espaço). Apenas cosmético.
+const slugify = (s?: string) =>
+  (s || 'cliente')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'cliente';
+
 export default function PropostasComerciais() {
   const { user } = useAuth();
   const router = useRouter();
@@ -214,7 +221,11 @@ export default function PropostasComerciais() {
   const [draggingProposta, setDraggingProposta] = useState<PropostaComercial | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
-  const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Domínio do link do cliente: usa o domínio onde o CRM está aberto (online),
+  // depois a env, e só por último localhost (dev). Evita link "localhost" em produção.
+  const BASE_URL = (typeof window !== 'undefined' && window.location?.origin)
+    || process.env.NEXT_PUBLIC_APP_URL
+    || 'http://localhost:3000';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -375,8 +386,9 @@ export default function PropostasComerciais() {
   };
 
   // Monta o link da proposta. modo: 'cliente' (travado, auto-serviço) | 'apresentador' | undefined (automático)
+  // Inclui o nome do cliente (slug) no caminho — apenas cosmético; o token é a chave.
   const propostaLink = (p: PropostaComercial, modo?: 'cliente' | 'apresentador') =>
-    `${BASE_URL}/p/${p.public_token}${modo ? `?modo=${modo}` : ''}`;
+    `${BASE_URL}/p/${p.public_token}/${slugify(p.razao_social || p.nome_fantasia)}${modo ? `?modo=${modo}` : ''}`;
 
   const handleCopyLink = async (p: PropostaComercial, modo?: 'cliente' | 'apresentador') => {
     if (!p.public_token) return;
@@ -1193,7 +1205,7 @@ export default function PropostasComerciais() {
                     <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#16a34a', flexShrink: 0 }}>👤 Cliente</span>
                       <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {BASE_URL}/p/{previewProposta.public_token}?modo=cliente
+                        {propostaLink(previewProposta, 'cliente')}
                       </span>
                       <button onClick={() => handleCopyLink(previewProposta, 'cliente')}
                         style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
@@ -1204,7 +1216,7 @@ export default function PropostasComerciais() {
                     <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#2E6EAB', flexShrink: 0 }}>🎤 Apresentador</span>
                       <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {BASE_URL}/p/{previewProposta.public_token}?modo=apresentador
+                        {propostaLink(previewProposta, 'apresentador')}
                       </span>
                       <button onClick={() => handleCopyLink(previewProposta, 'apresentador')}
                         style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
