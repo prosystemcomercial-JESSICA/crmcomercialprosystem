@@ -466,9 +466,12 @@ export default function PropostasPage() {
     finally { setLoadingHistorico(false); }
   };
 
-  const handleCopyLink = async (p: PropostaComercial) => {
+  const propostaLink = (p: PropostaComercial, modo?: 'cliente' | 'apresentador') =>
+    `${BASE_URL}/p/${p.public_token}${modo ? `?modo=${modo}` : ''}`;
+
+  const handleCopyLink = async (p: PropostaComercial, modo?: 'cliente' | 'apresentador') => {
     if (!p.public_token) return;
-    await navigator.clipboard.writeText(`${BASE_URL}/p/${p.public_token}`);
+    await navigator.clipboard.writeText(propostaLink(p, modo));
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
@@ -634,7 +637,7 @@ export default function PropostasPage() {
                               <Edit3 size={13} />
                             </button>
                             {p.public_token && (
-                              <button onClick={() => handleCopyLink(p)} title="Copiar link"
+                              <button onClick={() => handleCopyLink(p, 'cliente')} title="Copiar link do cliente (auto-serviço)"
                                 style={{ padding: 5, borderRadius: 6, color: '#16a34a', background: '#dcfce7', border: 'none', cursor: 'pointer' }}>
                                 <Copy size={13} />
                               </button>
@@ -1275,16 +1278,24 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* Link público */}
+              {/* Links públicos — cliente (auto-serviço travado) e apresentador (vendedor) */}
               {previewProposta.public_token && (
-                <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <ExternalLink size={13} style={{ color: 'var(--t-text-muted)', flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {BASE_URL}/p/{previewProposta.public_token}
-                  </span>
-                  <button onClick={() => handleCopyLink(previewProposta)} style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                    {copied ? 'Copiado!' : 'Copiar'}
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#16a34a', flexShrink: 0 }}>👤 Cliente</span>
+                    <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {BASE_URL}/p/{previewProposta.public_token}?modo=cliente
+                    </span>
+                    <button onClick={() => handleCopyLink(previewProposta, 'cliente')} style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>Copiar</button>
+                  </div>
+                  <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#2E6EAB', flexShrink: 0 }}>🎤 Apresentador</span>
+                    <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {BASE_URL}/p/{previewProposta.public_token}?modo=apresentador
+                    </span>
+                    <button onClick={() => handleCopyLink(previewProposta, 'apresentador')} style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>Copiar</button>
+                  </div>
+                  {copied && <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Link copiado!</p>}
                 </div>
               )}
             </div>

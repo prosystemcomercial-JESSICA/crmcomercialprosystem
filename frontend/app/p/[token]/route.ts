@@ -1627,6 +1627,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
 
   let currentSlide = 0;
   let presenterMode = true;
+  let modeLocked = false;   // true = modo travado pela URL (link do cliente)
   let selfServiceTimer = null;
   let coachTimer = null;
   let hasKeyboard = false;
@@ -2118,7 +2119,7 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     }
     updateUI();
   }
-  function toggleMode() { setMode(!presenterMode); }
+  function toggleMode() { if (modeLocked) return; setMode(!presenterMode); }
 
   // ── KEYBOARD ────────────────────────────────────────────
   document.addEventListener('keydown', e => {
@@ -2160,12 +2161,27 @@ function generateHTML(data: any, images: Record<string, string> = {}): string {
     buildWhatsAppSummary();
     showSlide(0);
     updateUI();
-    // Em telas de toque (cliente abrindo pelo link no WhatsApp), já entra no
-    // modo cliente intuitivo. No desktop, mantém Apresentador e migra após 8s.
-    const isTouch = ('ontouchstart' in window) ||
-      (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
-    if (isTouch) { setMode(false); }
-    else { startSelfServiceTimer(); }
+
+    // Modo via URL (?modo=cliente | ?modo=apresentador). Aceita também ?mode=.
+    var params = new URLSearchParams(window.location.search);
+    var modoParam = (params.get('modo') || params.get('mode') || '').toLowerCase();
+
+    if (modoParam === 'cliente' || modoParam === 'client' || modoParam === 'autoatendimento' || modoParam === 'auto') {
+      // LINK DO CLIENTE: força auto-serviço e TRAVA (cliente não pode mudar de modo).
+      modeLocked = true;
+      setMode(false);
+      var mb = document.getElementById('mode-btn-top');
+      if (mb) mb.style.display = 'none';   // sem botão de trocar modo
+    } else if (modoParam === 'apresentador' || modoParam === 'presenter' || modoParam === 'vendedor') {
+      // LINK DO APRESENTADOR: começa no modo apresentador (vendedor pode alternar).
+      setMode(true);
+    } else {
+      // Sem parâmetro: comportamento automático (toque = cliente; desktop = apresentador→8s).
+      var isTouch = ('ontouchstart' in window) ||
+        (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
+      if (isTouch) { setMode(false); }
+      else { startSelfServiceTimer(); }
+    }
   }
   init();
 </script>

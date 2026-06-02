@@ -314,10 +314,13 @@ export default function PropostasComerciais() {
     }
   };
 
-  const handleCopyLink = async (p: PropostaComercial) => {
+  // Monta o link da proposta. modo: 'cliente' (travado, auto-serviço) | 'apresentador' | undefined (automático)
+  const propostaLink = (p: PropostaComercial, modo?: 'cliente' | 'apresentador') =>
+    `${BASE_URL}/p/${p.public_token}${modo ? `?modo=${modo}` : ''}`;
+
+  const handleCopyLink = async (p: PropostaComercial, modo?: 'cliente' | 'apresentador') => {
     if (!p.public_token) return;
-    const link = `${BASE_URL}/p/${p.public_token}`;
-    await navigator.clipboard.writeText(link);
+    await navigator.clipboard.writeText(propostaLink(p, modo));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -512,7 +515,7 @@ export default function PropostasComerciais() {
                             <Edit3 size={13} />
                           </button>
                           {p.public_token && (
-                            <button onClick={() => handleCopyLink(p)} title="Copiar link"
+                            <button onClick={() => handleCopyLink(p, 'cliente')} title="Copiar link do cliente (auto-serviço)"
                               style={{ padding: 5, borderRadius: 6, color: '#16a34a', background: '#dcfce7', border: 'none', cursor: 'pointer' }}>
                               <Copy size={13} />
                             </button>
@@ -662,8 +665,8 @@ export default function PropostasComerciais() {
                             </button>
                             {p.public_token && (
                               <button
-                                onClick={e => { e.stopPropagation(); handleCopyLink(p); }}
-                                title="Copiar link"
+                                onClick={e => { e.stopPropagation(); handleCopyLink(p, 'cliente'); }}
+                                title="Copiar link do cliente (auto-serviço)"
                                 style={{ padding: 4, borderRadius: 6, color: '#16a34a', background: '#dcfce7', border: 'none', cursor: 'pointer', display: 'flex' }}>
                                 <Copy size={11} />
                               </button>
@@ -1114,17 +1117,35 @@ export default function PropostasComerciais() {
                   </div>
                 </div>
 
-                {/* Link público */}
+                {/* Links públicos — um para o vendedor (apresentador) e um para o cliente (auto-serviço travado) */}
                 {previewProposta.public_token && (
-                  <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ExternalLink size={13} style={{ color: 'var(--t-text-muted)', flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {BASE_URL}/p/{previewProposta.public_token}
-                    </span>
-                    <button onClick={() => handleCopyLink(previewProposta)}
-                      style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                      {copied ? 'Copiado!' : 'Copiar'}
-                    </button>
+                  <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Link do CLIENTE (auto-serviço, travado) */}
+                    <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#16a34a', flexShrink: 0 }}>👤 Cliente</span>
+                      <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {BASE_URL}/p/{previewProposta.public_token}?modo=cliente
+                      </span>
+                      <button onClick={() => handleCopyLink(previewProposta, 'cliente')}
+                        style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
+                        Copiar
+                      </button>
+                    </div>
+                    {/* Link do APRESENTADOR (vendedor) */}
+                    <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#2E6EAB', flexShrink: 0 }}>🎤 Apresentador</span>
+                      <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {BASE_URL}/p/{previewProposta.public_token}?modo=apresentador
+                      </span>
+                      <button onClick={() => handleCopyLink(previewProposta, 'apresentador')}
+                        style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
+                        Copiar
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 2 }}>
+                      Envie o link <b>Cliente</b> ao cliente (modo travado, ele não muda). Use o <b>Apresentador</b> para apresentar você mesmo.
+                    </p>
+                    {copied && <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Link copiado!</p>}
                   </div>
                 )}
               </div>
