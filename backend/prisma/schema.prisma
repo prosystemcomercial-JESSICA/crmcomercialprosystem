@@ -724,12 +724,23 @@ model Contrato {
 model Meta {
   id              String    @id @default(cuid())
   titulo          String
-  responsavel_id  String
-  tipo            String    // RECEITA|LEADS|PROPOSTAS|CONTRATOS|ATIVIDADES
+  responsavel_id  String    // 1º responsável (compat); a lista completa fica em responsaveis_ids
+  responsaveis_ids Json?    // ["userId1","userId2"] — meta apresentada só a estes usuários (+ gestão)
+  tipo            String    // RECEITA|LEADS|PROPOSTAS|CONTRATOS|ATIVIDADES (legado; metas novas usam alvos abaixo)
   valor_alvo      Float
   valor_atual     Float     @default(0)
-  periodo         String    // MES_ANO format: "2026-05"
+  periodo         String    // rótulo: "2026-05" (mensal), "2026" (anual) ou "2026-06-01..2026-06-30" (período)
   status          String    @default("ATIVA") // ATIVA|CONCLUIDA|CANCELADA
+
+  // ─── Metas comerciais estruturadas ───
+  modo            String?   // 'INDIVIDUAL' (mesmo alvo p/ cada um) | 'EQUIPE' (alvo somado)
+  periodo_tipo    String?   // 'MENSAL' | 'ANUAL' | 'PERIODO'
+  data_inicio     DateTime?
+  data_fim        DateTime?
+  meta_contratos       Int?     // total de contratos
+  meta_preco_inst      Float?   // preço médio de instalação
+  meta_preco_mensal    Float?   // preço médio de mensalidade
+  meta_valor_total     Float?   // total em valores
 
   created_by      String
   created_at      DateTime  @default(now())

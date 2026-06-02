@@ -5,42 +5,73 @@ import { scopeUserId, requireGestor } from '@/lib/scope';
 
 const CreateMetaSchema = z.object({
   titulo: z.string().min(1),
-  responsavel_id: z.string().min(1),
-  tipo: z.enum(['RECEITA', 'LEADS', 'PROPOSTAS', 'CONTRATOS', 'ATIVIDADES']),
-  valor_alvo: z.number().min(0),
-  periodo: z.string().regex(/^\d{4}-\d{2}$/, 'Formato: YYYY-MM')
+  responsaveis_ids: z.array(z.string().min(1)).min(1),   // 1 ou mais usuários selecionados
+  modo: z.enum(['INDIVIDUAL', 'EQUIPE']).default('INDIVIDUAL'),
+  periodo_tipo: z.enum(['MENSAL', 'ANUAL', 'PERIODO']).default('MENSAL'),
+  periodo: z.string().min(1),                            // rótulo legível do período
+  data_inicio: z.string().datetime().optional(),
+  data_fim: z.string().datetime().optional(),
+  // alvos comerciais
+  meta_contratos: z.number().int().min(0).optional(),
+  meta_preco_inst: z.number().min(0).optional(),
+  meta_preco_mensal: z.number().min(0).optional(),
+  meta_valor_total: z.number().min(0).optional(),
 });
 
 const UpdateMetaSchema = z.object({
   titulo: z.string().optional(),
-  valor_alvo: z.number().optional(),
   valor_atual: z.number().optional(),
-  status: z.enum(['ATIVA', 'CONCLUIDA', 'CANCELADA']).optional()
+  status: z.enum(['ATIVA', 'CONCLUIDA', 'CANCELADA']).optional(),
+  meta_contratos: z.number().int().min(0).optional(),
+  meta_preco_inst: z.number().min(0).optional(),
+  meta_preco_mensal: z.number().min(0).optional(),
+  meta_valor_total: z.number().min(0).optional(),
 });
 
 export async function metasRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // Garante as colunas novas em bases já existentes (não-bloqueante).
+  Promise.all([
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN responsaveis_ids JSON NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN modo VARCHAR(20) NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN periodo_tipo VARCHAR(20) NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN data_inicio DATETIME NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN data_fim DATETIME NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN meta_contratos INT NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN meta_preco_inst DOUBLE NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN meta_preco_mensal DOUBLE NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE Meta ADD COLUMN meta_valor_total DOUBLE NULL`).catch(() => {}),
+  ]).catch(() => {});
+
   fastify.get('/metas', async (request, reply) => {
     const query = z.object({
       periodo: z.string().optional(),
       responsavel_id: z.string().optional(),
-      tipo: z.string().optional()
     }).safeParse(request.query);
-    if (!query.success) return reply.status(400).send({ status: 'error', message: 'Invalid query' });
-    const { periodo, responsavel_id, tipo } = query.data;
+    const periodo = query.data?.periodo;
+    const responsavel_id = query.data?.responsavel_id;
 
     const where: any = {};
     if (periodo) where.periodo = periodo;
-    if (tipo) where.tipo = tipo;
-    // Escopo: vendedor só vê a própria meta; gestor vê todas (ou filtra por responsavel_id).
+    // Escopo de VISIBILIDADE: a meta só aparece para os usuários selecionados (+ gestão).
     const scopeId = scopeUserId(request);
-    if (scopeId !== null) where.responsavel_id = scopeId;
-    else if (responsavel_id) where.responsavel_id = responsavel_id;
+    if (scopeId !== null) {
+      // vendedor: meta onde ele é o responsável principal OU está na lista de selecionados
+      where.OR = [
+        { responsavel_id: scopeId },
+        { responsaveis_ids: { array_contains: scopeId } as any },
+      ];
+    } else if (responsavel_id) {
+      where.OR = [
+        { responsavel_id },
+        { responsaveis_ids: { array_contains: responsavel_id } as any },
+      ];
+    }
 
     const metas = await prisma.meta.findMany({
       where,
-      orderBy: [{ periodo: 'desc' }, { created_at: 'desc' }]
+      orderBy: [{ created_at: 'desc' }]
     });
 
     return reply.send({ status: 'success', data: metas });
@@ -50,10 +81,28 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!requireGestor(request, reply)) return;  // só a supervisão cria metas
     const body = CreateMetaSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
-
+    const d = body.data;
     const user = (request as any).user;
+
+    // valor_alvo legado = total em valores (mantém compatibilidade com telas/relatórios antigos)
     const meta = await prisma.meta.create({
-      data: { ...body.data, created_by: user?.id || 'system' }
+      data: {
+        titulo: d.titulo,
+        responsavel_id: d.responsaveis_ids[0],
+        responsaveis_ids: d.responsaveis_ids,
+        tipo: 'CONTRATOS',
+        valor_alvo: d.meta_valor_total ?? 0,
+        periodo: d.periodo,
+        modo: d.modo,
+        periodo_tipo: d.periodo_tipo,
+        data_inicio: d.data_inicio ? new Date(d.data_inicio) : null,
+        data_fim: d.data_fim ? new Date(d.data_fim) : null,
+        meta_contratos: d.meta_contratos ?? null,
+        meta_preco_inst: d.meta_preco_inst ?? null,
+        meta_preco_mensal: d.meta_preco_mensal ?? null,
+        meta_valor_total: d.meta_valor_total ?? null,
+        created_by: user?.id || 'system',
+      } as any,
     });
     return reply.status(201).send({ status: 'success', data: meta });
   });
