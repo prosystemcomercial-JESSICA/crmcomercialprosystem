@@ -781,12 +781,12 @@ class ApiClient {
   }
 
   // Dashboard Power
-  async getDashboardPower() {
-    return this.client.get('/dashboard/power');
+  async getDashboardPower(vendedor_id?: string) {
+    return this.client.get('/dashboard/power', { params: vendedor_id ? { vendedor_id } : {} });
   }
 
-  async getDashboardComercial() {
-    return this.client.get('/dashboard/comercial');
+  async getDashboardComercial(vendedor_id?: string) {
+    return this.client.get('/dashboard/comercial', { params: vendedor_id ? { vendedor_id } : {} });
   }
 
   // Propostas Comerciais endpoints

@@ -22,8 +22,9 @@ export interface AuthUserLike {
   role?: string;
 }
 
-/** Papéis com visão total dos dados comerciais. */
-const ROLES_VISAO_TOTAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
+/** Papéis com visão total dos dados comerciais (gestão: vê todos os vendedores).
+ *  Match EXATO (não substring) — para não confundir SUPERVISAO_TECNICA com a comercial. */
+const ROLES_VISAO_TOTAL = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO'];
 
 /** Lê o usuário populado pelo hook global de auth opcional (server.ts). */
 export function getUser(request: FastifyRequest): AuthUserLike | undefined {
@@ -39,8 +40,8 @@ export function getUser(request: FastifyRequest): AuthUserLike | undefined {
 export function podeVerTudo(user?: AuthUserLike): boolean {
   if (!user) return false;
   const role = (user.role || '').toUpperCase();
-  if (ROLES_VISAO_TOTAL.some(r => role.includes(r))) return true;
-  return false;
+  // Match exato: SUPERVISAO_TECNICA NÃO é gestão comercial.
+  return ROLES_VISAO_TOTAL.includes(role);
 }
 
 /**
@@ -54,6 +55,36 @@ export function scopeUserId(request: FastifyRequest): string | null {
   const user = getUser(request);
   if (podeVerTudo(user)) return null;       // gestor → vê tudo
   return user?.id || '__no_user__';          // vendedor (ou anônimo) → só o próprio / nada
+}
+
+/**
+ * Escopo EFETIVO considerando um filtro opcional por vendedor (só p/ gestor).
+ *   - Vendedor (não-gestor): sempre o próprio id (ignora o filtro).
+ *   - Gestor SEM filtro: null (vê tudo).
+ *   - Gestor COM filtro (vendedor_id): aquele vendedor (vê "pelos olhos dele").
+ */
+export function effectiveScopeId(request: FastifyRequest, filtroVendedorId?: string | null): string | null {
+  const base = scopeUserId(request);          // null = gestor; id = vendedor
+  if (base !== null) return base;             // vendedor: ignora filtro
+  const f = (filtroVendedorId || '').trim();
+  return f ? f : null;                        // gestor: aplica o filtro escolhido (ou nada)
+}
+
+/** ownerWhere a partir de um id já resolvido (use com effectiveScopeId). */
+export function ownerWhereId(table: keyof typeof OWNER_COLUMNS | string, id: string | null): Record<string, any> {
+  if (id === null) return {};
+  const cols = OWNER_COLUMNS[table as string] || ['created_by'];
+  if (cols.length === 1) return { [cols[0]]: id };
+  return { OR: cols.map(c => ({ [c]: id })) };
+}
+
+/** ownerSql a partir de um id já resolvido (use com effectiveScopeId). */
+export function ownerSqlId(table: keyof typeof OWNER_COLUMNS | string, id: string | null, alias = ''): { clause: string; params: string[] } {
+  if (id === null) return { clause: '', params: [] };
+  const cols = OWNER_COLUMNS[table as string] || ['created_by'];
+  const prefix = alias ? `${alias}.` : '';
+  const conds = cols.map(c => `${prefix}${c} = ?`).join(' OR ');
+  return { clause: ` AND (${conds})`, params: cols.map(() => id) };
 }
 
 /**
