@@ -176,12 +176,18 @@ export default function MetasPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <input type="number" defaultValue={meta.valor_atual}
-                      onBlur={e => handleUpdateProgress(meta.id, parseFloat(e.target.value))}
-                      className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none"
-                      placeholder="Atualizar progresso" />
-                    {isGestor && (
-                      <button onClick={() => handleDelete(meta.id)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                    {isGestor ? (
+                      <>
+                        <input type="number" defaultValue={meta.valor_atual}
+                          onBlur={e => handleUpdateProgress(meta.id, parseFloat(e.target.value))}
+                          className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none"
+                          placeholder="Atualizar progresso" />
+                        <button onClick={() => handleDelete(meta.id)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                      </>
+                    ) : (
+                      <div className="flex-1 text-xs px-2 py-1 rounded-lg bg-gray-50 text-gray-600">
+                        Realizado: <span className="font-semibold text-gray-800">{meta.valor_atual}</span>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -47,6 +47,7 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
   });
 
   fastify.post('/metas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // só a supervisão cria metas
     const body = CreateMetaSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
 
@@ -58,6 +59,7 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
   });
 
   fastify.patch('/metas/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // só a supervisão edita/ajusta metas
     const { id } = request.params as { id: string };
     const body = UpdateMetaSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
@@ -72,6 +74,7 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
   });
 
   fastify.delete('/metas/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // só a supervisão exclui metas
     const { id } = request.params as { id: string };
     try {
       await prisma.meta.delete({ where: { id } });
