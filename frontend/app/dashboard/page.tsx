@@ -140,6 +140,13 @@ export default function DashboardPage() {
   // Painel executivo é só de gestão. Vendedor é levado ao seu Radar Comercial.
   const isGestor = podeVerTudo(user?.role);
 
+  // Filtro por vendedor (gestor): '' = todos
+  const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroVendedorId, setFiltroVendedorId] = useState('');
+  useEffect(() => {
+    if (isGestor) apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => {});
+  }, [isGestor]);
+
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
   }, [isAuthenticated, loading]);
@@ -154,7 +161,7 @@ export default function DashboardPage() {
     if (!isAuthenticated || !isGestor) return;  // vendedor não chama o /dashboard/power
     setDataLoading(true);
     setLoadError(null);
-    apiClient.getDashboardPower()
+    apiClient.getDashboardPower(filtroVendedorId || undefined)
       .then(res => { setData(res.data.data); setLastUpdate(new Date()); })
       .catch((err) => {
         console.error('[Dashboard] erro:', err);
@@ -164,7 +171,7 @@ export default function DashboardPage() {
       .finally(() => setDataLoading(false));
   };
 
-  useEffect(() => { loadData(); }, [isAuthenticated, isGestor]);
+  useEffect(() => { loadData(); }, [isAuthenticated, isGestor, filtroVendedorId]);
 
   // Enquanto carrega, não autenticado, ou redirecionando vendedor → spinner.
   if (loading || !isAuthenticated || (user && !isGestor)) {
@@ -200,15 +207,29 @@ export default function DashboardPage() {
               )}
             </p>
           </div>
-          <button
-            onClick={loadData}
-            disabled={dataLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #4B8EC8 0%, #2E6EAB 100%)', boxShadow: '0 4px 12px rgba(75,142,200,0.25)' }}
-          >
-            <RefreshCw size={14} className={dataLoading ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
+          <div className="flex items-center gap-2">
+            {vendedores.length > 0 && (
+              <select
+                value={filtroVendedorId}
+                onChange={e => setFiltroVendedorId(e.target.value)}
+                className="px-3 py-2 rounded-xl text-sm border bg-white"
+                style={{ borderColor: '#D8E8F5', color: '#0D2238' }}
+                title="Filtrar por vendedor"
+              >
+                <option value="">👥 Todos os vendedores</option>
+                {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+              </select>
+            )}
+            <button
+              onClick={loadData}
+              disabled={dataLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #4B8EC8 0%, #2E6EAB 100%)', boxShadow: '0 4px 12px rgba(75,142,200,0.25)' }}
+            >
+              <RefreshCw size={14} className={dataLoading ? 'animate-spin' : ''} />
+              Atualizar
+            </button>
+          </div>
         </div>
 
         {/* ── Loading ───────────────────────────────────────── */}

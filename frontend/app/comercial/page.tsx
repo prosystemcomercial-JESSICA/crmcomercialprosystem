@@ -181,6 +181,8 @@ export default function RadarComercialPage() {
   // o array "vendedores" (métricas por vendedor) que vem do dashboard.
   const [vendedoresLista, setVendedoresLista] = useState<{ id: string; nome: string }[]>([]);
   const [atribuindo, setAtribuindo] = useState(false);
+  // Filtro por vendedor (gestor): '' = todos
+  const [filtroVendedorId, setFiltroVendedorId] = useState('');
   useEffect(() => {
     if (isGestor) apiClient.getVendedores().then(r => setVendedoresLista(r.data?.data || [])).catch(() => {});
   }, [isGestor]);
@@ -203,14 +205,14 @@ export default function RadarComercialPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.getDashboardComercial();
+      const res = await apiClient.getDashboardComercial(filtroVendedorId || undefined);
       setData(res.data.data);
     } catch {
       setError('Erro ao carregar dados comerciais.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filtroVendedorId]);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/');  // login fica na raiz, não existe /login
@@ -269,13 +271,27 @@ export default function RadarComercialPage() {
                 : 'Seus leads e atividades — o que precisa de ação agora'}
             </p>
           </div>
-          <button
-            onClick={load}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50"
-          >
-            <RefreshCw size={14} />
-            Atualizar
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Filtro por vendedor (só gestão) */}
+            {isGestor && vendedoresLista.length > 0 && (
+              <select
+                value={filtroVendedorId}
+                onChange={e => setFiltroVendedorId(e.target.value)}
+                className="px-3 py-2 text-sm bg-white border rounded-lg text-gray-700"
+                title="Filtrar por vendedor"
+              >
+                <option value="">👥 Todos os vendedores</option>
+                {vendedoresLista.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+              </select>
+            )}
+            <button
+              onClick={load}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50"
+            >
+              <RefreshCw size={14} />
+              Atualizar
+            </button>
+          </div>
         </div>
 
         {/* Destaque: NOVOS LEADS — o que precisa de ação agora */}

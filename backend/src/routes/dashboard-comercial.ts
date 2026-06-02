@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
-import { ownerSql, ownerWhere, scopeUserId } from '@/lib/scope';
+import { ownerWhereId, ownerSqlId, effectiveScopeId } from '@/lib/scope';
 
 export async function dashboardComercialRoutes(
   fastify: FastifyInstance,
@@ -9,11 +9,14 @@ export async function dashboardComercialRoutes(
   const { prisma } = options;
 
   fastify.get('/dashboard/comercial', async (request, reply) => {
-    // ── Escopo de dados: gestor vê tudo; vendedor vê só o próprio ──
-    // (CEO/ADMIN/SUPERVISAO_COMERCIAL → sem filtro; demais → filtra pelo dono)
-    const sc  = ownerSql(request, 'Lead', 'l');     // ' AND (l.responsavel_id = ? OR l.created_by = ?)' ou ''
-    const sc0 = ownerSql(request, 'Lead');           // mesma cláusula sem alias (FROM Lead direto)
-    const restrito = scopeUserId(request) !== null;  // true = vendedor (visão própria)
+    // ── Escopo de dados ──
+    // Vendedor: sempre o próprio. Gestor: vê tudo, OU filtra por um vendedor
+    // específico via ?vendedor_id (filtro do dashboard/radar).
+    const filtroVendedor = (request.query as any)?.vendedor_id as string | undefined;
+    const scopeId = effectiveScopeId(request, filtroVendedor);  // null = sem filtro (todos)
+    const sc  = ownerSqlId('Lead', scopeId, 'l');   // ' AND (l.responsavel_id = ? OR l.created_by = ?)' ou ''
+    const sc0 = ownerSqlId('Lead', scopeId);         // mesma cláusula sem alias (FROM Lead direto)
+    const restrito = scopeId !== null;               // true = visão de UM vendedor (próprio ou filtrado)
     const now   = new Date();
     const h24   = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const d3    = new Date(now.getTime() - 3  * 24 * 60 * 60 * 1000);
@@ -44,7 +47,7 @@ export async function dashboardComercialRoutes(
       where: {
         etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] },
         proximo_contato: { lt: now, not: null },
-        ...ownerWhere(request, 'Lead'),
+        ...ownerWhereId('Lead', scopeId),
       },
       select: {
         id: true, nome: true, nome_fantasia: true, temperatura: true,
@@ -74,7 +77,7 @@ export async function dashboardComercialRoutes(
       where: {
         etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] },
         updated_at: { lt: d7 },
-        ...ownerWhere(request, 'Lead'),
+        ...ownerWhereId('Lead', scopeId),
       },
       select: {
         id: true, nome: true, nome_fantasia: true, temperatura: true,
@@ -141,7 +144,7 @@ export async function dashboardComercialRoutes(
       WHERE lo.tipo NOT IN ('SISTEMA','COLUNA_ALTERADA','TEMPERATURA_ALTERADA')
         AND lo.created_by_name IS NOT NULL${restrito ? ' AND lo.created_by = ?' : ''}
       GROUP BY lo.created_by_name, lo.tipo
-    `, ...(restrito ? [scopeUserId(request)!] : [])).catch(() => []);
+    `, ...(restrito ? [scopeId!] : [])).catch(() => []);
 
     const propostas_vendedor_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
@@ -245,10 +248,10 @@ export async function dashboardComercialRoutes(
       WHERE tipo NOT IN ('SISTEMA','COLUNA_ALTERADA','TEMPERATURA_ALTERADA')${restrito ? ' AND created_by = ?' : ''}
       GROUP BY tipo
       ORDER BY total DESC
-    `, ...(restrito ? [scopeUserId(request)!] : [])).catch(() => []);
+    `, ...(restrito ? [scopeId!] : [])).catch(() => []);
 
     // ── Totais globais de leads ───────────────────────────────────────────────
-    const escopoLead = ownerWhere(request, 'Lead');  // {} para gestor, filtro para vendedor
+    const escopoLead = ownerWhereId('Lead', scopeId);  // {} p/ visão geral, filtro p/ vendedor
     const [total_leads, ativos_total, fechados_total, perdidos_total] = await Promise.all([
       prisma.lead.count({ where: { ...escopoLead } }),
       prisma.lead.count({ where: { etapa_comercial: { notIn: ['FECHADO', 'PERDIDO'] }, ...escopoLead } }),

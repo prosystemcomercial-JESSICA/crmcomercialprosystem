@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
-import { podeVerTudo, getUser } from '@/lib/scope';
+import { podeVerTudo, getUser, ownerWhereId, effectiveScopeId } from '@/lib/scope';
 
 // MySQL via $queryRawUnsafe devolve BigInt em COUNT/SUM.
 // Helper que converte com segurança em number para aritmética.
@@ -24,6 +24,10 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
     if (!podeVerTudo(getUser(request))) {
       return reply.status(403).send({ status: 'error', message: 'Painel executivo restrito a Supervisão e CEO' });
     }
+    // Filtro opcional por vendedor (gestor escolhe um vendedor específico).
+    const filtroVendedor = (request.query as any)?.vendedor_id as string | undefined;
+    const scopeId = effectiveScopeId(request, filtroVendedor);   // null = todos
+    const fLead = ownerWhereId('Lead', scopeId);                 // {} ou filtro do dono
     const now = new Date();
     const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
     const inicioMesAnterior = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -55,22 +59,22 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       // Top leads
       top_leads
     ] = await Promise.all([
-      prisma.lead.count(),
-      prisma.lead.count({ where: { created_at: { gte: inicioMes } } }),
-      prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes } } }),
-      prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior } } }),
+      prisma.lead.count({ where: { ...fLead } }),
+      prisma.lead.count({ where: { created_at: { gte: inicioMes }, ...fLead } }),
+      prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes }, ...fLead } }),
+      prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior }, ...fLead } }),
       // Perdidos este mês (via LeadPerda — registra o momento real da perda)
-      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ?`, inicioMes).then((r: any) => num(r[0]?.n)).catch(() => 0),
-      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ? AND created_at <= ?`, inicioMesAnterior, fimMesAnterior).then((r: any) => num(r[0]?.n)).catch(() => 0),
+      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ?${scopeId ? ' AND vendedor_id = ?' : ''}`, inicioMes, ...(scopeId ? [scopeId] : [])).then((r: any) => num(r[0]?.n)).catch(() => 0),
+      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ? AND created_at <= ?${scopeId ? ' AND vendedor_id = ?' : ''}`, inicioMesAnterior, fimMesAnterior, ...(scopeId ? [scopeId] : [])).then((r: any) => num(r[0]?.n)).catch(() => 0),
 
-      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null } }),
-      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, created_at: { gte: inicioMes } } }),
+      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, ...(scopeId ? { created_by: scopeId } : {}) } }),
+      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, created_at: { gte: inicioMes }, ...(scopeId ? { created_by: scopeId } : {}) } }),
 
-      prisma.proposta.count({ where: { status: { in: ['ENVIADA', 'VISUALIZADA'] } } }),
-      prisma.proposta.count({ where: { status: 'ACEITA', updated_at: { gte: inicioMes } } }),
+      prisma.proposta.count({ where: { status: { in: ['ENVIADA', 'VISUALIZADA'] }, ...(scopeId ? { created_by: scopeId } : {}) } }),
+      prisma.proposta.count({ where: { status: 'ACEITA', updated_at: { gte: inicioMes }, ...(scopeId ? { created_by: scopeId } : {}) } }),
 
-      prisma.atividade.count({ where: { status: 'PENDENTE', data_prevista: { gte: hoje_inicio, lt: hoje_fim } } }),
-      prisma.atividade.count({ where: { status: 'PENDENTE', data_prevista: { lt: now } } }),
+      prisma.atividade.count({ where: { status: 'PENDENTE', data_prevista: { gte: hoje_inicio, lt: hoje_fim }, ...(scopeId ? { OR: [{ responsavel_id: scopeId }, { created_by: scopeId }] } : {}) } }),
+      prisma.atividade.count({ where: { status: 'PENDENTE', data_prevista: { lt: now }, ...(scopeId ? { OR: [{ responsavel_id: scopeId }, { created_by: scopeId }] } : {}) } }),
 
       prisma.ticketSuporte.count({ where: { status: { in: ['ABERTO', 'EM_ATENDIMENTO'] } } }),
       prisma.ticketSuporte.count({ where: { status: { in: ['ABERTO', 'EM_ATENDIMENTO'] }, prioridade: 'CRITICA' } }),
@@ -88,7 +92,7 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       // Pipeline por etapa
       prisma.lead.groupBy({
         by: ['etapa_funil'],
-        where: { status: { notIn: ['GANHO', 'PERDIDO'] } },
+        where: { status: { notIn: ['GANHO', 'PERDIDO'] }, ...fLead },
         _count: { id: true },
         _sum: { valor_estimado: true }
       }),
@@ -97,7 +101,8 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.lead.findMany({
         where: {
           status: { notIn: ['GANHO', 'PERDIDO', 'NUTRICAO'] },
-          valor_estimado: { gt: 0 }
+          valor_estimado: { gt: 0 },
+          ...fLead
         },
         orderBy: { valor_estimado: 'desc' },
         take: 5,
@@ -123,8 +128,9 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
           END
         ), 0) AS mrr_total
       FROM PropostaComercial
+      ${scopeId ? 'WHERE (vendedor_id = ? OR created_by = ?)' : ''}
       GROUP BY status
-    `).catch(() => []);
+    `, ...(scopeId ? [scopeId, scopeId] : [])).catch(() => []);
 
     const ppBucket = (statuses: string[]) => {
       const rows = pipeline_propostas_raw.filter(r => statuses.includes(r.status));
