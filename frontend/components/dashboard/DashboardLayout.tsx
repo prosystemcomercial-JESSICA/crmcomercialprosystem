@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
-  LayoutDashboard, Target, GitMerge, CalendarCheck, FileText, FileCheck2,
+  LayoutDashboard, Target, GitMerge, CalendarCheck, FileCheck2,
   TrendingDown, Megaphone, Trophy, Medal, Building2, Users, DollarSign,
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
@@ -45,8 +45,7 @@ const navGroups: NavGroup[] = [
       { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial', roles: COMERCIAL },
       { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',         roles: ALL },
       { href: '/agenda',                icon: CalendarDays,  label: 'Agenda (Google)',    roles: ALL },
-      { href: '/propostas',             icon: FileText,      label: 'Propostas',          roles: COMERCIAL },
-      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Gerador de Proposta',roles: COMERCIAL },
+      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
       { href: '/perdidos',              icon: TrendingDown,  label: 'Perdidos',           roles: COMERCIAL },
       { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
