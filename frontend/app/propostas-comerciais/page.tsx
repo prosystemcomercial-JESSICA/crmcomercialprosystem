@@ -125,13 +125,57 @@ const SERVICOS = [
   'Treinamento', 'Suporte Prioritário',
 ];
 
-const SEGMENTOS = ['Varejo', 'Supermercado', 'Farmácia', 'Padaria', 'Restaurante', 'Posto de Combustível', 'Autopeças', 'Outro'];
+// Segmentos oficiais (menu suspenso) — a proposta inteira é direcionada pelo segmento.
+const SEGMENTOS = ['Farmácia / Drogaria', 'Farmácia de Manipulação', 'Padaria', 'Varejo'];
 
-// Planos por segmento: Farmácia → linha Farma; demais (varejo/padaria/...) → MEI + Loja.
+// Planos por segmento: Farmácia/Manipulação → linha Farma; Padaria/Varejo → MEI + Loja.
 const PLANOS_FARMA = ['Farma Basic', 'Farma Pro', 'Farma Plus'];
 const PLANOS_LOJA  = ['MEI', 'Loja Basic', 'Loja Pro', 'Loja Plus'];
 const planosPorSegmento = (seg?: string): string[] =>
-  /farm/i.test(seg || '') ? PLANOS_FARMA : PLANOS_LOJA;
+  /farm|manipula/i.test(seg || '') ? PLANOS_FARMA : PLANOS_LOJA;
+
+// ── Conteúdo automático por segmento (título, frase hero, texto de valor) ──
+// Ao escolher o segmento, a proposta é preenchida e direcionada para ele.
+type SegTpl = { titulo: string; hero: string; valor: string };
+const SEGMENTO_TEMPLATES: Record<string, SegTpl> = {
+  'Farmácia / Drogaria': {
+    titulo: 'Proposta Comercial Prosystem — Gestão para Farmácias e Drogarias',
+    hero: 'A farmácia que vende mais, controla o estoque e nunca perde uma venda por ruptura.',
+    valor: 'O Prosystem foi feito para farmácias e drogarias: PBM e Farmácia Popular integrados, '
+      + 'controle de uso contínuo, atenção farmacêutica, SNGPC e inteligência tributária do setor. '
+      + 'Sua equipe vende mais rápido no balcão, o estoque se controla sozinho e a gestão enxerga tudo em tempo real.',
+  },
+  'Farmácia de Manipulação': {
+    titulo: 'Proposta Comercial Prosystem — Gestão para Farmácias de Manipulação',
+    hero: 'Da fórmula ao balcão: controle total da manipulação, do estoque e da rentabilidade.',
+    valor: 'O Prosystem atende a farmácia de manipulação de ponta a ponta: controle de fórmulas e '
+      + 'matérias-primas, rastreabilidade, atenção farmacêutica, SNGPC e inteligência tributária. '
+      + 'Mais agilidade na produção, menos perdas e uma gestão que mostra a margem real de cada fórmula.',
+  },
+  'Padaria': {
+    titulo: 'Proposta Comercial Prosystem — Gestão para Padarias e Panificadoras',
+    hero: 'Produção, balcão e delivery sob controle — sua padaria vendendo mais todos os dias.',
+    valor: 'O Prosystem organiza a padaria do forno ao caixa: controle de produção, balança e pesáveis, '
+      + 'estoque de insumos, frente de caixa ágil e delivery integrado. '
+      + 'Menos desperdício, fila mais rápida e a gestão acompanhando o resultado de cada turno.',
+  },
+  'Varejo': {
+    titulo: 'Proposta Comercial Prosystem — Gestão para o Varejo',
+    hero: 'O sistema completo que faz seu varejo vender mais e crescer com controle.',
+    valor: 'O Prosystem dá ao seu varejo uma operação afiada: frente de caixa rápida, controle de estoque, '
+      + 'financeiro completo, NF-e/NFC-e e relatórios gerenciais. '
+      + 'Tudo num só lugar, com a inteligência para você decidir com base em dados — não no achismo.',
+  },
+};
+const tplDoSegmento = (seg?: string): SegTpl | undefined => {
+  if (!seg) return undefined;
+  if (SEGMENTO_TEMPLATES[seg]) return SEGMENTO_TEMPLATES[seg];
+  // fallback por palavra-chave (compatível com propostas antigas)
+  if (/manipula/i.test(seg)) return SEGMENTO_TEMPLATES['Farmácia de Manipulação'];
+  if (/farm|drogaria/i.test(seg)) return SEGMENTO_TEMPLATES['Farmácia / Drogaria'];
+  if (/padar|panific/i.test(seg)) return SEGMENTO_TEMPLATES['Padaria'];
+  return SEGMENTO_TEMPLATES['Varejo'];
+};
 const TIPOS_LOJA = ['Nova Implantação', 'Migração', 'Upgrade', 'Filial', 'Reativação'];
 const ORIGENS = ['Indicação', 'Prospecção', 'WhatsApp', 'Visita', 'Tráfego Pago', 'Cliente Antigo', 'Evento'];
 const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
@@ -251,8 +295,13 @@ export default function PropostasComerciais() {
     }
     setSaving(true);
     try {
+      // Garante conteúdo direcionado ao segmento (título sempre gerado; hero/valor se vazios)
+      const tpl = tplDoSegmento(form.segmento as string);
       const payload: any = {
         ...form,
+        titulo_proposta: (form.titulo_proposta as string)?.trim() || tpl?.titulo || '',
+        frase_hero:      (form.frase_hero as string)?.trim()      || tpl?.hero  || '',
+        texto_valor:     (form.texto_valor as string)?.trim()     || tpl?.valor || '',
         maquinas: parseNum(form.maquinas as string),
         mensalidade_pro: parseNum(form.mensalidade_pro as string),
         mensalidade_plus: parseNum(form.mensalidade_plus as string),
@@ -340,6 +389,25 @@ export default function PropostasComerciais() {
     setForm(f => {
       const arr = f[k] as string[];
       return { ...f, [k]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] };
+    });
+  };
+
+  // Escolher segmento → preenche automaticamente título, frase hero e texto de valor
+  // (toda a proposta passa a ser direcionada ao segmento). Limpa plano se trocou de família.
+  const aplicarSegmento = (seg: string) => {
+    const tpl = tplDoSegmento(seg);
+    setForm(f => {
+      const mudouFamilia = planosPorSegmento(seg) !== planosPorSegmento(f.segmento as string);
+      return {
+        ...f,
+        segmento: seg,
+        titulo_proposta: tpl ? tpl.titulo : f.titulo_proposta,
+        frase_hero:      tpl ? tpl.hero  : f.frase_hero,
+        texto_valor:     tpl ? tpl.valor : f.texto_valor,
+        // se trocou Farma↔Loja, zera os planos pra não ficar plano inválido
+        plano_selecionado:  mudouFamilia ? '' : f.plano_selecionado,
+        plano_recomendado:  mudouFamilia ? '' : f.plano_recomendado,
+      };
     });
   };
 
@@ -760,10 +828,13 @@ export default function PropostasComerciais() {
                       <input value={form.cnpj as string} onChange={e => setField('cnpj', e.target.value)} className="ps-input w-full" placeholder="00.000.000/0001-00" />
                     </FormField>
                     <FormField label="Segmento">
-                      <select value={form.segmento as string} onChange={e => setField('segmento', e.target.value)} className="ps-input w-full">
+                      <select value={form.segmento as string} onChange={e => aplicarSegmento(e.target.value)} className="ps-input w-full">
                         <option value="">Selecione...</option>
                         {SEGMENTOS.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
+                      <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 4 }}>
+                        Define os planos, o título, a frase e o texto da proposta — tudo direcionado ao segmento.
+                      </p>
                     </FormField>
                     <FormField label="Cidade">
                       <input value={form.cidade as string} onChange={e => setField('cidade', e.target.value)} className="ps-input w-full" placeholder="Cidade" />
@@ -883,26 +954,10 @@ export default function PropostasComerciais() {
                       <input type="number" value={form.mensalidade_plus as string} onChange={e => setField('mensalidade_plus', e.target.value)} className="ps-input w-full" placeholder="Ex: 520" />
                     </FormField>
 
-                    <FormField label="Módulos Inclusos" col={2}>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {MODULOS.map(m => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => toggleList('modulos_inclusos', m)}
-                            style={{
-                              padding: '4px 10px', borderRadius: 999, fontSize: 12, cursor: 'pointer',
-                              border: '1.5px solid',
-                              borderColor: (form.modulos_inclusos as string[]).includes(m) ? 'var(--t-primary)' : 'var(--t-card-border)',
-                              background: (form.modulos_inclusos as string[]).includes(m) ? 'var(--t-primary-light)' : 'transparent',
-                              color: (form.modulos_inclusos as string[]).includes(m) ? 'var(--t-primary)' : 'var(--t-text-muted)',
-                              fontWeight: (form.modulos_inclusos as string[]).includes(m) ? 700 : 400,
-                            }}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
+                    <FormField label="Módulos do Plano" col={2}>
+                      <p style={{ fontSize: 12, color: 'var(--t-text-muted)', padding: '8px 12px', borderRadius: 8, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                        Os módulos seguem automaticamente o que cada plano libera (Basic / Pro / Plus). Não é preciso selecionar — a proposta mostra o comparativo oficial do plano escolhido.
+                      </p>
                     </FormField>
 
                     <FormField label="Serviços Adicionais" col={2}>
@@ -980,8 +1035,10 @@ export default function PropostasComerciais() {
                 {/* Seção 5 — Conteúdo */}
                 {activeSection === 5 && (
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField label="Título Principal da Proposta" col={2}>
-                      <input value={form.titulo_proposta as string} onChange={e => setField('titulo_proposta', e.target.value)} className="ps-input w-full" placeholder="Ex: Proposta Comercial Prosystem — Plano Plus" />
+                    <FormField label="Título da Proposta (gerado pelo segmento)" col={2}>
+                      <div style={{ padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                        {(form.titulo_proposta as string) || (tplDoSegmento(form.segmento as string)?.titulo) || 'Selecione o segmento (aba Empresa) para gerar o título'}
+                      </div>
                     </FormField>
                     <FormField label="Frase do Hero (destaque)" col={2}>
                       <input value={form.frase_hero as string} onChange={e => setField('frase_hero', e.target.value)} className="ps-input w-full" placeholder="Ex: Seu negócio merece um sistema que cresce com ele" />
