@@ -30,7 +30,7 @@ export async function dashboardComercialRoutes(
       SELECT l.id, l.nome, l.nome_fantasia, l.segmento, l.temperatura,
              l.etapa_comercial, l.vendedor_nome, l.created_at,
              TIMESTAMPDIFF(SECOND, l.created_at, NOW())/3600 AS horas_sem_contato
-      FROM Lead l
+      FROM \`Lead\` l
       WHERE l.etapa_comercial NOT IN ('FECHADO','PERDIDO')
         AND l.created_at < ?${sc.clause}
         AND NOT EXISTS (
@@ -62,7 +62,7 @@ export async function dashboardComercialRoutes(
       SELECT l.id, l.nome, l.nome_fantasia, l.temperatura, l.etapa_comercial,
              l.vendedor_nome, l.segmento, l.updated_at,
              TIMESTAMPDIFF(SECOND, l.updated_at, NOW())/86400 AS dias_parado
-      FROM Lead l
+      FROM \`Lead\` l
       WHERE l.temperatura IN ('QUENTE','MUITO_QUENTE')
         AND l.etapa_comercial NOT IN ('FECHADO','PERDIDO')${sc.clause}
         AND NOT EXISTS (
@@ -92,7 +92,7 @@ export async function dashboardComercialRoutes(
       SELECT l.id, l.nome, l.nome_fantasia, l.temperatura, l.etapa_comercial,
              l.vendedor_nome, l.ultima_obs_at, l.segmento,
              TIMESTAMPDIFF(SECOND, COALESCE(l.ultima_obs_at, l.updated_at), NOW())/86400 AS dias_sem_followup
-      FROM Lead l
+      FROM \`Lead\` l
       WHERE l.etapa_comercial = 'PROPOSTA_ENVIADA'
         AND (l.ultima_obs_at IS NULL OR l.ultima_obs_at < ?)${sc.clause}
       ORDER BY l.ultima_obs_at ASC
@@ -129,7 +129,7 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN l.temperatura = 'MORNO'        THEN 1 END)           AS morno,
         COUNT(CASE WHEN l.temperatura = 'FRIO'         THEN 1 END)           AS frio,
         COUNT(CASE WHEN l.created_at >= ?              THEN 1 END)           AS leads_mes
-      FROM Lead l
+      FROM \`Lead\` l
       WHERE l.vendedor_nome IS NOT NULL${sc.clause}
       GROUP BY l.vendedor_nome
       ORDER BY total_leads DESC
@@ -158,7 +158,7 @@ export async function dashboardComercialRoutes(
                       WHEN pc.plano_selecionado = 'PRO'  THEN COALESCE(pc.mensalidade_pro,0)
                       ELSE COALESCE(pc.mensalidade_plus, COALESCE(pc.mensalidade_pro,0)) END
             END), 0) AS mrr_fechado
-      FROM Lead l
+      FROM \`Lead\` l
       LEFT JOIN PropostaComercial pc ON pc.lead_id = l.id AND pc.deleted_at IS NULL
       WHERE l.vendedor_nome IS NOT NULL${sc.clause}
       GROUP BY l.vendedor_nome
@@ -202,7 +202,7 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN etapa_comercial = 'FECHADO'            THEN 1 END)   AS fechados,
         COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
         COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END) AS quentes
-      FROM Lead
+      FROM \`Lead\`
       WHERE 1=1${sc0.clause}
       GROUP BY origem
       ORDER BY total DESC
@@ -218,7 +218,7 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN etapa_comercial = 'FECHADO'            THEN 1 END)   AS fechados,
         COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
         COUNT(CASE WHEN temperatura IN ('QUENTE','MUITO_QUENTE') THEN 1 END) AS quentes
-      FROM Lead
+      FROM \`Lead\`
       WHERE (utm_source IS NOT NULL OR campanha_nome IS NOT NULL)${sc0.clause}
       GROUP BY campanha, plataforma
       ORDER BY total DESC
@@ -233,7 +233,7 @@ export async function dashboardComercialRoutes(
         COUNT(*)                                                              AS total,
         COUNT(CASE WHEN etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
         COUNT(CASE WHEN etapa_comercial = 'FECHADO'                  THEN 1 END) AS fechados
-      FROM Lead
+      FROM \`Lead\`
       WHERE 1=1${sc0.clause}
       GROUP BY temperatura
     `, ...sc0.params).catch(() => []);

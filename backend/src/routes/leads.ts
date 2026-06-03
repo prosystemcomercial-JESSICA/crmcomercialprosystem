@@ -166,9 +166,10 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   // ── Colunas de atribuição (não-bloqueante; padrão raw do projeto) ──
   // atribuido_em: quando a supervisão atribuiu o lead ao vendedor.
   // atribuicao_vista: o vendedor já viu/tratou o "novo lead recebido"?
+  // OBS: `Lead` é palavra reservada no MySQL 8 → SEMPRE com crase no SQL cru.
   Promise.all([
-    prisma.$executeRawUnsafe(`ALTER TABLE Lead ADD COLUMN atribuido_em DATETIME NULL`).catch(() => {}),
-    prisma.$executeRawUnsafe(`ALTER TABLE Lead ADD COLUMN atribuicao_vista TINYINT(1) NOT NULL DEFAULT 1`).catch(() => {}),
+    prisma.$executeRawUnsafe('ALTER TABLE `Lead` ADD COLUMN atribuido_em DATETIME NULL').catch(() => {}),
+    prisma.$executeRawUnsafe('ALTER TABLE `Lead` ADD COLUMN atribuicao_vista TINYINT(1) NOT NULL DEFAULT 1').catch(() => {}),
   ]).catch(() => {});
 
   // ── Atribuir / distribuir leads (SUPERVISÃO) ──────────────────────────────
@@ -190,7 +191,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
 
     const placeholders = body.data.lead_ids.map(() => '?').join(',');
     await prisma.$executeRawUnsafe(
-      `UPDATE Lead SET responsavel_id = ?, vendedor_nome = ?, atribuido_em = NOW(), atribuicao_vista = 0, updated_at = NOW()
+      `UPDATE \`Lead\` SET responsavel_id = ?, vendedor_nome = ?, atribuido_em = NOW(), atribuicao_vista = 0, updated_at = NOW()
        WHERE id IN (${placeholders})`,
       vendedor.id, vendedor.nome, ...body.data.lead_ids
     );
@@ -228,7 +229,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     for (let i = 0; i < leads.length; i++) {
       const v = vendedores[i % vendedores.length];
       await prisma.$executeRawUnsafe(
-        `UPDATE Lead SET responsavel_id = ?, vendedor_nome = ?, atribuido_em = NOW(), atribuicao_vista = 0, updated_at = NOW() WHERE id = ?`,
+        `UPDATE \`Lead\` SET responsavel_id = ?, vendedor_nome = ?, atribuido_em = NOW(), atribuicao_vista = 0, updated_at = NOW() WHERE id = ?`,
         v.id, v.nome, leads[i].id
       );
       porVendedor[v.nome] = (porVendedor[v.nome] || 0) + 1;
@@ -402,7 +403,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     // Vendedor abriu o lead recém-atribuído → marca como visto (some do sininho).
     const uid = (request as any).user?.id;
     if (uid && (lead.responsavel_id === uid || lead.created_by === uid)) {
-      prisma.$executeRawUnsafe(`UPDATE Lead SET atribuicao_vista = 1 WHERE id = ? AND atribuicao_vista = 0`, id).catch(() => {});
+      prisma.$executeRawUnsafe(`UPDATE \`Lead\` SET atribuicao_vista = 1 WHERE id = ? AND atribuicao_vista = 0`, id).catch(() => {});
     }
 
     return reply.send({ status: 'success', data: lead });

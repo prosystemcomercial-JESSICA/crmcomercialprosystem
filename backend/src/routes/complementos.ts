@@ -139,7 +139,7 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     if (escNovo.OR || escNovo.responsavel_id) {
       const uid = (request as any).user?.id || '__no_user__';
       novos_atribuidos = await prisma.$queryRawUnsafe(
-        `SELECT id, nome, empresa, atribuido_em FROM Lead
+        `SELECT id, nome, empresa, atribuido_em FROM \`Lead\`
          WHERE atribuicao_vista = 0 AND atribuido_em IS NOT NULL
            AND (responsavel_id = ? OR created_by = ?)
          ORDER BY atribuido_em DESC LIMIT 20`, uid, uid
