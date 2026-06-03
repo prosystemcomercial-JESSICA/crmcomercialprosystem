@@ -1207,11 +1207,20 @@ model ContratoComercial {
   setup_condicao_especial String?
 
   // Equipe comercial
+  vendedor_id             String?   // p/ vincular comissão e meta ao vendedor
   vendedor_nome           String?
   supervisor_nome         String?
   campanha                String?
   condicao_especial       String?
   data_contrato           DateTime  @default(now())
+
+  // Comissão do vendedor (15% sobre o setup/instalação, calculada na assinatura)
+  comissao_vendedor_pct   Float?    @default(15)
+  comissao_vendedor_valor Float?
+
+  // Recuo / distrato (cliente assinou e desistiu) — sai da meta e estorna comissão
+  recuado_at              DateTime?
+  recuo_motivo            String?
 
   // Modelo ZapSign usado
   modelo_contrato         String?   // "Pro" | "Plus" | "Farma Pro" | etc
@@ -1219,7 +1228,7 @@ model ContratoComercial {
 
   // Kanban status
   status                  String    @default("A_GERAR")
-  // A_GERAR | GERADO | ENVIADO_ASSINATURA | AGUARDANDO_ASSINATURA | ASSINADO | PENDENTE_CORRECAO | CANCELADO
+  // A_GERAR | GERADO | ENVIADO_ASSINATURA | AGUARDANDO_ASSINATURA | ASSINADO | PENDENTE_CORRECAO | CANCELADO | RECUADO
 
   // ZapSign campos de rastreamento
   zapsign_doc_token       String?

@@ -67,6 +67,7 @@ function buildProposalData(p: any) {
     sellerName: p.vendedor_nome || '',
     sellerPhone: p.vendedor_telefone || '',
     selectedPlan: plano,
+    plano_selecionado: p.plano_selecionado || '',
     recommendedPlan: 'Plus',
     monthlyValue: monthly,
     monthlyPro,
@@ -1989,15 +1990,69 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
   }
 
   let aceiteEnviado = false;
-  async function aceitarProposta() {
+
+  // Ao aceitar: se a proposta tem AMBOS os planos (Pro e Plus), o cliente escolhe
+  // qual antes do parabéns. Se só houver um (ou MEI), aceita direto.
+  function aceitarProposta() {
+    if (aceiteEnviado) { mostrarParabens(); return; }
+    const p = proposalData || {};
+    const temDois = (p.monthlyPro > 0) && (p.monthlyPlus > 0) && planFamily.familia !== 'MEI';
+    if (temDois) {
+      mostrarEscolhaPlano();
+    } else {
+      const planoUnico = (p.monthlyPlus > 0) ? 'PLUS' : (p.monthlyPro > 0 ? 'PRO' : (p.plano_selecionado || ''));
+      enviarAceite(planoUnico);
+    }
+  }
+
+  async function enviarAceite(plano) {
     if (aceiteEnviado) { mostrarParabens(); return; }
     aceiteEnviado = true;
     try {
       if (PROPOSAL_TOKEN) {
-        await fetch(API_BASE + '/p/' + PROPOSAL_TOKEN + '/aceitar', { method: 'POST' });
+        await fetch(API_BASE + '/p/' + PROPOSAL_TOKEN + '/aceitar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plano_selecionado: plano || undefined }),
+        });
       }
     } catch (e) { /* mesmo se falhar a rede, parabeniza — o vendedor é avisado */ }
     mostrarParabens();
+  }
+
+  // Overlay de escolha de plano (Pro x Plus) antes do parabéns.
+  function mostrarEscolhaPlano() {
+    const p = proposalData || {};
+    const nomes = planFamily.nomes;
+    const proVal  = formatMoney(p.monthlyPro);
+    const plusVal = formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue);
+    const ov = document.createElement('div');
+    ov.id = 'plano-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(8,19,48,0.55);backdrop-filter:blur(4px);';
+    ov.innerHTML =
+      '<div style="max-width:560px;width:100%;background:#fff;border-radius:22px;padding:34px 28px;text-align:center;box-shadow:0 24px 70px rgba(8,19,48,0.35);">' +
+        '<h2 style="font-size:22px;font-weight:900;color:#0D2238;margin:0 0 6px;">Escolha o seu plano</h2>' +
+        '<p style="font-size:14px;color:#5A6B7B;margin:0 0 22px;">Selecione o plano que deseja contratar para concluir.</p>' +
+        '<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">' +
+          '<button id="pick-pro" style="flex:1;min-width:200px;background:#fff;border:2px solid #D8E8F5;border-radius:16px;padding:20px 16px;cursor:pointer;text-align:left;">' +
+            '<div style="font-size:13px;font-weight:700;color:#417ABC;text-transform:uppercase;letter-spacing:.04em;">' + nomes.pro + '</div>' +
+            '<div style="font-size:22px;font-weight:900;color:#0D2238;margin-top:6px;">' + proVal + '<span style="font-size:12px;font-weight:600;color:#7AAACB;">/mês</span></div>' +
+            '<div style="font-size:12px;color:#5A6B7B;margin-top:6px;">Plano intermediário</div>' +
+          '</button>' +
+          '<button id="pick-plus" style="flex:1;min-width:200px;background:#F0FBFF;border:2px solid var(--accent);border-radius:16px;padding:20px 16px;cursor:pointer;text-align:left;position:relative;">' +
+            '<div style="position:absolute;top:-11px;left:16px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;">RECOMENDADO</div>' +
+            '<div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;">' + nomes.plus + '</div>' +
+            '<div style="font-size:22px;font-weight:900;color:#0D2238;margin-top:6px;">' + plusVal + '<span style="font-size:12px;font-weight:600;color:#7AAACB;">/mês</span></div>' +
+            '<div style="font-size:12px;color:#5A6B7B;margin-top:6px;">Plano completo</div>' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    const pick = (plano) => { const el = document.getElementById('plano-overlay'); if (el) el.remove(); enviarAceite(plano); };
+    const bPro = document.getElementById('pick-pro');
+    const bPlus = document.getElementById('pick-plus');
+    if (bPro)  bPro.onclick  = () => pick('PRO');
+    if (bPlus) bPlus.onclick = () => pick('PLUS');
   }
 
   function mostrarParabens() {
