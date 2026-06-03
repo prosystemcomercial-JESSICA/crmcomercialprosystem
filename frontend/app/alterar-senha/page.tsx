@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft, Shield } from 'lucide-react';
@@ -25,6 +25,13 @@ export default function AlterarSenhaPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [trocarObrigatorio, setTrocarObrigatorio] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setTrocarObrigatorio(new URLSearchParams(window.location.search).get('trocar') === '1');
+    }
+  }, []);
 
   const strength = strengthScore(form.nova_senha);
   const match = form.confirmar && form.nova_senha === form.confirmar;
@@ -100,7 +107,7 @@ export default function AlterarSenhaPage() {
             </div>
             <div>
               <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#fff' }}>Alterar Senha</p>
-              <p style={{ margin: 0, fontSize: 12, color: '#A8C8E8' }}>Crie uma senha pessoal e segura</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#A8C8E8' }}>{trocarObrigatorio ? 'Defina uma nova senha para continuar' : 'Crie uma senha pessoal e segura'}</p>
             </div>
           </div>
         </div>

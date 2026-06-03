@@ -7,7 +7,7 @@ import { apiClient, User } from './api-client';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -50,10 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     try {
       const response = await apiClient.login(email, password);
+      try { localStorage.setItem('lastActivity', String(Date.now())); } catch {}
       setUser(response.user);
+      return response.user as User;
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -68,6 +70,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Logout failed:', error);
     }
   };
+
+  // ── Logout automático por INATIVIDADE (3h sem uso) ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const LIMITE = 3 * 60 * 60 * 1000;   // 3 horas
+    const KEY = 'lastActivity';
+    const tocar = () => { localStorage.setItem(KEY, String(Date.now())); };
+
+    const expirou = () => {
+      const t = parseInt(localStorage.getItem(KEY) || '0', 10);
+      return t > 0 && (Date.now() - t) > LIMITE;
+    };
+
+    const encerrarSessao = () => {
+      try { localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken'); localStorage.removeItem(KEY); } catch {}
+      setUser(null);
+      if (window.location.pathname !== '/') window.location.href = '/';
+    };
+
+    // Se já estava expirado ao abrir/recarregar, encerra
+    if (localStorage.getItem('accessToken') && expirou()) { encerrarSessao(); return; }
+    tocar();
+
+    const eventos = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    eventos.forEach(ev => window.addEventListener(ev, tocar, { passive: true }));
+    const intervalo = setInterval(() => {
+      if (localStorage.getItem('accessToken') && expirou()) encerrarSessao();
+    }, 60 * 1000);   // verifica a cada minuto
+
+    return () => {
+      eventos.forEach(ev => window.removeEventListener(ev, tocar));
+      clearInterval(intervalo);
+    };
+  }, []);
 
   return (
     <AuthContext.Provider

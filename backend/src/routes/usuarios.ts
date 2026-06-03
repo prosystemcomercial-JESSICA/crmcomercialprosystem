@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { requireAuth } from '@/middleware/auth';
 import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
+import { hashSenha } from '@/lib/seguranca';
 
 // Apenas CEO pode criar/remover usuários
 const APENAS_CEO = ['CEO'];
@@ -196,6 +197,12 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     `)
   ]).catch(e => console.warn('[USUARIOS] Aviso ao criar tabelas:', e.message));
 
+  // ─── Ajustes de segurança (não-bloqueante): caber hash bcrypt + flag de troca ──
+  Promise.all([
+    prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM MODIFY COLUMN senha VARCHAR(255) NOT NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM ADD COLUMN precisa_trocar_senha TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {}),
+  ]).catch(() => {});
+
   // ─── Helper: registrar auditoria ────────────────────────────
   const auditoria = async (ator: any, acao: string, alvo_id: string, alvo_nome: string, detalhes?: any) => {
     try {
@@ -326,10 +333,11 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const permissoes = modulos_permissao || PRESETS[presetKey] || {};
 
     try {
+      const senhaHash = await hashSenha(senha);   // armazena HASH; a senha plana só vai no e-mail/retorno
       await prisma.$executeRawUnsafe(
-        `INSERT INTO UsuarioCRM (id, nome, email, telefone, senha, cargo, classificacao, status, observacoes, modulos_permissao, created_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-        novoId, nome, email, telefone, senha, cargo, classificacao || null,
+        `INSERT INTO UsuarioCRM (id, nome, email, telefone, senha, cargo, classificacao, status, observacoes, modulos_permissao, precisa_trocar_senha, created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,1,?)`,
+        novoId, nome, email, telefone, senhaHash, cargo, classificacao || null,
         status, observacoes || null, JSON.stringify(permissoes), ator?.id || null
       );
       const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM WHERE id = ?`, novoId);
@@ -405,9 +413,10 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const { id } = request.params as { id: string };
 
     const novaSenha = gerarSenha();
+    const novaHash = await hashSenha(novaSenha);   // HASH no banco; senha plana só no e-mail
     await prisma.$executeRawUnsafe(
-      `UPDATE UsuarioCRM SET senha = ?, updated_at = NOW() WHERE id = ?`,
-      novaSenha, id
+      `UPDATE UsuarioCRM SET senha = ?, precisa_trocar_senha = 1, updated_at = NOW() WHERE id = ?`,
+      novaHash, id
     );
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT nome, email, cargo FROM UsuarioCRM WHERE id = ?`, id);
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });

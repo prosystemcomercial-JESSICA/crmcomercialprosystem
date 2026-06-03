@@ -39,9 +39,11 @@ export default function LoginForm() {
     try {
       setError('');
       setLoading(true);
-      await login(data.email, data.password);
+      const u = await login(data.email, data.password);
       await new Promise(r => setTimeout(r, 400));
-      router.push('/dashboard');
+      // Primeiro acesso ou após reset: obriga a definir uma nova senha.
+      if (u?.precisa_trocar_senha) router.push('/alterar-senha?trocar=1');
+      else router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Credenciais inválidas. Tente novamente.');
     } finally {

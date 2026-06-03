@@ -1265,12 +1265,13 @@ model UsuarioCRM {
   nome              String    @db.VarChar(255)
   email             String    @unique @db.VarChar(255)
   telefone          String?   @db.VarChar(50)
-  senha             String    @db.VarChar(20)
+  senha             String    @db.VarChar(255)   // 255 p/ caber hash bcrypt (60 chars)
   cargo             String    @db.VarChar(50)
   classificacao     String?   @db.VarChar(5)
   status            String?   @default("ATIVO") @db.VarChar(20)
   observacoes       String?   @db.Text
   modulos_permissao Json?
+  precisa_trocar_senha Boolean? @default(false)   // força troca no 1º acesso / após reset
   created_by        String?   @db.VarChar(255)
   created_at        DateTime? @default(now())
   updated_at        DateTime? @default(now())
