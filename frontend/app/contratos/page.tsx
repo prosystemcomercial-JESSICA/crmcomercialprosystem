@@ -152,6 +152,27 @@ export default function ContratosPage() {
     } finally { setSendingZap(false); }
   };
 
+  // 1 clique: gera o PDF do contrato (modelo padrão) e envia à ZapSign para assinatura.
+  const handleGerarEEnviar = async () => {
+    if (!selected) return;
+    if (!confirm(`Gerar o contrato Nº ${selected.numero_contrato} e enviar para assinatura de ${selected.representante_nome || 'o cliente'}?`)) return;
+    setSendingZap(true);
+    setZapMsg('');
+    try {
+      await apiClient.gerarEEnviarContrato(selected.id);
+      setZapMsg('✅ Contrato gerado e enviado para assinatura! O cliente receberá o link por e-mail/WhatsApp.');
+      const atualizado = { ...selected, status: 'ENVIADO_ASSINATURA' };
+      setSelected(atualizado);
+      load();
+    } catch (e: any) {
+      setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao gerar/enviar o contrato'}`);
+    } finally { setSendingZap(false); }
+  };
+
+  const verPdf = (c: ContratoComercial) => {
+    window.open(apiClient.contratoPdfUrl(c.id), '_blank');
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este contrato?')) return;
     await apiClient.deleteContratoComercial(id);
@@ -516,19 +537,35 @@ export default function ContratosPage() {
                     <p style={{ fontSize: 12, marginTop: 8, color: zapMsg.startsWith('✅') ? '#16a34a' : '#dc2626' }}>{zapMsg}</p>
                   )}
                   {!selected.signed_at && selected.status !== 'CANCELADO' && (
-                    <button
-                      onClick={handleEnviarZapSign}
-                      disabled={sendingZap}
-                      className="flex items-center gap-1.5 mt-2"
-                      style={{
-                        padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                        background: '#7c3aed', color: '#fff', border: 'none', cursor: sendingZap ? 'not-allowed' : 'pointer',
-                        opacity: sendingZap ? 0.7 : 1,
-                      }}>
-                      <Send size={11} />
-                      {sendingZap ? 'Enviando...' : (selected.zapsign_signing_url ? 'Reenviar para ZapSign' : 'Enviar para ZapSign')}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {/* Ação principal — 1 clique: gera o PDF do modelo e envia à assinatura */}
+                      <button
+                        onClick={handleGerarEEnviar}
+                        disabled={sendingZap}
+                        className="flex items-center gap-1.5"
+                        style={{
+                          padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                          background: '#7c3aed', color: '#fff', border: 'none', cursor: sendingZap ? 'not-allowed' : 'pointer',
+                          opacity: sendingZap ? 0.7 : 1,
+                        }}>
+                        <Send size={12} />
+                        {sendingZap ? 'Processando...' : (selected.zapsign_signing_url ? 'Regerar e reenviar' : 'Gerar e enviar para assinatura')}
+                      </button>
+                      {/* Conferir o PDF antes de enviar */}
+                      <button
+                        onClick={() => verPdf(selected)}
+                        className="flex items-center gap-1.5"
+                        style={{
+                          padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          background: 'var(--t-card-bg)', color: '#7c3aed', border: '1px solid #c4b5fd', cursor: 'pointer',
+                        }}>
+                        <Eye size={12} /> Ver PDF
+                      </button>
+                    </div>
                   )}
+                  <p style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 8 }}>
+                    O contrato é gerado a partir do modelo padrão do plano ({selected.plano_contratado || '—'}) com os dados da proposta. Confira o PDF antes de enviar.
+                  </p>
                 </div>
 
               </div>
