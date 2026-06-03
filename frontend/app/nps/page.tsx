@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import ExportButton from '@/components/ui/ExportButton';
 import { apiClient } from '@/lib/api-client';
 
 interface NpsDashboard {
@@ -70,9 +71,26 @@ export default function NpsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard NPS</h1>
-          <p className="text-gray-500 mt-1">Net Promoter Score — satisfação dos clientes</p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard NPS</h1>
+            <p className="text-gray-500 mt-1">Net Promoter Score — satisfação dos clientes</p>
+          </div>
+          {data && (data.recentes?.length ?? 0) > 0 && (
+            <ExportButton
+              nome="nps-respostas" titulo="NPS — Respostas recentes"
+              linhas={data.recentes}
+              colunas={[
+                { header: 'Cliente', value: (r: any) => r.cliente?.nome || '' },
+                { header: 'Empresa', value: (r: any) => r.cliente?.empresa || '' },
+                { header: 'Score', value: (r: any) => r.score },
+                { header: 'Estrelas', value: (r: any) => r.stars },
+                { header: 'Categoria', value: (r: any) => r.q4 },
+                { header: 'Motivo', value: (r: any) => r.motivo || '' },
+                { header: 'Data', value: (r: any) => r.data ? new Date(r.data).toLocaleDateString('pt-BR') : '' },
+              ]}
+            />
+          )}
         </div>
 
         {dataLoading ? (
