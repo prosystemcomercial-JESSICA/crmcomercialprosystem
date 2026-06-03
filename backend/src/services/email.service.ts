@@ -22,6 +22,14 @@ function fmt(value?: number | null): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// slug do nome do cliente p/ deixar o link legível (apenas cosmético)
+function slugCliente(nome?: string | null): string {
+  return (nome || 'cliente')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'cliente';
+}
+
 function benefitsBySegment(segmento?: string | null): string[] {
   const base = [
     'Sistema ERP completo integrado com PDV',
@@ -114,15 +122,6 @@ function buildPropostaEmail(proposta: {
     ? new Date(proposta.validade).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
     : null;
 
-  const modulosHtml = (proposta.modulos_inclusos || []).length > 0
-    ? (proposta.modulos_inclusos || []).map(m =>
-        `<span style="display:inline-block;background:#EBF4FF;color:#1A4E82;
-                      border:1px solid #C3DCFC;border-radius:20px;
-                      padding:4px 12px;font-size:12px;margin:3px 3px 3px 0;">
-          ${m}
-        </span>`).join('')
-    : '';
-
   const servHtml = (proposta.servicos_adicionais || []).length > 0
     ? (proposta.servicos_adicionais || []).map(s =>
         `<span style="display:inline-block;background:#F0FDF4;color:#166534;
@@ -132,8 +131,11 @@ function buildPropostaEmail(proposta: {
         </span>`).join('')
     : '';
 
+  // Link da proposta: usa o domínio público (FRONTEND_URL/APP_URL); modo cliente
+  // travado + nome do cliente no caminho (igual aos links copiados no CRM).
+  const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://frontend-production-3a79.up.railway.app';
   const linkProposta = proposta.public_token
-    ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}/p/${proposta.public_token}`
+    ? `${baseUrl}/p/${proposta.public_token}/${slugCliente(empresa)}?modo=cliente`
     : null;
 
   const heroTitulo = proposta.titulo_proposta || `Proposta Comercial — ${empresa}`;
@@ -328,17 +330,7 @@ function buildPropostaEmail(proposta: {
                         </td>
                       </tr>` : ''}
 
-                      <!-- Módulos inclusos -->
-                      ${modulosHtml ? `
-                      <tr>
-                        <td colspan="2" style="padding-top:16px;">
-                          <p style="margin:0 0 8px;font-size:11px;color:#7AAACB;
-                                     text-transform:uppercase;letter-spacing:1px;font-weight:600;">
-                            📦 Módulos Inclusos
-                          </p>
-                          <div>${modulosHtml}</div>
-                        </td>
-                      </tr>` : ''}
+                      <!-- (Módulos seguem o que cada plano libera — não listados aqui) -->
 
                       <!-- Serviços adicionais -->
                       ${servHtml ? `
@@ -655,6 +647,7 @@ function buildPropostaEmail(proposta: {
 
 export async function enviarEmailProposta(proposta: Parameters<typeof buildPropostaEmail>[0] & {
   responsavel_email: string;
+  vendedor_email?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   if (!process.env.SMTP_USER) {
     console.warn('[EMAIL] SMTP_USER não configurado — e-mail não enviado');
@@ -666,12 +659,17 @@ export async function enviarEmailProposta(proposta: Parameters<typeof buildPropo
   const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
   const html = buildPropostaEmail(proposta);
 
+  // CC para o vendedor que gerou (se tiver e-mail e for diferente do cliente)
+  const cc = (proposta.vendedor_email && proposta.vendedor_email !== proposta.responsavel_email)
+    ? proposta.vendedor_email : undefined;
+
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
       from:       `"${fromName}" <${fromEmail}>`,
       to:         proposta.responsavel_email,
-      bcc:        fromEmail,         // cópia oculta para jessica (confirmação + backup)
+      cc,                            // vendedor recebe cópia
+      bcc:        fromEmail,         // cópia oculta para a Prosystem (confirmação + backup)
       replyTo:    fromEmail,
       subject:    `Proposta ProSystem — ${empresa}`,
       html,
@@ -684,7 +682,7 @@ export async function enviarEmailProposta(proposta: Parameters<typeof buildPropo
         'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
       },
     });
-    console.log(`[EMAIL] Proposta enviada para ${proposta.responsavel_email} (BCC: ${fromEmail})`);
+    console.log(`[EMAIL] Proposta enviada para ${proposta.responsavel_email}${cc ? ` (CC: ${cc})` : ''} (BCC: ${fromEmail})`);
     return { ok: true };
   } catch (err: any) {
     console.error('[EMAIL] Erro ao enviar e-mail:', err.message);
