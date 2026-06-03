@@ -149,8 +149,9 @@ async function getZapSignConfig(prisma: PrismaClient) {
 }
 
 const ZAPSIGN_BASE = {
-  sandbox: 'https://sandbox.app.zapsign.com.br/api/v1',
-  production: 'https://app.zapsign.com.br/api/v1',
+  // Host correto da API ZapSign é api.zapsign.com.br (não app.* — esse é o painel web).
+  sandbox: 'https://sandbox.api.zapsign.com.br/api/v1',
+  production: 'https://api.zapsign.com.br/api/v1',
 };
 
 // ── Schemas Zod ───────────────────────────────────────────────────────────────
