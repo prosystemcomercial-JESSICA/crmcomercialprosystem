@@ -128,7 +128,7 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
           END
         ), 0) AS mrr_total
       FROM PropostaComercial
-      ${scopeId ? 'WHERE (vendedor_id = ? OR created_by = ?)' : ''}
+      WHERE deleted_at IS NULL${scopeId ? ' AND (vendedor_id = ? OR created_by = ?)' : ''}
       GROUP BY status
     `, ...(scopeId ? [scopeId, scopeId] : [])).catch(() => []);
 
