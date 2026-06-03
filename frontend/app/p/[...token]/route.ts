@@ -753,11 +753,11 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
       <div>
         <img src="${imgSrc('logo', '/logo-prosystem.png')}" alt="ProSystem" style="height:84px;object-fit:contain;margin-bottom:22px;" onerror="this.style.display='none'">
         <div class="eyebrow" style="justify-content:center;">Proposta Comercial &nbsp;&bull;&nbsp; <span id="s0-company">${data.companyName}</span></div>
-        <h1 class="display-xl mt8">
+        <h1 class="display-xl mt8" id="s0-headline">
           Mais controle, agilidade e<br>
           <span class="gradient-text">inteligência para a sua operação</span>
         </h1>
-        <p class="body-lg mt16" style="max-width:560px;margin-left:auto;margin-right:auto;">
+        <p class="body-lg mt16" id="s0-subtitle" style="max-width:560px;margin-left:auto;margin-right:auto;">
           A ProSystem foi criada para resolver exatamente isso &mdash; 16 anos construindo soluções que fazem a operação trabalhar por você.
         </p>
       </div>
@@ -813,27 +813,27 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
   <div class="slide" id="slide-2" data-slide="2">
     <div class="flex-col max900" style="gap:32px;">
       <div>
-        <div class="eyebrow">O cenário do varejo</div>
-        <h2 class="display-lg">Gerir varejo no Brasil é<br><span class="text-orange">lidar com complexidade real</span></h2>
-        <p class="body-lg mt12 max700">
+        <div class="eyebrow" id="s2-eyebrow">O cenário do varejo</div>
+        <h2 class="display-lg" id="s2-title">Gerir varejo no Brasil é<br><span class="text-orange">lidar com complexidade real</span></h2>
+        <p class="body-lg mt12 max700" id="s2-sub">
           Compliance fiscal, margens apertadas e tecnologia que não conversa. Cada dia sem visibilidade é um dia perdendo dinheiro.
         </p>
       </div>
       <div class="flex gap12 flex-wrap">
         <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.08);border:1px solid rgba(var(--accent-rgb),0.2);">
-          <div style="font-size:24px;margin-bottom:12px;">&#9878;&#65039;</div>
-          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Compliance fiscal</div>
-          <div class="body-md">Medo de multas, NF-e incorreta, SPED desatualizado. O risco tributário pesa sobre cada operação.</div>
+          <div style="font-size:24px;margin-bottom:12px;" id="s2-c1-ic">&#9878;&#65039;</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;" id="s2-c1-t">Compliance fiscal</div>
+          <div class="body-md" id="s2-c1-d">Medo de multas, NF-e incorreta, SPED desatualizado. O risco tributário pesa sobre cada operação.</div>
         </div>
         <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.08);border:1px solid rgba(var(--accent-rgb),0.2);">
-          <div style="font-size:24px;margin-bottom:12px;">&#128201;</div>
-          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Falta de visibilidade</div>
-          <div class="body-md">Não saber o que acontece em tempo real é tomar decisões no escuro &mdash; e perder margem.</div>
+          <div style="font-size:24px;margin-bottom:12px;" id="s2-c2-ic">&#128201;</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;" id="s2-c2-t">Falta de visibilidade</div>
+          <div class="body-md" id="s2-c2-d">Não saber o que acontece em tempo real é tomar decisões no escuro &mdash; e perder margem.</div>
         </div>
         <div style="flex:1;min-width:220px;padding:24px;border-radius:var(--radius);background:rgba(var(--accent-rgb),0.08);border:1px solid rgba(var(--accent-rgb),0.2);">
-          <div style="font-size:24px;margin-bottom:12px;">&#128257;</div>
-          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Retrabalho constante</div>
-          <div class="body-md">Processos manuais consomem tempo, geram erros e impedem o crescimento da operação.</div>
+          <div style="font-size:24px;margin-bottom:12px;" id="s2-c3-ic">&#128257;</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;" id="s2-c3-t">Retrabalho constante</div>
+          <div class="body-md" id="s2-c3-d">Processos manuais consomem tempo, geram erros e impedem o crescimento da operação.</div>
         </div>
       </div>
     </div>
@@ -843,9 +843,9 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
   <div class="slide" id="slide-3" data-slide="3">
     <div class="flex-col max900" style="gap:32px;">
       <div>
-        <div class="eyebrow">A resposta certa</div>
-        <h2 class="display-lg">A ProSystem foi criada para<br><span class="gradient-text">resolver exatamente isso</span></h2>
-        <p class="body-lg mt12 max700">
+        <div class="eyebrow" id="s3-eyebrow">A resposta certa</div>
+        <h2 class="display-lg" id="s3-title">A ProSystem foi criada para<br><span class="gradient-text">resolver exatamente isso</span></h2>
+        <p class="body-lg mt12 max700" id="s3-sub">
           Um ERP que faz a operação trabalhar por você &mdash; integrando vendas, estoque, financeiro e compliance em uma plataforma única, com suporte humano de verdade.
         </p>
       </div>
@@ -1900,6 +1900,27 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
 
     // Personalização por segmento: ícone do hub do ecossistema (💊 / 🥖 / 🏪)
     setHTML('eco-hub', segInfo.hub);
+
+    // ── COPY POR SEGMENTO (alta conversão) — sobrescreve os textos-chave ──
+    // Padaria: baseada no material comercial (Dor → Consequência → Solução).
+    if (isPadaria) {
+      setHTML('s0-headline', 'Sua padaria pode estar <span class="gradient-text">perdendo dinheiro todos os dias</span>');
+      set('s0-subtitle', 'E você nem percebe. A falta de controle é o maior custo invisível do seu negócio — a ProSystem devolve esse controle às suas mãos.');
+
+      set('s2-eyebrow', 'Para onde vai o seu lucro?');
+      setHTML('s2-title', 'O lucro da sua padaria está<br><span class="text-orange">escapando todos os dias</span>');
+      set('s2-sub', 'Quebra de caixa, perda de insumos, peso no balcão e o dono preso no operacional. Se você se identifica, sua margem já está comprometida.');
+      setHTML('s2-c1-ic', '&#128176;'); set('s2-c1-t', 'Quebra de caixa');
+      set('s2-c1-d', 'Dinheiro que some sem explicação no fim do expediente — turno após turno.');
+      setHTML('s2-c2-ic', '&#127857;'); set('s2-c2-t', 'Perda de insumos');
+      set('s2-c2-d', 'Estoque que não bate e perecíveis que vencem na prateleira viram prejuízo direto.');
+      setHTML('s2-c3-ic', '&#9878;&#65039;'); set('s2-c3-t', 'Peso e fila no balcão');
+      set('s2-c3-d', 'Pesagem lenta e manual trava o atendimento justamente na hora do pico de vendas.');
+
+      set('s3-eyebrow', 'A virada de chave');
+      setHTML('s3-title', 'Padaria sem sistema integrado é como<br><span class="gradient-text">forno sem controle de temperatura</span>');
+      set('s3-sub', 'Você trabalha no escuro, torcendo para dar certo. A ProSystem integra Frente de Loja, Estoque, Produção (ficha técnica) e Financeiro — e devolve o controle absoluto da sua padaria.');
+    }
 
     // Slide 17
     set('s17-plus-name', nomes.plus);
