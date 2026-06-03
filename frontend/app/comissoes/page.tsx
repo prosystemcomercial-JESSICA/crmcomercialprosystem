@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 
 interface Comissao {
   id: string;
@@ -139,7 +140,21 @@ export default function ComissoesPage() {
               {isGestor ? 'Extrato completo de comissões por vendedor e período' : 'Suas comissões do período'}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <ExportButton
+              nome="comissoes" titulo={`Comissões — ${periodo}`}
+              linhas={comissoes}
+              colunas={[
+                { header: 'Vendedor', value: (c: Comissao) => nomeVendedor(c.responsavel_id) },
+                { header: 'Tipo', value: (c: Comissao) => c.tipo },
+                { header: 'Descrição', value: (c: Comissao) => c.descricao || c.regra?.nome || '' },
+                { header: 'Base (R$)', value: (c: Comissao) => c.valor_base },
+                { header: 'Percentual (%)', value: (c: Comissao) => c.percentual },
+                { header: 'Comissão (R$)', value: (c: Comissao) => c.valor_comissao },
+                { header: 'Status', value: (c: Comissao) => c.status },
+                { header: 'Período', value: (c: Comissao) => c.periodo },
+              ]}
+            />
             {isCEO && (
               <>
                 <button onClick={handleCalcular} disabled={calculando}

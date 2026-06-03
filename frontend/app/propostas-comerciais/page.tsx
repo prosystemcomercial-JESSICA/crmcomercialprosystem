@@ -5,6 +5,7 @@ import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 import {
   ClipboardList, Plus, Search, Eye, Trash2, Edit3, Send, CheckCircle,
   XCircle, Copy, ExternalLink, ChevronDown, ChevronUp, RefreshCw,
@@ -505,6 +506,21 @@ export default function PropostasComerciais() {
                 <LayoutGrid size={13} /> Kanban
               </button>
             </div>
+            <ExportButton
+              nome="propostas" titulo="Propostas Comerciais — ProSystem CRM"
+              linhas={propostas}
+              colunas={[
+                { header: 'Cliente', value: (p: PropostaComercial) => p.razao_social },
+                { header: 'CNPJ', value: (p: PropostaComercial) => p.cnpj || '' },
+                { header: 'Segmento', value: (p: PropostaComercial) => p.segmento || '' },
+                { header: 'Plano', value: (p: PropostaComercial) => p.plano_selecionado || '' },
+                { header: 'Vendedor', value: (p: PropostaComercial) => p.vendedor_nome || '' },
+                { header: 'Status', value: (p: PropostaComercial) => p.status },
+                { header: 'Valor final (R$)', value: (p: PropostaComercial) => (p as any).valor_final ?? '' },
+                { header: 'Mensalidade Plus (R$)', value: (p: PropostaComercial) => (p as any).mensalidade_plus ?? '' },
+                { header: 'Criada em', value: (p: PropostaComercial) => (p as any).created_at ? new Date((p as any).created_at).toLocaleDateString('pt-BR') : '' },
+              ]}
+            />
             <button
               onClick={openNew}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"

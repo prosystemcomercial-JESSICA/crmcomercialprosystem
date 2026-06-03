@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 import {
   FileCheck2, Plus, Search, Eye, Trash2, Edit3, Send, CheckCircle,
   X, ExternalLink, RefreshCw, Building2, User, Hash, Calendar,
@@ -182,13 +183,28 @@ export default function ContratosPage() {
               Kanban de contratos — arraste para avançar o status
             </p>
           </div>
-          <button
-            onClick={() => router.push('/propostas-comerciais')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-            style={{ background: 'var(--t-primary)' }}
-          >
-            <Plus size={15} /> Nova Proposta
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              nome="contratos" titulo="Contratos Comerciais — ProSystem CRM"
+              linhas={filtered}
+              colunas={[
+                { header: 'Nº contrato', value: (c: ContratoComercial) => c.numero_contrato },
+                { header: 'Cliente', value: (c: ContratoComercial) => c.razao_social },
+                { header: 'Plano', value: (c: ContratoComercial) => c.plano_contratado || '' },
+                { header: 'Mensalidade (R$)', value: (c: ContratoComercial) => c.mensalidade ?? '' },
+                { header: 'Setup (R$)', value: (c: ContratoComercial) => c.valor_setup_total ?? '' },
+                { header: 'Vendedor', value: (c: ContratoComercial) => c.vendedor_nome || '' },
+                { header: 'Status', value: (c: ContratoComercial) => c.status },
+              ]}
+            />
+            <button
+              onClick={() => router.push('/propostas-comerciais')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'var(--t-primary)' }}
+            >
+              <Plus size={15} /> Nova Proposta
+            </button>
+          </div>
         </div>
 
         {/* Resumo KPIs */}

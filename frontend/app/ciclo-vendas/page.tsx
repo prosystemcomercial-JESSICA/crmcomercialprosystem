@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Clock, TrendingUp, CheckCircle2, Hourglass } from 'lucide-react';
+import ExportButton from '@/components/ui/ExportButton';
 
 const ETAPA_LABEL: Record<string, string> = {
   PROSPECCAO: 'Prospecção', QUALIFICACAO: 'Qualificação', APRESENTACAO: 'Apresentação',
@@ -49,11 +50,24 @@ export default function CicloVendasPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Clock size={24} className="text-blue-600" /> Ciclo de Vendas
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Tempo da entrada do lead até a assinatura — dias corridos por etapa e gargalos.</p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <Clock size={24} className="text-blue-600" /> Ciclo de Vendas
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">Tempo da entrada do lead até a assinatura — dias corridos por etapa e gargalos.</p>
+          </div>
+          {data && (
+            <ExportButton
+              nome="ciclo-de-vendas" titulo="Ciclo de Vendas — ProSystem CRM"
+              linhas={data.tempo_medio_por_etapa}
+              colunas={[
+                { header: 'Etapa', value: (e: any) => fmtEtapa(e.etapa) },
+                { header: 'Tempo médio (dias)', value: (e: any) => e.dias_medio },
+                { header: 'Amostras', value: (e: any) => e.amostras },
+              ]}
+            />
+          )}
         </div>
 
         {dataLoading ? (

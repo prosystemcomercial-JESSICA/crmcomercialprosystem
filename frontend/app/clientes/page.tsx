@@ -5,6 +5,7 @@ import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 
 interface Cliente {
   id: string;
@@ -248,26 +249,41 @@ export default function ClientesPage() {
             <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Clientes</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{total} clientes cadastrados</p>
           </div>
-          {isGestor && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={openImport}
-                className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
-                style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 8%, transparent)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                Importar CSV
-              </button>
-              <button
-                onClick={openCreate}
-                className="px-4 py-2 text-sm rounded-lg font-medium text-white transition-colors"
-                style={{ background: 'var(--t-primary)' }}
-              >
-                + Novo Cliente
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <ExportButton
+              nome="clientes" titulo="Clientes — ProSystem CRM"
+              linhas={clientes}
+              colunas={[
+                { header: 'Código', value: (c: Cliente) => c.codigo || '' },
+                { header: 'Nome', value: (c: Cliente) => c.nome },
+                { header: 'Empresa', value: (c: Cliente) => c.empresa || '' },
+                { header: 'E-mail', value: (c: Cliente) => c.email || '' },
+                { header: 'Telefone', value: (c: Cliente) => c.telefone || '' },
+                { header: 'Cidade', value: (c: Cliente) => c.cidade || '' },
+                { header: 'Estado', value: (c: Cliente) => c.estado || '' },
+              ]}
+            />
+            {isGestor && (
+              <>
+                <button
+                  onClick={openImport}
+                  className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
+                  style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 8%, transparent)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  Importar CSV
+                </button>
+                <button
+                  onClick={openCreate}
+                  className="px-4 py-2 text-sm rounded-lg font-medium text-white transition-colors"
+                  style={{ background: 'var(--t-primary)' }}
+                >
+                  + Novo Cliente
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Search */}
