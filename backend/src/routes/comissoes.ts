@@ -46,6 +46,67 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     }
   });
 
+  // ===== COMISSÃO DA SUPERVISÃO COMERCIAL =====
+  // Regra: 0,5% sobre TODO o faturamento do setor comercial no período, ou seja:
+  //   • SETUP/instalação de todos os contratos ASSINADOS (de todos os vendedores)
+  //   • valor das VENDAS ADICIONAIS confirmadas (serviços vendidos, sem contrato)
+  // Cada usuário com cargo SUPERVISAO_COMERCIAL recebe os 0,5% cheios.
+  const COMISSAO_SUPERVISAO_PCT = 0.5;
+
+  fastify.get('/comissoes/supervisao', async (request, reply) => {
+    const q = z.object({ periodo: z.string().optional() }).safeParse(request.query);
+    // periodo "YYYY-MM" (default: mês corrente)
+    const now = new Date();
+    const periodo = q.success && q.data.periodo ? q.data.periodo
+      : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const [ano, mes] = periodo.split('-').map(Number);
+    const inicio = new Date(ano, (mes || 1) - 1, 1);
+    const fim = new Date(ano, (mes || 1), 0, 23, 59, 59);
+
+    // 1) Setup dos contratos ASSINADOS no período
+    const contratos = await prisma.contratoComercial.findMany({
+      where: { status: 'ASSINADO', signed_at: { gte: inicio, lte: fim } },
+      select: { id: true, numero_contrato: true, razao_social: true, valor_setup_total: true, signed_at: true, vendedor_nome: true },
+    }).catch(() => [] as any[]);
+    const fatContratos = contratos.reduce((s: number, c: any) => s + Number(c.valor_setup_total || 0), 0);
+
+    // 2) Vendas adicionais confirmadas/pagas no período
+    const vendas = await prisma.vendaAdicional.findMany({
+      where: { status: { in: ['CONFIRMADA', 'PAGA'] }, created_at: { gte: inicio, lte: fim } },
+      select: { id: true, valor_venda: true, plano_novo: true, created_at: true },
+    }).catch(() => [] as any[]);
+    const fatVendas = vendas.reduce((s: number, v: any) => s + Number(v.valor_venda || 0), 0);
+
+    const faturamento = Math.round((fatContratos + fatVendas) * 100) / 100;
+    const comissaoUnit = Math.round(faturamento * (COMISSAO_SUPERVISAO_PCT / 100) * 100) / 100;
+
+    // 3) Supervisores comerciais ativos (cada um recebe os 0,5% cheios)
+    const supervisores: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome FROM UsuarioCRM WHERE cargo = 'SUPERVISAO_COMERCIAL' AND status = 'ATIVO' ORDER BY nome ASC`
+    ).catch(() => []);
+
+    return reply.send({
+      status: 'success',
+      data: {
+        periodo,
+        percentual: COMISSAO_SUPERVISAO_PCT,
+        faturamento_setor: faturamento,
+        faturamento_contratos: Math.round(fatContratos * 100) / 100,
+        faturamento_vendas_adicionais: Math.round(fatVendas * 100) / 100,
+        qtd_contratos: contratos.length,
+        qtd_vendas_adicionais: vendas.length,
+        comissao_por_supervisor: comissaoUnit,
+        supervisores: supervisores.map(s => ({ id: s.id, nome: s.nome, comissao: comissaoUnit })),
+        detalhamento: {
+          contratos: contratos.map((c: any) => ({
+            numero: c.numero_contrato, cliente: c.razao_social, setup: Number(c.valor_setup_total || 0),
+            vendedor: c.vendedor_nome, data: c.signed_at,
+          })),
+        },
+      },
+    });
+  });
+
   // ===== EXTRATO DE COMISSÕES =====
   fastify.get('/comissoes', async (request, reply) => {
     const query = z.object({

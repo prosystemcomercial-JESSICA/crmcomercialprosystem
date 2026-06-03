@@ -57,6 +57,7 @@ export default function ComissoesPage() {
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
   const [totais, setTotais] = useState<any>(null);
   const [resumo, setResumo] = useState<any[]>([]);
+  const [supervisao, setSupervisao] = useState<any>(null); // comissão 0,5% do setor
   const [periodo, setPeriodo] = useState(periodoAtual());
   const [dataLoading, setDataLoading] = useState(true);
   const [calculando, setCalculando] = useState(false);
@@ -84,6 +85,11 @@ export default function ComissoesPage() {
       })
       .catch(console.error)
       .finally(() => setDataLoading(false));
+
+    // Comissão da Supervisão Comercial (0,5% do faturamento do setor no período).
+    apiClient.getComissaoSupervisao(periodo)
+      .then(res => setSupervisao(res.data.data))
+      .catch(() => setSupervisao(null));
   };
 
   useEffect(() => { loadData(); }, [isAuthenticated, periodo]);
@@ -194,6 +200,51 @@ export default function ComissoesPage() {
             <div className="bg-green-50 rounded-xl p-4 border border-green-200">
               <p className="text-sm text-gray-500">Pago</p>
               <p className="text-2xl font-bold text-green-700 mt-1">R$ {totais.pago.toLocaleString('pt-BR')}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Comissão da Supervisão Comercial — 0,5% do faturamento do setor */}
+        {supervisao && (isGestor || (user?.role || '').toUpperCase() === 'SUPERVISAO_COMERCIAL') && (
+          <div className="bg-white rounded-xl border-2 p-5" style={{ borderColor: '#c7d8ec' }}>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Supervisão Comercial — Override 0,5%</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  0,5% sobre o faturamento do setor (setup dos contratos assinados + vendas adicionais) no período {supervisao.periodo}.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Comissão por supervisor</p>
+                <p className="text-2xl font-bold" style={{ color: '#2E6EAB' }}>
+                  R$ {Number(supervisao.comissao_por_supervisor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-500">Faturamento do setor</p>
+                <p className="text-lg font-bold text-gray-700">R$ {Number(supervisao.faturamento_setor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-500">Setup (contratos assinados)</p>
+                <p className="text-lg font-bold text-gray-700">R$ {Number(supervisao.faturamento_contratos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <p className="text-[10px] text-gray-400">{supervisao.qtd_contratos} contrato(s)</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-500">Vendas adicionais</p>
+                <p className="text-lg font-bold text-gray-700">R$ {Number(supervisao.faturamento_vendas_adicionais || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <p className="text-[10px] text-gray-400">{supervisao.qtd_vendas_adicionais} venda(s)</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                <p className="text-xs text-gray-500">Supervisores</p>
+                <p className="text-sm font-semibold text-blue-700">
+                  {supervisao.supervisores?.length
+                    ? supervisao.supervisores.map((s: any) => s.nome).join(', ')
+                    : 'Nenhum ativo'}
+                </p>
+                <p className="text-[10px] text-gray-400">cada um recebe 0,5% cheios</p>
+              </div>
             </div>
           </div>
         )}
