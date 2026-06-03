@@ -515,6 +515,38 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     /* ferramentas do VENDEDOR — só no modo apresentador, o cliente nunca vê o resumo p/ copiar */
     body.self-service .seller-only { display: none !important; }
 
+    /* ── ESCOLHA DE VERSÃO (overlay) ── */
+    #escolha-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      align-items: center; justify-content: center; padding: 24px;
+      background: linear-gradient(135deg, rgba(13,34,56,.72), rgba(31,111,178,.55));
+      backdrop-filter: blur(6px);
+    }
+    .escolha-card {
+      background: #fff; border-radius: 22px; padding: 38px 30px; max-width: 720px; width: 100%;
+      text-align: center; box-shadow: 0 24px 70px rgba(8,19,48,.4);
+    }
+    .escolha-logo { height: 54px; width: auto; object-fit: contain; margin-bottom: 18px; }
+    .escolha-titulo { margin: 0 0 6px; font-size: 24px; font-weight: 900; color: var(--text-primary, #0D2238); letter-spacing: -.02em; }
+    .escolha-sub { margin: 0 0 26px; font-size: 14px; color: var(--text-secondary, #5A6B7B); }
+    .escolha-botoes { display: flex; gap: 16px; }
+    .escolha-op {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 26px 18px; border-radius: 16px; cursor: pointer; text-align: center;
+      border: 2px solid var(--border, #E3E9F0); background: var(--bg-soft, #F4F7FA);
+      transition: transform .15s, border-color .15s, box-shadow .15s;
+    }
+    .escolha-op:hover { transform: translateY(-3px); border-color: var(--accent, #00BFD1); box-shadow: 0 12px 30px rgba(8,19,48,.14); }
+    .escolha-emoji { font-size: 36px; line-height: 1; }
+    .escolha-nome { font-size: 17px; font-weight: 800; color: var(--text-primary, #0D2238); }
+    .escolha-desc { font-size: 12.5px; color: var(--text-secondary, #5A6B7B); line-height: 1.5; }
+    .escolha-simples { border-color: var(--accent, #00BFD1); background: rgba(var(--accent-rgb,0,191,209), .06); }
+    @media (max-width: 600px) { .escolha-botoes { flex-direction: column; } .escolha-card { padding: 28px 20px; } }
+
+    /* Botão "ver apresentação completa" — só aparece na versão simplificada */
+    #ver-completa-btn { display: none; }
+    body.versao-simples #ver-completa-btn { display: inline-flex; }
+
     /* coach inicial (aponta a seta) */
     #coach {
       position: fixed; z-index: 97; right: 76px; top: 50%; transform: translateY(-50%);
@@ -652,6 +684,27 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
 
 <canvas id="three-canvas"></canvas>
 
+<!-- ESCOLHA DE VERSÃO (cliente) — completa x simplificada -->
+<div id="escolha-overlay">
+  <div class="escolha-card">
+    <img class="escolha-logo" src="${imgSrc('logo', '/logo-prosystem.png')}" alt="ProSystem" onerror="this.style.display='none'">
+    <h2 class="escolha-titulo">Como você prefere ver a proposta?</h2>
+    <p class="escolha-sub">Escolha a experiência ideal para você agora.</p>
+    <div class="escolha-botoes">
+      <button class="escolha-op escolha-completa" onclick="escolherVersao('completa')">
+        <span class="escolha-emoji">&#127916;</span>
+        <span class="escolha-nome">Apresentação completa</span>
+        <span class="escolha-desc">Conheça a ProSystem, os módulos e tudo que você ganha — passo a passo.</span>
+      </button>
+      <button class="escolha-op escolha-simples" onclick="escolherVersao('simples')">
+        <span class="escolha-emoji">&#9889;</span>
+        <span class="escolha-nome">Ver proposta direto</span>
+        <span class="escolha-desc">Vá direto aos planos e valores, de forma rápida e objetiva.</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- TOP NAV -->
 <nav id="top-nav">
   <div class="nav-brand">
@@ -659,6 +712,7 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     <span>ProSystem Sistemas</span>
   </div>
   <div class="nav-right">
+    <button class="nav-pill" id="ver-completa-btn" onclick="escolherVersao('completa')">&#127916;<span class="copy-label">&nbsp; Ver apresentação completa</span></button>
     <button class="nav-pill nav-pill-copy seller-only" id="copy-resumo-nav" onclick="copyWhatsAppText()">&#128203;<span class="copy-label">&nbsp; Copiar resumo p/ WhatsApp</span></button>
     <button class="mode-btn" onclick="toggleMode()" id="mode-btn-top">Modo: Apresentador</button>
   </div>
@@ -2068,9 +2122,12 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
   }
 
   // Fluxo linear guiado para o CLIENTE (auto-serviço): sem hub, sem vai-e-volta.
-  // Ordem narrativa: capa → quem somos/desafio/solução → módulos 1-3 →
+  // Ordem narrativa COMPLETA: capa → quem somos/desafio/solução → módulos 1-3 →
   // Ferramentas (21-22) → Proposta (17-20) → prova social → CTA. (pula o hub 4)
-  const clientOrder = [0,1,2,3, 5,6,7,8, 9,10,11,12, 13,14,15,16, 21,22, 17,18,19,20, 23,24];
+  const ORDEM_COMPLETA = [0,1,2,3, 5,6,7,8, 9,10,11,12, 13,14,15,16, 21,22, 17,18,19,20, 23,24];
+  // Ordem SIMPLIFICADA: vai direto à proposta/planos → prova social → CTA.
+  const ORDEM_SIMPLES  = [17,18,19,20, 23,24];
+  let clientOrder = ORDEM_COMPLETA;   // trocado p/ ORDEM_SIMPLES se o cliente escolher "simplificada"
   function clientPos(slide) {
     let i = clientOrder.indexOf(slide);
     if (i !== -1) return i;
@@ -2182,6 +2239,23 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     }, 8000);
   }
 
+  // ── VERSÃO DA APRESENTAÇÃO (cliente): completa x simplificada ──
+  function aplicarVersao(v) {
+    if (v === 'simples' || v === 'simplificada') {
+      clientOrder = ORDEM_SIMPLES;
+      document.body.classList.add('versao-simples');
+    } else {
+      clientOrder = ORDEM_COMPLETA;
+      document.body.classList.remove('versao-simples');
+    }
+    const ov = document.getElementById('escolha-overlay');
+    if (ov) ov.style.display = 'none';
+    showSlide(clientOrder[0], 1);
+    updateUI();
+  }
+  // exposto p/ os botões do overlay e do simplificado
+  window.escolherVersao = function (v) { aplicarVersao(v); };
+
   // ── INIT ────────────────────────────────────────────────
   function init() {
     buildHubGrid();
@@ -2197,12 +2271,19 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     var params = new URLSearchParams(window.location.search);
     var modoParam = (params.get('modo') || params.get('mode') || '').toLowerCase();
 
-    if (modoParam === 'cliente' || modoParam === 'client' || modoParam === 'autoatendimento' || modoParam === 'auto') {
+    var versaoParam = (params.get('v') || params.get('versao') || '').toLowerCase();
+    var ehCliente = (modoParam === 'cliente' || modoParam === 'client' || modoParam === 'autoatendimento' || modoParam === 'auto');
+
+    if (ehCliente) {
       // LINK DO CLIENTE: força auto-serviço e TRAVA (cliente não pode mudar de modo).
       modeLocked = true;
       setMode(false);
       var mb = document.getElementById('mode-btn-top');
       if (mb) mb.style.display = 'none';   // sem botão de trocar modo
+      // Versão: se a URL já define (?v=simples|completa), aplica direto; senão mostra a escolha.
+      if (versaoParam === 'simples' || versaoParam === 'simplificada') { aplicarVersao('simples'); }
+      else if (versaoParam === 'completa' || versaoParam === 'full') { aplicarVersao('completa'); }
+      else { var ov = document.getElementById('escolha-overlay'); if (ov) ov.style.display = 'flex'; }
     } else if (modoParam === 'apresentador' || modoParam === 'presenter' || modoParam === 'vendedor') {
       // LINK DO APRESENTADOR: começa no modo apresentador (vendedor pode alternar).
       setMode(true);
