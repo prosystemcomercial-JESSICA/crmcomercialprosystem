@@ -159,7 +159,7 @@ export async function dashboardComercialRoutes(
                       ELSE COALESCE(pc.mensalidade_plus, COALESCE(pc.mensalidade_pro,0)) END
             END), 0) AS mrr_fechado
       FROM Lead l
-      LEFT JOIN PropostaComercial pc ON pc.lead_id = l.id
+      LEFT JOIN PropostaComercial pc ON pc.lead_id = l.id AND pc.deleted_at IS NULL
       WHERE l.vendedor_nome IS NOT NULL${sc.clause}
       GROUP BY l.vendedor_nome
     `, ...sc.params).catch(() => []);

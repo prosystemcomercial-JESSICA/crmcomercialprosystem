@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { enviarEmailProposta } from '@/services/email.service';
-import { ownerWhere, scopeUserId } from '@/lib/scope';
+import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarIdPropostaUnico } from '@/lib/ids';
 
 const PropostaSchema = z.object({
@@ -85,6 +85,13 @@ function proximoMes(): string {
 export async function propostasComerciais(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // Soft-delete: garante as colunas em bases existentes (não-bloqueante)
+  Promise.all([
+    prisma.$executeRawUnsafe(`ALTER TABLE PropostaComercial ADD COLUMN deleted_at DATETIME NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE PropostaComercial ADD COLUMN deleted_by VARCHAR(255) NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE PropostaComercial ADD COLUMN motivo_exclusao TEXT NULL`).catch(() => {}),
+  ]).catch(() => {});
+
   // ===== LISTAR =====
   fastify.get('/propostas-comerciais', async (request, reply) => {
     const query = z.object({
@@ -95,7 +102,8 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     }).safeParse(request.query);
 
     // Escopo: vendedor só vê as próprias propostas; gestor vê todas.
-    const esc = ownerWhere(request, 'PropostaComercial');
+    // Excluídas (soft-delete) NÃO aparecem na lista nem nos números.
+    const esc = { ...ownerWhere(request, 'PropostaComercial'), deleted_at: null as any };
     const where: any = { ...esc };
     if (query.data?.status) where.status = query.data.status;
     if (query.data?.vendedor) where.vendedor_nome = { contains: query.data.vendedor, mode: 'insensitive' };
@@ -515,15 +523,61 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
   });
 
   // ===== DELETAR =====
+  // ===== EXCLUIR (soft-delete) — só gestão; sai dos RESULTADOS, fica na AUDITORIA =====
   fastify.delete('/propostas-comerciais/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;  // só gestão exclui
     const { id } = request.params as { id: string };
+    const user = (request as any).user;
+    const motivo = (request.body as any)?.motivo || (request.query as any)?.motivo || null;
+
+    const p = await prisma.propostaComercial.findUnique({ where: { id } });
+    if (!p) return reply.status(404).send({ status: 'error', message: 'Proposta não encontrada' });
+    if ((p as any).deleted_at) return reply.send({ status: 'success', message: 'Proposta já estava excluída' });
+
+    // 1) Soft-delete: marca como excluída (não some — fica para auditoria)
+    await prisma.propostaComercial.update({
+      where: { id },
+      data: { deleted_at: new Date(), deleted_by: user?.id || 'system', motivo_exclusao: motivo, status: 'EXCLUIDA' } as any,
+    });
+
+    // 2) Trilha de auditoria
+    await prisma.propostaHistorico.create({
+      data: {
+        proposta_id: id,
+        tipo: 'EXCLUSAO',
+        valor_anterior: `Status: ${p.status} | Setup: R$ ${p.valor_final ?? 0}`,
+        valor_novo: 'EXCLUÍDA (removida dos resultados; mantida em auditoria)',
+        motivo: motivo || undefined,
+        feito_por_id: user?.id, feito_por_nome: user?.nome, feito_por_role: user?.role,
+      },
+    }).catch(() => {});
+
+    // 3) Reverte o lead que esta proposta havia fechado (números fiéis no dashboard/metas)
     try {
-      await prisma.propostaComercial.delete({ where: { id } });
-      return reply.send({ status: 'success' });
-    } catch (e: any) {
-      if (e.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Proposta não encontrada' });
-      throw e;
+      const cnpjDigits = (p.cnpj || '').replace(/\D/g, '');
+      if (cnpjDigits) {
+        const candidatos = await prisma.lead.findMany({
+          where: { cnpj: { not: null }, status: 'GANHO' },
+          select: { id: true, cnpj: true, fechamento_data: true },
+          take: 2000,
+        }).catch(() => [] as any[]);
+        const lead = candidatos.find(c => (c.cnpj || '').replace(/\D/g, '') === cnpjDigits);
+        if (lead) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              etapa_funil: 'NEGOCIACAO', etapa_comercial: 'EM_NEGOCIACAO', status: 'EM_CONTATO',
+              status_atendimento: 'EM_CONVERSA',
+              fechamento_data: null, fechamento_mrr: null, fechamento_valor_inst: null, fechamento_plano: null,
+            } as any,
+          });
+        }
+      }
+    } catch (e) {
+      request.log?.warn({ err: e }, 'exclusão: falha ao reverter lead (proposta segue excluída)');
     }
+
+    return reply.send({ status: 'success' });
   });
 
   // ===== REGENERAR TOKEN PÚBLICO =====
@@ -557,7 +611,7 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       periodo:     z.string().optional(),
     }).safeParse(request.query);
 
-    const where: any = {};
+    const where: any = { deleted_at: null };  // comissões de propostas excluídas não contam
     if (query.data?.status) where.status = query.data.status;
     // Escopo de comissões: gestor vê de todos (ou filtra por vendedor_id na query);
     // vendedor só vê as próprias, ignorando vendedor_id de outra pessoa.

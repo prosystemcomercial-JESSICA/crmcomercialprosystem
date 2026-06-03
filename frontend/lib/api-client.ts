@@ -814,8 +814,8 @@ class ApiClient {
     return this.client.patch(`/propostas-comerciais/${id}`, data);
   }
 
-  async deletePropostaComercial(id: string) {
-    return this.client.delete(`/propostas-comerciais/${id}`);
+  async deletePropostaComercial(id: string, motivo?: string) {
+    return this.client.delete(`/propostas-comerciais/${id}`, { data: motivo ? { motivo } : undefined });
   }
 
   async regenerarTokenProposta(id: string) {

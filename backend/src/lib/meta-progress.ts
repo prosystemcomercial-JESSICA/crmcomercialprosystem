@@ -74,6 +74,7 @@ export async function calcularRealizadoMeta(prisma: PrismaClient, meta: any): Pr
   const props = await prisma.propostaComercial.findMany({
     where: {
       status: { in: PROP_FECHADA },
+      deleted_at: null,   // propostas excluídas não contam no realizado da meta
       OR: [
         { vendedor_id: { in: responsaveis } },
         { created_by: { in: responsaveis } },

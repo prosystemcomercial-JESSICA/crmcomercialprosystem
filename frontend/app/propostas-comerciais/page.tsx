@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
@@ -193,6 +193,8 @@ const slugify = (s?: string) =>
 export default function PropostasComerciais() {
   const { user } = useAuth();
   const router = useRouter();
+  // Só gestão exclui proposta (sai dos resultados, fica na auditoria).
+  const isGestor = podeVerTudo(user?.role);
 
   const [propostas, setPropostas] = useState<PropostaComercial[]>([]);
   const [stats, setStats] = useState<any>({});
@@ -356,8 +358,9 @@ export default function PropostasComerciais() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta proposta?')) return;
-    await apiClient.deletePropostaComercial(id);
+    const motivo = prompt('Excluir esta proposta?\n\nEla sai de TODOS os resultados (Dashboard, Metas, Ciclo) e o fechamento ligado a ela é revertido — mas fica registrada na auditoria.\n\nMotivo da exclusão (opcional):');
+    if (motivo === null) return;  // cancelou
+    await apiClient.deletePropostaComercial(id, motivo || undefined);
     load();
   };
 
@@ -617,10 +620,12 @@ export default function PropostasComerciais() {
                               <MessageSquare size={13} />
                             </button>
                           )}
-                          <button onClick={() => handleDelete(p.id)} title="Excluir"
-                            style={{ padding: 5, borderRadius: 6, color: '#dc2626', background: '#fee2e2', border: 'none', cursor: 'pointer' }}>
-                            <Trash2 size={13} />
-                          </button>
+                          {isGestor && (
+                            <button onClick={() => handleDelete(p.id)} title="Excluir (só gestão)"
+                              style={{ padding: 5, borderRadius: 6, color: '#dc2626', background: '#fee2e2', border: 'none', cursor: 'pointer' }}>
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1253,11 +1258,13 @@ export default function PropostasComerciais() {
                     <MessageSquare size={12} /> WhatsApp
                   </button>
                 )}
-                <button onClick={() => handleDelete(previewProposta.id)}
-                  className="flex items-center gap-1.5"
-                  style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', marginLeft: 'auto' }}>
-                  <Trash2 size={12} /> Excluir
-                </button>
+                {isGestor && (
+                  <button onClick={() => handleDelete(previewProposta.id)}
+                    className="flex items-center gap-1.5"
+                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', marginLeft: 'auto' }}>
+                    <Trash2 size={12} /> Excluir
+                  </button>
+                )}
               </div>
             </div>
           </div>
