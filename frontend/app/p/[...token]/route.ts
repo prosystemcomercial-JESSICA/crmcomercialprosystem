@@ -1447,40 +1447,58 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
 
   // ── FERRAMENTAS (biblioteca comercial) ──────────────────
   const isFarmaSegment = planFamily.familia === 'FARMA';
+  const isPadaria = /padar|panific/.test(((proposalData.selectedPlan||'') + ' ' + (proposalData.segment||'')).toLowerCase());
+  // mix do segmento p/ deixar as descrições no contexto certo
+  const mixSeg = isFarmaSegment ? 'mix da farmácia' : (isPadaria ? 'mix da padaria (produção + revenda)' : 'mix da loja');
   const TOOLS = [
-    { icon:'&#128202;',          nome:'Dashboard Gerencial',          desc:'Vendas, estoque e atendimentos em tempo real numa só tela — decisões rápidas, sem depender de relatórios manuais.' },
+    { icon:'&#128202;',          nome:'Dashboard Gerencial',          desc:'Vendas, produção e estoque em tempo real numa só tela — decisões rápidas, sem depender de relatórios manuais.' },
     { icon:'&#128201;',          nome:'Indicador de Perda de Vendas', desc:'Descubra por que vendas não se concretizam e aja para recuperar a receita que hoje escapa do caixa.' },
     { icon:'&#127991;&#65039;',  nome:'Análise de Descontos',         desc:'Desconto médio e rentabilidade por produto, grupo e subgrupo — proteja a sua margem de lucro.' },
     { icon:'&#128200;',          nome:'Rentabilidade do Negócio',     desc:'Saiba o lucro real sobre o investimento e enxergue onde a operação realmente ganha dinheiro.' },
-    { icon:'&#128722;',          nome:'Sugestão de Compras',          desc:'Pedidos de compra automáticos para o enorme mix da farmácia — compre certo, sem ruptura nem esquecimento.' },
+    { icon:'&#128722;',          nome:'Sugestão de Compras',          desc:'Pedidos de compra automáticos para o ' + mixSeg + ' — compre certo, sem ruptura nem esquecimento.' },
     { icon:'&#128230;',          nome:'Estoque Mínimo e Máximo',      desc:'Quantidades ideais calculadas pelo histórico de vendas: menos falta de produto e menos capital parado.' },
     { icon:'&#128290;',          nome:'Curva ABC XYZ',                desc:'Classifique o estoque por importância e foque energia no que realmente gira e lucra.' },
-    { icon:'&#9851;&#65039;',    nome:'Produtos sem Giro e Excesso',  desc:'Identifique itens parados e compras em excesso antes de virarem vencimento e prejuízo.' },
+    { icon:'&#9851;&#65039;',    nome:'Produtos sem Giro e Excesso',  desc:'Identifique itens parados e compras em excesso antes de virarem perda e prejuízo.' },
     { icon:'&#128197;',          nome:'Vendas Semestrais',            desc:'Analise os últimos 6 meses por produto, grupo e fabricante para planejar compras com segurança.' },
     { icon:'&#128241;',          nome:'Avisos via WhatsApp',          desc:'Relatórios e avisos automáticos pelo WhatsApp — gestor e equipe sempre informados, sem esforço.' },
     { icon:'&#127919;',          nome:'Metas de Funcionários',        desc:'Metas por colaborador acompanhadas em tempo real — mais produtividade e foco no resultado.' },
     { icon:'&#128179;',          nome:'Cartão Fidelidade / Fidelimax',desc:'Fidelize com pontos e marketing automatizado: o cliente compra mais e volta mais vezes.' },
+    // ── Padaria ──
+    { icon:'&#127838;',          nome:'Ficha Técnica & Produção',     desc:'Controle as receitas e o custo real de cada produto produzido — saiba quanto custa e quanto rende cada fornada.', padaria:true },
+    { icon:'&#9878;&#65039;',    nome:'Balança & Pesáveis',           desc:'Integração com balança para pães, frios e produtos a granel — venda rápida no balcão, sem erro de peso.', padaria:true },
+    { icon:'&#9203;',            nome:'Controle de Validade',         desc:'Acompanhe a validade dos produtos perecíveis e reduza o desperdício do que não vendeu a tempo.', padaria:true },
+    { icon:'&#128666;',          nome:'Delivery & Encomendas',        desc:'Gerencie encomendas (bolos, salgados, festas) e entregas com agilidade — não perca pedido por desorganização.', padaria:true },
+    // ── Farmácia ──
     { icon:'&#128138;',          nome:'Uso Contínuo Ativo',           desc:'Gerencie clientes de medicação contínua e faça um pós-venda recorrente que aumenta o tíquete.', farma:true },
     { icon:'&#129658;',          nome:'Atenção Farmacêutica',         desc:'Registre o atendimento farmacêutico e o histórico do paciente com mais profissionalismo e segurança.', farma:true },
-    { icon:'&#129534;',          nome:'Inteligência Tributária',      desc:'Revisão tributária (Avant / Imendes) que pode reduzir os impostos da sua farmácia.', farma:true },
+    { icon:'&#129534;',          nome:'Inteligência Tributária',      desc:'Revisão tributária (Avant / Imendes) que pode reduzir os impostos do seu negócio.', farma:true },
   ];
   const EXTRA_TOOLS = [
     'Cadastro de produtos','Precificação','Curva ABC XYZ','Contagem de estoque','Produtos sem giro','Estoque em excesso',
     'Controle financeiro','Plano de contas','Centro de custos','Contas bancárias','Cartões de crédito e débito',
     'Entrada de notas via XML','Entrada automática pela SEFAZ','Controle de clientes','Cartão fidelidade',
+    { t:'Ficha técnica de produção', padaria:true }, { t:'Balança / pesáveis', padaria:true }, { t:'Controle de validade', padaria:true }, { t:'Encomendas e festas', padaria:true },
     { t:'Uso contínuo', farma:true }, { t:'SNGPC', farma:true }, { t:'Farmácia Popular', farma:true }, { t:'PBM e-Pharma', farma:true },
     'Entregas em domicílio','Registro de encomendas','Fechamento de caixa','Sangria e suprimento','Controle de acessos',
     'Auditoria de usuários','Backup em nuvem','Integrações com e-commerce','Prosystem Fiscal','Suporte remoto',
   ];
 
+  // mostra a ferramenta se: for genérica, OU bater com o segmento atual
+  function ferramentaVisivel(t) {
+    if (t && t.farma) return isFarmaSegment;
+    if (t && t.padaria) return isPadaria;
+    return true;
+  }
+
   function buildToolsGrid() {
     const grid = document.getElementById('tools-grid');
     if (grid) {
-      const tools = TOOLS.filter(function(t) { return isFarmaSegment || !t.farma; });
+      const tools = TOOLS.filter(ferramentaVisivel);
       grid.innerHTML = tools.map(function(t) {
+        const tag = t.farma ? '<span class="tc-tag">Farma</span>' : (t.padaria ? '<span class="tc-tag">Padaria</span>' : '');
         return '<div class="tool-card">' +
           '<div class="tc-icon">' + t.icon + '</div>' +
-          '<div><div class="tc-name">' + t.nome + (t.farma ? '<span class="tc-tag">Farma</span>' : '') + '</div>' +
+          '<div><div class="tc-name">' + t.nome + tag + '</div>' +
           '<div class="tc-desc">' + t.desc + '</div></div>' +
         '</div>';
       }).join('');
@@ -1488,7 +1506,7 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     const chips = document.getElementById('tools-chips');
     if (chips) {
       const extras = EXTRA_TOOLS
-        .filter(function(x) { return isFarmaSegment || !(x && x.farma); })
+        .filter(ferramentaVisivel)
         .map(function(x) { return (typeof x === 'string') ? x : x.t; });
       chips.innerHTML = extras.map(function(x) { return '<span class="chip">' + x + '</span>'; }).join('');
     }
@@ -2008,6 +2026,7 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
         '• Banco, Fluxo de Caixa, Boletos e Dashboard Gerencial',
         '• Conferência cega, transporte e integrações extras',
         isFarmaSegment ? '• PBM (e-Pharma, Vidalink) e Manipulação' : null,
+        isPadaria ? '• Produção, balança/pesáveis, validade e encomendas' : null,
       ]),
       '• Suporte ativo e humanizado das 7h às 22h',
       '• Treinamento de 5 meses incluso',
