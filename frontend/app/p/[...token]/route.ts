@@ -964,9 +964,9 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
       <div class="mod-img-wrap">
         <div class="fx">
           <div class="fx-funnel">
-            <div class="top"><span>&#128138;</span><span>&#129657;</span><span>&#129701;</span><span>&#128137;</span></div>
+            <div class="top" id="fx-funnel-top"><span>&#128138;</span><span>&#129657;</span><span>&#129701;</span><span>&#128137;</span></div>
             <div class="cone"><div class="gear">&#9881;&#65039;</div><div class="drop"></div><div class="drop"></div><div class="drop"></div></div>
-            <div class="out">&#128230;</div>
+            <div class="out" id="fx-funnel-out">&#128230;</div>
             <div class="fx-cap">Mix analisado &rarr; pedido certo, sem ruptura</div>
           </div>
         </div>
@@ -1920,6 +1920,12 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
       set('s3-eyebrow', 'A virada de chave');
       setHTML('s3-title', 'Padaria sem sistema integrado é como<br><span class="gradient-text">forno sem controle de temperatura</span>');
       set('s3-sub', 'Você trabalha no escuro, torcendo para dar certo. A ProSystem integra Frente de Loja, Estoque, Produção (ficha técnica) e Financeiro — e devolve o controle absoluto da sua padaria.');
+
+      // Reposição inteligente: trocar os ícones de medicamento por INSUMOS de padaria
+      setHTML('fx-funnel-top', '<span>&#129370;</span><span>&#127806;</span><span>&#129472;</span><span>&#129371;</span>'); // 🥚 ovos · 🌾 trigo · 🧀 queijo · 🥛 leite
+    } else if (!isFarmaSegment) {
+      // Varejo geral: ícones neutros de produtos (sem cara de farmácia)
+      setHTML('fx-funnel-top', '<span>&#128722;</span><span>&#128230;</span><span>&#127991;&#65039;</span><span>&#128181;</span>'); // 🛒 · 📦 · 🏷️ · 💵
     }
 
     // Slide 17
