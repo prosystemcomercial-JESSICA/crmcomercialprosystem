@@ -237,6 +237,7 @@ async function loadRoutes() {
     ['vendas-adicionais',     () => import('./routes/vendas-adicionais'),     'vendasAdicionaisRoutes'],
     ['propostas-comerciais',  () => import('./routes/propostas-comerciais'),  'propostasComerciais'],
     ['kanban-colunas',        () => import('./routes/kanban-colunas'),        'kanbanColunasRoutes'],
+    ['quadros',               () => import('./routes/quadros'),               'quadrosRoutes'],
     ['etiquetas',             () => import('./routes/etiquetas'),             'etiquetasRoutes'],
     ['dashboard-comercial',   () => import('./routes/dashboard-comercial'),   'dashboardComercialRoutes'],
     ['contratos-comerciais',  () => import('./routes/contratos-comerciais'),  'contratosComerciais'],

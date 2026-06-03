@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 
@@ -170,6 +171,10 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   Promise.all([
     prisma.$executeRawUnsafe('ALTER TABLE `Lead` ADD COLUMN atribuido_em DATETIME NULL').catch(() => {}),
     prisma.$executeRawUnsafe('ALTER TABLE `Lead` ADD COLUMN atribuicao_vista TINYINT(1) NOT NULL DEFAULT 1').catch(() => {}),
+    // Exclusão lógica (soft-delete): lead sai de tudo, fica só na auditoria.
+    prisma.$executeRawUnsafe('ALTER TABLE `Lead` ADD COLUMN deleted_at DATETIME NULL').catch(() => {}),
+    prisma.$executeRawUnsafe('ALTER TABLE `Lead` ADD COLUMN deleted_by VARCHAR(255) NULL').catch(() => {}),
+    prisma.$executeRawUnsafe('ALTER TABLE `Lead` ADD COLUMN motivo_exclusao TEXT NULL').catch(() => {}),
   ]).catch(() => {});
 
   // ── Atribuir / distribuir leads (SUPERVISÃO) ──────────────────────────────
@@ -374,9 +379,22 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     const grouped: Record<string, any[]> = {};
     for (const col of colunas) grouped[col.chave] = [];
 
+    // Mapeia etapas legadas/órfãs (que não têm coluna própria) para uma coluna válida,
+    // para o lead NUNCA sumir do quadro. Ex.: 'ACEITO' (fluxo antigo) → FECHADO/GANHO.
+    const chaves = new Set(colunas.map(c => c.chave));
+    const primeiraChave = colunas[0]?.chave;
+    const mapEtapa = (etapa: string | null, status: string | null): string => {
+      if (etapa && chaves.has(etapa)) return etapa;
+      if (status === 'GANHO' && chaves.has('FECHADO')) return 'FECHADO';
+      if (status === 'PERDIDO' && chaves.has('PERDIDO')) return 'PERDIDO';
+      if (etapa === 'ACEITO') return chaves.has('FECHADO') ? 'FECHADO' : (chaves.has('EM_NEGOCIACAO') ? 'EM_NEGOCIACAO' : primeiraChave);
+      return chaves.has('NOVO_LEAD') ? 'NOVO_LEAD' : primeiraChave;
+    };
+
     for (const lead of leads) {
-      if (!grouped[lead.etapa_comercial]) grouped[lead.etapa_comercial] = [];
-      grouped[lead.etapa_comercial].push(lead);
+      const col = mapEtapa(lead.etapa_comercial, (lead as any).status);
+      if (!grouped[col]) grouped[col] = [];
+      grouped[col].push(lead);
     }
 
     return reply.send({ status: 'success', data: { leads: grouped, colunas } });
@@ -491,15 +509,33 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   });
 
   // ── Delete lead ───────────────────────────────────────────────────────────
+  // Exclusão LÓGICA: o lead sai de TODOS os resultados (listas, quadro, dashboard,
+  // metas) mas permanece na AUDITORIA/trilha. Registra ator, data e motivo.
   fastify.delete('/leads/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const { id } = request.params as { id: string };
-    try {
-      await prisma.lead.delete({ where: { id } });
-      return reply.send({ status: 'success', message: 'Lead removido' });
-    } catch (err: any) {
-      if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
-      throw err;
-    }
+    const motivo = (request.body as any)?.motivo as string | undefined;
+    const ator = (request as any).user;
+
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, etapa_funil: true } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+
+    await prisma.$executeRawUnsafe(
+      'UPDATE `Lead` SET deleted_at = NOW(), deleted_by = ?, motivo_exclusao = ?, updated_at = NOW() WHERE id = ?',
+      ator?.id || 'sistema', motivo || null, id,
+    );
+
+    // Registra na trilha/auditoria do lead.
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO LeadHistorico (id, lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      randomUUID(), id, lead.nome || null, 'EXCLUIU_LEAD',
+      lead.etapa_funil || null, lead.etapa_funil || null,
+      ator?.id || null, ator?.nome || 'Sistema',
+      JSON.stringify({ motivo: motivo || null }),
+    ).catch(() => {});
+
+    return reply.send({ status: 'success', message: 'Lead excluído (mantido apenas na auditoria)' });
   });
 
   // ── Observações (timeline) ────────────────────────────────────────────────

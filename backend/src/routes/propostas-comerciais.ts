@@ -286,7 +286,8 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       // GANHO ainda: a venda só é "ganha"/contabilizada na meta quando o contrato for
       // ASSINADO (ver aplicarAssinatura em contratos-comerciais.ts).
       const fechamentoData = {
-        etapa_funil: 'FECHAMENTO', etapa_comercial: 'ACEITO', status: 'EM_NEGOCIACAO',
+        // EM_NEGOCIACAO é uma coluna válida do quadro (aceito, aguardando assinatura).
+        etapa_funil: 'FECHAMENTO', etapa_comercial: 'EM_NEGOCIACAO', status: 'EM_NEGOCIACAO',
         status_atendimento: 'EM_ANDAMENTO',
         fechamento_mrr: mrr, fechamento_valor_inst: inst,
         fechamento_plano: planoFinal || null,

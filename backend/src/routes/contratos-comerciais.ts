@@ -174,7 +174,7 @@ async function aplicarAssinatura(prisma: PrismaClient, contratoId: string, signe
           await prisma.lead.update({
             where: { id: lead.id },
             data: {
-              etapa_funil: 'FECHAMENTO', etapa_comercial: 'ACEITO', status: 'GANHO',
+              etapa_funil: 'FECHAMENTO', etapa_comercial: 'FECHADO', status: 'GANHO',
               status_atendimento: 'FECHADO',
               fechamento_data: agora,
               fechamento_mrr: Number(c.mensalidade || 0),
