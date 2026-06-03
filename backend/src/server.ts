@@ -240,6 +240,7 @@ async function loadRoutes() {
     ['etiquetas',             () => import('./routes/etiquetas'),             'etiquetasRoutes'],
     ['dashboard-comercial',   () => import('./routes/dashboard-comercial'),   'dashboardComercialRoutes'],
     ['contratos-comerciais',  () => import('./routes/contratos-comerciais'),  'contratosComerciais'],
+    ['auditoria',             () => import('./routes/auditoria'),             'auditoriaRoutes'],
   ];
 
   let ok = 0;

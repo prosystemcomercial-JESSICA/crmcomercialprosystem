@@ -107,6 +107,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/relatorios-comerciais', icon: BarChart2, label: 'Comercial',       roles: GESTAO_COMERCIAL },
       { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas', roles: GESTAO_COMERCIAL },
+      { href: '/auditoria',             icon: Shield,    label: 'Auditoria',       roles: GESTAO_COMERCIAL },
       { href: '/relatorios',            icon: LineChart, label: 'Retenção',        roles: TECNICO },
     ],
   },

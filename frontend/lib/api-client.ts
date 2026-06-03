@@ -722,6 +722,10 @@ class ApiClient {
   async getMeuPerfil() {
     return this.client.get('/usuarios/me');
   }
+  // Auditoria consolidada (só CEO/Supervisão)
+  async getAuditoria(params?: { modulo?: string; ator_id?: string; tipo?: string; data_inicio?: string; data_fim?: string; busca?: string; page?: number; limit?: number }) {
+    return this.client.get('/auditoria', { params });
+  }
   async atribuirLeads(lead_ids: string[], vendedor_id: string) {
     return this.client.post('/leads/atribuir', { lead_ids, vendedor_id });
   }
