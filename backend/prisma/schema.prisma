@@ -424,6 +424,10 @@ model Lead {
   responsavel_id  String?
   observacoes     String?   @db.Text
 
+  // Atribuição ao vendedor (supervisão atribui → vira alerta no sininho do vendedor)
+  atribuido_em     DateTime?
+  atribuicao_vista Boolean   @default(true)
+
   // ─── Dados de fechamento (preenchidos ao mover para ACEITO) ──
   fechamento_plano        String?   // 'BASIC' | 'MEI' | 'PRO' | 'PLUS'
   fechamento_valor_inst   Float?    // valor único de instalação
