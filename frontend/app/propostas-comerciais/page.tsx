@@ -260,6 +260,38 @@ export default function PropostasComerciais() {
     setShowForm(true);
   };
 
+  // Pré-preenchimento vindo de outra tela (ex.: "Gerar proposta" a partir de um Lead).
+  // Os dados do lead são gravados em sessionStorage e consumidos aqui — assim existe
+  // uma ÚNICA tela de proposta no sistema (sempre a aprimorada), sem código duplicado.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = sessionStorage.getItem('prefill_proposta');
+    if (!raw) return;
+    sessionStorage.removeItem('prefill_proposta');
+    try {
+      const dados = JSON.parse(raw);
+      const seg = dados.segmento as string;
+      const tpl = seg ? tplDoSegmento(seg) : null;
+      setEditingId(null);
+      setForm({
+        ...BLANK_FORM,
+        ...dados,
+        // auto-fill vendedor a partir do perfil logado, se o lead não trouxe
+        vendedor_nome: dados.vendedor_nome || meuPerfil?.nome || user?.nome || '',
+        vendedor_telefone: dados.vendedor_telefone || meuPerfil?.telefone || '',
+        // conteúdo direcionado ao segmento (igual ao aplicarSegmento)
+        titulo_proposta: dados.titulo_proposta || (tpl ? tpl.titulo : ''),
+        frase_hero:      dados.frase_hero      || (tpl ? tpl.hero  : ''),
+        texto_valor:     dados.texto_valor     || (tpl ? tpl.valor : ''),
+      });
+      setActiveSection(0);
+      setShowForm(true);
+    } catch {
+      // ignora prefill inválido
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meuPerfil]);
+
   const openEdit = (p: PropostaComercial) => {
     setEditingId(p.id);
     setForm({
