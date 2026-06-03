@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import ExportButton from '@/components/ui/ExportButton';
 import { apiClient } from '@/lib/api-client';
 
 interface Caso {
@@ -101,12 +102,27 @@ export default function CasosPage() {
             <h1 className="text-3xl font-bold text-gray-900">Churn & Retenção</h1>
             <p className="text-gray-500 mt-1">{total} casos registrados</p>
           </div>
-          <button
-            onClick={() => router.push('/casos/novo')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            + Novo Caso
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              nome="churn-casos" titulo="Churn & Retenção — Casos"
+              linhas={casos}
+              colunas={[
+                { header: 'Cliente', value: (c: Caso) => c.cliente?.nome || '' },
+                { header: 'Empresa', value: (c: Caso) => c.cliente?.empresa || '' },
+                { header: 'E-mail', value: (c: Caso) => c.cliente?.email || '' },
+                { header: 'Status', value: (c: Caso) => c.status },
+                { header: 'Risco', value: (c: Caso) => c.risk_score },
+                { header: 'Motivo principal', value: (c: Caso) => c.motivo_principal || '' },
+                { header: 'Aberto em', value: (c: Caso) => c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '' },
+              ]}
+            />
+            <button
+              onClick={() => router.push('/casos/novo')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              + Novo Caso
+            </button>
+          </div>
         </div>
 
         {/* Status filter tabs */}

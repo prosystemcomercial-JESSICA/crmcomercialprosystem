@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import ExportButton from '@/components/ui/ExportButton';
 import { apiClient } from '@/lib/api-client';
 
 interface HealthScore {
@@ -88,10 +89,24 @@ export default function HealthScorePage() {
             <h1 className="text-3xl font-bold text-gray-900">Health Score</h1>
             <p className="text-gray-500 mt-1">Saúde dos clientes baseada em múltiplos indicadores</p>
           </div>
-          <button onClick={handleCalcularTodos} disabled={calculando}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-            {calculando ? 'Calculando...' : '⚡ Calcular todos'}
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              nome="health-score" titulo="Health Score — Clientes"
+              linhas={scores}
+              colunas={[
+                { header: 'Cliente', value: (s: HealthScore) => s.cliente?.nome || '' },
+                { header: 'Empresa', value: (s: HealthScore) => s.cliente?.empresa || '' },
+                { header: 'E-mail', value: (s: HealthScore) => s.cliente?.email || '' },
+                { header: 'Score', value: (s: HealthScore) => s.score },
+                { header: 'Nível', value: (s: HealthScore) => s.nivel },
+                { header: 'Calculado em', value: (s: HealthScore) => s.calculado_at ? new Date(s.calculado_at).toLocaleString('pt-BR') : '' },
+              ]}
+            />
+            <button onClick={handleCalcularTodos} disabled={calculando}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              {calculando ? 'Calculando...' : '⚡ Calcular todos'}
+            </button>
+          </div>
         </div>
 
         {/* Distribuição */}

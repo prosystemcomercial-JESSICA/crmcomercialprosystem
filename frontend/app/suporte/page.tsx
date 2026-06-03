@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 
 interface Ticket {
   id: string;
@@ -123,9 +124,25 @@ export default function SuportePage() {
             <h1 className="text-3xl font-bold text-gray-900">Suporte Técnico</h1>
             <p className="text-gray-500 mt-1">Tickets de suporte e atendimento ao cliente</p>
           </div>
-          <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-            + Abrir Ticket
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              nome="suporte-tickets" titulo="Suporte Técnico — Tickets"
+              linhas={tickets}
+              colunas={[
+                { header: 'Título', value: (t: Ticket) => t.titulo },
+                { header: 'Cliente', value: (t: Ticket) => t.cliente?.nome || '' },
+                { header: 'Empresa', value: (t: Ticket) => t.cliente?.empresa || '' },
+                { header: 'Categoria', value: (t: Ticket) => t.categoria },
+                { header: 'Prioridade', value: (t: Ticket) => t.prioridade },
+                { header: 'Status', value: (t: Ticket) => t.status },
+                { header: 'Aberto em', value: (t: Ticket) => t.created_at ? new Date(t.created_at).toLocaleString('pt-BR') : '' },
+                { header: 'Resolvido em', value: (t: Ticket) => t.resolucao_at ? new Date(t.resolucao_at).toLocaleString('pt-BR') : '' },
+              ]}
+            />
+            <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              + Abrir Ticket
+            </button>
+          </div>
         </div>
 
         {/* Stats rápidos */}

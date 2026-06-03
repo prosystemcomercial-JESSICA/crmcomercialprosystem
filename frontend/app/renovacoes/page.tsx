@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import ExportButton from '@/components/ui/ExportButton';
 import { apiClient } from '@/lib/api-client';
 
 interface Renovacao {
@@ -76,9 +77,25 @@ export default function RenovacoesPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Renovações</h1>
-          <p className="text-gray-500 mt-1">Controle de vencimentos e renovações de licenças</p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Renovações</h1>
+            <p className="text-gray-500 mt-1">Controle de vencimentos e renovações de licenças</p>
+          </div>
+          <ExportButton
+            nome="renovacoes" titulo="Renovações — Licenças"
+            linhas={renovacoes}
+            colunas={[
+              { header: 'Cliente', value: (r: Renovacao) => r.licenca?.cliente?.nome || '' },
+              { header: 'Empresa', value: (r: Renovacao) => r.licenca?.cliente?.empresa || '' },
+              { header: 'Plano', value: (r: Renovacao) => r.licenca?.plano?.nome || '' },
+              { header: 'Status', value: (r: Renovacao) => r.status },
+              { header: 'Vencimento', value: (r: Renovacao) => r.data_vencimento ? new Date(r.data_vencimento).toLocaleDateString('pt-BR') : '' },
+              { header: 'Dias p/ vencer', value: (r: Renovacao) => r.dias_para_vencer },
+              { header: 'Valor atual (R$)', value: (r: Renovacao) => r.valor_atual },
+              { header: 'Valor novo (R$)', value: (r: Renovacao) => r.valor_novo ?? '' },
+            ]}
+          />
         </div>
 
         {stats && (
