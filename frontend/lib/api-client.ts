@@ -13,6 +13,7 @@ export interface User {
   email: string;
   nome: string;
   role: string;
+  precisa_trocar_senha?: boolean;
 }
 
 class ApiClient {

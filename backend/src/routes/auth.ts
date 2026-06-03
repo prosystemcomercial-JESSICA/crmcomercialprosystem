@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { AuthService } from '@/services/auth.service';
 import { LoginSchema, RefreshTokenSchema, TokenResponseDTO } from '@/types/dto';
 import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
+import { hashSenha, conferirSenha, precisaRehash, loginBloqueado, registrarFalha, limparTentativas } from '@/lib/seguranca';
 
 export async function authRoutes(
   fastify: FastifyInstance,
@@ -33,6 +34,12 @@ export async function authRoutes(
           password: raw.password.trim()
         };
 
+        // Bloqueio por força bruta (muitas tentativas erradas no mesmo e-mail)
+        const minutos = loginBloqueado(data.email);
+        if (minutos > 0) {
+          return reply.status(429).send({ status: 'error', message: `Muitas tentativas. Tente novamente em ${minutos} min.` });
+        }
+
         // 1) Admin — resposta imediata, sem tocar no banco
         const systemAccount = mockUsers.find(u => u.email.toLowerCase() === data.email && u.password === data.password);
         if (systemAccount) {
@@ -53,26 +60,40 @@ export async function authRoutes(
           });
         }
 
-        // 2) Usuários do banco (com timeout de 5s para não travar)
+        // 2) Usuários do banco — busca por e-mail e confere a senha com bcrypt
+        //    (aceita texto puro legado e re-hasheia no primeiro login bem-sucedido)
         let user: { id: string; email: string; nome: string; role: string } | null = null;
+        let precisaTrocar = false;
         try {
           const rows: any[] = await Promise.race([
             prisma.$queryRawUnsafe(
-              `SELECT id, email, nome, cargo as role, status FROM UsuarioCRM WHERE LOWER(email) = ? AND senha = ? LIMIT 1`,
-              data.email, data.password
+              `SELECT id, email, nome, cargo as role, status, senha, precisa_trocar_senha FROM UsuarioCRM WHERE LOWER(email) = ? LIMIT 1`,
+              data.email
             ),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
           ]) as any[];
-          if (rows.length > 0 && rows[0].status !== 'INATIVO' && rows[0].status !== 'SUSPENSO') {
-            user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
+          const row = rows[0];
+          if (row && row.status !== 'INATIVO' && row.status !== 'SUSPENSO') {
+            const ok = await conferirSenha(data.password, row.senha);
+            if (ok) {
+              user = { id: row.id, email: row.email, nome: row.nome, role: row.role };
+              precisaTrocar = !!row.precisa_trocar_senha;
+              // Migração transparente: se a senha estava em texto puro, salva o hash agora
+              if (precisaRehash(row.senha)) {
+                const novoHash = await hashSenha(data.password);
+                prisma.$executeRawUnsafe(`UPDATE UsuarioCRM SET senha = ? WHERE id = ?`, novoHash, row.id).catch(() => {});
+              }
+            }
           }
         } catch {
           // banco indisponível ou timeout — nega acesso
         }
 
         if (!user) {
+          registrarFalha(data.email);   // conta a tentativa errada (bloqueio progressivo)
           return reply.status(401).send({ status: 'error', message: 'Email ou senha inválidos' });
         }
+        limparTentativas(data.email);   // sucesso: zera o contador de tentativas
 
         const tokens = authService.generateTokens({
           userId: user.id,
@@ -85,7 +106,7 @@ export async function authRoutes(
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           expiresIn: tokens.expiresIn,
-          user: { id: user.id, email: user.email, nome: user.nome, role: user.role }
+          user: { id: user.id, email: user.email, nome: user.nome, role: user.role, precisa_trocar_senha: precisaTrocar } as any
         };
 
         return reply.status(200).send({ status: 'success', data: response });
@@ -229,10 +250,11 @@ export async function authRoutes(
         };
         const novaSenha = gerarSenhaSegura();
 
-        // Salva no banco
+        // Salva no banco (HASH) e força troca no próximo login
+        const hash = await hashSenha(novaSenha);
         await prisma.$executeRawUnsafe(
-          `UPDATE UsuarioCRM SET senha = ?, updated_at = NOW() WHERE id = ?`,
-          novaSenha, usuario.id
+          `UPDATE UsuarioCRM SET senha = ?, precisa_trocar_senha = 1, updated_at = NOW() WHERE id = ?`,
+          hash, usuario.id
         );
 
         // Envia email de redefinição com template dedicado ProSystem
@@ -281,20 +303,20 @@ export async function authRoutes(
       }
 
       try {
-        // Verifica senha atual
+        // Busca o usuário e confere a senha atual (hash ou texto puro legado)
         const rows: any[] = await prisma.$queryRawUnsafe(
-          `SELECT id, nome, email, cargo FROM UsuarioCRM WHERE id = ? AND senha = ? AND status = 'ATIVO' LIMIT 1`,
-          userId, senha_atual
+          `SELECT id, senha FROM UsuarioCRM WHERE id = ? AND status = 'ATIVO' LIMIT 1`,
+          userId
         );
-
-        if (!rows.length) {
+        if (!rows.length || !(await conferirSenha(senha_atual, rows[0].senha))) {
           return reply.status(401).send({ status: 'error', message: 'Senha atual incorreta' });
         }
 
-        // Atualiza para a nova senha
+        // Atualiza para a nova senha (HASH) e limpa a flag de troca obrigatória
+        const hash = await hashSenha(nova_senha);
         await prisma.$executeRawUnsafe(
-          `UPDATE UsuarioCRM SET senha = ?, updated_at = NOW() WHERE id = ?`,
-          nova_senha, userId
+          `UPDATE UsuarioCRM SET senha = ?, precisa_trocar_senha = 0, updated_at = NOW() WHERE id = ?`,
+          hash, userId
         );
 
         return reply.send({ status: 'success', message: 'Senha alterada com sucesso' });
