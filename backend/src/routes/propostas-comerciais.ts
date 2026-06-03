@@ -190,6 +190,76 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
           feito_por_role: 'CLIENTE',
         },
       }).catch(() => {});
+
+      // 2.1) Gera automaticamente o ContratoComercial (status A_GERAR), herdando o ID
+      // da proposta. Fica pronto para a gestão conferir e enviar à assinatura com 1 clique.
+      try {
+        const jaTemContrato = await prisma.contratoComercial.findFirst({
+          where: { OR: [{ id: p.id }, { proposta_comercial_id: p.id }] },
+          select: { id: true },
+        });
+        if (!jaTemContrato) {
+          // sequência anual do contrato
+          const anoC = agora.getFullYear();
+          const seqRow = await prisma.contratoSequencia.upsert({
+            where: { ano: anoC },
+            create: { ano: anoC, ultima_seq: 27, updated_at: agora },
+            update: {},
+          });
+          const novaSeq = await prisma.contratoSequencia.update({
+            where: { ano: anoC },
+            data: { ultima_seq: { increment: 1 }, updated_at: agora },
+          });
+          const seq = novaSeq.ultima_seq;
+
+          // dia de vencimento a partir de data_vencimento (texto livre)
+          let diaVenc: number | undefined;
+          const rawVenc = String(p.data_vencimento || '').trim();
+          const mBr = rawVenc.match(/^(\d{1,2})[\/\-]/) || rawVenc.match(/^\d{4}-\d{2}-(\d{2})/) || rawVenc.match(/(\d{1,2})/);
+          if (mBr) { const d = Number(mBr[1]); if (d >= 1 && d <= 31) diaVenc = d; }
+
+          const setupAVista = !p.parcelas || p.parcelas <= 1;
+
+          await prisma.contratoComercial.create({
+            data: {
+              id: p.id, // herda o ID da proposta (rastreabilidade)
+              numero_contrato: `${seq}/${anoC}`,
+              sequencia: seq,
+              ano: anoC,
+              status: 'A_GERAR',
+              proposta_comercial_id: p.id,
+              razao_social: p.razao_social,
+              nome_fantasia: p.nome_fantasia || undefined,
+              cnpj: p.cnpj || undefined,
+              cidade: p.cidade || undefined,
+              estado: p.estado || undefined,
+              representante_nome: p.responsavel_nome || undefined,
+              representante_cpf: p.responsavel_cpf || undefined,
+              representante_email: p.responsavel_email || undefined,
+              representante_telefone: p.responsavel_telefone || undefined,
+              representante_cargo: p.responsavel_cargo || undefined,
+              plano_contratado: p.plano_selecionado || undefined,
+              software_nome: 'SOLUTION – FRENTE DE LOJA',
+              software_versao: p.plano_selecionado || undefined,
+              mensalidade: mrr || undefined,
+              dia_vencimento: diaVenc,
+              valor_setup_total: inst || undefined,
+              valor_setup_entrada: p.entrada || undefined,
+              setup_parcelas: p.parcelas || undefined,
+              valor_setup_parcela: p.valor_parcela || undefined,
+              setup_a_vista: setupAVista,
+              vendedor_nome: p.vendedor_nome || undefined,
+              supervisor_nome: p.supervisor_nome || undefined,
+              campanha: p.campanha || undefined,
+              condicao_especial: p.condicao_especial || undefined,
+              modelo_contrato: p.plano_selecionado || undefined,
+              created_by: p.created_by || 'system',
+            },
+          });
+        }
+      } catch (e) {
+        request.log?.warn({ err: e }, 'aceite: falha ao gerar contrato automático (proposta segue aceita)');
+      }
     }
 
     // 3) Casa/cria o lead pelo CNPJ e move para FECHAMENTO (GANHO) — alimenta dashboard/metas

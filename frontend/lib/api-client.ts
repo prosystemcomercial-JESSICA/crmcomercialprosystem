@@ -550,6 +550,16 @@ class ApiClient {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);
   }
 
+  // Gera o PDF a partir do modelo padrão e envia à ZapSign para assinatura (1 clique).
+  async gerarEEnviarContrato(id: string) {
+    return this.client.post(`/contratos-comerciais/${id}/gerar-e-enviar`);
+  }
+
+  // URL do PDF do contrato (preview/download), gerado pelo modelo padrão.
+  contratoPdfUrl(id: string) {
+    return `${this.client.defaults.baseURL}/contratos-comerciais/${id}/pdf`;
+  }
+
   async getConfiguracoesIntegracoes() {
     return this.client.get('/configuracoes/integracoes');
   }

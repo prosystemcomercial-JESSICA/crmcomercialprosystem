@@ -2,10 +2,11 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId } from '@/lib/scope';
+import { gerarContratoPdf } from '@/lib/contrato-pdf';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function fmtBRL(v?: number | null): string {
+export function fmtBRL(v?: number | null): string {
   if (v == null) return 'R$ 0,00';
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -36,7 +37,7 @@ function numPartes(n: number): string {
   return partes.join(' e ');
 }
 
-function numPorExtenso(valor: number): string {
+export function numPorExtenso(valor: number): string {
   const inteiro = Math.round(valor * 100) / 100;
   const reais = Math.floor(inteiro);
   const centavos = Math.round((inteiro - reais) * 100);
@@ -81,12 +82,38 @@ function gerarClausulaSetup(contrato: any): string {
     `falhas técnicas não resolvidas.`;
 }
 
+// Extrai o dia (1-31) de um campo de vencimento que pode vir como "25", "dia 25",
+// "25/06/2026" ou uma data ISO. Retorna undefined se não der pra inferir.
+function parseDiaVencimento(raw?: string | null): number | undefined {
+  if (!raw) return undefined;
+  const s = String(raw).trim();
+  // dd/mm/yyyy ou dd-mm-yyyy → pega o primeiro grupo
+  const br = s.match(/^(\d{1,2})[\/\-]/);
+  if (br) { const d = Number(br[1]); if (d >= 1 && d <= 31) return d; }
+  // ISO yyyy-mm-dd → pega o dia
+  const iso = s.match(/^\d{4}-\d{2}-(\d{2})/);
+  if (iso) { const d = Number(iso[1]); if (d >= 1 && d <= 31) return d; }
+  // qualquer número solto de 1-2 dígitos ("dia 25", "25")
+  const num = s.match(/(\d{1,2})/);
+  if (num) { const d = Number(num[1]); if (d >= 1 && d <= 31) return d; }
+  return undefined;
+}
+
+// Escolhe a mensalidade real conforme o plano selecionado na proposta.
+function mensalidadeDoPlano(p: any): number | undefined {
+  const plano = String(p.plano_selecionado || '').toUpperCase();
+  if (plano.includes('PLUS')) return p.mensalidade_plus ?? p.mensalidade_pro ?? undefined;
+  if (plano.includes('PRO'))  return p.mensalidade_pro  ?? p.mensalidade_plus ?? undefined;
+  // PERSONALIZADO / outros: usa o que estiver preenchido
+  return p.mensalidade_plus ?? p.mensalidade_pro ?? undefined;
+}
+
 async function gerarNumeroContrato(prisma: PrismaClient): Promise<{ numero: string; seq: number; ano: number }> {
   const ano = new Date().getFullYear();
   const seq = await prisma.$transaction(async (tx) => {
     const atual = await tx.contratoSequencia.upsert({
       where: { ano },
-      create: { ano, ultima_seq: 32, updated_at: new Date() },
+      create: { ano, ultima_seq: 27, updated_at: new Date() },
       update: {},
     });
     const nova = await tx.contratoSequencia.update({
@@ -205,6 +232,11 @@ const UpdateContratoComercialSchema = z.object({
 
 export async function contratosComerciais(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
+
+  // Migração idempotente: garante a coluna gerado_at (timestamp de geração do PDF).
+  await prisma.$executeRawUnsafe(
+    `ALTER TABLE ContratoComercial ADD COLUMN gerado_at DATETIME NULL`
+  ).catch(() => {});
 
   // ── LIST (kanban grouped)
   fastify.get('/contratos-comerciais', async (request, reply) => {
@@ -491,6 +523,102 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     return reply.send({ status: 'ok', data: updated, zapsign: zapRes });
   });
 
+  // ── GERAR PDF DO CONTRATO (download/preview)
+  // Reproduz o modelo padrão por plano com os dados da proposta/contrato.
+  fastify.get('/contratos-comerciais/:id/pdf', async (request, reply) => {
+    const { id } = request.params as any;
+    const c = await prisma.contratoComercial.findUnique({ where: { id } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Não encontrado' });
+
+    const pdf = await gerarContratoPdf(c as any);
+    const filename = `Contrato_${(c.numero_contrato || id).replace(/[^\w.-]/g, '_')}.pdf`;
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .send(pdf);
+  });
+
+  // ── GERAR + ENVIAR (1 clique): gera o PDF a partir do modelo e envia à ZapSign.
+  // Marca o contrato como GERADO (com o PDF) e dispara a assinatura.
+  fastify.post('/contratos-comerciais/:id/gerar-e-enviar', async (request, reply) => {
+    const { id } = request.params as any;
+    const c = await prisma.contratoComercial.findUnique({ where: { id } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Não encontrado' });
+
+    if (!c.representante_nome) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'Contrato sem representante (nome) para assinar. Preencha o representante legal antes de enviar.',
+      });
+    }
+
+    const zap = await getZapSignConfig(prisma);
+    if (!zap.token) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'Token ZapSign não configurado. Acesse Configurações > Integrações > ZapSign.',
+      });
+    }
+
+    // 1) Gera o PDF do contrato a partir do modelo padrão.
+    let base64Pdf: string;
+    try {
+      const pdf = await gerarContratoPdf(c as any);
+      base64Pdf = pdf.toString('base64');
+      await prisma.contratoComercial.update({
+        where: { id },
+        data: { status: 'GERADO', gerado_at: new Date() },
+      });
+    } catch (e: any) {
+      return reply.status(500).send({ status: 'error', message: `Falha ao gerar o PDF: ${e.message}` });
+    }
+
+    // 2) Envia o PDF (base64) à ZapSign para assinatura.
+    const base = ZAPSIGN_BASE[zap.env];
+    const signers: any[] = [{
+      name: c.representante_nome,
+      email: c.representante_email || '',
+      phone_country: '55',
+      phone_number: (c.representante_telefone || '').replace(/\D/g, ''),
+      auth_mode: 'assinaturaTela',
+      send_automatic_email: !!c.representante_email,
+      send_automatic_whatsapp: !!c.representante_telefone,
+    }];
+    const docName = `Contrato ${c.numero_contrato} – ${c.razao_social}`;
+
+    let zapRes: any;
+    try {
+      const response = await fetch(`${base}/docs/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${zap.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: docName, base64_pdf: base64Pdf, signers }),
+      });
+      zapRes = await response.json();
+      if (!response.ok) {
+        return reply.status(400).send({ status: 'error', message: `ZapSign: ${JSON.stringify(zapRes)}` });
+      }
+    } catch (e: any) {
+      return reply.status(500).send({ status: 'error', message: `Erro ao chamar ZapSign: ${e.message}` });
+    }
+
+    const docToken = zapRes.token || String(zapRes.open_id || '');
+    const signer = zapRes.signers?.[0];
+
+    const updated = await prisma.contratoComercial.update({
+      where: { id },
+      data: {
+        status: 'ENVIADO_ASSINATURA',
+        zapsign_doc_token: docToken || null,
+        zapsign_signer_token: signer?.token ? String(signer.token) : null,
+        zapsign_signing_url: signer?.sign_url || null,
+        zapsign_status: 'pending',
+        sent_to_sign_at: new Date(),
+      },
+    });
+
+    return reply.send({ status: 'ok', data: updated, zapsign: zapRes });
+  });
+
   // ── WEBHOOK ZAPSIGN
   fastify.post('/webhook/zapsign', async (request, reply) => {
     const body: any = request.body;
@@ -540,9 +668,18 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const { numero, seq, ano } = await gerarNumeroContrato(prisma);
 
     const setupAVista = !p.parcelas || p.parcelas <= 1;
+    // Instalação (cláusula 3.5) = valor de implantação da proposta (NÃO o valor_final, que é o total do negócio).
+    const valorInstalacao = p.valor_implantacao ?? undefined;
+
+    // Rastreabilidade: o contrato HERDA o id da proposta de origem.
+    // Se já existir um registro com esse id (regerar), cai no cuid() padrão.
+    let contratoId: string | undefined = propostaId;
+    const jaExisteId = await prisma.contratoComercial.findUnique({ where: { id: propostaId }, select: { id: true } });
+    if (jaExisteId) contratoId = undefined;
 
     const contrato = await prisma.contratoComercial.create({
       data: {
+        ...(contratoId ? { id: contratoId } : {}),
         numero_contrato: numero,
         sequencia: seq,
         ano,
@@ -561,8 +698,9 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         plano_contratado: p.plano_selecionado || undefined,
         software_nome: 'SOLUTION – FRENTE DE LOJA',
         software_versao: p.plano_selecionado || undefined,
-        mensalidade: p.mensalidade_plus || p.mensalidade_pro || undefined,
-        valor_setup_total: p.valor_final || undefined,
+        mensalidade: mensalidadeDoPlano(p),
+        dia_vencimento: parseDiaVencimento(p.data_vencimento),
+        valor_setup_total: valorInstalacao,
         valor_setup_entrada: p.entrada || undefined,
         setup_parcelas: p.parcelas || undefined,
         valor_setup_parcela: p.valor_parcela || undefined,

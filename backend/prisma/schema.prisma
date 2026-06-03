@@ -1227,6 +1227,7 @@ model ContratoComercial {
   zapsign_signing_url     String?
   zapsign_signed_file_url String?
   zapsign_status          String?
+  gerado_at               DateTime?
   sent_to_sign_at         DateTime?
   signed_at               DateTime?
 
