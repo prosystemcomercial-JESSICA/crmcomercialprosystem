@@ -627,6 +627,61 @@ export default function LeadsPage() {
     } catch (e) { console.error(e); }
   };
 
+  // Mapeia os dados do lead para o formato do formulário de proposta (mesma estrutura
+  // usada pela tela aprimorada /propostas-comerciais).
+  const mapLeadParaProposta = useCallback((lead: Lead) => ({
+    razao_social:         (lead as any).razao_social || lead.nome || '',
+    nome_fantasia:        lead.nome_fantasia || '',
+    cnpj:                 lead.cnpj || '',
+    segmento:             lead.segmento || '',
+    cidade:               lead.cidade || '',
+    estado:               lead.estado || '',
+    maquinas:             lead.qtd_caixas?.toString() || '',
+    tipo_loja:            TIPO_OP_MAP[(lead as any).tipo_oportunidade || ''] || '',
+    sistema_atual:        lead.sistema_atual || '',
+    data_virada:          '',
+    responsavel_nome:     lead.responsavel_nome || '',
+    responsavel_telefone: lead.responsavel_telefone || '',
+    responsavel_email:    lead.responsavel_email || '',
+    responsavel_cpf:      '',
+    responsavel_cargo:    lead.responsavel_cargo || '',
+    responsavel_horario:  lead.responsavel_horario || '',
+    vendedor_nome:        lead.vendedor_nome || '',
+    vendedor_telefone:    '',
+    supervisor_nome:      lead.supervisor_nome || '',
+    campanha:             (lead as any).campanha_nome || lead.utm_campaign || '',
+    validade:             '',
+    origem:               lead.origem || '',
+    plano_selecionado:    (lead as any).plano_indicado || (lead as any).plano_interesse || '',
+    plano_recomendado:    (lead as any).plano_recomendado || '',
+    mensalidade_pro:      '',
+    mensalidade_plus:     (lead as any).mensalidade_estimada?.toString() || '',
+    modulos_inclusos:     (lead as any).modulos_inclusos || [],
+    servicos_adicionais:  (lead as any).servicos_adicionais || [],
+    valor_implantacao:    (lead as any).valor_setup?.toString() || '',
+    valor_conversao:      (lead as any).valor_conversao?.toString() || '',
+    desconto:             '',
+    entrada:              (lead as any).entrada?.toString() || '',
+    parcelas:             (lead as any).parcelamento?.toString() || '',
+    data_vencimento:      '',
+    observacao_cobranca:  '',
+    condicao_especial:    (lead as any).condicao_especial || '',
+    titulo_proposta:      '',
+    frase_hero:           (lead as any).frase_hero || '',
+    texto_valor:          (lead as any).texto_valor || '',
+    observacoes:          (lead as any).observacoes_comerciais || lead.observacoes || '',
+    status:               'RASCUNHO',
+  }), []);
+
+  // Gera proposta a partir do lead: leva os dados para a tela ÚNICA de proposta
+  // (a aprimorada), pré-preenchida. Evita duplicação de telas de proposta.
+  const gerarPropostaDoLead = useCallback((lead: Lead) => {
+    try {
+      sessionStorage.setItem('prefill_proposta', JSON.stringify(mapLeadParaProposta(lead)));
+    } catch { /* ignore */ }
+    router.push('/propostas-comerciais');
+  }, [mapLeadParaProposta, router]);
+
   const initPropostaForm = useCallback((lead: Lead) => {
     setPropostaForm({
       razao_social:         (lead as any).razao_social || lead.nome || '',
@@ -1040,7 +1095,7 @@ export default function LeadsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
-                  <button onClick={() => setDetailTab('proposta')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#16a34a' }}>
+                  <button onClick={() => gerarPropostaDoLead(selectedLead)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#16a34a' }}>
                     <FileText size={11} /> Gerar Proposta
                   </button>
                   {(() => {
@@ -1096,7 +1151,6 @@ export default function LeadsPage() {
                 {([
                   { key: 'dados',       label: 'Dados',       icon: Building2 },
                   { key: 'atendimento', label: 'Atendimento',  icon: MessageSquare },
-                  { key: 'proposta',    label: 'Proposta',     icon: FileText },
                   { key: 'arquivos',    label: 'Arquivos',     icon: Paperclip },
                   // Trilha de auditoria — só para a supervisão
                   ...(isGestor ? [{ key: 'trilha', label: 'Trilha / Auditoria', icon: Clock }] : []),
