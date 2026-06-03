@@ -122,11 +122,13 @@ export const OWNER_COLUMNS: Record<string, string[]> = {
  *   const where = { ...filtrosBase, ...ownerWhere(request, 'Lead') };
  */
 export function ownerWhere(request: FastifyRequest, table: keyof typeof OWNER_COLUMNS | string): Record<string, any> {
+  // Registros com exclusão lógica saem de TODOS os resultados (inclusive p/ gestor).
+  const softDelete = table === 'Lead' ? { deleted_at: null } : {};
   const id = scopeUserId(request);
-  if (id === null) return {};                // gestor → sem filtro
+  if (id === null) return { ...softDelete };           // gestor → sem filtro de dono, mas sem excluídos
   const cols = OWNER_COLUMNS[table as string] || ['created_by'];
-  if (cols.length === 1) return { [cols[0]]: id };
-  return { OR: cols.map(c => ({ [c]: id })) };
+  if (cols.length === 1) return { ...softDelete, [cols[0]]: id };
+  return { ...softDelete, OR: cols.map(c => ({ [c]: id })) };
 }
 
 /**

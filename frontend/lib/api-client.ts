@@ -309,8 +309,8 @@ class ApiClient {
     return this.client.patch(`/leads/${id}`, data);
   }
 
-  async deleteLead(id: string) {
-    return this.client.delete(`/leads/${id}`);
+  async deleteLead(id: string, motivo?: string) {
+    return this.client.delete(`/leads/${id}`, { data: { motivo } });
   }
 
   async getLeadsFunil() {
@@ -323,6 +323,26 @@ class ApiClient {
 
   async getLeadsKanban() {
     return this.client.get('/leads/kanban');
+  }
+
+  // ── Quadros comerciais (Pipeline + Follow-up + customizados) ──
+  async getQuadros() {
+    return this.client.get('/quadros');
+  }
+  async getQuadroKanban(quadroId: string) {
+    return this.client.get(`/quadros/${quadroId}/kanban`);
+  }
+  async criarQuadro(data: any) {
+    return this.client.post('/quadros', data);
+  }
+  async editarQuadro(id: string, data: any) {
+    return this.client.patch(`/quadros/${id}`, data);
+  }
+  async excluirQuadro(id: string) {
+    return this.client.delete(`/quadros/${id}`);
+  }
+  async moverLeadNoQuadro(quadroId: string, lead_id: string, coluna_chave: string) {
+    return this.client.post(`/quadros/${quadroId}/mover`, { lead_id, coluna_chave });
   }
 
   async getLeadObservacoes(id: string) {

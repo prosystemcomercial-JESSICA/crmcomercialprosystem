@@ -460,7 +460,13 @@ model Lead {
   onboarding        LeadOnboarding?
   execucao          ExecucaoTecnica?
 
+  // Exclusão lógica: lead sai de TODOS os resultados, fica só na auditoria/trilha.
+  deleted_at      DateTime?
+  deleted_by      String?
+  motivo_exclusao String?   @db.Text
+
   @@index([status])
+  @@index([deleted_at])
   @@index([etapa_comercial])
   @@index([status_atendimento])
   @@index([temperatura])
@@ -504,12 +510,64 @@ model KanbanColuna {
   ordem     Int      @default(99)
   ativa     Boolean  @default(true)
   fixa      Boolean  @default(false)
+  quadro_id String?  // quadro ao qual a coluna pertence (null = Pipeline Comercial padrão)
   created_by String   @default("system")
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   @@index([ordem])
   @@index([ativa])
+  @@index([quadro_id])
+}
+
+// Quadro comercial (kanban). O Pipeline Comercial é o quadro fixo padrão; é possível
+// criar outros quadros independentes (ex.: Follow-up) com colunas e regras próprias.
+model QuadroComercial {
+  id         String   @id @default(cuid())
+  nome       String
+  descricao  String?
+  tipo       String   @default("CUSTOM")   // PIPELINE | FOLLOWUP | CUSTOM
+  cor        String   @default("#417ABC")
+  ordem      Int      @default(99)
+  ativo      Boolean  @default(true)
+  fixo       Boolean  @default(false)       // Pipeline Comercial não pode ser excluído
+
+  // Regra de entrada automática de leads no quadro
+  regra_tipo    String  @default("NENHUMA") // NENHUMA | PARADOS_DIAS
+  regra_dias    Int?                         // ex.: 40 (parado há +N dias sem mudar de etapa)
+  coluna_entrada String?                     // chave da coluna onde o lead cai ao entrar
+  // Colunas que "finalizam" o lead no quadro (ele não sai por inatividade)
+  colunas_finais Json?                       // ex.: ["RECUPERADO","DESCARTADO"]
+  cadencia_dias  Json?                       // ex.: [7,15,30,45] p/ alertas de toque
+
+  created_by String   @default("system")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([ordem])
+  @@index([ativo])
+}
+
+// Posição de um lead em um quadro NÃO-pipeline (no Pipeline a posição é o etapa_comercial).
+model LeadQuadroPosicao {
+  id           String   @id @default(cuid())
+  lead_id      String
+  quadro_id    String
+  coluna_chave String
+  // Cadência de follow-up
+  entrou_em        DateTime @default(now())
+  ultima_tentativa DateTime?
+  proxima_acao_em  DateTime?
+  tentativas       Int      @default(0)
+  finalizado       Boolean  @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([lead_id, quadro_id])
+  @@index([quadro_id])
+  @@index([lead_id])
+  @@index([proxima_acao_em])
 }
 
 model Etiqueta {

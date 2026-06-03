@@ -13,7 +13,7 @@ import {
   Flame, Thermometer, Snowflake, Zap, Tag, Clock,
   ChevronDown, Settings, Paperclip, Save, CheckCircle2,
   TrendingUp, Trophy, Target as TargetIcon, BarChart3, Users as UsersIcon,
-  DollarSign, Sparkles, ListChecks, Wrench,
+  DollarSign, Sparkles, ListChecks, Wrench, Trash2,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -387,6 +387,11 @@ export default function LeadsPage() {
 
   const [colunas, setColunas]     = useState<KanbanColuna[]>([]);
   const [kanban, setKanban]       = useState<Record<string, Lead[]>>({});
+  // Quadros comerciais (Pipeline + Follow-up + customizados)
+  const [quadros, setQuadros]       = useState<any[]>([]);
+  const [quadroAtivo, setQuadroAtivo] = useState<any | null>(null); // null = Pipeline (kanban legado)
+  const [showNewQuadro, setShowNewQuadro] = useState(false);
+  const [newQuadro, setNewQuadro] = useState<{ nome: string; cor: string; colunas: string }>({ nome: '', cor: '#417ABC', colunas: 'A fazer, Em andamento, Concluído' });
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [search, setSearch]       = useState('');
@@ -455,8 +460,12 @@ export default function LeadsPage() {
   const loadData = useCallback(async () => {
     setDataLoading(true);
     try {
+      // Quando há um quadro não-pipeline ativo, o kanban vem dele; senão, o legado.
+      const kanbanPromise = (quadroAtivo && quadroAtivo.tipo !== 'PIPELINE')
+        ? apiClient.getQuadroKanban(quadroAtivo.id)
+        : apiClient.getLeadsKanban();
       const [kanbanRes, etiqRes, metricasRes, boardRes] = await Promise.all([
-        apiClient.getLeadsKanban(),
+        kanbanPromise,
         apiClient.getEtiquetas(),
         apiClient.client.get('/funil/metricas').catch(() => null),
         apiClient.client.get('/funil/board').catch(() => null),
@@ -474,7 +483,13 @@ export default function LeadsPage() {
     } catch (e) { console.error(e); }
     // (vendedores p/ atribuição carregados à parte abaixo)
     finally { setDataLoading(false); }
-  }, []);
+  }, [quadroAtivo]);
+
+  // Carrega a lista de quadros disponíveis (Pipeline, Follow-up, customizados).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiClient.getQuadros().then(r => setQuadros(r.data?.data || [])).catch(() => {});
+  }, [isAuthenticated]);
 
   // Carrega vendedores p/ o dropdown de atribuição (supervisão)
   useEffect(() => {
@@ -482,6 +497,37 @@ export default function LeadsPage() {
   }, [isGestor]);
 
   // Atribui o lead aberto a um vendedor (cria alerta no sininho dele)
+  // Cria um novo quadro (gestor). Colunas separadas por vírgula.
+  const criarQuadro = async () => {
+    if (!newQuadro.nome.trim()) { alert('Informe o nome do quadro'); return; }
+    const colunas = newQuadro.colunas.split(',').map(s => s.trim()).filter(Boolean).map(nome => ({ nome }));
+    try {
+      const r = await apiClient.criarQuadro({ nome: newQuadro.nome.trim(), cor: newQuadro.cor, colunas });
+      setShowNewQuadro(false);
+      setNewQuadro({ nome: '', cor: '#417ABC', colunas: 'A fazer, Em andamento, Concluído' });
+      const lista = await apiClient.getQuadros();
+      setQuadros(lista.data?.data || []);
+      const criado = (lista.data?.data || []).find((q: any) => q.id === r.data?.data?.id);
+      if (criado) setQuadroAtivo(criado);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Erro ao criar quadro.');
+    }
+  };
+
+  // Exclusão lógica: o lead sai de todos os resultados e fica só na auditoria.
+  const excluirLead = async (lead: Lead) => {
+    const motivo = prompt(`Excluir o lead "${lead.nome}"?\nEle sairá de TODAS as listas, quadro, dashboard e metas — ficando apenas na auditoria.\n\nMotivo da exclusão (opcional):`) ?? undefined;
+    // prompt cancelado retorna null → não exclui
+    if (motivo === undefined) return;
+    try {
+      await apiClient.deleteLead(lead.id, motivo || undefined);
+      setSelectedLead(null);
+      await loadData();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Erro ao excluir o lead.');
+    }
+  };
+
   const atribuirVendedor = async (leadId: string, vendedorId: string) => {
     if (!vendedorId) return;
     setAtribuindo(true);
@@ -557,6 +603,14 @@ export default function LeadsPage() {
   };
 
   const moveColumn = async (lead: Lead, etapa: string) => {
+    // Em quadros não-pipeline (ex.: Follow-up), a posição é por quadro (não mexe no pipeline).
+    if (quadroAtivo && quadroAtivo.tipo !== 'PIPELINE') {
+      try {
+        await apiClient.moverLeadNoQuadro(quadroAtivo.id, lead.id, etapa);
+        await loadData();
+      } catch { /* ignore */ }
+      return;
+    }
     if (etapa === 'PERDIDO') {
       setMovingToPerda(lead);
       setShowPerda(true);
@@ -889,12 +943,14 @@ export default function LeadsPage() {
               style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
               <Tag size={12} /> Etiqueta
             </button>
-            <button onClick={() => setShowNewCol(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-              style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
-              <Plus size={12} /> Coluna
-            </button>
-            {isGestor && (
+            {!quadroAtivo && (
+              <button onClick={() => setShowNewCol(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>
+                <Plus size={12} /> Coluna
+              </button>
+            )}
+            {isGestor && !quadroAtivo && (
               <>
                 <button onClick={() => setShowConfigFunil(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
@@ -915,6 +971,37 @@ export default function LeadsPage() {
             </button>
           </div>
         </div>
+
+        {/* ═══ SELETOR DE QUADROS (Pipeline · Follow-up · customizados) ═════ */}
+        {quadros.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {quadros.map((q: any) => {
+              const ativo = (q.tipo === 'PIPELINE' && !quadroAtivo) || quadroAtivo?.id === q.id;
+              return (
+                <button key={q.id}
+                  onClick={() => setQuadroAtivo(q.tipo === 'PIPELINE' ? null : q)}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
+                  style={{
+                    background: ativo ? q.cor : '#fff',
+                    color: ativo ? '#fff' : '#5A6B7B',
+                    border: `1.5px solid ${ativo ? q.cor : '#D8E8F5'}`,
+                  }}>
+                  {q.tipo === 'FOLLOWUP' ? '🔄 ' : q.tipo === 'PIPELINE' ? '📊 ' : '🗂 '}{q.nome}
+                </button>
+              );
+            })}
+            {isGestor && (
+              <button onClick={() => setShowNewQuadro(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{ border: '1.5px dashed #D8E8F5', color: '#4B8EC8' }}>
+                <Plus size={12} /> Novo quadro
+              </button>
+            )}
+          </div>
+        )}
+        {quadroAtivo?.descricao && (
+          <p className="text-xs px-1" style={{ color: '#7AAACB' }}>{quadroAtivo.descricao}</p>
+        )}
 
         {/* ═══ 2. KPI CARDS ═══════════════════════════════════════════════ */}
         {metricas && (
@@ -1130,6 +1217,10 @@ export default function LeadsPage() {
                       <option value="">👤 Atribuir vendedor…</option>
                       {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
                     </select>
+                  )}
+                  {isGestor && (
+                    <button onClick={() => excluirLead(selectedLead)} title="Excluir lead (mantido só na auditoria)"
+                      className="p-1.5 rounded-lg hover:bg-red-50"><Trash2 size={15} style={{ color: '#dc2626' }} /></button>
                   )}
                   <button onClick={() => setSelectedLead(null)} className="p-1.5 rounded-lg hover:bg-gray-100"><X size={15} style={{ color: '#7AAACB' }} /></button>
                 </div>
@@ -1822,6 +1913,43 @@ export default function LeadsPage() {
                 <button onClick={createNewCol} disabled={!newColForm.nome}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#4B8EC8' }}>
                   Criar Coluna
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Novo Quadro Modal ────────────────────────────────────────────── */}
+      {showNewQuadro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.6)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6" style={{ width: 440 }}>
+            <div className="flex justify-between mb-4">
+              <h3 className="font-extrabold text-sm" style={{ color: '#0D2238' }}>Novo Quadro</h3>
+              <button onClick={() => setShowNewQuadro(false)}><X size={16} style={{ color: '#7AAACB' }} /></button>
+            </div>
+            <div className="space-y-3">
+              <Inp label="Nome do quadro *" value={newQuadro.nome} onChange={(e: any) => setNewQuadro(p => ({ ...p, nome: e.target.value }))} />
+              <div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>Colunas (separadas por vírgula)</label>
+                <input value={newQuadro.colunas} onChange={e => setNewQuadro(p => ({ ...p, colunas: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: '#D8E8F5' }} />
+                <p className="text-[10px] mt-1" style={{ color: '#9ca3af' }}>Ex: A fazer, Em andamento, Concluído</p>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: '#7AAACB' }}>Cor</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={newQuadro.cor} onChange={e => setNewQuadro(p => ({ ...p, cor: e.target.value }))} className="w-10 h-10 rounded cursor-pointer" style={{ border: '1px solid #D8E8F5' }} />
+                  {['#417ABC','#d97706','#7c3aed','#16a34a','#dc2626','#0891b2'].map(c => (
+                    <button key={c} onClick={() => setNewQuadro(p => ({ ...p, cor: c }))} className="w-6 h-6 rounded-full" style={{ background: c, outline: newQuadro.cor === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }} />
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowNewQuadro(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid #D8E8F5', color: '#7AAACB' }}>Cancelar</button>
+                <button onClick={criarQuadro} disabled={!newQuadro.nome.trim()}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#4B8EC8' }}>
+                  Criar Quadro
                 </button>
               </div>
             </div>

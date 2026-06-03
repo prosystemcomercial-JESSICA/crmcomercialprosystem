@@ -146,6 +146,23 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       ).catch(() => []);
     }
 
+    // Follow-up: leads cuja PRÓXIMA AÇÃO de cadência já venceu (toque pendente).
+    let followup_pendente: any[] = [];
+    {
+      const uid = (request as any).user?.id || '__no_user__';
+      const verTudo = !(escNovo.OR || escNovo.responsavel_id); // gestor vê tudo
+      followup_pendente = await prisma.$queryRawUnsafe(
+        `SELECT p.lead_id AS id, p.coluna_chave, p.tentativas, p.proxima_acao_em, l.nome, l.empresa
+           FROM LeadQuadroPosicao p
+           JOIN \`Lead\` l ON l.id = p.lead_id
+          WHERE p.finalizado = 0 AND p.proxima_acao_em IS NOT NULL AND p.proxima_acao_em <= NOW()
+            AND l.deleted_at IS NULL
+            ${verTudo ? '' : 'AND (l.responsavel_id = ? OR l.created_by = ?)'}
+          ORDER BY p.proxima_acao_em ASC LIMIT 30`,
+        ...(verTudo ? [] : [uid, uid])
+      ).catch(() => []);
+    }
+
     const alertas = [
       ...novos_atribuidos.map((l: any) => ({
         id: `nl-${l.id}`,
@@ -154,6 +171,15 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         titulo: `Novo lead recebido: ${l.nome}`,
         descricao: `${l.empresa || ''} · atribuído a você — faça o primeiro contato`,
         data: l.atribuido_em,
+        link: `/leads?id=${l.id}`
+      })),
+      ...followup_pendente.map((l: any) => ({
+        id: `fup-${l.id}`,
+        tipo: 'FOLLOWUP_PENDENTE',
+        urgencia: 'MEDIA',
+        titulo: `Follow-up: hora de retomar ${l.nome}`,
+        descricao: `${l.empresa || ''} · ${l.tentativas || 0} tentativa(s) — próximo toque pendente`,
+        data: l.proxima_acao_em,
         link: `/leads?id=${l.id}`
       })),
       ...atrasadas.map(a => ({
