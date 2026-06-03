@@ -555,6 +555,11 @@ class ApiClient {
     return this.client.post(`/contratos-comerciais/${id}/gerar-e-enviar`);
   }
 
+  // Recuo / distrato do contrato (cliente assinou e desistiu) — sai da meta, estorna comissão.
+  async recuarContrato(id: string, motivo?: string) {
+    return this.client.post(`/contratos-comerciais/${id}/recuar`, { motivo });
+  }
+
   // URL do PDF do contrato (preview/download), gerado pelo modelo padrão.
   contratoPdfUrl(id: string) {
     return `${this.client.defaults.baseURL}/contratos-comerciais/${id}/pdf`;

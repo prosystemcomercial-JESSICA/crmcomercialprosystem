@@ -125,6 +125,112 @@ async function gerarNumeroContrato(prisma: PrismaClient): Promise<{ numero: stri
   return { numero: `${seq}/${ano}`, seq, ano };
 }
 
+const COMISSAO_VENDEDOR_PCT = 15; // 15% sobre o setup/instalação
+
+// Aplica os efeitos de ASSINATURA do contrato (idempotente):
+//  - calcula a comissão do vendedor (15% do setup) e grava no contrato;
+//  - registra signed_at/status ASSINADO;
+//  - marca a proposta de origem como CONTRATO_ASSINADO e o lead como GANHO (alimenta o funil).
+// A META só conta contratos ASSINADOS (ver lib/meta-progress.ts).
+async function aplicarAssinatura(prisma: PrismaClient, contratoId: string, signedFileUrl?: string | null) {
+  const c = await prisma.contratoComercial.findUnique({ where: { id: contratoId } });
+  if (!c) return null;
+
+  const setup = Number(c.valor_setup_total || 0);
+  const pct = c.comissao_vendedor_pct ?? COMISSAO_VENDEDOR_PCT;
+  const comissao = Math.round(setup * (pct / 100) * 100) / 100;
+  const agora = new Date();
+
+  const atualizado = await prisma.contratoComercial.update({
+    where: { id: contratoId },
+    data: {
+      status: 'ASSINADO',
+      zapsign_status: 'signed',
+      zapsign_signed_file_url: signedFileUrl ?? c.zapsign_signed_file_url ?? null,
+      signed_at: c.signed_at || agora,
+      comissao_vendedor_pct: pct,
+      comissao_vendedor_valor: comissao,
+      recuado_at: null,
+      recuo_motivo: null,
+    },
+  });
+
+  // Proposta de origem → CONTRATO_ASSINADO; lead casado por CNPJ → GANHO no fechamento.
+  if (c.proposta_comercial_id) {
+    const p = await prisma.propostaComercial.findUnique({ where: { id: c.proposta_comercial_id } }).catch(() => null);
+    if (p) {
+      await prisma.propostaComercial.update({
+        where: { id: p.id },
+        data: { status: 'CONTRATO_ASSINADO' },
+      }).catch(() => {});
+
+      const cnpjDigits = (p.cnpj || c.cnpj || '').replace(/\D/g, '');
+      if (cnpjDigits) {
+        const candidatos = await prisma.lead.findMany({
+          where: { cnpj: { not: null } }, select: { id: true, cnpj: true }, take: 2000,
+        }).catch(() => [] as any[]);
+        const lead = candidatos.find((l: any) => (l.cnpj || '').replace(/\D/g, '') === cnpjDigits);
+        if (lead) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              etapa_funil: 'FECHAMENTO', etapa_comercial: 'ACEITO', status: 'GANHO',
+              status_atendimento: 'FECHADO',
+              fechamento_data: agora,
+              fechamento_mrr: Number(c.mensalidade || 0),
+              fechamento_valor_inst: setup,
+              fechamento_plano: c.plano_contratado || null,
+            } as any,
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+
+  return atualizado;
+}
+
+// Recuo / distrato (cliente assinou e desistiu): sai da meta e estorna a comissão.
+async function aplicarRecuo(prisma: PrismaClient, contratoId: string, motivo?: string) {
+  const c = await prisma.contratoComercial.findUnique({ where: { id: contratoId } });
+  if (!c) return null;
+  const agora = new Date();
+
+  const atualizado = await prisma.contratoComercial.update({
+    where: { id: contratoId },
+    data: {
+      status: 'RECUADO',
+      zapsign_status: 'refused',
+      recuado_at: agora,
+      recuo_motivo: motivo || null,
+      comissao_vendedor_valor: 0, // estorna a comissão
+    },
+  });
+
+  // Proposta volta a PERDIDA; lead casado por CNPJ → PERDIDO (sai da meta).
+  if (c.proposta_comercial_id) {
+    const p = await prisma.propostaComercial.findUnique({ where: { id: c.proposta_comercial_id } }).catch(() => null);
+    if (p) {
+      await prisma.propostaComercial.update({ where: { id: p.id }, data: { status: 'PERDIDA' } }).catch(() => {});
+      const cnpjDigits = (p.cnpj || c.cnpj || '').replace(/\D/g, '');
+      if (cnpjDigits) {
+        const candidatos = await prisma.lead.findMany({
+          where: { cnpj: { not: null } }, select: { id: true, cnpj: true }, take: 2000,
+        }).catch(() => [] as any[]);
+        const lead = candidatos.find((l: any) => (l.cnpj || '').replace(/\D/g, '') === cnpjDigits);
+        if (lead) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: { status: 'PERDIDO', status_atendimento: 'PERDIDO' } as any,
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+
+  return atualizado;
+}
+
 async function getZapSignConfig(prisma: PrismaClient) {
   const configs = await prisma.configuracaoIntegracao.findMany({
     where: { chave: { startsWith: 'ZAPSIGN_' } },
@@ -193,7 +299,7 @@ const CreateContratoSchema = z.object({
 });
 
 const UpdateContratoComercialSchema = z.object({
-  status: z.enum(['A_GERAR','GERADO','ENVIADO_ASSINATURA','AGUARDANDO_ASSINATURA','ASSINADO','PENDENTE_CORRECAO','CANCELADO']).optional(),
+  status: z.enum(['A_GERAR','GERADO','ENVIADO_ASSINATURA','AGUARDANDO_ASSINATURA','ASSINADO','PENDENTE_CORRECAO','CANCELADO','RECUADO']).optional(),
   razao_social: z.string().optional(),
   nome_fantasia: z.string().optional(),
   cnpj: z.string().optional(),
@@ -234,10 +340,15 @@ const UpdateContratoComercialSchema = z.object({
 export async function contratosComerciais(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // Migração idempotente: garante a coluna gerado_at (timestamp de geração do PDF).
-  await prisma.$executeRawUnsafe(
-    `ALTER TABLE ContratoComercial ADD COLUMN gerado_at DATETIME NULL`
-  ).catch(() => {});
+  // Migração idempotente: colunas de geração, vendedor, comissão e recuo/distrato.
+  await Promise.all([
+    prisma.$executeRawUnsafe(`ALTER TABLE ContratoComercial ADD COLUMN gerado_at DATETIME NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE ContratoComercial ADD COLUMN vendedor_id VARCHAR(255) NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE ContratoComercial ADD COLUMN comissao_vendedor_pct DOUBLE NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE ContratoComercial ADD COLUMN comissao_vendedor_valor DOUBLE NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE ContratoComercial ADD COLUMN recuado_at DATETIME NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE ContratoComercial ADD COLUMN recuo_motivo TEXT NULL`).catch(() => {}),
+  ]);
 
   // ── LIST (kanban grouped)
   fastify.get('/contratos-comerciais', async (request, reply) => {
@@ -371,8 +482,35 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     if (payload.data_contrato) payload.data_contrato = new Date(payload.data_contrato);
     if (payload.signed_at) payload.signed_at = new Date(payload.signed_at);
 
+    // Marcar como ASSINADO (fluxo manual) → aplica comissão + move proposta/lead (entra na meta).
+    if (payload.status === 'ASSINADO') {
+      const atual = await prisma.contratoComercial.findUnique({ where: { id } });
+      if (atual) {
+        // grava o link/assinatura informados antes de aplicar os efeitos
+        await prisma.contratoComercial.update({
+          where: { id },
+          data: {
+            zapsign_signed_file_url: payload.zapsign_signed_file_url ?? atual.zapsign_signed_file_url ?? null,
+            signed_at: payload.signed_at || atual.signed_at || new Date(),
+          },
+        });
+        const contrato = await aplicarAssinatura(prisma, id, payload.zapsign_signed_file_url);
+        return reply.send({ status: 'ok', data: contrato });
+      }
+    }
+
     const contrato = await prisma.contratoComercial.update({ where: { id }, data: payload });
     return reply.send({ status: 'ok', data: contrato });
+  });
+
+  // ── RECUO / DISTRATO (cliente assinou e desistiu) — sai da meta e estorna comissão
+  fastify.post('/contratos-comerciais/:id/recuar', async (request, reply) => {
+    const { id } = request.params as any;
+    const motivo = (request.body as any)?.motivo as string | undefined;
+    const c = await prisma.contratoComercial.findUnique({ where: { id } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
+    const atualizado = await aplicarRecuo(prisma, id, motivo);
+    return reply.send({ status: 'ok', data: atualizado });
   });
 
   // ── DELETE
@@ -633,15 +771,8 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
 
     const eventStatus = body?.event_action || body?.document?.status || '';
     if (eventStatus === 'doc_signed' || eventStatus === 'signed') {
-      await prisma.contratoComercial.update({
-        where: { id: c.id },
-        data: {
-          status: 'ASSINADO',
-          zapsign_status: 'signed',
-          zapsign_signed_file_url: body?.document?.signed_file_url || null,
-          signed_at: new Date(),
-        },
-      });
+      // Assinatura confirmada → calcula comissão, move proposta/lead (entra na meta).
+      await aplicarAssinatura(prisma, c.id, body?.document?.signed_file_url || null);
     } else if (eventStatus === 'doc_refused' || eventStatus === 'refused') {
       await prisma.contratoComercial.update({
         where: { id: c.id },
@@ -706,6 +837,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         setup_parcelas: p.parcelas || undefined,
         valor_setup_parcela: p.valor_parcela || undefined,
         setup_a_vista: setupAVista,
+        vendedor_id: p.vendedor_id || p.created_by || undefined,
         vendedor_nome: p.vendedor_nome || undefined,
         supervisor_nome: p.supervisor_nome || undefined,
         campanha: p.campanha || undefined,

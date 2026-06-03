@@ -161,21 +161,26 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     const p = await prisma.propostaComercial.findUnique({ where: { public_token: token } });
     if (!p) return reply.status(404).send({ status: 'error', message: 'Proposta não encontrada ou expirada' });
 
+    // Plano escolhido pelo cliente no aceite (quando a proposta oferece Pro e Plus).
+    const planoEscolhido = String((request.body as any)?.plano_selecionado || '').toUpperCase();
+    const planoFinal = ['PRO', 'PLUS'].includes(planoEscolhido) ? planoEscolhido : p.plano_selecionado;
+
     const jaAceita = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'].includes(p.status);
 
-    // valores p/ fechamento
-    const mrr = p.plano_selecionado === 'PRO'
+    // valores p/ fechamento (usam o plano FINAL escolhido)
+    const mrr = planoFinal === 'PRO'
       ? Number(p.mensalidade_pro || 0)
       : Number(p.mensalidade_plus || p.mensalidade_pro || 0);
     const inst = Number(p.valor_implantacao ?? p.valor_final ?? 0);
     const agora = new Date();
 
     if (!jaAceita) {
-      // 1) Proposta → ACEITA e já marcada para geração de contrato
+      // 1) Proposta → ACEITA e já marcada para geração de contrato (grava o plano escolhido)
       await prisma.propostaComercial.update({
         where: { id: p.id },
         data: {
           status: 'CONTRATO_EM_GERACAO',
+          plano_selecionado: planoFinal || undefined,
           data_aceite: agora,
           data_contrato_gerado: agora,
         },
@@ -238,9 +243,9 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
               representante_email: p.responsavel_email || undefined,
               representante_telefone: p.responsavel_telefone || undefined,
               representante_cargo: p.responsavel_cargo || undefined,
-              plano_contratado: p.plano_selecionado || undefined,
+              plano_contratado: planoFinal || undefined,
               software_nome: 'SOLUTION – FRENTE DE LOJA',
-              software_versao: p.plano_selecionado || undefined,
+              software_versao: planoFinal || undefined,
               mensalidade: mrr || undefined,
               dia_vencimento: diaVenc,
               valor_setup_total: inst || undefined,
@@ -248,11 +253,12 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
               setup_parcelas: p.parcelas || undefined,
               valor_setup_parcela: p.valor_parcela || undefined,
               setup_a_vista: setupAVista,
+              vendedor_id: p.vendedor_id || p.created_by || undefined,
               vendedor_nome: p.vendedor_nome || undefined,
               supervisor_nome: p.supervisor_nome || undefined,
               campanha: p.campanha || undefined,
               condicao_especial: p.condicao_especial || undefined,
-              modelo_contrato: p.plano_selecionado || undefined,
+              modelo_contrato: planoFinal || undefined,
               created_by: p.created_by || 'system',
             },
           });
@@ -276,17 +282,20 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
         }).catch(() => [] as any[]);
         lead = candidatos.find(c => (c.cnpj || '').replace(/\D/g, '') === cnpjDigits) || null;
       }
+      // Aceite move a negociação para FECHAMENTO (contrato em geração) — porém NÃO marca
+      // GANHO ainda: a venda só é "ganha"/contabilizada na meta quando o contrato for
+      // ASSINADO (ver aplicarAssinatura em contratos-comerciais.ts).
       const fechamentoData = {
-        etapa_funil: 'FECHAMENTO', etapa_comercial: 'ACEITO', status: 'GANHO',
-        status_atendimento: 'FECHADO',
-        fechamento_data: agora, fechamento_mrr: mrr, fechamento_valor_inst: inst,
-        fechamento_plano: p.plano_selecionado || null,
+        etapa_funil: 'FECHAMENTO', etapa_comercial: 'ACEITO', status: 'EM_NEGOCIACAO',
+        status_atendimento: 'EM_ANDAMENTO',
+        fechamento_mrr: mrr, fechamento_valor_inst: inst,
+        fechamento_plano: planoFinal || null,
         fechamento_por: p.vendedor_id || p.created_by,
       };
       if (lead) {
         await prisma.lead.update({ where: { id: lead.id }, data: fechamentoData as any });
       } else {
-        // cria o lead já fechado (aparece no funil/dashboard)
+        // cria o lead na fase de fechamento (aparece no funil) — ainda não GANHO
         await prisma.lead.create({
           data: {
             nome: p.razao_social, razao_social: p.razao_social, nome_fantasia: p.nome_fantasia || undefined,

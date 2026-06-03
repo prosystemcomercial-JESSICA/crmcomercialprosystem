@@ -59,6 +59,10 @@ interface ContratoComercial {
   zapsign_status?: string;
   sent_to_sign_at?: string;
   signed_at?: string;
+  comissao_vendedor_pct?: number;
+  comissao_vendedor_valor?: number;
+  recuado_at?: string;
+  recuo_motivo?: string;
   created_at: string;
 }
 
@@ -72,9 +76,10 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   ASSINADO:            { label: 'Assinado',             color: '#16a34a', bg: '#dcfce7', icon: CheckCircle },
   PENDENTE_CORRECAO:   { label: 'Pendente Correção',    color: '#dc2626', bg: '#fee2e2', icon: RefreshCw },
   CANCELADO:           { label: 'Cancelado',            color: '#9ca3af', bg: '#f9fafb', icon: X },
+  RECUADO:             { label: 'Recuado / Distrato',   color: '#b91c1c', bg: '#fee2e2', icon: RefreshCw },
 };
 
-const KANBAN_ORDER = ['A_GERAR','GERADO','ENVIADO_ASSINATURA','AGUARDANDO_ASSINATURA','ASSINADO','PENDENTE_CORRECAO','CANCELADO'];
+const KANBAN_ORDER = ['A_GERAR','GERADO','ENVIADO_ASSINATURA','AGUARDANDO_ASSINATURA','ASSINADO','PENDENTE_CORRECAO','CANCELADO','RECUADO'];
 
 const fmtBRL = (v?: number | null) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -164,6 +169,24 @@ export default function ContratosPage() {
       load();
     } catch (e: any) {
       setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao marcar como assinado'}`);
+    } finally { setMarcando(false); }
+  };
+
+  // Recuo / distrato: cliente assinou mas desistiu. Sai da meta e estorna a comissão.
+  const handleRecuar = async () => {
+    if (!selected) return;
+    const motivo = prompt('Motivo do recuo / distrato (opcional):') ?? undefined;
+    if (!confirm(`Confirmar RECUO do contrato Nº ${selected.numero_contrato}? A venda sai da meta e a comissão é estornada.`)) return;
+    setMarcando(true);
+    setZapMsg('');
+    try {
+      await apiClient.recuarContrato(selected.id, motivo);
+      setZapMsg('✅ Contrato recuado. Venda removida da meta e comissão estornada.');
+      const atualizado = { ...selected, status: 'RECUADO', recuo_motivo: motivo, comissao_vendedor_valor: 0 };
+      setSelected(atualizado);
+      load();
+    } catch (e: any) {
+      setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao recuar o contrato'}`);
     } finally { setMarcando(false); }
   };
 
@@ -467,6 +490,9 @@ export default function ContratosPage() {
                     ['Telefone', selected.representante_telefone],
                     ['Vendedor', selected.vendedor_nome],
                     ['Supervisor', selected.supervisor_nome],
+                    ['Comissão Vendedor (15% setup)', selected.status === 'ASSINADO' && selected.comissao_vendedor_valor != null
+                      ? `${fmtBRL(selected.comissao_vendedor_valor)} (${selected.comissao_vendedor_pct ?? 15}%)`
+                      : (selected.valor_setup_total ? `${fmtBRL((selected.valor_setup_total || 0) * 0.15)} (previsto)` : null)],
                   ].filter(([, v]) => v).map(([l, v]) => (
                     <div key={l as string}>
                       <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--t-text-muted)', fontWeight: 600 }}>{l}</div>
@@ -597,13 +623,42 @@ export default function ContratosPage() {
                       </a>
                     </div>
                   )}
-                  {selected.signed_at && (
+                  {selected.signed_at && selected.status === 'ASSINADO' && (
                     <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 6 }}>
                       ✅ Assinado em: {new Date(selected.signed_at).toLocaleDateString('pt-BR')}
+                      {selected.comissao_vendedor_valor != null && (
+                        <> · Comissão vendedor: {fmtBRL(selected.comissao_vendedor_valor)}</>
+                      )}
+                    </p>
+                  )}
+                  {selected.status === 'RECUADO' && (
+                    <p style={{ fontSize: 11, color: '#b91c1c', fontWeight: 600, marginTop: 6 }}>
+                      ↩ Contrato recuado{selected.recuado_at ? ` em ${new Date(selected.recuado_at).toLocaleDateString('pt-BR')}` : ''} · fora da meta
+                      {selected.recuo_motivo ? ` · Motivo: ${selected.recuo_motivo}` : ''}
                     </p>
                   )}
                   {zapMsg && (
                     <p style={{ fontSize: 12, marginTop: 8, color: zapMsg.startsWith('✅') ? '#16a34a' : '#dc2626' }}>{zapMsg}</p>
+                  )}
+
+                  {/* Recuo / distrato — disponível quando o contrato já foi assinado */}
+                  {selected.status === 'ASSINADO' && (
+                    <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 10, marginTop: 12 }}>
+                      <button
+                        onClick={handleRecuar}
+                        disabled={marcando}
+                        className="flex items-center gap-1.5"
+                        style={{
+                          padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5',
+                          cursor: marcando ? 'not-allowed' : 'pointer',
+                        }}>
+                        <RefreshCw size={11} /> Recuo / Distrato (cliente desistiu)
+                      </button>
+                      <p style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 5 }}>
+                        Remove a venda da meta e estorna a comissão do vendedor. Mantém o histórico do contrato.
+                      </p>
+                    </div>
                   )}
 
                   {/* Envio automático via API (requer Plano de API ZapSign) — desabilitado */}

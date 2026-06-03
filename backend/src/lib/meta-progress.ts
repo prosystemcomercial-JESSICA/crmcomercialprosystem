@@ -1,30 +1,25 @@
 import { PrismaClient } from '@prisma/client';
 
 /**
- * Cálculo automático do REALIZADO de uma meta comercial, a partir dos
- * fechamentos reais do(s) responsável(is) no período.
+ * Cálculo automático do REALIZADO de uma meta comercial.
  *
- * Fontes (somadas, sem chave comum entre si → não há dupla contagem):
- *   - Lead com status GANHO (fechamento_por, fechamento_data, fechamento_mrr, fechamento_valor_inst)
- *   - PropostaComercial em status de fechada (vendedor_id/created_by, data_fechamento|data_aceite,
- *     mensalidade conforme plano, valor_implantacao)
+ * REGRA (jun/2026): a venda só é contabilizada na meta APÓS o contrato ASSINADO.
+ * Logo, a fonte de verdade é o ContratoComercial com status 'ASSINADO' (signed_at no
+ * período). Contratos RECUADOS/CANCELADOS não contam. Propostas apenas aceitas (sem
+ * contrato assinado) e leads GANHO NÃO entram mais no realizado.
  *
  * Modo da meta:
- *   - INDIVIDUAL: realizado de cada responsável (somado p/ exibição agregada do card,
- *     mas a base é por pessoa — o card mostra o total dos responsáveis da meta).
+ *   - INDIVIDUAL: realizado de cada responsável (card mostra o total dos responsáveis).
  *   - EQUIPE: soma de todos os responsáveis.
- * Em ambos os casos consideramos o conjunto de responsaveis_ids da meta.
  */
 
 export interface MetaRealizado {
   contratos: number;
-  valor_total: number;     // setup (instalação) fechado + (poderia incluir MRR; usamos instalação como "valor")
-  mrr_total: number;
+  valor_total: number;     // setup (instalação) assinado
+  mrr_total: number;       // mensalidade dos contratos assinados
   preco_medio_inst: number;
   preco_medio_mensal: number;
 }
-
-const PROP_FECHADA = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
 
 interface PeriodoRange { inicio: Date; fim: Date; }
 
@@ -57,64 +52,38 @@ export async function calcularRealizadoMeta(prisma: PrismaClient, meta: any): Pr
 
   const { inicio, fim } = resolverPeriodo(meta);
 
-  // 1) Leads fechados (GANHO) pelos responsáveis no período
-  const leads = await prisma.lead.findMany({
-    where: {
-      status: 'GANHO',
-      fechamento_data: { gte: inicio, lte: fim },
-      OR: [
-        { fechamento_por: { in: responsaveis } },
-        { responsavel_id: { in: responsaveis } },
-      ],
-    },
-    select: { fechamento_mrr: true, fechamento_valor_inst: true },
+  // Contratos ASSINADOS pelos responsáveis no período (signed_at). Para casar o
+  // contrato ao responsável, usamos vendedor_id; como fallback (contratos antigos
+  // sem vendedor_id) usamos o created_by da proposta de origem.
+  const propsDoResp = await prisma.propostaComercial.findMany({
+    where: { OR: [{ vendedor_id: { in: responsaveis } }, { created_by: { in: responsaveis } }] },
+    select: { id: true },
   }).catch(() => [] as any[]);
+  const propIdsDoResp = propsDoResp.map((p: any) => p.id);
 
-  // 2) Propostas comerciais fechadas pelos responsáveis no período
-  const props = await prisma.propostaComercial.findMany({
+  const contratosAssinados = await prisma.contratoComercial.findMany({
     where: {
-      status: { in: PROP_FECHADA },
-      deleted_at: null,   // propostas excluídas não contam no realizado da meta
+      status: 'ASSINADO',
+      signed_at: { gte: inicio, lte: fim },
       OR: [
         { vendedor_id: { in: responsaveis } },
-        { created_by: { in: responsaveis } },
+        ...(propIdsDoResp.length ? [{ proposta_comercial_id: { in: propIdsDoResp } }] : []),
       ],
     },
-    select: {
-      valor_implantacao: true, valor_final: true,
-      mensalidade_pro: true, mensalidade_plus: true, plano_selecionado: true,
-      data_fechamento: true, data_aceite: true,
-    },
+    select: { valor_setup_total: true, mensalidade: true },
   }).catch(() => [] as any[]);
-
-  const propsNoPeriodo = props.filter((p: any) => {
-    const d = p.data_fechamento || p.data_aceite;
-    if (!d) return false;
-    const dt = new Date(d);
-    return dt >= inicio && dt <= fim;
-  });
 
   const instVals: number[] = [];
   const mensalVals: number[] = [];
   let contratos = 0, mrrTotal = 0, valorTotal = 0;
 
-  for (const l of leads) {
+  for (const c of contratosAssinados) {
     contratos += 1;
-    const inst = Number(l.fechamento_valor_inst || 0);
-    const mrr  = Number(l.fechamento_mrr || 0);
+    const inst = Number(c.valor_setup_total || 0);
+    const mrr  = Number(c.mensalidade || 0);
     valorTotal += inst; mrrTotal += mrr;
     if (inst > 0) instVals.push(inst);
     if (mrr > 0) mensalVals.push(mrr);
-  }
-  for (const p of propsNoPeriodo) {
-    contratos += 1;
-    const inst = Number(p.valor_implantacao ?? p.valor_final ?? 0);
-    const mensal = p.plano_selecionado === 'PRO'
-      ? Number(p.mensalidade_pro || 0)
-      : Number(p.mensalidade_plus || p.mensalidade_pro || 0);
-    valorTotal += inst; mrrTotal += mensal;
-    if (inst > 0) instVals.push(inst);
-    if (mensal > 0) mensalVals.push(mensal);
   }
 
   const media = (arr: number[]) => arr.length ? Math.round((arr.reduce((s, n) => s + n, 0) / arr.length) * 100) / 100 : 0;
