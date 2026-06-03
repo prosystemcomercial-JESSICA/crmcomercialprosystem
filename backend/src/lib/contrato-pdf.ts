@@ -45,6 +45,96 @@ const CONTRATADA = {
 
 const SOFTWARE = 'SOLUTION - FRENTE DE LOJA';
 
+// ── Identidade visual Prosystem (cabeçalho/rodapé) ──────────────────────────
+const BRAND = {
+  azulEscuro: '#1B5FAA',
+  ciano: '#28A9E0',
+  cinzaTexto: '#3A3A3A',
+  tel: '(027) 9.9658-1370 / 3327-6739',
+  email: 'comercial@prosystemnet.com.br',
+  endereco: 'Av. Prof. Fernando Duarte Rabelo, 330 / Loja 02',
+  bairroCidade: 'Goiabeiras - Vitória/ES',
+};
+
+const PAGE_W = 595.28; // A4 em pt
+const MARGEM_X = 48;
+
+// Cabeçalho desenhado em cada página: barras azuis + logo PROSYSTEM + site.
+function buildHeader() {
+  return {
+    margin: [0, 0, 0, 0],
+    stack: [
+      // duas barras superiores (azul escuro + ciano)
+      {
+        canvas: [
+          { type: 'rect', x: 0, y: 0, w: PAGE_W, h: 7, color: BRAND.azulEscuro },
+          { type: 'rect', x: 0, y: 9, w: PAGE_W, h: 4, color: BRAND.ciano },
+        ],
+      },
+      {
+        margin: [MARGEM_X, 10, MARGEM_X, 0],
+        columns: [
+          {
+            width: '*',
+            columns: [
+              // ícone "play" em círculo azul
+              {
+                width: 26,
+                canvas: [
+                  { type: 'ellipse', x: 13, y: 13, color: BRAND.azulEscuro, r1: 13, r2: 13 },
+                  { type: 'polyline', closePath: true, color: '#FFFFFF', points: [{ x: 10, y: 7 }, { x: 10, y: 19 }, { x: 19, y: 13 }] },
+                ],
+              },
+              {
+                width: 'auto',
+                margin: [6, 1, 0, 0],
+                stack: [
+                  { text: 'PROSYSTEM', color: BRAND.azulEscuro, bold: true, fontSize: 15, characterSpacing: 0.5 },
+                  { text: 'Desenvolvimento de Sistemas', color: BRAND.cinzaTexto, fontSize: 6.5, italics: true, margin: [0, -1, 0, 0] },
+                ],
+              },
+            ],
+          },
+          {
+            width: 'auto',
+            text: BRAND.site,
+            color: BRAND.cinzaTexto,
+            fontSize: 10,
+            alignment: 'right',
+            margin: [0, 7, 0, 0],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+// Rodapé desenhado em cada página: contatos + endereço + barra azul + paginação.
+function buildFooter(currentPage: number, pageCount: number) {
+  return {
+    margin: [0, 0, 0, 0],
+    stack: [
+      {
+        margin: [MARGEM_X, 0, MARGEM_X, 2],
+        stack: [
+          { text: BRAND.tel, alignment: 'center', color: BRAND.cinzaTexto, fontSize: 8 },
+          { text: BRAND.email, alignment: 'center', color: BRAND.cinzaTexto, fontSize: 8 },
+          { text: BRAND.endereco, alignment: 'center', color: BRAND.cinzaTexto, fontSize: 8 },
+          { text: BRAND.bairroCidade, alignment: 'center', color: BRAND.cinzaTexto, fontSize: 8 },
+        ],
+      },
+      { canvas: [{ type: 'rect', x: 0, y: 4, w: PAGE_W, h: 9, color: BRAND.azulEscuro }] },
+      {
+        text: `${currentPage}/${pageCount}`,
+        alignment: 'right',
+        color: '#FFFFFF',
+        fontSize: 7,
+        margin: [0, -10, MARGEM_X, 0],
+      },
+    ],
+  };
+}
+
 export interface ContratoPdfData {
   numero_contrato?: string | null;
   razao_social: string;
@@ -346,17 +436,14 @@ export function gerarContratoPdf(c: ContratoPdfData): Promise<Buffer> {
 
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [56, 56, 56, 64] as [number, number, number, number],
+    // topo: barras+logo (~50pt) + folga; base: contatos+barra (~62pt) + folga
+    pageMargins: [MARGEM_X, 64, MARGEM_X, 74] as [number, number, number, number],
     info: {
       title: `Contrato ${numero} - ${c.razao_social}`,
       author: 'Prosystem',
     },
-    footer: (currentPage: number, pageCount: number) => ({
-      columns: [
-        { text: CONTRATADA.site, alignment: 'left', fontSize: 8, color: '#666', margin: [56, 0, 0, 0] },
-        { text: `${currentPage}/${pageCount}`, alignment: 'right', fontSize: 8, color: '#666', margin: [0, 0, 56, 0] },
-      ],
-    }),
+    header: () => buildHeader(),
+    footer: (currentPage: number, pageCount: number) => buildFooter(currentPage, pageCount),
     content,
     styles: S,
     defaultStyle: { font: 'Roboto', fontSize: 10 },
