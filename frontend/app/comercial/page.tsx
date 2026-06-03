@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import ExportButton from '@/components/ui/ExportButton';
 import { apiClient } from '@/lib/api-client';
 import {
   AlertTriangle, Clock, Flame, Snowflake, Thermometer, Zap,
@@ -283,6 +284,25 @@ export default function RadarComercialPage() {
                 <option value="">👥 Todos os vendedores</option>
                 {vendedoresLista.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
               </select>
+            )}
+            {isGestor && (
+              <ExportButton
+                nome="radar-vendedores" titulo="Radar Comercial — Desempenho por vendedor"
+                linhas={vendedores}
+                colunas={[
+                  { header: 'Vendedor', value: (v: any) => v.nome },
+                  { header: 'Total leads', value: (v: any) => v.total_leads },
+                  { header: 'Leads no mês', value: (v: any) => v.leads_mes },
+                  { header: 'Ativos', value: (v: any) => v.ativos },
+                  { header: 'Fechados', value: (v: any) => v.fechados },
+                  { header: 'Perdidos', value: (v: any) => v.perdidos },
+                  { header: 'Taxa conversão (%)', value: (v: any) => v.taxa_conversao },
+                  { header: 'Propostas geradas', value: (v: any) => v.propostas_geradas },
+                  { header: 'Propostas aceitas', value: (v: any) => v.propostas_aceitas },
+                  { header: 'MRR fechado (R$)', value: (v: any) => v.mrr_fechado },
+                  { header: 'Setup fechado (R$)', value: (v: any) => v.setup_fechado },
+                ]}
+              />
             )}
             <button
               onClick={load}

@@ -5,6 +5,7 @@ import { useAuth, useRequireGestorRedirect } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 
 interface RankingItem {
   posicao: number;
@@ -68,11 +69,23 @@ export default function RankingPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Ranking Comercial</h1>
             <p className="text-gray-500 mt-1">Performance por vendedor no período</p>
           </div>
+          <ExportButton
+            nome="ranking" titulo={`Ranking Comercial — ${periodo}`}
+            linhas={ranking}
+            colunas={[
+              { header: 'Posição', value: (r: RankingItem) => r.posicao },
+              { header: 'Vendedor', value: (r: RankingItem) => nomeVendedor(r.responsavel_id) },
+              { header: 'Leads ganhos', value: (r: RankingItem) => r.leads_ganhos },
+              { header: 'Propostas aceitas', value: (r: RankingItem) => r.propostas_aceitas },
+              { header: 'Contratos', value: (r: RankingItem) => r.contratos },
+              { header: 'Valor total (R$)', value: (r: RankingItem) => r.valor_total },
+            ]}
+          />
           <div className="flex gap-2">
             {periods.map(p => (
               <button key={p} onClick={() => setPeriodo(p)}

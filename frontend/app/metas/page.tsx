@@ -5,6 +5,7 @@ import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 
 interface Meta {
   id: string;
@@ -159,12 +160,30 @@ export default function MetasPage() {
             <h1 className="text-3xl font-bold text-gray-900">Metas Comerciais</h1>
             <p className="text-gray-500 mt-1">{isGestor ? 'Acompanhe metas por vendedor e período' : 'Acompanhe a sua meta no período'}</p>
           </div>
-          {isGestor && (
-            <button onClick={() => { setForm(emptyForm); setError(''); setShowModal(true); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-              + Nova Meta
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <ExportButton
+              nome="metas" titulo="Metas Comerciais — ProSystem CRM"
+              linhas={metas}
+              colunas={[
+                { header: 'Título', value: (m: Meta) => m.titulo },
+                { header: 'Período', value: (m: Meta) => m.periodo },
+                { header: 'Modo', value: (m: Meta) => m.modo || '' },
+                { header: 'Responsáveis', value: (m: Meta) => ((m.responsaveis_ids && m.responsaveis_ids.length) ? m.responsaveis_ids : [m.responsavel_id]).map(nomeUsuario).join(', ') },
+                { header: 'Meta contratos', value: (m: Meta) => m.meta_contratos ?? '' },
+                { header: 'Realizado contratos', value: (m: Meta) => m.realizado?.contratos ?? 0 },
+                { header: 'Meta total (R$)', value: (m: Meta) => m.meta_valor_total ?? '' },
+                { header: 'Realizado total (R$)', value: (m: Meta) => m.realizado?.valor_total ?? 0 },
+                { header: 'Preço médio instal. (real)', value: (m: Meta) => m.realizado?.preco_medio_inst ?? 0 },
+                { header: 'Preço médio mensal. (real)', value: (m: Meta) => m.realizado?.preco_medio_mensal ?? 0 },
+              ]}
+            />
+            {isGestor && (
+              <button onClick={() => { setForm(emptyForm); setError(''); setShowModal(true); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                + Nova Meta
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Metas grid */}

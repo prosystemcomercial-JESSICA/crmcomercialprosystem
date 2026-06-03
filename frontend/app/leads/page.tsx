@@ -5,6 +5,7 @@ import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import ExportButton from '@/components/ui/ExportButton';
 import { FecharLeadModal } from '@/components/ui/FecharLeadModal';
 import {
   Plus, Search, X, RefreshCw, Phone, Mail, MapPin, User,
@@ -814,6 +815,20 @@ export default function LeadsPage() {
             <button onClick={loadData} title="Atualizar" className="p-2 rounded-lg" style={{ border: '1px solid #D8E8F5' }}>
               <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: '#4B8EC8' }} />
             </button>
+            <ExportButton
+              nome="leads" titulo="Pipeline Comercial — Leads" small
+              linhas={Object.values(kanban).flat()}
+              colunas={[
+                { header: 'Lead', value: (l: Lead) => l.razao_social || l.nome_fantasia || l.nome },
+                { header: 'CNPJ', value: (l: Lead) => (l as any).cnpj || '' },
+                { header: 'Segmento', value: (l: Lead) => l.segmento || '' },
+                { header: 'Etapa', value: (l: Lead) => l.etapa_comercial },
+                { header: 'Temperatura', value: (l: Lead) => l.temperatura },
+                { header: 'Vendedor', value: (l: Lead) => l.vendedor_nome || '' },
+                { header: 'Valor estimado (R$)', value: (l: Lead) => (l as any).valor_estimado ?? '' },
+                { header: 'Origem', value: (l: Lead) => l.origem || '' },
+              ]}
+            />
             <button onClick={() => setShowNewEtiq(true)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
               style={{ border: '1px solid #D8E8F5', color: '#4B8EC8' }}>

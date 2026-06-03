@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import { Shield, Search, RefreshCw, FileText, GitMerge, Users } from 'lucide-react';
+import ExportButton from '@/components/ui/ExportButton';
 
 interface Evento {
   id: string; data: string; modulo: string; tipo: string; descricao: string;
@@ -86,9 +87,25 @@ export default function AuditoriaPage() {
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Trilha completa de tudo que acontece — propostas, leads e usuários — por usuário e período.</p>
           </div>
-          <button onClick={() => { setPage(0); load(); }} className="flex items-center gap-2 px-3 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50">
-            <RefreshCw size={14} /> Atualizar
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              nome="auditoria" titulo="Auditoria — ProSystem CRM"
+              linhas={eventos}
+              colunas={[
+                { header: 'Quando', value: (e: Evento) => fmtDateTime(e.data) || '' },
+                { header: 'Módulo', value: (e: Evento) => MODULO_CFG[e.modulo]?.label || e.modulo },
+                { header: 'Ação', value: (e: Evento) => e.tipo },
+                { header: 'Quem', value: (e: Evento) => e.ator_nome || '' },
+                { header: 'Cargo', value: (e: Evento) => cargoLabel(e.ator_role) },
+                { header: 'Descrição', value: (e: Evento) => e.descricao },
+                { header: 'Sobre', value: (e: Evento) => e.alvo || '' },
+                { header: 'Detalhe', value: (e: Evento) => e.detalhe || '' },
+              ]}
+            />
+            <button onClick={() => { setPage(0); load(); }} className="flex items-center gap-2 px-3 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50">
+              <RefreshCw size={14} /> Atualizar
+            </button>
+          </div>
         </div>
 
         {/* Filtros */}
