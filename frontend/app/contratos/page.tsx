@@ -95,8 +95,9 @@ export default function ContratosPage() {
   const [selected, setSelected]   = useState<ContratoComercial | null>(null);
   const [preview, setPreview]     = useState<any>(null);
   const [loadingPrev, setLoadingPrev] = useState(false);
-  const [sendingZap, setSendingZap]   = useState(false);
   const [zapMsg, setZapMsg]           = useState('');
+  const [signedUrl, setSignedUrl]     = useState('');
+  const [marcando, setMarcando]       = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -133,44 +134,53 @@ export default function ContratosPage() {
     setLoadingPrev(true);
     setPreview(null);
     setZapMsg('');
+    setSignedUrl(c.zapsign_signed_file_url || '');
     try {
       const res = await apiClient.getContratoPreview(c.id);
       setPreview(res.data.data);
     } catch { /* ignore */ } finally { setLoadingPrev(false); }
   };
 
-  const handleEnviarZapSign = async () => {
-    if (!selected) return;
-    setSendingZap(true);
-    setZapMsg('');
-    try {
-      await apiClient.enviarContratoZapSign(selected.id);
-      setZapMsg('✅ Enviado para ZapSign com sucesso! O signatário receberá o link por e-mail/WhatsApp.');
-      load();
-    } catch (e: any) {
-      setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao enviar para ZapSign'}`);
-    } finally { setSendingZap(false); }
+  const verPdf = (c: ContratoComercial) => {
+    window.open(apiClient.contratoPdfUrl(c.id), '_blank');
   };
 
-  // 1 clique: gera o PDF do contrato (modelo padrão) e envia à ZapSign para assinatura.
-  const handleGerarEEnviar = async () => {
+  // Fluxo manual: após subir o contrato na ZapSign (painel) e o cliente assinar,
+  // a gestão cola o link do documento assinado e marca como Assinado no CRM.
+  const handleMarcarAssinado = async () => {
     if (!selected) return;
-    if (!confirm(`Gerar o contrato Nº ${selected.numero_contrato} e enviar para assinatura de ${selected.representante_nome || 'o cliente'}?`)) return;
-    setSendingZap(true);
+    setMarcando(true);
     setZapMsg('');
     try {
-      await apiClient.gerarEEnviarContrato(selected.id);
-      setZapMsg('✅ Contrato gerado e enviado para assinatura! O cliente receberá o link por e-mail/WhatsApp.');
+      await apiClient.updateContratoComercial(selected.id, {
+        status: 'ASSINADO',
+        zapsign_status: 'signed',
+        zapsign_signed_file_url: signedUrl || undefined,
+        signed_at: new Date().toISOString(),
+      });
+      setZapMsg('✅ Contrato marcado como assinado!');
+      const atualizado = { ...selected, status: 'ASSINADO', zapsign_signed_file_url: signedUrl, signed_at: new Date().toISOString() };
+      setSelected(atualizado);
+      load();
+    } catch (e: any) {
+      setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao marcar como assinado'}`);
+    } finally { setMarcando(false); }
+  };
+
+  // Marca que o contrato foi enviado manualmente (subido na ZapSign pelo painel).
+  const handleMarcarEnviado = async () => {
+    if (!selected) return;
+    setMarcando(true);
+    setZapMsg('');
+    try {
+      await apiClient.updateContratoComercial(selected.id, { status: 'ENVIADO_ASSINATURA' });
+      setZapMsg('✅ Marcado como enviado para assinatura.');
       const atualizado = { ...selected, status: 'ENVIADO_ASSINATURA' };
       setSelected(atualizado);
       load();
     } catch (e: any) {
-      setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao gerar/enviar o contrato'}`);
-    } finally { setSendingZap(false); }
-  };
-
-  const verPdf = (c: ContratoComercial) => {
-    window.open(apiClient.contratoPdfUrl(c.id), '_blank');
+      setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao atualizar status'}`);
+    } finally { setMarcando(false); }
   };
 
   const handleDelete = async (id: string) => {
@@ -504,68 +514,114 @@ export default function ContratosPage() {
                   </div>
                 </div>
 
-                {/* ZapSign */}
-                <div style={{ background: '#f5f3ff', borderRadius: 10, padding: 14, marginBottom: 16, border: '1px solid #ede9fe' }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 8 }}>⚡ Integração ZapSign</p>
-                  {selected.zapsign_signing_url && (
-                    <div style={{ marginBottom: 8 }}>
-                      <a href={selected.zapsign_signing_url} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>
-                        Link de Assinatura ↗
-                      </a>
+                {/* ── Assinatura do contrato ──────────────────────────────── */}
+                <div style={{ background: 'var(--t-content-bg)', borderRadius: 10, padding: 14, marginBottom: 16, border: '1px solid var(--t-card-border)' }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 4 }}>📄 Contrato & Assinatura</p>
+                  <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+                    O contrato é gerado a partir do modelo padrão do plano (<strong>{selected.plano_contratado || '—'}</strong>) com os dados da proposta.
+                    Baixe o PDF, suba no painel da ZapSign para coletar a assinatura e depois cole aqui o link do documento assinado.
+                  </p>
+
+                  {/* Passo 1 — Baixar o PDF (ação principal) */}
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <button
+                      onClick={() => verPdf(selected)}
+                      className="flex items-center gap-1.5"
+                      style={{
+                        padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                        background: 'var(--t-primary)', color: '#fff', border: 'none', cursor: 'pointer',
+                      }}>
+                      <Eye size={14} /> Baixar / Ver PDF do contrato
+                    </button>
+                    <a
+                      href="https://app.zapsign.com.br/conta/documentos" target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5"
+                      style={{
+                        padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: 'var(--t-card-bg)', color: '#7c3aed', border: '1px solid #c4b5fd', textDecoration: 'none',
+                      }}>
+                      <ExternalLink size={12} /> Abrir painel ZapSign
+                    </a>
+                  </div>
+
+                  {/* Passo 2 — Marcar como enviado (manual) */}
+                  {selected.status !== 'ENVIADO_ASSINATURA' && selected.status !== 'ASSINADO' && selected.status !== 'CANCELADO' && (
+                    <button
+                      onClick={handleMarcarEnviado}
+                      disabled={marcando}
+                      className="flex items-center gap-1.5 mb-3"
+                      style={{
+                        padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: 'transparent', color: 'var(--t-text-muted)', border: '1px solid var(--t-card-border)',
+                        cursor: marcando ? 'not-allowed' : 'pointer',
+                      }}>
+                      <Send size={11} /> Marcar como enviado p/ assinatura
+                    </button>
+                  )}
+
+                  {/* Passo 3 — Link do documento assinado + marcar assinado */}
+                  {selected.status !== 'CANCELADO' && (
+                    <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 12, marginTop: 4 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 5 }}>
+                        Link do contrato assinado (ZapSign)
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          value={signedUrl}
+                          onChange={e => setSignedUrl(e.target.value)}
+                          placeholder="https://app.zapsign.com.br/verificar/..."
+                          className="ps-input text-sm"
+                          style={{ flex: 1, minWidth: 220 }}
+                        />
+                        <button
+                          onClick={handleMarcarAssinado}
+                          disabled={marcando}
+                          className="flex items-center gap-1.5"
+                          style={{
+                            padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                            background: '#16a34a', color: '#fff', border: 'none', cursor: marcando ? 'not-allowed' : 'pointer',
+                            opacity: marcando ? 0.7 : 1,
+                          }}>
+                          <CheckCircle size={13} /> {marcando ? 'Salvando...' : 'Marcar como assinado'}
+                        </button>
+                      </div>
                     </div>
                   )}
+
+                  {/* Status de assinatura */}
                   {selected.zapsign_signed_file_url && (
-                    <div style={{ marginBottom: 8 }}>
+                    <div style={{ marginTop: 10 }}>
                       <a href={selected.zapsign_signed_file_url} target="_blank" rel="noopener noreferrer"
                         style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
-                        📄 Baixar Contrato Assinado ↗
+                        📄 Abrir contrato assinado ↗
                       </a>
                     </div>
                   )}
-                  {selected.sent_to_sign_at && (
-                    <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
-                      Enviado em: {new Date(selected.sent_to_sign_at).toLocaleDateString('pt-BR')}
-                    </p>
-                  )}
                   {selected.signed_at && (
-                    <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
+                    <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 6 }}>
                       ✅ Assinado em: {new Date(selected.signed_at).toLocaleDateString('pt-BR')}
                     </p>
                   )}
                   {zapMsg && (
                     <p style={{ fontSize: 12, marginTop: 8, color: zapMsg.startsWith('✅') ? '#16a34a' : '#dc2626' }}>{zapMsg}</p>
                   )}
-                  {!selected.signed_at && selected.status !== 'CANCELADO' && (
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      {/* Ação principal — 1 clique: gera o PDF do modelo e envia à assinatura */}
-                      <button
-                        onClick={handleGerarEEnviar}
-                        disabled={sendingZap}
-                        className="flex items-center gap-1.5"
-                        style={{
-                          padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                          background: '#7c3aed', color: '#fff', border: 'none', cursor: sendingZap ? 'not-allowed' : 'pointer',
-                          opacity: sendingZap ? 0.7 : 1,
-                        }}>
-                        <Send size={12} />
-                        {sendingZap ? 'Processando...' : (selected.zapsign_signing_url ? 'Regerar e reenviar' : 'Gerar e enviar para assinatura')}
-                      </button>
-                      {/* Conferir o PDF antes de enviar */}
-                      <button
-                        onClick={() => verPdf(selected)}
-                        className="flex items-center gap-1.5"
-                        style={{
-                          padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                          background: 'var(--t-card-bg)', color: '#7c3aed', border: '1px solid #c4b5fd', cursor: 'pointer',
-                        }}>
-                        <Eye size={12} /> Ver PDF
-                      </button>
-                    </div>
-                  )}
-                  <p style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 8 }}>
-                    O contrato é gerado a partir do modelo padrão do plano ({selected.plano_contratado || '—'}) com os dados da proposta. Confira o PDF antes de enviar.
-                  </p>
+
+                  {/* Envio automático via API (requer Plano de API ZapSign) — desabilitado */}
+                  <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 10, marginTop: 12 }}>
+                    <button
+                      disabled
+                      title="Disponível apenas com o Plano de API da ZapSign contratado"
+                      className="flex items-center gap-1.5"
+                      style={{
+                        padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: '#f3f4f6', color: '#9ca3af', border: '1px solid #e5e7eb', cursor: 'not-allowed',
+                      }}>
+                      <Send size={11} /> Envio automático via API (requer Plano de API ZapSign)
+                    </button>
+                    <p style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 5 }}>
+                      O envio 100% automático fica disponível ao contratar o Plano de API da ZapSign. Por enquanto, use o fluxo manual acima.
+                    </p>
+                  </div>
                 </div>
 
               </div>
