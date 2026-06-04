@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId } from '@/lib/scope';
 import { gerarContratoPdf } from '@/lib/contrato-pdf';
+import { criarImplantacaoEComissoes } from '@/lib/comissao-fluxo';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -187,6 +188,11 @@ async function aplicarAssinatura(prisma: PrismaClient, contratoId: string, signe
     }
   }
 
+  // Cria a Implantação (acompanhamento) e as comissões em estágio A_RECEBER
+  // (vendedor 15% + supervisão 5% sobre o setup). O mês de pagamento é definido
+  // depois, quando a supervisão informar a data do 1º vencimento.
+  await criarImplantacaoEComissoes(prisma, contratoId).catch(() => {});
+
   return atualizado;
 }
 
@@ -206,6 +212,16 @@ async function aplicarRecuo(prisma: PrismaClient, contratoId: string, motivo?: s
       comissao_vendedor_valor: 0, // estorna a comissão
     },
   });
+
+  // Estorna o fluxo de comissão: cancela as comissões e a implantação do contrato.
+  await prisma.comissao.updateMany({
+    where: { referencia_id: contratoId, tipo: 'CONTRATO' },
+    data: { status: 'CANCELADA', estagio: 'CANCELADA' } as any,
+  }).catch(() => {});
+  await prisma.implantacao.updateMany({
+    where: { contrato_id: contratoId },
+    data: { status: 'CANCELADA' },
+  }).catch(() => {});
 
   // Proposta volta a PERDIDA; lead casado por CNPJ → PERDIDO (sai da meta).
   if (c.proposta_comercial_id) {

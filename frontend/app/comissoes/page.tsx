@@ -57,7 +57,8 @@ export default function ComissoesPage() {
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
   const [totais, setTotais] = useState<any>(null);
   const [resumo, setResumo] = useState<any[]>([]);
-  const [supervisao, setSupervisao] = useState<any>(null); // comissão 0,5% do setor
+  const [supervisao, setSupervisao] = useState<any>(null); // comissão do setor (supervisão)
+  const [relatorio, setRelatorio] = useState<any>(null);   // relatório p/ financeiro (por mês/vendedor)
   const [periodo, setPeriodo] = useState(periodoAtual());
   const [dataLoading, setDataLoading] = useState(true);
   const [calculando, setCalculando] = useState(false);
@@ -86,10 +87,26 @@ export default function ComissoesPage() {
       .catch(console.error)
       .finally(() => setDataLoading(false));
 
-    // Comissão da Supervisão Comercial (0,5% do faturamento do setor no período).
+    // Comissão da Supervisão Comercial (% do faturamento do setor no período).
     apiClient.getComissaoSupervisao(periodo)
       .then(res => setSupervisao(res.data.data))
       .catch(() => setSupervisao(null));
+
+    // Relatório para o financeiro (por mês de pagamento e por vendedor) — só gestão.
+    if (ROLES_GESTOR.includes(user.role || '')) {
+      apiClient.getRelatorioComissoesPagar()
+        .then(res => setRelatorio(res.data.data))
+        .catch(() => setRelatorio(null));
+    }
+  };
+
+  const marcarMesPago = async (mes: string) => {
+    if (mes === 'A confirmar') return;
+    if (!confirm(`Marcar como PAGAS todas as comissões confirmadas de ${mes}?`)) return;
+    try {
+      await apiClient.marcarComissoesPagas({ mes_pagamento: mes });
+      loadData();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao marcar pagas.'); }
   };
 
   useEffect(() => { loadData(); }, [isAuthenticated, periodo]);
@@ -209,9 +226,9 @@ export default function ComissoesPage() {
           <div className="bg-white rounded-xl border-2 p-5" style={{ borderColor: '#c7d8ec' }}>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Supervisão Comercial — Override 0,5%</h2>
+                <h2 className="text-base font-semibold text-gray-900">Supervisão Comercial — Override {supervisao.percentual}%</h2>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  0,5% sobre o faturamento do setor (setup dos contratos assinados + vendas adicionais) no período {supervisao.periodo}.
+                  {supervisao.percentual}% sobre o faturamento do setor (setup dos contratos assinados + vendas adicionais) no período {supervisao.periodo}.
                 </p>
               </div>
               <div className="text-right">
@@ -243,7 +260,90 @@ export default function ComissoesPage() {
                     ? supervisao.supervisores.map((s: any) => s.nome).join(', ')
                     : 'Nenhum ativo'}
                 </p>
-                <p className="text-[10px] text-gray-400">cada um recebe 0,5% cheios</p>
+                <p className="text-[10px] text-gray-400">cada um recebe {supervisao.percentual}% cheios</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Relatório de comissões a pagar (supervisão → financeiro) — só gestão */}
+        {isGestor && relatorio && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Relatório para o Financeiro</h2>
+                <p className="text-sm text-gray-500">Comissões de vendedores e supervisão por mês de pagamento.</p>
+              </div>
+              <ExportButton
+                nome="comissoes-financeiro" titulo="Comissões a pagar — Financeiro"
+                linhas={(relatorio.por_mes || []).flatMap((m: any) => m.itens.map((i: any) => ({ ...i, mes: m.mes_pagamento })))}
+                colunas={[
+                  { header: 'Mês pagamento', value: (i: any) => i.mes },
+                  { header: 'Responsável', value: (i: any) => i.responsavel_nome },
+                  { header: 'Papel', value: (i: any) => i.papel || '' },
+                  { header: 'Descrição', value: (i: any) => i.descricao || '' },
+                  { header: 'Base setup (R$)', value: (i: any) => i.valor_base },
+                  { header: '%', value: (i: any) => i.percentual },
+                  { header: 'Comissão (R$)', value: (i: any) => i.valor_comissao },
+                  { header: 'Estágio', value: (i: any) => i.estagio },
+                ]}
+              />
+            </div>
+
+            {/* Totais por estágio */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <EstagioCard label="A receber (sem data)" value={relatorio.totais.a_receber} color="#6b7280" />
+              <EstagioCard label="A confirmar (instalado)" value={relatorio.totais.a_confirmar} color="#d97706" />
+              <EstagioCard label="Confirmada (a pagar)" value={relatorio.totais.confirmada} color="#2563eb" />
+              <EstagioCard label="Paga" value={relatorio.totais.paga} color="#16a34a" />
+            </div>
+
+            {/* Por mês de pagamento */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Por mês de pagamento</h3>
+              <div className="space-y-2">
+                {(relatorio.por_mes || []).sort((a: any, b: any) => (a.mes_pagamento > b.mes_pagamento ? 1 : -1)).map((m: any) => (
+                  <div key={m.mes_pagamento} className="flex items-center justify-between p-3 rounded-lg border border-gray-100" style={{ background: '#fafbfc' }}>
+                    <div>
+                      <span className="font-semibold text-gray-800">{m.mes_pagamento === 'A confirmar' ? '⏳ A confirmar' : `📅 ${m.mes_pagamento}`}</span>
+                      <span className="text-xs text-gray-500 ml-2">{m.count} comissão(ões)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-gray-800">R$ {Number(m.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      {m.mes_pagamento !== 'A confirmar' && (
+                        <button onClick={() => marcarMesPago(m.mes_pagamento)}
+                          className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0' }}>
+                          Marcar pago
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Por responsável */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Por colaborador</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs text-gray-500">
+                    {['Colaborador', 'Papel', 'A receber', 'A confirmar', 'A pagar', 'Paga', 'Total'].map(h => <th key={h} className="py-1.5 pr-4">{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {(relatorio.por_responsavel || []).map((r: any) => (
+                      <tr key={r.responsavel_id} className="border-t border-gray-100">
+                        <td className="py-2 pr-4 font-medium text-gray-800">{r.responsavel_nome}</td>
+                        <td className="py-2 pr-4 text-gray-500">{r.papel || r.cargo}</td>
+                        <td className="py-2 pr-4 text-gray-600">R$ {Number(r.a_receber).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 pr-4 text-gray-600">R$ {Number(r.a_confirmar).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 pr-4 font-semibold" style={{ color: '#2563eb' }}>R$ {Number(r.confirmada).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 pr-4" style={{ color: '#16a34a' }}>R$ {Number(r.paga).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 pr-4 font-bold text-gray-800">R$ {Number(r.total).toLocaleString('pt-BR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -370,5 +470,14 @@ export default function ComissoesPage() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+function EstagioCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="rounded-lg p-3 border" style={{ background: `${color}0d`, borderColor: `${color}33` }}>
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-lg font-bold" style={{ color }}>R$ {Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+    </div>
   );
 }

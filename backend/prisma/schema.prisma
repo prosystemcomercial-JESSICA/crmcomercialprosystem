@@ -964,8 +964,21 @@ model Comissao {
   percentual     Float
   valor_comissao Float
 
-  periodo        String   // "YYYY-MM"
+  periodo        String   // "YYYY-MM" (competência da venda)
   status         String   @default("PENDENTE") // PENDENTE|APROVADA|PAGA|CANCELADA
+
+  // Fluxo de pagamento da comissão (vendedor e supervisão):
+  //  A_RECEBER  → contrato assinado, sem data de instalação (expectativa, sem mês)
+  //  A_CONFIRMAR→ instalado, aguardando supervisão confirmar 1º vencimento
+  //  CONFIRMADA → mês de pagamento definido (1º vencimento + 1 mês), pronto p/ financeiro
+  //  PAGA       → financeiro quitou
+  estagio        String   @default("A_RECEBER")
+  papel          String?  // VENDEDOR | SUPERVISAO
+  mes_pagamento  String?  // "YYYY-MM" — mês em que o financeiro paga a comissão
+  implantacao_id String?
+  aprovada_por   String?
+  aprovada_em    DateTime?
+  paga_em        DateTime?
 
   created_by     String   @default("system")
   created_at     DateTime @default(now())
@@ -974,6 +987,41 @@ model Comissao {
   @@index([responsavel_id])
   @@index([periodo])
   @@index([status])
+  @@index([estagio])
+  @@index([mes_pagamento])
+}
+
+// Acompanhamento da implantação do sistema no cliente (nasce do contrato assinado).
+// Supervisão informa a data de instalação e o 1º vencimento → libera a comissão.
+model Implantacao {
+  id                       String    @id @default(cuid())
+  contrato_id              String    @unique
+  proposta_id              String?
+  lead_id                  String?
+
+  cliente_razao_social     String
+  cliente_cnpj             String?
+  plano                    String?
+  vendedor_id              String?
+  vendedor_nome            String?
+  valor_setup              Float?
+  mensalidade              Float?
+
+  status                   String    @default("AGUARDANDO_INSTALACAO") // AGUARDANDO_INSTALACAO | AGENDADA | INSTALADO | CANCELADA
+  data_assinatura          DateTime?
+  data_agendada            DateTime?
+  data_instalacao          DateTime?
+  data_primeiro_vencimento DateTime?
+  mes_pagamento_comissao   String?   // "YYYY-MM" = mês do 1º vencimento + 1
+  observacoes              String?   @db.Text
+
+  created_by               String    @default("system")
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+
+  @@index([status])
+  @@index([vendedor_id])
+  @@index([mes_pagamento_comissao])
 }
 
 model Indicacao {

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { scopeUserId } from '@/lib/scope';
+import { scopeUserId, requireGestor } from '@/lib/scope';
 
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -47,11 +47,11 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
   });
 
   // ===== COMISSÃO DA SUPERVISÃO COMERCIAL =====
-  // Regra: 0,5% sobre TODO o faturamento do setor comercial no período, ou seja:
+  // Regra: 5% sobre TODO o faturamento do setor comercial no período, ou seja:
   //   • SETUP/instalação de todos os contratos ASSINADOS (de todos os vendedores)
   //   • valor das VENDAS ADICIONAIS confirmadas (serviços vendidos, sem contrato)
-  // Cada usuário com cargo SUPERVISAO_COMERCIAL recebe os 0,5% cheios.
-  const COMISSAO_SUPERVISAO_PCT = 0.5;
+  // Cada usuário com cargo SUPERVISAO_COMERCIAL recebe os 5% cheios.
+  const COMISSAO_SUPERVISAO_PCT = 5;
 
   fastify.get('/comissoes/supervisao', async (request, reply) => {
     const q = z.object({ periodo: z.string().optional() }).safeParse(request.query);
@@ -105,6 +105,83 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
         },
       },
     });
+  });
+
+  // ===== RELATÓRIO DE COMISSÕES A PAGAR (supervisão → financeiro) =====
+  // Por mês de pagamento E por vendedor. Inclui as comissões de vendedores e supervisão.
+  // estagio: A_RECEBER | A_CONFIRMAR | CONFIRMADA | PAGA | CANCELADA
+  fastify.get('/comissoes/relatorio', async (request, reply) => {
+    const q = z.object({ mes_pagamento: z.string().optional(), estagio: z.string().optional() }).safeParse(request.query);
+    const where: any = { status: { not: 'CANCELADA' } };
+    if (q.success && q.data.mes_pagamento) where.mes_pagamento = q.data.mes_pagamento;
+    if (q.success && q.data.estagio) where.estagio = q.data.estagio;
+
+    const comissoes = await prisma.comissao.findMany({ where, orderBy: { created_at: 'desc' } });
+
+    // Nomes dos responsáveis (vendedores/supervisores)
+    const ids = [...new Set(comissoes.map(c => c.responsavel_id))];
+    const usuarios: any[] = ids.length
+      ? await prisma.$queryRawUnsafe(
+          `SELECT id, nome, cargo FROM UsuarioCRM WHERE id IN (${ids.map(() => '?').join(',')})`, ...ids)
+      : [];
+    const nomeDe: Record<string, any> = {};
+    usuarios.forEach(u => { nomeDe[u.id] = u; });
+
+    // Agrupa por mês de pagamento e por responsável
+    const porMes: Record<string, any> = {};
+    const porResponsavel: Record<string, any> = {};
+    for (const c of comissoes as any[]) {
+      const mes = c.mes_pagamento || 'A confirmar';
+      porMes[mes] = porMes[mes] || { mes_pagamento: mes, total: 0, count: 0, itens: [] };
+      porMes[mes].total += c.valor_comissao; porMes[mes].count += 1;
+      porMes[mes].itens.push({ ...c, responsavel_nome: nomeDe[c.responsavel_id]?.nome || c.responsavel_id });
+
+      const r = c.responsavel_id;
+      porResponsavel[r] = porResponsavel[r] || {
+        responsavel_id: r, responsavel_nome: nomeDe[r]?.nome || r, cargo: nomeDe[r]?.cargo || '',
+        papel: c.papel || '', total: 0, a_receber: 0, a_confirmar: 0, confirmada: 0, paga: 0, count: 0,
+      };
+      porResponsavel[r].total += c.valor_comissao; porResponsavel[r].count += 1;
+      if (c.estagio === 'A_RECEBER') porResponsavel[r].a_receber += c.valor_comissao;
+      else if (c.estagio === 'A_CONFIRMAR') porResponsavel[r].a_confirmar += c.valor_comissao;
+      else if (c.estagio === 'CONFIRMADA') porResponsavel[r].confirmada += c.valor_comissao;
+      else if (c.estagio === 'PAGA') porResponsavel[r].paga += c.valor_comissao;
+    }
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+    return reply.send({
+      status: 'success',
+      data: {
+        por_mes: Object.values(porMes).map((m: any) => ({ ...m, total: round(m.total) })),
+        por_responsavel: Object.values(porResponsavel).map((r: any) => ({
+          ...r, total: round(r.total), a_receber: round(r.a_receber), a_confirmar: round(r.a_confirmar),
+          confirmada: round(r.confirmada), paga: round(r.paga),
+        })),
+        totais: {
+          total: round(comissoes.reduce((s, c) => s + c.valor_comissao, 0)),
+          a_receber: round(comissoes.filter((c: any) => c.estagio === 'A_RECEBER').reduce((s, c) => s + c.valor_comissao, 0)),
+          a_confirmar: round(comissoes.filter((c: any) => c.estagio === 'A_CONFIRMAR').reduce((s, c) => s + c.valor_comissao, 0)),
+          confirmada: round(comissoes.filter((c: any) => c.estagio === 'CONFIRMADA').reduce((s, c) => s + c.valor_comissao, 0)),
+          paga: round(comissoes.filter((c: any) => c.estagio === 'PAGA').reduce((s, c) => s + c.valor_comissao, 0)),
+        },
+      },
+    });
+  });
+
+  // Marca comissões como PAGAS (financeiro) — por mês de pagamento ou por ids.
+  fastify.post('/comissoes/marcar-pagas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const body = z.object({ ids: z.array(z.string()).optional(), mes_pagamento: z.string().optional() }).safeParse(request.body);
+    if (!body.success || (!body.data.ids?.length && !body.data.mes_pagamento)) {
+      return reply.status(400).send({ status: 'error', message: 'Informe ids ou mes_pagamento' });
+    }
+    const where: any = { estagio: 'CONFIRMADA' };
+    if (body.data.ids?.length) where.id = { in: body.data.ids };
+    if (body.data.mes_pagamento) where.mes_pagamento = body.data.mes_pagamento;
+    const r = await prisma.comissao.updateMany({
+      where, data: { estagio: 'PAGA', status: 'PAGA', paga_em: new Date() } as any,
+    });
+    return reply.send({ status: 'success', data: { pagas: r.count } });
   });
 
   // ===== EXTRATO DE COMISSÕES =====
