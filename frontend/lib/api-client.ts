@@ -725,9 +725,25 @@ class ApiClient {
     return this.client.post('/comissoes/calcular-mes', { periodo });
   }
 
-  // Comissão da Supervisão Comercial: 0,5% do faturamento do setor no período.
+  // Comissão da Supervisão Comercial: % do faturamento do setor no período.
   async getComissaoSupervisao(periodo?: string) {
     return this.client.get('/comissoes/supervisao', { params: { periodo } });
+  }
+
+  // Relatório de comissões A PAGAR (por mês de pagamento e por vendedor) para o financeiro.
+  async getRelatorioComissoesPagar(params?: { mes_pagamento?: string; estagio?: string }) {
+    return this.client.get('/comissoes/relatorio', { params });
+  }
+  async marcarComissoesPagas(data: { ids?: string[]; mes_pagamento?: string }) {
+    return this.client.post('/comissoes/marcar-pagas', data);
+  }
+
+  // Acompanhamento de implantação
+  async getImplantacoes(status?: string) {
+    return this.client.get('/implantacoes', { params: { status } });
+  }
+  async atualizarImplantacao(id: string, data: any) {
+    return this.client.patch(`/implantacoes/${id}`, data);
   }
 
   async getRegrasComissao() {

@@ -229,6 +229,7 @@ async function loadRoutes() {
     ['complementos',          () => import('./routes/complementos'),          'complementosRoutes'],
     ['servicos',              () => import('./routes/servicos'),              'servicosRoutes'],
     ['comissoes',             () => import('./routes/comissoes'),             'comissoesRoutes'],
+    ['implantacoes',          () => import('./routes/implantacoes'),          'implantacoesRoutes'],
     ['health-score',          () => import('./routes/health-score'),          'healthScoreRoutes'],
     ['dashboard-power',       () => import('./routes/dashboard-power'),       'dashboardPowerRoutes'],
     ['relatorios-comerciais', () => import('./routes/relatorios-comerciais'), 'relatoriosComerciais'],

@@ -13,7 +13,7 @@ import {
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun, User,
-  MessageSquare, Shield, ClipboardList, BookOpen,
+  MessageSquare, Shield, ClipboardList, BookOpen, Wrench,
 } from 'lucide-react';
 
 // Cargos do CRM
@@ -70,8 +70,9 @@ const navGroups: NavGroup[] = [
   {
     label: 'Incentivos',
     items: [
-      { href: '/comissoes',  icon: DollarSign, label: 'Comissões',  roles: COMERCIAL },
-      { href: '/indicacoes', icon: Handshake,  label: 'Indicações', roles: COMERCIAL },
+      { href: '/comissoes',    icon: DollarSign, label: 'Comissões',    roles: COMERCIAL },
+      { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: GESTAO_COMERCIAL },
+      { href: '/indicacoes',   icon: Handshake,  label: 'Indicações',   roles: COMERCIAL },
     ],
   },
   {
