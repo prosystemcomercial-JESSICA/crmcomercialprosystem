@@ -21,6 +21,7 @@ interface VendaAdicional {
   cliente_id: string;
   parceiro_id: string;
   vendedor_id: string;
+  vendedor_nome?: string;
   valor_venda?: number;
   plano_anterior?: string;
   plano_novo?: string;
@@ -137,13 +138,14 @@ export default function IndicacoesPage() {
 
   const openNovaVenda = async () => {
     try {
-      const [cls, usrs] = await Promise.all([
+      const [cls, vends] = await Promise.all([
         apiClient.getClientes(),
-        apiClient.getUsuarios().catch(() => ({ data: { data: { usuarios: [] } } })),
+        // Vendedores reais cadastrados no CRM (ATIVOS) para a supervisão escolher.
+        apiClient.getVendedores().catch(() => ({ data: { data: [] } })),
       ]);
       setClientes(cls.data.data.clientes || []);
-      const usrList = usrs.data.data?.usuarios || [];
-      setUsuarios(usrList.length ? usrList : MOCK_VENDEDORES);
+      const vendList = vends.data.data || [];
+      setUsuarios(vendList.length ? vendList : MOCK_VENDEDORES);
     } catch { setClientes([]); setUsuarios(MOCK_VENDEDORES); }
     setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', valor_venda: '', plano_anterior: '', plano_novo: '', observacoes: '' });
     setShowVendaModal(true);
@@ -333,7 +335,9 @@ export default function IndicacoesPage() {
                           )}
                         </td>
                         <td className="px-5 py-4">
-                          <p className="text-sm text-gray-700">{v.vendedor_id}</p>
+                          <p className="text-sm text-gray-700">
+                            {(v as any).vendedor_nome || usuarios.find((u: any) => u.id === v.vendedor_id)?.nome || v.vendedor_id}
+                          </p>
                         </td>
                         <td className="px-5 py-4">
                           <div>
@@ -480,13 +484,23 @@ export default function IndicacoesPage() {
 
               <div>
                 <label className="text-sm font-medium text-gray-700">Vendedor *</label>
-                <select value={vendaForm.vendedor_id} onChange={e => setVendaForm((p: any) => ({ ...p, vendedor_id: e.target.value }))}
-                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Selecione...</option>
-                  {usuarios.map((u: any) => (
-                    <option key={u.id} value={u.id}>{u.nome}</option>
-                  ))}
-                </select>
+                {isGestor ? (
+                  // Supervisão/CEO: pode indicar qual vendedor fez a venda.
+                  <select value={vendaForm.vendedor_id} onChange={e => setVendaForm((p: any) => ({ ...p, vendedor_id: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Selecione o vendedor...</option>
+                    {usuarios.map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.nome}</option>
+                    ))}
+                  </select>
+                ) : (
+                  // Vendedor logado: registra para si mesmo (nome fixo).
+                  <input
+                    value={(user as any)?.nome || 'Você'}
+                    disabled
+                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-600"
+                  />
+                )}
               </div>
 
               {parceiroSelecionado?.categoria === 'UPGRADE' ? (
