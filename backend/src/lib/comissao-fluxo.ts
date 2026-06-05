@@ -41,6 +41,15 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
   const comp = competencia(c.signed_at || new Date());
 
   if (!jaTem) {
+    // data de entrada do lead (início da negociação) p/ a trilha de tempo
+    let dataEntrada: Date | undefined;
+    if (c.proposta_comercial_id) {
+      const p = await prisma.propostaComercial.findUnique({
+        where: { id: c.proposta_comercial_id }, select: { created_at: true, cnpj: true },
+      }).catch(() => null);
+      if (p?.created_at) dataEntrada = p.created_at;
+    }
+
     await prisma.implantacao.create({
       data: {
         contrato_id: c.id,
@@ -54,6 +63,7 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
         mensalidade: c.mensalidade || undefined,
         status: 'AGUARDANDO_INSTALACAO',
         data_assinatura: c.signed_at || new Date(),
+        data_entrada_lead: dataEntrada,
       },
     }).catch(() => {});
   }

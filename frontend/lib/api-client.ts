@@ -738,12 +738,48 @@ class ApiClient {
     return this.client.post('/comissoes/marcar-pagas', data);
   }
 
-  // Acompanhamento de implantação
+  // Acompanhamento + execução de implantação
   async getImplantacoes(status?: string) {
     return this.client.get('/implantacoes', { params: { status } });
   }
+  async getImplantacao(id: string) {
+    return this.client.get(`/implantacoes/${id}`);
+  }
   async atualizarImplantacao(id: string, data: any) {
     return this.client.patch(`/implantacoes/${id}`, data);
+  }
+  async getTecnicosImplantacao() {
+    return this.client.get('/implantacoes/tecnicos');
+  }
+  async designarTecnico(id: string, tecnico_id: string) {
+    return this.client.post(`/implantacoes/${id}/designar`, { tecnico_id });
+  }
+  async moverEtapaImplantacao(id: string, etapa: string) {
+    return this.client.post(`/implantacoes/${id}/etapa`, { etapa });
+  }
+  async treinamentoImplantacao(id: string, acao: 'INICIAR' | 'ENCERRAR') {
+    return this.client.post(`/implantacoes/${id}/treinamento`, { acao });
+  }
+  async addAtividadeImplantacao(id: string, descricao: string, tipo?: string) {
+    return this.client.post(`/implantacoes/${id}/atividades`, { descricao, tipo });
+  }
+  async addTesteImplantacao(id: string, item: string) {
+    return this.client.post(`/implantacoes/${id}/testes`, { item });
+  }
+  async updateTesteImplantacao(testeId: string, data: { resultado?: string; observacao?: string }) {
+    return this.client.patch(`/implantacoes/testes/${testeId}`, data);
+  }
+  async addArquivoImplantacao(id: string, data: { nome: string; tipo: string; url: string; descricao?: string }) {
+    return this.client.post(`/implantacoes/${id}/arquivos`, data);
+  }
+  async delArquivoImplantacao(arquivoId: string) {
+    return this.client.delete(`/implantacoes/arquivos/${arquivoId}`);
+  }
+  async addChecklistImplantacao(id: string, titulo: string) {
+    return this.client.post(`/implantacoes/${id}/checklist`, { titulo });
+  }
+  async toggleChecklistImplantacao(itemId: string, feito: boolean) {
+    return this.client.patch(`/implantacoes/checklist/${itemId}`, { feito });
   }
 
   async getRegrasComissao() {

@@ -1007,7 +1007,8 @@ model Implantacao {
   valor_setup              Float?
   mensalidade              Float?
 
-  status                   String    @default("AGUARDANDO_INSTALACAO") // AGUARDANDO_INSTALACAO | AGENDADA | INSTALADO | CANCELADA
+  status                   String    @default("AGUARDANDO_INSTALACAO")
+  // AGUARDANDO_INSTALACAO | AGENDADA | INSTALADO | CANCELADA
   data_assinatura          DateTime?
   data_agendada            DateTime?
   data_instalacao          DateTime?
@@ -1015,13 +1016,97 @@ model Implantacao {
   mes_pagamento_comissao   String?   // "YYYY-MM" = mês do 1º vencimento + 1
   observacoes              String?   @db.Text
 
+  // ─── Execução técnica da implantação ───────────────────────────
+  tecnico_id               String?   // técnico de implantação designado
+  tecnico_nome             String?
+  designado_em             DateTime?
+  // Etapa da execução técnica (kanban do técnico)
+  etapa_execucao           String    @default("AGUARDANDO_DESIGNACAO")
+  // AGUARDANDO_DESIGNACAO | DESIGNADO | EM_ANALISE | EM_CONVERSAO | EM_CONFIGURACAO | EM_TREINAMENTO | FINALIZADO
+
+  // ─── Trilha de tempo por fase ───────────────────────────────────
+  data_entrada_lead        DateTime? // entrada do lead (negociação)
+  // assinatura → data_assinatura | instalação → data_instalacao
+  treinamento_inicio       DateTime?
+  treinamento_fim          DateTime?
+  data_conclusao           DateTime? // implantação concluída (fim do ciclo)
+
   created_by               String    @default("system")
   created_at               DateTime  @default(now())
   updated_at               DateTime  @updatedAt
 
+  atividades   ImplantacaoAtividade[]
+  testes       ImplantacaoTeste[]
+  arquivos     ImplantacaoArquivo[]
+  checklist    ImplantacaoChecklistItem[]
+
   @@index([status])
+  @@index([etapa_execucao])
+  @@index([tecnico_id])
   @@index([vendedor_id])
   @@index([mes_pagamento_comissao])
+}
+
+// Linha do tempo da implantação (o que o técnico/supervisão fez e quando).
+model ImplantacaoAtividade {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  tipo           String      @default("NOTA") // NOTA | MUDANCA_ETAPA | DESIGNACAO | TESTE | ARQUIVO | TREINAMENTO
+  descricao      String      @db.Text
+  etapa_de       String?
+  etapa_para     String?
+  autor_id       String?
+  autor_nome     String?
+  created_at     DateTime    @default(now())
+
+  @@index([implantacao_id])
+}
+
+// Testes de conversão de dados (checklist padrão + avulsos).
+model ImplantacaoTeste {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  item           String      // ex.: "Produtos", "Clientes", "Financeiro"...
+  resultado      String      @default("PENDENTE") // PENDENTE | OK | DIVERGENTE | NAO_APLICA
+  observacao     String?     @db.Text
+  testado_por    String?
+  testado_em     DateTime?
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+
+  @@index([implantacao_id])
+}
+
+// Arquivos do técnico (anexo upload OU link de referência).
+model ImplantacaoArquivo {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  nome           String
+  tipo           String      @default("LINK") // LINK | ANEXO
+  url            String      @db.Text         // URL do link ou caminho/base64 do anexo
+  descricao      String?
+  enviado_por    String?
+  created_at     DateTime    @default(now())
+
+  @@index([implantacao_id])
+}
+
+// Checklist de tarefas da implantação.
+model ImplantacaoChecklistItem {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  titulo         String
+  feito          Boolean     @default(false)
+  ordem          Int         @default(0)
+  feito_por      String?
+  feito_em       DateTime?
+  created_at     DateTime    @default(now())
+
+  @@index([implantacao_id])
 }
 
 model Indicacao {
