@@ -106,6 +106,14 @@ export const PRESETS: Record<string, ModulosPermissao> = {
     'Aplicativos & Ferramentas': permVE('todos'),
   },
 
+  TECNICO_IMPLANTACAO: {
+    'Dashboard Geral': permVer('todos'),
+    'Empresas / Clientes': permVer('todos'),
+    'Contatos': permVer('todos'),
+    'Histórico de Solicitações': permVer('proprio'),
+    'Aplicativos & Ferramentas': permVer('todos'),
+  },
+
   VENDEDOR: {
     'Dashboard Geral': permVer('todos'),
     'Empresas / Clientes': { ...permVazia(), ver: true, criar: true, alcance: 'proprio' },
@@ -151,7 +159,7 @@ const CriarUsuarioSchema = z.object({
   nome: z.string().min(2),
   telefone: z.string().min(8),
   email: z.string().email(),
-  cargo: z.enum(['CEO','SUPERVISAO_COMERCIAL','SUPERVISAO_TECNICA','TECNICO_SUPORTE','VENDEDOR']),
+  cargo: z.enum(['CEO','SUPERVISAO_COMERCIAL','SUPERVISAO_TECNICA','TECNICO_SUPORTE','TECNICO_IMPLANTACAO','VENDEDOR']),
   classificacao: z.enum(['N1','N2','N3']).optional().nullable(),
   status: z.enum(['ATIVO','INATIVO','SUSPENSO']).default('ATIVO'),
   observacoes: z.string().optional().nullable(),

@@ -26,6 +26,7 @@ const CARGOS = [
   { value: 'SUPERVISAO_COMERCIAL', label: 'Supervisão Comercial', color: '#2563eb' },
   { value: 'SUPERVISAO_TECNICA', label: 'Supervisão Técnica', color: '#0891b2' },
   { value: 'TECNICO_SUPORTE', label: 'Técnico Suporte', color: '#d97706' },
+  { value: 'TECNICO_IMPLANTACAO', label: 'Técnico de Implantação', color: '#0d9488' },
   { value: 'VENDEDOR', label: 'Vendedor', color: '#16a34a' },
 ];
 

@@ -71,7 +71,7 @@ const navGroups: NavGroup[] = [
     label: 'Incentivos',
     items: [
       { href: '/comissoes',    icon: DollarSign, label: 'Comissões',    roles: COMERCIAL },
-      { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: GESTAO_COMERCIAL },
+      { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
       { href: '/indicacoes',   icon: Handshake,  label: 'Indicações',   roles: COMERCIAL },
     ],
   },
