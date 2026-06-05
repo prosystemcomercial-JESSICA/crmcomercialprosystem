@@ -73,9 +73,14 @@ interface ClienteDetalhe {
   contador_nome?: string; contador_celular?: string; contador_telefone?: string; contador_email?: string;
   telefone?: string; created_at: string; _count?: { caso_churn: number };
   contatos: ContatoCliente[]; solicitacoes: SolicitacaoServico[];
+  mensalidade_base?: number; observacoes_fin?: string;
+  mensalidade?: {
+    base: number; total_acrescimos: number; total: number;
+    acrescimos: { id: string; valor: number; origem: string; categoria: string; status: string; data: string }[];
+  };
 }
 
-type TabName = 'cadastro' | 'contatos' | 'historico' | 'endereco' | 'info';
+type TabName = 'cadastro' | 'contatos' | 'historico' | 'endereco' | 'info' | 'financeiro';
 
 // ─── Helpers ──────────────────────────────────────────────────
 function fmtDate(s?: string) {
@@ -135,6 +140,8 @@ export default function ClienteDetailPage() {
     responsavel_nome: '', responsavel_celular: '',
     contador_nome: '', contador_celular: '', contador_telefone: '', contador_email: ''
   });
+  // Financeiro: mensalidade base + observações (acréscimos vêm das vendas adicionais)
+  const [finForm, setFinForm] = useState<{ mensalidade_base: string; observacoes_fin: string }>({ mensalidade_base: '', observacoes_fin: '' });
 
   // Contatos
   const [contatos, setContatos] = useState<ContatoCliente[]>([]);
@@ -183,6 +190,10 @@ export default function ClienteDetailPage() {
         contador_nome: c.contador_nome || '', contador_celular: c.contador_celular || '',
         contador_telefone: c.contador_telefone || '', contador_email: c.contador_email || '',
       });
+      setFinForm({
+        mensalidade_base: c.mensalidade_base != null ? String(c.mensalidade_base) : '',
+        observacoes_fin: c.observacoes_fin || '',
+      });
       setContatos(c.contatos || []);
       setSolicitacoes(c.solicitacoes || []);
     } catch {
@@ -195,7 +206,11 @@ export default function ClienteDetailPage() {
   const handleSave = async () => {
     setSaving(true); setSaveMsg('');
     try {
-      await apiClient.client.patch(`/clientes/${id}`, { ...form, ...endForm, ...infoForm });
+      await apiClient.client.patch(`/clientes/${id}`, {
+        ...form, ...endForm, ...infoForm,
+        mensalidade_base: finForm.mensalidade_base !== '' ? parseFloat(finForm.mensalidade_base) : undefined,
+        observacoes_fin: finForm.observacoes_fin || undefined,
+      });
       setSaveMsg('Salvo com sucesso!');
       setTimeout(() => setSaveMsg(''), 3000);
     } catch (e: any) {
@@ -293,6 +308,7 @@ export default function ClienteDetailPage() {
     { key: 'historico', label: `Histórico (${solicitacoes.length})` },
     { key: 'endereco', label: 'Endereço' },
     { key: 'info', label: 'Inf. Adicionais' },
+    { key: 'financeiro', label: 'Mensalidade' },
   ];
 
   return (
@@ -675,6 +691,70 @@ export default function ClienteDetailPage() {
                 <Field label="E-mail do contador" cols={2} value={infoForm.contador_email} type="email"
                   onChange={v => setInfoForm(f => ({ ...f, contador_email: v }))} placeholder="Informe o e-mail do contador" />
               </div>
+            </Section>
+          </div>
+        )}
+
+        {/* ─── Mensalidade / Financeiro ─────────── */}
+        {activeTab === 'financeiro' && (
+          <div className="space-y-5">
+            <Section title="Mensalidade">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)' }}>
+                  <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Mensalidade base</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--t-text-primary)' }}>
+                    R$ {Number(cliente.mensalidade?.base ?? cliente.mensalidade_base ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: '#fde68a', background: '#fffbeb' }}>
+                  <p className="text-xs text-amber-700">Acréscimos (serviços)</p>
+                  <p className="text-lg font-bold text-amber-700">
+                    R$ {Number(cliente.mensalidade?.total_acrescimos ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: '#86efac', background: '#f0fdf4' }}>
+                  <p className="text-xs text-green-700">Mensalidade total</p>
+                  <p className="text-lg font-bold text-green-700">
+                    R$ {Number(cliente.mensalidade?.total ?? cliente.mensalidade_base ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <Field label="Mensalidade base (R$)" type="number" value={finForm.mensalidade_base}
+                  onChange={v => setFinForm(f => ({ ...f, mensalidade_base: v }))} placeholder="Ex: 300,00" />
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: 'var(--t-text-muted)' }}>
+                A mensalidade total = base + acréscimos de serviços confirmados (ex.: Arquivo Fiscal). Salve para recalcular.
+              </p>
+            </Section>
+
+            <Section title="Acréscimos confirmados (vendas adicionais)">
+              {(cliente.mensalidade?.acrescimos?.length ?? 0) === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>
+                  Nenhum acréscimo confirmado. Lance em <b>Vendas Adicionais</b> (ex.: Arquivo Fiscal) com o valor do acréscimo mensal.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {cliente.mensalidade!.acrescimos.map(a => (
+                    <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2"
+                      style={{ borderColor: 'var(--t-card-border)' }}>
+                      <div>
+                        <span className="text-sm font-medium" style={{ color: 'var(--t-text-primary)' }}>{a.origem}</span>
+                        <span className="text-xs ml-2" style={{ color: 'var(--t-text-muted)' }}>{new Date(a.data).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                      <span className="text-sm font-bold text-amber-700">+ R$ {Number(a.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            <Section title="Observações financeiras (ajustes / radar)">
+              <textarea value={finForm.observacoes_fin} onChange={e => setFinForm(f => ({ ...f, observacoes_fin: e.target.value }))}
+                rows={3} placeholder="Ex.: negociação de desconto, reajuste pendente, observações para o radar…"
+                className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)' }} />
             </Section>
           </div>
         )}

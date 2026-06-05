@@ -35,6 +35,11 @@ model Cliente {
   cidade    String?
   estado    String?
 
+  // Mensalidade base (importada do cadastro original). A mensalidade TOTAL =
+  // base + soma dos acréscimos de vendas adicionais CONFIRMADAS (ex.: Arquivo Fiscal).
+  mensalidade_base   Float?
+  observacoes_fin    String?  @db.Text  // observações financeiras (ajustes/radar)
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -1297,6 +1302,9 @@ model VendaAdicional {
 
   tipo_negocio    String   @default("INDICACAO") // INDICACAO | REVENDA
   valor_venda     Float?
+  // Acréscimo mensal negociado com o cliente (ex.: Arquivo Fiscal). Soma na
+  // mensalidade total do cliente quando a venda é CONFIRMADA.
+  acrescimo_mensal Float?
   plano_anterior  String?
   plano_novo      String?
 

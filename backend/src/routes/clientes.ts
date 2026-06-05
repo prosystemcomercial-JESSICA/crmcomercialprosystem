@@ -62,6 +62,9 @@ const ClienteSchema = z.object({
   contador_celular: z.string().optional(),
   contador_telefone: z.string().optional(),
   contador_email: z.string().optional(),
+  // Financeiro: mensalidade base + observações (acréscimos vêm das vendas adicionais)
+  mensalidade_base: z.number().optional(),
+  observacoes_fin: z.string().optional(),
   // Legados
   telefone: z.string().optional()
 });
@@ -186,7 +189,30 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE cliente_id = ? ORDER BY created_at ASC`, id);
     const solicitacoes: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE cliente_id = ? ORDER BY data_solicitacao DESC`, id);
 
-    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes } });
+    // Acréscimos na mensalidade vindos de vendas adicionais CONFIRMADAS (ex.: Arquivo Fiscal).
+    const acrescimos = await prisma.vendaAdicional.findMany({
+      where: { cliente_id: id, status: { in: ['CONFIRMADA', 'PAGA'] }, acrescimo_mensal: { gt: 0 } },
+      select: {
+        id: true, acrescimo_mensal: true, status: true, created_at: true,
+        parceiro: { select: { nome: true, categoria: true } },
+      },
+      orderBy: { created_at: 'desc' },
+    }).catch(() => [] as any[]);
+
+    const base = Number((cliente as any).mensalidade_base || 0);
+    const totalAcrescimos = acrescimos.reduce((s: number, a: any) => s + Number(a.acrescimo_mensal || 0), 0);
+    const mensalidade = {
+      base,
+      acrescimos: acrescimos.map((a: any) => ({
+        id: a.id, valor: Number(a.acrescimo_mensal || 0),
+        origem: a.parceiro?.nome || 'Serviço', categoria: a.parceiro?.categoria || '',
+        status: a.status, data: a.created_at,
+      })),
+      total_acrescimos: Math.round(totalAcrescimos * 100) / 100,
+      total: Math.round((base + totalAcrescimos) * 100) / 100,
+    };
+
+    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes, mensalidade } });
   });
 
   // Create cliente
