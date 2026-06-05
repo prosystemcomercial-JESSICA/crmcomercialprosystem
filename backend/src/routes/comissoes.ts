@@ -6,6 +6,29 @@ import { scopeUserId, requireGestor } from '@/lib/scope';
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // Resolve a RAZÃO SOCIAL do cliente de cada comissão (em vez do id do contrato):
+  //  - CONTRATO        → ContratoComercial.razao_social (via referencia_id)
+  //  - VENDA_ADICIONAL → VendaAdicional → Cliente.nome
+  async function mapaClientes(comissoes: any[]): Promise<Record<string, string>> {
+    const mapa: Record<string, string> = {};
+    const contratoIds = [...new Set(comissoes.filter(c => c.tipo === 'CONTRATO' && c.referencia_id).map(c => c.referencia_id))];
+    const vendaIds = [...new Set(comissoes.filter(c => c.tipo === 'VENDA_ADICIONAL' && c.referencia_id).map(c => c.referencia_id))];
+
+    if (contratoIds.length) {
+      const cts = await prisma.contratoComercial.findMany({
+        where: { id: { in: contratoIds } }, select: { id: true, razao_social: true, numero_contrato: true },
+      }).catch(() => [] as any[]);
+      cts.forEach((c: any) => { mapa[c.id] = c.razao_social || c.numero_contrato || c.id; });
+    }
+    if (vendaIds.length) {
+      const vas = await prisma.vendaAdicional.findMany({
+        where: { id: { in: vendaIds } }, select: { id: true, cliente: { select: { nome: true, empresa: true } } },
+      }).catch(() => [] as any[]);
+      vas.forEach((v: any) => { mapa[v.id] = v.cliente?.empresa || v.cliente?.nome || v.id; });
+    }
+    return mapa;
+  }
+
   // ===== REGRAS DE COMISSÃO =====
   fastify.get('/comissoes/regras', async (request, reply) => {
     const regras = await prisma.regraComissao.findMany({
@@ -127,6 +150,9 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     const nomeDe: Record<string, any> = {};
     usuarios.forEach(u => { nomeDe[u.id] = u; });
 
+    // Razão social do cliente de cada comissão (em vez do id do contrato).
+    const clienteDe = await mapaClientes(comissoes as any[]);
+
     // Agrupa por mês de pagamento e por responsável
     const porMes: Record<string, any> = {};
     const porResponsavel: Record<string, any> = {};
@@ -134,7 +160,11 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       const mes = c.mes_pagamento || 'A confirmar';
       porMes[mes] = porMes[mes] || { mes_pagamento: mes, total: 0, count: 0, itens: [] };
       porMes[mes].total += c.valor_comissao; porMes[mes].count += 1;
-      porMes[mes].itens.push({ ...c, responsavel_nome: nomeDe[c.responsavel_id]?.nome || c.responsavel_id });
+      porMes[mes].itens.push({
+        ...c,
+        responsavel_nome: nomeDe[c.responsavel_id]?.nome || c.responsavel_id,
+        cliente: clienteDe[c.referencia_id || ''] || null,
+      });
 
       const r = c.responsavel_id;
       porResponsavel[r] = porResponsavel[r] || {
@@ -201,11 +231,14 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     if (scopeId !== null) where.responsavel_id = scopeId;
     else if (query.data?.responsavel_id) where.responsavel_id = query.data.responsavel_id;
 
-    const comissoes = await prisma.comissao.findMany({
+    const comissoesRaw = await prisma.comissao.findMany({
       where,
       include: { regra: true },
       orderBy: { created_at: 'desc' }
     });
+    // Anexa a razão social do cliente de cada comissão (em vez do id do contrato).
+    const clienteDe = await mapaClientes(comissoesRaw as any[]);
+    const comissoes = comissoesRaw.map((c: any) => ({ ...c, cliente: clienteDe[c.referencia_id || ''] || null }));
 
     // Agrupado por responsável
     const por_responsavel = comissoes.reduce((acc: any, c) => {

@@ -12,6 +12,7 @@ interface Comissao {
   responsavel_id: string;
   tipo: string;
   descricao?: string;
+  cliente?: string | null;
   valor_base: number;
   percentual: number;
   valor_comissao: number;
@@ -279,6 +280,7 @@ export default function ComissoesPage() {
                 linhas={(relatorio.por_mes || []).flatMap((m: any) => m.itens.map((i: any) => ({ ...i, mes: m.mes_pagamento })))}
                 colunas={[
                   { header: 'Mês pagamento', value: (i: any) => i.mes },
+                  { header: 'Cliente', value: (i: any) => i.cliente || '' },
                   { header: 'Responsável', value: (i: any) => i.responsavel_nome },
                   { header: 'Papel', value: (i: any) => i.papel || '' },
                   { header: 'Descrição', value: (i: any) => i.descricao || '' },
@@ -388,6 +390,7 @@ export default function ComissoesPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendedor</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cliente</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Descrição</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Base</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">%</th>
@@ -399,6 +402,7 @@ export default function ComissoesPage() {
                 {comissoes.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-4 text-sm font-medium text-gray-900">{nomeVendedor(c.responsavel_id)}</td>
+                    <td className="px-5 py-4 text-sm font-semibold text-gray-800">{c.cliente || '—'}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${(TIPO_LABEL[c.tipo] || TIPO_LABEL.MANUAL).color}`}>
