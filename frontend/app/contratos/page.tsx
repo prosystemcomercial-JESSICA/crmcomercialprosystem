@@ -101,6 +101,10 @@ export default function ContratosPage() {
   const [preview, setPreview]     = useState<any>(null);
   const [loadingPrev, setLoadingPrev] = useState(false);
   const [zapMsg, setZapMsg]           = useState('');
+  // Revisão/edição dos dados do cliente antes de gerar o contrato
+  const [editando, setEditando]   = useState(false);
+  const [editForm, setEditForm]   = useState<any>({});
+  const [salvandoEdit, setSalvandoEdit] = useState(false);
   const [signedUrl, setSignedUrl]     = useState('');
   const [marcando, setMarcando]       = useState(false);
 
@@ -139,11 +143,59 @@ export default function ContratosPage() {
     setLoadingPrev(true);
     setPreview(null);
     setZapMsg('');
+    setEditando(false);
     setSignedUrl(c.zapsign_signed_file_url || '');
     try {
       const res = await apiClient.getContratoPreview(c.id);
       setPreview(res.data.data);
     } catch { /* ignore */ } finally { setLoadingPrev(false); }
+  };
+
+  // Abre o formulário de revisão com os dados atuais do contrato/cliente.
+  const abrirRevisao = (c: ContratoComercial) => {
+    setEditForm({
+      razao_social: c.razao_social || '',
+      nome_fantasia: c.nome_fantasia || '',
+      cnpj: c.cnpj || '',
+      endereco: c.endereco || '',
+      numero_endereco: c.numero_endereco || '',
+      bairro: c.bairro || '',
+      cidade: c.cidade || '',
+      estado: c.estado || '',
+      cep: c.cep || '',
+      representante_nome: c.representante_nome || '',
+      representante_cpf: c.representante_cpf || '',
+      representante_email: c.representante_email || '',
+      representante_telefone: c.representante_telefone || '',
+      representante_cargo: c.representante_cargo || '',
+      plano_contratado: c.plano_contratado || '',
+      mensalidade: c.mensalidade != null ? String(c.mensalidade) : '',
+      dia_vencimento: c.dia_vencimento != null ? String(c.dia_vencimento) : '',
+      valor_setup_total: c.valor_setup_total != null ? String(c.valor_setup_total) : '',
+    });
+    setEditando(true);
+  };
+
+  const salvarRevisao = async () => {
+    if (!selected) return;
+    if (!editForm.razao_social?.trim()) { alert('Razão social é obrigatória.'); return; }
+    setSalvandoEdit(true);
+    try {
+      const payload: any = {
+        ...editForm,
+        mensalidade: editForm.mensalidade !== '' ? parseFloat(editForm.mensalidade) : undefined,
+        dia_vencimento: editForm.dia_vencimento !== '' ? parseInt(editForm.dia_vencimento) : undefined,
+        valor_setup_total: editForm.valor_setup_total !== '' ? parseFloat(editForm.valor_setup_total) : undefined,
+      };
+      Object.keys(payload).forEach(k => { if (payload[k] === '') payload[k] = undefined; });
+      const res = await apiClient.updateContratoComercial(selected.id, payload);
+      const atualizado = res.data?.data || { ...selected, ...payload };
+      setSelected(atualizado);
+      setEditando(false);
+      load();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Erro ao salvar os dados.');
+    } finally { setSalvandoEdit(false); }
   };
 
   const verPdf = (c: ContratoComercial) => {
@@ -468,14 +520,70 @@ export default function ContratosPage() {
                   <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--t-text-primary)', marginTop: 4 }}>{selected.razao_social}</div>
                   {selected.nome_fantasia && <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{selected.nome_fantasia}</div>}
                 </div>
-                <button onClick={() => setSelected(null)} style={{ color: 'var(--t-text-muted)', background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 8, padding: 6, cursor: 'pointer' }}>
-                  <X size={14} />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Revisar / completar dados do cliente (antes de gerar o contrato) */}
+                  {selected.status !== 'ASSINADO' && selected.status !== 'RECUADO' && selected.status !== 'CANCELADO' && (
+                    <button onClick={() => editando ? setEditando(false) : abrirRevisao(selected)}
+                      className="flex items-center gap-1.5"
+                      style={{ fontSize: 12, fontWeight: 600, color: editando ? 'var(--t-text-muted)' : '#2E6EAB', background: editando ? 'transparent' : '#EBF4FF', border: '1px solid #c7d8ec', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
+                      <Edit3 size={13} /> {editando ? 'Cancelar' : 'Revisar dados'}
+                    </button>
+                  )}
+                  <button onClick={() => setSelected(null)} style={{ color: 'var(--t-text-muted)', background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 8, padding: 6, cursor: 'pointer' }}>
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
 
               <div style={{ padding: 22 }}>
 
+                {/* ── Form de revisão (completar/alterar dados do cliente) ── */}
+                {editando && (
+                  <div style={{ marginBottom: 20, padding: 16, borderRadius: 12, border: '1px solid #c7d8ec', background: 'var(--t-content-bg)' }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-text-primary)', marginBottom: 4 }}>Revisar / completar dados do contrato</p>
+                    <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 14 }}>Confira e ajuste antes de gerar o contrato. As alterações entram no PDF.</p>
+
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '4px 0 8px' }}>Empresa (CONTRATANTE)</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <CampoEdit label="Razão social *" full value={editForm.razao_social} onChange={(v: string) => setEditForm((p: any) => ({ ...p, razao_social: v }))} />
+                      <CampoEdit label="Nome fantasia" value={editForm.nome_fantasia} onChange={(v: string) => setEditForm((p: any) => ({ ...p, nome_fantasia: v }))} />
+                      <CampoEdit label="CNPJ" value={editForm.cnpj} onChange={(v: string) => setEditForm((p: any) => ({ ...p, cnpj: v }))} />
+                      <CampoEdit label="Endereço" value={editForm.endereco} onChange={(v: string) => setEditForm((p: any) => ({ ...p, endereco: v }))} />
+                      <CampoEdit label="Nº" value={editForm.numero_endereco} onChange={(v: string) => setEditForm((p: any) => ({ ...p, numero_endereco: v }))} />
+                      <CampoEdit label="Bairro" value={editForm.bairro} onChange={(v: string) => setEditForm((p: any) => ({ ...p, bairro: v }))} />
+                      <CampoEdit label="Cidade" value={editForm.cidade} onChange={(v: string) => setEditForm((p: any) => ({ ...p, cidade: v }))} />
+                      <CampoEdit label="UF" value={editForm.estado} onChange={(v: string) => setEditForm((p: any) => ({ ...p, estado: v }))} />
+                      <CampoEdit label="CEP" value={editForm.cep} onChange={(v: string) => setEditForm((p: any) => ({ ...p, cep: v }))} />
+                    </div>
+
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '14px 0 8px' }}>Representante legal (assina)</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <CampoEdit label="Nome do representante" full value={editForm.representante_nome} onChange={(v: string) => setEditForm((p: any) => ({ ...p, representante_nome: v }))} />
+                      <CampoEdit label="CPF" value={editForm.representante_cpf} onChange={(v: string) => setEditForm((p: any) => ({ ...p, representante_cpf: v }))} />
+                      <CampoEdit label="Cargo" value={editForm.representante_cargo} onChange={(v: string) => setEditForm((p: any) => ({ ...p, representante_cargo: v }))} />
+                      <CampoEdit label="E-mail" value={editForm.representante_email} onChange={(v: string) => setEditForm((p: any) => ({ ...p, representante_email: v }))} />
+                      <CampoEdit label="Telefone / WhatsApp" value={editForm.representante_telefone} onChange={(v: string) => setEditForm((p: any) => ({ ...p, representante_telefone: v }))} />
+                    </div>
+
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '14px 0 8px' }}>Plano e valores</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <CampoEdit label="Plano" value={editForm.plano_contratado} onChange={(v: string) => setEditForm((p: any) => ({ ...p, plano_contratado: v }))} />
+                      <CampoEdit label="Mensalidade (R$)" type="number" value={editForm.mensalidade} onChange={(v: string) => setEditForm((p: any) => ({ ...p, mensalidade: v }))} />
+                      <CampoEdit label="Dia de vencimento" type="number" value={editForm.dia_vencimento} onChange={(v: string) => setEditForm((p: any) => ({ ...p, dia_vencimento: v }))} />
+                      <CampoEdit label="Setup / instalação (R$)" type="number" value={editForm.valor_setup_total} onChange={(v: string) => setEditForm((p: any) => ({ ...p, valor_setup_total: v }))} />
+                    </div>
+
+                    <div className="flex justify-end gap-2 mt-4">
+                      <button onClick={() => setEditando(false)} style={{ padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)', background: 'transparent', cursor: 'pointer' }}>Cancelar</button>
+                      <button onClick={salvarRevisao} disabled={salvandoEdit} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#2E6EAB', color: '#fff', border: 'none', cursor: 'pointer', opacity: salvandoEdit ? 0.7 : 1 }}>
+                        {salvandoEdit ? 'Salvando…' : 'Salvar dados'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Info grid */}
+                {!editando && (
                 <div className="grid grid-cols-2 gap-4 mb-5">
                   {[
                     ['CNPJ', selected.cnpj],
@@ -500,6 +608,7 @@ export default function ContratosPage() {
                     </div>
                   ))}
                 </div>
+                )}
 
                 {/* Preview cláusulas */}
                 {loadingPrev && <p style={{ fontSize: 12, color: 'var(--t-text-muted)', marginBottom: 16 }}>Gerando preview do contrato...</p>}
@@ -708,5 +817,18 @@ export default function ContratosPage() {
 
       </div>
     </DashboardLayout>
+  );
+}
+
+function CampoEdit({ label, value, onChange, type = 'text', full = false }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; full?: boolean;
+}) {
+  return (
+    <div style={full ? { gridColumn: '1 / -1' } : undefined}>
+      <label style={{ display: 'block', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--t-text-muted)', marginBottom: 4 }}>{label}</label>
+      <input type={type} value={value} onChange={e => onChange(e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+        style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} />
+    </div>
   );
 }
