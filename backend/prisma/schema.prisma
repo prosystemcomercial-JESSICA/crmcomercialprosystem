@@ -1292,6 +1292,7 @@ model VendaAdicional {
   parceiro        Parceiro @relation(fields: [parceiro_id], references: [id])
 
   vendedor_id     String
+  vendedor_nome   String?  // nome do vendedor que fez a venda (exibição)
   supervisao_id   String?  // quem registrou (supervisor que faz o cadastro)
 
   valor_venda     Float?

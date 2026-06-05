@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { scopeUserId } from '@/lib/scope';
+import { scopeUserId, podeVerTudo } from '@/lib/scope';
 
 const PARCEIROS_DEFAULT = [
   {
@@ -246,9 +246,20 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const comissaoValor = body.data.comissao_valor ?? parceiro.comissao_valor;
     const supervisaoId = user?.id || null;
 
+    // O vendedor que fez a venda: gestão pode escolher qualquer vendedor; um vendedor
+    // logado só registra para SI MESMO (segurança). Resolve o nome para exibição.
+    const ehGestor = podeVerTudo(user);
+    const vendedorId = ehGestor ? body.data.vendedor_id : (user?.id || body.data.vendedor_id);
+    const vendRows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT nome FROM UsuarioCRM WHERE id = ? LIMIT 1`, vendedorId
+    ).catch(() => []);
+    const vendedorNome = vendRows[0]?.nome || user?.nome || null;
+
     const venda = await prisma.vendaAdicional.create({
       data: {
         ...body.data,
+        vendedor_id: vendedorId,
+        vendedor_nome: vendedorNome,
         comissao_valor: comissaoValor,
         supervisao_id: supervisaoId,
         status: 'PENDENTE',
@@ -264,7 +275,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const periodo = proximoMes();
     await prisma.comissao.create({
       data: {
-        responsavel_id: body.data.vendedor_id,
+        responsavel_id: vendedorId,
         tipo: 'VENDA_ADICIONAL',
         referencia_id: venda.id,
         descricao: `Venda Adicional: ${parceiro.nome} — ${venda.cliente.nome}`,
