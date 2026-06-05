@@ -178,7 +178,7 @@ export default function ImplantacoesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--t-content-bg)', textAlign: 'left' }}>
-                {['Cliente', 'Plano', 'Vendedor', 'Status', 'Instalação', '1º Vencimento', 'Comissão paga em', ''].map(h => (
+                {['Cliente', 'Plano', 'Vendedor', 'Status', 'Prazo', 'Instalação', '1º Vencimento', 'Comissão paga em', ''].map(h => (
                   <th key={h} style={{ padding: '10px 12px', fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 700 }}>{h}</th>
                 ))}
               </tr>
@@ -202,6 +202,7 @@ export default function ImplantacoesPage() {
                     <td style={{ padding: '10px 12px' }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: '2px 8px', borderRadius: 999 }}>{cfg.label}</span>
                     </td>
+                    <td style={{ padding: '10px 12px' }}><PrazoBadge prazos={(i as any).prazos} /></td>
                     <td style={{ padding: '10px 12px', color: 'var(--t-text-muted)' }}>{fmtData(i.data_instalacao)}</td>
                     <td style={{ padding: '10px 12px', color: 'var(--t-text-muted)' }}>{fmtData(i.data_primeiro_vencimento)}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 700, color: i.mes_pagamento_comissao ? '#2E6EAB' : 'var(--t-text-muted)' }}>{fmtMes(i.mes_pagamento_comissao)}</td>
@@ -269,9 +270,9 @@ export default function ImplantacoesPage() {
                   <div>
                     <div style={{ fontWeight: 800, color: 'var(--t-text-primary)', fontSize: 16 }}>{exec.cliente_razao_social}</div>
                     <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{exec.plano || '—'} · Setup {fmtBRL(exec.valor_setup)}</div>
-                    {/* Tipo da base: banco zerado x conversão (vem da proposta) */}
-                    {exec.tipo_base && (
-                      <div className="mt-1">
+                    {/* Tipo da base + prazos (vem da proposta / regra +15/+30) */}
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                      {exec.tipo_base && (
                         <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
                           background: exec.tipo_base === 'CONVERSAO' ? '#fef3c7' : '#dcfce7',
                           color: exec.tipo_base === 'CONVERSAO' ? '#d97706' : '#16a34a' }}>
@@ -279,6 +280,15 @@ export default function ImplantacoesPage() {
                             ? `Conversão de dados${exec.sistema_anterior ? ` · de ${exec.sistema_anterior}` : ''}`
                             : 'Banco zerado (nova instalação)'}
                         </span>
+                      )}
+                      {exec.prazos && <PrazoBadge prazos={exec.prazos} />}
+                    </div>
+                    {exec.prazos && (
+                      <div style={{ fontSize: 10.5, color: 'var(--t-text-muted)', marginTop: 4 }}>
+                        Prazo virada: {fmtData(exec.prazo_virada)}
+                        {exec.prazos.virada?.dias_restantes != null && !exec.data_instalacao && ` (${exec.prazos.virada.dias_restantes}d)`}
+                        {'  ·  '}Finalização: {fmtData(exec.prazo_finalizacao)}
+                        {exec.prazos.finalizacao?.dias_restantes != null && !exec.data_conclusao && ` (${exec.prazos.finalizacao.dias_restantes}d)`}
                       </div>
                     )}
                   </div>
@@ -432,6 +442,23 @@ export default function ImplantacoesPage() {
       </div>
     </DashboardLayout>
   );
+}
+
+// Badge de prazo: prioriza a virada (se ainda não instalado), senão a finalização.
+function PrazoBadge({ prazos }: { prazos?: { virada?: any; finalizacao?: any } }) {
+  if (!prazos) return <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>—</span>;
+  const p = (prazos.virada && prazos.virada.status !== 'CUMPRIDO' && prazos.virada.status !== 'CUMPRIDO_ATRASO')
+    ? prazos.virada : prazos.finalizacao;
+  if (!p) return <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>—</span>;
+  const cores: Record<string, { c: string; bg: string; txt: (d: number) => string }> = {
+    NO_PRAZO:        { c: '#16a34a', bg: '#dcfce7', txt: d => `${d}d restantes` },
+    ATENCAO:         { c: '#d97706', bg: '#fef3c7', txt: d => `vence em ${d}d` },
+    ATRASADO:        { c: '#dc2626', bg: '#fee2e2', txt: d => `atrasado ${Math.abs(d)}d` },
+    CUMPRIDO:        { c: '#16a34a', bg: '#dcfce7', txt: () => 'no prazo' },
+    CUMPRIDO_ATRASO: { c: '#d97706', bg: '#fef3c7', txt: () => 'fora do prazo' },
+  };
+  const cfg = cores[p.status] || cores.NO_PRAZO;
+  return <span style={{ fontSize: 10, fontWeight: 700, color: cfg.c, background: cfg.bg, padding: '2px 8px', borderRadius: 999 }}>{cfg.txt(p.dias_restantes ?? 0)}</span>;
 }
 
 function TrilhaCard({ label, dias, cor }: { label: string; dias: number | null; cor: string }) {

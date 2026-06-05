@@ -86,6 +86,21 @@ function dias(a?: Date | string | null, b?: Date | string | null): number | null
   return d >= 0 ? d : null;
 }
 
+// Status de um prazo-meta: NO_PRAZO | ATENCAO (≤3 dias) | ATRASADO | CUMPRIDO.
+function statusPrazo(prazo?: Date | string | null, concluido?: Date | string | null) {
+  if (!prazo) return null;
+  if (concluido) {
+    const noPrazo = new Date(concluido).getTime() <= new Date(prazo).getTime();
+    return { prazo, concluido_em: concluido, status: noPrazo ? 'CUMPRIDO' : 'CUMPRIDO_ATRASO', dias_restantes: 0 };
+  }
+  const ms = new Date(prazo).getTime() - Date.now();
+  const dr = Math.ceil(ms / 86400000);
+  let status = 'NO_PRAZO';
+  if (dr < 0) status = 'ATRASADO';
+  else if (dr <= 3) status = 'ATENCAO';
+  return { prazo, status, dias_restantes: dr };
+}
+
 export async function implantacoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -103,9 +118,17 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const where: any = { ...escopoTecnico(request) };
     if (q.status) where.status = q.status;
     if (q.etapa_execucao) where.etapa_execucao = q.etapa_execucao;
-    const implantacoes = await prisma.implantacao.findMany({
+    const implantacoesRaw = await prisma.implantacao.findMany({
       where, orderBy: [{ status: 'asc' }, { data_assinatura: 'desc' }],
     });
+    // Anexa status de prazo (virada/finalização) p/ o badge na lista.
+    const implantacoes = implantacoesRaw.map((i: any) => ({
+      ...i,
+      prazos: {
+        virada: statusPrazo(i.prazo_virada, i.data_instalacao),
+        finalizacao: statusPrazo(i.prazo_finalizacao, i.data_conclusao),
+      },
+    }));
     const resumo = {
       aguardando: implantacoes.filter(i => i.status === 'AGUARDANDO_INSTALACAO').length,
       agendada:   implantacoes.filter(i => i.status === 'AGENDADA').length,
@@ -155,7 +178,13 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const totalFeitos = (imp.checklist || []).filter((c: any) => c.feito).length;
     const progresso_geral = totalItens ? Math.round((totalFeitos / totalItens) * 100) : 0;
 
-    return reply.send({ status: 'success', data: { ...imp, trilha, grupos, progresso_geral } });
+    // Status de prazo (virada e finalização) p/ nortear o técnico.
+    const prazos = {
+      virada: statusPrazo(imp.prazo_virada, imp.data_instalacao),
+      finalizacao: statusPrazo(imp.prazo_finalizacao, imp.data_conclusao),
+    };
+
+    return reply.send({ status: 'success', data: { ...imp, trilha, grupos, progresso_geral, prazos } });
   });
 
   // ── INFORMAR datas comerciais (instalação + 1º vencimento) — gestão

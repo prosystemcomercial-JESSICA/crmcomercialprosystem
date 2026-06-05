@@ -1040,6 +1040,10 @@ model Implantacao {
   treinamento_fim          DateTime?
   data_conclusao           DateTime? // implantação concluída (fim do ciclo)
 
+  // Prazos-meta para nortear o técnico (default: +15 virada / +30 finalização da assinatura)
+  prazo_virada             DateTime?
+  prazo_finalizacao        DateTime?
+
   created_by               String    @default("system")
   created_at               DateTime  @default(now())
   updated_at               DateTime  @updatedAt

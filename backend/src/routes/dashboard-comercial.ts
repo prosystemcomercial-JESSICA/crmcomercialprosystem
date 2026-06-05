@@ -165,31 +165,34 @@ export async function dashboardComercialRoutes(
     `, ...sc.params).catch(() => []);
 
     const vendedores = vendedores_raw.map(v => {
+      // COUNT(*) do MySQL vem como BigInt — converter tudo p/ Number (senão dá
+      // "Cannot mix BigInt and other types" e o radar inteiro quebra).
+      const totalLeads = Number(v.total_leads || 0);
+      const fechados   = Number(v.fechados || 0);
       const obs_rows = obs_vendedor_raw.filter(o => o.created_by_name === v.vendedor_nome);
       const pr       = propostas_vendedor_raw.find(p => p.vendedor_nome === v.vendedor_nome);
       const obs_by_tipo: Record<string, number> = {};
-      obs_rows.forEach(o => { obs_by_tipo[o.tipo] = o.total; });
-      const total_contatos = obs_rows.reduce((s, o) => s + o.total, 0);
-      const taxa_conversao = v.total_leads > 0
-        ? Math.round((v.fechados / v.total_leads) * 100) : 0;
+      obs_rows.forEach(o => { obs_by_tipo[o.tipo] = Number(o.total || 0); });
+      const total_contatos = obs_rows.reduce((s, o) => s + Number(o.total || 0), 0);
+      const taxa_conversao = totalLeads > 0 ? Math.round((fechados / totalLeads) * 100) : 0;
       return {
         nome:              v.vendedor_nome,
-        total_leads:       v.total_leads,
-        leads_mes:         v.leads_mes,
-        ativos:            v.ativos,
-        fechados:          v.fechados,
-        perdidos:          v.perdidos,
-        muito_quente:      v.muito_quente,
-        quente:            v.quente,
-        morno:             v.morno,
-        frio:              v.frio,
+        total_leads:       totalLeads,
+        leads_mes:         Number(v.leads_mes || 0),
+        ativos:            Number(v.ativos || 0),
+        fechados,
+        perdidos:          Number(v.perdidos || 0),
+        muito_quente:      Number(v.muito_quente || 0),
+        quente:            Number(v.quente || 0),
+        morno:             Number(v.morno || 0),
+        frio:              Number(v.frio || 0),
         taxa_conversao,
         total_contatos,
         obs_by_tipo,
-        propostas_geradas: pr?.propostas_geradas || 0,
-        propostas_aceitas: pr?.aceitas           || 0,
-        mrr_fechado:       Math.round(pr?.mrr_fechado   || 0),
-        setup_fechado:     Math.round(pr?.setup_fechado || 0),
+        propostas_geradas: Number(pr?.propostas_geradas || 0),
+        propostas_aceitas: Number(pr?.aceitas           || 0),
+        mrr_fechado:       Math.round(Number(pr?.mrr_fechado   || 0)),
+        setup_fechado:     Math.round(Number(pr?.setup_fechado || 0)),
       };
     });
 
@@ -262,6 +265,14 @@ export async function dashboardComercialRoutes(
     const taxa_global = total_leads > 0
       ? Math.round((fechados_total / total_leads) * 100) : 0;
 
+    // COUNT(*) do MySQL vem como BigInt (não serializa em JSON e quebra cálculos).
+    // Converte os contadores das agregações cruas para Number.
+    const num = (v: any) => Number(v || 0);
+    const origensN     = origens.map(o => ({ ...o, total: num(o.total), fechados: num(o.fechados), ativos: num(o.ativos), quentes: num(o.quentes) }));
+    const campanhasN   = campanhas.map(c => ({ ...c, total: num(c.total), fechados: num(c.fechados), ativos: num(c.ativos), quentes: num(c.quentes) }));
+    const temperaturasN = temperaturas.map(t => ({ ...t, total: num(t.total), ativos: num(t.ativos), fechados: num(t.fechados) }));
+    const atividadesN  = atividades_tipo.map(a => ({ ...a, total: num(a.total) }));
+
     return reply.send({
       status: 'success',
       data: {
@@ -283,10 +294,10 @@ export async function dashboardComercialRoutes(
           campanha_sem_vendedor,
         },
         vendedores,
-        origens,
-        campanhas,
-        temperaturas,
-        atividades_tipo,
+        origens: origensN,
+        campanhas: campanhasN,
+        temperaturas: temperaturasN,
+        atividades_tipo: atividadesN,
       },
     });
   });
