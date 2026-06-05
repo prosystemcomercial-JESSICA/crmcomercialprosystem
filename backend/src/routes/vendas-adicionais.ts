@@ -78,7 +78,11 @@ function proximoMes(): string {
 
 function calcularComissaoSupervisao(parceiro: any, valorVenda?: number | null): number {
   if (parceiro.comissao_supervisao_pct <= 0) return 0;
-  const base = parceiro.valor_referencia ?? valorVenda ?? 0;
+  // UPGRADE de plano: a comissão da supervisão é 5% sobre o SETUP do upgrade
+  // (valor_venda), não sobre o valor de referência fixo do parceiro.
+  const base = parceiro.categoria === 'UPGRADE'
+    ? (valorVenda ?? 0)
+    : (parceiro.valor_referencia ?? valorVenda ?? 0);
   return parseFloat(((base * parceiro.comissao_supervisao_pct) / 100).toFixed(2));
 }
 
@@ -258,9 +262,13 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const parceiro = await prisma.parceiro.findUnique({ where: { id: body.data.parceiro_id } });
     if (!parceiro) return reply.status(404).send({ status: 'error', message: 'Parceiro não encontrado' });
 
-    // Comissão do vendedor: INDICAÇÃO = R$50 fixo; REVENDA = valor do parceiro.
+    // Comissão do vendedor:
+    //  - UPGRADE de plano → R$50 fixo (após confirmação);
+    //  - INDICAÇÃO → R$50 fixo; REVENDA → valor do parceiro.
     // Um valor enviado explicitamente (comissao_valor) sempre prevalece.
-    const comissaoPadrao = body.data.tipo_negocio === 'INDICACAO' ? 50 : parceiro.comissao_valor;
+    const comissaoPadrao = parceiro.categoria === 'UPGRADE'
+      ? 50
+      : (body.data.tipo_negocio === 'INDICACAO' ? 50 : parceiro.comissao_valor);
     const comissaoValor = body.data.comissao_valor ?? comissaoPadrao;
     const supervisaoId = user?.id || null;
 
@@ -389,7 +397,9 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
                 tipo: 'SUPERVISAO_VENDA_ADICIONAL',
                 referencia_id: id,
                 descricao: `Supervisão — ${vendaAtual.parceiro.nome}: ${vendaAtual.cliente.nome}`,
-                valor_base: vendaAtual.parceiro.valor_referencia ?? body.data.valor_venda ?? vendaAtual.valor_venda ?? 0,
+                valor_base: vendaAtual.parceiro.categoria === 'UPGRADE'
+                  ? (body.data.valor_venda ?? vendaAtual.valor_venda ?? 0)
+                  : (vendaAtual.parceiro.valor_referencia ?? body.data.valor_venda ?? vendaAtual.valor_venda ?? 0),
                 percentual: vendaAtual.parceiro.comissao_supervisao_pct,
                 valor_comissao: comissaoSupervisao,
                 periodo: proximoMes(),
