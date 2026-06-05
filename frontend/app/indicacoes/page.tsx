@@ -71,7 +71,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIRETOR'];
 
-const PLANOS = ['Basic', 'Pro', 'Plus'];
+const PLANOS = ['MEI', 'Basic', 'Pro', 'Plus'];
 
 const MOCK_VENDEDORES = [
   { id: 'jessica', nome: 'Jessica (CEO)' },
@@ -572,6 +572,15 @@ export default function IndicacoesPage() {
                       <option value="">Selecione...</option>
                       {PLANOS.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
+                  </div>
+                  {/* Setup do upgrade (valor único cobrado pela mudança de plano) */}
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Valor do setup do upgrade (R$)</label>
+                    <input type="number" step="0.01" min="0" value={vendaForm.valor_venda}
+                      onChange={e => setVendaForm((p: any) => ({ ...p, valor_venda: e.target.value }))}
+                      placeholder="Ex: 200,00"
+                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p className="mt-1 text-[11px] text-gray-500">Valor único cobrado pelo upgrade. O acréscimo na mensalidade é informado no campo acima.</p>
                   </div>
                 </div>
               ) : (
