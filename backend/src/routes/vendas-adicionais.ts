@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { scopeUserId, podeVerTudo } from '@/lib/scope';
+import { scopeUserId, podeVerTudo, requireGestor } from '@/lib/scope';
 
 const PARCEIROS_DEFAULT = [
   {
@@ -23,12 +23,21 @@ const PARCEIROS_DEFAULT = [
     comissao_supervisao_pct: 5,
   },
   {
-    nome: 'Avant / Imendes',
+    nome: 'Avant',
     categoria: 'TRIBUTARIO',
-    pitch: 'Temos parcerias com empresas que fazem revisão tributária e muitos clientes estão recuperando valores pagos a mais.',
+    pitch: 'Corretor tributário — revisão tributária e recuperação de créditos.',
     comissao_valor: 50,
     tabela_valores: 'Conforme tabela de parceiro',
     valor_referencia: 200,          // 5% de R$200 = R$10 de comissão para a supervisão
+    comissao_supervisao_pct: 5,
+  },
+  {
+    nome: 'Imendes',
+    categoria: 'TRIBUTARIO',
+    pitch: 'Corretor tributário — revisão tributária e recuperação de créditos.',
+    comissao_valor: 50,
+    tabela_valores: 'Conforme tabela de parceiro',
+    valor_referencia: 200,
     comissao_supervisao_pct: 5,
   },
   {
@@ -55,7 +64,8 @@ const PARCEIROS_DEFAULT = [
 const PARCEIRO_DEFAULTS_BY_NAME: Record<string, { valor_referencia: number | null; comissao_supervisao_pct: number }> = {
   'Pacote Fiscal':       { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
   'TEF':                 { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
-  'Avant / Imendes':     { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
+  'Avant':               { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
+  'Imendes':             { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
   'Comunicação de Dados':{ valor_referencia: null, comissao_supervisao_pct: 0 },
   'Upgrade de Plano':    { valor_referencia: 350, comissao_supervisao_pct: 5 }, // R$17,50
 };
@@ -114,6 +124,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
   });
 
   fastify.post('/parceiros', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const body = z.object({
       nome: z.string().min(1),
       categoria: z.string().default('OUTRO'),
@@ -130,6 +141,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
   });
 
   fastify.patch('/parceiros/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const { id } = request.params as { id: string };
     const body = z.object({
       nome: z.string().optional(),
@@ -153,6 +165,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
   });
 
   fastify.delete('/parceiros/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const { id } = request.params as { id: string };
     try {
       await prisma.parceiro.update({ where: { id }, data: { ativo: false } });
@@ -231,6 +244,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       cliente_id: z.string().min(1),
       parceiro_id: z.string().min(1),
       vendedor_id: z.string().min(1),
+      tipo_negocio: z.enum(['INDICACAO', 'REVENDA']).default('INDICACAO'),
       valor_venda: z.number().optional(),
       plano_anterior: z.string().optional(),
       plano_novo: z.string().optional(),
@@ -243,7 +257,10 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const parceiro = await prisma.parceiro.findUnique({ where: { id: body.data.parceiro_id } });
     if (!parceiro) return reply.status(404).send({ status: 'error', message: 'Parceiro não encontrado' });
 
-    const comissaoValor = body.data.comissao_valor ?? parceiro.comissao_valor;
+    // Comissão do vendedor: INDICAÇÃO = R$50 fixo; REVENDA = valor do parceiro.
+    // Um valor enviado explicitamente (comissao_valor) sempre prevalece.
+    const comissaoPadrao = body.data.tipo_negocio === 'INDICACAO' ? 50 : parceiro.comissao_valor;
+    const comissaoValor = body.data.comissao_valor ?? comissaoPadrao;
     const supervisaoId = user?.id || null;
 
     // O vendedor que fez a venda: gestão pode escolher qualquer vendedor; um vendedor
