@@ -76,13 +76,19 @@ function proximoMes(): string {
   return `${proximo.getFullYear()}-${String(proximo.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function calcularComissaoSupervisao(parceiro: any, valorVenda?: number | null): number {
+function baseComissaoSupervisao(parceiro: any, valorVenda?: number | null, acrescimoMensal?: number | null): number {
+  // Base do cálculo da comissão da supervisão por categoria:
+  //  - UPGRADE → SETUP do upgrade (valor_venda);
+  //  - FISCAL  → ACRÉSCIMO na mensalidade (acrescimo_mensal);
+  //  - demais  → valor de referência fixo do parceiro (fallback p/ valor_venda).
+  if (parceiro.categoria === 'UPGRADE') return valorVenda ?? 0;
+  if (parceiro.categoria === 'FISCAL') return acrescimoMensal ?? 0;
+  return parceiro.valor_referencia ?? valorVenda ?? 0;
+}
+
+function calcularComissaoSupervisao(parceiro: any, valorVenda?: number | null, acrescimoMensal?: number | null): number {
   if (parceiro.comissao_supervisao_pct <= 0) return 0;
-  // UPGRADE de plano: a comissão da supervisão é 5% sobre o SETUP do upgrade
-  // (valor_venda), não sobre o valor de referência fixo do parceiro.
-  const base = parceiro.categoria === 'UPGRADE'
-    ? (valorVenda ?? 0)
-    : (parceiro.valor_referencia ?? valorVenda ?? 0);
+  const base = baseComissaoSupervisao(parceiro, valorVenda, acrescimoMensal);
   return parseFloat(((base * parceiro.comissao_supervisao_pct) / 100).toFixed(2));
 }
 
@@ -324,6 +330,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       status: z.string().optional(),
       observacoes: z.string().optional(),
       valor_venda: z.number().optional(),
+      acrescimo_mensal: z.number().optional(),
       plano_anterior: z.string().optional(),
       plano_novo: z.string().optional(),
       comissao_paga: z.boolean().optional(),
@@ -349,7 +356,8 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       if (body.data.status === 'CONFIRMADA') {
         const comissaoSupervisao = calcularComissaoSupervisao(
           vendaAtual.parceiro,
-          body.data.valor_venda ?? vendaAtual.valor_venda
+          body.data.valor_venda ?? vendaAtual.valor_venda,
+          body.data.acrescimo_mensal ?? (vendaAtual as any).acrescimo_mensal,
         );
         updateData.comissao_supervisao_valor = comissaoSupervisao;
       }
@@ -380,9 +388,11 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
 
       // Cria ou atualiza comissão da supervisão ao confirmar
       if (body.data.status === 'CONFIRMADA' && vendaAtual.supervisao_id) {
+        const acrescimoMensal = body.data.acrescimo_mensal ?? (vendaAtual as any).acrescimo_mensal;
         const comissaoSupervisao = calcularComissaoSupervisao(
           vendaAtual.parceiro,
-          body.data.valor_venda ?? vendaAtual.valor_venda
+          body.data.valor_venda ?? vendaAtual.valor_venda,
+          acrescimoMensal,
         );
 
         if (comissaoSupervisao > 0) {
@@ -397,9 +407,11 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
                 tipo: 'SUPERVISAO_VENDA_ADICIONAL',
                 referencia_id: id,
                 descricao: `Supervisão — ${vendaAtual.parceiro.nome}: ${vendaAtual.cliente.nome}`,
-                valor_base: vendaAtual.parceiro.categoria === 'UPGRADE'
-                  ? (body.data.valor_venda ?? vendaAtual.valor_venda ?? 0)
-                  : (vendaAtual.parceiro.valor_referencia ?? body.data.valor_venda ?? vendaAtual.valor_venda ?? 0),
+                valor_base: baseComissaoSupervisao(
+                  vendaAtual.parceiro,
+                  body.data.valor_venda ?? vendaAtual.valor_venda,
+                  acrescimoMensal,
+                ),
                 percentual: vendaAtual.parceiro.comissao_supervisao_pct,
                 valor_comissao: comissaoSupervisao,
                 periodo: proximoMes(),
