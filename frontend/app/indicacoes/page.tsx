@@ -148,7 +148,7 @@ export default function IndicacoesPage() {
       const vendList = vends.data.data || [];
       setUsuarios(vendList.length ? vendList : MOCK_VENDEDORES);
     } catch { setClientes([]); setUsuarios(MOCK_VENDEDORES); }
-    setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', plano_anterior: '', plano_novo: '', observacoes: '' });
+    setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', acrescimo_mensal: '', plano_anterior: '', plano_novo: '', observacoes: '' });
     setShowVendaModal(true);
   };
 
@@ -163,6 +163,7 @@ export default function IndicacoesPage() {
         observacoes: vendaForm.observacoes || undefined,
       };
       if (vendaForm.valor_venda) payload.valor_venda = parseFloat(vendaForm.valor_venda);
+      if (vendaForm.acrescimo_mensal) payload.acrescimo_mensal = parseFloat(vendaForm.acrescimo_mensal);
       if (vendaForm.plano_anterior) payload.plano_anterior = vendaForm.plano_anterior;
       if (vendaForm.plano_novo) payload.plano_novo = vendaForm.plano_novo;
 
@@ -515,6 +516,21 @@ export default function IndicacoesPage() {
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500">
                   Indicação fica <b>pendente</b> até o retorno do parceiro — depois você confirma a venda.
+                </p>
+              </div>
+
+              {/* Acréscimo na mensalidade (ex.: Arquivo Fiscal) — soma na mensalidade total do cliente ao confirmar */}
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Acréscimo na mensalidade (R$/mês)
+                  {parceiroSelecionado?.categoria === 'FISCAL' && <span className="text-amber-600"> *</span>}
+                </label>
+                <input type="number" step="0.01" min="0" value={vendaForm.acrescimo_mensal || ''}
+                  onChange={e => setVendaForm((p: any) => ({ ...p, acrescimo_mensal: e.target.value }))}
+                  placeholder="Ex: 80,00"
+                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Valor negociado a mais por mês com o cliente. Soma na <b>mensalidade total</b> da ficha do cliente quando a venda for confirmada.
                 </p>
               </div>
 

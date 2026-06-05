@@ -246,6 +246,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       vendedor_id: z.string().min(1),
       tipo_negocio: z.enum(['INDICACAO', 'REVENDA']).default('INDICACAO'),
       valor_venda: z.number().optional(),
+      acrescimo_mensal: z.number().optional(), // acréscimo na mensalidade (ex.: Arquivo Fiscal)
       plano_anterior: z.string().optional(),
       plano_novo: z.string().optional(),
       comissao_valor: z.number().optional(),
