@@ -75,6 +75,9 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
         data_entrada_lead: dataEntrada,
         tipo_base: tipoBase,
         sistema_anterior: sistemaAnterior,
+        // Prazos-meta p/ nortear o técnico: virada +15 dias, finalização +30 dias da assinatura.
+        prazo_virada: new Date((c.signed_at || new Date()).getTime() + 15 * 86400000),
+        prazo_finalizacao: new Date((c.signed_at || new Date()).getTime() + 30 * 86400000),
       },
     }).catch(() => {});
   }

@@ -163,7 +163,42 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       ).catch(() => []);
     }
 
+    // Implantações com prazo de virada/finalização perto ou estourado (técnico + gestão).
+    let implantacoes_prazo: any[] = [];
+    {
+      const uid = (request as any).user?.id || '__no_user__';
+      const verTudo = !(escNovo.OR || escNovo.responsavel_id);
+      implantacoes_prazo = await prisma.$queryRawUnsafe(
+        `SELECT id, cliente_razao_social, tecnico_id, tecnico_nome, prazo_virada, prazo_finalizacao,
+                data_instalacao, data_conclusao, status
+           FROM Implantacao
+          WHERE status NOT IN ('CANCELADA')
+            AND (
+              (data_instalacao IS NULL AND prazo_virada IS NOT NULL AND prazo_virada <= DATE_ADD(NOW(), INTERVAL 3 DAY))
+              OR (data_conclusao IS NULL AND prazo_finalizacao IS NOT NULL AND prazo_finalizacao <= DATE_ADD(NOW(), INTERVAL 3 DAY))
+            )
+            ${verTudo ? '' : 'AND tecnico_id = ?'}
+          ORDER BY prazo_virada ASC LIMIT 30`,
+        ...(verTudo ? [] : [uid])
+      ).catch(() => []);
+    }
+
     const alertas = [
+      ...implantacoes_prazo.map((i: any) => {
+        const venceVirada = !i.data_instalacao && i.prazo_virada;
+        const alvo = venceVirada ? i.prazo_virada : i.prazo_finalizacao;
+        const dr = Math.ceil((new Date(alvo).getTime() - Date.now()) / 86400000);
+        const oque = venceVirada ? 'virada/instalação' : 'finalização';
+        return {
+          id: `imp-${i.id}`,
+          tipo: 'IMPLANTACAO_PRAZO',
+          urgencia: dr < 0 ? 'ALTA' : 'MEDIA',
+          titulo: dr < 0 ? `Implantação ATRASADA: ${i.cliente_razao_social}` : `Prazo de ${oque} próximo: ${i.cliente_razao_social}`,
+          descricao: dr < 0 ? `${oque} atrasada em ${Math.abs(dr)} dia(s)` : `faltam ${dr} dia(s) para a ${oque}`,
+          data: alvo,
+          link: `/implantacoes`,
+        };
+      }),
       ...novos_atribuidos.map((l: any) => ({
         id: `nl-${l.id}`,
         tipo: 'NOVO_LEAD_RECEBIDO',
