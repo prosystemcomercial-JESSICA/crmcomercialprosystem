@@ -13,6 +13,7 @@ interface Comissao {
   tipo: string;
   descricao?: string;
   cliente?: string | null;
+  responsavel_nome?: string | null;
   valor_base: number;
   percentual: number;
   valor_comissao: number;
@@ -169,7 +170,7 @@ export default function ComissoesPage() {
               nome="comissoes" titulo={`Comissões — ${periodo}`}
               linhas={comissoes}
               colunas={[
-                { header: 'Vendedor', value: (c: Comissao) => nomeVendedor(c.responsavel_id) },
+                { header: 'Vendedor', value: (c: Comissao) => c.responsavel_nome || nomeVendedor(c.responsavel_id) },
                 { header: 'Tipo', value: (c: Comissao) => c.tipo },
                 { header: 'Descrição', value: (c: Comissao) => c.descricao || c.regra?.nome || '' },
                 { header: 'Base (R$)', value: (c: Comissao) => c.valor_base },
@@ -359,10 +360,10 @@ export default function ComissoesPage() {
               {resumo.map((r: any) => (
                 <div key={r.responsavel_id} className="flex items-center gap-4">
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm flex-shrink-0">
-                    {nomeVendedor(r.responsavel_id).charAt(0)}
+                    {(r.responsavel_nome || nomeVendedor(r.responsavel_id)).charAt(0)}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{nomeVendedor(r.responsavel_id)}</p>
+                    <p className="text-sm font-medium text-gray-900">{r.responsavel_nome || nomeVendedor(r.responsavel_id)}</p>
                     <p className="text-xs text-gray-500">{r.count} registros</p>
                   </div>
                   <div className="text-right">
@@ -401,7 +402,7 @@ export default function ComissoesPage() {
               <tbody className="divide-y divide-gray-100">
                 {comissoes.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-4 text-sm font-medium text-gray-900">{nomeVendedor(c.responsavel_id)}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-gray-900">{c.responsavel_nome || nomeVendedor(c.responsavel_id)}</td>
                     <td className="px-5 py-4 text-sm font-semibold text-gray-800">{c.cliente || '—'}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">

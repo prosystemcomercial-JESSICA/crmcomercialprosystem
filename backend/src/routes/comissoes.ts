@@ -236,14 +236,27 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       include: { regra: true },
       orderBy: { created_at: 'desc' }
     });
-    // Anexa a razão social do cliente de cada comissão (em vez do id do contrato).
+    // Anexa a razão social do cliente e o NOME do responsável (vendedor/supervisão)
+    // de cada comissão — em vez de mostrar o id ou "system".
     const clienteDe = await mapaClientes(comissoesRaw as any[]);
-    const comissoes = comissoesRaw.map((c: any) => ({ ...c, cliente: clienteDe[c.referencia_id || ''] || null }));
+    const respIds = [...new Set(comissoesRaw.map((c: any) => c.responsavel_id).filter(Boolean))];
+    const nomeDe: Record<string, string> = {};
+    if (respIds.length) {
+      const us: any[] = await prisma.$queryRawUnsafe(
+        `SELECT id, nome FROM UsuarioCRM WHERE id IN (${respIds.map(() => '?').join(',')})`, ...respIds
+      ).catch(() => []);
+      us.forEach(u => { nomeDe[u.id] = u.nome; });
+    }
+    const comissoes = comissoesRaw.map((c: any) => ({
+      ...c,
+      cliente: clienteDe[c.referencia_id || ''] || null,
+      responsavel_nome: nomeDe[c.responsavel_id] || null,
+    }));
 
     // Agrupado por responsável
     const por_responsavel = comissoes.reduce((acc: any, c) => {
       if (!acc[c.responsavel_id]) {
-        acc[c.responsavel_id] = { responsavel_id: c.responsavel_id, total: 0, pendente: 0, pago: 0, count: 0 };
+        acc[c.responsavel_id] = { responsavel_id: c.responsavel_id, responsavel_nome: nomeDe[c.responsavel_id] || null, total: 0, pendente: 0, pago: 0, count: 0 };
       }
       acc[c.responsavel_id].total += c.valor_comissao;
       acc[c.responsavel_id].count += 1;
