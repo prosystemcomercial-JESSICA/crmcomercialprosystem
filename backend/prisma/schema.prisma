@@ -1295,6 +1295,7 @@ model VendaAdicional {
   vendedor_nome   String?  // nome do vendedor que fez a venda (exibição)
   supervisao_id   String?  // quem registrou (supervisor que faz o cadastro)
 
+  tipo_negocio    String   @default("INDICACAO") // INDICACAO | REVENDA
   valor_venda     Float?
   plano_anterior  String?
   plano_novo      String?

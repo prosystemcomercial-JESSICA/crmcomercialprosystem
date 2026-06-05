@@ -22,6 +22,7 @@ interface VendaAdicional {
   parceiro_id: string;
   vendedor_id: string;
   vendedor_nome?: string;
+  tipo_negocio?: string;
   valor_venda?: number;
   plano_anterior?: string;
   plano_novo?: string;
@@ -38,7 +39,7 @@ interface VendaAdicional {
 const CATEGORIA_LABEL: Record<string, string> = {
   FISCAL: 'Fiscal',
   TEF: 'TEF',
-  TRIBUTARIO: 'Tributário',
+  TRIBUTARIO: 'Corretor Tributário',
   COMUNICACAO: 'Comunicação',
   UPGRADE: 'Upgrade',
   OUTRO: 'Outro',
@@ -147,7 +148,7 @@ export default function IndicacoesPage() {
       const vendList = vends.data.data || [];
       setUsuarios(vendList.length ? vendList : MOCK_VENDEDORES);
     } catch { setClientes([]); setUsuarios(MOCK_VENDEDORES); }
-    setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', valor_venda: '', plano_anterior: '', plano_novo: '', observacoes: '' });
+    setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', plano_anterior: '', plano_novo: '', observacoes: '' });
     setShowVendaModal(true);
   };
 
@@ -158,6 +159,7 @@ export default function IndicacoesPage() {
         cliente_id: vendaForm.cliente_id,
         parceiro_id: vendaForm.parceiro_id,
         vendedor_id: vendaForm.vendedor_id,
+        tipo_negocio: vendaForm.tipo_negocio || 'INDICACAO',
         observacoes: vendaForm.observacoes || undefined,
       };
       if (vendaForm.valor_venda) payload.valor_venda = parseFloat(vendaForm.valor_venda);
@@ -321,11 +323,17 @@ export default function IndicacoesPage() {
                           {v.cliente.empresa && <p className="text-xs text-gray-400">{v.cliente.empresa}</p>}
                         </td>
                         <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORIA_COLOR[v.parceiro.categoria] || 'bg-gray-100 text-gray-600'}`}>
                               {CATEGORIA_LABEL[v.parceiro.categoria] || v.parceiro.categoria}
                             </span>
                             <span className="text-sm text-gray-700">{v.parceiro.nome}</span>
+                            {(v as any).tipo_negocio && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                style={{ background: (v as any).tipo_negocio === 'REVENDA' ? '#dcfce7' : '#fef3c7', color: (v as any).tipo_negocio === 'REVENDA' ? '#16a34a' : '#d97706' }}>
+                                {(v as any).tipo_negocio === 'REVENDA' ? 'Revenda' : 'Indicação'}
+                              </span>
+                            )}
                           </div>
                           {v.plano_anterior && v.plano_novo && (
                             <p className="text-xs text-gray-400 mt-0.5">{v.plano_anterior} → {v.plano_novo}</p>
@@ -388,12 +396,14 @@ export default function IndicacoesPage() {
         {/* Tab: Parceiros */}
         {tab === 'parceiros' && (
           <div className="space-y-4">
-            <div className="flex justify-end">
-              <button onClick={openNovoParceiro}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                + Novo Parceiro
-              </button>
-            </div>
+            {isGestor && (
+              <div className="flex justify-end">
+                <button onClick={openNovoParceiro}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                  + Nova empresa parceira
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {parceiros.map(p => (
@@ -467,8 +477,13 @@ export default function IndicacoesPage() {
                 <select value={vendaForm.parceiro_id} onChange={e => setVendaForm((p: any) => ({ ...p, parceiro_id: e.target.value, plano_anterior: '', plano_novo: '' }))}
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Selecione...</option>
-                  {parceiros.map(p => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
+                  {/* Agrupado por categoria: ex. Corretor Tributário → Avant, Imendes; TEF → parceiros de TEF */}
+                  {Object.entries(parceiros.reduce((acc: Record<string, Parceiro[]>, p) => {
+                    (acc[p.categoria] = acc[p.categoria] || []).push(p); return acc;
+                  }, {})).map(([cat, lista]) => (
+                    <optgroup key={cat} label={CATEGORIA_LABEL[cat] || cat}>
+                      {(lista as Parceiro[]).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                    </optgroup>
                   ))}
                 </select>
                 {parceiroSelecionado?.pitch && (
@@ -480,6 +495,27 @@ export default function IndicacoesPage() {
                     {parceiroSelecionado.tabela_valores && ` · ${parceiroSelecionado.tabela_valores}`}
                   </p>
                 )}
+              </div>
+
+              {/* Tipo do negócio: Indicação (R$50) ou Revenda (valor do parceiro) */}
+              <div>
+                <label className="text-sm font-medium text-gray-700">Tipo do negócio *</label>
+                <div className="flex gap-2 mt-1">
+                  {[['INDICACAO', 'Indicação', 'Comissão R$ 50'], ['REVENDA', 'Revenda', 'Comissão do parceiro']].map(([val, label, hint]) => {
+                    const ativo = (vendaForm.tipo_negocio || 'INDICACAO') === val;
+                    return (
+                      <button key={val} type="button" onClick={() => setVendaForm((p: any) => ({ ...p, tipo_negocio: val }))}
+                        className="flex-1 px-3 py-2 rounded-lg border text-sm text-left transition-colors"
+                        style={{ borderColor: ativo ? '#2563eb' : '#e5e7eb', background: ativo ? '#eff6ff' : '#fff' }}>
+                        <div className="font-semibold" style={{ color: ativo ? '#2563eb' : '#374151' }}>{label}</div>
+                        <div className="text-[10px] text-gray-500">{hint}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Indicação fica <b>pendente</b> até o retorno do parceiro — depois você confirma a venda.
+                </p>
               </div>
 
               <div>
