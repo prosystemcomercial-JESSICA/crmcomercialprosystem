@@ -435,12 +435,44 @@ export default function PropostasComerciais() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleWpp = (p: PropostaComercial) => {
-    const tel = (p.vendedor_telefone || '').replace(/\D/g, '');
-    const msg = encodeURIComponent(
-      `Olá, quero aceitar a proposta da Prosystem para ${p.razao_social}. Podemos dar sequência. ` +
-      `Seguem meus dados: Nome completo, CPF e e-mail.`
-    );
+  // Resumo da proposta formatado para WhatsApp (negrito com *asterisco*, sem emojis).
+  const resumoPropostaWhats = (p: PropostaComercial): string => {
+    const nome = p.responsavel_nome ? p.responsavel_nome.split(' ')[0] : '';
+    // Mensalidade-destaque: Plus (recomendado) com fallback ao Pro.
+    const mensalidade = (p.mensalidade_plus && p.mensalidade_plus > 0) ? p.mensalidade_plus
+      : (p.mensalidade_pro && p.mensalidade_pro > 0 ? p.mensalidade_pro : undefined);
+    const validade = p.validade ? new Date(p.validade).toLocaleDateString('pt-BR') : null;
+
+    const linhas: (string | null)[] = [
+      nome ? `Olá, ${nome}! Tudo bem?` : 'Olá! Tudo bem?',
+      '',
+      `Segue o resumo da proposta da *Prosystem* para *${p.razao_social}*:`,
+      '',
+      p.plano_selecionado ? `*Plano:* ${p.plano_selecionado}` : null,
+      mensalidade != null ? `*Mensalidade:* ${fmtBRL(mensalidade)}/mês` : null,
+      p.valor_final != null ? `*Implantação:* ${fmtBRL(p.valor_final)}` : null,
+      (p.parcelas && p.valor_parcela)
+        ? `*Parcelamento:* ${p.parcelas}x de ${fmtBRL(p.valor_parcela)}`
+        : (p.entrada ? `*Entrada:* ${fmtBRL(p.entrada)}` : null),
+      validade ? `*Validade:* ${validade}` : null,
+      '',
+      'Acesse a proposta completa pelo link:',
+      p.public_token ? propostaLink(p, 'cliente') : null,
+      '',
+      'Qualquer dúvida, estou à disposição!',
+      p.vendedor_nome ? p.vendedor_nome : null,
+    ];
+    return linhas.filter(l => l !== null).join('\n');
+  };
+
+  // Envia o resumo da proposta para o WhatsApp DO CLIENTE.
+  const handleWppCliente = (p: PropostaComercial) => {
+    const tel = (p.responsavel_telefone || '').replace(/\D/g, '');
+    if (!tel) {
+      alert('Cliente sem telefone/WhatsApp cadastrado na proposta.');
+      return;
+    }
+    const msg = encodeURIComponent(resumoPropostaWhats(p));
     window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
   };
 
@@ -664,8 +696,8 @@ export default function PropostasComerciais() {
                               <Copy size={13} />
                             </button>
                           )}
-                          {p.vendedor_telefone && (
-                            <button onClick={() => handleWpp(p)} title="Enviar WhatsApp"
+                          {p.responsavel_telefone && (
+                            <button onClick={() => handleWppCliente(p)} title="Enviar resumo da proposta no WhatsApp do cliente"
                               style={{ padding: 5, borderRadius: 6, color: '#16a34a', background: '#dcfce7', border: 'none', cursor: 'pointer' }}>
                               <MessageSquare size={13} />
                             </button>
@@ -1297,8 +1329,9 @@ export default function PropostasComerciais() {
                     <Eye size={12} /> Ver Proposta
                   </button>
                 )}
-                {previewProposta.vendedor_telefone && (
-                  <button onClick={() => handleWpp(previewProposta)}
+                {previewProposta.responsavel_telefone && (
+                  <button onClick={() => handleWppCliente(previewProposta)}
+                    title="Enviar resumo da proposta para o WhatsApp do cliente"
                     className="flex items-center gap-1.5"
                     style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', background: '#16a34a', color: '#fff', cursor: 'pointer' }}>
                     <MessageSquare size={12} /> WhatsApp
