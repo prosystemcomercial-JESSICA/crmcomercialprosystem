@@ -415,23 +415,30 @@ export function gerarContratoPdf(c: ContratoPdfData): Promise<Buffer> {
 
     { text: dataLocal(c), alignment: 'right', margin: [0, 18, 0, 30] as [number, number, number, number], fontSize: 10 },
 
-    // Bloco de assinaturas — espaço amplo acima de cada linha para assinar à mão.
-    { text: '___________________________________________________________', alignment: 'center', margin: [0, 50, 0, 0] as [number, number, number, number] },
-    { text: CONTRATADA.razao, alignment: 'center', bold: true, fontSize: 10 },
-    { text: `${CONTRATADA.representante} - CPF: ${CONTRATADA.representante_cpf}`, alignment: 'center', fontSize: 10 },
-    { text: 'CONTRATADA', alignment: 'center', fontSize: 10, margin: [0, 0, 0, 50] as [number, number, number, number] },
-
-    { text: '___________________________________________________________', alignment: 'center', margin: [0, 50, 0, 0] as [number, number, number, number] },
-    { text: c.razao_social, alignment: 'center', bold: true, fontSize: 10 },
+    // Bloco de assinaturas: mantido junto (unbreakable) com um respiro no topo, para
+    // a 1ª assinatura nunca ficar colada no cabeçalho ao cair em página nova.
     {
-      text: `${c.representante_nome || ''}${c.representante_cpf ? ` - CPF: ${c.representante_cpf}` : ''}`,
-      alignment: 'center', fontSize: 10,
-    },
-    { text: 'CONTRATANTE', alignment: 'center', fontSize: 10, margin: [0, 0, 0, 40] as [number, number, number, number] },
+      unbreakable: true,
+      stack: [
+        { text: ' ', margin: [0, 24, 0, 0] as [number, number, number, number] }, // respiro do topo
+        { text: '___________________________________________________________', alignment: 'center', margin: [0, 40, 0, 0] as [number, number, number, number] },
+        { text: CONTRATADA.razao, alignment: 'center', bold: true, fontSize: 10 },
+        { text: `${CONTRATADA.representante} - CPF: ${CONTRATADA.representante_cpf}`, alignment: 'center', fontSize: 10 },
+        { text: 'CONTRATADA', alignment: 'center', fontSize: 10, margin: [0, 0, 0, 50] as [number, number, number, number] },
 
-    { text: 'TESTEMUNHAS:', alignment: 'center', margin: [0, 24, 0, 14] as [number, number, number, number], fontSize: 10 },
-    { text: '_____________________________', alignment: 'center', margin: [0, 18, 0, 0] as [number, number, number, number] },
-    { text: '_____________________________', alignment: 'center', margin: [0, 18, 0, 0] as [number, number, number, number] },
+        { text: '___________________________________________________________', alignment: 'center', margin: [0, 50, 0, 0] as [number, number, number, number] },
+        { text: c.razao_social, alignment: 'center', bold: true, fontSize: 10 },
+        {
+          text: `${c.representante_nome || ''}${c.representante_cpf ? ` - CPF: ${c.representante_cpf}` : ''}`,
+          alignment: 'center', fontSize: 10,
+        },
+        { text: 'CONTRATANTE', alignment: 'center', fontSize: 10, margin: [0, 0, 0, 40] as [number, number, number, number] },
+
+        { text: 'TESTEMUNHAS:', alignment: 'center', margin: [0, 24, 0, 14] as [number, number, number, number], fontSize: 10 },
+        { text: '_____________________________', alignment: 'center', margin: [0, 18, 0, 0] as [number, number, number, number] },
+        { text: '_____________________________', alignment: 'center', margin: [0, 18, 0, 0] as [number, number, number, number] },
+      ],
+    },
   ];
 
   const docDefinition = {
