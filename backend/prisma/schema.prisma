@@ -1021,6 +1021,10 @@ model Implantacao {
   mes_pagamento_comissao   String?   // "YYYY-MM" = mês do 1º vencimento + 1
   observacoes              String?   @db.Text
 
+  // Tipo da base (vem da proposta): banco zerado (nova instalação) ou conversão.
+  tipo_base                String?   // BANCO_ZERADO | CONVERSAO
+  sistema_anterior         String?   // se CONVERSAO: de qual sistema vem
+
   // ─── Execução técnica da implantação ───────────────────────────
   tecnico_id               String?   // técnico de implantação designado
   tecnico_nome             String?
@@ -1104,6 +1108,7 @@ model ImplantacaoChecklistItem {
   id             String      @id @default(cuid())
   implantacao_id String
   implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  grupo          String      @default("INSTALACAO") // INSTALACAO | CONVERSAO | TREINAMENTO
   titulo         String
   feito          Boolean     @default(false)
   ordem          Int         @default(0)

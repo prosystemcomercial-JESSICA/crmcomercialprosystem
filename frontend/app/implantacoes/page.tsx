@@ -32,6 +32,12 @@ const STATUS: Record<string, { label: string; color: string; bg: string }> = {
   CANCELADA:             { label: 'Cancelada',             color: '#9ca3af', bg: '#f3f4f6' },
 };
 
+const GRUPO_LABEL: Record<string, string> = {
+  INSTALACAO: 'Instalação do Sistema',
+  CONVERSAO: 'Conversão de Dados',
+  TREINAMENTO: 'Treinamento',
+};
+
 const fmtBRL = (v?: number | null) => v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtData = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 const fmtMes = (m?: string) => {
@@ -57,6 +63,7 @@ export default function ImplantacoesPage() {
   const [novaNota, setNovaNota] = useState('');
   const [novoArq, setNovoArq] = useState<{ nome: string; tipo: string; url: string }>({ nome: '', tipo: 'LINK', url: '' });
   const [novoChk, setNovoChk] = useState('');
+  const [novoChkGrupo, setNovoChkGrupo] = useState('');
 
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading, router]);
 
@@ -110,7 +117,7 @@ export default function ImplantacoesPage() {
   const setTeste = async (testeId: string, resultado: string) => { await apiClient.updateTesteImplantacao(testeId, { resultado }); await recarregarExec(); };
   const addArquivo = async () => { if (exec && novoArq.nome && novoArq.url) { await apiClient.addArquivoImplantacao(exec.id, novoArq); setNovoArq({ nome: '', tipo: 'LINK', url: '' }); await recarregarExec(); } };
   const delArquivo = async (aid: string) => { await apiClient.delArquivoImplantacao(aid); await recarregarExec(); };
-  const addChk = async () => { if (exec && novoChk.trim()) { await apiClient.addChecklistImplantacao(exec.id, novoChk.trim()); setNovoChk(''); await recarregarExec(); } };
+  const addChk = async (grupo: string) => { if (exec && novoChk.trim()) { await apiClient.addChecklistImplantacao(exec.id, novoChk.trim(), grupo); setNovoChk(''); setNovoChkGrupo(''); await recarregarExec(); } };
   const toggleChk = async (itemId: string, feito: boolean) => { await apiClient.toggleChecklistImplantacao(itemId, feito); await recarregarExec(); };
 
   const salvar = async () => {
@@ -262,6 +269,18 @@ export default function ImplantacoesPage() {
                   <div>
                     <div style={{ fontWeight: 800, color: 'var(--t-text-primary)', fontSize: 16 }}>{exec.cliente_razao_social}</div>
                     <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{exec.plano || '—'} · Setup {fmtBRL(exec.valor_setup)}</div>
+                    {/* Tipo da base: banco zerado x conversão (vem da proposta) */}
+                    {exec.tipo_base && (
+                      <div className="mt-1">
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                          background: exec.tipo_base === 'CONVERSAO' ? '#fef3c7' : '#dcfce7',
+                          color: exec.tipo_base === 'CONVERSAO' ? '#d97706' : '#16a34a' }}>
+                          {exec.tipo_base === 'CONVERSAO'
+                            ? `Conversão de dados${exec.sistema_anterior ? ` · de ${exec.sistema_anterior}` : ''}`
+                            : 'Banco zerado (nova instalação)'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <button onClick={() => setExec(null)}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
                 </div>
@@ -376,19 +395,34 @@ export default function ImplantacoesPage() {
 
                 {/* CHECKLIST */}
                 {execTab === 'checklist' && (
-                  <div>
-                    <div className="flex gap-2 mb-3">
-                      <input value={novoChk} onChange={e => setNovoChk(e.target.value)} placeholder="Nova tarefa…" className="ps-input flex-1" />
-                      <button onClick={addChk} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#2E6EAB', color: '#fff', border: 'none', cursor: 'pointer' }}>+</button>
-                    </div>
-                    <div className="space-y-1.5">
-                      {(exec.checklist || []).map((c: any) => (
-                        <label key={c.id} className="flex items-center gap-2" style={{ cursor: 'pointer', padding: 6 }}>
-                          <input type="checkbox" checked={c.feito} onChange={e => toggleChk(c.id, e.target.checked)} />
-                          <span style={{ fontSize: 13, color: 'var(--t-text-primary)', textDecoration: c.feito ? 'line-through' : 'none', opacity: c.feito ? .6 : 1 }}>{c.titulo}</span>
-                        </label>
-                      ))}
-                    </div>
+                  <div className="space-y-5">
+                    {(exec.grupos || []).map((g: any) => (
+                      <div key={g.grupo}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-text-primary)' }}>{GRUPO_LABEL[g.grupo] || g.grupo}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: g.progresso === 100 ? '#16a34a' : '#2E6EAB' }}>{g.progresso}% · {g.feitos}/{g.total}</span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 999, background: 'var(--t-card-border)', marginBottom: 8, overflow: 'hidden' }}>
+                          <div style={{ width: `${g.progresso}%`, height: '100%', background: g.progresso === 100 ? '#16a34a' : '#2E6EAB' }} />
+                        </div>
+                        <div className="space-y-1">
+                          {g.itens.map((c: any) => (
+                            <label key={c.id} className="flex items-start gap-2" style={{ cursor: 'pointer', padding: '3px 4px' }}>
+                              <input type="checkbox" checked={c.feito} onChange={e => toggleChk(c.id, e.target.checked)} style={{ marginTop: 3 }} />
+                              <span style={{ fontSize: 12.5, color: 'var(--t-text-primary)', textDecoration: c.feito ? 'line-through' : 'none', opacity: c.feito ? .55 : 1 }}>{c.titulo}</span>
+                            </label>
+                          ))}
+                          <div className="flex gap-2 mt-1.5">
+                            <input value={novoChkGrupo === g.grupo ? novoChk : ''} onFocus={() => setNovoChkGrupo(g.grupo)} onChange={e => { setNovoChkGrupo(g.grupo); setNovoChk(e.target.value); }}
+                              placeholder="Adicionar item…" className="ps-input flex-1" style={{ fontSize: 12 }} />
+                            <button onClick={() => addChk(g.grupo)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#2E6EAB', color: '#fff', border: 'none', cursor: 'pointer' }}>+</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {(!exec.grupos || exec.grupos.length === 0) && (
+                      <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Designe um técnico para gerar a trilha de implantação (Instalação, Conversão e Treinamento).</p>
+                    )}
                   </div>
                 )}
               </div>
