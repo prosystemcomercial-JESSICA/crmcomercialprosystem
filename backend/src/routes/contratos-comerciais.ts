@@ -425,6 +425,46 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     return reply.send({ status: 'ok', data: c });
   });
 
+  // ── DADOS PARA REVISÃO: contrato com campos VAZIOS completados a partir do lead
+  //    de origem (casado por CNPJ). Não grava nada — só sugere o preenchimento.
+  fastify.get('/contratos-comerciais/:id/dados-revisao', async (request, reply) => {
+    const { id } = request.params as any;
+    const c = await prisma.contratoComercial.findUnique({ where: { id } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
+
+    const dados: any = { ...c };
+    const cnpjDigits = (c.cnpj || '').replace(/\D/g, '');
+    if (cnpjDigits) {
+      const candidatos = await prisma.lead.findMany({
+        where: { cnpj: { not: null }, deleted_at: null },
+        select: {
+          cnpj: true, razao_social: true, nome_fantasia: true, cidade: true, estado: true,
+          endereco: true,
+          responsavel_nome: true, responsavel_cpf: true, responsavel_email: true,
+          responsavel_telefone: true, responsavel_cargo: true,
+        },
+        take: 2000,
+      }).catch(() => [] as any[]);
+      const lead: any = candidatos.find((l: any) => (l.cnpj || '').replace(/\D/g, '') === cnpjDigits);
+      if (lead) {
+        // Mapa lead → campos do contrato; preenche só onde o contrato está vazio.
+        const map: Record<string, any> = {
+          razao_social: lead.razao_social, nome_fantasia: lead.nome_fantasia,
+          cidade: lead.cidade, estado: lead.estado, endereco: lead.endereco,
+          representante_nome: lead.responsavel_nome, representante_cpf: lead.responsavel_cpf,
+          representante_email: lead.responsavel_email, representante_telefone: lead.responsavel_telefone,
+          representante_cargo: lead.responsavel_cargo,
+        };
+        for (const [campo, val] of Object.entries(map)) {
+          if ((dados[campo] === null || dados[campo] === undefined || dados[campo] === '') && val) {
+            dados[campo] = val;
+          }
+        }
+      }
+    }
+    return reply.send({ status: 'ok', data: dados });
+  });
+
   // ── CREATE
   fastify.post('/contratos-comerciais', async (request, reply) => {
     const parse = CreateContratoSchema.safeParse(request.body);
@@ -816,8 +856,9 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const { numero, seq, ano } = await gerarNumeroContrato(prisma);
 
     const setupAVista = !p.parcelas || p.parcelas <= 1;
-    // Instalação (cláusula 3.5) = valor de implantação da proposta (NÃO o valor_final, que é o total do negócio).
-    const valorInstalacao = p.valor_implantacao ?? undefined;
+    // Instalação (cláusula 3.5) = VALOR FINAL negociado (o "valor especial negociado"
+    // da proposta = implantação + conversão − desconto). Fallback p/ valor_implantacao.
+    const valorInstalacao = p.valor_final ?? p.valor_implantacao ?? undefined;
 
     // Rastreabilidade: o contrato HERDA o id da proposta de origem.
     // Se já existir um registro com esse id (regerar), cai no cuid() padrão.

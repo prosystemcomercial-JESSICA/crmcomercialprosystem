@@ -171,7 +171,9 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     const mrr = planoFinal === 'PRO'
       ? Number(p.mensalidade_pro || 0)
       : Number(p.mensalidade_plus || p.mensalidade_pro || 0);
-    const inst = Number(p.valor_implantacao ?? p.valor_final ?? 0);
+    // Setup/instalação do contrato = VALOR FINAL negociado (implantação + conversão − desconto),
+    // que é o "valor especial negociado" mostrado na proposta. Fallback p/ valor_implantacao.
+    const inst = Number(p.valor_final ?? p.valor_implantacao ?? 0);
     const agora = new Date();
 
     if (!jaAceita) {
