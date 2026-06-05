@@ -566,6 +566,11 @@ class ApiClient {
     return this.client.get(`/contratos-comerciais/${id}/preview`);
   }
 
+  // Dados para revisão: contrato com campos vazios completados pelo lead de origem.
+  async getContratoDadosRevisao(id: string) {
+    return this.client.get(`/contratos-comerciais/${id}/dados-revisao`);
+  }
+
   async enviarContratoZapSign(id: string) {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);
   }
