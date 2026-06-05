@@ -17,7 +17,68 @@ import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 
 const ETAPAS_EXEC = ['AGUARDANDO_DESIGNACAO', 'DESIGNADO', 'EM_ANALISE', 'EM_CONVERSAO', 'EM_CONFIGURACAO', 'EM_TREINAMENTO', 'FINALIZADO'];
 const TESTES_PADRAO = ['Produtos', 'Clientes', 'Fornecedores', 'Estoque', 'Financeiro (a pagar/receber)', 'Fiscal / NF-e', 'Vendas / Histórico'];
-const CHECKLIST_PADRAO = ['Backup da base anterior', 'Instalação do sistema', 'Conversão de dados', 'Conferência de saldos', 'Configuração fiscal', 'Configuração de impressoras', 'Treinamento agendado', 'Go-live acompanhado'];
+
+// Trilha real de implantação (Trello) — 3 grupos com os itens do técnico.
+const CHECKLIST_GRUPOS: { grupo: string; itens: string[] }[] = [
+  {
+    grupo: 'INSTALACAO',
+    itens: [
+      'Instalação do servidor, terminais e Caixa',
+      'Configuração de Balança, gaveta',
+      'Configuração de impressora NFCE',
+      'Configurar Uninfe e Certificado',
+      'Configurar Gerencial',
+      'Configurar o Copy (backup) Interno e Externo (Nuvem)',
+      'Configurar o Connect (Comunicação entre filiais)',
+      'Testar Cadastro de Clientes',
+      'Teste de Cadastro de Produtos, verificar dados obrigatórios',
+      'Teste de Movimentação - Entrada, Emissão de nota e Cancelamento',
+      'Teste Financeiro - movimentação',
+      'Validar relatórios 100% atualizados',
+      'Instalar e Configurar Farmácias APP',
+      'Emitir uma nota de saída NFCE em Operação',
+    ],
+  },
+  {
+    grupo: 'CONVERSAO',
+    itens: [
+      'Instalação do Banco de Dados',
+      'Limpar tabelas para receber a nova versão',
+      'Conversão dos dados do sistema X para Prosystem',
+      'Validar Produtos (cód. barras, estoque, tributação, registro MS, custo, venda, lucro, promoção...)',
+      'Validar Clientes (endereço completo, RG, CPF, crediário, limite de crédito)',
+      'Validar Cadastro de Empresas e Prescritores',
+      'Financeiro (plano de contas, contas a pagar/receber, dados de cartões)',
+      'Movimentação (entrada, saída, verificar última nota NFE/NFCE)',
+      'Gerar SPED Fiscal para validação de valores',
+      'Incluir sequência das últimas 10 NFE emitidas na NFE_NUMERACAO',
+    ],
+  },
+  {
+    grupo: 'TREINAMENTO',
+    itens: [
+      'Configuração de Acesso padrão para Funcionários',
+      'Movimentação - Entrada / Saída de nota',
+      'Produtos - Cadastro',
+      'Financeiro - Plano de Contas',
+      'PDV - Pré-Venda / Orçamento',
+      'Emissão de Cupom Fiscal NFCE',
+      'PDV - Devolução',
+      'PDV - NFE Acobertamento',
+      'Fechamento de caixa',
+      'Crediário / Convênio',
+      'Sugestão de compras (Curva ABC) — ou apresentar a ferramenta',
+      'Controlados / Receitas - Controle SNGPC',
+      'Comunicação entre Filiais',
+      'Controle de Estoque',
+      'Metas de Funcionários',
+      'PBM',
+      'Recarga de celular - RV',
+      'Prosystem Gerencial',
+      'Ofertar o Imendes',
+    ],
+  },
+];
 
 function dias(a?: Date | string | null, b?: Date | string | null): number | null {
   if (!a || !b) return null;
@@ -75,7 +136,26 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
       treinamento_dias: dias(imp.treinamento_inicio, imp.treinamento_fim),
       total_dias: dias(imp.data_entrada_lead || imp.data_assinatura, imp.data_conclusao || new Date()),
     };
-    return reply.send({ status: 'success', data: { ...imp, trilha } });
+
+    // Progresso por grupo da trilha (Instalação / Conversão / Treinamento).
+    const ordemGrupos = ['INSTALACAO', 'CONVERSAO', 'TREINAMENTO'];
+    const grupos = ordemGrupos.map(g => {
+      const itens = (imp.checklist || []).filter((c: any) => (c.grupo || 'INSTALACAO') === g);
+      const feitos = itens.filter((c: any) => c.feito).length;
+      return {
+        grupo: g,
+        itens,
+        total: itens.length,
+        feitos,
+        progresso: itens.length ? Math.round((feitos / itens.length) * 100) : 0,
+      };
+    }).filter(g => g.total > 0);
+
+    const totalItens = (imp.checklist || []).length;
+    const totalFeitos = (imp.checklist || []).filter((c: any) => c.feito).length;
+    const progresso_geral = totalItens ? Math.round((totalFeitos / totalItens) * 100) : 0;
+
+    return reply.send({ status: 'success', data: { ...imp, trilha, grupos, progresso_geral } });
   });
 
   // ── INFORMAR datas comerciais (instalação + 1º vencimento) — gestão
@@ -88,6 +168,8 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
       data_agendada: z.string().optional(),
       data_entrada_lead: z.string().optional(),
       status: z.enum(['AGUARDANDO_INSTALACAO', 'AGENDADA', 'INSTALADO', 'CANCELADA']).optional(),
+      tipo_base: z.enum(['BANCO_ZERADO', 'CONVERSAO']).optional(),
+      sistema_anterior: z.string().optional(),
       observacoes: z.string().optional(),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
@@ -100,10 +182,14 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
       observacoes: d.observacoes,
     });
     if (!atualizada) return reply.status(404).send({ status: 'error', message: 'Implantação não encontrada' });
-    if (d.data_entrada_lead) {
-      await prisma.implantacao.update({ where: { id }, data: { data_entrada_lead: new Date(d.data_entrada_lead) } }).catch(() => {});
+    const extra: any = {};
+    if (d.data_entrada_lead) extra.data_entrada_lead = new Date(d.data_entrada_lead);
+    if (d.tipo_base) extra.tipo_base = d.tipo_base;
+    if (d.sistema_anterior !== undefined) extra.sistema_anterior = d.sistema_anterior;
+    if (Object.keys(extra).length) {
+      await prisma.implantacao.update({ where: { id }, data: extra }).catch(() => {});
     }
-    return reply.send({ status: 'success', data: atualizada });
+    return reply.send({ status: 'success', data: { ...atualizada, ...extra } });
   });
 
   // ── DESIGNAR técnico (gestão) — cria checklist/testes padrão na primeira vez
@@ -135,7 +221,10 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     }
     const temChk = await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id } });
     if (temChk === 0) {
-      await prisma.implantacaoChecklistItem.createMany({ data: CHECKLIST_PADRAO.map((titulo, i) => ({ implantacao_id: id, titulo, ordem: i })) }).catch(() => {});
+      // Semeia a trilha completa (3 grupos: Instalação, Conversão, Treinamento).
+      const itens: any[] = [];
+      CHECKLIST_GRUPOS.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i })));
+      await prisma.implantacaoChecklistItem.createMany({ data: itens }).catch(() => {});
     }
     await registrarAtividade(prisma, id, 'DESIGNACAO', `Designado ao técnico ${tecnico.nome}`, ator, null, 'DESIGNADO');
     return reply.send({ status: 'success', data: imp });
@@ -238,10 +327,15 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
   // ── CHECKLIST (marcar item, adicionar)
   fastify.post('/implantacoes/:id/checklist', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = z.object({ titulo: z.string().min(1) }).safeParse(request.body);
+    const body = z.object({
+      titulo: z.string().min(1),
+      grupo: z.enum(['INSTALACAO', 'CONVERSAO', 'TREINAMENTO']).default('INSTALACAO'),
+    }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Título obrigatório' });
-    const ordem = await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id } });
-    const item = await prisma.implantacaoChecklistItem.create({ data: { implantacao_id: id, titulo: body.data.titulo, ordem } });
+    const ordem = await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id, grupo: body.data.grupo } });
+    const item = await prisma.implantacaoChecklistItem.create({
+      data: { implantacao_id: id, grupo: body.data.grupo, titulo: body.data.titulo, ordem },
+    });
     return reply.status(201).send({ status: 'success', data: item });
   });
 

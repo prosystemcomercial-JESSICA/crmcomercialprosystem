@@ -780,8 +780,8 @@ class ApiClient {
   async delArquivoImplantacao(arquivoId: string) {
     return this.client.delete(`/implantacoes/arquivos/${arquivoId}`);
   }
-  async addChecklistImplantacao(id: string, titulo: string) {
-    return this.client.post(`/implantacoes/${id}/checklist`, { titulo });
+  async addChecklistImplantacao(id: string, titulo: string, grupo?: string) {
+    return this.client.post(`/implantacoes/${id}/checklist`, { titulo, grupo });
   }
   async toggleChecklistImplantacao(itemId: string, feito: boolean) {
     return this.client.patch(`/implantacoes/checklist/${itemId}`, { feito });

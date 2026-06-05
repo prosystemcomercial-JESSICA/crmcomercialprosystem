@@ -41,13 +41,22 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
   const comp = competencia(c.signed_at || new Date());
 
   if (!jaTem) {
-    // data de entrada do lead (início da negociação) p/ a trilha de tempo
+    // Da proposta: data de entrada (trilha) e tipo da base (banco zerado x conversão).
     let dataEntrada: Date | undefined;
+    let tipoBase: string | undefined;
+    let sistemaAnterior: string | undefined;
     if (c.proposta_comercial_id) {
       const p = await prisma.propostaComercial.findUnique({
-        where: { id: c.proposta_comercial_id }, select: { created_at: true, cnpj: true },
+        where: { id: c.proposta_comercial_id },
+        select: { created_at: true, cnpj: true, tipo_loja: true, sistema_atual: true },
       }).catch(() => null);
       if (p?.created_at) dataEntrada = p.created_at;
+      // tipo_loja: "Migração"/"Upgrade" + sistema_atual → CONVERSÃO; senão → banco zerado.
+      const tl = String(p?.tipo_loja || '').toLowerCase();
+      const ehConversao = (!!p?.sistema_atual && p.sistema_atual.trim() !== '')
+        || tl.includes('migra') || tl.includes('convers') || tl.includes('upgrade');
+      tipoBase = ehConversao ? 'CONVERSAO' : 'BANCO_ZERADO';
+      if (ehConversao) sistemaAnterior = p?.sistema_atual || undefined;
     }
 
     await prisma.implantacao.create({
@@ -64,6 +73,8 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
         status: 'AGUARDANDO_INSTALACAO',
         data_assinatura: c.signed_at || new Date(),
         data_entrada_lead: dataEntrada,
+        tipo_base: tipoBase,
+        sistema_anterior: sistemaAnterior,
       },
     }).catch(() => {});
   }
