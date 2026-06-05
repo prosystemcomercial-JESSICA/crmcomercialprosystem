@@ -435,26 +435,30 @@ export default function PropostasComerciais() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Resumo da proposta formatado para WhatsApp (negrito com *asterisco*, sem emojis).
+  // Resumo da proposta para WhatsApp, COM negrito (*texto*) e SEM emojis.
+  // Para o negrito do WhatsApp nao quebrar: o * cola no texto e tem espaco/inicio
+  // de linha do lado de fora; o NBSP do fmtBRL (entre "R$" e o valor) vira espaco normal.
   const resumoPropostaWhats = (p: PropostaComercial): string => {
     const nome = p.responsavel_nome ? p.responsavel_nome.split(' ')[0] : '';
-    // Mensalidade-destaque: Plus (recomendado) com fallback ao Pro.
     const mensalidade = (p.mensalidade_plus && p.mensalidade_plus > 0) ? p.mensalidade_plus
       : (p.mensalidade_pro && p.mensalidade_pro > 0 ? p.mensalidade_pro : undefined);
     const validade = p.validade ? new Date(p.validade).toLocaleDateString('pt-BR') : null;
+    // Moeda com espaco NORMAL (fmtBRL gera NBSP entre "R$" e o valor).
+    const brl = (v?: number | null) => fmtBRL(v).replace(/ /g, ' ');
+    const b = (t: string) => `*${t}*`;
 
     const linhas: (string | null)[] = [
       nome ? `Olá, ${nome}! Tudo bem?` : 'Olá! Tudo bem?',
       '',
-      `Segue o resumo da proposta da *Prosystem* para *${p.razao_social}*:`,
+      `Segue o resumo da proposta da ${b('Prosystem')} para ${b(p.razao_social)}.`,
       '',
-      p.plano_selecionado ? `*Plano:* ${p.plano_selecionado}` : null,
-      mensalidade != null ? `*Mensalidade:* ${fmtBRL(mensalidade)}/mês` : null,
-      p.valor_final != null ? `*Implantação:* ${fmtBRL(p.valor_final)}` : null,
+      p.plano_selecionado ? `${b('Plano:')} ${p.plano_selecionado}` : null,
+      mensalidade != null ? `${b('Mensalidade:')} ${brl(mensalidade)}/mês` : null,
+      p.valor_final != null ? `${b('Implantação:')} ${brl(p.valor_final)}` : null,
       (p.parcelas && p.valor_parcela)
-        ? `*Parcelamento:* ${p.parcelas}x de ${fmtBRL(p.valor_parcela)}`
-        : (p.entrada ? `*Entrada:* ${fmtBRL(p.entrada)}` : null),
-      validade ? `*Validade:* ${validade}` : null,
+        ? `${b('Parcelamento:')} ${p.parcelas}x de ${brl(p.valor_parcela)}`
+        : (p.entrada ? `${b('Entrada:')} ${brl(p.entrada)}` : null),
+      validade ? `${b('Validade:')} ${validade}` : null,
       '',
       'Acesse a proposta completa pelo link:',
       p.public_token ? propostaLink(p, 'cliente') : null,
