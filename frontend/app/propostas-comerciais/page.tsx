@@ -445,20 +445,20 @@ export default function PropostasComerciais() {
     const validade = p.validade ? new Date(p.validade).toLocaleDateString('pt-BR') : null;
     // Moeda com espaco NORMAL (fmtBRL gera NBSP entre "R$" e o valor).
     const brl = (v?: number | null) => fmtBRL(v).replace(/ /g, ' ');
-    const b = (t: string) => `*${t}*`;
+    const b = (t: string) => `*${t}:*`;
 
     const linhas: (string | null)[] = [
       nome ? `Olá, ${nome}! Tudo bem?` : 'Olá! Tudo bem?',
       '',
-      `Segue o resumo da proposta da ${b('Prosystem')} para ${b(p.razao_social)}.`,
+      `Segue o resumo da proposta da Prosystem para ${p.razao_social}:`,
       '',
-      p.plano_selecionado ? `${b('Plano:')} ${p.plano_selecionado}` : null,
-      mensalidade != null ? `${b('Mensalidade:')} ${brl(mensalidade)}/mês` : null,
-      p.valor_final != null ? `${b('Implantação:')} ${brl(p.valor_final)}` : null,
+      p.plano_selecionado ? `${b('Plano')} ${p.plano_selecionado}` : null,
+      mensalidade != null ? `${b('Mensalidade')} ${brl(mensalidade)}/mês` : null,
+      p.valor_final != null ? `${b('Implantação')} ${brl(p.valor_final)}` : null,
       (p.parcelas && p.valor_parcela)
-        ? `${b('Parcelamento:')} ${p.parcelas}x de ${brl(p.valor_parcela)}`
-        : (p.entrada ? `${b('Entrada:')} ${brl(p.entrada)}` : null),
-      validade ? `${b('Validade:')} ${validade}` : null,
+        ? `${b('Parcelamento')} ${p.parcelas}x de ${brl(p.valor_parcela)}`
+        : (p.entrada ? `${b('Entrada')} ${brl(p.entrada)}` : null),
+      validade ? `${b('Validade')} ${validade}` : null,
       '',
       'Acesse a proposta completa pelo link:',
       p.public_token ? propostaLink(p, 'cliente') : null,
