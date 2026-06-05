@@ -45,6 +45,7 @@ interface ContratoComercial {
   valor_setup_parcela?: number;
   setup_a_vista?: boolean;
   setup_condicao_especial?: string;
+  vendedor_id?: string;
   vendedor_nome?: string;
   supervisor_nome?: string;
   campanha?: string;
@@ -108,10 +109,16 @@ export default function ContratosPage() {
   const [editDirty, setEditDirty] = useState(false); // há alterações não salvas?
   const [signedUrl, setSignedUrl]     = useState('');
   const [marcando, setMarcando]       = useState(false);
+  const [vendedores, setVendedores]   = useState<{ id: string; nome: string }[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
   }, [isAuthenticated, loading, router]);
+
+  // Vendedores p/ o seletor de "Revisar dados" (trocar o vendedor do contrato).
+  useEffect(() => {
+    if (isAuthenticated) apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => {});
+  }, [isAuthenticated]);
 
   const load = useCallback(async () => {
     setDataLoading(true);
@@ -185,6 +192,8 @@ export default function ContratosPage() {
       mensalidade: c.mensalidade != null ? String(c.mensalidade) : '',
       dia_vencimento: c.dia_vencimento != null ? String(c.dia_vencimento) : '',
       valor_setup_total: c.valor_setup_total != null ? String(c.valor_setup_total) : '',
+      vendedor_id: c.vendedor_id || '',
+      vendedor_nome: c.vendedor_nome || '',
     });
   };
 
@@ -597,6 +606,21 @@ export default function ContratosPage() {
                       <CampoEdit label="Cargo" value={editForm.representante_cargo} onChange={(v: string) => setCampoEdit('representante_cargo', v)} />
                       <CampoEdit label="E-mail" value={editForm.representante_email} onChange={(v: string) => setCampoEdit('representante_email', v)} />
                       <CampoEdit label="Telefone / WhatsApp" value={editForm.representante_telefone} onChange={(v: string) => setCampoEdit('representante_telefone', v)} />
+                    </div>
+
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '14px 0 8px' }}>Vendedor responsável (conta na meta dele)</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--t-text-muted)', marginBottom: 4 }}>Vendedor</label>
+                        <select value={editForm.vendedor_id || ''}
+                          onChange={e => { const v = e.target.value; const nome = vendedores.find(x => x.id === v)?.nome || ''; setEditForm((p: any) => ({ ...p, vendedor_id: v, vendedor_nome: nome })); setEditDirty(true); }}
+                          className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                          style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
+                          <option value="">{editForm.vendedor_nome ? `Atual: ${editForm.vendedor_nome}` : 'Selecione o vendedor...'}</option>
+                          {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                        </select>
+                        <p style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 4 }}>Define de quem é a venda — a comissão e a meta vão para esse vendedor.</p>
+                      </div>
                     </div>
 
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '14px 0 8px' }}>Plano e valores</div>

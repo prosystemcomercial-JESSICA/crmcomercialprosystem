@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { scopeUserId } from '@/lib/scope';
 import { gerarContratoPdf } from '@/lib/contrato-pdf';
 import { criarImplantacaoEComissoes } from '@/lib/comissao-fluxo';
+import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -341,6 +342,7 @@ const UpdateContratoComercialSchema = z.object({
   valor_setup_parcela: z.number().optional(),
   setup_a_vista: z.boolean().optional(),
   setup_condicao_especial: z.string().optional(),
+  vendedor_id: z.string().optional(),
   vendedor_nome: z.string().optional(),
   supervisor_nome: z.string().optional(),
   condicao_especial: z.string().optional(),
@@ -537,6 +539,17 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const payload: any = { ...parse.data, updated_at: new Date() };
     if (payload.data_contrato) payload.data_contrato = new Date(payload.data_contrato);
     if (payload.signed_at) payload.signed_at = new Date(payload.signed_at);
+
+    // Troca de vendedor: resolve o nome (UsuarioCRM + contas de sistema) e reaponta
+    // a comissão de venda já existente, p/ o contrato contar na meta do vendedor certo.
+    if (payload.vendedor_id) {
+      const nomes = await resolverNomesUsuarios(prisma, [payload.vendedor_id]);
+      if (nomes[payload.vendedor_id]) payload.vendedor_nome = nomes[payload.vendedor_id];
+      await prisma.comissao.updateMany({
+        where: { referencia_id: id, tipo: 'CONTRATO', papel: 'VENDEDOR' },
+        data: { responsavel_id: payload.vendedor_id },
+      }).catch(() => {});
+    }
 
     // Marcar como ASSINADO (fluxo manual) → aplica comissão + move proposta/lead (entra na meta).
     if (payload.status === 'ASSINADO') {
