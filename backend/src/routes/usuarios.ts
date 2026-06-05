@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { requireAuth } from '@/middleware/auth';
 import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
 import { hashSenha } from '@/lib/seguranca';
+import { CONTAS_SISTEMA } from '@/lib/usuarios';
 
 // Apenas CEO pode criar/remover usuários
 const APENAS_CEO = ['CEO'];
@@ -266,6 +267,10 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const rows: any[] = await prisma.$queryRawUnsafe(
       `SELECT id, nome, email FROM UsuarioCRM WHERE cargo = 'VENDEDOR' AND status = 'ATIVO' ORDER BY nome ASC`
     ).catch(() => []);
+    // Contas de sistema que também vendem (ex.: Jessica/Diretora) aparecem no topo.
+    Object.entries(CONTAS_SISTEMA).forEach(([id, info]) => {
+      if (!rows.some(r => r.id === id)) rows.unshift({ id, nome: info.nome, email: null });
+    });
     return reply.send({ status: 'success', data: rows });
   });
 

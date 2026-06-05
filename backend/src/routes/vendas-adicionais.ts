@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, podeVerTudo, requireGestor } from '@/lib/scope';
+import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 const PARCEIROS_DEFAULT = [
   {
@@ -282,10 +283,9 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     // logado só registra para SI MESMO (segurança). Resolve o nome para exibição.
     const ehGestor = podeVerTudo(user);
     const vendedorId = ehGestor ? body.data.vendedor_id : (user?.id || body.data.vendedor_id);
-    const vendRows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT nome FROM UsuarioCRM WHERE id = ? LIMIT 1`, vendedorId
-    ).catch(() => []);
-    const vendedorNome = vendRows[0]?.nome || user?.nome || null;
+    // Resolve o nome do vendedor (UsuarioCRM ou conta de sistema, ex.: Jessica/Diretora).
+    const nomes = await resolverNomesUsuarios(prisma, [vendedorId]);
+    const vendedorNome = nomes[vendedorId] || user?.nome || null;
 
     const venda = await prisma.vendaAdicional.create({
       data: {

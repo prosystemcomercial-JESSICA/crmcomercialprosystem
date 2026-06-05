@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, requireGestor } from '@/lib/scope';
+import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -141,14 +142,17 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
 
     const comissoes = await prisma.comissao.findMany({ where, orderBy: { created_at: 'desc' } });
 
-    // Nomes dos responsáveis (vendedores/supervisores)
+    // Nomes dos responsáveis (vendedores/supervisores + contas de sistema, ex.: Jessica/Diretora).
     const ids = [...new Set(comissoes.map(c => c.responsavel_id))];
+    const nomesResolvidos = await resolverNomesUsuarios(prisma, ids);
     const usuarios: any[] = ids.length
       ? await prisma.$queryRawUnsafe(
           `SELECT id, nome, cargo FROM UsuarioCRM WHERE id IN (${ids.map(() => '?').join(',')})`, ...ids)
       : [];
     const nomeDe: Record<string, any> = {};
     usuarios.forEach(u => { nomeDe[u.id] = u; });
+    // Garante nome p/ contas de sistema que não estão no UsuarioCRM.
+    ids.forEach(id => { if (!nomeDe[id] && nomesResolvidos[id]) nomeDe[id] = { id, nome: nomesResolvidos[id], cargo: 'DIRETOR' }; });
 
     // Razão social do cliente de cada comissão (em vez do id do contrato).
     const clienteDe = await mapaClientes(comissoes as any[]);
@@ -240,13 +244,7 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     // de cada comissão — em vez de mostrar o id ou "system".
     const clienteDe = await mapaClientes(comissoesRaw as any[]);
     const respIds = [...new Set(comissoesRaw.map((c: any) => c.responsavel_id).filter(Boolean))];
-    const nomeDe: Record<string, string> = {};
-    if (respIds.length) {
-      const us: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, nome FROM UsuarioCRM WHERE id IN (${respIds.map(() => '?').join(',')})`, ...respIds
-      ).catch(() => []);
-      us.forEach(u => { nomeDe[u.id] = u.nome; });
-    }
+    const nomeDe = await resolverNomesUsuarios(prisma, respIds);
     const comissoes = comissoesRaw.map((c: any) => ({
       ...c,
       cliente: clienteDe[c.referencia_id || ''] || null,
