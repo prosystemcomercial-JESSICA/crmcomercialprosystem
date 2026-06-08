@@ -112,10 +112,13 @@ const SolicitacaoSchema = z.object({
   data_finalizacao: z.string().datetime().optional()
 });
 
+// Importação tolerante: TODOS os campos são string livre/opcional. Nenhum campo
+// malformado (ex.: email inválido na base legada) pode derrubar a importação —
+// a sanitização (validar email, derivar nome) é feita na lógica, não no schema.
 const ImportClienteItemSchema = z.object({
   codigo: z.string().optional(),
-  nome: z.string().optional(),          // se faltar, cai p/ razao_social/empresa
-  email: z.string().email().optional().or(z.literal('')), // opcional: base nem sempre tem
+  nome: z.string().optional(),
+  email: z.string().optional(),
   telefone: z.string().optional(),
   empresa: z.string().optional(),
   razao_social: z.string().optional(),
@@ -128,10 +131,7 @@ const ImportClienteItemSchema = z.object({
   contato: z.string().optional(),
   cidade: z.string().optional(),
   estado: z.string().optional()
-}).refine(
-  (c) => !!(c.codigo || c.nome || c.razao_social || c.empresa || c.email),
-  { message: 'Linha sem identificação (precisa de código, nome, razão social, empresa ou email)' }
-);
+}).passthrough(); // ignora colunas extras em vez de rejeitar
 
 const ImportClienteSchema = z.object({
   clientes: z.array(ImportClienteItemSchema).min(1).max(5000),
@@ -176,13 +176,20 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       const c = clientes[i];
       // Identificação humana p/ relatório de erro (código tem prioridade).
       const ref = c.codigo || c.razao_social || c.empresa || c.nome || c.email || `linha ${i + 1}`;
+      // Pula linha totalmente vazia (sem qualquer identificação).
+      if (!(c.codigo || c.nome || c.razao_social || c.empresa || c.email)) {
+        erros.push({ linha: i + 1, ref, motivo: 'Linha vazia (sem identificação)' } as any);
+        continue;
+      }
       try {
         // nome é NOT NULL no schema → deriva de fantasia/razão/empresa/email.
         const nome = c.nome || c.nome_fantasia || c.razao_social || c.empresa || c.email || `Cliente ${c.codigo || i + 1}`;
+        // Só grava email se tiver cara de email (a base legada tem muitos truncados).
+        const emailValido = c.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email.trim()) ? c.email.trim() : undefined;
         const data: any = {
           nome,
           codigo:        c.codigo || undefined,
-          email:         c.email || undefined,            // pode ficar nulo
+          email:         emailValido,                      // só grava se válido; senão fica nulo
           telefone:      c.telefone || undefined,
           empresa:       c.empresa || c.nome_fantasia || c.razao_social || undefined,
           razao_social:  c.razao_social || undefined,
@@ -200,7 +207,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
         // Chave de upsert: código (preferido) → email (fallback). Sem nenhum dos
         // dois, só dá pra CRIAR (não há como casar duplicata).
         // codigo/email não são mais @unique → usar findFirst e atualizar por id.
-        const whereKey = c.codigo ? { codigo: c.codigo } : (c.email ? { email: c.email } : null);
+        const whereKey = c.codigo ? { codigo: c.codigo } : (emailValido ? { email: emailValido } : null);
         const existente = whereKey ? await prisma.cliente.findFirst({ where: whereKey as any }) : null;
 
         if (modo === 'CRIAR' || !whereKey) {
