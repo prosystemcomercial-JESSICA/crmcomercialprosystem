@@ -129,6 +129,46 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: conversa });
   });
 
+  // Define/limpa a etiqueta de organização da conversa (Padaria, Farmácia, etc.).
+  fastify.patch('/whatsapp/conversas/:id/etiqueta', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ etiqueta: z.string().optional(), etiqueta_cor: z.string().optional() }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const upd = await prisma.whatsappConversa.update({
+      where: { id }, data: { etiqueta: body.data.etiqueta || null, etiqueta_cor: body.data.etiqueta_cor || '#6b7280' },
+    });
+    return reply.send({ status: 'success', data: upd });
+  });
+
+  // Transferir a conversa (e o lead) para outro vendedor — SÓ GESTÃO.
+  fastify.post('/whatsapp/conversas/:id/transferir', async (request, reply) => {
+    if (!requireGestor(request, reply)) return; // só gestora/diretora transfere
+    const { id } = request.params as { id: string };
+    const body = z.object({ vendedor_id: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe o vendedor' });
+
+    const conversa = await prisma.whatsappConversa.findUnique({ where: { id } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    // Transfere o dono da conversa; se houver lead vinculado, reatribui também.
+    await prisma.whatsappConversa.update({ where: { id }, data: { dono_id: body.data.vendedor_id } });
+    if (conversa.lead_id) {
+      await prisma.lead.update({ where: { id: conversa.lead_id }, data: { responsavel_id: body.data.vendedor_id } }).catch(() => {});
+    }
+    return reply.send({ status: 'success' });
+  });
+
+  // Lista de vendedores p/ o seletor de transferência (só gestão).
+  fastify.get('/whatsapp/vendedores', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const vendedores = await prisma.usuarioCRM.findMany({
+      where: { status: 'ATIVO' }, select: { id: true, nome: true, cargo: true }, orderBy: { nome: 'asc' },
+    });
+    return reply.send({ status: 'success', data: vendedores });
+  });
+
   // Mensagens de uma conversa (valida escopo) + marca como lidas.
   fastify.get('/whatsapp/conversas/:id/mensagens', async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -232,10 +272,25 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         if (!contato_numero) return;
         const externo_id = data?.key?.id;
         const contato_nome = data?.pushName || null;
-        const texto =
-          data?.message?.conversation ||
-          data?.message?.extendedTextMessage?.text ||
-          '[mídia recebida]';
+        // Detecta o tipo de mensagem (texto, imagem, áudio, documento).
+        const msg = data?.message || {};
+        let tipoMsg: 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO' = 'TEXTO';
+        let midiaUrl: string | undefined;
+        let texto = msg.conversation || msg.extendedTextMessage?.text || '';
+
+        if (msg.imageMessage) {
+          tipoMsg = 'IMAGEM'; texto = msg.imageMessage.caption || '[imagem]';
+          midiaUrl = data?.message?.base64 ? `data:image/jpeg;base64,${data.message.base64}` : (msg.imageMessage.url || undefined);
+        } else if (msg.audioMessage || msg.pttMessage) {
+          tipoMsg = 'AUDIO'; texto = '[áudio]';
+          const b64 = data?.message?.base64;
+          midiaUrl = b64 ? `data:audio/ogg;base64,${b64}` : ((msg.audioMessage || msg.pttMessage)?.url || undefined);
+        } else if (msg.documentMessage) {
+          tipoMsg = 'DOCUMENTO'; texto = msg.documentMessage.fileName || '[documento]';
+          midiaUrl = data?.message?.base64 ? `data:application/octet-stream;base64,${data.message.base64}` : (msg.documentMessage.url || undefined);
+        } else if (!texto) {
+          tipoMsg = 'OUTRO'; texto = '[mensagem]';
+        }
 
         // Idempotência: se já gravamos essa mensagem, sai.
         if (externo_id) {
@@ -313,8 +368,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
             conversaId: conversa.id,
             externo_id,
             direcao: 'ENTRADA',
-            tipo: 'TEXTO',
+            tipo: tipoMsg,
             conteudo: texto,
+            midia_url: midiaUrl,
             status: 'ENTREGUE',
           },
         });
@@ -324,7 +380,13 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         // Só conduz se o bot estiver ativo nesta conversa (número novo).
         if (conversa.bot_ativo && conversa.bot_estado) {
           try {
-            await processarBot(prisma, inst.instancia_nome, conversa, ehNova, texto, lead?.id);
+            // C5: reconhece se o número é de um CLIENTE da base (pelos últimos 8 dígitos).
+            const sufTel = contato_numero.slice(-8);
+            const clienteBase = await prisma.cliente.findFirst({
+              where: { telefone: { contains: sufTel } },
+              select: { id: true, nome: true, razao_social: true, nome_fantasia: true },
+            }).catch(() => null);
+            await processarBot(prisma, inst.instancia_nome, conversa, ehNova, texto, lead?.id, clienteBase);
           } catch (e: any) { console.error('[BOT] erro:', e?.message); }
         }
       }
@@ -344,6 +406,7 @@ async function processarBot(
   ehNova: boolean,
   texto: string,
   leadId?: string,
+  clienteBase?: { id: string; nome: string; razao_social?: string | null; nome_fantasia?: string | null } | null,
 ) {
   const responder = async (msg: string, proximoEstado: string | null) => {
     let externo_id: string | undefined;
@@ -363,8 +426,20 @@ async function processarBot(
   const t = (texto || '').trim();
   const tl = t.toLowerCase();
 
-  // 1) Primeira mensagem do contato novo → saudação + pergunta se já é cliente.
+  // 1) Primeira mensagem do contato novo → saudação.
   if (ehNova || conversa.bot_estado === 'SAUDACAO') {
+    // C5: número reconhecido como CLIENTE da base → saudação personalizada e
+    // deixa o cliente falar (encerra o bot; um consultor assume p/ upsell/filial).
+    if (clienteBase) {
+      const nomeCli = clienteBase.nome_fantasia || clienteBase.razao_social || clienteBase.nome;
+      await responder(
+        `Olá! 👋 Que bom falar com você novamente. Identificamos seu cadastro aqui na *ProSystem* — *${nomeCli}*. ✅\n\n` +
+        'Como podemos ajudar hoje? Pode falar à vontade sobre o que precisa (suporte, dúvida, nova unidade/filial, upgrade de plano…) que um consultor já te atende. 💙',
+        null, // encerra o bot → consultor assume
+      );
+      return;
+    }
+    // Contato novo desconhecido → fluxo de qualificação.
     await responder(
       'Olá! 👋 Aqui é o atendimento virtual da *ProSystem Sistemas* (sistemas para varejo).\n\n' +
       'Posso adiantar seu atendimento? Para começar, me responda:\n\n' +
