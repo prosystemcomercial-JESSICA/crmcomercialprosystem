@@ -12,11 +12,11 @@ datasource db {
 
 // ===== USUARIOS =====
 model Usuario {
-  id        String   @id @default(cuid())
-  nome      String
-  email     String   @unique
-  role      String   // VENDEDOR|SUPERVISAO|CEO|ADMIN|FINANCEIRO|TECNICO
-  ativo     Boolean  @default(true)
+  id    String  @id @default(cuid())
+  nome  String
+  email String  @unique
+  role  String // VENDEDOR|SUPERVISAO|CEO|ADMIN|FINANCEIRO|TECNICO
+  ativo Boolean @default(true)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -27,30 +27,30 @@ model Usuario {
 
 // ===== CLIENTES =====
 model Cliente {
-  id        String   @id @default(cuid())
-  nome      String
-  email     String   @unique
-  telefone  String?
-  empresa   String?
-  cidade    String?
-  estado    String?
+  id       String  @id @default(cuid())
+  nome     String
+  email    String  @unique
+  telefone String?
+  empresa  String?
+  cidade   String?
+  estado   String?
 
   // Mensalidade base (importada do cadastro original). A mensalidade TOTAL =
   // base + soma dos acréscimos de vendas adicionais CONFIRMADAS (ex.: Arquivo Fiscal).
-  mensalidade_base   Float?
-  observacoes_fin    String?  @db.Text  // observações financeiras (ajustes/radar)
+  mensalidade_base Float?
+  observacoes_fin  String? @db.Text // observações financeiras (ajustes/radar)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  caso_churn      CasoChurn[]
-  survey_churn    SurveyChurn[]
-  creditos        Credito[]
+  caso_churn        CasoChurn[]
+  survey_churn      SurveyChurn[]
+  creditos          Credito[]
   campanhas_disparo CampanhaDisparo[]
-  licencas        Licenca[]
-  tickets         TicketSuporte[]
-  indicacoes_feitas Indicacao[]  @relation("IndicacoesFeitas")
-  health_score    HealthScore?
+  licencas          Licenca[]
+  tickets           TicketSuporte[]
+  indicacoes_feitas Indicacao[]       @relation("IndicacoesFeitas")
+  health_score      HealthScore?
   vendas_adicionais VendaAdicional[]
 
   @@index([email])
@@ -60,22 +60,22 @@ model Cliente {
 // ===== SPRINT 28: CHURN E RETENCAO =====
 
 model CasoChurn {
-  id              String    @id @default(cuid())
-  clienteId       String
-  cliente         Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
-  status          String    @default("NOVO") // NOVO|DIAGNOSTICADO|PLANEJADO|EXECUTANDO|RECUPERADO|PERDIDO
-  risk_score      Float     @default(0)
+  status           String  @default("NOVO") // NOVO|DIAGNOSTICADO|PLANEJADO|EXECUTANDO|RECUPERADO|PERDIDO
+  risk_score       Float   @default(0)
   motivo_principal String?
 
-  created_by      String
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  diagnosis       DiagnosisChurn?
-  survey_churn    SurveyChurn?
-  planos          PlanoRetencao[]
-  acoes           AcaoRetencao[]
+  diagnosis    DiagnosisChurn?
+  survey_churn SurveyChurn?
+  planos       PlanoRetencao[]
+  acoes        AcaoRetencao[]
 
   @@index([status])
   @@index([clienteId])
@@ -84,67 +84,67 @@ model CasoChurn {
 }
 
 model DiagnosisChurn {
-  id              String    @id @default(cuid())
-  caso_churn_id   String    @unique
-  caso_churn      CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  caso_churn_id String    @unique
+  caso_churn    CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
 
   motivo_principal String
-  risco_score     Float
-  fatores         Json      // Array de fatores de risco
+  risco_score      Float
+  fatores          Json // Array de fatores de risco
 
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([caso_churn_id])
 }
 
 model PlanoRetencao {
-  id              String    @id @default(cuid())
-  caso_churn_id   String
-  caso_churn      CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  caso_churn_id String
+  caso_churn    CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
 
-  titulo          String
-  descricao       String?
-  status          String    @default("RASCUNHO") // RASCUNHO|ATIVO|CONCLUIDO
+  titulo    String
+  descricao String?
+  status    String  @default("RASCUNHO") // RASCUNHO|ATIVO|CONCLUIDO
 
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  acoes           AcaoRetencao[]
+  acoes AcaoRetencao[]
 
   @@index([caso_churn_id])
 }
 
 model AcaoRetencao {
-  id              String    @id @default(cuid())
-  caso_churn_id   String
-  caso_churn      CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  caso_churn_id String
+  caso_churn    CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
 
-  plano_id        String?
-  plano           PlanoRetencao? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
+  plano_id String?
+  plano    PlanoRetencao? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
 
   titulo          String
   descricao       String?
-  tipo            String    // CONTATO|EMAIL|DESCONTO|PRODUTO|OUTRO
+  tipo            String // CONTATO|EMAIL|DESCONTO|PRODUTO|OUTRO
   status          String    @default("NOVA") // NOVA|EM_PROGRESSO|CONCLUIDA|CANCELADA
   responsavel_id  String?
   data_vencimento DateTime?
 
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([caso_churn_id])
   @@index([plano_id])
 }
 
 model HistoricoLead {
-  id              String    @id @default(cuid())
-  tipo            String    // caso_criado|status_alterado|acao_criada|survey_respondido|etc
-  descricao       String
-  relacionado_id  String?   // ID do caso/survey/acao relacionada
+  id             String  @id @default(cuid())
+  tipo           String // caso_criado|status_alterado|acao_criada|survey_respondido|etc
+  descricao      String
+  relacionado_id String? // ID do caso/survey/acao relacionada
 
-  created_by      String
-  created_at      DateTime  @default(now())
+  created_by String
+  created_at DateTime @default(now())
 
   @@index([relacionado_id])
   @@index([tipo])
@@ -153,28 +153,28 @@ model HistoricoLead {
 // ===== SPRINT 29: PESQUISA DE MOTIVOS =====
 
 model SurveyChurn {
-  id                String    @id @default(cuid())
-  casoChurnId       String    @unique
-  caso_churn        CasoChurn @relation(fields: [casoChurnId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  casoChurnId String    @unique
+  caso_churn  CasoChurn @relation(fields: [casoChurnId], references: [id], onDelete: Cascade)
 
-  clienteId         String
-  cliente           Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
-  status            String    @default("PENDING") // PENDING|OPENED|RESPONDED|EXPIRED
+  status String @default("PENDING") // PENDING|OPENED|RESPONDED|EXPIRED
 
-  email_enviado     Boolean   @default(false)
-  enviado_em        DateTime?
-  email_aberto      Boolean   @default(false)
+  email_enviado Boolean   @default(false)
+  enviado_em    DateTime?
+  email_aberto  Boolean   @default(false)
 
-  respondida        Boolean   @default(false)
-  respondido_em     DateTime?
+  respondida    Boolean   @default(false)
+  respondido_em DateTime?
 
-  expira_em         DateTime  // 30 days from creation
+  expira_em DateTime // 30 days from creation
 
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  resposta          SurveyResposta?
+  resposta SurveyResposta?
 
   @@index([status])
   @@index([respondida])
@@ -182,33 +182,33 @@ model SurveyChurn {
 }
 
 model SurveyResposta {
-  id              String    @id @default(cuid())
-  surveyId        String    @unique
-  survey_churn    SurveyChurn @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  id           String      @id @default(cuid())
+  surveyId     String      @unique
+  survey_churn SurveyChurn @relation(fields: [surveyId], references: [id], onDelete: Cascade)
 
-  q1_resposta     String    @db.Text
-  q2_resposta     String?   @db.Text
-  q3_score        Int       // 1-10
-  q4_opcao        String    // sim|nao|talvez
-  q5_stars        Int       // 1-5
+  q1_resposta String  @db.Text
+  q2_resposta String? @db.Text
+  q3_score    Int // 1-10
+  q4_opcao    String // sim|nao|talvez
+  q5_stars    Int // 1-5
 
-  sentimento_q1   Float?    // -1.0 to +1.0
+  sentimento_q1       Float? // -1.0 to +1.0
   sentimento_q1_label String?
-  sentimento_q1_conf Int?    // 0-100
+  sentimento_q1_conf  Int? // 0-100
 
-  sentimento_q2   Float?
+  sentimento_q2       Float?
   sentimento_q2_label String?
-  sentimento_q2_conf Int?
+  sentimento_q2_conf  Int?
 
-  keywords_q1     Json      // JSON array
-  keywords_q2     Json
+  keywords_q1 Json // JSON array
+  keywords_q2 Json
 
-  motivo_real     String?   // Enum 10 categorias
-  confianca       String?   // HIGH|MEDIUM|LOW|NONE
-  manual_corrected Boolean  @default(false)
+  motivo_real      String? // Enum 10 categorias
+  confianca        String? // HIGH|MEDIUM|LOW|NONE
+  manual_corrected Boolean @default(false)
 
-  ip_address      String?
-  responded_at    DateTime  @default(now())
+  ip_address   String?
+  responded_at DateTime @default(now())
 
   @@index([sentimento_q1])
   @@index([motivo_real])
@@ -217,22 +217,22 @@ model SurveyResposta {
 // ===== SPRINT 30: CAMPANHAS =====
 
 model Campanha {
-  id                String    @id @default(cuid())
-  nome              String    @db.VarChar(100)
-  descricao         String?   @db.Text
+  id        String  @id @default(cuid())
+  nome      String  @db.VarChar(100)
+  descricao String? @db.Text
 
-  status            String    @default("RASCUNHO") // RASCUNHO|ATIVA|PAUSADA|FINALIZADA|ARQUIVADA
-  data_inicio       DateTime
-  data_fim          DateTime
+  status      String   @default("RASCUNHO") // RASCUNHO|ATIVA|PAUSADA|FINALIZADA|ARQUIVADA
+  data_inicio DateTime
+  data_fim    DateTime
 
-  created_by        String
-  created_at        DateTime  @default(now())
-  updated_by        String?
-  updated_at        DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_by String?
+  updated_at DateTime @updatedAt
 
-  acoes             CampanhaAcao[]
-  disparos          CampanhaDisparo[]
-  auditoria         AuditoriaCompanha[]
+  acoes     CampanhaAcao[]
+  disparos  CampanhaDisparo[]
+  auditoria AuditoriaCompanha[]
 
   @@index([status])
   @@index([created_by])
@@ -240,58 +240,58 @@ model Campanha {
 }
 
 model CampanhaAcao {
-  id                String    @id @default(cuid())
-  campanha_id       String
-  campanha          Campanha  @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  campanha_id String
+  campanha    Campanha @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
 
-  tipo_trigger      String    // IMEDIATO|HORARIO|WEBHOOK
-  tipo_acao         String    // ENVIAR_EMAIL|ENVIAR_SMS|CRIAR_TASK|APLICAR_CREDITO|WEBHOOK
-  configuracao      Json      // {template_id, cron, webhook_url, etc}
+  tipo_trigger String // IMEDIATO|HORARIO|WEBHOOK
+  tipo_acao    String // ENVIAR_EMAIL|ENVIAR_SMS|CRIAR_TASK|APLICAR_CREDITO|WEBHOOK
+  configuracao Json // {template_id, cron, webhook_url, etc}
 
-  ordem             Int       // sequência de execução
-  atraso_horas      Int       @default(0)
+  ordem        Int // sequência de execução
+  atraso_horas Int @default(0)
 
-  status            String    @default("CRIADA") // CRIADA|AGENDADA|EXECUTANDO|COMPLETA|ERRO
-  ultima_execucao   DateTime?
-  proxima_execucao  DateTime?
+  status           String    @default("CRIADA") // CRIADA|AGENDADA|EXECUTANDO|COMPLETA|ERRO
+  ultima_execucao  DateTime?
+  proxima_execucao DateTime?
 
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  disparos          CampanhaDisparo[]
+  disparos CampanhaDisparo[]
 
-  @@index([campanha_id])
   @@unique([campanha_id, ordem])
+  @@index([campanha_id])
 }
 
 model CampanhaDisparo {
-  id                String    @id @default(cuid())
-  campanha_id       String
-  campanha          Campanha  @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  campanha_id String
+  campanha    Campanha @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
 
-  cliente_id        String
-  cliente           Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  cliente_id String
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  acao_id           String?
-  acao              CampanhaAcao? @relation(fields: [acao_id], references: [id], onDelete: SetNull)
+  acao_id String?
+  acao    CampanhaAcao? @relation(fields: [acao_id], references: [id], onDelete: SetNull)
 
-  tipo              String    // EMAIL|SMS|TASK|WEBHOOK
-  status            String    // ENVIADO|ERRO|BOUNCE|COMPLAINED|DELIVERED|ABERTO
-  message_id        String?
+  tipo       String // EMAIL|SMS|TASK|WEBHOOK
+  status     String // ENVIADO|ERRO|BOUNCE|COMPLAINED|DELIVERED|ABERTO
+  message_id String?
 
-  sent_at           DateTime?
-  delivered_at      DateTime?
-  bounced_at        DateTime?
+  sent_at      DateTime?
+  delivered_at DateTime?
+  bounced_at   DateTime?
 
-  email_aberto      Boolean   @default(false)
-  opened_at         DateTime?
+  email_aberto Boolean   @default(false)
+  opened_at    DateTime?
 
-  link_clicado      Boolean   @default(false)
-  clicked_at        DateTime?
+  link_clicado Boolean   @default(false)
+  clicked_at   DateTime?
 
-  metadados         Json?
+  metadados Json?
 
-  created_at        DateTime  @default(now())
+  created_at DateTime @default(now())
 
   @@index([campanha_id])
   @@index([cliente_id])
@@ -299,38 +299,38 @@ model CampanhaDisparo {
 }
 
 model Template {
-  id                String    @id @default(cuid())
-  nome              String    @db.VarChar(100)
-  assunto           String    @db.VarChar(200)
-  corpo             String    @db.Text // HTML
+  id      String @id @default(cuid())
+  nome    String @db.VarChar(100)
+  assunto String @db.VarChar(200)
+  corpo   String @db.Text // HTML
 
-  variaveis_tag     Json
-  tags_indicadas    Json      // [PRECO, SUPORTE]
+  variaveis_tag  Json
+  tags_indicadas Json // [PRECO, SUPORTE]
 
-  versao            Int       @default(1)
-  ativa             Boolean   @default(true)
+  versao Int     @default(1)
+  ativa  Boolean @default(true)
 
-  created_by        String
-  created_at        DateTime  @default(now())
-  updated_by        String?
-  updated_at        DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_by String?
+  updated_at DateTime @updatedAt
 
   @@index([created_by])
 }
 
 model AuditoriaCompanha {
-  id                String    @id @default(cuid())
-  campanha_id       String
-  campanha          Campanha  @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  campanha_id String
+  campanha    Campanha @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
 
-  usuario_id        String
-  acao              String    // CREATE|UPDATE|ATIVA|PAUSADA|FINALIZADA
+  usuario_id String
+  acao       String // CREATE|UPDATE|ATIVA|PAUSADA|FINALIZADA
 
-  dados_antes       Json?
-  dados_depois      Json?
-  ip_address        String?
+  dados_antes  Json?
+  dados_depois Json?
+  ip_address   String?
 
-  timestamp         DateTime  @default(now())
+  timestamp DateTime @default(now())
 
   @@index([campanha_id])
   @@index([usuario_id])
@@ -339,50 +339,50 @@ model AuditoriaCompanha {
 // ===== MODULO COMERCIAL =====
 
 model Lead {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // Dados da empresa
-  nome            String    // nome do lead / razão social resumida
-  razao_social    String?
-  nome_fantasia   String?
-  cnpj            String?
-  empresa         String?   // alias legado de razao_social
-  segmento        String?
-  cidade          String?
-  estado          String?
-  endereco        String?
-  tipo_negocio    String?
-  qtd_lojas       Int?
-  qtd_caixas      Int?
-  sistema_atual   String?
+  nome              String // nome do lead / razão social resumida
+  razao_social      String?
+  nome_fantasia     String?
+  cnpj              String?
+  empresa           String? // alias legado de razao_social
+  segmento          String?
+  cidade            String?
+  estado            String?
+  endereco          String?
+  tipo_negocio      String?
+  qtd_lojas         Int?
+  qtd_caixas        Int?
+  sistema_atual     String?
   tipo_oportunidade String? // NOVA_IMPLANTACAO|MIGRACAO|UPGRADE|REATIVACAO|VENDA_ADICIONAL|FILIAL
 
   // Responsável
-  responsavel_nome    String?
-  responsavel_cargo   String?  // alias cargo
-  cargo               String?  // legado
+  responsavel_nome     String?
+  responsavel_cargo    String? // alias cargo
+  cargo                String? // legado
   responsavel_telefone String?
-  responsavel_email   String?
-  email               String?  // legado
-  telefone            String?  // legado
-  responsavel_cpf     String?
-  responsavel_horario String?
+  responsavel_email    String?
+  email                String? // legado
+  telefone             String? // legado
+  responsavel_cpf      String?
+  responsavel_horario  String?
 
   // Dados comerciais do lead
-  vendedor_nome       String?
-  vendedor_telefone   String?
-  supervisor_nome     String?
-  campanha            String?
-  plano_indicado      String?
-  plano_interesse     String?
-  valor_setup         Float?
-  valor_conversao     Float?
-  mensalidade_estimada Float?
-  entrada             Float?
-  parcelamento        Int?
-  validade_proposta   DateTime?
-  observacoes_comerciais String? @db.Text
-  condicao_especial   String?
+  vendedor_nome          String?
+  vendedor_telefone      String?
+  supervisor_nome        String?
+  campanha               String?
+  plano_indicado         String?
+  plano_interesse        String?
+  valor_setup            Float?
+  valor_conversao        Float?
+  mensalidade_estimada   Float?
+  entrada                Float?
+  parcelamento           Int?
+  validade_proposta      DateTime?
+  observacoes_comerciais String?   @db.Text
+  condicao_especial      String?
 
   // Dados para proposta (pré-preenchimento)
   frase_hero          String?
@@ -398,72 +398,72 @@ model Lead {
   // NOVO|SEM_CONTATO|CONTATO_TENTADO|EM_CONVERSA|QUALIFICADO|AGUARDANDO_RETORNO
   // |PROPOSTA_NECESSARIA|PROPOSTA_ENVIADA|EM_NEGOCIACAO|ACEITO|FECHADO|PERDIDO
 
-  origem          String    @default("MANUAL")
-  status          String    @default("NOVO")
-  etapa_funil     String    @default("PROSPECCAO")
-  temperatura     String    @default("FRIO") // FRIO|MORNO|QUENTE|MUITO_QUENTE
-  valor_estimado  Float?
-  probabilidade   Int?
-  motivo_perda    String?
+  origem         String  @default("MANUAL")
+  status         String  @default("NOVO")
+  etapa_funil    String  @default("PROSPECCAO")
+  temperatura    String  @default("FRIO") // FRIO|MORNO|QUENTE|MUITO_QUENTE
+  valor_estimado Float?
+  probabilidade  Int?
+  motivo_perda   String?
 
   // UTM / Campanha tracking
-  utm_source      String?
-  utm_medium      String?
-  utm_campaign    String?
-  utm_content     String?
-  utm_term        String?
-  fbclid          String?
-  gclid           String?
-  campaign_id     String?
-  adset_id        String?
-  ad_id           String?
-  campanha_nome   String?
-  conjunto_nome   String?
-  anuncio_nome    String?
-  plataforma      String?
-  link_origem     String?
+  utm_source    String?
+  utm_medium    String?
+  utm_campaign  String?
+  utm_content   String?
+  utm_term      String?
+  fbclid        String?
+  gclid         String?
+  campaign_id   String?
+  adset_id      String?
+  ad_id         String?
+  campanha_nome String?
+  conjunto_nome String?
+  anuncio_nome  String?
+  plataforma    String?
+  link_origem   String?
 
-  proximo_contato    DateTime?
-  ultima_obs_at      DateTime?
+  proximo_contato DateTime?
+  ultima_obs_at   DateTime?
 
-  responsavel_id  String?
-  observacoes     String?   @db.Text
+  responsavel_id String?
+  observacoes    String? @db.Text
 
   // Atribuição ao vendedor (supervisão atribui → vira alerta no sininho do vendedor)
   atribuido_em     DateTime?
   atribuicao_vista Boolean   @default(true)
 
   // ─── Dados de fechamento (preenchidos ao mover para ACEITO) ──
-  fechamento_plano        String?   // 'BASIC' | 'MEI' | 'PRO' | 'PLUS'
-  fechamento_valor_inst   Float?    // valor único de instalação
-  fechamento_mrr          Float?    // mensalidade recorrente (MRR)
-  fechamento_valor_entrada Float?   // valor da entrada
-  fechamento_forma_entrada String?  // 'PIX' | 'BOLETO' | 'CARTAO' | 'TRANSFERENCIA'
-  fechamento_parcelas_inst Int?     // parcelas da instalação
-  fechamento_data_1cob    DateTime? // data da 1ª cobrança da mensalidade
-  fechamento_obs          String?   @db.Text
-  fechamento_data         DateTime? // quando foi marcado como aceito
-  fechamento_por          String?   // user id de quem fechou
+  fechamento_plano         String? // 'BASIC' | 'MEI' | 'PRO' | 'PLUS'
+  fechamento_valor_inst    Float? // valor único de instalação
+  fechamento_mrr           Float? // mensalidade recorrente (MRR)
+  fechamento_valor_entrada Float? // valor da entrada
+  fechamento_forma_entrada String? // 'PIX' | 'BOLETO' | 'CARTAO' | 'TRANSFERENCIA'
+  fechamento_parcelas_inst Int? // parcelas da instalação
+  fechamento_data_1cob     DateTime? // data da 1ª cobrança da mensalidade
+  fechamento_obs           String?   @db.Text
+  fechamento_data          DateTime? // quando foi marcado como aceito
+  fechamento_por           String? // user id de quem fechou
 
   // ─── Contrato ZapSign ──
-  zapsign_doc_token       String?   // token do documento no ZapSign
-  zapsign_doc_status      String?   // pending|signed|cancelled
+  zapsign_doc_token       String? // token do documento no ZapSign
+  zapsign_doc_status      String? // pending|signed|cancelled
   zapsign_signed_url      String?   @db.Text // URL para o cliente assinar
   zapsign_signed_file_url String?   @db.Text // URL do arquivo já assinado
   zapsign_enviado_em      DateTime?
 
-  created_by      String
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  atividades      Atividade[]
-  propostas       Proposta[]
-  contrato        Contrato?
-  indicacoes      Indicacao[]
-  observacoes_lead  LeadObservacao[]
-  etiquetas_lead    LeadEtiquetaAplicada[]
-  onboarding        LeadOnboarding?
-  execucao          ExecucaoTecnica?
+  atividades       Atividade[]
+  propostas        Proposta[]
+  contrato         Contrato?
+  indicacoes       Indicacao[]
+  observacoes_lead LeadObservacao[]
+  etiquetas_lead   LeadEtiquetaAplicada[]
+  onboarding       LeadOnboarding?
+  execucao         ExecucaoTecnica?
 
   // Exclusão lógica: lead sai de TODOS os resultados, fica só na auditoria/trilha.
   deleted_at      DateTime?
@@ -482,15 +482,15 @@ model Lead {
 }
 
 model LeadObservacao {
-  id               String   @id @default(cuid())
-  lead_id          String
-  lead             Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  lead_id String
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
-  tipo             String
-  descricao        String   @db.Text
-  proxima_acao     String?
+  tipo                 String
+  descricao            String    @db.Text
+  proxima_acao         String?
   data_proximo_retorno DateTime?
-  status_apos      String?
+  status_apos          String?
 
   // Rastreamento automático de mudanças
   coluna_anterior      String?
@@ -498,9 +498,9 @@ model LeadObservacao {
   temperatura_anterior String?
   temperatura_nova     String?
 
-  created_by       String
-  created_by_name  String?
-  created_at       DateTime @default(now())
+  created_by      String
+  created_by_name String?
+  created_at      DateTime @default(now())
 
   @@index([lead_id])
   @@index([tipo])
@@ -508,14 +508,14 @@ model LeadObservacao {
 }
 
 model KanbanColuna {
-  id        String   @id @default(cuid())
-  chave     String   @unique
-  nome      String
-  cor       String   @default("#6b7280")
-  ordem     Int      @default(99)
-  ativa     Boolean  @default(true)
-  fixa      Boolean  @default(false)
-  quadro_id String?  // quadro ao qual a coluna pertence (null = Pipeline Comercial padrão)
+  id         String   @id @default(cuid())
+  chave      String   @unique
+  nome       String
+  cor        String   @default("#6b7280")
+  ordem      Int      @default(99)
+  ativa      Boolean  @default(true)
+  fixa       Boolean  @default(false)
+  quadro_id  String? // quadro ao qual a coluna pertence (null = Pipeline Comercial padrão)
   created_by String   @default("system")
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -528,22 +528,22 @@ model KanbanColuna {
 // Quadro comercial (kanban). O Pipeline Comercial é o quadro fixo padrão; é possível
 // criar outros quadros independentes (ex.: Follow-up) com colunas e regras próprias.
 model QuadroComercial {
-  id         String   @id @default(cuid())
-  nome       String
-  descricao  String?
-  tipo       String   @default("CUSTOM")   // PIPELINE | FOLLOWUP | CUSTOM
-  cor        String   @default("#417ABC")
-  ordem      Int      @default(99)
-  ativo      Boolean  @default(true)
-  fixo       Boolean  @default(false)       // Pipeline Comercial não pode ser excluído
+  id        String  @id @default(cuid())
+  nome      String
+  descricao String?
+  tipo      String  @default("CUSTOM") // PIPELINE | FOLLOWUP | CUSTOM
+  cor       String  @default("#417ABC")
+  ordem     Int     @default(99)
+  ativo     Boolean @default(true)
+  fixo      Boolean @default(false) // Pipeline Comercial não pode ser excluído
 
   // Regra de entrada automática de leads no quadro
-  regra_tipo    String  @default("NENHUMA") // NENHUMA | PARADOS_DIAS
-  regra_dias    Int?                         // ex.: 40 (parado há +N dias sem mudar de etapa)
-  coluna_entrada String?                     // chave da coluna onde o lead cai ao entrar
+  regra_tipo     String  @default("NENHUMA") // NENHUMA | PARADOS_DIAS
+  regra_dias     Int? // ex.: 40 (parado há +N dias sem mudar de etapa)
+  coluna_entrada String? // chave da coluna onde o lead cai ao entrar
   // Colunas que "finalizam" o lead no quadro (ele não sai por inatividade)
-  colunas_finais Json?                       // ex.: ["RECUPERADO","DESCARTADO"]
-  cadencia_dias  Json?                       // ex.: [7,15,30,45] p/ alertas de toque
+  colunas_finais Json? // ex.: ["RECUPERADO","DESCARTADO"]
+  cadencia_dias  Json? // ex.: [7,15,30,45] p/ alertas de toque
 
   created_by String   @default("system")
   created_at DateTime @default(now())
@@ -555,16 +555,16 @@ model QuadroComercial {
 
 // Posição de um lead em um quadro NÃO-pipeline (no Pipeline a posição é o etapa_comercial).
 model LeadQuadroPosicao {
-  id           String   @id @default(cuid())
-  lead_id      String
-  quadro_id    String
-  coluna_chave String
+  id               String    @id @default(cuid())
+  lead_id          String
+  quadro_id        String
+  coluna_chave     String
   // Cadência de follow-up
-  entrou_em        DateTime @default(now())
+  entrou_em        DateTime  @default(now())
   ultima_tentativa DateTime?
   proxima_acao_em  DateTime?
-  tentativas       Int      @default(0)
-  finalizado       Boolean  @default(false)
+  tentativas       Int       @default(0)
+  finalizado       Boolean   @default(false)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -576,15 +576,15 @@ model LeadQuadroPosicao {
 }
 
 model Etiqueta {
-  id          String   @id @default(cuid())
-  nome        String
-  cor         String   @default("#4B8EC8")
-  descricao   String?
-  ativa       Boolean  @default(true)
-  created_by  String
-  created_at  DateTime @default(now())
+  id         String   @id @default(cuid())
+  nome       String
+  cor        String   @default("#4B8EC8")
+  descricao  String?
+  ativa      Boolean  @default(true)
+  created_by String
+  created_at DateTime @default(now())
 
-  leads       LeadEtiquetaAplicada[]
+  leads LeadEtiquetaAplicada[]
 
   @@index([ativa])
 }
@@ -603,83 +603,83 @@ model LeadEtiquetaAplicada {
 }
 
 model LeadOnboarding {
-  id               String   @id @default(cuid())
-  lead_id          String   @unique
-  lead             Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  lead_id String @unique
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
   data_prevista_implantacao DateTime?
-  data_virada      String?
-  sistema_anterior String?
-  necessita_conversao Boolean @default(false)
+  data_virada               String?
+  sistema_anterior          String?
+  necessita_conversao       Boolean   @default(false)
 
   responsavel_interno_nome     String?
   responsavel_interno_telefone String?
-  horario_contato  String?
-  qtd_maquinas     Int?
-  qtd_usuarios     Int?
+  horario_contato              String?
+  qtd_maquinas                 Int?
+  qtd_usuarios                 Int?
 
   tem_certificado  Boolean @default(false)
   tem_contador     Boolean @default(false)
   nome_contador    String?
   contato_contador String?
 
-  usa_fiscal       Boolean @default(false)
-  usa_tef          Boolean @default(false)
-  usa_balanca      Boolean @default(false)
-  usa_etiqueta     Boolean @default(false)
-  usa_convenio     Boolean @default(false)
+  usa_fiscal   Boolean @default(false)
+  usa_tef      Boolean @default(false)
+  usa_balanca  Boolean @default(false)
+  usa_etiqueta Boolean @default(false)
+  usa_convenio Boolean @default(false)
 
   observacoes_tecnicas String? @db.Text
-  status           String  @default("EM_PREENCHIMENTO") // EM_PREENCHIMENTO|CONCLUIDO|ENVIADO_EXECUCAO
+  status               String  @default("EM_PREENCHIMENTO") // EM_PREENCHIMENTO|CONCLUIDO|ENVIADO_EXECUCAO
 
-  created_by       String
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model ExecucaoTecnica {
-  id               String   @id @default(cuid())
-  lead_id          String   @unique
-  lead             Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  lead_id String @unique
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
   tecnico_id       String?
   tecnico_nome     String?
   supervisora_nome String?
 
-  data_prevista_inicio     DateTime?
-  data_prevista_conclusao  DateTime?
-  data_conclusao           DateTime?
+  data_prevista_inicio    DateTime?
+  data_prevista_conclusao DateTime?
+  data_conclusao          DateTime?
 
-  prioridade       String   @default("NORMAL") // BAIXA|NORMAL|ALTA|URGENTE
-  tipo_execucao    String?
+  prioridade    String  @default("NORMAL") // BAIXA|NORMAL|ALTA|URGENTE
+  tipo_execucao String?
   // IMPLANTACAO_NOVA|MIGRACAO|CONVERSAO_DADOS|ATIVACAO_MODULO
   // |CONFIGURACAO_TEF|CONFIGURACAO_FISCAL|TREINAMENTO|SUPORTE_POS_IMPLANTACAO
 
-  status           String   @default("AGUARDANDO_DESIGNACAO")
+  status String @default("AGUARDANDO_DESIGNACAO")
   // AGUARDANDO_DESIGNACAO|DESIGNADO|EM_ANALISE|EM_CONFIGURACAO
   // |EM_CONVERSAO|EM_TREINAMENTO|AGUARDANDO_CLIENTE|FINALIZADO|PENDENTE
 
   observacoes_supervisao String? @db.Text
-  checklist        Json?
+  checklist              Json?
 
-  created_by       String
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([status])
   @@index([tecnico_id])
 }
 
 model Atividade {
-  id              String    @id @default(cuid())
-  lead_id         String
-  lead            Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  lead_id String
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
-  tipo            String    // LIGACAO|EMAIL|REUNIAO|WHATSAPP|VISITA|TAREFA|OUTRO
-  titulo          String
-  descricao       String?   @db.Text
-  status          String    @default("PENDENTE") // PENDENTE|CONFIRMADA|REALIZADA|CANCELADA|REMARCADA
-  resultado       String?   @db.Text
+  tipo      String // LIGACAO|EMAIL|REUNIAO|WHATSAPP|VISITA|TAREFA|OUTRO
+  titulo    String
+  descricao String? @db.Text
+  status    String  @default("PENDENTE") // PENDENTE|CONFIRMADA|REALIZADA|CANCELADA|REMARCADA
+  resultado String? @db.Text
 
   // Reunião fields
   google_event_id     String?
@@ -690,28 +690,28 @@ model Atividade {
   duracao_minutos     Int?
 
   // Transcrição da reunião (Web Speech API ou manual)
-  transcricao         String?   @db.Text
-  transcricao_origem  String?   // 'AUTOMATICA' | 'MANUAL'
+  transcricao        String? @db.Text
+  transcricao_origem String? // 'AUTOMATICA' | 'MANUAL'
 
   // Percepção pós-reunião (vendedor avalia ao concluir)
-  percepcao_tags      Json?     // ["PRODUTIVA", "COM_OBJECOES", ...]
-  percepcao_nota      Int?      // 1-5 estrelas
-  percepcao_observ    String?   @db.Text
+  percepcao_tags   Json? // ["PRODUTIVA", "COM_OBJECOES", ...]
+  percepcao_nota   Int? // 1-5 estrelas
+  percepcao_observ String? @db.Text
 
   // Convidados internos da empresa (outros colaboradores com cadastro no CRM)
-  convidados_ids      Json?     // ["userId1", "userId2", ...]
+  convidados_ids Json? // ["userId1", "userId2", ...]
 
-  responsavel_id  String?
-  data_prevista   DateTime?
-  data_realizada  DateTime?
+  responsavel_id String?
+  data_prevista  DateTime?
+  data_realizada DateTime?
 
   // Rastreamento de e-mails automáticos (confirmação imediata + lembrete 2h)
   email_confirmacao_em DateTime?
   lembrete_enviado_em  DateTime?
 
-  created_by      String
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([lead_id])
   @@index([status])
@@ -730,56 +730,56 @@ model CalendarToken {
 }
 
 model Proposta {
-  id              String    @id @default(cuid())
-  lead_id         String
-  lead            Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  lead_id String
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
-  titulo          String
-  descricao       String?   @db.Text
-  valor           Float
-  validade        DateTime?
-  status          String    @default("RASCUNHO") // RASCUNHO|ENVIADA|VISUALIZADA|ACEITA|RECUSADA|EXPIRADA
+  titulo    String
+  descricao String?   @db.Text
+  valor     Float
+  validade  DateTime?
+  status    String    @default("RASCUNHO") // RASCUNHO|ENVIADA|VISUALIZADA|ACEITA|RECUSADA|EXPIRADA
 
-  produtos        Json?     // [{ nome, qtd, valor_unit }]
-  condicoes       String?   @db.Text
-  observacoes     String?   @db.Text
+  produtos    Json? // [{ nome, qtd, valor_unit }]
+  condicoes   String? @db.Text
+  observacoes String? @db.Text
 
-  created_by      String
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  contrato        Contrato?
+  contrato Contrato?
 
   @@index([lead_id])
   @@index([status])
 }
 
 model Contrato {
-  id              String    @id @default(cuid())
-  lead_id         String    @unique
-  lead            Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  lead_id String @unique
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
-  proposta_id     String?   @unique
-  proposta        Proposta? @relation(fields: [proposta_id], references: [id], onDelete: SetNull)
+  proposta_id String?   @unique
+  proposta    Proposta? @relation(fields: [proposta_id], references: [id], onDelete: SetNull)
 
-  numero          String?   @unique
-  valor           Float
-  recorrencia     String    @default("MENSAL") // UNICO|MENSAL|TRIMESTRAL|SEMESTRAL|ANUAL
-  data_inicio     DateTime
-  data_fim        DateTime?
-  status          String    @default("ATIVO") // ATIVO|SUSPENSO|CANCELADO|ENCERRADO
+  numero      String?   @unique
+  valor       Float
+  recorrencia String    @default("MENSAL") // UNICO|MENSAL|TRIMESTRAL|SEMESTRAL|ANUAL
+  data_inicio DateTime
+  data_fim    DateTime?
+  status      String    @default("ATIVO") // ATIVO|SUSPENSO|CANCELADO|ENCERRADO
 
-  produtos        Json?
-  observacoes     String?   @db.Text
+  produtos    Json?
+  observacoes String? @db.Text
 
   // Soft-delete: registro mantido para auditoria
   deleted_at      DateTime?
   deleted_by      String?
   motivo_exclusao String?
 
-  created_by      String
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([status])
   @@index([lead_id])
@@ -789,29 +789,29 @@ model Contrato {
 // ===== METAS COMERCIAIS =====
 
 model Meta {
-  id              String    @id @default(cuid())
-  titulo          String
-  responsavel_id  String    // 1º responsável (compat); a lista completa fica em responsaveis_ids
-  responsaveis_ids Json?    // ["userId1","userId2"] — meta apresentada só a estes usuários (+ gestão)
-  tipo            String    // RECEITA|LEADS|PROPOSTAS|CONTRATOS|ATIVIDADES (legado; metas novas usam alvos abaixo)
-  valor_alvo      Float
-  valor_atual     Float     @default(0)
-  periodo         String    // rótulo: "2026-05" (mensal), "2026" (anual) ou "2026-06-01..2026-06-30" (período)
-  status          String    @default("ATIVA") // ATIVA|CONCLUIDA|CANCELADA
+  id               String @id @default(cuid())
+  titulo           String
+  responsavel_id   String // 1º responsável (compat); a lista completa fica em responsaveis_ids
+  responsaveis_ids Json? // ["userId1","userId2"] — meta apresentada só a estes usuários (+ gestão)
+  tipo             String // RECEITA|LEADS|PROPOSTAS|CONTRATOS|ATIVIDADES (legado; metas novas usam alvos abaixo)
+  valor_alvo       Float
+  valor_atual      Float  @default(0)
+  periodo          String // rótulo: "2026-05" (mensal), "2026" (anual) ou "2026-06-01..2026-06-30" (período)
+  status           String @default("ATIVA") // ATIVA|CONCLUIDA|CANCELADA
 
   // ─── Metas comerciais estruturadas ───
-  modo            String?   // 'INDIVIDUAL' (mesmo alvo p/ cada um) | 'EQUIPE' (alvo somado)
-  periodo_tipo    String?   // 'MENSAL' | 'ANUAL' | 'PERIODO'
-  data_inicio     DateTime?
-  data_fim        DateTime?
-  meta_contratos       Int?     // total de contratos
-  meta_preco_inst      Float?   // preço médio de instalação
-  meta_preco_mensal    Float?   // preço médio de mensalidade
-  meta_valor_total     Float?   // total em valores
+  modo              String? // 'INDIVIDUAL' (mesmo alvo p/ cada um) | 'EQUIPE' (alvo somado)
+  periodo_tipo      String? // 'MENSAL' | 'ANUAL' | 'PERIODO'
+  data_inicio       DateTime?
+  data_fim          DateTime?
+  meta_contratos    Int? // total de contratos
+  meta_preco_inst   Float? // preço médio de instalação
+  meta_preco_mensal Float? // preço médio de mensalidade
+  meta_valor_total  Float? // total em valores
 
-  created_by      String
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([responsavel_id])
   @@index([periodo])
@@ -821,43 +821,43 @@ model Meta {
 // ===== SERVICOS CONTRATADOS =====
 
 model PlanoServico {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   nome        String
-  descricao   String?  @db.Text
-  segmento    String   @default("GERAL") // FARMACIA|PADARIA|VAREJO|GERAL
+  descricao   String? @db.Text
+  segmento    String  @default("GERAL") // FARMACIA|PADARIA|VAREJO|GERAL
   preco       Float
-  recorrencia String   @default("MENSAL") // MENSAL|ANUAL|UNICO
-  ativo       Boolean  @default(true)
+  recorrencia String  @default("MENSAL") // MENSAL|ANUAL|UNICO
+  ativo       Boolean @default(true)
   features    Json
 
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  licencas    Licenca[]
+  licencas Licenca[]
 
   @@index([segmento])
   @@index([ativo])
 }
 
 model Licenca {
-  id          String   @id @default(cuid())
-  cliente_id  String
-  cliente     Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  cliente_id String
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  plano_id    String?
-  plano       PlanoServico? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
+  plano_id String?
+  plano    PlanoServico? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
 
-  status      String   @default("ATIVA") // ATIVA|SUSPENSA|EXPIRADA|CANCELADA
+  status      String    @default("ATIVA") // ATIVA|SUSPENSA|EXPIRADA|CANCELADA
   data_inicio DateTime
   data_fim    DateTime?
   valor       Float
-  chave       String?  // license key
+  chave       String? // license key
 
   responsavel_id String?
-  observacoes String? @db.Text
+  observacoes    String? @db.Text
 
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   onboardings Onboarding[]
   renovacoes  Renovacao[]
@@ -869,18 +869,18 @@ model Licenca {
 }
 
 model Onboarding {
-  id           String   @id @default(cuid())
-  licenca_id   String
-  licenca      Licenca  @relation(fields: [licenca_id], references: [id], onDelete: Cascade)
-  cliente_id   String
+  id         String  @id @default(cuid())
+  licenca_id String
+  licenca    Licenca @relation(fields: [licenca_id], references: [id], onDelete: Cascade)
+  cliente_id String
 
-  status       String   @default("PENDENTE") // PENDENTE|EM_ANDAMENTO|CONCLUIDO|PAUSADO
+  status         String  @default("PENDENTE") // PENDENTE|EM_ANDAMENTO|CONCLUIDO|PAUSADO
   responsavel_id String?
-  etapas       Json     @default("[]") // [{titulo, concluido, data_conclusao}]
-  progresso    Int      @default(0) // 0-100
+  etapas         Json    @default("[]") // [{titulo, concluido, data_conclusao}]
+  progresso      Int     @default(0) // 0-100
 
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([cliente_id])
   @@index([status])
@@ -888,20 +888,20 @@ model Onboarding {
 }
 
 model Renovacao {
-  id              String   @id @default(cuid())
-  licenca_id      String
-  licenca         Licenca  @relation(fields: [licenca_id], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  licenca_id String
+  licenca    Licenca @relation(fields: [licenca_id], references: [id], onDelete: Cascade)
 
   status          String   @default("PENDENTE") // PENDENTE|EM_NEGOCIACAO|RENOVADA|CANCELADA|PERDIDA
   data_vencimento DateTime
   valor_atual     Float
   valor_novo      Float?
 
-  responsavel_id  String?
-  observacoes     String?  @db.Text
+  responsavel_id String?
+  observacoes    String? @db.Text
 
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([licenca_id])
   @@index([status])
@@ -909,25 +909,25 @@ model Renovacao {
 }
 
 model TicketSuporte {
-  id           String   @id @default(cuid())
-  cliente_id   String
-  cliente      Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  cliente_id String
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  licenca_id   String?
-  licenca      Licenca? @relation(fields: [licenca_id], references: [id], onDelete: SetNull)
+  licenca_id String?
+  licenca    Licenca? @relation(fields: [licenca_id], references: [id], onDelete: SetNull)
 
-  titulo       String
-  descricao    String?  @db.Text
-  categoria    String   @default("TECNICO") // TECNICO|FISCAL|COMERCIAL|FINANCEIRO|TREINAMENTO
-  prioridade   String   @default("MEDIA") // BAIXA|MEDIA|ALTA|CRITICA
-  status       String   @default("ABERTO") // ABERTO|EM_ATENDIMENTO|AGUARDANDO_CLIENTE|RESOLVIDO|FECHADO
+  titulo     String
+  descricao  String? @db.Text
+  categoria  String  @default("TECNICO") // TECNICO|FISCAL|COMERCIAL|FINANCEIRO|TREINAMENTO
+  prioridade String  @default("MEDIA") // BAIXA|MEDIA|ALTA|CRITICA
+  status     String  @default("ABERTO") // ABERTO|EM_ATENDIMENTO|AGUARDANDO_CLIENTE|RESOLVIDO|FECHADO
 
   responsavel_id String?
-  sla_horas    Int?
-  resolucao_at DateTime?
+  sla_horas      Int?
+  resolucao_at   DateTime?
 
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([cliente_id])
   @@index([status])
@@ -938,56 +938,56 @@ model TicketSuporte {
 // ===== COMISSÕES E INDICAÇÕES =====
 
 model RegraComissao {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   nome           String
   responsavel_id String
-  tipo           String   @default("CONTRATO") // CONTRATO|PROPOSTA|LEAD
-  percentual     Float    // ex: 5.0 = 5%
-  ativo          Boolean  @default(true)
+  tipo           String  @default("CONTRATO") // CONTRATO|PROPOSTA|LEAD
+  percentual     Float // ex: 5.0 = 5%
+  ativo          Boolean @default(true)
   observacoes    String?
 
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  comissoes      Comissao[]
+  comissoes Comissao[]
 
   @@index([responsavel_id])
   @@index([ativo])
 }
 
 model Comissao {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   responsavel_id String
   regra_id       String?
   regra          RegraComissao? @relation(fields: [regra_id], references: [id], onDelete: SetNull)
 
-  tipo           String   // CONTRATO|PROPOSTA|LEAD|MANUAL|BONUS
-  referencia_id  String?  // ID do contrato/proposta/lead
-  descricao      String?
+  tipo          String // CONTRATO|PROPOSTA|LEAD|MANUAL|BONUS
+  referencia_id String? // ID do contrato/proposta/lead
+  descricao     String?
 
   valor_base     Float
   percentual     Float
   valor_comissao Float
 
-  periodo        String   // "YYYY-MM" (competência da venda)
-  status         String   @default("PENDENTE") // PENDENTE|APROVADA|PAGA|CANCELADA
+  periodo String // "YYYY-MM" (competência da venda)
+  status  String @default("PENDENTE") // PENDENTE|APROVADA|PAGA|CANCELADA
 
   // Fluxo de pagamento da comissão (vendedor e supervisão):
   //  A_RECEBER  → contrato assinado, sem data de instalação (expectativa, sem mês)
   //  A_CONFIRMAR→ instalado, aguardando supervisão confirmar 1º vencimento
   //  CONFIRMADA → mês de pagamento definido (1º vencimento + 1 mês), pronto p/ financeiro
   //  PAGA       → financeiro quitou
-  estagio        String   @default("A_RECEBER")
-  papel          String?  // VENDEDOR | SUPERVISAO
-  mes_pagamento  String?  // "YYYY-MM" — mês em que o financeiro paga a comissão
+  estagio        String    @default("A_RECEBER")
+  papel          String? // VENDEDOR | SUPERVISAO
+  mes_pagamento  String? // "YYYY-MM" — mês em que o financeiro paga a comissão
   implantacao_id String?
   aprovada_por   String?
   aprovada_em    DateTime?
   paga_em        DateTime?
 
-  created_by     String   @default("system")
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  created_by String   @default("system")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([responsavel_id])
   @@index([periodo])
@@ -999,18 +999,18 @@ model Comissao {
 // Acompanhamento da implantação do sistema no cliente (nasce do contrato assinado).
 // Supervisão informa a data de instalação e o 1º vencimento → libera a comissão.
 model Implantacao {
-  id                       String    @id @default(cuid())
-  contrato_id              String    @unique
-  proposta_id              String?
-  lead_id                  String?
+  id          String  @id @default(cuid())
+  contrato_id String  @unique
+  proposta_id String?
+  lead_id     String?
 
-  cliente_razao_social     String
-  cliente_cnpj             String?
-  plano                    String?
-  vendedor_id              String?
-  vendedor_nome            String?
-  valor_setup              Float?
-  mensalidade              Float?
+  cliente_razao_social String
+  cliente_cnpj         String?
+  plano                String?
+  vendedor_id          String?
+  vendedor_nome        String?
+  valor_setup          Float?
+  mensalidade          Float?
 
   status                   String    @default("AGUARDANDO_INSTALACAO")
   // AGUARDANDO_INSTALACAO | AGENDADA | INSTALADO | CANCELADA
@@ -1018,40 +1018,40 @@ model Implantacao {
   data_agendada            DateTime?
   data_instalacao          DateTime?
   data_primeiro_vencimento DateTime?
-  mes_pagamento_comissao   String?   // "YYYY-MM" = mês do 1º vencimento + 1
+  mes_pagamento_comissao   String? // "YYYY-MM" = mês do 1º vencimento + 1
   observacoes              String?   @db.Text
 
   // Tipo da base (vem da proposta): banco zerado (nova instalação) ou conversão.
-  tipo_base                String?   // BANCO_ZERADO | CONVERSAO
-  sistema_anterior         String?   // se CONVERSAO: de qual sistema vem
+  tipo_base        String? // BANCO_ZERADO | CONVERSAO
+  sistema_anterior String? // se CONVERSAO: de qual sistema vem
 
   // ─── Execução técnica da implantação ───────────────────────────
-  tecnico_id               String?   // técnico de implantação designado
-  tecnico_nome             String?
-  designado_em             DateTime?
+  tecnico_id     String? // técnico de implantação designado
+  tecnico_nome   String?
+  designado_em   DateTime?
   // Etapa da execução técnica (kanban do técnico)
-  etapa_execucao           String    @default("AGUARDANDO_DESIGNACAO")
+  etapa_execucao String    @default("AGUARDANDO_DESIGNACAO")
   // AGUARDANDO_DESIGNACAO | DESIGNADO | EM_ANALISE | EM_CONVERSAO | EM_CONFIGURACAO | EM_TREINAMENTO | FINALIZADO
 
   // ─── Trilha de tempo por fase ───────────────────────────────────
-  data_entrada_lead        DateTime? // entrada do lead (negociação)
+  data_entrada_lead  DateTime? // entrada do lead (negociação)
   // assinatura → data_assinatura | instalação → data_instalacao
-  treinamento_inicio       DateTime?
-  treinamento_fim          DateTime?
-  data_conclusao           DateTime? // implantação concluída (fim do ciclo)
+  treinamento_inicio DateTime?
+  treinamento_fim    DateTime?
+  data_conclusao     DateTime? // implantação concluída (fim do ciclo)
 
   // Prazos-meta para nortear o técnico (default: +15 virada / +30 finalização da assinatura)
-  prazo_virada             DateTime?
-  prazo_finalizacao        DateTime?
+  prazo_virada      DateTime?
+  prazo_finalizacao DateTime?
 
-  created_by               String    @default("system")
-  created_at               DateTime  @default(now())
-  updated_at               DateTime  @updatedAt
+  created_by String   @default("system")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  atividades   ImplantacaoAtividade[]
-  testes       ImplantacaoTeste[]
-  arquivos     ImplantacaoArquivo[]
-  checklist    ImplantacaoChecklistItem[]
+  atividades ImplantacaoAtividade[]
+  testes     ImplantacaoTeste[]
+  arquivos   ImplantacaoArquivo[]
+  checklist  ImplantacaoChecklistItem[]
 
   @@index([status])
   @@index([etapa_execucao])
@@ -1081,7 +1081,7 @@ model ImplantacaoTeste {
   id             String      @id @default(cuid())
   implantacao_id String
   implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
-  item           String      // ex.: "Produtos", "Clientes", "Financeiro"...
+  item           String // ex.: "Produtos", "Clientes", "Financeiro"...
   resultado      String      @default("PENDENTE") // PENDENTE | OK | DIVERGENTE | NAO_APLICA
   observacao     String?     @db.Text
   testado_por    String?
@@ -1099,7 +1099,7 @@ model ImplantacaoArquivo {
   implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
   nome           String
   tipo           String      @default("LINK") // LINK | ANEXO
-  url            String      @db.Text         // URL do link ou caminho/base64 do anexo
+  url            String      @db.Text // URL do link ou caminho/base64 do anexo
   descricao      String?
   enviado_por    String?
   created_at     DateTime    @default(now())
@@ -1124,25 +1124,25 @@ model ImplantacaoChecklistItem {
 }
 
 model Indicacao {
-  id                   String   @id @default(cuid())
+  id                   String  @id @default(cuid())
   cliente_indicador_id String
-  cliente_indicador    Cliente  @relation("IndicacoesFeitas", fields: [cliente_indicador_id], references: [id], onDelete: Cascade)
+  cliente_indicador    Cliente @relation("IndicacoesFeitas", fields: [cliente_indicador_id], references: [id], onDelete: Cascade)
 
-  lead_id              String?
-  lead                 Lead?    @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  lead_id String?
+  lead    Lead?   @relation(fields: [lead_id], references: [id], onDelete: SetNull)
 
-  nome_indicado        String
-  email_indicado       String?
-  telefone_indicado    String?
-  empresa_indicado     String?
+  nome_indicado     String
+  email_indicado    String?
+  telefone_indicado String?
+  empresa_indicado  String?
 
-  status               String   @default("PENDENTE") // PENDENTE|CONTATO|CONVERTIDO|PERDIDO
-  bonus_valor          Float    @default(0)
-  bonus_pago           Boolean  @default(false)
-  observacoes          String?
+  status      String  @default("PENDENTE") // PENDENTE|CONTATO|CONVERTIDO|PERDIDO
+  bonus_valor Float   @default(0)
+  bonus_pago  Boolean @default(false)
+  observacoes String?
 
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([cliente_indicador_id])
   @@index([status])
@@ -1151,19 +1151,19 @@ model Indicacao {
 // ===== GERADOR DE PROPOSTA COMERCIAL =====
 
 model PropostaComercial {
-  id                   String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // Dados da empresa
-  razao_social         String
-  nome_fantasia        String?
-  cnpj                 String?
-  segmento             String?
-  cidade               String?
-  estado               String?
-  maquinas             Int?
-  tipo_loja            String?   // NOVA_IMPLANTACAO | MIGRACAO | UPGRADE | FILIAL | REATIVACAO
-  sistema_atual        String?
-  data_virada          String?
+  razao_social  String
+  nome_fantasia String?
+  cnpj          String?
+  segmento      String?
+  cidade        String?
+  estado        String?
+  maquinas      Int?
+  tipo_loja     String? // NOVA_IMPLANTACAO | MIGRACAO | UPGRADE | FILIAL | REATIVACAO
+  sistema_atual String?
+  data_virada   String?
 
   // Responsável
   responsavel_nome     String?
@@ -1174,54 +1174,54 @@ model PropostaComercial {
   responsavel_horario  String?
 
   // Dados comerciais
-  vendedor_nome        String?
-  vendedor_telefone    String?
-  supervisor_nome      String?
-  campanha             String?
-  validade             DateTime?
-  origem               String?   // INDICACAO | PROSPECCAO | WHATSAPP | VISITA | TRAFEGO | CLIENTE_ANTIGO
+  vendedor_nome     String?
+  vendedor_telefone String?
+  supervisor_nome   String?
+  campanha          String?
+  validade          DateTime?
+  origem            String? // INDICACAO | PROSPECCAO | WHATSAPP | VISITA | TRAFEGO | CLIENTE_ANTIGO
 
   // Plano e produtos
-  plano_selecionado    String?   // PRO | PLUS | PERSONALIZADO
-  plano_recomendado    String?
-  mensalidade_pro      Float?
-  mensalidade_plus     Float?
-  modulos_inclusos     Json
-  servicos_adicionais  Json
+  plano_selecionado   String? // PRO | PLUS | PERSONALIZADO
+  plano_recomendado   String?
+  mensalidade_pro     Float?
+  mensalidade_plus    Float?
+  modulos_inclusos    Json
+  servicos_adicionais Json
 
   // Valores
-  valor_implantacao    Float?
-  valor_conversao      Float?
-  desconto             Float?
-  valor_final          Float?
-  entrada              Float?
-  parcelas             Int?
-  valor_parcela        Float?
-  data_vencimento      String?
-  observacao_cobranca  String?
-  condicao_especial    String?
+  valor_implantacao   Float?
+  valor_conversao     Float?
+  desconto            Float?
+  valor_final         Float?
+  entrada             Float?
+  parcelas            Int?
+  valor_parcela       Float?
+  data_vencimento     String?
+  observacao_cobranca String?
+  condicao_especial   String?
 
   // Conteúdo editorial da proposta
-  titulo_proposta      String?
-  frase_hero           String?
-  texto_valor          String?   @db.Text
-  observacoes          String?   @db.Text
+  titulo_proposta String?
+  frase_hero      String?
+  texto_valor     String? @db.Text
+  observacoes     String? @db.Text
 
   // Rastreamento de quem gerou
-  created_by           String
-  created_by_name      String?
-  created_by_role      String?
-  vendedor_id          String?
-  vendedor_email       String?
-  supervisor_id        String?
-  supervisor_email     String?
+  created_by       String
+  created_by_name  String?
+  created_by_role  String?
+  vendedor_id      String?
+  vendedor_email   String?
+  supervisor_id    String?
+  supervisor_email String?
 
   // Comissões
-  comissao_vendedor_pct      Float    @default(15)
-  comissao_vendedor_valor    Float?
-  comissao_supervisor_pct    Float    @default(5)
-  comissao_supervisor_valor  Float?
-  comissao_confirmada        Boolean  @default(false)
+  comissao_vendedor_pct     Float   @default(15)
+  comissao_vendedor_valor   Float?
+  comissao_supervisor_pct   Float   @default(5)
+  comissao_supervisor_valor Float?
+  comissao_confirmada       Boolean @default(false)
 
   // Datas de lifecycle
   data_aceite          DateTime?
@@ -1229,21 +1229,21 @@ model PropostaComercial {
   data_contrato_gerado DateTime?
 
   // Metadados
-  status               String    @default("RASCUNHO")
+  status String @default("RASCUNHO")
   // RASCUNHO | ENVIADA | EM_NEGOCIACAO | ACEITA | RECUSADA | PERDIDA
   // CONTRATO_EM_GERACAO | CONTRATO_ENVIADO | CONTRATO_ASSINADO
 
-  public_token         String?   @unique
+  public_token String? @unique
 
   // Soft-delete: proposta excluída sai dos RESULTADOS mas permanece para AUDITORIA
-  deleted_at           DateTime?
-  deleted_by           String?
-  motivo_exclusao      String?   @db.Text
+  deleted_at      DateTime?
+  deleted_by      String?
+  motivo_exclusao String?   @db.Text
 
-  created_at           DateTime  @default(now())
-  updated_at           DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  historico  PropostaHistorico[]
+  historico PropostaHistorico[]
 
   @@index([status])
   @@index([created_by])
@@ -1254,22 +1254,22 @@ model PropostaComercial {
 }
 
 model PropostaHistorico {
-  id             String   @id @default(cuid())
-  proposta_id    String
-  proposta       PropostaComercial @relation(fields: [proposta_id], references: [id], onDelete: Cascade)
+  id          String            @id @default(cuid())
+  proposta_id String
+  proposta    PropostaComercial @relation(fields: [proposta_id], references: [id], onDelete: Cascade)
 
-  tipo           String   // CRIACAO | RENEGOCIACAO | STATUS | ENVIO
+  tipo           String // CRIACAO | RENEGOCIACAO | STATUS | ENVIO
   campo_alterado String?
-  valor_anterior String?  @db.Text
-  valor_novo     String?  @db.Text
-  motivo         String?  @db.Text
-  observacao     String?  @db.Text
+  valor_anterior String? @db.Text
+  valor_novo     String? @db.Text
+  motivo         String? @db.Text
+  observacao     String? @db.Text
 
   feito_por_id   String?
   feito_por_nome String?
   feito_por_role String?
 
-  created_at     DateTime @default(now())
+  created_at DateTime @default(now())
 
   @@index([proposta_id])
   @@index([created_at])
@@ -1278,57 +1278,57 @@ model PropostaHistorico {
 // ===== VENDAS ADICIONAIS (Cross-sell base de clientes) =====
 
 model Parceiro {
-  id                      String   @id @default(cuid())
+  id                      String  @id @default(cuid())
   nome                    String
-  categoria               String   // FISCAL | TEF | TRIBUTARIO | COMUNICACAO | UPGRADE | OUTRO
-  pitch                   String?  @db.Text
-  comissao_valor          Float    @default(50)
-  tabela_valores          String?  @db.Text
-  valor_referencia        Float?   // valor fixo para cálculo de comissão da supervisão (ex: R$100 fiscal, R$350 upgrade)
-  comissao_supervisao_pct Float    @default(5) // percentual da supervisão (5%)
-  ativo                   Boolean  @default(true)
+  categoria               String // FISCAL | TEF | TRIBUTARIO | COMUNICACAO | UPGRADE | OUTRO
+  pitch                   String? @db.Text
+  comissao_valor          Float   @default(50)
+  tabela_valores          String? @db.Text
+  valor_referencia        Float? // valor fixo para cálculo de comissão da supervisão (ex: R$100 fiscal, R$350 upgrade)
+  comissao_supervisao_pct Float   @default(5) // percentual da supervisão (5%)
+  ativo                   Boolean @default(true)
 
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  vendas         VendaAdicional[]
+  vendas VendaAdicional[]
 
   @@index([categoria])
   @@index([ativo])
 }
 
 model VendaAdicional {
-  id              String   @id @default(cuid())
-  cliente_id      String
-  cliente         Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  cliente_id String
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  parceiro_id     String
-  parceiro        Parceiro @relation(fields: [parceiro_id], references: [id])
+  parceiro_id String
+  parceiro    Parceiro @relation(fields: [parceiro_id], references: [id])
 
-  vendedor_id     String
-  vendedor_nome   String?  // nome do vendedor que fez a venda (exibição)
-  supervisao_id   String?  // quem registrou (supervisor que faz o cadastro)
+  vendedor_id   String
+  vendedor_nome String? // nome do vendedor que fez a venda (exibição)
+  supervisao_id String? // quem registrou (supervisor que faz o cadastro)
 
-  tipo_negocio    String   @default("INDICACAO") // INDICACAO | REVENDA
-  valor_venda     Float?
+  tipo_negocio     String  @default("INDICACAO") // INDICACAO | REVENDA
+  valor_venda      Float?
   // Acréscimo mensal negociado com o cliente (ex.: Arquivo Fiscal). Soma na
   // mensalidade total do cliente quando a venda é CONFIRMADA.
   acrescimo_mensal Float?
-  plano_anterior  String?
-  plano_novo      String?
+  plano_anterior   String?
+  plano_novo       String?
 
-  comissao_valor           Float    @default(50)
-  comissao_paga            Boolean  @default(false)
-  comissao_paga_em         DateTime?
-  comissao_supervisao_valor Float?   // calculado automaticamente ao confirmar
+  comissao_valor            Float     @default(50)
+  comissao_paga             Boolean   @default(false)
+  comissao_paga_em          DateTime?
+  comissao_supervisao_valor Float? // calculado automaticamente ao confirmar
 
-  status          String   @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
+  status String @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
 
-  observacoes     String?  @db.Text
+  observacoes String? @db.Text
 
-  created_by      String
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([cliente_id])
   @@index([parceiro_id])
@@ -1340,13 +1340,13 @@ model VendaAdicional {
 // ===== HEALTH SCORE =====
 
 model HealthScore {
-  id          String   @id @default(cuid())
-  cliente_id  String   @unique
-  cliente     Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  cliente_id String  @unique
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  score       Float    // 0-100
-  nivel       String   @default("ATENCAO") // CRITICO|RISCO|ATENCAO|SAUDAVEL|EXCELENTE
-  fatores     Json     // {tickets_abertos, dias_sem_contato, nps_score, contratos_ativos, ...}
+  score   Float // 0-100
+  nivel   String @default("ATENCAO") // CRITICO|RISCO|ATENCAO|SAUDAVEL|EXCELENTE
+  fatores Json // {tickets_abertos, dias_sem_contato, nps_score, contratos_ativos, ...}
 
   calculado_at DateTime @default(now())
   created_at   DateTime @default(now())
@@ -1359,16 +1359,16 @@ model HealthScore {
 // ===== UTILITARIOS =====
 
 model Credito {
-  id                String    @id @default(cuid())
-  cliente_id        String
-  cliente           Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  cliente_id String
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  valor             Float
-  validade          DateTime
-  motivo            String?
+  valor    Float
+  validade DateTime
+  motivo   String?
 
-  criado_em         DateTime  @default(now())
-  utilizado_em      DateTime?
+  criado_em    DateTime  @default(now())
+  utilizado_em DateTime?
 
   @@index([cliente_id])
   @@index([validade])
@@ -1377,71 +1377,71 @@ model Credito {
 // ===== CONTRATOS COMERCIAIS (fluxo Proposta → Contrato → ZapSign) =====
 
 model ContratoComercial {
-  id                      String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // Número sequencial
-  numero_contrato         String    @unique   // "33/2026"
-  sequencia               Int
-  ano                     Int
+  numero_contrato String @unique // "33/2026"
+  sequencia       Int
+  ano             Int
 
   // Vínculo com proposta
-  proposta_comercial_id   String?   @unique
+  proposta_comercial_id String? @unique
 
   // Empresa contratante
-  razao_social            String
-  nome_fantasia           String?
-  cnpj                    String?
-  endereco                String?
-  numero_endereco         String?
-  bairro                  String?
-  cidade                  String?
-  estado                  String?
-  cep                     String?
+  razao_social    String
+  nome_fantasia   String?
+  cnpj            String?
+  endereco        String?
+  numero_endereco String?
+  bairro          String?
+  cidade          String?
+  estado          String?
+  cep             String?
 
   // Representante legal
-  representante_nome      String?
-  representante_cpf       String?
-  representante_email     String?
-  representante_telefone  String?
-  representante_cargo     String?
+  representante_nome     String?
+  representante_cpf      String?
+  representante_email    String?
+  representante_telefone String?
+  representante_cargo    String?
 
   // Plano e mensalidade
-  plano_contratado        String?
-  software_nome           String?
-  software_versao         String?
-  mensalidade             Float?
-  dia_vencimento          Int?
+  plano_contratado String?
+  software_nome    String?
+  software_versao  String?
+  mensalidade      Float?
+  dia_vencimento   Int?
 
   // Setup / instalação
   valor_setup_total       Float?
   valor_setup_entrada     Float?
   setup_parcelas          Int?
   valor_setup_parcela     Float?
-  setup_a_vista           Boolean   @default(false)
+  setup_a_vista           Boolean @default(false)
   setup_condicao_especial String?
 
   // Equipe comercial
-  vendedor_id             String?   // p/ vincular comissão e meta ao vendedor
-  vendedor_nome           String?
-  supervisor_nome         String?
-  campanha                String?
-  condicao_especial       String?
-  data_contrato           DateTime  @default(now())
+  vendedor_id       String? // p/ vincular comissão e meta ao vendedor
+  vendedor_nome     String?
+  supervisor_nome   String?
+  campanha          String?
+  condicao_especial String?
+  data_contrato     DateTime @default(now())
 
   // Comissão do vendedor (15% sobre o setup/instalação, calculada na assinatura)
-  comissao_vendedor_pct   Float?    @default(15)
+  comissao_vendedor_pct   Float? @default(15)
   comissao_vendedor_valor Float?
 
   // Recuo / distrato (cliente assinou e desistiu) — sai da meta e estorna comissão
-  recuado_at              DateTime?
-  recuo_motivo            String?
+  recuado_at   DateTime?
+  recuo_motivo String?
 
   // Modelo ZapSign usado
-  modelo_contrato         String?   // "Pro" | "Plus" | "Farma Pro" | etc
-  zapsign_template_token  String?   // token do modelo no ZapSign
+  modelo_contrato        String? // "Pro" | "Plus" | "Farma Pro" | etc
+  zapsign_template_token String? // token do modelo no ZapSign
 
   // Kanban status
-  status                  String    @default("A_GERAR")
+  status String @default("A_GERAR")
   // A_GERAR | GERADO | ENVIADO_ASSINATURA | AGUARDANDO_ASSINATURA | ASSINADO | PENDENTE_CORRECAO | CANCELADO | RECUADO
 
   // ZapSign campos de rastreamento
@@ -1454,9 +1454,9 @@ model ContratoComercial {
   sent_to_sign_at         DateTime?
   signed_at               DateTime?
 
-  created_by              String    @default("system")
-  created_at              DateTime  @default(now())
-  updated_at              DateTime  @updatedAt
+  created_by String   @default("system")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([status])
   @@index([created_at])
@@ -1485,20 +1485,20 @@ model ConfiguracaoIntegracao {
 // e NUNCA as remova. A criação/seed ainda é feita via CREATE TABLE IF NOT EXISTS nas rotas.
 
 model UsuarioCRM {
-  id                String    @id @db.Char(36)
-  nome              String    @db.VarChar(255)
-  email             String    @unique @db.VarChar(255)
-  telefone          String?   @db.VarChar(50)
-  senha             String    @db.VarChar(255)   // 255 p/ caber hash bcrypt (60 chars)
-  cargo             String    @db.VarChar(50)
-  classificacao     String?   @db.VarChar(5)
-  status            String?   @default("ATIVO") @db.VarChar(20)
-  observacoes       String?   @db.Text
-  modulos_permissao Json?
-  precisa_trocar_senha Boolean? @default(false)   // força troca no 1º acesso / após reset
-  created_by        String?   @db.VarChar(255)
-  created_at        DateTime? @default(now())
-  updated_at        DateTime? @default(now())
+  id                   String    @id @db.Char(36)
+  nome                 String    @db.VarChar(255)
+  email                String    @unique @db.VarChar(255)
+  telefone             String?   @db.VarChar(50)
+  senha                String    @db.VarChar(255) // 255 p/ caber hash bcrypt (60 chars)
+  cargo                String    @db.VarChar(50)
+  classificacao        String?   @db.VarChar(5)
+  status               String?   @default("ATIVO") @db.VarChar(20)
+  observacoes          String?   @db.Text
+  modulos_permissao    Json?
+  precisa_trocar_senha Boolean?  @default(false) // força troca no 1º acesso / após reset
+  created_by           String?   @db.VarChar(255)
+  created_at           DateTime? @default(now())
+  updated_at           DateTime? @default(now())
 }
 
 model AuditoriaUsuario {
@@ -1568,4 +1568,72 @@ model MetaVendedor {
   created_at    DateTime? @default(now())
 
   @@unique([vendedor_id, ano, mes, trimestre], name: "uq_meta")
+}
+
+// ===== WHATSAPP (Inbox multi-instância via Evolution API) =====
+// Cada usuário conecta a própria instância (QR Code). Escopo por dono_id:
+// vendedor vê só as suas conversas; gestão (podeVerTudo) vê todas.
+
+model WhatsappInstancia {
+  id             String    @id @default(cuid())
+  // Nome único da instância na Evolution API (ex.: "crm-<userId>").
+  instancia_nome String    @unique
+  dono_id        String // UsuarioCRM.id que conectou (escopo por dono)
+  dono_nome      String?
+  numero         String? // número conectado (preenchido após parear)
+  status         String    @default("DESCONECTADO") // DESCONECTADO|CONECTANDO|CONECTADO
+  qr_code        String?   @db.Text // último QR (base64) enquanto conecta
+  conectado_em   DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  conversas WhatsappConversa[]
+
+  @@index([dono_id])
+  @@index([status])
+}
+
+model WhatsappConversa {
+  id          String            @id @default(cuid())
+  instanciaId String
+  instancia   WhatsappInstancia @relation(fields: [instanciaId], references: [id], onDelete: Cascade)
+
+  dono_id        String // herdado da instância — facilita o escopo nas queries
+  contato_numero String // E.164 sem máscara (ex.: 5527999999999)
+  contato_nome   String?
+  lead_id        String? // vínculo opcional ao Lead do funil
+
+  ultima_mensagem String?   @db.Text
+  ultima_em       DateTime?
+  nao_lidas       Int       @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  mensagens WhatsappMensagem[]
+
+  @@unique([instanciaId, contato_numero], name: "uq_conversa")
+  @@index([dono_id])
+  @@index([lead_id])
+  @@index([ultima_em])
+}
+
+model WhatsappMensagem {
+  id         String           @id @default(cuid())
+  conversaId String
+  conversa   WhatsappConversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+
+  externo_id  String? // id da mensagem na Evolution (idempotência)
+  direcao     String // ENTRADA|SAIDA
+  tipo        String  @default("TEXTO") // TEXTO|IMAGEM|AUDIO|DOCUMENTO|OUTRO
+  conteudo    String  @db.Text
+  midia_url   String? @db.Text
+  status      String  @default("ENVIADA") // ENVIADA|ENTREGUE|LIDA|FALHA (saída)
+  enviada_por String? // UsuarioCRM.id (quando SAIDA pelo CRM)
+
+  created_at DateTime @default(now())
+
+  @@unique([externo_id], name: "uq_msg_externa")
+  @@index([conversaId])
+  @@index([direcao])
 }

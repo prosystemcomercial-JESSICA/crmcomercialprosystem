@@ -43,6 +43,7 @@ const navGroups: NavGroup[] = [
     label: 'Comercial',
     items: [
       { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial', roles: COMERCIAL },
+      { href: '/whatsapp',              icon: MessageSquare, label: 'WhatsApp',           roles: COMERCIAL },
       { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',         roles: ALL },
       { href: '/agenda',                icon: CalendarDays,  label: 'Agenda (Google)',    roles: ALL },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
