@@ -104,9 +104,12 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
     return reply.send({ status: 'success', data: hs });
   });
 
-  // Calcular health score para TODOS os clientes
+  // Calcular health score para todos os clientes ATIVOS (ignora inativos/churn).
   fastify.post('/health-scores/calcular-todos', async (request, reply) => {
-    const clientes = await prisma.cliente.findMany({ select: { id: true } });
+    const clientes = await prisma.cliente.findMany({
+      where: { OR: [{ situacao: 'ATIVA' }, { situacao: null }] }, // null = legado sem situação = considera ativo
+      select: { id: true },
+    });
     let processados = 0;
 
     for (const cliente of clientes) {

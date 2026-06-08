@@ -229,6 +229,13 @@ class ApiClient {
     return this.client.get('/clientes', { params });
   }
 
+  async desativarCliente(id: string, motivo: string, mrr_perdido?: number) {
+    return this.client.post(`/clientes/${id}/desativar`, { motivo, mrr_perdido });
+  }
+  async reativarCliente(id: string) {
+    return this.client.post(`/clientes/${id}/reativar`);
+  }
+
   async getClienteById(id: string) {
     return this.client.get(`/clientes/${id}`);
   }
