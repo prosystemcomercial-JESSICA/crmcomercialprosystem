@@ -874,8 +874,20 @@ export default function LeadsPage() {
     try {
       const payload: any = { ...newLeadForm };
       if (!payload.nome) payload.nome = payload.razao_social || payload.responsavel_nome || payload.empresa || 'Lead';
-      if (payload.qtd_lojas) payload.qtd_lojas = parseInt(payload.qtd_lojas); else delete payload.qtd_lojas;
-      if (payload.qtd_caixas) payload.qtd_caixas = parseInt(payload.qtd_caixas); else delete payload.qtd_caixas;
+
+      // Campos NUMÉRICOS: converter de string p/ número; vazios são removidos
+      // (senão o backend recusa "5000" como string → "Dados inválidos").
+      const numericos = ['qtd_lojas', 'qtd_caixas', 'valor_estimado', 'valor_setup', 'valor_conversao', 'mensalidade_estimada', 'entrada', 'parcelamento', 'probabilidade'];
+      for (const k of numericos) {
+        const v = payload[k];
+        if (v === '' || v === null || v === undefined) { delete payload[k]; continue; }
+        const n = Number(String(v).replace(',', '.'));
+        if (Number.isNaN(n)) delete payload[k]; else payload[k] = n;
+      }
+      // Strings vazias em campos opcionais → remover (evita validação .email()/.datetime()).
+      for (const k of Object.keys(payload)) {
+        if (payload[k] === '' && !['nome', 'origem'].includes(k)) delete payload[k];
+      }
       if (!payload.responsavel_email) delete payload.responsavel_email;
       if (!payload.email) delete payload.email;
       // origem é obrigatória no back (default MANUAL) — string vazia vira MANUAL.
