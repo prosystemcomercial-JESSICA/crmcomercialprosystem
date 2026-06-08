@@ -17,6 +17,11 @@ const RespostaSchema = z.object({
   nota_conhecimento: nota,                   // conhecimento do técnico
   nota_geral: nota,                          // nota geral p/ a ProSystem (NPS)
   recado: z.string().optional(),             // recado/sugestão/elogio
+  // Conhece os diferenciais (radar de upsell)
+  conhece_plus: z.coerce.boolean().optional(),
+  conhece_dashboard: z.coerce.boolean().optional(),
+  conhece_mensageria: z.coerce.boolean().optional(),
+  conhece_gerencial: z.coerce.boolean().optional(),
   // Compatibilidade (opcionais; LP antiga / outros formulários)
   nota_suporte: z.coerce.number().int().min(1).max(5).optional(),
   nota_sistema: z.coerce.number().int().min(1).max(5).optional(),
@@ -37,8 +42,12 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
     // Média das 4 notas do atendimento + geral.
     const notas = [d.nota_atendimento, d.nota_eficiencia, d.nota_conhecimento, d.nota_geral];
     const media = notas.reduce((s, n) => s + n, 0) / notas.length;
-    // Crítico: qualquer nota < 3, média < 3, ou (se respondeu) não conhece o plano.
-    const critico = notas.some(n => n < 3) || media < 3 || d.conhece_plano === false;
+    // Não conhece algum diferencial → oportunidade de upsell (radar de atenção).
+    const desconheceAlgo = d.conhece_plus === false || d.conhece_dashboard === false
+      || d.conhece_mensageria === false || d.conhece_gerencial === false || d.conhece_plano === false;
+    // Crítico de satisfação: nota baixa OU desconhece diferenciais.
+    const notaBaixa = notas.some(n => n < 3) || media < 3;
+    const critico = notaBaixa || desconheceAlgo;
 
     // Tenta casar com um Cliente da base pela razão social / nome fantasia / empresa.
     const termo = d.identificacao.trim();
@@ -54,16 +63,31 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
       select: { id: true, nome: true },
     }).catch(() => null);
 
-    // Se crítico E casou com cliente → abre caso de churn automático + marca risco.
+    // Casou com cliente → espelha o "conhece produtos" na ficha (radar de upsell)
+    // e marca risco se houver nota baixa OU desconhecimento de diferenciais.
+    if (cliente) {
+      const fichaUpd: any = {};
+      if (d.conhece_plus !== undefined) fichaUpd.apresentou_plus = d.conhece_plus;
+      if (d.conhece_dashboard !== undefined) fichaUpd.conhece_dashboard = d.conhece_dashboard;
+      if (d.conhece_mensageria !== undefined) fichaUpd.conhece_mensageria = d.conhece_mensageria;
+      if (d.conhece_gerencial !== undefined) fichaUpd.conhece_gerencial = d.conhece_gerencial;
+      if (critico) fichaUpd.risco_atencao = true;
+      if (Object.keys(fichaUpd).length) {
+        await prisma.cliente.update({ where: { id: cliente.id }, data: fichaUpd }).catch(() => {});
+      }
+    }
+
+    // Caso de churn automático SÓ por insatisfação real (nota baixa). Desconhecer
+    // diferenciais marca atenção/upsell, mas não abre churn sozinho.
     let casoChurnId: string | undefined;
-    if (critico && cliente) {
+    if (notaBaixa && cliente) {
       try {
         const caso = await prisma.casoChurn.create({
           data: {
             clienteId: cliente.id,
             status: 'NOVO',
             risk_score: Math.round((5 - media) * 20), // 0-100 (quanto pior a nota, maior)
-            motivo_principal: d.conhece_plano === false ? 'Não conhece diferenciais do plano' : 'Baixa satisfação na pesquisa',
+            motivo_principal: 'Baixa satisfação na pesquisa',
             created_by: 'pesquisa-satisfacao',
           },
         });
@@ -84,6 +108,10 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
         nota_conhecimento: d.nota_conhecimento,
         nota_geral: d.nota_geral,
         recado: d.recado,
+        conhece_plus: d.conhece_plus ?? false,
+        conhece_dashboard: d.conhece_dashboard ?? false,
+        conhece_mensageria: d.conhece_mensageria ?? false,
+        conhece_gerencial: d.conhece_gerencial ?? false,
         // legados/compat
         nota_suporte: d.nota_suporte ?? d.nota_atendimento,
         nota_sistema: d.nota_sistema ?? d.nota_geral,
