@@ -987,6 +987,17 @@ class ApiClient {
   async getFinanceiroResumo(ano: number, mes?: number) {
     return this.client.get('/financeiro/resumo', { params: mes ? { ano, mes } : { ano } });
   }
+
+  // Pesquisa de satisfação
+  async responderPesquisa(data: any) {
+    return this.client.post('/pesquisa/responder', data);
+  }
+  async getPesquisas(filtros?: { critico?: boolean; cliente_id?: string }) {
+    return this.client.get('/pesquisa', { params: filtros || {} });
+  }
+  async getPesquisasCliente(clienteId: string) {
+    return this.client.get(`/pesquisa/cliente/${clienteId}`);
+  }
 }
 
 export const apiClient = new ApiClient();

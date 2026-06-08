@@ -1599,6 +1599,43 @@ model MetaVendedor {
   @@unique([vendedor_id, ano, mes, trimestre], name: "uq_meta")
 }
 
+// ===== PESQUISA DE SATISFAÇÃO (LP pública, enviada pelo técnico) =====
+// Cliente responde por link aberto e se identifica digitando razão/fantasia.
+// O sistema casa com o Cliente da base, anexa à ficha e marca crítico
+// (nota < 3 ou não conhece os diferenciais) → abre caso de churn + risco.
+model PesquisaSatisfacao {
+  id                String   @id @default(cuid())
+
+  // Identificação digitada pelo cliente na LP
+  identificacao     String   // razão social ou nome fantasia que o cliente digitou
+  respondente_nome  String?  // quem respondeu (opcional)
+
+  // Vínculo automático ao Cliente da base (quando casa razão/fantasia)
+  cliente_id        String?
+  cliente_casado    Boolean  @default(false)
+
+  // Avaliações (1-5 estrelas)
+  nota_suporte      Int      // satisfação com o suporte
+  nota_sistema      Int      // satisfação com o sistema no geral
+  conhece_plano     Boolean  @default(false) // conhece os diferenciais do plano?
+
+  // Texto livre
+  observacao        String?  @db.Text
+  sugestoes         String?  @db.Text
+
+  // Classificação automática
+  critico           Boolean  @default(false) // nota < 3 OU não conhece o plano
+  media             Float    @default(0)      // média das duas notas
+  caso_churn_id     String?  // caso de churn aberto automaticamente (se crítico)
+
+  ip_address        String?
+  created_at        DateTime @default(now())
+
+  @@index([cliente_id])
+  @@index([critico])
+  @@index([created_at])
+}
+
 // ===== CENTRO DE CUSTOS COMERCIAL =====
 // Lançamentos financeiros do setor comercial: entradas (vendas, instalações,
 // serviços, MRR) e saídas (salários, benefícios, marketing, comissões).
