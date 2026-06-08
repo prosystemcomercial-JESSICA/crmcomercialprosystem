@@ -970,6 +970,23 @@ class ApiClient {
   async getForecast() {
     return this.client.get('/dashboard/forecast');
   }
+
+  // Centro de custos comercial
+  async getFinanceiroCategorias() {
+    return this.client.get('/financeiro/categorias');
+  }
+  async getLancamentos(filtros?: { ano?: number; mes?: number; tipo?: string; categoria?: string }) {
+    return this.client.get('/financeiro/lancamentos', { params: filtros || {} });
+  }
+  async createLancamento(data: any) {
+    return this.client.post('/financeiro/lancamentos', data);
+  }
+  async deleteLancamento(id: string) {
+    return this.client.delete(`/financeiro/lancamentos/${id}`);
+  }
+  async getFinanceiroResumo(ano: number, mes?: number) {
+    return this.client.get('/financeiro/resumo', { params: mes ? { ano, mes } : { ano } });
+  }
 }
 
 export const apiClient = new ApiClient();
