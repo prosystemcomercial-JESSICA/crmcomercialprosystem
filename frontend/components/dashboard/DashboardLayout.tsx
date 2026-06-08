@@ -25,7 +25,7 @@ const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
 const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN'];
 
-type NavItem = { href: string; icon: any; label: string; roles?: string[] };
+type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp' };
 type NavGroup = { label: string; items: NavItem[] };
 
 const navGroups: NavGroup[] = [
@@ -36,46 +36,39 @@ const navGroups: NavGroup[] = [
       { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',       roles: GESTORES },
       // Radar Comercial é a primeira tela do vendedor (atividades dos próprios leads).
       { href: '/comercial', icon: BarChart2,       label: 'Radar Comercial', roles: ['VENDEDOR'] },
-      { href: '/manual',    icon: BookOpen,        label: 'Manual do CRM',   roles: ALL },
+      { href: '/leads',     icon: GitMerge,        label: 'Pipeline Comercial', roles: COMERCIAL },
+      // WhatsApp em DESTAQUE VERDE — módulo nobre do dia a dia.
+      { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',        roles: COMERCIAL, destaque: 'whatsapp' },
     ],
   },
   {
     label: 'Comercial',
     items: [
-      { href: '/leads',                 icon: GitMerge,      label: 'Pipeline Comercial', roles: COMERCIAL },
-      { href: '/whatsapp',              icon: MessageSquare, label: 'WhatsApp',           roles: COMERCIAL },
       { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',         roles: ALL },
       { href: '/agenda',                icon: CalendarDays,  label: 'Agenda (Google)',    roles: ALL },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
-      { href: '/perdidos',              icon: TrendingDown,  label: 'Perdidos',           roles: COMERCIAL },
       { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
+      { href: '/perdidos',              icon: TrendingDown,  label: 'Perdidos',           roles: COMERCIAL },
+    ],
+  },
+  {
+    label: 'Clientes & Base',
+    items: [
+      { href: '/clientes',     icon: Building2,  label: 'Clientes',     roles: ALL },
+      { href: '/indicacoes',   icon: Handshake,  label: 'Indicações',   roles: COMERCIAL },
+      { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
     ],
   },
   {
     label: 'Performance',
     items: [
-      // Para o vendedor, o Radar fica em "Principal" (1ª tela); aqui só p/ gestão.
       { href: '/comercial', icon: BarChart2,    label: 'Radar Comercial', roles: GESTAO_COMERCIAL },
       { href: '/metas',     icon: Trophy,       label: 'Metas Comerciais',roles: COMERCIAL },
       { href: '/ranking',   icon: Medal,        label: 'Ranking',         roles: GESTAO_COMERCIAL },
+      { href: '/comissoes',    icon: DollarSign, label: 'Comissões',      roles: COMERCIAL },
       { href: '/centro-custos', icon: DollarSign, label: 'Centro de Custos', roles: GESTAO_COMERCIAL },
       { href: '/relatorio-comercial', icon: LineChart, label: 'Relatório (CEO)', roles: GESTAO_COMERCIAL },
-    ],
-  },
-  {
-    label: 'Base',
-    items: [
-      { href: '/clientes', icon: Building2, label: 'Clientes', roles: ALL },
-      { href: '/usuarios', icon: Users,     label: 'Usuários', roles: GESTORES },
-    ],
-  },
-  {
-    label: 'Incentivos',
-    items: [
-      { href: '/comissoes',    icon: DollarSign, label: 'Comissões',    roles: COMERCIAL },
-      { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
-      { href: '/indicacoes',   icon: Handshake,  label: 'Indicações',   roles: COMERCIAL },
     ],
   },
   {
@@ -85,6 +78,19 @@ const navGroups: NavGroup[] = [
       { href: '/health-score', icon: Activity, label: 'Health Score',     roles: TECNICO },
       { href: '/nps',          icon: Star,     label: 'NPS',              roles: TECNICO },
       { href: '/pesquisas',    icon: MessageSquare, label: 'Pesquisas',   roles: TECNICO },
+      { href: '/renovacoes',   icon: RefreshCw,  label: 'Renovações', roles: TECNICO },
+      { href: '/suporte',      icon: Headphones, label: 'Suporte',    roles: TECNICO },
+    ],
+  },
+  {
+    label: 'Inteligência',
+    items: [
+      { href: '/alertas',       icon: Bell,         label: 'Alertas',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/previsao',      icon: TrendingUp,   label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/nutricao',      icon: Sprout,       label: 'Nutrição',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/relatorios-comerciais', icon: BarChart2, label: 'Rel. Comercial',  roles: GESTAO_COMERCIAL },
+      { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas', roles: GESTAO_COMERCIAL },
+      { href: '/relatorios',            icon: LineChart, label: 'Rel. Retenção',   roles: TECNICO },
     ],
   },
   {
@@ -93,27 +99,17 @@ const navGroups: NavGroup[] = [
       { href: '/catalogo',   icon: Package,    label: 'Catálogo',   roles: GESTORES },
       { href: '/licencas',   icon: KeyRound,   label: 'Licenças',   roles: GESTORES },
       { href: '/onboarding', icon: Rocket,     label: 'Onboarding', roles: TECNICO },
-      { href: '/renovacoes', icon: RefreshCw,  label: 'Renovações', roles: TECNICO },
-      { href: '/suporte',    icon: Headphones, label: 'Suporte',    roles: TECNICO },
     ],
   },
+  // ── ADMINISTRAÇÃO (fica por último — config, usuários, importação, auditoria) ──
   {
-    label: 'Ferramentas',
+    label: 'Administração',
     items: [
-      { href: '/alertas',       icon: Bell,         label: 'Alertas',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/previsao',      icon: TrendingUp,   label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/nutricao',      icon: Sprout,       label: 'Nutrição',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/importacao',    icon: Upload,       label: 'Importar Leads',  roles: GESTAO_COMERCIAL },
-      { href: '/configuracoes', icon: Settings,     label: 'Configurações',   roles: SO_CEO },
-    ],
-  },
-  {
-    label: 'Relatórios',
-    items: [
-      { href: '/relatorios-comerciais', icon: BarChart2, label: 'Comercial',       roles: GESTAO_COMERCIAL },
-      { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas', roles: GESTAO_COMERCIAL },
-      { href: '/auditoria',             icon: Shield,    label: 'Auditoria',       roles: GESTAO_COMERCIAL },
-      { href: '/relatorios',            icon: LineChart, label: 'Retenção',        roles: TECNICO },
+      { href: '/usuarios',      icon: Users,    label: 'Usuários',       roles: GESTORES },
+      { href: '/importacao',    icon: Upload,   label: 'Importar Leads', roles: GESTAO_COMERCIAL },
+      { href: '/auditoria',     icon: Shield,   label: 'Auditoria',      roles: GESTAO_COMERCIAL },
+      { href: '/manual',        icon: BookOpen, label: 'Manual do CRM',  roles: ALL },
+      { href: '/configuracoes', icon: Settings, label: 'Configurações',  roles: SO_CEO },
     ],
   },
 ];
@@ -441,29 +437,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       pathname === item.href ||
                       (item.href !== '/dashboard' && pathname?.startsWith(item.href));
                     const Icon = item.icon;
+                    const isWpp = item.destaque === 'whatsapp';
+
+                    // WhatsApp em destaque verde (ativo = verde sólido; inativo = verde suave).
+                    let estilo: React.CSSProperties;
+                    if (isWpp) {
+                      estilo = isActive
+                        ? { background: 'linear-gradient(135deg,#25D366,#128C7E)', color: '#fff', borderLeft: '2px solid #25D366', paddingLeft: '10px', fontWeight: 700 }
+                        : { background: 'rgba(37,211,102,0.12)', color: '#25D366', borderLeft: '2px solid #25D366', paddingLeft: '10px', fontWeight: 600 };
+                    } else if (isActive) {
+                      estilo = { background: 'var(--t-sidebar-active)', color: '#ffffff', borderLeft: '2px solid var(--t-sidebar-active-border)', paddingLeft: '10px' };
+                    } else {
+                      estilo = { borderLeft: '2px solid transparent', color: 'var(--t-sidebar-text)' };
+                    }
+
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`ps-sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium select-none ${
-                          isActive ? 'active' : ''
-                        }`}
-                        style={isActive ? {
-                          background: 'var(--t-sidebar-active)',
-                          color: '#ffffff',
-                          borderLeft: '2px solid var(--t-sidebar-active-border)',
-                          paddingLeft: '10px',
-                        } : {
-                          borderLeft: '2px solid transparent',
-                          color: 'var(--t-sidebar-text)',
-                        }}
+                        className={`ps-sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium select-none ${isActive ? 'active' : ''}`}
+                        style={estilo}
                       >
                         <Icon
-                          size={14}
+                          size={isWpp ? 16 : 14}
                           className="flex-shrink-0"
-                          style={{ opacity: isActive ? 1 : 0.75 }}
+                          style={{ opacity: isWpp || isActive ? 1 : 0.75 }}
                         />
                         {item.label}
+                        {isWpp && (
+                          <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: '#25D366', boxShadow: '0 0 6px #25D366' }} />
+                        )}
                       </Link>
                     );
                   })}
