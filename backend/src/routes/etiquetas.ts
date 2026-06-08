@@ -33,10 +33,11 @@ export async function etiquetasRoutes(fastify: FastifyInstance, options: { prism
     }
   });
 
-  fastify.get('/etiquetas', async (_req, reply) => {
+  fastify.get('/etiquetas', async (request, reply) => {
+    const { tipo } = request.query as { tipo?: string };
     const etiquetas = await prisma.etiqueta.findMany({
-      where: { ativa: true },
-      orderBy: { nome: 'asc' },
+      where: { ativa: true, ...(tipo ? { tipo } : {}) },
+      orderBy: [{ tipo: 'asc' }, { nome: 'asc' }],
     });
     return reply.send({ status: 'success', data: etiquetas });
   });
@@ -46,6 +47,7 @@ export async function etiquetasRoutes(fastify: FastifyInstance, options: { prism
       nome:      z.string().min(1),
       cor:       z.string().default('#4B8EC8'),
       descricao: z.string().optional(),
+      tipo:      z.enum(['LEAD', 'CLIENTE', 'PARCEIRO']).default('LEAD'),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
 

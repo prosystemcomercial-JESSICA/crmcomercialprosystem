@@ -606,6 +606,8 @@ model Etiqueta {
   nome       String
   cor        String   @default("#4B8EC8")
   descricao  String?
+  tipo       String   @default("LEAD") // LEAD|CLIENTE|PARCEIRO — categoria da etiqueta
+  sistema    Boolean  @default(false)  // true = criada/gerida pelo sistema (ex.: Cliente Convertido)
   ativa      Boolean  @default(true)
   created_by String
   created_at DateTime @default(now())
@@ -613,6 +615,7 @@ model Etiqueta {
   leads LeadEtiquetaAplicada[]
 
   @@index([ativa])
+  @@index([tipo])
 }
 
 model LeadEtiquetaAplicada {
