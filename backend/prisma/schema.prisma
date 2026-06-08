@@ -1599,6 +1599,36 @@ model MetaVendedor {
   @@unique([vendedor_id, ano, mes, trimestre], name: "uq_meta")
 }
 
+// ===== CENTRO DE CUSTOS COMERCIAL =====
+// Lançamentos financeiros do setor comercial: entradas (vendas, instalações,
+// serviços, MRR) e saídas (salários, benefícios, marketing, comissões).
+model LancamentoFinanceiro {
+  id           String   @id @default(cuid())
+  tipo         String   // ENTRADA | SAIDA
+  categoria    String   // SALARIO|BENEFICIO|AJUDA_CUSTO|MARKETING|COMISSAO|OUTRO_CUSTO
+                        // | MENSALIDADE|INSTALACAO|SERVICO|VENDA|OUTRA_ENTRADA
+  descricao    String?
+  valor        Decimal  @db.Decimal(12, 2)
+  recorrencia  String   @default("MENSAL") // MENSAL|ANUAL|PONTUAL|EXTRAORDINARIO
+  // Competência (a que mês/ano o lançamento pertence — base dos filtros).
+  competencia_ano  Int
+  competencia_mes  Int     // 1-12
+  data         DateTime @default(now())  // data do efetivo lançamento
+  observacoes  String?  @db.Text
+  // Vínculos opcionais (rastreabilidade)
+  vendedor_id  String?
+  cliente_id   String?
+
+  created_by   String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([tipo])
+  @@index([categoria])
+  @@index([competencia_ano, competencia_mes])
+  @@index([recorrencia])
+}
+
 // ===== WHATSAPP (Inbox multi-instância via Evolution API) =====
 // Cada usuário conecta a própria instância (QR Code). Escopo por dono_id:
 // vendedor vê só as suas conversas; gestão (podeVerTudo) vê todas.
