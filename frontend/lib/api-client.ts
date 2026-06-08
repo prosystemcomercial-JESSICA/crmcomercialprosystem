@@ -935,6 +935,31 @@ class ApiClient {
   async getRelatorioComissoes(params?: { mes?: string; vendedor_id?: string; status?: string }) {
     return this.client.get('/propostas-comerciais/relatorio/comissoes', { params });
   }
+
+  // WhatsApp Inbox
+  async getWhatsappInstancia() {
+    return this.client.get('/whatsapp/instancia');
+  }
+
+  async conectarWhatsapp() {
+    return this.client.post('/whatsapp/conectar');
+  }
+
+  async desconectarWhatsapp() {
+    return this.client.post('/whatsapp/desconectar');
+  }
+
+  async getWhatsappConversas() {
+    return this.client.get('/whatsapp/conversas');
+  }
+
+  async getWhatsappMensagens(conversaId: string) {
+    return this.client.get(`/whatsapp/conversas/${conversaId}/mensagens`);
+  }
+
+  async enviarWhatsappMensagem(conversaId: string, texto: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/enviar`, { texto });
+  }
 }
 
 export const apiClient = new ApiClient();

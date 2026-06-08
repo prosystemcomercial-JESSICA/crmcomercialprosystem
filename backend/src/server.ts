@@ -313,6 +313,7 @@ async function loadRoutes() {
     ['contratos-comerciais',  () => import('./routes/contratos-comerciais'),  'contratosComerciais'],
     ['auditoria',             () => import('./routes/auditoria'),             'auditoriaRoutes'],
     ['nps',                   () => import('./routes/nps'),                   'npsRoutes'],
+    ['whatsapp',              () => import('./routes/whatsapp'),              'whatsappRoutes'],
   ];
 
   let ok = 0;
