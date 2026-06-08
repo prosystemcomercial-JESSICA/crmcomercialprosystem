@@ -339,7 +339,6 @@ async function loadRoutes() {
     ['dashboard-comercial',   () => import('./routes/dashboard-comercial'),   'dashboardComercialRoutes'],
     ['contratos-comerciais',  () => import('./routes/contratos-comerciais'),  'contratosComerciais'],
     ['auditoria',             () => import('./routes/auditoria'),             'auditoriaRoutes'],
-    ['nps',                   () => import('./routes/nps'),                   'npsRoutes'],
     ['whatsapp',              () => import('./routes/whatsapp'),              'whatsappRoutes'],
     ['forecast',              () => import('./routes/forecast'),              'forecastRoutes'],
   ];
