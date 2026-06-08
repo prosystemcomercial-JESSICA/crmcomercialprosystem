@@ -1615,11 +1615,20 @@ model PesquisaSatisfacao {
   cliente_casado    Boolean  @default(false)
 
   // Avaliações (1-5 estrelas)
-  nota_suporte      Int      // satisfação com o suporte
-  nota_sistema      Int      // satisfação com o sistema no geral
+  // Legados (mantidos p/ dados antigos; novas respostas usam os campos abaixo):
+  nota_suporte      Int      @default(0)
+  nota_sistema      Int      @default(0)
   conhece_plano     Boolean  @default(false) // conhece os diferenciais do plano?
 
+  // Avaliação do atendimento técnico (formulário oficial):
+  nota_atendimento  Int      @default(0) // nota para esse atendimento
+  nota_eficiencia   Int      @default(0) // eficiência e rapidez na resolução
+  nota_conhecimento Int      @default(0) // conhecimento do técnico
+  nota_geral        Int      @default(0) // nota geral para a ProSystem (NPS)
+  email             String?              // e-mail do respondente
+
   // Texto livre
+  recado            String?  @db.Text     // recado/sugestão/elogio (técnico ou Prosystem)
   observacao        String?  @db.Text
   sugestoes         String?  @db.Text
 

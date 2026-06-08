@@ -7,10 +7,11 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 
 interface Pesquisa {
-  id: string; identificacao: string; respondente_nome?: string;
+  id: string; identificacao: string; respondente_nome?: string; email?: string;
   cliente_id?: string; cliente_casado: boolean;
   nota_suporte: number; nota_sistema: number; conhece_plano: boolean;
-  observacao?: string; sugestoes?: string; critico: boolean; media: number;
+  nota_atendimento?: number; nota_eficiencia?: number; nota_conhecimento?: number; nota_geral?: number;
+  recado?: string; observacao?: string; sugestoes?: string; critico: boolean; media: number;
   created_at: string;
 }
 interface Resumo { total: number; criticos: number; nao_conhece_plano: number; media_suporte: number; media_sistema: number; }
@@ -87,11 +88,17 @@ export default function PesquisasPage() {
             {!p.conhece_plano && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">não conhece o plano</span>}
             {!p.cliente_casado && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">sem vínculo</span>}
           </div>
-          <div className="flex gap-4 mt-1.5 text-xs text-gray-500">
-            <span>Suporte: {p.nota_suporte}★</span><span>Sistema: {p.nota_sistema}★</span>
+          <div className="flex gap-3 mt-1.5 text-xs text-gray-500 flex-wrap">
+            {p.nota_atendimento ? <span>Atendimento: {p.nota_atendimento}★</span> : null}
+            {p.nota_eficiencia ? <span>Eficiência: {p.nota_eficiencia}★</span> : null}
+            {p.nota_conhecimento ? <span>Conhecimento: {p.nota_conhecimento}★</span> : null}
+            {p.nota_geral ? <span className="font-semibold text-gray-700">Prosystem: {p.nota_geral}★</span> : null}
+            {!p.nota_atendimento && <span>Suporte: {p.nota_suporte}★ · Sistema: {p.nota_sistema}★</span>}
           </div>
+          {p.recado && <p className="text-sm text-gray-600 mt-2">💬 {p.recado}</p>}
           {p.observacao && <p className="text-sm text-gray-600 mt-2">💬 {p.observacao}</p>}
           {p.sugestoes && <p className="text-sm text-gray-500 mt-1">💡 {p.sugestoes}</p>}
+          {p.email && <p className="text-xs text-gray-400 mt-1">✉️ {p.email}</p>}
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString('pt-BR')}</p>

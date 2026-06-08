@@ -6,12 +6,21 @@ import { requireGestor } from '@/lib/scope';
 // Pesquisa de Satisfação — LP pública (técnico envia o link no fim do atendimento).
 // POST /pesquisa/responder é PÚBLICO (sem auth). As rotas de leitura são da gestão.
 
+const nota = z.coerce.number().int().min(1).max(5);
 const RespostaSchema = z.object({
-  identificacao: z.string().min(1),         // razão social ou nome fantasia digitada
+  identificacao: z.string().min(1),         // razão social
   respondente_nome: z.string().optional(),
-  nota_suporte: z.coerce.number().int().min(1).max(5),
-  nota_sistema: z.coerce.number().int().min(1).max(5),
-  conhece_plano: z.coerce.boolean().default(false),
+  email: z.string().optional(),
+  // 4 notas do formulário oficial (1-5 estrelas)
+  nota_atendimento: nota,                    // nota para esse atendimento
+  nota_eficiencia: nota,                     // eficiência e rapidez
+  nota_conhecimento: nota,                   // conhecimento do técnico
+  nota_geral: nota,                          // nota geral p/ a ProSystem (NPS)
+  recado: z.string().optional(),             // recado/sugestão/elogio
+  // Compatibilidade (opcionais; LP antiga / outros formulários)
+  nota_suporte: z.coerce.number().int().min(1).max(5).optional(),
+  nota_sistema: z.coerce.number().int().min(1).max(5).optional(),
+  conhece_plano: z.coerce.boolean().optional(),
   observacao: z.string().optional(),
   sugestoes: z.string().optional(),
 });
@@ -25,9 +34,11 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Preencha as notas e a identificação.' });
     const d = body.data;
 
-    const media = (d.nota_suporte + d.nota_sistema) / 2;
-    // Crítico: alguma nota baixa, média < 3, ou não conhece os diferenciais do plano.
-    const critico = d.nota_suporte < 3 || d.nota_sistema < 3 || media < 3 || !d.conhece_plano;
+    // Média das 4 notas do atendimento + geral.
+    const notas = [d.nota_atendimento, d.nota_eficiencia, d.nota_conhecimento, d.nota_geral];
+    const media = notas.reduce((s, n) => s + n, 0) / notas.length;
+    // Crítico: qualquer nota < 3, média < 3, ou (se respondeu) não conhece o plano.
+    const critico = notas.some(n => n < 3) || media < 3 || d.conhece_plano === false;
 
     // Tenta casar com um Cliente da base pela razão social / nome fantasia / empresa.
     const termo = d.identificacao.trim();
@@ -52,7 +63,7 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
             clienteId: cliente.id,
             status: 'NOVO',
             risk_score: Math.round((5 - media) * 20), // 0-100 (quanto pior a nota, maior)
-            motivo_principal: !d.conhece_plano ? 'Não conhece diferenciais do plano' : 'Baixa satisfação na pesquisa',
+            motivo_principal: d.conhece_plano === false ? 'Não conhece diferenciais do plano' : 'Baixa satisfação na pesquisa',
             created_by: 'pesquisa-satisfacao',
           },
         });
@@ -67,9 +78,16 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
         respondente_nome: d.respondente_nome,
         cliente_id: cliente?.id,
         cliente_casado: !!cliente,
-        nota_suporte: d.nota_suporte,
-        nota_sistema: d.nota_sistema,
-        conhece_plano: d.conhece_plano,
+        email: d.email,
+        nota_atendimento: d.nota_atendimento,
+        nota_eficiencia: d.nota_eficiencia,
+        nota_conhecimento: d.nota_conhecimento,
+        nota_geral: d.nota_geral,
+        recado: d.recado,
+        // legados/compat
+        nota_suporte: d.nota_suporte ?? d.nota_atendimento,
+        nota_sistema: d.nota_sistema ?? d.nota_geral,
+        conhece_plano: d.conhece_plano ?? false,
         observacao: d.observacao,
         sugestoes: d.sugestoes,
         critico,

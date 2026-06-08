@@ -800,9 +800,14 @@ export default function ClienteDetailPage() {
                           </div>
                           <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
                         </div>
-                        <div className="flex gap-4 mt-1 text-xs" style={{ color: 'var(--t-text-secondary)' }}>
-                          <span>Suporte: {p.nota_suporte}★</span><span>Sistema: {p.nota_sistema}★</span>
+                        <div className="flex gap-3 mt-1 text-xs flex-wrap" style={{ color: 'var(--t-text-secondary)' }}>
+                          {p.nota_atendimento ? <span>Atend.: {p.nota_atendimento}★</span> : null}
+                          {p.nota_eficiencia ? <span>Efic.: {p.nota_eficiencia}★</span> : null}
+                          {p.nota_conhecimento ? <span>Conhec.: {p.nota_conhecimento}★</span> : null}
+                          {p.nota_geral ? <span className="font-semibold">Prosystem: {p.nota_geral}★</span> : null}
+                          {!p.nota_atendimento && <span>Suporte: {p.nota_suporte}★ · Sistema: {p.nota_sistema}★</span>}
                         </div>
+                        {p.recado && <p className="text-xs mt-1.5" style={{ color: 'var(--t-text-secondary)' }}>💬 {p.recado}</p>}
                         {p.observacao && <p className="text-xs mt-1.5" style={{ color: 'var(--t-text-secondary)' }}>💬 {p.observacao}</p>}
                         {p.sugestoes && <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>💡 {p.sugestoes}</p>}
                       </div>

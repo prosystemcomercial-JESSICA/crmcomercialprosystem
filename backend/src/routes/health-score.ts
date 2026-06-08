@@ -171,14 +171,18 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
         score: s.q3_score, stars: s.q5_stars, cliente: s.survey_churn?.cliente,
         q4: s.q4_opcao, motivo: s.motivo_real, data: s.responded_at,
       })),
-      ...pesquisas.map((p: any): Item => ({
-        score: Math.round(p.media * 2),                       // 1-5 → 0-10
-        stars: Math.round(p.media),
-        cliente: p.identificacao ? { nome: p.identificacao, empresa: p.identificacao } : undefined,
-        q4: p.conhece_plano ? 'sim' : 'nao',
-        motivo: p.observacao || (p.critico ? 'Crítico (pesquisa)' : null),
-        data: p.created_at,
-      })),
+      ...pesquisas.map((p: any): Item => {
+        // NPS usa a nota GERAL da Prosystem (1-5) → 0-10. Fallback p/ média (respostas antigas).
+        const base = p.nota_geral && p.nota_geral > 0 ? p.nota_geral : p.media;
+        return {
+          score: Math.round(base * 2),                        // 1-5 → 0-10
+          stars: Math.round(base),
+          cliente: p.identificacao ? { nome: p.identificacao, empresa: p.identificacao } : undefined,
+          q4: p.conhece_plano ? 'sim' : 'nao',
+          motivo: p.recado || p.observacao || (p.critico ? 'Crítico (pesquisa)' : null),
+          data: p.created_at,
+        };
+      }),
     ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
     const total = itens.length;
