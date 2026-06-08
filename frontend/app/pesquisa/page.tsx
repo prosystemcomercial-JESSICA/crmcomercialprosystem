@@ -44,30 +44,33 @@ function Estrelas({ value, onChange }: { value: number; onChange: (n: number) =>
 export default function PesquisaPublicaPage() {
   const [identificacao, setIdentificacao] = useState('');
   const [respondente, setRespondente] = useState('');
-  const [notaSuporte, setNotaSuporte] = useState(0);
-  const [notaSistema, setNotaSistema] = useState(0);
-  const [conhecePlano, setConhecePlano] = useState<boolean | null>(null);
-  const [observacao, setObservacao] = useState('');
-  const [sugestoes, setSugestoes] = useState('');
+  const [email, setEmail] = useState('');
+  const [notaAtendimento, setNotaAtendimento] = useState(0);
+  const [notaEficiencia, setNotaEficiencia] = useState(0);
+  const [notaConhecimento, setNotaConhecimento] = useState(0);
+  const [notaGeral, setNotaGeral] = useState(0);
+  const [recado, setRecado] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [erro, setErro] = useState('');
 
-  // Progresso (4 passos essenciais).
-  const passos = [!!identificacao.trim(), !!notaSuporte, !!notaSistema, conhecePlano !== null];
+  // Progresso (5 passos essenciais).
+  const passos = [!!identificacao.trim(), !!notaAtendimento, !!notaEficiencia, !!notaConhecimento, !!notaGeral];
   const progresso = Math.round((passos.filter(Boolean).length / passos.length) * 100);
 
   const enviar = async () => {
     setErro('');
-    if (!identificacao.trim()) { setErro('Por favor, informe o nome da sua empresa.'); return; }
-    if (!notaSuporte || !notaSistema) { setErro('Por favor, dê sua nota para o suporte e para o sistema.'); return; }
+    if (!identificacao.trim()) { setErro('Por favor, informe a razão social da sua empresa.'); return; }
+    if (!notaAtendimento || !notaEficiencia || !notaConhecimento || !notaGeral) {
+      setErro('Por favor, responda todas as notas (estrelas) antes de enviar.'); return;
+    }
     setEnviando(true);
     try {
       await apiClient.responderPesquisa({
-        identificacao, respondente_nome: respondente || undefined,
-        nota_suporte: notaSuporte, nota_sistema: notaSistema,
-        conhece_plano: conhecePlano === true,
-        observacao: observacao || undefined, sugestoes: sugestoes || undefined,
+        identificacao, respondente_nome: respondente || undefined, email: email || undefined,
+        nota_atendimento: notaAtendimento, nota_eficiencia: notaEficiencia,
+        nota_conhecimento: notaConhecimento, nota_geral: notaGeral,
+        recado: recado || undefined,
       });
       setEnviado(true);
       if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -128,51 +131,42 @@ export default function PesquisaPublicaPage() {
 
         <div style={{ padding: '26px 34px 32px' }}>
           {/* Identificação */}
-          <label style={lbl}>Nome da sua empresa <span style={{ color: '#DC2626' }}>*</span></label>
+          <label style={lbl}>Razão social <span style={{ color: '#DC2626' }}>*</span></label>
           <input value={identificacao} onChange={e => setIdentificacao(e.target.value)}
-            placeholder="Razão social ou nome fantasia (ex.: Farmácia Bom Preço)" style={inp} />
+            placeholder="Nome da sua empresa (ex.: Farmácia Bom Preço Ltda)" style={inp} />
 
           <label style={lbl}>Seu nome <span style={{ color: C.muted, fontWeight: 400, textTransform: 'none' }}>(opcional)</span></label>
           <input value={respondente} onChange={e => setRespondente(e.target.value)}
             placeholder="Quem está respondendo" style={inp} />
 
-          {/* Notas */}
+          <label style={lbl}>E-mail <span style={{ color: C.muted, fontWeight: 400, textTransform: 'none' }}>(opcional)</span></label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+            placeholder="seu@email.com" style={inp} />
+
+          {/* Notas do atendimento técnico */}
           <div style={bloco}>
-            <p style={pergunta}>Qual sua satisfação com o nosso <strong>suporte</strong>?</p>
-            <Estrelas value={notaSuporte} onChange={setNotaSuporte} />
+            <p style={pergunta}>Qual a nota você dá para <strong>esse atendimento</strong>?</p>
+            <Estrelas value={notaAtendimento} onChange={setNotaAtendimento} />
           </div>
           <div style={bloco}>
-            <p style={pergunta}>E com o <strong>sistema no geral</strong>?</p>
-            <Estrelas value={notaSistema} onChange={setNotaSistema} />
+            <p style={pergunta}>Como você avalia a <strong>eficiência e a rapidez</strong> do atendimento técnico ao resolver suas solicitações?</p>
+            <Estrelas value={notaEficiencia} onChange={setNotaEficiencia} />
+          </div>
+          <div style={bloco}>
+            <p style={pergunta}>Qual nota você dá para o <strong>conhecimento do técnico</strong>?</p>
+            <Estrelas value={notaConhecimento} onChange={setNotaConhecimento} />
           </div>
 
-          {/* Conhece o plano */}
-          <div style={{ marginTop: 22 }}>
-            <p style={pergunta}>Você conhece os <strong>diferenciais do seu plano</strong>?</p>
-            <p style={{ fontSize: 12, color: C.muted, margin: '2px 0 10px' }}>Dashboard, serviço de mensageria, gerencial, atenção farmacêutica…</p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[{ v: true, l: '👍 Sim, conheço' }, { v: false, l: '🤔 Não conheço' }].map(o => (
-                <button key={String(o.v)} type="button" onClick={() => setConhecePlano(o.v)}
-                  style={{
-                    flex: 1, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                    border: `2px solid ${conhecePlano === o.v ? C.blue2 : C.border}`,
-                    background: conhecePlano === o.v ? '#EBF4FF' : '#fff',
-                    color: conhecePlano === o.v ? C.blue : C.sub, transition: 'all .15s',
-                  }}>
-                  {o.l}
-                </button>
-              ))}
-            </div>
+          {/* Recado */}
+          <label style={lbl}>Deixe seu recado, sugestão ou elogio <span style={{ color: C.muted, fontWeight: 400, textTransform: 'none' }}>(para o técnico ou para a ProSystem)</span></label>
+          <textarea value={recado} onChange={e => setRecado(e.target.value)} rows={3}
+            placeholder="Escreva aqui sua mensagem" style={{ ...inp, resize: 'vertical' }} />
+
+          {/* Nota geral Prosystem (NPS) — destaque */}
+          <div style={{ ...bloco, background: '#EBF4FF', borderColor: C.blue3 }}>
+            <p style={pergunta}>De modo geral, qual nota você daria para a <strong>ProSystem</strong>?</p>
+            <Estrelas value={notaGeral} onChange={setNotaGeral} />
           </div>
-
-          {/* Texto livre */}
-          <label style={lbl}>Observações <span style={{ color: C.muted, fontWeight: 400, textTransform: 'none' }}>(opcional)</span></label>
-          <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={2}
-            placeholder="Conte como foi sua experiência" style={{ ...inp, resize: 'vertical' }} />
-
-          <label style={lbl}>Sugestões — sistema ou ferramentas <span style={{ color: C.muted, fontWeight: 400, textTransform: 'none' }}>(opcional)</span></label>
-          <textarea value={sugestoes} onChange={e => setSugestoes(e.target.value)} rows={2}
-            placeholder="O que poderíamos melhorar ou criar para você?" style={{ ...inp, resize: 'vertical' }} />
 
           {erro && (
             <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginTop: 14 }}>
