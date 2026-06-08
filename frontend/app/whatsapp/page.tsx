@@ -22,6 +22,7 @@ interface Mensagem {
   direcao: 'ENTRADA' | 'SAIDA';
   conteudo: string;
   status?: string;
+  enviada_por?: string | null;
   created_at: string;
 }
 
@@ -38,6 +39,7 @@ export default function WhatsappPage() {
   const [ativa, setAtiva] = useState<Conversa | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState('');
+  const [buscaConv, setBuscaConv] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [carregandoConn, setCarregandoConn] = useState(true);
   const fimRef = useRef<HTMLDivElement>(null);
@@ -161,6 +163,17 @@ export default function WhatsappPage() {
   const fmtHora = (d?: string | null) => d ? new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
   const nomeContato = (c: Conversa) => c.contato_nome || c.contato_numero;
 
+  // Cor de avatar determinística pelo nome (estilo WhatsApp).
+  const corAvatar = (nome: string) => {
+    const cores = ['#0D8ABC', '#7E57C2', '#16A34A', '#D97706', '#DC2626', '#0891B2', '#DB2777', '#475569'];
+    let h = 0; for (let i = 0; i < nome.length; i++) h = nome.charCodeAt(i) + ((h << 5) - h);
+    return cores[Math.abs(h) % cores.length];
+  };
+
+  const conversasFiltradas = buscaConv.trim()
+    ? conversas.filter(c => nomeContato(c).toLowerCase().includes(buscaConv.toLowerCase()) || c.contato_numero.includes(buscaConv))
+    : conversas;
+
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500" /></div>;
   }
@@ -214,28 +227,36 @@ export default function WhatsappPage() {
           </div>
         )}
 
-        {/* Inbox */}
+        {/* Inbox — estilo WhatsApp Web */}
         {configurado && status === 'CONECTADO' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-220px)]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm h-[calc(100vh-210px)]">
             {/* Lista de conversas */}
-            <div className={`bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col ${ativa ? 'hidden md:flex' : 'flex'}`}>
-              <div className="px-4 py-3 border-b border-gray-100 font-semibold text-gray-900">Conversas</div>
-              <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-                {conversas.length === 0 && <p className="text-center text-gray-400 text-sm p-6">Nenhuma conversa ainda</p>}
-                {conversas.map(c => (
+            <div className={`bg-white flex flex-col border-r border-gray-200 ${ativa ? 'hidden md:flex' : 'flex'}`}>
+              <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
+                <span className="text-white font-semibold">Conversas</span>
+                <span className="ml-auto text-xs text-green-100">{conversas.length}</span>
+              </div>
+              <div className="p-2 border-b border-gray-100">
+                <input value={buscaConv} onChange={e => setBuscaConv(e.target.value)}
+                  placeholder="🔍 Buscar conversa…"
+                  className="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {conversasFiltradas.length === 0 && <p className="text-center text-gray-400 text-sm p-6">Nenhuma conversa</p>}
+                {conversasFiltradas.map(c => (
                   <button key={c.id} onClick={() => abrir(c)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 flex items-start gap-3 ${ativa?.id === c.id ? 'bg-green-50' : ''}`}>
-                    <div className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold flex-shrink-0">
+                    className={`w-full text-left px-3 py-3 flex items-center gap-3 border-b border-gray-50 transition-colors ${ativa?.id === c.id ? 'bg-green-50' : 'hover:bg-gray-50'}`}>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-lg" style={{ background: corAvatar(nomeContato(c)) }}>
                       {nomeContato(c).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium text-gray-900 text-sm truncate">{nomeContato(c)}</p>
-                        <span className="text-xs text-gray-400 flex-shrink-0">{fmtHora(c.ultima_em)}</span>
+                        <p className="font-semibold text-gray-900 text-sm truncate">{nomeContato(c)}</p>
+                        <span className="text-[11px] text-gray-400 flex-shrink-0">{fmtHora(c.ultima_em)}</span>
                       </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs text-gray-500 truncate">{c.ultima_mensagem}</p>
-                        {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-xs rounded-full px-1.5 min-w-[18px] text-center">{c.nao_lidas}</span>}
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <p className="text-[13px] text-gray-500 truncate">{c.ultima_mensagem || '—'}</p>
+                        {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[11px] font-bold rounded-full px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0">{c.nao_lidas}</span>}
                       </div>
                     </div>
                   </button>
@@ -244,42 +265,49 @@ export default function WhatsappPage() {
             </div>
 
             {/* Janela de chat */}
-            <div className={`md:col-span-2 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col ${ativa ? 'flex' : 'hidden md:flex'}`}>
+            <div className={`md:col-span-2 flex flex-col ${ativa ? 'flex' : 'hidden md:flex'}`}
+              style={{ background: '#ECE5DD' }}>
               {!ativa ? (
-                <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Selecione uma conversa</div>
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-400" style={{ background: '#F0F2F5' }}>
+                  <div className="text-6xl mb-3">💬</div>
+                  <p className="text-sm">Selecione uma conversa para começar a atender</p>
+                </div>
               ) : (
                 <>
-                  <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
-                    <button onClick={() => setAtiva(null)} className="md:hidden text-gray-500">←</button>
-                    <div className="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold">
+                  <div className="px-4 py-2.5 flex items-center gap-3 shadow-sm" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
+                    <button onClick={() => setAtiva(null)} className="md:hidden text-white text-lg">←</button>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0" style={{ background: corAvatar(nomeContato(ativa)) }}>
                       {nomeContato(ativa).charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">{nomeContato(ativa)}</p>
-                      <p className="text-xs text-gray-400">{ativa.contato_numero}{ativa.lead_id ? ' · vinculado ao funil' : ''}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-white text-sm truncate">{nomeContato(ativa)}</p>
+                      <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 vinculado ao funil' : ''}</p>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-1.5"
+                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M0 0h40v40H0z%22 fill=%22%23ECE5DD%22/%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%221%22 fill=%22%23D9D2C9%22/%3E%3C/svg%3E")' }}>
                     {mensagens.map(m => (
                       <div key={m.id} className={`flex ${m.direcao === 'SAIDA' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${m.direcao === 'SAIDA' ? 'bg-green-500 text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'}`}>
+                        <div className={`max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm ${m.direcao === 'SAIDA' ? 'rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}
+                          style={m.direcao === 'SAIDA' ? { background: '#DCF8C6', color: '#111' } : {}}>
+                          {m.enviada_por === 'bot' && <p className="text-[10px] font-semibold text-green-700 mb-0.5">🤖 Atendimento automático</p>}
                           <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
-                          <p className={`text-[10px] mt-1 text-right ${m.direcao === 'SAIDA' ? 'text-green-100' : 'text-gray-400'}`}>{fmtHora(m.created_at)}</p>
+                          <p className="text-[10px] mt-0.5 text-right text-gray-400">{fmtHora(m.created_at)}</p>
                         </div>
                       </div>
                     ))}
                     <div ref={fimRef} />
                   </div>
-                  <div className="p-3 border-t border-gray-100 flex items-center gap-2">
+                  <div className="p-3 flex items-center gap-2" style={{ background: '#F0F2F5' }}>
                     <input
                       value={texto}
                       onChange={e => setTexto(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
                       placeholder="Escreva uma mensagem…"
-                      className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                      className="flex-1 bg-white rounded-full px-4 py-2.5 text-sm focus:outline-none shadow-sm"
                     />
                     <button onClick={enviar} disabled={enviando || !texto.trim()}
-                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center">
+                      className="disabled:opacity-50 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
                       ➤
                     </button>
                   </div>
