@@ -998,6 +998,12 @@ class ApiClient {
   async getPesquisasCliente(clienteId: string) {
     return this.client.get(`/pesquisa/cliente/${clienteId}`);
   }
+  async getPesquisasNaoCasadas() {
+    return this.client.get('/pesquisa/nao-casadas');
+  }
+  async vincularPesquisa(id: string, cliente_id: string) {
+    return this.client.post(`/pesquisa/${id}/vincular`, { cliente_id });
+  }
 }
 
 export const apiClient = new ApiClient();
