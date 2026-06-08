@@ -276,7 +276,7 @@ function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => v
   const utmOrig = lead.campanha_nome || lead.utm_campaign || lead.plataforma;
 
   const wppLink = tel
-    ? `https://wa.me/55${tel.replace(/\D/g, '')}`
+    ? `/whatsapp?numero=${tel.replace(/\D/g, '')}&nome=${encodeURIComponent(lead.razao_social || lead.nome || '')}${lead.id ? `&lead=${lead.id}` : ''}`
     : null;
 
   return (
@@ -1222,10 +1222,8 @@ export default function LeadsPage() {
                     if (!tel) return null;
                     return (
                       <a
-                        href={`https://wa.me/55${tel.replace(/\D/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`WhatsApp: ${tel}`}
+                        href={`/whatsapp?numero=${tel.replace(/\D/g, '')}&nome=${encodeURIComponent(selectedLead.razao_social || selectedLead.nome || '')}${selectedLead.id ? `&lead=${selectedLead.id}` : ''}`}
+                        title={`Abrir WhatsApp no CRM: ${tel}`}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
                         style={{ background: '#25D366' }}
                       >

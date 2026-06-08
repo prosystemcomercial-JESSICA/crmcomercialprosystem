@@ -87,6 +87,28 @@ export default function WhatsappPage() {
     if (status === 'CONECTADO') carregarConversas();
   }, [status, carregarConversas]);
 
+  // Vindo de um botão de WhatsApp do CRM (/whatsapp?numero=...&nome=...&lead=...):
+  // abre (ou cria) a conversa daquele contato e seleciona.
+  useEffect(() => {
+    if (status !== 'CONECTADO') return;
+    const params = new URLSearchParams(window.location.search);
+    const numero = params.get('numero');
+    if (!numero) return;
+    (async () => {
+      try {
+        const res = await apiClient.abrirConversaWhatsapp(numero, params.get('nome') || undefined, params.get('lead') || undefined);
+        const conv = res.data.data;
+        await carregarConversas();
+        await abrir(conv);
+        // limpa o query string para não reabrir ao atualizar
+        window.history.replaceState({}, '', '/whatsapp');
+      } catch (e: any) {
+        alert(e?.response?.data?.message || 'Não foi possível abrir a conversa. Conecte seu WhatsApp.');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   const conectar = async () => {
     try {
       const res = await apiClient.conectarWhatsapp();
