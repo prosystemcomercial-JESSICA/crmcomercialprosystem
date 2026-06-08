@@ -149,6 +149,7 @@ export default function ClienteDetailPage() {
   });
   // Financeiro: mensalidade base + observações (acréscimos vêm das vendas adicionais)
   const [finForm, setFinForm] = useState<{ mensalidade_base: string; observacoes_fin: string }>({ mensalidade_base: '', observacoes_fin: '' });
+  const [pesquisas, setPesquisas] = useState<any[]>([]);
   const [ativosForm, setAtivosForm] = useState({
     situacao: '', segmento: '', grupo_tecnico: '', plano: '', contato: '', observacoes: '',
     apresentou_plus: false, conhece_dashboard: false, conhece_mensageria: false,
@@ -216,6 +217,7 @@ export default function ClienteDetailPage() {
       });
       setContatos(c.contatos || []);
       setSolicitacoes(c.solicitacoes || []);
+      apiClient.getPesquisasCliente(id as string).then(r => setPesquisas(r.data.data || [])).catch(() => {});
     } catch {
       setError('Erro ao carregar cliente');
     } finally {
@@ -782,6 +784,33 @@ export default function ClienteDetailPage() {
 
         {activeTab === 'ativos' && (
           <div className="space-y-5">
+            {pesquisas.length > 0 && (
+              <Section title={`Pesquisas de satisfação (${pesquisas.length})`}>
+                <div className="space-y-2">
+                  {pesquisas.map((p: any) => {
+                    const media = ((p.nota_suporte + p.nota_sistema) / 2).toFixed(1);
+                    return (
+                      <div key={p.id} className="rounded-lg border p-3" style={{ borderColor: p.critico ? '#fecaca' : 'var(--t-card-border)', background: p.critico ? '#fef2f2' : 'var(--t-content-bg)' }}>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span style={{ color: '#FBBF24' }}>{'★'.repeat(Math.round((p.nota_suporte + p.nota_sistema) / 2))}</span>
+                            <span className="font-semibold" style={{ color: 'var(--t-text-primary)' }}>média {media}</span>
+                            {p.critico && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">⚠️ Crítico</span>}
+                            {!p.conhece_plano && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">não conhece o plano</span>}
+                          </div>
+                          <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        <div className="flex gap-4 mt-1 text-xs" style={{ color: 'var(--t-text-secondary)' }}>
+                          <span>Suporte: {p.nota_suporte}★</span><span>Sistema: {p.nota_sistema}★</span>
+                        </div>
+                        {p.observacao && <p className="text-xs mt-1.5" style={{ color: 'var(--t-text-secondary)' }}>💬 {p.observacao}</p>}
+                        {p.sugestoes && <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>💡 {p.sugestoes}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
             <Section title="Dados da base">
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Situação (ATIVA/INATIVA)" value={ativosForm.situacao} onChange={v => setAtivosForm(f => ({ ...f, situacao: v }))} placeholder="ATIVA" />

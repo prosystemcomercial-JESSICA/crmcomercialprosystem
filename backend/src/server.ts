@@ -342,6 +342,7 @@ async function loadRoutes() {
     ['whatsapp',              () => import('./routes/whatsapp'),              'whatsappRoutes'],
     ['forecast',              () => import('./routes/forecast'),              'forecastRoutes'],
     ['financeiro',            () => import('./routes/financeiro'),            'financeiroRoutes'],
+    ['pesquisa',              () => import('./routes/pesquisa'),              'pesquisaRoutes'],
   ];
 
   let ok = 0;

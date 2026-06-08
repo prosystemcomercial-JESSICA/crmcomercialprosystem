@@ -76,6 +76,17 @@ export default function NpsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Dashboard NPS</h1>
             <p className="text-gray-500 mt-1">Net Promoter Score — satisfação dos clientes</p>
           </div>
+          <button
+            onClick={() => {
+              const link = `${window.location.origin}/pesquisa`;
+              navigator.clipboard.writeText(link).then(
+                () => alert(`Link da pesquisa copiado!\n\n${link}\n\nEnvie ao cliente no fim do atendimento.`),
+                () => prompt('Copie o link da pesquisa:', link)
+              );
+            }}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">
+            📋 Copiar link da pesquisa
+          </button>
           {data && (data.recentes?.length ?? 0) > 0 && (
             <ExportButton
               nome="nps-respostas" titulo="NPS — Respostas recentes"
