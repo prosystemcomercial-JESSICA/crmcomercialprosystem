@@ -76,6 +76,7 @@ interface ClienteDetalhe {
   mensalidade_base?: number; observacoes_fin?: string;
   // Base / gestão
   situacao?: string; segmento?: string; grupo_tecnico?: string; plano?: string;
+  motivo_inativacao?: string; mrr_perdido?: number;
   contato?: string; data_entrada?: string; observacoes?: string;
   // Campanha de ativos
   apresentou_plus?: boolean; conhece_dashboard?: boolean; conhece_mensageria?: boolean;
@@ -150,6 +151,9 @@ export default function ClienteDetailPage() {
   // Financeiro: mensalidade base + observações (acréscimos vêm das vendas adicionais)
   const [finForm, setFinForm] = useState<{ mensalidade_base: string; observacoes_fin: string }>({ mensalidade_base: '', observacoes_fin: '' });
   const [pesquisas, setPesquisas] = useState<any[]>([]);
+  const [showDesativar, setShowDesativar] = useState(false);
+  const [desativaMotivo, setDesativaMotivo] = useState('');
+  const [desativaMrr, setDesativaMrr] = useState('');
   const [ativosForm, setAtivosForm] = useState({
     situacao: '', segmento: '', grupo_tecnico: '', plano: '', contato: '', observacoes: '',
     apresentou_plus: false, conhece_dashboard: false, conhece_mensageria: false,
@@ -240,6 +244,20 @@ export default function ClienteDetailPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const desativarCliente = async () => {
+    if (desativaMotivo.trim().length < 3) { alert('Descreva o motivo da desativação.'); return; }
+    try {
+      await apiClient.desativarCliente(id as string, desativaMotivo, desativaMrr ? Number(desativaMrr) : undefined);
+      setShowDesativar(false); setDesativaMotivo(''); setDesativaMrr('');
+      fetchCliente();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao desativar'); }
+  };
+  const reativarCliente = async () => {
+    if (!confirm('Reativar este cliente?')) return;
+    try { await apiClient.reativarCliente(id as string); fetchCliente(); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Falha ao reativar'); }
   };
 
   const toggleFerramenta = (f: string) => {
@@ -388,6 +406,20 @@ export default function ClienteDetailPage() {
                 </a>
               );
             })()}
+            {/* Desativar / Reativar cliente (situação + MRR perdido) */}
+            {cliente?.situacao === 'INATIVA' ? (
+              <button onClick={reativarCliente}
+                className="px-4 py-2 rounded-xl text-sm font-semibold border"
+                style={{ borderColor: '#16a34a', color: '#16a34a' }}>
+                ↺ Reativar
+              </button>
+            ) : (
+              <button onClick={() => setShowDesativar(true)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold border"
+                style={{ borderColor: '#dc2626', color: '#dc2626' }}>
+                Desativar
+              </button>
+            )}
             <button onClick={handleSave} disabled={saving}
               className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: 'var(--t-primary)' }}>
@@ -395,6 +427,37 @@ export default function ClienteDetailPage() {
             </button>
           </div>
         </div>
+
+        {/* Badge de cliente inativo */}
+        {cliente?.situacao === 'INATIVA' && (
+          <div className="rounded-lg p-3 mb-3" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+            <p className="text-sm font-semibold text-red-700">⚠️ Cliente inativo (churn)</p>
+            {cliente.motivo_inativacao && <p className="text-xs text-red-600 mt-0.5">Motivo: {cliente.motivo_inativacao}</p>}
+            {cliente.mrr_perdido ? <p className="text-xs text-red-600">MRR perdido: R$ {Number(cliente.mrr_perdido).toLocaleString('pt-BR')}</p> : null}
+          </div>
+        )}
+
+        {/* Modal desativar */}
+        {showDesativar && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl p-5 w-full max-w-md">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Desativar cliente</h3>
+              <p className="text-sm text-gray-500 mb-4">Registre o motivo detalhado e o MRR perdido (churn).</p>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Motivo detalhado *</label>
+              <textarea value={desativaMotivo} onChange={e => setDesativaMotivo(e.target.value)} rows={3}
+                placeholder="Ex.: trocou de sistema; insatisfação com suporte…"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
+              <label className="block text-xs font-medium text-gray-500 mb-1">MRR perdido (R$)</label>
+              <input type="number" value={desativaMrr} onChange={e => setDesativaMrr(e.target.value)}
+                placeholder={`Mensalidade do cliente (${Number(cliente?.mensalidade_base || 0).toLocaleString('pt-BR')})`}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setShowDesativar(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+                <button onClick={desativarCliente} className="px-4 py-2 text-sm font-semibold text-white rounded-lg" style={{ background: '#dc2626' }}>Confirmar desativação</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ─── Tabs ───────────────────────────── */}
         <div className="flex gap-1 border-b" style={{ borderColor: 'var(--t-card-border)' }}>

@@ -280,9 +280,10 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const cliente = await prisma.cliente.findUnique({ where: { id }, include: { _count: { select: { caso_churn: true } } } });
     if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
 
-    // Load contacts and service requests via raw
-    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE cliente_id = ? ORDER BY created_at ASC`, id);
-    const solicitacoes: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE cliente_id = ? ORDER BY data_solicitacao DESC`, id);
+    // Load contacts and service requests via raw (tabelas podem não existir em
+    // bases novas/importadas → catch p/ não quebrar a abertura da ficha).
+    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE cliente_id = ? ORDER BY created_at ASC`, id).catch(() => []) as any[];
+    const solicitacoes: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE cliente_id = ? ORDER BY data_solicitacao DESC`, id).catch(() => []) as any[];
 
     // Acréscimos na mensalidade vindos de vendas adicionais CONFIRMADAS (ex.: Arquivo Fiscal).
     const acrescimos = await prisma.vendaAdicional.findMany({
@@ -322,6 +323,59 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       if (err.code === 'P2002') return reply.status(409).send({ status: 'error', message: 'Email ou código já cadastrado' });
       throw err;
     }
+  });
+
+  // Desativar cliente (churn) — registra motivo detalhado + MRR perdido.
+  fastify.post('/clientes/:id/desativar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      motivo: z.string().min(3),
+      mrr_perdido: z.coerce.number().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe o motivo detalhado da desativação.' });
+
+    const cli = await prisma.cliente.findUnique({ where: { id }, select: { mensalidade_base: true } });
+    // MRR perdido = informado, ou a mensalidade base do cliente.
+    const mrrPerdido = body.data.mrr_perdido ?? Number(cli?.mensalidade_base || 0);
+
+    const cliente = await prisma.cliente.update({
+      where: { id },
+      data: {
+        situacao: 'INATIVA',
+        motivo_inativacao: body.data.motivo,
+        inativado_em: new Date(),
+        mrr_perdido: mrrPerdido,
+        risco_atencao: false,
+      },
+    }).catch(() => null);
+    if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+
+    // Lança o MRR perdido como SAÍDA recorrente (churn) no centro de custos do mês.
+    if (mrrPerdido > 0) {
+      const agora = new Date();
+      await prisma.lancamentoFinanceiro.create({
+        data: {
+          tipo: 'SAIDA', categoria: 'OUTRO_CUSTO', recorrencia: 'EXTRAORDINARIO',
+          descricao: `Churn — ${body.data.motivo.slice(0, 100)}`, valor: mrrPerdido,
+          competencia_ano: agora.getFullYear(), competencia_mes: agora.getMonth() + 1,
+          observacoes: `MRR perdido pela desativação do cliente. Motivo: ${body.data.motivo}`,
+          cliente_id: id, created_by: (request as any).user?.id || 'system',
+        },
+      }).catch(() => {});
+    }
+    return reply.send({ status: 'success', data: cliente });
+  });
+
+  // Reativar cliente.
+  fastify.post('/clientes/:id/reativar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const cliente = await prisma.cliente.update({
+      where: { id }, data: { situacao: 'ATIVA', motivo_inativacao: null, inativado_em: null, mrr_perdido: null },
+    }).catch(() => null);
+    if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+    return reply.send({ status: 'success', data: cliente });
   });
 
   // Update cliente
