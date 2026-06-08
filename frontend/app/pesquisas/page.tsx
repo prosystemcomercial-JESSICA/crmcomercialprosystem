@@ -11,6 +11,7 @@ interface Pesquisa {
   cliente_id?: string; cliente_casado: boolean;
   nota_suporte: number; nota_sistema: number; conhece_plano: boolean;
   nota_atendimento?: number; nota_eficiencia?: number; nota_conhecimento?: number; nota_geral?: number;
+  conhece_plus?: boolean; conhece_dashboard?: boolean; conhece_mensageria?: boolean; conhece_gerencial?: boolean;
   recado?: string; observacao?: string; sugestoes?: string; critico: boolean; media: number;
   created_at: string;
 }
@@ -95,6 +96,18 @@ export default function PesquisasPage() {
             {p.nota_geral ? <span className="font-semibold text-gray-700">Prosystem: {p.nota_geral}★</span> : null}
             {!p.nota_atendimento && <span>Suporte: {p.nota_suporte}★ · Sistema: {p.nota_sistema}★</span>}
           </div>
+          {(() => {
+            const naoConhece = [
+              !p.conhece_plus && 'Plus', !p.conhece_dashboard && 'Dashboard',
+              !p.conhece_mensageria && 'Mensageria', !p.conhece_gerencial && 'Gerencial',
+            ].filter(Boolean);
+            return naoConhece.length > 0 ? (
+              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs text-amber-700 font-medium">Oportunidade — não conhece:</span>
+                {naoConhece.map(n => <span key={n as string} className="px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-700 border border-amber-200">{n}</span>)}
+              </div>
+            ) : null;
+          })()}
           {p.recado && <p className="text-sm text-gray-600 mt-2">💬 {p.recado}</p>}
           {p.observacao && <p className="text-sm text-gray-600 mt-2">💬 {p.observacao}</p>}
           {p.sugestoes && <p className="text-sm text-gray-500 mt-1">💡 {p.sugestoes}</p>}

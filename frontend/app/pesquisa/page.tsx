@@ -50,6 +50,7 @@ export default function PesquisaPublicaPage() {
   const [notaConhecimento, setNotaConhecimento] = useState(0);
   const [notaGeral, setNotaGeral] = useState(0);
   const [recado, setRecado] = useState('');
+  const [conhece, setConhece] = useState<Record<string, boolean>>({ plus: false, dashboard: false, mensageria: false, gerencial: false });
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [erro, setErro] = useState('');
@@ -71,6 +72,8 @@ export default function PesquisaPublicaPage() {
         nota_atendimento: notaAtendimento, nota_eficiencia: notaEficiencia,
         nota_conhecimento: notaConhecimento, nota_geral: notaGeral,
         recado: recado || undefined,
+        conhece_plus: conhece.plus, conhece_dashboard: conhece.dashboard,
+        conhece_mensageria: conhece.mensageria, conhece_gerencial: conhece.gerencial,
       });
       setEnviado(true);
       if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -155,6 +158,38 @@ export default function PesquisaPublicaPage() {
           <div style={bloco}>
             <p style={pergunta}>Qual nota você dá para o <strong>conhecimento do técnico</strong>?</p>
             <Estrelas value={notaConhecimento} onChange={setNotaConhecimento} />
+          </div>
+
+          {/* Conhece os diferenciais (radar de upsell) */}
+          <div style={{ ...bloco, marginTop: 22 }}>
+            <p style={{ ...pergunta, textAlign: 'left', marginBottom: 4 }}>Você conhece estes diferenciais da ProSystem?</p>
+            <p style={{ fontSize: 12, color: C.muted, margin: '0 0 12px' }}>Marque o que você já conhece/utiliza:</p>
+            {[
+              { k: 'plus', l: 'Plano Plus', d: 'recursos avançados de gestão' },
+              { k: 'dashboard', l: 'Dashboard', d: 'indicadores do negócio em tempo real' },
+              { k: 'mensageria', l: 'Mensageria de WhatsApp', d: 'envio automático de mensagens' },
+              { k: 'gerencial', l: 'Gerencial', d: 'monitoramento das notas fiscais' },
+            ].map(item => {
+              const on = conhece[item.k];
+              return (
+                <label key={item.k} onClick={() => setConhece(c => ({ ...c, [item.k]: !c[item.k] }))}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', marginBottom: 8,
+                    borderRadius: 12, cursor: 'pointer', background: on ? '#EBF4FF' : '#fff',
+                    border: `2px solid ${on ? C.blue2 : C.border}`, transition: 'all .15s',
+                  }}>
+                  <span style={{
+                    width: 22, height: 22, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: on ? C.blue2 : '#fff', border: `2px solid ${on ? C.blue2 : C.border}`, color: '#fff', fontSize: 13, fontWeight: 700,
+                  }}>{on ? '✓' : ''}</span>
+                  <span>
+                    <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: on ? C.blue : C.text }}>{item.l}</span>
+                    <span style={{ fontSize: 12, color: C.muted }}>{item.d}</span>
+                  </span>
+                </label>
+              );
+            })}
+            <p style={{ fontSize: 11, color: C.muted, margin: '4px 0 0' }}>Não conhece algum? Sem problema — nosso time pode te apresentar. 😉</p>
           </div>
 
           {/* Recado */}
