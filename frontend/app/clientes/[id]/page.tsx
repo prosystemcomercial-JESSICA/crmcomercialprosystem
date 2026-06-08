@@ -375,9 +375,7 @@ export default function ClienteDetailPage() {
               const tel = (form.telefone || infoForm.responsavel_celular).replace(/\D/g, '');
               return (
                 <a
-                  href={`https://wa.me/55${tel}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`/whatsapp?numero=${tel}&nome=${encodeURIComponent(cliente?.razao_social || cliente?.nome || '')}`}
                   title={`WhatsApp: ${form.telefone || infoForm.responsavel_celular}`}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
                   style={{ background: '#25D366', textDecoration: 'none' }}
@@ -539,10 +537,8 @@ export default function ClienteDetailPage() {
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{c.telefone}</p>
                             <a
-                              href={`https://wa.me/55${c.telefone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Abrir WhatsApp"
+                              href={`/whatsapp?numero=${c.telefone.replace(/\D/g, '')}&nome=${encodeURIComponent(c.nome || '')}`}
+                              title="Abrir WhatsApp no CRM"
                               style={{
                                 width: 18, height: 18, borderRadius: '50%',
                                 background: '#25D366',

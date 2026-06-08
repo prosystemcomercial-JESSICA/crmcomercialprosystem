@@ -105,6 +105,30 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: conversas });
   });
 
+  // Abre (ou cria) uma conversa pelo número — usado pelos botões de WhatsApp
+  // espalhados no CRM (leads, clientes, etc.) que agora levam ao Inbox interno.
+  fastify.post('/whatsapp/abrir', async (request, reply) => {
+    const user = getUser(request);
+    if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    const body = z.object({ numero: z.string().min(8), nome: z.string().optional(), lead_id: z.string().optional() }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Número inválido' });
+
+    const numero = evo.normalizarNumero(body.data.numero);
+    const nome = instanciaNomeDe(user.id);
+    const inst = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: nome } });
+    if (!inst) return reply.status(400).send({ status: 'error', message: 'Conecte seu WhatsApp primeiro' });
+
+    const conversa = await prisma.whatsappConversa.upsert({
+      where: { uq_conversa: { instanciaId: inst.id, contato_numero: numero } },
+      create: {
+        instanciaId: inst.id, dono_id: inst.dono_id, contato_numero: numero,
+        contato_nome: body.data.nome, lead_id: body.data.lead_id, ultima_em: new Date(),
+      },
+      update: { contato_nome: body.data.nome || undefined, lead_id: body.data.lead_id || undefined },
+    });
+    return reply.send({ status: 'success', data: conversa });
+  });
+
   // Mensagens de uma conversa (valida escopo) + marca como lidas.
   fastify.get('/whatsapp/conversas/:id/mensagens', async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -257,6 +281,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           }).catch(() => null);
         }
 
+        // Conversa nova? (antes do upsert) — define se o bot deve iniciar.
+        const ehNova = !conversaExistente;
+
         // Upsert da conversa (1 por instância+contato).
         const conversa = await prisma.whatsappConversa.upsert({
           where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
@@ -269,6 +296,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
             ultima_mensagem: texto.slice(0, 200),
             ultima_em: new Date(),
             nao_lidas: 1,
+            bot_ativo: true,           // número novo → bot conduz a qualificação
+            bot_estado: 'SAUDACAO',
           },
           update: {
             contato_nome: contato_nome || undefined,
@@ -290,9 +319,107 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           },
         });
         console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${instanciaNome})`);
+
+        // ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado, sem custo) =====
+        // Só conduz se o bot estiver ativo nesta conversa (número novo).
+        if (conversa.bot_ativo && conversa.bot_estado) {
+          try {
+            await processarBot(prisma, inst.instancia_nome, conversa, ehNova, texto, lead?.id);
+          } catch (e: any) { console.error('[BOT] erro:', e?.message); }
+        }
       }
     } catch (err: any) {
       console.error('[WPP] Erro no webhook:', err?.message);
     }
   });
+}
+
+// ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado) =====
+// Máquina de estados simples. Reaproveita a instância do dono para responder.
+// Estados: SAUDACAO → AGUARDA_CLIENTE → AGUARDA_SEGMENTO → AGUARDA_NOME → CONCLUIDO.
+async function processarBot(
+  prisma: PrismaClient,
+  instanciaNome: string,
+  conversa: any,
+  ehNova: boolean,
+  texto: string,
+  leadId?: string,
+) {
+  const responder = async (msg: string, proximoEstado: string | null) => {
+    let externo_id: string | undefined;
+    try { const r = await evo.enviarTexto(instanciaNome, conversa.contato_numero, msg); externo_id = r.externo_id; } catch {}
+    await prisma.whatsappMensagem.create({
+      data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: msg, status: 'ENVIADA', enviada_por: 'bot' },
+    }).catch(() => {});
+    await prisma.whatsappConversa.update({
+      where: { id: conversa.id },
+      data: {
+        ultima_mensagem: msg.slice(0, 200), ultima_em: new Date(),
+        bot_estado: proximoEstado, bot_ativo: proximoEstado !== null,
+      },
+    }).catch(() => {});
+  };
+
+  const t = (texto || '').trim();
+  const tl = t.toLowerCase();
+
+  // 1) Primeira mensagem do contato novo → saudação + pergunta se já é cliente.
+  if (ehNova || conversa.bot_estado === 'SAUDACAO') {
+    await responder(
+      'Olá! 👋 Aqui é o atendimento virtual da *ProSystem Sistemas* (sistemas para varejo).\n\n' +
+      'Posso adiantar seu atendimento? Para começar, me responda:\n\n' +
+      'Você *já é cliente* ProSystem?\n*1* - Sim, já sou cliente\n*2* - Não, quero conhecer',
+      'AGUARDA_CLIENTE',
+    );
+    return;
+  }
+
+  // 2) Já é cliente?
+  if (conversa.bot_estado === 'AGUARDA_CLIENTE') {
+    const jaCliente = tl.startsWith('1') || tl.includes('sim') || tl.includes('sou cliente');
+    if (leadId) {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { observacoes_comerciais: jaCliente ? 'WhatsApp: já é cliente ProSystem.' : 'WhatsApp: lead novo (ainda não é cliente).' },
+      }).catch(() => {});
+    }
+    await responder(
+      'Perfeito, obrigado! 🙌\n\nQual o *segmento* do seu negócio?\n' +
+      '_Ex.: Farmácia, Padaria, Supermercado, Loja de varejo, Outro…_',
+      'AGUARDA_SEGMENTO',
+    );
+    return;
+  }
+
+  // 3) Segmento → grava no lead.
+  if (conversa.bot_estado === 'AGUARDA_SEGMENTO') {
+    if (leadId && t) {
+      await prisma.lead.update({ where: { id: leadId }, data: { segmento: t.slice(0, 80) } }).catch(() => {});
+    }
+    await responder(
+      'Anotado! E qual o *nome da sua empresa* (razão social ou nome fantasia)?',
+      'AGUARDA_NOME',
+    );
+    return;
+  }
+
+  // 4) Nome da empresa → grava e encerra o bot, passando para um consultor.
+  if (conversa.bot_estado === 'AGUARDA_NOME') {
+    if (leadId && t) {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { nome: t.slice(0, 120), razao_social: t.slice(0, 120), empresa: t.slice(0, 120) },
+      }).catch(() => {});
+    }
+    if (conversa.contato_nome === null && t) {
+      await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { contato_nome: t.slice(0, 80) } }).catch(() => {});
+    }
+    await responder(
+      'Muito obrigado! ✅ Suas informações foram registradas.\n\n' +
+      'Um de nossos *consultores* dará continuidade ao seu atendimento em instantes. ' +
+      'Enquanto isso, fique à vontade para enviar suas dúvidas por aqui. 💙',
+      null, // encerra o bot (CONCLUIDO) → vendedor assume
+    );
+    return;
+  }
 }

@@ -958,6 +958,10 @@ class ApiClient {
     return this.client.get('/whatsapp/conversas');
   }
 
+  async abrirConversaWhatsapp(numero: string, nome?: string, lead_id?: string) {
+    return this.client.post('/whatsapp/abrir', { numero, nome, lead_id });
+  }
+
   async getWhatsappMensagens(conversaId: string) {
     return this.client.get(`/whatsapp/conversas/${conversaId}/mensagens`);
   }

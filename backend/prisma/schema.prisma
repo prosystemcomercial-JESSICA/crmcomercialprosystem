@@ -1718,6 +1718,10 @@ model WhatsappConversa {
   ultima_em       DateTime?
   nao_lidas       Int       @default(0)
 
+  // Chatbot de qualificação (fluxo guiado p/ número novo)
+  bot_estado      String?   // null|SAUDACAO|AGUARDA_CLIENTE|AGUARDA_SEGMENTO|AGUARDA_NOME|CONCLUIDO
+  bot_ativo       Boolean   @default(false) // o bot está conduzindo esta conversa?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

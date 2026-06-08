@@ -425,11 +425,9 @@ export default function ClientesPage() {
                           <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{c.telefone || '—'}</p>
                           {c.telefone && (
                             <a
-                              href={`https://wa.me/55${c.telefone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href={`/whatsapp?numero=${c.telefone.replace(/\D/g, '')}&nome=${encodeURIComponent(c.razao_social || c.nome || '')}`}
                               onClick={e => e.stopPropagation()}
-                              title={`WhatsApp: ${c.telefone}`}
+                              title={`Abrir WhatsApp no CRM: ${c.telefone}`}
                               style={{
                                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                 width: 20, height: 20, borderRadius: '50%',

@@ -852,8 +852,7 @@ export default function ContratosPage() {
               <div style={{ padding: '12px 22px', borderTop: '1px solid var(--t-card-border)', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {selected.representante_telefone && (
                   <a
-                    href={`https://wa.me/55${selected.representante_telefone.replace(/\D/g, '')}`}
-                    target="_blank" rel="noopener noreferrer"
+                    href={`/whatsapp?numero=${selected.representante_telefone.replace(/\D/g, '')}&nome=${encodeURIComponent(selected.razao_social || selected.nome_fantasia || '')}`}
                     className="flex items-center gap-1.5"
                     style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', background: '#25D366', color: '#fff', cursor: 'pointer' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="white">

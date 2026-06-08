@@ -855,9 +855,7 @@ export default function PropostasComerciais() {
                             )}
                             {p.responsavel_telefone && (
                               <a
-                                href={`https://wa.me/55${p.responsavel_telefone.replace(/\D/g, '')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                href={`/whatsapp?numero=${p.responsavel_telefone.replace(/\D/g, '')}&nome=${encodeURIComponent(p.razao_social || p.nome_fantasia || '')}`}
                                 onClick={e => e.stopPropagation()}
                                 title="WhatsApp"
                                 style={{ padding: 4, borderRadius: 6, background: '#25D366', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
