@@ -59,13 +59,17 @@ export default function CentroCustosPage() {
     if (!form.valor || Number(form.valor) <= 0) { alert('Informe um valor válido'); return; }
     setSaving(true);
     try {
+      const repetir = form.recorrencia === 'MENSAL' ? Number(form.repetir_meses || 1) : 1;
+      // Mês inicial: o selecionado; se "Ano inteiro" e vai repetir, começa em janeiro.
+      const mesInicial = mes || (repetir > 1 ? 1 : hoje.getMonth() + 1);
       await apiClient.createLancamento({
         tipo: form.tipo, categoria: form.categoria, descricao: form.descricao || undefined,
         valor: Number(form.valor), recorrencia: form.recorrencia,
-        competencia_ano: ano, competencia_mes: mes || (hoje.getMonth() + 1),
+        competencia_ano: ano, competencia_mes: mesInicial,
+        repetir_meses: repetir,
       });
       setShowForm(false);
-      setForm({ tipo: 'SAIDA', categoria: 'SALARIO', valor: '', recorrencia: 'MENSAL', descricao: '' });
+      setForm({ tipo: 'SAIDA', categoria: 'SALARIO', valor: '', recorrencia: 'MENSAL', descricao: '', repetir_meses: 1 });
       load();
     } catch (e: any) {
       alert('Erro ao salvar: ' + (e?.response?.data?.message || e.message));
@@ -134,6 +138,17 @@ export default function CentroCustosPage() {
                 <option value="PONTUAL">Pontual</option><option value="EXTRAORDINARIO">Extraordinário</option>
               </select>
             </div>
+            {form.recorrencia === 'MENSAL' && (
+              <div className="md:col-span-2">
+                <label className="block text-xs text-gray-500 mb-1">Repetir por quantos meses?</label>
+                <select value={form.repetir_meses || 1} onChange={e => setForm((f: any) => ({ ...f, repetir_meses: Number(e.target.value) }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                  {[1, 2, 3, 6, 12, 18, 24].map(n => <option key={n} value={n}>{n === 1 ? 'Só este mês' : `${n} meses (ex.: salário fixo)`}</option>)}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  Cria um lançamento por mês a partir da competência. Ex.: R$ {Number(form.valor || 0).toLocaleString('pt-BR')} × {form.repetir_meses || 1} = <strong>R$ {(Number(form.valor || 0) * Number(form.repetir_meses || 1)).toLocaleString('pt-BR')}</strong> no total.
+                </p>
+              </div>
+            )}
             <div className="md:col-span-2">
               <label className="block text-xs text-gray-500 mb-1">Descrição (opcional)</label>
               <input value={form.descricao} onChange={e => setForm((f: any) => ({ ...f, descricao: e.target.value }))} placeholder="Ex.: salário vendedor João, campanha Meta Ads…" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
@@ -143,7 +158,10 @@ export default function CentroCustosPage() {
                 {saving ? 'Salvando…' : 'Salvar lançamento'}
               </button>
             </div>
-            <p className="md:col-span-2 text-xs text-gray-400">Competência: {mes ? `${MESES[mes]}/${ano}` : `Ano ${ano} (use um mês específico para lançar)`}.</p>
+            <p className="md:col-span-2 text-xs text-gray-400">
+              Competência inicial: {mes ? `${MESES[mes]}/${ano}` : `escolha um mês para lançar (ano ${ano})`}.
+              {form.recorrencia === 'MENSAL' && Number(form.repetir_meses) > 1 ? ` Será lançado em ${form.repetir_meses} meses consecutivos.` : ''}
+            </p>
           </div>
         )}
 

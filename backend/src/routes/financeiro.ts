@@ -21,6 +21,8 @@ const LancamentoSchema = z.object({
   observacoes: z.string().optional(),
   vendedor_id: z.string().optional(),
   cliente_id: z.string().optional(),
+  // Repetir o lançamento por N meses a partir da competência (ex.: salário x 12).
+  repetir_meses: z.coerce.number().int().min(1).max(24).optional(),
 });
 
 export async function financeiroRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
@@ -61,15 +63,25 @@ export async function financeiroRoutes(fastify: FastifyInstance, options: { pris
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.flatten() });
     const user = (request as any).user;
     const d = body.data;
-    const lanc = await prisma.lancamentoFinanceiro.create({
-      data: {
+
+    // Repetir por N meses (ex.: salário 2000 x 12) → gera 1 lançamento por mês,
+    // avançando a competência. Sem repetir_meses, cria 1 só.
+    const repeticoes = d.repetir_meses && d.repetir_meses > 1 ? d.repetir_meses : 1;
+    const dados = [];
+    for (let i = 0; i < repeticoes; i++) {
+      // Avança i meses a partir da competência informada (vira o ano se passar de dez).
+      const idxMes0 = (d.competencia_mes - 1) + i;            // base 0
+      const ano = d.competencia_ano + Math.floor(idxMes0 / 12);
+      const mes = (idxMes0 % 12) + 1;                          // 1-12
+      dados.push({
         tipo: d.tipo, categoria: d.categoria, descricao: d.descricao, valor: d.valor,
-        recorrencia: d.recorrencia, competencia_ano: d.competencia_ano, competencia_mes: d.competencia_mes,
+        recorrencia: d.recorrencia, competencia_ano: ano, competencia_mes: mes,
         data: d.data ? new Date(d.data) : new Date(), observacoes: d.observacoes,
         vendedor_id: d.vendedor_id, cliente_id: d.cliente_id, created_by: user?.id || 'system',
-      },
-    });
-    return reply.status(201).send({ status: 'success', data: lanc });
+      });
+    }
+    await prisma.lancamentoFinanceiro.createMany({ data: dados });
+    return reply.status(201).send({ status: 'success', data: { criados: dados.length, repeticoes } });
   });
 
   // Atualiza lançamento.
