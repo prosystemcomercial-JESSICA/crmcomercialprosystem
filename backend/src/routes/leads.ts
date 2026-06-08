@@ -501,6 +501,25 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
           },
         });
         await prisma.lead.update({ where: { id }, data: { ultima_obs_at: new Date() } });
+
+        // ETIQUETA AUTOMÁTICA: lead que chega na etapa de fechamento vira
+        // "Cliente Convertido" (radar de conversões). Idempotente.
+        const ETAPAS_FECHAMENTO = ['CONTRATO_ASSINADO', 'ACEITO', 'FECHADO', 'CONTRATO_EM_ANDAMENTO'];
+        if (ETAPAS_FECHAMENTO.includes(data.etapa_comercial)) {
+          try {
+            let etq = await prisma.etiqueta.findFirst({ where: { nome: 'Cliente Convertido', sistema: true } });
+            if (!etq) {
+              etq = await prisma.etiqueta.create({
+                data: { nome: 'Cliente Convertido', cor: '#15803d', tipo: 'CLIENTE', sistema: true, descricao: 'Aplicada automaticamente quando o lead fecha contrato.', created_by: 'system' },
+              });
+            }
+            await prisma.leadEtiquetaAplicada.upsert({
+              where: { lead_id_etiqueta_id: { lead_id: id, etiqueta_id: etq.id } },
+              create: { lead_id: id, etiqueta_id: etq.id },
+              update: {},
+            });
+          } catch (e: any) { console.error('[ETIQUETA-AUTO]', e?.message); }
+        }
       }
 
       // Auto-register temperature change
