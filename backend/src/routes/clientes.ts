@@ -32,9 +32,28 @@ const ClienteSchema = z.object({
   suporte: z.string().optional(),
   nome: z.string().min(1),
   razao_social: z.string().optional(),
+  nome_fantasia: z.string().optional(),
   fantasia: z.string().optional(),
-  email: z.string().email(),
+  email: z.string().email().optional().or(z.literal('')),
   cnpj: z.string().optional(),
+  // ── Base de clientes (gestão / edição manual) ──
+  empresa: z.string().optional(),
+  telefone_contato: z.string().optional(),
+  contato: z.string().optional(),
+  situacao: z.string().optional(),
+  segmento: z.string().optional(),
+  grupo_tecnico: z.string().optional(),
+  plano: z.string().optional(),
+  data_entrada: z.string().datetime().optional().or(z.literal('')),
+  observacoes: z.string().optional(),
+  // ── Campanha de ativos (perguntas/flags) ──
+  apresentou_plus: z.boolean().optional(),
+  conhece_dashboard: z.boolean().optional(),
+  conhece_mensageria: z.boolean().optional(),
+  conhece_gerencial: z.boolean().optional(),
+  conhece_atencao_farma: z.boolean().optional(),
+  risco_atencao: z.boolean().optional(),
+  ativo_observacoes: z.string().optional(),
   grupo: z.string().optional(),
   ibge: z.string().optional(),
   inscricao: z.string().optional(),
@@ -71,8 +90,13 @@ const ClienteSchema = z.object({
 
 const ListClienteSchema = z.object({
   page: z.coerce.number().default(0),
-  limit: z.coerce.number().default(20),
-  search: z.string().optional()
+  limit: z.coerce.number().max(200).default(20),
+  search: z.string().optional(),
+  grupo_tecnico: z.string().optional(),
+  situacao: z.string().optional(),
+  segmento: z.string().optional(),
+  plano: z.string().optional(),
+  risco: z.coerce.boolean().optional(),
 });
 
 const SolicitacaoSchema = z.object({
@@ -200,27 +224,47 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
   fastify.get('/clientes', async (request, reply) => {
     const query = ListClienteSchema.safeParse(request.query);
     if (!query.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
-    const { page, limit, search } = query.data;
+    const { page, limit, search, grupo_tecnico, situacao, segmento, plano, risco } = query.data;
 
-    const where = search ? {
-      OR: [
-        { nome: { contains: search, mode: 'insensitive' as const } },
-        { fantasia: { contains: search, mode: 'insensitive' as const } },
-        { razao_social: { contains: search, mode: 'insensitive' as const } },
-        { empresa: { contains: search, mode: 'insensitive' as const } },
-        { email: { contains: search, mode: 'insensitive' as const } },
-        { codigo: { contains: search, mode: 'insensitive' as const } },
-        { suporte: { contains: search, mode: 'insensitive' as const } },
-        { cnpj: { contains: search, mode: 'insensitive' as const } }
-      ]
-    } : {};
+    const and: any[] = [];
+    if (search) {
+      and.push({
+        OR: [
+          { nome: { contains: search } },
+          { nome_fantasia: { contains: search } },
+          { razao_social: { contains: search } },
+          { empresa: { contains: search } },
+          { email: { contains: search } },
+          { codigo: { contains: search } },
+          { cnpj: { contains: search } },
+        ],
+      });
+    }
+    if (grupo_tecnico) and.push({ grupo_tecnico });
+    if (situacao)      and.push({ situacao });
+    if (segmento)      and.push({ segmento });
+    if (plano)         and.push({ plano });
+    if (risco)         and.push({ risco_atencao: true });
+    const where = and.length ? { AND: and } : {};
 
     const [clientes, total] = await Promise.all([
-      prisma.cliente.findMany({ where, skip: page * limit, take: limit, orderBy: { created_at: 'desc' }, include: { _count: { select: { caso_churn: true } } } }),
+      prisma.cliente.findMany({ where, skip: page * limit, take: limit, orderBy: [{ situacao: 'asc' }, { razao_social: 'asc' }, { created_at: 'desc' }], include: { _count: { select: { caso_churn: true } } } }),
       prisma.cliente.count({ where })
     ]);
 
-    return reply.send({ status: 'success', data: { clientes, total, page, limit } });
+    // Opções de filtro (distintas) p/ alimentar os selects do front.
+    const [grupos, segmentos, planos] = await Promise.all([
+      prisma.cliente.findMany({ where: { grupo_tecnico: { not: null } }, distinct: ['grupo_tecnico'], select: { grupo_tecnico: true }, take: 200 }),
+      prisma.cliente.findMany({ where: { segmento: { not: null } }, distinct: ['segmento'], select: { segmento: true }, take: 200 }),
+      prisma.cliente.findMany({ where: { plano: { not: null } }, distinct: ['plano'], select: { plano: true }, take: 100 }),
+    ]);
+    const opcoes = {
+      grupos_tecnicos: grupos.map(g => g.grupo_tecnico).filter(Boolean),
+      segmentos: segmentos.map(s => s.segmento).filter(Boolean),
+      planos: planos.map(p => p.plano).filter(Boolean),
+    };
+
+    return reply.send({ status: 'success', data: { clientes, total, page, limit, opcoes } });
   });
 
   // Get cliente by id (full)
@@ -280,7 +324,21 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const body = ClienteSchema.partial().safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     try {
-      const cliente = await prisma.cliente.update({ where: { id }, data: body.data as any });
+      // Só repassa ao Prisma os campos que EXISTEM no model Cliente (evita erro
+      // de coluna inexistente vindo dos campos legados do schema de validação).
+      const b = body.data as any;
+      const data: any = {};
+      const campos = [
+        'nome', 'codigo', 'email', 'telefone', 'empresa', 'razao_social', 'nome_fantasia',
+        'cnpj', 'situacao', 'segmento', 'grupo_tecnico', 'plano', 'contato', 'observacoes',
+        'cidade', 'estado', 'mensalidade_base', 'observacoes_fin',
+        'apresentou_plus', 'conhece_dashboard', 'conhece_mensageria', 'conhece_gerencial',
+        'conhece_atencao_farma', 'risco_atencao', 'ativo_observacoes',
+      ];
+      for (const k of campos) if (b[k] !== undefined && b[k] !== '') data[k] = b[k];
+      if (b.telefone_contato && !data.telefone) data.telefone = b.telefone_contato;
+      if (b.data_entrada) data.data_entrada = new Date(b.data_entrada);
+      const cliente = await prisma.cliente.update({ where: { id }, data });
       return reply.send({ status: 'success', data: cliente });
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
