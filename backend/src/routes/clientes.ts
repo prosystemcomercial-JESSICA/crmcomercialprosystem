@@ -90,13 +90,24 @@ const SolicitacaoSchema = z.object({
 
 const ImportClienteItemSchema = z.object({
   codigo: z.string().optional(),
-  nome: z.string().min(1),
-  email: z.string().email(),
+  nome: z.string().optional(),          // se faltar, cai p/ razao_social/empresa
+  email: z.string().email().optional().or(z.literal('')), // opcional: base nem sempre tem
   telefone: z.string().optional(),
   empresa: z.string().optional(),
+  razao_social: z.string().optional(),
+  nome_fantasia: z.string().optional(),
+  cnpj: z.string().optional(),
+  situacao: z.string().optional(),
+  segmento: z.string().optional(),
+  grupo_tecnico: z.string().optional(),
+  plano: z.string().optional(),
+  contato: z.string().optional(),
   cidade: z.string().optional(),
   estado: z.string().optional()
-});
+}).refine(
+  (c) => !!(c.codigo || c.nome || c.razao_social || c.empresa || c.email),
+  { message: 'Linha sem identificação (precisa de código, nome, razão social, empresa ou email)' }
+);
 
 const ImportClienteSchema = z.object({
   clientes: z.array(ImportClienteItemSchema).min(1).max(5000),
@@ -127,25 +138,58 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
     const { clientes, modo } = body.data;
     let criados = 0, atualizados = 0;
-    const erros: { linha: number; email: string; motivo: string }[] = [];
+    const erros: { linha: number; ref: string; motivo: string }[] = [];
+
+    // Normaliza "situacao" textual da base (Ativa/Inativa) para o enum interno.
+    const normSituacao = (s?: string) => {
+      const v = (s || '').trim().toUpperCase();
+      if (v.startsWith('INAT')) return 'INATIVA';
+      if (v.startsWith('AT')) return 'ATIVA';
+      return undefined;
+    };
 
     for (let i = 0; i < clientes.length; i++) {
       const c = clientes[i];
+      // Identificação humana p/ relatório de erro (código tem prioridade).
+      const ref = c.codigo || c.razao_social || c.empresa || c.nome || c.email || `linha ${i + 1}`;
       try {
-        const data: any = { ...c };
-        if (c.empresa) { data.fantasia = c.empresa; delete data.empresa; }
-        if (modo === 'CRIAR') { await prisma.cliente.create({ data }); criados++; }
-        else if (modo === 'ATUALIZAR') {
-          const ex = await prisma.cliente.findUnique({ where: { email: c.email } });
-          if (!ex) { erros.push({ linha: i + 1, email: c.email, motivo: 'Não encontrado' }); continue; }
-          await prisma.cliente.update({ where: { email: c.email }, data }); atualizados++;
+        // nome é NOT NULL no schema → deriva de fantasia/razão/empresa/email.
+        const nome = c.nome || c.nome_fantasia || c.razao_social || c.empresa || c.email || `Cliente ${c.codigo || i + 1}`;
+        const data: any = {
+          nome,
+          codigo:        c.codigo || undefined,
+          email:         c.email || undefined,            // pode ficar nulo
+          telefone:      c.telefone || undefined,
+          empresa:       c.empresa || c.nome_fantasia || c.razao_social || undefined,
+          razao_social:  c.razao_social || undefined,
+          nome_fantasia: c.nome_fantasia || undefined,
+          cnpj:          c.cnpj || undefined,
+          situacao:      normSituacao(c.situacao),
+          segmento:      c.segmento || undefined,
+          grupo_tecnico: c.grupo_tecnico || undefined,
+          plano:         c.plano || undefined,
+          contato:       c.contato || undefined,
+          cidade:        c.cidade || undefined,
+          estado:        c.estado || undefined,
+        };
+
+        // Chave de upsert: código (preferido) → email (fallback). Sem nenhum dos
+        // dois, só dá pra CRIAR (não há como casar duplicata).
+        const whereKey = c.codigo ? { codigo: c.codigo } : (c.email ? { email: c.email } : null);
+
+        if (modo === 'CRIAR' || !whereKey) {
+          await prisma.cliente.create({ data }); criados++;
+        } else if (modo === 'ATUALIZAR') {
+          const ex = await prisma.cliente.findUnique({ where: whereKey as any });
+          if (!ex) { erros.push({ linha: i + 1, ref, motivo: 'Não encontrado' } as any); continue; }
+          await prisma.cliente.update({ where: whereKey as any, data }); atualizados++;
         } else {
-          const ex = await prisma.cliente.findUnique({ where: { email: c.email } });
-          if (ex) { await prisma.cliente.update({ where: { email: c.email }, data }); atualizados++; }
+          const ex = await prisma.cliente.findUnique({ where: whereKey as any });
+          if (ex) { await prisma.cliente.update({ where: whereKey as any, data }); atualizados++; }
           else { await prisma.cliente.create({ data }); criados++; }
         }
       } catch (err: any) {
-        erros.push({ linha: i + 1, email: c.email, motivo: err.code === 'P2002' ? 'Duplicado' : err.message });
+        erros.push({ linha: i + 1, ref, motivo: err.code === 'P2002' ? 'Duplicado (código/email já existe)' : err.message } as any);
       }
     }
 

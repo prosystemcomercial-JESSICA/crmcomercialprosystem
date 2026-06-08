@@ -33,7 +33,7 @@ interface ClienteForm {
 const emptyForm: ClienteForm = { codigo: '', nome: '', email: '', telefone: '', empresa: '', cidade: '', estado: '' };
 
 // CSV columns the system accepts
-const CSV_COLUMNS = ['codigo', 'nome', 'email', 'telefone', 'empresa', 'cidade', 'estado'] as const;
+const CSV_COLUMNS = ['codigo', 'nome', 'email', 'telefone', 'empresa', 'razao_social', 'nome_fantasia', 'cnpj', 'situacao', 'segmento', 'grupo_tecnico', 'plano', 'contato', 'cidade', 'estado'] as const;
 type CsvCol = typeof CSV_COLUMNS[number];
 
 // Detect separator: semicolon (Excel PT) or comma
@@ -81,7 +81,15 @@ function mapHeader(raw: string): CsvCol | null {
     nome: 'nome', name: 'nome', nomecliente: 'nome', cliente: 'nome',
     email: 'email', emailcliente: 'email', emailresponsavel: 'email',
     telefone: 'telefone', fone: 'telefone', celular: 'telefone', phone: 'telefone', whatsapp: 'telefone',
-    empresa: 'empresa', razaosocial: 'empresa', nomefantasia: 'empresa', company: 'empresa',
+    razaosocial: 'razao_social', razao: 'razao_social',
+    nomefantasia: 'nome_fantasia', fantasia: 'nome_fantasia',
+    empresa: 'empresa', company: 'empresa',
+    cnpj: 'cnpj', cpfcnpj: 'cnpj',
+    situacao: 'situacao', status: 'situacao',
+    segmento: 'segmento', ramo: 'segmento',
+    grupotecnico: 'grupo_tecnico', grupoatendimento: 'grupo_tecnico', grupoatend: 'grupo_tecnico', grupo: 'grupo_tecnico', tecnico: 'grupo_tecnico',
+    plano: 'plano', planocontratado: 'plano',
+    contato: 'contato', contatonome: 'contato', responsavel: 'contato',
     cidade: 'cidade', municipio: 'cidade', city: 'cidade',
     estado: 'estado', uf: 'estado', state: 'estado'
   };
@@ -216,7 +224,7 @@ export default function ClientesPage() {
         if (col && row[raw] !== undefined) obj[col] = row[raw] || undefined;
       });
       return obj;
-    }).filter(r => r.nome && r.email);
+    }).filter(r => r.codigo || r.nome || r.razao_social || r.empresa || r.email);
   };
 
   const runImport = async () => {
