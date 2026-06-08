@@ -1005,6 +1005,17 @@ class ApiClient {
   async getPesquisasNaoCasadas() {
     return this.client.get('/pesquisa/nao-casadas');
   }
+
+  // Relatório Comercial (CEO)
+  async getRelatorioComercial(ano: number, mes: number) {
+    return this.client.get('/relatorio-comercial', { params: { ano, mes } });
+  }
+  async getRelatorioMeses() {
+    return this.client.get('/relatorio-comercial/meses');
+  }
+  async salvarRelatorioComercial(data: any) {
+    return this.client.put('/relatorio-comercial', data);
+  }
   async vincularPesquisa(id: string, cliente_id: string) {
     return this.client.post(`/pesquisa/${id}/vincular`, { cliente_id });
   }

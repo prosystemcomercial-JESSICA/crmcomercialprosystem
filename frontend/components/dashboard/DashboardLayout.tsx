@@ -60,6 +60,7 @@ const navGroups: NavGroup[] = [
       { href: '/metas',     icon: Trophy,       label: 'Metas Comerciais',roles: COMERCIAL },
       { href: '/ranking',   icon: Medal,        label: 'Ranking',         roles: GESTAO_COMERCIAL },
       { href: '/centro-custos', icon: DollarSign, label: 'Centro de Custos', roles: GESTAO_COMERCIAL },
+      { href: '/relatorio-comercial', icon: LineChart, label: 'Relatório (CEO)', roles: GESTAO_COMERCIAL },
     ],
   },
   {

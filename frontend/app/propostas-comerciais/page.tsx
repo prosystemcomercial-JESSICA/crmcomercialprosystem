@@ -113,6 +113,16 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   EM_NEGOCIACAO: { label: 'Em Negociação',   color: '#d97706', bg: '#fef3c7' },
   ACEITA:        { label: 'Aceita',          color: '#16a34a', bg: '#dcfce7' },
   RECUSADA:      { label: 'Recusada',        color: '#dc2626', bg: '#fee2e2' },
+  PERDIDA:       { label: 'Perdida',         color: '#9ca3af', bg: '#f3f4f6' },
+};
+
+// Normaliza qualquer status do backend para uma COLUNA visível do quadro,
+// para o card NUNCA sumir. Propostas que viraram contrato (assinado ou em
+// geração) ficam na coluna "Aceita".
+const COLUNA_DO_STATUS = (status: string): string => {
+  if (['CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO', 'ACEITO'].includes(status)) return 'ACEITA';
+  if (status === 'EXPIRADA' || status === 'DECLINADA') return 'RECUSADA';
+  return STATUS_CONFIG[status] ? status : 'RASCUNHO';
 };
 
 const MODULOS = [
@@ -664,7 +674,7 @@ export default function PropostasComerciais() {
                     Nenhuma proposta encontrada
                   </td></tr>
                 ) : filtered.map(p => {
-                  const st = STATUS_CONFIG[p.status] || STATUS_CONFIG.RASCUNHO;
+                  const st = STATUS_CONFIG[p.status] || STATUS_CONFIG[COLUNA_DO_STATUS(p.status)] || STATUS_CONFIG.RASCUNHO;
                   const validade = p.validade ? new Date(p.validade).toLocaleDateString('pt-BR') : '—';
                   return (
                     <tr key={p.id} style={{ borderBottom: '1px solid var(--t-card-border)' }}>
@@ -726,7 +736,7 @@ export default function PropostasComerciais() {
         {viewMode === 'kanban' && (
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12, alignItems: 'flex-start' }}>
             {Object.entries(STATUS_CONFIG).map(([statusKey, statusCfg]) => {
-              const colCards = filtered.filter(p => p.status === statusKey);
+              const colCards = filtered.filter(p => COLUNA_DO_STATUS(p.status) === statusKey);
               const isOver = dragOverCol === statusKey;
               const isDraggingToSame = draggingProposta?.status === statusKey;
               return (
