@@ -14,22 +14,35 @@ interface Conversa {
   ultima_mensagem?: string | null;
   ultima_em?: string | null;
   nao_lidas: number;
+  etiqueta?: string | null;
+  etiqueta_cor?: string | null;
   instancia?: { dono_nome?: string | null; numero?: string | null };
 }
 
 interface Mensagem {
   id: string;
   direcao: 'ENTRADA' | 'SAIDA';
+  tipo?: string;
   conteudo: string;
+  midia_url?: string | null;
   status?: string;
   enviada_por?: string | null;
   created_at: string;
 }
 
+const ETIQUETAS = [
+  { nome: 'Farmácia', cor: '#16a34a' },
+  { nome: 'Padaria', cor: '#d97706' },
+  { nome: 'Varejo', cor: '#2563eb' },
+  { nome: 'Cliente', cor: '#0891b2' },
+  { nome: 'Lead', cor: '#7c3aed' },
+  { nome: 'Parceiro', cor: '#db2777' },
+];
+
 type StatusConexao = 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO';
 
 export default function WhatsappPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
   const [configurado, setConfigurado] = useState(true);
@@ -40,6 +53,10 @@ export default function WhatsappPage() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState('');
   const [buscaConv, setBuscaConv] = useState('');
+  const [novoNumero, setNovoNumero] = useState('');
+  const [menuEtiqueta, setMenuEtiqueta] = useState(false);
+  const [menuTransferir, setMenuTransferir] = useState(false);
+  const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [carregandoConn, setCarregandoConn] = useState(true);
   const fimRef = useRef<HTMLDivElement>(null);
@@ -160,6 +177,51 @@ export default function WhatsappPage() {
     }
   };
 
+  // Iniciar nova conversa digitando número com DDD.
+  const iniciarConversa = async () => {
+    const num = novoNumero.replace(/\D/g, '');
+    if (num.length < 10) { alert('Digite o número com DDD (ex.: 27999998888).'); return; }
+    try {
+      const res = await apiClient.abrirConversaWhatsapp(num);
+      setNovoNumero('');
+      await carregarConversas();
+      await abrir(res.data.data);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Não foi possível iniciar a conversa.');
+    }
+  };
+
+  // Aplicar etiqueta à conversa ativa.
+  const aplicarEtiqueta = async (nome: string | null, cor?: string) => {
+    if (!ativa) return;
+    try {
+      await apiClient.etiquetarConversa(ativa.id, nome, cor);
+      setAtiva({ ...ativa, etiqueta: nome, etiqueta_cor: cor || null });
+      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, etiqueta: nome, etiqueta_cor: cor || null } : c));
+      setMenuEtiqueta(false);
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao etiquetar'); }
+  };
+
+  // Transferir conversa para outro vendedor (só gestora).
+  const abrirTransferir = async () => {
+    setMenuTransferir(true);
+    if (vendedores.length === 0) {
+      try { const r = await apiClient.getWhatsappVendedores(); setVendedores(r.data.data); } catch {}
+    }
+  };
+  const transferir = async (vendedorId: string) => {
+    if (!ativa) return;
+    try {
+      await apiClient.transferirConversa(ativa.id, vendedorId);
+      setMenuTransferir(false);
+      alert('Conversa transferida com sucesso.');
+      await carregarConversas();
+      setAtiva(null);
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao transferir'); }
+  };
+
+  const podeTransferir = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'DIRETOR'].includes(((user as any)?.role || '').toUpperCase());
+
   const fmtHora = (d?: string | null) => d ? new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
   const nomeContato = (c: Conversa) => c.contato_nome || c.contato_numero;
 
@@ -236,10 +298,18 @@ export default function WhatsappPage() {
                 <span className="text-white font-semibold">Conversas</span>
                 <span className="ml-auto text-xs text-green-100">{conversas.length}</span>
               </div>
-              <div className="p-2 border-b border-gray-100">
+              <div className="p-2 border-b border-gray-100 space-y-2">
                 <input value={buscaConv} onChange={e => setBuscaConv(e.target.value)}
                   placeholder="🔍 Buscar conversa…"
                   className="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                <div className="flex gap-1.5">
+                  <input value={novoNumero} onChange={e => setNovoNumero(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') iniciarConversa(); }}
+                    placeholder="Novo: nº com DDD (27999998888)"
+                    className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                  <button onClick={iniciarConversa} title="Iniciar conversa"
+                    className="text-white rounded-lg px-3 text-sm font-bold" style={{ background: '#128C7E' }}>+</button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {conversasFiltradas.length === 0 && <p className="text-center text-gray-400 text-sm p-6">Nenhuma conversa</p>}
@@ -258,6 +328,9 @@ export default function WhatsappPage() {
                         <p className="text-[13px] text-gray-500 truncate">{c.ultima_mensagem || '—'}</p>
                         {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[11px] font-bold rounded-full px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0">{c.nao_lidas}</span>}
                       </div>
+                      {c.etiqueta && (
+                        <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -274,15 +347,46 @@ export default function WhatsappPage() {
                 </div>
               ) : (
                 <>
-                  <div className="px-4 py-2.5 flex items-center gap-3 shadow-sm" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
+                  <div className="px-4 py-2.5 flex items-center gap-3 shadow-sm relative" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
                     <button onClick={() => setAtiva(null)} className="md:hidden text-white text-lg">←</button>
                     <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0" style={{ background: corAvatar(nomeContato(ativa)) }}>
                       {nomeContato(ativa).charAt(0).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-white text-sm truncate">{nomeContato(ativa)}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-white text-sm truncate">{nomeContato(ativa)}</p>
+                        {ativa.etiqueta && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: ativa.etiqueta_cor || '#6b7280' }}>{ativa.etiqueta}</span>}
+                      </div>
                       <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 vinculado ao funil' : ''}</p>
                     </div>
+                    {/* Etiquetar */}
+                    <button onClick={() => { setMenuEtiqueta(v => !v); setMenuTransferir(false); }} title="Etiquetar" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🏷️</button>
+                    {/* Transferir (só gestora) */}
+                    {podeTransferir && (
+                      <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); }} title="Transferir vendedor" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">↗️</button>
+                    )}
+                    {/* Menu etiqueta */}
+                    {menuEtiqueta && (
+                      <div className="absolute right-3 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-44">
+                        <p className="text-xs text-gray-400 px-1 mb-1">Etiqueta</p>
+                        {ETIQUETAS.map(e => (
+                          <button key={e.nome} onClick={() => aplicarEtiqueta(e.nome, e.cor)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 flex items-center gap-2 text-sm">
+                            <span className="w-3 h-3 rounded-full" style={{ background: e.cor }} />{e.nome}
+                          </button>
+                        ))}
+                        <button onClick={() => aplicarEtiqueta(null)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 text-sm text-gray-400">Remover etiqueta</button>
+                      </div>
+                    )}
+                    {/* Menu transferir */}
+                    {menuTransferir && (
+                      <div className="absolute right-3 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-72 overflow-y-auto">
+                        <p className="text-xs text-gray-400 px-1 mb-1">Transferir para</p>
+                        {vendedores.length === 0 ? <p className="text-xs text-gray-400 px-2 py-2">Carregando…</p> :
+                          vendedores.map(v => (
+                            <button key={v.id} onClick={() => transferir(v.id)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 text-sm">{v.nome}</button>
+                          ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 space-y-1.5"
                     style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M0 0h40v40H0z%22 fill=%22%23ECE5DD%22/%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%221%22 fill=%22%23D9D2C9%22/%3E%3C/svg%3E")' }}>
@@ -291,7 +395,18 @@ export default function WhatsappPage() {
                         <div className={`max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm ${m.direcao === 'SAIDA' ? 'rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}
                           style={m.direcao === 'SAIDA' ? { background: '#DCF8C6', color: '#111' } : {}}>
                           {m.enviada_por === 'bot' && <p className="text-[10px] font-semibold text-green-700 mb-0.5">🤖 Atendimento automático</p>}
-                          <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          {m.tipo === 'IMAGEM' && m.midia_url && (
+                            <img src={m.midia_url} alt="imagem" className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />
+                          )}
+                          {m.tipo === 'AUDIO' && m.midia_url && (
+                            <audio controls src={m.midia_url} className="mb-1" style={{ maxWidth: 220 }} />
+                          )}
+                          {m.tipo === 'DOCUMENTO' && m.midia_url && (
+                            <a href={m.midia_url} download className="text-blue-600 underline text-xs block mb-1">📎 Baixar documento</a>
+                          )}
+                          {!(m.tipo === 'IMAGEM' && m.midia_url) && (
+                            <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          )}
                           <p className="text-[10px] mt-0.5 text-right text-gray-400">{fmtHora(m.created_at)}</p>
                         </div>
                       </div>

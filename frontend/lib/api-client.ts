@@ -961,6 +961,15 @@ class ApiClient {
   async abrirConversaWhatsapp(numero: string, nome?: string, lead_id?: string) {
     return this.client.post('/whatsapp/abrir', { numero, nome, lead_id });
   }
+  async etiquetarConversa(id: string, etiqueta: string | null, etiqueta_cor?: string) {
+    return this.client.patch(`/whatsapp/conversas/${id}/etiqueta`, { etiqueta, etiqueta_cor });
+  }
+  async transferirConversa(id: string, vendedor_id: string) {
+    return this.client.post(`/whatsapp/conversas/${id}/transferir`, { vendedor_id });
+  }
+  async getWhatsappVendedores() {
+    return this.client.get('/whatsapp/vendedores');
+  }
 
   async getWhatsappMensagens(conversaId: string) {
     return this.client.get(`/whatsapp/conversas/${conversaId}/mensagens`);
