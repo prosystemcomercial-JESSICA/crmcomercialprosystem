@@ -168,6 +168,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
+  // ── Alerta de novas conversas no WhatsApp (som + badge no sino) ──
+  const [wppNaoLidas, setWppNaoLidas] = useState(0);
+  const [wppConversas, setWppConversas] = useState<{ id: string; nome: string; ultima?: string }[]>([]);
+  const [wppOpen, setWppOpen] = useState(false);
+  const wppRef = useRef<HTMLDivElement>(null);
+  const wppTotalRef = useRef(0);
+  const tocarSom = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880; o.type = 'sine';
+      g.gain.setValueAtTime(0.15, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      o.start(); o.stop(ctx.currentTime + 0.4);
+    } catch {}
+  };
+  useEffect(() => {
+    if (!user) return;
+    let ativo = true;
+    const checar = async () => {
+      try {
+        const res = await apiClient.getWhatsappConversas();
+        if (!ativo) return;
+        const convs = res.data?.data || [];
+        const total = convs.reduce((s: number, c: any) => s + (c.nao_lidas || 0), 0);
+        // Aumentou o nº de não-lidas → nova mensagem → toca som.
+        if (total > wppTotalRef.current && wppTotalRef.current >= 0) tocarSom();
+        wppTotalRef.current = total;
+        setWppNaoLidas(total);
+        setWppConversas(convs.filter((c: any) => c.nao_lidas > 0).slice(0, 6).map((c: any) => ({
+          id: c.id, nome: c.contato_nome || c.contato_numero, ultima: c.ultima_mensagem,
+        })));
+      } catch {}
+    };
+    checar();
+    const t = setInterval(checar, 15000); // a cada 15s
+    return () => { ativo = false; clearInterval(t); };
+  }, [user]);
+
   const naoVistos = alertas.filter(a => !seen.has(a.id)).length;
 
   const abrirAlertas = () => {
@@ -249,6 +289,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Separator */}
           <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
+
+          {/* WhatsApp — novas conversas (som + badge verde + atalho p/ conversa) */}
+          <div ref={wppRef} style={{ position: 'relative' }}>
+            <button
+              title="Conversas no WhatsApp"
+              onClick={() => setWppOpen(v => !v)}
+              style={{
+                width: 36, height: 36, borderRadius: 8, border: '1.5px solid var(--t-card-border)',
+                background: wppNaoLidas > 0 ? 'rgba(37,211,102,0.12)' : 'var(--t-card-bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: wppNaoLidas > 0 ? '#25D366' : 'var(--t-text-muted)', flexShrink: 0, position: 'relative'
+              }}
+            >
+              <MessageSquare size={15} />
+              {wppNaoLidas > 0 && (
+                <span style={{
+                  position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, padding: '0 4px',
+                  borderRadius: 9, background: '#25D366', color: '#fff', fontSize: 10, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                }}>{wppNaoLidas > 9 ? '9+' : wppNaoLidas}</span>
+              )}
+            </button>
+            {wppOpen && (
+              <div style={{
+                position: 'absolute', top: 44, right: 0, width: 300, background: 'var(--t-card-bg)',
+                border: '1px solid var(--t-card-border)', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,.15)', zIndex: 50, overflow: 'hidden',
+              }}>
+                <div style={{ padding: '10px 14px', background: 'linear-gradient(135deg,#128C7E,#075E54)', color: '#fff', fontWeight: 600, fontSize: 13 }}>
+                  💬 Conversas com novas mensagens
+                </div>
+                {wppConversas.length === 0 ? (
+                  <p style={{ padding: 16, fontSize: 13, color: 'var(--t-text-muted)', textAlign: 'center' }}>Nenhuma nova mensagem</p>
+                ) : wppConversas.map(c => (
+                  <button key={c.id} onClick={() => { setWppOpen(false); router.push('/whatsapp'); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', borderBottom: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer' }}>
+                    <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-text-primary)' }}>{c.nome}</p>
+                    <p style={{ fontSize: 12, color: 'var(--t-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.ultima}</p>
+                  </button>
+                ))}
+                <button onClick={() => { setWppOpen(false); router.push('/whatsapp'); }}
+                  style={{ width: '100%', padding: '10px', fontSize: 13, fontWeight: 600, color: '#128C7E', background: 'transparent', cursor: 'pointer' }}>
+                  Abrir WhatsApp →
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Bell — alertas ficam aqui até serem vistos e tratados */}
           <div ref={bellRef} style={{ position: 'relative' }}>
