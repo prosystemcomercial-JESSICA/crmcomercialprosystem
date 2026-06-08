@@ -483,9 +483,12 @@
 .ps-card {
   background: var(--t-card-bg);
   border: 1px solid var(--t-card-border);
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px var(--t-card-shadow), 0 1px 2px var(--t-card-shadow);
-  transition: background-color 0.25s ease, border-color 0.25s ease;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px var(--t-card-shadow), 0 4px 16px color-mix(in srgb, var(--t-card-shadow) 60%, transparent);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, background-color 0.25s ease, border-color 0.25s ease;
+}
+.ps-card:hover {
+  box-shadow: 0 2px 4px var(--t-card-shadow), 0 8px 28px color-mix(in srgb, var(--t-primary) 12%, transparent);
 }
 
 .ps-btn-primary {
@@ -520,3 +523,25 @@
 img, svg, video, canvas {
   transition: none !important;
 }
+
+/* ─── Polimento global (design system Prosystem) ──────────────── */
+/* Scrollbar fina e discreta */
+* { scrollbar-width: thin; scrollbar-color: var(--t-card-border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--t-card-border); border-radius: 8px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--t-primary-muted); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Foco acessível na cor da marca */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--t-primary);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+/* Suavização de fontes em todo o app */
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Títulos com leve aperto de tracking (mais moderno) */
+h1, h2, h3 { letter-spacing: -0.01em; }
