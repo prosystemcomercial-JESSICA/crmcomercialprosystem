@@ -372,9 +372,30 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     });
 
     // Fetch all active columns from DB (user-configured)
-    const colunas = await prisma.kanbanColuna.findMany({
+    let colunas = await prisma.kanbanColuna.findMany({
       where: { ativa: true }, orderBy: { ordem: 'asc' },
     });
+
+    // Salvaguarda: se o quadro não tem nenhuma coluna (base nova ou seed não rodou),
+    // cria as padrão na hora — senão o lead criado fica órfão (card invisível).
+    if (colunas.length === 0) {
+      const PADRAO = [
+        { chave: 'NOVO_LEAD',          nome: 'Novo Lead',          cor: '#6b7280', ordem: 0 },
+        { chave: 'PRIMEIRO_CONTATO',   nome: 'Primeiro Contato',   cor: '#2563eb', ordem: 1 },
+        { chave: 'EM_ATENDIMENTO',     nome: 'Em Atendimento',     cor: '#7c3aed', ordem: 2 },
+        { chave: 'AGUARDANDO_RETORNO', nome: 'Aguardando Retorno', cor: '#d97706', ordem: 3 },
+        { chave: 'PROPOSTA_A_GERAR',   nome: 'Proposta a Gerar',   cor: '#0891b2', ordem: 4 },
+        { chave: 'PROPOSTA_ENVIADA',   nome: 'Proposta Enviada',   cor: '#4B8EC8', ordem: 5 },
+        { chave: 'EM_NEGOCIACAO',      nome: 'Em Negociação',      cor: '#dc2626', ordem: 6 },
+        { chave: 'FECHADO',            nome: 'Fechado',            cor: '#15803d', ordem: 7 },
+        { chave: 'PERDIDO',            nome: 'Perdido',            cor: '#9ca3af', ordem: 8 },
+      ];
+      await prisma.kanbanColuna.createMany({
+        data: PADRAO.map(c => ({ ...c, created_by: 'system' })),
+        skipDuplicates: true,
+      }).catch(() => {});
+      colunas = await prisma.kanbanColuna.findMany({ where: { ativa: true }, orderBy: { ordem: 'asc' } });
+    }
 
     const grouped: Record<string, any[]> = {};
     for (const col of colunas) grouped[col.chave] = [];

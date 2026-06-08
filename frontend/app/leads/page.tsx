@@ -873,14 +873,34 @@ export default function LeadsPage() {
     setSavingNewLead(true);
     try {
       const payload: any = { ...newLeadForm };
-      if (!payload.nome) payload.nome = payload.razao_social || payload.responsavel_nome || 'Lead';
+      if (!payload.nome) payload.nome = payload.razao_social || payload.responsavel_nome || payload.empresa || 'Lead';
       if (payload.qtd_lojas) payload.qtd_lojas = parseInt(payload.qtd_lojas); else delete payload.qtd_lojas;
       if (payload.qtd_caixas) payload.qtd_caixas = parseInt(payload.qtd_caixas); else delete payload.qtd_caixas;
       if (!payload.responsavel_email) delete payload.responsavel_email;
-      await apiClient.createLead(payload);
+      if (!payload.email) delete payload.email;
+      // origem é obrigatória no back (default MANUAL) — string vazia vira MANUAL.
+      if (!payload.origem) payload.origem = 'MANUAL';
+      // Lead novo entra sempre na 1ª etapa do funil, garantindo card visível.
+      if (!payload.etapa_comercial) payload.etapa_comercial = 'NOVO_LEAD';
+
+      const res = await apiClient.createLead(payload);
+      const novo = res?.data?.data;
       await loadData();
-      setShowNewLead(false); setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [] }); setNewLeadSection(0);
-    } catch (e) { console.error(e); } finally { setSavingNewLead(false); }
+      setShowNewLead(false);
+      setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [] });
+      setNewLeadSection(0);
+      // Abre o lead recém-criado (feedback claro de que entrou no funil).
+      if (novo?.id) setSelectedLead(novo);
+    } catch (e: any) {
+      // NÃO engole o erro: mostra o motivo para o usuário e mantém o form aberto.
+      const msg = e?.response?.data?.message
+        || e?.response?.data?.errors?.[0]?.message
+        || 'Não foi possível salvar o lead. Verifique os campos e tente novamente.';
+      alert(`Erro ao salvar lead: ${msg}`);
+      console.error('createLead falhou:', e?.response?.data || e);
+    } finally {
+      setSavingNewLead(false);
+    }
   };
 
   // Filtered kanban

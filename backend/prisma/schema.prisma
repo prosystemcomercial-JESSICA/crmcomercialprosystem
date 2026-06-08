@@ -29,11 +29,33 @@ model Usuario {
 model Cliente {
   id       String  @id @default(cuid())
   nome     String
-  email    String  @unique
+  email    String? @unique  // opcional: a base importada nem sempre tem e-mail
   telefone String?
   empresa  String?
   cidade   String?
   estado   String?
+
+  // ── Identificação / base de clientes (importação + gestão) ──
+  codigo        String?  @unique  // código do cliente no sistema legado (chave de upsert)
+  razao_social  String?
+  nome_fantasia String?
+  cnpj          String?
+  situacao      String?  @default("ATIVA")  // ATIVA|INATIVA
+  segmento      String?                       // Farmácia|Padaria|Varejo|...
+  grupo_tecnico String?                       // grupo de atendimento técnico
+  plano         String?                       // BASIC|MEI|PRO|PLUS|...
+  contato       String?                       // nome do contato principal
+  data_entrada  DateTime?                     // desde quando é cliente (tempo de casa)
+  observacoes   String?  @db.Text             // atualizações / anotações manuais
+
+  // ── Campanha de ativos (upsell na base) — perguntas respondíveis ──
+  apresentou_plus       Boolean? @default(false) // Plus + novas ferramentas apresentado?
+  conhece_dashboard     Boolean? @default(false)
+  conhece_mensageria    Boolean? @default(false)
+  conhece_gerencial     Boolean? @default(false)
+  conhece_atencao_farma Boolean? @default(false)
+  risco_atencao         Boolean? @default(false) // cliente em risco / precisa de atenção
+  ativo_observacoes     String?  @db.Text        // notas da campanha de ativos
 
   // Mensalidade base (importada do cadastro original). A mensalidade TOTAL =
   // base + soma dos acréscimos de vendas adicionais CONFIRMADAS (ex.: Arquivo Fiscal).
