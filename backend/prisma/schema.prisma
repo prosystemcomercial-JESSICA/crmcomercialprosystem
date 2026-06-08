@@ -1599,6 +1599,51 @@ model MetaVendedor {
   @@unique([vendedor_id, ano, mes, trimestre], name: "uq_meta")
 }
 
+// ===== RELATÓRIO COMERCIAL MENSAL (o que vai para o CEO) =====
+// 1 registro por mês/ano. Números calculáveis são preenchidos automaticamente
+// pela rota agregadora; dados externos (marketing, ligações, churn detalhado)
+// ficam editáveis. Salvo progressivamente (snapshot diário).
+model RelatorioComercial {
+  id            String   @id @default(cuid())
+  ano           Int
+  mes           Int      // 1-12
+  supervisor    String?  @default("Jessica Cardoso")
+
+  // Resumo do mês (auto + editável)
+  contratos_fechados   Int     @default(0)
+  meta_contratos       Int     @default(15)
+  instalacao_total     Float   @default(0)
+  mrr_total            Float   @default(0)
+  cancelamentos        Int     @default(0)
+  mrr_perdido          Float   @default(0)
+
+  // Pipeline geral
+  propostas_total      Int     @default(0)
+  propostas_negociacao Int     @default(0)
+  propostas_fechadas   Int     @default(0)
+  propostas_declinadas Int     @default(0)
+  setup_potencial      Float   @default(0)
+  mrr_potencial        Float   @default(0)
+
+  // Blocos detalhados (listas) — JSON livre p/ não engessar
+  por_vendedor   Json?    // [{nome, propostas, setup_potencial, mrr_potencial, em_negociacao, fechadas, participacao}]
+  por_segmento   Json?    // [{segmento, propostas, setup_total, mrr_total, ticket_mrr, participacao}]
+  contratos_lista Json?   // [{empresa, segmento, instalacao, mrr, origem}]
+  atividade      Json?    // [{vendedor, ligacoes, qualificadas, tempo, conversao, insights}]
+  marketing      Json?    // {investido, resultados, impressoes, campanhas:[], roi}
+  cancelamentos_lista Json? // [{motivo, qtd}]
+  resumo_executivo Json?  // [string]
+
+  fechado       Boolean  @default(false) // mês consolidado (não recalcula mais)
+  observacoes   String?  @db.Text
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@unique([ano, mes], name: "uq_relatorio_mes")
+  @@index([ano])
+}
+
 // ===== PESQUISA DE SATISFAÇÃO (LP pública, enviada pelo técnico) =====
 // Cliente responde por link aberto e se identifica digitando razão/fantasia.
 // O sistema casa com o Cliente da base, anexa à ficha e marca crítico

@@ -343,6 +343,7 @@ async function loadRoutes() {
     ['forecast',              () => import('./routes/forecast'),              'forecastRoutes'],
     ['financeiro',            () => import('./routes/financeiro'),            'financeiroRoutes'],
     ['pesquisa',              () => import('./routes/pesquisa'),              'pesquisaRoutes'],
+    ['relatorio-comercial',   () => import('./routes/relatorio-comercial'),   'relatorioComercialRoutes'],
   ];
 
   let ok = 0;
