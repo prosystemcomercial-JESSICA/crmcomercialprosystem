@@ -74,13 +74,20 @@ interface ClienteDetalhe {
   telefone?: string; created_at: string; _count?: { caso_churn: number };
   contatos: ContatoCliente[]; solicitacoes: SolicitacaoServico[];
   mensalidade_base?: number; observacoes_fin?: string;
+  // Base / gestão
+  situacao?: string; segmento?: string; grupo_tecnico?: string; plano?: string;
+  contato?: string; data_entrada?: string; observacoes?: string;
+  // Campanha de ativos
+  apresentou_plus?: boolean; conhece_dashboard?: boolean; conhece_mensageria?: boolean;
+  conhece_gerencial?: boolean; conhece_atencao_farma?: boolean; risco_atencao?: boolean;
+  ativo_observacoes?: string;
   mensalidade?: {
     base: number; total_acrescimos: number; total: number;
     acrescimos: { id: string; valor: number; origem: string; categoria: string; status: string; data: string }[];
   };
 }
 
-type TabName = 'cadastro' | 'contatos' | 'historico' | 'endereco' | 'info' | 'financeiro';
+type TabName = 'cadastro' | 'contatos' | 'historico' | 'endereco' | 'info' | 'financeiro' | 'ativos';
 
 // ─── Helpers ──────────────────────────────────────────────────
 function fmtDate(s?: string) {
@@ -142,6 +149,11 @@ export default function ClienteDetailPage() {
   });
   // Financeiro: mensalidade base + observações (acréscimos vêm das vendas adicionais)
   const [finForm, setFinForm] = useState<{ mensalidade_base: string; observacoes_fin: string }>({ mensalidade_base: '', observacoes_fin: '' });
+  const [ativosForm, setAtivosForm] = useState({
+    situacao: '', segmento: '', grupo_tecnico: '', plano: '', contato: '', observacoes: '',
+    apresentou_plus: false, conhece_dashboard: false, conhece_mensageria: false,
+    conhece_gerencial: false, conhece_atencao_farma: false, risco_atencao: false, ativo_observacoes: '',
+  });
 
   // Contatos
   const [contatos, setContatos] = useState<ContatoCliente[]>([]);
@@ -194,6 +206,14 @@ export default function ClienteDetailPage() {
         mensalidade_base: c.mensalidade_base != null ? String(c.mensalidade_base) : '',
         observacoes_fin: c.observacoes_fin || '',
       });
+      setAtivosForm({
+        situacao: c.situacao || '', segmento: c.segmento || '', grupo_tecnico: c.grupo_tecnico || '',
+        plano: c.plano || '', contato: c.contato || '', observacoes: c.observacoes || '',
+        apresentou_plus: !!c.apresentou_plus, conhece_dashboard: !!c.conhece_dashboard,
+        conhece_mensageria: !!c.conhece_mensageria, conhece_gerencial: !!c.conhece_gerencial,
+        conhece_atencao_farma: !!c.conhece_atencao_farma, risco_atencao: !!c.risco_atencao,
+        ativo_observacoes: c.ativo_observacoes || '',
+      });
       setContatos(c.contatos || []);
       setSolicitacoes(c.solicitacoes || []);
     } catch {
@@ -207,7 +227,7 @@ export default function ClienteDetailPage() {
     setSaving(true); setSaveMsg('');
     try {
       await apiClient.client.patch(`/clientes/${id}`, {
-        ...form, ...endForm, ...infoForm,
+        ...form, ...endForm, ...infoForm, ...ativosForm,
         mensalidade_base: finForm.mensalidade_base !== '' ? parseFloat(finForm.mensalidade_base) : undefined,
         observacoes_fin: finForm.observacoes_fin || undefined,
       });
@@ -309,6 +329,7 @@ export default function ClienteDetailPage() {
     { key: 'endereco', label: 'Endereço' },
     { key: 'info', label: 'Inf. Adicionais' },
     { key: 'financeiro', label: 'Mensalidade' },
+    { key: 'ativos', label: '🎯 Ativos' },
   ];
 
   return (
@@ -755,6 +776,65 @@ export default function ClienteDetailPage() {
                 rows={3} placeholder="Ex.: negociação de desconto, reajuste pendente, observações para o radar…"
                 className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
                 style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)' }} />
+            </Section>
+          </div>
+        )}
+
+        {activeTab === 'ativos' && (
+          <div className="space-y-5">
+            <Section title="Dados da base">
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Situação (ATIVA/INATIVA)" value={ativosForm.situacao} onChange={v => setAtivosForm(f => ({ ...f, situacao: v }))} placeholder="ATIVA" />
+                <Field label="Segmento" value={ativosForm.segmento} onChange={v => setAtivosForm(f => ({ ...f, segmento: v }))} placeholder="Farmácia, Padaria, Varejo…" />
+                <Field label="Grupo técnico" value={ativosForm.grupo_tecnico} onChange={v => setAtivosForm(f => ({ ...f, grupo_tecnico: v }))} placeholder="Grupo de atendimento" />
+                <Field label="Plano" value={ativosForm.plano} onChange={v => setAtivosForm(f => ({ ...f, plano: v }))} placeholder="BASIC, PRO, PLUS…" />
+                <Field label="Contato principal" value={ativosForm.contato} onChange={v => setAtivosForm(f => ({ ...f, contato: v }))} placeholder="Nome do contato" cols={2} />
+              </div>
+              <p className="text-[11px] mt-2" style={{ color: 'var(--t-text-muted)' }}>
+                Campos vindos da importação. Se algum veio em branco, preencha aqui manualmente.
+              </p>
+            </Section>
+
+            <Section title="Campanha de Ativos — apresentação de produtos">
+              <p className="text-xs mb-3" style={{ color: 'var(--t-text-muted)' }}>
+                Marque o que já foi apresentado a este cliente (Plus, novas ferramentas, integrações).
+              </p>
+              <div className="space-y-2">
+                {[
+                  { k: 'apresentou_plus', label: 'Plano Plus + novas ferramentas apresentado' },
+                  { k: 'conhece_dashboard', label: 'Conhece o Dashboard' },
+                  { k: 'conhece_mensageria', label: 'Conhece o serviço de mensageria' },
+                  { k: 'conhece_gerencial', label: 'Conhece o Gerencial' },
+                  { k: 'conhece_atencao_farma', label: 'Conhece a Atenção Farmacêutica' },
+                ].map(item => (
+                  <label key={item.k} className="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer"
+                    style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)' }}>
+                    <input type="checkbox" checked={(ativosForm as any)[item.k]}
+                      onChange={e => setAtivosForm(f => ({ ...f, [item.k]: e.target.checked }))}
+                      className="w-4 h-4 accent-blue-600" />
+                    <span className="text-sm" style={{ color: 'var(--t-text-primary)' }}>{item.label}</span>
+                  </label>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Radar de risco">
+              <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer"
+                style={{ borderColor: ativosForm.risco_atencao ? '#dc2626' : 'var(--t-card-border)', background: ativosForm.risco_atencao ? '#fef2f2' : 'var(--t-content-bg)' }}>
+                <input type="checkbox" checked={ativosForm.risco_atencao}
+                  onChange={e => setAtivosForm(f => ({ ...f, risco_atencao: e.target.checked }))}
+                  className="w-4 h-4 accent-red-600" />
+                <span className="text-sm font-medium" style={{ color: ativosForm.risco_atencao ? '#dc2626' : 'var(--t-text-primary)' }}>
+                  ⚠️ Cliente em risco / precisa de atenção
+                </span>
+              </label>
+              <div className="mt-3">
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Observações da campanha de ativos</label>
+                <textarea value={ativosForm.ativo_observacoes} onChange={e => setAtivosForm(f => ({ ...f, ativo_observacoes: e.target.value }))}
+                  rows={3} placeholder="Ex.: interessado em upgrade para Plus; aguardando retorno sobre arquivo fiscal…"
+                  className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                  style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)' }} />
+              </div>
             </Section>
           </div>
         )}
