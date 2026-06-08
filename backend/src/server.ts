@@ -209,6 +209,75 @@ async function iniciarSchedulerLembretes() {
   console.log('[BOOT] Scheduler de lembretes iniciado (intervalo: 5 min)');
 }
 
+// 8b) Scheduler: digest 2x ao dia (manhã/tarde) — pendências do funil por usuário.
+//     Vendedor recebe só o próprio; gestão (CEO/ADMIN/SUPERVISAO_COMERCIAL) o consolidado.
+//     Não mexe no schema: anti-duplicação por janela via flag em memória.
+async function iniciarSchedulerDigest() {
+  if (!prismaClient) return;
+  const ROLES_GESTAO = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO'];
+  // Janelas em horário de Brasília (UTC-3). Ex.: 8h e 17h locais → 11 e 20 UTC.
+  const HORA_MANHA_UTC = 11;
+  const HORA_TARDE_UTC = 20;
+
+  // Guarda "YYYY-MM-DD:janela:userId" já enviados, para não duplicar no mesmo ciclo.
+  const enviados = new Set<string>();
+
+  const janelaAtual = (d: Date): 'manha' | 'tarde' | null => {
+    const h = d.getUTCHours();
+    if (h === HORA_MANHA_UTC) return 'manha';
+    if (h === HORA_TARDE_UTC) return 'tarde';
+    return null;
+  };
+
+  const rodar = async () => {
+    try {
+      const agora = new Date();
+      const janela = janelaAtual(agora);
+      if (!janela) return; // fora das janelas → nada a fazer
+
+      const dia = agora.toISOString().slice(0, 10);
+      // Limpa marcações de dias anteriores (mantém o Set pequeno).
+      for (const k of enviados) if (!k.startsWith(dia)) enviados.delete(k);
+
+      const {
+        coletarPendenciasDoUsuario, enviarEmailDigestVendedor, enviarEmailDigestGestao,
+      } = await import('./services/notification.service.js');
+
+      const usuarios = await prismaClient!.usuarioCRM.findMany({
+        where: { status: 'ATIVO', email: { not: '' } },
+        select: { id: true, nome: true, email: true, cargo: true },
+      });
+
+      const saudacao = janela === 'manha' ? 'Bom dia' : 'Boa tarde';
+
+      for (const u of usuarios) {
+        const chave = `${dia}:${janela}:${u.id}`;
+        if (enviados.has(chave)) continue;
+
+        const verTudo = ROLES_GESTAO.includes((u.cargo || '').toUpperCase());
+        try {
+          const pendencias = await coletarPendenciasDoUsuario(prismaClient!, u.id, verTudo);
+          if (pendencias.total === 0) { enviados.add(chave); continue; } // marca p/ não reprocessar
+
+          const payload = { email: u.email, nome: u.nome.split(' ')[0], saudacao, pendencias };
+          if (verTudo) await enviarEmailDigestGestao(payload);
+          else await enviarEmailDigestVendedor(payload);
+          enviados.add(chave);
+        } catch (err: any) {
+          console.error(`[DIGEST] Falha para ${u.email}:`, err?.message);
+        }
+      }
+    } catch (err: any) {
+      console.error('[DIGEST] Erro no scheduler:', err?.message);
+    }
+  };
+
+  // Verifica a cada 15 min; só age dentro das janelas horárias.
+  setInterval(rodar, 15 * 60 * 1000);
+  setTimeout(rodar, 90 * 1000); // primeira verificação ~1,5 min após boot
+  console.log('[BOOT] Scheduler de digest iniciado (2x/dia: manhã e tarde)');
+}
+
 // 8) Carrega rotas dinamicamente — cada uma isolada em try/catch.
 //    Se UMA rota falhar ao importar/registrar, as outras continuam funcionando
 //    e o /health permanece respondendo.
@@ -243,6 +312,7 @@ async function loadRoutes() {
     ['dashboard-comercial',   () => import('./routes/dashboard-comercial'),   'dashboardComercialRoutes'],
     ['contratos-comerciais',  () => import('./routes/contratos-comerciais'),  'contratosComerciais'],
     ['auditoria',             () => import('./routes/auditoria'),             'auditoriaRoutes'],
+    ['nps',                   () => import('./routes/nps'),                   'npsRoutes'],
   ];
 
   let ok = 0;
@@ -285,6 +355,7 @@ const start = async () => {
     console.log(`[BOOT] ✅ Servidor escutando em 0.0.0.0:${port}`);
     console.log(`[BOOT] Health: http://0.0.0.0:${port}/health`);
     iniciarSchedulerLembretes();
+    iniciarSchedulerDigest();
   } catch (err: any) {
     console.error('[BOOT] ❌ Falha no fastify.listen:', err?.message || err);
     if (err?.stack) console.error(err.stack);

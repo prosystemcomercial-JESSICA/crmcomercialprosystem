@@ -74,6 +74,15 @@ export default function AlertasPage() {
           <p className="text-gray-500 mt-1">Atividades atrasadas, vencimentos e oportunidades em risco</p>
         </div>
 
+        {/* Aviso: digest automático por e-mail */}
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <span className="text-xl leading-none">📧</span>
+          <p className="text-sm text-blue-800">
+            Você recebe um resumo destas pendências por e-mail <strong>2x ao dia</strong> (manhã e fim de tarde).
+            Não precisa manter esta tela aberta — agimos por você.
+          </p>
+        </div>
+
         {/* Resumo cards */}
         {resumo && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
