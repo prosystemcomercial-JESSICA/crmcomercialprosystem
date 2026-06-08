@@ -83,6 +83,7 @@ const navGroups: NavGroup[] = [
       { href: '/casos',        icon: Flame,    label: 'Churn & Retenção', roles: TECNICO },
       { href: '/health-score', icon: Activity, label: 'Health Score',     roles: TECNICO },
       { href: '/nps',          icon: Star,     label: 'NPS',              roles: TECNICO },
+      { href: '/pesquisas',    icon: MessageSquare, label: 'Pesquisas',   roles: TECNICO },
     ],
   },
   {

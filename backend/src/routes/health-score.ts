@@ -152,58 +152,51 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
     return reply.send({ status: 'success', data: { processados, total: clientes.length } });
   });
 
-  // ===== NPS DASHBOARD =====
+  // ===== NPS DASHBOARD (unificado) =====
+  // Mescla duas fontes: SurveyResposta (pesquisas de churn, score 1-10) e
+  // PesquisaSatisfacao (LP pública, notas 1-5 → convertidas p/ 0-10 = media*2).
   fastify.get('/nps/dashboard', async (request, reply) => {
-    const surveys = await prisma.surveyResposta.findMany({
-      include: {
-        survey_churn: {
-          include: { cliente: { select: { id: true, nome: true, empresa: true } } }
-        }
-      },
-      orderBy: { responded_at: 'desc' }
-    });
+    const [surveys, pesquisas] = await Promise.all([
+      prisma.surveyResposta.findMany({
+        include: { survey_churn: { include: { cliente: { select: { id: true, nome: true, empresa: true } } } } },
+        orderBy: { responded_at: 'desc' },
+      }),
+      prisma.pesquisaSatisfacao.findMany({ orderBy: { created_at: 'desc' }, take: 1000 }).catch(() => [] as any[]),
+    ]);
 
-    const total = surveys.length;
+    // Normaliza ambas as fontes para um formato comum.
+    type Item = { score: number; stars: number; cliente: any; q4: string; motivo: string | null; data: Date };
+    const itens: Item[] = [
+      ...surveys.map((s): Item => ({
+        score: s.q3_score, stars: s.q5_stars, cliente: s.survey_churn?.cliente,
+        q4: s.q4_opcao, motivo: s.motivo_real, data: s.responded_at,
+      })),
+      ...pesquisas.map((p: any): Item => ({
+        score: Math.round(p.media * 2),                       // 1-5 → 0-10
+        stars: Math.round(p.media),
+        cliente: p.identificacao ? { nome: p.identificacao, empresa: p.identificacao } : undefined,
+        q4: p.conhece_plano ? 'sim' : 'nao',
+        motivo: p.observacao || (p.critico ? 'Crítico (pesquisa)' : null),
+        data: p.created_at,
+      })),
+    ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
+    const total = itens.length;
     if (total === 0) {
-      return reply.send({
-        status: 'success',
-        data: {
-          nps_score: 0, total: 0,
-          promoters: 0, neutrals: 0, detractors: 0,
-          distribuicao: [], recentes: []
-        }
-      });
+      return reply.send({ status: 'success', data: { nps_score: 0, total: 0, promoters: 0, neutrals: 0, detractors: 0, avg_stars: 0, distribuicao: [], recentes: [] } });
     }
 
-    const promoters = surveys.filter(s => s.q3_score >= 9).length;
-    const neutrals = surveys.filter(s => s.q3_score >= 7 && s.q3_score <= 8).length;
-    const detractors = surveys.filter(s => s.q3_score <= 6).length;
+    const promoters = itens.filter(s => s.score >= 9).length;
+    const neutrals = itens.filter(s => s.score >= 7 && s.score <= 8).length;
+    const detractors = itens.filter(s => s.score <= 6).length;
     const nps_score = Math.round(((promoters - detractors) / total) * 100);
-
-    const avg_stars = surveys.reduce((s, r) => s + r.q5_stars, 0) / total;
-
-    const dist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => ({
-      score: n,
-      count: surveys.filter(s => s.q3_score === n).length
-    }));
-
-    const recentes = surveys.slice(0, 10).map(s => ({
-      cliente: s.survey_churn?.cliente,
-      score: s.q3_score,
-      stars: s.q5_stars,
-      q4: s.q4_opcao,
-      motivo: s.motivo_real,
-      data: s.responded_at
-    }));
+    const avg_stars = itens.reduce((s, r) => s + r.stars, 0) / total;
+    const dist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => ({ score: n, count: itens.filter(s => s.score === n).length }));
+    const recentes = itens.slice(0, 10).map(s => ({ cliente: s.cliente, score: s.score, stars: s.stars, q4: s.q4, motivo: s.motivo, data: s.data }));
 
     return reply.send({
       status: 'success',
-      data: {
-        nps_score, total, promoters, neutrals, detractors,
-        avg_stars: Math.round(avg_stars * 10) / 10,
-        distribuicao: dist,
-        recentes
-      }
+      data: { nps_score, total, promoters, neutrals, detractors, avg_stars: Math.round(avg_stars * 10) / 10, distribuicao: dist, recentes },
     });
   });
 }

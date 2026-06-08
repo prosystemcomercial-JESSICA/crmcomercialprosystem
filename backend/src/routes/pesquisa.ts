@@ -125,4 +125,52 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
     });
     return reply.send({ status: 'success', data: respostas });
   });
+
+  // ===== GESTÃO — respostas que NÃO casaram com nenhum cliente da base =====
+  fastify.get('/pesquisa/nao-casadas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const respostas = await prisma.pesquisaSatisfacao.findMany({
+      where: { cliente_casado: false }, orderBy: { created_at: 'desc' }, take: 300,
+    });
+    return reply.send({ status: 'success', data: respostas });
+  });
+
+  // ===== GESTÃO — vincular manualmente uma resposta a um cliente =====
+  // Reavalia criticidade e abre caso de churn se necessário (e ainda não houver).
+  fastify.post('/pesquisa/:id/vincular', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({ cliente_id: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe o cliente.' });
+
+    const [pesquisa, cliente] = await Promise.all([
+      prisma.pesquisaSatisfacao.findUnique({ where: { id } }),
+      prisma.cliente.findUnique({ where: { id: body.data.cliente_id }, select: { id: true } }),
+    ]);
+    if (!pesquisa) return reply.status(404).send({ status: 'error', message: 'Pesquisa não encontrada' });
+    if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+
+    // Abre caso de churn se a resposta é crítica e ainda não tem caso.
+    let casoChurnId = pesquisa.caso_churn_id || undefined;
+    if (pesquisa.critico && !casoChurnId) {
+      try {
+        const caso = await prisma.casoChurn.create({
+          data: {
+            clienteId: cliente.id, status: 'NOVO',
+            risk_score: Math.round((5 - pesquisa.media) * 20),
+            motivo_principal: !pesquisa.conhece_plano ? 'Não conhece diferenciais do plano' : 'Baixa satisfação na pesquisa',
+            created_by: 'pesquisa-satisfacao',
+          },
+        });
+        casoChurnId = caso.id;
+        await prisma.cliente.update({ where: { id: cliente.id }, data: { risco_atencao: true } }).catch(() => {});
+      } catch (e: any) { console.error('[PESQUISA] vincular/churn:', e?.message); }
+    }
+
+    const atualizada = await prisma.pesquisaSatisfacao.update({
+      where: { id },
+      data: { cliente_id: cliente.id, cliente_casado: true, caso_churn_id: casoChurnId },
+    });
+    return reply.send({ status: 'success', data: atualizada });
+  });
 }
