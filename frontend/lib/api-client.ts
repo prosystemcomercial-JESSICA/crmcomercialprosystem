@@ -218,9 +218,14 @@ class ApiClient {
   }
 
   // Clientes endpoints
-  async getClientes(page = 0, limit = 20, search?: string) {
+  async getClientes(page = 0, limit = 20, search?: string, filtros?: { grupo_tecnico?: string; situacao?: string; segmento?: string; plano?: string; risco?: boolean }) {
     const params: any = { page, limit };
     if (search) params.search = search;
+    if (filtros?.grupo_tecnico) params.grupo_tecnico = filtros.grupo_tecnico;
+    if (filtros?.situacao) params.situacao = filtros.situacao;
+    if (filtros?.segmento) params.segmento = filtros.segmento;
+    if (filtros?.plano) params.plano = filtros.plano;
+    if (filtros?.risco) params.risco = true;
     return this.client.get('/clientes', { params });
   }
 

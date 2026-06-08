@@ -11,9 +11,20 @@ interface Cliente {
   id: string;
   codigo?: string;
   nome: string;
-  email: string;
+  email?: string;
   telefone?: string;
   empresa?: string;
+  razao_social?: string;
+  nome_fantasia?: string;
+  cnpj?: string;
+  situacao?: string;
+  segmento?: string;
+  grupo_tecnico?: string;
+  plano?: string;
+  contato?: string;
+  data_entrada?: string;
+  observacoes?: string;
+  risco_atencao?: boolean;
   cidade?: string;
   estado?: string;
   created_at: string;
@@ -111,6 +122,12 @@ export default function ClientesPage() {
   const isGestor = podeVerTudo(user?.role);
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [fGrupo, setFGrupo] = useState('');
+  const [fSituacao, setFSituacao] = useState('');
+  const [fSegmento, setFSegmento] = useState('');
+  const [fPlano, setFPlano] = useState('');
+  const [fRisco, setFRisco] = useState(false);
+  const [opcoes, setOpcoes] = useState<{ grupos_tecnicos: string[]; segmentos: string[]; planos: string[] }>({ grupos_tecnicos: [], segmentos: [], planos: [] });
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
@@ -140,9 +157,16 @@ export default function ClientesPage() {
   const fetchClientes = async () => {
     setDataLoading(true);
     try {
-      const res = await apiClient.getClientes(page, limit, search || undefined);
+      const res = await apiClient.getClientes(page, limit, search || undefined, {
+        grupo_tecnico: fGrupo || undefined,
+        situacao: fSituacao || undefined,
+        segmento: fSegmento || undefined,
+        plano: fPlano || undefined,
+        risco: fRisco || undefined,
+      });
       setClientes(res.data.data.clientes);
       setTotal(res.data.data.total);
+      if (res.data.data.opcoes) setOpcoes(res.data.data.opcoes);
     } catch (e) {
       console.error(e);
     } finally {
@@ -150,11 +174,22 @@ export default function ClientesPage() {
     }
   };
 
-  useEffect(() => { if (isAuthenticated) fetchClientes(); }, [isAuthenticated, page, search]);
+  useEffect(() => { if (isAuthenticated) fetchClientes(); }, [isAuthenticated, page, search, fGrupo, fSituacao, fSegmento, fPlano, fRisco]);
+
+  // Tempo de casa do cliente (a partir de data_entrada; fallback created_at).
+  const tempoDeCasa = (c: Cliente): string => {
+    const base = c.data_entrada || c.created_at;
+    if (!base) return '—';
+    const meses = Math.max(0, Math.floor((Date.now() - new Date(base).getTime()) / (1000 * 60 * 60 * 24 * 30.4)));
+    if (meses < 1) return 'novo';
+    if (meses < 12) return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+    const anos = Math.floor(meses / 12); const m = meses % 12;
+    return m ? `${anos}a ${m}m` : `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
+  };
 
   const openCreate = () => { setForm(emptyForm); setEditingId(null); setError(''); setShowModal(true); };
   const openEdit = (c: Cliente) => {
-    setForm({ codigo: c.codigo || '', nome: c.nome, email: c.email, telefone: c.telefone || '', empresa: c.empresa || '', cidade: c.cidade || '', estado: c.estado || '' });
+    setForm({ codigo: c.codigo || '', nome: c.nome, email: c.email || '', telefone: c.telefone || '', empresa: c.empresa || '', cidade: c.cidade || '', estado: c.estado || '' });
     setEditingId(c.id); setError(''); setShowModal(true);
   };
 
@@ -307,6 +342,35 @@ export default function ClientesPage() {
           <span className="absolute left-3 top-2.5 text-gray-400 text-base">🔍</span>
         </div>
 
+        {/* Filtros da base */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { v: fSituacao, set: setFSituacao, label: 'Situação', opts: ['ATIVA', 'INATIVA'] },
+            { v: fGrupo, set: setFGrupo, label: 'Grupo técnico', opts: opcoes.grupos_tecnicos },
+            { v: fSegmento, set: setFSegmento, label: 'Segmento', opts: opcoes.segmentos },
+            { v: fPlano, set: setFPlano, label: 'Plano', opts: opcoes.planos },
+          ].map((f, i) => (
+            <select key={i} value={f.v} onChange={e => { f.set(e.target.value); setPage(0); }}
+              className="px-3 py-2 border rounded-lg text-sm"
+              style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
+              <option value="">{f.label}: todos</option>
+              {f.opts.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ))}
+          <button onClick={() => { setFRisco(r => !r); setPage(0); }}
+            className="px-3 py-2 rounded-lg text-sm font-medium border"
+            style={{ borderColor: fRisco ? '#dc2626' : 'var(--t-card-border)', background: fRisco ? '#fef2f2' : 'var(--t-card-bg)', color: fRisco ? '#dc2626' : 'var(--t-text-secondary)' }}>
+            ⚠️ Em risco
+          </button>
+          {(fSituacao || fGrupo || fSegmento || fPlano || fRisco) && (
+            <button onClick={() => { setFSituacao(''); setFGrupo(''); setFSegmento(''); setFPlano(''); setFRisco(false); setPage(0); }}
+              className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--t-text-muted)' }}>
+              Limpar filtros
+            </button>
+          )}
+          <span className="text-xs ml-auto" style={{ color: 'var(--t-text-muted)' }}>{total} cliente(s)</span>
+        </div>
+
         {/* Table */}
         <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)' }}>
           {dataLoading ? (
@@ -327,7 +391,7 @@ export default function ClientesPage() {
               <table className="w-full text-sm">
                 <thead style={{ background: 'var(--t-content-bg)', borderBottom: `1px solid var(--t-card-border)` }}>
                   <tr>
-                    {['Código','Cliente','Contato','Localização','Casos','Ações'].map(h => (
+                    {['Código','Cliente','Contato','Plano','Grupo / Segmento','Situação','Cliente desde','Ações'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--t-text-muted)' }}>{h}</th>
                     ))}
                   </tr>
@@ -381,13 +445,23 @@ export default function ClientesPage() {
                           )}
                         </div>
                       </td>
+                      <td className="px-4 py-3">
+                        {c.plano ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--t-content-bg)', color: 'var(--t-primary)', border: `1px solid var(--t-card-border)` }}>{c.plano}</span>
+                        ) : <span style={{ color: 'var(--t-text-muted)' }}>—</span>}
+                      </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--t-text-secondary)' }}>
-                        {c.cidade && c.estado ? `${c.cidade}, ${c.estado}` : c.cidade || c.estado || '—'}
+                        <p>{c.grupo_tecnico || '—'}</p>
+                        {c.segmento && <p style={{ color: 'var(--t-text-muted)' }}>{c.segmento}</p>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${(c._count?.caso_churn || 0) > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                          {c._count?.caso_churn || 0} caso{(c._count?.caso_churn || 0) !== 1 ? 's' : ''}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${c.situacao === 'INATIVA' ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'}`}>
+                          {c.situacao === 'INATIVA' ? 'Inativa' : 'Ativa'}
                         </span>
+                        {c.risco_atencao && <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700" title="Cliente em risco">⚠️</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--t-text-secondary)' }} title={c.data_entrada ? new Date(c.data_entrada).toLocaleDateString('pt-BR') : ''}>
+                        {tempoDeCasa(c)}
                       </td>
                       <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                         {isGestor ? (
