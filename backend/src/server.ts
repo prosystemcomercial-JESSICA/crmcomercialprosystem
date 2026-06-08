@@ -278,6 +278,33 @@ async function iniciarSchedulerDigest() {
   console.log('[BOOT] Scheduler de digest iniciado (2x/dia: manhã e tarde)');
 }
 
+// 8c) Scheduler: motor de regras (EVO-3) — roda 1x/dia (~7h BRT = 10h UTC).
+//     Cria tarefas automáticas (lead parado, renovação próxima). Idempotente.
+async function iniciarSchedulerAutomacao() {
+  if (!prismaClient) return;
+  const HORA_UTC = 10;
+  let ultimoDia = '';
+
+  const rodar = async () => {
+    try {
+      const agora = new Date();
+      if (agora.getUTCHours() !== HORA_UTC) return;
+      const dia = agora.toISOString().slice(0, 10);
+      if (dia === ultimoDia) return; // já rodou hoje
+      ultimoDia = dia;
+
+      const { rodarMotorDeRegras } = await import('./services/automation.service.js');
+      await rodarMotorDeRegras(prismaClient!);
+    } catch (err: any) {
+      console.error('[AUTO] Erro no scheduler:', err?.message);
+    }
+  };
+
+  setInterval(rodar, 15 * 60 * 1000); // verifica a cada 15 min; age 1x/dia na janela
+  setTimeout(rodar, 120 * 1000);
+  console.log('[BOOT] Scheduler de automação iniciado (motor de regras 1x/dia)');
+}
+
 // 8) Carrega rotas dinamicamente — cada uma isolada em try/catch.
 //    Se UMA rota falhar ao importar/registrar, as outras continuam funcionando
 //    e o /health permanece respondendo.
@@ -314,6 +341,7 @@ async function loadRoutes() {
     ['auditoria',             () => import('./routes/auditoria'),             'auditoriaRoutes'],
     ['nps',                   () => import('./routes/nps'),                   'npsRoutes'],
     ['whatsapp',              () => import('./routes/whatsapp'),              'whatsappRoutes'],
+    ['forecast',              () => import('./routes/forecast'),              'forecastRoutes'],
   ];
 
   let ok = 0;
@@ -357,6 +385,7 @@ const start = async () => {
     console.log(`[BOOT] Health: http://0.0.0.0:${port}/health`);
     iniciarSchedulerLembretes();
     iniciarSchedulerDigest();
+    iniciarSchedulerAutomacao();
   } catch (err: any) {
     console.error('[BOOT] ❌ Falha no fastify.listen:', err?.message || err);
     if (err?.stack) console.error(err.stack);

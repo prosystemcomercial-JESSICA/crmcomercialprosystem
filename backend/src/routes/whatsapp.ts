@@ -221,7 +221,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
         // Tenta vincular a um Lead existente pelo telefone (últimos 8 dígitos).
         const sufixo = contato_numero.slice(-8);
-        const lead = await prisma.lead.findFirst({
+        let lead = await prisma.lead.findFirst({
           where: {
             deleted_at: null,
             OR: [
@@ -231,6 +231,31 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           },
           select: { id: true, nome: true },
         }).catch(() => null);
+
+        // EVO-4 — Captação automática: número desconhecido + conversa nova
+        // vira um Lead novo no funil, atribuído ao dono da instância (o vendedor).
+        const conversaExistente = await prisma.whatsappConversa.findUnique({
+          where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
+          select: { id: true },
+        }).catch(() => null);
+
+        if (!lead && !conversaExistente) {
+          lead = await prisma.lead.create({
+            data: {
+              nome: contato_nome || `WhatsApp ${contato_numero}`,
+              telefone: contato_numero,
+              responsavel_telefone: contato_numero,
+              origem: 'WHATSAPP',
+              responsavel_id: inst.dono_id,
+              created_by: inst.dono_id,
+              observacoes_comerciais: `Lead captado automaticamente via WhatsApp. Primeira mensagem: "${texto.slice(0, 180)}"`,
+            },
+            select: { id: true, nome: true },
+          }).then(l => {
+            console.log(`[WPP] Lead captado automaticamente: ${l.id} (${contato_numero})`);
+            return l;
+          }).catch(() => null);
+        }
 
         // Upsert da conversa (1 por instância+contato).
         const conversa = await prisma.whatsappConversa.upsert({

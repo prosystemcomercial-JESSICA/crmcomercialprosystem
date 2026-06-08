@@ -34,6 +34,7 @@ export default function PrevisaoPage() {
   const [pipeline, setPipeline] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
   const [dias, setDias] = useState(30);
+  const [forecast, setForecast] = useState<{ receita_esperada: number; valor_pipeline_bruto: number; etapas: { etapa: string; label: string; prob: number; qtd: number; valor_ponderado: number }[] } | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -53,6 +54,9 @@ export default function PrevisaoPage() {
       })
       .catch(console.error)
       .finally(() => setDataLoading(false));
+    apiClient.getForecast()
+      .then(res => setForecast(res.data.data))
+      .catch(console.error);
   }, [isAuthenticated, dias]);
 
   if (loading || !isAuthenticated) {
@@ -94,6 +98,39 @@ export default function PrevisaoPage() {
               <div><p className="text-gray-500">Meta</p><p className="font-bold text-gray-800">{fmt(meta.valor_alvo)}</p></div>
               <div><p className="text-gray-500">Realizado</p><p className="font-bold text-green-700">{fmt(meta.valor_atual)}</p></div>
               <div><p className="text-gray-500">Falta</p><p className="font-bold text-gray-800">{fmt(meta.falta_para_meta)}</p></div>
+            </div>
+          </div>
+        )}
+
+        {/* Forecast ponderado (EVO-5): receita esperada = Σ valor × probabilidade da etapa */}
+        {forecast && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Forecast de Receita (ponderado)</h2>
+            <p className="text-sm text-gray-500 mb-4">Receita esperada do pipeline considerando a probabilidade de cada etapa.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">💰 Receita esperada (ponderada)</p>
+                <p className="text-3xl font-bold text-green-700">{fmt(forecast.receita_esperada)}</p>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">📊 Pipeline bruto (sem ponderar)</p>
+                <p className="text-3xl font-bold text-gray-700">{fmt(forecast.valor_pipeline_bruto)}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {forecast.etapas.map(e => {
+                const max = Math.max(...forecast.etapas.map(x => x.valor_ponderado), 1);
+                return (
+                  <div key={e.etapa} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 w-40 flex-shrink-0 truncate">{e.label} <span className="text-gray-400">({Math.round(e.prob * 100)}%)</span></span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 relative">
+                      <div className="bg-blue-500 h-5 rounded-full" style={{ width: `${(e.valor_ponderado / max) * 100}%` }} />
+                    </div>
+                    <span className="text-xs font-medium text-gray-700 w-28 text-right flex-shrink-0">{fmt(e.valor_ponderado)}</span>
+                    <span className="text-xs text-gray-400 w-10 text-right flex-shrink-0">{e.qtd}×</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

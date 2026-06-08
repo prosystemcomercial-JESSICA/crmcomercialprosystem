@@ -960,6 +960,11 @@ class ApiClient {
   async enviarWhatsappMensagem(conversaId: string, texto: string) {
     return this.client.post(`/whatsapp/conversas/${conversaId}/enviar`, { texto });
   }
+
+  // Forecast de receita ponderado
+  async getForecast() {
+    return this.client.get('/dashboard/forecast');
+  }
 }
 
 export const apiClient = new ApiClient();
