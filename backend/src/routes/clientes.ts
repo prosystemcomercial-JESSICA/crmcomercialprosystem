@@ -175,17 +175,17 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
         // Chave de upsert: código (preferido) → email (fallback). Sem nenhum dos
         // dois, só dá pra CRIAR (não há como casar duplicata).
+        // codigo/email não são mais @unique → usar findFirst e atualizar por id.
         const whereKey = c.codigo ? { codigo: c.codigo } : (c.email ? { email: c.email } : null);
+        const existente = whereKey ? await prisma.cliente.findFirst({ where: whereKey as any }) : null;
 
         if (modo === 'CRIAR' || !whereKey) {
           await prisma.cliente.create({ data }); criados++;
         } else if (modo === 'ATUALIZAR') {
-          const ex = await prisma.cliente.findUnique({ where: whereKey as any });
-          if (!ex) { erros.push({ linha: i + 1, ref, motivo: 'Não encontrado' } as any); continue; }
-          await prisma.cliente.update({ where: whereKey as any, data }); atualizados++;
+          if (!existente) { erros.push({ linha: i + 1, ref, motivo: 'Não encontrado' } as any); continue; }
+          await prisma.cliente.update({ where: { id: existente.id }, data }); atualizados++;
         } else {
-          const ex = await prisma.cliente.findUnique({ where: whereKey as any });
-          if (ex) { await prisma.cliente.update({ where: whereKey as any, data }); atualizados++; }
+          if (existente) { await prisma.cliente.update({ where: { id: existente.id }, data }); atualizados++; }
           else { await prisma.cliente.create({ data }); criados++; }
         }
       } catch (err: any) {

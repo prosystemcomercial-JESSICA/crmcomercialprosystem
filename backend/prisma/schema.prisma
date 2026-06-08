@@ -29,14 +29,14 @@ model Usuario {
 model Cliente {
   id       String  @id @default(cuid())
   nome     String
-  email    String? @unique  // opcional: a base importada nem sempre tem e-mail
+  email    String?  // opcional: a base importada nem sempre tem e-mail (unique removido p/ migracao nao-destrutiva)
   telefone String?
   empresa  String?
   cidade   String?
   estado   String?
 
   // ── Identificação / base de clientes (importação + gestão) ──
-  codigo        String?  @unique  // código do cliente no sistema legado (chave de upsert)
+  codigo        String?  // código do cliente no sistema legado (chave de upsert; unicidade garantida na lógica de importação)
   razao_social  String?
   nome_fantasia String?
   cnpj          String?
@@ -77,6 +77,10 @@ model Cliente {
 
   @@index([email])
   @@index([empresa])
+  @@index([codigo])
+  @@index([situacao])
+  @@index([grupo_tecnico])
+  @@index([segmento])
 }
 
 // ===== SPRINT 28: CHURN E RETENCAO =====
