@@ -70,12 +70,14 @@ export function effectiveScopeId(request: FastifyRequest, filtroVendedorId?: str
   return f ? f : null;                        // gestor: aplica o filtro escolhido (ou nada)
 }
 
-/** ownerWhere a partir de um id já resolvido (use com effectiveScopeId). */
+/** ownerWhere a partir de um id já resolvido (use com effectiveScopeId).
+ *  Excluídos (soft-delete) saem SEMPRE dos resultados — inclusive para gestor. */
 export function ownerWhereId(table: keyof typeof OWNER_COLUMNS | string, id: string | null): Record<string, any> {
-  if (id === null) return {};
+  const softDelete = table === 'Lead' ? { deleted_at: null } : {};
+  if (id === null) return { ...softDelete };
   const cols = OWNER_COLUMNS[table as string] || ['created_by'];
-  if (cols.length === 1) return { [cols[0]]: id };
-  return { OR: cols.map(c => ({ [c]: id })) };
+  if (cols.length === 1) return { ...softDelete, [cols[0]]: id };
+  return { ...softDelete, OR: cols.map(c => ({ [c]: id })) };
 }
 
 /** ownerSql a partir de um id já resolvido (use com effectiveScopeId). */
