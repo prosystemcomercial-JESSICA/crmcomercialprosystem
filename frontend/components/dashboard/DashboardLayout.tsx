@@ -271,7 +271,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
 
       {/* ── Topbar ─────────────────────────────────────────── */}
-      <header className="ps-topbar flex-shrink-0 flex items-center justify-between px-3 sm:px-5 h-16 gap-2">
+      <header className="ps-topbar flex-shrink-0 flex items-center justify-between px-3 sm:px-5 h-24 gap-2">
 
         {/* Botão menu (mobile) — abre o drawer da sidebar */}
         <button
@@ -287,10 +287,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Image
             src="/logo-prosystem.png"
             alt="Prosystem"
-            width={195}
-            height={52}
+            width={320}
+            height={86}
             className="object-contain"
-            style={{ height: 47, width: 'auto' }}
+            style={{ height: 78, width: 'auto' }}
             priority
           />
         </Link>
