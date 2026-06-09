@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { getUser, podeVerTudo } from '@/lib/scope';
+import { getUser } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
 
 // WhatsApp Inbox multi-instância.
@@ -17,10 +17,13 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   const instanciaNomeDe = (userId: string) => `crm-${userId}`;
 
   // Filtro de escopo por dono para conversas/instâncias.
+  // CADA usuário (inclusive gestão) vê SOMENTE as conversas das próprias
+  // instâncias (dono_id). Conversas transferidas para a pessoa passam a ter o
+  // dono_id dela, então aparecem aqui naturalmente — atende ao pedido:
+  // "só a minha instância, a não ser que alguém transfira para mim".
   function escopoDono(request: any): Record<string, any> {
     const user = getUser(request);
-    if (podeVerTudo(user)) return {};            // gestão vê tudo
-    return { dono_id: user?.id || '__no_user__' }; // vendedor: só o seu
+    return { dono_id: user?.id || '__no_user__' };
   }
 
   // ===== STATUS / CONEXÃO =====

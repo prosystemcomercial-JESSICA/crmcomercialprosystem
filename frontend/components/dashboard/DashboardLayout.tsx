@@ -176,6 +176,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [wppOpen, setWppOpen] = useState(false);
   const wppRef = useRef<HTMLDivElement>(null);
   const wppTotalRef = useRef(0);
+  const wppVistoRef = useRef(false); // true = usuário clicou no sino; badge fica zerado até chegar algo novo
   const tocarSom = () => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -196,10 +197,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!ativo) return;
         const convs = res.data?.data || [];
         const total = convs.reduce((s: number, c: any) => s + (c.nao_lidas || 0), 0);
-        // Aumentou o nº de não-lidas → nova mensagem → toca som.
-        if (total > wppTotalRef.current && wppTotalRef.current >= 0) tocarSom();
+        // Aumentou o nº de não-lidas → nova mensagem → toca som + reexibe o badge.
+        if (total > wppTotalRef.current && wppTotalRef.current >= 0) {
+          tocarSom();
+          wppVistoRef.current = false; // chegou algo novo → volta a mostrar o badge
+        }
         wppTotalRef.current = total;
-        setWppNaoLidas(total);
+        // Se o usuário já clicou no sino (visto) e nada novo chegou, mantém zerado.
+        setWppNaoLidas(wppVistoRef.current ? 0 : total);
         setWppConversas(convs.filter((c: any) => c.nao_lidas > 0).slice(0, 6).map((c: any) => ({
           id: c.id, nome: c.contato_nome || c.contato_numero, ultima: c.ultima_mensagem,
         })));
@@ -305,7 +310,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div ref={wppRef} style={{ position: 'relative' }}>
             <button
               title="Conversas no WhatsApp"
-              onClick={() => setWppOpen(v => !v)}
+              onClick={() => {
+                setWppOpen(v => {
+                  const abrindo = !v;
+                  // Ao abrir, marca como visto e zera o badge (até chegar algo novo).
+                  if (abrindo) { wppVistoRef.current = true; setWppNaoLidas(0); }
+                  return abrindo;
+                });
+              }}
               style={{
                 width: 36, height: 36, borderRadius: 8, border: '1.5px solid var(--t-card-border)',
                 background: wppNaoLidas > 0 ? 'rgba(37,211,102,0.12)' : 'var(--t-card-bg)',
