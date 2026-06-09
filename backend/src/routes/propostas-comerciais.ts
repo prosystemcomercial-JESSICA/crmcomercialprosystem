@@ -329,17 +329,24 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
 
     const data = { ...body.data };
 
-    // Auto-fill vendedor a partir do CADASTRO do usuário logado (nome, telefone, email).
-    // O token só tem nome/email; o telefone vem da UsuarioCRM.
-    if (user?.id) {
+    // Auto-fill vendedor a partir do CADASTRO do vendedor (nome, telefone, email).
+    // O contato do vendedor na proposta SEMPRE vem do cadastro dele (UsuarioCRM) —
+    // o telefone/WhatsApp informado no cadastro do usuário. Gestor pode gerar p/
+    // outro vendedor (vendedor_id), então buscamos pelo vendedor_id; senão pelo
+    // usuário logado. O telefone do cadastro PREVALECE (sobrescreve string vazia
+    // ou telefone do cliente que o front possa ter enviado por engano).
+    const alvoVendedorId = data.vendedor_id || user?.id;
+    if (alvoVendedorId) {
       const perfilRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT nome, email, telefone FROM UsuarioCRM WHERE id = ? LIMIT 1`, user.id
+        `SELECT nome, email, telefone FROM UsuarioCRM WHERE id = ? LIMIT 1`, alvoVendedorId
       ).catch(() => []);
       const perfil = perfilRows[0] || {};
-      if (!data.vendedor_nome)     data.vendedor_nome = perfil.nome || user.nome || undefined;
-      if (!data.vendedor_telefone) data.vendedor_telefone = perfil.telefone || undefined;
-      if (!data.vendedor_email)    data.vendedor_email = perfil.email || user.email || undefined;
-      if (!data.vendedor_id)       data.vendedor_id = user.id;
+      const ehLogado = alvoVendedorId === user?.id;
+      // Telefone do cadastro do vendedor sempre prevalece (se existir).
+      if (perfil.telefone) data.vendedor_telefone = perfil.telefone;
+      if (!data.vendedor_nome)  data.vendedor_nome  = perfil.nome  || (ehLogado ? user?.nome : undefined) || undefined;
+      if (!data.vendedor_email) data.vendedor_email = perfil.email || (ehLogado ? user?.email : undefined) || undefined;
+      if (!data.vendedor_id)    data.vendedor_id = user?.id;
     }
 
     // Calcular valor_final se não informado

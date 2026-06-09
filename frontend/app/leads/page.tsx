@@ -2202,7 +2202,7 @@ export default function LeadsPage() {
                               {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`}
                             </span>
                           </td>
-                          <td className="px-3 py-2 font-medium" style={{ color: '#0D2238' }}>{v.vendedor_id}</td>
+                          <td className="px-3 py-2 font-medium" style={{ color: '#0D2238' }}>{v.vendedor_nome || v.vendedor_id}</td>
                           <td className="px-3 py-2" style={{ color: '#4A6E8A' }}>{v.leads_ativos}</td>
                           <td className="px-3 py-2" style={{ color: '#4A6E8A' }}>{fmtBRL2(v.pipeline)}</td>
                           <td className="px-3 py-2 font-bold text-green-600">{fmtBRL2(v.vendido_mes)}</td>
