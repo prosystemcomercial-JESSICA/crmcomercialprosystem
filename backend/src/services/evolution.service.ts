@@ -91,6 +91,12 @@ export async function desconectarInstancia(instanciaNome: string): Promise<void>
   await call(`/instance/logout/${encodeURIComponent(instanciaNome)}`, 'DELETE').catch(() => {});
 }
 
+/** Apaga a instância da Evolution de vez (logout + delete). */
+export async function deletarInstancia(instanciaNome: string): Promise<void> {
+  await call(`/instance/logout/${encodeURIComponent(instanciaNome)}`, 'DELETE').catch(() => {});
+  await call(`/instance/delete/${encodeURIComponent(instanciaNome)}`, 'DELETE').catch(() => {});
+}
+
 /** Normaliza um telefone BR para o formato que a Evolution espera (JID sem máscara). */
 export function normalizarNumero(numero: string): string {
   let n = (numero || '').replace(/\D/g, '');

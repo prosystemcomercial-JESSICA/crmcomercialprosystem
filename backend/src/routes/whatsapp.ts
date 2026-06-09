@@ -151,6 +151,27 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success' });
   });
 
+  // Apaga a instância de vez (logout + delete na Evolution + remove do banco).
+  // Usar quando "desconectar" não basta (instância travada/órfã).
+  fastify.delete('/whatsapp/instancias/:id', async (request, reply) => {
+    const user = getUser(request);
+    const { id } = request.params as { id: string };
+    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
+    if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
+    await evo.deletarInstancia(inst.instancia_nome).catch(() => {});
+    await prisma.whatsappInstancia.delete({ where: { id } }).catch(() => {});
+    return reply.send({ status: 'success' });
+  });
+
+  // Excluir uma conversa (e suas mensagens).
+  fastify.delete('/whatsapp/conversas/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    await prisma.whatsappConversa.delete({ where: { id } }).catch(() => {}); // cascade apaga mensagens
+    return reply.send({ status: 'success' });
+  });
+
   // Renomear (apelido) uma instância.
   fastify.patch('/whatsapp/instancias/:id', async (request, reply) => {
     const user = getUser(request);
