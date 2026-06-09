@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -281,14 +282,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Menu size={22} />
         </button>
 
-        {/* A marca fica só na barra lateral (não repetir no topbar). No mobile,
-            onde a sidebar é drawer, mostramos um nome discreto ao lado do menu. */}
-        <Link href="/dashboard" className="md:hidden flex items-center select-none flex-shrink-0">
-          <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--t-text-primary)' }}>
-            Prospera
-          </span>
+        {/* Logotipo Prosystem no topbar (parte branca). A sidebar (azul) fica só com o menu. */}
+        <Link href="/dashboard" className="flex items-center select-none flex-shrink-0" aria-label="Prosystem">
+          <Image
+            src="/logo-prosystem.png"
+            alt="Prosystem"
+            width={150}
+            height={40}
+            className="object-contain"
+            style={{ height: 36, width: 'auto' }}
+            priority
+          />
         </Link>
-        <div className="hidden md:block flex-shrink-0" style={{ width: 1 }} aria-hidden />
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
@@ -525,31 +530,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             style={{ color: 'var(--t-sidebar-text)' }}>
             <XIcon size={20} />
           </button>
-          {/* Marca no sidebar — inicial em círculo + nome (sem logo) */}
-          <div style={{
-            padding: '20px 16px 12px',
-            borderBottom: '1px solid var(--t-sidebar-border)',
-            display: 'flex', alignItems: 'center', gap: 10
-          }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px color-mix(in srgb, var(--t-primary) 35%, transparent)'
-            }}>
-              <span style={{ color: '#fff', fontSize: 21, fontWeight: 800, letterSpacing: '-0.02em' }}>P</span>
-            </div>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.1 }}>
-                Prospera
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--t-sidebar-text)', opacity: 0.7, marginTop: 2 }}>
-                CRM Comercial
-              </div>
-            </div>
-          </div>
-
-          <nav className="flex-1 py-3 px-2 space-y-4 overflow-y-auto">
+          {/* Sidebar (azul) fica só com o menu — a marca/logo está no topbar branco. */}
+          <nav className="flex-1 py-4 px-2 space-y-4 overflow-y-auto">
             {(() => {
               const userRole = (user?.role || '').toUpperCase();
               const filteredGroups = navGroups
