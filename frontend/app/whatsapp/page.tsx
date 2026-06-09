@@ -70,6 +70,9 @@ export default function WhatsappPage() {
   const [novoNumero, setNovoNumero] = useState('');
   const [menuEtiqueta, setMenuEtiqueta] = useState(false);
   const [menuTransferir, setMenuTransferir] = useState(false);
+  const [showReuniao, setShowReuniao] = useState(false);
+  const [reuniao, setReuniao] = useState({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
+  const [salvandoReuniao, setSalvandoReuniao] = useState(false);
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [carregandoConn, setCarregandoConn] = useState(true);
@@ -187,6 +190,28 @@ export default function WhatsappPage() {
       setAtiva({ ...ativa, lead_id: null });
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null } : c));
     } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao desvincular'); }
+  };
+
+  // Agendar reunião: cria a atividade e envia o link pelo WhatsApp do contato.
+  const agendarReuniao = async () => {
+    if (!ativa || !reuniao.data) { alert('Escolha a data e hora da reunião.'); return; }
+    setSalvandoReuniao(true);
+    try {
+      await apiClient.agendarReuniaoWhatsapp(ativa.id, {
+        data: new Date(reuniao.data).toISOString(),
+        duracao_minutos: Number(reuniao.duracao_minutos) || 60,
+        link: reuniao.link || undefined,
+        titulo: reuniao.titulo || undefined,
+      });
+      setShowReuniao(false);
+      setReuniao({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
+      // Recarrega as mensagens p/ mostrar a confirmação enviada.
+      const res = await apiClient.getWhatsappMensagens(ativa.id);
+      setMensagens(res.data.data.mensagens);
+      alert('Reunião agendada e link enviado no WhatsApp! 📅');
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Falha ao agendar reunião');
+    } finally { setSalvandoReuniao(false); }
   };
 
   // Excluir uma conversa do Inbox.
@@ -486,6 +511,8 @@ export default function WhatsappPage() {
                       <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 vinculado ao funil' : ''}</p>
                     </div>
                     {/* Etiquetar */}
+                    {/* Agendar reunião */}
+                    <button onClick={() => setShowReuniao(true)} title="Agendar reunião" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">📅</button>
                     <button onClick={() => { setMenuEtiqueta(v => !v); setMenuTransferir(false); }} title="Etiquetar" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🏷️</button>
                     {/* Transferir (só gestora) */}
                     {podeTransferir && (
@@ -571,6 +598,41 @@ export default function WhatsappPage() {
           </div>
         )}
       </div>
+
+      {/* Modal agendar reunião */}
+      {showReuniao && ativa && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-5 w-full max-w-md">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">📅 Agendar reunião</h3>
+            <p className="text-sm text-gray-500 mb-4">Com {ativa.contato_nome || ativa.contato_numero}. A confirmação vai pelo WhatsApp.</p>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Título</label>
+            <input value={reuniao.titulo} onChange={e => setReuniao(r => ({ ...r, titulo: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Data e hora *</label>
+                <input type="datetime-local" value={reuniao.data} onChange={e => setReuniao(r => ({ ...r, data: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Duração (min)</label>
+                <input type="number" value={reuniao.duracao_minutos} onChange={e => setReuniao(r => ({ ...r, duracao_minutos: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+              </div>
+            </div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Link da reunião (opcional)</label>
+            <input value={reuniao.link} onChange={e => setReuniao(r => ({ ...r, link: e.target.value }))}
+              placeholder="https://meet.google.com/… (cole o link, se houver)"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowReuniao(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={agendarReuniao} disabled={salvandoReuniao} className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#128C7E' }}>
+                {salvandoReuniao ? 'Agendando…' : 'Agendar e enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

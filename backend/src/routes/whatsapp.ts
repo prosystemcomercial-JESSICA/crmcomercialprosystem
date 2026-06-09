@@ -226,6 +226,67 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success' });
   });
 
+  // Agenda uma reunião a partir da conversa: cria Atividade REUNIAO (vinculada
+  // ao lead, se houver) e ENVIA a mensagem com data/hora + link pelo WhatsApp.
+  fastify.post('/whatsapp/conversas/:id/reuniao', async (request, reply) => {
+    const user = getUser(request);
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      data: z.string().min(1),          // ISO datetime
+      duracao_minutos: z.coerce.number().int().optional(),
+      link: z.string().optional(),
+      titulo: z.string().optional(),
+      mensagem: z.string().optional(),  // texto customizado (senão monta padrão)
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe a data/hora da reunião.' });
+
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) }, include: { instancia: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    const dt = new Date(body.data.data);
+    const titulo = body.data.titulo || 'Reunião ProSystem';
+
+    // Cria a Atividade REUNIAO (entra na agenda + scheduler de lembrete 2h antes).
+    // Precisa de um lead vinculado (Atividade.lead_id é obrigatório).
+    let atividadeId: string | undefined;
+    if (conversa.lead_id) {
+      const at = await prisma.atividade.create({
+        data: {
+          lead_id: conversa.lead_id, tipo: 'REUNIAO', titulo,
+          descricao: `Agendada via WhatsApp com ${conversa.contato_nome || conversa.contato_numero}`,
+          status: 'PENDENTE', data_prevista: dt, duracao_minutos: body.data.duracao_minutos || 60,
+          google_meet_link: body.data.link || null, responsavel_id: conversa.dono_id, created_by: user?.id || 'system',
+        },
+      }).catch(() => null);
+      atividadeId = at?.id;
+    }
+
+    // Monta a mensagem (ou usa a customizada) e envia pelo WhatsApp do contato.
+    const dataFmt = dt.toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const msg = body.data.mensagem || (
+      `Olá! 📅 Sua reunião com a *ProSystem* está agendada:\n\n` +
+      `*${titulo}*\n🗓️ ${dataFmt}\n` +
+      (body.data.link ? `\n🔗 Link da reunião:\n${body.data.link}\n` : '') +
+      `\nQualquer dúvida, estou à disposição!`
+    );
+
+    let externo_id: string | undefined;
+    try {
+      const r = await evo.enviarTexto(conversa.instancia.instancia_nome, conversa.contato_numero, msg);
+      externo_id = r.externo_id;
+    } catch (e: any) {
+      return reply.status(502).send({ status: 'error', message: `Reunião criada, mas falha ao enviar no WhatsApp: ${e.message}` });
+    }
+
+    // Registra a mensagem enviada no Inbox.
+    await prisma.whatsappMensagem.create({
+      data: { conversaId: id, externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: msg, status: 'ENVIADA', enviada_por: user?.id },
+    }).catch(() => {});
+    await prisma.whatsappConversa.update({ where: { id }, data: { ultima_mensagem: '📅 Reunião agendada', ultima_em: new Date() } }).catch(() => {});
+
+    return reply.send({ status: 'success', data: { atividadeId } });
+  });
+
   // Abre (ou cria) uma conversa pelo número — usado pelos botões de WhatsApp
   // espalhados no CRM (leads, clientes, etc.) que agora levam ao Inbox interno.
   fastify.post('/whatsapp/abrir', async (request, reply) => {
@@ -537,8 +598,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${instanciaNome})`);
 
         // ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado, sem custo) =====
-        // Só conduz se o bot estiver ativo nesta conversa (número novo).
-        if (conversa.bot_ativo && conversa.bot_estado) {
+        // Kill switch global: o bot só roda se WHATSAPP_BOT_ATIVO === 'true'.
+        // Desligado por padrão (Jessica pediu para parar o bot). Para religar,
+        // basta setar WHATSAPP_BOT_ATIVO=true nas variáveis do backend no Railway.
+        const botLigado = process.env.WHATSAPP_BOT_ATIVO === 'true';
+        if (botLigado && conversa.bot_ativo && conversa.bot_estado) {
           try {
             // C5: reconhece se o número é de um CLIENTE da base (pelos últimos 8 dígitos).
             const sufTel = contato_numero.slice(-8);
