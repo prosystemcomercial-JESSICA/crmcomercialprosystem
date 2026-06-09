@@ -30,13 +30,22 @@ interface Mensagem {
   created_at: string;
 }
 
+// Segmento/comercial (mantém no funil).
 const ETIQUETAS = [
   { nome: 'Farmácia', cor: '#16a34a' },
   { nome: 'Padaria', cor: '#d97706' },
   { nome: 'Varejo', cor: '#2563eb' },
   { nome: 'Cliente', cor: '#0891b2' },
   { nome: 'Lead', cor: '#7c3aed' },
+];
+// Tipos de atendimento NÃO-comerciais — ao marcar, desvinculam do funil sozinhos.
+const ETIQUETAS_TIPO = [
+  { nome: 'Financeiro', cor: '#0d9488' },
+  { nome: 'Renegociação', cor: '#ca8a04' },
+  { nome: 'Serviço', cor: '#6366f1' },
   { nome: 'Parceiro', cor: '#db2777' },
+  { nome: 'Suporte', cor: '#64748b' },
+  { nome: 'Pessoal', cor: '#9333ea' },
 ];
 
 type StatusConexao = 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO';
@@ -270,9 +279,10 @@ export default function WhatsappPage() {
   const aplicarEtiqueta = async (nome: string | null, cor?: string) => {
     if (!ativa) return;
     try {
-      await apiClient.etiquetarConversa(ativa.id, nome, cor);
-      setAtiva({ ...ativa, etiqueta: nome, etiqueta_cor: cor || null });
-      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, etiqueta: nome, etiqueta_cor: cor || null } : c));
+      const res = await apiClient.etiquetarConversa(ativa.id, nome, cor);
+      const upd = res.data.data; // backend pode ter desvinculado (lead_id null) se tipo não-comercial
+      setAtiva({ ...ativa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id });
+      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
       setMenuEtiqueta(false);
     } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao etiquetar'); }
   };
@@ -489,14 +499,21 @@ export default function WhatsappPage() {
                     <button onClick={() => excluirConversa(ativa.id)} title="Excluir conversa" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🗑️</button>
                     {/* Menu etiqueta */}
                     {menuEtiqueta && (
-                      <div className="absolute right-3 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-44">
-                        <p className="text-xs text-gray-400 px-1 mb-1">Etiqueta</p>
+                      <div className="absolute right-3 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-80 overflow-y-auto">
+                        <p className="text-[10px] font-semibold text-gray-400 px-1 mb-1 uppercase">Segmento (comercial)</p>
                         {ETIQUETAS.map(e => (
                           <button key={e.nome} onClick={() => aplicarEtiqueta(e.nome, e.cor)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 flex items-center gap-2 text-sm">
                             <span className="w-3 h-3 rounded-full" style={{ background: e.cor }} />{e.nome}
                           </button>
                         ))}
-                        <button onClick={() => aplicarEtiqueta(null)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 text-sm text-gray-400">Remover etiqueta</button>
+                        <p className="text-[10px] font-semibold text-gray-400 px-1 mt-2 mb-1 uppercase">Tipo de atendimento</p>
+                        <p className="text-[10px] text-gray-400 px-1 mb-1">Estes saem do funil (não viram lead)</p>
+                        {ETIQUETAS_TIPO.map(e => (
+                          <button key={e.nome} onClick={() => aplicarEtiqueta(e.nome, e.cor)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 flex items-center gap-2 text-sm">
+                            <span className="w-3 h-3 rounded-full" style={{ background: e.cor }} />{e.nome}
+                          </button>
+                        ))}
+                        <button onClick={() => aplicarEtiqueta(null)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 text-sm text-gray-400 mt-1 border-t border-gray-100">Remover etiqueta</button>
                       </div>
                     )}
                     {/* Menu transferir */}
