@@ -464,7 +464,15 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         const data = Array.isArray(payload?.data) ? payload.data[0] : payload?.data;
         if (!data) return;
         const fromMe = data?.key?.fromMe;
-        if (fromMe) return; // ignorar ecos das próprias mensagens enviadas
+
+        // fromMe = mensagem ENVIADA pela própria conta. Pode ser eco do que o
+        // CRM mandou (já gravado, ignora por externo_id) OU algo digitado no
+        // WhatsApp Web/celular (precisa aparecer no CRM como SAIDA). Registra,
+        // mas NÃO cria lead/conversa nem dispara bot.
+        if (fromMe) {
+          await registrarMensagemPropria(prisma, data).catch((e) => console.error('[WPP fromMe]', e?.message));
+          return;
+        }
 
         const remoteJid: string = data?.key?.remoteJid || '';
 
@@ -747,4 +755,44 @@ async function processarBot(
     );
     return;
   }
+}
+
+// Registra no Inbox uma mensagem ENVIADA pela própria conta fora do CRM
+// (WhatsApp Web/celular), para a conversa ficar completa. Idempotente por
+// externo_id (não duplica o eco das que o próprio CRM enviou). Não cria
+// conversa nova nem lead — só anexa se a conversa já existir.
+async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
+  const remoteJid: string = data?.key?.remoteJid || '';
+  // Ignora grupos/broadcast/status.
+  if (remoteJid.endsWith('@g.us') || remoteJid.endsWith('@broadcast') || remoteJid === 'status@broadcast' || data?.key?.participant) return;
+  const contato_numero = remoteJid.split('@')[0];
+  if (!contato_numero) return;
+  const externo_id = data?.key?.id;
+
+  // Já gravada? (eco da mensagem enviada pelo CRM) → não duplica.
+  if (externo_id) {
+    const existe = await prisma.whatsappMensagem.findUnique({ where: { externo_id } }).catch(() => null);
+    if (existe) return;
+  }
+
+  // Acha a conversa pelo número (qualquer instância). Não cria nova.
+  const conversa = await prisma.whatsappConversa.findFirst({ where: { contato_numero } }).catch(() => null);
+  if (!conversa) return;
+
+  const msg = data?.message || {};
+  let tipo: 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO' = 'TEXTO';
+  let texto = msg.conversation || msg.extendedTextMessage?.text || '';
+  if (msg.imageMessage) { tipo = 'IMAGEM'; texto = msg.imageMessage.caption || '[imagem]'; }
+  else if (msg.audioMessage || msg.pttMessage) { tipo = 'AUDIO'; texto = '[áudio]'; }
+  else if (msg.documentMessage) { tipo = 'DOCUMENTO'; texto = msg.documentMessage.fileName || '[documento]'; }
+  else if (!texto) { tipo = 'OUTRO'; texto = '[mensagem]'; }
+
+  await prisma.whatsappMensagem.create({
+    data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo, conteudo: texto, status: 'ENVIADA' },
+  }).catch(() => {});
+  await prisma.whatsappConversa.update({
+    where: { id: conversa.id },
+    data: { ultima_mensagem: texto.slice(0, 200), ultima_em: new Date() },
+  }).catch(() => {});
+  console.log(`[WPP] Mensagem própria (WhatsApp Web) registrada p/ ${contato_numero}`);
 }
