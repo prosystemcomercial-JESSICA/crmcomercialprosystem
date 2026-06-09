@@ -383,6 +383,8 @@ export default function LeadsPage() {
 
   // Atribuição de vendedor (só supervisão) — isGestor já é declarado mais abaixo
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
+  // Filtro do quadro: '' = Total (todos), ou id de um vendedor (só gestor).
+  const [filtroVendedor, setFiltroVendedor] = useState('');
   const [atribuindo, setAtribuindo] = useState(false);
 
   const [colunas, setColunas]     = useState<KanbanColuna[]>([]);
@@ -463,7 +465,7 @@ export default function LeadsPage() {
       // Quando há um quadro não-pipeline ativo, o kanban vem dele; senão, o legado.
       const kanbanPromise = (quadroAtivo && quadroAtivo.tipo !== 'PIPELINE')
         ? apiClient.getQuadroKanban(quadroAtivo.id)
-        : apiClient.getLeadsKanban();
+        : apiClient.getLeadsKanban(filtroVendedor || undefined);
       const [kanbanRes, etiqRes, metricasRes, boardRes] = await Promise.all([
         kanbanPromise,
         apiClient.getEtiquetas(),
@@ -483,7 +485,7 @@ export default function LeadsPage() {
     } catch (e) { console.error(e); }
     // (vendedores p/ atribuição carregados à parte abaixo)
     finally { setDataLoading(false); }
-  }, [quadroAtivo]);
+  }, [quadroAtivo, filtroVendedor]);
 
   // Carrega a lista de quadros disponíveis (Pipeline, Follow-up, customizados).
   useEffect(() => {
@@ -953,6 +955,18 @@ export default function LeadsPage() {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#7AAACB' }} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 py-2 text-xs rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', width: 190, color: '#0D2238' }} />
             </div>
+            {/* Filtro Total x por vendedor — só gestor (CEO/Supervisão) */}
+            {isGestor && (
+              <select
+                value={filtroVendedor}
+                onChange={e => setFiltroVendedor(e.target.value)}
+                title="Filtrar volume por vendedor"
+                className="px-3 py-2 text-xs rounded-lg outline-none font-semibold"
+                style={{ border: '1px solid #D8E8F5', color: filtroVendedor ? '#2E6EAB' : '#0D2238', background: filtroVendedor ? '#EAF2FB' : '#fff' }}>
+                <option value="">👥 Todos (Total)</option>
+                {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+              </select>
+            )}
             <button onClick={loadData} title="Atualizar" className="p-2 rounded-lg" style={{ border: '1px solid #D8E8F5' }}>
               <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: '#4B8EC8' }} />
             </button>

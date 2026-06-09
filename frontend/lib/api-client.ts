@@ -343,8 +343,8 @@ class ApiClient {
     return this.client.get('/leads/stats/resumo');
   }
 
-  async getLeadsKanban() {
-    return this.client.get('/leads/kanban');
+  async getLeadsKanban(responsavel_id?: string) {
+    return this.client.get('/leads/kanban', { params: responsavel_id ? { responsavel_id } : {} });
   }
 
   // ── Quadros comerciais (Pipeline + Follow-up + customizados) ──

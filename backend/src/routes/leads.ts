@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
+import { ownerWhere, scopeUserId, requireGestor, podeVerTudo } from '@/lib/scope';
 import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 
 const ETAPAS_COMERCIAIS = [
@@ -359,8 +359,13 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
 
   // ── Kanban — all leads grouped by etapa_comercial ─────────────────────────
   fastify.get('/leads/kanban', async (request, reply) => {
+    // Filtro opcional por vendedor (Total x por usuário) — só faz efeito p/ gestor;
+    // vendedor já fica limitado ao próprio funil pelo ownerWhere.
+    const q = request.query as { responsavel_id?: string };
+    const user = (request as any).user;
+    const filtroResp = q.responsavel_id && podeVerTudo(user) ? { responsavel_id: q.responsavel_id } : {};
     const leads = await prisma.lead.findMany({
-      where: { ...ownerWhere(request, 'Lead') },  // vendedor: só o próprio funil
+      where: { ...ownerWhere(request, 'Lead'), ...filtroResp },  // vendedor: só o próprio funil
       orderBy: { updated_at: 'desc' },
       include: {
         _count: { select: { atividades: true, propostas: true, observacoes_lead: true } },
@@ -460,6 +465,15 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     // Campos Json obrigatórios no schema — default vazio
     if (data.modulos_inclusos === undefined) data.modulos_inclusos = {};
     if (data.servicos_adicionais === undefined) data.servicos_adicionais = {};
+
+    // ATRIBUIÇÃO AUTOMÁTICA: lead gerado por um VENDEDOR já nasce atribuído a ele
+    // (responsavel_id + vendedor_nome), p/ aparecer no nome dele no quadro de
+    // supervisão/CEO. Gestor que cria pode atribuir a outro (respeita o enviado).
+    if (!data.responsavel_id && user?.id && !podeVerTudo(user)) {
+      data.responsavel_id = user.id;
+      if (!data.vendedor_nome && user?.nome) data.vendedor_nome = user.nome;
+      if (!data.atribuido_em) data.atribuido_em = new Date();
+    }
 
     const lead = await prisma.lead.create({ data });
 
