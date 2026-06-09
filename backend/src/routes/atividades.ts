@@ -502,6 +502,10 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       if (body.data.percepcao_observ !== undefined) data.percepcao_observ = body.data.percepcao_observ;
 
       const atividade = await prisma.atividade.update({ where: { id }, data });
+
+      // Registra no card do LEAD que a atividade foi REALIZADA + a observação/resultado.
+      await registrarAtividadeNoLead(prisma, atividade, 'REALIZADA', body.data.resultado, request).catch(() => {});
+
       return reply.send({ status: 'success', data: atividade });
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
@@ -520,6 +524,7 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
         where: { id },
         data: { status: 'CANCELADA', motivo_cancelamento: body.data.motivo_cancelamento }
       });
+      await registrarAtividadeNoLead(prisma, atividade, 'CANCELADA', body.data.motivo_cancelamento, request).catch(() => {});
       return reply.send({ status: 'success', data: atividade });
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
@@ -790,6 +795,7 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
           data_realizada: new Date()
         }
       });
+      await registrarAtividadeNoLead(prisma, atividade, 'NAO_COMPARECEU', atividade.resultado || undefined, request).catch(() => {});
       return reply.send({ status: 'success', data: atividade });
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
@@ -1018,4 +1024,43 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       throw err;
     }
   });
+}
+
+// Registra no card do LEAD o desfecho de uma atividade vinculada (reunião/visita/etc.):
+// realizada, cancelada ou cliente não compareceu — com a observação/resultado feito.
+// Aparece na timeline do lead (LeadObservacao tipo ATIVIDADE). Idempotência não é
+// necessária: cada conclusão gera um registro do histórico.
+async function registrarAtividadeNoLead(
+  prisma: PrismaClient,
+  atividade: any,
+  desfecho: 'REALIZADA' | 'CANCELADA' | 'NAO_COMPARECEU',
+  observacao: string | undefined,
+  request: any,
+) {
+  if (!atividade?.lead_id) return; // sem lead vinculado → nada a registrar
+  const user = (request as any).user;
+  const TIPO_LABEL: Record<string, string> = {
+    REUNIAO: 'Reunião', LIGACAO: 'Ligação', EMAIL: 'E-mail', WHATSAPP: 'WhatsApp',
+    VISITA: 'Visita', TAREFA: 'Tarefa', OUTRO: 'Compromisso',
+  };
+  const oQue = TIPO_LABEL[atividade.tipo] || 'Compromisso';
+  const prefixo =
+    desfecho === 'REALIZADA' ? `✅ ${oQue} realizada`
+    : desfecho === 'NAO_COMPARECEU' ? `⚠️ ${oQue}: cliente não compareceu`
+    : `❌ ${oQue} cancelada`;
+  const tituloAtv = atividade.titulo ? ` — "${atividade.titulo}"` : '';
+  const obs = observacao && observacao.trim() ? `\nObservação: ${observacao.trim()}` : '';
+  const descricao = `${prefixo}${tituloAtv}.${obs}`;
+
+  await prisma.leadObservacao.create({
+    data: {
+      lead_id: atividade.lead_id,
+      tipo: 'ATIVIDADE',
+      descricao,
+      created_by: user?.id || atividade.created_by || 'system',
+      created_by_name: user?.nome || 'Sistema',
+    },
+  }).catch(() => {});
+  // Atualiza o "última observação em" do lead p/ ordenar a timeline.
+  await prisma.lead.update({ where: { id: atividade.lead_id }, data: { ultima_obs_at: new Date() } }).catch(() => {});
 }
