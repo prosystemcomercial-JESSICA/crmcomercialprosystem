@@ -1051,6 +1051,11 @@ class ApiClient {
     return this.client.get('/financeiro/resumo', { params: mes ? { ano, mes } : { ano } });
   }
 
+  // Balanço geral: venda comercial (contratos + vendas à base) × despesa do setor.
+  async getFinanceiroBalanco(ano: number, mes?: number) {
+    return this.client.get('/financeiro/balanco', { params: mes ? { ano, mes } : { ano } });
+  }
+
   // Pesquisa de satisfação
   async responderPesquisa(data: any) {
     return this.client.post('/pesquisa/responder', data);

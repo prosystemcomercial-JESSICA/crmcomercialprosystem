@@ -362,10 +362,20 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Lista de vendedores p/ o seletor de transferência (só gestão).
   fastify.get('/whatsapp/vendedores', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const vendedores = await prisma.usuarioCRM.findMany({
-      where: { status: 'ATIVO' }, select: { id: true, nome: true, cargo: true }, orderBy: { nome: 'asc' },
-    });
-    return reply.send({ status: 'success', data: vendedores });
+    // Lista TODOS que podem receber a conversa: usuários do CRM (status ATIVO
+    // ou em branco/null — tolerante) + contas de sistema (Jessica/Diretora, que
+    // são mock fora do banco). Raw query p/ não depender do match exato de status.
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome, cargo FROM UsuarioCRM WHERE status IS NULL OR status = '' OR UPPER(status) = 'ATIVO' ORDER BY nome ASC`
+    ).catch(() => []);
+    // Inclui as contas de sistema que também atendem/vendem (ex.: Jessica).
+    try {
+      const { CONTAS_SISTEMA } = await import('@/lib/usuarios');
+      Object.entries(CONTAS_SISTEMA).forEach(([id, info]: any) => {
+        if (!rows.some(r => r.id === id)) rows.unshift({ id, nome: info.nome, cargo: info.cargo || 'CEO' });
+      });
+    } catch { /* ignora se o módulo não existir */ }
+    return reply.send({ status: 'success', data: rows });
   });
 
   // Mensagens de uma conversa (valida escopo) + marca como lidas.
