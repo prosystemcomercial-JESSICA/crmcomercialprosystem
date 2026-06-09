@@ -4,7 +4,6 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -257,31 +256,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Menu size={22} />
         </button>
 
-        {/* Logo área — responsivo */}
-        <Link href="/dashboard" className="flex items-center gap-3 select-none group flex-shrink-0" style={{ minWidth: 0 }}>
+        {/* Marca: inicial em círculo + nome (Prospera CRM) — sem logo */}
+        <Link href="/dashboard" className="flex items-center gap-2.5 select-none group flex-shrink-0" style={{ minWidth: 0 }}>
           <div style={{
-            position: 'relative',
-            width: 44, height: 44, borderRadius: 10,
+            width: 40, height: 40, borderRadius: '50%',
             background: 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, overflow: 'hidden',
+            flexShrink: 0,
             boxShadow: '0 2px 8px color-mix(in srgb, var(--t-primary) 30%, transparent)'
           }}>
-            <Image
-              src="/logo-prosystem.png"
-              alt="ProSystem"
-              width={34}
-              height={34}
-              className="object-contain"
-              style={{ filter: 'brightness(0) invert(1)' }}
-              priority
-            />
+            <span style={{ color: '#fff', fontSize: 19, fontWeight: 800, letterSpacing: '-0.02em' }}>P</span>
           </div>
           <div className="hidden sm:block leading-tight">
-            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--t-text-primary)' }}>
-              ProSystem
+            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--t-text-primary)' }}>
+              Prospera
             </div>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--t-text-muted)' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--t-text-muted)' }}>
               CRM Comercial
             </div>
           </div>
@@ -509,35 +499,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             style={{ color: 'var(--t-sidebar-text)' }}>
             <XIcon size={20} />
           </button>
-          {/* Logo marca no sidebar — destaque extra */}
+          {/* Marca no sidebar — inicial em círculo + nome (sem logo) */}
           <div style={{
             padding: '20px 16px 12px',
             borderBottom: '1px solid var(--t-sidebar-border)',
             display: 'flex', alignItems: 'center', gap: 10
           }}>
             <div style={{
-              width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+              width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
               background: 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px color-mix(in srgb, var(--t-primary) 35%, transparent)',
-              overflow: 'hidden'
+              boxShadow: '0 4px 12px color-mix(in srgb, var(--t-primary) 35%, transparent)'
             }}>
-              <Image
-                src="/logo-prosystem.png"
-                alt="ProSystem"
-                width={38}
-                height={38}
-                className="object-contain"
-                style={{ filter: 'brightness(0) invert(1)' }}
-                priority
-              />
+              <span style={{ color: '#fff', fontSize: 21, fontWeight: 800, letterSpacing: '-0.02em' }}>P</span>
             </div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.1 }}>
-                ProSystem
+              <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.1 }}>
+                Prospera
               </div>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--t-sidebar-text)', opacity: 0.7, marginTop: 2 }}>
-                CRM v2.0
+                CRM Comercial
               </div>
             </div>
           </div>
