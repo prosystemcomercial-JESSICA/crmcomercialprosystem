@@ -267,6 +267,21 @@ function FormField({ label, children, col }: { label: string; children: React.Re
 
 // ── Kanban Card ───────────────────────────────────────────────────────────────
 
+// Cor estável por dono do lead (mesma paleta da agenda) — identifica de quem é o
+// lead só de olhar o card. Usa responsavel_id; cai p/ created_by se não houver.
+const CORES_DONO = ['#4B8EC8', '#16a34a', '#ea580c', '#7c3aed', '#0891b2', '#ca8a04', '#dc2626', '#0f766e'];
+function corDoLead(lead: Lead): string {
+  const id = lead.responsavel_id || (lead as any).created_by;
+  if (!id) return '#cbd5e1'; // cinza = sem dono
+  const hash = String(id).split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+  return CORES_DONO[hash % CORES_DONO.length];
+}
+function iniciaisDono(nome?: string): string {
+  if (!nome) return '?';
+  const p = nome.trim().split(/\s+/);
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
+}
+
 function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => void; onDragStart: (e: React.DragEvent) => void }) {
   const temp = TEMP_CONFIG[lead.temperatura as keyof typeof TEMP_CONFIG] || TEMP_CONFIG.FRIO;
   const empresa = lead.razao_social || lead.nome_fantasia || lead.nome;
@@ -274,6 +289,8 @@ function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => v
   const tel   = lead.responsavel_telefone;
   const tags  = lead.etiquetas_lead || [];
   const utmOrig = lead.campanha_nome || lead.utm_campaign || lead.plataforma;
+  const corDono = corDoLead(lead);
+  const donoNome = lead.vendedor_nome || lead.responsavel_nome || '';
 
   const wppLink = tel
     ? `/whatsapp?numero=${tel.replace(/\D/g, '')}&nome=${encodeURIComponent(lead.razao_social || lead.nome || '')}${lead.id ? `&lead=${lead.id}` : ''}`
@@ -283,8 +300,11 @@ function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => v
     <div onClick={onClick}
       draggable
       onDragStart={onDragStart}
-      className="relative group rounded-xl p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+      className="relative group rounded-xl p-3 pl-3.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow overflow-hidden"
       style={{ background: 'white', border: '1px solid #D8E8F5', boxShadow: '0 1px 2px rgba(13,34,56,.05)' }}>
+
+      {/* Faixa lateral colorida = dono do lead (identificação rápida por cor) */}
+      <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ background: corDono }} />
 
       {/* Temp indicator strip */}
       <div className="h-0.5 rounded-full mb-2.5 -mx-3 -mt-3 rounded-t-xl" style={{ background: temp.color }} />
@@ -293,6 +313,17 @@ function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => v
       <div className="flex items-start justify-between mb-1.5">
         <p className="text-[11px] font-extrabold truncate flex-1 leading-tight" style={{ color: '#0D2238' }}>{empresa}</p>
         <span className="text-[10px] ml-1.5 flex-shrink-0">{temp.emoji}</span>
+      </div>
+
+      {/* Chip do dono — inicial colorida + nome do vendedor */}
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="inline-flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
+          style={{ background: corDono, width: 16, height: 16, fontSize: 8 }}>
+          {iniciaisDono(donoNome)}
+        </span>
+        <span className="text-[10px] font-semibold truncate" style={{ color: corDono }}>
+          {donoNome || 'Sem responsável'}
+        </span>
       </div>
 
       {resp && (

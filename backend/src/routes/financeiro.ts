@@ -173,4 +173,102 @@ export async function financeiroRoutes(fastify: FastifyInstance, options: { pris
       },
     });
   });
+
+  // BALANÇO GERAL — consolida AUTOMATICAMENTE toda venda comercial do período:
+  // contratos ASSINADOS (setup = faturamento imediato; mensalidade = MRR) +
+  // vendas adicionais à base CONFIRMADAS (valor_venda = imediato; acrescimo = MRR).
+  // As DESPESAS continuam vindo dos lançamentos manuais (saídas) do período.
+  fastify.get('/financeiro/balanco', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({
+      ano: z.coerce.number().default(new Date().getFullYear()),
+      mes: z.coerce.number().optional(),
+    }).safeParse(request.query);
+    if (!q.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
+
+    const ano = q.data.ano;
+    const mes = q.data.mes; // sem mês = ano inteiro
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    // Janela de datas do período (por data do registro).
+    const inicio = new Date(ano, mes ? mes - 1 : 0, 1);
+    const fim = mes ? new Date(ano, mes, 1) : new Date(ano + 1, 0, 1);
+    const periodoData = { gte: inicio, lt: fim };
+
+    // 1) Contratos ASSINADOS no período (novos negócios).
+    const contratos = await prisma.contratoComercial.findMany({
+      where: { status: 'ASSINADO', data_contrato: periodoData },
+      select: { mensalidade: true, valor_setup_total: true },
+    }).catch(() => [] as any[]);
+
+    let faturamentoImediatoContratos = 0;
+    let mrrContratos = 0;
+    let qtdContratos = 0;
+    for (const c of contratos) {
+      faturamentoImediatoContratos += Number(c.valor_setup_total || 0);
+      mrrContratos += Number(c.mensalidade || 0);
+      qtdContratos++;
+    }
+
+    // 2) Vendas adicionais à base CONFIRMADAS/PAGAS no período (cross-sell).
+    const vendas = await prisma.vendaAdicional.findMany({
+      where: { status: { in: ['CONFIRMADA', 'PAGA'] }, created_at: periodoData },
+      select: { valor_venda: true, acrescimo_mensal: true },
+    }).catch(() => [] as any[]);
+
+    let faturamentoImediatoVendas = 0;
+    let mrrVendas = 0;
+    for (const v of vendas) {
+      faturamentoImediatoVendas += Number(v.valor_venda || 0);
+      mrrVendas += Number(v.acrescimo_mensal || 0);
+    }
+
+    // 3) Despesas do setor (saídas lançadas no centro de custos).
+    const whereLanc: any = { tipo: 'SAIDA', competencia_ano: ano };
+    if (mes) whereLanc.competencia_mes = mes;
+    const saidas = await prisma.lancamentoFinanceiro.findMany({ where: whereLanc }).catch(() => [] as any[]);
+
+    let despesaTotal = 0;
+    const despesaPorCategoria: Record<string, number> = {};
+    for (const s of saidas) {
+      const v = Number(s.valor);
+      despesaTotal += v;
+      despesaPorCategoria[s.categoria] = (despesaPorCategoria[s.categoria] || 0) + v;
+    }
+
+    const faturamentoImediato = faturamentoImediatoContratos + faturamentoImediatoVendas;
+    const mrrPeriodo = mrrContratos + mrrVendas;
+    const mrrProjetado12m = mrrPeriodo * 12;
+    // Resultado de caixa do período: imediato + 1 mês de MRR − despesa.
+    const resultadoCaixa = faturamentoImediato + mrrPeriodo - despesaTotal;
+    // Resultado projetado (visão 12 meses de MRR).
+    const resultadoProjetado = faturamentoImediato + mrrProjetado12m - despesaTotal;
+
+    return reply.send({
+      status: 'success',
+      data: {
+        periodo: { ano, mes: mes ?? null },
+        // Entradas (venda comercial)
+        faturamento_imediato: round2(faturamentoImediato),
+        faturamento_imediato_contratos: round2(faturamentoImediatoContratos),
+        faturamento_imediato_vendas_base: round2(faturamentoImediatoVendas),
+        mrr_periodo: round2(mrrPeriodo),
+        mrr_contratos: round2(mrrContratos),
+        mrr_vendas_base: round2(mrrVendas),
+        mrr_projetado_12m: round2(mrrProjetado12m),
+        receita_comercial_total: round2(faturamentoImediato + mrrProjetado12m),
+        // Despesas
+        despesa_setor: round2(despesaTotal),
+        despesa_por_categoria: Object.entries(despesaPorCategoria)
+          .map(([categoria, valor]) => ({ categoria, valor: round2(valor) }))
+          .sort((a, b) => b.valor - a.valor),
+        // Resultados
+        resultado_caixa: round2(resultadoCaixa),
+        resultado_projetado: round2(resultadoProjetado),
+        // Contagens
+        qtd_contratos_assinados: qtdContratos,
+        qtd_vendas_base: vendas.length,
+      },
+    });
+  });
 }

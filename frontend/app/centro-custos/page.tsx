@@ -33,6 +33,7 @@ export default function CentroCustosPage() {
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState<number | 0>(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<Resumo | null>(null);
+  const [balanco, setBalanco] = useState<any | null>(null);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [cats, setCats] = useState<{ entrada: string[]; saida: string[] }>({ entrada: [], saida: [] });
   const [dataLoading, setDataLoading] = useState(true);
@@ -45,12 +46,14 @@ export default function CentroCustosPage() {
   const load = useCallback(async () => {
     setDataLoading(true);
     try {
-      const [r, l] = await Promise.all([
+      const [r, l, b] = await Promise.all([
         apiClient.getFinanceiroResumo(ano, mes || undefined),
         apiClient.getLancamentos({ ano, mes: mes || undefined }),
+        apiClient.getFinanceiroBalanco(ano, mes || undefined).catch(() => null),
       ]);
       setResumo(r.data.data);
       setLancamentos(l.data.data);
+      setBalanco(b?.data?.data || null);
     } catch (e) { console.error(e); } finally { setDataLoading(false); }
   }, [ano, mes]);
 
@@ -234,6 +237,83 @@ export default function CentroCustosPage() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* ── BALANÇO GERAL DO COMERCIAL ─────────────────────────────────── */}
+            {balanco && (
+              <div className="bg-white border-2 border-blue-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white flex items-center justify-between flex-wrap gap-2">
+                  <h2 className="text-lg font-bold flex items-center gap-2">📊 Balanço Geral do Comercial</h2>
+                  <span className="text-xs text-blue-100">{mes ? `${MESES[mes]}/${ano}` : `Ano ${ano}`} · venda comercial automática (contratos + base)</span>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  {/* Entrando (venda comercial) */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">💰 O que está entrando (venda comercial)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                        <p className="text-xs text-gray-500">⚡ Faturamento imediato</p>
+                        <p className="text-xl font-bold text-green-700">{fmt(balanco.faturamento_imediato)}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          setup de {balanco.qtd_contratos_assinados} contrato(s) + {balanco.qtd_vendas_base} venda(s) à base
+                        </p>
+                      </div>
+                      <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4">
+                        <p className="text-xs text-gray-500">🔁 MRR do período</p>
+                        <p className="text-xl font-bold text-cyan-700">{fmt(balanco.mrr_periodo)}<span className="text-xs font-normal">/mês</span></p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          novos: {fmt(balanco.mrr_contratos)} · base: {fmt(balanco.mrr_vendas_base)}
+                        </p>
+                      </div>
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                        <p className="text-xs text-gray-500">📈 Projeção MRR (12 meses)</p>
+                        <p className="text-xl font-bold text-indigo-700">{fmt(balanco.mrr_projetado_12m)}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">MRR do período × 12</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Despesa do setor */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">📉 Despesa do setor comercial</p>
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-sm text-gray-600">Despesa total</p>
+                        <p className="text-xl font-bold text-red-700">{fmt(balanco.despesa_setor)}</p>
+                      </div>
+                      {balanco.despesa_por_categoria?.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {balanco.despesa_por_categoria.map((c: any) => (
+                            <span key={c.categoria} className="text-[11px] bg-white border border-red-100 text-red-700 rounded-full px-2 py-0.5">
+                              {CAT_LABEL[c.categoria] || c.categoria}: {fmt(c.valor)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Resultado consolidado */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className={`rounded-xl p-4 border ${balanco.resultado_caixa >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
+                      <p className="text-xs text-gray-500">Resultado de caixa (período)</p>
+                      <p className={`text-2xl font-extrabold ${balanco.resultado_caixa >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>{fmt(balanco.resultado_caixa)}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">faturamento imediato + 1 mês de MRR − despesa</p>
+                    </div>
+                    <div className={`rounded-xl p-4 border ${balanco.resultado_projetado >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-200'}`}>
+                      <p className="text-xs text-gray-500">Resultado projetado (12 meses)</p>
+                      <p className={`text-2xl font-extrabold ${balanco.resultado_projetado >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>{fmt(balanco.resultado_projetado)}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">imediato + MRR×12 − despesa</p>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-gray-400 border-t border-gray-100 pt-3">
+                    O faturamento e o MRR vêm <b>automaticamente</b> dos contratos assinados e vendas à base do período.
+                    As despesas vêm dos lançamentos de saída que você registra acima.
+                  </p>
                 </div>
               </div>
             )}
