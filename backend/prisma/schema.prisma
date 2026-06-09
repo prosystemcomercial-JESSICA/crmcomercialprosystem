@@ -1369,6 +1369,16 @@ model VendaAdicional {
   acrescimo_mensal Float?
   plano_anterior   String?
   plano_novo       String?
+  // Mensalidade do cliente ANTES do upgrade (snapshot no momento da venda) e
+  // a NOVA mensalidade (anterior + acréscimo). Expostas no fluxo de upgrade.
+  mensalidade_anterior Float?
+  mensalidade_nova     Float?
+  // Forma de pagamento do setup/valor único do upgrade (aditivo):
+  // setup_forma: ENTRADA_PARCELAS (entrada + parcelas) | PARCELADO (parcelas direto)
+  setup_forma        String?  @default("PARCELADO")
+  setup_entrada      Float?   // valor da entrada (quando ENTRADA_PARCELAS)
+  setup_parcelas     Int?     // nº de parcelas do saldo
+  setup_primeiro_venc DateTime? // vencimento da 1ª parcela (demais = mensais sucessivas)
 
   comissao_valor            Float     @default(50)
   comissao_paga             Boolean   @default(false)

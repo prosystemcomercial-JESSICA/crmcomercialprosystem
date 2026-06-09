@@ -26,6 +26,8 @@ interface VendaAdicional {
   valor_venda?: number;
   plano_anterior?: string;
   plano_novo?: string;
+  mensalidade_anterior?: number;
+  mensalidade_nova?: number;
   comissao_valor: number;
   comissao_paga: boolean;
   comissao_paga_em?: string;
@@ -165,7 +167,7 @@ export default function IndicacoesPage() {
       const vendList = vends.data.data || [];
       setUsuarios(vendList.length ? vendList : MOCK_VENDEDORES);
     } catch { setClientes([]); setUsuarios(MOCK_VENDEDORES); }
-    setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', acrescimo_mensal: '', plano_anterior: '', plano_novo: '', observacoes: '' });
+    setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', acrescimo_mensal: '', plano_anterior: '', plano_novo: '', observacoes: '', setup_forma: 'PARCELADO', setup_entrada: '', setup_parcelas: 1, setup_primeiro_venc: '' });
     setShowVendaModal(true);
   };
 
@@ -183,6 +185,17 @@ export default function IndicacoesPage() {
       if (vendaForm.acrescimo_mensal) payload.acrescimo_mensal = parseFloat(vendaForm.acrescimo_mensal);
       if (vendaForm.plano_anterior) payload.plano_anterior = vendaForm.plano_anterior;
       if (vendaForm.plano_novo) payload.plano_novo = vendaForm.plano_novo;
+      // Mensalidade atual do cliente (snapshot) p/ o backend gravar anterior→nova.
+      if (mensalidadeAtual > 0) payload.mensalidade_anterior = mensalidadeAtual;
+      // Forma de pagamento do setup do upgrade.
+      if (setupTotal > 0) {
+        payload.setup_forma = vendaForm.setup_forma || 'PARCELADO';
+        if (vendaForm.setup_forma === 'ENTRADA_PARCELAS' && vendaForm.setup_entrada) {
+          payload.setup_entrada = parseFloat(vendaForm.setup_entrada);
+        }
+        if (vendaForm.setup_parcelas) payload.setup_parcelas = Number(vendaForm.setup_parcelas);
+        if (vendaForm.setup_primeiro_venc) payload.setup_primeiro_venc = new Date(vendaForm.setup_primeiro_venc).toISOString();
+      }
 
       await apiClient.createVendaAdicional(payload);
       setShowVendaModal(false);
@@ -235,6 +248,18 @@ export default function IndicacoesPage() {
   };
 
   const parceiroSelecionado = parceiros.find(p => p.id === vendaForm.parceiro_id);
+  const clienteSelecionado = clientes.find((c: any) => c.id === vendaForm.cliente_id);
+  // Mensalidade atual do cliente (base) → nova = atual + acréscimo do upgrade.
+  const mensalidadeAtual = Number(clienteSelecionado?.mensalidade_base || 0);
+  const acrescimo = Number(vendaForm.acrescimo_mensal || 0);
+  const mensalidadeNova = mensalidadeAtual + acrescimo;
+  // Setup do upgrade e plano de pagamento.
+  const setupTotal = Number(vendaForm.valor_venda || 0);
+  const setupEntrada = vendaForm.setup_forma === 'ENTRADA_PARCELAS' ? Number(vendaForm.setup_entrada || 0) : 0;
+  const setupParcelas = Math.max(1, Number(vendaForm.setup_parcelas || 1));
+  const saldoSetup = Math.max(0, setupTotal - setupEntrada);
+  const valorParcelaSetup = setupParcelas > 0 ? saldoSetup / setupParcelas : 0;
+  const fmtReal = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const isGestor = ROLES_GESTOR.includes((user as any)?.role || '');
 
   if (loading || !isAuthenticated) {
@@ -355,6 +380,14 @@ export default function IndicacoesPage() {
                           </div>
                           {v.plano_anterior && v.plano_novo && (
                             <p className="text-xs text-gray-400 mt-0.5">{v.plano_anterior} → {v.plano_novo}</p>
+                          )}
+                          {(v.mensalidade_anterior != null || v.mensalidade_nova != null) && (
+                            <p className="text-xs mt-0.5">
+                              <span className="text-gray-400">Mensalidade: </span>
+                              <span className="text-gray-500">R$ {Number(v.mensalidade_anterior || 0).toLocaleString('pt-BR')}</span>
+                              <span className="text-gray-400"> → </span>
+                              <span className="font-semibold text-green-700">R$ {Number(v.mensalidade_nova || 0).toLocaleString('pt-BR')}</span>
+                            </p>
                           )}
                           {v.valor_venda && (
                             <p className="text-xs text-gray-400 mt-0.5">R$ {v.valor_venda.toLocaleString('pt-BR')}/mês</p>
@@ -577,6 +610,31 @@ export default function IndicacoesPage() {
                 </p>
               </div>
 
+              {/* Mensalidade atual → nova (atual + acréscimo) */}
+              {vendaForm.cliente_id && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-xs font-semibold text-blue-700 mb-2">💳 Impacto na mensalidade do cliente</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-center flex-1">
+                      <p className="text-[11px] text-gray-500">Plano atual</p>
+                      <p className="text-base font-bold text-gray-700">{fmtReal(mensalidadeAtual)}</p>
+                      <p className="text-[10px] text-gray-400">{clienteSelecionado?.plano || '—'}/mês</p>
+                    </div>
+                    <span className="text-gray-400 text-lg">→</span>
+                    <div className="text-center flex-1">
+                      <p className="text-[11px] text-gray-500">Novo plano</p>
+                      <p className="text-base font-extrabold text-green-700">{fmtReal(mensalidadeNova)}</p>
+                      <p className="text-[10px] text-gray-400">
+                        {acrescimo > 0 ? `+ ${fmtReal(acrescimo)}/mês` : 'sem acréscimo'}
+                      </p>
+                    </div>
+                  </div>
+                  {mensalidadeAtual === 0 && (
+                    <p className="mt-2 text-[10px] text-amber-600">⚠️ Este cliente não tem mensalidade cadastrada na ficha. Informe o acréscimo para ver a nova mensalidade.</p>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="text-sm font-medium text-gray-700">Vendedor *</label>
                 {isGestor ? (
@@ -625,6 +683,64 @@ export default function IndicacoesPage() {
                       className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     <p className="mt-1 text-[11px] text-gray-500">Valor único cobrado pelo upgrade. O acréscimo na mensalidade é informado no campo acima.</p>
                   </div>
+
+                  {/* Forma de pagamento do setup */}
+                  {setupTotal > 0 && (
+                    <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+                      <p className="text-xs font-semibold text-gray-600">Forma de pagamento do setup</p>
+                      <div className="flex gap-2">
+                        {[
+                          { v: 'PARCELADO', l: 'Parcelado direto' },
+                          { v: 'ENTRADA_PARCELAS', l: 'Entrada + parcelas' },
+                        ].map(o => (
+                          <button key={o.v} type="button"
+                            onClick={() => setVendaForm((p: any) => ({ ...p, setup_forma: o.v }))}
+                            className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                              vendaForm.setup_forma === o.v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
+                            }`}>
+                            {o.l}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        {vendaForm.setup_forma === 'ENTRADA_PARCELAS' && (
+                          <div>
+                            <label className="text-[11px] font-medium text-gray-600">Entrada (R$)</label>
+                            <input type="number" step="0.01" min="0" value={vendaForm.setup_entrada || ''}
+                              onChange={e => setVendaForm((p: any) => ({ ...p, setup_entrada: e.target.value }))}
+                              placeholder="0,00"
+                              className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                          </div>
+                        )}
+                        <div>
+                          <label className="text-[11px] font-medium text-gray-600">Parcelas do saldo</label>
+                          <select value={vendaForm.setup_parcelas || 1}
+                            onChange={e => setVendaForm((p: any) => ({ ...p, setup_parcelas: Number(e.target.value) }))}
+                            className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            {[1, 2, 3, 4, 5, 6, 10, 12].map(n => <option key={n} value={n}>{n}x</option>)}
+                          </select>
+                        </div>
+                        <div className={vendaForm.setup_forma === 'ENTRADA_PARCELAS' ? '' : 'col-span-1'}>
+                          <label className="text-[11px] font-medium text-gray-600">Vencimento da 1ª parcela</label>
+                          <input type="date" value={vendaForm.setup_primeiro_venc || ''}
+                            onChange={e => setVendaForm((p: any) => ({ ...p, setup_primeiro_venc: e.target.value }))}
+                            className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                      </div>
+
+                      {/* Resumo do parcelamento */}
+                      <div className="text-[11px] text-gray-600 bg-white rounded-lg border border-gray-100 p-2">
+                        {vendaForm.setup_forma === 'ENTRADA_PARCELAS' && setupEntrada > 0 && (
+                          <p>Entrada: <b>{fmtReal(setupEntrada)}</b></p>
+                        )}
+                        <p>Saldo: <b>{fmtReal(saldoSetup)}</b> em <b>{setupParcelas}x</b> de <b className="text-blue-700">{fmtReal(valorParcelaSetup)}</b></p>
+                        {vendaForm.setup_primeiro_venc && (
+                          <p className="text-gray-400">1ª em {new Date(vendaForm.setup_primeiro_venc).toLocaleDateString('pt-BR')} · demais mensais sucessivas</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div>

@@ -262,12 +262,26 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       plano_novo: z.string().optional(),
       comissao_valor: z.number().optional(),
       observacoes: z.string().optional(),
+      // Forma de pagamento do setup do upgrade
+      setup_forma: z.enum(['ENTRADA_PARCELAS', 'PARCELADO']).optional(),
+      setup_entrada: z.number().optional(),
+      setup_parcelas: z.number().int().min(1).max(24).optional(),
+      setup_primeiro_venc: z.string().optional(), // data ISO da 1ª parcela
+      // Mensalidade anterior pode vir do front; se não, usamos a do cliente.
+      mensalidade_anterior: z.number().optional(),
     }).safeParse(request.body);
 
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
 
     const parceiro = await prisma.parceiro.findUnique({ where: { id: body.data.parceiro_id } });
     if (!parceiro) return reply.status(404).send({ status: 'error', message: 'Parceiro não encontrado' });
+
+    // Mensalidade atual do cliente (snapshot) e nova (atual + acréscimo do upgrade).
+    const clienteAtual = await prisma.cliente.findUnique({
+      where: { id: body.data.cliente_id }, select: { mensalidade_base: true },
+    }).catch(() => null);
+    const mensalidadeAnterior = body.data.mensalidade_anterior ?? Number(clienteAtual?.mensalidade_base || 0);
+    const mensalidadeNova = mensalidadeAnterior + Number(body.data.acrescimo_mensal || 0);
 
     // Comissão do vendedor:
     //  - UPGRADE de plano → R$50 fixo (após confirmação);
@@ -287,13 +301,17 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const nomes = await resolverNomesUsuarios(prisma, [vendedorId]);
     const vendedorNome = nomes[vendedorId] || user?.nome || null;
 
+    const { setup_primeiro_venc, mensalidade_anterior, ...rest } = body.data;
     const venda = await prisma.vendaAdicional.create({
       data: {
-        ...body.data,
+        ...rest,
         vendedor_id: vendedorId,
         vendedor_nome: vendedorNome,
         comissao_valor: comissaoValor,
         supervisao_id: supervisaoId,
+        mensalidade_anterior: mensalidadeAnterior,
+        mensalidade_nova: mensalidadeNova,
+        setup_primeiro_venc: setup_primeiro_venc ? new Date(setup_primeiro_venc) : null,
         status: 'PENDENTE',
         created_by: user?.id || 'system',
       },
