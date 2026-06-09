@@ -65,6 +65,39 @@ model Cliente {
   mensalidade_base Float?
   observacoes_fin  String? @db.Text // observações financeiras (ajustes/radar)
 
+  // ── Dados cadastrais complementares (planilha legada) ───────────────────────
+  // Endereço completo
+  cep            String?
+  endereco       String?
+  numero_end     String?  // número (pode ser "SN", "S/N")
+  complemento    String?
+  bairro         String?
+  codigo_ibge    String?  // código IBGE do município
+  // Contato / telefones
+  ddd            String?
+  telefone1      String?
+  telefone2      String?
+  tel_contato    String?
+  contato2       String?
+  tel_contato2   String?
+  contato_pesquisa String?
+  // Fiscais / responsável
+  inscricao_estadual String?
+  cpf_responsavel    String?
+  rg_responsavel     String?
+  responsavel_nome   String?  // responsável legal do cadastro
+  regime_tributario  String?  // Simples | Presumido | Real
+  // Comerciais / financeiros
+  dia_vencimento     Int?     // dia do vencimento da mensalidade
+  vencimento_licenca DateTime?
+  reajuste_em        DateTime?
+  ultimo_pagamento   DateTime?
+  previsao_pagamento String?  // texto livre (pode vir "- -")
+  regiao             String?
+  valor_instalacao   Float?
+  condicao_pagamento String?
+  data_cadastro      DateTime?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

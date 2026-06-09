@@ -43,8 +43,16 @@ interface ClienteForm {
 
 const emptyForm: ClienteForm = { codigo: '', nome: '', email: '', telefone: '', empresa: '', cidade: '', estado: '' };
 
-// CSV columns the system accepts
-const CSV_COLUMNS = ['codigo', 'nome', 'email', 'telefone', 'empresa', 'razao_social', 'nome_fantasia', 'cnpj', 'situacao', 'segmento', 'grupo_tecnico', 'plano', 'contato', 'cidade', 'estado'] as const;
+// CSV columns the system accepts (inclui as colunas complementares da planilha legada)
+const CSV_COLUMNS = [
+  'codigo', 'nome', 'email', 'e_mail', 'e_mail2', 'telefone', 'empresa', 'razao_social', 'nome_fantasia', 'cnpj',
+  'situacao', 'segmento', 'grupo_tecnico', 'plano', 'contato', 'cidade', 'estado', 'uf',
+  'cep', 'endereco', 'numero', 'complemento', 'bairro', 'codigo_cidade_ibge',
+  'ddd', 'telefone1', 'telefone2', 'inscricao', 'tel_contato', 'vencimento', 'mensalidade',
+  'cadastro', 'vencimento_licenca', 'reajuste', 'ultimo_pagto', 'previsao_pagto', 'regiao',
+  'instalacao', 'condicao_pagto', 'contato2', 'tel_contato2', 'contato_pesquisa',
+  'cpf', 'identidade', 'responsavel', 'comunicacao', 'regime', 'complemento_obs',
+] as const;
 type CsvCol = typeof CSV_COLUMNS[number];
 
 // Detect separator: semicolon (Excel PT) or comma
@@ -108,7 +116,7 @@ function mapHeader(raw: string): CsvCol | null {
 }
 
 type ImportStep = 'upload' | 'preview' | 'result';
-type ImportMode = 'UPSERT' | 'CRIAR' | 'ATUALIZAR';
+type ImportMode = 'UPSERT' | 'CRIAR' | 'ATUALIZAR' | 'COMPLEMENTAR';
 
 interface ImportResult {
   total: number; criados: number; atualizados: number; erros_total: number;
@@ -640,14 +648,19 @@ export default function ClientesPage() {
                     </p>
                     <div className="flex items-center gap-2 text-xs">
                       <span style={{ color: 'var(--t-text-muted)' }}>Modo:</span>
-                      {(['UPSERT','CRIAR','ATUALIZAR'] as ImportMode[]).map(m => (
+                      {(['COMPLEMENTAR','UPSERT','CRIAR','ATUALIZAR'] as ImportMode[]).map(m => (
                         <button key={m} onClick={() => setImportMode(m)}
                           className="px-3 py-1 rounded-full border text-xs font-medium transition-colors"
                           style={importMode === m ? { background: 'var(--t-primary)', color: '#fff', borderColor: 'var(--t-primary)' } : { borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
-                          {m === 'UPSERT' ? 'Criar + Atualizar' : m === 'CRIAR' ? 'Só criar novos' : 'Só atualizar'}
+                          {m === 'COMPLEMENTAR' ? '✨ Só complementar (não sobrescreve)' : m === 'UPSERT' ? 'Criar + Atualizar' : m === 'CRIAR' ? 'Só criar novos' : 'Só atualizar (sobrescreve)'}
                         </button>
                       ))}
                     </div>
+                    {importMode === 'COMPLEMENTAR' && (
+                      <p className="text-[11px] mt-1" style={{ color: 'var(--t-text-muted)' }}>
+                        Preenche apenas os campos <b>vazios</b> de cada cliente já cadastrado (casa por código/CNPJ). Não duplica nem troca o que já existe; cria os que não existem.
+                      </p>
+                    )}
                   </div>
 
                   {/* Column mapping */}

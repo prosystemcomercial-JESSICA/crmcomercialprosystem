@@ -130,12 +130,49 @@ const ImportClienteItemSchema = z.object({
   plano: z.string().optional(),
   contato: z.string().optional(),
   cidade: z.string().optional(),
-  estado: z.string().optional()
+  estado: z.string().optional(),
+  // ── Colunas complementares (planilha legada) ──
+  cep: z.string().optional(),
+  endereco: z.string().optional(),
+  numero: z.string().optional(),        // nº do endereço
+  numero_end: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
+  codigo_cidade_ibge: z.string().optional(),
+  codigo_ibge: z.string().optional(),
+  uf: z.string().optional(),            // alias de estado
+  ddd: z.string().optional(),
+  telefone1: z.string().optional(),
+  telefone2: z.string().optional(),
+  inscricao: z.string().optional(),
+  e_mail: z.string().optional(),        // alias de email
+  e_mail2: z.string().optional(),
+  tel_contato: z.string().optional(),
+  vencimento: z.string().optional(),
+  mensalidade: z.string().optional(),
+  cadastro: z.string().optional(),
+  vencimento_licenca: z.string().optional(),
+  reajuste: z.string().optional(),
+  ultimo_pagto: z.string().optional(),
+  previsao_pagto: z.string().optional(),
+  regiao: z.string().optional(),
+  instalacao: z.string().optional(),
+  condicao_pagto: z.string().optional(),
+  contato2: z.string().optional(),
+  tel_contato2: z.string().optional(),
+  contato_pesquisa: z.string().optional(),
+  cpf: z.string().optional(),
+  identidade: z.string().optional(),
+  responsavel: z.string().optional(),
+  comunicacao: z.string().optional(),
+  regime: z.string().optional(),
+  complemento_obs: z.string().optional(),
 }).passthrough(); // ignora colunas extras em vez de rejeitar
 
 const ImportClienteSchema = z.object({
   clientes: z.array(ImportClienteItemSchema).min(1).max(5000),
-  modo: z.enum(['CRIAR','ATUALIZAR','UPSERT']).default('UPSERT')
+  // COMPLEMENTAR = só preenche campos vazios no cadastro (não sobrescreve o que já existe).
+  modo: z.enum(['CRIAR','ATUALIZAR','UPSERT','COMPLEMENTAR']).default('UPSERT')
 });
 
 export async function clientesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
@@ -171,43 +208,109 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       if (v.startsWith('AT')) return 'ATIVA';
       return undefined;
     };
+    // Texto → número (aceita "1.200", "98,54", "1200"); ignora vazio/"- -".
+    const num = (s?: string) => {
+      if (!s) return undefined;
+      const t = s.replace(/\./g, '').replace(',', '.').replace(/[^0-9.]/g, '').trim();
+      if (!t) return undefined;
+      const n = Number(t);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const inteiro = (s?: string) => { const n = num(s); return n != null ? Math.round(n) : undefined; };
+    // Data no formato da planilha "20-Jul-10" / "03-Sep-26" → Date; ignora "- -".
+    const MESES: Record<string, number> = { jan:0,feb:1,fev:1,mar:2,apr:3,abr:3,may:4,mai:4,jun:5,jul:6,aug:7,ago:7,sep:8,set:8,oct:9,out:9,nov:10,dec:11,dez:11 };
+    const parseData = (s?: string): Date | undefined => {
+      if (!s) return undefined;
+      const t = s.trim();
+      if (!t || t === '- -' || t === '--') return undefined;
+      const m = t.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+      if (!m) return undefined;
+      const dia = parseInt(m[1], 10);
+      const mes = MESES[m[2].toLowerCase()];
+      if (mes === undefined) return undefined;
+      let ano = parseInt(m[3], 10);
+      if (ano < 100) ano += ano < 50 ? 2000 : 1900; // 26→2026, 99→1999
+      const d = new Date(ano, mes, dia);
+      return isNaN(d.getTime()) ? undefined : d;
+    };
+    const txt = (s?: string) => { const v = (s || '').trim(); return v ? v : undefined; };
 
     for (let i = 0; i < clientes.length; i++) {
-      const c = clientes[i];
+      const c = clientes[i] as any;
+      // Aliases da planilha → campos canônicos.
+      const emailRaw = c.email || c.e_mail;
+      const estadoRaw = c.estado || c.uf;
+      const numeroRaw = c.numero_end || c.numero;
+      const ibgeRaw = c.codigo_ibge || c.codigo_cidade_ibge;
       // Identificação humana p/ relatório de erro (código tem prioridade).
-      const ref = c.codigo || c.razao_social || c.empresa || c.nome || c.email || `linha ${i + 1}`;
+      const ref = c.codigo || c.razao_social || c.empresa || c.nome || emailRaw || `linha ${i + 1}`;
       // Pula linha totalmente vazia (sem qualquer identificação).
-      if (!(c.codigo || c.nome || c.razao_social || c.empresa || c.email)) {
+      if (!(c.codigo || c.nome || c.razao_social || c.empresa || emailRaw)) {
         erros.push({ linha: i + 1, ref, motivo: 'Linha vazia (sem identificação)' } as any);
         continue;
       }
       try {
         // nome é NOT NULL no schema → deriva de fantasia/razão/empresa/email.
-        const nome = c.nome || c.nome_fantasia || c.razao_social || c.empresa || c.email || `Cliente ${c.codigo || i + 1}`;
+        const nome = c.nome || c.nome_fantasia || c.razao_social || c.empresa || emailRaw || `Cliente ${c.codigo || i + 1}`;
         // Só grava email se tiver cara de email (a base legada tem muitos truncados).
-        const emailValido = c.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email.trim()) ? c.email.trim() : undefined;
+        const emailValido = emailRaw && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw.trim()) ? emailRaw.trim() : undefined;
+        // Observações: junta complemento_obs + comunicacao se vierem.
+        const obs = [txt(c.complemento_obs), c.comunicacao ? `Comunicação: ${txt(c.comunicacao)}` : undefined].filter(Boolean).join(' | ') || undefined;
+
         const data: any = {
           nome,
-          codigo:        c.codigo || undefined,
-          email:         emailValido,                      // só grava se válido; senão fica nulo
-          telefone:      c.telefone || undefined,
-          empresa:       c.empresa || c.nome_fantasia || c.razao_social || undefined,
-          razao_social:  c.razao_social || undefined,
-          nome_fantasia: c.nome_fantasia || undefined,
-          cnpj:          c.cnpj || undefined,
+          codigo:        txt(c.codigo),
+          email:         emailValido,
+          telefone:      txt(c.telefone) || txt(c.telefone1) || txt(c.tel_contato),
+          empresa:       txt(c.empresa) || txt(c.nome_fantasia) || txt(c.razao_social),
+          razao_social:  txt(c.razao_social),
+          nome_fantasia: txt(c.nome_fantasia),
+          cnpj:          txt(c.cnpj),
           situacao:      normSituacao(c.situacao),
-          segmento:      c.segmento || undefined,
-          grupo_tecnico: c.grupo_tecnico || undefined,
-          plano:         c.plano || undefined,
-          contato:       c.contato || undefined,
-          cidade:        c.cidade || undefined,
-          estado:        c.estado || undefined,
+          segmento:      txt(c.segmento),
+          grupo_tecnico: txt(c.grupo_tecnico),
+          plano:         txt(c.plano),
+          contato:       txt(c.contato),
+          cidade:        txt(c.cidade),
+          estado:        txt(estadoRaw),
+          // ── Complementares ──
+          cep:            txt(c.cep),
+          endereco:       txt(c.endereco),
+          numero_end:     txt(numeroRaw),
+          complemento:    txt(c.complemento),
+          bairro:         txt(c.bairro),
+          codigo_ibge:    txt(ibgeRaw),
+          ddd:            txt(c.ddd),
+          telefone1:      txt(c.telefone1),
+          telefone2:      txt(c.telefone2),
+          tel_contato:    txt(c.tel_contato),
+          contato2:       txt(c.contato2),
+          tel_contato2:   txt(c.tel_contato2),
+          contato_pesquisa: txt(c.contato_pesquisa),
+          inscricao_estadual: txt(c.inscricao),
+          cpf_responsavel: txt(c.cpf),
+          rg_responsavel:  txt(c.identidade),
+          responsavel_nome: txt(c.responsavel),
+          regime_tributario: txt(c.regime),
+          dia_vencimento:  inteiro(c.vencimento),
+          mensalidade_base: num(c.mensalidade),
+          vencimento_licenca: parseData(c.vencimento_licenca),
+          reajuste_em:     parseData(c.reajuste),
+          ultimo_pagamento: parseData(c.ultimo_pagto),
+          previsao_pagamento: txt(c.previsao_pagto),
+          regiao:          txt(c.regiao),
+          valor_instalacao: num(c.instalacao),
+          condicao_pagamento: txt(c.condicao_pagto),
+          data_cadastro:   parseData(c.cadastro),
+          observacoes:     obs,
         };
+        // Remove chaves undefined (não sobrescreve com vazio em nenhum modo).
+        Object.keys(data).forEach(k => data[k] === undefined && delete data[k]);
 
-        // Chave de upsert: código (preferido) → email (fallback). Sem nenhum dos
-        // dois, só dá pra CRIAR (não há como casar duplicata).
-        // codigo/email não são mais @unique → usar findFirst e atualizar por id.
-        const whereKey = c.codigo ? { codigo: c.codigo } : (emailValido ? { email: emailValido } : null);
+        // Chave de dedupe: código (preferido) → email → CNPJ.
+        const whereKey = c.codigo ? { codigo: c.codigo }
+          : (emailValido ? { email: emailValido }
+          : (txt(c.cnpj) ? { cnpj: txt(c.cnpj) } : null));
         const existente = whereKey ? await prisma.cliente.findFirst({ where: whereKey as any }) : null;
 
         if (modo === 'CRIAR' || !whereKey) {
@@ -215,7 +318,21 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
         } else if (modo === 'ATUALIZAR') {
           if (!existente) { erros.push({ linha: i + 1, ref, motivo: 'Não encontrado' } as any); continue; }
           await prisma.cliente.update({ where: { id: existente.id }, data }); atualizados++;
-        } else {
+        } else if (modo === 'COMPLEMENTAR') {
+          // Só preenche campos que estão VAZIOS no cadastro atual; nunca sobrescreve.
+          if (!existente) { await prisma.cliente.create({ data }); criados++; continue; }
+          const ex: any = existente;
+          const soVazios: any = {};
+          for (const k of Object.keys(data)) {
+            if (k === 'nome') continue; // nome já existe; não troca
+            const atual = ex[k];
+            const vazio = atual === null || atual === undefined || atual === '';
+            if (vazio) soVazios[k] = data[k];
+          }
+          if (Object.keys(soVazios).length > 0) {
+            await prisma.cliente.update({ where: { id: existente.id }, data: soVazios }); atualizados++;
+          }
+        } else { // UPSERT
           if (existente) { await prisma.cliente.update({ where: { id: existente.id }, data }); atualizados++; }
           else { await prisma.cliente.create({ data }); criados++; }
         }
