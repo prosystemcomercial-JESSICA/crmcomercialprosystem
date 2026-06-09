@@ -293,18 +293,33 @@
    ═══════════════════════════════════════════════════════════ */
 .dark,
 .dark[data-theme="azul"] {
-  --t-topbar-bg:     #0D1E2E;
-  --t-topbar-border: #1A3350;
-  --t-topbar-shadow: rgba(0,0,0,0.20);
-  --t-content-bg:    #080F18;
-  --t-card-bg:       #0F1E2E;
-  --t-card-border:   #1A3350;
-  --t-card-shadow:   rgba(0,0,0,0.20);
-  --t-text-primary:   #E8F0F8;
-  --t-text-secondary: #7AAACB;
-  --t-text-muted:     #3D6A8A;
-  --t-sidebar-bg:     #070E17;
-  --t-sidebar-border: #12253A;
+  /* Escuro azul-petróleo (slate) — confortável, sem preto puro, com bom
+     contraste. Fundo levemente acima do card p/ dar profundidade por elevação. */
+  --t-topbar-bg:     #111C2B;
+  --t-topbar-border: #25374D;
+  --t-topbar-shadow: rgba(0,0,0,0.35);
+  --t-content-bg:    #0B131E;   /* fundo geral (não-preto, descansa a vista) */
+  --t-card-bg:       #162233;   /* card mais claro que o fundo = elevação */
+  --t-card-border:   #27384E;
+  --t-card-shadow:   rgba(0,0,0,0.40);
+  --t-text-primary:   #EAF1F9;
+  --t-text-secondary: #A7C2DC;  /* mais legível que antes */
+  --t-text-muted:     #6E8AA6;  /* clareado p/ não sumir */
+  --t-sidebar-bg:     #0E1A28;
+  --t-sidebar-border: #213750;
+  /* Degradê da sidebar adaptado ao escuro (azul profundo → marinho quase preto),
+     mantendo a estética do claro porém sóbria. */
+  --t-sidebar-grad-1: #1E3A5C;
+  --t-sidebar-grad-2: #16293F;
+  --t-sidebar-grad-3: #0F1F31;
+  --t-sidebar-grad-4: #0A1622;
+  --t-sidebar-hover:        rgba(255,255,255,0.08);
+  --t-sidebar-active:       rgba(75,142,200,0.28);
+  --t-sidebar-active-border:#6FB0E8;
+  --t-sidebar-text:         #C2D6EC;
+  --t-sidebar-muted:        #5E7E9C;
+  --t-sidebar-footer-bg:    rgba(255,255,255,0.06);
+  --t-sidebar-footer-border:rgba(255,255,255,0.12);
 
   --background: oklch(0.12 0.022 222);
   --foreground: oklch(0.94 0.008 220);
@@ -594,3 +609,77 @@ table { max-width: 100%; }
 @media (max-width: 640px) {
   .so-desktop { display: none !important; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MODO ESCURO — consistência global.
+   Muitas telas usam classes Tailwind fixas (bg-white, text-gray-900, etc.) que
+   ignoram as variáveis de tema. Aqui mapeamos as mais comuns para os tokens do
+   dark, deixando o app inteiro escuro de forma uniforme e confortável.
+   ───────────────────────────────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark; /* inputs/scroll nativos no esquema escuro */
+}
+
+/* Superfícies brancas → card escuro (com leve elevação) */
+.dark .bg-white,
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-slate-50,
+.dark .bg-slate-100 { background-color: var(--t-card-bg) !important; }
+
+/* Fundos sutis (faixas/realces claros) → tom levemente acima do fundo */
+.dark .bg-gray-200,
+.dark .bg-blue-50,
+.dark .bg-sky-50,
+.dark .bg-indigo-50 { background-color: #1B2A3D !important; }
+
+/* Textos escuros → claros */
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-black { color: var(--t-text-primary) !important; }
+
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-slate-700,
+.dark .text-slate-600 { color: var(--t-text-secondary) !important; }
+
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-slate-500,
+.dark .text-slate-400 { color: var(--t-text-muted) !important; }
+
+/* Bordas claras → borda do card escuro */
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-slate-100,
+.dark .border-slate-200 { border-color: var(--t-card-border) !important; }
+
+/* Divisores */
+.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--t-card-border) !important; }
+
+/* Hover em itens de lista */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover { background-color: #1B2A3D !important; }
+
+/* Inputs claros */
+.dark input, .dark select, .dark textarea {
+  background-color: #0F1C2B;
+  border-color: var(--t-card-border);
+  color: var(--t-text-primary);
+}
+.dark input::placeholder, .dark textarea::placeholder { color: var(--t-text-muted); }
+
+/* Badges/cards de cor pastel ganham um fundo escuro translúcido p/ não estourar.
+   (mantém a cor do texto/borda definida pela tela) */
+.dark .bg-green-50  { background-color: rgba(22,163,74,0.14) !important; }
+.dark .bg-red-50    { background-color: rgba(220,38,38,0.14) !important; }
+.dark .bg-yellow-50,
+.dark .bg-amber-50  { background-color: rgba(217,119,6,0.14) !important; }
+.dark .bg-orange-50 { background-color: rgba(234,88,12,0.14) !important; }
+.dark .bg-cyan-50   { background-color: rgba(8,145,178,0.14) !important; }
+.dark .bg-emerald-50{ background-color: rgba(16,185,129,0.14) !important; }
