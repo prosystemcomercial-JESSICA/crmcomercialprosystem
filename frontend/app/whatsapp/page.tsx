@@ -48,6 +48,11 @@ export default function WhatsappPage() {
   const [configurado, setConfigurado] = useState(true);
   const [status, setStatus] = useState<StatusConexao>('DESCONECTADO');
   const [qr, setQr] = useState<string | null>(null);
+  // Multi-instância
+  const [instancias, setInstancias] = useState<any[]>([]);
+  const [instAtivaId, setInstAtivaId] = useState<string | null>(null);
+  const [novaInstNome, setNovaInstNome] = useState('');
+  const [criandoInst, setCriandoInst] = useState(false);
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [ativa, setAtiva] = useState<Conversa | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
@@ -65,14 +70,24 @@ export default function WhatsappPage() {
     if (!isAuthenticated && !loading) router.push('/');
   }, [isAuthenticated, loading]);
 
-  // Status da instância (polling enquanto conectando).
+  // Carrega instâncias do usuário e deriva status/qr da instância ativa.
   const checarStatus = useCallback(async () => {
     try {
-      const res = await apiClient.getWhatsappInstancia();
+      const res = await apiClient.getWhatsappInstancias();
       const d = res.data.data;
       setConfigurado(d.configurado !== false);
-      setStatus(d.status);
-      if (d.status === 'CONECTADO') setQr(null);
+      const lista = d.instancias || [];
+      setInstancias(lista);
+      // Define a ativa: mantém a atual se ainda existe; senão 1ª conectada; senão 1ª.
+      setInstAtivaId(prev => {
+        const aindaExiste = prev && lista.some((i: any) => i.id === prev);
+        const escolhida = aindaExiste ? prev : (lista.find((i: any) => i.status === 'CONECTADO')?.id || lista[0]?.id || null);
+        const inst = lista.find((i: any) => i.id === escolhida);
+        setStatus((inst?.status as StatusConexao) || 'DESCONECTADO');
+        if (inst?.status === 'CONECTADO') setQr(null);
+        else setQr(inst?.qr_code || null);
+        return escolhida;
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -97,14 +112,54 @@ export default function WhatsappPage() {
 
   const carregarConversas = useCallback(async () => {
     try {
-      const res = await apiClient.getWhatsappConversas();
+      const res = await apiClient.getWhatsappConversas(instAtivaId || undefined);
       setConversas(res.data.data);
     } catch (e) { console.error(e); }
-  }, []);
+  }, [instAtivaId]);
 
   useEffect(() => {
     if (status === 'CONECTADO') carregarConversas();
-  }, [status, carregarConversas]);
+  }, [status, instAtivaId, carregarConversas]);
+
+  // Ao trocar de instância no seletor, atualiza status/qr e recarrega.
+  const trocarInstancia = (id: string) => {
+    setInstAtivaId(id);
+    setAtiva(null);
+    const inst = instancias.find(i => i.id === id);
+    setStatus((inst?.status as StatusConexao) || 'DESCONECTADO');
+    setQr(inst?.status === 'CONECTADO' ? null : (inst?.qr_code || null));
+  };
+
+  // Criar nova instância nomeada (novo número).
+  const criarInstancia = async () => {
+    if (!novaInstNome.trim()) { alert('Dê um nome para a instância (ex.: Comercial).'); return; }
+    setCriandoInst(true);
+    try {
+      const res = await apiClient.criarInstanciaWhatsapp(novaInstNome.trim());
+      setNovaInstNome('');
+      await checarStatus();
+      setInstAtivaId(res.data.data.instancia.id);
+      setStatus('CONECTANDO');
+      setQr(res.data.data.qr || null);
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao criar instância'); }
+    finally { setCriandoInst(false); }
+  };
+
+  // Reconectar / desconectar / renomear a instância ativa.
+  const reconectarAtiva = async () => {
+    if (!instAtivaId) return;
+    try { const r = await apiClient.conectarInstanciaWhatsapp(instAtivaId); setQr(r.data.data.qr || null); setStatus('CONECTANDO'); } catch (e: any) { alert(e?.response?.data?.message || 'Falha'); }
+  };
+  const desconectarAtiva = async () => {
+    if (!instAtivaId || !confirm('Desconectar este WhatsApp?')) return;
+    try { await apiClient.desconectarInstanciaWhatsapp(instAtivaId); await checarStatus(); } catch (e: any) { alert(e?.response?.data?.message || 'Falha'); }
+  };
+  const renomearAtiva = async () => {
+    if (!instAtivaId) return;
+    const nome = prompt('Novo nome da instância:');
+    if (!nome?.trim()) return;
+    try { await apiClient.renomearInstanciaWhatsapp(instAtivaId, nome.trim()); await checarStatus(); } catch (e: any) { alert(e?.response?.data?.message || 'Falha'); }
+  };
 
   // Vindo de um botão de WhatsApp do CRM (/whatsapp?numero=...&nome=...&lead=...):
   // abre (ou cria) a conversa daquele contato e seleciona.
@@ -128,15 +183,6 @@ export default function WhatsappPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  const conectar = async () => {
-    try {
-      const res = await apiClient.conectarWhatsapp();
-      setQr(res.data.data.qr || null);
-      setStatus('CONECTANDO');
-    } catch (e: any) {
-      alert(e?.response?.data?.message || 'Falha ao conectar');
-    }
-  };
 
   const abrir = async (c: Conversa) => {
     setAtiva(c);
@@ -257,6 +303,38 @@ export default function WhatsappPage() {
           </span>
         </div>
 
+        {/* Barra de instâncias (multi-WhatsApp) — abas p/ trocar + ações */}
+        {configurado && (
+          <div className="flex items-center gap-2 flex-wrap bg-white border border-gray-200 rounded-xl p-2">
+            {instancias.map(i => (
+              <button key={i.id} onClick={() => trocarInstancia(i.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${instAtivaId === i.id ? 'text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                style={instAtivaId === i.id ? { background: 'linear-gradient(135deg,#128C7E,#075E54)', borderColor: '#128C7E' } : { borderColor: '#e5e7eb' }}>
+                <span className={`w-2 h-2 rounded-full ${i.status === 'CONECTADO' ? 'bg-green-400' : i.status === 'CONECTANDO' ? 'bg-yellow-400' : 'bg-gray-400'}`} />
+                {i.apelido || i.numero || 'WhatsApp'}
+              </button>
+            ))}
+            {/* Criar nova instância */}
+            <div className="flex items-center gap-1">
+              <input value={novaInstNome} onChange={e => setNovaInstNome(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') criarInstancia(); }}
+                placeholder="Nome do novo WhatsApp"
+                className="bg-gray-100 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none w-40" />
+              <button onClick={criarInstancia} disabled={criandoInst}
+                className="text-white rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-50" style={{ background: '#128C7E' }}>+ Conectar</button>
+            </div>
+            {/* Ações da instância ativa */}
+            {instAtivaId && (
+              <div className="flex items-center gap-1 ml-auto">
+                <button onClick={renomearAtiva} title="Renomear" className="text-gray-500 hover:text-gray-700 text-xs px-2 py-1.5 border border-gray-200 rounded-lg">✏️ Nome</button>
+                {status === 'CONECTADO'
+                  ? <button onClick={desconectarAtiva} className="text-red-600 text-xs px-2 py-1.5 border border-red-200 rounded-lg">Desconectar</button>
+                  : <button onClick={reconectarAtiva} className="text-green-700 text-xs px-2 py-1.5 border border-green-200 rounded-lg">Reconectar</button>}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Evolution não configurada no servidor */}
         {!configurado && !carregandoConn && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
@@ -279,11 +357,17 @@ export default function WhatsappPage() {
             ) : (
               <>
                 <div className="text-5xl mb-3">📱</div>
-                <p className="font-medium text-gray-900 mb-1">Conecte seu WhatsApp</p>
-                <p className="text-sm text-gray-500 mb-5">Gere um QR Code e leia com o celular para começar a atender.</p>
-                <button onClick={conectar} className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2.5 rounded-lg">
-                  Gerar QR Code
-                </button>
+                <p className="font-medium text-gray-900 mb-1">{instancias.length === 0 ? 'Conecte seu primeiro WhatsApp' : 'Instância desconectada'}</p>
+                <p className="text-sm text-gray-500 mb-5">
+                  {instancias.length === 0
+                    ? 'Dê um nome (ex.: "Comercial") na barra acima e clique em "+ Conectar" para gerar o QR Code.'
+                    : 'Clique em "Reconectar" na barra acima para gerar um novo QR Code desta instância.'}
+                </p>
+                {instAtivaId && (
+                  <button onClick={reconectarAtiva} className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2.5 rounded-lg">
+                    Gerar QR Code
+                  </button>
+                )}
               </>
             )}
           </div>

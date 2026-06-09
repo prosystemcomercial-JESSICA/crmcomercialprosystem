@@ -1737,6 +1737,7 @@ model WhatsappInstancia {
   id             String    @id @default(cuid())
   // Nome único da instância na Evolution API (ex.: "crm-<userId>").
   instancia_nome String    @unique
+  apelido        String? // nome amigável (ex.: "Comercial", "Suporte")
   dono_id        String // UsuarioCRM.id que conectou (escopo por dono)
   dono_nome      String?
   numero         String? // número conectado (preenchido após parear)

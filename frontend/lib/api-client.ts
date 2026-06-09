@@ -961,8 +961,24 @@ class ApiClient {
     return this.client.post('/whatsapp/desconectar');
   }
 
-  async getWhatsappConversas() {
-    return this.client.get('/whatsapp/conversas');
+  async getWhatsappConversas(instanciaId?: string) {
+    return this.client.get('/whatsapp/conversas', { params: instanciaId ? { instanciaId } : {} });
+  }
+  // Multi-instância
+  async getWhatsappInstancias() {
+    return this.client.get('/whatsapp/instancias');
+  }
+  async criarInstanciaWhatsapp(apelido: string) {
+    return this.client.post('/whatsapp/instancias', { apelido });
+  }
+  async conectarInstanciaWhatsapp(id: string) {
+    return this.client.post(`/whatsapp/instancias/${id}/conectar`);
+  }
+  async desconectarInstanciaWhatsapp(id: string) {
+    return this.client.post(`/whatsapp/instancias/${id}/desconectar`);
+  }
+  async renomearInstanciaWhatsapp(id: string, apelido: string) {
+    return this.client.patch(`/whatsapp/instancias/${id}`, { apelido });
   }
 
   async abrirConversaWhatsapp(numero: string, nome?: string, lead_id?: string) {
