@@ -812,19 +812,63 @@ async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
   }
 
   // Acha a conversa pelo número (qualquer instância). Não cria nova.
-  const conversa = await prisma.whatsappConversa.findFirst({ where: { contato_numero } }).catch(() => null);
+  const conversa = await prisma.whatsappConversa.findFirst({
+    where: { contato_numero },
+    include: { instancia: true },
+  }).catch(() => null);
   if (!conversa) return;
 
   const msg = data?.message || {};
   let tipo: 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO' = 'TEXTO';
   let texto = msg.conversation || msg.extendedTextMessage?.text || '';
+  let midiaUrl: string | undefined;
+  const ehMidia = !!(msg.imageMessage || msg.audioMessage || msg.pttMessage || msg.documentMessage);
   if (msg.imageMessage) { tipo = 'IMAGEM'; texto = msg.imageMessage.caption || '[imagem]'; }
   else if (msg.audioMessage || msg.pttMessage) { tipo = 'AUDIO'; texto = '[áudio]'; }
   else if (msg.documentMessage) { tipo = 'DOCUMENTO'; texto = msg.documentMessage.fileName || '[documento]'; }
   else if (!texto) { tipo = 'OUTRO'; texto = '[mensagem]'; }
 
+  // Áudio/imagem/doc enviados pelo celular precisam do base64 p/ tocar/abrir no CRM
+  // (a url crua do WhatsApp é criptografada). Baixa via Evolution, igual ao webhook normal.
+  if (ehMidia && (conversa as any).instancia?.instancia_nome) {
+    let b64: string | undefined = data?.message?.base64;
+    let mime: string | undefined =
+      msg.imageMessage?.mimetype || (msg.audioMessage || msg.pttMessage)?.mimetype || msg.documentMessage?.mimetype;
+    if (!b64) {
+      const baixada = await evo.baixarMidiaBase64((conversa as any).instancia.instancia_nome, data.key).catch(() => ({} as any));
+      b64 = baixada.base64; mime = baixada.mimetype || mime;
+    }
+    if (b64) {
+      const tipoMime = mime || (tipo === 'IMAGEM' ? 'image/jpeg' : tipo === 'AUDIO' ? 'audio/ogg' : 'application/octet-stream');
+      midiaUrl = `data:${tipoMime};base64,${b64}`;
+    }
+  }
+
+  // Anti-duplicação extra: se o CRM acabou de enviar essa mídia/texto mas a
+  // Evolution não devolveu externo_id no envio, o eco do webhook chegaria como
+  // 2ª bolha. Se já há SAIDA do mesmo tipo nos últimos 90s sem externo_id, pula.
+  const recente = await prisma.whatsappMensagem.findFirst({
+    where: {
+      conversaId: conversa.id,
+      direcao: 'SAIDA',
+      tipo,
+      created_at: { gte: new Date(Date.now() - 90_000) },
+    },
+    orderBy: { created_at: 'desc' },
+  }).catch(() => null);
+  if (recente && (!recente.externo_id || recente.externo_id === externo_id)) {
+    // Se a recente não tinha mídia e agora temos, completa em vez de duplicar.
+    if (midiaUrl && !recente.midia_url) {
+      await prisma.whatsappMensagem.update({
+        where: { id: recente.id },
+        data: { midia_url: midiaUrl, externo_id: recente.externo_id || externo_id },
+      }).catch(() => {});
+    }
+    return;
+  }
+
   await prisma.whatsappMensagem.create({
-    data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo, conteudo: texto, status: 'ENVIADA' },
+    data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo, conteudo: texto, midia_url: midiaUrl, status: 'ENVIADA' },
   }).catch(() => {});
   await prisma.whatsappConversa.update({
     where: { id: conversa.id },
