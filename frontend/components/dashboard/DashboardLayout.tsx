@@ -287,10 +287,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Image
             src="/logo-prosystem.png"
             alt="Prosystem"
-            width={150}
-            height={40}
+            width={195}
+            height={52}
             className="object-contain"
-            style={{ height: 36, width: 'auto' }}
+            style={{ height: 47, width: 'auto' }}
             priority
           />
         </Link>
