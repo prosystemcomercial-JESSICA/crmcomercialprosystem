@@ -70,6 +70,8 @@ export default function WhatsappPage() {
   const [novoNumero, setNovoNumero] = useState('');
   const [menuEtiqueta, setMenuEtiqueta] = useState(false);
   const [menuTransferir, setMenuTransferir] = useState(false);
+  const [viewMode, setViewMode] = useState<'inbox' | 'kanban'>('inbox');
+  const [dragConvId, setDragConvId] = useState<string | null>(null);
   const [showReuniao, setShowReuniao] = useState(false);
   const [reuniao, setReuniao] = useState({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
   const [salvandoReuniao, setSalvandoReuniao] = useState(false);
@@ -312,6 +314,19 @@ export default function WhatsappPage() {
     } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao etiquetar'); }
   };
 
+  // Aplica etiqueta a uma conversa por id (usado ao arrastar no Kanban).
+  const etiquetarPorId = async (convId: string, nome: string | null, cor?: string) => {
+    try {
+      const res = await apiClient.etiquetarConversa(convId, nome, cor);
+      const upd = res.data.data;
+      setConversas(prev => prev.map(c => c.id === convId ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
+      if (ativa?.id === convId) setAtiva({ ...ativa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id });
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao etiquetar'); }
+  };
+
+  // Colunas do Kanban: "Sem classificação" + uma por etiqueta (segmento + tipo).
+  const COLUNAS_KANBAN = [{ nome: 'Sem classificação', cor: '#94a3b8' }, ...ETIQUETAS, ...ETIQUETAS_TIPO];
+
   // Transferir conversa para outro vendedor (só gestora).
   const abrirTransferir = async () => {
     setMenuTransferir(true);
@@ -360,13 +375,22 @@ export default function WhatsappPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">WhatsApp</h1>
             <p className="text-gray-500 text-sm hidden sm:block">Atenda seus clientes sem sair do CRM</p>
           </div>
-          <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-            status === 'CONECTADO' ? 'bg-green-50 text-green-700 border border-green-200'
-            : status === 'CONECTANDO' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-            : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
-            <span className={`w-2 h-2 rounded-full ${status === 'CONECTADO' ? 'bg-green-500' : status === 'CONECTANDO' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`} />
-            {status === 'CONECTADO' ? 'Conectado' : status === 'CONECTANDO' ? 'Conectando…' : 'Desconectado'}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Toggle de visão: Inbox (lista) | Kanban (por etiqueta) */}
+            {status === 'CONECTADO' && (
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                <button onClick={() => setViewMode('inbox')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'inbox' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'inbox' ? { background: '#128C7E' } : {}}>💬 Lista</button>
+                <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'kanban' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'kanban' ? { background: '#128C7E' } : {}}>🗂️ Kanban</button>
+              </div>
+            )}
+            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+              status === 'CONECTADO' ? 'bg-green-50 text-green-700 border border-green-200'
+              : status === 'CONECTANDO' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+              : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
+              <span className={`w-2 h-2 rounded-full ${status === 'CONECTADO' ? 'bg-green-500' : status === 'CONECTANDO' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`} />
+              {status === 'CONECTADO' ? 'Conectado' : status === 'CONECTANDO' ? 'Conectando…' : 'Desconectado'}
+            </span>
+          </div>
         </div>
 
         {/* Barra de instâncias (multi-WhatsApp) — abas p/ trocar + ações */}
@@ -441,7 +465,7 @@ export default function WhatsappPage() {
         )}
 
         {/* Inbox — estilo WhatsApp Web */}
-        {configurado && status === 'CONECTADO' && (
+        {configurado && status === 'CONECTADO' && viewMode === 'inbox' && (
           <div className="flex md:grid md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm flex-1 min-h-0">
             {/* Lista de conversas */}
             <div className={`bg-white flex-col border-r border-gray-200 min-h-0 w-full md:w-auto ${ativa ? 'hidden md:flex' : 'flex'}`}>
@@ -594,6 +618,51 @@ export default function WhatsappPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Kanban por etiqueta — colunas: Sem classificação + cada etiqueta */}
+        {configurado && status === 'CONECTADO' && viewMode === 'kanban' && (
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-3 h-full pb-2" style={{ minWidth: 'min-content' }}>
+              {COLUNAS_KANBAN.map(col => {
+                const semClass = col.nome === 'Sem classificação';
+                const cards = conversasFiltradas.filter(c => semClass ? !c.etiqueta : c.etiqueta === col.nome);
+                return (
+                  <div key={col.nome}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={() => { if (dragConvId) { etiquetarPorId(dragConvId, semClass ? null : col.nome, semClass ? undefined : col.cor); setDragConvId(null); } }}
+                    className="flex flex-col bg-gray-50 rounded-xl border border-gray-200 flex-shrink-0 w-72 min-h-0">
+                    <div className="px-3 py-2.5 flex items-center gap-2 border-b border-gray-200 rounded-t-xl" style={{ background: `${col.cor}15` }}>
+                      <span className="w-3 h-3 rounded-full" style={{ background: col.cor }} />
+                      <span className="font-semibold text-sm text-gray-800">{col.nome}</span>
+                      <span className="ml-auto text-xs text-gray-400">{cards.length}</span>
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
+                      {cards.length === 0 && <p className="text-center text-gray-300 text-xs py-6">—</p>}
+                      {cards.map(c => (
+                        <div key={c.id}
+                          draggable onDragStart={() => setDragConvId(c.id)} onDragEnd={() => setDragConvId(null)}
+                          onClick={() => { setViewMode('inbox'); abrir(c); }}
+                          className="bg-white rounded-lg border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ background: corAvatar(nomeContato(c)) }}>
+                              {nomeContato(c).charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-900 truncate">{nomeContato(c)}</p>
+                              <p className="text-xs text-gray-400 truncate">{c.ultima_mensagem || '—'}</p>
+                            </div>
+                            {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
+                          </div>
+                          {c.lead_id && <span className="inline-block mt-1 text-[10px] text-blue-600">🔗 funil</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
