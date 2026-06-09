@@ -986,6 +986,9 @@ class ApiClient {
   async excluirConversaWhatsapp(id: string) {
     return this.client.delete(`/whatsapp/conversas/${id}`);
   }
+  async desvincularConversaFunil(id: string) {
+    return this.client.post(`/whatsapp/conversas/${id}/desvincular`);
+  }
 
   async abrirConversaWhatsapp(numero: string, nome?: string, lead_id?: string) {
     return this.client.post('/whatsapp/abrir', { numero, nome, lead_id });
