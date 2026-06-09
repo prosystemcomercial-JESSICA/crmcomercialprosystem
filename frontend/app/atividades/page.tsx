@@ -65,6 +65,19 @@ const PRIORIDADE_CONFIG: Record<Prioridade, {
 
 const KANBAN_COLUMNS: Prioridade[] = ['CRITICA', 'EXPIRANDO', 'PROXIMA', 'NO_PRAZO', 'SEM_PRAZO'];
 
+// Visual por STATUS da atividade (sobrepõe a régua de prazo p/ desfechos):
+// Realizada = VERDE + ✓ · Remarcada = LARANJA + 🕐 · Cancelada/Não compareceu = vermelho.
+// Retorna null quando o status não tem visual próprio (usa a prioridade de prazo).
+function statusVisual(at: Atividade): { cor: string; bg: string; icon: any; etiqueta: string } | null {
+  switch (at.status) {
+    case 'REALIZADA':              return { cor: '#16a34a', bg: '#DCFCE7', icon: CheckCircle2, etiqueta: 'Concluída' };
+    case 'REMARCADA':              return { cor: '#ea580c', bg: '#FFEDD5', icon: Clock,        etiqueta: 'Remarcada' };
+    case 'CANCELADA':              return { cor: '#dc2626', bg: '#FEE2E2', icon: AlertOctagon, etiqueta: 'Cancelada' };
+    case 'CLIENTE_NAO_COMPARECEU': return { cor: '#dc2626', bg: '#FEE2E2', icon: AlertOctagon, etiqueta: 'Não compareceu' };
+    default: return null;
+  }
+}
+
 // Calcula prioridade automática
 function calcularPrioridade(at: Atividade): Prioridade {
   if (at.status === 'REALIZADA' || at.status === 'CANCELADA') return 'CONCLUIDA';
@@ -483,12 +496,17 @@ export default function AtividadesPage() {
                     return new Date(a.at.data_prevista).getTime() - new Date(b.at.data_prevista).getTime();
                   })
                   .map(({ at, p }) => {
-                    const cfg = PRIORIDADE_CONFIG[p];
+                    // Status com desfecho (realizada/remarcada/cancelada) define a cor;
+                    // senão usa a régua de prazo (prioridade).
+                    const sv = statusVisual(at);
+                    const cfg = sv || PRIORIDADE_CONFIG[p];
                     const Icon = cfg.icon;
                     const dias = diasRestantes(at);
+                    const corBarra = sv ? sv.cor : PRIORIDADE_CONFIG[p].cor;
                     return (
                       <div key={at.id} onClick={() => setSelected(at)}
-                        className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors">
+                        className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors border-l-4"
+                        style={{ borderLeftColor: corBarra, background: sv ? `${sv.bg}55` : undefined }}>
                         <span className="text-lg flex-shrink-0">{TIPO_ICON[at.tipo] || '📌'}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -648,7 +666,8 @@ export default function AtividadesPage() {
       {/* ═══ DETAIL PANEL ═════════════════════════════════════════════ */}
       {selected && (() => {
         const p = calcularPrioridade(selected);
-        const cfg = PRIORIDADE_CONFIG[p];
+        const sv = statusVisual(selected);
+        const cfg = sv || PRIORIDADE_CONFIG[p];
         const Icon = cfg.icon;
         const dias = diasRestantes(selected);
         return (
