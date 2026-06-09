@@ -123,29 +123,49 @@ export async function financeiroRoutes(fastify: FastifyInstance, options: { pris
 
     const lancamentos = await prisma.lancamentoFinanceiro.findMany({ where });
 
-    let totalEntradas = 0, totalSaidas = 0;
+    let totalSaidas = 0;
+    let entradasImediatas = 0;   // vendas, instalações, serviços, outras entradas (à vista)
+    let mrrPeriodo = 0;          // mensalidades lançadas no período (recorrente)
     const porCategoria: Record<string, number> = {};
     const mrrValores: number[] = [];
     const instalacaoValores: number[] = [];
 
     for (const l of lancamentos) {
       const v = Number(l.valor);
-      if (l.tipo === 'ENTRADA') totalEntradas += v; else totalSaidas += v;
+      if (l.tipo === 'SAIDA') {
+        totalSaidas += v;
+      } else {
+        // ENTRADA: mensalidade conta como MRR (recorrente); o resto é entrada imediata.
+        if (l.categoria === 'MENSALIDADE') { mrrPeriodo += v; mrrValores.push(v); }
+        else { entradasImediatas += v; }
+        if (l.categoria === 'INSTALACAO') instalacaoValores.push(v);
+      }
       porCategoria[l.categoria] = (porCategoria[l.categoria] || 0) + v;
-      if (l.categoria === 'MENSALIDADE') mrrValores.push(v);
-      if (l.categoria === 'INSTALACAO') instalacaoValores.push(v);
     }
 
     const media = (arr: number[]) => arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
     const round2 = (n: number) => Math.round(n * 100) / 100;
 
+    // MRR projetado p/ os próximos 12 meses (mensalidade do período × 12).
+    const mrrProjetado12m = mrrPeriodo * 12;
+    // Receita total do período = entradas imediatas + MRR do período.
+    const receitaPeriodo = entradasImediatas + mrrPeriodo;
+
     return reply.send({
       status: 'success',
       data: {
         periodo: { ano: q.data.ano, mes: q.data.mes ?? null },
-        total_entradas: round2(totalEntradas),
+        // Custos x entradas
+        entradas_imediatas: round2(entradasImediatas),   // vendas/instalação/serviços (à vista)
+        mrr_periodo: round2(mrrPeriodo),                  // mensalidades do período
+        mrr_projetado_12m: round2(mrrProjetado12m),       // MRR × 12 (novos + acréscimos)
+        receita_periodo: round2(receitaPeriodo),
+        total_entradas: round2(receitaPeriodo),           // compat (entradas imediatas + MRR)
         total_saidas: round2(totalSaidas),
-        resultado: round2(totalEntradas - totalSaidas),
+        // Resultado de caixa do período = entradas imediatas + MRR do mês - custos
+        resultado: round2(receitaPeriodo - totalSaidas),
+        // Resultado considerando o MRR projetado (visão de 12 meses)
+        resultado_projetado: round2(entradasImediatas + mrrProjetado12m - totalSaidas),
         por_categoria: Object.entries(porCategoria).map(([categoria, valor]) => ({ categoria, valor: round2(valor) })),
         media_mensalidade: round2(media(mrrValores)),
         media_instalacao: round2(media(instalacaoValores)),
