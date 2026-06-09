@@ -79,9 +79,9 @@ const COMUM_TODOS: Secao[] = [
         conteudo: 'Ao criar uma atividade, na seção azul "Convidados" você pode marcar outros colaboradores da empresa para participarem. Eles verão o compromisso na agenda deles e receberão o mesmo alarme.',
       },
       {
-        titulo: 'Alarme sonoro persistente',
-        conteudo: 'O CRM toca um alarme quando se aproxima a hora do seu compromisso. O som continua tocando a cada 2 segundos até você dispensar, entrar no Meet ou adiar (5/10 min). Funciona em qualquer aba aberta do CRM.',
-        dica: 'O alarme só toca para quem é responsável, criador ou convidado da atividade. Se não estiver envolvido, você só vê no painel.',
+        titulo: 'Alarme sonoro discreto',
+        conteudo: 'O CRM toca um alarme curto (apenas 2 toques) quando se aproxima a hora do seu compromisso — sem ficar repetindo sem parar. Se você não tomar nenhuma ação, ele volta a avisar (2 toques) a cada 10 minutos. Ao dispensar, adiar ou entrar no Meet, ele para. Funciona em qualquer aba aberta do CRM.',
+        dica: 'O alarme só toca para quem é responsável, criador ou convidado da atividade. Se não estiver envolvido, você só vê no painel. "Dispensar" silencia por 10 min; se já passou da hora, dispensa de vez.',
       },
       {
         titulo: 'Histórico vs ativos',
