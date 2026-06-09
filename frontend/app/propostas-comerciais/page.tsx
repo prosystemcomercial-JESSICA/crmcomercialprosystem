@@ -327,8 +327,10 @@ export default function PropostasComerciais() {
       campanha: p.campanha || '',
       validade: p.validade ? p.validade.split('T')[0] : '',
       origem: p.origem || '',
-      plano_selecionado: p.plano_selecionado || '',
-      plano_recomendado: p.plano_recomendado || '',
+      // plano_selecionado espelha o recomendado (campo único agora). Em propostas
+      // antigas, usa o que houver preenchido como recomendado.
+      plano_recomendado: p.plano_recomendado || p.plano_selecionado || '',
+      plano_selecionado: p.plano_recomendado || p.plano_selecionado || '',
       mensalidade_pro: p.mensalidade_pro?.toString() || '',
       mensalidade_plus: p.mensalidade_plus?.toString() || '',
       modulos_inclusos: p.modulos_inclusos || [],
@@ -1049,16 +1051,15 @@ export default function PropostasComerciais() {
                 {/* Seção 3 — Plano & Produtos */}
                 {activeSection === 3 && (
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField label={`Plano Selecionado${form.segmento ? ` — ${planosPorSegmento(form.segmento as string) === PLANOS_FARMA ? 'Farmácia' : 'Varejo / Padaria'}` : ''}`}>
-                      <select value={form.plano_selecionado as string} onChange={e => setField('plano_selecionado', e.target.value)} className="ps-input w-full">
+                    {/* Apenas "Plano Recomendado": o deck sempre apresenta Pro × Plus
+                        na mensalidade (preferência de venda). Mantemos plano_selecionado
+                        espelhando o recomendado p/ compatibilidade (tabela/PDF/condições). */}
+                    <FormField label={`Plano Recomendado${form.segmento ? ` — ${planosPorSegmento(form.segmento as string) === PLANOS_FARMA ? 'Farmácia' : 'Varejo / Padaria'}` : ''}`} col={2}>
+                      <select
+                        value={form.plano_recomendado as string}
+                        onChange={e => { const v = e.target.value; setField('plano_recomendado', v); setField('plano_selecionado', v); }}
+                        className="ps-input w-full">
                         {!form.segmento && <option value="">Selecione o segmento (aba Empresa) primeiro…</option>}
-                        {form.segmento && <option value="">Selecione…</option>}
-                        {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
-                      </select>
-                    </FormField>
-                    <FormField label="Plano Recomendado">
-                      <select value={form.plano_recomendado as string} onChange={e => setField('plano_recomendado', e.target.value)} className="ps-input w-full">
-                        {!form.segmento && <option value="">Selecione o segmento primeiro…</option>}
                         {form.segmento && <option value="">Selecione…</option>}
                         {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
                       </select>
