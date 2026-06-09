@@ -75,7 +75,8 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     const inicio = new Date(ano, mes - 1, 1);
     const fim = new Date(ano, mes, 1);
     const props = await prisma.propostaComercial.findMany({
-      where: { created_at: { gte: inicio, lt: fim } },
+      // Excluídos NÃO contam nos resultados (deduzidos do cálculo).
+      where: { created_at: { gte: inicio, lt: fim }, deleted_at: null as any },
       select: { status: true, segmento: true, vendedor_nome: true, valor_implantacao: true, mensalidade_plus: true, mensalidade_pro: true, valor_final: true },
     });
 
