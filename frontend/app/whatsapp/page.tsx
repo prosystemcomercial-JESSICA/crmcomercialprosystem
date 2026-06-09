@@ -169,6 +169,17 @@ export default function WhatsappPage() {
       await checarStatus();
     } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao excluir'); }
   };
+  // Desvincular a conversa do funil (não conta como lead no dashboard).
+  const desvincularFunil = async () => {
+    if (!ativa) return;
+    if (!confirm('Desvincular esta conversa do funil? Ela deixa de contar como lead no dashboard.')) return;
+    try {
+      await apiClient.desvincularConversaFunil(ativa.id);
+      setAtiva({ ...ativa, lead_id: null });
+      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null } : c));
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao desvincular'); }
+  };
+
   // Excluir uma conversa do Inbox.
   const excluirConversa = async (id: string) => {
     if (!confirm('Excluir esta conversa? As mensagens serão removidas do CRM.')) return;
@@ -469,6 +480,10 @@ export default function WhatsappPage() {
                     {/* Transferir (só gestora) */}
                     {podeTransferir && (
                       <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); }} title="Transferir vendedor" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">↗️</button>
+                    )}
+                    {/* Desvincular do funil (só se vinculado) */}
+                    {ativa.lead_id && (
+                      <button onClick={desvincularFunil} title="Desvincular do funil (não conta como lead)" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🔗✖</button>
                     )}
                     {/* Excluir conversa */}
                     <button onClick={() => excluirConversa(ativa.id)} title="Excluir conversa" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🗑️</button>

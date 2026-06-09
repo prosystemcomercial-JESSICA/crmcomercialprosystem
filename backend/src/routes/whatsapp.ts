@@ -199,6 +199,33 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: conversas });
   });
 
+  // Desvincula a conversa do funil: tira o lead_id e, se o lead foi criado
+  // automaticamente via WhatsApp, faz soft-delete dele (sai do dashboard).
+  // Também desativa o bot (não é um lead comercial — ex.: suporte/fornecedor).
+  fastify.post('/whatsapp/conversas/:id/desvincular', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    if (conversa.lead_id) {
+      const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { origem: true } }).catch(() => null);
+      // Só soft-deleta leads nascidos do WhatsApp (captação automática). Lead
+      // vinculado manualmente a um cliente real é preservado, só desvincula.
+      if (lead?.origem === 'WHATSAPP') {
+        await prisma.lead.update({
+          where: { id: conversa.lead_id },
+          data: { deleted_at: new Date() as any },
+        }).catch(() => {});
+      }
+    }
+
+    await prisma.whatsappConversa.update({
+      where: { id },
+      data: { lead_id: null, bot_ativo: false, bot_estado: null },
+    });
+    return reply.send({ status: 'success' });
+  });
+
   // Abre (ou cria) uma conversa pelo número — usado pelos botões de WhatsApp
   // espalhados no CRM (leads, clientes, etc.) que agora levam ao Inbox interno.
   fastify.post('/whatsapp/abrir', async (request, reply) => {
