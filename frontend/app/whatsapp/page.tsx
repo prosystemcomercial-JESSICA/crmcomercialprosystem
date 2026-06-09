@@ -288,11 +288,13 @@ export default function WhatsappPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/* Altura cheia da viewport (dvh = compatível com barra do navegador no
+          celular). Tudo dentro rola internamente; a pagina nao rola junto. */}
+      <div className="flex flex-col gap-3" style={{ height: 'calc(100dvh - 90px)' }}>
+        <div className="flex items-center justify-between gap-2 flex-wrap flex-shrink-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">WhatsApp</h1>
-            <p className="text-gray-500 mt-1">Atenda seus clientes sem sair do CRM</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">WhatsApp</h1>
+            <p className="text-gray-500 text-sm hidden sm:block">Atenda seus clientes sem sair do CRM</p>
           </div>
           <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
             status === 'CONECTADO' ? 'bg-green-50 text-green-700 border border-green-200'
@@ -305,7 +307,7 @@ export default function WhatsappPage() {
 
         {/* Barra de instâncias (multi-WhatsApp) — abas p/ trocar + ações */}
         {configurado && (
-          <div className="flex items-center gap-2 flex-wrap bg-white border border-gray-200 rounded-xl p-2">
+          <div className="flex items-center gap-2 flex-wrap bg-white border border-gray-200 rounded-xl p-2 flex-shrink-0 overflow-x-auto">
             {instancias.map(i => (
               <button key={i.id} onClick={() => trocarInstancia(i.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${instAtivaId === i.id ? 'text-white' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -375,9 +377,9 @@ export default function WhatsappPage() {
 
         {/* Inbox — estilo WhatsApp Web */}
         {configurado && status === 'CONECTADO' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm" style={{ height: 'min(72vh, 720px)' }}>
+          <div className="flex md:grid md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm flex-1 min-h-0">
             {/* Lista de conversas */}
-            <div className={`bg-white flex flex-col border-r border-gray-200 min-h-0 ${ativa ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`bg-white flex-col border-r border-gray-200 min-h-0 w-full md:w-auto ${ativa ? 'hidden md:flex' : 'flex'}`}>
               <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
                 <span className="text-white font-semibold">Conversas</span>
                 <span className="ml-auto text-xs text-green-100">{conversas.length}</span>
@@ -422,7 +424,7 @@ export default function WhatsappPage() {
             </div>
 
             {/* Janela de chat */}
-            <div className={`md:col-span-2 flex flex-col min-h-0 ${ativa ? 'flex' : 'hidden md:flex'}`}
+            <div className={`md:col-span-2 flex-col min-h-0 w-full flex-1 ${ativa ? 'flex' : 'hidden md:flex'}`}
               style={{ background: '#ECE5DD' }}>
               {!ativa ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-400" style={{ background: '#F0F2F5' }}>
