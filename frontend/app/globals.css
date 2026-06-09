@@ -545,3 +545,36 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 
 /* Títulos com leve aperto de tracking (mais moderno) */
 h1, h2, h3 { letter-spacing: -0.01em; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   RESPONSIVIDADE MOBILE (app-like) — ajustes globais para telas pequenas.
+   Mantém o layout do desktop intacto; só refina o comportamento no celular.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Toda tabela rola horizontalmente quando não couber, sem quebrar o layout.
+   O wrapper deixa o dedo arrastar a tabela em vez de estourar a página. */
+table { max-width: 100%; }
+
+@media (max-width: 768px) {
+  /* Tabelas: permitem scroll horizontal próprio e não encolhem demais as colunas. */
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  table thead, table tbody, table tr { white-space: nowrap; }
+
+  /* Títulos um pouco menores no celular (cabem melhor). */
+  h1 { font-size: 1.5rem !important; line-height: 1.2; }
+  h2 { font-size: 1.2rem !important; }
+
+  /* Grids de cartões de métrica viram 1–2 colunas no celular. */
+  .grid.grid-cols-3, .grid.grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  /* Modais ocupam quase a tela inteira (sensação de app). */
+  .ps-modal, [class*="max-w-lg"], [class*="max-w-xl"], [class*="max-w-2xl"] { max-width: 100% !important; }
+
+  /* Inputs/botões com alvo de toque maior. */
+  .ps-input, input, select, textarea { font-size: 16px; } /* evita zoom automático no iOS */
+}
+
+/* Em telas muito estreitas, esconde elementos marcados como só-desktop. */
+@media (max-width: 640px) {
+  .so-desktop { display: none !important; }
+}

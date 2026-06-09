@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { getUser } from '@/lib/scope';
+import { getUser, podeVerTudo } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
 
 // WhatsApp Inbox multi-instância.
@@ -192,9 +192,13 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Lista conversas (escopadas ao dono; gestão vê todas), ordenadas por atividade.
   // Filtra por instância quando ?instanciaId= é informado (seletor multi-instância).
   fastify.get('/whatsapp/conversas', async (request, reply) => {
-    const { instanciaId } = request.query as { instanciaId?: string };
+    const { instanciaId, escopo } = request.query as { instanciaId?: string; escopo?: string };
+    // Visão de supervisão: gestão pode pedir escopo=todos p/ ver as conversas de
+    // TODOS os vendedores num só lugar (sem assumir). Padrão = só as próprias.
+    const verTudo = escopo === 'todos' && podeVerTudo(getUser(request));
+    const filtroEscopo = verTudo ? {} : escopoDono(request);
     const conversas = await prisma.whatsappConversa.findMany({
-      where: { ...escopoDono(request), ...(instanciaId ? { instanciaId } : {}) },
+      where: { ...filtroEscopo, ...(instanciaId ? { instanciaId } : {}) },
       orderBy: { ultima_em: 'desc' },
       take: 150,
       include: { instancia: { select: { apelido: true, dono_nome: true, numero: true } } },
@@ -382,10 +386,13 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // Mensagens de uma conversa (valida escopo) + marca como lidas.
+  // Gestão (podeVerTudo) pode ler qualquer conversa (visão de supervisão); demais
+  // só as próprias.
   fastify.get('/whatsapp/conversas/:id/mensagens', async (request, reply) => {
     const { id } = request.params as { id: string };
+    const filtro = podeVerTudo(getUser(request)) ? {} : escopoDono(request);
     const conversa = await prisma.whatsappConversa.findFirst({
-      where: { id, ...escopoDono(request) },
+      where: { id, ...filtro },
     });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
