@@ -90,15 +90,18 @@
   --t-primary-muted:  #7AAACB;
 
   /* Sidebar */
-  --t-sidebar-bg:           #0D2238;
-  --t-sidebar-border:       #1A3350;
-  --t-sidebar-hover:        #152E49;
-  --t-sidebar-active:       #1C3A5A;
-  --t-sidebar-active-border:#4B8EC8;
-  --t-sidebar-text:         #A8C8E8;
-  --t-sidebar-muted:        #2D5A7A;
-  --t-sidebar-footer-bg:    #152E49;
-  --t-sidebar-footer-border:#1E3D5C;
+  /* Sidebar em azul do design system (degradê claro definido em .ps-sidebar). */
+  --t-sidebar-bg:           #3D7CC9; /* azul médio da marca */
+  --t-sidebar-bg-top:       #4B8EC8; /* topo do degradê (mais claro) */
+  --t-sidebar-bg-bottom:    #2E6EAB; /* base do degradê (mais profundo) */
+  --t-sidebar-border:       #2E6EAB;
+  --t-sidebar-hover:        rgba(255,255,255,0.12);
+  --t-sidebar-active:       rgba(255,255,255,0.20);
+  --t-sidebar-active-border:#FFFFFF;
+  --t-sidebar-text:         #EAF2FB;
+  --t-sidebar-muted:        #Bcd6f0;
+  --t-sidebar-footer-bg:    rgba(255,255,255,0.10);
+  --t-sidebar-footer-border:rgba(255,255,255,0.18);
 
   /* Layout */
   --t-topbar-bg:     #FFFFFF;
@@ -447,9 +450,11 @@
    ProSystem Utility Classes
    ═══════════════════════════════════════════════════════════ */
 .ps-sidebar {
-  background-color: var(--t-sidebar-bg);
+  background: linear-gradient(180deg,
+    var(--t-sidebar-bg-top, var(--t-sidebar-bg)) 0%,
+    var(--t-sidebar-bg-bottom, var(--t-sidebar-bg)) 100%);
   border-right: 1px solid var(--t-sidebar-border);
-  transition: background-color 0.25s ease;
+  transition: background 0.25s ease;
 }
 
 .ps-sidebar-item {

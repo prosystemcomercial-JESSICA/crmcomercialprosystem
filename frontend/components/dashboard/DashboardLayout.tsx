@@ -13,6 +13,7 @@ import {
   Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun, User,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
+  Maximize2, Minimize2,
 } from 'lucide-react';
 
 // Cargos do CRM
@@ -134,6 +135,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [alertasOpen, setAlertasOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // drawer mobile
   useEffect(() => { setSidebarOpen(false); }, [pathname]); // fecha ao navegar
+
+  // Tela cheia (dashboards): usa a Fullscreen API do navegador.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const toggleFullscreen = () => {
+    const d: any = document;
+    if (!d.fullscreenElement && !d.webkitFullscreenElement) {
+      const el: any = d.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+    } else {
+      (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
+    }
+  };
+  useEffect(() => {
+    const onFs = () => {
+      const d: any = document;
+      setIsFullscreen(!!(d.fullscreenElement || d.webkitFullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('webkitfullscreenchange', onFs);
+    };
+  }, []);
   const [seen, setSeen] = useState<Set<string>>(new Set());
   const bellRef = useRef<HTMLDivElement>(null);
 
@@ -256,26 +281,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Menu size={22} />
         </button>
 
-        {/* Marca: inicial em círculo + nome (Prospera CRM) — sem logo */}
-        <Link href="/dashboard" className="flex items-center gap-2.5 select-none group flex-shrink-0" style={{ minWidth: 0 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: '0 2px 8px color-mix(in srgb, var(--t-primary) 30%, transparent)'
-          }}>
-            <span style={{ color: '#fff', fontSize: 19, fontWeight: 800, letterSpacing: '-0.02em' }}>P</span>
-          </div>
-          <div className="hidden sm:block leading-tight">
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--t-text-primary)' }}>
-              Prospera
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--t-text-muted)' }}>
-              CRM Comercial
-            </div>
-          </div>
+        {/* A marca fica só na barra lateral (não repetir no topbar). No mobile,
+            onde a sidebar é drawer, mostramos um nome discreto ao lado do menu. */}
+        <Link href="/dashboard" className="md:hidden flex items-center select-none flex-shrink-0">
+          <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--t-text-primary)' }}>
+            Prospera
+          </span>
         </Link>
+        <div className="hidden md:block flex-shrink-0" style={{ width: 1 }} aria-hidden />
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
@@ -291,6 +304,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }}
           >
             {mode === 'claro' ? <Moon size={15} /> : <Sun size={15} />}
+          </button>
+
+          {/* Tela cheia (ótimo p/ dashboards em TV/apresentação) */}
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            style={{
+              width: 36, height: 36, borderRadius: 8, border: '1.5px solid var(--t-card-border)',
+              background: 'var(--t-card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--t-text-muted)', flexShrink: 0
+            }}
+          >
+            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
 
           {/* Separator */}
@@ -486,7 +512,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Sidebar — fixa no desktop; drawer deslizante no mobile */}
         <aside
-          className={`ps-sidebar w-56 flex-shrink-0 flex flex-col overflow-y-auto
+          className={`ps-sidebar w-64 flex-shrink-0 flex flex-col overflow-y-auto
             fixed md:static inset-y-0 left-0 z-[70] md:z-auto
             transform transition-transform duration-200 md:transform-none
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
