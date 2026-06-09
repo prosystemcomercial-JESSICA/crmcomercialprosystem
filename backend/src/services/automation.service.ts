@@ -97,7 +97,30 @@ export async function rodarMotorDeRegras(prisma: PrismaClient): Promise<Resultad
   // D2: snapshot diário do Relatório Comercial do mês corrente (progressivo).
   await snapshotRelatorioMes(prisma).catch((e) => console.error('[AUTO] snapshot relatorio:', e?.message));
 
+  // Expurgo da auditoria: registros com +60 dias são apagados (poupa banco).
+  await expurgarAuditoria(prisma).catch((e) => console.error('[AUTO] expurgo auditoria:', e?.message));
+
   return { leads_followup, renovacoes_proximas };
+}
+
+// Apaga registros de auditoria/histórico com mais de 60 dias. O histórico só
+// existe para consulta pontual; passado o prazo, é descartado para poupar banco.
+async function expurgarAuditoria(prisma: PrismaClient) {
+  const corte = new Date();
+  corte.setDate(corte.getDate() - 60);
+
+  // LeadHistorico (trilha de auditoria do lead) e AuditoriaUsuario — via SQL raw
+  // (tabelas com created_at; algumas são raw fora do schema).
+  const r1 = await prisma.$executeRawUnsafe(`DELETE FROM LeadHistorico WHERE created_at < ?`, corte).catch(() => 0);
+  const r2 = await prisma.$executeRawUnsafe(`DELETE FROM AuditoriaUsuario WHERE created_at < ?`, corte).catch(() => 0);
+
+  // Observações de SISTEMA antigas (trilha automática) — mantém observações
+  // manuais do vendedor; apaga só as automáticas (tipo SISTEMA) > 60 dias.
+  const r3 = await prisma.leadObservacao.deleteMany({
+    where: { tipo: 'SISTEMA', created_at: { lt: corte } },
+  }).then(r => r.count).catch(() => 0);
+
+  console.log(`[AUTO] Expurgo auditoria (>60d): LeadHistorico=${r1}, AuditoriaUsuario=${r2}, ObsSistema=${r3}`);
 }
 
 // Salva/atualiza o pipeline do MÊS CORRENTE no RelatorioComercial (1x/dia).
@@ -114,7 +137,8 @@ async function snapshotRelatorioMes(prisma: PrismaClient) {
   if (existente?.fechado) return; // mês consolidado — não recalcula
 
   const props = await prisma.propostaComercial.findMany({
-    where: { created_at: { gte: inicio, lt: fim } },
+    // Excluídos NÃO contam (deduzidos do snapshot/relatório).
+    where: { created_at: { gte: inicio, lt: fim }, deleted_at: null as any },
     select: { status: true, segmento: true, vendedor_nome: true, valor_implantacao: true, mensalidade_plus: true, mensalidade_pro: true, valor_final: true },
   });
   const FECHADA = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
