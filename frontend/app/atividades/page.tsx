@@ -262,15 +262,11 @@ export default function AtividadesPage() {
       };
       Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
+      // lead_id é opcional no backend: atividade pode não estar ligada a um lead
+      // (compromisso interno, com parceiro, etc.). Sem lead → marca vínculo NENHUM.
+      if (!payload.lead_id) { delete payload.lead_id; payload.vinculo_tipo = 'NENHUM'; }
       if (editingId) await apiClient.updateAtividade(editingId, payload);
-      else {
-        if (!payload.lead_id) {
-          // backend exige lead_id — usar primeiro lead disponível ou avisar
-          if (leads.length === 0) { setError('Cadastre um lead antes de criar atividades'); setSaving(false); return; }
-          payload.lead_id = leads[0].id;
-        }
-        await apiClient.createAtividade(payload);
-      }
+      else await apiClient.createAtividade(payload);
       setShowModal(false);
       fetchData();
     } catch (e: any) {

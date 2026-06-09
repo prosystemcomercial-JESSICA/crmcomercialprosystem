@@ -122,41 +122,60 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     }
     if (lead_id) where.lead_id = lead_id;
 
-    // Não-admins veem apenas suas próprias atividades (responsável, criador ou convidado)
+    // Monta o filtro "minhas atividades" (responsável OU criador). O filtro de
+    // convidado (JSON array) é aplicado DEPOIS, em memória, porque string_contains/
+    // array_contains em coluna JSON varia entre versões do MySQL e pode derrubar a
+    // query inteira — o que deixava a agenda VAZIA para todos que não são admin.
+    let filtrarConvidadoPara: string | null = null;
     if (!isAdmin(user)) {
       const userId = user?.id;
+      // fail-closed: sem usuário autenticado não vê nada (não vaza tudo).
+      if (!userId) return reply.send({ status: 'success', data: { atividades: [], total: 0, page, limit } });
       if (responsavel_id && responsavel_id !== userId) {
         return reply.send({ status: 'success', data: { atividades: [], total: 0, page, limit } });
       }
-      // OR amplo: é responsável, criou, ou foi convidado
-      where.OR = [
-        { responsavel_id: userId },
-        { created_by: userId },
-        // convidados_ids é JSON array — usa raw query indireta via String contains
-        ...(userId ? [{ convidados_ids: { string_contains: `"${userId}"` } as any }] : [])
-      ];
+      where.OR = [{ responsavel_id: userId }, { created_by: userId }];
+      filtrarConvidadoPara = userId;
     } else if (responsavel_id) {
-      where.OR = [
-        { responsavel_id: responsavel_id },
-        { created_by: responsavel_id },
-        { convidados_ids: { string_contains: `"${responsavel_id}"` } as any }
-      ];
+      where.OR = [{ responsavel_id }, { created_by: responsavel_id }];
+      filtrarConvidadoPara = responsavel_id;
     }
 
-    const [atividades, total] = await Promise.all([
-      prisma.atividade.findMany({
-        where,
-        skip: page * limit,
-        take: limit,
-        orderBy: [{ data_prevista: 'asc' }, { created_at: 'desc' }],
-        include: {
-          lead: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } }
-        }
-      }),
-      prisma.atividade.count({ where })
-    ]);
+    try {
+      // Quando há filtro por convidado, busca um conjunto maior e filtra em memória
+      // (próprias OU convidado). Sem filtro de escopo (admin), pagina normalmente.
+      const semEscopo = !where.OR;
+      const take = semEscopo ? limit : Math.max(limit, 500);
+      const skip = semEscopo ? page * limit : 0;
 
-    return reply.send({ status: 'success', data: { atividades, total, page, limit } });
+      const baseWhere = { ...where };
+      if (filtrarConvidadoPara) delete baseWhere.OR; // reabre o escopo p/ incluir convidado
+
+      const todas = await prisma.atividade.findMany({
+        where: semEscopo ? where : baseWhere,
+        skip,
+        take,
+        orderBy: [{ data_prevista: 'asc' }, { created_at: 'desc' }],
+        include: { lead: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } } },
+      });
+
+      let lista = todas;
+      if (filtrarConvidadoPara) {
+        const uid = filtrarConvidadoPara;
+        lista = todas.filter((a: any) => {
+          if (a.responsavel_id === uid || a.created_by === uid) return true;
+          const conv = Array.isArray(a.convidados_ids) ? a.convidados_ids : [];
+          return conv.includes(uid);
+        });
+      }
+
+      const total = lista.length;
+      const pageItems = filtrarConvidadoPara ? lista.slice(page * limit, page * limit + limit) : lista;
+      return reply.send({ status: 'success', data: { atividades: pageItems, total, page, limit } });
+    } catch (err: any) {
+      console.error('[GET /atividades]', err?.message);
+      return reply.status(500).send({ status: 'error', message: 'Erro ao listar atividades' });
+    }
   });
 
   // Get single atividade
