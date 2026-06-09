@@ -13,6 +13,15 @@ interface Caso {
   risk_score: number;
   motivo_principal?: string;
   created_at: string;
+  reneg_ativa?: boolean;
+  reneg_como_mantido?: string;
+  reneg_resultado?: string;
+  reneg_valor_devido?: number;
+  reneg_valor_entrada?: number;
+  reneg_parcelas?: number;
+  reneg_responsavel?: string;
+  reneg_responsavel_cpf?: string;
+  reneg_data?: string;
   cliente: {
     id: string;
     nome: string;
@@ -82,6 +91,62 @@ export default function CasosPage() {
       console.error(e);
     }
   };
+
+  // ── Renegociação (dificuldade financeira) ───────────────────────────────────
+  const [reneg, setReneg] = useState<Caso | null>(null);
+  const [renegForm, setRenegForm] = useState<any>({});
+  const [renegSaving, setRenegSaving] = useState(false);
+  const [renegErr, setRenegErr] = useState('');
+
+  const abrirRenegociacao = (c: Caso) => {
+    setRenegErr('');
+    setRenegForm({
+      reneg_valor_devido: c.reneg_valor_devido ?? '',
+      reneg_valor_entrada: c.reneg_valor_entrada ?? '',
+      reneg_parcelas: c.reneg_parcelas ?? '',
+      reneg_responsavel: c.reneg_responsavel ?? '',
+      reneg_responsavel_cpf: c.reneg_responsavel_cpf ?? '',
+      reneg_como_mantido: c.reneg_como_mantido ?? '',
+      reneg_resultado: c.reneg_resultado ?? '',
+      reneg_data: c.reneg_data ? c.reneg_data.slice(0, 10) : new Date().toISOString().slice(0, 10),
+    });
+    setReneg(c);
+  };
+
+  const salvarRenegociacao = async (): Promise<boolean> => {
+    if (!reneg) return false;
+    setRenegSaving(true);
+    setRenegErr('');
+    try {
+      await apiClient.salvarRenegociacao(reneg.id, { ...renegForm, reneg_ativa: true });
+      await fetchCasos();
+      return true;
+    } catch (e: any) {
+      setRenegErr(e?.response?.data?.message || 'Erro ao salvar renegociação');
+      return false;
+    } finally {
+      setRenegSaving(false);
+    }
+  };
+
+  const gerarTermoPdf = async () => {
+    if (!renegForm.reneg_valor_devido || Number(renegForm.reneg_valor_devido) <= 0) {
+      setRenegErr('Informe o valor devido antes de gerar o documento.'); return;
+    }
+    if (!renegForm.reneg_responsavel || !renegForm.reneg_responsavel_cpf) {
+      setRenegErr('Informe o responsável e o CPF antes de gerar o documento.'); return;
+    }
+    const ok = await salvarRenegociacao(); // salva antes de gerar p/ refletir os campos
+    if (ok && reneg) window.open(apiClient.renegociacaoPdfUrl(reneg.id), '_blank');
+  };
+
+  // Cálculo do saldo/parcelas (preview no modal)
+  const rDevido = Number(renegForm.reneg_valor_devido) || 0;
+  const rEntrada = Number(renegForm.reneg_valor_entrada) || 0;
+  const rParcelas = Number(renegForm.reneg_parcelas) || 0;
+  const rSaldo = Math.max(0, rDevido - rEntrada);
+  const rValorParcela = rParcelas > 0 ? rSaldo / rParcelas : 0;
+  const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   if (loading || !isAuthenticated) {
     return (
@@ -206,15 +271,28 @@ export default function CasosPage() {
                       {new Date(caso.created_at).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <select
-                        value={caso.status}
-                        onChange={e => handleUpdateStatus(caso.id, e.target.value)}
-                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
-                      >
-                        {['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO'].map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => abrirRenegociacao(caso)}
+                          title="Renegociar dívida (dificuldade financeira)"
+                          className={`text-sm px-2.5 py-1 rounded-lg border font-medium transition-colors whitespace-nowrap ${
+                            caso.reneg_ativa
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          💰 {caso.reneg_ativa ? 'Acordo' : 'Renegociar'}
+                        </button>
+                        <select
+                          value={caso.status}
+                          onChange={e => handleUpdateStatus(caso.id, e.target.value)}
+                          className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                          {['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO'].map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -236,6 +314,168 @@ export default function CasosPage() {
           </div>
         )}
       </div>
+
+      {/* ── Modal de Renegociação (dificuldade financeira) ───────────────────── */}
+      {reneg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReneg(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* header */}
+            <div className="flex items-start justify-between gap-4 p-6 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">💰 Renegociação de dívida</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {reneg.cliente?.nome}{reneg.cliente?.empresa ? ` — ${reneg.cliente.empresa}` : ''}
+                </p>
+              </div>
+              <button onClick={() => setReneg(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {renegErr && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{renegErr}</div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-700">
+                Registre o acordo feito com o cliente. Os campos de parcelamento aparecem ao informar o <b>valor devido</b>.
+                Ao final, gere o <b>termo de renegociação (PDF)</b> para formalizar e assinar.
+              </div>
+
+              {/* valores */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor devido (R$) *</label>
+                  <input
+                    type="number" min="0" step="0.01" inputMode="decimal"
+                    value={renegForm.reneg_valor_devido}
+                    onChange={e => setRenegForm((f: any) => ({ ...f, reneg_valor_devido: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="0,00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Entrada (R$)</label>
+                  <input
+                    type="number" min="0" step="0.01" inputMode="decimal"
+                    value={renegForm.reneg_valor_entrada}
+                    onChange={e => setRenegForm((f: any) => ({ ...f, reneg_valor_entrada: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="0,00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data do acordo</label>
+                  <input
+                    type="date"
+                    value={renegForm.reneg_data}
+                    onChange={e => setRenegForm((f: any) => ({ ...f, reneg_data: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* parcelas — só quando há valor devido informado */}
+              {rDevido > 0 && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas restantes</label>
+                      <select
+                        value={renegForm.reneg_parcelas}
+                        onChange={e => setRenegForm((f: any) => ({ ...f, reneg_parcelas: e.target.value }))}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      >
+                        <option value="">À vista / sem parcelar</option>
+                        {[1, 2, 3, 4, 5, 6].map(n => (
+                          <option key={n} value={n}>{n}x</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="text-sm text-gray-600 space-y-0.5">
+                      <p>Saldo a parcelar: <b className="text-gray-900">{fmtBRL(rSaldo)}</b></p>
+                      {rParcelas > 0 && (
+                        <p>{rParcelas}x de <b className="text-emerald-700">{fmtBRL(rValorParcela)}</b></p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* responsável */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Responsável (nome completo) *</label>
+                  <input
+                    type="text"
+                    value={renegForm.reneg_responsavel}
+                    onChange={e => setRenegForm((f: any) => ({ ...f, reneg_responsavel: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Quem assina o acordo"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CPF do responsável *</label>
+                  <input
+                    type="text"
+                    value={renegForm.reneg_responsavel_cpf}
+                    onChange={e => setRenegForm((f: any) => ({ ...f, reneg_responsavel_cpf: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+              </div>
+
+              {/* contexto de retenção */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">O que foi feito para manter o cliente?</label>
+                <textarea
+                  rows={2}
+                  value={renegForm.reneg_como_mantido}
+                  onChange={e => setRenegForm((f: any) => ({ ...f, reneg_como_mantido: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Ex.: desconto temporário, parcelamento do débito, troca de plano…"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Como ficou após a renegociação?</label>
+                <textarea
+                  rows={2}
+                  value={renegForm.reneg_resultado}
+                  onChange={e => setRenegForm((f: any) => ({ ...f, reneg_resultado: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Ex.: cliente mantido no plano Pro, débito quitado em 3x, relação normalizada."
+                />
+              </div>
+            </div>
+
+            {/* footer */}
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 p-6 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
+              <button
+                onClick={() => setReneg(null)}
+                className="px-4 py-2.5 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Fechar
+              </button>
+              <button
+                onClick={async () => { const ok = await salvarRenegociacao(); if (ok) setReneg(null); }}
+                disabled={renegSaving}
+                className="px-5 py-2.5 bg-white border border-blue-600 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors font-medium"
+              >
+                {renegSaving ? 'Salvando…' : 'Salvar acordo'}
+              </button>
+              <button
+                onClick={gerarTermoPdf}
+                disabled={renegSaving}
+                className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors font-medium"
+              >
+                📄 Gerar termo (PDF)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

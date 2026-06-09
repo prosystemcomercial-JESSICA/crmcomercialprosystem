@@ -157,6 +157,16 @@ class ApiClient {
     return this.client.patch(`/casos-churn/${id}`, data);
   }
 
+  // Renegociação por dificuldade financeira (acordo de pagamento do caso de churn).
+  async salvarRenegociacao(casoId: string, data: any) {
+    return this.client.patch(`/casos-churn/${casoId}/renegociacao`, data);
+  }
+
+  // URL do termo de renegociação (PDF, abre em nova aba — endpoint público como o do contrato).
+  renegociacaoPdfUrl(casoId: string) {
+    return `${this.client.defaults.baseURL}/casos-churn/${casoId}/renegociacao/pdf`;
+  }
+
   // Diagnosis endpoints
   async createDiagnosis(casoId: string, factors: any) {
     return this.client.post(`/casos/${casoId}/diagnostico`, factors);
