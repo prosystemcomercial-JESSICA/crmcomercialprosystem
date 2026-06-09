@@ -375,9 +375,9 @@ export default function WhatsappPage() {
 
         {/* Inbox — estilo WhatsApp Web */}
         {configurado && status === 'CONECTADO' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm h-[calc(100vh-210px)]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm" style={{ height: 'min(72vh, 720px)' }}>
             {/* Lista de conversas */}
-            <div className={`bg-white flex flex-col border-r border-gray-200 ${ativa ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`bg-white flex flex-col border-r border-gray-200 min-h-0 ${ativa ? 'hidden md:flex' : 'flex'}`}>
               <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
                 <span className="text-white font-semibold">Conversas</span>
                 <span className="ml-auto text-xs text-green-100">{conversas.length}</span>
@@ -395,7 +395,7 @@ export default function WhatsappPage() {
                     className="text-white rounded-lg px-3 text-sm font-bold" style={{ background: '#128C7E' }}>+</button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {conversasFiltradas.length === 0 && <p className="text-center text-gray-400 text-sm p-6">Nenhuma conversa</p>}
                 {conversasFiltradas.map(c => (
                   <button key={c.id} onClick={() => abrir(c)}
@@ -422,7 +422,7 @@ export default function WhatsappPage() {
             </div>
 
             {/* Janela de chat */}
-            <div className={`md:col-span-2 flex flex-col ${ativa ? 'flex' : 'hidden md:flex'}`}
+            <div className={`md:col-span-2 flex flex-col min-h-0 ${ativa ? 'flex' : 'hidden md:flex'}`}
               style={{ background: '#ECE5DD' }}>
               {!ativa ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-400" style={{ background: '#F0F2F5' }}>
@@ -472,7 +472,7 @@ export default function WhatsappPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-1.5"
+                  <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5"
                     style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M0 0h40v40H0z%22 fill=%22%23ECE5DD%22/%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%221%22 fill=%22%23D9D2C9%22/%3E%3C/svg%3E")' }}>
                     {mensagens.map(m => (
                       <div key={m.id} className={`flex ${m.direcao === 'SAIDA' ? 'justify-end' : 'justify-start'}`}>
