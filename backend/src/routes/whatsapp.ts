@@ -450,12 +450,16 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
-    // Tira o prefixo data:...;base64, se vier (a Evolution aceita base64 puro).
-    const b64 = body.data.audio_base64.replace(/^data:[^;]+;base64,/, '');
+    // O front manda um data URL (data:<mime>;base64,<...>). A Evolution aceita o
+    // data URL inteiro no campo `audio` — passamos como veio (com o mime real do
+    // navegador, normalmente webm/opus ou ogg/opus). Guardamos o data URL para
+    // tocar no próprio Inbox.
+    const raw = body.data.audio_base64.trim();
+    const dataUrl = raw.startsWith('data:') ? raw : `data:audio/ogg;base64,${raw}`;
 
     let externo_id: string | undefined;
     try {
-      const r = await evo.enviarAudio(conversa.instancia.instancia_nome, conversa.contato_numero, b64);
+      const r = await evo.enviarAudio(conversa.instancia.instancia_nome, conversa.contato_numero, dataUrl);
       externo_id = r.externo_id;
     } catch (err: any) {
       return reply.status(502).send({ status: 'error', message: `Falha ao enviar áudio: ${err.message}` });
@@ -468,7 +472,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         direcao: 'SAIDA',
         tipo: 'AUDIO',
         conteudo: '[áudio]',
-        midia_url: `data:audio/ogg;base64,${b64}`, // p/ tocar no próprio Inbox
+        midia_url: dataUrl, // p/ tocar no próprio Inbox
         status: 'ENVIADA',
         enviada_por: user?.id,
       },

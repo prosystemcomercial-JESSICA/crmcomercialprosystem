@@ -13,7 +13,7 @@ import {
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun, User,
-  MessageSquare, Shield, ClipboardList, BookOpen, Wrench,
+  MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
 } from 'lucide-react';
 
 // Cargos do CRM
@@ -133,6 +133,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   type Alerta = { id: string; tipo: string; urgencia: string; titulo: string; descricao: string; link: string };
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [alertasOpen, setAlertasOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // drawer mobile
+  useEffect(() => { setSidebarOpen(false); }, [pathname]); // fecha ao navegar
   const [seen, setSeen] = useState<Set<string>>(new Set());
   const bellRef = useRef<HTMLDivElement>(null);
 
@@ -239,10 +241,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
 
       {/* ── Topbar ─────────────────────────────────────────── */}
-      <header className="ps-topbar flex-shrink-0 flex items-center justify-between px-5 h-16">
+      <header className="ps-topbar flex-shrink-0 flex items-center justify-between px-3 sm:px-5 h-16 gap-2">
+
+        {/* Botão menu (mobile) — abre o drawer da sidebar */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Abrir menu"
+          className="md:hidden flex-shrink-0 p-2 rounded-lg"
+          style={{ color: 'var(--t-text-primary)' }}>
+          <Menu size={22} />
+        </button>
 
         {/* Logo área — responsivo */}
-        <Link href="/dashboard" className="flex items-center gap-3 select-none group" style={{ minWidth: 180 }}>
+        <Link href="/dashboard" className="flex items-center gap-3 select-none group flex-shrink-0" style={{ minWidth: 0 }}>
           <div style={{
             position: 'relative',
             width: 44, height: 44, borderRadius: 10,
@@ -460,12 +471,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* ── Body: Sidebar + Content ────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
 
-        {/* Sidebar */}
+        {/* Overlay escuro atrás do drawer (mobile) */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden fixed inset-0 bg-black/50"
+            style={{ zIndex: 60 }}
+          />
+        )}
+
+        {/* Sidebar — fixa no desktop; drawer deslizante no mobile */}
         <aside
-          className="ps-sidebar w-56 flex-shrink-0 flex flex-col overflow-y-auto"
+          className={`ps-sidebar w-56 flex-shrink-0 flex flex-col overflow-y-auto
+            fixed md:static inset-y-0 left-0 z-[70] md:z-auto
+            transform transition-transform duration-200 md:transform-none
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         >
+          {/* Botão fechar (mobile) */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Fechar menu"
+            className="md:hidden absolute top-3 right-3 p-1.5 rounded-lg z-10"
+            style={{ color: 'var(--t-sidebar-text)' }}>
+            <XIcon size={20} />
+          </button>
           {/* Logo marca no sidebar — destaque extra */}
           <div style={{
             padding: '20px 16px 12px',
@@ -581,7 +612,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main content */}
         <main className="ps-content flex-1 overflow-auto min-h-0">
-          <div className="p-6 lg:p-8 h-full">
+          <div className="p-3 sm:p-6 lg:p-8 h-full">
             {children}
           </div>
         </main>

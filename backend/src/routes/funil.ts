@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
+import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN'];
 const SUPERVISAO = [...GESTORES, 'SUPERVISAO_TECNICA'];
@@ -511,6 +512,16 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
         porVendedor[v].perdidos_mes++;
       }
     }
+
+    // Resolve o NOME de cada vendedor (UsuarioCRM + contas de sistema) — o quadro
+    // mostra o nome, nunca o id/código.
+    const ids = Object.keys(porVendedor).filter(id => id !== 'sem_responsavel');
+    const nomes = await resolverNomesUsuarios(prisma, ids).catch(() => ({} as Record<string, string>));
+    Object.values(porVendedor).forEach((v: any) => {
+      v.vendedor_nome = v.vendedor_id === 'sem_responsavel'
+        ? 'Sem responsável'
+        : (nomes[v.vendedor_id] || 'Usuário');
+    });
 
     const ranking = Object.values(porVendedor).sort((a: any, b: any) => b.vendido_mes - a.vendido_mes);
 

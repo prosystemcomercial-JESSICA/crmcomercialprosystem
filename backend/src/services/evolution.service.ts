@@ -128,12 +128,15 @@ export async function enviarTexto(
 export async function enviarAudio(
   instanciaNome: string,
   numero: string,
-  audioBase64: string,
+  audioDataUrlOuBase64: string,
 ): Promise<{ externo_id?: string }> {
+  // A Evolution (sendWhatsAppAudio) aceita o conteúdo em `audio` como data URL
+  // (data:<mime>;base64,...) OU base64 puro. NÃO enviamos `encoding:true` —
+  // esse flag faz a Evolution exigir um file/buffer e devolve 400
+  // ("Owned media must be a url, base64, or valid file with buffer").
   const data = await call(`/message/sendWhatsAppAudio/${encodeURIComponent(instanciaNome)}`, 'POST', {
     number: normalizarNumero(numero),
-    audio: audioBase64,
-    encoding: true,
+    audio: audioDataUrlOuBase64,
   });
   const externo_id = data?.key?.id || data?.id;
   return { externo_id };
