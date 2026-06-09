@@ -1024,6 +1024,11 @@ class ApiClient {
     return this.client.post(`/whatsapp/conversas/${conversaId}/enviar`, { texto });
   }
 
+  // Envia um áudio gravado no Inbox (mensagem de voz). audio_base64 = data URL ou base64 puro.
+  async enviarWhatsappAudio(conversaId: string, audio_base64: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/audio`, { audio_base64 });
+  }
+
   // Forecast de receita ponderado
   async getForecast() {
     return this.client.get('/dashboard/forecast');

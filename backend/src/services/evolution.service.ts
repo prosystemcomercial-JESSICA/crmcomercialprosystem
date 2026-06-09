@@ -121,6 +121,25 @@ export async function enviarTexto(
 }
 
 /**
+ * Envia um áudio (gravado no Inbox) como mensagem de voz (PTT).
+ * `audioBase64` é o conteúdo do áudio em base64 (sem o prefixo data:).
+ * A Evolution aceita base64 puro ou data URL no campo `audio`.
+ */
+export async function enviarAudio(
+  instanciaNome: string,
+  numero: string,
+  audioBase64: string,
+): Promise<{ externo_id?: string }> {
+  const data = await call(`/message/sendWhatsAppAudio/${encodeURIComponent(instanciaNome)}`, 'POST', {
+    number: normalizarNumero(numero),
+    audio: audioBase64,
+    encoding: true,
+  });
+  const externo_id = data?.key?.id || data?.id;
+  return { externo_id };
+}
+
+/**
  * Baixa a mídia de uma mensagem como base64 (imagem/áudio/documento).
  * A url crua do WhatsApp é criptografada; este endpoint devolve o conteúdo real.
  * `mensagemKey` é o objeto data.key recebido no webhook.

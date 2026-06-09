@@ -6,9 +6,14 @@ import { ownerWhere } from '@/lib/scope';
 
 const STATUS = ['PENDENTE', 'CONFIRMADA', 'REALIZADA', 'CANCELADA', 'REMARCADA', 'CLIENTE_NAO_COMPARECEU', 'AGUARDANDO_RETORNO'] as const;
 const TIPOS = ['LIGACAO', 'EMAIL', 'REUNIAO', 'WHATSAPP', 'VISITA', 'TAREFA', 'OUTRO'] as const;
+const VINCULO_TIPOS = ['LEAD', 'PARCEIRO', 'INTERNO', 'MARKETING', 'EXTERNO', 'NENHUM'] as const;
 
 const CreateAtividadeSchema = z.object({
-  lead_id: z.string().min(1),
+  // lead_id é opcional: compromisso pode ser com parceiro/interno/marketing ou sem vínculo
+  lead_id: z.string().optional().nullable(),
+  vinculo_tipo: z.enum(VINCULO_TIPOS).optional(),
+  vinculo_nome: z.string().optional(),
+  link_externo: z.string().optional(),
   tipo: z.enum(TIPOS),
   titulo: z.string().min(1),
   descricao: z.string().optional(),
@@ -17,10 +22,22 @@ const CreateAtividadeSchema = z.object({
   data_prevista: z.string().datetime().optional(),
   google_meet_link: z.string().optional(),
   convidados_ids: z.array(z.string()).optional()
-});
+}).refine(
+  // Se for LEAD, exige lead_id; senão exige um nome do vínculo (exceto NENHUM).
+  (d) => {
+    const t = d.vinculo_tipo || (d.lead_id ? 'LEAD' : 'NENHUM');
+    if (t === 'LEAD') return !!d.lead_id;
+    if (t === 'NENHUM') return true;
+    return !!(d.vinculo_nome && d.vinculo_nome.trim());
+  },
+  { message: 'Informe o lead ou o nome do vínculo do compromisso' }
+);
 
 const UpdateAtividadeSchema = z.object({
   titulo: z.string().optional(),
+  vinculo_tipo: z.enum(VINCULO_TIPOS).optional(),
+  vinculo_nome: z.string().optional(),
+  link_externo: z.string().optional(),
   descricao: z.string().optional(),
   resumo_reuniao: z.string().optional(),
   status: z.enum(STATUS).optional(),
@@ -167,6 +184,9 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
       created_by: userId,
       responsavel_id: body.data.responsavel_id || userId
     };
+    // Normaliza vínculo: sem lead_id → não é LEAD; string vazia vira null.
+    if (!data.lead_id) data.lead_id = null;
+    if (!data.vinculo_tipo) data.vinculo_tipo = data.lead_id ? 'LEAD' : 'NENHUM';
     if (data.data_prevista) data.data_prevista = new Date(data.data_prevista);
     if (data.convidados_ids !== undefined) data.convidados_ids = data.convidados_ids;
 

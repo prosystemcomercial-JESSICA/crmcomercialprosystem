@@ -716,9 +716,17 @@ model ExecucaoTecnica {
 }
 
 model Atividade {
-  id      String @id @default(cuid())
-  lead_id String
-  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  id      String  @id @default(cuid())
+  // lead_id agora é OPCIONAL: o compromisso pode não estar ligado a nenhum lead
+  // (compromisso interno, com parceiro externo, marketing, ou sem vínculo).
+  lead_id String?
+  lead    Lead?   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  // Vínculo do compromisso quando NÃO é um lead do funil.
+  // vinculo_tipo: LEAD | PARCEIRO | INTERNO | MARKETING | EXTERNO | NENHUM
+  vinculo_tipo String? @default("LEAD")
+  vinculo_nome String? // ex.: "Skytef (Fiserv)", "Reunião geral", "Marketing"
+  link_externo String? // link de reunião enviado pelo parceiro (Meet/Zoom/Teams)
 
   tipo      String // LIGACAO|EMAIL|REUNIAO|WHATSAPP|VISITA|TAREFA|OUTRO
   titulo    String
