@@ -97,6 +97,19 @@ model CasoChurn {
   risk_score       Float   @default(0)
   motivo_principal String?
 
+  // ── Renegociação por dificuldade financeira (aditivo) ───────────────────────
+  // Preenchido quando o caso vira uma renegociação de débito. Os campos de
+  // parcelamento só são exigidos/mostrados no front quando reneg_ativa = true.
+  reneg_ativa           Boolean   @default(false)
+  reneg_como_mantido    String?   @db.Text // o que foi feito p/ manter o cliente
+  reneg_resultado       String?   @db.Text // como ficou após a renegociação
+  reneg_valor_devido    Float?    // total devido antes do acordo
+  reneg_valor_entrada   Float?    // entrada paga no ato do acordo
+  reneg_parcelas        Int?      // nº de parcelas restantes (1 a 6)
+  reneg_responsavel     String?   // nome completo do responsável que assina
+  reneg_responsavel_cpf String?   // CPF do responsável
+  reneg_data            DateTime? // data do acordo
+
   created_by String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

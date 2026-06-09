@@ -48,6 +48,7 @@ export default function NovoCasoPage() {
   };
 
   const motivos = [
+    'Dificuldade financeira',
     'Preço elevado',
     'Falta de suporte técnico',
     'Sistema lento',

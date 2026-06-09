@@ -24,7 +24,8 @@ const vfs: Record<string, string> =
   (vfsMod.pdfMake && vfsMod.pdfMake.vfs) || vfsMod.vfs || vfsMod.default || vfsMod;
 
 const fontBuffer = (k: string) => Buffer.from(vfs[k], 'base64');
-const FONTS = {
+export const PdfPrinterRef = PdfPrinter;
+export const FONTS = {
   Roboto: {
     normal: fontBuffer('Roboto-Regular.ttf'),
     bold: fontBuffer('Roboto-Medium.ttf'),
@@ -34,7 +35,8 @@ const FONTS = {
 };
 
 // ── Dados fixos da CONTRATADA (idênticos em todos os modelos) ───────────────
-const CONTRATADA = {
+// Exportados para reúso pelo gerador do termo de renegociação (mesma identidade).
+export const CONTRATADA = {
   razao: 'SOLUTION DESENVOLVIMENTO DE SOFTWARE LTDA',
   sede: 'AV. PROF. FERNANDO DUARTE RABELO, 330, LOJA 02 - SEGURANÇA DO LAR - VITÓRIA E.S.',
   cnpj: '09.559.678/0001-83',
@@ -46,7 +48,7 @@ const CONTRATADA = {
 const SOFTWARE = 'SOLUTION - FRENTE DE LOJA';
 
 // ── Identidade visual Prosystem (cabeçalho/rodapé) ──────────────────────────
-const BRAND = {
+export const BRAND = {
   azulEscuro: '#1B5FAA',
   ciano: '#28A9E0',
   cinzaTexto: '#3A3A3A',
@@ -56,11 +58,11 @@ const BRAND = {
   bairroCidade: 'Goiabeiras - Vitória/ES',
 };
 
-const PAGE_W = 595.28; // A4 em pt
-const MARGEM_X = 48;
+export const PAGE_W = 595.28; // A4 em pt
+export const MARGEM_X = 48;
 
 // Cabeçalho desenhado em cada página: barras azuis + logo PROSYSTEM + site.
-function buildHeader() {
+export function buildHeader() {
   return {
     margin: [0, 0, 0, 0],
     stack: [
@@ -110,7 +112,7 @@ function buildHeader() {
 }
 
 // Rodapé desenhado em cada página: contatos + endereço + barra azul + paginação.
-function buildFooter(currentPage: number, pageCount: number) {
+export function buildFooter(currentPage: number, pageCount: number) {
   return {
     margin: [0, 0, 0, 0],
     stack: [
@@ -164,7 +166,7 @@ const EXT_PARCELAS = ['zero', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis',
   'sete', 'oito', 'nove', 'dez', 'onze', 'doze'];
 
 // Primeira letra maiúscula (espelha o modelo: "(Trezentos reais)", "(Novecentos reais)").
-function capExt(v: number): string {
+export function capExt(v: number): string {
   const s = numPorExtenso(v);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
