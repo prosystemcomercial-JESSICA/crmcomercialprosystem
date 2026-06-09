@@ -366,7 +366,7 @@ export async function funilRoutes(fastify: FastifyInstance, options: { prisma: P
     const now = new Date();
     const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const baseFilter: any = {};
+    const baseFilter: any = { deleted_at: null }; // excluídos não contam nas métricas
     if (vendedor) baseFilter.responsavel_id = user?.id || '__no_user__';
 
     // Pipeline ativo: etapas ANDAMENTO

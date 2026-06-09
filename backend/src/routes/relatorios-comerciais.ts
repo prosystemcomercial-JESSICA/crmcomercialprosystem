@@ -54,10 +54,10 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
       propostasStatus,
       atividadesTipo
     ] = await Promise.all([
-      prisma.lead.groupBy({ by: ['origem'], _count: { id: true } }),
-      prisma.lead.groupBy({ by: ['temperatura'], _count: { id: true }, where: { status: { notIn: ['GANHO', 'PERDIDO'] } } }),
-      prisma.lead.groupBy({ by: ['etapa_funil'], _count: { id: true }, _sum: { valor_estimado: true }, where: { status: { notIn: ['GANHO', 'PERDIDO'] } } }),
-      prisma.lead.groupBy({ by: ['estado'], _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 8, where: { estado: { not: null } } }),
+      prisma.lead.groupBy({ by: ['origem'], _count: { id: true }, where: { deleted_at: null } }),
+      prisma.lead.groupBy({ by: ['temperatura'], _count: { id: true }, where: { deleted_at: null, status: { notIn: ['GANHO', 'PERDIDO'] } } }),
+      prisma.lead.groupBy({ by: ['etapa_funil'], _count: { id: true }, _sum: { valor_estimado: true }, where: { deleted_at: null, status: { notIn: ['GANHO', 'PERDIDO'] } } }),
+      prisma.lead.groupBy({ by: ['estado'], _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 8, where: { deleted_at: null, estado: { not: null } } }),
       prisma.proposta.groupBy({ by: ['status'], _count: { id: true }, _sum: { valor: true } }),
       prisma.atividade.groupBy({ by: ['tipo'], _count: { id: true } })
     ]);
@@ -93,14 +93,14 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     const vendedoresPerf = await prisma.lead.groupBy({
       by: ['responsavel_id'],
       _count: { id: true },
-      where: { status: 'GANHO', responsavel_id: { not: null } }
+      where: { deleted_at: null, status: 'GANHO', responsavel_id: { not: null } }
     });
 
     // Taxa de conversão: leads ganhos / total por origem
     const leadsGanhosPorOrigem = await prisma.lead.groupBy({
       by: ['origem'],
       _count: { id: true },
-      where: { status: 'GANHO' }
+      where: { deleted_at: null, status: 'GANHO' }
     });
 
     const ETAPA_ORDER = ['PROSPECCAO','QUALIFICACAO','APRESENTACAO','PROPOSTA','NEGOCIACAO','FECHAMENTO'];
@@ -366,6 +366,7 @@ export async function relatoriosComerciais(fastify: FastifyInstance, options: { 
     // Leads qualificados por vendedor no mês
     const leadsQual = await prisma.lead.findMany({
       where: {
+        deleted_at: null,
         status: 'GANHO',
         updated_at: { gte: inicioMes, lte: fimMes }
       },
