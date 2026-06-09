@@ -251,15 +251,32 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // Define/limpa a etiqueta de organização da conversa (Padaria, Farmácia, etc.).
+  // Tipos de atendimento que NÃO são lead comercial → desvinculam do funil ao marcar.
+  const TIPOS_NAO_COMERCIAIS = ['Financeiro', 'Renegociação', 'Serviço', 'Parceiro', 'Pessoal', 'Suporte'];
+
   fastify.patch('/whatsapp/conversas/:id/etiqueta', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({ etiqueta: z.string().optional(), etiqueta_cor: z.string().optional() }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
-    const upd = await prisma.whatsappConversa.update({
-      where: { id }, data: { etiqueta: body.data.etiqueta || null, etiqueta_cor: body.data.etiqueta_cor || '#6b7280' },
-    });
+
+    const etiqueta = body.data.etiqueta || null;
+    const data: any = { etiqueta, etiqueta_cor: body.data.etiqueta_cor || '#6b7280' };
+
+    // Tipo não-comercial → desvincula do funil (não conta como lead) e desliga o bot.
+    if (etiqueta && TIPOS_NAO_COMERCIAIS.includes(etiqueta)) {
+      data.bot_ativo = false; data.bot_estado = null;
+      if (conversa.lead_id) {
+        const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { origem: true } }).catch(() => null);
+        if (lead?.origem === 'WHATSAPP') {
+          await prisma.lead.update({ where: { id: conversa.lead_id }, data: { deleted_at: new Date() as any } }).catch(() => {});
+        }
+        data.lead_id = null;
+      }
+    }
+
+    const upd = await prisma.whatsappConversa.update({ where: { id }, data });
     return reply.send({ status: 'success', data: upd });
   });
 
@@ -592,13 +609,23 @@ async function processarBot(
     return;
   }
 
-  // 2) Já é cliente?
+  // 2) Já é cliente? Valida a resposta (1/2/sim/não); senão re-pergunta.
   if (conversa.bot_estado === 'AGUARDA_CLIENTE') {
-    const jaCliente = tl.startsWith('1') || tl.includes('sim') || tl.includes('sou cliente');
+    const disseSim = tl.startsWith('1') || /\b(sim|sou|já sou|ja sou|cliente)\b/.test(tl);
+    const disseNao = tl.startsWith('2') || /\b(n[aã]o|ainda n|quero conhecer|conhecer)\b/.test(tl);
+    if (!disseSim && !disseNao) {
+      // Resposta não reconhecida → re-pergunta de forma objetiva (não avança).
+      await responder(
+        'Só para eu entender melhor 🙂 — você *já é cliente* da ProSystem?\n' +
+        'Responda com *1* (já sou cliente) ou *2* (quero conhecer).',
+        'AGUARDA_CLIENTE',
+      );
+      return;
+    }
     if (leadId) {
       await prisma.lead.update({
         where: { id: leadId },
-        data: { observacoes_comerciais: jaCliente ? 'WhatsApp: já é cliente ProSystem.' : 'WhatsApp: lead novo (ainda não é cliente).' },
+        data: { observacoes_comerciais: disseSim ? 'WhatsApp: já é cliente ProSystem.' : 'WhatsApp: lead novo (ainda não é cliente).' },
       }).catch(() => {});
     }
     await responder(
@@ -609,9 +636,17 @@ async function processarBot(
     return;
   }
 
-  // 3) Segmento → grava no lead.
+  // 3) Segmento → valida (texto com pelo menos 2 letras); senão re-pergunta.
   if (conversa.bot_estado === 'AGUARDA_SEGMENTO') {
-    if (leadId && t) {
+    const valido = t.replace(/[^a-zA-ZÀ-ÿ]/g, '').length >= 2; // tem palavra de verdade
+    if (!valido) {
+      await responder(
+        'Pode me dizer o *segmento* do seu negócio? Ex.: Farmácia, Padaria, Supermercado, Varejo…',
+        'AGUARDA_SEGMENTO',
+      );
+      return;
+    }
+    if (leadId) {
       await prisma.lead.update({ where: { id: leadId }, data: { segmento: t.slice(0, 80) } }).catch(() => {});
     }
     await responder(
@@ -621,8 +656,16 @@ async function processarBot(
     return;
   }
 
-  // 4) Nome da empresa → grava e encerra o bot, passando para um consultor.
+  // 4) Nome da empresa → valida (>=2 letras); senão re-pergunta. Depois encerra.
   if (conversa.bot_estado === 'AGUARDA_NOME') {
+    const valido = t.replace(/[^a-zA-ZÀ-ÿ0-9]/g, '').length >= 2;
+    if (!valido) {
+      await responder(
+        'Quase lá! Qual é o *nome da sua empresa* (razão social ou nome fantasia)?',
+        'AGUARDA_NOME',
+      );
+      return;
+    }
     if (leadId && t) {
       await prisma.lead.update({
         where: { id: leadId },
