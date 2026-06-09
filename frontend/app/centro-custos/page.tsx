@@ -12,6 +12,8 @@ interface Lancamento {
 }
 interface Resumo {
   total_entradas: number; total_saidas: number; resultado: number;
+  entradas_imediatas?: number; mrr_periodo?: number; mrr_projetado_12m?: number;
+  receita_periodo?: number; resultado_projetado?: number;
   por_categoria: { categoria: string; valor: number }[];
   media_mensalidade: number; media_instalacao: number; qtd_lancamentos: number;
 }
@@ -180,8 +182,28 @@ export default function CentroCustosPage() {
                 <p className="text-2xl font-bold text-red-700">{fmt(resumo?.total_saidas || 0)}</p>
               </div>
               <div className={`rounded-xl p-5 border ${(resumo?.resultado || 0) >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
-                <p className="text-xs text-gray-500">Resultado</p>
+                <p className="text-xs text-gray-500">Resultado do período (caixa)</p>
                 <p className={`text-2xl font-bold ${(resumo?.resultado || 0) >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>{fmt(resumo?.resultado || 0)}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">entradas imediatas + MRR do mês − custos</p>
+              </div>
+            </div>
+
+            {/* Entradas imediatas × MRR projetado */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <p className="text-xs text-gray-500">⚡ Entradas imediatas</p>
+                <p className="text-xl font-bold text-gray-800">{fmt(resumo?.entradas_imediatas || 0)}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">vendas, instalações, serviços (à vista)</p>
+              </div>
+              <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4">
+                <p className="text-xs text-gray-500">🔁 MRR do período</p>
+                <p className="text-xl font-bold text-cyan-700">{fmt(resumo?.mrr_periodo || 0)}/mês</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">mensalidades (novos + acréscimos)</p>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                <p className="text-xs text-gray-500">📈 MRR projetado (12 meses)</p>
+                <p className="text-xl font-bold text-indigo-700">{fmt(resumo?.mrr_projetado_12m || 0)}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">MRR do período × 12</p>
               </div>
             </div>
 
