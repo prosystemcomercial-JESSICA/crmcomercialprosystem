@@ -16,7 +16,7 @@ interface Conversa {
   nao_lidas: number;
   etiqueta?: string | null;
   etiqueta_cor?: string | null;
-  instancia?: { dono_nome?: string | null; numero?: string | null };
+  instancia?: { apelido?: string | null; dono_nome?: string | null; numero?: string | null };
 }
 
 interface Mensagem {
@@ -76,6 +76,7 @@ export default function WhatsappPage() {
   const [menuEtiqueta, setMenuEtiqueta] = useState(false);
   const [menuTransferir, setMenuTransferir] = useState(false);
   const [viewMode, setViewMode] = useState<'inbox' | 'kanban'>('inbox');
+  const [verSupervisao, setVerSupervisao] = useState(false); // gestão: ver conversas de todos
   const [dragConvId, setDragConvId] = useState<string | null>(null);
   const [showReuniao, setShowReuniao] = useState(false);
   const [reuniao, setReuniao] = useState({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
@@ -131,14 +132,17 @@ export default function WhatsappPage() {
 
   const carregarConversas = useCallback(async () => {
     try {
-      const res = await apiClient.getWhatsappConversas(instAtivaId || undefined);
+      // No modo supervisão (gestão), ignora a instância e traz as conversas de todos.
+      const res = verSupervisao
+        ? await apiClient.getWhatsappConversas(undefined, 'todos')
+        : await apiClient.getWhatsappConversas(instAtivaId || undefined);
       setConversas(res.data.data);
     } catch (e) { console.error(e); }
-  }, [instAtivaId]);
+  }, [instAtivaId, verSupervisao]);
 
   useEffect(() => {
     if (status === 'CONECTADO') carregarConversas();
-  }, [status, instAtivaId, carregarConversas]);
+  }, [status, instAtivaId, verSupervisao, carregarConversas]);
 
   // Ao trocar de instância no seletor, atualiza status/qr e recarrega.
   const trocarInstancia = (id: string) => {
@@ -443,6 +447,18 @@ export default function WhatsappPage() {
                 <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'kanban' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'kanban' ? { background: '#128C7E' } : {}}>🗂️ Kanban</button>
               </div>
             )}
+            {/* Visão de supervisão (só gestão): alterna entre "minhas" e "todas". */}
+            {status === 'CONECTADO' && podeTransferir && (
+              <button
+                onClick={() => setVerSupervisao(v => !v)}
+                title="Ver as conversas de todos os vendedores (supervisão)"
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg border ${
+                  verSupervisao ? 'text-white border-transparent' : 'text-gray-600 bg-white border-gray-200'
+                }`}
+                style={verSupervisao ? { background: '#2E6EAB' } : {}}>
+                {verSupervisao ? '👁️ Todas (supervisão)' : '👤 Minhas'}
+              </button>
+            )}
             <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
               status === 'CONECTADO' ? 'bg-green-50 text-green-700 border border-green-200'
               : status === 'CONECTANDO' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
@@ -565,6 +581,11 @@ export default function WhatsappPage() {
                       </div>
                       {c.etiqueta && (
                         <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
+                      )}
+                      {verSupervisao && c.instancia?.dono_nome && (
+                        <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#E5EEF7', color: '#2E6EAB' }}>
+                          👤 {c.instancia.dono_nome}
+                        </span>
                       )}
                     </div>
                   </button>

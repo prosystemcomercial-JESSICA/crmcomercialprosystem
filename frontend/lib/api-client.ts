@@ -971,8 +971,11 @@ class ApiClient {
     return this.client.post('/whatsapp/desconectar');
   }
 
-  async getWhatsappConversas(instanciaId?: string) {
-    return this.client.get('/whatsapp/conversas', { params: instanciaId ? { instanciaId } : {} });
+  async getWhatsappConversas(instanciaId?: string, escopo?: 'todos') {
+    const params: any = {};
+    if (instanciaId) params.instanciaId = instanciaId;
+    if (escopo) params.escopo = escopo;
+    return this.client.get('/whatsapp/conversas', { params });
   }
   // Multi-instância
   async getWhatsappInstancias() {
