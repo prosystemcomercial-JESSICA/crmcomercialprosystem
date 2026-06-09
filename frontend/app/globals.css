@@ -89,17 +89,19 @@
   --t-primary-border: #C3DCFC;
   --t-primary-muted:  #7AAACB;
 
-  /* Sidebar */
-  /* Sidebar em azul do design system (degradê claro definido em .ps-sidebar). */
-  --t-sidebar-bg:           #3D7CC9; /* azul médio da marca */
-  --t-sidebar-bg-top:       #4B8EC8; /* topo do degradê (mais claro) */
-  --t-sidebar-bg-bottom:    #2E6EAB; /* base do degradê (mais profundo) */
-  --t-sidebar-border:       #2E6EAB;
-  --t-sidebar-hover:        rgba(255,255,255,0.12);
-  --t-sidebar-active:       rgba(255,255,255,0.20);
-  --t-sidebar-active-border:#FFFFFF;
+  /* Sidebar — degradê diagonal da paleta Prosystem (claro → marinho).
+     As 4 paradas do gradiente ficam em variáveis p/ ajuste fácil. */
+  --t-sidebar-bg:           #2E6EAB; /* fallback (cor sólida) */
+  --t-sidebar-grad-1:       #4B8EC8; /* topo (mais claro) */
+  --t-sidebar-grad-2:       #2E6EAB;
+  --t-sidebar-grad-3:       #1A4E82;
+  --t-sidebar-grad-4:       #0D2C52; /* base (azul-marinho profundo) */
+  --t-sidebar-border:       #1A4E82;
+  --t-sidebar-hover:        rgba(255,255,255,0.13);
+  --t-sidebar-active:       rgba(255,255,255,0.22);
+  --t-sidebar-active-border:#9FD0FF;
   --t-sidebar-text:         #EAF2FB;
-  --t-sidebar-muted:        #Bcd6f0;
+  --t-sidebar-muted:        #B6D2EF;
   --t-sidebar-footer-bg:    rgba(255,255,255,0.10);
   --t-sidebar-footer-border:rgba(255,255,255,0.18);
 
@@ -450,11 +452,19 @@
    ProSystem Utility Classes
    ═══════════════════════════════════════════════════════════ */
 .ps-sidebar {
-  background: linear-gradient(180deg,
-    var(--t-sidebar-bg-top, var(--t-sidebar-bg)) 0%,
-    var(--t-sidebar-bg-bottom, var(--t-sidebar-bg)) 100%);
+  /* Degradê diagonal rico da paleta Prosystem: azul claro no topo descendo
+     para o azul-marinho profundo, com um leve brilho radial no topo p/ dar
+     profundidade (sensação premium, sem fugir do design system). */
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 42%),
+    linear-gradient(165deg,
+      var(--t-sidebar-grad-1, #4B8EC8) 0%,
+      var(--t-sidebar-grad-2, #2E6EAB) 38%,
+      var(--t-sidebar-grad-3, #1A4E82) 72%,
+      var(--t-sidebar-grad-4, #0D2C52) 100%);
   border-right: 1px solid var(--t-sidebar-border);
-  transition: background 0.25s ease;
+  box-shadow: inset -1px 0 0 rgba(255,255,255,0.06);
+  transition: background 0.3s ease;
 }
 
 .ps-sidebar-item {
@@ -471,6 +481,7 @@
   background-color: var(--t-sidebar-active);
   color: #ffffff;
   border-left-color: var(--t-sidebar-active-border);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10), 0 2px 8px rgba(0,0,0,0.12);
 }
 
 .ps-topbar {
