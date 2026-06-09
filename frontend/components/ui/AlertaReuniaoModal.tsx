@@ -12,33 +12,39 @@ export function AlertaReuniaoModal() {
   const [fila, setFila] = useState<AlertaReuniao[]>([]);
   const [configurando, setConfigurando] = useState(false);
   const [minutosSalvos, setMinutosSalvos] = useState(15);
-  const intervaloSomRef = useRef<NodeJS.Timeout | null>(null);
+  // Quais alertas já tocaram (p/ tocar só ao aparecer, não a cada re-render).
+  const jaTocouRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const salvo = parseInt(localStorage.getItem('crm_alerta_minutos') || '15', 10);
     setMinutosSalvos(salvo);
   }, []);
 
-  // SOM PERSISTENTE — toca a cada 2s enquanto houver fila
+  // Toca o alarme 2 vezes (curto), em vez de incessante (era a cada 2s).
+  const tocarDuasVezes = useCallback(() => {
+    tocarSomAlarme();
+    setTimeout(() => tocarSomAlarme(), 600);
+  }, []);
+
+  // SOM MINIMIZADO: cada alerta toca apenas 2x AO APARECER. Não fica repetindo.
+  // A repetição "após 10 min se nada foi feito" é controlada pelo SNOOZE: ao
+  // dispensar/adiar, o alerta fica silenciado (não volta à fila) por 10 min; o
+  // hook só o reinjeta depois desse tempo, e aí toca 2x de novo. Qualquer ação
+  // do usuário, portanto, suprime a repetição imediata. (Snooze persiste em
+  // localStorage, então sobrevive a refresh — mais confiável que um timer JS.)
   useEffect(() => {
-    if (fila.length > 0) {
-      tocarSomAlarme();
-      intervaloSomRef.current = setInterval(() => {
-        tocarSomAlarme();
-      }, 2000);
-    } else {
-      if (intervaloSomRef.current) {
-        clearInterval(intervaloSomRef.current);
-        intervaloSomRef.current = null;
+    const idsNaFila = new Set(fila.map(a => a.id));
+    fila.forEach(a => {
+      if (!jaTocouRef.current.has(a.id)) {
+        jaTocouRef.current.add(a.id);
+        tocarDuasVezes();
       }
-    }
-    return () => {
-      if (intervaloSomRef.current) {
-        clearInterval(intervaloSomRef.current);
-        intervaloSomRef.current = null;
-      }
-    };
-  }, [fila.length]);
+    });
+    // Alerta saiu da fila → permite tocar de novo quando reaparecer (após snooze).
+    Array.from(jaTocouRef.current).forEach(id => {
+      if (!idsNaFila.has(id)) jaTocouRef.current.delete(id);
+    });
+  }, [fila, tocarDuasVezes]);
 
   const onAlerta = useCallback((alerta: AlertaReuniao) => {
     setFila(prev => {
@@ -69,8 +75,19 @@ export function AlertaReuniaoModal() {
 
   useAlertaReuniao(isAuthenticated ? onAlerta : () => {});
 
+  // Dispensar = silencia por 10 min. Se o compromisso ainda não tiver sido
+  // resolvido, o alerta volta a tocar (2x) após esse tempo; se foi resolvido
+  // (status mudou no backend) ou já passou da janela, não volta. Atende ao
+  // pedido: toca 2x, e só repete após 10 min quando nenhuma ação resolveu.
   const dispensar = (id: string) => {
+    setSnooze(id, 10);
+    setFila(prev => prev.filter(a => a.id !== id));
+  };
+
+  // Para o caso "passou da hora" (não há mais o que adiar): silencia de vez.
+  const dispensarDefinitivo = (id: string) => {
     clearSnooze(id);
+    setSnooze(id, 24 * 60); // 24h — não incomoda mais hoje
     setFila(prev => prev.filter(a => a.id !== id));
   };
 
@@ -135,8 +152,8 @@ export function AlertaReuniaoModal() {
                     </div>
                   </div>
                 </div>
-                <button onClick={() => dispensar(alerta.id)}
-                  title="Dispensar (para o som)"
+                <button onClick={() => (passou ? dispensarDefinitivo(alerta.id) : dispensar(alerta.id))}
+                  title={passou ? 'Dispensar' : 'Dispensar (volta a avisar em 10 min)'}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2 }}>
                   <X size={16} />
                 </button>
@@ -194,7 +211,7 @@ export function AlertaReuniaoModal() {
               <div style={{ display: 'flex', gap: 8 }}>
                 {alerta.google_meet_link && (
                   <a href={alerta.google_meet_link} target="_blank" rel="noreferrer"
-                    onClick={() => dispensar(alerta.id)}
+                    onClick={() => dispensarDefinitivo(alerta.id)}
                     style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)',
@@ -204,7 +221,8 @@ export function AlertaReuniaoModal() {
                     <Video size={13} /> Entrar no Meet <ExternalLink size={11} />
                   </a>
                 )}
-                <button onClick={() => dispensar(alerta.id)}
+                <button onClick={() => (passou ? dispensarDefinitivo(alerta.id) : dispensar(alerta.id))}
+                  title={passou ? 'Dispensar' : 'Some agora; volta a avisar em 10 min se não resolver'}
                   style={{
                     background: passou ? '#dc2626' : '#f1f5f9',
                     color: passou ? '#fff' : '#64748b',
