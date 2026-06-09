@@ -160,6 +160,24 @@ export default function WhatsappPage() {
     if (!nome?.trim()) return;
     try { await apiClient.renomearInstanciaWhatsapp(instAtivaId, nome.trim()); await checarStatus(); } catch (e: any) { alert(e?.response?.data?.message || 'Falha'); }
   };
+  // Apaga a instância de vez (quando "desconectar" não resolve / instância travada).
+  const excluirInstancia = async () => {
+    if (!instAtivaId || !confirm('Excluir esta instância de vez? (remove o número do CRM)')) return;
+    try {
+      await apiClient.deletarInstanciaWhatsapp(instAtivaId);
+      setInstAtivaId(null);
+      await checarStatus();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao excluir'); }
+  };
+  // Excluir uma conversa do Inbox.
+  const excluirConversa = async (id: string) => {
+    if (!confirm('Excluir esta conversa? As mensagens serão removidas do CRM.')) return;
+    try {
+      await apiClient.excluirConversaWhatsapp(id);
+      if (ativa?.id === id) setAtiva(null);
+      setConversas(prev => prev.filter(c => c.id !== id));
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao excluir conversa'); }
+  };
 
   // Vindo de um botão de WhatsApp do CRM (/whatsapp?numero=...&nome=...&lead=...):
   // abre (ou cria) a conversa daquele contato e seleciona.
@@ -288,9 +306,9 @@ export default function WhatsappPage() {
 
   return (
     <DashboardLayout>
-      {/* Altura cheia da viewport (dvh = compatível com barra do navegador no
-          celular). Tudo dentro rola internamente; a pagina nao rola junto. */}
-      <div className="flex flex-col gap-3" style={{ height: 'calc(100dvh - 90px)' }}>
+      {/* Ocupa 100% da altura do main (que ja e flex-1). Tudo rola internamente;
+          a pagina nao rola junto. h-full e robusto (nao depende de offset fixo). */}
+      <div className="flex flex-col gap-3 h-full min-h-0">
         <div className="flex items-center justify-between gap-2 flex-wrap flex-shrink-0">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">WhatsApp</h1>
@@ -332,6 +350,7 @@ export default function WhatsappPage() {
                 {status === 'CONECTADO'
                   ? <button onClick={desconectarAtiva} className="text-red-600 text-xs px-2 py-1.5 border border-red-200 rounded-lg">Desconectar</button>
                   : <button onClick={reconectarAtiva} className="text-green-700 text-xs px-2 py-1.5 border border-green-200 rounded-lg">Reconectar</button>}
+                <button onClick={excluirInstancia} title="Excluir instância de vez" className="text-red-700 text-xs px-2 py-1.5 border border-red-300 rounded-lg">🗑️</button>
               </div>
             )}
           </div>
@@ -451,6 +470,8 @@ export default function WhatsappPage() {
                     {podeTransferir && (
                       <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); }} title="Transferir vendedor" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">↗️</button>
                     )}
+                    {/* Excluir conversa */}
+                    <button onClick={() => excluirConversa(ativa.id)} title="Excluir conversa" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🗑️</button>
                     {/* Menu etiqueta */}
                     {menuEtiqueta && (
                       <div className="absolute right-3 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-44">

@@ -236,7 +236,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .toUpperCase() || 'U';
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
+    <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
 
       {/* ── Topbar ─────────────────────────────────────────── */}
       <header className="ps-topbar flex-shrink-0 flex items-center justify-between px-5 h-16">
@@ -580,8 +580,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </aside>
 
         {/* Main content */}
-        <main className="ps-content flex-1 overflow-auto">
-          <div className="p-6 lg:p-8">
+        <main className="ps-content flex-1 overflow-auto min-h-0">
+          <div className="p-6 lg:p-8 h-full">
             {children}
           </div>
         </main>
