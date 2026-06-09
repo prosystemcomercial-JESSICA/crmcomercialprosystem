@@ -427,6 +427,50 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: msg });
   });
 
+  // Envia um áudio gravado no Inbox (mensagem de voz). Recebe base64 do áudio.
+  fastify.post('/whatsapp/conversas/:id/audio', async (request, reply) => {
+    const user = getUser(request);
+    const { id } = request.params as { id: string };
+    const body = z.object({ audio_base64: z.string().min(20) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Áudio obrigatório' });
+
+    const conversa = await prisma.whatsappConversa.findFirst({
+      where: { id, ...escopoDono(request) },
+      include: { instancia: true },
+    });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    // Tira o prefixo data:...;base64, se vier (a Evolution aceita base64 puro).
+    const b64 = body.data.audio_base64.replace(/^data:[^;]+;base64,/, '');
+
+    let externo_id: string | undefined;
+    try {
+      const r = await evo.enviarAudio(conversa.instancia.instancia_nome, conversa.contato_numero, b64);
+      externo_id = r.externo_id;
+    } catch (err: any) {
+      return reply.status(502).send({ status: 'error', message: `Falha ao enviar áudio: ${err.message}` });
+    }
+
+    const msg = await prisma.whatsappMensagem.create({
+      data: {
+        conversaId: id,
+        externo_id,
+        direcao: 'SAIDA',
+        tipo: 'AUDIO',
+        conteudo: '[áudio]',
+        midia_url: `data:audio/ogg;base64,${b64}`, // p/ tocar no próprio Inbox
+        status: 'ENVIADA',
+        enviada_por: user?.id,
+      },
+    });
+    await prisma.whatsappConversa.update({
+      where: { id },
+      data: { ultima_mensagem: '🎤 Áudio', ultima_em: new Date() },
+    });
+
+    return reply.send({ status: 'success', data: msg });
+  });
+
   // ===== WEBHOOK (público — chamado pela Evolution) =====
   // Recebe MESSAGES_UPSERT / CONNECTION_UPDATE. Resolve a instância pelo nome,
   // cria/vincula conversa e grava a mensagem. Idempotente por externo_id.
@@ -527,18 +571,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           if (existe) return;
         }
 
-        // Tenta vincular a um Lead existente pelo telefone (últimos 8 dígitos).
-        const sufixo = contato_numero.slice(-8);
-        let lead = await prisma.lead.findFirst({
-          where: {
-            deleted_at: null,
-            OR: [
-              { telefone: { contains: sufixo } },
-              { responsavel_telefone: { contains: sufixo } },
-            ],
-          },
-          select: { id: true, nome: true },
-        }).catch(() => null);
+        // Tenta vincular a um Lead existente pelo telefone — IGNORANDO máscara.
+        // O telefone do lead pode estar salvo como "(27) 99999-8888"; comparar só
+        // os dígitos evita não casar com o número cru do WhatsApp (5527999998888).
+        let lead = await acharLeadPorTelefone(prisma, contato_numero);
 
         // EVO-4 — Captação automática: número desconhecido + conversa nova
         // vira um Lead novo no funil, atribuído ao dono da instância (o vendedor).
@@ -795,4 +831,33 @@ async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
     data: { ultima_mensagem: texto.slice(0, 200), ultima_em: new Date() },
   }).catch(() => {});
   console.log(`[WPP] Mensagem própria (WhatsApp Web) registrada p/ ${contato_numero}`);
+}
+
+// Acha um Lead existente pelo telefone do contato, IGNORANDO máscara/DDI.
+// Estratégia barata: busca candidatos pelos últimos 4 dígitos (contains, poucos
+// resultados) e confirma comparando os últimos 8 dígitos SOMENTE numéricos —
+// assim "(27) 99999-8888" casa com "5527999998888".
+async function acharLeadPorTelefone(prisma: any, contato_numero: string) {
+  const so = (s?: string | null) => (s || '').replace(/\D/g, '');
+  const alvo = so(contato_numero);
+  if (alvo.length < 8) return null;
+  const alvo8 = alvo.slice(-8);
+  const ult4 = alvo.slice(-4);
+
+  const candidatos = await prisma.lead.findMany({
+    where: {
+      deleted_at: null,
+      OR: [
+        { telefone: { contains: ult4 } },
+        { responsavel_telefone: { contains: ult4 } },
+      ],
+    },
+    select: { id: true, nome: true, telefone: true, responsavel_telefone: true },
+    take: 50,
+  }).catch(() => []);
+
+  const hit = candidatos.find(
+    (l: any) => so(l.telefone).slice(-8) === alvo8 || so(l.responsavel_telefone).slice(-8) === alvo8,
+  );
+  return hit ? { id: hit.id, nome: hit.nome } : null;
 }

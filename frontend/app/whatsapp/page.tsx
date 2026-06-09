@@ -66,6 +66,11 @@ export default function WhatsappPage() {
   const [ativa, setAtiva] = useState<Conversa | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState('');
+  const [gravando, setGravando] = useState(false);
+  const [gravTempo, setGravTempo] = useState(0);
+  const mediaRecRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const gravTimerRef = useRef<any>(null);
   const [buscaConv, setBuscaConv] = useState('');
   const [novoNumero, setNovoNumero] = useState('');
   const [menuEtiqueta, setMenuEtiqueta] = useState(false);
@@ -286,6 +291,61 @@ export default function WhatsappPage() {
     } finally {
       setEnviando(false);
     }
+  };
+
+  // ── Gravar e enviar áudio (mensagem de voz) ────────────────────────────────
+  const blobParaBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(String(r.result || ''));
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+
+  const iniciarGravacao = async () => {
+    if (!ativa) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // ogg/opus é o formato que o WhatsApp usa p/ voz; cai p/ webm se não suportar.
+      const mime = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+        ? 'audio/ogg;codecs=opus'
+        : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '');
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/ogg' });
+        if (blob.size > 0 && ativa) {
+          try {
+            const dataUrl = await blobParaBase64(blob);
+            const res = await apiClient.enviarWhatsappAudio(ativa.id, dataUrl);
+            setMensagens(prev => [...prev, res.data.data]);
+            setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+          } catch (e: any) {
+            alert(e?.response?.data?.message || 'Falha ao enviar o áudio');
+          }
+        }
+      };
+      mediaRecRef.current = rec;
+      rec.start();
+      setGravando(true);
+      setGravTempo(0);
+      gravTimerRef.current = setInterval(() => setGravTempo(t => t + 1), 1000);
+    } catch {
+      alert('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
+    }
+  };
+
+  const pararGravacao = (cancelar = false) => {
+    if (gravTimerRef.current) { clearInterval(gravTimerRef.current); gravTimerRef.current = null; }
+    setGravando(false);
+    setGravTempo(0);
+    const rec = mediaRecRef.current;
+    if (!rec) return;
+    if (cancelar) { chunksRef.current = []; rec.onstop = () => rec.stream?.getTracks().forEach(t => t.stop()); }
+    if (rec.state !== 'inactive') rec.stop();
+    mediaRecRef.current = null;
   };
 
   // Iniciar nova conversa digitando número com DDD.
@@ -604,17 +664,43 @@ export default function WhatsappPage() {
                     <div ref={fimRef} />
                   </div>
                   <div className="p-3 flex items-center gap-2" style={{ background: '#F0F2F5' }}>
-                    <input
-                      value={texto}
-                      onChange={e => setTexto(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-                      placeholder="Escreva uma mensagem…"
-                      className="flex-1 bg-white rounded-full px-4 py-2.5 text-sm focus:outline-none shadow-sm"
-                    />
-                    <button onClick={enviar} disabled={enviando || !texto.trim()}
-                      className="disabled:opacity-50 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
-                      ➤
-                    </button>
+                    {gravando ? (
+                      <>
+                        <div className="flex-1 flex items-center gap-2 bg-white rounded-full px-4 py-2.5 text-sm shadow-sm">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-red-600 font-medium">Gravando… {String(Math.floor(gravTempo / 60)).padStart(2, '0')}:{String(gravTempo % 60).padStart(2, '0')}</span>
+                        </div>
+                        <button onClick={() => pararGravacao(true)} title="Cancelar"
+                          className="text-gray-500 rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg bg-white hover:bg-gray-100">
+                          🗑️
+                        </button>
+                        <button onClick={() => pararGravacao(false)} title="Enviar áudio"
+                          className="text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
+                          ➤
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          value={texto}
+                          onChange={e => setTexto(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+                          placeholder="Escreva uma mensagem…"
+                          className="flex-1 bg-white rounded-full px-4 py-2.5 text-sm focus:outline-none shadow-sm"
+                        />
+                        {texto.trim() ? (
+                          <button onClick={enviar} disabled={enviando}
+                            className="disabled:opacity-50 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
+                            ➤
+                          </button>
+                        ) : (
+                          <button onClick={iniciarGravacao} title="Gravar áudio"
+                            className="text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
+                            🎤
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </>
               )}

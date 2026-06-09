@@ -90,7 +90,24 @@ export default function IndicacoesPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [clientes, setClientes] = useState<any[]>([]);
+  const [clienteBusca, setClienteBusca] = useState('');
+  const [clienteLoading, setClienteLoading] = useState(false);
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
+
+  // Busca clientes da base por código, razão social, nome fantasia, nome ou CNPJ
+  // (server-side, traz até 200 — antes só pegava os 20 primeiros, sem busca).
+  // Inativos são marcados na lista, mas a busca traz todos p/ não "sumir" cliente.
+  const buscarClientes = useCallback(async (termo: string) => {
+    setClienteLoading(true);
+    try {
+      const res = await apiClient.getClientes(0, 200, termo || undefined);
+      setClientes(res.data.data.clientes || []);
+    } catch {
+      setClientes([]);
+    } finally {
+      setClienteLoading(false);
+    }
+  }, []);
 
   // Modal venda
   const [showVendaModal, setShowVendaModal] = useState(false);
@@ -138,13 +155,13 @@ export default function IndicacoesPage() {
   }, [isAuthenticated, loadVendas, loadParceiros]);
 
   const openNovaVenda = async () => {
+    setClienteBusca('');
     try {
-      const [cls, vends] = await Promise.all([
-        apiClient.getClientes(),
+      const [, vends] = await Promise.all([
+        buscarClientes(''),
         // Vendedores reais cadastrados no CRM (ATIVOS) para a supervisão escolher.
         apiClient.getVendedores().catch(() => ({ data: { data: [] } })),
       ]);
-      setClientes(cls.data.data.clientes || []);
       const vendList = vends.data.data || [];
       setUsuarios(vendList.length ? vendList : MOCK_VENDEDORES);
     } catch { setClientes([]); setUsuarios(MOCK_VENDEDORES); }
@@ -464,13 +481,39 @@ export default function IndicacoesPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-700">Cliente da base *</label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    value={clienteBusca}
+                    onChange={e => setClienteBusca(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); buscarClientes(clienteBusca); } }}
+                    placeholder="Buscar por código, razão social, fantasia, nome ou CNPJ…"
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => buscarClientes(clienteBusca)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 whitespace-nowrap"
+                  >
+                    {clienteLoading ? '…' : '🔍 Buscar'}
+                  </button>
+                </div>
                 <select value={vendaForm.cliente_id} onChange={e => setVendaForm((p: any) => ({ ...p, cliente_id: e.target.value }))}
-                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Selecione...</option>
-                  {clientes.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.nome}{c.empresa ? ` — ${c.empresa}` : ''}</option>
-                  ))}
+                  className="w-full mt-2 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  size={clientes.length > 6 ? 6 : undefined}>
+                  <option value="">{clienteLoading ? 'Carregando…' : `Selecione… (${clientes.length} encontrado${clientes.length === 1 ? '' : 's'})`}</option>
+                  {clientes.map((c: any) => {
+                    const nome = c.razao_social || c.nome_fantasia || c.nome || c.empresa || 'Sem nome';
+                    const extra = [c.codigo && `#${c.codigo}`, c.nome_fantasia && c.nome_fantasia !== nome ? c.nome_fantasia : '', c.cnpj].filter(Boolean).join(' · ');
+                    const inativo = (c.situacao || '').toUpperCase().startsWith('INAT');
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {nome}{extra ? ` — ${extra}` : ''}{inativo ? ' (INATIVO)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+                <p className="mt-1 text-xs text-gray-400">Digite e clique em Buscar (ou Enter). Busca toda a base por código, razão social, nome fantasia, nome ou CNPJ.</p>
               </div>
 
               <div>

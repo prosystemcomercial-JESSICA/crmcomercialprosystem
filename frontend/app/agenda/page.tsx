@@ -17,8 +17,11 @@ import {
 
 interface Atividade {
   id: string;
-  lead_id: string;
-  lead?: { id: string; nome: string; empresa?: string; email?: string; telefone?: string };
+  lead_id?: string | null;
+  lead?: { id: string; nome: string; empresa?: string; email?: string; telefone?: string } | null;
+  vinculo_tipo?: string;
+  vinculo_nome?: string;
+  link_externo?: string;
   tipo: string;
   titulo: string;
   descricao?: string;
@@ -132,6 +135,18 @@ function formatDateTime(d?: string) {
 function formatTime(d?: string) {
   if (!d) return '';
   return new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+const VINCULO_ICON: Record<string, string> = {
+  LEAD: '👤', PARCEIRO: '🤝', INTERNO: '🏢', MARKETING: '📣', EXTERNO: '🌐', NENHUM: '—',
+};
+
+// Rótulo de "com quem" é o compromisso: lead vinculado OU nome do vínculo (parceiro/interno/etc).
+function vinculoLabel(a: { lead?: { nome?: string } | null; vinculo_tipo?: string; vinculo_nome?: string }): string {
+  if (a.lead?.nome) return a.lead.nome;
+  if (a.vinculo_nome) return `${VINCULO_ICON[a.vinculo_tipo || ''] || ''} ${a.vinculo_nome}`.trim();
+  if (a.vinculo_tipo && a.vinculo_tipo !== 'LEAD' && a.vinculo_tipo !== 'NENHUM') return a.vinculo_tipo;
+  return '—';
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -309,6 +324,16 @@ function AtividadeDetail({
         {atividade.lead && row('Contato', `${atividade.lead.nome}${atividade.lead.empresa ? ` · ${atividade.lead.empresa}` : ''}`)}
         {atividade.lead?.email && row('E-mail', <a href={`mailto:${atividade.lead.email}`} style={{ color: '#4B8EC8' }}>{atividade.lead.email}</a>)}
         {atividade.lead?.telefone && row('Telefone', atividade.lead.telefone)}
+        {!atividade.lead && atividade.vinculo_nome && row(
+          atividade.vinculo_tipo === 'PARCEIRO' ? 'Parceiro'
+            : atividade.vinculo_tipo === 'INTERNO' ? 'Interno'
+            : atividade.vinculo_tipo === 'MARKETING' ? 'Marketing'
+            : 'Vínculo',
+          `${VINCULO_ICON[atividade.vinculo_tipo || ''] || ''} ${atividade.vinculo_nome}`.trim()
+        )}
+        {atividade.link_externo && row('Link da reunião',
+          <a href={atividade.link_externo} target="_blank" rel="noreferrer" style={{ color: '#4B8EC8', wordBreak: 'break-all' }}>{atividade.link_externo}</a>
+        )}
         {row('Data prevista', formatDateTime(atividade.data_prevista))}
         {atividade.data_realizada && row('Realizada em', formatDateTime(atividade.data_realizada))}
         {atividade.duracao_minutos && row('Duração', DURACAO_OPCOES.find(d => d.value === atividade.duracao_minutos)?.label || `${atividade.duracao_minutos} min`)}
@@ -514,7 +539,10 @@ export default function AgendaPage() {
     titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '',
     resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '',
     duracao_minutos: 60,
-    convidados_ids: [] as string[]
+    convidados_ids: [] as string[],
+    vinculo_tipo: 'LEAD',   // LEAD | PARCEIRO | INTERNO | MARKETING | EXTERNO | NENHUM
+    vinculo_nome: '',       // ex.: "Skytef (Fiserv)", "Reunião geral"
+    link_externo: '',       // link enviado pelo parceiro
   });
   const [novoLead, setNovoLead] = useState(false);
   const [novoLeadData, setNovoLeadData] = useState({ nome: '', telefone: '', email: '', empresa: '' });
@@ -674,9 +702,10 @@ export default function AgendaPage() {
     setSaving(true);
     try {
       const data: any = { ...formData };
+      const ehLead = data.vinculo_tipo === 'LEAD';
 
-      // Se marcou "Lead não cadastrado", cria o lead primeiro
-      if (novoLead) {
+      // Compromisso ligado a LEAD: pode criar um lead novo ("não cadastrado").
+      if (ehLead && novoLead) {
         if (!novoLeadData.nome || !novoLeadData.telefone) {
           alert('Informe pelo menos nome e telefone do novo lead');
           setSaving(false);
@@ -692,16 +721,25 @@ export default function AgendaPage() {
         });
         const created = novoLeadRes.data?.data || novoLeadRes.data;
         data.lead_id = created.id;
-        // Atualiza lista local de leads
         setLeads(prev => [created, ...prev]);
       }
 
+      // Validação por tipo de vínculo
+      if (ehLead && !data.lead_id) { alert('Selecione o lead do compromisso (ou troque o tipo de vínculo).'); setSaving(false); return; }
+      if (!ehLead && data.vinculo_tipo !== 'NENHUM' && !data.vinculo_nome?.trim()) {
+        alert('Informe com quem é o compromisso (ex.: Skytef (Fiserv), Reunião geral, Marketing).'); setSaving(false); return;
+      }
+      // Sem vínculo de lead → não envia lead_id
+      if (!ehLead) data.lead_id = null;
+
       if (data.data_prevista) data.data_prevista = new Date(data.data_prevista).toISOString();
       if (!data.duracao_minutos) delete data.duracao_minutos;
+      if (!data.vinculo_nome) delete data.vinculo_nome;
+      if (!data.link_externo) delete data.link_externo;
       if (meetLinkForm) data.google_meet_link = meetLinkForm;
       await apiClient.createAtividade(data);
       setShowCreate(false);
-      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '', duracao_minutos: 60, convidados_ids: [] });
+      setFormData({ titulo: '', tipo: 'REUNIAO', lead_id: '', descricao: '', resumo_reuniao: '', data_prevista: '', responsavel_id: user?.id || '', duracao_minutos: 60, convidados_ids: [], vinculo_tipo: 'LEAD', vinculo_nome: '', link_externo: '' });
       setNovoLead(false);
       setNovoLeadData({ nome: '', telefone: '', email: '', empresa: '' });
       setMeetLinkForm('');
@@ -1618,7 +1656,7 @@ export default function AgendaPage() {
                         {relatorio.atividades.map((a: Atividade) => (
                           <tr key={a.id} style={{ borderTop: '1px solid #EBF4FF' }}>
                             <td style={{ padding: '10px 12px', color: '#0D2238', fontWeight: 500 }}>{a.titulo}</td>
-                            <td style={{ padding: '10px 12px', color: '#4A6E8A' }}>{a.lead?.nome || '—'}</td>
+                            <td style={{ padding: '10px 12px', color: '#4A6E8A' }}>{vinculoLabel(a)}</td>
                             <td style={{ padding: '10px 12px' }}><TipoBadge tipo={a.tipo} /></td>
                             <td style={{ padding: '10px 12px' }}><Badge status={a.status} /></td>
                             <td style={{ padding: '10px 12px', color: '#4A6E8A' }}>{formatDate(a.data_prevista)}</td>
@@ -1662,30 +1700,85 @@ export default function AgendaPage() {
                 onChange={e => setFormData(p => ({ ...p, titulo: e.target.value }))} style={inputStyle} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={labelStyle}>Lead / Contato *</label>
-                <select
-                  value={formData.lead_id}
-                  onChange={e => setFormData(p => ({ ...p, lead_id: e.target.value }))}
-                  disabled={novoLead}
-                  style={{ ...inputStyle, opacity: novoLead ? 0.5 : 1 }}>
-                  <option value="">Selecione...</option>
-                  {leads.map((l: any) => <option key={l.id} value={l.id}>{l.nome}{l.empresa ? ` – ${l.empresa}` : ''}</option>)}
-                </select>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, color: '#4A6E8A', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={novoLead}
-                    onChange={e => {
-                      setNovoLead(e.target.checked);
-                      if (e.target.checked) setFormData(p => ({ ...p, lead_id: '' }));
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  Lead não cadastrado — criar agora
-                </label>
+            {/* Tipo de vínculo do compromisso */}
+            <div>
+              <label style={labelStyle}>Vincular o compromisso a *</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[
+                  { v: 'LEAD', l: '👤 Lead/Cliente' },
+                  { v: 'PARCEIRO', l: '🤝 Parceiro' },
+                  { v: 'INTERNO', l: '🏢 Interno' },
+                  { v: 'MARKETING', l: '📣 Marketing' },
+                  { v: 'EXTERNO', l: '🌐 Externo' },
+                  { v: 'NENHUM', l: '— Sem vínculo' },
+                ].map(o => {
+                  const ativo = formData.vinculo_tipo === o.v;
+                  return (
+                    <button key={o.v} type="button"
+                      onClick={() => setFormData(p => ({ ...p, vinculo_tipo: o.v, ...(o.v !== 'LEAD' ? { lead_id: '' } : {}) }))}
+                      style={{
+                        padding: '6px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+                        border: ativo ? '1px solid #1A4E82' : '1px solid #D5DEE8',
+                        background: ativo ? '#1A4E82' : '#fff', color: ativo ? '#fff' : '#4A6E8A', fontWeight: 500,
+                      }}>
+                      {o.l}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {formData.vinculo_tipo === 'LEAD' ? (
+                <div>
+                  <label style={labelStyle}>Lead / Contato *</label>
+                  <select
+                    value={formData.lead_id}
+                    onChange={e => setFormData(p => ({ ...p, lead_id: e.target.value }))}
+                    disabled={novoLead}
+                    style={{ ...inputStyle, opacity: novoLead ? 0.5 : 1 }}>
+                    <option value="">Selecione...</option>
+                    {leads.map((l: any) => <option key={l.id} value={l.id}>{l.nome}{l.empresa ? ` – ${l.empresa}` : ''}</option>)}
+                  </select>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, color: '#4A6E8A', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={novoLead}
+                      onChange={e => {
+                        setNovoLead(e.target.checked);
+                        if (e.target.checked) setFormData(p => ({ ...p, lead_id: '' }));
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    Lead não cadastrado — criar agora
+                  </label>
+                </div>
+              ) : formData.vinculo_tipo !== 'NENHUM' ? (
+                <div>
+                  <label style={labelStyle}>
+                    {formData.vinculo_tipo === 'PARCEIRO' ? 'Parceiro *'
+                      : formData.vinculo_tipo === 'INTERNO' ? 'Assunto interno *'
+                      : formData.vinculo_tipo === 'MARKETING' ? 'Ação de marketing *'
+                      : 'Com quem / o quê *'}
+                  </label>
+                  <input
+                    value={formData.vinculo_nome}
+                    onChange={e => setFormData(p => ({ ...p, vinculo_nome: e.target.value }))}
+                    placeholder={
+                      formData.vinculo_tipo === 'PARCEIRO' ? 'Ex.: Skytef (Fiserv)'
+                        : formData.vinculo_tipo === 'INTERNO' ? 'Ex.: Reunião geral da equipe'
+                        : formData.vinculo_tipo === 'MARKETING' ? 'Ex.: Campanha / agência'
+                        : 'Ex.: visita externa'
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label style={labelStyle}>Compromisso pessoal</label>
+                  <input value="Sem vínculo" disabled style={{ ...inputStyle, opacity: 0.6 }} />
+                </div>
+              )}
               {formData.tipo === 'REUNIAO' && (
                 <div>
                   <label style={labelStyle}>Duração</label>
@@ -1696,6 +1789,19 @@ export default function AgendaPage() {
                 </div>
               )}
             </div>
+
+            {/* Link enviado pelo parceiro / link externo de reunião */}
+            {formData.vinculo_tipo !== 'LEAD' && (
+              <div>
+                <label style={labelStyle}>Link da reunião (enviado pelo parceiro/externo)</label>
+                <input
+                  value={formData.link_externo}
+                  onChange={e => setFormData(p => ({ ...p, link_externo: e.target.value }))}
+                  placeholder="Cole aqui o link (Meet, Zoom, Teams…) que o parceiro enviou"
+                  style={inputStyle}
+                />
+              </div>
+            )}
 
             {/* Convidados — outros colaboradores da empresa */}
             {colaboradores.length > 0 && (
