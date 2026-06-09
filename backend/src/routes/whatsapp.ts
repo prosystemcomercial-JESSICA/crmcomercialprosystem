@@ -341,6 +341,20 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         if (fromMe) return; // ignorar ecos das próprias mensagens enviadas
 
         const remoteJid: string = data?.key?.remoteJid || '';
+
+        // IGNORAR GRUPOS, listas de transmissão e status: não cria lead, não
+        // cria conversa e o bot NÃO responde. Grupo termina em @g.us; broadcast
+        // em @broadcast; status em status@broadcast. Também checa flags da Evolution.
+        const ehGrupo = remoteJid.endsWith('@g.us')
+          || remoteJid.endsWith('@broadcast')
+          || remoteJid === 'status@broadcast'
+          || !!data?.key?.participant     // mensagem dentro de grupo traz participant
+          || data?.isGroup === true;
+        if (ehGrupo) {
+          console.log(`[WPP] Mensagem de grupo/broadcast ignorada (${remoteJid}).`);
+          return;
+        }
+
         const contato_numero = remoteJid.split('@')[0];
         if (!contato_numero) return;
         const externo_id = data?.key?.id;
