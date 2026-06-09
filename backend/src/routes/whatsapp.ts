@@ -365,18 +365,26 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         let midiaUrl: string | undefined;
         let texto = msg.conversation || msg.extendedTextMessage?.text || '';
 
-        if (msg.imageMessage) {
-          tipoMsg = 'IMAGEM'; texto = msg.imageMessage.caption || '[imagem]';
-          midiaUrl = data?.message?.base64 ? `data:image/jpeg;base64,${data.message.base64}` : (msg.imageMessage.url || undefined);
-        } else if (msg.audioMessage || msg.pttMessage) {
-          tipoMsg = 'AUDIO'; texto = '[áudio]';
-          const b64 = data?.message?.base64;
-          midiaUrl = b64 ? `data:audio/ogg;base64,${b64}` : ((msg.audioMessage || msg.pttMessage)?.url || undefined);
-        } else if (msg.documentMessage) {
-          tipoMsg = 'DOCUMENTO'; texto = msg.documentMessage.fileName || '[documento]';
-          midiaUrl = data?.message?.base64 ? `data:application/octet-stream;base64,${data.message.base64}` : (msg.documentMessage.url || undefined);
-        } else if (!texto) {
-          tipoMsg = 'OUTRO'; texto = '[mensagem]';
+        const ehMidia = !!(msg.imageMessage || msg.audioMessage || msg.pttMessage || msg.documentMessage);
+        if (msg.imageMessage) { tipoMsg = 'IMAGEM'; texto = msg.imageMessage.caption || '[imagem]'; }
+        else if (msg.audioMessage || msg.pttMessage) { tipoMsg = 'AUDIO'; texto = '[áudio]'; }
+        else if (msg.documentMessage) { tipoMsg = 'DOCUMENTO'; texto = msg.documentMessage.fileName || '[documento]'; }
+        else if (!texto) { tipoMsg = 'OUTRO'; texto = '[mensagem]'; }
+
+        // Conteúdo da mídia: usa o base64 do webhook se vier; senão baixa via
+        // Evolution (a url crua do WhatsApp é criptografada e não abre no browser).
+        if (ehMidia) {
+          let b64: string | undefined = data?.message?.base64;
+          let mime: string | undefined =
+            msg.imageMessage?.mimetype || (msg.audioMessage || msg.pttMessage)?.mimetype || msg.documentMessage?.mimetype;
+          if (!b64) {
+            const baixada = await evo.baixarMidiaBase64(inst.instancia_nome, data.key).catch(() => ({} as any));
+            b64 = baixada.base64; mime = baixada.mimetype || mime;
+          }
+          if (b64) {
+            const tipoMime = mime || (tipoMsg === 'IMAGEM' ? 'image/jpeg' : tipoMsg === 'AUDIO' ? 'audio/ogg' : 'application/octet-stream');
+            midiaUrl = `data:${tipoMime};base64,${b64}`;
+          }
         }
 
         // Idempotência: se já gravamos essa mensagem, sai.

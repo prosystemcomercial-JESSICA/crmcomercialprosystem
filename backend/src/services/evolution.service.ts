@@ -113,3 +113,23 @@ export async function enviarTexto(
   const externo_id = data?.key?.id || data?.id;
   return { externo_id };
 }
+
+/**
+ * Baixa a mídia de uma mensagem como base64 (imagem/áudio/documento).
+ * A url crua do WhatsApp é criptografada; este endpoint devolve o conteúdo real.
+ * `mensagemKey` é o objeto data.key recebido no webhook.
+ */
+export async function baixarMidiaBase64(
+  instanciaNome: string,
+  mensagemKey: any,
+): Promise<{ base64?: string; mimetype?: string }> {
+  try {
+    const data = await call(`/chat/getBase64FromMediaMessage/${encodeURIComponent(instanciaNome)}`, 'POST', {
+      message: { key: mensagemKey },
+      convertToMp4: false,
+    });
+    return { base64: data?.base64, mimetype: data?.mimetype };
+  } catch {
+    return {};
+  }
+}
