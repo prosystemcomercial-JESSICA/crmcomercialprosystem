@@ -184,6 +184,31 @@ export default function ClientesPage() {
 
   useEffect(() => { if (isAuthenticated) fetchClientes(); }, [isAuthenticated, page, search, fGrupo, fSituacao, fSegmento, fPlano, fRisco]);
 
+  // Busca TODOS os clientes do filtro atual (paginando), p/ o relatório incluir
+  // tudo que o filtro seleciona — não só os 20 da página visível.
+  const fetchTodosClientes = async (): Promise<Cliente[]> => {
+    const filtros = {
+      grupo_tecnico: fGrupo || undefined,
+      situacao: fSituacao || undefined,
+      segmento: fSegmento || undefined,
+      plano: fPlano || undefined,
+      risco: fRisco || undefined,
+    };
+    const passo = 200; // limite máximo aceito pelo backend
+    const todos: Cliente[] = [];
+    let pag = 0;
+    // Lê página por página até cobrir o total (guarda de segurança em 100 páginas).
+    for (let i = 0; i < 100; i++) {
+      const res = await apiClient.getClientes(pag, passo, search || undefined, filtros);
+      const lote: Cliente[] = res.data.data.clientes || [];
+      todos.push(...lote);
+      const tot = res.data.data.total ?? todos.length;
+      pag++;
+      if (todos.length >= tot || lote.length < passo) break;
+    }
+    return todos;
+  };
+
   // Tempo de casa do cliente (a partir de data_entrada; fallback created_at).
   const tempoDeCasa = (c: Cliente): string => {
     const base = c.data_entrada || c.created_at;
@@ -304,14 +329,23 @@ export default function ClientesPage() {
             <ExportButton
               nome="clientes" titulo="Clientes — ProSystem CRM"
               linhas={clientes}
+              fetchLinhas={fetchTodosClientes}
               colunas={[
                 { header: 'Código', value: (c: Cliente) => c.codigo || '' },
                 { header: 'Nome', value: (c: Cliente) => c.nome },
+                { header: 'Razão social', value: (c: Cliente) => (c as any).razao_social || '' },
+                { header: 'Nome fantasia', value: (c: Cliente) => (c as any).nome_fantasia || '' },
+                { header: 'CNPJ', value: (c: Cliente) => (c as any).cnpj || '' },
                 { header: 'Empresa', value: (c: Cliente) => c.empresa || '' },
                 { header: 'E-mail', value: (c: Cliente) => c.email || '' },
                 { header: 'Telefone', value: (c: Cliente) => c.telefone || '' },
                 { header: 'Cidade', value: (c: Cliente) => c.cidade || '' },
                 { header: 'Estado', value: (c: Cliente) => c.estado || '' },
+                { header: 'Situação', value: (c: Cliente) => (c as any).situacao || '' },
+                { header: 'Segmento', value: (c: Cliente) => (c as any).segmento || '' },
+                { header: 'Plano', value: (c: Cliente) => (c as any).plano || '' },
+                { header: 'Mensalidade', value: (c: Cliente) => (c as any).mensalidade_base ?? '' },
+                { header: 'Responsável', value: (c: Cliente) => (c as any).responsavel_nome || '' },
               ]}
             />
             {isGestor && (
