@@ -355,7 +355,23 @@ export default function PropostasComerciais() {
     setShowForm(true);
   };
 
-  const parseNum = (v: string) => v ? parseFloat(v) : undefined;
+  // Converte texto → número. Retorna undefined p/ vazio OU não-numérico — NUNCA
+  // NaN: NaN passa pelo z.number() do backend mas o Prisma rejeita ao gravar
+  // (Float não aceita NaN) → 500 "Erro ao salvar proposta". Aceita "1.234,56".
+  const parseNum = (v: string): number | undefined => {
+    if (v === undefined || v === null || `${v}`.trim() === '') return undefined;
+    let s = `${v}`.trim().replace(/[^\d.,-]/g, '');
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  // Data → ISO segura. new Date(inválida).toISOString() lança RangeError e
+  // derrubava o save inteiro com "erro" genérico. Retorna undefined se inválida.
+  const toIsoSeguro = (v?: string): string | undefined => {
+    if (!v) return undefined;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  };
 
   const handleSave = async () => {
     if (!form.razao_social.trim()) {
@@ -381,11 +397,13 @@ export default function PropostasComerciais() {
         entrada: parseNum(form.entrada as string),
         parcelas: parseNum(form.parcelas as string) ? parseInt(form.parcelas as string) : undefined,
         valor_parcela: parseNum(form.valor_parcela as string),
-        validade: form.validade ? new Date(form.validade).toISOString() : undefined,
+        validade: toIsoSeguro(form.validade as string),
       };
-      // remove empty strings
+      // remove vazios/nulos/NaN — qualquer um deles derruba a validação ou o
+      // gravamento no backend.
       Object.keys(payload).forEach(k => {
-        if (payload[k] === '') delete payload[k];
+        const v = payload[k];
+        if (v === '' || v === null || v === undefined || (typeof v === 'number' && Number.isNaN(v))) delete payload[k];
       });
 
       if (editingId) {
