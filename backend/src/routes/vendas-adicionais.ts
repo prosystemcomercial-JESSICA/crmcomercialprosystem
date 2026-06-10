@@ -554,6 +554,66 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     }
   });
 
+  // Resumo da venda de COMUNICAÇÃO pronto p/ copiar e colar e enviar ao financeiro.
+  // Segue o modelo de mensagem usado pela gestão.
+  fastify.get('/vendas-adicionais/:id/resumo-financeiro', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const v: any = await prisma.vendaAdicional.findUnique({
+      where: { id },
+      include: { cliente: { select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true } }, parceiro: { select: { categoria: true } } },
+    });
+    if (!v) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada' });
+
+    const brl = (n?: number | null) => `R$ ${Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    const dataBR = (d?: Date | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '___/___/______';
+
+    // Lojas incluídas: usa a lista (comunicação) ou o cliente da venda.
+    const ids: string[] = Array.isArray(v.lojas_ids) && v.lojas_ids.length ? v.lojas_ids : [v.cliente_id];
+    const lojas = await prisma.cliente.findMany({
+      where: { id: { in: ids } },
+      select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true },
+    });
+    const linhaLoja = (c: any) => `${c.codigo ? c.codigo + '- ' : ''}${(c.razao_social || c.nome_fantasia || c.nome || '').toUpperCase()}`;
+    const lojasTxt = lojas.map(linhaLoja).join('\n');
+    const plural = lojas.length > 1;
+
+    // Setup: valor total, entrada e parcelas (entrada+parcelas OU só parcelado).
+    const setup = Number(v.valor_venda || 0);
+    const parcelas = Number(v.setup_parcelas || 0);
+    const entrada = v.setup_forma === 'ENTRADA_PARCELAS' ? Number(v.setup_entrada || 0) : 0;
+    const saldo = Math.max(0, setup - entrada);
+    const valorParcela = parcelas > 0 ? saldo / parcelas : saldo;
+    const acrescimo = Number(v.acrescimo_mensal || 0);
+
+    // Linha de condições conforme entrada+parcelas ou parcelado direto.
+    let condicoes: string;
+    const vp = brl(valorParcela);
+    if (entrada > 0) {
+      condicoes = `Primeiro vencimento para ${dataBR(v.primeiro_vencimento)} no valor de ${brl(entrada)} (entrada)` +
+        (parcelas > 0 ? ` + ${parcelas}x ${vp}` : '');
+    } else if (parcelas > 1) {
+      condicoes = `Primeiro vencimento para ${dataBR(v.primeiro_vencimento)} no valor de ${vp} + ${parcelas - 1}x ${vp}`;
+    } else {
+      condicoes = `Vencimento para ${dataBR(v.primeiro_vencimento)} no valor de ${vp}`;
+    }
+    const formaSetup = parcelas > 1 ? ` (parcelado em ${parcelas}x)` : (entrada > 0 ? ' (entrada + parcelas)' : '');
+
+    const texto =
+`${plural ? 'LOJAS INCLUÍDAS:' : 'LOJA INCLUÍDA:'}
+
+${lojasTxt}
+
+A negociação ficou definida da seguinte forma:
+
+${brl(setup)} pela inclusão da loja${plural ? 's' : ''}${formaSetup}
+Acréscimo na mensalidade ${brl(acrescimo)}${plural ? ' por loja' : ''}
+
+Condições de pagamento:
+${condicoes}`;
+
+    return reply.send({ status: 'success', data: { texto } });
+  });
+
   fastify.delete('/vendas-adicionais/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     try {

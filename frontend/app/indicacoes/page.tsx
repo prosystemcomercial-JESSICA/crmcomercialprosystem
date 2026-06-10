@@ -230,6 +230,18 @@ export default function IndicacoesPage() {
     loadVendas();
   };
 
+  // Gera o resumo p/ o financeiro e copia p/ a área de transferência.
+  const copiarResumoFinanceiro = async (id: string) => {
+    try {
+      const res = await apiClient.resumoFinanceiroVenda(id);
+      const texto = res.data?.data?.texto || '';
+      await navigator.clipboard.writeText(texto);
+      alert('Resumo copiado! É só colar para o financeiro.\n\n' + texto);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Não foi possível gerar o resumo.');
+    }
+  };
+
   const handlePagarComissao = async (id: string) => {
     await apiClient.updateVendaAdicional(id, { comissao_paga: true, status: 'PAGA' });
     loadVendas();
@@ -440,6 +452,13 @@ export default function IndicacoesPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-right">
+                          {/* Resumo p/ financeiro — vendas de Comunicação */}
+                          {v.parceiro.categoria === 'COMUNICACAO' && (
+                            <button onClick={() => copiarResumoFinanceiro(v.id)} title="Copiar resumo para o financeiro"
+                              className="mr-1 text-xs text-teal-700 border border-teal-200 rounded-lg px-2 py-1 hover:bg-teal-50 font-medium transition-colors">
+                              📋 Resumo
+                            </button>
+                          )}
                           {isGestor && v.status === 'PENDENTE' && (
                             <button onClick={() => handleUpdateStatus(v.id, 'CONFIRMADA')}
                               className="text-xs text-blue-600 border border-blue-200 rounded-lg px-2 py-1 hover:bg-blue-50 font-medium transition-colors">
