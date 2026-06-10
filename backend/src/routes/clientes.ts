@@ -235,8 +235,15 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const MESES: Record<string, number> = { jan:0,feb:1,fev:1,mar:2,apr:3,abr:3,may:4,mai:4,jun:5,jul:6,aug:7,ago:7,sep:8,set:8,oct:9,out:9,nov:10,dec:11,dez:11 };
     const parseData = (s?: string): Date | undefined => {
       if (!s) return undefined;
-      const t = s.trim();
+      let t = s.trim();
       if (!t || t === '- -' || t === '--') return undefined;
+      // Formato ISO "2010-07-20" ou "2010-07-20 00:00:00" (planilha convertida).
+      const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (iso) {
+        const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+        return isNaN(d.getTime()) ? undefined : d;
+      }
+      // Formato antigo "20-Jul-10" / "03-Sep-26".
       const m = t.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
       if (!m) return undefined;
       const dia = parseInt(m[1], 10);
@@ -248,24 +255,40 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       return isNaN(d.getTime()) ? undefined : d;
     };
     const txt = (s?: string) => { const v = (s || '').trim(); return v ? v : undefined; };
+    // Texto que pode vir como "381.0" / "29280000.0" (planilha convertida do
+    // Excel/Pandas) → remove o ".0" final p/ código, CEP, telefones, etc.
+    const txtId = (s?: string) => {
+      let v = (s || '').trim();
+      if (!v) return undefined;
+      v = v.replace(/\.0+$/, ''); // "381.0" → "381"
+      return v || undefined;
+    };
+    // Inteiro a partir de texto "15.0" / "5" → 15 / 5.
+    const inteiroId = (s?: string) => {
+      const v = txtId(s);
+      if (!v) return undefined;
+      const n = parseInt(v.replace(/[^0-9-]/g, ''), 10);
+      return Number.isFinite(n) ? n : undefined;
+    };
 
     for (let i = 0; i < clientes.length; i++) {
       const c = clientes[i] as any;
-      // Aliases da planilha → campos canônicos.
+      // Aliases da planilha → campos canônicos. txtId remove ".0" do Excel.
+      const codigoRaw = txtId(c.codigo);
       const emailRaw = c.email || c.e_mail;
       const estadoRaw = c.estado || c.uf;
-      const numeroRaw = c.numero_end || c.numero;
-      const ibgeRaw = c.codigo_ibge || c.codigo_cidade_ibge;
+      const numeroRaw = txtId(c.numero_end) || txtId(c.numero);
+      const ibgeRaw = txtId(c.codigo_ibge) || txtId(c.codigo_cidade_ibge);
       // Identificação humana p/ relatório de erro (código tem prioridade).
-      const ref = c.codigo || c.razao_social || c.empresa || c.nome || emailRaw || `linha ${i + 1}`;
+      const ref = codigoRaw || c.razao_social || c.empresa || c.nome || emailRaw || `linha ${i + 1}`;
       // Pula linha totalmente vazia (sem qualquer identificação).
-      if (!(c.codigo || c.nome || c.razao_social || c.empresa || emailRaw)) {
+      if (!(codigoRaw || c.nome || c.razao_social || c.empresa || emailRaw)) {
         erros.push({ linha: i + 1, ref, motivo: 'Linha vazia (sem identificação)' } as any);
         continue;
       }
       try {
         // nome é NOT NULL no schema → deriva de fantasia/razão/empresa/email.
-        const nome = c.nome || c.nome_fantasia || c.razao_social || c.empresa || emailRaw || `Cliente ${c.codigo || i + 1}`;
+        const nome = c.nome || c.nome_fantasia || c.razao_social || c.empresa || emailRaw || `Cliente ${codigoRaw || i + 1}`;
         // Só grava email se tiver cara de email (a base legada tem muitos truncados).
         const emailValido = emailRaw && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw.trim()) ? emailRaw.trim() : undefined;
         // Observações: junta complemento_obs + comunicacao se vierem.
@@ -273,14 +296,15 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
         const data: any = {
           nome,
-          codigo:        txt(c.codigo),
+          codigo:        codigoRaw,
           email:         emailValido,
-          telefone:      txt(c.telefone) || txt(c.telefone1) || txt(c.tel_contato),
+          telefone:      txtId(c.telefone) || txtId(c.telefone1) || txtId(c.tel_contato),
           empresa:       txt(c.empresa) || txt(c.nome_fantasia) || txt(c.razao_social),
           razao_social:  txt(c.razao_social),
           nome_fantasia: txt(c.nome_fantasia),
-          cnpj:          txt(c.cnpj),
-          situacao:      normSituacao(c.situacao),
+          cnpj:          txtId(c.cnpj),
+          // Esta planilha contém SÓ os clientes ATIVOS → marca ATIVA (cai p/ o que vier na coluna situacao, se houver).
+          situacao:      normSituacao(c.situacao) || 'ATIVA',
           segmento:      txt(c.segmento),
           grupo_tecnico: txt(c.grupo_tecnico),
           plano:         txt(c.plano),
@@ -288,25 +312,25 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
           cidade:        txt(c.cidade),
           estado:        txt(estadoRaw),
           // ── Complementares ──
-          cep:            txt(c.cep),
+          cep:            txtId(c.cep),
           endereco:       txt(c.endereco),
-          numero_end:     txt(numeroRaw),
+          numero_end:     numeroRaw,
           complemento:    txt(c.complemento),
           bairro:         txt(c.bairro),
-          codigo_ibge:    txt(ibgeRaw),
-          ddd:            txt(c.ddd),
-          telefone1:      txt(c.telefone1),
-          telefone2:      txt(c.telefone2),
-          tel_contato:    txt(c.tel_contato),
+          codigo_ibge:    ibgeRaw,
+          ddd:            txtId(c.ddd),
+          telefone1:      txtId(c.telefone1),
+          telefone2:      txtId(c.telefone2),
+          tel_contato:    txtId(c.tel_contato),
           contato2:       txt(c.contato2),
-          tel_contato2:   txt(c.tel_contato2),
+          tel_contato2:   txtId(c.tel_contato2),
           contato_pesquisa: txt(c.contato_pesquisa),
           inscricao_estadual: txt(c.inscricao),
-          cpf_responsavel: txt(c.cpf),
+          cpf_responsavel: txtId(c.cpf),
           rg_responsavel:  txt(c.identidade),
           responsavel_nome: txt(c.responsavel),
           regime_tributario: txt(c.regime),
-          dia_vencimento:  inteiro(c.vencimento),
+          dia_vencimento:  inteiroId(c.vencimento),
           mensalidade_base: num(c.mensalidade),
           vencimento_licenca: parseData(c.vencimento_licenca),
           reajuste_em:     parseData(c.reajuste),
@@ -322,9 +346,10 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
         Object.keys(data).forEach(k => data[k] === undefined && delete data[k]);
 
         // Chave de dedupe: código (preferido) → email → CNPJ.
-        const whereKey = c.codigo ? { codigo: c.codigo }
+        const cnpjKey = txtId(c.cnpj);
+        const whereKey = codigoRaw ? { codigo: codigoRaw }
           : (emailValido ? { email: emailValido }
-          : (txt(c.cnpj) ? { cnpj: txt(c.cnpj) } : null));
+          : (cnpjKey ? { cnpj: cnpjKey } : null));
         const existente = whereKey ? await prisma.cliente.findFirst({ where: whereKey as any }) : null;
 
         if (modo === 'CRIAR' || !whereKey) {
@@ -556,6 +581,43 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
       throw err;
+    }
+  });
+
+  // ===== ZERAR BASE DE CLIENTES (apaga só os dados; estrutura/campos ficam) =====
+  // Só CEO. Exige confirmação "ZERAR" no body. Apaga clientes + dependências
+  // ligadas a eles, em ordem segura (FK), pra não dar erro de chave estrangeira.
+  fastify.post('/clientes/zerar-base', async (request, reply) => {
+    const user = (request as any).user;
+    const role = (user?.role || '').toUpperCase();
+    if (!user || !(role === 'CEO' || role === 'ADMIN' || role === 'DIRETOR')) {
+      return reply.status(403).send({ status: 'error', message: 'Apenas o CEO pode zerar a base de clientes.' });
+    }
+    const body = z.object({ confirmacao: z.string() }).safeParse(request.body);
+    if (!body.success || body.data.confirmacao !== 'ZERAR') {
+      return reply.status(400).send({ status: 'error', message: 'Digite ZERAR para confirmar.' });
+    }
+    try {
+      const total = await prisma.cliente.count();
+      // Apaga dependências que referenciam Cliente, na ordem certa. Cada uma em
+      // try próprio (tabela pode não existir em algum ambiente) p/ nunca travar.
+      const limpar = async (fn: () => Promise<any>) => { try { await fn(); } catch { /* ignora */ } };
+      await limpar(() => prisma.$executeRawUnsafe(`DELETE FROM ContatoCliente`));
+      await limpar(() => prisma.$executeRawUnsafe(`DELETE FROM SolicitacaoServico`));
+      await limpar(() => (prisma as any).healthScore?.deleteMany?.({}));
+      await limpar(() => (prisma as any).ticketSuporte?.deleteMany?.({}));
+      await limpar(() => (prisma as any).licenca?.deleteMany?.({}));
+      await limpar(() => (prisma as any).credito?.deleteMany?.({}));
+      await limpar(() => (prisma as any).campanhaDisparo?.deleteMany?.({}));
+      await limpar(() => (prisma as any).vendaAdicional?.deleteMany?.({}));
+      await limpar(() => (prisma as any).surveyChurn?.deleteMany?.({}));
+      await limpar(() => (prisma as any).casoChurn?.deleteMany?.({}));
+      // Por fim, os clientes (o restante cai por onDelete: Cascade).
+      const r = await prisma.cliente.deleteMany({});
+      return reply.send({ status: 'success', data: { apagados: r.count, antes: total }, message: `Base zerada: ${r.count} clientes removidos.` });
+    } catch (err: any) {
+      console.error('[POST /clientes/zerar-base]', err?.message);
+      return reply.status(500).send({ status: 'error', message: 'Erro ao zerar a base: ' + (err?.message || 'desconhecido') });
     }
   });
 
