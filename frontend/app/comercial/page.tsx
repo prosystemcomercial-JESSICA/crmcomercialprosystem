@@ -203,6 +203,8 @@ export default function RadarComercialPage() {
     finally { setAtribuindo(false); }
   };
 
+  // Vendas adicionais / indicações atribuídas ao vendedor (radar dele).
+  const [minhasVendas, setMinhasVendas] = useState<any[]>([]);
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -214,6 +216,16 @@ export default function RadarComercialPage() {
       setLoading(false);
     }
   }, [filtroVendedorId]);
+
+  // Carrega as indicações/vendas adicionais (o backend já filtra pelo vendedor
+  // logado; gestor vê todas). Mostra no radar p/ o vendedor não perder uma venda
+  // atribuída a ele pela gestão.
+  useEffect(() => {
+    if (!user) return;
+    apiClient.getVendasAdicionais({})
+      .then(r => setMinhasVendas(r.data?.data?.vendas || []))
+      .catch(() => setMinhasVendas([]));
+  }, [user]);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/');  // login fica na raiz, não existe /login
@@ -380,6 +392,38 @@ export default function RadarComercialPage() {
         {/* ── RADAR TAB ─────────────────────────────────────────────────────── */}
         {tab === 'radar' && (
           <div className="space-y-6">
+            {/* Minhas indicações / vendas adicionais — atribuídas a mim (ou todas, p/ gestão) */}
+            {minhasVendas.length > 0 && (
+              <div className="rounded-xl border p-4" style={{ borderColor: '#bbf7d0', background: '#f0fdf4' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-bold text-emerald-800">🤝 Minhas indicações / vendas adicionais ({minhasVendas.length})</p>
+                  <a href="/indicacoes" className="text-xs text-emerald-700 hover:underline">Ver todas →</a>
+                </div>
+                <div className="space-y-1.5 max-h-56 overflow-auto">
+                  {minhasVendas.slice(0, 8).map((v: any) => {
+                    const cfg: Record<string, { l: string; c: string }> = {
+                      PENDENTE: { l: 'Pendente', c: '#d97706' }, CONFIRMADA: { l: 'Confirmada', c: '#2563eb' },
+                      PAGA: { l: 'Paga', c: '#16a34a' }, CANCELADO: { l: 'Cancelada', c: '#9ca3af' },
+                    };
+                    const st = cfg[v.status] || cfg.PENDENTE;
+                    return (
+                      <div key={v.id} className="flex items-center justify-between gap-2 text-sm bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                        <div className="min-w-0">
+                          <span className="font-medium text-gray-800">{v.parceiro?.nome || 'Venda adicional'}</span>
+                          <span className="text-gray-400"> · </span>
+                          <span className="text-gray-600 truncate">{v.cliente?.razao_social || v.cliente?.nome || v.cliente?.empresa || '—'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-gray-500">R$ {Number(v.comissao_valor || 0).toLocaleString('pt-BR')}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: st.c + '20', color: st.c }}>{st.l}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Alert cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {radarAlerts.map(a => (
