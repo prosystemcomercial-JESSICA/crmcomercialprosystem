@@ -1491,6 +1491,20 @@ model VendaAdicional {
   comissao_paga_em          DateTime?
   comissao_supervisao_valor Float? // calculado automaticamente ao confirmar
 
+  // ── Comunicação multi-loja (aditivo) ───────────────────────────────────────
+  // Vendas de COMUNICAÇÃO envolvem várias lojas (cada uma é um Cliente da base).
+  // O acréscimo_mensal é POR LOJA (total = acrescimo_mensal * nº lojas). O setup
+  // é cobrado de UMA loja específica. A venda fica salva na ficha de todas.
+  lojas_ids        Json?     // string[] de cliente_id das lojas que vão se comunicar
+  lojas_nomes      Json?     // string[] (snapshot dos nomes p/ exibição)
+  setup_loja_id    String?   // cliente_id da loja onde o setup será cobrado
+  // ── Datas do ciclo (aditivo) ────────────────────────────────────────────────
+  data_venda             DateTime? // data inicial da venda
+  data_inicio_comunicacao DateTime? // quando a comunicação começa a funcionar
+  primeiro_vencimento    DateTime? // 1º vencimento (base p/ comissão: mês seguinte)
+  data_indicacao         DateTime? // (demais parceiros) data da indicação
+  data_confirmacao       DateTime? // (demais parceiros) data da confirmação
+
   status String @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
 
   observacoes String? @db.Text

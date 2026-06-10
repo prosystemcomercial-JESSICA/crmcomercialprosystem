@@ -77,6 +77,16 @@ function proximoMes(): string {
   return `${proximo.getFullYear()}-${String(proximo.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Período (YYYY-MM) do MÊS SEGUINTE a uma data de referência. Usado p/ lançar a
+// comissão no mês posterior ao 1º vencimento (comunicação) ou à confirmação
+// (demais parceiros). Sem data → cai p/ o próximo mês a partir de hoje.
+function mesSeguinteDe(data?: Date | string | null): string {
+  const d = data ? new Date(data) : new Date();
+  const base = isNaN(d.getTime()) ? new Date() : d;
+  const prox = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+  return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function baseComissaoSupervisao(parceiro: any, valorVenda?: number | null, acrescimoMensal?: number | null): number {
   // Base do cálculo da comissão da supervisão por categoria:
   //  - UPGRADE → SETUP do upgrade (valor_venda);
@@ -269,6 +279,13 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       setup_primeiro_venc: z.string().optional(), // data ISO da 1ª parcela
       // Mensalidade anterior pode vir do front; se não, usamos a do cliente.
       mensalidade_anterior: z.number().optional(),
+      // ── Comunicação multi-loja + datas do ciclo ──
+      lojas_ids: z.array(z.string()).optional(),        // lojas que vão se comunicar
+      setup_loja_id: z.string().optional(),             // loja onde o setup é cobrado
+      data_venda: z.string().optional(),
+      data_inicio_comunicacao: z.string().optional(),
+      primeiro_vencimento: z.string().optional(),       // base da comissão (mês seguinte)
+      data_indicacao: z.string().optional(),            // demais parceiros
     }).safeParse(request.body);
 
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
@@ -301,7 +318,29 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const nomes = await resolverNomesUsuarios(prisma, [vendedorId]);
     const vendedorNome = nomes[vendedorId] || user?.nome || null;
 
-    const { setup_primeiro_venc, mensalidade_anterior, ...rest } = body.data;
+    const {
+      setup_primeiro_venc, mensalidade_anterior, lojas_ids,
+      data_venda, data_inicio_comunicacao, primeiro_vencimento, data_indicacao, ...rest
+    } = body.data;
+
+    const ehComunicacao = parceiro.categoria === 'COMUNICACAO';
+    const dt = (s?: string) => (s ? new Date(s) : null);
+
+    // Lojas da comunicação: resolve os nomes (snapshot) p/ exibição/ficha.
+    let lojasNomes: string[] = [];
+    if (ehComunicacao && lojas_ids && lojas_ids.length > 0) {
+      const lojas = await prisma.cliente.findMany({
+        where: { id: { in: lojas_ids } },
+        select: { id: true, razao_social: true, nome_fantasia: true, nome: true },
+      });
+      const mapa = new Map(lojas.map(l => [l.id, l.nome_fantasia || l.razao_social || l.nome]));
+      lojasNomes = lojas_ids.map(id => mapa.get(id) || id);
+    }
+
+    // Acréscimo na comunicação é POR LOJA → total = acréscimo × nº de lojas.
+    const nLojas = ehComunicacao && lojas_ids?.length ? lojas_ids.length : 1;
+    const acrescimoTotal = Number(body.data.acrescimo_mensal || 0) * (ehComunicacao ? nLojas : 1);
+
     const venda = await prisma.vendaAdicional.create({
       data: {
         ...rest,
@@ -311,7 +350,14 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
         supervisao_id: supervisaoId,
         mensalidade_anterior: mensalidadeAnterior,
         mensalidade_nova: mensalidadeNova,
-        setup_primeiro_venc: setup_primeiro_venc ? new Date(setup_primeiro_venc) : null,
+        setup_primeiro_venc: dt(setup_primeiro_venc),
+        // multi-loja + datas
+        lojas_ids: ehComunicacao && lojas_ids ? (lojas_ids as any) : undefined,
+        lojas_nomes: ehComunicacao && lojasNomes.length ? (lojasNomes as any) : undefined,
+        data_venda: dt(data_venda),
+        data_inicio_comunicacao: dt(data_inicio_comunicacao),
+        primeiro_vencimento: dt(primeiro_vencimento),
+        data_indicacao: dt(data_indicacao),
         status: 'PENDENTE',
         created_by: user?.id || 'system',
       },
@@ -321,8 +367,10 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       },
     });
 
-    // Comissão do vendedor criada como PENDENTE — aguarda confirmação
-    const periodo = proximoMes();
+    // Período da comissão (mês POSTERIOR):
+    //  - COMUNICAÇÃO → mês seguinte ao 1º vencimento;
+    //  - demais      → mês seguinte (a partir de hoje; reposicionado na confirmação).
+    const periodo = ehComunicacao ? mesSeguinteDe(primeiro_vencimento) : proximoMes();
     await prisma.comissao.create({
       data: {
         responsavel_id: vendedorId,
@@ -338,6 +386,23 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       },
     });
 
+    // Salva a venda na FICHA de todos os clientes envolvidos (timeline). Na
+    // comunicação são todas as lojas; senão, o cliente da venda.
+    const idsFicha = ehComunicacao && lojas_ids?.length ? lojas_ids : [body.data.cliente_id];
+    const tituloEvt = ehComunicacao
+      ? `Comunicação contratada (${nLojas} loja${nLojas > 1 ? 's' : ''}) — +R$ ${Number(body.data.acrescimo_mensal || 0)}/loja`
+      : `Venda adicional: ${parceiro.nome}`;
+    for (const cid of idsFicha) {
+      await (prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: cid, tipo: 'OBSERVACAO', titulo: tituloEvt,
+          descricao: body.data.observacoes || undefined, referencia_id: venda.id,
+          metadados: { acrescimo_por_loja: body.data.acrescimo_mensal, total_mensal: acrescimoTotal, setup_loja_id: body.data.setup_loja_id, primeiro_vencimento },
+          feito_por: user?.id, feito_por_nome: vendedorNome,
+        },
+      }).catch(() => {});
+    }
+
     return reply.status(201).send({ status: 'success', data: venda });
   });
 
@@ -352,11 +417,13 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       plano_anterior: z.string().optional(),
       plano_novo: z.string().optional(),
       comissao_paga: z.boolean().optional(),
+      data_confirmacao: z.string().optional(), // demais parceiros: base da comissão
     }).safeParse(request.body);
 
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
 
-    const updateData: any = { ...body.data };
+    const { data_confirmacao, ...campos } = body.data;
+    const updateData: any = { ...campos };
     if (body.data.comissao_paga === true) {
       updateData.comissao_paga_em = new Date();
       updateData.status = 'PAGA';
@@ -369,6 +436,11 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
         include: { parceiro: true, cliente: { select: { nome: true } } },
       });
       if (!vendaAtual) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada' });
+
+      // Ao confirmar, grava a data de confirmação (informada ou hoje).
+      if (body.data.status === 'CONFIRMADA') {
+        updateData.data_confirmacao = data_confirmacao ? new Date(data_confirmacao) : new Date();
+      }
 
       // Ao confirmar, calcula e salva comissão da supervisão
       if (body.data.status === 'CONFIRMADA') {
@@ -398,9 +470,33 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
         if (body.data.status === 'CANCELADO') {
           await prisma.comissao.update({ where: { id: comissaoVendedor.id }, data: { status: 'CANCELADA' } });
         } else if (body.data.status === 'CONFIRMADA') {
-          await prisma.comissao.update({ where: { id: comissaoVendedor.id }, data: { status: 'APROVADA' } });
+          // Período da comissão (mês POSTERIOR): COMUNICAÇÃO → mês seguinte ao 1º
+          // vencimento; demais parceiros → mês seguinte à confirmação.
+          const ehComunic = vendaAtual.parceiro?.categoria === 'COMUNICACAO';
+          const periodoConfirm = ehComunic
+            ? mesSeguinteDe((vendaAtual as any).primeiro_vencimento)
+            : mesSeguinteDe(updateData.data_confirmacao || new Date());
+          await prisma.comissao.update({
+            where: { id: comissaoVendedor.id },
+            data: { status: 'APROVADA', periodo: periodoConfirm },
+          });
         } else if (body.data.comissao_paga === true || body.data.status === 'PAGA') {
           await prisma.comissao.update({ where: { id: comissaoVendedor.id }, data: { status: 'PAGA' } });
+        }
+      }
+
+      // Registra a confirmação na ficha das lojas/cliente envolvidos.
+      if (body.data.status === 'CONFIRMADA') {
+        const lojas = (vendaAtual as any).lojas_ids as string[] | null;
+        const idsFicha = lojas && lojas.length ? lojas : [vendaAtual.cliente_id];
+        for (const cid of idsFicha) {
+          await (prisma as any).eventoCliente.create({
+            data: {
+              cliente_id: cid, tipo: 'OBSERVACAO',
+              titulo: `Venda adicional confirmada: ${vendaAtual.parceiro?.nome || ''}`,
+              referencia_id: id, feito_por: user?.id, feito_por_nome: user?.nome,
+            },
+          }).catch(() => {});
         }
       }
 
