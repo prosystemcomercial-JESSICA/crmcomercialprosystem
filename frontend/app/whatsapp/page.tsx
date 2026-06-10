@@ -81,6 +81,14 @@ export default function WhatsappPage() {
   const [showReuniao, setShowReuniao] = useState(false);
   const [reuniao, setReuniao] = useState({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
   const [salvandoReuniao, setSalvandoReuniao] = useState(false);
+  // Vincular conversa a um cliente da base (+ registrar contato com cargo)
+  const [showVincCliente, setShowVincCliente] = useState(false);
+  const [vincBusca, setVincBusca] = useState('');
+  const [vincResultados, setVincResultados] = useState<any[]>([]);
+  const [vincSel, setVincSel] = useState<any>(null);
+  const [vincNome, setVincNome] = useState('');
+  const [vincCargo, setVincCargo] = useState('');
+  const [vincSalvando, setVincSalvando] = useState(false);
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [carregandoConn, setCarregandoConn] = useState(true);
@@ -201,6 +209,38 @@ export default function WhatsappPage() {
       setAtiva({ ...ativa, lead_id: null });
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null } : c));
     } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao desvincular'); }
+  };
+
+  // Abrir modal de vincular cliente: pré-preenche o nome com o do contato.
+  const abrirVincCliente = () => {
+    setVincSel(null); setVincBusca(''); setVincResultados([]);
+    setVincNome(ativa?.contato_nome || ''); setVincCargo('');
+    setShowVincCliente(true);
+  };
+  // Busca de cliente na base (server-side, debounce).
+  useEffect(() => {
+    if (!showVincCliente || vincSel) return;
+    const termo = vincBusca.trim();
+    if (termo.length < 2) { setVincResultados([]); return; }
+    const t = setTimeout(() => {
+      apiClient.getClientes(0, 15, termo)
+        .then(r => setVincResultados(r.data.data.clientes || []))
+        .catch(() => setVincResultados([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [vincBusca, showVincCliente, vincSel]);
+
+  const salvarVincCliente = async () => {
+    if (!ativa || !vincSel) { alert('Selecione o cliente.'); return; }
+    setVincSalvando(true);
+    try {
+      await apiClient.vincularConversaCliente(ativa.id, {
+        cliente_id: vincSel.id, nome: vincNome || undefined, cargo: vincCargo || undefined,
+      });
+      setShowVincCliente(false);
+      alert('Conversa vinculada ao cliente e contato registrado na ficha! ✅');
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao vincular ao cliente'); }
+    finally { setVincSalvando(false); }
   };
 
   // Agendar reunião: cria a atividade e envia o link pelo WhatsApp do contato.
@@ -613,9 +653,10 @@ export default function WhatsappPage() {
                         <p className="font-semibold text-white text-sm truncate">{nomeContato(ativa)}</p>
                         {ativa.etiqueta && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: ativa.etiqueta_cor || '#6b7280' }}>{ativa.etiqueta}</span>}
                       </div>
-                      <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 vinculado ao funil' : ''}</p>
+                      <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}{(ativa as any).cliente_id ? ' · 👤 cliente vinculado' : ''}</p>
                     </div>
-                    {/* Etiquetar */}
+                    {/* Vincular a cliente da base */}
+                    <button onClick={abrirVincCliente} title="Vincular a um cliente da base" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">👤</button>
                     {/* Agendar reunião */}
                     <button onClick={() => setShowReuniao(true)} title="Agendar reunião" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">📅</button>
                     <button onClick={() => { setMenuEtiqueta(v => !v); setMenuTransferir(false); }} title="Etiquetar" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🏷️</button>
@@ -776,6 +817,61 @@ export default function WhatsappPage() {
       </div>
 
       {/* Modal agendar reunião */}
+      {/* Modal: vincular conversa a um cliente da base */}
+      {showVincCliente && ativa && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-5 w-full max-w-md">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">👤 Vincular a um cliente</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Este contato ({ativa.contato_numero}) será registrado na ficha do cliente com nome, telefone e cargo.
+            </p>
+
+            {/* Busca / seleção do cliente */}
+            {vincSel ? (
+              <div className="flex items-center justify-between gap-3 px-3 py-2.5 border border-emerald-300 bg-emerald-50 rounded-lg mb-3">
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-900 truncate">{vincSel.nome_fantasia || vincSel.razao_social || vincSel.nome}</div>
+                  <div className="text-xs text-gray-500 truncate">{vincSel.codigo ? `#${vincSel.codigo}` : ''}{vincSel.cidade ? ` · ${vincSel.cidade}` : ''}</div>
+                </div>
+                <button type="button" onClick={() => setVincSel(null)} className="text-sm text-emerald-700 shrink-0">Trocar</button>
+              </div>
+            ) : (
+              <div className="relative mb-3">
+                <input value={vincBusca} onChange={e => setVincBusca(e.target.value)} autoComplete="off"
+                  placeholder="Buscar cliente por código, razão, fantasia, CNPJ…"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm" />
+                {vincBusca.trim().length >= 2 && vincResultados.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    {vincResultados.map(c => (
+                      <button key={c.id} type="button" onClick={() => setVincSel(c)}
+                        className="w-full text-left px-3 py-2 hover:bg-emerald-50 border-b border-gray-100 last:border-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">{c.nome_fantasia || c.razao_social || c.nome}</div>
+                        <div className="text-xs text-gray-500 truncate">{c.codigo ? `#${c.codigo}` : ''}{c.cidade ? ` · ${c.cidade}` : ''}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <label className="block text-xs font-medium text-gray-500 mb-1">Nome do contato</label>
+            <input value={vincNome} onChange={e => setVincNome(e.target.value)}
+              placeholder="Nome de quem fala no WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
+            <label className="block text-xs font-medium text-gray-500 mb-1">Cargo</label>
+            <input value={vincCargo} onChange={e => setVincCargo(e.target.value)}
+              placeholder="Ex.: Proprietário, Gerente, Financeiro, Comprador" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowVincCliente(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={salvarVincCliente} disabled={vincSalvando || !vincSel}
+                className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#128C7E' }}>
+                {vincSalvando ? 'Vinculando…' : 'Vincular e salvar contato'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showReuniao && ativa && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-5 w-full max-w-md">

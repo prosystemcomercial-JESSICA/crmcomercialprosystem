@@ -112,6 +112,7 @@ model Cliente {
   vendas_adicionais VendaAdicional[]
   historico_cnpj    HistoricoCnpjCliente[]
   eventos           EventoCliente[]
+  contatos          ContatoCliente[]
 
   @@index([email])
   @@index([empresa])
@@ -143,6 +144,26 @@ model HistoricoCnpjCliente {
   trocado_por      String?
   trocado_por_nome String?
   created_at DateTime @default(now())
+
+  @@index([cliente_id])
+}
+
+// Contatos da empresa cliente (pessoas: dono, gerente, financeiro...). Era uma
+// tabela raw que nunca foi criada → agora é model de verdade, com CARGO.
+model ContatoCliente {
+  id         String  @id @default(cuid())
+  cliente_id String
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  nome       String
+  telefone   String?
+  cargo      String?  // ex.: Proprietário, Gerente, Financeiro, Comprador
+  email      String?
+  origem     String?  // MANUAL | WHATSAPP (de onde veio o contato)
+  principal  Boolean  @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([cliente_id])
 }
@@ -1878,6 +1899,7 @@ model WhatsappConversa {
   contato_numero String // E.164 sem máscara (ex.: 5527999999999)
   contato_nome   String?
   lead_id        String? // vínculo opcional ao Lead do funil
+  cliente_id     String? // vínculo opcional ao Cliente da base (contato que já é cliente)
 
   ultima_mensagem String?   @db.Text
   ultima_em       DateTime?

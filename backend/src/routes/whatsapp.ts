@@ -233,6 +233,60 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success' });
   });
 
+  // Vincula a conversa a um CLIENTE da base e registra o contato (nome, telefone,
+  // cargo) na ficha do cliente. Assim contatos de WhatsApp que já são clientes
+  // ficam salvos e atualizados. Idempotente: se já existe contato com o mesmo
+  // telefone, atualiza em vez de duplicar.
+  fastify.post('/whatsapp/conversas/:id/vincular-cliente', async (request, reply) => {
+    const user = getUser(request);
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      cliente_id: z.string().min(1, 'Selecione o cliente'),
+      nome: z.string().optional(),
+      cargo: z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Selecione o cliente para vincular.' });
+
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    const cliente = await prisma.cliente.findUnique({ where: { id: body.data.cliente_id }, select: { id: true } });
+    if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+
+    const nomeContato = body.data.nome || conversa.contato_nome || conversa.contato_numero;
+    const telefone = conversa.contato_numero;
+
+    // Marca o vínculo na conversa.
+    await prisma.whatsappConversa.update({ where: { id }, data: { cliente_id: body.data.cliente_id } });
+
+    // Cria/atualiza o contato na ficha do cliente (dedupe por telefone).
+    const existente = await (prisma as any).contatoCliente.findFirst({
+      where: { cliente_id: body.data.cliente_id, telefone },
+    }).catch(() => null);
+    let contato;
+    if (existente) {
+      contato = await (prisma as any).contatoCliente.update({
+        where: { id: existente.id },
+        data: { nome: nomeContato, cargo: body.data.cargo ?? existente.cargo, origem: 'WHATSAPP' },
+      });
+    } else {
+      contato = await (prisma as any).contatoCliente.create({
+        data: { cliente_id: body.data.cliente_id, nome: nomeContato, telefone, cargo: body.data.cargo || null, origem: 'WHATSAPP' },
+      });
+    }
+
+    // Evento na timeline do cliente.
+    await (prisma as any).eventoCliente.create({
+      data: {
+        cliente_id: body.data.cliente_id, tipo: 'OBSERVACAO',
+        titulo: `Contato de WhatsApp vinculado: ${nomeContato}${body.data.cargo ? ' (' + body.data.cargo + ')' : ''}`,
+        descricao: `Telefone ${telefone}`, feito_por: user?.id, feito_por_nome: user?.nome,
+      },
+    }).catch(() => {});
+
+    return reply.send({ status: 'success', data: { contato }, message: 'Conversa vinculada ao cliente.' });
+  });
+
   // Agenda uma reunião a partir da conversa: cria Atividade REUNIAO (vinculada
   // ao lead, se houver) e ENVIA a mensagem com data/hora + link pelo WhatsApp.
   fastify.post('/whatsapp/conversas/:id/reuniao', async (request, reply) => {
