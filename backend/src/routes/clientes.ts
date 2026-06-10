@@ -410,10 +410,44 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     if (risco)         and.push({ risco_atencao: true });
     const where = and.length ? { AND: and } : {};
 
-    const [clientes, total] = await Promise.all([
-      prisma.cliente.findMany({ where, skip: page * limit, take: limit, orderBy: [{ situacao: 'asc' }, { razao_social: 'asc' }, { created_at: 'desc' }], include: { _count: { select: { caso_churn: true } } } }),
-      prisma.cliente.count({ where })
-    ]);
+    const total = await prisma.cliente.count({ where });
+
+    // Ordena por CÓDIGO NUMÉRICO (menor → maior). codigo é texto; CAST p/ UNSIGNED
+    // ordena "1, 41, 381, 1787…" corretamente. Os MESMOS filtros são aplicados no
+    // SQL (parâmetros escapados) p/ a paginação numérica bater com o total.
+    const cond: string[] = [];
+    const params: any[] = [];
+    if (search) {
+      cond.push('(nome LIKE ? OR nome_fantasia LIKE ? OR razao_social LIKE ? OR empresa LIKE ? OR email LIKE ? OR codigo LIKE ? OR cnpj LIKE ?)');
+      const s = `%${search}%`; params.push(s, s, s, s, s, s, s);
+    }
+    if (grupo_tecnico) { cond.push('grupo_tecnico = ?'); params.push(grupo_tecnico); }
+    if (situacao)      { cond.push('situacao = ?');      params.push(situacao); }
+    if (segmento)      { cond.push('segmento = ?');      params.push(segmento); }
+    if (plano)         { cond.push('plano = ?');         params.push(plano); }
+    if (risco)         { cond.push('risco_atencao = 1'); }
+    const whereSql = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
+
+    let clientes: any[];
+    const idsRaw: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id FROM Cliente ${whereSql}
+       ORDER BY (codigo IS NULL OR codigo = '') ASC, CAST(codigo AS UNSIGNED) ASC, codigo ASC
+       LIMIT ? OFFSET ?`,
+      ...params, limit, page * limit,
+    ).catch(() => null);
+    if (idsRaw) {
+      const ids = idsRaw.map(r => r.id);
+      if (ids.length === 0) {
+        clientes = [];
+      } else {
+        const lista = await prisma.cliente.findMany({ where: { id: { in: ids } }, include: { _count: { select: { caso_churn: true } } } });
+        const ordem = new Map(ids.map((id, i) => [id, i] as const));
+        clientes = lista.sort((a, b) => (ordem.get(a.id)! - ordem.get(b.id)!));
+      }
+    } else {
+      // Fallback (se o raw falhar): ordena por código via Prisma.
+      clientes = await prisma.cliente.findMany({ where, skip: page * limit, take: limit, orderBy: [{ codigo: 'asc' }, { razao_social: 'asc' }], include: { _count: { select: { caso_churn: true } } } });
+    }
 
     // Opções de filtro (distintas) p/ alimentar os selects do front.
     const [grupos, segmentos, planos] = await Promise.all([
