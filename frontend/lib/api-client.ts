@@ -743,6 +743,10 @@ class ApiClient {
     return this.client.get('/comissoes', { params });
   }
 
+  async getComissoesPeriodos() {
+    return this.client.get('/comissoes/periodos');
+  }
+
   async createComissao(data: any) {
     return this.client.post('/comissoes', data);
   }

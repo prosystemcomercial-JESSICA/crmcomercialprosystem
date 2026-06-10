@@ -219,6 +219,20 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
   });
 
   // ===== EXTRATO DE COMISSÕES =====
+  // Períodos (YYYY-MM) que TÊM comissão lançada — p/ o seletor de mês mostrar
+  // todos (inclusive meses futuros, ex.: comissão de venda adicional lançada p/
+  // o mês posterior ao vencimento). Vendedor vê só os seus; gestor, todos.
+  fastify.get('/comissoes/periodos', async (request, reply) => {
+    const scopeId = scopeUserId(request);
+    const where: any = {};
+    if (scopeId !== null) where.responsavel_id = scopeId;
+    const rows = await prisma.comissao.findMany({
+      where, distinct: ['periodo'], select: { periodo: true }, orderBy: { periodo: 'desc' },
+    }).catch(() => [] as any[]);
+    const periodos = rows.map((r: any) => r.periodo).filter(Boolean);
+    return reply.send({ status: 'success', data: { periodos } });
+  });
+
   fastify.get('/comissoes', async (request, reply) => {
     const query = z.object({
       responsavel_id: z.string().optional(),

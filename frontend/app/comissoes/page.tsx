@@ -71,6 +71,10 @@ export default function ComissoesPage() {
   const [fVendedor, setFVendedor] = useState('');
   const [fTipo, setFTipo] = useState('');
   const [fStatus, setFStatus] = useState('');
+  // Lista REAL de vendedores do CRM (p/ o filtro mostrar todos, mesmo sem comissão no mês).
+  const [vendedoresCRM, setVendedoresCRM] = useState<{ id: string; nome: string }[]>([]);
+  // Períodos que têm comissão lançada (inclui meses futuros, ex.: 2026-07).
+  const [periodosComComissao, setPeriodosComComissao] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -117,6 +121,19 @@ export default function ComissoesPage() {
 
   useEffect(() => { loadData(); }, [isAuthenticated, periodo]);
 
+  // Carrega a lista real de vendedores (gestão) p/ o filtro — todos que recebem
+  // vendas aparecem, mesmo sem comissão no período selecionado.
+  useEffect(() => {
+    if (!isAuthenticated || !user || !ROLES_GESTOR.includes(user.role || '')) return;
+    apiClient.getVendedores().then(r => setVendedoresCRM(r.data?.data || [])).catch(() => {});
+  }, [isAuthenticated, user]);
+
+  // Carrega TODOS os períodos que têm comissão (inclui meses futuros) p/ o seletor.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    apiClient.getComissoesPeriodos().then(r => setPeriodosComComissao(r.data?.data?.periodos || [])).catch(() => {});
+  }, [isAuthenticated, user]);
+
   const handleCalcular = async () => {
     setCalculando(true);
     try {
@@ -149,16 +166,33 @@ export default function ComissoesPage() {
   const isGestor = ROLES_GESTOR.includes(user?.role || '');
   const isCEO = isGestor; // mantém compatibilidade
 
-  const periods = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  // Seletor de meses: últimos 12 meses + TODOS os períodos que têm comissão
+  // (inclui meses futuros, ex.: comissão lançada p/ 2026-07) + o período atual
+  // selecionado. Dedupe e ordenado do mais recente p/ o mais antigo.
+  const periods = (() => {
+    const set = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(); d.setMonth(d.getMonth() - i);
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    periodosComComissao.forEach(p => p && set.add(p));
+    if (periodo) set.add(periodo);
+    return Array.from(set).sort().reverse();
+  })();
 
-  // Lista de vendedores p/ o filtro (do resumo já agrupado por responsável).
-  const vendedoresFiltro = (resumo || [])
-    .map((r: any) => ({ id: r.responsavel_id, nome: r.responsavel_nome || nomeVendedor(r.responsavel_id) }))
-    .sort((a: any, b: any) => (a.nome || '').localeCompare(b.nome || ''));
+  // Lista de vendedores p/ o filtro: TODOS os vendedores do CRM + quem tem
+  // comissão no resumo (inclui contas de sistema, ex.: diretora que vende).
+  // Dedupe por id. Assim a Sarah aparece mesmo sem comissão no mês selecionado.
+  const vendedoresFiltro = (() => {
+    const mapa = new Map<string, { id: string; nome: string }>();
+    for (const v of vendedoresCRM) if (v?.id) mapa.set(v.id, { id: v.id, nome: v.nome || nomeVendedor(v.id) });
+    for (const r of (resumo || [])) {
+      if (r?.responsavel_id && !mapa.has(r.responsavel_id)) {
+        mapa.set(r.responsavel_id, { id: r.responsavel_id, nome: r.responsavel_nome || nomeVendedor(r.responsavel_id) });
+      }
+    }
+    return Array.from(mapa.values()).sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+  })();
   // Tipos presentes nas comissões do período.
   const tiposPresentes = [...new Set(comissoes.map(c => c.tipo).filter(Boolean))];
 
