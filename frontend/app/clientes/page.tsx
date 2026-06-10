@@ -222,6 +222,7 @@ export default function ClientesPage() {
   const [importRows, setImportRows] = useState<Record<string, string>[]>([]);
   const [importMapping, setImportMapping] = useState<Record<string, CsvCol | ''>>({});
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ feitos: number; total: number } | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -365,16 +366,36 @@ export default function ClientesPage() {
 
   const runImport = async () => {
     const payload = buildPayload();
-    if (payload.length === 0) { alert('Nenhuma linha válida com nome e email encontrada.'); return; }
+    if (payload.length === 0) { alert('Nenhuma linha válida (sem código/nome/razão social/email) encontrada.'); return; }
     setImporting(true);
+    setImportProgress({ feitos: 0, total: payload.length });
+    // Envia em LOTES p/ não estourar limite de body nem dar timeout do gateway
+    // em planilhas grandes (1400+). Acumula o resultado de cada lote.
+    const TAM_LOTE = 200;
+    const acc: ImportResult = { total: 0, criados: 0, atualizados: 0, erros_total: 0, erros: [] };
     try {
-      const res = await apiClient.client.post('/clientes/importar', { clientes: payload, modo: importMode });
-      setImportResult(res.data.data);
+      for (let i = 0; i < payload.length; i += TAM_LOTE) {
+        const lote = payload.slice(i, i + TAM_LOTE);
+        const res = await apiClient.client.post('/clientes/importar', { clientes: lote, modo: importMode });
+        const d = res.data.data;
+        acc.total += d.total || lote.length;
+        acc.criados += d.criados || 0;
+        acc.atualizados += d.atualizados || 0;
+        acc.erros_total += d.erros_total || 0;
+        // Reindexa o nº da linha de erro p/ a posição global no arquivo.
+        if (Array.isArray(d.erros)) {
+          for (const e of d.erros) if (acc.erros.length < 100) acc.erros.push({ ...e, linha: (e.linha || 0) + i });
+        }
+        setImportProgress({ feitos: Math.min(i + TAM_LOTE, payload.length), total: payload.length });
+      }
+      setImportResult(acc);
       setImportStep('result');
       fetchClientes();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao importar. Verifique o arquivo.');
-    } finally { setImporting(false); }
+      const det = e?.response?.data?.errors ? '\n' + JSON.stringify(e.response.data.errors).slice(0, 300) : '';
+      alert((e?.response?.data?.message || 'Erro ao importar. Verifique o arquivo.') + det +
+        `\n\nImportados antes da falha: ${acc.criados + acc.atualizados}.`);
+    } finally { setImporting(false); setImportProgress(null); }
   };
 
   const validRows = buildPayload().length;
@@ -842,7 +863,9 @@ export default function ClientesPage() {
                     <button onClick={runImport} disabled={importing || validRows === 0}
                       className="text-sm px-6 py-2 rounded-lg font-medium text-white disabled:opacity-50"
                       style={{ background: 'var(--t-primary)' }}>
-                      {importing ? 'Importando...' : `Importar ${validRows} cliente${validRows !== 1 ? 's' : ''}`}
+                      {importing
+                        ? (importProgress ? `Importando ${importProgress.feitos}/${importProgress.total}...` : 'Importando...')
+                        : `Importar ${validRows} cliente${validRows !== 1 ? 's' : ''}`}
                     </button>
                   </div>
                 </div>
