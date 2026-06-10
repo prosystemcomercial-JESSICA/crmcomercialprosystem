@@ -38,6 +38,7 @@ export interface RenegociacaoPdfData {
   como_mantido?: string | null;  // o que foi feito p/ manter o cliente
   resultado?: string | null;     // como ficou após a renegociação
   data?: Date | string | null;   // data do acordo (default: hoje)
+  proximo_vencimento?: Date | string | null; // vencimento da 1ª parcela (preenchido pelo gestor)
 }
 
 const S = {
@@ -57,9 +58,11 @@ function dataExtenso(d: Date): string {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-// Tabela de parcelas: divide o saldo (devido - entrada) em N parcelas iguais,
-// com vencimentos mensais a partir do mês seguinte ao acordo.
-function tabelaParcelas(saldo: number, parcelas: number, dataBase: Date): any {
+// Tabela de parcelas: divide o saldo (devido - entrada) em N parcelas iguais.
+// Se `primeiraParcela` for informada (data do próximo vencimento preenchida pelo
+// gestor), a 1ª parcela vence NESSA data e as seguintes mês a mês a partir dela.
+// Senão, mantém o comportamento antigo: 1ª parcela no mês seguinte ao acordo.
+function tabelaParcelas(saldo: number, parcelas: number, dataBase: Date, primeiraParcela?: Date | null): any {
   const valorParcela = Math.round((saldo / parcelas) * 100) / 100;
   const linhas: any[] = [
     [
@@ -70,8 +73,14 @@ function tabelaParcelas(saldo: number, parcelas: number, dataBase: Date): any {
   ];
   let acumulado = 0;
   for (let i = 1; i <= parcelas; i++) {
-    const venc = new Date(dataBase);
-    venc.setMonth(venc.getMonth() + i);
+    let venc: Date;
+    if (primeiraParcela) {
+      venc = new Date(primeiraParcela);
+      venc.setMonth(venc.getMonth() + (i - 1));
+    } else {
+      venc = new Date(dataBase);
+      venc.setMonth(venc.getMonth() + i);
+    }
     // a última parcela absorve o arredondamento p/ fechar exatamente o saldo
     const v = i === parcelas ? Math.round((saldo - acumulado) * 100) / 100 : valorParcela;
     acumulado += v;
@@ -97,6 +106,7 @@ function tabelaParcelas(saldo: number, parcelas: number, dataBase: Date): any {
 
 export function gerarRenegociacaoPdf(d: RenegociacaoPdfData): Promise<Buffer> {
   const data = d.data ? new Date(d.data) : new Date();
+  const primeiraParcela = d.proximo_vencimento ? new Date(d.proximo_vencimento) : null;
   const devido = d.valor_devido || 0;
   const entrada = d.valor_entrada || 0;
   const parcelas = Math.max(0, Math.min(6, d.parcelas || 0));
@@ -141,7 +151,7 @@ export function gerarRenegociacaoPdf(d: RenegociacaoPdfData): Promise<Buffer> {
             { text: `${fmtBRL(saldo)} (${capExt(saldo)})`, bold: true },
             ` será pago em ${parcExt} (${parcelas}) ${parcelas === 1 ? 'parcela' : 'parcelas'} mensais e sucessivas, conforme o quadro abaixo:`,
           ]),
-          tabelaParcelas(saldo, parcelas, data),
+          tabelaParcelas(saldo, parcelas, data, primeiraParcela),
         ]
       : entrada > 0 && saldo <= 0
       ? [par('Com o pagamento da entrada acima, a DEVEDORA quita integralmente o débito confessado.')]

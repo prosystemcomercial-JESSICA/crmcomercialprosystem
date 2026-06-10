@@ -270,6 +270,7 @@ export async function casosChurnRoutes(
           como_mantido: caso.reneg_como_mantido,
           resultado: caso.reneg_resultado,
           data: caso.reneg_data,
+          proximo_vencimento: (caso as any).reneg_proximo_vencimento,
         });
 
         const nomeArq = `Renegociacao_${(cli.razao_social || cli.nome || id).replace(/[^\w.-]/g, '_')}.pdf`;
