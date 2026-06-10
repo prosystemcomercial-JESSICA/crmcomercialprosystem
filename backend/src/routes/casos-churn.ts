@@ -202,10 +202,17 @@ export async function casosChurnRoutes(
             reneg_responsavel: b.reneg_responsavel ?? null,
             reneg_responsavel_cpf: b.reneg_responsavel_cpf ?? null,
             reneg_data: b.reneg_data ? new Date(b.reneg_data) : (existe.reneg_data ?? new Date()),
+            reneg_proximo_vencimento: b.reneg_proximo_vencimento ? new Date(b.reneg_proximo_vencimento) : null,
             // dificuldade financeira passa a ser o motivo registrado
             ...(ativa && !existe.motivo_principal ? { motivo_principal: 'Dificuldade financeira' } : {}),
           },
         });
+
+        // Marca o cliente em risco (entra nos radares) e registra na ficha que há
+        // uma renegociação ativa via o vínculo casoChurn (exibido em /clientes/:id).
+        if (ativa) {
+          await prisma.cliente.update({ where: { id: existe.clienteId }, data: { risco_atencao: true } }).catch(() => {});
+        }
 
         return reply.send({ status: 'success', data: caso, message: 'Renegociação salva' });
       } catch (error: any) {
