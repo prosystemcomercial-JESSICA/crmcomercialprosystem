@@ -69,11 +69,25 @@ const ClienteSchema = z.object({
   cep: z.string().optional(),
   endereco: z.string().optional(),
   numero: z.string().optional(),
+  numero_end: z.string().optional(),
   bairro: z.string().optional(),
   cidade: z.string().optional(),
   estado: z.string().optional(),
   regiao: z.string().optional(),
   complemento: z.string().optional(),
+  codigo_ibge: z.string().optional(),
+  // Contato/fiscais complementares
+  ddd: z.string().optional(),
+  telefone1: z.string().optional(),
+  telefone2: z.string().optional(),
+  tel_contato: z.string().optional(),
+  inscricao_estadual: z.string().optional(),
+  cpf_responsavel: z.string().optional(),
+  rg_responsavel: z.string().optional(),
+  regime_tributario: z.string().optional(),
+  dia_vencimento: z.coerce.number().optional(),
+  valor_instalacao: z.coerce.number().optional(),
+  condicao_pagamento: z.string().optional(),
   // Informações adicionais
   responsavel_nome: z.string().optional(),
   responsavel_celular: z.string().optional(),
@@ -512,8 +526,16 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
         'cidade', 'estado', 'mensalidade_base', 'observacoes_fin',
         'apresentou_plus', 'conhece_dashboard', 'conhece_mensageria', 'conhece_gerencial',
         'conhece_atencao_farma', 'risco_atencao', 'ativo_observacoes',
+        // Endereço + complementares (existem no model Cliente)
+        'cep', 'endereco', 'numero_end', 'complemento', 'bairro', 'codigo_ibge', 'regiao',
+        'ddd', 'telefone1', 'telefone2', 'tel_contato', 'contato2', 'tel_contato2', 'contato_pesquisa',
+        'inscricao_estadual', 'cpf_responsavel', 'rg_responsavel', 'responsavel_nome',
+        'regime_tributario', 'dia_vencimento', 'valor_instalacao', 'condicao_pagamento',
+        'previsao_pagamento',
       ];
       for (const k of campos) if (b[k] !== undefined && b[k] !== '') data[k] = b[k];
+      // A ficha manda "numero" (UI) → grava em numero_end (coluna do banco).
+      if (b.numero_end === undefined && b.numero) data.numero_end = b.numero;
       if (b.telefone_contato && !data.telefone) data.telefone = b.telefone_contato;
       if (b.data_entrada) data.data_entrada = new Date(b.data_entrada);
       const cliente = await prisma.cliente.update({ where: { id }, data });
