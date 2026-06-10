@@ -64,10 +64,18 @@ export async function casosChurnRoutes(
         const query = ListCasoChurnSchema.parse(request.query);
         const result = await service.list(query, query.page, query.limit);
 
+        // O front lê res.data.data.casos / .total — manter esse formato (o caso
+        // existia mas a lista vinha vazia porque o front não achava .casos).
         return reply.status(200).send({
           status: 'success',
-          data: result.data,
-          pagination: result.pagination
+          data: {
+            casos: result.data,
+            total: result.pagination.total,
+            page: result.pagination.page,
+            limit: result.pagination.limit,
+            totalPages: result.pagination.totalPages,
+          },
+          pagination: result.pagination,
         });
       } catch (error: any) {
         console.error('[GET /casos-churn]', error);
