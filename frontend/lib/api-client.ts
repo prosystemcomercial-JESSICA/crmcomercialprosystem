@@ -893,6 +893,9 @@ class ApiClient {
     return this.client.patch(`/vendas-adicionais/${id}`, data);
   }
 
+  async resumoFinanceiroVenda(id: string) {
+    return this.client.get(`/vendas-adicionais/${id}/resumo-financeiro`);
+  }
   async deleteVendaAdicional(id: string) {
     return this.client.delete(`/vendas-adicionais/${id}`);
   }
