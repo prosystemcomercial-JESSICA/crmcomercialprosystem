@@ -285,6 +285,22 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       return Number.isFinite(n) ? n : undefined;
     };
 
+    // OTIMIZAÇÃO: carrega TODOS os clientes existentes UMA vez (mapas por chave),
+    // em vez de um findFirst por linha. Corta milhares de idas ao banco → evita
+    // a lentidão/timeout em planilhas grandes. Os mapas são atualizados conforme
+    // criamos novos, p/ dedupe funcionar dentro do mesmo lote também.
+    const existentes = await prisma.cliente.findMany({
+      select: { id: true, codigo: true, email: true, cnpj: true },
+    });
+    const porCodigo = new Map<string, string>();
+    const porEmail = new Map<string, string>();
+    const porCnpj = new Map<string, string>();
+    for (const e of existentes) {
+      if (e.codigo) porCodigo.set(e.codigo, e.id);
+      if (e.email) porEmail.set(e.email.toLowerCase(), e.id);
+      if (e.cnpj) porCnpj.set(e.cnpj, e.id);
+    }
+
     for (let i = 0; i < clientes.length; i++) {
       const c = clientes[i] as any;
       // Aliases da planilha → campos canônicos. txtId remove ".0" do Excel.
@@ -359,35 +375,38 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
         // Remove chaves undefined (não sobrescreve com vazio em nenhum modo).
         Object.keys(data).forEach(k => data[k] === undefined && delete data[k]);
 
-        // Chave de dedupe: código (preferido) → email → CNPJ.
+        // Chave de dedupe: código (preferido) → email → CNPJ — via mapas (sem query).
         const cnpjKey = txtId(c.cnpj);
-        const whereKey = codigoRaw ? { codigo: codigoRaw }
-          : (emailValido ? { email: emailValido }
-          : (cnpjKey ? { cnpj: cnpjKey } : null));
-        const existente = whereKey ? await prisma.cliente.findFirst({ where: whereKey as any }) : null;
+        const existenteId = codigoRaw ? porCodigo.get(codigoRaw)
+          : (emailValido ? porEmail.get(emailValido.toLowerCase())
+          : (cnpjKey ? porCnpj.get(cnpjKey) : undefined));
+        const temChave = !!(codigoRaw || emailValido || cnpjKey);
 
-        if (modo === 'CRIAR' || !whereKey) {
-          await prisma.cliente.create({ data }); criados++;
+        // Registra um cliente recém-criado nos mapas (dedupe dentro do lote).
+        const registrar = (id: string) => {
+          if (codigoRaw) porCodigo.set(codigoRaw, id);
+          if (emailValido) porEmail.set(emailValido.toLowerCase(), id);
+          if (cnpjKey) porCnpj.set(cnpjKey, id);
+        };
+
+        if (modo === 'CRIAR' || !temChave) {
+          const novo = await prisma.cliente.create({ data, select: { id: true } }); criados++; registrar(novo.id);
         } else if (modo === 'ATUALIZAR') {
-          if (!existente) { erros.push({ linha: i + 1, ref, motivo: 'Não encontrado' } as any); continue; }
-          await prisma.cliente.update({ where: { id: existente.id }, data }); atualizados++;
+          if (!existenteId) { erros.push({ linha: i + 1, ref, motivo: 'Não encontrado' } as any); continue; }
+          await prisma.cliente.update({ where: { id: existenteId }, data }); atualizados++;
         } else if (modo === 'COMPLEMENTAR') {
-          // Só preenche campos que estão VAZIOS no cadastro atual; nunca sobrescreve.
-          if (!existente) { await prisma.cliente.create({ data }); criados++; continue; }
-          const ex: any = existente;
+          if (!existenteId) { const novo = await prisma.cliente.create({ data, select: { id: true } }); criados++; registrar(novo.id); continue; }
+          const ex: any = await prisma.cliente.findUnique({ where: { id: existenteId } });
           const soVazios: any = {};
           for (const k of Object.keys(data)) {
-            if (k === 'nome') continue; // nome já existe; não troca
-            const atual = ex[k];
-            const vazio = atual === null || atual === undefined || atual === '';
-            if (vazio) soVazios[k] = data[k];
+            if (k === 'nome') continue;
+            const atual = ex?.[k];
+            if (atual === null || atual === undefined || atual === '') soVazios[k] = data[k];
           }
-          if (Object.keys(soVazios).length > 0) {
-            await prisma.cliente.update({ where: { id: existente.id }, data: soVazios }); atualizados++;
-          }
+          if (Object.keys(soVazios).length > 0) { await prisma.cliente.update({ where: { id: existenteId }, data: soVazios }); atualizados++; }
         } else { // UPSERT
-          if (existente) { await prisma.cliente.update({ where: { id: existente.id }, data }); atualizados++; }
-          else { await prisma.cliente.create({ data }); criados++; }
+          if (existenteId) { await prisma.cliente.update({ where: { id: existenteId }, data }); atualizados++; }
+          else { const novo = await prisma.cliente.create({ data, select: { id: true } }); criados++; registrar(novo.id); }
         }
       } catch (err: any) {
         erros.push({ linha: i + 1, ref, motivo: err.code === 'P2002' ? 'Duplicado (código/email já existe)' : err.message } as any);
