@@ -198,7 +198,7 @@ export default function ClienteDetailPage() {
         redes: c.redes || [], ferramentas: c.ferramentas || [],
       });
       setEndForm({
-        cep: c.cep || '', endereco: c.endereco || '', numero: c.numero || '',
+        cep: c.cep || '', endereco: c.endereco || '', numero: (c as any).numero_end || c.numero || '',
         bairro: c.bairro || '', cidade: c.cidade || '', estado: c.estado || '',
         regiao: c.regiao || '', complemento: c.complemento || '',
       });
@@ -234,6 +234,7 @@ export default function ClienteDetailPage() {
     try {
       await apiClient.client.patch(`/clientes/${id}`, {
         ...form, ...endForm, ...infoForm, ...ativosForm,
+        numero_end: endForm.numero || undefined, // banco usa numero_end (não "numero")
         mensalidade_base: finForm.mensalidade_base !== '' ? parseFloat(finForm.mensalidade_base) : undefined,
         observacoes_fin: finForm.observacoes_fin || undefined,
       });
