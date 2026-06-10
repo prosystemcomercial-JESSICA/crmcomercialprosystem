@@ -223,11 +223,25 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       return undefined;
     };
     // Texto → número (aceita "1.200", "98,54", "1200"); ignora vazio/"- -".
+    // Converte texto p/ número aceitando os dois formatos das planilhas:
+    //  - convertida (Excel/Pandas): ponto é decimal → "347.0"=347, "98.54"=98.54
+    //  - legada (BR): vírgula é decimal e ponto é milhar → "1.200,00"=1200, "98,54"
     const num = (s?: string) => {
       if (!s) return undefined;
-      const t = s.replace(/\./g, '').replace(',', '.').replace(/[^0-9.]/g, '').trim();
-      if (!t) return undefined;
-      const n = Number(t);
+      let v = String(s).trim().replace(/[^0-9.,-]/g, ''); // só dígitos, . , -
+      if (!v) return undefined;
+      const temVirgula = v.includes(',');
+      if (temVirgula) {
+        // BR: ponto é milhar, vírgula é decimal → "1.200,50" → "1200.50"
+        v = v.replace(/\./g, '').replace(',', '.');
+      } else {
+        // Só ponto presente. Se houver vários pontos, o último é decimal e os
+        // demais são milhar ("1.200" sem decimal → 1200). Com 1 ponto, é decimal
+        // ("347.0"→347, "98.54"→98.54).
+        const partes = v.split('.');
+        if (partes.length > 2) v = partes.slice(0, -1).join('') + '.' + partes[partes.length - 1];
+      }
+      const n = Number(v);
       return Number.isFinite(n) ? n : undefined;
     };
     const inteiro = (s?: string) => { const n = num(s); return n != null ? Math.round(n) : undefined; };
