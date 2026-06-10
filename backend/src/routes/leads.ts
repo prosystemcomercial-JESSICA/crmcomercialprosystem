@@ -123,6 +123,13 @@ function sanitizarBodyLead(raw: any): Record<string, any> {
       out[k] = d.toISOString();
       continue;
     }
+    // Campos Json de array: o default antigo no banco era "{}" (objeto), então o
+    // front reenviava {} e o z.array() rejeitava ("Expected array, received
+    // object"), travando a ficha e a aba de planos da proposta. Normaliza p/ array.
+    if (k === 'modulos_inclusos' || k === 'servicos_adicionais') {
+      out[k] = Array.isArray(v) ? v : [];
+      continue;
+    }
     out[k] = v;
   }
   return out;
