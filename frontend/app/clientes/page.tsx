@@ -128,6 +128,20 @@ export default function ClientesPage() {
   const router = useRouter();
   // Vendedor só consulta clientes; não cadastra/importa/edita/remove.
   const isGestor = podeVerTudo(user?.role);
+  const isCEO = ['CEO', 'ADMIN', 'DIRETOR'].includes((user?.role || '').toUpperCase());
+
+  // Zera a base de clientes (só CEO) — pede confirmação digitando ZERAR.
+  const zerarBase = async () => {
+    const c = window.prompt('⚠️ Isso APAGA TODOS os clientes (e vínculos). Não há como desfazer.\n\nDigite ZERAR para confirmar:');
+    if (c !== 'ZERAR') { if (c !== null) alert('Confirmação incorreta. Nada foi apagado.'); return; }
+    try {
+      const res = await apiClient.client.post('/clientes/zerar-base', { confirmacao: 'ZERAR' });
+      alert(res.data?.message || 'Base zerada.');
+      setPage(0); fetchClientes();
+    } catch (e: any) {
+      alert('Erro ao zerar: ' + (e?.response?.data?.message || e?.message || 'desconhecido'));
+    }
+  };
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [fGrupo, setFGrupo] = useState('');
@@ -366,6 +380,16 @@ export default function ClientesPage() {
                 >
                   + Novo Cliente
                 </button>
+                {isCEO && (
+                  <button
+                    onClick={zerarBase}
+                    title="Apaga TODOS os clientes para reimportar do zero (só CEO)"
+                    className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
+                    style={{ borderColor: '#dc2626', color: '#dc2626', background: 'transparent' }}
+                  >
+                    🗑️ Zerar base
+                  </button>
+                )}
               </>
             )}
           </div>
