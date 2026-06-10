@@ -28,18 +28,26 @@ export class CasoChurnService {
       throw new NotFoundError(`Cliente ${data.clienteId} não encontrado`);
     }
 
-    // Criar caso de churn
+    // Criar caso de churn. IMPORTANTE: gravar o motivo_principal — antes era
+    // ignorado, então o "Dificuldade financeira" escolhido na tela sumia.
     const caso = await this.prisma.casoChurn.create({
       data: {
         clienteId: data.clienteId,
         status: 'NOVO',
         risk_score: 0,
+        motivo_principal: data.motivo_principal || undefined,
         created_by: userId
       },
       include: {
         cliente: true
       }
     });
+
+    // Marca o cliente em risco de atenção (entra nos radares/filtros de churn).
+    await this.prisma.cliente.update({
+      where: { id: data.clienteId },
+      data: { risco_atencao: true },
+    }).catch(() => {});
 
     console.log(`[CasoChurn] Novo caso criado: ${caso.id} para cliente ${cliente.nome}`);
     return caso;
