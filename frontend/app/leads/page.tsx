@@ -322,7 +322,7 @@ function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => v
           {iniciaisDono(donoNome)}
         </span>
         <span className="text-[10px] font-semibold truncate" style={{ color: corDono }}>
-          {donoNome || 'Sem responsável'}
+          {donoNome || (lead.responsavel_id ? 'Responsável' : 'Sem responsável')}
         </span>
       </div>
 
