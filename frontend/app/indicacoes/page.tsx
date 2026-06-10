@@ -34,6 +34,10 @@ interface VendaAdicional {
   status: string;
   observacoes?: string;
   created_at: string;
+  data_indicacao?: string;
+  data_confirmacao?: string;
+  primeiro_vencimento?: string;
+  acrescimo_mensal?: number;
   cliente: { id: string; nome: string; empresa?: string; telefone?: string };
   parceiro: { id: string; nome: string; categoria: string; comissao_valor: number };
 }
@@ -427,6 +431,14 @@ export default function IndicacoesPage() {
                           )}
                           {v.valor_venda && (
                             <p className="text-xs text-gray-400 mt-0.5">R$ {v.valor_venda.toLocaleString('pt-BR')}/mês</p>
+                          )}
+                          {/* Datas do ciclo (indicação / confirmação / 1º venc.) */}
+                          {(v.data_indicacao || v.data_confirmacao || v.primeiro_vencimento) && (
+                            <p className="text-[11px] text-gray-500 mt-1 flex flex-wrap gap-x-3">
+                              {v.data_indicacao && <span>📅 Indicado: <b>{new Date(v.data_indicacao).toLocaleDateString('pt-BR')}</b></span>}
+                              {v.data_confirmacao && <span>✅ Confirmado: <b>{new Date(v.data_confirmacao).toLocaleDateString('pt-BR')}</b></span>}
+                              {v.primeiro_vencimento && <span>💳 1º venc.: <b>{new Date(v.primeiro_vencimento).toLocaleDateString('pt-BR')}</b></span>}
+                            </p>
                           )}
                         </td>
                         <td className="px-5 py-4">
