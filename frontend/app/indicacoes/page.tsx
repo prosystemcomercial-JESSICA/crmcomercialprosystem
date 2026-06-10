@@ -115,6 +115,14 @@ export default function IndicacoesPage() {
     }
   }, []);
 
+  // Busca PRÓPRIA das lojas que vão se comunicar (separada da busca de cliente).
+  const [lojaBusca, setLojaBusca] = useState('');
+  const [lojaResultados, setLojaResultados] = useState<any[]>([]);
+  const [lojaLoading, setLojaLoading] = useState(false);
+  // Guarda os dados (nome/código) das lojas SELECIONADAS p/ exibir mesmo quando
+  // somem dos resultados da busca atual.
+  const [lojasSelMap, setLojasSelMap] = useState<Record<string, any>>({});
+
   // Modal venda
   const [showVendaModal, setShowVendaModal] = useState(false);
   const [vendaForm, setVendaForm] = useState<any>({
@@ -174,6 +182,7 @@ export default function IndicacoesPage() {
     setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', acrescimo_mensal: '', plano_anterior: '', plano_novo: '', observacoes: '', setup_forma: 'PARCELADO', setup_entrada: '', setup_parcelas: 1, setup_primeiro_venc: '',
       // comunicação multi-loja + datas
       lojas_ids: [], setup_loja_id: '', data_venda: '', data_inicio_comunicacao: '', primeiro_vencimento: '', data_indicacao: '' });
+    setLojaBusca(''); setLojaResultados([]); setLojasSelMap({});
     setShowVendaModal(true);
   };
 
@@ -289,6 +298,30 @@ export default function IndicacoesPage() {
   const ehComunicacao = parceiroSelecionado?.categoria === 'COMUNICACAO';
   const nLojasComunic = ehComunicacao ? Math.max(1, (vendaForm.lojas_ids || []).length) : 1;
   const acrescimoTotalComunic = ehComunicacao ? Number(vendaForm.acrescimo_mensal || 0) * nLojasComunic : 0;
+
+  // Busca server-side das lojas (debounce 300ms) só com o modal de comunicação aberto.
+  useEffect(() => {
+    if (!showVendaModal || !ehComunicacao) return;
+    const termo = lojaBusca.trim();
+    if (termo.length < 2) { setLojaResultados([]); return; }
+    setLojaLoading(true);
+    const t = setTimeout(() => {
+      apiClient.getClientes(0, 20, termo)
+        .then(r => setLojaResultados(r.data.data.clientes || []))
+        .catch(() => setLojaResultados([]))
+        .finally(() => setLojaLoading(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [lojaBusca, showVendaModal, ehComunicacao]);
+
+  // Marca/desmarca uma loja, preservando seus dados p/ exibição posterior.
+  const toggleLoja = (c: any) => {
+    setLojasSelMap(prev => ({ ...prev, [c.id]: { id: c.id, nome: c.nome_fantasia || c.razao_social || c.nome, codigo: c.codigo } }));
+    setVendaForm((p: any) => {
+      const cur: string[] = p.lojas_ids || [];
+      return { ...p, lojas_ids: cur.includes(c.id) ? cur.filter(x => x !== c.id) : [...cur, c.id] };
+    });
+  };
   // Mensalidade atual do cliente (base) → nova = atual + acréscimo do upgrade.
   const mensalidadeAtual = Number(clienteSelecionado?.mensalidade_base || 0);
   const acrescimo = Number(vendaForm.acrescimo_mensal || 0);
@@ -633,24 +666,51 @@ export default function IndicacoesPage() {
               {ehComunicacao && (
                 <div className="rounded-lg border border-teal-200 bg-teal-50 p-3 space-y-3">
                   <p className="text-sm font-bold text-teal-800">📡 Lojas que vão se comunicar</p>
-                  <p className="text-[11px] text-teal-700">O acréscimo na mensalidade é cobrado <b>por loja</b>. Marque todas as lojas envolvidas (busque mais clientes acima e marque aqui).</p>
-                  <div className="max-h-40 overflow-auto rounded border border-teal-200 bg-white divide-y">
-                    {clientes.length === 0 && <p className="text-xs text-gray-400 p-2">Busque clientes acima para listar as lojas.</p>}
-                    {clientes.map((c: any) => {
-                      const nome = c.nome_fantasia || c.razao_social || c.nome || 'Sem nome';
-                      const marcada = (vendaForm.lojas_ids || []).includes(c.id);
-                      return (
-                        <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-teal-50">
-                          <input type="checkbox" checked={marcada}
-                            onChange={() => setVendaForm((p: any) => {
-                              const cur: string[] = p.lojas_ids || [];
-                              return { ...p, lojas_ids: marcada ? cur.filter(x => x !== c.id) : [...cur, c.id] };
-                            })} />
-                          <span>{nome}{c.codigo ? ` · #${c.codigo}` : ''}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <p className="text-[11px] text-teal-700">O acréscimo na mensalidade é cobrado <b>por loja</b>. Pesquise e marque todas as lojas envolvidas.</p>
+
+                  {/* Busca própria das lojas */}
+                  <input
+                    type="text"
+                    value={lojaBusca}
+                    onChange={e => setLojaBusca(e.target.value)}
+                    placeholder="🔍 Pesquisar loja por código, razão social, fantasia ou CNPJ…"
+                    className="w-full px-3 py-2 border border-teal-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    autoComplete="off"
+                  />
+                  {lojaBusca.trim().length >= 2 && (
+                    <div className="max-h-40 overflow-auto rounded border border-teal-200 bg-white divide-y">
+                      {lojaLoading && <p className="text-xs text-gray-400 p-2">Buscando…</p>}
+                      {!lojaLoading && lojaResultados.length === 0 && <p className="text-xs text-gray-400 p-2">Nenhuma loja encontrada.</p>}
+                      {lojaResultados.map((c: any) => {
+                        const nome = c.nome_fantasia || c.razao_social || c.nome || 'Sem nome';
+                        const marcada = (vendaForm.lojas_ids || []).includes(c.id);
+                        return (
+                          <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-teal-50">
+                            <input type="checkbox" checked={marcada} onChange={() => toggleLoja(c)} />
+                            <span>{nome}{c.codigo ? ` · #${c.codigo}` : ''}{c.cidade ? ` · ${c.cidade}` : ''}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Lojas já selecionadas (chips) — não somem ao mudar a busca */}
+                  {(vendaForm.lojas_ids || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(vendaForm.lojas_ids || []).map((lid: string) => {
+                        const info = lojasSelMap[lid] || lojaResultados.find((x: any) => x.id === lid) || {};
+                        const nome = info.nome || info.nome_fantasia || info.razao_social || info.nome || lid;
+                        return (
+                          <span key={lid} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-800">
+                            {info.codigo ? `${info.codigo} · ` : ''}{nome}
+                            <button type="button" onClick={() => setVendaForm((p: any) => ({ ...p, lojas_ids: (p.lojas_ids || []).filter((x: string) => x !== lid), setup_loja_id: p.setup_loja_id === lid ? '' : p.setup_loja_id }))}
+                              className="ml-0.5 text-teal-600 hover:text-teal-900 font-bold">×</button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <div className="text-xs text-teal-800">
                     {nLojasComunic} loja(s) · acréscimo total: <b>R$ {acrescimoTotalComunic.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês</b>
                   </div>
@@ -660,8 +720,8 @@ export default function IndicacoesPage() {
                       className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
                       <option value="">Selecione a loja onde o setup será cobrado…</option>
                       {(vendaForm.lojas_ids || []).map((lid: string) => {
-                        const c = clientes.find((x: any) => x.id === lid);
-                        return <option key={lid} value={lid}>{c ? (c.nome_fantasia || c.razao_social || c.nome) : lid}</option>;
+                        const info = lojasSelMap[lid] || {};
+                        return <option key={lid} value={lid}>{info.codigo ? `${info.codigo} · ` : ''}{info.nome || lid}</option>;
                       })}
                     </select>
                   </div>
