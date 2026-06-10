@@ -130,6 +130,23 @@ export default function ClientesPage() {
   const isGestor = podeVerTudo(user?.role);
   const isCEO = ['CEO', 'ADMIN', 'DIRETOR'].includes((user?.role || '').toUpperCase());
 
+  // Limpa registros inválidos (lixo de import: código não-numérico). Mostra
+  // quantos antes de apagar e pede confirmação.
+  const limparInvalidos = async () => {
+    try {
+      const prev = await apiClient.client.post('/clientes/limpar-invalidos');
+      const qtd = prev.data?.data?.invalidos ?? 0;
+      if (qtd === 0) { alert('Nenhum registro inválido encontrado. ✅'); return; }
+      const ex = (prev.data?.data?.amostra || []).slice(0, 5).map((a: any) => `• ${a.codigo || '(sem código)'} — ${a.nome}`).join('\n');
+      if (!window.confirm(`Encontrei ${qtd} cliente(s) com código inválido (lixo de importação):\n\n${ex}${qtd > 5 ? '\n…' : ''}\n\nApagar TODOS esses ${qtd}? (não há desfazer)`)) return;
+      const res = await apiClient.client.post('/clientes/limpar-invalidos?confirmar=1');
+      alert(res.data?.message || 'Limpeza concluída.');
+      setPage(0); fetchClientes();
+    } catch (e: any) {
+      alert('Erro: ' + (e?.response?.data?.message || e?.message || 'desconhecido'));
+    }
+  };
+
   // Zera a base de clientes (só CEO) — pede confirmação digitando ZERAR.
   const zerarBase = async () => {
     const c = window.prompt('⚠️ Isso APAGA TODOS os clientes (e vínculos). Não há como desfazer.\n\nDigite ZERAR para confirmar:');
@@ -379,6 +396,14 @@ export default function ClientesPage() {
                   style={{ background: 'var(--t-primary)' }}
                 >
                   + Novo Cliente
+                </button>
+                <button
+                  onClick={limparInvalidos}
+                  title="Apaga clientes com código inválido (lixo de importação)"
+                  className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
+                  style={{ borderColor: '#d97706', color: '#d97706', background: 'transparent' }}
+                >
+                  🧹 Limpar inválidos
                 </button>
                 {isCEO && (
                   <button

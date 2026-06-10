@@ -655,6 +655,45 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     }
   });
 
+  // ===== LIMPAR CLIENTES INVÁLIDOS (lixo de importação) =====
+  // Apaga os clientes cujo código NÃO é puramente numérico — ex.: códigos que
+  // viraram texto de observação ("* CONTADORA...", "INSTALACAO R$ 450",
+  // "MENSALIDADE: R$ 150"). Códigos válidos são só dígitos (1, 41, 381…).
+  // Sem ?confirmar=1 só CONTA (pré-visualização); com confirmar=1 apaga. Só gestão.
+  fastify.post('/clientes/limpar-invalidos', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const confirmar = (request.query as any)?.confirmar === '1';
+    try {
+      // Inválido = código nulo/vazio OU contém algo que não seja dígito.
+      const cond = `codigo IS NULL OR codigo = '' OR codigo REGEXP '[^0-9]'`;
+      const cntRows: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS n FROM Cliente WHERE ${cond}`);
+      const qtd = Number(cntRows?.[0]?.n || 0);
+
+      // Amostra (até 20) p/ a pré-visualização.
+      const amostra: any[] = await prisma.$queryRawUnsafe(
+        `SELECT id, codigo, COALESCE(razao_social, nome_fantasia, nome) AS nome, situacao FROM Cliente WHERE ${cond} LIMIT 20`
+      ).catch(() => []);
+
+      if (!confirmar) {
+        return reply.send({ status: 'success', data: { invalidos: qtd, amostra }, message: `${qtd} cliente(s) com código inválido encontrados.` });
+      }
+
+      // Apaga via Prisma (cascade) os ids inválidos, em lotes.
+      const ids: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM Cliente WHERE ${cond}`).catch(() => []);
+      const lista = ids.map(r => r.id);
+      let apagados = 0;
+      for (let i = 0; i < lista.length; i += 200) {
+        const lote = lista.slice(i, i + 200);
+        const r = await prisma.cliente.deleteMany({ where: { id: { in: lote } } }).catch(() => ({ count: 0 }));
+        apagados += r.count;
+      }
+      return reply.send({ status: 'success', data: { apagados }, message: `${apagados} cliente(s) inválido(s) removido(s).` });
+    } catch (err: any) {
+      console.error('[POST /clientes/limpar-invalidos]', err?.message);
+      return reply.status(500).send({ status: 'error', message: 'Erro ao limpar: ' + (err?.message || 'desconhecido') });
+    }
+  });
+
   // ===== CONTATOS =====
   fastify.get('/clientes/:id/contatos', async (request, reply) => {
     const { id } = request.params as { id: string };
