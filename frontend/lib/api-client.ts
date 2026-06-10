@@ -245,6 +245,9 @@ class ApiClient {
   async reativarCliente(id: string) {
     return this.client.post(`/clientes/${id}/reativar`);
   }
+  async trocarCnpjCliente(id: string, data: { cnpj_novo: string; razao_social_nova?: string; nome_fantasia_nova?: string; inscricao_nova?: string; motivo?: string }) {
+    return this.client.post(`/clientes/${id}/trocar-cnpj`, data);
+  }
 
   async getClienteById(id: string) {
     return this.client.get(`/clientes/${id}`);

@@ -212,6 +212,18 @@ export async function casosChurnRoutes(
         // uma renegociação ativa via o vínculo casoChurn (exibido em /clientes/:id).
         if (ativa) {
           await prisma.cliente.update({ where: { id: existe.clienteId }, data: { risco_atencao: true } }).catch(() => {});
+          // Evento na timeline de monitoramento do cliente.
+          const u = (request as any).user;
+          await (prisma as any).eventoCliente.create({
+            data: {
+              cliente_id: existe.clienteId, tipo: 'RENEGOCIACAO',
+              titulo: `Renegociação de débito${caso.reneg_valor_devido ? ` — R$ ${caso.reneg_valor_devido}` : ''}`,
+              descricao: b.reneg_resultado || b.reneg_como_mantido || undefined,
+              referencia_id: caso.id,
+              metadados: { valor_devido: caso.reneg_valor_devido, entrada: caso.reneg_valor_entrada, parcelas: caso.reneg_parcelas, proximo_vencimento: caso.reneg_proximo_vencimento },
+              feito_por: u?.id, feito_por_nome: u?.nome,
+            },
+          }).catch(() => {});
         }
 
         return reply.send({ status: 'success', data: caso, message: 'Renegociação salva' });

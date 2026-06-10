@@ -192,6 +192,29 @@ const ImportClienteSchema = z.object({
 export async function clientesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // Registra um evento na timeline de monitoramento do cliente. Tudo que for
+  // associado ao cliente (serviço, churn, renegociação, troca de CNPJ, etc.)
+  // passa por aqui p/ ficar salvo e auditável. Nunca lança (não bloqueia o fluxo).
+  const registrarEvento = async (
+    clienteId: string,
+    tipo: string,
+    titulo: string,
+    extras?: { descricao?: string; referencia_id?: string; metadados?: any; user?: any },
+  ) => {
+    try {
+      await (prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: clienteId, tipo, titulo,
+          descricao: extras?.descricao,
+          referencia_id: extras?.referencia_id,
+          metadados: extras?.metadados ?? undefined,
+          feito_por: extras?.user?.id,
+          feito_por_nome: extras?.user?.nome,
+        },
+      });
+    } catch (e: any) { console.warn('[EventoCliente] não registrado:', e?.message); }
+  };
+
   // Metadados (ferramentas + tipos de serviço)
   fastify.get('/clientes/meta', async (request, reply) => {
     return reply.send({ status: 'success', data: { ferramentas: FERRAMENTAS_LISTA, tipos_servico: TIPOS_SERVICO } });
@@ -564,7 +587,16 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       };
     });
 
-    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes, mensalidade, renegociacoes: renegs } });
+    // Timeline de monitoramento (tudo que foi registrado no cliente) + histórico
+    // de trocas de CNPJ. Catch p/ não quebrar a ficha em bases sem as tabelas.
+    const eventos = await (prisma as any).eventoCliente.findMany({
+      where: { cliente_id: id }, orderBy: { created_at: 'desc' }, take: 200,
+    }).catch(() => [] as any[]);
+    const historico_cnpj = await (prisma as any).historicoCnpjCliente.findMany({
+      where: { cliente_id: id }, orderBy: { created_at: 'desc' },
+    }).catch(() => [] as any[]);
+
+    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes, mensalidade, renegociacoes: renegs, eventos, historico_cnpj } });
   });
 
   // Create cliente
@@ -620,6 +652,9 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
         },
       }).catch(() => {});
     }
+    await registrarEvento(id, 'DESATIVACAO', 'Cliente desativado (churn)', {
+      descricao: body.data.motivo, metadados: { mrr_perdido: mrrPerdido }, user: (request as any).user,
+    });
     return reply.send({ status: 'success', data: cliente });
   });
 
@@ -631,7 +666,70 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       where: { id }, data: { situacao: 'ATIVA', motivo_inativacao: null, inativado_em: null, mrr_perdido: null },
     }).catch(() => null);
     if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+    await registrarEvento(id, 'REATIVACAO', 'Cliente reativado', { user: (request as any).user });
     return reply.send({ status: 'success', data: cliente });
+  });
+
+  // Trocar CNPJ do cliente (mantém o MESMO código). Guarda o snapshot dos dados
+  // ANTIGOS no histórico de trocas e atualiza o cadastro com os novos dados.
+  fastify.post('/clientes/:id/trocar-cnpj', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      cnpj_novo:          z.string().min(1, 'Informe o novo CNPJ'),
+      razao_social_nova:  z.string().optional(),
+      nome_fantasia_nova: z.string().optional(),
+      inscricao_nova:     z.string().optional(),
+      motivo:             z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe o novo CNPJ.' });
+
+    const atual = await prisma.cliente.findUnique({ where: { id } });
+    if (!atual) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+
+    const user = (request as any).user;
+    const b = body.data;
+    try {
+      // 1) Snapshot dos dados ANTIGOS no histórico (nada se perde).
+      await (prisma as any).historicoCnpjCliente.create({
+        data: {
+          cliente_id: id,
+          cnpj_anterior:         atual.cnpj,
+          razao_social_anterior: atual.razao_social,
+          nome_fantasia_anterior: atual.nome_fantasia,
+          inscricao_anterior:    atual.inscricao_estadual,
+          cnpj_novo:         b.cnpj_novo,
+          razao_social_nova: b.razao_social_nova ?? atual.razao_social,
+          nome_fantasia_nova: b.nome_fantasia_nova ?? atual.nome_fantasia,
+          motivo:        b.motivo,
+          trocado_por:      user?.id,
+          trocado_por_nome: user?.nome,
+        },
+      });
+
+      // 2) Atualiza o cadastro com os novos dados (mantém o código).
+      const cliente = await prisma.cliente.update({
+        where: { id },
+        data: {
+          cnpj: b.cnpj_novo,
+          ...(b.razao_social_nova ? { razao_social: b.razao_social_nova } : {}),
+          ...(b.nome_fantasia_nova ? { nome_fantasia: b.nome_fantasia_nova } : {}),
+          ...(b.inscricao_nova ? { inscricao_estadual: b.inscricao_nova } : {}),
+        },
+      });
+
+      // 3) Evento na timeline de monitoramento.
+      await registrarEvento(id, 'TROCA_CNPJ', `CNPJ alterado de ${atual.cnpj || '(vazio)'} para ${b.cnpj_novo}`, {
+        descricao: b.motivo,
+        metadados: { cnpj_anterior: atual.cnpj, cnpj_novo: b.cnpj_novo, razao_anterior: atual.razao_social, razao_nova: b.razao_social_nova },
+        user,
+      });
+
+      return reply.send({ status: 'success', data: cliente, message: 'CNPJ trocado. Dados antigos guardados no histórico.' });
+    } catch (err: any) {
+      console.error('[POST /clientes/:id/trocar-cnpj]', err);
+      return reply.status(500).send({ status: 'error', message: 'Erro ao trocar o CNPJ' });
+    }
   });
 
   // Update cliente
@@ -830,6 +928,11 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       user?.nome || user?.id || 'sistema'
     );
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE id = ?`, newId);
+
+    await registrarEvento(id, 'SERVICO', `Solicitação: ${body.data.tipo_servico}${body.data.subtipo ? ' — ' + body.data.subtipo : ''}`, {
+      descricao: body.data.descricao, referencia_id: newId,
+      metadados: { prioridade: body.data.prioridade, status: body.data.status }, user,
+    });
 
     return reply.status(201).send({ status: 'success', data: rows[0] });
   });

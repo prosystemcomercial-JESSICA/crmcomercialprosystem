@@ -93,6 +93,15 @@ interface ClienteDetalhe {
     motivo_principal?: string; status?: string;
     resumo?: { mensalidade_atual: number; valor_devido: number; entrada: number; parcelas: number; valor_parcela: number; proximo_vencimento?: string };
   }[];
+  eventos?: {
+    id: string; tipo: string; titulo: string; descricao?: string; referencia_id?: string;
+    metadados?: any; feito_por_nome?: string; created_at: string;
+  }[];
+  historico_cnpj?: {
+    id: string; cnpj_anterior?: string; razao_social_anterior?: string; nome_fantasia_anterior?: string;
+    inscricao_anterior?: string; cnpj_novo?: string; razao_social_nova?: string; nome_fantasia_nova?: string;
+    motivo?: string; trocado_por_nome?: string; created_at: string;
+  }[];
 }
 
 type TabName = 'cadastro' | 'contatos' | 'historico' | 'endereco' | 'info' | 'financeiro' | 'ativos';
@@ -161,6 +170,10 @@ export default function ClienteDetailPage() {
   const [showDesativar, setShowDesativar] = useState(false);
   const [desativaMotivo, setDesativaMotivo] = useState('');
   const [desativaMrr, setDesativaMrr] = useState('');
+  // Troca de CNPJ (mantém o código; dados antigos vão p/ o histórico)
+  const [showTrocaCnpj, setShowTrocaCnpj] = useState(false);
+  const [trocaForm, setTrocaForm] = useState({ cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', motivo: '' });
+  const [trocandoCnpj, setTrocandoCnpj] = useState(false);
   const [ativosForm, setAtivosForm] = useState({
     situacao: '', segmento: '', grupo_tecnico: '', plano: '', contato: '', observacoes: '',
     apresentou_plus: false, conhece_dashboard: false, conhece_mensageria: false,
@@ -266,6 +279,21 @@ export default function ClienteDetailPage() {
     if (!confirm('Reativar este cliente?')) return;
     try { await apiClient.reativarCliente(id as string); fetchCliente(); }
     catch (e: any) { alert(e?.response?.data?.message || 'Falha ao reativar'); }
+  };
+  const abrirTrocaCnpj = () => {
+    setTrocaForm({ cnpj_novo: '', razao_social_nova: cliente?.razao_social || '', nome_fantasia_nova: cliente?.fantasia || '', inscricao_nova: '', motivo: '' });
+    setShowTrocaCnpj(true);
+  };
+  const trocarCnpj = async () => {
+    if (!trocaForm.cnpj_novo.trim()) { alert('Informe o novo CNPJ.'); return; }
+    setTrocandoCnpj(true);
+    try {
+      await apiClient.trocarCnpjCliente(id as string, trocaForm);
+      setShowTrocaCnpj(false);
+      fetchCliente();
+      alert('CNPJ trocado. Os dados antigos foram guardados no histórico.');
+    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao trocar o CNPJ'); }
+    finally { setTrocandoCnpj(false); }
   };
 
   const toggleFerramenta = (f: string) => {
@@ -467,6 +495,53 @@ export default function ClienteDetailPage() {
           </div>
         )}
 
+        {/* ─── Modal: Trocar CNPJ ─────────────── */}
+        {showTrocaCnpj && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl p-5 w-full max-w-lg">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">🔁 Trocar CNPJ</h3>
+              <p className="text-sm text-gray-500 mb-3">
+                Mantém o mesmo código do cliente. Os dados <b>atuais</b> ({cliente?.cnpj || 'sem CNPJ'}) serão guardados no histórico de trocas.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Novo CNPJ *</label>
+                  <input value={trocaForm.cnpj_novo} onChange={e => setTrocaForm(f => ({ ...f, cnpj_novo: e.target.value }))}
+                    placeholder="00.000.000/0001-00" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Nova razão social</label>
+                  <input value={trocaForm.razao_social_nova} onChange={e => setTrocaForm(f => ({ ...f, razao_social_nova: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Novo nome fantasia</label>
+                  <input value={trocaForm.nome_fantasia_nova} onChange={e => setTrocaForm(f => ({ ...f, nome_fantasia_nova: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Nova inscrição estadual</label>
+                  <input value={trocaForm.inscricao_nova} onChange={e => setTrocaForm(f => ({ ...f, inscricao_nova: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Motivo da troca</label>
+                  <textarea value={trocaForm.motivo} onChange={e => setTrocaForm(f => ({ ...f, motivo: e.target.value }))} rows={2}
+                    placeholder="Ex.: abertura de nova empresa, mudança de razão social, sucessão…"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button onClick={() => setShowTrocaCnpj(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+                <button onClick={trocarCnpj} disabled={trocandoCnpj || !trocaForm.cnpj_novo.trim()}
+                  className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: 'var(--t-primary)' }}>
+                  {trocandoCnpj ? 'Trocando…' : 'Confirmar troca'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ─── Tabs ───────────────────────────── */}
         <div className="flex gap-1 border-b" style={{ borderColor: 'var(--t-card-border)' }}>
           {TABS.map(t => (
@@ -498,6 +573,16 @@ export default function ClienteDetailPage() {
                 <Field label="Grupo de Atendimento" value={form.grupo} onChange={v => setForm(f => ({ ...f, grupo: v }))} placeholder="ex: Grupo 5 - Wellington" />
                 <Field label="IBGE" value={form.ibge} onChange={v => setForm(f => ({ ...f, ibge: v }))} placeholder="código IBGE" />
                 <Field label="Inscrição Estadual" value={form.inscricao} onChange={v => setForm(f => ({ ...f, inscricao: v }))} placeholder="Informe a inscrição" />
+              </div>
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <button type="button" onClick={abrirTrocaCnpj}
+                  className="px-3 py-2 rounded-lg text-sm font-semibold border"
+                  style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}>
+                  🔁 Trocar CNPJ
+                </button>
+                <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>
+                  Mantém o mesmo código; os dados antigos ficam no histórico.
+                </span>
               </div>
             </Section>
 
@@ -671,6 +756,54 @@ export default function ClienteDetailPage() {
                 + Nova Solicitação
               </button>
             </div>
+
+            {/* Histórico de troca de CNPJ */}
+            {cliente.historico_cnpj && cliente.historico_cnpj.length > 0 && (
+              <Section title={`🔁 Trocas de CNPJ (${cliente.historico_cnpj.length})`}>
+                <div className="space-y-2">
+                  {cliente.historico_cnpj.map(h => (
+                    <div key={h.id} className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--t-card-border)' }}>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span style={{ color: 'var(--t-text-primary)' }}>
+                          <b>{h.cnpj_anterior || '(vazio)'}</b> → <b className="text-emerald-700">{h.cnpj_novo || '—'}</b>
+                        </span>
+                        <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(h.created_at).toLocaleDateString('pt-BR')} · {h.trocado_por_nome || '—'}</span>
+                      </div>
+                      {(h.razao_social_anterior || h.razao_social_nova) && (
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
+                          Razão: {h.razao_social_anterior || '—'} → {h.razao_social_nova || '—'}
+                        </div>
+                      )}
+                      {h.motivo && <div className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Motivo: {h.motivo}</div>}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {/* Linha do tempo — TUDO que foi registrado no cliente (monitoramento) */}
+            {cliente.eventos && cliente.eventos.length > 0 && (
+              <Section title={`🕓 Linha do tempo do cliente (${cliente.eventos.length})`}>
+                <div className="space-y-2">
+                  {cliente.eventos.map(ev => {
+                    const ICON: Record<string, string> = { SERVICO: '🛠️', CHURN: '⚠️', RENEGOCIACAO: '💰', TROCA_CNPJ: '🔁', DESATIVACAO: '🔴', REATIVACAO: '🟢', MENSALIDADE: '💵', OBSERVACAO: '📝' };
+                    return (
+                      <div key={ev.id} className="flex gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--t-card-border)' }}>
+                        <span className="text-lg leading-none">{ICON[ev.tipo] || '•'}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-sm font-medium" style={{ color: 'var(--t-text-primary)' }}>{ev.titulo}</span>
+                            <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(ev.created_at).toLocaleString('pt-BR')}</span>
+                          </div>
+                          {ev.descricao && <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{ev.descricao}</p>}
+                          {ev.feito_por_nome && <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>por {ev.feito_por_nome}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
 
             {/* Table */}
             {solicitacoes.length === 0 ? (
