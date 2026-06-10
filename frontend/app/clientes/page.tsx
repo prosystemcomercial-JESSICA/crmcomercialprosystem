@@ -62,44 +62,57 @@ function detectSep(line: string): string {
   return semi >= comma ? ';' : ',';
 }
 
-// Parse CSV text → array of objects
+// Parse CSV text → array of objects.
+// Parser robusto que trata campos entre aspas COM quebra de linha dentro
+// (ex.: observações multilinha). Sem isso, células com \n desalinham as colunas
+// das linhas seguintes — foi o que embaralhou endereços/códigos antes.
 function parseCSV(text: string): Record<string, string>[] {
   const clean = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = clean.split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
+  if (!clean.trim()) return [];
 
-  const sep = detectSep(lines[0]);
+  // Detecta o separador pela 1ª linha "lógica" (até a primeira quebra fora de aspas).
+  let firstLine = '';
+  { let q = false; for (let i = 0; i < clean.length; i++) { const c = clean[i]; if (c === '"') q = !q; if (c === '\n' && !q) break; firstLine += c; } }
+  const sep = detectSep(firstLine);
 
-  const splitRow = (row: string): string[] => {
-    const result: string[] = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < row.length; i++) {
-      const ch = row[i];
-      if (ch === '"') { inQ = !inQ; continue; }
-      if (ch === sep && !inQ) { result.push(cur.trim()); cur = ''; continue; }
-      cur += ch;
+  // Tokeniza o texto inteiro em linhas[] de campos[], respeitando aspas e \n internos.
+  const rows: string[][] = [];
+  let field = '', row: string[] = [], inQ = false;
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (clean[i + 1] === '"') { field += '"'; i++; } // aspas escapadas ""
+        else inQ = false;
+      } else field += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === sep) { row.push(field.trim()); field = ''; }
+      else if (ch === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; }
+      else field += ch;
     }
-    result.push(cur.trim());
-    return result;
-  };
+  }
+  // Último campo/linha pendente.
+  if (field.length > 0 || row.length > 0) { row.push(field.trim()); rows.push(row); }
+  if (rows.length < 2) return [];
 
-  const headers = splitRow(lines[0]).map(h => h.toLowerCase().trim());
-  return lines.slice(1).map(line => {
-    const vals = splitRow(line);
+  const headers = rows[0].map(h => h.toLowerCase().trim());
+  return rows.slice(1).map(vals => {
     const obj: Record<string, string> = {};
-    headers.forEach((h, i) => { if (vals[i] !== undefined) obj[h] = vals[i]; });
+    headers.forEach((h, i) => { if (h && vals[i] !== undefined) obj[h] = vals[i]; });
     return obj;
   }).filter(r => Object.values(r).some(v => v));
 }
 
 // Map raw CSV header to known column
 function mapHeader(raw: string): CsvCol | null {
-  const n = raw.toLowerCase().replace(/[^a-z]/g, '');
+  const n = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
   const MAP: Record<string, CsvCol> = {
     codigo: 'codigo', code: 'codigo', cod: 'codigo', codigocliente: 'codigo',
     nome: 'nome', name: 'nome', nomecliente: 'nome', cliente: 'nome',
-    email: 'email', emailcliente: 'email', emailresponsavel: 'email',
+    email: 'email', emailcliente: 'email', emailresponsavel: 'email', emaill: 'email', email1: 'email', email2: 'e_mail2',
     telefone: 'telefone', fone: 'telefone', celular: 'telefone', phone: 'telefone', whatsapp: 'telefone',
+    telefone1: 'telefone1', telefone2: 'telefone2', tel: 'telefone1',
     razaosocial: 'razao_social', razao: 'razao_social',
     nomefantasia: 'nome_fantasia', fantasia: 'nome_fantasia',
     empresa: 'empresa', company: 'empresa',
@@ -108,9 +121,33 @@ function mapHeader(raw: string): CsvCol | null {
     segmento: 'segmento', ramo: 'segmento',
     grupotecnico: 'grupo_tecnico', grupoatendimento: 'grupo_tecnico', grupoatend: 'grupo_tecnico', grupo: 'grupo_tecnico', tecnico: 'grupo_tecnico',
     plano: 'plano', planocontratado: 'plano',
-    contato: 'contato', contatonome: 'contato', responsavel: 'contato',
+    contato: 'contato', contatonome: 'contato',
     cidade: 'cidade', municipio: 'cidade', city: 'cidade',
-    estado: 'estado', uf: 'estado', state: 'estado'
+    estado: 'estado', uf: 'estado', state: 'estado',
+    // ── Endereço (essas faltavam → endereços vinham em branco) ──
+    cep: 'cep', endereco: 'endereco', logradouro: 'endereco', rua: 'endereco',
+    numero: 'numero', num: 'numero', numeroend: 'numero',
+    complemento: 'complemento', compl: 'complemento',
+    bairro: 'bairro',
+    codigocidadeibge: 'codigo_cidade_ibge', codigoibge: 'codigo_cidade_ibge', ibge: 'codigo_cidade_ibge',
+    regiao: 'regiao',
+    // ── Contato / fiscais / financeiros ──
+    ddd: 'ddd',
+    inscricao: 'inscricao', inscricaoestadual: 'inscricao', ie: 'inscricao',
+    telcontato: 'tel_contato', telcontato2: 'tel_contato2',
+    contato2: 'contato2', contatopesquisa: 'contato_pesquisa',
+    vencimento: 'vencimento', diavencimento: 'vencimento',
+    mensalidade: 'mensalidade', valormensalidade: 'mensalidade',
+    instalacao: 'instalacao', valorinstalacao: 'instalacao',
+    condicaopagto: 'condicao_pagto', condicaopagamento: 'condicao_pagto',
+    cadastro: 'cadastro', datacadastro: 'cadastro',
+    vencimentolicenca: 'vencimento_licenca', reajuste: 'reajuste',
+    ultimopagto: 'ultimo_pagto', previsaopagto: 'previsao_pagto',
+    cpf: 'cpf', identidade: 'identidade', rg: 'identidade',
+    responsavel: 'responsavel', responsavelnome: 'responsavel',
+    comunicacao: 'comunicacao', regime: 'regime', regimetributario: 'regime',
+    emaill2: 'e_mail2', email2alt: 'e_mail2',
+    complementoobs: 'complemento_obs', observacao: 'complemento_obs', obs: 'complemento_obs',
   };
   return MAP[n] || null;
 }
