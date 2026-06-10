@@ -121,25 +121,49 @@ export async function enviarTexto(
 }
 
 /**
- * Envia um áudio (gravado no Inbox) como mensagem de voz (PTT).
- * `audioBase64` é o conteúdo do áudio em base64 (sem o prefixo data:).
- * A Evolution aceita base64 puro ou data URL no campo `audio`.
+ * Envia um áudio (gravado no Inbox) como mensagem de voz.
+ * `audioDataUrlOuBase64` pode vir como data URL (data:<mime>;base64,...) ou base64 puro.
+ *
+ * A Evolution é exigente e varia por versão. Para ser DEFINITIVO, tentamos em
+ * ordem várias formas até uma funcionar, capturando o 400 de cada:
+ *   1) sendWhatsAppAudio com base64 PURO (sem prefixo data:)  ← mais comum
+ *   2) sendWhatsAppAudio com data URL completo
+ *   3) sendMedia (mediatype audio) com base64 puro            ← fallback robusto
  */
 export async function enviarAudio(
   instanciaNome: string,
   numero: string,
   audioDataUrlOuBase64: string,
 ): Promise<{ externo_id?: string }> {
-  // A Evolution (sendWhatsAppAudio) aceita o conteúdo em `audio` como data URL
-  // (data:<mime>;base64,...) OU base64 puro. NÃO enviamos `encoding:true` —
-  // esse flag faz a Evolution exigir um file/buffer e devolve 400
-  // ("Owned media must be a url, base64, or valid file with buffer").
-  const data = await call(`/message/sendWhatsAppAudio/${encodeURIComponent(instanciaNome)}`, 'POST', {
-    number: normalizarNumero(numero),
-    audio: audioDataUrlOuBase64,
-  });
-  const externo_id = data?.key?.id || data?.id;
-  return { externo_id };
+  const inst = encodeURIComponent(instanciaNome);
+  const number = normalizarNumero(numero);
+  // Separa o base64 puro e o mime do data URL (se houver).
+  const m = audioDataUrlOuBase64.match(/^data:([^;]+);base64,(.*)$/s);
+  const mime = m ? m[1] : 'audio/ogg';
+  const base64Puro = m ? m[2] : audioDataUrlOuBase64.replace(/^data:[^;]+;base64,/, '');
+  const dataUrl = m ? audioDataUrlOuBase64 : `data:${mime};base64,${base64Puro}`;
+
+  const tentativas: Array<{ path: string; body: any }> = [
+    { path: `/message/sendWhatsAppAudio/${inst}`, body: { number, audio: base64Puro } },
+    { path: `/message/sendWhatsAppAudio/${inst}`, body: { number, audio: dataUrl } },
+    { path: `/message/sendMedia/${inst}`, body: { number, mediatype: 'audio', mimetype: mime, media: base64Puro, fileName: 'audio.ogg' } },
+    { path: `/message/sendMedia/${inst}`, body: { number, mediatype: 'audio', mimetype: mime, media: dataUrl, fileName: 'audio.ogg' } },
+  ];
+
+  let ultimoErro = '';
+  for (let i = 0; i < tentativas.length; i++) {
+    const t = tentativas[i];
+    try {
+      const data = await call(t.path, 'POST', t.body);
+      const externo_id = data?.key?.id || data?.id;
+      console.log(`[WPP áudio] enviado via tentativa ${i + 1} (${t.path.split('/')[2]})`);
+      return { externo_id };
+    } catch (e: any) {
+      ultimoErro = e?.message || String(e);
+      console.warn(`[WPP áudio] tentativa ${i + 1} falhou: ${ultimoErro.slice(0, 120)}`);
+    }
+  }
+  throw new Error(`Não foi possível enviar o áudio (a Evolution recusou o formato). Detalhe: ${ultimoErro.slice(0, 150)}`);
 }
 
 /**
