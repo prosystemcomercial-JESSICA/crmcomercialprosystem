@@ -554,51 +554,56 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     }
   });
 
-  // Resumo da venda de COMUNICAÇÃO pronto p/ copiar e colar e enviar ao financeiro.
-  // Segue o modelo de mensagem usado pela gestão.
+  // Resumo da venda pronto p/ copiar e colar e enviar ao financeiro. O formato
+  // muda por categoria do parceiro: COMUNICAÇÃO (lojas), UPGRADE (plano + setup)
+  // e FISCAL/pacote fiscal (acréscimo na mensalidade).
   fastify.get('/vendas-adicionais/:id/resumo-financeiro', async (request, reply) => {
     const { id } = request.params as { id: string };
     const v: any = await prisma.vendaAdicional.findUnique({
       where: { id },
-      include: { cliente: { select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true } }, parceiro: { select: { categoria: true } } },
+      include: {
+        cliente: { select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true } },
+        parceiro: { select: { categoria: true, nome: true } },
+      },
     });
     if (!v) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada' });
 
     const brl = (n?: number | null) => `R$ ${Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     const dataBR = (d?: Date | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '___/___/______';
+    const cli = v.cliente || {};
+    const linhaCli = (c: any) => `${c.codigo ? c.codigo + '- ' : ''}${(c.razao_social || c.nome_fantasia || c.nome || '').toUpperCase()}`;
 
-    // Lojas incluídas: usa a lista (comunicação) ou o cliente da venda.
-    const ids: string[] = Array.isArray(v.lojas_ids) && v.lojas_ids.length ? v.lojas_ids : [v.cliente_id];
-    const lojas = await prisma.cliente.findMany({
-      where: { id: { in: ids } },
-      select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true },
-    });
-    const linhaLoja = (c: any) => `${c.codigo ? c.codigo + '- ' : ''}${(c.razao_social || c.nome_fantasia || c.nome || '').toUpperCase()}`;
-    const lojasTxt = lojas.map(linhaLoja).join('\n');
-    const plural = lojas.length > 1;
-
-    // Setup: valor total, entrada e parcelas (entrada+parcelas OU só parcelado).
+    // Bloco de condições de pagamento do setup (entrada+parcelas OU parcelado).
     const setup = Number(v.valor_venda || 0);
     const parcelas = Number(v.setup_parcelas || 0);
     const entrada = v.setup_forma === 'ENTRADA_PARCELAS' ? Number(v.setup_entrada || 0) : 0;
     const saldo = Math.max(0, setup - entrada);
     const valorParcela = parcelas > 0 ? saldo / parcelas : saldo;
-    const acrescimo = Number(v.acrescimo_mensal || 0);
-
-    // Linha de condições conforme entrada+parcelas ou parcelado direto.
-    let condicoes: string;
     const vp = brl(valorParcela);
+    const venc = v.primeiro_vencimento || v.setup_primeiro_venc;
+    let condicoes: string;
     if (entrada > 0) {
-      condicoes = `Primeiro vencimento para ${dataBR(v.primeiro_vencimento)} no valor de ${brl(entrada)} (entrada)` +
-        (parcelas > 0 ? ` + ${parcelas}x ${vp}` : '');
+      condicoes = `Primeiro vencimento para ${dataBR(venc)} no valor de ${brl(entrada)} (entrada)` + (parcelas > 0 ? ` + ${parcelas}x ${vp}` : '');
     } else if (parcelas > 1) {
-      condicoes = `Primeiro vencimento para ${dataBR(v.primeiro_vencimento)} no valor de ${vp} + ${parcelas - 1}x ${vp}`;
+      condicoes = `Primeiro vencimento para ${dataBR(venc)} no valor de ${vp} + ${parcelas - 1}x ${vp}`;
     } else {
-      condicoes = `Vencimento para ${dataBR(v.primeiro_vencimento)} no valor de ${vp}`;
+      condicoes = `Vencimento para ${dataBR(venc)} no valor de ${vp}`;
     }
     const formaSetup = parcelas > 1 ? ` (parcelado em ${parcelas}x)` : (entrada > 0 ? ' (entrada + parcelas)' : '');
+    const acrescimo = Number(v.acrescimo_mensal || 0);
+    const cat = v.parceiro?.categoria;
 
-    const texto =
+    let texto: string;
+
+    if (cat === 'COMUNICACAO') {
+      const ids: string[] = Array.isArray(v.lojas_ids) && v.lojas_ids.length ? v.lojas_ids : [v.cliente_id];
+      const lojas = await prisma.cliente.findMany({
+        where: { id: { in: ids } },
+        select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true },
+      });
+      const lojasTxt = lojas.map(linhaCli).join('\n');
+      const plural = lojas.length > 1;
+      texto =
 `${plural ? 'LOJAS INCLUÍDAS:' : 'LOJA INCLUÍDA:'}
 
 ${lojasTxt}
@@ -610,6 +615,40 @@ Acréscimo na mensalidade ${brl(acrescimo)}${plural ? ' por loja' : ''}
 
 Condições de pagamento:
 ${condicoes}`;
+    } else if (cat === 'UPGRADE') {
+      const mAnt = Number(v.mensalidade_anterior || 0);
+      const mNova = Number(v.mensalidade_nova || (mAnt + acrescimo));
+      texto =
+`UPGRADE DE PLANO:
+
+${linhaCli(cli)}
+
+A negociação ficou definida da seguinte forma:
+${v.plano_anterior && v.plano_novo ? `\nPlano: ${v.plano_anterior} → ${v.plano_novo}` : ''}
+Mensalidade: ${brl(mAnt)} → ${brl(mNova)}
+${setup > 0 ? `Setup do upgrade: ${brl(setup)}${formaSetup}` : ''}
+
+Condições de pagamento:
+${setup > 0 ? condicoes : 'Sem cobrança de setup. Nova mensalidade a partir do próximo ciclo.'}`;
+    } else {
+      // FISCAL / pacote fiscal e demais
+      const titulo = cat === 'FISCAL' ? 'PACOTE FISCAL CONTRATADO:' : `${(v.parceiro?.nome || 'SERVIÇO ADICIONAL').toUpperCase()} CONTRATADO:`;
+      texto =
+`${titulo}
+
+${linhaCli(cli)}
+
+A negociação ficou definida da seguinte forma:
+
+${acrescimo > 0 ? `Acréscimo na mensalidade ${brl(acrescimo)}` : ''}
+${setup > 0 ? `${brl(setup)} de setup${formaSetup}` : ''}
+
+Condições de pagamento:
+${setup > 0 ? condicoes : `Acréscimo de ${brl(acrescimo)} na mensalidade a partir do próximo ciclo.`}`;
+    }
+
+    // Limpa linhas em branco duplicadas que possam ter sobrado dos condicionais.
+    texto = texto.replace(/\n{3,}/g, '\n\n').trim();
 
     return reply.send({ status: 'success', data: { texto } });
   });

@@ -497,8 +497,8 @@ export default function IndicacoesPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          {/* Resumo p/ financeiro — vendas de Comunicação */}
-                          {v.parceiro.categoria === 'COMUNICACAO' && (
+                          {/* Resumo p/ financeiro — Comunicação, Upgrade e Fiscal */}
+                          {['COMUNICACAO', 'UPGRADE', 'FISCAL'].includes(v.parceiro.categoria) && (
                             <button onClick={() => copiarResumoFinanceiro(v.id)} title="Copiar resumo para o financeiro"
                               className="mr-1 text-xs text-teal-700 border border-teal-200 rounded-lg px-2 py-1 hover:bg-teal-50 font-medium transition-colors">
                               📋 Resumo
