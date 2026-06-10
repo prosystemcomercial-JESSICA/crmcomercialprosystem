@@ -626,13 +626,30 @@ export default function LeadsPage() {
     if (!selectedLead) return;
     setSavingLead(true);
     try {
-      const payload: any = { ...editForm };
-      if (payload.valor_estimado) payload.valor_estimado = parseFloat(payload.valor_estimado); else delete payload.valor_estimado;
+      // NÃO reenviar o objeto inteiro: campos de sistema/relacionamento e datas
+      // serializadas derrubavam a validação no backend (400 → dados não salvavam).
+      const NAO_ENVIAR = new Set([
+        'id', 'created_at', 'updated_at', 'createdAt', 'updatedAt', 'created_by',
+        'atribuido_em', 'ultima_obs_at', 'deleted_at', 'deleted_by', 'deletado_motivo',
+        '_count', 'observacoes', 'etiquetas', 'atividades', 'quadros', 'criado_por', 'responsavel',
+      ]);
+      const payload: any = {};
+      for (const [k, v] of Object.entries(editForm as any)) {
+        if (NAO_ENVIAR.has(k)) continue;
+        if (v === null || v === undefined) continue;
+        payload[k] = v;
+      }
+      if (payload.valor_estimado !== undefined && payload.valor_estimado !== '') payload.valor_estimado = parseFloat(payload.valor_estimado);
+      else delete payload.valor_estimado;
       if (!payload.responsavel_email) delete payload.responsavel_email;
       await apiClient.updateLead(selectedLead.id, payload);
       await loadData();
       setSelectedLead(p => p ? { ...p, ...payload } : p);
-    } catch (e) { console.error(e); } finally { setSavingLead(false); }
+    } catch (e: any) {
+      const msg = e?.response?.data?.detalhes?.join('\n') || e?.response?.data?.message || e?.message || 'Erro desconhecido';
+      alert(`Não foi possível salvar a ficha:\n${msg}`);
+      console.error('[saveLead]', e?.response?.data || e);
+    } finally { setSavingLead(false); }
   };
 
   const moveColumn = async (lead: Lead, etapa: string) => {

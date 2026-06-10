@@ -90,7 +90,43 @@ const LeadSchema = z.object({
   link_origem:   z.string().optional(),
 });
 
+// No update todos os campos são opcionais. IMPORTANTE: a ficha do lead no front
+// reenvia o objeto inteiro (`{...lead}`), que traz campos `null` vindos do banco
+// e campos de sistema (id, datas, contadores). Sem tratamento, um único `null`
+// num campo `.optional()` (que NÃO aceita null) derrubava TODO o safeParse → 400
+// silencioso → "os dados não se mantinham". Aqui aceitamos null/'' como "não mexer"
+// e ignoramos chaves não-editáveis ANTES do parse.
 const UpdateLeadSchema = LeadSchema.partial();
+
+// Campos de sistema/relacionamento que nunca devem ser gravados via PATCH da ficha.
+const CAMPOS_NAO_EDITAVEIS = new Set([
+  'id', 'created_at', 'updated_at', 'created_by', 'atribuido_em',
+  'ultima_obs_at', 'deleted_at', 'deleted_by', 'deletado_motivo',
+  '_count', 'observacoes', 'etiquetas', 'atividades', 'quadros',
+  'criado_por', 'responsavel', 'createdAt', 'updatedAt',
+]);
+
+/** Limpa o corpo do PATCH: tira campos de sistema e converte null/'' em ausência. */
+function sanitizarBodyLead(raw: any): Record<string, any> {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (CAMPOS_NAO_EDITAVEIS.has(k)) continue;
+    if (v === null || v === undefined) continue; // null = "não mexer neste campo"
+    // Campos de data: o front pode mandar "2026-06-15" ou "2026-06-15T10:00"
+    // (sem o Z final), o que o validador .datetime() do Zod rejeita. Normaliza
+    // para ISO completo; se não der pra interpretar, ignora o campo.
+    if ((k === 'validade_proposta' || k === 'proximo_contato') && typeof v === 'string') {
+      if (v.trim() === '') continue;
+      const d = new Date(v);
+      if (isNaN(d.getTime())) continue;
+      out[k] = d.toISOString();
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
 
 const ListLeadSchema = z.object({
   page:            z.coerce.number().default(0),
@@ -485,8 +521,15 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   // ── Update lead ───────────────────────────────────────────────────────────
   fastify.patch('/leads/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = UpdateLeadSchema.safeParse(request.body);
-    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const limpo = sanitizarBodyLead(request.body);
+    const body = UpdateLeadSchema.safeParse(limpo);
+    if (!body.success) {
+      // Loga o motivo REAL (campo + erro) para nunca mais falhar em silêncio,
+      // e devolve a mensagem ao front para o usuário ver o que travou.
+      const issues = body.error.issues.map(i => `${i.path.join('.') || '(raiz)'}: ${i.message}`);
+      console.warn('[PATCH /leads] validação falhou:', issues.join(' | '));
+      return reply.status(400).send({ status: 'error', message: 'Dados inválidos', detalhes: issues });
+    }
 
     const user = (request as any).user;
     try {
