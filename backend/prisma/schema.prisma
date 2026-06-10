@@ -110,6 +110,8 @@ model Cliente {
   indicacoes_feitas Indicacao[]       @relation("IndicacoesFeitas")
   health_score      HealthScore?
   vendas_adicionais VendaAdicional[]
+  historico_cnpj    HistoricoCnpjCliente[]
+  eventos           EventoCliente[]
 
   @@index([email])
   @@index([empresa])
@@ -117,6 +119,55 @@ model Cliente {
   @@index([situacao])
   @@index([grupo_tecnico])
   @@index([segmento])
+}
+
+// Histórico de TROCAS DE CNPJ do cliente. Quando a empresa troca de CNPJ mas
+// mantém o mesmo código no nosso sistema, registramos um snapshot dos dados
+// ANTIGOS aqui e atualizamos o cadastro com os novos. Nada se perde.
+model HistoricoCnpjCliente {
+  id        String  @id @default(cuid())
+  cliente_id String
+  cliente   Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  // Snapshot dos dados ANTIGOS (antes da troca)
+  cnpj_anterior          String?
+  razao_social_anterior  String?
+  nome_fantasia_anterior  String?
+  inscricao_anterior     String?
+  // Novos dados (para conferência rápida)
+  cnpj_novo          String?
+  razao_social_nova  String?
+  nome_fantasia_nova String?
+
+  motivo     String?  @db.Text
+  trocado_por      String?
+  trocado_por_nome String?
+  created_at DateTime @default(now())
+
+  @@index([cliente_id])
+}
+
+// TIMELINE de monitoramento do cliente: registra TODA ação associada à base
+// (solicitação de serviço, registro de churn, renegociação, troca de CNPJ,
+// desativação/reativação, ajuste de mensalidade...) num feed único e auditável.
+model EventoCliente {
+  id        String  @id @default(cuid())
+  cliente_id String
+  cliente   Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  tipo        String   // SERVICO | CHURN | RENEGOCIACAO | TROCA_CNPJ | DESATIVACAO | REATIVACAO | MENSALIDADE | OBSERVACAO | OUTRO
+  titulo      String
+  descricao   String?  @db.Text
+  referencia_id String?  // id do registro relacionado (caso, solicitação, etc.)
+  metadados   Json?     // dados extras (valores, antes/depois)
+
+  feito_por      String?
+  feito_por_nome String?
+  created_at DateTime @default(now())
+
+  @@index([cliente_id])
+  @@index([tipo])
+  @@index([created_at])
 }
 
 // ===== SPRINT 28: CHURN E RETENCAO =====
