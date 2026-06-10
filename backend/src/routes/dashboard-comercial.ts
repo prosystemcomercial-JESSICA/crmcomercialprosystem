@@ -119,7 +119,7 @@ export async function dashboardComercialRoutes(
 
     const vendedores_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
-        l.vendedor_nome,
+        TRIM(l.vendedor_nome)                                                 AS vendedor_nome,
         COUNT(*)                                                              AS total_leads,
         COUNT(CASE WHEN l.etapa_comercial NOT IN ('FECHADO','PERDIDO') THEN 1 END) AS ativos,
         COUNT(CASE WHEN l.etapa_comercial = 'FECHADO'  THEN 1 END)           AS fechados,
@@ -130,8 +130,8 @@ export async function dashboardComercialRoutes(
         COUNT(CASE WHEN l.temperatura = 'FRIO'         THEN 1 END)           AS frio,
         COUNT(CASE WHEN l.created_at >= ?              THEN 1 END)           AS leads_mes
       FROM \`Lead\` l
-      WHERE l.deleted_at IS NULL AND l.vendedor_nome IS NOT NULL${sc.clause}
-      GROUP BY l.vendedor_nome
+      WHERE l.deleted_at IS NULL AND TRIM(COALESCE(l.vendedor_nome,'')) <> ''${sc.clause}
+      GROUP BY TRIM(l.vendedor_nome)
       ORDER BY total_leads DESC
     `, inicioMes, ...sc.params).catch(() => []);
 
@@ -148,7 +148,7 @@ export async function dashboardComercialRoutes(
 
     const propostas_vendedor_raw: any[] = await prisma.$queryRawUnsafe(`
       SELECT
-        l.vendedor_nome,
+        TRIM(l.vendedor_nome) AS vendedor_nome,
         COUNT(pc.id) AS propostas_geradas,
         COUNT(CASE WHEN pc.status IN ('ACEITA','CONTRATO_EM_GERACAO','CONTRATO_ENVIADO','CONTRATO_ASSINADO') THEN 1 END) AS aceitas,
         COALESCE(SUM(CASE WHEN pc.status IN ('ACEITA','CONTRATO_EM_GERACAO','CONTRATO_ENVIADO','CONTRATO_ASSINADO')
@@ -160,8 +160,8 @@ export async function dashboardComercialRoutes(
             END), 0) AS mrr_fechado
       FROM \`Lead\` l
       LEFT JOIN PropostaComercial pc ON pc.lead_id = l.id AND pc.deleted_at IS NULL
-      WHERE l.deleted_at IS NULL AND l.vendedor_nome IS NOT NULL${sc.clause}
-      GROUP BY l.vendedor_nome
+      WHERE l.deleted_at IS NULL AND TRIM(COALESCE(l.vendedor_nome,'')) <> ''${sc.clause}
+      GROUP BY TRIM(l.vendedor_nome)
     `, ...sc.params).catch(() => []);
 
     const vendedores = vendedores_raw.map(v => {
@@ -169,8 +169,9 @@ export async function dashboardComercialRoutes(
       // "Cannot mix BigInt and other types" e o radar inteiro quebra).
       const totalLeads = Number(v.total_leads || 0);
       const fechados   = Number(v.fechados || 0);
-      const obs_rows = obs_vendedor_raw.filter(o => o.created_by_name === v.vendedor_nome);
-      const pr       = propostas_vendedor_raw.find(p => p.vendedor_nome === v.vendedor_nome);
+      const nomeV = (v.vendedor_nome || '').trim();
+      const obs_rows = obs_vendedor_raw.filter(o => (o.created_by_name || '').trim() === nomeV);
+      const pr       = propostas_vendedor_raw.find(p => (p.vendedor_nome || '').trim() === nomeV);
       const obs_by_tipo: Record<string, number> = {};
       obs_rows.forEach(o => { obs_by_tipo[o.tipo] = Number(o.total || 0); });
       const total_contatos = obs_rows.reduce((s, o) => s + Number(o.total || 0), 0);
