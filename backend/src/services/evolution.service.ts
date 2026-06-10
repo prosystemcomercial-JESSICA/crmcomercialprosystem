@@ -137,33 +137,45 @@ export async function enviarAudio(
 ): Promise<{ externo_id?: string }> {
   const inst = encodeURIComponent(instanciaNome);
   const number = normalizarNumero(numero);
-  // Separa o base64 puro e o mime do data URL (se houver).
+  // SEMPRE extrai o base64 PURO (sem o prefixo data:...;base64,). A Evolution
+  // recusa data URL com prefixo no sendMedia ("Owned media must be a url or
+  // base64"); o endpoint correto p/ voz é o sendWhatsAppAudio com base64 puro.
   const m = audioDataUrlOuBase64.match(/^data:([^;]+);base64,(.*)$/s);
   const mime = m ? m[1] : 'audio/ogg';
-  const base64Puro = m ? m[2] : audioDataUrlOuBase64.replace(/^data:[^;]+;base64,/, '');
-  const dataUrl = m ? audioDataUrlOuBase64 : `data:${mime};base64,${base64Puro}`;
+  const base64Puro = (m ? m[2] : audioDataUrlOuBase64).replace(/\s/g, '');
 
-  const tentativas: Array<{ path: string; body: any }> = [
-    { path: `/message/sendWhatsAppAudio/${inst}`, body: { number, audio: base64Puro } },
-    { path: `/message/sendWhatsAppAudio/${inst}`, body: { number, audio: dataUrl } },
-    { path: `/message/sendMedia/${inst}`, body: { number, mediatype: 'audio', mimetype: mime, media: base64Puro, fileName: 'audio.ogg' } },
-    { path: `/message/sendMedia/${inst}`, body: { number, mediatype: 'audio', mimetype: mime, media: dataUrl, fileName: 'audio.ogg' } },
+  // Ordem da mais compatível p/ menos. O sendWhatsAppAudio (PTT) com base64 puro
+  // é o que funciona na Evolution v2/Baileys; `encoding: true` força a conversão
+  // interna do container (webm/opus → ogg) quando há ffmpeg. As variações cobrem
+  // diferenças de versão (delay/encoding opcionais).
+  const tentativas: Array<{ path: string; body: any; nota: string }> = [
+    { path: `/message/sendWhatsAppAudio/${inst}`, nota: 'wpAudio+encoding', body: { number, audio: base64Puro, encoding: true } },
+    { path: `/message/sendWhatsAppAudio/${inst}`, nota: 'wpAudio puro',     body: { number, audio: base64Puro } },
+    { path: `/message/sendWhatsAppAudio/${inst}`, nota: 'wpAudio+options',  body: { number, audio: base64Puro, options: { presence: 'recording', encoding: true } } },
+    { path: `/message/sendMedia/${inst}`,         nota: 'sendMedia b64puro',body: { number, mediatype: 'audio', mimetype: mime, media: base64Puro, fileName: 'audio.ogg' } },
   ];
 
-  let ultimoErro = '';
+  const errosPorTentativa: string[] = [];
   for (let i = 0; i < tentativas.length; i++) {
     const t = tentativas[i];
     try {
       const data = await call(t.path, 'POST', t.body);
       const externo_id = data?.key?.id || data?.id;
-      console.log(`[WPP áudio] enviado via tentativa ${i + 1} (${t.path.split('/')[2]})`);
+      console.log(`[WPP áudio] ENVIADO via tentativa ${i + 1} (${t.nota})`);
       return { externo_id };
     } catch (e: any) {
-      ultimoErro = e?.message || String(e);
-      console.warn(`[WPP áudio] tentativa ${i + 1} falhou: ${ultimoErro.slice(0, 120)}`);
+      const msg = e?.message || String(e);
+      errosPorTentativa.push(`${t.nota}: ${msg.slice(0, 120)}`);
+      console.warn(`[WPP áudio] tentativa ${i + 1} (${t.nota}) falhou: ${msg.slice(0, 200)}`);
     }
   }
-  throw new Error(`Não foi possível enviar o áudio (a Evolution recusou o formato). Detalhe: ${ultimoErro.slice(0, 150)}`);
+  // Se TODAS falharam com "must be a url or base64" / formato, é quase certo que
+  // a Evolution não tem ffmpeg p/ converter o opus do navegador → orienta a causa.
+  const tudo = errosPorTentativa.join(' | ');
+  const provavelFfmpeg = /url or base64|convert|ffmpeg|format/i.test(tudo);
+  throw new Error(
+    `Não foi possível enviar o áudio. ${provavelFfmpeg ? 'A Evolution provavelmente está sem ffmpeg para converter o áudio do navegador. ' : ''}Detalhe: ${tudo.slice(0, 200)}`
+  );
 }
 
 /**
