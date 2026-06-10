@@ -36,6 +36,7 @@ interface VendaAdicional {
   created_at: string;
   data_indicacao?: string;
   data_confirmacao?: string;
+  data_fechamento?: string;
   primeiro_vencimento?: string;
   acrescimo_mensal?: number;
   cliente: { id: string; nome: string; empresa?: string; telefone?: string };
@@ -122,6 +123,8 @@ export default function IndicacoesPage() {
   // Guarda os dados (nome/código) das lojas SELECIONADAS p/ exibir mesmo quando
   // somem dos resultados da busca atual.
   const [lojasSelMap, setLojasSelMap] = useState<Record<string, any>>({});
+  // Acréscimo INDIVIDUAL por loja (id → valor em texto). 0/vazio = só associar.
+  const [lojasAcrescimo, setLojasAcrescimo] = useState<Record<string, string>>({});
 
   // Modal venda
   const [showVendaModal, setShowVendaModal] = useState(false);
@@ -181,8 +184,8 @@ export default function IndicacoesPage() {
     } catch { setClientes([]); setUsuarios(MOCK_VENDEDORES); }
     setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', acrescimo_mensal: '', plano_anterior: '', plano_novo: '', observacoes: '', setup_forma: 'PARCELADO', setup_entrada: '', setup_parcelas: 1, setup_primeiro_venc: '',
       // comunicação multi-loja + datas
-      lojas_ids: [], setup_loja_id: '', data_venda: '', data_inicio_comunicacao: '', primeiro_vencimento: '', data_indicacao: '' });
-    setLojaBusca(''); setLojaResultados([]); setLojasSelMap({});
+      lojas_ids: [], setup_loja_id: '', data_venda: '', data_inicio_comunicacao: '', primeiro_vencimento: '', data_indicacao: '', data_fechamento: '' });
+    setLojaBusca(''); setLojaResultados([]); setLojasSelMap({}); setLojasAcrescimo({});
     setShowVendaModal(true);
   };
 
@@ -204,12 +207,20 @@ export default function IndicacoesPage() {
       const pSel = parceiros.find(p => p.id === vendaForm.parceiro_id);
       const isComunic = pSel?.categoria === 'COMUNICACAO';
       const isoOrUndef = (v?: string) => (v ? new Date(v).toISOString() : undefined);
-      if (isComunic && (vendaForm.lojas_ids || []).length) payload.lojas_ids = vendaForm.lojas_ids;
+      if (isComunic && (vendaForm.lojas_ids || []).length) {
+        payload.lojas_ids = vendaForm.lojas_ids;
+        // Acréscimo INDIVIDUAL por loja.
+        payload.lojas_detalhe = (vendaForm.lojas_ids as string[]).map(id => ({
+          cliente_id: id,
+          acrescimo: Number((lojasAcrescimo[id] || '').toString().replace(',', '.') || 0),
+        }));
+      }
       if (isComunic && vendaForm.setup_loja_id) payload.setup_loja_id = vendaForm.setup_loja_id;
       payload.data_venda = isoOrUndef(vendaForm.data_venda);
       payload.data_inicio_comunicacao = isoOrUndef(vendaForm.data_inicio_comunicacao);
       payload.primeiro_vencimento = isoOrUndef(vendaForm.primeiro_vencimento);
       payload.data_indicacao = isoOrUndef(vendaForm.data_indicacao);
+      payload.data_fechamento = isoOrUndef(vendaForm.data_fechamento);
       // Mensalidade atual do cliente (snapshot) p/ o backend gravar anterior→nova.
       if (mensalidadeAtual > 0) payload.mensalidade_anterior = mensalidadeAtual;
       // Forma de pagamento do setup do upgrade.
@@ -219,7 +230,9 @@ export default function IndicacoesPage() {
           payload.setup_entrada = parseFloat(vendaForm.setup_entrada);
         }
         if (vendaForm.setup_parcelas) payload.setup_parcelas = Number(vendaForm.setup_parcelas);
+        // Vencimento do setup: campo próprio (upgrade) ou o 1º vencimento (comunicação).
         if (vendaForm.setup_primeiro_venc) payload.setup_primeiro_venc = new Date(vendaForm.setup_primeiro_venc).toISOString();
+        else if (isComunic && vendaForm.primeiro_vencimento) payload.setup_primeiro_venc = new Date(vendaForm.primeiro_vencimento).toISOString();
       }
 
       await apiClient.createVendaAdicional(payload);
@@ -297,7 +310,9 @@ export default function IndicacoesPage() {
   const clienteSelecionado = clientes.find((c: any) => c.id === vendaForm.cliente_id);
   const ehComunicacao = parceiroSelecionado?.categoria === 'COMUNICACAO';
   const nLojasComunic = ehComunicacao ? Math.max(1, (vendaForm.lojas_ids || []).length) : 1;
-  const acrescimoTotalComunic = ehComunicacao ? Number(vendaForm.acrescimo_mensal || 0) * nLojasComunic : 0;
+  const acrescimoTotalComunic = ehComunicacao
+    ? (vendaForm.lojas_ids || []).reduce((s: number, id: string) => s + Number((lojasAcrescimo[id] || '').toString().replace(',', '.') || 0), 0)
+    : 0;
 
   // Busca server-side das lojas (debounce 300ms) só com o modal de comunicação aberto.
   useEffect(() => {
@@ -466,9 +481,10 @@ export default function IndicacoesPage() {
                             <p className="text-xs text-gray-400 mt-0.5">R$ {v.valor_venda.toLocaleString('pt-BR')}/mês</p>
                           )}
                           {/* Datas do ciclo (indicação / confirmação / 1º venc.) */}
-                          {(v.data_indicacao || v.data_confirmacao || v.primeiro_vencimento) && (
+                          {(v.data_indicacao || v.data_confirmacao || v.data_fechamento || v.primeiro_vencimento) && (
                             <p className="text-[11px] text-gray-500 mt-1 flex flex-wrap gap-x-3">
                               {v.data_indicacao && <span>📅 Indicado: <b>{new Date(v.data_indicacao).toLocaleDateString('pt-BR')}</b></span>}
+                              {v.data_fechamento && <span>🤝 Fechado: <b>{new Date(v.data_fechamento).toLocaleDateString('pt-BR')}</b></span>}
                               {v.data_confirmacao && <span>✅ Confirmado: <b>{new Date(v.data_confirmacao).toLocaleDateString('pt-BR')}</b></span>}
                               {v.primeiro_vencimento && <span>💳 1º venc.: <b>{new Date(v.primeiro_vencimento).toLocaleDateString('pt-BR')}</b></span>}
                             </p>
@@ -694,18 +710,28 @@ export default function IndicacoesPage() {
                     </div>
                   )}
 
-                  {/* Lojas já selecionadas (chips) — não somem ao mudar a busca */}
+                  {/* Lojas selecionadas — cada uma com seu acréscimo individual.
+                      Deixe 0 (ou vazio) p/ lojas que já comunicam e estão só sendo associadas. */}
                   {(vendaForm.lojas_ids || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="rounded border border-teal-200 bg-white divide-y">
                       {(vendaForm.lojas_ids || []).map((lid: string) => {
                         const info = lojasSelMap[lid] || lojaResultados.find((x: any) => x.id === lid) || {};
-                        const nome = info.nome || info.nome_fantasia || info.razao_social || info.nome || lid;
+                        const nome = info.nome || info.nome_fantasia || info.razao_social || lid;
                         return (
-                          <span key={lid} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-800">
-                            {info.codigo ? `${info.codigo} · ` : ''}{nome}
-                            <button type="button" onClick={() => setVendaForm((p: any) => ({ ...p, lojas_ids: (p.lojas_ids || []).filter((x: string) => x !== lid), setup_loja_id: p.setup_loja_id === lid ? '' : p.setup_loja_id }))}
-                              className="ml-0.5 text-teal-600 hover:text-teal-900 font-bold">×</button>
-                          </span>
+                          <div key={lid} className="flex items-center gap-2 px-2 py-1.5">
+                            <button type="button" title="Remover loja"
+                              onClick={() => { setVendaForm((p: any) => ({ ...p, lojas_ids: (p.lojas_ids || []).filter((x: string) => x !== lid), setup_loja_id: p.setup_loja_id === lid ? '' : p.setup_loja_id })); setLojasAcrescimo(prev => { const n = { ...prev }; delete n[lid]; return n; }); }}
+                              className="text-red-400 hover:text-red-600 font-bold text-sm">×</button>
+                            <span className="flex-1 text-sm text-gray-800 truncate">{info.codigo ? `${info.codigo} · ` : ''}{nome}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-[11px] text-gray-500">+ R$</span>
+                              <input type="number" step="0.01" min="0" value={lojasAcrescimo[lid] || ''}
+                                onChange={e => setLojasAcrescimo(prev => ({ ...prev, [lid]: e.target.value }))}
+                                placeholder="0,00"
+                                className="w-24 px-2 py-1 border border-gray-200 rounded text-sm text-right" />
+                              <span className="text-[11px] text-gray-400">/mês</span>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -714,16 +740,61 @@ export default function IndicacoesPage() {
                   <div className="text-xs text-teal-800">
                     {nLojasComunic} loja(s) · acréscimo total: <b>R$ {acrescimoTotalComunic.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês</b>
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-600">Setup cobrado da loja:</label>
-                    <select value={vendaForm.setup_loja_id || ''} onChange={e => setVendaForm((p: any) => ({ ...p, setup_loja_id: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                      <option value="">Selecione a loja onde o setup será cobrado…</option>
-                      {(vendaForm.lojas_ids || []).map((lid: string) => {
-                        const info = lojasSelMap[lid] || {};
-                        return <option key={lid} value={lid}>{info.codigo ? `${info.codigo} · ` : ''}{info.nome || lid}</option>;
-                      })}
-                    </select>
+
+                  {/* Setup: valor cobrado + de qual loja + forma de pagamento */}
+                  <div className="rounded border border-teal-200 bg-white p-2 space-y-2">
+                    <p className="text-xs font-semibold text-teal-800">Setup (cobrado de UMA loja)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Valor do setup (R$)</label>
+                        <input type="number" step="0.01" min="0" value={vendaForm.valor_venda || ''}
+                          onChange={e => setVendaForm((p: any) => ({ ...p, valor_venda: e.target.value }))}
+                          placeholder="Ex: 650,00" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Cobrado da loja</label>
+                        <select value={vendaForm.setup_loja_id || ''} onChange={e => setVendaForm((p: any) => ({ ...p, setup_loja_id: e.target.value }))}
+                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                          <option value="">Selecione a loja…</option>
+                          {(vendaForm.lojas_ids || []).map((lid: string) => {
+                            const info = lojasSelMap[lid] || {};
+                            return <option key={lid} value={lid}>{info.codigo ? `${info.codigo} · ` : ''}{info.nome || lid}</option>;
+                          })}
+                        </select>
+                      </div>
+                    </div>
+                    {/* Forma de pagamento do setup */}
+                    <div className="flex gap-2">
+                      {[['PARCELADO', 'Parcelamento direto'], ['ENTRADA_PARCELAS', 'Entrada + parcelamento']].map(([v, label]) => (
+                        <button key={v} type="button" onClick={() => setVendaForm((p: any) => ({ ...p, setup_forma: v }))}
+                          className={`flex-1 px-2 py-1.5 rounded-lg text-xs border ${vendaForm.setup_forma === v ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {vendaForm.setup_forma === 'ENTRADA_PARCELAS' && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Entrada (R$)</label>
+                          <input type="number" step="0.01" min="0" value={vendaForm.setup_entrada || ''}
+                            onChange={e => setVendaForm((p: any) => ({ ...p, setup_entrada: e.target.value }))}
+                            placeholder="0,00" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                        </div>
+                      )}
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Nº de parcelas</label>
+                        <input type="number" min="1" max="24" value={vendaForm.setup_parcelas || 1}
+                          onChange={e => setVendaForm((p: any) => ({ ...p, setup_parcelas: e.target.value }))}
+                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                      </div>
+                    </div>
+                    {Number(vendaForm.valor_venda || 0) > 0 && (
+                      <p className="text-[11px] text-teal-700">
+                        {vendaForm.setup_forma === 'ENTRADA_PARCELAS'
+                          ? `Entrada R$ ${Number(vendaForm.setup_entrada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} + ${Math.max(1, Number(vendaForm.setup_parcelas || 1))}x de R$ ${valorParcelaSetup.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                          : `${Math.max(1, Number(vendaForm.setup_parcelas || 1))}x de R$ ${valorParcelaSetup.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
@@ -767,7 +838,8 @@ export default function IndicacoesPage() {
                 </p>
               </div>
 
-              {/* Acréscimo na mensalidade (ex.: Arquivo Fiscal) — soma na mensalidade total do cliente ao confirmar */}
+              {/* Acréscimo na mensalidade — oculto na Comunicação (cada loja tem o seu) */}
+              {!ehComunicacao && (
               <div>
                 <label className="text-sm font-medium text-gray-700">
                   Acréscimo na mensalidade (R$/mês)
@@ -781,16 +853,26 @@ export default function IndicacoesPage() {
                   Valor negociado a mais por mês com o cliente. Soma na <b>mensalidade total</b> da ficha do cliente quando a venda for confirmada.
                 </p>
               </div>
+              )}
 
-              {/* Data da indicação (demais parceiros — não-comunicação). A comissão
-                  entra no mês seguinte à CONFIRMAÇÃO (informada ao confirmar). */}
-              {!ehComunicacao && (
+              {/* Datas do negócio: indicação (demais parceiros) + fechamento. A
+                  comissão entra no mês seguinte à CONFIRMAÇÃO (informada ao confirmar). */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {!ehComunicacao && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Data da indicação</label>
+                    <input type="date" value={vendaForm.data_indicacao || ''} onChange={e => setVendaForm((p: any) => ({ ...p, data_indicacao: e.target.value }))}
+                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                )}
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Data da indicação</label>
-                  <input type="date" value={vendaForm.data_indicacao || ''} onChange={e => setVendaForm((p: any) => ({ ...p, data_indicacao: e.target.value }))}
+                  <label className="text-sm font-medium text-gray-700">Data de fechamento</label>
+                  <input type="date" value={vendaForm.data_fechamento || ''} onChange={e => setVendaForm((p: any) => ({ ...p, data_fechamento: e.target.value }))}
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <p className="mt-1 text-[11px] text-gray-500">Ao confirmar, você informa a data da confirmação e a comissão entra no <b>mês seguinte</b>.</p>
                 </div>
+              </div>
+              {!ehComunicacao && (
+                <p className="text-[11px] text-gray-500">Ao confirmar, você informa a data da confirmação e a comissão entra no <b>mês seguinte</b>.</p>
               )}
 
               {/* Mensalidade atual → nova (atual + acréscimo) */}
