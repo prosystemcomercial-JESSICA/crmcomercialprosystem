@@ -528,7 +528,9 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
     // Load contacts and service requests via raw (tabelas podem não existir em
     // bases novas/importadas → catch p/ não quebrar a abertura da ficha).
-    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE cliente_id = ? ORDER BY created_at ASC`, id).catch(() => []) as any[];
+    const contatos: any[] = await (prisma as any).contatoCliente.findMany({
+      where: { cliente_id: id }, orderBy: [{ principal: 'desc' }, { created_at: 'asc' }],
+    }).catch(() => []);
     const solicitacoes: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM SolicitacaoServico WHERE cliente_id = ? ORDER BY data_solicitacao DESC`, id).catch(() => []) as any[];
 
     // Acréscimos na mensalidade vindos de vendas adicionais CONFIRMADAS (ex.: Arquivo Fiscal).
@@ -858,24 +860,45 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     }
   });
 
-  // ===== CONTATOS =====
+  // ===== CONTATOS ===== (model Prisma; inclui cargo/email/origem)
   fastify.get('/clientes/:id/contatos', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const contatos: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE cliente_id = ? ORDER BY created_at ASC`, id);
+    const contatos = await (prisma as any).contatoCliente.findMany({
+      where: { cliente_id: id }, orderBy: [{ principal: 'desc' }, { created_at: 'asc' }],
+    }).catch(() => []);
     return reply.send({ status: 'success', data: contatos });
   });
 
   fastify.post('/clientes/:id/contatos', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = z.object({ nome: z.string().min(1), telefone: z.string().optional() }).safeParse(request.body);
+    const body = z.object({
+      nome: z.string().min(1), telefone: z.string().optional(),
+      cargo: z.string().optional(), email: z.string().optional(),
+      principal: z.boolean().optional(),
+    }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
-    const newId = randomUUID();
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO ContatoCliente (id, cliente_id, nome, telefone) VALUES (?, ?, ?, ?)`,
-      newId, id, body.data.nome, body.data.telefone || null
-    );
-    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM ContatoCliente WHERE id = ?`, newId);
-    return reply.status(201).send({ status: 'success', data: rows[0] });
+    const contato = await (prisma as any).contatoCliente.create({
+      data: {
+        cliente_id: id, nome: body.data.nome, telefone: body.data.telefone || null,
+        cargo: body.data.cargo || null, email: body.data.email || null,
+        origem: 'MANUAL', principal: body.data.principal ?? false,
+      },
+    });
+    await registrarEvento(id, 'OBSERVACAO', `Contato adicionado: ${body.data.nome}${body.data.cargo ? ' (' + body.data.cargo + ')' : ''}`, { user: (request as any).user });
+    return reply.status(201).send({ status: 'success', data: contato });
+  });
+
+  // Editar contato (nome/telefone/cargo/email/principal)
+  fastify.patch('/clientes/:id/contatos/:cid', async (request, reply) => {
+    const { cid } = request.params as { id: string; cid: string };
+    const body = z.object({
+      nome: z.string().optional(), telefone: z.string().optional(),
+      cargo: z.string().optional(), email: z.string().optional(), principal: z.boolean().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const contato = await (prisma as any).contatoCliente.update({ where: { id: cid }, data: body.data }).catch(() => null);
+    if (!contato) return reply.status(404).send({ status: 'error', message: 'Contato não encontrado' });
+    return reply.send({ status: 'success', data: contato });
   });
 
   fastify.delete('/clientes/:id/contatos/:cid', async (request, reply) => {

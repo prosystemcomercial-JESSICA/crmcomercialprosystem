@@ -54,7 +54,7 @@ const PRIORIDADE_OPTIONS = [
 const UF_OPTIONS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
 
 // ─── Types ────────────────────────────────────────────────────
-interface ContatoCliente { id: string; nome: string; telefone?: string; }
+interface ContatoCliente { id: string; nome: string; telefone?: string; cargo?: string; email?: string; origem?: string; }
 interface SolicitacaoServico {
   id: string; tipo_servico: string; subtipo?: string; prioridade: string; status: string;
   contato_solicitante?: string; contato_telefone?: string; usuario_responsavel?: string;
@@ -184,6 +184,7 @@ export default function ClienteDetailPage() {
   const [contatos, setContatos] = useState<ContatoCliente[]>([]);
   const [novoNome, setNovoNome] = useState('');
   const [novoTelefone, setNovoTelefone] = useState('');
+  const [novoCargo, setNovoCargo] = useState('');
   const [addingContato, setAddingContato] = useState(false);
 
   // Histórico / Solicitações
@@ -318,9 +319,9 @@ export default function ClienteDetailPage() {
     if (!novoNome.trim()) return;
     setAddingContato(true);
     try {
-      const res = await apiClient.client.post(`/clientes/${id}/contatos`, { nome: novoNome, telefone: novoTelefone });
+      const res = await apiClient.client.post(`/clientes/${id}/contatos`, { nome: novoNome, telefone: novoTelefone, cargo: novoCargo || undefined });
       setContatos(prev => [...prev, res.data.data]);
-      setNovoNome(''); setNovoTelefone('');
+      setNovoNome(''); setNovoTelefone(''); setNovoCargo('');
     } catch { } finally { setAddingContato(false); }
   };
 
@@ -666,12 +667,15 @@ export default function ClienteDetailPage() {
           <div className="space-y-4">
             <Section title="Contatos da empresa">
               {/* Add form */}
-              <div className="flex gap-2 mb-4">
+              <div className="flex flex-col sm:flex-row gap-2 mb-4">
                 <input value={novoNome} onChange={e => setNovoNome(e.target.value)}
                   placeholder="Nome do contato" className="flex-1 px-3 py-2 border rounded-lg text-sm"
                   style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} />
+                <input value={novoCargo} onChange={e => setNovoCargo(e.target.value)}
+                  placeholder="Cargo (ex.: Gerente)" className="w-full sm:w-40 px-3 py-2 border rounded-lg text-sm"
+                  style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} />
                 <input value={novoTelefone} onChange={e => setNovoTelefone(e.target.value)}
-                  placeholder="Telefone" className="w-44 px-3 py-2 border rounded-lg text-sm"
+                  placeholder="Telefone" className="w-full sm:w-44 px-3 py-2 border rounded-lg text-sm"
                   style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} />
                 <button onClick={handleAddContato} disabled={addingContato || !novoNome.trim()}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
@@ -688,7 +692,11 @@ export default function ClienteDetailPage() {
                   {contatos.map(c => (
                     <div key={c.id} className="flex items-center justify-between py-3 px-1">
                       <div>
-                        <p className="text-sm font-medium" style={{ color: 'var(--t-text-primary)' }}>{c.nome}</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--t-text-primary)' }}>
+                          {c.nome}
+                          {c.cargo && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)' }}>{c.cargo}</span>}
+                          {c.origem === 'WHATSAPP' && <span className="ml-1.5 text-[10px]" title="Vindo do WhatsApp">💬</span>}
+                        </p>
                         {c.telefone && (
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{c.telefone}</p>

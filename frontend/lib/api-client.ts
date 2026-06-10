@@ -1008,6 +1008,9 @@ class ApiClient {
   async agendarReuniaoWhatsapp(id: string, data: { data: string; duracao_minutos?: number; link?: string; titulo?: string; mensagem?: string }) {
     return this.client.post(`/whatsapp/conversas/${id}/reuniao`, data);
   }
+  async vincularConversaCliente(id: string, data: { cliente_id: string; nome?: string; cargo?: string }) {
+    return this.client.post(`/whatsapp/conversas/${id}/vincular-cliente`, data);
+  }
 
   async abrirConversaWhatsapp(numero: string, nome?: string, lead_id?: string) {
     return this.client.post('/whatsapp/abrir', { numero, nome, lead_id });
