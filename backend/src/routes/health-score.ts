@@ -22,10 +22,13 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
     }).safeParse(request.query);
 
     const { nivel, page, limit } = query.data || { page: 0, limit: 20 };
-    const where: any = {};
+    // Só clientes ATIVOS no Health Score (situação ATIVA ou null=legado sem
+    // situação). Inativos/churn não devem aparecer no painel. (Prisma não aceita
+    // null dentro de `in` → usar OR.)
+    const where: any = { cliente: { OR: [{ situacao: 'ATIVA' }, { situacao: null }] } };
     if (nivel) where.nivel = nivel;
 
-    const [scores, total] = await Promise.all([
+    const [scores, total, distribBruta] = await Promise.all([
       prisma.healthScore.findMany({
         where,
         include: { cliente: { select: { id: true, nome: true, empresa: true, email: true } } },
@@ -33,14 +36,22 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
         skip: page * limit,
         take: limit
       }),
-      prisma.healthScore.count({ where })
+      prisma.healthScore.count({ where }),
+      // Distribuição também restrita aos ativos (groupBy não aceita filtro por
+      // relação → busca os níveis/scores dos ativos e agrega em memória).
+      prisma.healthScore.findMany({ where, select: { nivel: true, score: true } }),
     ]);
 
-    const distribuicao = await prisma.healthScore.groupBy({
-      by: ['nivel'],
-      _count: { id: true },
-      _avg: { score: true }
-    });
+    const mapaDist = new Map<string, { count: number; soma: number }>();
+    for (const s of distribBruta) {
+      const k = s.nivel || 'SEM_NIVEL';
+      const cur = mapaDist.get(k) || { count: 0, soma: 0 };
+      cur.count += 1; cur.soma += Number(s.score || 0);
+      mapaDist.set(k, cur);
+    }
+    const distribuicao = Array.from(mapaDist.entries()).map(([nivel, v]) => ({
+      nivel, _count: { id: v.count }, _avg: { score: v.count ? v.soma / v.count : 0 },
+    }));
 
     return reply.send({ status: 'success', data: { scores, total, distribuicao } });
   });
