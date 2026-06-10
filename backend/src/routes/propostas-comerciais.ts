@@ -34,7 +34,7 @@ const PropostaSchema = z.object({
   supervisor_id:        z.string().optional(),
   supervisor_email:     z.string().optional(),
   campanha:             z.string().optional(),
-  validade:             z.string().datetime().optional(),
+  validade:             z.string().datetime().optional().or(z.literal('')),
   origem:               z.string().optional(),
 
   plano_selecionado:    z.string().optional(),
@@ -68,6 +68,36 @@ const PropostaSchema = z.object({
     'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO',
   ]).optional(),
 });
+
+// Campos numéricos da proposta — qualquer NaN/Infinity aqui derruba o Prisma.
+const CAMPOS_NUM_PROPOSTA = new Set([
+  'maquinas', 'mensalidade_pro', 'mensalidade_plus', 'valor_implantacao',
+  'valor_conversao', 'desconto', 'valor_final', 'entrada', 'parcelas',
+  'valor_parcela', 'comissao_vendedor_pct', 'comissao_supervisor_pct',
+]);
+// Datas que o front pode mandar como "YYYY-MM-DD" (sem hora) → normaliza p/ ISO.
+function normalizarValidade(v: any): string | undefined {
+  if (v === null || v === undefined || `${v}`.trim() === '') return undefined;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+/** Limpa o body da proposta: remove null/'', troca NaN por ausência, normaliza validade. */
+function sanitizarBodyProposta(raw: any): Record<string, any> {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (k === 'lead_id') continue; // não é coluna da proposta
+    if (v === null || v === undefined || v === '') continue;
+    if (k === 'validade') { const iso = normalizarValidade(v); if (iso) out[k] = iso; continue; }
+    if (CAMPOS_NUM_PROPOSTA.has(k)) {
+      const n = typeof v === 'number' ? v : parseFloat(`${v}`.replace(/[^\d.,-]/g, '').replace(/\./g, m => m).replace(',', '.'));
+      if (Number.isFinite(n)) out[k] = n; // descarta NaN/Infinity
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
 
 function calcComissoes(valorFinal: number | undefined | null, vendPct: number, supPct: number) {
   const base = valorFinal ?? 0;
@@ -324,8 +354,15 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
   // ===== CRIAR =====
   fastify.post('/propostas-comerciais', async (request, reply) => {
     const user = (request as any).user;
-    const body = PropostaSchema.safeParse(request.body);
-    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
+    // Blindagem: o front pode mandar NaN num campo numérico (parseFloat de texto),
+    // null, ou validade fora do ISO. Limpamos ANTES do parse p/ não dar 400/500.
+    const limpo = sanitizarBodyProposta(request.body);
+    const body = PropostaSchema.safeParse(limpo);
+    if (!body.success) {
+      const issues = body.error.issues.map(i => `${i.path.join('.') || '(raiz)'}: ${i.message}`);
+      console.warn('[POST /propostas-comerciais] validação falhou:', issues.join(' | '));
+      return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors, detalhes: issues });
+    }
 
     const data = { ...body.data };
 
@@ -416,8 +453,13 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
   fastify.patch('/propostas-comerciais/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     const user = (request as any).user;
-    const body = PropostaSchema.partial().safeParse(request.body);
-    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const limpo = sanitizarBodyProposta(request.body);
+    const body = PropostaSchema.partial().safeParse(limpo);
+    if (!body.success) {
+      const issues = body.error.issues.map(i => `${i.path.join('.') || '(raiz)'}: ${i.message}`);
+      console.warn('[PATCH /propostas-comerciais] validação falhou:', issues.join(' | '));
+      return reply.status(400).send({ status: 'error', message: 'Dados inválidos', detalhes: issues });
+    }
 
     const data: any = { ...body.data };
     if (data.validade) data.validade = new Date(data.validade);

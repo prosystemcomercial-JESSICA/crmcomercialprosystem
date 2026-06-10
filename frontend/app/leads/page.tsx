@@ -862,14 +862,27 @@ export default function LeadsPage() {
     if (!propostaForm.razao_social?.trim()) { alert('Razão social é obrigatória'); return; }
     setSavingProposta(true);
     try {
-      const pNum = (v: any) => v ? parseFloat(v) : undefined;
+      // Nunca retorna NaN (NaN passa no z.number() mas o Prisma rejeita Float NaN
+      // → 500). Aceita "1.234,56".
+      const pNum = (v: any): number | undefined => {
+        if (v === undefined || v === null || `${v}`.trim() === '') return undefined;
+        let s = `${v}`.trim().replace(/[^\d.,-]/g, '');
+        if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+        const n = parseFloat(s);
+        return Number.isFinite(n) ? n : undefined;
+      };
+      const toIso = (v?: string): string | undefined => {
+        if (!v) return undefined;
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? undefined : d.toISOString();
+      };
       const impl = pNum(propostaForm.valor_implantacao) || 0;
       const conv = pNum(propostaForm.valor_conversao) || 0;
       const desc = pNum(propostaForm.desconto) || 0;
       const vFinal = impl + conv - desc;
       const ent  = pNum(propostaForm.entrada) || 0;
-      const parc = parseInt(propostaForm.parcelas) || 0;
-      const parcVal = parc > 0 ? (vFinal - ent) / parc : undefined;
+      const parc = pNum(propostaForm.parcelas) ? Math.round(pNum(propostaForm.parcelas)!) : 0;
+      const parcVal = parc > 0 ? parseFloat(((vFinal - ent) / parc).toFixed(2)) : undefined;
 
       const payload: any = {
         ...propostaForm,
@@ -884,9 +897,12 @@ export default function LeadsPage() {
         entrada:          pNum(propostaForm.entrada),
         parcelas:         parc || undefined,
         valor_parcela:    parcVal,
-        validade:         propostaForm.validade ? new Date(propostaForm.validade).toISOString() : undefined,
+        validade:         toIso(propostaForm.validade),
       };
-      Object.keys(payload).forEach(k => { if (payload[k] === '') delete payload[k]; });
+      Object.keys(payload).forEach(k => {
+        const v = payload[k];
+        if (v === '' || v === null || v === undefined || (typeof v === 'number' && Number.isNaN(v))) delete payload[k];
+      });
 
       const res = await apiClient.createPropostaComercial(payload);
       setPropostaGerada(res.data.data);
