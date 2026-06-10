@@ -10,6 +10,15 @@ function calcularNivel(score: number): string {
   return 'CRITICO';
 }
 
+// Cliente em TRATAMENTO de churn (caso aberto, ainda não recuperado/perdido) ou
+// marcado em risco_atencao NUNCA pode aparecer melhor que "em risco" no Health
+// Score — rebaixa o nível p/ RISCO (ou mantém CRITICO se já estiver pior).
+const STATUS_CHURN_EM_TRATAMENTO = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO'];
+function rebaixarSeEmChurn(nivel: string, opts: { temChurnAtivo?: boolean; riscoAtencao?: boolean }): string {
+  if (!opts.temChurnAtivo && !opts.riscoAtencao) return nivel;
+  return nivel === 'CRITICO' ? 'CRITICO' : 'RISCO';
+}
+
 export async function healthScoreRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -103,7 +112,12 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
 
     // Garantir 0-100
     score = Math.max(0, Math.min(100, score));
-    const nivel = calcularNivel(score);
+    // Cliente em tratamento de churn (caso aberto) ou marcado em risco_atencao
+    // sempre aparece, no mínimo, como "em risco".
+    const churnEmTratamento = tem_churn && STATUS_CHURN_EM_TRATAMENTO.includes(cliente.caso_churn[0]?.status);
+    const nivel = rebaixarSeEmChurn(calcularNivel(score), {
+      temChurnAtivo: churnEmTratamento, riscoAtencao: !!(cliente as any).risco_atencao,
+    });
 
     const hs = await prisma.healthScore.upsert({
       where: { cliente_id: clienteId },
@@ -154,10 +168,16 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
         else if (diasSemUpdate >= 30) score -= 7;
         score = Math.max(0, Math.min(100, score));
 
+        // Em tratamento de churn ou risco_atencao → no mínimo "em risco".
+        const churnEmTrat = c.caso_churn.length > 0 && STATUS_CHURN_EM_TRATAMENTO.includes(c.caso_churn[0]?.status);
+        const nivel = rebaixarSeEmChurn(calcularNivel(score), {
+          temChurnAtivo: churnEmTrat, riscoAtencao: !!(c as any).risco_atencao,
+        });
+
         await prisma.healthScore.upsert({
           where: { cliente_id: cliente.id },
-          update: { score, nivel: calcularNivel(score), fatores, calculado_at: new Date() },
-          create: { cliente_id: cliente.id, score, nivel: calcularNivel(score), fatores }
+          update: { score, nivel, fatores, calculado_at: new Date() },
+          create: { cliente_id: cliente.id, score, nivel, fatores }
         });
         processados++;
       } catch (e) { /* skip */ }

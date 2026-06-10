@@ -49,6 +49,13 @@ export class CasoChurnService {
       data: { risco_atencao: true },
     }).catch(() => {});
 
+    // Rebaixa o Health Score do cliente p/ "em risco" IMEDIATAMENTE ao abrir o
+    // caso (cliente em tratamento de churn nunca aparece melhor que RISCO).
+    await this.prisma.healthScore.updateMany({
+      where: { cliente_id: data.clienteId, nivel: { in: ['EXCELENTE', 'SAUDAVEL', 'ATENCAO'] } },
+      data: { nivel: 'RISCO' },
+    }).catch(() => {});
+
     console.log(`[CasoChurn] Novo caso criado: ${caso.id} para cliente ${cliente.nome}`);
     return caso;
   }
