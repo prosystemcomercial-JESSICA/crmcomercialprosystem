@@ -608,6 +608,16 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         }).catch(() => null);
 
         if (!lead && !conversaExistente) {
+          // Nome do vendedor dono da instância p/ a etiqueta do card (cor + nome).
+          // Usa dono_nome da instância; se faltar, resolve do cadastro/contas de sistema.
+          let vendedorNome: string | undefined = (inst as any).dono_nome || undefined;
+          if (!vendedorNome && inst.dono_id) {
+            try {
+              const { resolverNomesUsuarios } = await import('@/lib/usuarios');
+              const nomes = await resolverNomesUsuarios(prisma, [inst.dono_id]);
+              vendedorNome = nomes[inst.dono_id];
+            } catch { /* ignora */ }
+          }
           lead = await prisma.lead.create({
             data: {
               nome: contato_nome || `WhatsApp ${contato_numero}`,
@@ -615,6 +625,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
               responsavel_telefone: contato_numero,
               origem: 'WHATSAPP',
               responsavel_id: inst.dono_id,
+              vendedor_nome: vendedorNome,           // → etiqueta do responsável no card
+              atribuido_em: new Date(),
               created_by: inst.dono_id,
               observacoes_comerciais: `Lead captado automaticamente via WhatsApp. Primeira mensagem: "${texto.slice(0, 180)}"`,
             },
