@@ -333,8 +333,8 @@ export default function PropostasComerciais() {
       plano_selecionado: p.plano_recomendado || p.plano_selecionado || '',
       mensalidade_pro: p.mensalidade_pro?.toString() || '',
       mensalidade_plus: p.mensalidade_plus?.toString() || '',
-      modulos_inclusos: p.modulos_inclusos || [],
-      servicos_adicionais: p.servicos_adicionais || [],
+      modulos_inclusos: Array.isArray(p.modulos_inclusos) ? p.modulos_inclusos : [],
+      servicos_adicionais: Array.isArray(p.servicos_adicionais) ? p.servicos_adicionais : [],
       valor_implantacao: p.valor_implantacao?.toString() || '',
       valor_conversao: p.valor_conversao?.toString() || '',
       desconto: p.desconto?.toString() || '',
@@ -514,10 +514,12 @@ export default function PropostasComerciais() {
 
   const toggleList = (k: 'modulos_inclusos' | 'servicos_adicionais', val: string) => {
     setForm(f => {
-      const arr = f[k] as string[];
+      const arr = Array.isArray(f[k]) ? (f[k] as string[]) : []; // banco podia devolver {}
       return { ...f, [k]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] };
     });
   };
+  const arrSel = (k: 'modulos_inclusos' | 'servicos_adicionais', val: string) =>
+    (Array.isArray(form[k]) ? (form[k] as string[]) : []).includes(val);
 
   // Escolher segmento → preenche automaticamente título, frase hero e texto de valor
   // (toda a proposta passa a ser direcionada ao segmento). Limpa plano se trocou de família.
@@ -1112,10 +1114,10 @@ export default function PropostasComerciais() {
                             style={{
                               padding: '4px 10px', borderRadius: 999, fontSize: 12, cursor: 'pointer',
                               border: '1.5px solid',
-                              borderColor: (form.servicos_adicionais as string[]).includes(s) ? '#16a34a' : 'var(--t-card-border)',
-                              background: (form.servicos_adicionais as string[]).includes(s) ? '#dcfce7' : 'transparent',
-                              color: (form.servicos_adicionais as string[]).includes(s) ? '#16a34a' : 'var(--t-text-muted)',
-                              fontWeight: (form.servicos_adicionais as string[]).includes(s) ? 700 : 400,
+                              borderColor: arrSel('servicos_adicionais', s) ? '#16a34a' : 'var(--t-card-border)',
+                              background: arrSel('servicos_adicionais', s) ? '#dcfce7' : 'transparent',
+                              color: arrSel('servicos_adicionais', s) ? '#16a34a' : 'var(--t-text-muted)',
+                              fontWeight: arrSel('servicos_adicionais', s) ? 700 : 400,
                             }}
                           >
                             {s}

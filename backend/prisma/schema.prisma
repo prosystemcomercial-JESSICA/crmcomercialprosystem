@@ -537,8 +537,8 @@ model Lead {
   texto_valor         String? @db.Text
   segmento_proposta   String?
   plano_recomendado   String?
-  modulos_inclusos    Json    @default("{}")
-  servicos_adicionais Json    @default("{}")
+  modulos_inclusos    Json    @default("[]")
+  servicos_adicionais Json    @default("[]")
 
   // Pipeline / Kanban comercial
   etapa_comercial    String @default("NOVO_LEAD")

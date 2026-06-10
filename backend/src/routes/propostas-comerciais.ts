@@ -89,6 +89,7 @@ function sanitizarBodyProposta(raw: any): Record<string, any> {
     if (k === 'lead_id') continue; // não é coluna da proposta
     if (v === null || v === undefined || v === '') continue;
     if (k === 'validade') { const iso = normalizarValidade(v); if (iso) out[k] = iso; continue; }
+    if (k === 'modulos_inclusos' || k === 'servicos_adicionais') { out[k] = Array.isArray(v) ? v : []; continue; }
     if (CAMPOS_NUM_PROPOSTA.has(k)) {
       const n = typeof v === 'number' ? v : parseFloat(`${v}`.replace(/[^\d.,-]/g, '').replace(/\./g, m => m).replace(',', '.'));
       if (Number.isFinite(n)) out[k] = n; // descarta NaN/Infinity

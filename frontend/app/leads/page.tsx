@@ -760,8 +760,8 @@ export default function LeadsPage() {
     plano_recomendado:    (lead as any).plano_recomendado || '',
     mensalidade_pro:      '',
     mensalidade_plus:     (lead as any).mensalidade_estimada?.toString() || '',
-    modulos_inclusos:     (lead as any).modulos_inclusos || [],
-    servicos_adicionais:  (lead as any).servicos_adicionais || [],
+    modulos_inclusos:     Array.isArray((lead as any).modulos_inclusos) ? (lead as any).modulos_inclusos : [],
+    servicos_adicionais:  Array.isArray((lead as any).servicos_adicionais) ? (lead as any).servicos_adicionais : [],
     valor_implantacao:    (lead as any).valor_setup?.toString() || '',
     valor_conversao:      (lead as any).valor_conversao?.toString() || '',
     desconto:             '',
@@ -814,8 +814,8 @@ export default function LeadsPage() {
       plano_recomendado:    (lead as any).plano_recomendado || '',
       mensalidade_pro:      '',
       mensalidade_plus:     (lead as any).mensalidade_estimada?.toString() || '',
-      modulos_inclusos:     (lead as any).modulos_inclusos || [],
-      servicos_adicionais:  (lead as any).servicos_adicionais || [],
+      modulos_inclusos:     Array.isArray((lead as any).modulos_inclusos) ? (lead as any).modulos_inclusos : [],
+      servicos_adicionais:  Array.isArray((lead as any).servicos_adicionais) ? (lead as any).servicos_adicionais : [],
       valor_implantacao:    (lead as any).valor_setup?.toString() || '',
       valor_conversao:      (lead as any).valor_conversao?.toString() || '',
       desconto:             '',
@@ -855,7 +855,11 @@ export default function LeadsPage() {
 
   const setPF = (k: string, v: any) => setPropostaForm((p: any) => ({ ...p, [k]: v }));
   const togglePF = (k: 'modulos_inclusos' | 'servicos_adicionais', val: string) =>
-    setPropostaForm((p: any) => ({ ...p, [k]: (p[k] as string[]).includes(val) ? (p[k] as string[]).filter((x: string) => x !== val) : [...(p[k] as string[]), val] }));
+    setPropostaForm((p: any) => {
+      // Garante array: o banco podia devolver {} (objeto) nesses campos Json.
+      const atual: string[] = Array.isArray(p[k]) ? p[k] : [];
+      return { ...p, [k]: atual.includes(val) ? atual.filter((x: string) => x !== val) : [...atual, val] };
+    });
 
   const handleSaveProposta = async () => {
     if (!selectedLead) return;
@@ -1653,7 +1657,7 @@ export default function LeadsPage() {
                           <FormField label="Módulos Inclusos" col={2}>
                             <div className="flex flex-wrap gap-2 mt-1">
                               {MODULOS_PROP.map(m => {
-                                const sel = (propostaForm.modulos_inclusos || []).includes(m);
+                                const sel = (Array.isArray(propostaForm.modulos_inclusos) ? propostaForm.modulos_inclusos : []).includes(m);
                                 return (
                                   <button key={m} type="button" onClick={() => togglePF('modulos_inclusos', m)}
                                     className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
@@ -1667,7 +1671,7 @@ export default function LeadsPage() {
                           <FormField label="Serviços Adicionais" col={2}>
                             <div className="flex flex-wrap gap-2 mt-1">
                               {SERVICOS_PROP.map(s => {
-                                const sel = (propostaForm.servicos_adicionais || []).includes(s);
+                                const sel = (Array.isArray(propostaForm.servicos_adicionais) ? propostaForm.servicos_adicionais : []).includes(s);
                                 return (
                                   <button key={s} type="button" onClick={() => togglePF('servicos_adicionais', s)}
                                     className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
