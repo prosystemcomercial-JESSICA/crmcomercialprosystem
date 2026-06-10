@@ -36,6 +36,9 @@ export const prisma = prismaClient;
 // 3) Fastify — logger simples em prod
 const isProd = process.env.NODE_ENV === 'production';
 const fastify = Fastify({
+  // Importação de clientes envia o lote em JSON; o padrão de 1MB estourava (413)
+  // em planilhas grandes (1400+ linhas × 40 colunas). 25MB cobre com folga.
+  bodyLimit: 25 * 1024 * 1024,
   logger: isProd
     ? { level: process.env.LOG_LEVEL || 'info' }
     : {
