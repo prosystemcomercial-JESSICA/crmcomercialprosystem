@@ -67,6 +67,10 @@ export default function ComissoesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<any>({ responsavel_id: '', tipo: 'MANUAL', descricao: '', valor_base: '', percentual: '', periodo: periodoAtual() });
   const [saving, setSaving] = useState(false);
+  // Filtros (só gestão): vendedor, tipo de venda e status.
+  const [fVendedor, setFVendedor] = useState('');
+  const [fTipo, setFTipo] = useState('');
+  const [fStatus, setFStatus] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -151,6 +155,26 @@ export default function ComissoesPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
+  // Lista de vendedores p/ o filtro (do resumo já agrupado por responsável).
+  const vendedoresFiltro = (resumo || [])
+    .map((r: any) => ({ id: r.responsavel_id, nome: r.responsavel_nome || nomeVendedor(r.responsavel_id) }))
+    .sort((a: any, b: any) => (a.nome || '').localeCompare(b.nome || ''));
+  // Tipos presentes nas comissões do período.
+  const tiposPresentes = [...new Set(comissoes.map(c => c.tipo).filter(Boolean))];
+
+  // Aplica os filtros (vendedor/tipo/status) sobre a lista carregada.
+  const comissoesFiltradas = comissoes.filter(c =>
+    (!fVendedor || c.responsavel_id === fVendedor) &&
+    (!fTipo || c.tipo === fTipo) &&
+    (!fStatus || c.status === fStatus)
+  );
+  const totaisFiltrados = {
+    total: comissoesFiltradas.reduce((s, c) => s + c.valor_comissao, 0),
+    pendente: comissoesFiltradas.filter(c => c.status === 'PENDENTE' || c.status === 'APROVADA').reduce((s, c) => s + c.valor_comissao, 0),
+    pago: comissoesFiltradas.filter(c => c.status === 'PAGA').reduce((s, c) => s + c.valor_comissao, 0),
+  };
+  const temFiltro = !!(fVendedor || fTipo || fStatus);
+
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>;
   }
@@ -167,11 +191,12 @@ export default function ComissoesPage() {
           </div>
           <div className="flex gap-2 items-center">
             <ExportButton
-              nome="comissoes" titulo={`Comissões — ${periodo}`}
-              linhas={comissoes}
+              nome={`comissoes${fVendedor ? '-' + (vendedoresFiltro.find(v => v.id === fVendedor)?.nome || '').replace(/\s+/g, '_') : ''}${fTipo ? '-' + fTipo : ''}`}
+              titulo={`Comissões — ${periodo}${fVendedor ? ' · ' + (vendedoresFiltro.find(v => v.id === fVendedor)?.nome || '') : ''}${fTipo ? ' · ' + (TIPO_LABEL[fTipo]?.label || fTipo) : ''}${fStatus ? ' · ' + fStatus : ''}`}
+              linhas={comissoesFiltradas}
               colunas={[
                 { header: 'Vendedor', value: (c: Comissao) => c.responsavel_nome || nomeVendedor(c.responsavel_id) },
-                { header: 'Tipo', value: (c: Comissao) => c.tipo },
+                { header: 'Tipo', value: (c: Comissao) => TIPO_LABEL[c.tipo]?.label || c.tipo },
                 { header: 'Descrição', value: (c: Comissao) => c.descricao || c.regra?.nome || '' },
                 { header: 'Base (R$)', value: (c: Comissao) => c.valor_base },
                 { header: 'Percentual (%)', value: (c: Comissao) => c.percentual },
@@ -205,20 +230,48 @@ export default function ComissoesPage() {
           ))}
         </div>
 
-        {/* Totais */}
+        {/* Filtros (gestão): vendedor, tipo de venda e status — refinam a tabela,
+            os totais e o que o botão Baixar/Exportar gera (relatório/ordem de pgto). */}
+        {isGestor && (
+          <div className="flex gap-2 flex-wrap items-center bg-white border border-gray-200 rounded-xl p-3">
+            <span className="text-xs font-semibold text-gray-500">Filtros:</span>
+            <select value={fVendedor} onChange={e => setFVendedor(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+              <option value="">Todos os vendedores</option>
+              {vendedoresFiltro.map((v: any) => <option key={v.id} value={v.id}>{v.nome}</option>)}
+            </select>
+            <select value={fTipo} onChange={e => setFTipo(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+              <option value="">Todos os tipos</option>
+              {tiposPresentes.map(t => <option key={t} value={t}>{TIPO_LABEL[t]?.label || t}</option>)}
+            </select>
+            <select value={fStatus} onChange={e => setFStatus(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+              <option value="">Todos os status</option>
+              {['PENDENTE', 'APROVADA', 'PAGA', 'CANCELADA'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            {temFiltro && (
+              <button onClick={() => { setFVendedor(''); setFTipo(''); setFStatus(''); }}
+                className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">Limpar filtros</button>
+            )}
+            <span className="ml-auto text-xs text-gray-500">{comissoesFiltradas.length} de {comissoes.length} lançamento(s)</span>
+          </div>
+        )}
+
+        {/* Totais (refletem os filtros aplicados) */}
         {totais && (
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <p className="text-sm text-gray-500">Total calculado</p>
-              <p className="text-2xl font-bold text-gray-700 mt-1">R$ {totais.total.toLocaleString('pt-BR')}</p>
+              <p className="text-sm text-gray-500">Total{temFiltro ? ' (filtrado)' : ' calculado'}</p>
+              <p className="text-2xl font-bold text-gray-700 mt-1">R$ {totaisFiltrados.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
               <p className="text-sm text-gray-500">A pagar</p>
-              <p className="text-2xl font-bold text-yellow-700 mt-1">R$ {totais.pendente.toLocaleString('pt-BR')}</p>
+              <p className="text-2xl font-bold text-yellow-700 mt-1">R$ {totaisFiltrados.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-green-50 rounded-xl p-4 border border-green-200">
               <p className="text-sm text-gray-500">Pago</p>
-              <p className="text-2xl font-bold text-green-700 mt-1">R$ {totais.pago.toLocaleString('pt-BR')}</p>
+              <p className="text-2xl font-bold text-green-700 mt-1">R$ {totaisFiltrados.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
           </div>
         )}
@@ -380,11 +433,11 @@ export default function ComissoesPage() {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {dataLoading ? (
             <div className="p-8 text-center text-gray-500">Carregando...</div>
-          ) : comissoes.length === 0 ? (
+          ) : comissoesFiltradas.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-4xl mb-3">💰</div>
-              <p className="text-gray-500">Nenhuma comissão em {periodo}</p>
-              {isCEO && <p className="text-sm text-gray-400 mt-1">Clique em "Calcular mês" para gerar automaticamente pelos contratos</p>}
+              <p className="text-gray-500">{temFiltro ? 'Nenhuma comissão com os filtros aplicados.' : `Nenhuma comissão em ${periodo}`}</p>
+              {isCEO && !temFiltro && <p className="text-sm text-gray-400 mt-1">Clique em "Calcular mês" para gerar automaticamente pelos contratos</p>}
             </div>
           ) : (
             <table className="w-full">
@@ -400,7 +453,7 @@ export default function ComissoesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {comissoes.map(c => (
+                {comissoesFiltradas.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-4 text-sm font-medium text-gray-900">{c.responsavel_nome || nomeVendedor(c.responsavel_id)}</td>
                     <td className="px-5 py-4 text-sm font-semibold text-gray-800">{c.cliente || '—'}</td>

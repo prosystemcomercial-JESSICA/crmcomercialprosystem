@@ -223,12 +223,14 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     const query = z.object({
       responsavel_id: z.string().optional(),
       periodo: z.string().optional(),
-      status: z.string().optional()
+      status: z.string().optional(),
+      tipo: z.string().optional(),
     }).safeParse(request.query);
 
     const where: any = {};
     if (query.data?.periodo) where.periodo = query.data.periodo;
     if (query.data?.status) where.status = query.data.status;
+    if (query.data?.tipo) where.tipo = query.data.tipo;
     // Escopo: vendedor só vê a própria comissão (ignora responsavel_id de outro);
     // gestor vê todas (ou filtra por responsavel_id da query).
     const scopeId = scopeUserId(request);

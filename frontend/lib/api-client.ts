@@ -739,7 +739,7 @@ class ApiClient {
   }
 
   // Comissões endpoints
-  async getComissoes(params?: { responsavel_id?: string; periodo?: string; status?: string }) {
+  async getComissoes(params?: { responsavel_id?: string; periodo?: string; status?: string; tipo?: string }) {
     return this.client.get('/comissoes', { params });
   }
 
