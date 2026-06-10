@@ -1497,6 +1497,9 @@ model VendaAdicional {
   // é cobrado de UMA loja específica. A venda fica salva na ficha de todas.
   lojas_ids        Json?     // string[] de cliente_id das lojas que vão se comunicar
   lojas_nomes      Json?     // string[] (snapshot dos nomes p/ exibição)
+  // Detalhe por loja: [{ cliente_id, nome, codigo, acrescimo }]. Cada loja tem o
+  // SEU acréscimo individual (pode ser 0 se já comunica e está sendo só associada).
+  lojas_detalhe    Json?
   setup_loja_id    String?   // cliente_id da loja onde o setup será cobrado
   // ── Datas do ciclo (aditivo) ────────────────────────────────────────────────
   data_venda             DateTime? // data inicial da venda
@@ -1504,6 +1507,7 @@ model VendaAdicional {
   primeiro_vencimento    DateTime? // 1º vencimento (base p/ comissão: mês seguinte)
   data_indicacao         DateTime? // (demais parceiros) data da indicação
   data_confirmacao       DateTime? // (demais parceiros) data da confirmação
+  data_fechamento        DateTime? // data em que o negócio foi efetivamente fechado
 
   status String @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
 

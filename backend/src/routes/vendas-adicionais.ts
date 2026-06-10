@@ -281,11 +281,17 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       mensalidade_anterior: z.number().optional(),
       // ── Comunicação multi-loja + datas do ciclo ──
       lojas_ids: z.array(z.string()).optional(),        // lojas que vão se comunicar
+      // Detalhe por loja: cada uma com seu acréscimo individual (0 = só associar).
+      lojas_detalhe: z.array(z.object({
+        cliente_id: z.string(),
+        acrescimo: z.number().optional(),
+      })).optional(),
       setup_loja_id: z.string().optional(),             // loja onde o setup é cobrado
       data_venda: z.string().optional(),
       data_inicio_comunicacao: z.string().optional(),
       primeiro_vencimento: z.string().optional(),       // base da comissão (mês seguinte)
       data_indicacao: z.string().optional(),            // demais parceiros
+      data_fechamento: z.string().optional(),           // data do fechamento do negócio
     }).safeParse(request.body);
 
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
@@ -319,31 +325,46 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const vendedorNome = nomes[vendedorId] || user?.nome || null;
 
     const {
-      setup_primeiro_venc, mensalidade_anterior, lojas_ids,
-      data_venda, data_inicio_comunicacao, primeiro_vencimento, data_indicacao, ...rest
+      setup_primeiro_venc, mensalidade_anterior, lojas_ids, lojas_detalhe,
+      data_venda, data_inicio_comunicacao, primeiro_vencimento, data_indicacao, data_fechamento, ...rest
     } = body.data;
 
     const ehComunicacao = parceiro.categoria === 'COMUNICACAO';
     const dt = (s?: string) => (s ? new Date(s) : null);
 
-    // Lojas da comunicação: resolve os nomes (snapshot) p/ exibição/ficha.
+    // Lista efetiva de ids: do detalhe (com acréscimo individual) ou fallback p/
+    // lojas_ids (compat). Cada loja tem o SEU acréscimo (0 = só associar).
+    const detalheIn = ehComunicacao && lojas_detalhe?.length ? lojas_detalhe : null;
+    const idsLojas = detalheIn ? detalheIn.map(d => d.cliente_id) : (lojas_ids || []);
+
+    // Resolve nomes/códigos (snapshot) p/ exibição/ficha e monta lojas_detalhe final.
     let lojasNomes: string[] = [];
-    if (ehComunicacao && lojas_ids && lojas_ids.length > 0) {
+    let lojasDetalheFinal: any[] = [];
+    if (ehComunicacao && idsLojas.length > 0) {
       const lojas = await prisma.cliente.findMany({
-        where: { id: { in: lojas_ids } },
-        select: { id: true, razao_social: true, nome_fantasia: true, nome: true },
+        where: { id: { in: idsLojas } },
+        select: { id: true, codigo: true, razao_social: true, nome_fantasia: true, nome: true },
       });
-      const mapa = new Map(lojas.map(l => [l.id, l.nome_fantasia || l.razao_social || l.nome]));
-      lojasNomes = lojas_ids.map(id => mapa.get(id) || id);
+      const mapa = new Map(lojas.map(l => [l.id, l]));
+      lojasNomes = idsLojas.map(id => (mapa.get(id) as any)?.nome_fantasia || (mapa.get(id) as any)?.razao_social || (mapa.get(id) as any)?.nome || id);
+      lojasDetalheFinal = idsLojas.map(id => {
+        const l: any = mapa.get(id) || {};
+        const acr = detalheIn ? Number(detalheIn.find(d => d.cliente_id === id)?.acrescimo || 0) : Number(body.data.acrescimo_mensal || 0);
+        return { cliente_id: id, nome: l.nome_fantasia || l.razao_social || l.nome || id, codigo: l.codigo || null, acrescimo: acr };
+      });
     }
 
-    // Acréscimo na comunicação é POR LOJA → total = acréscimo × nº de lojas.
-    const nLojas = ehComunicacao && lojas_ids?.length ? lojas_ids.length : 1;
-    const acrescimoTotal = Number(body.data.acrescimo_mensal || 0) * (ehComunicacao ? nLojas : 1);
+    // Acréscimo total da comunicação = SOMA dos acréscimos individuais.
+    const acrescimoTotal = ehComunicacao
+      ? lojasDetalheFinal.reduce((s, d) => s + Number(d.acrescimo || 0), 0)
+      : Number(body.data.acrescimo_mensal || 0);
+    const nLojas = ehComunicacao && idsLojas.length ? idsLojas.length : 1;
 
     const venda = await prisma.vendaAdicional.create({
       data: {
         ...rest,
+        // Na comunicação o acrescimo_mensal gravado é o TOTAL (soma das lojas).
+        acrescimo_mensal: ehComunicacao ? acrescimoTotal : rest.acrescimo_mensal,
         vendedor_id: vendedorId,
         vendedor_nome: vendedorNome,
         comissao_valor: comissaoValor,
@@ -352,12 +373,14 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
         mensalidade_nova: mensalidadeNova,
         setup_primeiro_venc: dt(setup_primeiro_venc),
         // multi-loja + datas
-        lojas_ids: ehComunicacao && lojas_ids ? (lojas_ids as any) : undefined,
+        lojas_ids: ehComunicacao && idsLojas.length ? (idsLojas as any) : undefined,
         lojas_nomes: ehComunicacao && lojasNomes.length ? (lojasNomes as any) : undefined,
+        lojas_detalhe: ehComunicacao && lojasDetalheFinal.length ? (lojasDetalheFinal as any) : undefined,
         data_venda: dt(data_venda),
         data_inicio_comunicacao: dt(data_inicio_comunicacao),
         primeiro_vencimento: dt(primeiro_vencimento),
         data_indicacao: dt(data_indicacao),
+        data_fechamento: dt(data_fechamento),
         status: 'PENDENTE',
         created_by: user?.id || 'system',
       },
@@ -386,18 +409,21 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       },
     });
 
-    // Salva a venda na FICHA de todos os clientes envolvidos (timeline). Na
-    // comunicação são todas as lojas; senão, o cliente da venda.
-    const idsFicha = ehComunicacao && lojas_ids?.length ? lojas_ids : [body.data.cliente_id];
-    const tituloEvt = ehComunicacao
-      ? `Comunicação contratada (${nLojas} loja${nLojas > 1 ? 's' : ''}) — +R$ ${Number(body.data.acrescimo_mensal || 0)}/loja`
-      : `Venda adicional: ${parceiro.nome}`;
-    for (const cid of idsFicha) {
+    // Salva a venda na FICHA de cada loja envolvida (timeline), com o acréscimo
+    // INDIVIDUAL daquela loja. Senão (não-comunicação), o cliente da venda.
+    const fichas = ehComunicacao && lojasDetalheFinal.length
+      ? lojasDetalheFinal.map(d => ({ cid: d.cliente_id, acr: Number(d.acrescimo || 0) }))
+      : [{ cid: body.data.cliente_id, acr: Number(body.data.acrescimo_mensal || 0) }];
+    for (const f of fichas) {
+      const titulo = ehComunicacao
+        ? (f.acr > 0 ? `Comunicação — acréscimo de R$ ${f.acr.toLocaleString('pt-BR')}/mês` : 'Comunicação — loja associada (sem acréscimo)')
+        : `Venda adicional: ${parceiro.nome}`;
+      const ehSetupLoja = body.data.setup_loja_id === f.cid;
       await (prisma as any).eventoCliente.create({
         data: {
-          cliente_id: cid, tipo: 'OBSERVACAO', titulo: tituloEvt,
+          cliente_id: f.cid, tipo: 'OBSERVACAO', titulo,
           descricao: body.data.observacoes || undefined, referencia_id: venda.id,
-          metadados: { acrescimo_por_loja: body.data.acrescimo_mensal, total_mensal: acrescimoTotal, setup_loja_id: body.data.setup_loja_id, primeiro_vencimento },
+          metadados: { acrescimo: f.acr, total_lojas: nLojas, total_mensal: acrescimoTotal, setup_nesta_loja: ehSetupLoja, setup_valor: ehSetupLoja ? body.data.valor_venda : undefined, primeiro_vencimento },
           feito_por: user?.id, feito_por_nome: vendedorNome,
         },
       }).catch(() => {});
@@ -596,13 +622,22 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     let texto: string;
 
     if (cat === 'COMUNICACAO') {
-      const ids: string[] = Array.isArray(v.lojas_ids) && v.lojas_ids.length ? v.lojas_ids : [v.cliente_id];
-      const lojas = await prisma.cliente.findMany({
-        where: { id: { in: ids } },
-        select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true },
-      });
-      const lojasTxt = lojas.map(linhaCli).join('\n');
-      const plural = lojas.length > 1;
+      const detalhe: any[] = Array.isArray(v.lojas_detalhe) ? v.lojas_detalhe : [];
+      let lojasTxt: string; let acrescTxt: string; let plural: boolean;
+      if (detalhe.length) {
+        // Acréscimo INDIVIDUAL por loja.
+        plural = detalhe.length > 1;
+        lojasTxt = detalhe.map((d: any) => `${d.codigo ? d.codigo + '- ' : ''}${String(d.nome || '').toUpperCase()}`).join('\n');
+        acrescTxt = detalhe.map((d: any) =>
+          `${d.codigo ? d.codigo + '- ' : ''}${String(d.nome || '').toUpperCase()}: ${Number(d.acrescimo || 0) > 0 ? brl(d.acrescimo) : 'sem acréscimo (já comunica)'}`
+        ).join('\n');
+      } else {
+        const ids: string[] = Array.isArray(v.lojas_ids) && v.lojas_ids.length ? v.lojas_ids : [v.cliente_id];
+        const lojas = await prisma.cliente.findMany({ where: { id: { in: ids } }, select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true } });
+        plural = lojas.length > 1;
+        lojasTxt = lojas.map(linhaCli).join('\n');
+        acrescTxt = `Acréscimo na mensalidade ${brl(acrescimo)}${plural ? ' por loja' : ''}`;
+      }
       texto =
 `${plural ? 'LOJAS INCLUÍDAS:' : 'LOJA INCLUÍDA:'}
 
@@ -611,7 +646,7 @@ ${lojasTxt}
 A negociação ficou definida da seguinte forma:
 
 ${brl(setup)} pela inclusão da loja${plural ? 's' : ''}${formaSetup}
-Acréscimo na mensalidade ${brl(acrescimo)}${plural ? ' por loja' : ''}
+${detalhe.length ? 'Acréscimo na mensalidade por loja:\n' + acrescTxt : acrescTxt}
 
 Condições de pagamento:
 ${condicoes}`;
