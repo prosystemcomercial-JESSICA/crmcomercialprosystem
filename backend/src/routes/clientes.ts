@@ -531,7 +531,40 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       total: Math.round((base + totalAcrescimos) * 100) / 100,
     };
 
-    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes, mensalidade } });
+    // Renegociações (acordos por dificuldade financeira) deste cliente — exibidas
+    // de forma organizada na ficha. Inclui o resumo já montado p/ o front.
+    const renegociacoes = await prisma.casoChurn.findMany({
+      where: { clienteId: id, reneg_ativa: true },
+      orderBy: { reneg_data: 'desc' },
+      select: {
+        id: true, reneg_data: true, reneg_valor_devido: true, reneg_valor_entrada: true,
+        reneg_parcelas: true, reneg_responsavel: true, reneg_responsavel_cpf: true,
+        reneg_proximo_vencimento: true, reneg_como_mantido: true, reneg_resultado: true,
+        motivo_principal: true, status: true,
+      },
+    }).catch(() => [] as any[]);
+    const renegs = renegociacoes.map((r: any) => {
+      const devido = Number(r.reneg_valor_devido || 0);
+      const entrada = Number(r.reneg_valor_entrada || 0);
+      const parcelas = Number(r.reneg_parcelas || 0);
+      const saldo = Math.max(0, devido - entrada);
+      const valor_parcela = parcelas > 0 ? Math.round((saldo / parcelas) * 100) / 100 : 0;
+      return {
+        ...r,
+        valor_parcela,
+        // Resumo pronto: como fica a mensalidade (do cadastro) + o acordo do débito.
+        resumo: {
+          mensalidade_atual: mensalidade.total,         // mensalidade vigente do cadastro
+          valor_devido: devido,
+          entrada,
+          parcelas,
+          valor_parcela,
+          proximo_vencimento: r.reneg_proximo_vencimento,
+        },
+      };
+    });
+
+    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes, mensalidade, renegociacoes: renegs } });
   });
 
   // Create cliente

@@ -22,11 +22,15 @@ interface Caso {
   reneg_responsavel?: string;
   reneg_responsavel_cpf?: string;
   reneg_data?: string;
+  reneg_proximo_vencimento?: string;
   cliente: {
     id: string;
     nome: string;
     empresa?: string;
     email: string;
+    razao_social?: string;
+    nome_fantasia?: string;
+    mensalidade_base?: number;
   };
 }
 
@@ -109,6 +113,7 @@ export default function CasosPage() {
       reneg_como_mantido: c.reneg_como_mantido ?? '',
       reneg_resultado: c.reneg_resultado ?? '',
       reneg_data: c.reneg_data ? c.reneg_data.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      reneg_proximo_vencimento: (c as any).reneg_proximo_vencimento ? (c as any).reneg_proximo_vencimento.slice(0, 10) : '',
     });
     setReneg(c);
   };
@@ -400,6 +405,16 @@ export default function CasosPage() {
                       )}
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data do próximo vencimento</label>
+                    <input
+                      type="date"
+                      value={renegForm.reneg_proximo_vencimento || ''}
+                      onChange={e => setRenegForm((f: any) => ({ ...f, reneg_proximo_vencimento: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Quando vence a entrada/1ª parcela acordada.</p>
+                  </div>
                 </div>
               )}
 
@@ -448,6 +463,29 @@ export default function CasosPage() {
                   placeholder="Ex.: cliente mantido no plano Pro, débito quitado em 3x, relação normalizada."
                 />
               </div>
+
+              {/* RESUMO DO ACORDO — como fica a mensalidade + o que foi acordado */}
+              {rDevido > 0 && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-sm font-bold text-emerald-800 mb-2">📋 Resumo do acordo</p>
+                  <div className="space-y-1 text-sm text-gray-700">
+                    <div className="flex justify-between"><span>Mensalidade do cliente (cadastro)</span><b className="text-gray-900">{fmtBRL(Number(reneg?.cliente?.mensalidade_base || 0))}</b></div>
+                    <div className="flex justify-between"><span>Valor devido</span><b className="text-gray-900">{fmtBRL(rDevido)}</b></div>
+                    {rEntrada > 0 && <div className="flex justify-between"><span>Entrada no ato</span><b className="text-gray-900">{fmtBRL(rEntrada)}</b></div>}
+                    <div className="flex justify-between">
+                      <span>Parcelamento do débito</span>
+                      <b className="text-emerald-700">{rParcelas > 0 ? `${rParcelas}x de ${fmtBRL(rValorParcela)}` : 'À vista'}</b>
+                    </div>
+                    {renegForm.reneg_proximo_vencimento && (
+                      <div className="flex justify-between border-t border-emerald-200 pt-1 mt-1">
+                        <span>Próximo vencimento</span>
+                        <b className="text-gray-900">{new Date(renegForm.reneg_proximo_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</b>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-emerald-700 mt-2">Este resumo fica registrado na ficha do cliente.</p>
+                </div>
+              )}
             </div>
 
             {/* footer */}

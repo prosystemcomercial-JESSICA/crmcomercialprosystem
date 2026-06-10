@@ -142,6 +142,7 @@ model CasoChurn {
   reneg_responsavel     String?   // nome completo do responsável que assina
   reneg_responsavel_cpf String?   // CPF do responsável
   reneg_data            DateTime? // data do acordo
+  reneg_proximo_vencimento DateTime? // data do próximo vencimento acordado
 
   created_by String
   created_at DateTime @default(now())

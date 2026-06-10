@@ -86,6 +86,13 @@ interface ClienteDetalhe {
     base: number; total_acrescimos: number; total: number;
     acrescimos: { id: string; valor: number; origem: string; categoria: string; status: string; data: string }[];
   };
+  renegociacoes?: {
+    id: string; reneg_data?: string; reneg_valor_devido?: number; reneg_valor_entrada?: number;
+    reneg_parcelas?: number; valor_parcela?: number; reneg_responsavel?: string; reneg_responsavel_cpf?: string;
+    reneg_proximo_vencimento?: string; reneg_como_mantido?: string; reneg_resultado?: string;
+    motivo_principal?: string; status?: string;
+    resumo?: { mensalidade_atual: number; valor_devido: number; entrada: number; parcelas: number; valor_parcela: number; proximo_vencimento?: string };
+  }[];
 }
 
 type TabName = 'cadastro' | 'contatos' | 'historico' | 'endereco' | 'info' | 'financeiro' | 'ativos';
@@ -839,6 +846,40 @@ export default function ClienteDetailPage() {
                 className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
                 style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)' }} />
             </Section>
+
+            {/* Renegociações por dificuldade financeira (acordos lançados nos casos de churn) */}
+            {cliente.renegociacoes && cliente.renegociacoes.length > 0 && (
+              <Section title={`💰 Renegociações de débito (${cliente.renegociacoes.length})`}>
+                <div className="space-y-3">
+                  {cliente.renegociacoes.map(r => {
+                    const brl = (v?: number) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+                    const dt = (s?: string) => s ? new Date(s).toLocaleDateString('pt-BR') : '—';
+                    return (
+                      <div key={r.id} className="rounded-xl border p-4" style={{ borderColor: '#bbf7d0', background: '#f0fdf4' }}>
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                          <span className="text-sm font-bold text-emerald-800">Acordo de {dt(r.reneg_data)}</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">{r.motivo_principal || 'Dificuldade financeira'}</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
+                          <div><span className="text-xs block" style={{ color: 'var(--t-text-muted)' }}>Mensalidade (cadastro)</span><b style={{ color: 'var(--t-text-primary)' }}>{brl(r.resumo?.mensalidade_atual)}</b></div>
+                          <div><span className="text-xs block" style={{ color: 'var(--t-text-muted)' }}>Valor devido</span><b style={{ color: 'var(--t-text-primary)' }}>{brl(r.reneg_valor_devido)}</b></div>
+                          <div><span className="text-xs block" style={{ color: 'var(--t-text-muted)' }}>Entrada</span><b style={{ color: 'var(--t-text-primary)' }}>{brl(r.reneg_valor_entrada)}</b></div>
+                          <div><span className="text-xs block" style={{ color: 'var(--t-text-muted)' }}>Parcelamento</span><b className="text-emerald-700">{r.reneg_parcelas && r.reneg_parcelas > 0 ? `${r.reneg_parcelas}x de ${brl(r.valor_parcela)}` : 'À vista'}</b></div>
+                          <div><span className="text-xs block" style={{ color: 'var(--t-text-muted)' }}>Próximo vencimento</span><b style={{ color: '#b45309' }}>{dt(r.reneg_proximo_vencimento)}</b></div>
+                          <div><span className="text-xs block" style={{ color: 'var(--t-text-muted)' }}>Responsável</span><b style={{ color: 'var(--t-text-primary)' }}>{r.reneg_responsavel || '—'}</b></div>
+                        </div>
+                        {(r.reneg_como_mantido || r.reneg_resultado) && (
+                          <div className="mt-2 pt-2 border-t text-xs space-y-1" style={{ borderColor: '#bbf7d0', color: 'var(--t-text-secondary)' }}>
+                            {r.reneg_como_mantido && <p><b>O que foi feito:</b> {r.reneg_como_mantido}</p>}
+                            {r.reneg_resultado && <p><b>Como ficou:</b> {r.reneg_resultado}</p>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
           </div>
         )}
 
