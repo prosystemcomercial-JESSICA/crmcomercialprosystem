@@ -7,6 +7,92 @@ import { resolverNomesUsuarios } from '@/lib/usuarios';
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // ── Bônus trimestral — Programa Acelerador de Resultados ────────────────────
+  // Trimestres iniciam em MAIO (regra Prosystem): mai-jul, ago-out, nov-jan,
+  // fev-abr. Faixas por contratos fechados no trimestre:
+  //   15 → R$400 | 22 → R$600 | 30 → R$1.000 (pega a maior faixa atingida).
+  const FAIXAS_BONUS = [
+    { meta: 30, premio: 1000, rotulo: '200% da meta' },
+    { meta: 22, premio: 600,  rotulo: '150% da meta' },
+    { meta: 15, premio: 400,  rotulo: '100% da meta' },
+  ];
+  const STATUS_FECHADA_BONUS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
+
+  // Dado um ano-mês de referência, retorna o trimestre Prosystem que o contém.
+  // Âncora em maio: meses 5,6,7 = T1; 8,9,10 = T2; 11,12,1 = T3; 2,3,4 = T4.
+  function trimestreProsystem(ano: number, mes1a12: number) {
+    // desloca p/ que maio (5) seja o início (offset 0..11 a partir de maio)
+    const offset = (mes1a12 - 5 + 12) % 12;
+    const indiceTri = Math.floor(offset / 3); // 0..3
+    const mesInicioOffset = indiceTri * 3;     // 0,3,6,9
+    const mesInicio = ((5 - 1 + mesInicioOffset) % 12) + 1; // mês 1..12 do início
+    // ano de início: se o mês de início é > mês de referência, começou no ano anterior
+    let anoInicio = ano;
+    if (mesInicio > mes1a12) anoInicio = ano - 1;
+    const inicio = new Date(anoInicio, mesInicio - 1, 1);
+    const fim = new Date(anoInicio, mesInicio - 1 + 3, 0, 23, 59, 59); // último dia do 3º mês
+    const nomesMes = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    const fimMes = ((mesInicio - 1 + 2) % 12) + 1;
+    const fimAno = mesInicio + 2 > 12 ? anoInicio + 1 : anoInicio;
+    const rotulo = `${nomesMes[mesInicio - 1]}/${anoInicio} a ${nomesMes[fimMes - 1]}/${fimAno}`;
+    return { inicio, fim, rotulo, indiceTri };
+  }
+
+  fastify.get('/comissoes/bonus-trimestral', async (request, reply) => {
+    const q = z.object({ ref: z.string().optional(), vendedor_id: z.string().optional() }).safeParse(request.query);
+    // ref = YYYY-MM dentro do trimestre desejado (default: mês atual).
+    const agora = new Date();
+    const [yy, mm] = q.data?.ref ? q.data.ref.split('-').map(Number) : [agora.getFullYear(), agora.getMonth() + 1];
+    const tri = trimestreProsystem(yy, mm);
+
+    // Escopo: vendedor vê só o seu; gestor vê todos (ou filtra por vendedor_id).
+    const scopeId = scopeUserId(request);
+    const whereVend: any = {};
+    if (scopeId !== null) whereVend.vendedor_id = scopeId;
+    else if (q.data?.vendedor_id) whereVend.vendedor_id = q.data.vendedor_id;
+
+    // Contratos FECHADOS no trimestre (data_aceite ou created_at), por vendedor.
+    const props = await prisma.propostaComercial.findMany({
+      where: {
+        ...whereVend,
+        status: { in: STATUS_FECHADA_BONUS },
+        OR: [
+          { data_aceite: { gte: tri.inicio, lte: tri.fim } },
+          { AND: [{ data_aceite: null }, { created_at: { gte: tri.inicio, lte: tri.fim } }] },
+        ],
+        deleted_at: null,
+      },
+      select: { vendedor_id: true, vendedor_nome: true },
+    }).catch(() => [] as any[]);
+
+    const porVend: Record<string, { vendedor_id: string; vendedor_nome: string | null; contratos: number }> = {};
+    for (const p of props) {
+      const id = p.vendedor_id || 'sem-vendedor';
+      if (!porVend[id]) porVend[id] = { vendedor_id: id, vendedor_nome: p.vendedor_nome || null, contratos: 0 };
+      porVend[id].contratos += 1;
+    }
+    const ids = Object.keys(porVend).filter(i => i !== 'sem-vendedor');
+    const nomes = await resolverNomesUsuarios(prisma, ids).catch(() => ({} as Record<string, string>));
+
+    const linhas = Object.values(porVend).map(v => {
+      const faixa = FAIXAS_BONUS.find(f => v.contratos >= f.meta);
+      const proxima = [...FAIXAS_BONUS].reverse().find(f => v.contratos < f.meta);
+      return {
+        vendedor_id: v.vendedor_id,
+        vendedor_nome: nomes[v.vendedor_id] || v.vendedor_nome || v.vendedor_id,
+        contratos: v.contratos,
+        premio: faixa ? faixa.premio : 0,
+        faixa_atingida: faixa ? faixa.rotulo : null,
+        proxima_faixa: proxima ? { meta: proxima.meta, premio: proxima.premio, faltam: proxima.meta - v.contratos } : null,
+      };
+    }).sort((a, b) => b.contratos - a.contratos);
+
+    return reply.send({
+      status: 'success',
+      data: { trimestre: tri.rotulo, inicio: tri.inicio, fim: tri.fim, faixas: FAIXAS_BONUS, linhas },
+    });
+  });
+
   // Resolve a RAZÃO SOCIAL do cliente de cada comissão (em vez do id do contrato):
   //  - CONTRATO        → ContratoComercial.razao_social (via referencia_id)
   //  - VENDA_ADICIONAL → VendaAdicional → Cliente.nome

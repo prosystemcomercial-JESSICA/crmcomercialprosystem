@@ -75,6 +75,8 @@ export default function ComissoesPage() {
   const [vendedoresCRM, setVendedoresCRM] = useState<{ id: string; nome: string }[]>([]);
   // Períodos que têm comissão lançada (inclui meses futuros, ex.: 2026-07).
   const [periodosComComissao, setPeriodosComComissao] = useState<string[]>([]);
+  // Bônus trimestral (Programa Acelerador) — trimestres iniciam em maio.
+  const [bonus, setBonus] = useState<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -133,6 +135,12 @@ export default function ComissoesPage() {
     if (!isAuthenticated || !user) return;
     apiClient.getComissoesPeriodos().then(r => setPeriodosComComissao(r.data?.data?.periodos || [])).catch(() => {});
   }, [isAuthenticated, user]);
+
+  // Bônus trimestral do trimestre que contém o período selecionado.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    apiClient.getBonusTrimestral({ ref: periodo }).then(r => setBonus(r.data?.data || null)).catch(() => setBonus(null));
+  }, [isAuthenticated, user, periodo]);
 
   const handleCalcular = async () => {
     setCalculando(true);
@@ -306,6 +314,41 @@ export default function ComissoesPage() {
             <div className="bg-green-50 rounded-xl p-4 border border-green-200">
               <p className="text-sm text-gray-500">Pago</p>
               <p className="text-2xl font-bold text-green-700 mt-1">R$ {totaisFiltrados.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Bônus Trimestral — Programa Acelerador de Resultados (trimestres a partir de maio) */}
+        {bonus && bonus.linhas?.length > 0 && (
+          <div className="bg-white rounded-xl border-2 p-5" style={{ borderColor: '#fde68a' }}>
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <h2 className="text-base font-semibold text-gray-900">🏆 Bônus Trimestral — Acelerador <span className="text-gray-400 font-normal">({bonus.trimestre})</span></h2>
+              <span className="text-xs text-gray-500">Faixas: 15→R$400 · 22→R$600 · 30→R$1.000 (contratos fechados no trimestre)</span>
+            </div>
+            <div className="space-y-2">
+              {bonus.linhas.map((l: any) => {
+                const pct = Math.min(100, Math.round((l.contratos / 30) * 100));
+                return (
+                  <div key={l.vendedor_id} className="rounded-lg border border-gray-100 p-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-medium text-gray-800">{l.vendedor_nome}</span>
+                      <span className="text-sm">
+                        <b className="text-gray-900">{l.contratos}</b> <span className="text-gray-400">contratos</span>
+                        {l.premio > 0
+                          ? <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">🏆 {l.faixa_atingida} · R$ {l.premio.toLocaleString('pt-BR')}</span>
+                          : (l.proxima_faixa && <span className="ml-2 text-xs text-gray-500">faltam {l.proxima_faixa.faltam} p/ R$ {l.proxima_faixa.premio.toLocaleString('pt-BR')}</span>)}
+                      </span>
+                    </div>
+                    {/* barra de progresso com marcações 15/22/30 */}
+                    <div className="relative mt-2 h-2 rounded-full bg-gray-100">
+                      <div className="absolute left-0 top-0 h-2 rounded-full" style={{ width: `${pct}%`, background: l.premio > 0 ? '#f59e0b' : '#93c5fd' }} />
+                      {[15, 22, 30].map(m => (
+                        <span key={m} className="absolute -top-0.5 w-px h-3 bg-gray-400" style={{ left: `${(m / 30) * 100}%` }} title={`${m} contratos`} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
