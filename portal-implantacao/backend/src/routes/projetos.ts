@@ -126,10 +126,21 @@ export async function projetosRoutes(fastify: FastifyInstance, options: { prisma
       const faltando = faseAtual.exige_campos.filter(c => (projeto as any)[c] == null || (projeto as any)[c] === '');
       if (faltando.length) return reply.status(422).send({ status: 'error', message: `Preencha antes de avançar: ${faltando.join(', ')}`, faltando });
     }
-    // Regra: para sair do Go-Live (2.5) → Onboarding, o checklist precisa estar concluído.
-    if (faseAtual?.codigo === 'IMP_GOLIVE' && destino.funil === 'ONBOARDING') {
-      const pend = (projeto.checklists || []).filter(ci => ci.fase === 'IMP_GOLIVE' && !ci.concluido);
-      if (pend.length) return reply.status(422).send({ status: 'error', message: 'Conclua o checklist do Go-Live antes de avançar.' });
+    // Regra 1 (bloqueio de fase): NENHUM card avança se o checklist obrigatório da
+    // fase atual não estiver 100% concluído. Vale ao avançar dentro do funil OU ao
+    // passar para o próximo funil (ex.: Go-Live → Treinamento).
+    const passandoDeFunil = faseAtual && destino.funil !== faseAtual.funil;
+    const ehAvanco = avancando || passandoDeFunil;
+    if (ehAvanco && faseAtual?.checklist_obrigatorio) {
+      const itens = (projeto.checklists || []).filter((ci: any) => ci.fase === faseAtual.codigo);
+      const pend = itens.filter((ci: any) => !ci.concluido);
+      // Se ainda não há itens (entrou agora), cria-os e bloqueia até marcar.
+      if (itens.length === 0 || pend.length > 0) {
+        return reply.status(422).send({
+          status: 'error',
+          message: `Conclua 100% do checklist da fase "${faseAtual.nome}" antes de avançar (${pend.length || itens.length} item(ns) pendente(s)).`,
+        });
+      }
     }
 
     const diasNaFaseAnterior = (Date.now() - new Date(projeto.fase_desde).getTime()) / 86400000;

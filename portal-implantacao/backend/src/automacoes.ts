@@ -32,34 +32,40 @@ async function marcar(prisma: PrismaClient, projetoId: string, gatilho: string, 
 
 /** Automações disparadas logo APÓS um movimento de fase (transições e NPS). */
 export async function dispararAutomacoesPosMovimento(prisma: PrismaClient, projeto: any, destino: FaseDef) {
-  // Gatilho 1 — Fase 1.5 (Negócio Fechado) → cria/avança p/ Implantação (Fase 2.1).
+  // Gatilho 1 — Negócio Fechado (comercial) → entra na Implantação (Fase 1.1 Conversão).
   if (destino.codigo === 'COM_FECHADO') {
-    if (await marcar(prisma, projeto.id, 'TRANSICAO_1', 'Negócio fechado → Implantação (Kick-off)')) {
-      const kickoff = FASE_POR_CODIGO['IMP_KICKOFF'];
-      await prisma.projetoImplantacao.update({ where: { id: projeto.id }, data: { funil: 'IMPLANTACAO', fase: 'IMP_KICKOFF', fase_desde: new Date() } });
-      await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_de: 'COMERCIAL', fase_de: 'COM_FECHADO', funil_para: 'IMPLANTACAO', fase_para: 'IMP_KICKOFF', movido_por_nome: 'Automação' } });
-      await criarChecklistDaFase(prisma, projeto.id, kickoff);
+    if (await marcar(prisma, projeto.id, 'TRANSICAO_1', 'Negócio fechado → Implantação (Conversão de Dados)')) {
+      const f = FASE_POR_CODIGO['IMP_CONVERSAO'];
+      await prisma.projetoImplantacao.update({ where: { id: projeto.id }, data: { funil: 'IMPLANTACAO', fase: 'IMP_CONVERSAO', fase_desde: new Date() } });
+      await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_de: 'COMERCIAL', fase_de: 'COM_FECHADO', funil_para: 'IMPLANTACAO', fase_para: 'IMP_CONVERSAO', movido_por_nome: 'Automação' } });
+      await criarChecklistDaFase(prisma, projeto.id, f);
     }
     return;
   }
 
-  // Gatilho 2 — Fase 2.5 (Go-Live) → Onboarding (Fase 3.1). (Checklist já validado na rota /mover.)
+  // Gatilho 2 (Passagem de Bastão) — concluiu a Fase 1.3 (Go-Live) → alerta o
+  // Treinamento e envia o cliente para a Fase 2.1 (Mês 1). (Checklist 100% já
+  // validado na rota /mover antes de chegar aqui.)
   if (destino.codigo === 'IMP_GOLIVE') {
-    if (await marcar(prisma, projeto.id, 'TRANSICAO_2', 'Go-Live → Onboarding (Mês 1)')) {
+    if (await marcar(prisma, projeto.id, 'TRANSICAO_2', 'Go-Live concluído → Treinamento (Mês 1)')) {
       const mes1 = FASE_POR_CODIGO['ONB_MES1'];
-      await prisma.projetoImplantacao.update({ where: { id: projeto.id }, data: { funil: 'ONBOARDING', fase: 'ONB_MES1', fase_desde: new Date() } });
-      await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_de: 'IMPLANTACAO', fase_de: 'IMP_GOLIVE', funil_para: 'ONBOARDING', fase_para: 'ONB_MES1', movido_por_nome: 'Automação' } });
+      await prisma.projetoImplantacao.update({ where: { id: projeto.id }, data: { funil: 'ONBOARDING', fase: 'ONB_MES1', fase_desde: new Date(), data_go_live: projeto.data_go_live || new Date() } });
+      await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_de: 'IMPLANTACAO', fase_de: 'IMP_GOLIVE', funil_para: 'ONBOARDING', fase_para: 'ONB_MES1', movido_por_nome: 'Automação (passagem de bastão)' } });
+      await criarChecklistDaFase(prisma, projeto.id, mes1);
+      await alertaGestor(`🎓 PASSAGEM DE BASTÃO: ${projeto.cliente_nome} concluiu o Go-Live. Iniciar Treinamento — Mês 1.`);
     }
     return;
   }
 
-  // Gatilho 5 — Fase 3.4 (Cliente de Sucesso) → e-mail de NPS.
+  // Gatilho 3 (Conclusão) — concluiu a Fase 2.3 (Mês 3) → marca Treinamento
+  // Finalizado e transfere para a carteira do Suporte Técnico (+ e-mail NPS).
   if (destino.codigo === 'ONB_SUCESSO') {
-    if (await marcar(prisma, projeto.id, 'NPS_SUCESSO', 'E-mail de NPS enviado')) {
+    if (await marcar(prisma, projeto.id, 'CONCLUSAO_SUPORTE', 'Treinamento finalizado → carteira do Suporte Técnico')) {
+      await alertaGestor(`✅ TREINAMENTO FINALIZADO: ${projeto.cliente_nome} transferido para a carteira do Suporte Técnico.`);
       if (projeto.email) await enviarEmail({
         para: projeto.email,
-        assunto: 'Como foi sua experiência com a Prosystem?',
-        corpo: `Olá, ${projeto.cliente_nome}!\n\nVocê agora é um Cliente de Sucesso Prosystem 🎉. Numa escala de 0 a 10, o quanto você nos recomendaria?\n\nSua opinião é muito importante para nós.\n\nEquipe Prosystem`,
+        assunto: 'Parabéns! Você concluiu o onboarding Prosystem 🎉',
+        corpo: `Olá, ${projeto.cliente_nome}!\n\nVocê concluiu seu ciclo de implantação e treinamento com a Prosystem. A partir de agora, conte com nosso Suporte Técnico e a Central de Ajuda: ${FRESHDESK_URL}\n\nNuma escala de 0 a 10, o quanto você nos recomendaria?\n\nEquipe Prosystem`,
       });
     }
   }
@@ -73,20 +79,24 @@ export function iniciarSchedulerAutomacoes(prisma: PrismaClient) {
     for (const p of ativos) {
       const diasNaFase = (agora - new Date(p.fase_desde).getTime()) / 86400000;
 
-      // Gatilho 3 — >5 dias parado na Fase 2.2 (Saneamento Fiscal): alerta + e-mail ao contador.
-      if (p.fase === 'IMP_FISCAL' && diasNaFase > 5) {
-        if (await marcar(prisma, p.id, 'SLA_FISCAL', `Estourou 5 dias em Saneamento Fiscal (${Math.floor(diasNaFase)}d)`)) {
-          await alertaGestor(`🔴 GARGALO FISCAL: ${p.cliente_nome} está há ${Math.floor(diasNaFase)} dias na fase Saneamento Fiscal.`);
+      // Gatilho de SLA — qualquer fase com SLA estourado: alerta vermelho ao gestor.
+      // (Idempotente por projeto+fase: alerta uma vez por estouro de fase.)
+      const faseDef = FASE_POR_CODIGO[p.fase];
+      const sla = faseDef?.sla_condicional ? faseDef.sla_condicional.mapa[p.tipo_implantacao || ''] : faseDef?.sla_dias;
+      if (sla && diasNaFase > sla) {
+        if (await marcar(prisma, p.id, `SLA_${p.fase}`, `SLA estourado em ${faseDef?.nome} (${Math.floor(diasNaFase)}d / ${sla}d)`)) {
+          await alertaGestor(`🔴 SLA ESTOURADO: ${p.cliente_nome} está há ${Math.floor(diasNaFase)} dias na fase "${faseDef?.nome}" (limite ${sla}d).`);
+          // Se for fase de conversão/dados e houver e-mail do contador, cobra o contador.
           const contato = extrairEmailContador(p.dados_contador);
-          if (contato) await enviarEmail({
+          if (p.fase === 'IMP_CONVERSAO' && contato) await enviarEmail({
             para: contato,
-            assunto: `Pendência fiscal — implantação Prosystem (${p.cliente_nome})`,
-            corpo: `Prezado contador,\n\nEstamos finalizando a implantação fiscal do cliente ${p.cliente_nome} e precisamos da sua ajuda para concluir o saneamento fiscal (certificado, CSC SEFAZ e tributação CFOP/CSOSN). Pode nos retornar?\n\nObrigado,\nEquipe de Implantação Prosystem`,
+            assunto: `Pendência na conversão fiscal — implantação Prosystem (${p.cliente_nome})`,
+            corpo: `Prezado contador,\n\nEstamos na etapa de conversão/saneamento de dados do cliente ${p.cliente_nome} e precisamos da sua ajuda (SPED, tributação, dados fiscais). Pode nos retornar?\n\nObrigado,\nEquipe de Implantação Prosystem`,
           });
         }
       }
 
-      // Gatilho 4 — 15 dias na Fase 3.1 (Onboarding Mês 1): e-mail apresentando o Freshdesk.
+      // Gatilho de engajamento — 15 dias na Fase 2.1 (Mês 1): e-mail apresentando o Freshdesk.
       if (p.fase === 'ONB_MES1' && diasNaFase >= 15) {
         if (await marcar(prisma, p.id, 'ENGAJAMENTO_15D', 'E-mail de apresentação do Freshdesk')) {
           if (p.email) await enviarEmail({
