@@ -62,7 +62,7 @@ export async function projetosRoutes(fastify: FastifyInstance, options: { prisma
     }).passthrough().safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', detalhes: body.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) });
 
-    const funil = body.data.funil || 'COMERCIAL';
+    const funil = body.data.funil || 'IMPLANTACAO'; // portal foca no técnico (sem pré-venda)
     const primeiraFase = FASES.filter(f => f.funil === funil).sort((a, b) => a.ordem - b.ordem)[0];
     const user = getUser(request);
 

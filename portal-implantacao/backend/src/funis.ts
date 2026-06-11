@@ -121,8 +121,8 @@ const ONBOARDING: FaseDef[] = [
 export const FASES: FaseDef[] = [...COMERCIAL, ...IMPLANTACAO, ...ONBOARDING];
 export const FASE_POR_CODIGO: Record<string, FaseDef> = Object.fromEntries(FASES.map(f => [f.codigo, f]));
 
+// Portal exibe só os funis TÉCNICOS (a pré-venda comercial vive no CRM comercial).
 export const FUNIS: { codigo: Funil; nome: string; fases: FaseDef[] }[] = [
-  { codigo: 'COMERCIAL',   nome: 'Comercial (Pré-venda)', fases: COMERCIAL },
   { codigo: 'IMPLANTACAO', nome: 'Conversão e Instalação (Técnico)', fases: IMPLANTACAO },
   { codigo: 'ONBOARDING',  nome: 'Onboarding e Treinamento (90 dias)', fases: ONBOARDING },
 ];

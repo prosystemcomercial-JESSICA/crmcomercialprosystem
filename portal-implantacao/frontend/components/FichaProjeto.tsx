@@ -15,7 +15,7 @@ const OPCOES: Record<string, { v: string; l: string }[]> = {
 
 export default function FichaProjeto({ id, onClose, onChange }: { id: string | null; onClose: () => void; onChange: () => void }) {
   const novo = id === null;
-  const [p, setP] = useState<any>(novo ? { cliente_nome: '', funil: 'COMERCIAL' } : null);
+  const [p, setP] = useState<any>(novo ? { cliente_nome: '', funil: 'IMPLANTACAO' } : null);
   const [funis, setFunis] = useState<any[]>([]);
   const [salvando, setSalvando] = useState(false);
 
