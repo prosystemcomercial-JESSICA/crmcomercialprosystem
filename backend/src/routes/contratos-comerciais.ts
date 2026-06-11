@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { scopeUserId } from '@/lib/scope';
+import { scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarContratoPdf } from '@/lib/contrato-pdf';
 import { criarImplantacaoEComissoes } from '@/lib/comissao-fluxo';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
@@ -570,6 +570,78 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
 
     const contrato = await prisma.contratoComercial.update({ where: { id }, data: payload });
     return reply.send({ status: 'ok', data: contrato });
+  });
+
+  // ── GERAR CADASTRO DO CLIENTE a partir do contrato assinado ─────────────────
+  // A gestão informa o código do cliente + contatos adicionais; o resto vem do
+  // contrato (razão, fantasia, CNPJ, plano, mensalidade, setup). Idempotente:
+  // não duplica (procura por código → CNPJ → razão social). Atualiza se já existir.
+  fastify.post('/contratos-comerciais/:id/gerar-cliente', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      codigo: z.string().optional(),
+      telefone: z.string().optional(),
+      telefone2: z.string().optional(),
+      email: z.string().optional(),
+      grupo_tecnico: z.string().optional(),
+      segmento: z.string().optional(),
+      observacoes: z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+
+    const ct: any = await prisma.contratoComercial.findUnique({ where: { id } });
+    if (!ct) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
+    const b = body.data;
+
+    // Setup total: usa valor_setup_total, ou entrada + (parcelas × valor parcela).
+    const setupTotal = ct.valor_setup_total
+      ?? ((Number(ct.valor_setup_entrada || 0)) + (Number(ct.setup_parcelas || 0) * Number(ct.valor_setup_parcela || 0)) || null);
+
+    // Monta os dados do cliente a partir do contrato + o que a gestão informou.
+    const dados: any = {
+      nome: ct.nome_fantasia || ct.razao_social,
+      razao_social: ct.razao_social,
+      nome_fantasia: ct.nome_fantasia || null,
+      cnpj: ct.cnpj || null,
+      codigo: b.codigo || null,
+      telefone: b.telefone || ct.representante_telefone || null,
+      telefone2: b.telefone2 || null,
+      email: b.email || ct.representante_email || null,
+      plano: ct.plano_contratado || null,
+      mensalidade_base: ct.mensalidade ?? null,
+      valor_instalacao: setupTotal,
+      situacao: 'ATIVA',
+      segmento: b.segmento || null,
+      grupo_tecnico: b.grupo_tecnico || null,
+      observacoes: b.observacoes || `Cadastro gerado do contrato ${ct.numero_contrato || id}.`,
+      data_entrada: new Date(),
+    };
+    Object.keys(dados).forEach(k => dados[k] === null && delete dados[k]);
+
+    // Dedupe: código → CNPJ → razão social.
+    let existente = null as any;
+    if (b.codigo) existente = await prisma.cliente.findFirst({ where: { codigo: b.codigo } });
+    if (!existente && ct.cnpj) existente = await prisma.cliente.findFirst({ where: { cnpj: ct.cnpj } });
+    if (!existente && ct.razao_social) existente = await prisma.cliente.findFirst({ where: { razao_social: ct.razao_social } });
+
+    let cliente;
+    if (existente) {
+      // Atualiza só campos vazios + sempre setup/mensalidade/plano do contrato.
+      const upd: any = { mensalidade_base: dados.mensalidade_base, valor_instalacao: dados.valor_instalacao, plano: dados.plano };
+      for (const k of ['codigo', 'telefone', 'telefone2', 'email', 'segmento', 'grupo_tecnico']) {
+        if (dados[k] && (existente[k] == null || existente[k] === '')) upd[k] = dados[k];
+      }
+      Object.keys(upd).forEach(k => upd[k] == null && delete upd[k]);
+      cliente = await prisma.cliente.update({ where: { id: existente.id }, data: upd });
+    } else {
+      cliente = await prisma.cliente.create({ data: dados });
+    }
+
+    // Marca no contrato que o cadastro foi gerado (rastreabilidade).
+    await prisma.contratoComercial.update({ where: { id }, data: { cliente_id: cliente.id } as any }).catch(() => {});
+
+    return reply.send({ status: 'success', data: cliente, message: existente ? 'Cliente atualizado a partir do contrato.' : 'Cliente criado a partir do contrato.' });
   });
 
   // ── RECUO / DISTRATO (cliente assinou e desistiu) — sai da meta e estorna comissão

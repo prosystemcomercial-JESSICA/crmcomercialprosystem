@@ -69,15 +69,28 @@ export default function FunisPage() {
                 {cards.map(p => (
                   <div key={p.id} draggable onDragStart={e => e.dataTransfer.setData('id', p.id)}
                     onClick={() => setSel(p.id)}
-                    className="bg-white rounded-lg border border-slate-200 p-3 cursor-pointer hover:shadow-sm">
-                    <p className="text-sm font-medium text-slate-800 truncate">{p.nome_fantasia || p.razao_social || p.cliente_nome}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {p.tipo_implantacao && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">{p.tipo_implantacao === 'BANCO_ZERADO' ? 'Zerado' : 'Migração'}</span>}
-                      {p.sla_dias != null && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.sla_estourado ? 'bg-red-100 text-red-700 font-semibold' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {p.sla_estourado ? '⚠ ' : ''}{p.dias_na_fase}d / SLA {p.sla_dias}d
-                        </span>
-                      )}
+                    className="bg-white rounded-lg border border-slate-200 cursor-pointer hover:shadow-sm overflow-hidden">
+                    {/* Etiqueta bem visível de CONVERSÃO (migração de dados) */}
+                    {p.tipo_implantacao === 'MIGRACAO_DADOS' && (
+                      <div className="text-[10px] font-bold text-white text-center py-0.5" style={{ background: '#7c3aed' }}>
+                        🔄 CONVERSÃO DE DADOS
+                      </div>
+                    )}
+                    {p.tipo_implantacao === 'BANCO_ZERADO' && (
+                      <div className="text-[10px] font-bold text-white text-center py-0.5" style={{ background: '#0d9488' }}>
+                        🆕 BANCO ZERADO
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <p className="text-sm font-medium text-slate-800 truncate">{p.nome_fantasia || p.razao_social || p.cliente_nome}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {!p.tipo_implantacao && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">⚠ definir tipo</span>}
+                        {p.sla_dias != null && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.sla_estourado ? 'bg-red-100 text-red-700 font-semibold' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {p.sla_estourado ? '⚠ ' : ''}{p.dias_na_fase}d / SLA {p.sla_dias}d
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
