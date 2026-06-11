@@ -201,6 +201,13 @@ model CasoChurn {
   status           String  @default("NOVO") // NOVO|DIAGNOSTICADO|PLANEJADO|EXECUTANDO|RECUPERADO|PERDIDO
   risk_score       Float   @default(0)
   motivo_principal String?
+  descricao        String? @db.Text // observações/contexto do problema ao abrir o caso
+
+  // ── Situação financeira do cliente (aditivo) ────────────────────────────────
+  fin_situacao     String?  // EM_DIA | EM_ATRASO | NEGOCIANDO | INADIMPLENTE
+  fin_valor_atraso Float?   // quanto está em atraso (quando EM_ATRASO/INADIMPLENTE)
+  fin_dias_atraso  Int?     // há quantos dias em atraso
+  fin_observacao   String?  @db.Text // detalhes financeiros (boletos, parcelas, etc.)
 
   // ── Renegociação por dificuldade financeira (aditivo) ───────────────────────
   // Preenchido quando o caso vira uma renegociação de débito. Os campos de
@@ -224,10 +231,33 @@ model CasoChurn {
   survey_churn SurveyChurn?
   planos       PlanoRetencao[]
   acoes        AcaoRetencao[]
+  atualizacoes AtualizacaoCaso[]
 
   @@index([status])
   @@index([clienteId])
   @@index([risk_score])
+  @@index([created_at])
+}
+
+// Linha do tempo do caso de churn: cada atualização (observação, contato,
+// tentativa, nota financeira, mudança de status) vira um registro. É o "como
+// está sendo tratado" — quem fez, quando e o quê.
+model AtualizacaoCaso {
+  id            String    @id @default(cuid())
+  caso_churn_id String
+  caso_churn    CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
+
+  tipo      String  // OBSERVACAO | CONTATO | TENTATIVA | FINANCEIRO | STATUS | SISTEMA
+  texto     String  @db.Text
+  // Para CONTATO/TENTATIVA: como foi o contato e o resultado.
+  canal     String? // TELEFONE | WHATSAPP | EMAIL | PRESENCIAL | OUTRO
+  resultado String? // ATENDEU | NAO_ATENDEU | RETORNARA | SEM_RESPOSTA | RESOLVIDO
+
+  feito_por      String?
+  feito_por_nome String?
+  created_at DateTime @default(now())
+
+  @@index([caso_churn_id])
   @@index([created_at])
 }
 

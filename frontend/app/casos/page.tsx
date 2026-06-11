@@ -12,6 +12,12 @@ interface Caso {
   status: string;
   risk_score: number;
   motivo_principal?: string;
+  descricao?: string;
+  fin_situacao?: string;
+  fin_valor_atraso?: number;
+  fin_dias_atraso?: number;
+  fin_observacao?: string;
+  updated_at?: string;
   created_at: string;
   reneg_ativa?: boolean;
   reneg_como_mantido?: string;
@@ -80,7 +86,14 @@ export default function CasosPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
+  const [busca, setBusca] = useState('');
   const [dataLoading, setDataLoading] = useState(true);
+  // Dossiê do caso (ficha completa: financeiro + linha do tempo)
+  const [dossie, setDossie] = useState<Caso | null>(null);
+  const [atualizacoes, setAtualizacoes] = useState<any[]>([]);
+  const [finForm, setFinForm] = useState<any>({});
+  const [novaAtt, setNovaAtt] = useState<any>({ tipo: 'OBSERVACAO', texto: '', canal: '', resultado: '' });
+  const [salvandoDossie, setSalvandoDossie] = useState(false);
   const limit = 20;
 
   useEffect(() => {
@@ -90,7 +103,7 @@ export default function CasosPage() {
   const fetchCasos = async () => {
     setDataLoading(true);
     try {
-      const res = await apiClient.getCasos(page, limit, statusFilter || undefined);
+      const res = await apiClient.getCasos(page, limit, statusFilter || undefined, undefined, undefined, busca || undefined);
       const data = res.data.data;
       setCasos(data.casos || []);
       setTotal(data.total || 0);
@@ -101,9 +114,51 @@ export default function CasosPage() {
     }
   };
 
+  // Abre o dossiê completo do caso (financeiro + linha do tempo).
+  const abrirDossie = async (c: Caso) => {
+    setDossie(c);
+    setFinForm({ fin_situacao: c.fin_situacao || '', fin_valor_atraso: c.fin_valor_atraso ?? '', fin_dias_atraso: c.fin_dias_atraso ?? '', fin_observacao: c.fin_observacao || '', descricao: c.descricao || '', motivo_principal: c.motivo_principal || '' });
+    setNovaAtt({ tipo: 'OBSERVACAO', texto: '', canal: '', resultado: '' });
+    setAtualizacoes([]);
+    try { const r = await apiClient.getAtualizacoesCaso(c.id); setAtualizacoes(r.data.data || []); } catch { /**/ }
+  };
+
+  const salvarDossie = async () => {
+    if (!dossie) return;
+    setSalvandoDossie(true);
+    try {
+      const payload: any = { descricao: finForm.descricao || undefined, motivo_principal: finForm.motivo_principal || undefined, fin_observacao: finForm.fin_observacao || undefined };
+      if (finForm.fin_situacao) payload.fin_situacao = finForm.fin_situacao;
+      if (finForm.fin_valor_atraso !== '') payload.fin_valor_atraso = Number(finForm.fin_valor_atraso);
+      if (finForm.fin_dias_atraso !== '') payload.fin_dias_atraso = Number(finForm.fin_dias_atraso);
+      await apiClient.updateCaso(dossie.id, payload);
+      await fetchCasos();
+      alert('Caso atualizado.');
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar.'); }
+    finally { setSalvandoDossie(false); }
+  };
+
+  const addAtualizacao = async () => {
+    if (!dossie || !novaAtt.texto.trim()) { alert('Escreva a atualização.'); return; }
+    try {
+      await apiClient.addAtualizacaoCaso(dossie.id, novaAtt);
+      const r = await apiClient.getAtualizacoesCaso(dossie.id);
+      setAtualizacoes(r.data.data || []);
+      setNovaAtt({ tipo: 'OBSERVACAO', texto: '', canal: '', resultado: '' });
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao adicionar.'); }
+  };
+
   useEffect(() => {
     if (isAuthenticated) fetchCasos();
   }, [isAuthenticated, page, statusFilter]);
+
+  // Busca por cliente (debounce 350ms).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const t = setTimeout(() => { setPage(0); fetchCasos(); }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busca]);
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
@@ -223,6 +278,16 @@ export default function CasosPage() {
           </div>
         </div>
 
+        {/* Busca por cliente */}
+        <div className="mb-2">
+          <input
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder="🔍 Buscar cliente por razão social, nome fantasia, código ou CNPJ…"
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+
         {/* Status filter tabs */}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {statuses.map(s => (
@@ -268,15 +333,15 @@ export default function CasosPage() {
                 {casos.map((caso) => (
                   <tr key={caso.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
+                      <button onClick={() => abrirDossie(caso)} className="flex items-center gap-3 text-left hover:opacity-80" title="Abrir caso (ver como está sendo tratado)">
                         <div className="w-9 h-9 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-semibold">
                           {caso.cliente?.nome?.charAt(0) || '?'}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{caso.cliente?.nome}</p>
-                          <p className="text-sm text-gray-500">{caso.cliente?.empresa}</p>
+                          <p className="font-medium text-blue-700 hover:underline">{caso.cliente?.razao_social || caso.cliente?.nome_fantasia || caso.cliente?.nome}</p>
+                          <p className="text-sm text-gray-500">{caso.cliente?.empresa || (caso.fin_situacao === 'EM_ATRASO' || caso.fin_situacao === 'INADIMPLENTE' ? `⚠ em atraso${caso.fin_valor_atraso ? ' R$ ' + Number(caso.fin_valor_atraso).toLocaleString('pt-BR') : ''}` : '')}</p>
                         </div>
-                      </div>
+                      </button>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[caso.status] || 'bg-gray-100 text-gray-700'}`}>
@@ -352,6 +417,131 @@ export default function CasosPage() {
           </div>
         )}
       </div>
+
+      {/* ── Modal DOSSIÊ do caso (como está sendo tratado) ───────────────────── */}
+      {dossie && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDossie(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900">{dossie.cliente?.razao_social || dossie.cliente?.nome_fantasia || dossie.cliente?.nome}</h3>
+                <p className="text-xs text-gray-500">Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)}</p>
+              </div>
+              <button onClick={() => setDossie(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Motivo + descrição do problema */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Motivo principal</label>
+                  <input value={finForm.motivo_principal || ''} onChange={e => setFinForm((f: any) => ({ ...f, motivo_principal: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Ex.: Dificuldade financeira" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Descrição do problema / contexto</label>
+                  <textarea value={finForm.descricao || ''} onChange={e => setFinForm((f: any) => ({ ...f, descricao: e.target.value }))} rows={2}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="O que motivou a abertura do caso, contexto, histórico…" />
+                </div>
+              </div>
+
+              {/* Situação financeira */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-bold text-amber-800 mb-2">💵 Situação financeira</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Situação</label>
+                    <select value={finForm.fin_situacao || ''} onChange={e => setFinForm((f: any) => ({ ...f, fin_situacao: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                      <option value="">—</option>
+                      <option value="EM_DIA">Em dia</option>
+                      <option value="EM_ATRASO">Em atraso</option>
+                      <option value="NEGOCIANDO">Negociando</option>
+                      <option value="INADIMPLENTE">Inadimplente</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Valor em atraso (R$)</label>
+                    <input type="number" step="0.01" value={finForm.fin_valor_atraso} onChange={e => setFinForm((f: any) => ({ ...f, fin_valor_atraso: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0,00" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Dias em atraso</label>
+                    <input type="number" value={finForm.fin_dias_atraso} onChange={e => setFinForm((f: any) => ({ ...f, fin_dias_atraso: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0" />
+                  </div>
+                </div>
+                <textarea value={finForm.fin_observacao || ''} onChange={e => setFinForm((f: any) => ({ ...f, fin_observacao: e.target.value }))} rows={2}
+                  className="w-full mt-2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white" placeholder="Detalhes: boletos vencidos, parcelas, acordo em andamento…" />
+              </div>
+
+              <div className="flex justify-end">
+                <button onClick={salvarDossie} disabled={salvandoDossie}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 disabled:opacity-50">
+                  {salvandoDossie ? 'Salvando…' : 'Salvar dados do caso'}
+                </button>
+              </div>
+
+              {/* Linha do tempo / atualizações */}
+              <div>
+                <p className="text-sm font-bold text-gray-800 mb-2">🕓 Atualizações, contatos e tentativas</p>
+                {/* Adicionar */}
+                <div className="rounded-lg border border-gray-200 p-3 mb-3 space-y-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <select value={novaAtt.tipo} onChange={e => setNovaAtt((a: any) => ({ ...a, tipo: e.target.value }))}
+                      className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                      <option value="OBSERVACAO">📝 Observação</option>
+                      <option value="CONTATO">📞 Contato</option>
+                      <option value="TENTATIVA">📲 Tentativa</option>
+                      <option value="FINANCEIRO">💵 Financeiro</option>
+                    </select>
+                    {(novaAtt.tipo === 'CONTATO' || novaAtt.tipo === 'TENTATIVA') && (
+                      <>
+                        <select value={novaAtt.canal} onChange={e => setNovaAtt((a: any) => ({ ...a, canal: e.target.value }))}
+                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                          <option value="">Canal…</option>
+                          <option value="TELEFONE">Telefone</option><option value="WHATSAPP">WhatsApp</option>
+                          <option value="EMAIL">E-mail</option><option value="PRESENCIAL">Presencial</option><option value="OUTRO">Outro</option>
+                        </select>
+                        <select value={novaAtt.resultado} onChange={e => setNovaAtt((a: any) => ({ ...a, resultado: e.target.value }))}
+                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                          <option value="">Resultado…</option>
+                          <option value="ATENDEU">Atendeu</option><option value="NAO_ATENDEU">Não atendeu</option>
+                          <option value="RETORNARA">Vai retornar</option><option value="SEM_RESPOSTA">Sem resposta</option><option value="RESOLVIDO">Resolvido</option>
+                        </select>
+                      </>
+                    )}
+                  </div>
+                  <textarea value={novaAtt.texto} onChange={e => setNovaAtt((a: any) => ({ ...a, texto: e.target.value }))} rows={2}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Descreva a atualização, o contato realizado, o que foi tratado…" />
+                  <div className="flex justify-end">
+                    <button onClick={addAtualizacao} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-emerald-600">+ Adicionar atualização</button>
+                  </div>
+                </div>
+                {/* Lista */}
+                <div className="space-y-2 max-h-64 overflow-auto">
+                  {atualizacoes.length === 0 && <p className="text-sm text-gray-400">Nenhuma atualização ainda.</p>}
+                  {atualizacoes.map((a: any) => {
+                    const ICON: Record<string, string> = { OBSERVACAO: '📝', CONTATO: '📞', TENTATIVA: '📲', FINANCEIRO: '💵', STATUS: '🔄', SISTEMA: '⚙️' };
+                    return (
+                      <div key={a.id} className="flex gap-2 rounded-lg border border-gray-100 px-3 py-2">
+                        <span>{ICON[a.tipo] || '•'}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-800">{a.texto}</p>
+                          <p className="text-[11px] text-gray-400">
+                            {a.canal ? `${a.canal} · ` : ''}{a.resultado ? `${a.resultado} · ` : ''}
+                            {a.feito_por_nome || ''} · {new Date(a.created_at).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal de Renegociação (dificuldade financeira) ───────────────────── */}
       {reneg && (
