@@ -1,0 +1,138 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// PORTAL DE IMPLANTAÇÃO & ONBOARDING — Prosystem
+// Banco PRÓPRIO (separado do CRM comercial). App leve que recebe o cliente vindo
+// do CRM comercial (link/SSO) e conduz os 3 funis: Comercial → Implantação →
+// Onboarding (90 dias). Freshdesk = base de conhecimento (link).
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Usuários do portal (equipe de implantação/atendimento + gestão) ──
+// SSO: aceitam o mesmo id/e-mail do CRM comercial (espelho leve), então a Jessica
+// e a equipe entram com a conta que já têm.
+model UsuarioPortal {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  cargo     String   @default("IMPLANTADOR") // GESTOR | IMPLANTADOR | ATENDIMENTO | COMERCIAL
+  origem_crm_id String? // id do mesmo usuário no CRM comercial (ponte SSO)
+  ativo     Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  projetos_responsavel ProjetoImplantacao[] @relation("ResponsavelProjeto")
+}
+
+// ── PROJETO DE IMPLANTAÇÃO (o "card"/negócio) ───────────────────────────────
+// Um projeto nasce quando um contrato é fechado no CRM comercial (ponte) e
+// percorre os 3 funis. Concentra os campos personalizados (Parte 1).
+model ProjetoImplantacao {
+  id String @id @default(cuid())
+
+  // Identificação do cliente (espelhado do CRM comercial, sem acoplar o banco)
+  cliente_nome     String
+  razao_social     String?
+  nome_fantasia    String?
+  cnpj             String?
+  cliente_crm_id   String? // id do Cliente no CRM comercial (rastreabilidade)
+  contrato_crm_id  String? // id do contrato/proposta que originou (ponte)
+  telefone         String?
+  email            String?
+
+  // ── PARTE 1: campos personalizados do negócio ──
+  segmento_atuacao   String? // FARMACIA_DROGARIA | PADARIA_PERECIVEIS | VESTUARIO_CALCADOS | VAREJO_GERAL | FOOD_SERVICE
+  regime_tributario  String? // SIMPLES_NACIONAL | LUCRO_PRESUMIDO | LUCRO_REAL
+  tipo_implantacao   String? // BANCO_ZERADO (SLA 7d) | MIGRACAO_DADOS (SLA 30d)
+  erp_anterior       String? // sistema anterior (texto)
+  volumetria_pdvs    Int?    // nº de caixas/PDVs
+  tipo_certificado   String? // A1 | A3 | NAO_POSSUI
+  dados_contador     String? @db.Text
+  csc_sefaz          String?
+
+  // ── Funil/fase atual ──
+  funil         String @default("COMERCIAL") // COMERCIAL | IMPLANTACAO | ONBOARDING
+  fase          String @default("COM_PROSPECCAO") // código da fase (ver FASES no código)
+  fase_desde    DateTime @default(now()) // quando entrou na fase atual (base do SLA "tempo na fase")
+  status        String @default("ATIVO") // ATIVO | GANHO | PERDIDO | PAUSADO
+  // Datas-chave p/ KPIs (Parte 4)
+  data_fechamento_comercial DateTime? // entrou na Fase 1.5 (início do TTV)
+  data_go_live              DateTime? // entrou na Fase 2.5 (fim do TTV)
+  data_cliente_sucesso      DateTime? // entrou na Fase 3.4
+
+  responsavel_id String?
+  responsavel    UsuarioPortal? @relation("ResponsavelProjeto", fields: [responsavel_id], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  checklists ChecklistItem[]
+  historico  HistoricoFase[]
+  automacoes LogAutomacao[]
+
+  @@index([funil])
+  @@index([fase])
+  @@index([status])
+  @@index([tipo_implantacao])
+  @@index([cliente_crm_id])
+}
+
+// ── Itens de checklist por fase (Parte 2) ──
+// Criados automaticamente quando o projeto entra numa fase que tem checklist.
+model ChecklistItem {
+  id         String @id @default(cuid())
+  projeto_id String
+  projeto    ProjetoImplantacao @relation(fields: [projeto_id], references: [id], onDelete: Cascade)
+
+  fase       String  // a qual fase o item pertence
+  titulo     String  // ex.: "Certificado testado"
+  concluido  Boolean @default(false)
+  concluido_em DateTime?
+  concluido_por String?
+  ordem      Int     @default(0)
+
+  created_at DateTime @default(now())
+
+  @@index([projeto_id])
+  @@index([fase])
+}
+
+// ── Histórico de mudança de fase (base de SLA, TTV e gargalos) ──
+model HistoricoFase {
+  id         String @id @default(cuid())
+  projeto_id String
+  projeto    ProjetoImplantacao @relation(fields: [projeto_id], references: [id], onDelete: Cascade)
+
+  funil_de  String?
+  fase_de   String?
+  funil_para String
+  fase_para  String
+  dias_na_fase_anterior Float? // tempo que ficou na fase anterior (p/ análise de gargalo)
+  movido_por String?
+  movido_por_nome String?
+  created_at DateTime @default(now())
+
+  @@index([projeto_id])
+  @@index([fase_para])
+  @@index([created_at])
+}
+
+// ── Log de automações disparadas (Parte 3) — auditoria e idempotência ──
+model LogAutomacao {
+  id         String @id @default(cuid())
+  projeto_id String
+  projeto    ProjetoImplantacao @relation(fields: [projeto_id], references: [id], onDelete: Cascade)
+
+  gatilho    String  // TRANSICAO_1 | TRANSICAO_2 | SLA_FISCAL | ENGAJAMENTO_15D | NPS_SUCESSO
+  detalhe    String? @db.Text
+  status     String  @default("EXECUTADO") // EXECUTADO | FALHA
+  created_at DateTime @default(now())
+
+  @@unique([projeto_id, gatilho], name: "uq_automacao") // idempotente por projeto+gatilho
+  @@index([projeto_id])
+}
