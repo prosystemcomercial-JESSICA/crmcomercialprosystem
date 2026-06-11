@@ -1596,6 +1596,8 @@ model Credito {
 model ContratoComercial {
   id String @id @default(cuid())
 
+  cliente_id String? // cadastro de Cliente gerado a partir deste contrato (rastreabilidade)
+
   // Número sequencial
   numero_contrato String @unique // "33/2026"
   sequencia       Int

@@ -109,6 +109,10 @@ export default function ContratosPage() {
   const [editDirty, setEditDirty] = useState(false); // há alterações não salvas?
   const [signedUrl, setSignedUrl]     = useState('');
   const [marcando, setMarcando]       = useState(false);
+  // Gerar cadastro do cliente a partir do contrato assinado
+  const [showGerarCliente, setShowGerarCliente] = useState(false);
+  const [gcForm, setGcForm] = useState<any>({ codigo: '', telefone: '', telefone2: '', email: '', grupo_tecnico: '', segmento: '', observacoes: '' });
+  const [gerandoCli, setGerandoCli] = useState(false);
   const [vendedores, setVendedores]   = useState<{ id: string; nome: string }[]>([]);
 
   useEffect(() => {
@@ -247,6 +251,23 @@ export default function ContratosPage() {
 
   // Fluxo manual: após subir o contrato na ZapSign (painel) e o cliente assinar,
   // a gestão cola o link do documento assinado e marca como Assinado no CRM.
+  const abrirGerarCliente = () => {
+    if (!selected) return;
+    setGcForm({ codigo: '', telefone: (selected as any).representante_telefone || '', telefone2: '', email: (selected as any).representante_email || '', grupo_tecnico: '', segmento: '', observacoes: '' });
+    setShowGerarCliente(true);
+  };
+  const handleGerarCliente = async () => {
+    if (!selected) return;
+    setGerandoCli(true);
+    try {
+      const r = await apiClient.gerarClienteDoContrato(selected.id, gcForm);
+      setShowGerarCliente(false);
+      alert(r.data?.message || 'Cadastro gerado no CRM!');
+      load();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao gerar cadastro.'); }
+    finally { setGerandoCli(false); }
+  };
+
   const handleMarcarAssinado = async () => {
     if (!selected) return;
     setMarcando(true);
@@ -797,6 +818,47 @@ export default function ContratosPage() {
                         <> · Comissão vendedor: {fmtBRL(selected.comissao_vendedor_valor)}</>
                       )}
                     </p>
+                  )}
+
+                  {/* Gerar cadastro do CLIENTE no CRM (contrato assinado) */}
+                  {selected.status === 'ASSINADO' && (
+                    <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 12, marginTop: 12 }}>
+                      {(selected as any).cliente_id ? (
+                        <p style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>✅ Cadastro de cliente já gerado no CRM.</p>
+                      ) : !showGerarCliente ? (
+                        <button onClick={abrirGerarCliente}
+                          className="flex items-center gap-1.5"
+                          style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'var(--t-primary)', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                          🏷️ Gerar cadastro do cliente no CRM
+                        </button>
+                      ) : (
+                        <div style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 12 }}>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 2 }}>Gerar cadastro de {selected.razao_social}</p>
+                          <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 10 }}>Razão, CNPJ, plano, mensalidade e setup vêm do contrato. Informe o código e os contatos.</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Código do cliente *</label>
+                              <input value={gcForm.codigo} onChange={e => setGcForm((f: any) => ({ ...f, codigo: e.target.value }))} className="ps-input text-sm" placeholder="ex: 1530" /></div>
+                            <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Grupo técnico</label>
+                              <input value={gcForm.grupo_tecnico} onChange={e => setGcForm((f: any) => ({ ...f, grupo_tecnico: e.target.value }))} className="ps-input text-sm" placeholder="ex: Grupo 5" /></div>
+                            <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Telefone</label>
+                              <input value={gcForm.telefone} onChange={e => setGcForm((f: any) => ({ ...f, telefone: e.target.value }))} className="ps-input text-sm" /></div>
+                            <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Telefone 2</label>
+                              <input value={gcForm.telefone2} onChange={e => setGcForm((f: any) => ({ ...f, telefone2: e.target.value }))} className="ps-input text-sm" /></div>
+                            <div className="col-span-2"><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>E-mail</label>
+                              <input value={gcForm.email} onChange={e => setGcForm((f: any) => ({ ...f, email: e.target.value }))} className="ps-input text-sm" /></div>
+                            <div className="col-span-2"><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Segmento</label>
+                              <input value={gcForm.segmento} onChange={e => setGcForm((f: any) => ({ ...f, segmento: e.target.value }))} className="ps-input text-sm" placeholder="Farmácia, Padaria…" /></div>
+                          </div>
+                          <div className="flex justify-end gap-2 mt-3">
+                            <button onClick={() => setShowGerarCliente(false)} style={{ padding: '7px 14px', fontSize: 12, color: 'var(--t-text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>Cancelar</button>
+                            <button onClick={handleGerarCliente} disabled={gerandoCli || !gcForm.codigo.trim()}
+                              style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer', opacity: (gerandoCli || !gcForm.codigo.trim()) ? 0.6 : 1 }}>
+                              {gerandoCli ? 'Gerando…' : 'Gerar cadastro'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                   {selected.status === 'RECUADO' && (
                     <p style={{ fontSize: 11, color: '#b91c1c', fontWeight: 600, marginTop: 6 }}>

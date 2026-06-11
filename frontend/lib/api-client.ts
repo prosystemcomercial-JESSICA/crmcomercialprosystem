@@ -589,6 +589,9 @@ class ApiClient {
   async updateContratoComercial(id: string, data: any) {
     return this.client.patch(`/contratos-comerciais/${id}`, data);
   }
+  async gerarClienteDoContrato(id: string, data: { codigo?: string; telefone?: string; telefone2?: string; email?: string; grupo_tecnico?: string; segmento?: string; observacoes?: string }) {
+    return this.client.post(`/contratos-comerciais/${id}/gerar-cliente`, data);
+  }
 
   async deleteContratoComercial(id: string) {
     return this.client.delete(`/contratos-comerciais/${id}`);

@@ -364,12 +364,16 @@ export default function IndicacoesPage() {
             <h1 className="text-3xl font-bold text-gray-900">Vendas Adicionais</h1>
             <p className="text-gray-500 mt-1">Cross-sell para clientes da base — parceiros e comissões do vendedor</p>
           </div>
-          {isGestor && (
-            <button onClick={openNovaVenda} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              + Registrar Venda
-            </button>
-          )}
+          {/* Vendedor também registra a própria venda; gestão confirma/data/libera. */}
+          <button onClick={openNovaVenda} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+            + Registrar Venda
+          </button>
         </div>
+        {!isGestor && (
+          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
+            Você registra a venda e ela fica <b>pendente</b>. A confirmação, as datas e a liberação da comissão são feitas pela Supervisão.
+          </div>
+        )}
 
         {/* Stats */}
         {stats && (
