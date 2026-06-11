@@ -274,10 +274,33 @@ export async function dashboardComercialRoutes(
     const temperaturasN = temperaturas.map(t => ({ ...t, total: num(t.total), ativos: num(t.ativos), fechados: num(t.fechados) }));
     const atividadesN  = atividades_tipo.map(a => ({ ...a, total: num(a.total) }));
 
+    // ── Indicadores de serviços complementares (vendas adicionais do mês) ──
+    // Conta por categoria do parceiro: UPGRADE, COMUNICACAO, PAC, TEF, FISCAL
+    // (Auditoria). Considera vendas CONFIRMADA/PAGA criadas no mês corrente.
+    const vendasMes = await prisma.vendaAdicional.findMany({
+      where: {
+        status: { in: ['CONFIRMADA', 'PAGA'] },
+        created_at: { gte: inicioMes },
+        ...(restrito && scopeId ? { vendedor_id: scopeId } : {}),
+      },
+      select: { parceiro: { select: { categoria: true } }, lojas_ids: true },
+    }).catch(() => [] as any[]);
+    const servicos = { upgrades: 0, comunicacao: 0, pac: 0, tef: 0, auditoria: 0, total: 0 };
+    for (const v of vendasMes) {
+      const cat = (v.parceiro?.categoria || '').toUpperCase();
+      servicos.total += 1;
+      if (cat === 'UPGRADE') servicos.upgrades += 1;
+      else if (cat === 'COMUNICACAO') servicos.comunicacao += (Array.isArray(v.lojas_ids) && v.lojas_ids.length ? v.lojas_ids.length : 1);
+      else if (cat === 'PAC') servicos.pac += 1;
+      else if (cat === 'TEF') servicos.tef += 1;
+      else if (cat === 'FISCAL') servicos.auditoria += 1;
+    }
+
     return reply.send({
       status: 'success',
       data: {
         resumo: { total_leads, ativos_total, fechados_total, perdidos_total, taxa_global },
+        servicos,
         radar: {
           totals: {
             sem_contato:          sem_contato.length,

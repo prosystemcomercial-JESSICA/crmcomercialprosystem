@@ -51,6 +51,7 @@ interface TempDist { temperatura: string; total: number; ativos: number; fechado
 
 interface DashComercial {
   resumo: { total_leads: number; ativos_total: number; fechados_total: number; perdidos_total: number; taxa_global: number };
+  servicos?: { upgrades: number; comunicacao: number; pac: number; tef: number; auditoria: number; total: number };
   radar: Radar;
   vendedores: Vendedor[];
   origens: Origem[];
@@ -420,6 +421,27 @@ export default function RadarComercialPage() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Serviços complementares vendidos no mês (indicadores do plano) */}
+            {data.servicos && data.servicos.total > 0 && (
+              <div className="rounded-xl border p-4" style={{ borderColor: '#c7d8ec', background: 'white' }}>
+                <p className="text-sm font-bold mb-3" style={{ color: '#1A4E82' }}>📦 Serviços complementares no mês</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {[
+                    ['Upgrades', data.servicos.upgrades, '#2563eb'],
+                    ['Comunicação (lojas)', data.servicos.comunicacao, '#0d9488'],
+                    ['PAC', data.servicos.pac, '#7c3aed'],
+                    ['TEF', data.servicos.tef, '#d97706'],
+                    ['Auditoria Trib.', data.servicos.auditoria, '#16a34a'],
+                  ].map(([label, val, cor]) => (
+                    <div key={label as string} className="rounded-lg border p-3 text-center" style={{ borderColor: '#e5e7eb' }}>
+                      <p className="text-2xl font-extrabold" style={{ color: cor as string }}>{val as number}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
