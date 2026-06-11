@@ -2,11 +2,24 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { execSync } from 'node:child_process';
 import { projetosRoutes } from './routes/projetos.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { ponteRoutes } from './routes/ponte.js';
 import { iniciarSchedulerAutomacoes } from './automacoes.js';
 import { FUNIS, OPCOES } from './funis.js';
+
+// Garante as tabelas no boot (o Railway nem sempre roda o `start` com o db push).
+// Idempotente: se as tabelas já existem, o prisma db push não faz nada.
+try {
+  console.log('[BOOT] Sincronizando schema do banco (prisma db push)...');
+  // db push é aditivo (cria tabelas/colunas que faltam). NÃO usamos
+  // --accept-data-loss para nunca apagar dados existentes.
+  execSync('npx prisma db push --skip-generate', { stdio: 'inherit' });
+  console.log('[BOOT] Schema sincronizado.');
+} catch (e: any) {
+  console.error('[BOOT] Falha ao sincronizar schema (segue mesmo assim):', e?.message);
+}
 
 const prisma = new PrismaClient();
 const isProd = process.env.NODE_ENV === 'production';
