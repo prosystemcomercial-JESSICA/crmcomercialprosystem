@@ -47,4 +47,20 @@ export async function ponteRoutes(fastify: FastifyInstance, options: { prisma: P
     await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_para: 'IMPLANTACAO', fase_para: 'IMP_KICKOFF', movido_por_nome: 'Ponte CRM Comercial' } });
     return reply.status(201).send({ status: 'success', data: projeto });
   });
+
+  // Exclui um projeto (manutenção/limpeza) — protegido pelo mesmo token da ponte.
+  // Aceita ?id= ou ?contrato_crm_id=.
+  fastify.delete('/ponte/projeto', async (request, reply) => {
+    const token = (request.headers['x-ponte-token'] as string) || '';
+    if (!process.env.PONTE_TOKEN || token !== process.env.PONTE_TOKEN) {
+      return reply.status(401).send({ status: 'error', message: 'Token de ponte inválido' });
+    }
+    const q = request.query as { id?: string; contrato_crm_id?: string };
+    const where: any = {};
+    if (q.id) where.id = q.id;
+    else if (q.contrato_crm_id) where.contrato_crm_id = q.contrato_crm_id;
+    else return reply.status(400).send({ status: 'error', message: 'Informe id ou contrato_crm_id' });
+    const r = await prisma.projetoImplantacao.deleteMany({ where });
+    return reply.send({ status: 'success', data: { removidos: r.count } });
+  });
 }
