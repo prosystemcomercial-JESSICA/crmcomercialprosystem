@@ -24,6 +24,7 @@ export async function ponteRoutes(fastify: FastifyInstance, options: { prisma: P
       // campos opcionais que o comercial já conhece
       segmento_atuacao: z.string().optional(), regime_tributario: z.string().optional(),
       tipo_implantacao: z.string().optional(), volumetria_pdvs: z.coerce.number().int().optional(),
+      tipo_servico: z.string().optional(), // IMPLANTACAO (padrão) | COMUNICACAO | PAC | TEF | FISCAL
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', detalhes: body.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) });
 
@@ -36,6 +37,7 @@ export async function ponteRoutes(fastify: FastifyInstance, options: { prisma: P
     const data: any = {
       funil: 'IMPLANTACAO', fase: 'IMP_CONVERSAO', fase_desde: new Date(),
       data_fechamento_comercial: new Date(), // início do TTV
+      tipo_servico: body.data.tipo_servico || 'IMPLANTACAO',
     };
     for (const c of ['cliente_nome','razao_social','nome_fantasia','cnpj','telefone','email','cliente_crm_id','contrato_crm_id','segmento_atuacao','regime_tributario','tipo_implantacao']) {
       if ((body.data as any)[c]) data[c] = (body.data as any)[c];

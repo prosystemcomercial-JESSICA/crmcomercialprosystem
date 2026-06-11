@@ -45,6 +45,11 @@ model ProjetoImplantacao {
   telefone         String?
   email            String?
 
+  // Tipo do trabalho/serviço deste projeto no portal. Define a etiqueta do card:
+  // IMPLANTACAO (padrão, novo sistema) | COMUNICACAO (instalação de comunicação
+  // entre lojas) | PAC | TEF | FISCAL ... — vem da venda/contrato que originou.
+  tipo_servico       String? @default("IMPLANTACAO")
+
   // ── PARTE 1: campos personalizados do negócio ──
   segmento_atuacao   String? // FARMACIA_DROGARIA | PADARIA_PERECIVEIS | VESTUARIO_CALCADOS | VAREJO_GERAL | FOOD_SERVICE
   regime_tributario  String? // SIMPLES_NACIONAL | LUCRO_PRESUMIDO | LUCRO_REAL

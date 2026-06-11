@@ -524,6 +524,31 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
             },
           }).catch(() => {});
         }
+
+        // PONTE → Portal de Implantação: vendas de COMUNICAÇÃO confirmadas viram
+        // projeto(s) de implantação (1 por loja) com etiqueta de serviço Comunicação.
+        // Não-bloqueante e condicional às envs; idempotente por contrato_crm_id (venda+loja).
+        if (vendaAtual.parceiro?.categoria === 'COMUNICACAO' && process.env.PORTAL_PONTE_URL && process.env.PONTE_TOKEN) {
+          const detalhe = Array.isArray((vendaAtual as any).lojas_detalhe) ? (vendaAtual as any).lojas_detalhe : [];
+          const alvos = detalhe.length ? detalhe.map((d: any) => ({ id: d.cliente_id, nome: d.nome })) : idsFicha.map((c: string) => ({ id: c, nome: '' }));
+          for (const loja of alvos) {
+            try {
+              const cli = await prisma.cliente.findUnique({ where: { id: loja.id }, select: { razao_social: true, nome_fantasia: true, cnpj: true, telefone: true, email: true } }).catch(() => null);
+              fetch(`${process.env.PORTAL_PONTE_URL}/ponte/projeto`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-ponte-token': process.env.PONTE_TOKEN as string },
+                body: JSON.stringify({
+                  cliente_nome: cli?.razao_social || cli?.nome_fantasia || loja.nome || 'Loja',
+                  razao_social: cli?.razao_social, nome_fantasia: cli?.nome_fantasia, cnpj: cli?.cnpj,
+                  telefone: cli?.telefone, email: cli?.email,
+                  cliente_crm_id: loja.id,
+                  contrato_crm_id: `comunic-${id}-${loja.id}`, // único por venda+loja (idempotente)
+                  tipo_servico: 'COMUNICACAO',
+                }),
+              }).catch(e => console.warn('[PONTE-COMUNICACAO] falhou (não bloqueia):', e?.message));
+            } catch (e: any) { console.warn('[PONTE-COMUNICACAO]', e?.message); }
+          }
+        }
       }
 
       // Cria ou atualiza comissão da supervisão ao confirmar
