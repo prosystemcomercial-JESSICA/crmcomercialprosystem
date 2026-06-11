@@ -488,6 +488,24 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       data.comissao_confirmada = true;
       data.status = 'CONTRATO_EM_GERACAO';
 
+      // PONTE → Portal de Implantação: cria o projeto de onboarding automaticamente.
+      // Não-bloqueante e condicional (só dispara se as envs existirem); o portal
+      // é idempotente por contrato_crm_id, então reenvio não duplica.
+      if (process.env.PORTAL_PONTE_URL && process.env.PONTE_TOKEN) {
+        fetch(`${process.env.PORTAL_PONTE_URL}/ponte/projeto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-ponte-token': process.env.PONTE_TOKEN },
+          body: JSON.stringify({
+            cliente_nome: atual?.razao_social || atual?.nome_fantasia || 'Cliente',
+            razao_social: atual?.razao_social, nome_fantasia: atual?.nome_fantasia, cnpj: atual?.cnpj,
+            telefone: atual?.responsavel_telefone, email: atual?.responsavel_email,
+            contrato_crm_id: id, segmento_atuacao: undefined,
+            volumetria_pdvs: atual?.maquinas ?? undefined,
+          }),
+        }).then(r => r.ok || console.warn('[PONTE-PORTAL] resposta', r.status))
+          .catch(e => console.warn('[PONTE-PORTAL] falhou (não bloqueia):', e?.message));
+      }
+
       // Criar comissão do vendedor no módulo de comissões
       if (atual?.vendedor_id && data.comissao_vendedor_valor > 0) {
         const periodo = proximoMes();

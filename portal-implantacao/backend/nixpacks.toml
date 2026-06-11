@@ -1,0 +1,4 @@
+# Build config Railway (mesma base do CRM comercial: heap maior, telemetria off)
+[variables]
+NODE_OPTIONS = "--max-old-space-size=2048"
+NEXT_TELEMETRY_DISABLED = "1"

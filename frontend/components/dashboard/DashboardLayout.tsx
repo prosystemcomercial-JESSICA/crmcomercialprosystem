@@ -26,7 +26,7 @@ const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
 const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN'];
 
-type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp' };
+type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp'; externoComToken?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
 const navGroups: NavGroup[] = [
@@ -59,6 +59,8 @@ const navGroups: NavGroup[] = [
       { href: '/clientes',     icon: Building2,  label: 'Clientes',     roles: ALL },
       { href: '/indicacoes',   icon: Handshake,  label: 'Indicações',   roles: COMERCIAL },
       { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
+      // Portal de Implantação & Onboarding (app separado) — abre com SSO (token na URL).
+      { href: process.env.NEXT_PUBLIC_PORTAL_URL || '#', icon: Rocket, label: 'Implantação & Onboarding', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'], externoComToken: true },
     ],
   },
   {
@@ -570,22 +572,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       estilo = { borderLeft: '2px solid transparent', color: 'var(--t-sidebar-text)' };
                     }
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`ps-sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium select-none ${isActive ? 'active' : ''}`}
-                        style={estilo}
-                      >
-                        <Icon
-                          size={isWpp ? 16 : 14}
-                          className="flex-shrink-0"
-                          style={{ opacity: isWpp || isActive ? 1 : 0.75 }}
-                        />
+                    const conteudoItem = (
+                      <>
+                        <Icon size={isWpp ? 16 : 14} className="flex-shrink-0" style={{ opacity: isWpp || isActive ? 1 : 0.75 }} />
                         {item.label}
-                        {isWpp && (
-                          <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: '#25D366', boxShadow: '0 0 6px #25D366' }} />
-                        )}
+                        {item.externoComToken && <span style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.6 }}>↗</span>}
+                        {isWpp && <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: '#25D366', boxShadow: '0 0 6px #25D366' }} />}
+                      </>
+                    );
+                    const classeItem = `ps-sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium select-none ${isActive ? 'active' : ''}`;
+
+                    // Portal externo: abre em nova aba COM o token SSO (?token=...).
+                    if (item.externoComToken) {
+                      return (
+                        <a
+                          key={item.label}
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const base = process.env.NEXT_PUBLIC_PORTAL_URL || item.href;
+                            if (!base || base === '#') { alert('Portal de Implantação ainda não configurado (defina NEXT_PUBLIC_PORTAL_URL).'); return; }
+                            const tk = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+                            const url = tk ? `${base}${base.includes('?') ? '&' : '?'}token=${encodeURIComponent(tk)}` : base;
+                            window.open(url, '_blank', 'noopener');
+                          }}
+                          className={classeItem}
+                          style={estilo}
+                        >
+                          {conteudoItem}
+                        </a>
+                      );
+                    }
+
+                    return (
+                      <Link key={item.href} href={item.href} className={classeItem} style={estilo}>
+                        {conteudoItem}
                       </Link>
                     );
                   })}
