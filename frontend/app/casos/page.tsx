@@ -43,17 +43,35 @@ const STATUS_COLORS: Record<string, string> = {
   PERDIDO: 'bg-red-100 text-red-700',
 };
 
+// Classificação de risco do cliente em churn — 4 faixas.
 const RISK_COLOR = (score: number) => {
+  if (score >= 85) return 'text-red-700';
   if (score >= 70) return 'text-red-600';
   if (score >= 40) return 'text-yellow-600';
   return 'text-green-600';
 };
 
 const RISK_LABEL = (score: number) => {
+  if (score >= 85) return 'CRÍTICO';
   if (score >= 70) return 'ALTO';
   if (score >= 40) return 'MÉDIO';
   return 'BAIXO';
 };
+
+const RISK_BAR = (score: number) => {
+  if (score >= 85) return 'bg-red-700';
+  if (score >= 70) return 'bg-red-500';
+  if (score >= 40) return 'bg-yellow-500';
+  return 'bg-green-500';
+};
+
+// Faixas que o gestor escolhe ao classificar manualmente (valor representativo).
+const RISK_NIVEIS = [
+  { label: 'BAIXO', valor: 20 },
+  { label: 'MÉDIO', valor: 50 },
+  { label: 'ALTO', valor: 75 },
+  { label: 'CRÍTICO', valor: 95 },
+];
 
 export default function CasosPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -93,6 +111,16 @@ export default function CasosPage() {
       fetchCasos();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  // Classifica o risco do cliente manualmente (Baixo/Médio/Alto/Crítico → score).
+  const handleClassificarRisco = async (id: string, valor: number) => {
+    try {
+      await apiClient.updateCaso(id, { risk_score: valor });
+      fetchCasos();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Erro ao classificar o risco.');
     }
   };
 
@@ -261,12 +289,17 @@ export default function CasosPage() {
                           {RISK_LABEL(caso.risk_score)}
                         </p>
                         <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
-                          <div
-                            className={`h-1.5 rounded-full ${caso.risk_score >= 70 ? 'bg-red-500' : caso.risk_score >= 40 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                            style={{ width: `${caso.risk_score}%` }}
-                          />
+                          <div className={`h-1.5 rounded-full ${RISK_BAR(caso.risk_score)}`} style={{ width: `${caso.risk_score}%` }} />
                         </div>
-                        <p className="text-xs text-gray-400 mt-0.5">{Math.round(caso.risk_score)}/100</p>
+                        {/* Classificar manualmente o risco do cliente */}
+                        <select
+                          value={RISK_LABEL(caso.risk_score)}
+                          onChange={e => { const n = RISK_NIVEIS.find(r => r.label === e.target.value); if (n) handleClassificarRisco(caso.id, n.valor); }}
+                          className="mt-1 text-xs border border-gray-200 rounded-md px-1.5 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
+                          title="Classificar risco do cliente"
+                        >
+                          {RISK_NIVEIS.map(r => <option key={r.label} value={r.label}>{r.label}</option>)}
+                        </select>
                       </div>
                     </td>
                     <td className="px-6 py-4">
