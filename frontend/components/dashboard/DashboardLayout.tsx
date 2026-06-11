@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
+import VersionWatcher from '@/components/VersionWatcher';
 import {
   LayoutDashboard, Target, GitMerge, CalendarCheck, FileCheck2,
   TrendingDown, Megaphone, Trophy, Medal, Building2, Users, DollarSign,
@@ -272,6 +273,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
+      <VersionWatcher />
 
       {/* ── Topbar ─────────────────────────────────────────── */}
       <header className="ps-topbar flex-shrink-0 flex items-center justify-between px-3 sm:px-5 h-24 gap-2">

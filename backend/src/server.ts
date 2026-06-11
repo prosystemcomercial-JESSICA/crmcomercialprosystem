@@ -48,9 +48,13 @@ const fastify = Fastify({
 });
 
 // 4) Health check ANTES de tudo — se chegamos aqui, o app está vivo
+// `versao` = commit do deploy (Railway injeta RAILWAY_GIT_COMMIT_SHA); o front
+// usa isso para detectar nova versão e recarregar sozinho (mata o cache antigo).
+const VERSAO_DEPLOY = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.VERSAO || 'dev';
 fastify.get('/health', async () => ({
   status: 'ok',
   rev: 'bigint-fix-v2',
+  versao: VERSAO_DEPLOY,
   timestamp: new Date().toISOString(),
   uptime: process.uptime(),
   prisma: !!prismaClient
