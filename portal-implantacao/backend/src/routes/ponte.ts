@@ -32,9 +32,9 @@ export async function ponteRoutes(fastify: FastifyInstance, options: { prisma: P
     if (existente) return reply.send({ status: 'success', data: existente, message: 'Projeto já existia (idempotente)' });
 
     // Nasce no Funil 2 — Kick-off (a venda foi fechada no comercial).
-    const kickoff = FASES.find(f => f.codigo === 'IMP_KICKOFF')!;
+    const kickoff = FASES.find(f => f.codigo === 'IMP_CONVERSAO')!;
     const data: any = {
-      funil: 'IMPLANTACAO', fase: 'IMP_KICKOFF', fase_desde: new Date(),
+      funil: 'IMPLANTACAO', fase: 'IMP_CONVERSAO', fase_desde: new Date(),
       data_fechamento_comercial: new Date(), // início do TTV
     };
     for (const c of ['cliente_nome','razao_social','nome_fantasia','cnpj','telefone','email','cliente_crm_id','contrato_crm_id','segmento_atuacao','regime_tributario','tipo_implantacao']) {
@@ -44,7 +44,7 @@ export async function ponteRoutes(fastify: FastifyInstance, options: { prisma: P
 
     const projeto = await prisma.projetoImplantacao.create({ data });
     await criarChecklistDaFase(prisma, projeto.id, kickoff);
-    await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_para: 'IMPLANTACAO', fase_para: 'IMP_KICKOFF', movido_por_nome: 'Ponte CRM Comercial' } });
+    await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_para: 'IMPLANTACAO', fase_para: 'IMP_CONVERSAO', movido_por_nome: 'Ponte CRM Comercial' } });
     return reply.status(201).send({ status: 'success', data: projeto });
   });
 
