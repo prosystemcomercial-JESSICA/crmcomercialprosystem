@@ -132,13 +132,20 @@ class ApiClient {
   }
 
   // Cases endpoints
-  async getCasos(page = 0, limit = 20, status?: string, risco_min?: number, risco_max?: number) {
+  async getCasos(page = 0, limit = 20, status?: string, risco_min?: number, risco_max?: number, busca?: string) {
     const params: any = { page, limit };
     if (status) params.status = status;
     if (risco_min !== undefined) params.risco_min = risco_min;
     if (risco_max !== undefined) params.risco_max = risco_max;
-
+    if (busca) params.busca = busca;
     return this.client.get('/casos-churn', { params });
+  }
+
+  async getAtualizacoesCaso(id: string) {
+    return this.client.get(`/casos-churn/${id}/atualizacoes`);
+  }
+  async addAtualizacaoCaso(id: string, data: { tipo: string; texto: string; canal?: string; resultado?: string }) {
+    return this.client.post(`/casos-churn/${id}/atualizacoes`, data);
   }
 
   async createCaso(clienteId: string, motivo_principal?: string, descricao?: string) {

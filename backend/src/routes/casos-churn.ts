@@ -170,6 +170,42 @@ export async function casosChurnRoutes(
     }
   );
 
+  // ── ATUALIZAÇÕES (linha do tempo do caso) ─────────────────────────────────
+  // GET lista as atualizações; POST adiciona uma (observação/contato/tentativa).
+  fastify.get('/casos-churn/:id/atualizacoes', { onRequest: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const lista = await (prisma as any).atualizacaoCaso.findMany({
+      where: { caso_churn_id: id }, orderBy: { created_at: 'desc' },
+    }).catch(() => []);
+    return reply.send({ status: 'success', data: lista });
+  });
+
+  fastify.post('/casos-churn/:id/atualizacoes', { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO'])] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = (request as any).user;
+    const body = z.object({
+      tipo: z.enum(['OBSERVACAO', 'CONTATO', 'TENTATIVA', 'FINANCEIRO']).default('OBSERVACAO'),
+      texto: z.string().min(1, 'Escreva a atualização'),
+      canal: z.enum(['TELEFONE', 'WHATSAPP', 'EMAIL', 'PRESENCIAL', 'OUTRO']).optional().or(z.literal('')),
+      resultado: z.enum(['ATENDEU', 'NAO_ATENDEU', 'RETORNARA', 'SEM_RESPOSTA', 'RESOLVIDO']).optional().or(z.literal('')),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Escreva a atualização' });
+
+    const caso = await prisma.casoChurn.findUnique({ where: { id }, select: { id: true } });
+    if (!caso) return reply.status(404).send({ status: 'error', message: 'Caso não encontrado' });
+
+    const item = await (prisma as any).atualizacaoCaso.create({
+      data: {
+        caso_churn_id: id, tipo: body.data.tipo, texto: body.data.texto,
+        canal: body.data.canal || null, resultado: body.data.resultado || null,
+        feito_por: user?.id, feito_por_nome: user?.nome,
+      },
+    });
+    // Mexer no caso atualiza o updated_at (mantém "última movimentação").
+    await prisma.casoChurn.update({ where: { id }, data: { updated_at: new Date() } }).catch(() => {});
+    return reply.status(201).send({ status: 'success', data: item });
+  });
+
   // ── RENEGOCIAÇÃO (dificuldade financeira) ─────────────────────────────────
   // PATCH /casos-churn/:id/renegociacao — salva os dados do acordo no caso.
   // Direto via Prisma (não passa pelo service/DTO) p/ não acoplar ao fluxo de caso.

@@ -77,6 +77,18 @@ export class CasoChurnService {
       }
     }
 
+    // Busca por cliente: razão social, fantasia, nome, empresa, código ou CNPJ.
+    if (filters.busca && String(filters.busca).trim()) {
+      const s = String(filters.busca).trim();
+      where.cliente = {
+        OR: [
+          { razao_social: { contains: s } }, { nome_fantasia: { contains: s } },
+          { nome: { contains: s } }, { empresa: { contains: s } },
+          { codigo: { contains: s } }, { cnpj: { contains: s } },
+        ],
+      };
+    }
+
     const [casos, total] = await Promise.all([
       this.prisma.casoChurn.findMany({
         where,
@@ -102,7 +114,11 @@ export class CasoChurnService {
   async getById(id: string) {
     const caso = await this.prisma.casoChurn.findUnique({
       where: { id },
-      include: { cliente: true }
+      include: {
+        cliente: true,
+        // Linha do tempo (atualizações) — "como está sendo tratado".
+        atualizacoes: { orderBy: { created_at: 'desc' } } as any,
+      } as any,
     });
 
     if (!caso) {
@@ -122,14 +138,30 @@ export class CasoChurnService {
       );
     }
 
+    // Limpa campos: '' em enum/numéricos não pode ir pro banco.
+    const limpo: any = { ...data };
+    if (limpo.fin_situacao === '') delete limpo.fin_situacao;
+
     const updated = await this.prisma.casoChurn.update({
       where: { id },
-      data: {
-        ...data,
-        updated_at: new Date()
-      },
-      include: { cliente: true }
+      data: { ...limpo, updated_at: new Date() },
+      include: { cliente: true },
     });
+
+    // Registra uma atualização na timeline quando muda status ou financeiro.
+    try {
+      if (data.status && data.status !== caso.status) {
+        await (this.prisma as any).atualizacaoCaso.create({
+          data: { caso_churn_id: id, tipo: 'STATUS', texto: `Status alterado: ${caso.status} → ${data.status}`, feito_por: userId },
+        });
+      }
+      if (data.fin_situacao !== undefined && data.fin_situacao !== '') {
+        const valor = data.fin_valor_atraso ? ` (R$ ${data.fin_valor_atraso})` : '';
+        await (this.prisma as any).atualizacaoCaso.create({
+          data: { caso_churn_id: id, tipo: 'FINANCEIRO', texto: `Situação financeira: ${data.fin_situacao}${valor}`, feito_por: userId },
+        });
+      }
+    } catch { /* timeline é complementar, não bloqueia o update */ }
 
     console.log(`[CasoChurn] Caso ${id} atualizado para ${data.status || 'updated'}`);
     return updated;

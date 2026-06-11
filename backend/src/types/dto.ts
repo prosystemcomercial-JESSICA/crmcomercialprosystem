@@ -10,13 +10,20 @@ export const CreateCasoChurnSchema = z.object({
 export const UpdateCasoChurnSchema = z.object({
   status: z.enum(['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO']).optional(),
   risk_score: z.number().min(0).max(100).optional(),
-  motivo_principal: z.string().optional()
+  motivo_principal: z.string().optional(),
+  descricao: z.string().optional(),
+  // Situação financeira
+  fin_situacao: z.enum(['EM_DIA', 'EM_ATRASO', 'NEGOCIANDO', 'INADIMPLENTE']).optional().or(z.literal('')),
+  fin_valor_atraso: z.coerce.number().optional(),
+  fin_dias_atraso: z.coerce.number().int().optional(),
+  fin_observacao: z.string().optional(),
 });
 
 export const ListCasoChurnSchema = z.object({
   status: z.string().optional(),
   risco_min: z.coerce.number().optional(),
   risco_max: z.coerce.number().optional(),
+  busca: z.string().optional(), // por razão social, fantasia, nome, código, CNPJ
   page: z.coerce.number().default(0),
   limit: z.coerce.number().default(20)
 });
