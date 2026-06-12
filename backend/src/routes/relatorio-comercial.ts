@@ -116,6 +116,78 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     };
   }
 
+  // Métricas REAIS do mês com LISTAS DE NOMES (p/ o relatório completo do comercial).
+  async function metricasReaisDoMes(ano: number, mes: number) {
+    const inicio = new Date(ano, mes - 1, 1);
+    const fim = new Date(ano, mes, 1);
+    const noMes = { gte: inicio, lt: fim };
+
+    // 1) Leads gerados no mês (criados no período).
+    const totalLeads = await prisma.lead.count({ where: { created_at: noMes, deleted_at: null } }).catch(() => 0);
+
+    // 2) Fechamentos do mês = propostas que ficaram ASSINADAS/fechadas (data_aceite no mês).
+    const fechamentos = await prisma.propostaComercial.findMany({
+      where: { status: { in: STATUS_FECHADA }, data_aceite: noMes, deleted_at: null as any },
+      select: { razao_social: true, nome_fantasia: true, vendedor_nome: true, valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true, data_aceite: true },
+      orderBy: { data_aceite: 'desc' },
+    }).catch(() => [] as any[]);
+    const setupDe = (p: any) => Number(p.valor_implantacao ?? p.valor_final ?? 0);
+    const mrrDe = (p: any) => Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0);
+    const fechamentos_lista = fechamentos.map((p: any) => ({
+      cliente: p.razao_social || p.nome_fantasia || '—', vendedor: p.vendedor_nome || '—',
+      setup: setupDe(p), mrr: mrrDe(p), data: p.data_aceite,
+    }));
+    const totalFechamentos = fechamentos.length;
+    const setupTotal = fechamentos_lista.reduce((s, f) => s + f.setup, 0);
+    const mrrGanhoTotal = fechamentos_lista.reduce((s, f) => s + f.mrr, 0);
+    const setupMedio = totalFechamentos ? Math.round(setupTotal / totalFechamentos) : 0;
+    const mrrMedio = totalFechamentos ? Math.round(mrrGanhoTotal / totalFechamentos) : 0;
+
+    // 3) Clientes perdidos no mês (desativados) + mensalidade perdida — com nomes.
+    const perdidos = await prisma.cliente.findMany({
+      where: { situacao: 'INATIVA', inativado_em: noMes },
+      select: { razao_social: true, nome_fantasia: true, nome: true, mrr_perdido: true, mensalidade_base: true, motivo_inativacao: true, grupo_tecnico: true, inativado_em: true },
+      orderBy: { inativado_em: 'desc' },
+    }).catch(() => [] as any[]);
+    const perdidos_lista = perdidos.map((c: any) => ({
+      cliente: c.razao_social || c.nome_fantasia || c.nome || '—',
+      mrr_perdido: Number(c.mrr_perdido ?? c.mensalidade_base ?? 0),
+      motivo: c.motivo_inativacao || '—', tecnico: c.grupo_tecnico || '—', data: c.inativado_em,
+    }));
+    const totalPerdidos = perdidos.length;
+    const mrrPerdidoTotal = perdidos_lista.reduce((s, c) => s + c.mrr_perdido, 0);
+
+    // 4) Indicações / vendas adicionais do mês (criadas no período).
+    const indicacoes = await prisma.vendaAdicional.findMany({
+      where: { created_at: noMes },
+      select: { vendedor_nome: true, status: true, acrescimo_mensal: true, valor_venda: true, parceiro: { select: { nome: true, categoria: true } }, cliente: { select: { razao_social: true, nome_fantasia: true, nome: true } } },
+      orderBy: { created_at: 'desc' },
+    }).catch(() => [] as any[]);
+    const indicacoes_lista = indicacoes.map((v: any) => ({
+      cliente: v.cliente?.razao_social || v.cliente?.nome_fantasia || v.cliente?.nome || '—',
+      parceiro: v.parceiro?.nome || '—', categoria: v.parceiro?.categoria || '—',
+      vendedor: v.vendedor_nome || '—', status: v.status, acrescimo: Number(v.acrescimo_mensal || 0),
+    }));
+
+    // 5) Entrada × Saída (MRR): ganho (fechamentos) vs perdido (churn) no mês.
+    const entrada_x_saida = {
+      mrr_entrada: Math.round(mrrGanhoTotal),
+      mrr_saida: Math.round(mrrPerdidoTotal),
+      saldo_mrr: Math.round(mrrGanhoTotal - mrrPerdidoTotal),
+      clientes_entrada: totalFechamentos,
+      clientes_saida: totalPerdidos,
+      saldo_clientes: totalFechamentos - totalPerdidos,
+    };
+
+    return {
+      total_leads: totalLeads,
+      fechamentos: { total: totalFechamentos, setup_total: Math.round(setupTotal), setup_medio: setupMedio, mrr_total: Math.round(mrrGanhoTotal), mrr_medio: mrrMedio, lista: fechamentos_lista },
+      perdidos: { total: totalPerdidos, mrr_perdido_total: Math.round(mrrPerdidoTotal), lista: perdidos_lista },
+      indicacoes: { total: indicacoes.length, lista: indicacoes_lista },
+      entrada_x_saida,
+    };
+  }
+
   // GET — relatório do mês (auto-pipeline mesclado com o salvo).
   fastify.get('/relatorio-comercial', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
@@ -125,10 +197,11 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
 
     const salvo = await prisma.relatorioComercial.findUnique({ where: { uq_relatorio_mes: { ano, mes } } });
     const pipeline = await calcularPipeline(ano, mes);
+    const metricas = await metricasReaisDoMes(ano, mes); // leads, fechamentos, perdidos, indicações, entrada×saída
 
     // Se o mês está "fechado", usa o salvo; senão, sobrepõe o pipeline calculado.
     const data = salvo?.fechado ? salvo : { ...(salvo || {}), ...pipeline, ano, mes };
-    return reply.send({ status: 'success', data: { ...data, _pipeline_auto: pipeline } });
+    return reply.send({ status: 'success', data: { ...data, _pipeline_auto: pipeline, metricas } });
   });
 
   // Lista de meses disponíveis (p/ o seletor).
