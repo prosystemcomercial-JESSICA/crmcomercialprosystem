@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -76,6 +76,8 @@ export default function ComissoesPage() {
   // Períodos que têm comissão lançada (inclui meses futuros, ex.: 2026-07).
   const [periodosComComissao, setPeriodosComComissao] = useState<string[]>([]);
   const [mesAberto, setMesAberto] = useState<string | null>(null); // mês expandido no "Por mês de pagamento"
+  const [ordem, setOrdem] = useState<any>(null);       // ordem de pagamento do mês
+  const [lancandoBonus, setLancandoBonus] = useState(false);
   // Bônus trimestral (Programa Acelerador) — trimestres iniciam em maio.
   const [bonus, setBonus] = useState<any>(null);
 
@@ -128,7 +130,46 @@ export default function ComissoesPage() {
     try {
       await apiClient.remarcarMesComissao(id, novoMes);
       loadData();
+      carregarOrdem();
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remarcar o mês.'); }
+  };
+
+  // Ordem de pagamento do mês selecionado (comissões a pagar por vendedor/supervisão).
+  const carregarOrdem = useCallback(() => {
+    if (!isAuthenticated || !user || !ROLES_GESTOR.includes(user.role || '')) return;
+    apiClient.getOrdemPagamento(periodo).then(r => setOrdem(r.data?.data || null)).catch(() => setOrdem(null));
+  }, [isAuthenticated, user, periodo]);
+  useEffect(() => { carregarOrdem(); }, [carregarOrdem]);
+
+  // Imprime a ordem de pagamento no formato da gestão (tabela por vendedor + total).
+  const imprimirOrdem = (o: any) => {
+    const brl = (v: any) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const blocos = (o.grupos || []).map((g: any) => `
+      <h2>COMISSÃO ${g.responsavel_nome}${g.papel === 'SUPERVISAO' ? ' (Supervisão)' : ''}</h2>
+      <table><thead><tr><th>RAZÃO SOCIAL E CÓDIGO</th><th>DEMANDA</th><th class="r">VALOR SERVIÇO</th><th class="r">COMISSÃO</th><th class="r">VALOR COMISSÃO</th></tr></thead>
+      <tbody>${g.itens.map((i: any) => `<tr><td>${i.cliente}</td><td>${i.demanda}</td><td class="r">${brl(i.valor_servico)}</td><td class="r">${i.percentual}%</td><td class="r">${brl(i.valor_comissao)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="4">TOTAL COMISSÕES</td><td class="r">${brl(g.total)}</td></tr></tbody></table>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Ordem de Pagamento ${o.mes_pagamento}</title>
+      <style>body{font-family:Arial,sans-serif;color:#1a1a2e;padding:24px}h1{font-size:18px}h2{font-size:14px;margin:18px 0 6px;background:#6d28d9;color:#fff;padding:8px 10px;border-radius:6px}
+      table{width:100%;border-collapse:collapse;margin-bottom:8px}th,td{border:1px solid #ddd;padding:7px 9px;font-size:12px;text-align:left}th{background:#f3f4f6}.r{text-align:right}.tot{font-weight:bold;background:#faf5ff}
+      .geral{font-size:15px;font-weight:bold;margin-top:14px}</style></head>
+      <body><h1>Ordem de Pagamento de Comissões — ${o.mes_pagamento}</h1>${blocos}
+      <p class="geral">TOTAL VENDEDORES: ${brl(o.total_vendedores)} &nbsp;·&nbsp; TOTAL SUPERVISÃO: ${brl(o.total_supervisao)} &nbsp;·&nbsp; TOTAL GERAL: ${brl(o.total_geral)}</p>
+      <script>window.onload=function(){window.print()}</script></body></html>`;
+    const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); }
+  };
+
+  // Lançar o bônus trimestral (paga no mês seguinte ao fim do trimestre).
+  const lancarBonus = async () => {
+    if (!confirm('Lançar o bônus trimestral para quem bateu a meta? O pagamento será no mês seguinte ao fim do trimestre.')) return;
+    setLancandoBonus(true);
+    try {
+      const r = await apiClient.lancarBonusTrimestral(periodo);
+      const d = r.data?.data;
+      alert(`Bônus lançado para pagamento em ${d?.mes_pagamento}.\nNovos: ${d?.bonus_criados} · Já existiam: ${d?.ja_existiam}`);
+      loadData(); carregarOrdem();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao lançar bônus.'); }
+    finally { setLancandoBonus(false); }
   };
 
   useEffect(() => { loadData(); }, [isAuthenticated, periodo]);
@@ -162,6 +203,20 @@ export default function ComissoesPage() {
   };
 
   const handleUpdateStatus = async (id: string, status: string) => {
+    // Ao APROVAR, a gestão indica o mês de pagamento (reflete nos relatórios).
+    if (status === 'APROVADA') {
+      const sugestao = periodo; // mês selecionado como padrão
+      const mes = prompt('Mês de pagamento da comissão (AAAA-MM):', sugestao);
+      if (!mes || !/^\d{4}-\d{2}$/.test(mes.trim())) {
+        if (mes !== null) alert('Mês inválido. Use o formato AAAA-MM (ex.: 2026-07).');
+        return;
+      }
+      try {
+        await apiClient.aprovarComissao(id, mes.trim());
+        loadData();
+      } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao aprovar.'); }
+      return;
+    }
     await apiClient.updateComissao(id, { status });
     loadData();
   };
@@ -333,7 +388,16 @@ export default function ComissoesPage() {
           <div className="bg-white rounded-xl border-2 p-5" style={{ borderColor: '#fde68a' }}>
             <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
               <h2 className="text-base font-semibold text-gray-900">🏆 Bônus Trimestral — Acelerador <span className="text-gray-400 font-normal">({bonus.trimestre})</span></h2>
-              <span className="text-xs text-gray-500">Faixas: 15→R$400 · 22→R$600 · 30→R$1.000 (contratos fechados no trimestre)</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500">Faixas: 15→R$400 · 22→R$600 · 30→R$1.000</span>
+                {isCEO && (
+                  <button onClick={lancarBonus} disabled={lancandoBonus}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}
+                    title="Lança o bônus de quem bateu a meta p/ pagamento no mês seguinte ao fim do trimestre">
+                    {lancandoBonus ? 'Lançando…' : '💸 Lançar bônus do trimestre'}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               {bonus.linhas.map((l: any) => {
@@ -511,6 +575,48 @@ export default function ComissoesPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ORDEM DE PAGAMENTO mensal — comissões a pagar por vendedor/supervisão */}
+        {isGestor && ordem && ordem.grupos?.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4" id="ordem-pagamento">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">🧾 Ordem de Pagamento — {ordem.mes_pagamento}</h2>
+                <p className="text-sm text-gray-500">Comissões a pagar no mês, por vendedor e supervisão.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-800">Total: R$ {Number(ordem.total_geral).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <button onClick={() => imprimirOrdem(ordem)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe' }}>🖨️ Imprimir / PDF</button>
+              </div>
+            </div>
+            {ordem.grupos.map((g: any) => (
+              <div key={g.responsavel_id} className="rounded-lg border border-gray-100 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2" style={{ background: g.papel === 'SUPERVISAO' ? '#f5f3ff' : '#f8fafc' }}>
+                  <span className="font-semibold text-gray-800">COMISSÃO {g.responsavel_nome}{g.papel === 'SUPERVISAO' ? ' (Supervisão)' : ''}</span>
+                  <span className="font-bold text-gray-900">R$ {Number(g.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs text-gray-400 border-b">
+                    <th className="px-4 py-1.5">Razão Social e Código</th><th>Demanda</th><th className="text-right">Valor Serviço</th><th className="text-right">Comissão</th><th className="text-right px-4">Valor Comissão</th>
+                  </tr></thead>
+                  <tbody>{g.itens.map((i: any, idx: number) => (
+                    <tr key={idx} className="border-b border-gray-50">
+                      <td className="px-4 py-1.5 text-gray-800">{i.cliente}</td>
+                      <td className="text-gray-600">{i.demanda}</td>
+                      <td className="text-right text-gray-600">R$ {Number(i.valor_servico).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                      <td className="text-right text-gray-500">{i.percentual}%</td>
+                      <td className="text-right px-4 font-semibold text-green-700">R$ {Number(i.valor_comissao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            ))}
+            <div className="flex justify-end gap-6 text-sm pt-1">
+              <span className="text-gray-600">Vendedores: <b className="text-gray-900">R$ {Number(ordem.total_vendedores).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
+              <span className="text-gray-600">Supervisão: <b className="text-gray-900">R$ {Number(ordem.total_supervisao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
             </div>
           </div>
         )}
