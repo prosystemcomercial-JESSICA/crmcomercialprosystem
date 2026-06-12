@@ -467,6 +467,146 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     return reply.send({ status: 'ok', data: dados });
   });
 
+  // ── RESUMO P/ ASSINATURA (e-mail): recolhe os dados do LEAD → PROPOSTA →
+  // CONTRATO e monta o texto no PADRÃO da Jessica, pronto p/ copiar. Funciona
+  // para contratos já assinados também. Campo sem dado = fica em branco.
+  fastify.get('/contratos-comerciais/:id/resumo-assinatura', async (request, reply) => {
+    const { id } = request.params as any;
+    const c: any = await prisma.contratoComercial.findUnique({ where: { id } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
+
+    // Proposta vinculada (máquinas, datas de aceite, origem).
+    const p: any = c.proposta_comercial_id
+      ? await prisma.propostaComercial.findUnique({ where: { id: c.proposta_comercial_id } }).catch(() => null)
+      : null;
+
+    // Lead casado por CNPJ (dígitos) — traz início do contato, origem, fechamento
+    // e o onboarding técnico (máquinas, balança, financeiro, certificado, contador).
+    const cnpjDigits = (c.cnpj || p?.cnpj || '').replace(/\D/g, '');
+    let lead: any = null, onb: any = null;
+    if (cnpjDigits) {
+      const cands = await prisma.lead.findMany({
+        where: { cnpj: { not: null }, deleted_at: null },
+        include: { onboarding: true } as any, take: 3000,
+      }).catch(() => [] as any[]);
+      lead = cands.find((l: any) => (l.cnpj || '').replace(/\D/g, '') === cnpjDigits) || null;
+      onb = lead?.onboarding || null;
+    }
+
+    // ── Helpers de formatação ──
+    const d = (x: any) => x ? new Date(x).toLocaleDateString('pt-BR') : '';
+    const brl = (v: any) => (v == null || v === '') ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const simNao = (b: any) => b === true ? 'Sim' : (b === false ? 'Não' : '');
+    const ou = (...xs: any[]) => { for (const x of xs) if (x !== null && x !== undefined && `${x}`.trim() !== '') return x; return ''; };
+
+    // Datas do ciclo.
+    const inicio = ou(lead?.created_at);
+    const fechamento = ou(lead?.fechamento_data, p?.data_aceite, c.data_contrato);
+    let tempo = '';
+    if (inicio && fechamento) {
+      const dias = Math.max(0, Math.round((new Date(fechamento).getTime() - new Date(inicio).getTime()) / 86400000));
+      tempo = `${dias} dia${dias === 1 ? '' : 's'}`;
+    }
+
+    // Endereço completo (contrato → lead).
+    const endereco = ou(
+      [ou(c.endereco), c.numero_endereco ? ', ' + c.numero_endereco : '', c.bairro ? ' - ' + c.bairro : '',
+        (c.cidade || c.estado) ? ' - ' + [c.cidade, c.estado].filter(Boolean).join('-') : '', c.cep ? ' ' + c.cep : '']
+        .join('').trim(),
+      lead?.endereco,
+    );
+
+    // Estrutura / instalação (onboarding técnico do lead).
+    const maquinas = ou(onb?.qtd_maquinas, p?.maquinas, lead?.qtd_caixas);
+    const balanca = onb ? simNao(onb.usa_balanca) : '';
+    const financeiro = onb ? simNao(onb.usa_fiscal) : ''; // "Utiliza Financeiro?" — flag fiscal/financeiro do onboarding
+    const tipoBase = ou(c.tipo_base) === 'CONVERSAO' || lead?.onboarding?.necessita_conversao
+      ? ('Conversão' + (ou(c.sistema_anterior, onb?.sistema_anterior) ? ' (de ' + ou(c.sistema_anterior, onb?.sistema_anterior) + ')' : ''))
+      : 'Banco zerado';
+    const dataInstalacao = ou(onb?.data_prevista_implantacao);
+
+    // Valores.
+    const mensalidade = ou(c.mensalidade, p?.mensalidade_plus, p?.mensalidade_pro);
+    const setupTotal = ou(c.valor_setup_total, lead?.fechamento_valor_inst);
+    const entrada = ou(c.valor_setup_entrada, lead?.fechamento_valor_entrada);
+    const parcelas = ou(c.setup_parcelas, lead?.fechamento_parcelas_inst);
+    const valorParcela = ou(c.valor_setup_parcela);
+    let implantacaoLinha = '';
+    if (setupTotal) {
+      const partes = [];
+      if (entrada) partes.push('entrada de ' + brl(entrada));
+      if (parcelas && valorParcela) partes.push(parcelas + 'x ' + brl(valorParcela));
+      implantacaoLinha = brl(setupTotal) + (partes.length ? ' (' + partes.join(' + ') + ')' : '');
+    }
+    const formaEntrada = ou(lead?.fechamento_forma_entrada);
+
+    // Origem do lead (rótulo + observação).
+    const ORIGEM_LABEL: Record<string, string> = {
+      MANUAL: 'Manual', WHATSAPP: 'WhatsApp', INDICACAO: 'Indicação', PROSPECCAO: 'Prospecção (Ativo)',
+      VISITA: 'Visita', TRAFEGO: 'Tráfego pago', CLIENTE_ANTIGO: 'Cliente antigo', PASSIVO: 'Passivo',
+    };
+    const origemRot = ou(ORIGEM_LABEL[(lead?.origem || '').toUpperCase()], lead?.origem, p?.origem);
+    const origemObs = ou(lead?.observacoes_comerciais, lead?.observacoes);
+
+    // Contabilidade (onboarding).
+    const contadorNome = ou(onb?.nome_contador);
+    const contadorContato = ou(onb?.contato_contador);
+    const certificadoEnviado = onb?.tem_certificado === true;
+
+    const plano = ou(c.plano_contratado, p?.plano_selecionado);
+    const L: string[] = [];
+    L.push(`📅 Início do contato: ${d(inicio)}`);
+    L.push(`📅 Fechamento: ${d(fechamento)}`);
+    L.push(`⏱️ Tempo de fechamento: ${tempo}`);
+    L.push('');
+    L.push(`Origem do lead: ${origemRot}${origemObs ? ' - ' + origemObs : ''}`);
+    L.push('');
+    L.push('📌 CADASTRO DE NOVO CLIENTE');
+    L.push('');
+    L.push(`Plano: ${plano}`);
+    L.push('');
+    L.push('Dados da Empresa');
+    L.push(`•    Razão Social: ${ou(c.razao_social, p?.razao_social)}`);
+    L.push(`•    Nome Fantasia: ${ou(c.nome_fantasia, p?.nome_fantasia)}`);
+    L.push(`•    CNPJ: ${ou(c.cnpj, p?.cnpj)}`);
+    L.push(`•    Endereço: ${endereco}`);
+    L.push('');
+    L.push('Dados do Responsável');
+    L.push(`•   Nome Completo: ${ou(c.representante_nome, p?.responsavel_nome, lead?.responsavel_nome)}`);
+    L.push(`•  CPF: ${ou(c.representante_cpf, p?.responsavel_cpf, lead?.responsavel_cpf)}`);
+    L.push(`•  E-mail (para envio de boleto): ${ou(c.representante_email, p?.responsavel_email, lead?.responsavel_email)}`);
+    L.push(`•  Telefones de contato: ${ou(c.representante_telefone, p?.responsavel_telefone, lead?.responsavel_telefone)}`);
+    L.push('');
+    L.push('Estrutura e Utilização');
+    L.push(`•    Quantidade de Máquinas: ${maquinas}`);
+    L.push(`•    Integração com balança: ${balanca}`);
+    L.push(`•    Atende aos pré-requisitos de instalação? ${onb ? 'Sim' : ''}`);
+    L.push(`•    Utiliza Financeiro? ${financeiro}`);
+    L.push('');
+    L.push('Funcionamento da Loja');
+    L.push(`•    Horário de Funcionamento: ${ou(onb?.horario_contato, lead?.responsavel_horario)}`);
+    L.push(`•    Data prevista para Instalação: ${tipoBase}${dataInstalacao ? ' - Instalação marcada para ' + d(dataInstalacao) : ''}`);
+    L.push(`•    Mensalidade: ${brl(mensalidade)}`);
+    L.push(`•    Implantação (a prazo): ${implantacaoLinha}`);
+    L.push(`•    Comprovante de entrada: ${formaEntrada ? 'Pagamento realizado no ' + formaEntrada : ''}`);
+    L.push('');
+    L.push('Documentos');
+    L.push(`•    Certificado Digital: [${certificadoEnviado ? 'x' : ' '}] Enviado | [${certificadoEnviado ? ' ' : 'x'}] A enviar | Senha: _____________`);
+    L.push('');
+    L.push('Contabilidade:');
+    L.push(`•    Nome do contador: ${contadorNome}`);
+    L.push('•    CPF: ');
+    L.push('•    CRC do contador: ');
+    L.push(`•    E-mail: `);
+    L.push(`•    Telefone de contato: ${contadorContato}`);
+    L.push('');
+    L.push('Dados da Empresa:');
+    L.push('•    Código CSC (Produção): ');
+
+    const texto = L.join('\n');
+    return reply.send({ status: 'success', data: { texto } });
+  });
+
   // ── CREATE
   fastify.post('/contratos-comerciais', async (request, reply) => {
     const parse = CreateContratoSchema.safeParse(request.body);

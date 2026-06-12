@@ -322,6 +322,20 @@ export default function ContratosPage() {
     } finally { setMarcando(false); }
   };
 
+  // Resumo p/ assinatura (e-mail): copia o texto no padrão da gestão.
+  const handleCopiarResumo = async () => {
+    if (!selected) return;
+    setZapMsg('');
+    try {
+      const r = await apiClient.getResumoAssinatura(selected.id);
+      const texto = r.data?.data?.texto || '';
+      await navigator.clipboard.writeText(texto);
+      setZapMsg('✅ Resumo copiado! É só colar no e-mail.');
+    } catch (e: any) {
+      setZapMsg(`❌ ${e?.response?.data?.message || 'Erro ao gerar o resumo'}`);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este contrato?')) return;
     await apiClient.deleteContratoComercial(id);
@@ -757,6 +771,19 @@ export default function ContratosPage() {
                       <ExternalLink size={12} /> Abrir painel ZapSign
                     </a>
                   </div>
+
+                  {/* Resumo p/ assinatura (e-mail) — disponível em qualquer status */}
+                  <button
+                    onClick={handleCopiarResumo}
+                    className="flex items-center gap-1.5 mb-3"
+                    title="Copia um resumo completo (lead → contrato) no padrão para enviar no e-mail"
+                    style={{
+                      padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      background: 'var(--t-primary-light)', color: 'var(--t-primary)', border: '1px solid var(--t-primary-border)',
+                      cursor: 'pointer',
+                    }}>
+                    📋 Resumo p/ assinatura (copiar)
+                  </button>
 
                   {/* Passo 2 — Marcar como enviado (manual) */}
                   {selected.status !== 'ENVIADO_ASSINATURA' && selected.status !== 'ASSINADO' && selected.status !== 'CANCELADO' && (

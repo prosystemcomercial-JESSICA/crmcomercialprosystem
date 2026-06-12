@@ -606,6 +606,11 @@ class ApiClient {
     return this.client.get(`/contratos-comerciais/${id}/dados-revisao`);
   }
 
+  // Resumo p/ assinatura (e-mail): texto no padrão da gestão, lead→proposta→contrato.
+  async getResumoAssinatura(id: string) {
+    return this.client.get(`/contratos-comerciais/${id}/resumo-assinatura`);
+  }
+
   async enviarContratoZapSign(id: string) {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);
   }
