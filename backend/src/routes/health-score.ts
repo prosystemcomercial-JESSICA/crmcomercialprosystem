@@ -186,6 +186,52 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
     return reply.send({ status: 'success', data: { processados, total: clientes.length } });
   });
 
+  // ===== RANKING DE SAÚDE DA CARTEIRA POR TÉCNICO =====
+  // Agrupa os clientes por grupo_tecnico (que já traz o nome do técnico, ex.:
+  // "Grupo 5 - Wellington") e mede a saúde do atendimento de cada um:
+  // ativos, em risco, em tratamento de churn, inativos (saíram) e índices.
+  fastify.get('/health-scores/ranking-tecnicos', async (_request, reply) => {
+    // Clientes com seus health scores e casos de churn ativos.
+    const clientes = await prisma.cliente.findMany({
+      where: { grupo_tecnico: { not: null } },
+      select: {
+        id: true, grupo_tecnico: true, situacao: true, risco_atencao: true,
+        mrr_perdido: true, mensalidade_base: true,
+        health_score: { select: { nivel: true } },
+        caso_churn: { where: { status: { in: ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO'] } }, select: { id: true } },
+      },
+    }).catch(() => [] as any[]);
+
+    const mapa: Record<string, any> = {};
+    for (const c of clientes) {
+      const g = (c.grupo_tecnico || '').trim();
+      if (!g || /comercial|inativ/i.test(g)) continue; // ignora "Grupo Comercial" e "Empresas inativas"
+      if (!mapa[g]) mapa[g] = { tecnico: g, total: 0, ativos: 0, inativos: 0, em_risco: 0, em_churn: 0, saudaveis: 0, mrr_ativo: 0, mrr_perdido: 0 };
+      const m = mapa[g];
+      m.total += 1;
+      const inativo = (c.situacao || '').toUpperCase().startsWith('INAT');
+      if (inativo) { m.inativos += 1; m.mrr_perdido += Number(c.mrr_perdido || 0); return; }
+      m.ativos += 1;
+      m.mrr_ativo += Number(c.mensalidade_base || 0);
+      const emChurn = c.caso_churn.length > 0;
+      const emRisco = c.risco_atencao || ['RISCO', 'CRITICO'].includes(c.health_score?.nivel || '');
+      if (emChurn) m.em_churn += 1;
+      else if (emRisco) m.em_risco += 1;
+      else m.saudaveis += 1;
+    }
+
+    const ranking = Object.values(mapa).map((m: any) => {
+      const baseAtivos = m.ativos || 1;
+      // Índice de saúde: % de clientes ativos saudáveis (0-100). Quanto maior, melhor.
+      const indice_saude = Math.round((m.saudaveis / baseAtivos) * 100);
+      // Taxa de churn: % de inativos sobre o total da carteira.
+      const taxa_churn = m.total ? Math.round((m.inativos / m.total) * 100) : 0;
+      return { ...m, indice_saude, taxa_churn };
+    }).sort((a, b) => b.indice_saude - a.indice_saude); // melhores carteiras primeiro
+
+    return reply.send({ status: 'success', data: ranking });
+  });
+
   // ===== NPS DASHBOARD (unificado) =====
   // Mescla duas fontes: SurveyResposta (pesquisas de churn, score 1-10) e
   // PesquisaSatisfacao (LP pública, notas 1-5 → convertidas p/ 0-10 = media*2).

@@ -77,10 +77,15 @@ export class CasoChurnService {
       }
     }
 
+    // Churn/Health só medem clientes ATIVOS (inativo já saiu — não se mede).
+    // Mostra casos cujo cliente está ATIVA ou null (legado), exceto INATIVA.
+    where.cliente = { situacao: { not: 'INATIVA' } };
+
     // Busca por cliente: razão social, fantasia, nome, empresa, código ou CNPJ.
     if (filters.busca && String(filters.busca).trim()) {
       const s = String(filters.busca).trim();
       where.cliente = {
+        situacao: { not: 'INATIVA' },
         OR: [
           { razao_social: { contains: s } }, { nome_fantasia: { contains: s } },
           { nome: { contains: s } }, { empresa: { contains: s } },

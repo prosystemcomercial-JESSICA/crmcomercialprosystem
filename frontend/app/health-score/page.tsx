@@ -33,6 +33,7 @@ export default function HealthScorePage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [nivelFilter, setNivelFilter] = useState('');
   const [calculando, setCalculando] = useState(false);
+  const [rankingTec, setRankingTec] = useState<any[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -54,6 +55,12 @@ export default function HealthScorePage() {
   };
 
   useEffect(() => { loadData(); }, [isAuthenticated, nivelFilter]);
+
+  // Ranking de saúde da carteira por técnico (grupo de atendimento).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiClient.getRankingTecnicos().then(r => setRankingTec(r.data.data || [])).catch(() => setRankingTec([]));
+  }, [isAuthenticated]);
 
   const handleCalcularTodos = async () => {
     setCalculando(true);
@@ -124,6 +131,58 @@ export default function HealthScorePage() {
             );
           })}
         </div>
+
+        {/* Ranking de saúde da carteira por TÉCNICO (grupo de atendimento) */}
+        {rankingTec.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-bold text-gray-900">🩺 Saúde da carteira por técnico</h2>
+              <span className="text-xs text-gray-400">só clientes ativos · "saíram" = churn consumado</span>
+            </div>
+            <p className="text-sm text-gray-500 mb-3">Quem mantém a carteira saudável e quem tem mais clientes em risco/saindo.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+                    <th className="py-2 pr-3">#</th>
+                    <th className="py-2 pr-3">Técnico (grupo)</th>
+                    <th className="py-2 pr-3 text-center">Ativos</th>
+                    <th className="py-2 pr-3 text-center">Saudáveis</th>
+                    <th className="py-2 pr-3 text-center">Em risco</th>
+                    <th className="py-2 pr-3 text-center">Em churn</th>
+                    <th className="py-2 pr-3 text-center">Saíram</th>
+                    <th className="py-2 pr-3 text-center">Saúde</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankingTec.map((t: any, i: number) => {
+                    const cor = t.indice_saude >= 90 ? '#16a34a' : t.indice_saude >= 75 ? '#d97706' : '#dc2626';
+                    const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+                    return (
+                      <tr key={t.tecnico} className="border-b border-gray-50">
+                        <td className="py-2 pr-3 text-gray-400">{medalha}</td>
+                        <td className="py-2 pr-3 font-medium text-gray-800">{t.tecnico}</td>
+                        <td className="py-2 pr-3 text-center text-gray-700">{t.ativos}</td>
+                        <td className="py-2 pr-3 text-center text-green-700 font-semibold">{t.saudaveis}</td>
+                        <td className="py-2 pr-3 text-center text-amber-600">{t.em_risco}</td>
+                        <td className="py-2 pr-3 text-center text-red-600 font-semibold">{t.em_churn}</td>
+                        <td className="py-2 pr-3 text-center text-gray-400">{t.inativos}</td>
+                        <td className="py-2 pr-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-16 h-1.5 rounded-full bg-gray-100">
+                              <div className="h-1.5 rounded-full" style={{ width: `${t.indice_saude}%`, background: cor }} />
+                            </div>
+                            <span className="font-bold" style={{ color: cor }}>{t.indice_saude}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {dataLoading ? (
           <div className="text-center p-12 text-gray-500">Calculando health scores...</div>
