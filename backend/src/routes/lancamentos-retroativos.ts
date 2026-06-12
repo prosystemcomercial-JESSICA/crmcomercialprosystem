@@ -127,7 +127,39 @@ export async function lancamentosRetroativosRoutes(
       }).catch(() => null);
     }
 
-    return reply.status(201).send({ status: 'success', data: { proposta, comissao } });
+    // Comissão da SUPERVISÃO (5% do setup) — cada SUPERVISAO_COMERCIAL ativo recebe,
+    // igual ao fluxo normal do contrato. Mesmo mês de pagamento e estágio do vendedor.
+    const comissoesSup: any[] = [];
+    if (body.data.gerar_comissao && body.data.setup > 0) {
+      const sups: any[] = await prisma.$queryRawUnsafe(
+        `SELECT id FROM UsuarioCRM WHERE cargo = 'SUPERVISAO_COMERCIAL' AND status = 'ATIVO'`
+      ).catch(() => []);
+      const valorSup = Math.round(body.data.setup * 0.05 * 100) / 100;
+      for (const s of sups) {
+        const cs = await prisma.comissao.create({
+          data: {
+            responsavel_id: s.id,
+            tipo: 'CONTRATO',
+            referencia_id: proposta.id,
+            descricao: `Comissão supervisão (retroativo): ${body.data.razao_social}`,
+            valor_base: body.data.setup,
+            percentual: 5,
+            valor_comissao: valorSup,
+            periodo: periodoDe(data),
+            papel: 'SUPERVISAO',
+            status: body.data.comissao_paga ? 'PAGA' : 'PENDENTE',
+            estagio: body.data.comissao_paga ? 'PAGA' : 'CONFIRMADA',
+            mes_pagamento: mesPagto,
+            paga_em: body.data.comissao_paga ? data : undefined,
+            created_by: user?.id || 'system',
+            created_at: data,
+          } as any,
+        }).catch(() => null);
+        if (cs) comissoesSup.push(cs);
+      }
+    }
+
+    return reply.status(201).send({ status: 'success', data: { proposta, comissao, comissoes_supervisao: comissoesSup } });
   });
 
   // ── 2) COMISSÃO avulsa retroativa ──────────────────────────────────────────
