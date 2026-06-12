@@ -707,7 +707,10 @@ export default function LeadsPage() {
       setObservacoes(res.data.data || []);
       setObsForm({ tipo: '', descricao: '', proxima_acao: '', data_proximo_retorno: '' });
       await loadData();
-    } catch (e) { console.error(e); } finally { setAddingObs(false); }
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.response?.data?.message || 'Não foi possível registrar o contato. Tente novamente.');
+    } finally { setAddingObs(false); }
   };
 
   const toggleEtiqueta = async (etiquetaId: string) => {
@@ -1898,8 +1901,7 @@ export default function LeadsPage() {
                 <input value={obsForm.proxima_acao} onChange={e => setObsForm(p => ({ ...p, proxima_acao: e.target.value }))}
                   placeholder="Próxima ação..."
                   className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }} />
-                <input type="datetime-local" value={obsForm.data_proximo_retorno} onChange={e => setObsForm(p => ({ ...p, data_proximo_retorno: e.target.value }))}
-                  className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }} />
+                <p className="text-[9px]" style={{ color: '#9AA7B4' }}>A data e hora do registro são gravadas automaticamente.</p>
                 <button onClick={addObs} disabled={addingObs || !obsForm.tipo || !obsForm.descricao}
                   className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40"
                   style={{ background: '#4B8EC8' }}>
