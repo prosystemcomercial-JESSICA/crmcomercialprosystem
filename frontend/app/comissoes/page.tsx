@@ -75,6 +75,7 @@ export default function ComissoesPage() {
   const [vendedoresCRM, setVendedoresCRM] = useState<{ id: string; nome: string }[]>([]);
   // Períodos que têm comissão lançada (inclui meses futuros, ex.: 2026-07).
   const [periodosComComissao, setPeriodosComComissao] = useState<string[]>([]);
+  const [mesAberto, setMesAberto] = useState<string | null>(null); // mês expandido no "Por mês de pagamento"
   // Bônus trimestral (Programa Acelerador) — trimestres iniciam em maio.
   const [bonus, setBonus] = useState<any>(null);
 
@@ -119,6 +120,15 @@ export default function ComissoesPage() {
       await apiClient.marcarComissoesPagas({ mes_pagamento: mes });
       loadData();
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao marcar pagas.'); }
+  };
+
+  // Remarca o mês de pagamento de uma comissão específica (instalação atrasou etc.).
+  const remarcarComissao = async (id: string, novoMes: string) => {
+    if (!novoMes || !/^\d{4}-\d{2}$/.test(novoMes)) return;
+    try {
+      await apiClient.remarcarMesComissao(id, novoMes);
+      loadData();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remarcar o mês.'); }
   };
 
   useEffect(() => { loadData(); }, [isAuthenticated, periodo]);
@@ -436,20 +446,43 @@ export default function ComissoesPage() {
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Por mês de pagamento</h3>
               <div className="space-y-2">
                 {(relatorio.por_mes || []).sort((a: any, b: any) => (a.mes_pagamento > b.mes_pagamento ? 1 : -1)).map((m: any) => (
-                  <div key={m.mes_pagamento} className="flex items-center justify-between p-3 rounded-lg border border-gray-100" style={{ background: '#fafbfc' }}>
-                    <div>
-                      <span className="font-semibold text-gray-800">{m.mes_pagamento === 'A confirmar' ? '⏳ A confirmar' : `📅 ${m.mes_pagamento}`}</span>
-                      <span className="text-xs text-gray-500 ml-2">{m.count} comissão(ões)</span>
+                  <div key={m.mes_pagamento} className="rounded-lg border border-gray-100" style={{ background: '#fafbfc' }}>
+                    <div className="flex items-center justify-between p-3">
+                      <button onClick={() => setMesAberto(mesAberto === m.mes_pagamento ? null : m.mes_pagamento)} className="text-left">
+                        <span className="font-semibold text-gray-800">{mesAberto === m.mes_pagamento ? '▾ ' : '▸ '}{m.mes_pagamento === 'A confirmar' ? '⏳ A confirmar' : `📅 ${m.mes_pagamento}`}</span>
+                        <span className="text-xs text-gray-500 ml-2">{m.count} comissão(ões)</span>
+                      </button>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-gray-800">R$ {Number(m.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        {m.mes_pagamento !== 'A confirmar' && (
+                          <button onClick={() => marcarMesPago(m.mes_pagamento)}
+                            className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0' }}>
+                            Marcar pago
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-gray-800">R$ {Number(m.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      {m.mes_pagamento !== 'A confirmar' && (
-                        <button onClick={() => marcarMesPago(m.mes_pagamento)}
-                          className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0' }}>
-                          Marcar pago
-                        </button>
-                      )}
-                    </div>
+                    {mesAberto === m.mes_pagamento && (
+                      <div className="border-t border-gray-100 px-3 py-2 space-y-1.5">
+                        {(m.itens || []).map((i: any) => (
+                          <div key={i.id} className="flex items-center justify-between gap-2 text-xs flex-wrap">
+                            <span className="text-gray-700 flex-1 min-w-[160px]">
+                              <b>{i.responsavel_nome}</b>{i.cliente ? ` · ${i.cliente}` : ''}{i.descricao ? ` · ${i.descricao}` : ''}
+                              <span className="ml-1" style={{ color: i.estagio === 'PAGA' ? '#16a34a' : '#2563eb' }}>({i.estagio === 'PAGA' ? 'paga' : 'a pagar'})</span>
+                            </span>
+                            <span className="font-semibold text-gray-800">R$ {Number(i.valor_comissao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            {i.estagio !== 'PAGA' && (
+                              <label className="flex items-center gap-1 text-gray-500">
+                                Pagar em:
+                                <input type="month" defaultValue={m.mes_pagamento !== 'A confirmar' ? m.mes_pagamento : ''}
+                                  onChange={e => remarcarComissao(i.id, e.target.value)}
+                                  className="border border-gray-300 rounded px-1.5 py-0.5 text-xs" title="Mudar o mês de pagamento desta comissão" />
+                              </label>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

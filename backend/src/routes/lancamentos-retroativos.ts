@@ -52,6 +52,7 @@ export async function lancamentosRetroativosRoutes(
       vendedor_nome: z.string().optional(),
       gerar_comissao: z.boolean().default(true),
       comissao_paga: z.boolean().default(false), // já paga? senão, a pagar
+      mes_pagamento_comissao: z.string().optional(), // "YYYY-MM" — mês em que a comissão é/será paga
       observacoes: z.string().optional(),
     }).safeParse(request.body);
 
@@ -62,6 +63,11 @@ export async function lancamentosRetroativosRoutes(
     let data: Date;
     try { data = parseDataRetroativa(body.data.data); }
     catch { return reply.status(400).send({ status: 'error', message: 'Data inválida' }); }
+
+    // Mês de pagamento da comissão: informado pela gestão; senão, o mês da venda.
+    const mesPagto = (body.data.mes_pagamento_comissao && /^\d{4}-\d{2}$/.test(body.data.mes_pagamento_comissao))
+      ? body.data.mes_pagamento_comissao
+      : periodoDe(data);
 
     const plano = (body.data.plano || '').toUpperCase();
     const ehPlus = plano === 'PLUS';
@@ -108,9 +114,12 @@ export async function lancamentosRetroativosRoutes(
           valor_comissao: valor,
           periodo: periodoDe(data),
           papel: 'VENDEDOR',
+          // Retroativo: SEMPRE grava o mês de pagamento (informado ou o da venda).
+          // Não paga → estágio CONFIRMADA (entra na aba "A Pagar" daquele mês);
+          // paga → PAGA no mesmo mês.
           status: body.data.comissao_paga ? 'PAGA' : 'PENDENTE',
-          estagio: body.data.comissao_paga ? 'CONFIRMADA' : 'A_RECEBER',
-          mes_pagamento: body.data.comissao_paga ? periodoDe(data) : undefined,
+          estagio: body.data.comissao_paga ? 'PAGA' : 'CONFIRMADA',
+          mes_pagamento: mesPagto,
           paga_em: body.data.comissao_paga ? data : undefined,
           created_by: user?.id || 'system',
           created_at: data,
@@ -132,6 +141,7 @@ export async function lancamentosRetroativosRoutes(
       valor: z.number().positive('Informe o valor da comissão'),
       data: z.string().min(8, 'Informe a data'), // competência (YYYY-MM-DD)
       paga: z.boolean().default(false),
+      mes_pagamento_comissao: z.string().optional(), // "YYYY-MM"
       tipo: z.string().default('VENDA_ADICIONAL'),
     }).safeParse(request.body);
 
@@ -143,6 +153,10 @@ export async function lancamentosRetroativosRoutes(
     try { data = parseDataRetroativa(body.data.data); }
     catch { return reply.status(400).send({ status: 'error', message: 'Data inválida' }); }
 
+    const mesPagto = (body.data.mes_pagamento_comissao && /^\d{4}-\d{2}$/.test(body.data.mes_pagamento_comissao))
+      ? body.data.mes_pagamento_comissao
+      : periodoDe(data);
+
     const comissao = await prisma.comissao.create({
       data: {
         responsavel_id: body.data.vendedor_id,
@@ -153,9 +167,10 @@ export async function lancamentosRetroativosRoutes(
         valor_comissao: body.data.valor,
         periodo: periodoDe(data),
         papel: 'VENDEDOR',
+        // Sempre grava o mês de pagamento; não paga → CONFIRMADA (aba "A Pagar").
         status: body.data.paga ? 'PAGA' : 'PENDENTE',
-        estagio: body.data.paga ? 'CONFIRMADA' : 'A_RECEBER',
-        mes_pagamento: body.data.paga ? periodoDe(data) : undefined,
+        estagio: body.data.paga ? 'PAGA' : 'CONFIRMADA',
+        mes_pagamento: mesPagto,
         paga_em: body.data.paga ? data : undefined,
         created_by: user?.id || 'system',
         created_at: data,

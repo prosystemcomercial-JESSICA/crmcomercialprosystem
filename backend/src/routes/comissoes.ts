@@ -304,6 +304,25 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     return reply.send({ status: 'success', data: { pagas: r.count } });
   });
 
+  // Remarcar o MÊS DE PAGAMENTO de uma comissão (gestão). Útil quando a instalação
+  // não fecha no mês e a comissão precisa ir para outro mês de pagamento.
+  fastify.patch('/comissoes/:id/mes-pagamento', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({ mes_pagamento: z.string().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM') }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Mês inválido' });
+    try {
+      const c = await prisma.comissao.update({
+        where: { id },
+        data: { mes_pagamento: body.data.mes_pagamento } as any,
+      });
+      return reply.send({ status: 'success', data: c });
+    } catch (e: any) {
+      if (e.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Comissão não encontrada' });
+      throw e;
+    }
+  });
+
   // ===== EXTRATO DE COMISSÕES =====
   // Períodos (YYYY-MM) que TÊM comissão lançada — p/ o seletor de mês mostrar
   // todos (inclusive meses futuros, ex.: comissão de venda adicional lançada p/

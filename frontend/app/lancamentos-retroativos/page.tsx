@@ -35,8 +35,8 @@ export default function LancamentosRetroativosPage() {
   }, [isAuthenticated]);
 
   // ── Estado dos formulários ──
-  const [venda, setVenda] = useState({ razao_social: '', cnpj: '', segmento: '', data: '', setup: '', mensalidade: '', plano: 'PLUS', vendedor_id: '', gerar_comissao: true, comissao_paga: false, observacoes: '' });
-  const [comissao, setComissao] = useState({ vendedor_id: '', descricao: '', valor: '', data: '', paga: false });
+  const [venda, setVenda] = useState({ razao_social: '', cnpj: '', segmento: '', data: '', setup: '', mensalidade: '', plano: 'PLUS', vendedor_id: '', gerar_comissao: true, comissao_paga: false, mes_pagamento_comissao: '', observacoes: '' });
+  const [comissao, setComissao] = useState({ vendedor_id: '', descricao: '', valor: '', data: '', paga: false, mes_pagamento_comissao: '' });
   const [saida, setSaida] = useState({ busca: '', cliente_id: '', cliente_nome: '', razao_social: '', data: '', mrr_perdido: '', motivo: '', grupo_tecnico: '' });
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
 
@@ -63,11 +63,12 @@ export default function LancamentosRetroativosPage() {
         razao_social: venda.razao_social.trim(), cnpj: venda.cnpj || undefined, segmento: venda.segmento || undefined,
         data: venda.data, setup: Number(venda.setup) || 0, mensalidade: Number(venda.mensalidade) || 0,
         plano: venda.plano, vendedor_id: venda.vendedor_id || undefined, vendedor_nome: nome,
-        gerar_comissao: venda.gerar_comissao && !!venda.vendedor_id, comissao_paga: venda.comissao_paga, observacoes: venda.observacoes || undefined,
+        gerar_comissao: venda.gerar_comissao && !!venda.vendedor_id, comissao_paga: venda.comissao_paga,
+        mes_pagamento_comissao: venda.mes_pagamento_comissao || undefined, observacoes: venda.observacoes || undefined,
       });
       addHistorico(`✅ Venda fechada: ${venda.razao_social} (${venda.data})`);
       flash('ok', 'Venda retroativa lançada! Já aparece no relatório do mês.');
-      setVenda({ razao_social: '', cnpj: '', segmento: '', data: venda.data, setup: '', mensalidade: '', plano: 'PLUS', vendedor_id: venda.vendedor_id, gerar_comissao: true, comissao_paga: false, observacoes: '' });
+      setVenda({ razao_social: '', cnpj: '', segmento: '', data: venda.data, setup: '', mensalidade: '', plano: 'PLUS', vendedor_id: venda.vendedor_id, gerar_comissao: true, comissao_paga: false, mes_pagamento_comissao: venda.mes_pagamento_comissao, observacoes: '' });
     } catch (e) { flash('erro', erroMsg(e)); } finally { setSalvando(false); }
   };
 
@@ -75,11 +76,11 @@ export default function LancamentosRetroativosPage() {
     if (!comissao.vendedor_id || !comissao.valor || !comissao.data) return flash('erro', 'Informe vendedor, valor e data.');
     setSalvando(true);
     try {
-      await apiClient.retroativoComissao({ vendedor_id: comissao.vendedor_id, descricao: comissao.descricao || undefined, valor: Number(comissao.valor), data: comissao.data, paga: comissao.paga });
+      await apiClient.retroativoComissao({ vendedor_id: comissao.vendedor_id, descricao: comissao.descricao || undefined, valor: Number(comissao.valor), data: comissao.data, paga: comissao.paga, mes_pagamento_comissao: comissao.mes_pagamento_comissao || undefined });
       const nome = vendedores.find(v => v.id === comissao.vendedor_id)?.nome || 'vendedor';
       addHistorico(`✅ Comissão ${comissao.paga ? '(paga)' : '(a pagar)'}: ${nome} — R$ ${comissao.valor} (${comissao.data})`);
       flash('ok', 'Comissão retroativa lançada!');
-      setComissao({ vendedor_id: comissao.vendedor_id, descricao: '', valor: '', data: comissao.data, paga: false });
+      setComissao({ vendedor_id: comissao.vendedor_id, descricao: '', valor: '', data: comissao.data, paga: false, mes_pagamento_comissao: comissao.mes_pagamento_comissao });
     } catch (e) { flash('erro', erroMsg(e)); } finally { setSalvando(false); }
   };
 
@@ -163,6 +164,13 @@ export default function LancamentosRetroativosPage() {
                   Essa comissão já foi <b>paga</b> (senão fica como “a pagar”)
                 </label>
               )}
+              {venda.gerar_comissao && (
+                <div className="ml-6">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Mês de pagamento da comissão</label>
+                  <input type="month" className={inputCls + ' max-w-[200px]'} value={venda.mes_pagamento_comissao} onChange={e => setVenda({ ...venda, mes_pagamento_comissao: e.target.value })} />
+                  <p className="text-xs text-gray-500 mt-1">{venda.comissao_paga ? 'Entra como paga no relatório deste mês.' : 'Fica em "A pagar" neste mês (na aba de Comissões). Em branco = mês da venda.'}</p>
+                </div>
+              )}
               {venda.gerar_comissao && !venda.vendedor_id && <p className="text-xs text-amber-600 ml-6">Selecione um vendedor para gerar a comissão.</p>}
             </div>
             <button disabled={salvando} onClick={salvarVenda} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm">
@@ -183,12 +191,14 @@ export default function LancamentosRetroativosPage() {
               </Campo>
               <Campo label="Valor da comissão R$ *"><input type="number" className={inputCls} value={comissao.valor} onChange={e => setComissao({ ...comissao, valor: e.target.value })} placeholder="0" /></Campo>
               <Campo label="Data (competência) *"><input type="date" className={inputCls} value={comissao.data} onChange={e => setComissao({ ...comissao, data: e.target.value })} /></Campo>
+              <Campo label="Mês de pagamento da comissão"><input type="month" className={inputCls} value={comissao.mes_pagamento_comissao} onChange={e => setComissao({ ...comissao, mes_pagamento_comissao: e.target.value })} /></Campo>
               <Campo label="Descrição"><input className={inputCls} value={comissao.descricao} onChange={e => setComissao({ ...comissao, descricao: e.target.value })} placeholder="Ex.: venda adicional / upgrade" /></Campo>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" checked={comissao.paga} onChange={e => setComissao({ ...comissao, paga: e.target.checked })} />
               Essa comissão já foi <b>paga</b> (senão fica como “a pagar”)
             </label>
+            <p className="text-xs text-gray-500">Mês de pagamento em branco = mês da competência. Não paga → entra em "A pagar" na aba de Comissões.</p>
             <button disabled={salvando} onClick={salvarComissao} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm">
               {salvando ? 'Salvando...' : 'Lançar comissão retroativa'}
             </button>

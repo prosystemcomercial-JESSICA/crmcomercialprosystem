@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor } from '@/lib/scope';
+import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 // Relatório Comercial mensal (o que vai para o CEO).
 // GET calcula o pipeline automaticamente das PropostasComerciais e mescla com o
@@ -169,6 +170,30 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       vendedor: v.vendedor_nome || '—', status: v.status, acrescimo: Number(v.acrescimo_mensal || 0),
     }));
 
+    // 4b) Comissões cujo MÊS DE PAGAMENTO é este mês (pagas + a pagar) — com nomes.
+    const mesPagamento = `${ano}-${String(mes).padStart(2, '0')}`;
+    const comissoesMes = await prisma.comissao.findMany({
+      where: { mes_pagamento: mesPagamento, status: { not: 'CANCELADA' } },
+      select: { responsavel_id: true, descricao: true, valor_comissao: true, estagio: true, status: true, papel: true, tipo: true },
+      orderBy: { valor_comissao: 'desc' },
+    }).catch(() => [] as any[]);
+    const nomesResp = await resolverNomesUsuarios(prisma, [...new Set(comissoesMes.map((c: any) => c.responsavel_id).filter(Boolean))]).catch(() => ({} as any));
+    const ehPaga = (c: any) => c.estagio === 'PAGA' || c.status === 'PAGA';
+    const comissoes_lista = comissoesMes.map((c: any) => ({
+      responsavel: nomesResp[c.responsavel_id] || '—',
+      descricao: c.descricao || (c.tipo || 'Comissão'),
+      papel: c.papel || 'VENDEDOR',
+      valor: Number(c.valor_comissao || 0),
+      paga: ehPaga(c),
+    }));
+    const comissoes = {
+      total: comissoesMes.length,
+      total_valor: Math.round(comissoes_lista.reduce((s, c) => s + c.valor, 0)),
+      pagas_valor: Math.round(comissoes_lista.filter(c => c.paga).reduce((s, c) => s + c.valor, 0)),
+      a_pagar_valor: Math.round(comissoes_lista.filter(c => !c.paga).reduce((s, c) => s + c.valor, 0)),
+      lista: comissoes_lista,
+    };
+
     // 5) Entrada × Saída (MRR): ganho (fechamentos) vs perdido (churn) no mês.
     const entrada_x_saida = {
       mrr_entrada: Math.round(mrrGanhoTotal),
@@ -184,6 +209,7 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       fechamentos: { total: totalFechamentos, setup_total: Math.round(setupTotal), setup_medio: setupMedio, mrr_total: Math.round(mrrGanhoTotal), mrr_medio: mrrMedio, lista: fechamentos_lista },
       perdidos: { total: totalPerdidos, mrr_perdido_total: Math.round(mrrPerdidoTotal), lista: perdidos_lista },
       indicacoes: { total: indicacoes.length, lista: indicacoes_lista },
+      comissoes,
       entrada_x_saida,
     };
   }
