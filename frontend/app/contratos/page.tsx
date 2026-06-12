@@ -113,6 +113,7 @@ export default function ContratosPage() {
   const [showGerarCliente, setShowGerarCliente] = useState(false);
   const [gcForm, setGcForm] = useState<any>({ codigo: '', telefone: '', telefone2: '', email: '', grupo_tecnico: '', segmento: '', observacoes: '' });
   const [gerandoCli, setGerandoCli] = useState(false);
+  const [gruposTecnicos, setGruposTecnicos] = useState<string[]>([]);
   const [vendedores, setVendedores]   = useState<{ id: string; nome: string }[]>([]);
 
   useEffect(() => {
@@ -255,12 +256,19 @@ export default function ContratosPage() {
     if (!selected) return;
     setGcForm({ codigo: '', telefone: (selected as any).representante_telefone || '', telefone2: '', email: (selected as any).representante_email || '', grupo_tecnico: '', segmento: '', observacoes: '' });
     setShowGerarCliente(true);
+    // Carrega os grupos técnicos já existentes p/ o dropdown (uma vez).
+    if (gruposTecnicos.length === 0) {
+      apiClient.getGruposTecnicos().then(r => setGruposTecnicos(r.data?.data || [])).catch(() => {});
+    }
   };
   const handleGerarCliente = async () => {
     if (!selected) return;
     setGerandoCli(true);
     try {
-      const r = await apiClient.gerarClienteDoContrato(selected.id, gcForm);
+      // Resolve o grupo: "+ Novo grupo…" usa o texto digitado; senão, o selecionado.
+      const grupoFinal = gcForm.grupo_tecnico === '__novo__' ? (gcForm.grupo_tecnico_novo || '').trim() : gcForm.grupo_tecnico;
+      const { grupo_tecnico_novo, ...rest } = gcForm;
+      const r = await apiClient.gerarClienteDoContrato(selected.id, { ...rest, grupo_tecnico: grupoFinal });
       setShowGerarCliente(false);
       alert(r.data?.message || 'Cadastro gerado no CRM!');
       load();
@@ -866,7 +874,18 @@ export default function ContratosPage() {
                             <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Código do cliente *</label>
                               <input value={gcForm.codigo} onChange={e => setGcForm((f: any) => ({ ...f, codigo: e.target.value }))} className="ps-input text-sm" placeholder="ex: 1530" /></div>
                             <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Grupo técnico</label>
-                              <input value={gcForm.grupo_tecnico} onChange={e => setGcForm((f: any) => ({ ...f, grupo_tecnico: e.target.value }))} className="ps-input text-sm" placeholder="ex: Grupo 5" /></div>
+                              {gcForm.grupo_tecnico === '__novo__' ? (
+                                <div className="flex gap-1 items-center">
+                                  <input autoFocus value={gcForm.grupo_tecnico_novo || ''} onChange={e => setGcForm((f: any) => ({ ...f, grupo_tecnico_novo: e.target.value }))} className="ps-input text-sm" placeholder="Novo grupo, ex: Grupo 6 - Ana" />
+                                  <button type="button" onClick={() => setGcForm((f: any) => ({ ...f, grupo_tecnico: '', grupo_tecnico_novo: '' }))} title="Voltar à lista" style={{ fontSize: 11, color: 'var(--t-text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>↩</button>
+                                </div>
+                              ) : (
+                                <select value={gcForm.grupo_tecnico} onChange={e => setGcForm((f: any) => ({ ...f, grupo_tecnico: e.target.value }))} className="ps-input text-sm">
+                                  <option value="">— selecione —</option>
+                                  {gruposTecnicos.map(g => <option key={g} value={g}>{g}</option>)}
+                                  <option value="__novo__">+ Novo grupo…</option>
+                                </select>
+                              )}</div>
                             <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Telefone</label>
                               <input value={gcForm.telefone} onChange={e => setGcForm((f: any) => ({ ...f, telefone: e.target.value }))} className="ps-input text-sm" /></div>
                             <div><label style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Telefone 2</label>

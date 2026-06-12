@@ -520,6 +520,20 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { clientes, total, page, limit, opcoes } });
   });
 
+  // Lista LEVE dos grupos técnicos já existentes (p/ dropdowns, ex.: gerar cadastro).
+  // Rota estática ANTES de /clientes/:id para não ser capturada pela dinâmica.
+  fastify.get('/clientes/grupos-tecnicos', async (_request, reply) => {
+    const grupos = await prisma.cliente.findMany({
+      where: { grupo_tecnico: { not: null } },
+      distinct: ['grupo_tecnico'],
+      select: { grupo_tecnico: true },
+      orderBy: { grupo_tecnico: 'asc' },
+      take: 300,
+    }).catch(() => [] as any[]);
+    const lista = grupos.map(g => g.grupo_tecnico).filter(Boolean) as string[];
+    return reply.send({ status: 'success', data: lista });
+  });
+
   // Get cliente by id (full)
   fastify.get('/clientes/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
