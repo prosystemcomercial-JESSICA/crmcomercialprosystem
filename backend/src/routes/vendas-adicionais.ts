@@ -427,6 +427,23 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
           feito_por: user?.id, feito_por_nome: vendedorNome,
         },
       }).catch(() => {});
+
+      // GRUPO DE LOJAS: na comunicação, registra em cada loja que ela faz parte de
+      // um grupo que se comunica, listando AS OUTRAS lojas (não mescla cadastros).
+      if (ehComunicacao && lojasDetalheFinal.length > 1) {
+        const nome = (l: any) => `${l.codigo ? l.codigo + ' - ' : ''}${l.nome || l.cliente_id}`;
+        const outras = lojasDetalheFinal.filter(l => l.cliente_id !== f.cid).map(nome);
+        await (prisma as any).eventoCliente.create({
+          data: {
+            cliente_id: f.cid, tipo: 'OBSERVACAO',
+            titulo: `🏪 Faz parte de um grupo de ${lojasDetalheFinal.length} lojas (comunicação entre lojas)`,
+            descricao: `Esta loja se comunica com: ${outras.join(' · ')}`,
+            referencia_id: venda.id,
+            metadados: { grupo_lojas_ids: lojasDetalheFinal.map(l => l.cliente_id), grupo_lojas_nomes: lojasDetalheFinal.map(nome) },
+            feito_por: user?.id, feito_por_nome: vendedorNome,
+          },
+        }).catch(() => {});
+      }
     }
 
     return reply.status(201).send({ status: 'success', data: venda });
