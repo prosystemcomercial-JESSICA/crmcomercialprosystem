@@ -799,6 +799,12 @@ export default function IndicacoesPage() {
                           : `${Math.max(1, Number(vendaForm.setup_parcelas || 1))}x de R$ ${valorParcelaSetup.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                       </p>
                     )}
+                    {Number(vendaForm.valor_venda || 0) > 0 && (
+                      <div className="mt-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-[11px] text-green-800">
+                        <b>Comissão sobre o setup:</b> Vendedor 15% = R$ {(Number(vendaForm.valor_venda || 0) * 0.15).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} · Supervisão 5% = R$ {(Number(vendaForm.valor_venda || 0) * 0.05).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <span className="block text-green-600">Paga no mês seguinte ao 1º vencimento, após a confirmação.</span>
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>

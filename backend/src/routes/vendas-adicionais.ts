@@ -89,18 +89,28 @@ function mesSeguinteDe(data?: Date | string | null): string {
 
 function baseComissaoSupervisao(parceiro: any, valorVenda?: number | null, acrescimoMensal?: number | null): number {
   // Base do cálculo da comissão da supervisão por categoria:
+  //  - COMUNICAÇÃO → SETUP da comunicação (valor_venda);
   //  - UPGRADE → SETUP do upgrade (valor_venda);
   //  - FISCAL  → ACRÉSCIMO na mensalidade (acrescimo_mensal);
   //  - demais  → valor de referência fixo do parceiro (fallback p/ valor_venda).
+  if (parceiro.categoria === 'COMUNICACAO') return valorVenda ?? 0;
   if (parceiro.categoria === 'UPGRADE') return valorVenda ?? 0;
   if (parceiro.categoria === 'FISCAL') return acrescimoMensal ?? 0;
   return parceiro.valor_referencia ?? valorVenda ?? 0;
 }
 
+// Percentual da supervisão. COMUNICAÇÃO é fixo em 5% do setup (regra de negócio),
+// independente do cadastro do parceiro; demais usam o pct configurado no parceiro.
+function pctComissaoSupervisao(parceiro: any): number {
+  if (parceiro.categoria === 'COMUNICACAO') return 5;
+  return parceiro.comissao_supervisao_pct ?? 0;
+}
+
 function calcularComissaoSupervisao(parceiro: any, valorVenda?: number | null, acrescimoMensal?: number | null): number {
-  if (parceiro.comissao_supervisao_pct <= 0) return 0;
+  const pct = pctComissaoSupervisao(parceiro);
+  if (pct <= 0) return 0;
   const base = baseComissaoSupervisao(parceiro, valorVenda, acrescimoMensal);
-  return parseFloat(((base * parceiro.comissao_supervisao_pct) / 100).toFixed(2));
+  return parseFloat(((base * pct) / 100).toFixed(2));
 }
 
 export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
@@ -307,12 +317,16 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const mensalidadeNova = mensalidadeAnterior + Number(body.data.acrescimo_mensal || 0);
 
     // Comissão do vendedor:
+    //  - COMUNICAÇÃO → 15% do SETUP (valor_venda);
     //  - UPGRADE de plano → R$50 fixo (após confirmação);
     //  - INDICAÇÃO → R$50 fixo; REVENDA → valor do parceiro.
     // Um valor enviado explicitamente (comissao_valor) sempre prevalece.
-    const comissaoPadrao = parceiro.categoria === 'UPGRADE'
-      ? 50
-      : (body.data.tipo_negocio === 'INDICACAO' ? 50 : parceiro.comissao_valor);
+    const ehComunic = parceiro.categoria === 'COMUNICACAO';
+    const comissaoPadrao = ehComunic
+      ? parseFloat((Number(body.data.valor_venda || 0) * 0.15).toFixed(2))
+      : (parceiro.categoria === 'UPGRADE'
+          ? 50
+          : (body.data.tipo_negocio === 'INDICACAO' ? 50 : parceiro.comissao_valor));
     const comissaoValor = body.data.comissao_valor ?? comissaoPadrao;
     const supervisaoId = user?.id || null;
 
@@ -400,9 +414,11 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
         tipo: 'VENDA_ADICIONAL',
         referencia_id: venda.id,
         descricao: `Venda Adicional: ${parceiro.nome} — ${venda.cliente.nome}`,
-        valor_base: comissaoValor,
-        percentual: 100,
+        // COMUNICAÇÃO: base = setup, 15%. Demais: valor fixo (base=valor, 100%).
+        valor_base: ehComunic ? Number(body.data.valor_venda || 0) : comissaoValor,
+        percentual: ehComunic ? 15 : 100,
         valor_comissao: comissaoValor,
+        papel: 'VENDEDOR',
         periodo,
         status: 'PENDENTE',
         created_by: user?.id || 'system',
@@ -594,9 +610,13 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
                   body.data.valor_venda ?? vendaAtual.valor_venda,
                   acrescimoMensal,
                 ),
-                percentual: vendaAtual.parceiro.comissao_supervisao_pct,
+                percentual: pctComissaoSupervisao(vendaAtual.parceiro),
                 valor_comissao: comissaoSupervisao,
-                periodo: proximoMes(),
+                papel: 'SUPERVISAO',
+                // COMUNICAÇÃO: comissão no mês seguinte ao 1º vencimento (igual vendedor).
+                periodo: vendaAtual.parceiro?.categoria === 'COMUNICACAO'
+                  ? mesSeguinteDe((vendaAtual as any).primeiro_vencimento)
+                  : proximoMes(),
                 status: 'APROVADA',
                 created_by: user?.id || 'system',
               },
