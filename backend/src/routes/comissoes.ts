@@ -323,6 +323,131 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     }
   });
 
+  // APROVAR uma comissão indicando o MÊS de pagamento (gestão). Vai para CONFIRMADA
+  // (a pagar) no mês informado → reflete no relatório do vendedor e no da gestão.
+  fastify.post('/comissoes/:id/aprovar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const user = (request as any).user;
+    const body = z.object({ mes_pagamento: z.string().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM') }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Informe o mês de pagamento (AAAA-MM)' });
+    try {
+      const c = await prisma.comissao.update({
+        where: { id },
+        data: { status: 'APROVADA', estagio: 'CONFIRMADA', mes_pagamento: body.data.mes_pagamento, aprovada_por: user?.id || 'system', aprovada_em: new Date() } as any,
+      });
+      return reply.send({ status: 'success', data: c });
+    } catch (e: any) {
+      if (e.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Comissão não encontrada' });
+      throw e;
+    }
+  });
+
+  // ORDEM DE PAGAMENTO mensal: comissões a pagar (CONFIRMADA/APROVADA) de um mês de
+  // pagamento, agrupadas por responsável (vendedor/supervisão), com total por pessoa.
+  // Formato da "ordem de pagamento" da gestão (Razão+Código · Demanda · valor · % · comissão).
+  fastify.get('/comissoes/ordem-pagamento', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({ mes_pagamento: z.string().regex(/^\d{4}-\d{2}$/).optional() }).safeParse(request.query);
+    const mes = q.success && q.data.mes_pagamento ? q.data.mes_pagamento
+      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+    // A pagar = ainda não paga (exclui PAGA e CANCELADA) com mes_pagamento = mês.
+    const comissoes = await prisma.comissao.findMany({
+      where: { mes_pagamento: mes, status: { notIn: ['PAGA', 'CANCELADA'] } },
+      orderBy: { valor_comissao: 'desc' },
+    }).catch(() => [] as any[]);
+
+    const clienteDe = await mapaClientes(comissoes as any[]);
+    const ids = [...new Set(comissoes.map((c: any) => c.responsavel_id).filter(Boolean))];
+    const nomeDe = await resolverNomesUsuarios(prisma, ids).catch(() => ({} as any));
+
+    // Agrupa por responsável; separa papel (VENDEDOR/SUPERVISAO) p/ totalizar.
+    const grupos: Record<string, any> = {};
+    for (const c of comissoes as any[]) {
+      const rid = c.responsavel_id || 'sem';
+      grupos[rid] = grupos[rid] || {
+        responsavel_id: rid, responsavel_nome: nomeDe[rid] || rid,
+        papel: c.papel || 'VENDEDOR', total: 0, itens: [] as any[],
+      };
+      grupos[rid].total += Number(c.valor_comissao || 0);
+      grupos[rid].itens.push({
+        cliente: clienteDe[c.referencia_id || ''] || c.descricao || '—',
+        demanda: c.descricao || (c.tipo === 'VENDA_ADICIONAL' ? 'Venda adicional' : c.tipo === 'BONUS' ? 'Bônus' : 'Instalação'),
+        valor_servico: Number(c.valor_base || 0),
+        percentual: Number(c.percentual || 0),
+        valor_comissao: Number(c.valor_comissao || 0),
+        tipo: c.tipo,
+      });
+    }
+    const lista = Object.values(grupos).sort((a: any, b: any) => b.total - a.total);
+    const totalGeral = lista.reduce((s: number, g: any) => s + g.total, 0);
+    const totalVendedores = lista.filter((g: any) => g.papel !== 'SUPERVISAO').reduce((s: number, g: any) => s + g.total, 0);
+    const totalSupervisao = lista.filter((g: any) => g.papel === 'SUPERVISAO').reduce((s: number, g: any) => s + g.total, 0);
+
+    return reply.send({ status: 'success', data: { mes_pagamento: mes, grupos: lista, total_geral: Math.round(totalGeral * 100) / 100, total_vendedores: Math.round(totalVendedores * 100) / 100, total_supervisao: Math.round(totalSupervisao * 100) / 100 } });
+  });
+
+  // LANÇAR BÔNUS TRIMESTRAL: ao fim da campanha, cria a comissão de bônus p/ cada
+  // vendedor que bateu a meta, com pagamento no MÊS SEGUINTE ao fim do trimestre
+  // (terminou em julho → paga em agosto). Idempotente por (vendedor + trimestre).
+  fastify.post('/comissoes/bonus-trimestral/lancar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const user = (request as any).user;
+    const q = z.object({ ref: z.string().regex(/^\d{4}-\d{2}$/).optional() }).safeParse(request.body);
+    const agora = new Date();
+    const [yy, mm] = q.success && q.data.ref ? q.data.ref.split('-').map(Number) : [agora.getFullYear(), agora.getMonth() + 1];
+    const tri = trimestreProsystem(yy, mm);
+
+    // Mês de pagamento = mês seguinte ao FIM do trimestre.
+    const fimMesPagto = new Date(tri.fim.getFullYear(), tri.fim.getMonth() + 1, 1);
+    const mesPagamento = `${fimMesPagto.getFullYear()}-${String(fimMesPagto.getMonth() + 1).padStart(2, '0')}`;
+
+    // Conta contratos fechados no trimestre por vendedor.
+    const props = await prisma.propostaComercial.findMany({
+      where: {
+        status: { in: STATUS_FECHADA_BONUS },
+        OR: [
+          { data_aceite: { gte: tri.inicio, lte: tri.fim } },
+          { AND: [{ data_aceite: null }, { created_at: { gte: tri.inicio, lte: tri.fim } }] },
+        ],
+        deleted_at: null,
+      },
+      select: { vendedor_id: true, vendedor_nome: true },
+    }).catch(() => [] as any[]);
+
+    const porVend: Record<string, { nome: string | null; contratos: number }> = {};
+    for (const p of props) {
+      const id = p.vendedor_id; if (!id) continue;
+      porVend[id] = porVend[id] || { nome: p.vendedor_nome || null, contratos: 0 };
+      porVend[id].contratos += 1;
+    }
+    const nomes = await resolverNomesUsuarios(prisma, Object.keys(porVend)).catch(() => ({} as any));
+
+    let criadas = 0, jaExistiam = 0; const detalhe: any[] = [];
+    for (const [vid, v] of Object.entries(porVend)) {
+      const faixa = FAIXAS_BONUS.find(f => v.contratos >= f.meta);
+      if (!faixa) continue;
+      const refId = `bonus-${tri.rotulo}-${vid}`; // idempotência por vendedor+trimestre
+      const existe = await prisma.comissao.findFirst({ where: { referencia_id: refId, tipo: 'BONUS' } }).catch(() => null);
+      if (existe) { jaExistiam++; continue; }
+      await prisma.comissao.create({
+        data: {
+          responsavel_id: vid, tipo: 'BONUS', referencia_id: refId,
+          descricao: `Bônus trimestral (${tri.rotulo}) — ${faixa.rotulo}, ${v.contratos} contratos`,
+          valor_base: faixa.premio, percentual: 100, valor_comissao: faixa.premio,
+          periodo: mesPagamento, mes_pagamento: mesPagamento, papel: 'VENDEDOR',
+          status: 'APROVADA', estagio: 'CONFIRMADA', aprovada_por: user?.id || 'system', aprovada_em: new Date(),
+          created_by: user?.id || 'system',
+        } as any,
+      });
+      criadas++;
+      detalhe.push({ vendedor: nomes[vid] || v.nome || vid, contratos: v.contratos, faixa: faixa.rotulo, premio: faixa.premio });
+    }
+
+    return reply.send({ status: 'success', data: { trimestre: tri.rotulo, mes_pagamento: mesPagamento, bonus_criados: criadas, ja_existiam: jaExistiam, detalhe } });
+  });
+
   // ===== EXTRATO DE COMISSÕES =====
   // Períodos (YYYY-MM) que TÊM comissão lançada — p/ o seletor de mês mostrar
   // todos (inclusive meses futuros, ex.: comissão de venda adicional lançada p/

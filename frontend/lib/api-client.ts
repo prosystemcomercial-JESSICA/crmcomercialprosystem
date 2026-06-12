@@ -893,6 +893,18 @@ class ApiClient {
   async getComissoesRelatorio(params?: { mes_pagamento?: string; estagio?: string }) {
     return this.client.get('/comissoes/relatorio', { params });
   }
+  // Aprovar comissão indicando o mês de pagamento (gestão).
+  async aprovarComissao(id: string, mes_pagamento: string) {
+    return this.client.post(`/comissoes/${id}/aprovar`, { mes_pagamento });
+  }
+  // Ordem de pagamento mensal (comissões a pagar do mês, por vendedor/supervisão).
+  async getOrdemPagamento(mes_pagamento: string) {
+    return this.client.get('/comissoes/ordem-pagamento', { params: { mes_pagamento } });
+  }
+  // Lançar o bônus trimestral (paga no mês seguinte ao fim do trimestre).
+  async lancarBonusTrimestral(ref?: string) {
+    return this.client.post('/comissoes/bonus-trimestral/lancar', ref ? { ref } : {});
+  }
   async retroativoSaida(data: { cliente_id?: string; nome?: string; razao_social?: string; data: string; mrr_perdido: number; motivo?: string; grupo_tecnico?: string }) {
     return this.client.post('/retroativos/saida', data);
   }
