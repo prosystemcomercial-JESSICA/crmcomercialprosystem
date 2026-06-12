@@ -879,11 +879,19 @@ class ApiClient {
   }
 
   // ── Lançamentos retroativos (só gestão) ──
-  async retroativoVenda(data: { razao_social: string; nome_fantasia?: string; cnpj?: string; segmento?: string; data: string; setup: number; mensalidade: number; plano?: string; vendedor_id?: string; vendedor_nome?: string; gerar_comissao: boolean; comissao_paga: boolean; observacoes?: string }) {
+  async retroativoVenda(data: { razao_social: string; nome_fantasia?: string; cnpj?: string; segmento?: string; data: string; setup: number; mensalidade: number; plano?: string; vendedor_id?: string; vendedor_nome?: string; gerar_comissao: boolean; comissao_paga: boolean; mes_pagamento_comissao?: string; observacoes?: string }) {
     return this.client.post('/retroativos/venda', data);
   }
-  async retroativoComissao(data: { vendedor_id: string; descricao?: string; valor: number; data: string; paga: boolean; tipo?: string }) {
+  async retroativoComissao(data: { vendedor_id: string; descricao?: string; valor: number; data: string; paga: boolean; mes_pagamento_comissao?: string; tipo?: string }) {
     return this.client.post('/retroativos/comissao', data);
+  }
+  // Remarcar o mês de pagamento de uma comissão (gestão).
+  async remarcarMesComissao(id: string, mes_pagamento: string) {
+    return this.client.patch(`/comissoes/${id}/mes-pagamento`, { mes_pagamento });
+  }
+  // Relatório de comissões agrupado por mês de pagamento (aba A Pagar por mês).
+  async getComissoesRelatorio(params?: { mes_pagamento?: string; estagio?: string }) {
+    return this.client.get('/comissoes/relatorio', { params });
   }
   async retroativoSaida(data: { cliente_id?: string; nome?: string; razao_social?: string; data: string; mrr_perdido: number; motivo?: string; grupo_tecnico?: string }) {
     return this.client.post('/retroativos/saida', data);
