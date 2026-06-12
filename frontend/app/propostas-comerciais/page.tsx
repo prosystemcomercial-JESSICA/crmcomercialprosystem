@@ -38,6 +38,7 @@ interface PropostaComercial {
   origem?: string;
   plano_selecionado?: string;
   plano_recomendado?: string;
+  mensalidade_basic?: number;
   mensalidade_pro?: number;
   mensalidade_plus?: number;
   modulos_inclusos?: string[];
@@ -86,6 +87,7 @@ const BLANK_FORM = {
   origem: '',
   plano_selecionado: '',
   plano_recomendado: '',
+  mensalidade_basic: '',
   mensalidade_pro: '',
   mensalidade_plus: '',
   modulos_inclusos: [] as string[],
@@ -331,6 +333,7 @@ export default function PropostasComerciais() {
       // antigas, usa o que houver preenchido como recomendado.
       plano_recomendado: p.plano_recomendado || p.plano_selecionado || '',
       plano_selecionado: p.plano_recomendado || p.plano_selecionado || '',
+      mensalidade_basic: (p as any).mensalidade_basic?.toString() || '',
       mensalidade_pro: p.mensalidade_pro?.toString() || '',
       mensalidade_plus: p.mensalidade_plus?.toString() || '',
       modulos_inclusos: Array.isArray(p.modulos_inclusos) ? p.modulos_inclusos : [],
@@ -388,6 +391,7 @@ export default function PropostasComerciais() {
         frase_hero:      (form.frase_hero as string)?.trim()      || tpl?.hero  || '',
         texto_valor:     (form.texto_valor as string)?.trim()     || tpl?.valor || '',
         maquinas: parseNum(form.maquinas as string),
+        mensalidade_basic: parseNum(form.mensalidade_basic as string),
         mensalidade_pro: parseNum(form.mensalidade_pro as string),
         mensalidade_plus: parseNum(form.mensalidade_plus as string),
         valor_implantacao: parseNum(form.valor_implantacao as string),
@@ -1084,6 +1088,11 @@ export default function PropostasComerciais() {
                         {planosPorSegmento(form.segmento as string).map(pl => <option key={pl} value={pl}>{pl}</option>)}
                       </select>
                     </FormField>
+                    {!(form.plano_selecionado === 'MEI' || form.plano_recomendado === 'MEI') && (
+                      <FormField label={`Mensalidade ${/farm/i.test(form.segmento as string) ? 'Farma' : 'Loja'} Basic (R$)`}>
+                        <input type="number" value={form.mensalidade_basic as string} onChange={e => setField('mensalidade_basic', e.target.value)} className="ps-input w-full" placeholder="Ex: 230" />
+                      </FormField>
+                    )}
                     {!(form.plano_selecionado === 'MEI' || form.plano_recomendado === 'MEI') && (
                       <FormField label={`Mensalidade ${/farm/i.test(form.segmento as string) ? 'Farma' : 'Loja'} Pro (R$)`}>
                         <input type="number" value={form.mensalidade_pro as string} onChange={e => setField('mensalidade_pro', e.target.value)} className="ps-input w-full" placeholder="Ex: 350" />

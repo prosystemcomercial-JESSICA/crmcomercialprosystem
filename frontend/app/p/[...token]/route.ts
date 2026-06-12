@@ -25,13 +25,38 @@ async function loadImageAsDataUrl(filename: string): Promise<string> {
 
 function buildProposalData(p: any) {
   const plano = p.plano_selecionado || 'Plano Plus';
+  const monthlyBasic = p.mensalidade_basic ?? 0;
   const monthlyPro  = p.mensalidade_pro  ?? 0;
   const monthlyPlus = p.mensalidade_plus ?? 0;
-  // Plus é sempre o plano recomendado → a mensalidade-destaque é a do Plus
-  // (fallback para a lógica do plano selecionado se a do Plus não foi preenchida)
-  const monthly = monthlyPlus > 0
-    ? monthlyPlus
-    : (plano.toLowerCase().includes('plus') ? monthlyPlus : monthlyPro);
+
+  // ── Tier escolhido + nível ACIMA (regra: o plano da loja é a prioridade/
+  // recomendado; ao lado mostramos o próximo nível como upgrade). Quando o
+  // escolhido já é o topo (Plus), comparamos com o Pro logo abaixo.
+  // tiers: basic(0) < pro(1) < plus(2).
+  const pl = (plano || '').toLowerCase();
+  let selTier = 2; // default Plus
+  if (/basic|lite/.test(pl)) selTier = 0;
+  else if (/\bpro\b/.test(pl)) selTier = 1;
+  else if (/plus/.test(pl)) selTier = 2;
+  // Se o plano não foi nomeado, infere pelo que foi preenchido (mais simples disponível).
+  if (!/basic|lite|\bpro\b|plus/.test(pl)) {
+    if (monthlyBasic > 0 && monthlyPro <= 0 && monthlyPlus <= 0) selTier = 0;
+    else if (monthlyPro > 0 && monthlyPlus <= 0) selTier = 1;
+  }
+  const priceByTier = [monthlyBasic, monthlyPro, monthlyPlus];
+  const upTier = selTier < 2 ? selTier + 1 : 1; // nível ao lado (acima; ou Pro se já é Plus)
+  // recommendedTier = o plano da loja (selecionado) é a prioridade/destaque.
+  const planPair = {
+    selTier, upTier,
+    recommendedTier: selTier,                 // selecionado = recomendado (destaque)
+    selPrice: priceByTier[selTier] || 0,
+    upPrice:  priceByTier[upTier]  || 0,
+  };
+
+  // Mensalidade-destaque = a do plano selecionado (prioridade); fallback p/ Plus/Pro.
+  const monthly = planPair.selPrice > 0
+    ? planPair.selPrice
+    : (monthlyPlus > 0 ? monthlyPlus : monthlyPro);
 
   const originalValue = (p.valor_implantacao ?? 0) + (p.valor_conversao ?? 0);
   const finalValue = p.valor_final ?? originalValue;
@@ -70,8 +95,10 @@ function buildProposalData(p: any) {
     plano_selecionado: p.plano_selecionado || '',
     recommendedPlan: 'Plus',
     monthlyValue: monthly,
+    monthlyBasic,
     monthlyPro,
     monthlyPlus,
+    planPair,
     setupOriginal: originalValue,
     setupFinal: finalValue,
     entryValue: p.entrada ?? 0,
@@ -1929,20 +1956,31 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
       setHTML('fx-funnel-top', '<span>&#128722;</span><span>&#128230;</span><span>&#127991;&#65039;</span><span>&#128181;</span>'); // 🛒 · 📦 · 🏷️ · 💵
     }
 
-    // Slide 17
-    set('s17-plus-name', nomes.plus);
+    // Slide 17 — recomendado = plano selecionado (prioridade da loja).
+    {
+      const _pair = proposalData.planPair || { selTier: 2 };
+      set('s17-plus-name', [nomes.basic, nomes.pro, nomes.plus][_pair.selTier] || nomes.plus);
+    }
 
     // Slide 18
     set('s18-company',  proposalData.companyName || 'sua empresa');
     set('s18-original', formatMoney(proposalData.setupOriginal));
     set('s18-final',    formatMoney(proposalData.setupFinal));
-    set('s18-pro-name',   nomes.pro);
-    set('s18-plus-name2', nomes.plus);
-    set('s18-monthly-pro',  formatMoney(proposalData.monthlyPro));
-    set('s18-monthly-plus', formatMoney(proposalData.monthlyPlus > 0 ? proposalData.monthlyPlus : proposalData.monthlyValue));
+    // ── Par dinâmico: card da DIREITA (featured/Recomendado) = plano selecionado
+    // (prioridade da loja); card da ESQUERDA = nível ao lado (upgrade).
+    const tierNome = [nomes.basic, nomes.pro, nomes.plus];
+    const pair = proposalData.planPair || { selTier: 2, upTier: 1, selPrice: proposalData.monthlyPlus, upPrice: proposalData.monthlyPro };
+    // Direita (destaque) = selecionado; Esquerda = o adjacente.
+    set('s18-plus-name2', tierNome[pair.selTier]);
+    set('s18-monthly-plus', formatMoney(pair.selPrice > 0 ? pair.selPrice : proposalData.monthlyValue));
+    set('s18-pro-name',   tierNome[pair.upTier]);
+    set('s18-monthly-pro',  formatMoney(pair.upPrice));
+    // Sublinha do card adjacente conforme seja nível acima (upgrade) ou abaixo.
+    const proSub = getEl('s18-pro-card') && getEl('s18-pro-card').querySelector('.pc-sub');
+    if (proSub) proSub.textContent = pair.upTier > pair.selTier ? 'Upgrade disponível' : 'Plano ' + tierNome[pair.upTier];
     const isMEI = planFamily.familia === 'MEI';
-    // Esconde o card Pro se a mensalidade Pro não foi preenchida (ou se for MEI = plano único)
-    if (isMEI || !(proposalData.monthlyPro > 0)) {
+    // Esconde o card adjacente se o preço dele não foi preenchido (ou MEI = plano único).
+    if (isMEI || !(pair.upPrice > 0)) {
       const proCard = getEl('s18-pro-card');
       if (proCard) proCard.style.display = 'none';
     }
@@ -1961,7 +1999,7 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
       if (benefits) benefits.style.display = 'none';
       setHTML('s18-plan-line', 'O Plano <b style="color:var(--accent-ink);">MEI</b> é ideal para a sua pequena empresa do varejo');
     }
-    set('s18-plan',     nomes.plus);
+    set('s18-plan',     isMEI ? nomes.plus : (tierNome[pair.selTier] || nomes.plus));
     set('s18-valid',    proposalData.validUntil || '—');
 
     // Slide 19
@@ -1996,11 +2034,13 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
   function aceitarProposta() {
     if (aceiteEnviado) { mostrarParabens(); return; }
     const p = proposalData || {};
-    const temDois = (p.monthlyPro > 0) && (p.monthlyPlus > 0) && planFamily.familia !== 'MEI';
+    const pair = p.planPair || { selTier: 2, upTier: 1, selPrice: p.monthlyPlus, upPrice: p.monthlyPro };
+    const temDois = (pair.selPrice > 0) && (pair.upPrice > 0) && planFamily.familia !== 'MEI';
     if (temDois) {
       mostrarEscolhaPlano();
     } else {
-      const planoUnico = (p.monthlyPlus > 0) ? 'PLUS' : (p.monthlyPro > 0 ? 'PRO' : (p.plano_selecionado || ''));
+      const TIER_KEY = ['BASIC', 'PRO', 'PLUS'];
+      const planoUnico = pair.selPrice > 0 ? TIER_KEY[pair.selTier] : (p.plano_selecionado || '');
       enviarAceite(planoUnico);
     }
   }
@@ -2024,8 +2064,13 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
   function mostrarEscolhaPlano() {
     const p = proposalData || {};
     const nomes = planFamily.nomes;
-    const proVal  = formatMoney(p.monthlyPro);
-    const plusVal = formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue);
+    const tierNome = [nomes.basic, nomes.pro, nomes.plus];
+    const TIER_KEY = ['BASIC', 'PRO', 'PLUS'];
+    const pair = p.planPair || { selTier: 2, upTier: 1, selPrice: p.monthlyPlus, upPrice: p.monthlyPro };
+    // RECOMENDADO (destaque) = plano selecionado (prioridade da loja). Ao lado, o adjacente.
+    const selVal = formatMoney(pair.selPrice > 0 ? pair.selPrice : p.monthlyValue);
+    const upVal  = formatMoney(pair.upPrice);
+    const subAdj = pair.upTier > pair.selTier ? 'Upgrade disponível' : 'Plano ' + tierNome[pair.upTier];
     const ov = document.createElement('div');
     ov.id = 'plano-overlay';
     ov.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(8,19,48,0.55);backdrop-filter:blur(4px);';
@@ -2034,25 +2079,25 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
         '<h2 style="font-size:22px;font-weight:900;color:#0D2238;margin:0 0 6px;">Escolha o seu plano</h2>' +
         '<p style="font-size:14px;color:#5A6B7B;margin:0 0 22px;">Selecione o plano que deseja contratar para concluir.</p>' +
         '<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">' +
-          '<button id="pick-pro" style="flex:1;min-width:200px;background:#fff;border:2px solid #D8E8F5;border-radius:16px;padding:20px 16px;cursor:pointer;text-align:left;">' +
-            '<div style="font-size:13px;font-weight:700;color:#417ABC;text-transform:uppercase;letter-spacing:.04em;">' + nomes.pro + '</div>' +
-            '<div style="font-size:22px;font-weight:900;color:#0D2238;margin-top:6px;">' + proVal + '<span style="font-size:12px;font-weight:600;color:#7AAACB;">/mês</span></div>' +
-            '<div style="font-size:12px;color:#5A6B7B;margin-top:6px;">Plano intermediário</div>' +
+          '<button id="pick-adj" style="flex:1;min-width:200px;background:#fff;border:2px solid #D8E8F5;border-radius:16px;padding:20px 16px;cursor:pointer;text-align:left;">' +
+            '<div style="font-size:13px;font-weight:700;color:#417ABC;text-transform:uppercase;letter-spacing:.04em;">' + tierNome[pair.upTier] + '</div>' +
+            '<div style="font-size:22px;font-weight:900;color:#0D2238;margin-top:6px;">' + upVal + '<span style="font-size:12px;font-weight:600;color:#7AAACB;">/mês</span></div>' +
+            '<div style="font-size:12px;color:#5A6B7B;margin-top:6px;">' + subAdj + '</div>' +
           '</button>' +
-          '<button id="pick-plus" style="flex:1;min-width:200px;background:#F0FBFF;border:2px solid var(--accent);border-radius:16px;padding:20px 16px;cursor:pointer;text-align:left;position:relative;">' +
+          '<button id="pick-sel" style="flex:1;min-width:200px;background:#F0FBFF;border:2px solid var(--accent);border-radius:16px;padding:20px 16px;cursor:pointer;text-align:left;position:relative;">' +
             '<div style="position:absolute;top:-11px;left:16px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;">RECOMENDADO</div>' +
-            '<div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;">' + nomes.plus + '</div>' +
-            '<div style="font-size:22px;font-weight:900;color:#0D2238;margin-top:6px;">' + plusVal + '<span style="font-size:12px;font-weight:600;color:#7AAACB;">/mês</span></div>' +
-            '<div style="font-size:12px;color:#5A6B7B;margin-top:6px;">Plano completo</div>' +
+            '<div style="font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;">' + tierNome[pair.selTier] + '</div>' +
+            '<div style="font-size:22px;font-weight:900;color:#0D2238;margin-top:6px;">' + selVal + '<span style="font-size:12px;font-weight:600;color:#7AAACB;">/mês</span></div>' +
+            '<div style="font-size:12px;color:#5A6B7B;margin-top:6px;">Indicado para a sua loja</div>' +
           '</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(ov);
     const pick = (plano) => { const el = document.getElementById('plano-overlay'); if (el) el.remove(); enviarAceite(plano); };
-    const bPro = document.getElementById('pick-pro');
-    const bPlus = document.getElementById('pick-plus');
-    if (bPro)  bPro.onclick  = () => pick('PRO');
-    if (bPlus) bPlus.onclick = () => pick('PLUS');
+    const bAdj = document.getElementById('pick-adj');
+    const bSel = document.getElementById('pick-sel');
+    if (bAdj) bAdj.onclick = () => pick(TIER_KEY[pair.upTier]);
+    if (bSel) bSel.onclick = () => pick(TIER_KEY[pair.selTier]);
   }
 
   function mostrarParabens() {
