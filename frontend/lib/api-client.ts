@@ -611,6 +611,11 @@ class ApiClient {
     return this.client.get(`/contratos-comerciais/${id}/resumo-assinatura`);
   }
 
+  // Grupos técnicos já existentes na base (dropdown ao gerar cadastro).
+  async getGruposTecnicos() {
+    return this.client.get('/clientes/grupos-tecnicos');
+  }
+
   async enviarContratoZapSign(id: string) {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);
   }
