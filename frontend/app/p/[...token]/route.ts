@@ -2447,6 +2447,126 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
 </html>`;
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// VERSÃO EXPRESS (clientes leigos): uma única tela enxuta — resumo + escolha
+// de plano + Aceitar. Reusa o MESMO POST /p/:token/aceitar (vai p/ contrato).
+// ════════════════════════════════════════════════════════════════════════
+function generateExpressHTML(data: any, images: Record<string, string>, token: string, apiUrl: string): string {
+  const logo = images.logo || '/logo-prosystem.png';
+  const seg = (data.segment || '').toLowerCase();
+  const isFarma = /farma|manipula/.test(seg);
+  const ACC = isFarma ? '#00BFD1' : '#FF8103';
+  const INK = isFarma ? '#0B7384' : '#C2540A';
+
+  // Nomes dos tiers por família (mesma lógica do deck).
+  const fam = isFarma
+    ? { basic: 'Farma Basic', pro: 'Farma Pro', plus: 'Farma Plus' }
+    : (/\bmei\b/.test((data.selectedPlan || '').toLowerCase())
+        ? { basic: 'MEI', pro: 'MEI', plus: 'Prosystem MEI' }
+        : { basic: 'Loja Basic', pro: 'Loja Pro', plus: 'Loja Plus' });
+  const tierNome = [fam.basic, fam.pro, fam.plus];
+  const TIER_KEY = ['BASIC', 'PRO', 'PLUS'];
+
+  const pair = data.planPair || { selTier: 2, upTier: 1, selPrice: data.monthlyPlus, upPrice: data.monthlyPro, recommendedTier: 2 };
+  const fmt = (v: number) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+  // Cartões: o selecionado (recomendado/destaque) e o adjacente (se houver preço).
+  const temAdj = Number(pair.upPrice) > 0 && pair.upTier !== pair.selTier;
+  const subAdj = pair.upTier > pair.selTier ? 'Plano com mais recursos' : 'Plano ' + tierNome[pair.upTier];
+
+  const cardSel =
+    '<button class="planc rec" data-plano="' + TIER_KEY[pair.selTier] + '" data-val="' + (pair.selPrice || data.monthlyValue) + '">' +
+      '<span class="badge">★ Indicado para você</span>' +
+      '<div class="pn">' + tierNome[pair.selTier] + '</div>' +
+      '<div class="pv">' + fmt(pair.selPrice > 0 ? pair.selPrice : data.monthlyValue) + '<small>/mês</small></div>' +
+      '<div class="ps">A escolha ideal para a sua operação</div>' +
+      '<span class="pick">Escolher este</span>' +
+    '</button>';
+  const cardAdj = temAdj
+    ? '<button class="planc" data-plano="' + TIER_KEY[pair.upTier] + '" data-val="' + pair.upPrice + '">' +
+        '<div class="pn">' + tierNome[pair.upTier] + '</div>' +
+        '<div class="pv">' + fmt(pair.upPrice) + '<small>/mês</small></div>' +
+        '<div class="ps">' + subAdj + '</div>' +
+        '<span class="pick">Escolher este</span>' +
+      '</button>'
+    : '';
+
+  // Linha de implantação/condições (resumo curto).
+  const setup = Number(data.setupFinal || 0);
+  const cond = data.installments > 0
+    ? (data.entryValue > 0 ? 'Entrada ' + fmt(data.entryValue) + ' + ' + data.installments + 'x de ' + fmt(data.installmentValue) : data.installments + 'x de ' + fmt(data.installmentValue))
+    : (setup > 0 ? 'À vista' : 'A combinar');
+
+  const empresa = data.companyName || 'sua empresa';
+  const saudacao = data.clientName ? ('Olá, ' + String(data.clientName).split(' ')[0] + '!') : 'Olá!';
+
+  return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">' +
+    '<title>Proposta ProSystem — ' + empresa + '</title><style>' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#F4F7FB;color:#0D2238;padding:18px;line-height:1.5}' +
+    '.wrap{max-width:520px;margin:0 auto}' +
+    '.card{background:#fff;border-radius:20px;box-shadow:0 10px 40px rgba(8,19,48,.08);padding:24px 22px;margin-bottom:16px}' +
+    '.logo{height:46px;object-fit:contain;display:block;margin:0 auto 8px}' +
+    '.hi{font-size:15px;color:#5A6B7B;text-align:center}' +
+    'h1{font-size:21px;font-weight:900;text-align:center;margin:4px 0 2px}' +
+    '.sub{font-size:13px;color:#5A6B7B;text-align:center;margin-bottom:6px}' +
+    '.eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:' + INK + ';margin-bottom:12px;text-align:center}' +
+    '.planc{display:block;width:100%;text-align:left;background:#fff;border:2px solid #E3ECF5;border-radius:16px;padding:16px 18px;margin-bottom:12px;cursor:pointer;position:relative;transition:.15s}' +
+    '.planc:hover{border-color:' + ACC + '}' +
+    '.planc.rec{border-color:' + ACC + ';background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0) 100%),#F7FDFF}' +
+    '.planc.sel{border-color:' + ACC + ';box-shadow:0 0 0 4px rgba(' + (isFarma ? '0,191,209' : '255,129,3') + ',.18)}' +
+    '.badge{position:absolute;top:-11px;left:16px;background:' + ACC + ';color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px}' +
+    '.pn{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:' + INK + '}' +
+    '.pv{font-size:26px;font-weight:900;margin:4px 0}.pv small{font-size:13px;font-weight:600;color:#7AAACB}' +
+    '.ps{font-size:12px;color:#5A6B7B}' +
+    '.pick{display:inline-block;margin-top:10px;font-size:12px;font-weight:800;color:' + INK + '}' +
+    '.resumo{font-size:13px;color:#3A4B5B}.resumo .li{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #EEF3F8}' +
+    '.resumo .li b{color:#0D2238}' +
+    '.cta{display:block;width:100%;border:none;border-radius:14px;background:' + ACC + ';color:#fff;font-size:17px;font-weight:900;padding:16px;cursor:pointer;margin-top:6px}' +
+    '.cta:disabled{opacity:.5}' +
+    '.hint{font-size:12px;color:#8593A2;text-align:center;margin-top:10px}' +
+    '.foot{text-align:center;font-size:11px;color:#9AA7B4;margin-top:6px}' +
+    '.ok-ov{position:fixed;inset:0;background:rgba(8,19,48,.6);display:none;align-items:center;justify-content:center;padding:24px;z-index:99}' +
+    '.ok-bx{background:#fff;border-radius:22px;padding:34px 26px;text-align:center;max-width:420px}' +
+    '.ok-bx .ic{font-size:54px}.ok-bx h2{font-size:22px;margin:8px 0 6px}.ok-bx p{color:#5A6B7B;font-size:14px}' +
+    '</style></head><body><div class="wrap">' +
+    '<div class="card">' +
+      '<img class="logo" src="' + logo + '" alt="ProSystem" onerror="this.style.display=\'none\'">' +
+      '<p class="hi">' + saudacao + '</p>' +
+      '<h1>Sua proposta ProSystem</h1>' +
+      '<p class="sub">' + empresa + '</p>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="eyebrow">Escolha o seu plano</div>' +
+      cardSel + cardAdj +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="eyebrow">Resumo</div>' +
+      '<div class="resumo">' +
+        '<div class="li"><span>Mensalidade escolhida</span><b id="rz-mens">—</b></div>' +
+        (setup > 0 ? '<div class="li"><span>Implantação</span><b>' + fmt(setup) + '</b></div>' : '') +
+        '<div class="li"><span>Condições</span><b>' + cond + '</b></div>' +
+        (data.validUntil ? '<div class="li"><span>Válida até</span><b>' + data.validUntil + '</b></div>' : '') +
+      '</div>' +
+    '</div>' +
+    '<button class="cta" id="aceitar" disabled>Selecione um plano acima</button>' +
+    '<p class="hint">Ao aceitar, sua contratação segue para a etapa de contrato. Simples assim. 😊</p>' +
+    '<p class="foot">ProSystem Sistemas &middot; 16 anos de varejo</p>' +
+    '</div>' +
+    '<div class="ok-ov" id="ok"><div class="ok-bx"><div class="ic">🎉</div><h2>Proposta aceita!</h2>' +
+      '<p>Que alegria ter você com a gente, ' + empresa + '! Já preparamos tudo — em instantes nossa equipe entra em contato para o contrato.</p></div></div>' +
+    '<script>' +
+    'var API="' + apiUrl + '",TK="' + token + '",plano=null,enviado=false,fmt=function(v){return "R$ "+Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2})};' +
+    'var cards=document.querySelectorAll(".planc"),cta=document.getElementById("aceitar"),rz=document.getElementById("rz-mens");' +
+    'cards.forEach(function(c){c.onclick=function(){cards.forEach(function(x){x.classList.remove("sel")});c.classList.add("sel");plano=c.getAttribute("data-plano");' +
+      'rz.textContent=fmt(c.getAttribute("data-val"))+"/mês";cta.disabled=false;cta.textContent="Aceitar e contratar";};});' +
+    'cta.onclick=function(){if(!plano||enviado)return;enviado=true;cta.disabled=true;cta.textContent="Enviando...";' +
+      'fetch(API+"/p/"+TK+"/aceitar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({plano_selecionado:plano})})' +
+      '.then(function(){}).catch(function(){}).finally(function(){document.getElementById("ok").style.display="flex";});};' +
+    '</script></body></html>';
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ token: string | string[] }> }
@@ -2478,6 +2598,13 @@ export async function GET(
     // apresentação — os módulos usam painéis visuais (ícone + benefício).
     const logo = await loadImageAsDataUrl('logo-prosystem.png');
     const images = { logo };
+
+    // ?modo=express → versão DIRETA (clientes leigos): resumo + escolher plano + aceitar.
+    const modo = (_req.nextUrl.searchParams.get('modo') || _req.nextUrl.searchParams.get('mode') || '').toLowerCase();
+    if (modo === 'express' || modo === 'direto' || modo === 'rapido') {
+      const expressHtml = generateExpressHTML(data, images, token, API_URL);
+      return new NextResponse(expressHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
 
     const html = generateHTML(data, images, token, API_URL);
     return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });

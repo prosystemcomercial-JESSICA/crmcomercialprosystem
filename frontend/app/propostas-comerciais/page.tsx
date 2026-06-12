@@ -457,12 +457,12 @@ export default function PropostasComerciais() {
 
   // Monta o link da proposta. modo: 'cliente' (travado, auto-serviço) | 'apresentador' | undefined (automático)
   // versao: 'simples' | 'completa' (só faz sentido no modo cliente). Inclui o nome do cliente (slug).
-  const propostaLink = (p: PropostaComercial, modo?: 'cliente' | 'apresentador', versao?: 'simples' | 'completa') => {
+  const propostaLink = (p: PropostaComercial, modo?: 'cliente' | 'apresentador' | 'express', versao?: 'simples' | 'completa') => {
     const qs = [modo ? `modo=${modo}` : '', versao ? `v=${versao}` : ''].filter(Boolean).join('&');
     return `${BASE_URL}/p/${p.public_token}/${slugify(p.razao_social || p.nome_fantasia)}${qs ? `?${qs}` : ''}`;
   };
 
-  const handleCopyLink = async (p: PropostaComercial, modo?: 'cliente' | 'apresentador', versao?: 'simples' | 'completa') => {
+  const handleCopyLink = async (p: PropostaComercial, modo?: 'cliente' | 'apresentador' | 'express', versao?: 'simples' | 'completa') => {
     if (!p.public_token) return;
     await navigator.clipboard.writeText(propostaLink(p, modo, versao));
     setCopied(true);
@@ -1329,7 +1329,7 @@ export default function PropostasComerciais() {
 
                 {/* Links públicos — cliente (com versões) e apresentador */}
                 {previewProposta.public_token && (() => {
-                  const LinkRow = ({ cor, rotulo, modo, versao }: { cor: string; rotulo: string; modo?: 'cliente' | 'apresentador'; versao?: 'simples' | 'completa' }) => (
+                  const LinkRow = ({ cor, rotulo, modo, versao }: { cor: string; rotulo: string; modo?: 'cliente' | 'apresentador' | 'express'; versao?: 'simples' | 'completa' }) => (
                     <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: cor, flexShrink: 0, minWidth: 130 }}>{rotulo}</span>
                       <span style={{ fontSize: 11, color: 'var(--t-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1343,12 +1343,13 @@ export default function PropostasComerciais() {
                   );
                   return (
                     <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <LinkRow cor="#ea580c" rotulo="⚡ Express — aceite direto" modo="express" />
                       <LinkRow cor="#16a34a" rotulo="👤 Cliente — escolhe" modo="cliente" />
                       <LinkRow cor="#0891b2" rotulo="⚡ Cliente — simplificada" modo="cliente" versao="simples" />
                       <LinkRow cor="#7c3aed" rotulo="🎬 Cliente — completa" modo="cliente" versao="completa" />
                       <LinkRow cor="#2E6EAB" rotulo="🎤 Apresentador" modo="apresentador" />
                       <p style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 2 }}>
-                        <b>Cliente — escolhe</b>: o cliente decide entre completa e simplificada. <b>Simplificada</b>: abre direto nos planos. <b>Completa</b>: a jornada inteira. <b>Apresentador</b>: para você apresentar.
+                        <b>Express</b>: tela única p/ cliente leigo — só escolhe o plano e aceita, já vai ao contrato. <b>Cliente — escolhe</b>: decide entre completa e simplificada. <b>Simplificada</b>: abre direto nos planos. <b>Completa</b>: a jornada inteira. <b>Apresentador</b>: para você apresentar.
                       </p>
                       {copied && <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Link copiado!</p>}
                     </div>
