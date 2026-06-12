@@ -98,6 +98,103 @@ export default function RelatorioComercialPage() {
               </div>
             </Bloco>
 
+            {/* 1B. Métricas reais do mês (leads, fechamentos, perdidos, indicações) */}
+            {d.metricas && (
+              <>
+                <Bloco titulo="📊 Números do Mês">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <KPI label="Leads gerados" valor={d.metricas.total_leads} cor="text-indigo-700" />
+                    <KPI label="Fechamentos" valor={d.metricas.fechamentos.total} cor="text-green-700" />
+                    <KPI label="Ticket médio (setup)" valor={fmt(d.metricas.fechamentos.setup_medio)} />
+                    <KPI label="MRR médio" valor={`${fmt(d.metricas.fechamentos.mrr_medio)}/mês`} cor="text-blue-700" />
+                    <KPI label="Setup total fechado" valor={fmt(d.metricas.fechamentos.setup_total)} />
+                    <KPI label="MRR ganho" valor={`${fmt(d.metricas.fechamentos.mrr_total)}/mês`} cor="text-green-700" />
+                    <KPI label="Clientes perdidos" valor={d.metricas.perdidos.total} cor="text-red-600" />
+                    <KPI label="Mensalidade perdida" valor={`${fmt(d.metricas.perdidos.mrr_perdido_total)}/mês`} cor="text-red-600" />
+                    <KPI label="Total de indicações" valor={d.metricas.indicacoes.total} cor="text-teal-700" />
+                  </div>
+                </Bloco>
+
+                {/* Entrada × Saída — seção gráfica de página inteira */}
+                <Bloco titulo="🔄 Entrada × Saída do Mês (página gráfica)">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#dcfce7', border: '1px solid #86efac' }}>
+                      <p className="text-xs text-green-800 font-semibold">ENTRADA</p>
+                      <p className="text-2xl font-extrabold text-green-700 mt-1">+{d.metricas.entrada_x_saida.clientes_entrada} clientes</p>
+                      <p className="text-sm text-green-700">{fmt(d.metricas.entrada_x_saida.mrr_entrada)}/mês de MRR</p>
+                    </div>
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#fee2e2', border: '1px solid #fca5a5' }}>
+                      <p className="text-xs text-red-800 font-semibold">SAÍDA</p>
+                      <p className="text-2xl font-extrabold text-red-700 mt-1">-{d.metricas.entrada_x_saida.clientes_saida} clientes</p>
+                      <p className="text-sm text-red-700">{fmt(d.metricas.entrada_x_saida.mrr_saida)}/mês de MRR</p>
+                    </div>
+                    <div className="rounded-xl p-4 text-center" style={{ background: d.metricas.entrada_x_saida.saldo_mrr >= 0 ? '#dbeafe' : '#fef3c7', border: '1px solid #93c5fd' }}>
+                      <p className="text-xs text-blue-800 font-semibold">SALDO</p>
+                      <p className={`text-2xl font-extrabold mt-1 ${d.metricas.entrada_x_saida.saldo_clientes >= 0 ? 'text-blue-700' : 'text-amber-700'}`}>
+                        {d.metricas.entrada_x_saida.saldo_clientes >= 0 ? '+' : ''}{d.metricas.entrada_x_saida.saldo_clientes} clientes
+                      </p>
+                      <p className="text-sm text-blue-700">{d.metricas.entrada_x_saida.saldo_mrr >= 0 ? '+' : ''}{fmt(d.metricas.entrada_x_saida.saldo_mrr)}/mês</p>
+                    </div>
+                  </div>
+                  {/* Barras comparativas (CSS puro) */}
+                  {(() => {
+                    const e = d.metricas.entrada_x_saida; const maxC = Math.max(1, e.clientes_entrada, e.clientes_saida);
+                    const maxM = Math.max(1, e.mrr_entrada, e.mrr_saida);
+                    return (
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Clientes</p>
+                          <div className="flex items-center gap-2"><span className="text-xs w-16 text-green-700">Entrada</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-green-500" style={{ width: `${(e.clientes_entrada / maxC) * 100}%` }} /></div><b className="text-xs w-8">{e.clientes_entrada}</b></div>
+                          <div className="flex items-center gap-2 mt-1"><span className="text-xs w-16 text-red-700">Saída</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-red-500" style={{ width: `${(e.clientes_saida / maxC) * 100}%` }} /></div><b className="text-xs w-8">{e.clientes_saida}</b></div>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">MRR (R$/mês)</p>
+                          <div className="flex items-center gap-2"><span className="text-xs w-16 text-green-700">Entrada</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-green-500" style={{ width: `${(e.mrr_entrada / maxM) * 100}%` }} /></div><b className="text-xs w-20">{fmt(e.mrr_entrada)}</b></div>
+                          <div className="flex items-center gap-2 mt-1"><span className="text-xs w-16 text-red-700">Saída</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-red-500" style={{ width: `${(e.mrr_saida / maxM) * 100}%` }} /></div><b className="text-xs w-20">{fmt(e.mrr_saida)}</b></div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </Bloco>
+
+                {/* Lista de fechamentos do mês (nomes) */}
+                {d.metricas.fechamentos.lista.length > 0 && (
+                  <Bloco titulo={`✅ Fechamentos do mês (${d.metricas.fechamentos.total})`}>
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Vendedor</th><th className="text-right">Setup</th><th className="text-right">MRR</th></tr></thead>
+                      <tbody>{d.metricas.fechamentos.lista.map((f: any, i: number) => (
+                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{f.cliente}</td><td className="text-gray-600">{f.vendedor}</td><td className="text-right">{fmt(f.setup)}</td><td className="text-right text-green-700">{fmt(f.mrr)}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </Bloco>
+                )}
+
+                {/* Lista de clientes perdidos (nomes) */}
+                {d.metricas.perdidos.lista.length > 0 && (
+                  <Bloco titulo={`❌ Clientes perdidos no mês (${d.metricas.perdidos.total})`}>
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Motivo</th><th>Técnico</th><th className="text-right">MRR perdido</th></tr></thead>
+                      <tbody>{d.metricas.perdidos.lista.map((c: any, i: number) => (
+                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{c.cliente}</td><td className="text-gray-600">{c.motivo}</td><td className="text-gray-500">{c.tecnico}</td><td className="text-right text-red-600">{fmt(c.mrr_perdido)}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </Bloco>
+                )}
+
+                {/* Lista de indicações/vendas adicionais (nomes) */}
+                {d.metricas.indicacoes.lista.length > 0 && (
+                  <Bloco titulo={`🤝 Indicações / vendas adicionais do mês (${d.metricas.indicacoes.total})`}>
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Parceiro</th><th>Vendedor</th><th>Status</th></tr></thead>
+                      <tbody>{d.metricas.indicacoes.lista.map((v: any, i: number) => (
+                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{v.cliente}</td><td className="text-gray-600">{v.parceiro}</td><td className="text-gray-500">{v.vendedor}</td><td className="text-xs">{v.status}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </Bloco>
+                )}
+              </>
+            )}
+
             {/* 2. Pipeline geral */}
             <Bloco titulo="2. Pipeline Geral">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
