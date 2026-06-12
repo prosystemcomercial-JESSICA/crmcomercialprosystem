@@ -1371,8 +1371,9 @@ model PropostaComercial {
   origem            String? // INDICACAO | PROSPECCAO | WHATSAPP | VISITA | TRAFEGO | CLIENTE_ANTIGO
 
   // Plano e produtos
-  plano_selecionado   String? // PRO | PLUS | PERSONALIZADO
+  plano_selecionado   String? // BASIC | PRO | PLUS | PERSONALIZADO
   plano_recomendado   String?
+  mensalidade_basic   Float?  // Loja/Farma Basic (nível de entrada)
   mensalidade_pro     Float?
   mensalidade_plus    Float?
   modulos_inclusos    Json

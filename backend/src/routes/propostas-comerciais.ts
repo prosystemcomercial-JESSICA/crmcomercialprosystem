@@ -39,6 +39,7 @@ const PropostaSchema = z.object({
 
   plano_selecionado:    z.string().optional(),
   plano_recomendado:    z.string().optional(),
+  mensalidade_basic:    z.number().optional(),
   mensalidade_pro:      z.number().optional(),
   mensalidade_plus:     z.number().optional(),
   modulos_inclusos:     z.array(z.string()).optional(),
@@ -71,7 +72,7 @@ const PropostaSchema = z.object({
 
 // Campos numéricos da proposta — qualquer NaN/Infinity aqui derruba o Prisma.
 const CAMPOS_NUM_PROPOSTA = new Set([
-  'maquinas', 'mensalidade_pro', 'mensalidade_plus', 'valor_implantacao',
+  'maquinas', 'mensalidade_basic', 'mensalidade_pro', 'mensalidade_plus', 'valor_implantacao',
   'valor_conversao', 'desconto', 'valor_final', 'entrada', 'parcelas',
   'valor_parcela', 'comissao_vendedor_pct', 'comissao_supervisor_pct',
 ]);
@@ -195,14 +196,16 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
 
     // Plano escolhido pelo cliente no aceite (quando a proposta oferece Pro e Plus).
     const planoEscolhido = String((request.body as any)?.plano_selecionado || '').toUpperCase();
-    const planoFinal = ['PRO', 'PLUS'].includes(planoEscolhido) ? planoEscolhido : p.plano_selecionado;
+    const planoFinal = ['BASIC', 'PRO', 'PLUS'].includes(planoEscolhido) ? planoEscolhido : p.plano_selecionado;
 
     const jaAceita = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'].includes(p.status);
 
     // valores p/ fechamento (usam o plano FINAL escolhido)
-    const mrr = planoFinal === 'PRO'
-      ? Number(p.mensalidade_pro || 0)
-      : Number(p.mensalidade_plus || p.mensalidade_pro || 0);
+    const mrr = planoFinal === 'BASIC'
+      ? Number((p as any).mensalidade_basic || 0)
+      : planoFinal === 'PRO'
+        ? Number(p.mensalidade_pro || 0)
+        : Number(p.mensalidade_plus || p.mensalidade_pro || 0);
     // Setup/instalação do contrato = VALOR FINAL negociado (implantação + conversão − desconto),
     // que é o "valor especial negociado" mostrado na proposta. Fallback p/ valor_implantacao.
     const inst = Number(p.valor_final ?? p.valor_implantacao ?? 0);
