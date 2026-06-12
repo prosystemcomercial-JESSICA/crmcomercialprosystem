@@ -203,6 +203,23 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       take: 150,
       include: { instancia: { select: { apelido: true, dono_nome: true, numero: true } } },
     });
+
+    // Anexa código + razão social dos clientes vinculados (etiqueta verde na conversa).
+    const clienteIds = Array.from(new Set(conversas.map(c => c.cliente_id).filter(Boolean))) as string[];
+    if (clienteIds.length) {
+      const clientes = await prisma.cliente.findMany({
+        where: { id: { in: clienteIds } },
+        select: { id: true, codigo: true, razao_social: true, nome_fantasia: true, nome: true },
+      }).catch(() => [] as any[]);
+      const mapa = new Map(clientes.map(c => [c.id, c]));
+      for (const conv of conversas as any[]) {
+        const cli: any = conv.cliente_id ? mapa.get(conv.cliente_id) : null;
+        if (cli) {
+          conv.cliente_codigo = cli.codigo || null;
+          conv.cliente_razao = cli.razao_social || cli.nome_fantasia || cli.nome || null;
+        }
+      }
+    }
     return reply.send({ status: 'success', data: conversas });
   });
 
