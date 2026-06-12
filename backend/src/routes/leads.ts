@@ -150,7 +150,9 @@ const ObservacaoSchema = z.object({
   tipo:                 z.string().min(1),
   descricao:            z.string().min(1),
   proxima_acao:         z.string().optional(),
-  data_proximo_retorno: z.string().datetime().optional(),
+  // Aceita qualquer string de data (incl. "YYYY-MM-DDTHH:mm" do datetime-local,
+  // que o .datetime() do Zod rejeitava e derrubava o registro inteiro). Opcional.
+  data_proximo_retorno: z.string().optional(),
   status_apos:          z.string().optional(),
   created_by_name:      z.string().optional(),
 });
@@ -658,17 +660,25 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
 
     const user = (request as any).user;
+    // Converte a data (se vier) com segurança; string inválida vira undefined.
+    const { data_proximo_retorno, ...resto } = body.data;
+    let proximoRetorno: Date | undefined;
+    if (data_proximo_retorno) {
+      const dt = new Date(data_proximo_retorno);
+      if (!isNaN(dt.getTime())) proximoRetorno = dt;
+    }
     const obs = await prisma.leadObservacao.create({
       data: {
         lead_id: id,
-        ...body.data,
+        ...resto,
+        data_proximo_retorno: proximoRetorno,
         created_by: user?.id || 'system',
         created_by_name: body.data.created_by_name || user?.nome || 'Usuário',
       },
     });
 
     const update: any = { ultima_obs_at: new Date() };
-    if (body.data.data_proximo_retorno) update.proximo_contato = new Date(body.data.data_proximo_retorno);
+    if (proximoRetorno) update.proximo_contato = proximoRetorno;
     if (body.data.status_apos) {
       const etapaMap: Record<string, string> = {
         'EM_NEGOCIACAO': 'EM_NEGOCIACAO', 'ACEITO': 'ACEITO',
