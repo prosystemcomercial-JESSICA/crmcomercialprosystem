@@ -37,6 +37,8 @@ interface Caso {
     razao_social?: string;
     nome_fantasia?: string;
     mensalidade_base?: number;
+    grupo_tecnico?: string;
+    situacao?: string;
   };
 }
 
@@ -88,6 +90,7 @@ export default function CasosPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [busca, setBusca] = useState('');
   const [dataLoading, setDataLoading] = useState(true);
+  const [rankingTec, setRankingTec] = useState<any[]>([]);
   // Dossiê do caso (ficha completa: financeiro + linha do tempo)
   const [dossie, setDossie] = useState<Caso | null>(null);
   const [atualizacoes, setAtualizacoes] = useState<any[]>([]);
@@ -151,6 +154,12 @@ export default function CasosPage() {
   useEffect(() => {
     if (isAuthenticated) fetchCasos();
   }, [isAuthenticated, page, statusFilter]);
+
+  // Ranking de saúde da carteira por técnico (mesma fonte do Health Score).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiClient.getRankingTecnicos().then(r => setRankingTec(r.data.data || [])).catch(() => setRankingTec([]));
+  }, [isAuthenticated]);
 
   // Busca por cliente (debounce 350ms).
   useEffect(() => {
@@ -305,6 +314,40 @@ export default function CasosPage() {
           ))}
         </div>
 
+        {/* Ranking de saúde da carteira por técnico (quem tem mais clientes saindo) */}
+        {rankingTec.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-bold text-gray-900">🩺 Saúde da carteira por técnico</h2>
+              <span className="text-xs text-gray-400">só ativos · ordenado por mais risco/churn</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+                  <th className="py-1.5 pr-3">Técnico</th><th className="py-1.5 px-2 text-center">Ativos</th>
+                  <th className="py-1.5 px-2 text-center">Em risco</th><th className="py-1.5 px-2 text-center">Em churn</th>
+                  <th className="py-1.5 px-2 text-center">Saíram</th><th className="py-1.5 px-2 text-center">Saúde</th>
+                </tr></thead>
+                <tbody>
+                  {[...rankingTec].sort((a, b) => (b.em_churn + b.em_risco) - (a.em_churn + a.em_risco)).map((t: any) => {
+                    const cor = t.indice_saude >= 90 ? '#16a34a' : t.indice_saude >= 75 ? '#d97706' : '#dc2626';
+                    return (
+                      <tr key={t.tecnico} className="border-b border-gray-50">
+                        <td className="py-1.5 pr-3 font-medium text-gray-800">{t.tecnico}</td>
+                        <td className="py-1.5 px-2 text-center text-gray-700">{t.ativos}</td>
+                        <td className="py-1.5 px-2 text-center text-amber-600 font-semibold">{t.em_risco}</td>
+                        <td className="py-1.5 px-2 text-center text-red-600 font-bold">{t.em_churn}</td>
+                        <td className="py-1.5 px-2 text-center text-gray-400">{t.inativos}</td>
+                        <td className="py-1.5 px-2 text-center font-bold" style={{ color: cor }}>{t.indice_saude}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {dataLoading ? (
@@ -322,6 +365,7 @@ export default function CasosPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Técnico</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Risco</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Motivo</th>
@@ -342,6 +386,9 @@ export default function CasosPage() {
                           <p className="text-sm text-gray-500">{caso.cliente?.empresa || (caso.fin_situacao === 'EM_ATRASO' || caso.fin_situacao === 'INADIMPLENTE' ? `⚠ em atraso${caso.fin_valor_atraso ? ' R$ ' + Number(caso.fin_valor_atraso).toLocaleString('pt-BR') : ''}` : '')}</p>
                         </div>
                       </button>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-600">{caso.cliente?.grupo_tecnico || '—'}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[caso.status] || 'bg-gray-100 text-gray-700'}`}>

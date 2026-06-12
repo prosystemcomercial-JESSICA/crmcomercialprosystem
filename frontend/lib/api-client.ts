@@ -931,6 +931,10 @@ class ApiClient {
     return this.client.post('/health-scores/calcular-todos');
   }
 
+  async getRankingTecnicos() {
+    return this.client.get('/health-scores/ranking-tecnicos');
+  }
+
   // NPS
   async getNpsDashboard() {
     return this.client.get('/nps/dashboard');
