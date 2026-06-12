@@ -351,6 +351,7 @@ async function loadRoutes() {
     ['financeiro',            () => import('./routes/financeiro'),            'financeiroRoutes'],
     ['pesquisa',              () => import('./routes/pesquisa'),              'pesquisaRoutes'],
     ['relatorio-comercial',   () => import('./routes/relatorio-comercial'),   'relatorioComercialRoutes'],
+    ['lancamentos-retroativos', () => import('./routes/lancamentos-retroativos'), 'lancamentosRetroativosRoutes'],
   ];
 
   let ok = 0;
