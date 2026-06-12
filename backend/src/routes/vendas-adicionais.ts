@@ -750,6 +750,82 @@ ${setup > 0 ? condicoes : `Acréscimo de ${brl(acrescimo)} na mensalidade a part
     return reply.send({ status: 'success', data: { texto } });
   });
 
+  // BACKFILL (gestão): recalcula as comissões das comunicações JÁ lançadas p/ o
+  // novo critério — vendedor 15% + supervisão 5% sobre o SETUP (valor_venda).
+  // NÃO mexe em comissões já PAGAS (preserva o que o financeiro quitou). Idempotente.
+  fastify.post('/vendas-adicionais/backfill-comissao-comunicacao', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const user = (request as any).user;
+
+    const vendas = await prisma.vendaAdicional.findMany({
+      where: { parceiro: { categoria: 'COMUNICACAO' }, status: { not: 'CANCELADO' } },
+      include: { parceiro: true, cliente: { select: { nome: true } } },
+    });
+
+    let vendasAfetadas = 0, vendedorAtualizadas = 0, supervisaoCriadas = 0, supervisaoAtualizadas = 0, pagasPreservadas = 0, semSetup = 0;
+
+    for (const v of vendas) {
+      const setup = Number((v as any).valor_venda || 0);
+      if (setup <= 0) { semSetup++; continue; }
+      const comissaoVend = parseFloat((setup * 0.15).toFixed(2));
+      const comissaoSup = parseFloat((setup * 0.05).toFixed(2));
+      let tocou = false;
+
+      // 1) Comissão do VENDEDOR (tipo VENDA_ADICIONAL, mesma referência).
+      const cVend = await prisma.comissao.findFirst({
+        where: { referencia_id: v.id, tipo: 'VENDA_ADICIONAL', responsavel_id: v.vendedor_id || undefined },
+      });
+      if (cVend) {
+        if (cVend.status === 'PAGA') { pagasPreservadas++; }
+        else {
+          await prisma.comissao.update({
+            where: { id: cVend.id },
+            data: { valor_base: setup, percentual: 15, valor_comissao: comissaoVend, papel: 'VENDEDOR' },
+          });
+          vendedorAtualizadas++; tocou = true;
+        }
+      }
+
+      // 2) Comissão da SUPERVISÃO (tipo SUPERVISAO_VENDA_ADICIONAL).
+      if (v.supervisao_id) {
+        const cSup = await prisma.comissao.findFirst({
+          where: { referencia_id: v.id, tipo: 'SUPERVISAO_VENDA_ADICIONAL' },
+        });
+        const periodoSup = mesSeguinteDe((v as any).primeiro_vencimento);
+        if (cSup) {
+          if (cSup.status === 'PAGA') { pagasPreservadas++; }
+          else {
+            await prisma.comissao.update({
+              where: { id: cSup.id },
+              data: { valor_base: setup, percentual: 5, valor_comissao: comissaoSup, papel: 'SUPERVISAO' },
+            });
+            supervisaoAtualizadas++; tocou = true;
+          }
+        } else if (comissaoSup > 0) {
+          await prisma.comissao.create({
+            data: {
+              responsavel_id: v.supervisao_id, tipo: 'SUPERVISAO_VENDA_ADICIONAL', referencia_id: v.id,
+              descricao: `Supervisão — ${v.parceiro.nome}: ${v.cliente?.nome || ''}`,
+              valor_base: setup, percentual: 5, valor_comissao: comissaoSup, papel: 'SUPERVISAO',
+              periodo: periodoSup, status: 'APROVADA', created_by: user?.id || 'system',
+            } as any,
+          }).catch(() => {});
+          supervisaoCriadas++; tocou = true;
+        }
+      }
+
+      // Sincroniza o snapshot na própria venda (exibido na lista).
+      if (tocou) {
+        await prisma.vendaAdicional.update({
+          where: { id: v.id }, data: { comissao_supervisao_valor: comissaoSup } as any,
+        }).catch(() => {});
+        vendasAfetadas++;
+      }
+    }
+
+    return reply.send({ status: 'success', data: { total_comunicacoes: vendas.length, vendas_afetadas: vendasAfetadas, vendedor_atualizadas: vendedorAtualizadas, supervisao_criadas: supervisaoCriadas, supervisao_atualizadas: supervisaoAtualizadas, pagas_preservadas: pagasPreservadas, sem_setup: semSetup } });
+  });
+
   fastify.delete('/vendas-adicionais/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     try {
