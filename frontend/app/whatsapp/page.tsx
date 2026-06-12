@@ -237,6 +237,11 @@ export default function WhatsappPage() {
       await apiClient.vincularConversaCliente(ativa.id, {
         cliente_id: vincSel.id, nome: vincNome || undefined, cargo: vincCargo || undefined,
       });
+      // Atualiza a etiqueta verde na hora (sem precisar recarregar): código + razão.
+      const cod = vincSel.codigo || null;
+      const razao = vincSel.razao_social || vincSel.nome_fantasia || vincSel.nome || null;
+      setAtiva(prev => prev ? ({ ...prev, cliente_id: vincSel.id, cliente_codigo: cod, cliente_razao: razao } as any) : prev);
+      setConversas(prev => prev.map(c => c.id === ativa.id ? ({ ...c, cliente_id: vincSel.id, cliente_codigo: cod, cliente_razao: razao } as any) : c));
       setShowVincCliente(false);
       alert('Conversa vinculada ao cliente e contato registrado na ficha! ✅');
     } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao vincular ao cliente'); }
@@ -649,11 +654,17 @@ export default function WhatsappPage() {
                       {nomeContato(ativa).charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-white text-sm truncate">{nomeContato(ativa)}</p>
                         {ativa.etiqueta && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: ativa.etiqueta_cor || '#6b7280' }}>{ativa.etiqueta}</span>}
+                        {(ativa as any).cliente_id && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white inline-flex items-center gap-1" style={{ background: '#16a34a' }}
+                            title="Cliente da base vinculado a esta conversa">
+                            👤 {(ativa as any).cliente_codigo ? `${(ativa as any).cliente_codigo} · ` : ''}{(ativa as any).cliente_razao || 'Cliente vinculado'}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}{(ativa as any).cliente_id ? ' · 👤 cliente vinculado' : ''}</p>
+                      <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}</p>
                     </div>
                     {/* Vincular a cliente da base */}
                     <button onClick={abrirVincCliente} title="Vincular a um cliente da base" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">👤</button>
@@ -804,7 +815,15 @@ export default function WhatsappPage() {
                             </div>
                             {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
                           </div>
-                          {c.lead_id && <span className="inline-block mt-1 text-[10px] text-blue-600">🔗 funil</span>}
+                          <div className="flex items-center gap-1 flex-wrap mt-1">
+                            {c.lead_id && <span className="inline-block text-[10px] text-blue-600">🔗 funil</span>}
+                            {(c as any).cliente_id && (
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: '#16a34a' }}
+                                title="Cliente da base vinculado">
+                                👤 {(c as any).cliente_codigo ? `${(c as any).cliente_codigo} · ` : ''}{(c as any).cliente_razao || 'Cliente'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
