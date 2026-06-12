@@ -867,6 +867,17 @@ class ApiClient {
   async getAuditoria(params?: { modulo?: string; ator_id?: string; tipo?: string; data_inicio?: string; data_fim?: string; busca?: string; page?: number; limit?: number }) {
     return this.client.get('/auditoria', { params });
   }
+
+  // ── Lançamentos retroativos (só gestão) ──
+  async retroativoVenda(data: { razao_social: string; nome_fantasia?: string; cnpj?: string; segmento?: string; data: string; setup: number; mensalidade: number; plano?: string; vendedor_id?: string; vendedor_nome?: string; gerar_comissao: boolean; comissao_paga: boolean; observacoes?: string }) {
+    return this.client.post('/retroativos/venda', data);
+  }
+  async retroativoComissao(data: { vendedor_id: string; descricao?: string; valor: number; data: string; paga: boolean; tipo?: string }) {
+    return this.client.post('/retroativos/comissao', data);
+  }
+  async retroativoSaida(data: { cliente_id?: string; nome?: string; razao_social?: string; data: string; mrr_perdido: number; motivo?: string; grupo_tecnico?: string }) {
+    return this.client.post('/retroativos/saida', data);
+  }
   async atribuirLeads(lead_ids: string[], vendedor_id: string) {
     return this.client.post('/leads/atribuir', { lead_ids, vendedor_id });
   }
