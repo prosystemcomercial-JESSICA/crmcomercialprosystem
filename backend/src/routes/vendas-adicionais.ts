@@ -740,4 +740,58 @@ ${setup > 0 ? condicoes : `Acréscimo de ${brl(acrescimo)} na mensalidade a part
       throw e;
     }
   });
+
+  // BACKFILL (gestão): anota o "grupo de lojas" nas comunicações JÁ lançadas antes
+  // da feature. Para cada venda de comunicação com 2+ lojas, grava na ficha de cada
+  // loja que ela faz parte de um grupo, listando as outras. Idempotente: pula a
+  // venda se já existe o evento de grupo dela (por referencia_id). Rodar 1x.
+  fastify.post('/vendas-adicionais/backfill-grupo-lojas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const user = (request as any).user;
+
+    const vendas = await prisma.vendaAdicional.findMany({
+      where: { parceiro: { categoria: 'COMUNICACAO' } },
+      select: { id: true, lojas_detalhe: true, lojas_ids: true, responsavel_id: true },
+    });
+
+    let vendasProcessadas = 0, eventosCriados = 0, vendasPuladas = 0;
+    for (const v of vendas) {
+      // Reconstrói a lista de lojas {cliente_id, nome, codigo} a partir do snapshot.
+      let lojas: any[] = Array.isArray(v.lojas_detalhe as any) ? (v.lojas_detalhe as any) : [];
+      if (!lojas.length && Array.isArray(v.lojas_ids as any) && (v.lojas_ids as any).length) {
+        const ids = (v.lojas_ids as any) as string[];
+        const docs = await prisma.cliente.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, codigo: true, razao_social: true, nome_fantasia: true, nome: true },
+        });
+        const m = new Map(docs.map(d => [d.id, d]));
+        lojas = ids.map(id => { const l: any = m.get(id) || {}; return { cliente_id: id, nome: l.nome_fantasia || l.razao_social || l.nome || id, codigo: l.codigo || null }; });
+      }
+      if (lojas.length < 2) { vendasPuladas++; continue; }
+
+      // Idempotência: se já existe um evento de grupo desta venda, não refaz.
+      const jaTem = await (prisma as any).eventoCliente.count({
+        where: { referencia_id: v.id, titulo: { contains: 'grupo de' } },
+      }).catch(() => 0);
+      if (jaTem > 0) { vendasPuladas++; continue; }
+
+      const nome = (l: any) => `${l.codigo ? l.codigo + ' - ' : ''}${l.nome || l.cliente_id}`;
+      for (const f of lojas) {
+        const outras = lojas.filter(l => l.cliente_id !== f.cliente_id).map(nome);
+        await (prisma as any).eventoCliente.create({
+          data: {
+            cliente_id: f.cliente_id, tipo: 'OBSERVACAO',
+            titulo: `🏪 Faz parte de um grupo de ${lojas.length} lojas (comunicação entre lojas)`,
+            descricao: `Esta loja se comunica com: ${outras.join(' · ')}`,
+            referencia_id: v.id,
+            metadados: { grupo_lojas_ids: lojas.map(l => l.cliente_id), grupo_lojas_nomes: lojas.map(nome), backfill: true },
+            feito_por: user?.id, feito_por_nome: 'Sistema (regularização)',
+          },
+        }).then(() => { eventosCriados++; }).catch(() => {});
+      }
+      vendasProcessadas++;
+    }
+
+    return reply.send({ status: 'success', data: { total_comunicacoes: vendas.length, vendas_processadas: vendasProcessadas, vendas_puladas: vendasPuladas, eventos_criados: eventosCriados } });
+  });
 }
