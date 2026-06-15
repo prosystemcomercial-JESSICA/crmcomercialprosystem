@@ -5,6 +5,10 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+  PieChart, Pie, Legend,
+} from 'recharts';
 
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const fmt = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
@@ -183,21 +187,45 @@ export default function RelatorioComercialPage() {
                       <p className="text-sm text-blue-700">{d.metricas.entrada_x_saida.saldo_mrr >= 0 ? '+' : ''}{fmt(d.metricas.entrada_x_saida.saldo_mrr)}/mês</p>
                     </div>
                   </div>
-                  {/* Barras comparativas (CSS puro) */}
+                  {/* Gráficos animados (Recharts): donut de clientes + barras de MRR */}
                   {(() => {
-                    const e = d.metricas.entrada_x_saida; const maxC = Math.max(1, e.clientes_entrada, e.clientes_saida);
-                    const maxM = Math.max(1, e.mrr_entrada, e.mrr_saida);
+                    const e = d.metricas.entrada_x_saida;
+                    const dadosClientes = [
+                      { name: 'Entrada', value: e.clientes_entrada, fill: '#16a34a' },
+                      { name: 'Saída', value: e.clientes_saida, fill: '#dc2626' },
+                    ].filter(x => x.value > 0);
+                    const dadosMRR = [
+                      { name: 'Entrada', MRR: e.mrr_entrada, fill: '#16a34a' },
+                      { name: 'Saída', MRR: e.mrr_saida, fill: '#dc2626' },
+                    ];
                     return (
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Clientes</p>
-                          <div className="flex items-center gap-2"><span className="text-xs w-16 text-green-700">Entrada</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-green-500" style={{ width: `${(e.clientes_entrada / maxC) * 100}%` }} /></div><b className="text-xs w-8">{e.clientes_entrada}</b></div>
-                          <div className="flex items-center gap-2 mt-1"><span className="text-xs w-16 text-red-700">Saída</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-red-500" style={{ width: `${(e.clientes_saida / maxC) * 100}%` }} /></div><b className="text-xs w-8">{e.clientes_saida}</b></div>
+                          <p className="text-xs font-semibold text-gray-500 mb-1">Clientes (entrada × saída)</p>
+                          <ResponsiveContainer width="100%" height={210}>
+                            <PieChart>
+                              <Pie data={dadosClientes.length ? dadosClientes : [{ name: 'Sem dados', value: 1, fill: '#e5e7eb' }]}
+                                dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                                paddingAngle={3} animationDuration={900} label={(p: any) => `${p.name}: ${p.value}`}>
+                                {(dadosClientes.length ? dadosClientes : [{ fill: '#e5e7eb' }]).map((x: any, i) => <Cell key={i} fill={x.fill} />)}
+                              </Pie>
+                              <Tooltip /><Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">MRR (R$/mês)</p>
-                          <div className="flex items-center gap-2"><span className="text-xs w-16 text-green-700">Entrada</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-green-500" style={{ width: `${(e.mrr_entrada / maxM) * 100}%` }} /></div><b className="text-xs w-20">{fmt(e.mrr_entrada)}</b></div>
-                          <div className="flex items-center gap-2 mt-1"><span className="text-xs w-16 text-red-700">Saída</span><div className="flex-1 h-4 bg-gray-100 rounded"><div className="h-4 rounded bg-red-500" style={{ width: `${(e.mrr_saida / maxM) * 100}%` }} /></div><b className="text-xs w-20">{fmt(e.mrr_saida)}</b></div>
+                          <p className="text-xs font-semibold text-gray-500 mb-1">MRR (R$/mês)</p>
+                          <ResponsiveContainer width="100%" height={210}>
+                            <BarChart data={dadosMRR} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                              <Tooltip formatter={(v: any) => fmt(v)} />
+                              <Bar dataKey="MRR" radius={[6, 6, 0, 0]} animationDuration={900} label={{ position: 'top', formatter: (v: any) => fmt(v), fontSize: 11 }}>
+                                {dadosMRR.map((x, i) => <Cell key={i} fill={x.fill} />)}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
                         </div>
                       </div>
                     );
@@ -301,7 +329,21 @@ export default function RelatorioComercialPage() {
             {/* 3. Por vendedor */}
             {Array.isArray(d.por_vendedor) && d.por_vendedor.length > 0 && (
               <Bloco titulo="3. Pipeline por Vendedor">
-                <table className="w-full text-sm">
+                {/* Gráfico animado: fechadas × em negociação por vendedor */}
+                <div className="print:hidden">
+                  <ResponsiveContainer width="100%" height={Math.max(160, d.por_vendedor.length * 46)}>
+                    <BarChart layout="vertical" data={d.por_vendedor.slice(0, 10).map((v: any) => ({ nome: v.nome, Fechadas: v.fechadas, 'Em negociação': v.em_negociacao }))}
+                      margin={{ top: 6, right: 20, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="nome" width={120} tick={{ fontSize: 11 }} />
+                      <Tooltip /><Legend />
+                      <Bar dataKey="Fechadas" fill="#16a34a" radius={[0, 5, 5, 0]} animationDuration={900} />
+                      <Bar dataKey="Em negociação" fill={PRO} radius={[0, 5, 5, 0]} animationDuration={900} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <table className="w-full text-sm mt-3">
                   <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                     <th className="py-2">Vendedor</th><th>Propostas</th><th>Setup pot.</th><th>MRR pot.</th><th>Em neg.</th><th>Fechadas</th><th>Part.</th>
                   </tr></thead>
