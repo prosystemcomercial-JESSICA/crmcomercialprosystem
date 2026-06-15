@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { ownerWhere, scopeUserId, requireGestor, podeVerTudo } from '@/lib/scope';
 import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
+import { CONTAS_SISTEMA } from '@/lib/usuarios';
 
 const ETAPAS_COMERCIAIS = [
   'NOVO_LEAD','PRIMEIRO_CONTATO','EM_ATENDIMENTO','AGUARDANDO_RETORNO',
@@ -233,11 +234,20 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe lead_ids e vendedor_id' });
 
+    // Aceita: (a) qualquer usuário ATIVO do banco (vendedor, ou diretor/CEO que
+    // também vende) OU (b) conta de sistema (ex.: Jessica/Diretora, user-jessica),
+    // que NÃO está em UsuarioCRM — o dropdown lista as duas, então a atribuição
+    // precisa aceitar as duas (antes exigia cargo='VENDEDOR' e dava 404 silencioso).
+    let vendedor: { id: string; nome: string } | null = null;
     const vend: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id, nome FROM UsuarioCRM WHERE id = ? AND cargo = 'VENDEDOR' LIMIT 1`, body.data.vendedor_id
+      `SELECT id, nome FROM UsuarioCRM WHERE id = ? AND status = 'ATIVO' LIMIT 1`, body.data.vendedor_id
     ).catch(() => []);
-    if (!vend.length) return reply.status(404).send({ status: 'error', message: 'Vendedor não encontrado' });
-    const vendedor = vend[0];
+    if (vend.length) {
+      vendedor = { id: vend[0].id, nome: vend[0].nome };
+    } else if (CONTAS_SISTEMA[body.data.vendedor_id]) {
+      vendedor = { id: body.data.vendedor_id, nome: CONTAS_SISTEMA[body.data.vendedor_id].nome };
+    }
+    if (!vendedor) return reply.status(404).send({ status: 'error', message: 'Vendedor não encontrado ou inativo' });
 
     const placeholders = body.data.lead_ids.map(() => '?').join(',');
     await prisma.$executeRawUnsafe(
