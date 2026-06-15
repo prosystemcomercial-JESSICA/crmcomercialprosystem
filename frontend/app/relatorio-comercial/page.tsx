@@ -9,19 +9,37 @@ import { apiClient } from '@/lib/api-client';
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const fmt = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
-function Bloco({ titulo, children }: { titulo: string; children: any }) {
+// ── Design System — Relatório Executivo Prosystem (azul institucional #417ABC) ──
+const PRO = '#417ABC';        // azul institucional
+const PRO_DARK = '#2E5A8F';   // azul escuro (capa/títulos)
+const INK = '#0D2238';        // texto forte
+
+// Bloco: card branco com cabeçalho de barra azul e número de seção opcional.
+function Bloco({ titulo, num, children }: { titulo: string; num?: string; children: any }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
-      <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3 border-b border-gray-100 pb-2">{titulo}</h2>
-      {children}
+    <div className="rel-bloco bg-white rounded-2xl mb-4" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.04)' }}>
+      <div className="flex items-center gap-2.5 px-5 py-3" style={{ borderBottom: '1px solid #EEF3F9' }}>
+        {num && <span className="flex items-center justify-center text-xs font-bold text-white rounded-md" style={{ width: 22, height: 22, background: PRO }}>{num}</span>}
+        <h2 className="text-sm font-extrabold uppercase tracking-wide" style={{ color: PRO_DARK }}>{titulo}</h2>
+      </div>
+      <div className="p-5">{children}</div>
     </div>
   );
 }
-function KPI({ label, valor, cor = 'text-gray-800' }: { label: string; valor: any; cor?: string }) {
+// Mapeia as classes Tailwind usadas nas chamadas existentes p/ hex (cor da faixa+número).
+const COR_HEX: Record<string, string> = {
+  'text-gray-800': INK, 'text-green-700': '#15803d', 'text-blue-700': '#1d4ed8',
+  'text-red-600': '#dc2626', 'text-yellow-600': '#ca8a04', 'text-amber-700': '#b45309',
+  'text-indigo-700': '#4338ca', 'text-teal-700': '#0f766e',
+};
+// KPI: card com faixa lateral de cor, rótulo e número grande.
+function KPI({ label, valor, cor = INK }: { label: string; valor: any; cor?: string }) {
+  const hex = COR_HEX[cor] || (cor.startsWith('#') ? cor : INK);
   return (
-    <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className={`text-xl font-bold ${cor}`}>{valor}</p>
+    <div className="rounded-xl p-3.5 relative overflow-hidden" style={{ background: '#F7FAFD', border: '1px solid #E9F0F7' }}>
+      <span className="absolute left-0 top-0 bottom-0" style={{ width: 4, background: hex }} />
+      <p className="text-[11px] font-medium pl-1.5" style={{ color: '#64748B' }}>{label}</p>
+      <p className="text-2xl font-extrabold pl-1.5 mt-0.5" style={{ color: hex }}>{valor}</p>
     </div>
   );
 }
@@ -55,6 +73,16 @@ export default function RelatorioComercialPage() {
 
   return (
     <DashboardLayout>
+      {/* Impressão executiva A4: cores fiéis, esconde o que tem print:hidden, evita
+          cortar cards no meio da página. */}
+      <style jsx global>{`
+        @media print {
+          @page { size: A4; margin: 12mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff; }
+          .rel-bloco { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important; }
+          aside, nav, header { display: none !important; }
+        }
+      `}</style>
       <div className="space-y-4 max-w-4xl mx-auto">
         {/* Cabeçalho + seletor + imprimir */}
         <div className="flex items-start justify-between gap-3 flex-wrap print:hidden">
@@ -79,14 +107,33 @@ export default function RelatorioComercialPage() {
           <div className="text-center p-12 text-gray-400">Sem dados para {MESES[mes]}/{ano}.</div>
         ) : (
           <div id="relatorio">
-            {/* Título do relatório (impressão) */}
-            <div className="text-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">RESULTADOS COMERCIAIS — {MESES[mes].toUpperCase()} {ano}</h2>
-              <p className="text-gray-500 text-sm">Supervisora Comercial: {d.supervisor || 'Jessica Cardoso'} · Prosystem</p>
+            {/* Capa executiva (azul institucional Prosystem) */}
+            <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: `linear-gradient(135deg, ${PRO_DARK} 0%, ${PRO} 100%)`, boxShadow: '0 8px 24px rgba(46,90,143,.25)' }}>
+              <div className="px-7 py-6 text-white">
+                <p className="text-[11px] font-bold tracking-[.2em] uppercase" style={{ color: 'rgba(255,255,255,.7)' }}>Relatório Comercial · Prosystem</p>
+                <h2 className="text-3xl font-extrabold mt-1">Resultados de {MESES[mes]} / {ano}</h2>
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,.85)' }}>Visão executiva para a diretoria · Supervisora: {d.supervisor || 'Jessica Cardoso'}</p>
+                {/* Faixa de KPIs-destaque na capa */}
+                {d.metricas && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                    {[
+                      { l: 'Fechamentos', v: d.metricas.fechamentos.total },
+                      { l: 'MRR ganho', v: `${fmt(d.metricas.fechamentos.mrr_total)}` },
+                      { l: 'Clientes perdidos', v: d.metricas.perdidos.total },
+                      { l: 'Saldo MRR', v: `${d.metricas.entrada_x_saida.saldo_mrr >= 0 ? '+' : ''}${fmt(d.metricas.entrada_x_saida.saldo_mrr)}` },
+                    ].map((k, i) => (
+                      <div key={i} className="rounded-xl px-3 py-2.5" style={{ background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.18)' }}>
+                        <p className="text-[10px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,.75)' }}>{k.l}</p>
+                        <p className="text-xl font-extrabold text-white mt-0.5">{k.v}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* 1. Resumo geral */}
-            <Bloco titulo="1. Resumo Geral do Mês">
+            {/* Resumo geral */}
+            <Bloco titulo="Visão Geral do Mês">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KPI label="Contratos fechados" valor={d.contratos_fechados} cor="text-green-700" />
                 <KPI label={`Meta (${d.meta_contratos})`} valor={`${metaPct}%`} cor={metaPct >= 100 ? 'text-green-700' : metaPct >= 70 ? 'text-yellow-600' : 'text-red-600'} />
@@ -101,7 +148,7 @@ export default function RelatorioComercialPage() {
             {/* 1B. Métricas reais do mês (leads, fechamentos, perdidos, indicações) */}
             {d.metricas && (
               <>
-                <Bloco titulo="📊 Números do Mês">
+                <Bloco num="1" titulo="📊 Números do Mês">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <KPI label="Leads gerados" valor={d.metricas.total_leads} cor="text-indigo-700" />
                     <KPI label="Fechamentos" valor={d.metricas.fechamentos.total} cor="text-green-700" />
@@ -116,7 +163,7 @@ export default function RelatorioComercialPage() {
                 </Bloco>
 
                 {/* Entrada × Saída — seção gráfica de página inteira */}
-                <Bloco titulo="🔄 Entrada × Saída do Mês (página gráfica)">
+                <Bloco num="2" titulo="🔄 Entrada × Saída do Mês">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="rounded-xl p-4 text-center" style={{ background: '#dcfce7', border: '1px solid #86efac' }}>
                       <p className="text-xs text-green-800 font-semibold">ENTRADA</p>
