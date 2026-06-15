@@ -163,6 +163,12 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       parceiro_id: z.string().optional(),       // oferta escolhida do catálogo de parceiros
       venda_valor: z.number().optional(),        // setup/valor da venda
       venda_acrescimo: z.number().optional(),    // acréscimo na mensalidade (ex.: fiscal)
+      // ── Atualização de dados do cliente (vai p/ a ficha) ──
+      atualizar_cliente: z.boolean().optional(),
+      cli_nome: z.string().optional(),       // razão/nome
+      cli_telefone1: z.string().optional(),
+      cli_telefone2: z.string().optional(),
+      cli_segmento: z.string().optional(),   // Padaria | Farmácia | Manipulação | Varejo
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Dados inválidos' });
 
@@ -174,8 +180,34 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       return reply.status(403).send({ status: 'error', message: 'Sem acesso a este contato' });
     }
 
-    const { abrir_caso, parceiro_id, venda_valor, venda_acrescimo, ...campos } = body.data;
+    const { abrir_caso, parceiro_id, venda_valor, venda_acrescimo,
+      atualizar_cliente, cli_nome, cli_telefone1, cli_telefone2, cli_segmento, ...campos } = body.data;
     const data: any = { ...campos };
+
+    // Atualiza o CADASTRO do cliente na base (nome/telefones/segmento) → ficha.
+    // Só preenche os campos enviados (não apaga o que já existe). A vendedora usa
+    // isso quando o contato corrige o telefone ou identifica o segmento que faltava.
+    if (atualizar_cliente) {
+      const upd: any = {};
+      if (cli_nome && cli_nome.trim()) { upd.nome = cli_nome.trim(); upd.razao_social = cli_nome.trim(); }
+      if (cli_telefone1 && cli_telefone1.trim()) { upd.telefone = cli_telefone1.trim(); upd.telefone1 = cli_telefone1.trim(); }
+      if (cli_telefone2 && cli_telefone2.trim()) upd.telefone2 = cli_telefone2.trim();
+      if (cli_segmento && cli_segmento.trim()) upd.segmento = cli_segmento.trim();
+      if (Object.keys(upd).length) {
+        await prisma.cliente.update({ where: { id: atual.cliente_id }, data: upd }).catch(() => {});
+        // Atualiza o nome exibido no card também.
+        if (upd.nome) data.cliente_nome = upd.nome;
+        // Registra na ficha que a vendedora atualizou o cadastro.
+        await (prisma as any).eventoCliente.create({
+          data: {
+            cliente_id: atual.cliente_id, tipo: 'OBSERVACAO',
+            titulo: '✏️ Cadastro atualizado no contato ativo',
+            descricao: Object.entries(upd).map(([k, v]) => `${k}: ${v}`).join(' · '),
+            feito_por: user?.id, feito_por_nome: user?.nome,
+          },
+        }).catch(() => {});
+      }
+    }
 
     // Ao entrar EM_CONTATO pela 1ª vez, conta a tentativa; ao concluir, marca data.
     if (body.data.etapa === 'EM_CONTATO' && atual.etapa === 'A_CONTATAR') data.tentativas = (atual.tentativas || 0) + 1;

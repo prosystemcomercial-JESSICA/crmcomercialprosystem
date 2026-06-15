@@ -111,6 +111,11 @@ export default function AtivosPage() {
         parceiro_id: editando.gerou_venda ? (editando.parceiro_id || undefined) : undefined,
         venda_valor: editando.gerou_venda && editando.venda_valor ? Number(editando.venda_valor) : undefined,
         venda_acrescimo: editando.gerou_venda && editando.venda_acrescimo ? Number(editando.venda_acrescimo) : undefined,
+        atualizar_cliente: !!editando.atualizar_cliente,
+        cli_nome: editando.atualizar_cliente ? (editando.cli_nome || undefined) : undefined,
+        cli_telefone1: editando.atualizar_cliente ? (editando.cli_telefone1 || undefined) : undefined,
+        cli_telefone2: editando.atualizar_cliente ? (editando.cli_telefone2 || undefined) : undefined,
+        cli_segmento: editando.atualizar_cliente ? (editando.cli_segmento || undefined) : undefined,
       });
       setEditando(null); loadContatos();
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar.'); }
@@ -351,6 +356,40 @@ export default function AtivosPage() {
             <div>
               <label className="text-xs font-medium text-gray-600">Sugestões</label>
               <textarea value={editando.sugestoes || ''} onChange={e => setEditando({ ...editando, sugestoes: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            </div>
+
+            {/* Atualizar cadastro do cliente (vai p/ a ficha) */}
+            <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={!!editando.atualizar_cliente} onChange={e => setEditando({ ...editando, atualizar_cliente: e.target.checked, cli_nome: editando.cli_nome ?? editando.cliente_nome })} />
+                Atualizar cadastro do cliente (nome, telefones, segmento)
+              </label>
+              {editando.atualizar_cliente && (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Nome / razão social</label>
+                    <input value={editando.cli_nome ?? ''} onChange={e => setEditando({ ...editando, cli_nome: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder={editando.cliente_nome || ''} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600">Telefone 1</label>
+                      <input value={editando.cli_telefone1 ?? ''} onChange={e => setEditando({ ...editando, cli_telefone1: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600">Telefone 2</label>
+                      <input value={editando.cli_telefone2 ?? ''} onChange={e => setEditando({ ...editando, cli_telefone2: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="opcional" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Segmento</label>
+                    <select value={editando.cli_segmento ?? ''} onChange={e => setEditando({ ...editando, cli_segmento: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                      <option value="">— identificar segmento —</option>
+                      {['Farmácia', 'Manipulação', 'Padaria', 'Varejo'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <p className="text-[11px] text-gray-500">Só os campos preenchidos são atualizados na ficha do cliente.</p>
+                </div>
+              )}
             </div>
 
             <div className="bg-red-50 rounded-lg p-3 space-y-2">
