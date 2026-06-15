@@ -222,6 +222,12 @@ export default function PropostasComerciais() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterVendedor, setFilterVendedor] = useState('');
   const [search, setSearch] = useState('');
+  // Filtro de data: modo MES (padrão = mês atual) ou PERIODO (intervalo). TODOS = sem filtro.
+  const mesAtualYM = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+  const [dataModo, setDataModo] = useState<'MES' | 'PERIODO' | 'TODOS'>('MES');
+  const [filtroMes, setFiltroMes] = useState(mesAtualYM); // "YYYY-MM"
+  const [periodoIni, setPeriodoIni] = useState('');
+  const [periodoFim, setPeriodoFim] = useState('');
 
   const [previewProposta, setPreviewProposta] = useState<PropostaComercial | null>(null);
   const [copied, setCopied] = useState(false);
@@ -556,7 +562,22 @@ export default function PropostasComerciais() {
 
   const filtered = propostas.filter(p => {
     const s = search.toLowerCase();
-    return !s || p.razao_social.toLowerCase().includes(s) || (p.vendedor_nome || '').toLowerCase().includes(s);
+    const okBusca = !s || p.razao_social.toLowerCase().includes(s) || (p.vendedor_nome || '').toLowerCase().includes(s);
+    if (!okBusca) return false;
+    // Filtro por data de criação.
+    const dt = (p as any).created_at ? new Date((p as any).created_at) : null;
+    if (dataModo === 'MES' && filtroMes) {
+      if (!dt) return false;
+      const ym = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+      return ym === filtroMes;
+    }
+    if (dataModo === 'PERIODO') {
+      if (!dt) return false;
+      if (periodoIni && dt < new Date(periodoIni + 'T00:00:00')) return false;
+      if (periodoFim && dt > new Date(periodoFim + 'T23:59:59')) return false;
+      return true;
+    }
+    return true; // TODOS
   });
 
   // ── Seções do formulário
@@ -676,6 +697,23 @@ export default function PropostasComerciais() {
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
+
+          {/* Filtro de data: Mês (padrão) / Período / Todos */}
+          <select value={dataModo} onChange={e => setDataModo(e.target.value as any)} className="ps-input text-sm" style={{ width: 130 }}>
+            <option value="MES">Por mês</option>
+            <option value="PERIODO">Por período</option>
+            <option value="TODOS">Todos</option>
+          </select>
+          {dataModo === 'MES' && (
+            <input type="month" value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className="ps-input text-sm" style={{ width: 150 }} />
+          )}
+          {dataModo === 'PERIODO' && (
+            <>
+              <input type="date" value={periodoIni} onChange={e => setPeriodoIni(e.target.value)} className="ps-input text-sm" style={{ width: 150 }} title="De" />
+              <input type="date" value={periodoFim} onChange={e => setPeriodoFim(e.target.value)} className="ps-input text-sm" style={{ width: 150 }} title="Até" />
+            </>
+          )}
+          <span className="text-xs self-center" style={{ color: 'var(--t-text-muted)' }}>{filtered.length} proposta(s)</span>
         </div>
 
         {/* ── Vista Lista ─────────────────────────────────────── */}
