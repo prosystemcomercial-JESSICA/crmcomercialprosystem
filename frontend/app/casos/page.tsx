@@ -269,6 +269,7 @@ export default function CasosPage() {
               nome="churn-casos" titulo="Churn & Retenção — Casos"
               linhas={casos}
               colunas={[
+                { header: 'Código', value: (c: Caso) => (c.cliente as any)?.codigo || '' },
                 { header: 'Cliente', value: (c: Caso) => c.cliente?.nome || '' },
                 { header: 'Empresa', value: (c: Caso) => c.cliente?.empresa || '' },
                 { header: 'Fila/Técnico', value: (c: Caso) => (c.cliente as any)?.grupo_tecnico || '' },
