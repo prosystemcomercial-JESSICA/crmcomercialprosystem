@@ -570,7 +570,7 @@ export default function LeadsPage() {
       setSelectedLead(prev => prev && prev.id === leadId
         ? { ...prev, responsavel_id: vendedorId, vendedor_nome: v?.nome } as Lead : prev);
       await loadData();
-    } catch { alert('Erro ao atribuir vendedor.'); }
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao atribuir vendedor.'); }
     finally { setAtribuindo(false); }
   };
 
