@@ -80,6 +80,22 @@ export default function AtivosPage() {
     catch (e: any) { alert(e?.response?.data?.message || 'Erro ao mover.'); }
   };
 
+  // Supervisão: ocultar/exibir um cliente da fila do vendedor.
+  const ocultarContato = async (contato: any) => {
+    const ocultar = !contato.oculto;
+    const motivo = ocultar ? (prompt('Motivo de ocultar (opcional):', '') || undefined) : undefined;
+    try { await apiClient.supervisaoContatoAtivo(contato.id, { oculto: ocultar, oculto_motivo: motivo }); loadContatos(); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao ocultar.'); }
+  };
+  // Supervisão: etiquetar (ex.: Cliente crítico). Vazio = remover etiqueta.
+  const etiquetarContato = async (contato: any) => {
+    const et = prompt('Etiqueta (ex.: Cliente crítico, Não contatar). Vazio remove:', contato.etiqueta || 'Cliente crítico');
+    if (et === null) return;
+    const cor = et.toLowerCase().includes('crit') ? '#dc2626' : et.toLowerCase().includes('contat') ? '#b45309' : '#6d28d9';
+    try { await apiClient.supervisaoContatoAtivo(contato.id, { etiqueta: et.trim() || null, etiqueta_cor: cor }); loadContatos(); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao etiquetar.'); }
+  };
+
   const salvarQuestionario = async () => {
     if (!editando) return;
     try {
@@ -165,17 +181,23 @@ export default function AtivosPage() {
                         </div>
                         <div className="space-y-2">
                           {itens.map(c => (
-                            <div key={c.id} className="bg-white rounded-lg border border-gray-100 p-2.5 shadow-sm">
+                            <div key={c.id} className={`bg-white rounded-lg border p-2.5 shadow-sm ${c.oculto ? 'border-dashed border-gray-300 opacity-70' : 'border-gray-100'}`}>
                               <p className="text-sm font-semibold text-gray-800">{c.cliente_codigo ? `${c.cliente_codigo} · ` : ''}{c.cliente_nome || 'Cliente'}</p>
-                              {c.saude && <span className="inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: SAUDE_COR[c.saude] }}>{c.saude}</span>}
-                              {c.nota_prosystem != null && <span className="ml-1 text-[10px] text-gray-500">★ {c.nota_prosystem}/5</span>}
-                              {c.caso_churn_id && <span className="ml-1 text-[10px] text-red-600">⚠ caso</span>}
-                              {c.gerou_venda && <span className="ml-1 text-[10px] text-blue-600">💰 {c.tipo_venda}</span>}
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {c.etiqueta && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: c.etiqueta_cor || '#dc2626' }}>{c.etiqueta}</span>}
+                                {c.oculto && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">🙈 Oculto p/ vendedor</span>}
+                                {c.saude && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: SAUDE_COR[c.saude] }}>{c.saude}</span>}
+                                {c.nota_prosystem != null && <span className="text-[10px] text-gray-500">★ {c.nota_prosystem}/5</span>}
+                                {c.caso_churn_id && <span className="text-[10px] text-red-600">⚠ caso</span>}
+                                {c.gerou_venda && <span className="text-[10px] text-blue-600">💰 {c.tipo_venda}</span>}
+                              </div>
                               <div className="flex gap-1 mt-2 flex-wrap">
                                 {et.id === 'A_CONTATAR' && <button onClick={() => moverEtapa(c, 'EM_CONTATO')} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Iniciar</button>}
                                 {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">Registrar contato</button>}
                                 {et.id === 'EM_CONTATO' && <button onClick={() => moverEtapa(c, 'SEM_SUCESSO')} className="text-[11px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">Sem sucesso</button>}
                                 {(et.id === 'CONCLUIDO' || et.id === 'SEM_SUCESSO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
+                                {isGestor && <button onClick={() => etiquetarContato(c)} className="text-[11px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">🏷️ Etiqueta</button>}
+                                {isGestor && <button onClick={() => ocultarContato(c)} className="text-[11px] px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">{c.oculto ? '👁️ Exibir' : '🙈 Ocultar'}</button>}
                               </div>
                             </div>
                           ))}
