@@ -770,7 +770,37 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         } as any,
       }).catch(() => null);
 
-      return reply.send({ status: 'success', data: { cliente, venda, contrato }, message: 'Troca de CNPJ registrada: cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.' });
+      // Resumo PRONTO P/ COPIAR (financeiro / WhatsApp) — no padrão da gestão.
+      const brlR = (v: any) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      const dataBr = (s?: string) => { if (!s) return ''; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? `${m[3]}/${m[2]}/${m[1]}` : s; };
+      const razaoAntiga = atual.razao_social || atual.nome_fantasia || atual.nome || '';
+      const razaoNova = b.razao_social_nova || cliente.razao_social || cliente.nome_fantasia || '';
+      const cod = atual.codigo ? `${atual.codigo}  - ` : '';
+      let condicoes = '';
+      if (b.taxa_entrada && b.taxa_parcelas) {
+        condicoes = `Entrada de R$ ${brlR(b.taxa_entrada)} + ${b.taxa_parcelas}X R$ ${brlR((b.taxa - (b.taxa_entrada || 0)) / b.taxa_parcelas)}`;
+      } else if (b.taxa_parcelas && b.taxa_parcelas > 1) {
+        condicoes = `${b.taxa_parcelas}X R$ ${brlR(b.taxa / b.taxa_parcelas)}`;
+      } else {
+        condicoes = `R$ ${brlR(b.taxa)} à vista`;
+      }
+      const venc = b.taxa_primeiro_venc ? `Primeiro vencimento para ${dataBr(b.taxa_primeiro_venc)} no valor de ${condicoes}` : `Condições: ${condicoes}`;
+      const resumo = [
+        'Lançar cobrança troca de CNPJ',
+        '',
+        `${cod}ANTIGO ${razaoAntiga}   - NOVO ${razaoNova}`,
+        `CNPJ: ${b.cnpj_novo}`,
+        '',
+        'A negociação ficou definida da seguinte forma:',
+        `R$ ${brlR(b.taxa)} pela troca de CNPJ;`,
+        'Condições de pagamento:',
+        venc,
+        '',
+        '',
+        'Os dados já foram trocados no suporte e CRM',
+      ].join('\n');
+
+      return reply.send({ status: 'success', data: { cliente, venda, contrato, resumo }, message: 'Troca de CNPJ registrada: cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.' });
     } catch (err: any) {
       console.error('[POST /contratos-comerciais/troca-cnpj]', err);
       return reply.status(500).send({ status: 'error', message: 'Erro ao processar a troca de CNPJ' });

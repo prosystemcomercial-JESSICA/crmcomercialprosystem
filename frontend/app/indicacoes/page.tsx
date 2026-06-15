@@ -107,6 +107,7 @@ export default function IndicacoesPage() {
   const [trocaResultados, setTrocaResultados] = useState<any[]>([]);
   const [trocaCli, setTrocaCli] = useState<any>(null);
   const [trocaSalvando, setTrocaSalvando] = useState(false);
+  const [trocaResumo, setTrocaResumo] = useState<{ texto: string; numero?: string } | null>(null);
   const [trocaForm, setTrocaForm] = useState<any>({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
 
   const buscarTroca = useCallback(async (termo: string) => {
@@ -143,13 +144,11 @@ export default function IndicacoesPage() {
         telefone: trocaForm.telefone || undefined, email: trocaForm.email || undefined, motivo: trocaForm.motivo || undefined,
       });
       const numero = resp.data?.data?.contrato?.numero_contrato;
+      const resumo = resp.data?.data?.resumo || '';
       setShowTroca(false); setTrocaCli(null); setTrocaBusca(''); setTrocaResultados([]);
       setTrocaForm({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
       loadVendas();
-      // Leva direto ao contrato gerado (Troca de CNPJ) na tela de Contratos.
-      if (confirm(`Troca de CNPJ registrada! Contrato ${numero || ''} gerado (marcado como Troca de CNPJ, não conta como cliente novo). Abrir a tela de Contratos agora?`)) {
-        router.push('/contratos');
-      }
+      setTrocaResumo({ texto: resumo, numero });
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao processar a troca.'); }
     finally { setTrocaSalvando(false); }
   };
@@ -1249,6 +1248,24 @@ export default function IndicacoesPage() {
             <div className="flex justify-end gap-2 pt-1">
               <button onClick={() => setShowTroca(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
               <button onClick={salvarTroca} disabled={trocaSalvando || !trocaCli} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg disabled:opacity-50">{trocaSalvando ? 'Processando…' : 'Confirmar troca de CNPJ'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Resumo da Troca de CNPJ (copiar p/ financeiro) ─── */}
+      {trocaResumo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">✅ Troca de CNPJ registrada</h2>
+              <button onClick={() => setTrocaResumo(null)} className="text-gray-400 text-xl">×</button>
+            </div>
+            <p className="text-xs text-gray-500">Contrato {trocaResumo.numero || ''} gerado (marcado como serviço, não conta como cliente novo). Copie o resumo abaixo para lançar a cobrança.</p>
+            <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-800 whitespace-pre-wrap font-sans">{trocaResumo.texto}</pre>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => router.push('/contratos')} className="px-4 py-2 text-sm font-medium text-violet-700 border border-violet-200 rounded-lg">Abrir Contratos</button>
+              <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo.texto); alert('Resumo copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg">📋 Copiar resumo</button>
             </div>
           </div>
         </div>
