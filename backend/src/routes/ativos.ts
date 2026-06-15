@@ -106,10 +106,35 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     if (scopeId !== null && camp.vendedor_id !== scopeId) {
       return reply.status(403).send({ status: 'error', message: 'Sem acesso a esta campanha' });
     }
+    // Vendedor NÃO vê os ocultados pela supervisão (não devem ser tratados).
+    // Gestão vê todos (com a marcação de oculto/etiqueta) p/ poder gerenciar.
+    const ehGestor = podeVerTudo(getUser(request));
+    const where: any = { campanha_id: id };
+    if (!ehGestor) where.oculto = false;
     const contatos = await prisma.contatoAtivo.findMany({
-      where: { campanha_id: id }, orderBy: [{ etapa: 'asc' }, { cliente_nome: 'asc' }],
+      where, orderBy: [{ etapa: 'asc' }, { cliente_nome: 'asc' }],
     });
     return reply.send({ status: 'success', data: { campanha: camp, contatos } });
+  });
+
+  // ── Supervisão: ocultar/exibir e etiquetar um contato (só gestão) ──
+  fastify.patch('/ativos/contatos/:id/supervisao', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      oculto: z.boolean().optional(),
+      oculto_motivo: z.string().optional(),
+      etiqueta: z.string().nullable().optional(),
+      etiqueta_cor: z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    try {
+      const c = await prisma.contatoAtivo.update({ where: { id }, data: body.data as any });
+      return reply.send({ status: 'success', data: c });
+    } catch (e: any) {
+      if (e.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Contato não encontrado' });
+      throw e;
+    }
   });
 
   // ── Atualizar um contato: avançar etapa, salvar questionário, abrir caso, venda ──

@@ -635,6 +635,10 @@ class ApiClient {
   async getPainelAtivos() {
     return this.client.get('/ativos/painel');
   }
+  // Supervisão: ocultar/exibir e etiquetar um contato ativo.
+  async supervisaoContatoAtivo(id: string, data: { oculto?: boolean; oculto_motivo?: string; etiqueta?: string | null; etiqueta_cor?: string }) {
+    return this.client.patch(`/ativos/contatos/${id}/supervisao`, data);
+  }
 
   async enviarContratoZapSign(id: string) {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);

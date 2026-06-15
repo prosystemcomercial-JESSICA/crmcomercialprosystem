@@ -1617,6 +1617,12 @@ model ContatoAtivo {
   tentativas  Int     @default(0)
   contatado_em DateTime?
 
+  // ── Controle da supervisão ──
+  oculto       Boolean @default(false) // supervisão oculta da fila do vendedor (não tratar)
+  oculto_motivo String? @db.Text
+  etiqueta     String?                 // ex.: "Cliente crítico", "Não contatar"
+  etiqueta_cor String?  @default("#dc2626")
+
   // ── Questionário (sim/não por item + nota geral + texto) ──
   usa_sistema_ok       Boolean? // usa bem o sistema/ferramentas?
   suporte_ok           Boolean? // satisfeito com o atendimento do suporte?
