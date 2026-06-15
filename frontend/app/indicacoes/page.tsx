@@ -114,6 +114,15 @@ export default function IndicacoesPage() {
     try { const r = await apiClient.getClientes(0, 8, termo); setTrocaResultados(r.data?.data?.clientes || []); } catch { setTrocaResultados([]); }
   }, []);
 
+  // Abre a Troca de CNPJ garantindo a lista de vendedores carregada no dropdown.
+  const abrirTroca = async () => {
+    if (usuarios.length === 0) {
+      try { const r = await apiClient.getVendedores(); setUsuarios((r.data?.data?.length ? r.data.data : MOCK_VENDEDORES)); }
+      catch { setUsuarios(MOCK_VENDEDORES); }
+    }
+    setShowTroca(true);
+  };
+
   const salvarTroca = async () => {
     if (!trocaCli) return alert('Selecione o cliente.');
     if (!trocaForm.cnpj_novo.trim()) return alert('Informe o novo CNPJ.');
@@ -411,7 +420,7 @@ export default function IndicacoesPage() {
           {/* Vendedor também registra a própria venda; gestão confirma/data/libera. */}
           <div className="flex gap-2">
             {isGestor && (
-              <button onClick={() => setShowTroca(true)} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700">
+              <button onClick={abrirTroca} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700">
                 🔄 Troca de CNPJ
               </button>
             )}
