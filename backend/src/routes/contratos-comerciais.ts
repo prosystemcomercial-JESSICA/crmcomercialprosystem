@@ -129,6 +129,12 @@ async function gerarNumeroContrato(prisma: PrismaClient): Promise<{ numero: stri
 
 const COMISSAO_VENDEDOR_PCT = 15; // 15% sobre o setup/instalação
 
+// Próximo mês no formato "YYYY-MM" (competência padrão da comissão).
+function proximoMesYM(): string {
+  const d = new Date(); const dt = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+}
+
 // Aplica os efeitos de ASSINATURA do contrato (idempotente):
 //  - calcula a comissão do vendedor (15% do setup) e grava no contrato;
 //  - registra signed_at/status ASSINADO;
@@ -605,6 +611,169 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
 
     const texto = L.join('\n');
     return reply.send({ status: 'success', data: { texto } });
+  });
+
+  // ── TROCA DE CNPJ (venda adicional) ─────────────────────────────────────────
+  // Cliente desativa um CNPJ e migra p/ outro: MESMO cadastro, MESMA mensalidade/
+  // plano, cobra uma TAXA do serviço. Faz tudo: (1) snapshot dos dados ANTIGOS na
+  // ficha (nada se perde); (2) atualiza o cadastro com os novos dados; (3) cria a
+  // VendaAdicional (taxa) com comissão 15% vendedor + 5% supervisão; (4) gera um
+  // ContratoComercial novo do plano atual com os novos dados.
+  fastify.post('/contratos-comerciais/troca-cnpj', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const user = (request as any).user;
+    const body = z.object({
+      cliente_id: z.string().min(1, 'Selecione o cliente'),
+      taxa: z.number().nonnegative().default(0),         // taxa do serviço (setup)
+      vendedor_id: z.string().optional(),                // vendedor da venda/comissão
+      // forma de pagamento da taxa
+      taxa_entrada: z.number().optional(),
+      taxa_parcelas: z.number().int().min(1).max(24).optional(),
+      taxa_primeiro_venc: z.string().optional(),
+      // NOVOS dados cadastrais (tudo muda)
+      cnpj_novo: z.string().min(1, 'Informe o novo CNPJ'),
+      razao_social_nova: z.string().optional(),
+      nome_fantasia_nova: z.string().optional(),
+      inscricao_nova: z.string().optional(),
+      cep: z.string().optional(),
+      endereco: z.string().optional(),
+      numero_end: z.string().optional(),
+      bairro: z.string().optional(),
+      cidade: z.string().optional(),
+      estado: z.string().optional(),
+      telefone: z.string().optional(),
+      email: z.string().optional(),
+      motivo: z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Dados inválidos' });
+    const b = body.data;
+
+    const atual: any = await prisma.cliente.findUnique({ where: { id: b.cliente_id } });
+    if (!atual) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+
+    const vendedorId = b.vendedor_id || user?.id || 'system';
+    const nomes = await resolverNomesUsuarios(prisma, [vendedorId]).catch(() => ({} as any));
+    const vendedorNome = nomes[vendedorId] || user?.nome || null;
+
+    try {
+      // 1) Snapshot dos dados ANTIGOS — histórico estruturado + evento completo na ficha.
+      await (prisma as any).historicoCnpjCliente.create({
+        data: {
+          cliente_id: b.cliente_id,
+          cnpj_anterior: atual.cnpj, razao_social_anterior: atual.razao_social,
+          nome_fantasia_anterior: atual.nome_fantasia, inscricao_anterior: atual.inscricao_estadual,
+          cnpj_novo: b.cnpj_novo, razao_social_nova: b.razao_social_nova ?? atual.razao_social,
+          nome_fantasia_nova: b.nome_fantasia_nova ?? atual.nome_fantasia,
+          motivo: b.motivo, trocado_por: user?.id, trocado_por_nome: user?.nome,
+        },
+      }).catch(() => {});
+      const dadosAntigos = {
+        cnpj: atual.cnpj, razao_social: atual.razao_social, nome_fantasia: atual.nome_fantasia,
+        inscricao_estadual: atual.inscricao_estadual, cep: atual.cep, endereco: atual.endereco,
+        numero_end: atual.numero_end, bairro: atual.bairro, cidade: atual.cidade, estado: atual.estado,
+        telefone: atual.telefone || atual.telefone1, email: atual.email,
+      };
+      await (prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: b.cliente_id, tipo: 'TROCA_CNPJ',
+          titulo: `🔄 Troca de CNPJ: ${atual.cnpj || '(vazio)'} → ${b.cnpj_novo}`,
+          descricao: `Dados ANTIGOS preservados:\n${Object.entries(dadosAntigos).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(' · ')}${b.motivo ? '\nMotivo: ' + b.motivo : ''}`,
+          metadados: { antes: dadosAntigos, depois: { cnpj: b.cnpj_novo, razao_social: b.razao_social_nova, nome_fantasia: b.nome_fantasia_nova } },
+          feito_por: user?.id, feito_por_nome: user?.nome,
+        },
+      }).catch(() => {});
+
+      // 2) Atualiza o cadastro com os NOVOS dados (mantém código/plano/mensalidade).
+      const cliente = await prisma.cliente.update({
+        where: { id: b.cliente_id },
+        data: {
+          cnpj: b.cnpj_novo,
+          ...(b.razao_social_nova ? { razao_social: b.razao_social_nova } : {}),
+          ...(b.nome_fantasia_nova ? { nome_fantasia: b.nome_fantasia_nova } : {}),
+          ...(b.inscricao_nova ? { inscricao_estadual: b.inscricao_nova } : {}),
+          ...(b.cep ? { cep: b.cep } : {}), ...(b.endereco ? { endereco: b.endereco } : {}),
+          ...(b.numero_end ? { numero_end: b.numero_end } : {}), ...(b.bairro ? { bairro: b.bairro } : {}),
+          ...(b.cidade ? { cidade: b.cidade } : {}), ...(b.estado ? { estado: b.estado } : {}),
+          ...(b.telefone ? { telefone: b.telefone, telefone1: b.telefone } : {}),
+          ...(b.email ? { email: b.email } : {}),
+        },
+      });
+
+      // 3) Parceiro "TROCA_CNPJ" (cria se não existir) + VendaAdicional (taxa) +
+      //    comissões 15% vendedor / 5% supervisão sobre a taxa.
+      let parceiro = await prisma.parceiro.findFirst({ where: { categoria: 'TROCA_CNPJ' } }).catch(() => null);
+      if (!parceiro) {
+        parceiro = await prisma.parceiro.create({
+          data: { nome: 'Troca de CNPJ', categoria: 'TROCA_CNPJ', pitch: 'Migração de CNPJ mantendo o cadastro/plano; cobra taxa de serviço.', comissao_valor: 0, comissao_supervisao_pct: 5, ativo: true },
+        });
+      }
+      const comissaoVend = Math.round((b.taxa * 0.15) * 100) / 100;
+      const venda = await prisma.vendaAdicional.create({
+        data: {
+          cliente_id: b.cliente_id, parceiro_id: parceiro.id, vendedor_id: vendedorId, vendedor_nome: vendedorNome,
+          tipo_negocio: 'INDICACAO', valor_venda: b.taxa,
+          setup_forma: b.taxa_entrada ? 'ENTRADA_PARCELAS' : (b.taxa_parcelas ? 'PARCELADO' : undefined),
+          setup_entrada: b.taxa_entrada ?? undefined, setup_parcelas: b.taxa_parcelas ?? undefined,
+          setup_primeiro_venc: b.taxa_primeiro_venc ? new Date(b.taxa_primeiro_venc) : undefined,
+          observacoes: `Troca de CNPJ: ${atual.cnpj || '(vazio)'} → ${b.cnpj_novo}`,
+          comissao_valor: comissaoVend, status: 'PENDENTE', created_by: user?.id || 'system',
+        } as any,
+      }).catch(() => null);
+      // Comissão do vendedor (15% da taxa).
+      if (venda && b.taxa > 0) {
+        await prisma.comissao.create({
+          data: {
+            responsavel_id: vendedorId, tipo: 'VENDA_ADICIONAL', referencia_id: venda.id,
+            descricao: `Troca de CNPJ — ${b.razao_social_nova || atual.razao_social || cliente.nome}`,
+            valor_base: b.taxa, percentual: 15, valor_comissao: comissaoVend, papel: 'VENDEDOR',
+            periodo: proximoMesYM(), status: 'PENDENTE', created_by: user?.id || 'system',
+          } as any,
+        }).catch(() => {});
+        // Supervisão 5% (cada SUPERVISAO_COMERCIAL ativo).
+        const sups: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM UsuarioCRM WHERE cargo='SUPERVISAO_COMERCIAL' AND status='ATIVO'`).catch(() => []);
+        const comissaoSup = Math.round((b.taxa * 0.05) * 100) / 100;
+        for (const s of sups) {
+          await prisma.comissao.create({
+            data: {
+              responsavel_id: s.id, tipo: 'SUPERVISAO_VENDA_ADICIONAL', referencia_id: venda.id,
+              descricao: `Supervisão — Troca de CNPJ: ${cliente.razao_social || cliente.nome}`,
+              valor_base: b.taxa, percentual: 5, valor_comissao: comissaoSup, papel: 'SUPERVISAO',
+              periodo: proximoMesYM(), status: 'PENDENTE', created_by: user?.id || 'system',
+            } as any,
+          }).catch(() => {});
+        }
+      }
+
+      // 4) Gera o ContratoComercial novo (mesmo plano do cliente) com os NOVOS dados.
+      const { numero, seq, ano } = await gerarNumeroContrato(prisma);
+      const contrato = await prisma.contratoComercial.create({
+        data: {
+          numero_contrato: numero, sequencia: seq, ano,
+          cliente_id: b.cliente_id,
+          razao_social: b.razao_social_nova || cliente.razao_social || cliente.nome,
+          nome_fantasia: b.nome_fantasia_nova || cliente.nome_fantasia || undefined,
+          cnpj: b.cnpj_novo, endereco: b.endereco || cliente.endereco || undefined,
+          numero_endereco: b.numero_end || cliente.numero_end || undefined,
+          bairro: b.bairro || cliente.bairro || undefined,
+          cidade: b.cidade || cliente.cidade || undefined,
+          estado: b.estado || cliente.estado || undefined,
+          cep: b.cep || cliente.cep || undefined,
+          plano_contratado: cliente.plano || undefined,    // MESMO plano
+          mensalidade: cliente.mensalidade_base || undefined, // MESMA mensalidade
+          valor_setup_total: b.taxa || undefined,           // taxa do serviço
+          valor_setup_entrada: b.taxa_entrada ?? undefined,
+          setup_parcelas: b.taxa_parcelas ?? undefined,
+          vendedor_id: vendedorId, vendedor_nome: vendedorNome,
+          condicao_especial: `Troca de CNPJ (de ${atual.cnpj || '(vazio)'}). Mesmo plano/mensalidade. Taxa de serviço.`,
+          status: 'A_GERAR', created_by: user?.id || 'system',
+        } as any,
+      }).catch(() => null);
+
+      return reply.send({ status: 'success', data: { cliente, venda, contrato }, message: 'Troca de CNPJ registrada: cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.' });
+    } catch (err: any) {
+      console.error('[POST /contratos-comerciais/troca-cnpj]', err);
+      return reply.status(500).send({ status: 'error', message: 'Erro ao processar a troca de CNPJ' });
+    }
   });
 
   // ── CREATE

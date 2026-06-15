@@ -101,6 +101,46 @@ export default function IndicacoesPage() {
   const [clienteLoading, setClienteLoading] = useState(false);
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
 
+  // Troca de CNPJ
+  const [showTroca, setShowTroca] = useState(false);
+  const [trocaBusca, setTrocaBusca] = useState('');
+  const [trocaResultados, setTrocaResultados] = useState<any[]>([]);
+  const [trocaCli, setTrocaCli] = useState<any>(null);
+  const [trocaSalvando, setTrocaSalvando] = useState(false);
+  const [trocaForm, setTrocaForm] = useState<any>({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
+
+  const buscarTroca = useCallback(async (termo: string) => {
+    if (!termo || termo.length < 2) { setTrocaResultados([]); return; }
+    try { const r = await apiClient.getClientes(0, 8, termo); setTrocaResultados(r.data?.data?.clientes || []); } catch { setTrocaResultados([]); }
+  }, []);
+
+  const salvarTroca = async () => {
+    if (!trocaCli) return alert('Selecione o cliente.');
+    if (!trocaForm.cnpj_novo.trim()) return alert('Informe o novo CNPJ.');
+    setTrocaSalvando(true);
+    try {
+      await apiClient.trocaCnpj({
+        cliente_id: trocaCli.id,
+        taxa: Number(trocaForm.taxa) || 0,
+        vendedor_id: trocaForm.vendedor_id || undefined,
+        taxa_entrada: trocaForm.taxa_entrada ? Number(trocaForm.taxa_entrada) : undefined,
+        taxa_parcelas: trocaForm.taxa_parcelas ? Number(trocaForm.taxa_parcelas) : undefined,
+        taxa_primeiro_venc: trocaForm.taxa_primeiro_venc || undefined,
+        cnpj_novo: trocaForm.cnpj_novo.trim(),
+        razao_social_nova: trocaForm.razao_social_nova || undefined, nome_fantasia_nova: trocaForm.nome_fantasia_nova || undefined,
+        inscricao_nova: trocaForm.inscricao_nova || undefined,
+        cep: trocaForm.cep || undefined, endereco: trocaForm.endereco || undefined, numero_end: trocaForm.numero_end || undefined,
+        bairro: trocaForm.bairro || undefined, cidade: trocaForm.cidade || undefined, estado: trocaForm.estado || undefined,
+        telefone: trocaForm.telefone || undefined, email: trocaForm.email || undefined, motivo: trocaForm.motivo || undefined,
+      });
+      alert('Troca de CNPJ registrada! Cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.');
+      setShowTroca(false); setTrocaCli(null); setTrocaBusca(''); setTrocaResultados([]);
+      setTrocaForm({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
+      loadVendas();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao processar a troca.'); }
+    finally { setTrocaSalvando(false); }
+  };
+
   // Busca clientes da base por código, razão social, nome fantasia, nome ou CNPJ
   // (server-side, traz até 200 — antes só pegava os 20 primeiros, sem busca).
   // Inativos são marcados na lista, mas a busca traz todos p/ não "sumir" cliente.
@@ -365,9 +405,16 @@ export default function IndicacoesPage() {
             <p className="text-gray-500 mt-1">Cross-sell para clientes da base — parceiros e comissões do vendedor</p>
           </div>
           {/* Vendedor também registra a própria venda; gestão confirma/data/libera. */}
-          <button onClick={openNovaVenda} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-            + Registrar Venda
-          </button>
+          <div className="flex gap-2">
+            {isGestor && (
+              <button onClick={() => setShowTroca(true)} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700">
+                🔄 Troca de CNPJ
+              </button>
+            )}
+            <button onClick={openNovaVenda} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              + Registrar Venda
+            </button>
+          </div>
         </div>
         {!isGestor && (
           <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
@@ -1108,6 +1155,87 @@ export default function IndicacoesPage() {
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
                 {savingParceiro ? 'Salvando...' : 'Salvar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Troca de CNPJ ─── */}
+      {showTroca && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 space-y-3 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">🔄 Troca de CNPJ</h2>
+              <button onClick={() => setShowTroca(false)} className="text-gray-400 text-xl">×</button>
+            </div>
+            <p className="text-xs text-gray-500">Mesmo cadastro, mesmo plano e mesma mensalidade. Cobra a taxa do serviço, gera venda + comissão (15%/5%) e um contrato novo com os dados novos. Os dados antigos ficam guardados na ficha.</p>
+
+            {/* Buscar cliente */}
+            {!trocaCli ? (
+              <div>
+                <label className="text-xs font-medium text-gray-600">Cliente (buscar por nome/razão/código/CNPJ)</label>
+                <input value={trocaBusca} onChange={e => { setTrocaBusca(e.target.value); buscarTroca(e.target.value); }} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Digite para buscar…" />
+                {trocaResultados.length > 0 && (
+                  <div className="mt-1 border border-gray-200 rounded-lg divide-y max-h-44 overflow-auto">
+                    {trocaResultados.map((c: any) => (
+                      <button key={c.id} type="button" onClick={() => { setTrocaCli(c); setTrocaForm((f: any) => ({ ...f, razao_social_nova: '', cnpj_novo: '' })); setTrocaResultados([]); }} className="block w-full text-left px-3 py-2 text-sm hover:bg-violet-50">
+                        <b>{c.razao_social || c.nome_fantasia || c.nome}</b>{c.codigo ? ` · ${c.codigo}` : ''}{c.cnpj ? ` · ${c.cnpj}` : ''}{c.plano ? ` · ${c.plano}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-slate-50 rounded-lg p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span><b>{trocaCli.razao_social || trocaCli.nome_fantasia || trocaCli.nome}</b>{trocaCli.codigo ? ` · ${trocaCli.codigo}` : ''}</span>
+                  <button className="text-violet-700 text-xs underline" onClick={() => setTrocaCli(null)}>trocar</button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Atual: CNPJ {trocaCli.cnpj || '—'} · Plano {trocaCli.plano || '—'} · Mensalidade R$ {Number(trocaCli.mensalidade_base || 0).toLocaleString('pt-BR')} (mantidos)</p>
+              </div>
+            )}
+
+            {trocaCli && (
+              <>
+                <p className="text-xs font-bold text-gray-500 uppercase mt-1">Novos dados</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className="text-xs text-gray-600">Novo CNPJ *</label><input value={trocaForm.cnpj_novo} onChange={e => setTrocaForm({ ...trocaForm, cnpj_novo: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Inscrição estadual</label><input value={trocaForm.inscricao_nova} onChange={e => setTrocaForm({ ...trocaForm, inscricao_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div className="col-span-2"><label className="text-xs text-gray-600">Razão social</label><input value={trocaForm.razao_social_nova} onChange={e => setTrocaForm({ ...trocaForm, razao_social_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div className="col-span-2"><label className="text-xs text-gray-600">Nome fantasia</label><input value={trocaForm.nome_fantasia_nova} onChange={e => setTrocaForm({ ...trocaForm, nome_fantasia_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">CEP</label><input value={trocaForm.cep} onChange={e => setTrocaForm({ ...trocaForm, cep: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Endereço</label><input value={trocaForm.endereco} onChange={e => setTrocaForm({ ...trocaForm, endereco: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Número</label><input value={trocaForm.numero_end} onChange={e => setTrocaForm({ ...trocaForm, numero_end: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Bairro</label><input value={trocaForm.bairro} onChange={e => setTrocaForm({ ...trocaForm, bairro: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Cidade</label><input value={trocaForm.cidade} onChange={e => setTrocaForm({ ...trocaForm, cidade: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Estado (UF)</label><input value={trocaForm.estado} onChange={e => setTrocaForm({ ...trocaForm, estado: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Telefone</label><input value={trocaForm.telefone} onChange={e => setTrocaForm({ ...trocaForm, telefone: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">E-mail</label><input value={trocaForm.email} onChange={e => setTrocaForm({ ...trocaForm, email: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                </div>
+
+                <p className="text-xs font-bold text-gray-500 uppercase mt-2">Taxa do serviço + comissão</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className="text-xs text-gray-600">Taxa (R$) *</label><input type="number" value={trocaForm.taxa} onChange={e => setTrocaForm({ ...trocaForm, taxa: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0" /></div>
+                  <div><label className="text-xs text-gray-600">Vendedor</label>
+                    <select value={trocaForm.vendedor_id} onChange={e => setTrocaForm({ ...trocaForm, vendedor_id: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                      <option value="">— selecione —</option>
+                      {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                    </select>
+                  </div>
+                  <div><label className="text-xs text-gray-600">Entrada (R$)</label><input type="number" value={trocaForm.taxa_entrada} onChange={e => setTrocaForm({ ...trocaForm, taxa_entrada: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">Parcelas</label><input type="number" value={trocaForm.taxa_parcelas} onChange={e => setTrocaForm({ ...trocaForm, taxa_parcelas: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs text-gray-600">1º vencimento</label><input type="date" value={trocaForm.taxa_primeiro_venc} onChange={e => setTrocaForm({ ...trocaForm, taxa_primeiro_venc: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                </div>
+                {Number(trocaForm.taxa) > 0 && (
+                  <p className="text-[11px] text-green-700">Comissão: Vendedor 15% = R$ {(Number(trocaForm.taxa) * 0.15).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} · Supervisão 5% = R$ {(Number(trocaForm.taxa) * 0.05).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                )}
+                <div><label className="text-xs text-gray-600">Motivo / observação</label><input value={trocaForm.motivo} onChange={e => setTrocaForm({ ...trocaForm, motivo: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+              </>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setShowTroca(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={salvarTroca} disabled={trocaSalvando || !trocaCli} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg disabled:opacity-50">{trocaSalvando ? 'Processando…' : 'Confirmar troca de CNPJ'}</button>
             </div>
           </div>
         </div>
