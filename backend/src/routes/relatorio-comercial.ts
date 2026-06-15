@@ -147,14 +147,34 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     // 3) Clientes perdidos no mês (desativados) + mensalidade perdida — com nomes.
     const perdidos = await prisma.cliente.findMany({
       where: { situacao: 'INATIVA', inativado_em: noMes },
-      select: { razao_social: true, nome_fantasia: true, nome: true, mrr_perdido: true, mensalidade_base: true, motivo_inativacao: true, grupo_tecnico: true, inativado_em: true },
+      select: { id: true, razao_social: true, nome_fantasia: true, nome: true, mrr_perdido: true, mensalidade_base: true, motivo_inativacao: true, observacoes: true, grupo_tecnico: true, inativado_em: true },
       orderBy: { inativado_em: 'desc' },
     }).catch(() => [] as any[]);
-    const perdidos_lista = perdidos.map((c: any) => ({
-      cliente: c.razao_social || c.nome_fantasia || c.nome || '—',
-      mrr_perdido: Number(c.mrr_perdido ?? c.mensalidade_base ?? 0),
-      motivo: c.motivo_inativacao || '—', tecnico: c.grupo_tecnico || '—', data: c.inativado_em,
-    }));
+
+    // Caso de churn de cada perdido → resumo do que foi relatado + valor devedor.
+    const perdidoIds = perdidos.map((c: any) => c.id);
+    const casos = perdidoIds.length ? await prisma.casoChurn.findMany({
+      where: { clienteId: { in: perdidoIds } },
+      select: { clienteId: true, motivo_principal: true, descricao: true, fin_situacao: true, fin_valor_atraso: true, fin_dias_atraso: true, created_at: true },
+      orderBy: { created_at: 'desc' },
+    }).catch(() => [] as any[]) : [];
+    const casoDe: Record<string, any> = {};
+    for (const k of casos) { if (!casoDe[k.clienteId]) casoDe[k.clienteId] = k; } // o mais recente
+
+    const perdidos_lista = perdidos.map((c: any) => {
+      const k = casoDe[c.id] || {};
+      return {
+        cliente: c.razao_social || c.nome_fantasia || c.nome || '—',
+        mrr_perdido: Number(c.mrr_perdido ?? c.mensalidade_base ?? 0),
+        motivo: k.motivo_principal || c.motivo_inativacao || '—',
+        // Breve resumo do que foi relatado (descrição do caso de churn ou observações).
+        resumo: k.descricao || c.observacoes || '',
+        valor_devedor: Number(k.fin_valor_atraso ?? 0),
+        fin_situacao: k.fin_situacao || '',
+        dias_atraso: k.fin_dias_atraso ?? null,
+        tecnico: c.grupo_tecnico || '—', data: c.inativado_em,
+      };
+    });
     const totalPerdidos = perdidos.length;
     const mrrPerdidoTotal = perdidos_lista.reduce((s, c) => s + c.mrr_perdido, 0);
 
