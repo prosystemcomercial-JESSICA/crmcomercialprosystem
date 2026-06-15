@@ -644,6 +644,12 @@ class ApiClient {
     return this.client.get(`/ativos/contatos/${id}/ficha`);
   }
 
+  // Troca de CNPJ (venda adicional): atualiza cadastro (guarda antigo na ficha),
+  // gera venda+comissão da taxa e cria contrato novo do mesmo plano.
+  async trocaCnpj(data: any) {
+    return this.client.post('/contratos-comerciais/troca-cnpj', data);
+  }
+
   async enviarContratoZapSign(id: string) {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);
   }
