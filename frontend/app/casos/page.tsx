@@ -173,8 +173,9 @@ export default function CasosPage() {
     try {
       await apiClient.updateCaso(id, { status });
       fetchCasos();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert(e?.response?.data?.message || 'Não foi possível mudar o status. Tente novamente.');
     }
   };
 
