@@ -271,10 +271,14 @@ export default function CasosPage() {
               colunas={[
                 { header: 'Cliente', value: (c: Caso) => c.cliente?.nome || '' },
                 { header: 'Empresa', value: (c: Caso) => c.cliente?.empresa || '' },
+                { header: 'Fila/Técnico', value: (c: Caso) => (c.cliente as any)?.grupo_tecnico || '' },
                 { header: 'E-mail', value: (c: Caso) => c.cliente?.email || '' },
                 { header: 'Status', value: (c: Caso) => c.status },
                 { header: 'Risco', value: (c: Caso) => c.risk_score },
                 { header: 'Motivo principal', value: (c: Caso) => c.motivo_principal || '' },
+                { header: 'Relato / resumo', value: (c: Caso) => c.descricao || '' },
+                { header: 'Situação financeira', value: (c: Caso) => c.fin_situacao || '' },
+                { header: 'Valor devedor (R$)', value: (c: Caso) => c.fin_valor_atraso != null ? Number(c.fin_valor_atraso).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '' },
                 { header: 'Aberto em', value: (c: Caso) => c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '' },
               ]}
             />
