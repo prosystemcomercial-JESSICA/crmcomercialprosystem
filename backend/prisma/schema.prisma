@@ -1720,6 +1720,9 @@ model ContratoComercial {
   setup_a_vista           Boolean @default(false)
   setup_condicao_especial String?
 
+  // Tipo do contrato p/ não confundir TROCA DE CNPJ (serviço) com cliente NOVO.
+  tipo_servico      String? @default("NOVO") // NOVO | TROCA_CNPJ
+
   // Equipe comercial
   vendedor_id       String? // p/ vincular comissão e meta ao vendedor
   vendedor_nome     String?

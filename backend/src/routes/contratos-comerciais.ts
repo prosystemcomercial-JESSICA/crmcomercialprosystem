@@ -764,6 +764,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
           valor_setup_entrada: b.taxa_entrada ?? undefined,
           setup_parcelas: b.taxa_parcelas ?? undefined,
           vendedor_id: vendedorId, vendedor_nome: vendedorNome,
+          tipo_servico: 'TROCA_CNPJ', // NÃO é cliente novo — é serviço de troca de CNPJ
           condicao_especial: `Troca de CNPJ (de ${atual.cnpj || '(vazio)'}). Mesmo plano/mensalidade. Taxa de serviço.`,
           status: 'A_GERAR', created_by: user?.id || 'system',
         } as any,
