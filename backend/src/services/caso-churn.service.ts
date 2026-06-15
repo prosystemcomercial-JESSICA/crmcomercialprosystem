@@ -161,6 +161,8 @@ export class CasoChurnService {
         const cli: any = updated.cliente;
         const relato = (limpo.descricao ?? caso.descricao ?? '').toString().trim();
         const motivo = relato || updated.motivo_principal || caso.motivo_principal || 'Perdido (churn)';
+        // Valor devido = valor em atraso do caso (o informado agora ou o já salvo).
+        const valorDevido = (limpo.fin_valor_atraso ?? (updated as any).fin_valor_atraso ?? (caso as any).fin_valor_atraso ?? null);
         if (cli && cli.situacao !== 'INATIVA') {
           await this.prisma.cliente.update({
             where: { id: cli.id },
@@ -169,6 +171,7 @@ export class CasoChurnService {
               inativado_em: new Date(),
               motivo_inativacao: motivo,
               mrr_perdido: cli.mrr_perdido ?? cli.mensalidade_base ?? undefined,
+              valor_devido_inativacao: valorDevido != null ? Number(valorDevido) : undefined,
             } as any,
           });
           // Evento na ficha (timeline do cliente).
@@ -176,7 +179,8 @@ export class CasoChurnService {
             data: {
               cliente_id: cli.id, tipo: 'DESATIVACAO',
               titulo: '🚫 Cliente inativado (churn perdido)',
-              descricao: motivo, referencia_id: id, feito_por: userId,
+              descricao: motivo + (valorDevido != null ? `\nValor devido: R$ ${Number(valorDevido).toLocaleString('pt-BR')}` : ''),
+              referencia_id: id, feito_por: userId,
             },
           }).catch(() => {});
         }
