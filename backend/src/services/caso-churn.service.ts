@@ -186,16 +186,11 @@ export class CasoChurnService {
     return deleted;
   }
 
-  private isValidStatusTransition(from: string, to: string): boolean {
-    const validTransitions: Record<string, string[]> = {
-      NOVO: ['DIAGNOSTICADO', 'PERDIDO'],
-      DIAGNOSTICADO: ['PLANEJADO', 'PERDIDO'],
-      PLANEJADO: ['EXECUTANDO', 'PERDIDO'],
-      EXECUTANDO: ['RECUPERADO', 'PERDIDO'],
-      RECUPERADO: ['NOVO', 'PERDIDO'],
-      PERDIDO: [] // Terminal state
-    };
-
-    return validTransitions[from]?.includes(to) || false;
+  private isValidStatusTransition(_from: string, to: string): boolean {
+    // A gestão pode mover o caso para QUALQUER etapa livremente (o kanban/seletor
+    // mostra todas), inclusive pular etapas (ex.: NOVO → EXECUTANDO) ou reabrir um
+    // caso. Só validamos que o destino é um status conhecido.
+    const STATUS_VALIDOS = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO'];
+    return STATUS_VALIDOS.includes(to);
   }
 }
