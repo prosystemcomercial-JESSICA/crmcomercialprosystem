@@ -639,6 +639,10 @@ class ApiClient {
   async supervisaoContatoAtivo(id: string, data: { oculto?: boolean; oculto_motivo?: string; etiqueta?: string | null; etiqueta_cor?: string }) {
     return this.client.patch(`/ativos/contatos/${id}/supervisao`, data);
   }
+  // Mini-ficha do contato (dados do cliente + telefones + atualizações).
+  async getFichaContatoAtivo(id: string) {
+    return this.client.get(`/ativos/contatos/${id}/ficha`);
+  }
 
   async enviarContratoZapSign(id: string) {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);

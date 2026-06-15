@@ -114,7 +114,53 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     const contatos = await prisma.contatoAtivo.findMany({
       where, orderBy: [{ etapa: 'asc' }, { cliente_nome: 'asc' }],
     });
-    return reply.send({ status: 'success', data: { campanha: camp, contatos } });
+
+    // Enriquece cada contato com dados do Cliente (plano + telefones + segmento)
+    // p/ a etiqueta de plano no card e a mini-ficha (contato sem sair do módulo).
+    const cliIds = [...new Set(contatos.map(c => c.cliente_id))];
+    const clientes = cliIds.length ? await prisma.cliente.findMany({
+      where: { id: { in: cliIds } },
+      select: { id: true, plano: true, telefone: true, telefone1: true, telefone2: true, email: true, segmento: true, razao_social: true, nome_fantasia: true, nome: true, contato: true, mensalidade_base: true },
+    }).catch(() => [] as any[]) : [];
+    const mapaCli = new Map(clientes.map((c: any) => [c.id, c]));
+    const enriquecidos = contatos.map((ct: any) => {
+      const cli: any = mapaCli.get(ct.cliente_id) || {};
+      return {
+        ...ct,
+        plano: cli.plano || null,
+        cli_telefone: cli.telefone || cli.telefone1 || null,
+        cli_telefone2: cli.telefone2 || null,
+        cli_email: cli.email || null,
+        cli_segmento: cli.segmento || null,
+        cli_contato: cli.contato || null,
+        cli_razao: cli.razao_social || cli.nome_fantasia || cli.nome || null,
+        cli_mensalidade: cli.mensalidade_base || null,
+      };
+    });
+    return reply.send({ status: 'success', data: { campanha: camp, contatos: enriquecidos } });
+  });
+
+  // ── Mini-ficha de um contato: dados do cliente + últimas atualizações da ficha ──
+  fastify.get('/ativos/contatos/:id/ficha', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const ct = await prisma.contatoAtivo.findUnique({ where: { id } });
+    if (!ct) return reply.status(404).send({ status: 'error', message: 'Contato não encontrado' });
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null && ct.vendedor_id !== scopeId) {
+      return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
+    }
+    const cliente = await prisma.cliente.findUnique({
+      where: { id: ct.cliente_id },
+      select: { id: true, codigo: true, razao_social: true, nome_fantasia: true, nome: true, plano: true, segmento: true, telefone: true, telefone1: true, telefone2: true, email: true, contato: true, mensalidade_base: true, grupo_tecnico: true },
+    }).catch(() => null);
+    // Contatos (pessoas) e últimas atualizações da ficha (timeline).
+    const contatosPessoas = await (prisma as any).contatoCliente.findMany({
+      where: { cliente_id: ct.cliente_id }, orderBy: [{ principal: 'desc' }], take: 10,
+    }).catch(() => [] as any[]);
+    const eventos = await (prisma as any).eventoCliente.findMany({
+      where: { cliente_id: ct.cliente_id }, orderBy: { created_at: 'desc' }, take: 8,
+    }).catch(() => [] as any[]);
+    return reply.send({ status: 'success', data: { cliente, contatos_pessoas: contatosPessoas, eventos } });
   });
 
   // ── Supervisão: ocultar/exibir e etiquetar um contato (só gestão) ──

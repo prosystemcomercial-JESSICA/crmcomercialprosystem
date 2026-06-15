@@ -15,6 +15,15 @@ const ETAPAS = [
 ];
 const SAUDE = ['CRITICO', 'RISCO', 'ATENCAO', 'SAUDAVEL', 'EXCELENTE'];
 const SAUDE_COR: Record<string, string> = { CRITICO: '#b91c1c', RISCO: '#dc2626', ATENCAO: '#d97706', SAUDAVEL: '#16a34a', EXCELENTE: '#047857' };
+// Cor da etiqueta de plano (info essencial p/ o vendedor).
+const planoCor = (p?: string) => {
+  const s = (p || '').toLowerCase();
+  if (s.includes('plus')) return '#0B7384';
+  if (s.includes('pro')) return '#417ABC';
+  if (s.includes('basic') || s.includes('lite')) return '#6b7280';
+  if (s.includes('mei')) return '#C2540A';
+  return '#94a3b8';
+};
 
 export default function AtivosPage() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -27,6 +36,15 @@ export default function AtivosPage() {
   const [contatos, setContatos] = useState<any[]>([]);
   const [painel, setPainel] = useState<any>(null);
   const [editando, setEditando] = useState<any>(null); // contato em edição (questionário)
+  const [ficha, setFicha] = useState<any>(null);        // mini-ficha aberta (consulta)
+  const [fichaLoading, setFichaLoading] = useState(false);
+
+  const abrirFicha = async (contato: any) => {
+    setFicha({ contato, dados: null }); setFichaLoading(true);
+    try { const r = await apiClient.getFichaContatoAtivo(contato.id); setFicha({ contato, dados: r.data?.data || null }); }
+    catch { setFicha({ contato, dados: null }); }
+    finally { setFichaLoading(false); }
+  };
 
   // Designar campanha (gestão)
   const [grupos, setGrupos] = useState<string[]>([]);
@@ -187,7 +205,10 @@ export default function AtivosPage() {
                         <div className="space-y-2">
                           {itens.map(c => (
                             <div key={c.id} className={`bg-white rounded-lg border p-2.5 shadow-sm ${c.oculto ? 'border-dashed border-gray-300 opacity-70' : 'border-gray-100'}`}>
-                              <p className="text-sm font-semibold text-gray-800">{c.cliente_codigo ? `${c.cliente_codigo} · ` : ''}{c.cliente_nome || 'Cliente'}</p>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {c.cliente_codigo ? `${c.cliente_codigo} · ` : ''}{c.cliente_nome || 'Cliente'}
+                                {c.plano && <span className="ml-1.5 align-middle text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: planoCor(c.plano) }}>{c.plano}</span>}
+                              </p>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {c.etiqueta && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: c.etiqueta_cor || '#dc2626' }}>{c.etiqueta}</span>}
                                 {c.oculto && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">🙈 Oculto p/ vendedor</span>}
@@ -197,6 +218,7 @@ export default function AtivosPage() {
                                 {c.gerou_venda && <span className="text-[10px] text-blue-600">💰 {c.tipo_venda}</span>}
                               </div>
                               <div className="flex gap-1 mt-2 flex-wrap">
+                                <button onClick={() => abrirFicha(c)} className="text-[11px] px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">📋 Ficha</button>
                                 {et.id === 'A_CONTATAR' && <button onClick={() => moverEtapa(c, 'EM_CONTATO')} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Iniciar</button>}
                                 {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">Registrar contato</button>}
                                 {et.id === 'EM_CONTATO' && <button onClick={() => moverEtapa(c, 'SEM_SUCESSO')} className="text-[11px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">Sem sucesso</button>}
@@ -450,6 +472,82 @@ export default function AtivosPage() {
               <button onClick={() => setEditando(null)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
               <button onClick={salvarQuestionario} className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">Salvar e concluir contato</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Mini-ficha do cliente (consulta rápida) ─── */}
+      {ficha && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+            {(() => {
+              const d = ficha.dados; const cli = d?.cliente; const c = ficha.contato;
+              const fone = (t?: string) => (t || '').replace(/\D/g, '');
+              const wpp = (t?: string) => { const n = fone(t); return n ? (n.startsWith('55') ? n : '55' + n) : ''; };
+              return (
+                <>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">{cli?.razao_social || cli?.nome_fantasia || cli?.nome || c.cliente_nome}</h2>
+                      <p className="text-xs text-gray-500">{cli?.codigo ? `Código ${cli.codigo}` : ''}{cli?.grupo_tecnico ? ` · ${cli.grupo_tecnico}` : ''}</p>
+                    </div>
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      {(cli?.plano || c.plano) && <span className="text-[11px] font-bold px-2 py-0.5 rounded text-white" style={{ background: planoCor(cli?.plano || c.plano) }}>{cli?.plano || c.plano}</span>}
+                      {(cli?.segmento || c.cli_segmento) && <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-700">{cli?.segmento || c.cli_segmento}</span>}
+                    </div>
+                  </div>
+
+                  {fichaLoading ? <p className="text-sm text-gray-400 py-4 text-center">Carregando…</p> : (
+                    <>
+                      {/* Contatos / telefones */}
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">Contato</p>
+                        {cli?.contato && <p className="text-sm text-gray-700 mb-1">👤 {cli.contato}</p>}
+                        {[cli?.telefone || cli?.telefone1, cli?.telefone2].filter(Boolean).map((t: string, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-sm py-1">
+                            <span className="text-gray-700">📞 {t}</span>
+                            <span className="flex gap-2">
+                              <a href={`tel:${fone(t)}`} className="text-blue-600 text-xs font-semibold">Ligar</a>
+                              <a href={`https://wa.me/${wpp(t)}`} target="_blank" rel="noopener noreferrer" className="text-green-600 text-xs font-semibold">WhatsApp</a>
+                            </span>
+                          </div>
+                        ))}
+                        {!(cli?.telefone || cli?.telefone1 || cli?.telefone2) && <p className="text-xs text-gray-400">Sem telefone cadastrado. Atualize ao registrar o contato.</p>}
+                        {cli?.email && <p className="text-sm text-gray-600 mt-1">✉️ {cli.email}</p>}
+                        {cli?.mensalidade_base != null && <p className="text-xs text-gray-500 mt-1">Mensalidade base: R$ {Number(cli.mensalidade_base).toLocaleString('pt-BR')}</p>}
+                      </div>
+
+                      {/* Pessoas de contato (se houver) */}
+                      {d?.contatos_pessoas?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase mb-1">Pessoas</p>
+                          {d.contatos_pessoas.map((p: any) => (
+                            <p key={p.id} className="text-sm text-gray-700">• {p.nome}{p.cargo ? ` (${p.cargo})` : ''}{p.telefone ? ` — ${p.telefone}` : ''}{p.principal ? ' ⭐' : ''}</p>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Atualizações / linha do tempo */}
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-1">Atualizações recentes</p>
+                        {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
+                          <div key={ev.id} className="border-b border-gray-50 py-1.5">
+                            <p className="text-sm text-gray-800">{ev.titulo}</p>
+                            {ev.descricao && <p className="text-xs text-gray-500 whitespace-pre-line">{ev.descricao}</p>}
+                            <p className="text-[10px] text-gray-400">{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
+                          </div>
+                        )) : <p className="text-xs text-gray-400">Sem atualizações ainda.</p>}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button onClick={() => setFicha(null)} className="px-4 py-2 text-sm text-gray-500">Fechar</button>
+                    <button onClick={() => { const ct = ficha.contato; setFicha(null); setEditando({ ...ct }); }} className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">Registrar contato</button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
