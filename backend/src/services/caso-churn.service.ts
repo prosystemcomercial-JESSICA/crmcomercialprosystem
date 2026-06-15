@@ -153,6 +153,36 @@ export class CasoChurnService {
       include: { cliente: true },
     });
 
+    // PERDIDO → inativa o cadastro do cliente automaticamente. O MOTIVO da
+    // inativação é a descrição/relato do caso (mesma que sai no relatório do CEO),
+    // e o MRR perdido = mensalidade base. Idempotente (só inativa se ainda ativo).
+    if (data.status === 'PERDIDO') {
+      try {
+        const cli: any = updated.cliente;
+        const relato = (limpo.descricao ?? caso.descricao ?? '').toString().trim();
+        const motivo = relato || updated.motivo_principal || caso.motivo_principal || 'Perdido (churn)';
+        if (cli && cli.situacao !== 'INATIVA') {
+          await this.prisma.cliente.update({
+            where: { id: cli.id },
+            data: {
+              situacao: 'INATIVA',
+              inativado_em: new Date(),
+              motivo_inativacao: motivo,
+              mrr_perdido: cli.mrr_perdido ?? cli.mensalidade_base ?? undefined,
+            } as any,
+          });
+          // Evento na ficha (timeline do cliente).
+          await (this.prisma as any).eventoCliente.create({
+            data: {
+              cliente_id: cli.id, tipo: 'DESATIVACAO',
+              titulo: '🚫 Cliente inativado (churn perdido)',
+              descricao: motivo, referencia_id: id, feito_por: userId,
+            },
+          }).catch(() => {});
+        }
+      } catch (e) { console.error('[CasoChurn] Falha ao inativar cliente no PERDIDO:', e); }
+    }
+
     // Registra uma atualização na timeline quando muda status ou financeiro.
     try {
       if (data.status && data.status !== caso.status) {
