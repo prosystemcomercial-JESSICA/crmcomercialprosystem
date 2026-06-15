@@ -1574,6 +1574,80 @@ model HealthScore {
   @@index([score])
 }
 
+// ===== MÓDULO ATIVOS (CS comercial feito pelos vendedores) =====
+// A supervisão designa um GRUPO TÉCNICO a um vendedor → CampanhaAtivo. A fila de
+// clientes ATIVOS daquele grupo vira ContatoAtivo (cards de kanban). O vendedor
+// liga, aplica o questionário, mede a saúde, abre caso (churn) se há problema e
+// registra oportunidades de venda. Tudo reflete na ficha (EventoCliente) e no
+// HealthScore. Campanha CONTÍNUA (sem mês fixo).
+model CampanhaAtivo {
+  id            String  @id @default(cuid())
+  grupo_tecnico String  // ex.: "Grupo 1 - João Victor"
+  vendedor_id   String  // vendedor designado (responsável pela fila)
+  vendedor_nome String?
+  criada_por    String  // supervisão que designou
+  meta_cobertura_pct Int     @default(100) // meta de % da fila a contatar
+  status        String  @default("ATIVA")  // ATIVA | CONCLUIDA | CANCELADA
+  observacoes   String? @db.Text
+
+  total_fila    Int     @default(0) // nº de clientes puxados p/ a fila na criação
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  contatos ContatoAtivo[]
+
+  @@index([vendedor_id])
+  @@index([grupo_tecnico])
+  @@index([status])
+}
+
+model ContatoAtivo {
+  id          String        @id @default(cuid())
+  campanha_id String
+  campanha    CampanhaAtivo @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
+
+  cliente_id   String  // vínculo à base (sem relação reversa p/ não tocar no model Cliente)
+  cliente_nome String?
+  cliente_codigo String?
+  vendedor_id  String
+
+  // Kanban: A_CONTATAR → EM_CONTATO → CONCLUIDO | SEM_SUCESSO
+  etapa       String  @default("A_CONTATAR")
+  tentativas  Int     @default(0)
+  contatado_em DateTime?
+
+  // ── Questionário (sim/não por item + nota geral + texto) ──
+  usa_sistema_ok       Boolean? // usa bem o sistema/ferramentas?
+  suporte_ok           Boolean? // satisfeito com o atendimento do suporte?
+  tecnico_ok           Boolean? // satisfeito com o técnico que atende?
+  conhece_novas_ferr   Boolean? // conhece as novas ferramentas?
+  plus_apresentado     Boolean? // o plano Plus foi apresentado?
+  nota_prosystem       Int?     // nota geral 1-5 p/ o sistema Prosystem
+  sugestoes            String?  @db.Text
+
+  // ── Saúde percebida neste contato (alimenta o HealthScore) ──
+  saude               String?  // EXCELENTE | SAUDAVEL | ATENCAO | RISCO | CRITICO
+  tem_problema        Boolean  @default(false)
+  problema_descricao  String?  @db.Text
+  caso_churn_id       String?  // caso aberto a partir deste contato (se houver)
+
+  // ── Oportunidade de venda gerada a partir do contato ──
+  gerou_venda    Boolean @default(false)
+  tipo_venda     String? // UPGRADE | INDICACAO | FISCAL | PAC | TEF | COMUNICACAO | OUTRO
+  venda_ref_id   String? // id da VendaAdicional/Proposta gerada (rastreio)
+  venda_obs      String? @db.Text
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([campanha_id, cliente_id], name: "uq_contato_ativo")
+  @@index([campanha_id])
+  @@index([vendedor_id])
+  @@index([etapa])
+  @@index([cliente_id])
+}
+
 // ===== UTILITARIOS =====
 
 model Credito {

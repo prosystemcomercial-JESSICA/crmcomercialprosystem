@@ -616,6 +616,26 @@ class ApiClient {
     return this.client.get('/clientes/grupos-tecnicos');
   }
 
+  // ── Módulo ATIVOS (CS comercial) ──
+  async criarCampanhaAtivo(data: { grupo_tecnico: string; vendedor_id: string; meta_cobertura_pct?: number; observacoes?: string }) {
+    return this.client.post('/ativos/campanhas', data);
+  }
+  async getCampanhasAtivo() {
+    return this.client.get('/ativos/campanhas');
+  }
+  async getContatosAtivo(campanhaId: string) {
+    return this.client.get(`/ativos/campanhas/${campanhaId}/contatos`);
+  }
+  async atualizarContatoAtivo(id: string, data: any) {
+    return this.client.patch(`/ativos/contatos/${id}`, data);
+  }
+  async getAtivosDoCliente(clienteId: string) {
+    return this.client.get(`/ativos/cliente/${clienteId}`);
+  }
+  async getPainelAtivos() {
+    return this.client.get('/ativos/painel');
+  }
+
   async enviarContratoZapSign(id: string) {
     return this.client.post(`/contratos-comerciais/${id}/enviar-zapsign`);
   }
