@@ -7,7 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
-  PieChart, Pie, Legend,
+  PieChart, Pie, Legend, ComposedChart, Line, Area,
 } from 'recharts';
 
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -56,6 +56,7 @@ export default function RelatorioComercialPage() {
   const [mes, setMes] = useState(3);
   const [d, setD] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
+  const [serie, setSerie] = useState<any[]>([]); // evolução mês a mês do ano
 
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading]);
 
@@ -67,6 +68,11 @@ export default function RelatorioComercialPage() {
     } catch (e) { console.error(e); } finally { setDataLoading(false); }
   }, [ano, mes]);
   useEffect(() => { if (isAuthenticated) load(); }, [isAuthenticated, load]);
+  // Série anual (evolução) — recarrega ao trocar o ano.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiClient.getRelatorioSerieAnual(ano).then(r => setSerie(r.data?.data?.serie || [])).catch(() => setSerie([]));
+  }, [isAuthenticated, ano]);
 
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
@@ -165,6 +171,41 @@ export default function RelatorioComercialPage() {
                     <KPI label="Total de indicações" valor={d.metricas.indicacoes.total} cor="text-teal-700" />
                   </div>
                 </Bloco>
+
+                {/* Evolução anual (tendência mês a mês) */}
+                {serie.length > 0 && (
+                  <Bloco titulo={`📈 Evolução do Ano (${ano})`}>
+                    <div className="print:hidden">
+                      <p className="text-xs font-semibold text-gray-500 mb-1">MRR ganho × perdido e saldo por mês</p>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                          <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                          <Tooltip formatter={(v: any) => fmt(v)} />
+                          <Legend />
+                          <Bar dataKey="mrr_ganho" name="MRR ganho" fill="#16a34a" radius={[4, 4, 0, 0]} animationDuration={900} />
+                          <Bar dataKey="mrr_perdido" name="MRR perdido" fill="#dc2626" radius={[4, 4, 0, 0]} animationDuration={900} />
+                          <Line type="monotone" dataKey="saldo_mrr" name="Saldo MRR" stroke={PRO} strokeWidth={3} dot={{ r: 3 }} animationDuration={1100} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                      <p className="text-xs font-semibold text-gray-500 mb-1 mt-4">Fechamentos × Perdidos por mês</p>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                          <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                          <Tooltip />
+                          <Legend />
+                          <Area type="monotone" dataKey="leads" name="Leads" fill="#e0e7ff" stroke="#6366f1" animationDuration={1000} />
+                          <Bar dataKey="fechamentos" name="Fechamentos" fill="#16a34a" radius={[4, 4, 0, 0]} animationDuration={900} />
+                          <Bar dataKey="perdidos" name="Perdidos" fill="#dc2626" radius={[4, 4, 0, 0]} animationDuration={900} />
+                          <Line type="monotone" dataKey="indicacoes" name="Indicações" stroke="#0d9488" strokeWidth={2} dot={{ r: 2 }} animationDuration={1100} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Bloco>
+                )}
 
                 {/* Entrada × Saída — seção gráfica de página inteira */}
                 <Bloco num="2" titulo="🔄 Entrada × Saída do Mês">
@@ -362,6 +403,22 @@ export default function RelatorioComercialPage() {
             {/* 4. Por segmento */}
             {Array.isArray(d.por_segmento) && d.por_segmento.length > 0 && (
               <Bloco titulo="4. Pipeline por Segmento">
+                {/* Rosca animada: participação de MRR por segmento */}
+                <div className="print:hidden mb-3">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie data={d.por_segmento.map((s: any) => ({ name: s.segmento, value: Number(s.mrr_total || 0) }))}
+                        dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                        paddingAngle={2} animationDuration={900} label={(p: any) => p.name}>
+                        {d.por_segmento.map((_: any, i: number) => {
+                          const cores = [PRO, '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
+                          return <Cell key={i} fill={cores[i % cores.length]} />;
+                        })}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => `${fmt(v)}/mês`} /><Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                     <th className="py-2">Segmento</th><th>Propostas</th><th>Setup total</th><th>MRR total</th><th>Ticket MRR</th><th>Part. MRR</th>

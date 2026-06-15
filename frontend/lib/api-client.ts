@@ -1186,6 +1186,10 @@ class ApiClient {
   async getRelatorioMeses() {
     return this.client.get('/relatorio-comercial/meses');
   }
+  // Série anual (evolução mês a mês) p/ os gráficos de tendência.
+  async getRelatorioSerieAnual(ano: number) {
+    return this.client.get('/relatorio-comercial/serie-anual', { params: { ano } });
+  }
   async salvarRelatorioComercial(data: any) {
     return this.client.put('/relatorio-comercial', data);
   }

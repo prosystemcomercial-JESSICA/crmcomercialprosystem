@@ -250,6 +250,31 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     return reply.send({ status: 'success', data: { ...data, _pipeline_auto: pipeline, metricas } });
   });
 
+  // Série ANUAL (evolução mês a mês) — p/ os gráficos de tendência do relatório.
+  // Calcula os números reais de cada mês do ano (jan→dez) reusando metricasReaisDoMes.
+  fastify.get('/relatorio-comercial/serie-anual', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({ ano: z.coerce.number().default(new Date().getFullYear()) }).safeParse(request.query);
+    const ano = q.success ? q.data.ano : new Date().getFullYear();
+    const MES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const serie: any[] = [];
+    for (let m = 1; m <= 12; m++) {
+      const mt = await metricasReaisDoMes(ano, m).catch(() => null as any);
+      serie.push({
+        mes: MES_ABREV[m - 1],
+        leads: mt?.total_leads ?? 0,
+        fechamentos: mt?.fechamentos?.total ?? 0,
+        mrr_ganho: mt?.fechamentos?.mrr_total ?? 0,
+        mrr_perdido: mt?.perdidos?.mrr_perdido_total ?? 0,
+        saldo_mrr: mt?.entrada_x_saida?.saldo_mrr ?? 0,
+        perdidos: mt?.perdidos?.total ?? 0,
+        indicacoes: mt?.indicacoes?.total ?? 0,
+        setup_total: mt?.fechamentos?.setup_total ?? 0,
+      });
+    }
+    return reply.send({ status: 'success', data: { ano, serie } });
+  });
+
   // Lista de meses disponíveis (p/ o seletor).
   fastify.get('/relatorio-comercial/meses', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
