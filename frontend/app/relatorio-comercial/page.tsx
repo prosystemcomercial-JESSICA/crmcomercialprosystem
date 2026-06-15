@@ -172,12 +172,32 @@ export default function RelatorioComercialPage() {
                 {/* Lista de clientes perdidos (nomes) */}
                 {d.metricas.perdidos.lista.length > 0 && (
                   <Bloco titulo={`❌ Clientes perdidos no mês (${d.metricas.perdidos.total})`}>
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Motivo</th><th>Técnico</th><th className="text-right">MRR perdido</th></tr></thead>
-                      <tbody>{d.metricas.perdidos.lista.map((c: any, i: number) => (
-                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{c.cliente}</td><td className="text-gray-600">{c.motivo}</td><td className="text-gray-500">{c.tecnico}</td><td className="text-right text-red-600">{fmt(c.mrr_perdido)}</td></tr>
-                      ))}</tbody>
-                    </table>
+                    <div className="space-y-2">
+                      {d.metricas.perdidos.lista.map((c: any, i: number) => (
+                        <div key={i} className="border border-gray-100 rounded-lg p-3" style={{ background: '#fff8f8' }}>
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div>
+                              <p className="font-semibold text-gray-800">{c.cliente}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Fila/Técnico: <b className="text-gray-700">{c.tecnico}</b>
+                                {c.data ? ` · Inativado em ${new Date(c.data).toLocaleDateString('pt-BR')}` : ''}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-400">MRR perdido</p>
+                              <p className="text-red-600 font-bold">{fmt(c.mrr_perdido)}/mês</p>
+                              {Number(c.valor_devedor) > 0 && (
+                                <p className="text-xs text-amber-700 mt-0.5">Devedor: <b>{fmt(c.valor_devedor)}</b>{c.dias_atraso ? ` (${c.dias_atraso}d)` : ''}</p>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-sm mt-2"><span className="text-xs font-bold text-gray-500 uppercase">Motivo:</span> <span className="text-gray-700">{c.motivo}</span>{c.fin_situacao ? <span className="text-xs text-amber-700"> · {c.fin_situacao}</span> : null}</p>
+                          {c.resumo && (
+                            <p className="text-sm text-gray-600 mt-1"><span className="text-xs font-bold text-gray-500 uppercase">Relato:</span> {c.resumo}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </Bloco>
                 )}
 
