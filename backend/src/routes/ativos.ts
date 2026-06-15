@@ -131,10 +131,13 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       tem_problema: z.boolean().optional(),
       problema_descricao: z.string().optional(),
       abrir_caso: z.boolean().optional(),
-      // oportunidade de venda
+      // oportunidade de venda — escolhe a oferta (parceiro) e cria a venda real
       gerou_venda: z.boolean().optional(),
       tipo_venda: z.string().optional(),
       venda_obs: z.string().optional(),
+      parceiro_id: z.string().optional(),       // oferta escolhida do catálogo de parceiros
+      venda_valor: z.number().optional(),        // setup/valor da venda
+      venda_acrescimo: z.number().optional(),    // acréscimo na mensalidade (ex.: fiscal)
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Dados inválidos' });
 
@@ -146,7 +149,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       return reply.status(403).send({ status: 'error', message: 'Sem acesso a este contato' });
     }
 
-    const { abrir_caso, ...campos } = body.data;
+    const { abrir_caso, parceiro_id, venda_valor, venda_acrescimo, ...campos } = body.data;
     const data: any = { ...campos };
 
     // Ao entrar EM_CONTATO pela 1ª vez, conta a tentativa; ao concluir, marca data.
@@ -175,6 +178,34 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
           where: { cliente_id: atual.cliente_id, nivel: { in: ['EXCELENTE', 'SAUDAVEL', 'ATENCAO'] } },
           data: { nivel: 'RISCO' },
         }).catch(() => {});
+      }
+    }
+
+    // VENDA gerada a partir do contato: cria a VendaAdicional REAL (a mesma de
+    // Indicações), com origem 'ATIVO' e ligada a este contato p/ rastreio. A venda
+    // nasce PENDENTE — a gestão confirma/data depois, como já faz. Idempotente: só
+    // cria se ainda não houver venda vinculada.
+    if (body.data.gerou_venda && parceiro_id && !atual.venda_ref_id) {
+      const parceiro = await prisma.parceiro.findUnique({ where: { id: parceiro_id } }).catch(() => null);
+      if (parceiro) {
+        const venda = await prisma.vendaAdicional.create({
+          data: {
+            cliente_id: atual.cliente_id,
+            parceiro_id,
+            vendedor_id: atual.vendedor_id,
+            tipo_negocio: 'INDICACAO',
+            valor_venda: venda_valor ?? undefined,
+            acrescimo_mensal: venda_acrescimo ?? undefined,
+            observacoes: `Origem: Contato ativo (CS)${body.data.venda_obs ? ' — ' + body.data.venda_obs : ''}`,
+            status: 'PENDENTE',
+            created_by: user?.id || 'system',
+          } as any,
+        }).catch(() => null);
+        if (venda) {
+          data.venda_ref_id = venda.id;
+          data.tipo_venda = parceiro.categoria || data.tipo_venda;
+          data.gerou_venda = true;
+        }
       }
     }
 
@@ -237,12 +268,20 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     const campanhas = await prisma.campanhaAtivo.findMany({ orderBy: { created_at: 'desc' } });
     const contatos = await prisma.contatoAtivo.findMany({});
 
+    // Valor real gerado: soma das VendaAdicional vinculadas (setup + acréscimo).
+    const vendaIds = contatos.map(c => c.venda_ref_id).filter(Boolean) as string[];
+    const vendas = vendaIds.length ? await prisma.vendaAdicional.findMany({
+      where: { id: { in: vendaIds } }, select: { id: true, valor_venda: true, acrescimo_mensal: true, status: true },
+    }).catch(() => [] as any[]) : [];
+    const valorDaVenda: Record<string, number> = {};
+    for (const v of vendas as any[]) valorDaVenda[v.id] = Number(v.valor_venda || 0) + Number(v.acrescimo_mensal || 0);
+
     const porCamp: Record<string, any> = {};
     for (const c of campanhas) {
       porCamp[c.id] = {
         campanha_id: c.id, grupo_tecnico: c.grupo_tecnico, vendedor_id: c.vendedor_id, vendedor_nome: c.vendedor_nome,
         meta_cobertura_pct: c.meta_cobertura_pct, status: c.status,
-        total: 0, concluidos: 0, em_contato: 0, com_problema: 0, casos_abertos: 0, vendas: 0,
+        total: 0, concluidos: 0, em_contato: 0, com_problema: 0, casos_abertos: 0, vendas: 0, valor_gerado: 0,
         nota_soma: 0, nota_count: 0, saude_dist: { CRITICO: 0, RISCO: 0, ATENCAO: 0, SAUDAVEL: 0, EXCELENTE: 0 },
       };
     }
@@ -254,6 +293,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       if (ct.tem_problema) g.com_problema += 1;
       if (ct.caso_churn_id) g.casos_abertos += 1;
       if (ct.gerou_venda) g.vendas += 1;
+      if (ct.venda_ref_id && valorDaVenda[ct.venda_ref_id]) g.valor_gerado += valorDaVenda[ct.venda_ref_id];
       if (ct.nota_prosystem != null) { g.nota_soma += ct.nota_prosystem; g.nota_count += 1; }
       if (ct.saude && g.saude_dist[ct.saude] !== undefined) g.saude_dist[ct.saude] += 1;
     }
@@ -287,6 +327,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       concluidos: contatos.filter(c => c.etapa === 'CONCLUIDO' || c.etapa === 'SEM_SUCESSO').length,
       casos_abertos: contatos.filter(c => c.caso_churn_id).length,
       vendas_geradas: contatos.filter(c => c.gerou_venda).length,
+      valor_gerado: Math.round(Object.values(valorDaVenda).reduce((s, v) => s + v, 0) * 100) / 100,
     };
     return reply.send({ status: 'success', data: { filas, ranking_tecnicos, totais } });
   });

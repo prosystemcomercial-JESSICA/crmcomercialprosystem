@@ -15,7 +15,6 @@ const ETAPAS = [
 ];
 const SAUDE = ['CRITICO', 'RISCO', 'ATENCAO', 'SAUDAVEL', 'EXCELENTE'];
 const SAUDE_COR: Record<string, string> = { CRITICO: '#b91c1c', RISCO: '#dc2626', ATENCAO: '#d97706', SAUDAVEL: '#16a34a', EXCELENTE: '#047857' };
-const TIPO_VENDA = ['UPGRADE', 'INDICACAO', 'FISCAL', 'PAC', 'TEF', 'COMUNICACAO', 'OUTRO'];
 
 export default function AtivosPage() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -32,6 +31,7 @@ export default function AtivosPage() {
   // Designar campanha (gestão)
   const [grupos, setGrupos] = useState<string[]>([]);
   const [vendedores, setVendedores] = useState<any[]>([]);
+  const [parceiros, setParceiros] = useState<any[]>([]);
   const [novaCamp, setNovaCamp] = useState({ grupo_tecnico: '', vendedor_id: '', meta_cobertura_pct: '100' });
   const [criando, setCriando] = useState(false);
   const [showNova, setShowNova] = useState(false);
@@ -52,6 +52,10 @@ export default function AtivosPage() {
   useEffect(() => { loadContatos(); }, [loadContatos]);
 
   useEffect(() => {
+    if (isAuthenticated) {
+      // Catálogo de ofertas (parceiros ativos) — usado por todos no questionário.
+      apiClient.getParceiros().then(r => setParceiros((r.data?.data || []).filter((p: any) => p.ativo !== false))).catch(() => {});
+    }
     if (isAuthenticated && isGestor) {
       apiClient.getGruposTecnicos().then(r => setGrupos(r.data?.data || [])).catch(() => {});
       apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => {});
@@ -88,6 +92,9 @@ export default function AtivosPage() {
         tem_problema: !!editando.tem_problema, problema_descricao: editando.problema_descricao || undefined,
         abrir_caso: !!editando.abrir_caso,
         gerou_venda: !!editando.gerou_venda, tipo_venda: editando.tipo_venda || undefined, venda_obs: editando.venda_obs || undefined,
+        parceiro_id: editando.gerou_venda ? (editando.parceiro_id || undefined) : undefined,
+        venda_valor: editando.gerou_venda && editando.venda_valor ? Number(editando.venda_valor) : undefined,
+        venda_acrescimo: editando.gerou_venda && editando.venda_acrescimo ? Number(editando.venda_acrescimo) : undefined,
       });
       setEditando(null); loadContatos();
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar.'); }
@@ -186,12 +193,13 @@ export default function AtivosPage() {
         {/* ─── PAINEL DA SUPERVISÃO ─── */}
         {isGestor && aba === 'painel' && painel && (
           <div className="space-y-5">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <KPI label="Filas ativas" valor={painel.totais.filas} />
               <KPI label="Contatos na carteira" valor={painel.totais.contatos_total} />
               <KPI label="Concluídos" valor={painel.totais.concluidos} cor="text-green-700" />
               <KPI label="Casos abertos" valor={painel.totais.casos_abertos} cor="text-red-600" />
               <KPI label="Vendas geradas" valor={painel.totais.vendas_geradas} cor="text-blue-700" />
+              <KPI label="Valor gerado" valor={`R$ ${Number(painel.totais.valor_gerado || 0).toLocaleString('pt-BR')}`} cor="text-emerald-700" />
             </div>
 
             <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -199,7 +207,7 @@ export default function AtivosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-xs text-gray-400 border-b">
-                    {['Grupo / Técnico', 'Vendedor', 'Cobertura', 'Saudáveis', 'Em risco', 'Casos', 'Vendas', 'Nota média'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}
+                    {['Grupo / Técnico', 'Vendedor', 'Cobertura', 'Saudáveis', 'Em risco', 'Casos', 'Vendas', 'Valor gerado', 'Nota média'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}
                   </tr></thead>
                   <tbody>{painel.filas.map((f: any) => (
                     <tr key={f.campanha_id} className="border-b border-gray-50">
@@ -210,6 +218,7 @@ export default function AtivosPage() {
                       <td className="pr-3 text-red-600">{f.em_risco}</td>
                       <td className="pr-3">{f.casos_abertos}</td>
                       <td className="pr-3 text-blue-700">{f.vendas}</td>
+                      <td className="pr-3 text-emerald-700">R$ {Number(f.valor_gerado || 0).toLocaleString('pt-BR')}</td>
                       <td className="pr-3">{f.nota_media != null ? `★ ${f.nota_media}` : '—'}</td>
                     </tr>
                   ))}</tbody>
@@ -344,16 +353,35 @@ export default function AtivosPage() {
             <div className="bg-blue-50 rounded-lg p-3 space-y-2">
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" checked={!!editando.gerou_venda} onChange={e => setEditando({ ...editando, gerou_venda: e.target.checked })} />
-                Gerou oportunidade de venda
+                Gerou oportunidade de venda (oferta Prosystem / parceiro)
               </label>
               {editando.gerou_venda && (
-                <div className="grid grid-cols-2 gap-2">
-                  <select value={editando.tipo_venda || ''} onChange={e => setEditando({ ...editando, tipo_venda: e.target.value })} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                    <option value="">Tipo…</option>
-                    {TIPO_VENDA.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <input value={editando.venda_obs || ''} onChange={e => setEditando({ ...editando, venda_obs: e.target.value })} placeholder="Observação" className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-                </div>
+                editando.venda_ref_id ? (
+                  <p className="text-xs text-blue-700">✅ Venda já criada a partir deste contato (em Indicações). Confirme/date por lá.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600">Oferta / parceiro *</label>
+                      <select value={editando.parceiro_id || ''} onChange={e => setEditando({ ...editando, parceiro_id: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                        <option value="">— escolha a oferta —</option>
+                        {parceiros.map(p => <option key={p.id} value={p.id}>{p.categoria} · {p.nome}</option>)}
+                      </select>
+                      {(() => { const p = parceiros.find(x => x.id === editando.parceiro_id); return p?.pitch ? <p className="text-[11px] text-gray-500 mt-1">{p.pitch}</p> : null; })()}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Valor / setup (R$)</label>
+                        <input type="number" value={editando.venda_valor || ''} onChange={e => setEditando({ ...editando, venda_valor: e.target.value })} placeholder="0" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Acréscimo mensal (R$)</label>
+                        <input type="number" value={editando.venda_acrescimo || ''} onChange={e => setEditando({ ...editando, venda_acrescimo: e.target.value })} placeholder="0" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      </div>
+                    </div>
+                    <input value={editando.venda_obs || ''} onChange={e => setEditando({ ...editando, venda_obs: e.target.value })} placeholder="Observação da venda" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                    <p className="text-[11px] text-gray-500">Ao salvar, a venda é criada em <b>Indicações</b> (origem: Ativo) e fica rastreada. A gestão confirma/data depois.</p>
+                  </div>
+                )
               )}
             </div>
 
