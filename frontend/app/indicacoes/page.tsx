@@ -119,7 +119,7 @@ export default function IndicacoesPage() {
     if (!trocaForm.cnpj_novo.trim()) return alert('Informe o novo CNPJ.');
     setTrocaSalvando(true);
     try {
-      await apiClient.trocaCnpj({
+      const resp = await apiClient.trocaCnpj({
         cliente_id: trocaCli.id,
         taxa: Number(trocaForm.taxa) || 0,
         vendedor_id: trocaForm.vendedor_id || undefined,
@@ -133,10 +133,14 @@ export default function IndicacoesPage() {
         bairro: trocaForm.bairro || undefined, cidade: trocaForm.cidade || undefined, estado: trocaForm.estado || undefined,
         telefone: trocaForm.telefone || undefined, email: trocaForm.email || undefined, motivo: trocaForm.motivo || undefined,
       });
-      alert('Troca de CNPJ registrada! Cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.');
+      const numero = resp.data?.data?.contrato?.numero_contrato;
       setShowTroca(false); setTrocaCli(null); setTrocaBusca(''); setTrocaResultados([]);
       setTrocaForm({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
       loadVendas();
+      // Leva direto ao contrato gerado (Troca de CNPJ) na tela de Contratos.
+      if (confirm(`Troca de CNPJ registrada! Contrato ${numero || ''} gerado (marcado como Troca de CNPJ, não conta como cliente novo). Abrir a tela de Contratos agora?`)) {
+        router.push('/contratos');
+      }
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao processar a troca.'); }
     finally { setTrocaSalvando(false); }
   };

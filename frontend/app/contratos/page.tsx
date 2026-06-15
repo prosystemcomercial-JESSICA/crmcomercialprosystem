@@ -20,6 +20,7 @@ interface ContratoComercial {
   sequencia: number;
   ano: number;
   proposta_comercial_id?: string;
+  tipo_servico?: string;
   razao_social: string;
   nome_fantasia?: string;
   cnpj?: string;
@@ -507,6 +508,13 @@ export default function ContratosPage() {
                         <Hash size={9} style={{ color: cfg.color, flexShrink: 0 }} />
                         <span style={{ fontSize: 10, fontWeight: 700, color: cfg.color }}>{c.numero_contrato}</span>
                       </div>
+
+                      {/* Etiqueta: Troca de CNPJ (serviço — não é cliente novo) */}
+                      {c.tipo_servico === 'TROCA_CNPJ' && (
+                        <span style={{ display: 'inline-block', marginBottom: 4, fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: '#ede9fe', color: '#6d28d9' }}>
+                          🔄 Troca de CNPJ (serviço)
+                        </span>
+                      )}
 
                       {/* Empresa */}
                       <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 2, lineHeight: 1.3 }}>
