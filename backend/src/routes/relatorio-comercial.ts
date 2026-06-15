@@ -147,7 +147,7 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     // 3) Clientes perdidos no mês (desativados) + mensalidade perdida — com nomes.
     const perdidos = await prisma.cliente.findMany({
       where: { situacao: 'INATIVA', inativado_em: noMes },
-      select: { id: true, razao_social: true, nome_fantasia: true, nome: true, mrr_perdido: true, mensalidade_base: true, motivo_inativacao: true, observacoes: true, grupo_tecnico: true, inativado_em: true },
+      select: { id: true, razao_social: true, nome_fantasia: true, nome: true, mrr_perdido: true, mensalidade_base: true, valor_devido_inativacao: true, motivo_inativacao: true, observacoes: true, grupo_tecnico: true, inativado_em: true },
       orderBy: { inativado_em: 'desc' },
     }).catch(() => [] as any[]);
 
@@ -169,7 +169,7 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
         motivo: k.motivo_principal || c.motivo_inativacao || '—',
         // Breve resumo do que foi relatado (descrição do caso de churn ou observações).
         resumo: k.descricao || c.observacoes || '',
-        valor_devedor: Number(k.fin_valor_atraso ?? 0),
+        valor_devedor: Number(k.fin_valor_atraso ?? c.valor_devido_inativacao ?? 0),
         fin_situacao: k.fin_situacao || '',
         dias_atraso: k.fin_dias_atraso ?? null,
         tecnico: c.grupo_tecnico || '—', data: c.inativado_em,

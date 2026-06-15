@@ -44,6 +44,7 @@ model Cliente {
   motivo_inativacao String? @db.Text         // motivo detalhado da desativação
   inativado_em      DateTime?                 // quando foi desativado
   mrr_perdido       Float?                    // mensalidade perdida na desativação (churn)
+  valor_devido_inativacao Float?              // valor que o cliente ficou devendo ao sair
   segmento      String?                       // Farmácia|Padaria|Varejo|...
   grupo_tecnico String?                       // grupo de atendimento técnico
   plano         String?                       // BASIC|MEI|PRO|PLUS|...
