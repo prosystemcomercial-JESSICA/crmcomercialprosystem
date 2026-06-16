@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
+  PieChart, Pie,
+} from 'recharts';
 
 interface RankingItem {
   posicao: number;
@@ -138,6 +142,48 @@ export default function RankingPage() {
                 })}
               </div>
             )}
+
+            {/* Gráficos visuais dos resultados */}
+            {(() => {
+              const comResultado = ranking.filter((r: RankingItem) => (r.valor_total || 0) > 0);
+              if (comResultado.length === 0) return null;
+              const dados = comResultado.map((r: RankingItem) => ({
+                nome: (nomeVendedor(r) || '').split(' ')[0], // primeiro nome p/ caber no eixo
+                Setup: Number(r.setup_total || 0),
+                Mensalidade: Number(r.mrr_total || 0),
+                valor: Number(r.valor_total || 0),
+              }));
+              const cores = ['#417ABC', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-xl border border-gray-200 p-4">
+                    <h2 className="text-sm font-bold uppercase mb-2" style={{ color: '#2E5A8F' }}>Setup × Mensalidade por vendedor</h2>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={dados} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                        <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(v: any) => `R$ ${Number(v).toLocaleString('pt-BR')}`} /><Legend />
+                        <Bar dataKey="Setup" fill="#417ABC" radius={[4, 4, 0, 0]} animationDuration={900} />
+                        <Bar dataKey="Mensalidade" fill="#16a34a" radius={[4, 4, 0, 0]} animationDuration={900} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="bg-white rounded-xl border border-gray-200 p-4">
+                    <h2 className="text-sm font-bold uppercase mb-2" style={{ color: '#2E5A8F' }}>Participação no valor total</h2>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie data={dados} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                          paddingAngle={2} animationDuration={900} label={(p: any) => p.nome}>
+                          {dados.map((_, i) => <Cell key={i} fill={cores[i % cores.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: any) => `R$ ${Number(v).toLocaleString('pt-BR')}`} /><Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Full ranking */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
