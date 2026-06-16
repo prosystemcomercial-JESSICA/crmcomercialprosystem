@@ -28,10 +28,10 @@ export default function Home() {
   }
 
   if (isAuthenticated) {
-    // CEO cai direto no Painel Executivo (só resultado/direção, sem operacional).
+    // CEO cai direto no RELATÓRIO (CEO) — a 1ª coisa que ele vê (resultado/direção).
     // Diretora/Supervisão veem tudo (dashboard); vendedor vai ao Radar Comercial.
     const role = (user?.role || '').toUpperCase();
-    redirect(role === 'CEO' ? '/painel-ceo' : podeVerTudo(user?.role) ? '/dashboard' : '/comercial');
+    redirect(role === 'CEO' ? '/relatorio-comercial' : podeVerTudo(user?.role) ? '/dashboard' : '/comercial');
   }
 
   return (

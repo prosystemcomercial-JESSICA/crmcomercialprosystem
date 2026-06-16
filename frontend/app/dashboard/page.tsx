@@ -152,7 +152,10 @@ export default function DashboardPage() {
   }, [isAuthenticated, loading]);
 
   useEffect(() => {
-    if (!loading && isAuthenticated && user && !isGestor) router.replace('/comercial');
+    if (loading || !isAuthenticated || !user) return;
+    // CEO não acessa o Dashboard operacional — vai direto ao Relatório (CEO).
+    if ((user.role || '').toUpperCase() === 'CEO') { router.replace('/relatorio-comercial'); return; }
+    if (!isGestor) router.replace('/comercial');
   }, [loading, isAuthenticated, user, isGestor, router]);
 
   const [loadError, setLoadError] = useState<string | null>(null);
