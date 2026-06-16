@@ -456,10 +456,14 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     const scopeId = scopeUserId(request);
     const where: any = {};
     if (scopeId !== null) where.responsavel_id = scopeId;
+    // Inclui tanto o mês da venda (periodo) quanto o mês de pagamento (mes_pagamento),
+    // p/ que o seletor mostre o mês em que a comissão será paga (ex.: 2026-07).
     const rows = await prisma.comissao.findMany({
-      where, distinct: ['periodo'], select: { periodo: true }, orderBy: { periodo: 'desc' },
+      where, select: { periodo: true, mes_pagamento: true },
     }).catch(() => [] as any[]);
-    const periodos = rows.map((r: any) => r.periodo).filter(Boolean);
+    const set = new Set<string>();
+    rows.forEach((r: any) => { if (r.periodo) set.add(r.periodo); if (r.mes_pagamento) set.add(r.mes_pagamento); });
+    const periodos = Array.from(set).sort().reverse();
     return reply.send({ status: 'success', data: { periodos } });
   });
 
@@ -472,7 +476,12 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     }).safeParse(request.query);
 
     const where: any = {};
-    if (query.data?.periodo) where.periodo = query.data.periodo;
+    // O "período" da tela casa com o mês da VENDA (periodo) OU o mês de PAGAMENTO
+    // (mes_pagamento). Assim a comissão aparece tanto no mês em que foi vendida
+    // quanto no mês em que vai ser paga — sem "sumir" ao trocar o mês no topo.
+    if (query.data?.periodo) {
+      where.OR = [{ periodo: query.data.periodo }, { mes_pagamento: query.data.periodo }];
+    }
     if (query.data?.status) where.status = query.data.status;
     if (query.data?.tipo) where.tipo = query.data.tipo;
     // Escopo: vendedor só vê a própria comissão (ignora responsavel_id de outro);
