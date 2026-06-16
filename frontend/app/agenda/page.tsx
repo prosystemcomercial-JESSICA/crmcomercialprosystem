@@ -28,6 +28,9 @@ interface Atividade {
   resumo_reuniao?: string;
   status: string;
   resultado?: string;
+  percepcao_observ?: string;
+  percepcao_nota?: number;
+  percepcao_tags?: string[];
   motivo_cancelamento?: string;
   nova_data_remarcada?: string;
   google_meet_link?: string;
@@ -351,9 +354,33 @@ function AtividadeDetail({
 
       {atividade.resultado && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#16a34a', marginBottom: 6 }}>Resultado</div>
-          <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, background: '#dcfce7', borderRadius: 8, padding: '10px 12px', border: '1px solid #86efac' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#16a34a', marginBottom: 6 }}>Resultado / Resumo da reunião</div>
+          <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, background: '#dcfce7', borderRadius: 8, padding: '10px 12px', border: '1px solid #86efac', whiteSpace: 'pre-wrap' }}>
             {atividade.resultado}
+          </div>
+        </div>
+      )}
+
+      {/* Notas e percepção da reunião (nota 1-5, tags e observações finais) */}
+      {(atividade.percepcao_observ || (atividade.percepcao_nota || 0) > 0 || (atividade.percepcao_tags?.length || 0) > 0) && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#4B8EC8', marginBottom: 6 }}>Notas e percepção da reunião</div>
+          <div style={{ background: '#EBF4FF', borderRadius: 8, padding: '10px 12px', border: '1px solid #C3DCFC' }}>
+            {(atividade.percepcao_nota || 0) > 0 && (
+              <div style={{ fontSize: 13, color: '#0D2238', marginBottom: 6 }}>
+                Nota: <b>{'★'.repeat(atividade.percepcao_nota || 0)}{'☆'.repeat(5 - (atividade.percepcao_nota || 0))}</b> <span style={{ color: '#4A6E8A' }}>({atividade.percepcao_nota}/5)</span>
+              </div>
+            )}
+            {(atividade.percepcao_tags?.length || 0) > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: atividade.percepcao_observ ? 8 : 0 }}>
+                {atividade.percepcao_tags!.map(t => (
+                  <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 14, background: '#fff', color: '#2E6EAB', border: '1px solid #C3DCFC' }}>{t}</span>
+                ))}
+              </div>
+            )}
+            {atividade.percepcao_observ && (
+              <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{atividade.percepcao_observ}</div>
+            )}
           </div>
         </div>
       )}
