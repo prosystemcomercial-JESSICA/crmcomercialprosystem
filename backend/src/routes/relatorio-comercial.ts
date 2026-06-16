@@ -178,16 +178,43 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     const totalPerdidos = perdidos.length;
     const mrrPerdidoTotal = perdidos_lista.reduce((s, c) => s + c.mrr_perdido, 0);
 
-    // 4) Indicações / vendas adicionais do mês (criadas no período).
-    const indicacoes = await prisma.vendaAdicional.findMany({
-      where: { created_at: noMes },
-      select: { vendedor_nome: true, status: true, acrescimo_mensal: true, valor_venda: true, parceiro: { select: { nome: true, categoria: true } }, cliente: { select: { razao_social: true, nome_fantasia: true, nome: true } } },
+    // 4) Vendas adicionais / indicações do mês.
+    // Resultado conta pelas CONFIRMADAS (data_confirmacao no mês; fallback data_venda/created_at).
+    // Mostra o SETUP que está entrando (valor_venda) e o aumento de MENSALIDADE (acrescimo_mensal).
+    const vendasTodas = await prisma.vendaAdicional.findMany({
+      select: { vendedor_nome: true, status: true, tipo_negocio: true, acrescimo_mensal: true, valor_venda: true, data_confirmacao: true, data_venda: true, created_at: true, parceiro: { select: { nome: true, categoria: true } }, cliente: { select: { razao_social: true, nome_fantasia: true, nome: true } } },
       orderBy: { created_at: 'desc' },
     }).catch(() => [] as any[]);
-    const indicacoes_lista = indicacoes.map((v: any) => ({
+    const dataResultado = (v: any) => v.data_confirmacao || v.data_venda || v.created_at;
+    const noMesVenda = (v: any) => { const d = dataResultado(v); return d && d >= inicio && d < fim; };
+    // Confirmadas no mês = o que de fato entrou de resultado.
+    const vendasConfirmadas = vendasTodas.filter((v: any) => v.status === 'CONFIRMADA' && noMesVenda(v));
+    const va_lista = vendasConfirmadas.map((v: any) => ({
       cliente: v.cliente?.razao_social || v.cliente?.nome_fantasia || v.cliente?.nome || '—',
       parceiro: v.parceiro?.nome || '—', categoria: v.parceiro?.categoria || '—',
-      vendedor: v.vendedor_nome || '—', status: v.status, acrescimo: Number(v.acrescimo_mensal || 0),
+      tipo: v.tipo_negocio || '—', vendedor: v.vendedor_nome || '—', status: v.status,
+      setup: Number(v.valor_venda || 0), acrescimo: Number(v.acrescimo_mensal || 0),
+    }));
+    const vaSetupTotal = va_lista.reduce((s, v) => s + v.setup, 0);          // setup entrando
+    const vaAcrescimoTotal = va_lista.reduce((s, v) => s + v.acrescimo, 0);  // aumento de MRR
+    const vaComAcrescimo = va_lista.filter(v => v.acrescimo > 0).length;
+    const vaComSetup = va_lista.filter(v => v.setup > 0).length;
+    const vendas_adicionais = {
+      total: va_lista.length,
+      setup_total: Math.round(vaSetupTotal),
+      setup_medio: vaComSetup ? Math.round(vaSetupTotal / vaComSetup) : 0,
+      acrescimo_mrr_total: Math.round(vaAcrescimoTotal),      // quanto a mensalidade aumentou no mês
+      acrescimo_medio: vaComAcrescimo ? Math.round(vaAcrescimoTotal / vaComAcrescimo) : 0, // valor médio do aumento
+      por_tipo: ['INDICACAO', 'REVENDA', 'COMUNICACAO', 'TROCA_CNPJ'].map(t => {
+        const itens = va_lista.filter(v => v.tipo === t);
+        return { tipo: t, qtd: itens.length, setup: Math.round(itens.reduce((s, v) => s + v.setup, 0)), acrescimo: Math.round(itens.reduce((s, v) => s + v.acrescimo, 0)) };
+      }).filter(t => t.qtd > 0),
+      lista: va_lista,
+    };
+    // Mantém o campo "indicacoes" por compatibilidade (telas antigas).
+    const indicacoes_lista = va_lista.map((v: any) => ({
+      cliente: v.cliente, parceiro: v.parceiro, categoria: v.categoria,
+      vendedor: v.vendedor, status: v.status, acrescimo: v.acrescimo,
     }));
 
     // 4b) Comissões cujo MÊS DE PAGAMENTO é este mês (pagas + a pagar) — com nomes.
@@ -228,7 +255,8 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       total_leads: totalLeads,
       fechamentos: { total: totalFechamentos, setup_total: Math.round(setupTotal), setup_medio: setupMedio, mrr_total: Math.round(mrrGanhoTotal), mrr_medio: mrrMedio, lista: fechamentos_lista },
       perdidos: { total: totalPerdidos, mrr_perdido_total: Math.round(mrrPerdidoTotal), lista: perdidos_lista },
-      indicacoes: { total: indicacoes.length, lista: indicacoes_lista },
+      indicacoes: { total: indicacoes_lista.length, lista: indicacoes_lista },
+      vendas_adicionais,
       comissoes,
       entrada_x_saida,
     };
