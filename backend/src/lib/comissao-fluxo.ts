@@ -89,9 +89,10 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
     descricao: `Comissão venda · Contrato ${c.numero_contrato} · ${c.razao_social}`,
   });
 
-  // Supervisão: cada SUPERVISAO_COMERCIAL ativo recebe 5% (cheios) do setup deste contrato.
+  // Supervisão: cada gestor comercial ativo (SUPERVISAO_COMERCIAL ou ADMIN/Diretora)
+  // recebe 5% (cheios) do setup deste contrato.
   const sups: any[] = await prisma.$queryRawUnsafe(
-    `SELECT id FROM UsuarioCRM WHERE cargo = 'SUPERVISAO_COMERCIAL' AND status = 'ATIVO'`
+    `SELECT id FROM UsuarioCRM WHERE cargo IN ('SUPERVISAO_COMERCIAL','ADMIN') AND status = 'ATIVO'`
   ).catch(() => []);
   for (const s of sups) {
     await upsertComissaoContrato(prisma, {

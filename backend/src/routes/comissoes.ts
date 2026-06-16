@@ -190,9 +190,9 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     const faturamento = Math.round((fatContratos + fatVendas) * 100) / 100;
     const comissaoUnit = Math.round(faturamento * (COMISSAO_SUPERVISAO_PCT / 100) * 100) / 100;
 
-    // 3) Supervisores comerciais ativos (cada um recebe os 0,5% cheios)
+    // 3) Gestores comerciais ativos (SUPERVISAO_COMERCIAL ou ADMIN/Diretora) — cada um recebe os 0,5% cheios
     const supervisores: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id, nome FROM UsuarioCRM WHERE cargo = 'SUPERVISAO_COMERCIAL' AND status = 'ATIVO' ORDER BY nome ASC`
+      `SELECT id, nome FROM UsuarioCRM WHERE cargo IN ('SUPERVISAO_COMERCIAL','ADMIN') AND status = 'ATIVO' ORDER BY nome ASC`
     ).catch(() => []);
 
     return reply.send({

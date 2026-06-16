@@ -132,7 +132,7 @@ export async function lancamentosRetroativosRoutes(
     const comissoesSup: any[] = [];
     if (body.data.gerar_comissao && body.data.setup > 0) {
       const sups: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id FROM UsuarioCRM WHERE cargo = 'SUPERVISAO_COMERCIAL' AND status = 'ATIVO'`
+        `SELECT id FROM UsuarioCRM WHERE cargo IN ('SUPERVISAO_COMERCIAL','ADMIN') AND status = 'ATIVO'`
       ).catch(() => []);
       const valorSup = Math.round(body.data.setup * 0.05 * 100) / 100;
       for (const s of sups) {

@@ -729,8 +729,8 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
             periodo: proximoMesYM(), status: 'PENDENTE', created_by: user?.id || 'system',
           } as any,
         }).catch(() => {});
-        // Supervisão 5% (cada SUPERVISAO_COMERCIAL ativo).
-        const sups: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM UsuarioCRM WHERE cargo='SUPERVISAO_COMERCIAL' AND status='ATIVO'`).catch(() => []);
+        // Supervisão 5% (cada gestor comercial ativo: SUPERVISAO_COMERCIAL ou ADMIN/Diretora).
+        const sups: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM UsuarioCRM WHERE cargo IN ('SUPERVISAO_COMERCIAL','ADMIN') AND status='ATIVO'`).catch(() => []);
         const comissaoSup = Math.round((b.taxa * 0.05) * 100) / 100;
         for (const s of sups) {
           await prisma.comissao.create({
