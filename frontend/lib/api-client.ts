@@ -1190,6 +1190,16 @@ class ApiClient {
   async getRelatorioSerieAnual(ano: number) {
     return this.client.get('/relatorio-comercial/serie-anual', { params: { ano } });
   }
+  // ── Painel Executivo do CEO ──
+  async getPainelCEO(params: { periodo: string; ano: number; mes: number }) {
+    return this.client.get('/ceo/painel', { params });
+  }
+  async getIndicadoresCEO(ano: number, mes: number) {
+    return this.client.get('/ceo/indicadores', { params: { ano, mes } });
+  }
+  async salvarIndicadoresCEO(data: any) {
+    return this.client.put('/ceo/indicadores', data);
+  }
   async salvarRelatorioComercial(data: any) {
     return this.client.put('/relatorio-comercial', data);
   }
