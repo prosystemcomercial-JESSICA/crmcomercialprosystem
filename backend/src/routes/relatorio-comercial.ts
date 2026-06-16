@@ -262,12 +262,61 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     };
   }
 
+  // Consolidado do ANO: soma os 12 meses no MESMO formato de metricasReaisDoMes,
+  // concatenando as listas (fechamentos/perdidos/indicações) p/ o relatório anual.
+  async function metricasDoAno(ano: number) {
+    const meses = [] as any[];
+    for (let m = 1; m <= 12; m++) meses.push(await metricasReaisDoMes(ano, m).catch(() => null));
+    const validos = meses.filter(Boolean);
+    const somaL = (sel: (x: any) => number) => validos.reduce((s, x) => s + (sel(x) || 0), 0);
+    const concat = (sel: (x: any) => any[]) => validos.flatMap(x => sel(x) || []);
+
+    const totalFechamentos = somaL(x => x.fechamentos.total);
+    const setupTotal = somaL(x => x.fechamentos.setup_total);
+    const mrrGanhoTotal = somaL(x => x.fechamentos.mrr_total);
+    const totalPerdidos = somaL(x => x.perdidos.total);
+    const mrrPerdidoTotal = somaL(x => x.perdidos.mrr_perdido_total);
+    const vaSetup = somaL(x => x.vendas_adicionais?.setup_total || 0);
+    const vaAcr = somaL(x => x.vendas_adicionais?.acrescimo_mrr_total || 0);
+    const vaTotal = somaL(x => x.vendas_adicionais?.total || 0);
+
+    return {
+      total_leads: somaL(x => x.total_leads),
+      fechamentos: {
+        total: totalFechamentos, setup_total: setupTotal,
+        setup_medio: totalFechamentos ? Math.round(setupTotal / totalFechamentos) : 0,
+        mrr_total: mrrGanhoTotal, mrr_medio: totalFechamentos ? Math.round(mrrGanhoTotal / totalFechamentos) : 0,
+        lista: concat(x => x.fechamentos.lista),
+      },
+      perdidos: { total: totalPerdidos, mrr_perdido_total: mrrPerdidoTotal, lista: concat(x => x.perdidos.lista) },
+      indicacoes: { total: somaL(x => x.indicacoes.total), lista: concat(x => x.indicacoes.lista) },
+      vendas_adicionais: {
+        total: vaTotal, setup_total: vaSetup,
+        setup_medio: 0, acrescimo_mrr_total: vaAcr, acrescimo_medio: 0,
+        por_tipo: [], lista: concat(x => x.vendas_adicionais?.lista || []),
+      },
+      comissoes: { total: 0, total_valor: 0, pagas_valor: 0, a_pagar_valor: 0, lista: [] },
+      entrada_x_saida: {
+        mrr_entrada: mrrGanhoTotal, mrr_saida: mrrPerdidoTotal, saldo_mrr: mrrGanhoTotal - mrrPerdidoTotal,
+        clientes_entrada: totalFechamentos, clientes_saida: totalPerdidos, saldo_clientes: totalFechamentos - totalPerdidos,
+      },
+    };
+  }
+
   // GET — relatório do mês (auto-pipeline mesclado com o salvo).
   fastify.get('/relatorio-comercial', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const q = z.object({ ano: z.coerce.number().default(new Date().getFullYear()), mes: z.coerce.number().min(1).max(12).default(new Date().getMonth() + 1) }).safeParse(request.query);
+    // mes = 0 → ANO INTEIRO (consolidado dos 12 meses). 1..12 → mês específico.
+    const q = z.object({ ano: z.coerce.number().default(new Date().getFullYear()), mes: z.coerce.number().min(0).max(12).default(new Date().getMonth() + 1) }).safeParse(request.query);
     if (!q.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
     const { ano, mes } = q.data;
+
+    // ── ANO INTEIRO: soma os 12 meses (mesma fonte real), no mesmo formato. ──
+    if (mes === 0) {
+      const metricas = await metricasDoAno(ano);
+      const pipeline = await calcularPipeline(ano, new Date().getMonth() + 1).catch(() => null);
+      return reply.send({ status: 'success', data: { ano, mes: 0, anual: true, _pipeline_auto: pipeline, metricas } });
+    }
 
     const salvo = await prisma.relatorioComercial.findUnique({ where: { uq_relatorio_mes: { ano, mes } } });
     const pipeline = await calcularPipeline(ano, mes);
