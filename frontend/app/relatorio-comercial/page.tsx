@@ -178,6 +178,12 @@ export default function RelatorioComercialPage() {
                     <KPI label="Clientes perdidos" valor={d.metricas.perdidos.total} cor="text-red-600" />
                     <KPI label="Mensalidade perdida" valor={`${fmt(d.metricas.perdidos.mrr_perdido_total)}/mês`} cor="text-red-600" />
                     <KPI label="Total de indicações" valor={d.metricas.indicacoes.total} cor="text-teal-700" />
+                    {d.metricas.vendas_adicionais && (
+                      <>
+                        <KPI label="Setup (vendas adicionais)" valor={fmt(d.metricas.vendas_adicionais.setup_total)} cor="text-green-700" />
+                        <KPI label="↑ Mensalidade (adicionais)" valor={`+${fmt(d.metricas.vendas_adicionais.acrescimo_mrr_total)}/mês`} cor="text-blue-700" />
+                      </>
+                    )}
                   </div>
                 </Bloco>
 
@@ -325,6 +331,38 @@ export default function RelatorioComercialPage() {
                     </div>
                   </Bloco>
                 )}
+
+                {/* Vendas adicionais — resultado SEPARADO: setup entrando + aumento de mensalidade */}
+                {(() => {
+                  const va = d.metricas.vendas_adicionais;
+                  if (!va || va.total === 0) return null;
+                  const tipoLabel: Record<string, string> = { INDICACAO: 'Indicações', REVENDA: 'Revendas', COMUNICACAO: 'Comunicação', TROCA_CNPJ: 'Troca de CNPJ' };
+                  return (
+                    <Bloco titulo={`➕ Vendas adicionais do mês (${va.total}) — resultado separado`}>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                        <KPI label="Setup entrando" valor={fmt(va.setup_total)} cor="text-green-700" />
+                        <KPI label="Setup médio" valor={fmt(va.setup_medio)} />
+                        <KPI label="Aumento de mensalidade" valor={`+${fmt(va.acrescimo_mrr_total)}/mês`} cor="text-blue-700" />
+                        <KPI label="Aumento médio (valor médio)" valor={`+${fmt(va.acrescimo_medio)}/mês`} cor="text-blue-700" />
+                      </div>
+                      {va.por_tipo?.length > 0 && (
+                        <table className="w-full text-sm mb-3">
+                          <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Tipo</th><th className="text-right">Qtd</th><th className="text-right">Setup</th><th className="text-right">Aumento de mensalidade</th></tr></thead>
+                          <tbody>{va.por_tipo.map((t: any) => (
+                            <tr key={t.tipo} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-700">{tipoLabel[t.tipo] || t.tipo}</td><td className="text-right">{t.qtd}</td><td className="text-right text-green-700">{fmt(t.setup)}</td><td className="text-right text-blue-700">+{fmt(t.acrescimo)}/mês</td></tr>
+                          ))}</tbody>
+                          <tfoot><tr className="border-t-2 font-bold"><td className="py-1.5">Total</td><td className="text-right">{va.total}</td><td className="text-right text-green-700">{fmt(va.setup_total)}</td><td className="text-right text-blue-700">+{fmt(va.acrescimo_mrr_total)}/mês</td></tr></tfoot>
+                        </table>
+                      )}
+                      <table className="w-full text-sm">
+                        <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Parceiro</th><th>Vendedor</th><th className="text-right">Setup</th><th className="text-right">+Mensalidade</th></tr></thead>
+                        <tbody>{va.lista.map((v: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{v.cliente}</td><td className="text-gray-600">{v.parceiro}</td><td className="text-gray-500">{v.vendedor}</td><td className="text-right text-green-700">{fmt(v.setup)}</td><td className="text-right text-blue-700">{v.acrescimo > 0 ? `+${fmt(v.acrescimo)}` : '—'}</td></tr>
+                        ))}</tbody>
+                      </table>
+                    </Bloco>
+                  );
+                })()}
 
                 {/* Lista de indicações/vendas adicionais (nomes) */}
                 {d.metricas.indicacoes.lista.length > 0 && (
