@@ -683,3 +683,27 @@ table { max-width: 100%; }
 .dark .bg-orange-50 { background-color: rgba(234,88,12,0.14) !important; }
 .dark .bg-cyan-50   { background-color: rgba(8,145,178,0.14) !important; }
 .dark .bg-emerald-50{ background-color: rgba(16,185,129,0.14) !important; }
+
+/* ============================================================
+   RESPONSIVIDADE MOBILE (≤768px) — passada global p/ celular.
+   Evita que tabelas largas, grids e modais estourem a tela.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Nada deve criar scroll horizontal na página inteira. */
+  html, body { max-width: 100%; overflow-x: hidden; }
+
+  /* Toda tabela rola DENTRO do seu container, sem espremer/cortar.
+     Aplica scroll-x automático ao pai direto da tabela. */
+  table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  table thead, table tbody, table tr { width: 100%; }
+
+  /* Modais e cards largos não passam da viewport. */
+  .fixed > div, [role="dialog"] > div { max-width: 96vw !important; }
+
+  /* Grids de 3+ colunas viram 2 no celular (cards de KPI etc.). */
+  .grid.grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid.grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Padding lateral mais enxuto para aproveitar a tela. */
+  .max-w-6xl, .max-w-5xl, .max-w-4xl, .max-w-3xl, .max-w-2xl { padding-left: 12px; padding-right: 12px; }
+}
