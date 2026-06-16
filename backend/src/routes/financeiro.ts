@@ -143,6 +143,47 @@ export async function financeiroRoutes(fastify: FastifyInstance, options: { pris
       porCategoria[l.categoria] = (porCategoria[l.categoria] || 0) + v;
     }
 
+    // ── Entradas AUTOMÁTICAS dos fechamentos reais (mesma fonte do Relatório/Ranking) ──
+    // PropostaComercial CONTRATO_ASSINADO com data_aceite no período (fallback created_at).
+    // setup → entrada imediata; mensalidade → MRR. Assim a tela não depende de lançar
+    // a venda manualmente: ela já entra do funil.
+    const STATUS_FECHADA = ['CONTRATO_ASSINADO', 'ASSINADO', 'ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO'];
+    const ini = new Date(q.data.ano, (q.data.mes ? q.data.mes - 1 : 0), 1);
+    const fim = q.data.mes ? new Date(q.data.ano, q.data.mes, 0, 23, 59, 59) : new Date(q.data.ano, 11, 31, 23, 59, 59);
+    const fechamentos = await prisma.propostaComercial.findMany({
+      where: {
+        status: { in: STATUS_FECHADA }, deleted_at: null as any,
+        OR: [
+          { data_aceite: { gte: ini, lte: fim } },
+          { AND: [{ data_aceite: null }, { created_at: { gte: ini, lte: fim } }] },
+        ],
+      },
+      select: { valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true },
+    }).catch(() => [] as any[]);
+    let setupFunil = 0, mrrFunil = 0;
+    for (const f of fechamentos) {
+      const setup = Number(f.valor_implantacao ?? f.valor_final ?? 0);
+      const mrr = Number(f.mensalidade_plus ?? f.mensalidade_pro ?? 0);
+      if (setup > 0) { entradasImediatas += setup; instalacaoValores.push(setup); setupFunil += setup; }
+      if (mrr > 0) { mrrPeriodo += mrr; mrrValores.push(mrr); mrrFunil += mrr; }
+    }
+    if (setupFunil > 0) porCategoria['Setup (vendas do funil)'] = (porCategoria['Setup (vendas do funil)'] || 0) + setupFunil;
+    if (mrrFunil > 0) porCategoria['Mensalidade (vendas do funil)'] = (porCategoria['Mensalidade (vendas do funil)'] || 0) + mrrFunil;
+    // Vendas adicionais CONFIRMADAS no período: valor_venda = imediato; acrescimo = MRR.
+    const vendasAdic = await prisma.vendaAdicional.findMany({
+      where: { status: 'CONFIRMADA', OR: [
+        { data_confirmacao: { gte: ini, lte: fim } },
+        { AND: [{ data_confirmacao: null }, { data_venda: { gte: ini, lte: fim } }] },
+      ] },
+      select: { valor_venda: true, acrescimo_mensal: true },
+    }).catch(() => [] as any[]);
+    for (const v of vendasAdic) {
+      const imediato = Number(v.valor_venda || 0);
+      const acr = Number(v.acrescimo_mensal || 0);
+      if (imediato > 0) entradasImediatas += imediato;
+      if (acr > 0) { mrrPeriodo += acr; mrrValores.push(acr); }
+    }
+
     const media = (arr: number[]) => arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
     const round2 = (n: number) => Math.round(n * 100) / 100;
 
