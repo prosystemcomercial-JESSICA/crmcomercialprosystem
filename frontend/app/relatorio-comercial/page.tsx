@@ -86,7 +86,10 @@ export default function RelatorioComercialPage() {
   const rMrr = mt ? mt.fechamentos.mrr_total : (d?.mrr_total || 0);
   const rPerdidos = mt ? mt.perdidos.total : (d?.cancelamentos || 0);
   const rMrrPerdido = mt ? mt.perdidos.mrr_perdido_total : (d?.mrr_perdido || 0);
-  const metaContratos = d?.meta_contratos || 15;
+  // Meta de contratos: mensal vem de d.meta_contratos (fallback 10 = equipe).
+  // No relatório ANUAL (mes=0), a meta é a mensal × 12.
+  const metaMensal = d?.meta_contratos || 10;
+  const metaContratos = mes === 0 ? metaMensal * 12 : metaMensal;
   const metaPct = metaContratos ? Math.round((rContratos / metaContratos) * 100) : 0;
   const mrrLiquido = Number(rMrr) - Number(rMrrPerdido);
   // Rótulo do período: "Ano de 2026" quando mes=0, senão "Março / 2026".
