@@ -26,6 +26,9 @@ const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
 // Gestão comercial — visão total de KPIs/projeções/importações/ranking (sem vendedor)
 const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN'];
+// O CEO vê só o EXECUTIVO (resultado/direção) — nada de operacional/admin.
+// Estas são as ÚNICAS rotas visíveis no menu para o role CEO.
+const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos'];
 
 type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp'; externoComToken?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
@@ -543,10 +546,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <nav className="flex-1 py-4 px-2 space-y-4 overflow-y-auto">
             {(() => {
               const userRole = (user?.role || '').toUpperCase();
+              const ehCEO = userRole === 'CEO';
               const filteredGroups = navGroups
                 .map(group => ({
                   ...group,
-                  items: group.items.filter(item => !item.roles || item.roles.includes(userRole))
+                  items: group.items.filter(item =>
+                    (!item.roles || item.roles.includes(userRole)) &&
+                    // CEO só vê as rotas executivas permitidas (sem operacional/admin).
+                    (!ehCEO || CEO_VISIVEL.includes(item.href))
+                  )
                 }))
                 .filter(group => group.items.length > 0);
               return filteredGroups;
