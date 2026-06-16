@@ -191,22 +191,26 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
       `SELECT id, nome FROM UsuarioCRM WHERE cargo = 'VENDEDOR' AND status = 'ATIVO'`
     ).catch(() => []);
     for (const v of vendedores) {
-      rankingMap[v.id] = { responsavel_id: v.id, responsavel_nome: v.nome, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
+      rankingMap[v.id] = { responsavel_id: v.id, responsavel_nome: v.nome, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0, setup_total: 0, mrr_total: 0 };
     }
 
     leadsGanhos.forEach(l => {
       const id = l.responsavel_id!;
-      if (!rankingMap[id]) rankingMap[id] = { responsavel_id: id, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
+      if (!rankingMap[id]) rankingMap[id] = { responsavel_id: id, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0, setup_total: 0, mrr_total: 0 };
       rankingMap[id].leads_ganhos = l._count._all;
     });
 
     // Fechamentos por vendedor: conta propostas aceitas + contratos e soma valor (setup + MRR).
     for (const p of fechadasPC as any[]) {
       const id = p.vendedor_id || 'sem-vendedor';
-      if (!rankingMap[id]) rankingMap[id] = { responsavel_id: id, responsavel_nome: p.vendedor_nome || undefined, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
+      if (!rankingMap[id]) rankingMap[id] = { responsavel_id: id, responsavel_nome: p.vendedor_nome || undefined, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0, setup_total: 0, mrr_total: 0 };
+      const setup = Number(p.valor_implantacao ?? p.valor_final ?? 0);
+      const mrr = Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0);
       rankingMap[id].propostas_aceitas += 1;
       rankingMap[id].contratos += 1;
-      rankingMap[id].valor_total += Number(p.valor_implantacao ?? p.valor_final ?? 0) + Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0);
+      rankingMap[id].setup_total += setup;
+      rankingMap[id].mrr_total += mrr;
+      rankingMap[id].valor_total += setup + mrr;
     }
 
     // Resolve o NOME de cada responsável (UsuarioCRM + contas de sistema) — antes
@@ -219,7 +223,13 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
 
     const ranking = Object.values(rankingMap)
       .sort((a, b) => b.valor_total - a.valor_total || b.leads_ganhos - a.leads_ganhos)
-      .map((r, i) => ({ ...r, posicao: i + 1 }));
+      .map((r, i) => ({
+        ...r,
+        posicao: i + 1,
+        // Médias por contrato fechado (0 se não fechou nada no período).
+        media_setup: r.contratos ? Math.round(r.setup_total / r.contratos) : 0,
+        media_mrr: r.contratos ? Math.round(r.mrr_total / r.contratos) : 0,
+      }));
 
     return reply.send({ status: 'success', data: ranking });
   });
