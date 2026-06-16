@@ -153,38 +153,18 @@ export class CasoChurnService {
       include: { cliente: true },
     });
 
-    // PERDIDO → inativa o cadastro do cliente automaticamente. O MOTIVO da
-    // inativação é a descrição/relato do caso (mesma que sai no relatório do CEO),
-    // e o MRR perdido = mensalidade base. Idempotente (só inativa se ainda ativo).
+    // PERDIDO → inativa o cliente e alimenta o relatório de saída (MRR perdido,
+    // valor devido, motivo/relato, evento na ficha). Centralizado em aplicarPerda
+    // p/ ser idempotente e reutilizado também no delete.
     if (data.status === 'PERDIDO') {
-      try {
-        const cli: any = updated.cliente;
-        const relato = (limpo.descricao ?? caso.descricao ?? '').toString().trim();
-        const motivo = relato || updated.motivo_principal || caso.motivo_principal || 'Perdido (churn)';
-        // Valor devido = valor em atraso do caso (o informado agora ou o já salvo).
-        const valorDevido = (limpo.fin_valor_atraso ?? (updated as any).fin_valor_atraso ?? (caso as any).fin_valor_atraso ?? null);
-        if (cli && cli.situacao !== 'INATIVA') {
-          await this.prisma.cliente.update({
-            where: { id: cli.id },
-            data: {
-              situacao: 'INATIVA',
-              inativado_em: new Date(),
-              motivo_inativacao: motivo,
-              mrr_perdido: cli.mrr_perdido ?? cli.mensalidade_base ?? undefined,
-              valor_devido_inativacao: valorDevido != null ? Number(valorDevido) : undefined,
-            } as any,
-          });
-          // Evento na ficha (timeline do cliente).
-          await (this.prisma as any).eventoCliente.create({
-            data: {
-              cliente_id: cli.id, tipo: 'DESATIVACAO',
-              titulo: '🚫 Cliente inativado (churn perdido)',
-              descricao: motivo + (valorDevido != null ? `\nValor devido: R$ ${Number(valorDevido).toLocaleString('pt-BR')}` : ''),
-              referencia_id: id, feito_por: userId,
-            },
-          }).catch(() => {});
-        }
-      } catch (e) { console.error('[CasoChurn] Falha ao inativar cliente no PERDIDO:', e); }
+      const relato = (limpo.descricao ?? caso.descricao ?? '').toString().trim();
+      const valorDevido = (limpo.fin_valor_atraso ?? (updated as any).fin_valor_atraso ?? (caso as any).fin_valor_atraso ?? null);
+      await this.aplicarPerda(updated.cliente as any, {
+        casoId: id,
+        motivo: relato || updated.motivo_principal || caso.motivo_principal || 'Perdido (churn)',
+        valorDevido: valorDevido != null ? Number(valorDevido) : null,
+        userId,
+      }).catch(e => console.error('[CasoChurn] Falha ao aplicar perda:', e));
     }
 
     // Registra uma atualização na timeline quando muda status ou financeiro.
@@ -209,15 +189,58 @@ export class CasoChurnService {
   async delete(id: string) {
     await this.getById(id); // Validar que existe
 
-    // Soft delete (marcar como PERDIDO)
+    // Soft delete = marcar como PERDIDO. Aplica a mesma cadeia de perda (inativar
+    // cliente + alimentar relatório de saída), para não ficar inconsistente.
     const deleted = await this.prisma.casoChurn.update({
       where: { id },
       data: { status: 'PERDIDO' },
       include: { cliente: true }
     });
+    await this.aplicarPerda(deleted.cliente as any, {
+      casoId: id,
+      motivo: (deleted as any).descricao || deleted.motivo_principal || 'Perdido (churn)',
+      valorDevido: (deleted as any).fin_valor_atraso != null ? Number((deleted as any).fin_valor_atraso) : null,
+      userId: 'system',
+    }).catch(e => console.error('[CasoChurn] Falha ao aplicar perda no delete:', e));
 
     console.log(`[CasoChurn] Caso ${id} marcado como PERDIDO`);
     return deleted;
+  }
+
+  /**
+   * Aplica a PERDA de um cliente (churn perdido): inativa, grava MRR perdido,
+   * valor devido, motivo, e registra na timeline. Idempotente — pode rodar de novo
+   * em cliente já inativo só para COMPLETAR dados que faltavam (ex.: MRR perdido = 0).
+   */
+  private async aplicarPerda(cli: any, opts: { casoId: string; motivo: string; valorDevido: number | null; userId: string }) {
+    if (!cli?.id) return;
+    const { casoId, motivo, valorDevido, userId } = opts;
+
+    // MRR perdido = mensalidade do cliente; se vazia, usa o valor devido como referência.
+    const mrrPerdido = Number(cli.mrr_perdido || 0) > 0 ? Number(cli.mrr_perdido)
+      : Number(cli.mensalidade_base || 0) > 0 ? Number(cli.mensalidade_base)
+      : (valorDevido && valorDevido > 0 ? valorDevido : 0);
+
+    const jaInativo = cli.situacao === 'INATIVA';
+    const dataUp: any = { situacao: 'INATIVA' };
+    // Preenche só o que falta (não sobrescreve dados já corretos).
+    if (!cli.inativado_em) dataUp.inativado_em = new Date();
+    if (!cli.motivo_inativacao && motivo) dataUp.motivo_inativacao = motivo;
+    if (!(Number(cli.mrr_perdido) > 0) && mrrPerdido > 0) dataUp.mrr_perdido = mrrPerdido;
+    if (!(Number(cli.valor_devido_inativacao) > 0) && valorDevido != null && valorDevido > 0) dataUp.valor_devido_inativacao = valorDevido;
+    await this.prisma.cliente.update({ where: { id: cli.id }, data: dataUp }).catch(() => {});
+
+    // Evento na timeline da ficha — só na PRIMEIRA inativação (evita duplicar).
+    if (!jaInativo) {
+      await (this.prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: cli.id, tipo: 'DESATIVACAO',
+          titulo: '🚫 Cliente inativado (churn perdido)',
+          descricao: motivo + (valorDevido != null && valorDevido > 0 ? `\nValor devido: R$ ${Number(valorDevido).toLocaleString('pt-BR')}` : '') + (mrrPerdido > 0 ? `\nMRR perdido: R$ ${mrrPerdido.toLocaleString('pt-BR')}/mês` : ''),
+          referencia_id: casoId, feito_por: userId,
+        },
+      }).catch(() => {});
+    }
   }
 
   private isValidStatusTransition(_from: string, to: string): boolean {
