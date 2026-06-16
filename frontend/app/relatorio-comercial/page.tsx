@@ -78,8 +78,17 @@ export default function RelatorioComercialPage() {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
   }
 
-  const metaPct = d?.meta_contratos ? Math.round((d.contratos_fechados / d.meta_contratos) * 100) : 0;
-  const mrrLiquido = Number(d?.mrr_total || 0) - Number(d?.mrr_perdido || 0);
+  // Tudo vem dos dados REAIS (metricas): capa, visão geral e números do mês usam a
+  // MESMA fonte (fechamentos por data_aceite no mês), então sempre batem entre si.
+  const mt = d?.metricas;
+  const rContratos = mt ? mt.fechamentos.total : (d?.contratos_fechados || 0);
+  const rSetup = mt ? mt.fechamentos.setup_total : (d?.instalacao_total || 0);
+  const rMrr = mt ? mt.fechamentos.mrr_total : (d?.mrr_total || 0);
+  const rPerdidos = mt ? mt.perdidos.total : (d?.cancelamentos || 0);
+  const rMrrPerdido = mt ? mt.perdidos.mrr_perdido_total : (d?.mrr_perdido || 0);
+  const metaContratos = d?.meta_contratos || 15;
+  const metaPct = metaContratos ? Math.round((rContratos / metaContratos) * 100) : 0;
+  const mrrLiquido = Number(rMrr) - Number(rMrrPerdido);
 
   return (
     <DashboardLayout>
@@ -145,12 +154,12 @@ export default function RelatorioComercialPage() {
             {/* Resumo geral */}
             <Bloco titulo="Visão Geral do Mês">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KPI label="Contratos fechados" valor={d.contratos_fechados} cor="text-green-700" />
-                <KPI label={`Meta (${d.meta_contratos})`} valor={`${metaPct}%`} cor={metaPct >= 100 ? 'text-green-700' : metaPct >= 70 ? 'text-yellow-600' : 'text-red-600'} />
-                <KPI label="Instalações" valor={fmt(d.instalacao_total)} />
-                <KPI label="MRR do mês" valor={fmt(d.mrr_total)} cor="text-blue-700" />
-                <KPI label="Cancelamentos" valor={d.cancelamentos} cor="text-red-600" />
-                <KPI label="MRR perdido" valor={fmt(d.mrr_perdido)} cor="text-red-600" />
+                <KPI label="Contratos fechados" valor={rContratos} cor="text-green-700" />
+                <KPI label={`Meta (${metaContratos})`} valor={`${metaPct}%`} cor={metaPct >= 100 ? 'text-green-700' : metaPct >= 70 ? 'text-yellow-600' : 'text-red-600'} />
+                <KPI label="Instalações (setup)" valor={fmt(rSetup)} />
+                <KPI label="MRR do mês" valor={fmt(rMrr)} cor="text-blue-700" />
+                <KPI label="Cancelamentos" valor={rPerdidos} cor="text-red-600" />
+                <KPI label="MRR perdido" valor={fmt(rMrrPerdido)} cor="text-red-600" />
                 <KPI label="MRR líquido" valor={fmt(mrrLiquido)} cor="text-green-700" />
               </div>
             </Bloco>
