@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, requireGestor } from '@/lib/scope';
 import { calcularRealizadoMeta } from '@/lib/meta-progress';
+import { resolverNomesUsuarios, CONTAS_SISTEMA } from '@/lib/usuarios';
 
 const CreateMetaSchema = z.object({
   titulo: z.string().min(1),
@@ -181,6 +182,15 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
     // Merge by responsavel_id/created_by
     const rankingMap: Record<string, any> = {};
 
+    // Começa com TODOS os vendedores ATIVOS (aparecem mesmo com resultado zero) +
+    // contas de sistema que vendem. Assim ninguém some do ranking por estar zerado.
+    const vendedores: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome FROM UsuarioCRM WHERE cargo = 'VENDEDOR' AND status = 'ATIVO'`
+    ).catch(() => []);
+    for (const v of vendedores) {
+      rankingMap[v.id] = { responsavel_id: v.id, responsavel_nome: v.nome, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
+    }
+
     leadsGanhos.forEach(l => {
       const id = l.responsavel_id!;
       if (!rankingMap[id]) rankingMap[id] = { responsavel_id: id, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
@@ -199,8 +209,16 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
       rankingMap[c.created_by].contratos = c._count._all;
     });
 
+    // Resolve o NOME de cada responsável (UsuarioCRM + contas de sistema) — antes
+    // a tela mostrava o id cru. Quem não tiver nome cadastrado fica com o id.
+    const ids = Object.keys(rankingMap).filter(Boolean);
+    const nomes = await resolverNomesUsuarios(prisma, ids).catch(() => ({} as any));
+    for (const id of ids) {
+      if (!rankingMap[id].responsavel_nome) rankingMap[id].responsavel_nome = nomes[id] || CONTAS_SISTEMA[id]?.nome || id;
+    }
+
     const ranking = Object.values(rankingMap)
-      .sort((a, b) => b.valor_total - a.valor_total)
+      .sort((a, b) => b.valor_total - a.valor_total || b.leads_ganhos - a.leads_ganhos)
       .map((r, i) => ({ ...r, posicao: i + 1 }));
 
     return reply.send({ status: 'success', data: ranking });

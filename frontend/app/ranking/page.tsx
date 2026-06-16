@@ -10,6 +10,7 @@ import ExportButton from '@/components/ui/ExportButton';
 interface RankingItem {
   posicao: number;
   responsavel_id: string;
+  responsavel_nome?: string;
   leads_ganhos: number;
   propostas_aceitas: number;
   contratos: number;
@@ -52,7 +53,12 @@ export default function RankingPage() {
       .finally(() => setDataLoading(false));
   }, [isAuthenticated, periodo]);
 
-  const nomeVendedor = (id: string) => USUARIOS_NAMES[id] || id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  // Prioriza o nome resolvido pelo backend (responsavel_nome); fallback no dicionário.
+  const nomeVendedor = (idOuItem: any): string => {
+    if (idOuItem && typeof idOuItem === 'object') return idOuItem.responsavel_nome || nomeVendedor(idOuItem.responsavel_id);
+    const id = String(idOuItem || '');
+    return USUARIOS_NAMES[id] || id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
 
   const periods = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
@@ -79,7 +85,7 @@ export default function RankingPage() {
             linhas={ranking}
             colunas={[
               { header: 'Posição', value: (r: RankingItem) => r.posicao },
-              { header: 'Vendedor', value: (r: RankingItem) => nomeVendedor(r.responsavel_id) },
+              { header: 'Vendedor', value: (r: RankingItem) => nomeVendedor(r) },
               { header: 'Leads ganhos', value: (r: RankingItem) => r.leads_ganhos },
               { header: 'Propostas aceitas', value: (r: RankingItem) => r.propostas_aceitas },
               { header: 'Contratos', value: (r: RankingItem) => r.contratos },
@@ -116,7 +122,7 @@ export default function RankingPage() {
                   return (
                     <div key={item.responsavel_id} className={`flex-1 max-w-48 ${bgs[idx]} rounded-xl p-4 text-center ${heights[idx]} flex flex-col justify-end`}>
                       <div className="text-2xl mb-1">{MEDALS[originalPos] || `#${item.posicao}`}</div>
-                      <p className="font-bold text-gray-900 text-sm">{nomeVendedor(item.responsavel_id)}</p>
+                      <p className="font-bold text-gray-900 text-sm">{nomeVendedor(item)}</p>
                       <p className="text-lg font-bold text-green-700">R$ {item.valor_total.toLocaleString('pt-BR')}</p>
                       <p className="text-xs text-gray-500">{item.leads_ganhos} ganhos · {item.contratos} contratos</p>
                     </div>
@@ -146,9 +152,9 @@ export default function RankingPage() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
-                            {nomeVendedor(item.responsavel_id).charAt(0)}
+                            {nomeVendedor(item).charAt(0)}
                           </div>
-                          <p className="font-medium text-gray-900">{nomeVendedor(item.responsavel_id)}</p>
+                          <p className="font-medium text-gray-900">{nomeVendedor(item)}</p>
                         </div>
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-700">{item.leads_ganhos}</td>
