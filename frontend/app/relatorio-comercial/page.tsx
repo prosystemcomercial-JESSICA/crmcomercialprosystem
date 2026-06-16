@@ -89,6 +89,8 @@ export default function RelatorioComercialPage() {
   const metaContratos = d?.meta_contratos || 15;
   const metaPct = metaContratos ? Math.round((rContratos / metaContratos) * 100) : 0;
   const mrrLiquido = Number(rMrr) - Number(rMrrPerdido);
+  // Rótulo do período: "Ano de 2026" quando mes=0, senão "Março / 2026".
+  const periodoLabel = mes === 0 ? `Ano de ${ano}` : `${MESES[mes]} / ${ano}`;
 
   return (
     <DashboardLayout>
@@ -111,6 +113,7 @@ export default function RelatorioComercialPage() {
           </div>
           <div className="flex items-center gap-2">
             <select value={mes} onChange={e => setMes(Number(e.target.value))} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+              <option value={0}>📅 Ano inteiro</option>
               {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
             </select>
             <select value={ano} onChange={e => setAno(Number(e.target.value))} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
@@ -123,14 +126,14 @@ export default function RelatorioComercialPage() {
         {dataLoading ? (
           <div className="text-center p-12 text-gray-500">Carregando…</div>
         ) : !d ? (
-          <div className="text-center p-12 text-gray-400">Sem dados para {MESES[mes]}/{ano}.</div>
+          <div className="text-center p-12 text-gray-400">Sem dados para {periodoLabel}.</div>
         ) : (
           <div id="relatorio">
             {/* Capa executiva (azul institucional Prosystem) */}
             <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: `linear-gradient(135deg, ${PRO_DARK} 0%, ${PRO} 100%)`, boxShadow: '0 8px 24px rgba(46,90,143,.25)' }}>
               <div className="px-7 py-6 text-white">
                 <p className="text-[11px] font-bold tracking-[.2em] uppercase" style={{ color: 'rgba(255,255,255,.7)' }}>Relatório Comercial · Prosystem</p>
-                <h2 className="text-3xl font-extrabold mt-1">Resultados de {MESES[mes]} / {ano}</h2>
+                <h2 className="text-3xl font-extrabold mt-1">Resultados de {mes === 0 ? `${ano} (ano inteiro)` : `${MESES[mes]} / ${ano}`}</h2>
                 <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,.85)' }}>Visão executiva para a diretoria · Supervisora: {d.supervisor || 'Jessica Cardoso'}</p>
                 {/* Faixa de KPIs-destaque na capa */}
                 {d.metricas && (
