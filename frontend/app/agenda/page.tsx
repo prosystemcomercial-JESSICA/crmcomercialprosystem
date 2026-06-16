@@ -1969,7 +1969,18 @@ export default function AgendaPage() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
               <button style={btnOutline} onClick={() => setShowCreate(false)}>Cancelar</button>
-              <button style={btnPrimary} onClick={handleCreate} disabled={saving || !formData.titulo || (!novoLead && !formData.lead_id) || (novoLead && (!novoLeadData.nome || !novoLeadData.telefone))}>
+              <button style={btnPrimary} onClick={handleCreate} disabled={(() => {
+                if (saving || !formData.titulo) return true;
+                const ehLead = formData.vinculo_tipo === 'LEAD';
+                // Só exige lead quando o vínculo é LEAD. Parceiro/Interno/Marketing/Externo/Sem vínculo não precisam.
+                if (ehLead) {
+                  if (novoLead) return !novoLeadData.nome || !novoLeadData.telefone; // criando lead novo
+                  return !formData.lead_id; // selecionando lead existente
+                }
+                // Vínculos não-LEAD: exige o nome do vínculo (exceto "Sem vínculo").
+                if (formData.vinculo_tipo !== 'NENHUM' && !formData.vinculo_nome?.trim()) return true;
+                return false;
+              })()}>
                 {saving ? 'Salvando...' : <><Plus size={13} /> Criar</>}
               </button>
             </div>
