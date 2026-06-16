@@ -112,14 +112,30 @@ export default function MetasPage() {
     return serie.meses.find((m: any) => m.periodo === filtroPeriodo) || null;
   }, [serie, filtroPeriodo]);
 
-  // Agregado de metas do período (p/ donut realizado × faltante).
+  // Agregado p/ o donut realizado × faltante.
+  // IMPORTANTE: NÃO somar os cards (várias metas cobrem as mesmas vendas → contaria
+  // em dobro). O REALIZADO vem da série (fechamentos ÚNICOS da equipe no período);
+  // o ALVO é a MAIOR meta do período (a meta da equipe), não a soma das metas.
   const agregado = useMemo(() => {
-    const metaContratos = metasDoPeriodo.reduce((s, m) => s + (m.meta_contratos || 0), 0);
-    const realContratos = metasDoPeriodo.reduce((s, m) => s + (m.realizado?.contratos || 0), 0);
-    const metaValor = metasDoPeriodo.reduce((s, m) => s + (m.meta_valor_total || 0), 0);
-    const realValor = metasDoPeriodo.reduce((s, m) => s + (m.realizado?.valor_total || 0), 0);
+    // Realizado único de contratos/setup no período (da série anual = equipe).
+    let realContratos = 0, realValor = 0;
+    if (serie?.meses?.length) {
+      const mesesAlvo = /^\d{4}-\d{2}$/.test(filtroPeriodo)
+        ? serie.meses.filter((m: any) => m.periodo === filtroPeriodo)   // 1 mês
+        : serie.meses;                                                   // ano inteiro / todos
+      // se filtrar por vendedora, usa o realizado dela; senão a equipe.
+      for (const mm of mesesAlvo) {
+        if (filtroVendedor) {
+          const v = (mm.por_vendedora || []).find((x: any) => x.id === filtroVendedor);
+          realContratos += v?.contratos || 0; realValor += v?.valor_total || 0;
+        } else { realContratos += mm.contratos || 0; realValor += mm.setup_total || 0; }
+      }
+    }
+    // Alvo = a MAIOR meta de contratos do período (evita somar metas sobrepostas).
+    const metaContratos = metasDoPeriodo.reduce((mx, m) => Math.max(mx, m.meta_contratos || 0), 0);
+    const metaValor = metasDoPeriodo.reduce((mx, m) => Math.max(mx, m.meta_valor_total || 0), 0);
     return { metaContratos, realContratos, metaValor, realValor };
-  }, [metasDoPeriodo]);
+  }, [metasDoPeriodo, serie, filtroPeriodo, filtroVendedor]);
 
   const num = (v: any) => (v === '' || v == null ? undefined : parseFloat(v));
   const buildPeriodo = () => form.periodo_tipo === 'ANUAL' ? String(form.ano)
