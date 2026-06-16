@@ -15,6 +15,10 @@ interface RankingItem {
   propostas_aceitas: number;
   contratos: number;
   valor_total: number;
+  setup_total?: number;
+  mrr_total?: number;
+  media_setup?: number;
+  media_mrr?: number;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -89,6 +93,10 @@ export default function RankingPage() {
               { header: 'Leads ganhos', value: (r: RankingItem) => r.leads_ganhos },
               { header: 'Propostas aceitas', value: (r: RankingItem) => r.propostas_aceitas },
               { header: 'Contratos', value: (r: RankingItem) => r.contratos },
+              { header: 'Setup acumulado (R$)', value: (r: RankingItem) => r.setup_total ?? 0 },
+              { header: 'Mensalidade acumulada (R$)', value: (r: RankingItem) => r.mrr_total ?? 0 },
+              { header: 'Média setup (R$)', value: (r: RankingItem) => r.media_setup ?? 0 },
+              { header: 'Média mensalidade (R$)', value: (r: RankingItem) => r.media_mrr ?? 0 },
               { header: 'Valor total (R$)', value: (r: RankingItem) => r.valor_total },
             ]}
           />
@@ -141,6 +149,10 @@ export default function RankingPage() {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Leads Ganhos</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Propostas Aceitas</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contratos</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Setup acum.</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Mensalidade acum.</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Média setup</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Média mens.</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Valor Total</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Barra</th>
                   </tr>
@@ -160,6 +172,10 @@ export default function RankingPage() {
                       <td className="px-5 py-4 text-sm text-gray-700">{item.leads_ganhos}</td>
                       <td className="px-5 py-4 text-sm text-gray-700">{item.propostas_aceitas}</td>
                       <td className="px-5 py-4 text-sm text-gray-700">{item.contratos}</td>
+                      <td className="px-5 py-4 text-sm text-right text-gray-700">R$ {Number(item.setup_total || 0).toLocaleString('pt-BR')}</td>
+                      <td className="px-5 py-4 text-sm text-right text-blue-700">R$ {Number(item.mrr_total || 0).toLocaleString('pt-BR')}/mês</td>
+                      <td className="px-5 py-4 text-sm text-right text-gray-600">R$ {Number(item.media_setup || 0).toLocaleString('pt-BR')}</td>
+                      <td className="px-5 py-4 text-sm text-right text-gray-600">R$ {Number(item.media_mrr || 0).toLocaleString('pt-BR')}/mês</td>
                       <td className="px-5 py-4">
                         <p className="text-sm font-bold text-green-700">R$ {item.valor_total.toLocaleString('pt-BR')}</p>
                       </td>
