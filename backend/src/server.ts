@@ -353,6 +353,7 @@ async function loadRoutes() {
     ['relatorio-comercial',   () => import('./routes/relatorio-comercial'),   'relatorioComercialRoutes'],
     ['lancamentos-retroativos', () => import('./routes/lancamentos-retroativos'), 'lancamentosRetroativosRoutes'],
     ['ativos',                () => import('./routes/ativos'),                'ativosRoutes'],
+    ['ceo',                   () => import('./routes/ceo'),                   'ceoRoutes'],
   ];
 
   let ok = 0;

@@ -1878,6 +1878,40 @@ model MetaVendedor {
 // 1 registro por mês/ano. Números calculáveis são preenchidos automaticamente
 // pela rota agregadora; dados externos (marketing, ligações, churn detalhado)
 // ficam editáveis. Salvo progressivamente (snapshot diário).
+// Indicadores executivos do CEO preenchidos manualmente mês a mês (o que o CRM
+// não calcula sozinho): CAC, caixa, NPS, marketing (custo/canais) e despesas do
+// setor. 1 registro por ano-mês. A Diretora preenche; o painel do CEO consome.
+model IndicadorMensalCEO {
+  id   String @id @default(cuid())
+  ano  Int
+  mes  Int    // 1-12
+
+  // Financeiro / direção
+  caixa_disponivel    Float?   // saldo em caixa no fechamento do mês
+  contas_a_receber    Float?   // a receber no mês
+  inadimplencia       Float?   // valor inadimplente
+  faturamento         Float?   // faturamento do mês
+  lucro_liquido       Float?
+  despesas_setor      Float?   // despesas do setor comercial no mês
+
+  // Marketing (lançado no último dia do mês)
+  marketing_investido Float?   // total investido em marketing/tráfego
+  marketing_leads     Int?     // leads atribuídos a campanha (manual, complementa o auto)
+  cac                 Float?   // custo de aquisição de cliente
+  cpl                 Float?   // custo por lead
+
+  // Satisfação
+  nps                 Float?   // NPS consolidado do mês
+
+  observacoes String? @db.Text
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([ano, mes], name: "uq_indicador_ceo")
+  @@index([ano])
+}
+
 model RelatorioComercial {
   id            String   @id @default(cuid())
   ano           Int

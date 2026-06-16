@@ -1,0 +1,198 @@
+import { FastifyInstance } from 'fastify';
+import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
+import { requireGestor } from '@/lib/scope';
+
+/**
+ * PAINEL EXECUTIVO DO CEO — só RESULTADO/direção (sem operacional).
+ * Consolida os indicadores que o CRM já calcula (MRR ativo, novos clientes, churn,
+ * ticket, pipeline, previsão, leads, leads de campanha) + os indicadores manuais
+ * (CAC, caixa, NPS, marketing, despesas) preenchidos mês a mês pela Diretora.
+ * Filtro por período: hoje | mês | trimestre | ano.
+ */
+const STATUS_FECHADA = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
+const STATUS_DECLINADA = ['RECUSADA', 'PERDIDA', 'EXPIRADA'];
+
+export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
+  const { prisma } = options;
+
+  // Resolve o intervalo [inicio, fim) a partir do filtro de período.
+  function intervalo(periodo: string, ano: number, mes: number) {
+    const hoje = new Date();
+    if (periodo === 'hoje') {
+      const i = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+      const f = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1);
+      return { inicio: i, fim: f };
+    }
+    if (periodo === 'ano') return { inicio: new Date(ano, 0, 1), fim: new Date(ano + 1, 0, 1) };
+    if (periodo === 'trimestre') {
+      const triIni = Math.floor((mes - 1) / 3) * 3; // 0,3,6,9
+      return { inicio: new Date(ano, triIni, 1), fim: new Date(ano, triIni + 3, 1) };
+    }
+    // mês (default)
+    return { inicio: new Date(ano, mes - 1, 1), fim: new Date(ano, mes, 1) };
+  }
+
+  // Lead é "de campanha" quando veio de tráfego/campanha ou tem UTM/campaign_id.
+  const ehCampanhaSQL = `(origem IN ('TRAFEGO','CAMPANHA') OR campaign_id IS NOT NULL OR utm_source IS NOT NULL)`;
+
+  // ── PAINEL: 12 indicadores executivos por período ──
+  fastify.get('/ceo/painel', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({
+      periodo: z.enum(['hoje', 'mes', 'trimestre', 'ano']).default('mes'),
+      ano: z.coerce.number().default(new Date().getFullYear()),
+      mes: z.coerce.number().min(1).max(12).default(new Date().getMonth() + 1),
+    }).safeParse(request.query);
+    const { periodo, ano, mes } = q.success ? q.data : { periodo: 'mes' as const, ano: new Date().getFullYear(), mes: new Date().getMonth() + 1 };
+    const { inicio, fim } = intervalo(periodo, ano, mes);
+    const noPeriodo = { gte: inicio, lt: fim };
+
+    // ── Base de clientes ATIVOS: MRR recorrente atual + ticket médio ──
+    const ativos = await prisma.cliente.findMany({
+      where: { OR: [{ situacao: 'ATIVA' }, { situacao: null }] },
+      select: { mensalidade_base: true },
+    }).catch(() => [] as any[]);
+    const mrrAtual = ativos.reduce((s, c) => s + Number(c.mensalidade_base || 0), 0);
+    const baseAtiva = ativos.length;
+    const ticketMedio = baseAtiva ? mrrAtual / baseAtiva : 0;
+
+    // ── Novos clientes (fechamentos) no período ──
+    const fechamentos = await prisma.propostaComercial.findMany({
+      where: { status: { in: STATUS_FECHADA }, data_aceite: noPeriodo, deleted_at: null as any },
+      select: { valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true },
+    }).catch(() => [] as any[]);
+    const novosClientes = fechamentos.length;
+    const mrrNovo = fechamentos.reduce((s, p) => s + Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0), 0);
+    const setupVendido = fechamentos.reduce((s, p) => s + Number(p.valor_implantacao ?? p.valor_final ?? 0), 0);
+
+    // ── Cancelamentos / churn no período ──
+    const perdidos = await prisma.cliente.findMany({
+      where: { situacao: 'INATIVA', inativado_em: noPeriodo },
+      select: { mrr_perdido: true, mensalidade_base: true },
+    }).catch(() => [] as any[]);
+    const cancelamentos = perdidos.length;
+    const mrrPerdido = perdidos.reduce((s, c) => s + Number(c.mrr_perdido ?? c.mensalidade_base ?? 0), 0);
+    // Churn % = clientes perdidos / base ativa (no início aproximado)
+    const churnPct = (baseAtiva + cancelamentos) ? (cancelamentos / (baseAtiva + cancelamentos)) * 100 : 0;
+    const netNewMrr = mrrNovo - mrrPerdido;
+
+    // ── Pipeline aberto (em negociação) + previsão de meta ──
+    const props = await prisma.propostaComercial.findMany({
+      where: { deleted_at: null as any },
+      select: { status: true, mensalidade_plus: true, mensalidade_pro: true, valor_implantacao: true, valor_final: true, data_aceite: true },
+    }).catch(() => [] as any[]);
+    let pipelineMrr = 0, pipelineQtd = 0;
+    for (const p of props) {
+      if (!STATUS_FECHADA.includes(p.status) && !STATUS_DECLINADA.includes(p.status)) {
+        pipelineQtd++; pipelineMrr += Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0);
+      }
+    }
+    // Previsão do mês = fechados no mês vs meta de contratos do mês.
+    const rel = await prisma.relatorioComercial.findFirst({ where: { ano, mes }, select: { meta_contratos: true } }).catch(() => null);
+    const metaContratos = rel?.meta_contratos ?? 15;
+    const fechadosMes = await prisma.propostaComercial.count({
+      where: { status: { in: STATUS_FECHADA }, data_aceite: { gte: new Date(ano, mes - 1, 1), lt: new Date(ano, mes, 1) }, deleted_at: null as any },
+    }).catch(() => 0);
+    const previsaoMetaPct = metaContratos ? Math.round((fechadosMes / metaContratos) * 100) : 0;
+
+    // ── Leads no período + quantos de campanha ──
+    const totalLeads = await prisma.lead.count({ where: { created_at: noPeriodo, deleted_at: null } }).catch(() => 0);
+    const leadsCampanhaRows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) c FROM \`Lead\` WHERE deleted_at IS NULL AND created_at >= ? AND created_at < ? AND ${ehCampanhaSQL}`,
+      inicio, fim,
+    ).catch(() => [{ c: 0 }]);
+    const leadsCampanha = Number(leadsCampanhaRows[0]?.c || 0);
+
+    // ── Indicadores manuais do(s) mês(es) do período (CAC, caixa, NPS, marketing, despesas) ──
+    const mesesNoPeriodo: { ano: number; mes: number }[] = [];
+    { const cur = new Date(inicio); while (cur < fim) { mesesNoPeriodo.push({ ano: cur.getFullYear(), mes: cur.getMonth() + 1 }); cur.setMonth(cur.getMonth() + 1); } }
+    const manuais = mesesNoPeriodo.length ? await prisma.indicadorMensalCEO.findMany({
+      where: { OR: mesesNoPeriodo.map(m => ({ ano: m.ano, mes: m.mes })) },
+    }).catch(() => [] as any[]) : [];
+    const somaMan = (campo: string) => manuais.reduce((s: number, m: any) => s + Number(m[campo] || 0), 0);
+    const ultimoMan: any = manuais.sort((a: any, b: any) => (a.ano * 12 + a.mes) - (b.ano * 12 + b.mes)).slice(-1)[0] || {};
+    const mediaMan = (campo: string) => { const v = manuais.filter((m: any) => m[campo] != null); return v.length ? v.reduce((s: number, m: any) => s + Number(m[campo]), 0) / v.length : null; };
+
+    // Crescimento do MRR: compara com o mês anterior (snapshot via fechamentos-perdidos é aproximado).
+    const data = {
+      periodo, ano, mes,
+      indicadores: {
+        mrr_atual: Math.round(mrrAtual),
+        mrr_novo: Math.round(mrrNovo),
+        net_new_mrr: Math.round(netNewMrr),
+        novos_clientes: novosClientes,
+        cancelamentos,
+        churn_pct: Math.round(churnPct * 10) / 10,
+        ticket_medio: Math.round(ticketMedio),
+        pipeline_mrr: Math.round(pipelineMrr),
+        pipeline_qtd: pipelineQtd,
+        previsao_meta_pct: previsaoMetaPct,
+        fechados_mes: fechadosMes,
+        meta_contratos: metaContratos,
+        setup_vendido: Math.round(setupVendido),
+        mrr_perdido: Math.round(mrrPerdido),
+        base_ativa: baseAtiva,
+        leads: totalLeads,
+        leads_campanha: leadsCampanha,
+        // manuais
+        caixa_disponivel: ultimoMan.caixa_disponivel ?? null,
+        contas_a_receber: ultimoMan.contas_a_receber ?? null,
+        inadimplencia: ultimoMan.inadimplencia ?? null,
+        faturamento: somaMan('faturamento') || null,
+        lucro_liquido: somaMan('lucro_liquido') || null,
+        despesas_setor: somaMan('despesas_setor') || null,
+        marketing_investido: somaMan('marketing_investido') || null,
+        cac: mediaMan('cac'),
+        cpl: mediaMan('cpl'),
+        nps: mediaMan('nps'),
+        // Marketing: gasto × retorno (MRR novo do período como retorno recorrente).
+        roi_marketing: somaMan('marketing_investido') ? Math.round((mrrNovo / somaMan('marketing_investido')) * 100) / 100 : null,
+      },
+    };
+    return reply.send({ status: 'success', data });
+  });
+
+  // ── Indicadores manuais: GET (de um mês) e PUT (salvar/editar) ──
+  fastify.get('/ceo/indicadores', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({ ano: z.coerce.number(), mes: z.coerce.number().min(1).max(12) }).safeParse(request.query);
+    if (!q.success) return reply.status(400).send({ status: 'error', message: 'Informe ano e mes' });
+    const ind = await prisma.indicadorMensalCEO.findFirst({ where: { ano: q.data.ano, mes: q.data.mes } }).catch(() => null);
+    return reply.send({ status: 'success', data: ind });
+  });
+
+  fastify.put('/ceo/indicadores', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const body = z.object({
+      ano: z.number(), mes: z.number().min(1).max(12),
+      caixa_disponivel: z.number().nullable().optional(),
+      contas_a_receber: z.number().nullable().optional(),
+      inadimplencia: z.number().nullable().optional(),
+      faturamento: z.number().nullable().optional(),
+      lucro_liquido: z.number().nullable().optional(),
+      despesas_setor: z.number().nullable().optional(),
+      marketing_investido: z.number().nullable().optional(),
+      marketing_leads: z.number().int().nullable().optional(),
+      cac: z.number().nullable().optional(),
+      cpl: z.number().nullable().optional(),
+      nps: z.number().nullable().optional(),
+      observacoes: z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const { ano, mes, ...campos } = body.data;
+    const ind = await prisma.indicadorMensalCEO.upsert({
+      where: { uq_indicador_ceo: { ano, mes } } as any,
+      update: { ...campos } as any,
+      create: { ano, mes, ...campos } as any,
+    });
+    return reply.send({ status: 'success', data: ind });
+  });
+
+  // Meses que já têm indicadores lançados (p/ a tela de entrada).
+  fastify.get('/ceo/indicadores/meses', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const lista = await prisma.indicadorMensalCEO.findMany({ orderBy: [{ ano: 'desc' }, { mes: 'desc' }], select: { ano: true, mes: true } }).catch(() => []);
+    return reply.send({ status: 'success', data: lista });
+  });
+}

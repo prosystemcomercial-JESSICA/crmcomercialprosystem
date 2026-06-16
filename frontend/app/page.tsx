@@ -28,8 +28,10 @@ export default function Home() {
   }
 
   if (isAuthenticated) {
-    // Vendedor entra direto no Radar Comercial; gestão no painel executivo.
-    redirect(podeVerTudo(user?.role) ? '/dashboard' : '/comercial');
+    // CEO cai direto no Painel Executivo (só resultado/direção, sem operacional).
+    // Diretora/Supervisão veem tudo (dashboard); vendedor vai ao Radar Comercial.
+    const role = (user?.role || '').toUpperCase();
+    redirect(role === 'CEO' ? '/painel-ceo' : podeVerTudo(user?.role) ? '/dashboard' : '/comercial');
   }
 
   return (
