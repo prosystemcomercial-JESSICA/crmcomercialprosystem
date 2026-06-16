@@ -158,32 +158,35 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
       where.created_at = { gte: start, lte: end };
     }
 
-    const [leadsGanhos, propostasAceitas, contratos] = await Promise.all([
+    // Fechamentos REAIS vêm de PropostaComercial (o model antigo Proposta está vazio).
+    // No período: status fechado e data_aceite dentro do mês (ou created_at se s/ aceite).
+    const STATUS_FECHADA = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
+    const wherePC: any = { status: { in: STATUS_FECHADA }, deleted_at: null };
+    if (periodo) {
+      const [yy, mm] = periodo.split('-').map(Number);
+      const ini = new Date(yy, mm - 1, 1), fim = new Date(yy, mm, 1);
+      wherePC.OR = [
+        { data_aceite: { gte: ini, lt: fim } },
+        { AND: [{ data_aceite: null }, { created_at: { gte: ini, lt: fim } }] },
+      ];
+    }
+    const [leadsGanhos, fechadasPC] = await Promise.all([
       prisma.lead.groupBy({
         by: ['responsavel_id'],
         where: { ...where, status: 'GANHO', responsavel_id: { not: null } },
         _count: { _all: true },
-        _sum: { valor_estimado: true }
+        _sum: { valor_estimado: true },
       }),
-      prisma.proposta.groupBy({
-        by: ['created_by'],
-        where: { ...where, status: 'ACEITA' },
-        _count: { _all: true },
-        _sum: { valor: true }
+      prisma.propostaComercial.findMany({
+        where: wherePC,
+        select: { vendedor_id: true, vendedor_nome: true, valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true },
       }),
-      prisma.contrato.groupBy({
-        by: ['created_by'],
-        where: { ...where, status: 'ATIVO' },
-        _count: { _all: true },
-        _sum: { valor: true }
-      })
     ]);
 
     // Merge by responsavel_id/created_by
     const rankingMap: Record<string, any> = {};
 
-    // Começa com TODOS os vendedores ATIVOS (aparecem mesmo com resultado zero) +
-    // contas de sistema que vendem. Assim ninguém some do ranking por estar zerado.
+    // Começa com TODOS os vendedores ATIVOS (aparecem mesmo com resultado zero).
     const vendedores: any[] = await prisma.$queryRawUnsafe(
       `SELECT id, nome FROM UsuarioCRM WHERE cargo = 'VENDEDOR' AND status = 'ATIVO'`
     ).catch(() => []);
@@ -195,19 +198,16 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
       const id = l.responsavel_id!;
       if (!rankingMap[id]) rankingMap[id] = { responsavel_id: id, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
       rankingMap[id].leads_ganhos = l._count._all;
-      rankingMap[id].valor_total += l._sum.valor_estimado || 0;
     });
 
-    propostasAceitas.forEach(p => {
-      if (!rankingMap[p.created_by]) rankingMap[p.created_by] = { responsavel_id: p.created_by, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
-      rankingMap[p.created_by].propostas_aceitas = p._count._all;
-      rankingMap[p.created_by].valor_total += p._sum.valor || 0;
-    });
-
-    contratos.forEach(c => {
-      if (!rankingMap[c.created_by]) rankingMap[c.created_by] = { responsavel_id: c.created_by, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
-      rankingMap[c.created_by].contratos = c._count._all;
-    });
+    // Fechamentos por vendedor: conta propostas aceitas + contratos e soma valor (setup + MRR).
+    for (const p of fechadasPC as any[]) {
+      const id = p.vendedor_id || 'sem-vendedor';
+      if (!rankingMap[id]) rankingMap[id] = { responsavel_id: id, responsavel_nome: p.vendedor_nome || undefined, leads_ganhos: 0, propostas_aceitas: 0, contratos: 0, valor_total: 0 };
+      rankingMap[id].propostas_aceitas += 1;
+      rankingMap[id].contratos += 1;
+      rankingMap[id].valor_total += Number(p.valor_implantacao ?? p.valor_final ?? 0) + Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0);
+    }
 
     // Resolve o NOME de cada responsável (UsuarioCRM + contas de sistema) — antes
     // a tela mostrava o id cru. Quem não tiver nome cadastrado fica com o id.
