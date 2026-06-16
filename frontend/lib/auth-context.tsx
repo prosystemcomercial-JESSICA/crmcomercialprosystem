@@ -129,9 +129,11 @@ export function useAuth() {
 }
 
 // ── Papéis com visão TOTAL (espelha backend/src/lib/scope.ts) ──
-// CEO, ADMIN e Supervisão Comercial veem todos os vendedores / KPIs / projeções.
+// DIRETOR, ADMIN e Supervisão Comercial veem todos os vendedores / KPIs / projeções.
+// (CEO também "vê tudo" no sentido de dados, mas o MENU dele é restrito às telas
+//  executivas — quem trata isso é o DashboardLayout, não esta função.)
 // Demais (vendedor) só veem o próprio resultado.
-const ROLES_VISAO_TOTAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
+const ROLES_VISAO_TOTAL = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 
 export function podeVerTudo(role?: string | null): boolean {
   const r = (role || '').toUpperCase();

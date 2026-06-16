@@ -129,7 +129,9 @@ const navGroups: NavGroup[] = [
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',
-  CEO: 'Diretor',
+  DIRETOR: 'Diretora',
+  CEO: 'CEO',
+  SUPERVISAO_COMERCIAL: 'Supervisão Comercial',
   SUPERVISAO: 'Supervisão',
   VENDEDOR: 'Comercial',
   FINANCEIRO: 'Financeiro',
