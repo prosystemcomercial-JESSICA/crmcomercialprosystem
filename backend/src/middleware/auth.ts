@@ -57,6 +57,10 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   }
 }
 
+// Papéis com ACESSO TOTAL ao sistema — liberados em QUALQUER rota, sem exceção,
+// independente da lista que a rota declare. ADMIN/DIRETOR = administração geral.
+const ROLES_ACESSO_TOTAL = ['ADMIN', 'DIRETOR'];
+
 export function requireRole(allowedRoles: AuthUser['role'][]) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as AuthUser | undefined;
@@ -67,6 +71,10 @@ export function requireRole(allowedRoles: AuthUser['role'][]) {
         message: 'Unauthorized'
       });
     }
+
+    const role = String(user.role || '').toUpperCase();
+    // Administração (ADMIN/DIRETOR) acessa tudo — não barra nunca.
+    if (ROLES_ACESSO_TOTAL.includes(role)) return;
 
     if (!allowedRoles.includes(user.role)) {
       return reply.status(403).send({
