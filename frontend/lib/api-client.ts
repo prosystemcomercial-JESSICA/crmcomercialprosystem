@@ -682,6 +682,10 @@ class ApiClient {
     return this.client.get('/metas', { params });
   }
 
+  async getMetasSerieAnual(ano?: number) {
+    return this.client.get('/metas/serie-anual', { params: { ano } });
+  }
+
   async createMeta(data: any) {
     return this.client.post('/metas', data);
   }

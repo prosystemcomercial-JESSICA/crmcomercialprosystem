@@ -85,6 +85,45 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
     return reply.send({ status: 'success', data: comRealizado });
   });
 
+  // Série anual: realizado mês a mês (contratos/setup/mrr) por vendedora + equipe.
+  // Alimenta o gráfico de evolução e o mini-ranking da tela de Metas.
+  fastify.get('/metas/serie-anual', async (request, reply) => {
+    const q = z.object({ ano: z.coerce.number().default(new Date().getFullYear()) }).safeParse(request.query);
+    const ano = q.success ? q.data.ano : new Date().getFullYear();
+
+    // Vendedoras ativas (visão total) ou só o próprio (vendedor).
+    const scopeId = scopeUserId(request);
+    const usuarios = await prisma.usuarioCRM.findMany({
+      where: { status: 'ATIVO', cargo: 'VENDEDOR', ...(scopeId ? { id: scopeId } : {}) },
+      select: { id: true, nome: true },
+    }).catch(() => [] as any[]);
+    const ids = usuarios.map((u: any) => u.id);
+
+    // calcula o realizado de um período (reusa a fonte única do meta-progress).
+    const realizadoDe = (responsaveis: string[], periodo: string) =>
+      calcularRealizadoMeta(prisma, { responsaveis_ids: responsaveis, periodo_tipo: 'MENSAL', periodo });
+
+    const meses = [];
+    for (let mes = 1; mes <= 12; mes++) {
+      const periodo = `${ano}-${String(mes).padStart(2, '0')}`;
+      const equipe = await realizadoDe(ids, periodo).catch(() => null);
+      const porVendedora = await Promise.all(usuarios.map(async (u: any) => ({
+        id: u.id, nome: u.nome,
+        ...(await realizadoDe([u.id], periodo).catch(() => ({ contratos: 0, valor_total: 0, mrr_total: 0 }))),
+      })));
+      meses.push({
+        mes, periodo,
+        rotulo: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mes - 1],
+        contratos: equipe?.contratos || 0,
+        setup_total: equipe?.valor_total || 0,
+        mrr_total: equipe?.mrr_total || 0,
+        por_vendedora: porVendedora,
+      });
+    }
+
+    return reply.send({ status: 'success', data: { ano, vendedoras: usuarios, meses } });
+  });
+
   fastify.post('/metas', async (request, reply) => {
     if (!requireGestor(request, reply)) return;  // só a supervisão cria metas
     const body = CreateMetaSchema.safeParse(request.body);
