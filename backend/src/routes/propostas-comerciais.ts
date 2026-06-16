@@ -376,6 +376,16 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     // outro vendedor (vendedor_id), então buscamos pelo vendedor_id; senão pelo
     // usuário logado. O telefone do cadastro PREVALECE (sobrescreve string vazia
     // ou telefone do cliente que o front possa ter enviado por engano).
+    // Jessica Diretora (conta de sistema) vendendo no próprio perfil conta para a
+    // VENDEDORA Jessica Cardoso — exceto quando designou outro vendedor (vendedor_id
+    // explícito de outra pessoa, que já cai no else por ser diferente de user-jessica).
+    const JESSICA_DIRETORA = 'user-jessica', JESSICA_VENDEDORA = 'c8170a2f-f931-4f1b-b820-8b23baf2a5d8';
+    if (!data.vendedor_id && user?.id === JESSICA_DIRETORA) {
+      data.vendedor_id = JESSICA_VENDEDORA; data.vendedor_nome = data.vendedor_nome || 'Jessica Cardoso';
+    } else if (data.vendedor_id === JESSICA_DIRETORA) {
+      data.vendedor_id = JESSICA_VENDEDORA; data.vendedor_nome = 'Jessica Cardoso';
+    }
+
     const alvoVendedorId = data.vendedor_id || user?.id;
     if (alvoVendedorId) {
       const perfilRows: any[] = await prisma.$queryRawUnsafe(
