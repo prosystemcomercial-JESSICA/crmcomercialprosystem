@@ -56,6 +56,8 @@ export default function MetasPage() {
   // Seletor de período no topo (mês YYYY-MM, ano YYYY, ou TODOS).
   const ano = new Date().getFullYear();
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>(periodoAtual());
+  // Filtro por vendedor (só gestão). '' = todos.
+  const [filtroVendedor, setFiltroVendedor] = useState<string>('');
 
   const nomeUsuario = (id?: string) => usuarios.find(u => u.id === id)?.nome || id || '—';
 
@@ -84,11 +86,25 @@ export default function MetasPage() {
     return Array.from(set).sort().reverse();
   }, [metas]);
 
-  // Metas do período selecionado.
-  const metasDoPeriodo = useMemo(
-    () => filtroPeriodo === 'TODOS' ? metas : metas.filter(m => m.periodo === filtroPeriodo),
-    [metas, filtroPeriodo]
-  );
+  // Vendedoras p/ o filtro (da série anual; fallback p/ usuários VENDEDOR).
+  const vendedorasFiltro = useMemo(() => {
+    const arr: { id: string; nome: string }[] = serie?.vendedoras?.length
+      ? serie.vendedoras.map((v: any) => ({ id: v.id, nome: v.nome }))
+      : usuarios.filter(u => (u.cargo || '') === 'VENDEDOR').map(u => ({ id: u.id, nome: u.nome }));
+    return arr.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+  }, [serie, usuarios]);
+
+  // Metas do período + filtro de vendedor.
+  const metasDoPeriodo = useMemo(() => {
+    let lista = filtroPeriodo === 'TODOS' ? metas : metas.filter(m => m.periodo === filtroPeriodo);
+    if (filtroVendedor) {
+      lista = lista.filter(m => {
+        const ids = m.responsaveis_ids?.length ? m.responsaveis_ids : [m.responsavel_id];
+        return ids.includes(filtroVendedor);
+      });
+    }
+    return lista;
+  }, [metas, filtroPeriodo, filtroVendedor]);
 
   // Dados do mês selecionado na série (p/ donut e ranking). Só quando é YYYY-MM.
   const mesSerie = useMemo(() => {
@@ -187,6 +203,18 @@ export default function MetasPage() {
           <button onClick={() => setFiltroPeriodo('TODOS')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium ${filtroPeriodo === 'TODOS' ? 'text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             style={filtroPeriodo === 'TODOS' ? { background: PRO_DARK } : {}}>Todos</button>
+
+          {/* Filtro por vendedor (só gestão) */}
+          {isGestor && vendedorasFiltro.length > 0 && (
+            <div className="flex items-center gap-1.5 ml-auto">
+              <span className="text-xs font-semibold text-gray-500">Vendedor:</span>
+              <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                <option value="">Todos</option>
+                {vendedorasFiltro.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         {dataLoading ? (
@@ -245,7 +273,7 @@ export default function MetasPage() {
                 <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>🏅 Ranking do período</h2>
                 {mesSerie?.por_vendedora?.some((v: any) => v.contratos > 0) ? (
                   <ResponsiveContainer width="100%" height={210}>
-                    <BarChart layout="vertical" data={[...mesSerie.por_vendedora].sort((a: any, b: any) => b.contratos - a.contratos).map((v: any) => ({ nome: (v.nome || '').split(' ')[0], Contratos: v.contratos }))}
+                    <BarChart layout="vertical" data={[...mesSerie.por_vendedora].filter((v: any) => !filtroVendedor || v.id === filtroVendedor).sort((a: any, b: any) => b.contratos - a.contratos).map((v: any) => ({ nome: (v.nome || '').split(' ')[0], Contratos: v.contratos }))}
                       margin={{ top: 5, right: 16, left: 10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
