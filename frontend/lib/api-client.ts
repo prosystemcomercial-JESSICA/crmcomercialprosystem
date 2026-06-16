@@ -1200,6 +1200,10 @@ class ApiClient {
   async salvarIndicadoresCEO(data: any) {
     return this.client.put('/ceo/indicadores', data);
   }
+  // Módulo Comissões & Vendas (resumo executivo).
+  async getComissoesVendasCEO(mes_pagamento?: string) {
+    return this.client.get('/ceo/comissoes-vendas', { params: mes_pagamento ? { mes_pagamento } : {} });
+  }
   async salvarRelatorioComercial(data: any) {
     return this.client.put('/relatorio-comercial', data);
   }

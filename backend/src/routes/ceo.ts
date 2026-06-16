@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor } from '@/lib/scope';
+import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 /**
  * PAINEL EXECUTIVO DO CEO — só RESULTADO/direção (sem operacional).
@@ -194,5 +195,84 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
     if (!requireGestor(request, reply)) return;
     const lista = await prisma.indicadorMensalCEO.findMany({ orderBy: [{ ano: 'desc' }, { mes: 'desc' }], select: { ano: true, mes: true } }).catch(() => []);
     return reply.send({ status: 'success', data: lista });
+  });
+
+  // ── MÓDULO COMISSÕES & VENDAS (CEO/gestão) — resumo executivo ──
+  // Comissões por estágio (a confirmar / confirmada-a pagar / paga) e por mês de
+  // pagamento + vendas adicionais/indicações por vendedor e a lista.
+  fastify.get('/ceo/comissoes-vendas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({ mes_pagamento: z.string().optional() }).safeParse(request.query);
+    const mesFiltro = q.success ? q.data.mes_pagamento : undefined;
+
+    // ── COMISSÕES ──
+    const whereC: any = { status: { not: 'CANCELADA' } };
+    if (mesFiltro) whereC.mes_pagamento = mesFiltro;
+    const comissoes = await prisma.comissao.findMany({ where: whereC, orderBy: { created_at: 'desc' } }).catch(() => [] as any[]);
+    const idsC = [...new Set(comissoes.map((c: any) => c.responsavel_id).filter(Boolean))];
+    const nomesC = await resolverNomesUsuarios(prisma, idsC).catch(() => ({} as any));
+
+    const ehPaga = (c: any) => c.estagio === 'PAGA' || c.status === 'PAGA';
+    const totaisEstagio = { a_receber: 0, a_confirmar: 0, confirmada: 0, paga: 0 };
+    const porMes: Record<string, any> = {};
+    const porColab: Record<string, any> = {};
+    for (const c of comissoes as any[]) {
+      const v = Number(c.valor_comissao || 0);
+      if (c.estagio === 'A_RECEBER') totaisEstagio.a_receber += v;
+      else if (c.estagio === 'A_CONFIRMAR') totaisEstagio.a_confirmar += v;
+      else if (c.estagio === 'CONFIRMADA') totaisEstagio.confirmada += v;
+      else if (ehPaga(c)) totaisEstagio.paga += v;
+      const mes = c.mes_pagamento || 'A definir';
+      porMes[mes] = porMes[mes] || { mes_pagamento: mes, total: 0, count: 0, paga: 0, a_pagar: 0 };
+      porMes[mes].total += v; porMes[mes].count += 1;
+      if (ehPaga(c)) porMes[mes].paga += v; else porMes[mes].a_pagar += v;
+      const rid = c.responsavel_id || 'sem';
+      porColab[rid] = porColab[rid] || { responsavel_id: rid, nome: nomesC[rid] || rid, papel: c.papel || '', total: 0, paga: 0, a_pagar: 0 };
+      porColab[rid].total += v; if (ehPaga(c)) porColab[rid].paga += v; else porColab[rid].a_pagar += v;
+    }
+
+    // ── VENDAS ADICIONAIS / INDICAÇÕES ──
+    const vendas = await prisma.vendaAdicional.findMany({
+      include: { parceiro: { select: { nome: true, categoria: true } }, cliente: { select: { razao_social: true, nome_fantasia: true, nome: true } } },
+      orderBy: { created_at: 'desc' },
+    }).catch(() => [] as any[]);
+    const idsV = [...new Set(vendas.map((v: any) => v.vendedor_id).filter(Boolean))];
+    const nomesV = await resolverNomesUsuarios(prisma, idsV).catch(() => ({} as any));
+    const vendaLista = (vendas as any[]).map(v => ({
+      cliente: v.cliente?.razao_social || v.cliente?.nome_fantasia || v.cliente?.nome || '—',
+      vendedor: nomesV[v.vendedor_id] || v.vendedor_nome || '—',
+      parceiro: v.parceiro?.nome || '—', categoria: v.parceiro?.categoria || '—',
+      valor: Number(v.valor_venda || 0), acrescimo: Number(v.acrescimo_mensal || 0),
+      comissao: Number(v.comissao_valor || 0), status: v.status,
+    }));
+    const porVendedorV: Record<string, any> = {};
+    for (const v of vendaLista) {
+      porVendedorV[v.vendedor] = porVendedorV[v.vendedor] || { vendedor: v.vendedor, qtd: 0, valor: 0, acrescimo: 0, comissao: 0 };
+      porVendedorV[v.vendedor].qtd += 1; porVendedorV[v.vendedor].valor += v.valor;
+      porVendedorV[v.vendedor].acrescimo += v.acrescimo; porVendedorV[v.vendedor].comissao += v.comissao;
+    }
+    const porCategoriaV: Record<string, any> = {};
+    for (const v of vendaLista) {
+      porCategoriaV[v.categoria] = porCategoriaV[v.categoria] || { categoria: v.categoria, qtd: 0, valor: 0 };
+      porCategoriaV[v.categoria].qtd += 1; porCategoriaV[v.categoria].valor += v.valor;
+    }
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+    return reply.send({
+      status: 'success',
+      data: {
+        comissoes: {
+          totais: { a_receber: round(totaisEstagio.a_receber), a_confirmar: round(totaisEstagio.a_confirmar), confirmada: round(totaisEstagio.confirmada), paga: round(totaisEstagio.paga) },
+          por_mes: Object.values(porMes).sort((a: any, b: any) => (a.mes_pagamento > b.mes_pagamento ? 1 : -1)),
+          por_colaborador: Object.values(porColab).sort((a: any, b: any) => b.total - a.total),
+        },
+        vendas: {
+          total: vendaLista.length,
+          por_vendedor: Object.values(porVendedorV).sort((a: any, b: any) => b.comissao - a.comissao),
+          por_categoria: Object.values(porCategoriaV).sort((a: any, b: any) => b.valor - a.valor),
+          lista: vendaLista,
+        },
+      },
+    });
   });
 }

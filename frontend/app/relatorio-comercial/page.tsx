@@ -329,28 +329,8 @@ export default function RelatorioComercialPage() {
                   </Bloco>
                 )}
 
-                {/* Comissões com pagamento neste mês (pagas + a pagar) */}
-                {d.metricas.comissoes && d.metricas.comissoes.total > 0 && (
-                  <Bloco titulo={`💰 Comissões a pagar/pagas neste mês (${d.metricas.comissoes.total})`}>
-                    <div className="grid grid-cols-3 gap-3 mb-3">
-                      <KPI label="Total do mês" valor={fmt(d.metricas.comissoes.total_valor)} />
-                      <KPI label="Já pagas" valor={fmt(d.metricas.comissoes.pagas_valor)} cor="text-green-700" />
-                      <KPI label="A pagar" valor={fmt(d.metricas.comissoes.a_pagar_valor)} cor="text-blue-700" />
-                    </div>
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Responsável</th><th>Descrição</th><th>Papel</th><th>Valor</th><th>Status</th></tr></thead>
-                      <tbody>{d.metricas.comissoes.lista.map((c: any, i: number) => (
-                        <tr key={i} className="border-b border-gray-50">
-                          <td className="py-1.5 font-medium text-gray-800">{c.responsavel}</td>
-                          <td className="text-gray-600">{c.descricao}</td>
-                          <td className="text-gray-500 text-xs">{c.papel}</td>
-                          <td className="text-gray-800">{fmt(c.valor)}</td>
-                          <td className="text-xs font-semibold" style={{ color: c.paga ? '#16a34a' : '#2563eb' }}>{c.paga ? 'Paga' : 'A pagar'}</td>
-                        </tr>
-                      ))}</tbody>
-                    </table>
-                  </Bloco>
-                )}
+                {/* Comissões e Vendas Adicionais/Indicações foram movidas para o
+                    módulo próprio "Comissões & Vendas" (menu). Não ficam mais aqui. */}
               </>
             )}
 

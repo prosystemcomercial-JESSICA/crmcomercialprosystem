@@ -28,7 +28,7 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN'];
 // O CEO vê só o EXECUTIVO (resultado/direção) — nada de operacional/admin.
 // Estas são as ÚNICAS rotas visíveis no menu para o role CEO.
-const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos'];
+const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/comissoes-vendas'];
 
 type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp'; externoComToken?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
@@ -77,6 +77,7 @@ const navGroups: NavGroup[] = [
       { href: '/centro-custos', icon: DollarSign, label: 'Centro de Custos', roles: GESTAO_COMERCIAL },
       { href: '/painel-ceo', icon: TrendingUp, label: 'Painel do CEO', roles: GESTAO_COMERCIAL },
       { href: '/indicadores-ceo', icon: DollarSign, label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
+      { href: '/comissoes-vendas', icon: DollarSign, label: 'Comissões & Vendas', roles: GESTAO_COMERCIAL },
       { href: '/relatorio-comercial', icon: LineChart, label: 'Relatório (CEO)', roles: GESTAO_COMERCIAL },
       { href: '/lancamentos-retroativos', icon: RefreshCw, label: 'Lançar Retroativo', roles: GESTAO_COMERCIAL },
       { href: '/plano-comercial', icon: Target, label: 'Plano Comercial', roles: COMERCIAL },
