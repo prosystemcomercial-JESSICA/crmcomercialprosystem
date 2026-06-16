@@ -52,8 +52,8 @@ export default function RelatorioComercialPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const hoje = new Date();
-  const [ano, setAno] = useState(2026);
-  const [mes, setMes] = useState(3);
+  const [ano, setAno] = useState(hoje.getFullYear());
+  const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [d, setD] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [serie, setSerie] = useState<any[]>([]); // evolução mês a mês do ano
