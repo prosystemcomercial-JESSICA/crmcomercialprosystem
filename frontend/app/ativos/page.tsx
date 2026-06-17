@@ -10,8 +10,10 @@ const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIR
 const ETAPAS = [
   { id: 'A_CONTATAR', label: 'A contatar', cor: '#6b7280', bg: '#f3f4f6' },
   { id: 'EM_CONTATO', label: 'Em contato', cor: '#d97706', bg: '#fef3c7' },
+  { id: 'COTACAO', label: 'Cotação enviada', cor: '#7c3aed', bg: '#f5f3ff' },
+  { id: 'EM_TRATAMENTO', label: 'Em tratamento', cor: '#dc2626', bg: '#fef2f2' },
+  { id: 'SEM_SUCESSO', label: 'Sem sucesso', cor: '#b45309', bg: '#fffbeb' },
   { id: 'CONCLUIDO', label: 'Concluído', cor: '#16a34a', bg: '#dcfce7' },
-  { id: 'SEM_SUCESSO', label: 'Sem sucesso', cor: '#dc2626', bg: '#fee2e2' },
 ];
 const SAUDE = ['CRITICO', 'RISCO', 'ATENCAO', 'SAUDAVEL', 'EXCELENTE'];
 const SAUDE_COR: Record<string, string> = { CRITICO: '#b91c1c', RISCO: '#dc2626', ATENCAO: '#d97706', SAUDAVEL: '#16a34a', EXCELENTE: '#047857' };
@@ -36,6 +38,7 @@ export default function AtivosPage() {
   const [contatos, setContatos] = useState<any[]>([]);
   const [painel, setPainel] = useState<any>(null);
   const [editando, setEditando] = useState<any>(null); // contato em edição (questionário)
+  const [savingQ, setSavingQ] = useState(false); // trava duplo clique ao salvar o questionário
   const [ficha, setFicha] = useState<any>(null);        // mini-ficha aberta (consulta)
   const [fichaLoading, setFichaLoading] = useState(false);
 
@@ -115,10 +118,18 @@ export default function AtivosPage() {
   };
 
   const salvarQuestionario = async () => {
-    if (!editando) return;
+    if (!editando || savingQ) return; // trava duplo clique
+    setSavingQ(true);
+    // Etapa de destino conforme o que foi feito:
+    //  abriu caso de churn  → Em Tratamento (até resolver)
+    //  ofertou/cotou venda  → Cotação enviada (até fechar)
+    //  caso contrário       → Concluído
+    const etapaFinal = editando.abrir_caso ? 'EM_TRATAMENTO'
+      : editando.gerou_venda ? 'COTACAO'
+      : 'CONCLUIDO';
     try {
       await apiClient.atualizarContatoAtivo(editando.id, {
-        etapa: 'CONCLUIDO',
+        etapa: etapaFinal,
         usa_sistema_ok: editando.usa_sistema_ok, suporte_ok: editando.suporte_ok, tecnico_ok: editando.tecnico_ok,
         conhece_novas_ferr: editando.conhece_novas_ferr, plus_apresentado: editando.plus_apresentado,
         nota_prosystem: editando.nota_prosystem ? Number(editando.nota_prosystem) : undefined,
@@ -137,6 +148,7 @@ export default function AtivosPage() {
       });
       setEditando(null); loadContatos();
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar.'); }
+    finally { setSavingQ(false); }
   };
 
   if (loading || !isAuthenticated) return null;
@@ -221,8 +233,13 @@ export default function AtivosPage() {
                                 <button onClick={() => abrirFicha(c)} className="text-[11px] px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">📋 Ficha</button>
                                 {et.id === 'A_CONTATAR' && <button onClick={() => moverEtapa(c, 'EM_CONTATO')} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Iniciar</button>}
                                 {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">Registrar contato</button>}
-                                {et.id === 'EM_CONTATO' && <button onClick={() => moverEtapa(c, 'SEM_SUCESSO')} className="text-[11px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">Sem sucesso</button>}
-                                {(et.id === 'CONCLUIDO' || et.id === 'SEM_SUCESSO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
+                                {et.id === 'EM_CONTATO' && <button onClick={() => moverEtapa(c, 'SEM_SUCESSO')} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">Sem sucesso</button>}
+                                {/* Cotação enviada → fechar (concluir) */}
+                                {et.id === 'COTACAO' && <button onClick={() => moverEtapa(c, 'CONCLUIDO')} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Fechou</button>}
+                                {/* Em tratamento (churn) → resolvido (concluir) */}
+                                {et.id === 'EM_TRATAMENTO' && <button onClick={() => moverEtapa(c, 'CONCLUIDO')} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Resolvido</button>}
+                                {(et.id === 'COTACAO' || et.id === 'EM_TRATAMENTO' || et.id === 'SEM_SUCESSO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
+                                {et.id === 'CONCLUIDO' && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
                                 {isGestor && <button onClick={() => etiquetarContato(c)} className="text-[11px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">🏷️ Etiqueta</button>}
                                 {isGestor && <button onClick={() => ocultarContato(c)} className="text-[11px] px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">{c.oculto ? '👁️ Exibir' : '🙈 Ocultar'}</button>}
                               </div>
@@ -470,7 +487,7 @@ export default function AtivosPage() {
 
             <div className="flex justify-end gap-2 pt-1">
               <button onClick={() => setEditando(null)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
-              <button onClick={salvarQuestionario} className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">Salvar e concluir contato</button>
+              <button onClick={salvarQuestionario} disabled={savingQ} className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg disabled:opacity-50">{savingQ ? 'Salvando…' : 'Salvar contato'}</button>
             </div>
           </div>
         </div>
