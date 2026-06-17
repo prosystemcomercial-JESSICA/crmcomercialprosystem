@@ -149,6 +149,35 @@ export default function CasosPage() {
     finally { setSalvandoDossie(false); }
   };
 
+  // Monta o texto pronto para encaminhar ao SUPERVISOR TÉCNICO os problemas técnicos.
+  const textoSupervisorTecnico = (c: Caso | null, atts: any[]): string => {
+    if (!c) return '';
+    const cli: any = c.cliente || {};
+    const nome = cli.razao_social || cli.nome_fantasia || cli.nome || 'Cliente';
+    const codigo = cli.codigo || cli.suporte || '—';
+    const fila = cli.grupo_tecnico || '—';
+    // Observação = descrição do caso + as atualizações registradas (linha do tempo).
+    const obsCaso = (c.descricao || '').trim();
+    const obsAtts = (atts || []).map((a: any) => `• ${a.texto}`).filter(Boolean).join('\n');
+    const obs = [obsCaso, obsAtts].filter(Boolean).join('\n');
+    return [
+      `🔧 *Caso técnico para análise — ${nome}*`,
+      `Cliente: ${nome} (cód. ${codigo})`,
+      `Fila/Técnico responsável: ${fila}`,
+      c.motivo_principal ? `Motivo: ${c.motivo_principal}` : '',
+      ``,
+      `*Problema relatado:*`,
+      obs || '(sem observação registrada)',
+      ``,
+      `Favor avaliar e dar retorno sobre a resolução. Obrigada!`,
+    ].filter(l => l !== undefined).join('\n');
+  };
+  const copiarParaTecnico = async () => {
+    const txt = textoSupervisorTecnico(dossie, atualizacoes);
+    try { await navigator.clipboard.writeText(txt); alert('Texto copiado! Cole no WhatsApp/e-mail do supervisor técnico.'); }
+    catch { /* fallback: mostra para copiar manual */ window.prompt('Copie o texto para o supervisor técnico:', txt); }
+  };
+
   const addAtualizacao = async () => {
     if (!dossie || !novaAtt.texto.trim()) { alert('Escreva a atualização.'); return; }
     try {
@@ -495,6 +524,16 @@ export default function CasosPage() {
             </div>
 
             <div className="p-5 space-y-5">
+              {/* Encaminhar ao supervisor técnico — texto pronto p/ copiar */}
+              <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-sm font-bold text-sky-800">🔧 Encaminhar ao supervisor técnico</p>
+                  <button onClick={copiarParaTecnico} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700">📋 Copiar texto</button>
+                </div>
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans bg-white rounded-lg border border-sky-100 p-3 max-h-40 overflow-y-auto">{textoSupervisorTecnico(dossie, atualizacoes)}</pre>
+                <p className="text-[11px] text-sky-700 mt-1">Inclui nome + código do cliente, a fila/técnico que atende e a observação registrada. Atualiza ao adicionar novas observações abaixo.</p>
+              </div>
+
               {/* Motivo + descrição do problema */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
