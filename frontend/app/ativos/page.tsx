@@ -220,12 +220,12 @@ export default function AtivosPage() {
                   </div>
                 )}
 
-                {/* Kanban */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                {/* Kanban — 6 colunas lado a lado com rolagem horizontal (mostra todas) */}
+                <div className="flex gap-3 overflow-x-auto pb-2">
                   {ETAPAS.map(et => {
                     const itens = contatos.filter(c => c.etapa === et.id);
                     return (
-                      <div key={et.id} className="bg-gray-50 rounded-xl p-2 min-h-[200px]">
+                      <div key={et.id} className="bg-gray-50 rounded-xl p-2 min-h-[200px] flex-shrink-0 w-[280px]">
                         <div className="flex items-center justify-between px-2 py-1.5">
                           <span className="text-xs font-bold uppercase tracking-wide" style={{ color: et.cor }}>{et.label}</span>
                           <span className="text-xs text-gray-400">{itens.length}</span>
