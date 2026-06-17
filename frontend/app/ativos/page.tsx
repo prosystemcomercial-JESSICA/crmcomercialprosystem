@@ -101,6 +101,14 @@ export default function AtivosPage() {
     catch (e: any) { alert(e?.response?.data?.message || 'Erro ao mover.'); }
   };
 
+  // Registra uma tentativa de contato SEM precisar responder o questionário.
+  const registrarTentativa = async (contato: any, semSucesso = false) => {
+    const obs = prompt(semSucesso ? 'Tentativa sem sucesso — observação (opcional):' : 'Registrar tentativa de contato — observação (opcional):', '');
+    if (obs === null) return; // cancelou
+    try { await apiClient.registrarTentativaAtivo(contato.id, { obs: obs || undefined, sem_sucesso: semSucesso }); loadContatos(); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao registrar tentativa.'); }
+  };
+
   // Supervisão: ocultar/exibir um cliente da fila do vendedor.
   const ocultarContato = async (contato: any) => {
     const ocultar = !contato.oculto;
@@ -120,13 +128,21 @@ export default function AtivosPage() {
   const salvarQuestionario = async () => {
     if (!editando || savingQ) return; // trava duplo clique
     setSavingQ(true);
-    // Etapa de destino conforme o que foi feito:
-    //  abriu caso de churn  → Em Tratamento (até resolver)
-    //  ofertou/cotou venda  → Cotação enviada (até fechar)
-    //  caso contrário       → Concluído
-    const etapaFinal = editando.abrir_caso ? 'EM_TRATAMENTO'
+    // Risco médio automático: nota 3/4 + não conhece ferramentas → caso de churn.
+    const nota = Number(editando.nota_prosystem) || 0;
+    const subutilizacao = (nota === 3 || nota === 4) && editando.conhece_novas_ferr === false;
+    // 100% de satisfação = nota 5 + sistema/suporte/técnico OK + conhece ferramentas + sem problema.
+    const satisfacao100 = nota === 5 && editando.usa_sistema_ok === true && editando.suporte_ok === true
+      && editando.tecnico_ok === true && editando.conhece_novas_ferr === true && !editando.tem_problema;
+    // Etapa de destino:
+    //  abriu caso (manual) ou subutilização → Em Tratamento (resolve no churn)
+    //  ofertou/cotou venda                  → Cotação enviada (até fechar)
+    //  100% satisfação                      → Concluído
+    //  caso contrário                       → fica Em Contato (acompanhamento; não conclui sozinho)
+    const etapaFinal = (editando.abrir_caso || subutilizacao) ? 'EM_TRATAMENTO'
       : editando.gerou_venda ? 'COTACAO'
-      : 'CONCLUIDO';
+      : satisfacao100 ? 'CONCLUIDO'
+      : 'EM_CONTATO';
     try {
       await apiClient.atualizarContatoAtivo(editando.id, {
         etapa: etapaFinal,
@@ -232,8 +248,10 @@ export default function AtivosPage() {
                               <div className="flex gap-1 mt-2 flex-wrap">
                                 <button onClick={() => abrirFicha(c)} className="text-[11px] px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">📋 Ficha</button>
                                 {et.id === 'A_CONTATAR' && <button onClick={() => moverEtapa(c, 'EM_CONTATO')} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Iniciar</button>}
+                                {/* Registrar TENTATIVA sem precisar do questionário (conta no contador) */}
+                                {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={() => registrarTentativa(c)} className="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">📞 +1 tentativa{c.tentativas ? ` (${c.tentativas})` : ''}</button>}
                                 {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">Registrar contato</button>}
-                                {et.id === 'EM_CONTATO' && <button onClick={() => moverEtapa(c, 'SEM_SUCESSO')} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">Sem sucesso</button>}
+                                {et.id === 'EM_CONTATO' && <button onClick={() => registrarTentativa(c, true)} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">Sem sucesso</button>}
                                 {/* Cotação enviada → fechar (concluir) */}
                                 {et.id === 'COTACAO' && <button onClick={() => moverEtapa(c, 'CONCLUIDO')} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Fechou</button>}
                                 {/* Em tratamento (churn) → resolvido (concluir) */}
