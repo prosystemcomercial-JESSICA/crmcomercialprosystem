@@ -89,6 +89,7 @@ export default function CasosPage() {
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
   const [busca, setBusca] = useState('');
+  const [mesFiltro, setMesFiltro] = useState(''); // 'YYYY-MM' = filtra do 1º ao último dia do mês
   const [dataLoading, setDataLoading] = useState(true);
   const [rankingTec, setRankingTec] = useState<any[]>([]);
   // Dossiê do caso (ficha completa: financeiro + linha do tempo)
@@ -106,7 +107,14 @@ export default function CasosPage() {
   const fetchCasos = async () => {
     setDataLoading(true);
     try {
-      const res = await apiClient.getCasos(page, limit, statusFilter || undefined, undefined, undefined, busca || undefined);
+      // Mês selecionado → intervalo do 1º ao último dia.
+      let di: string | undefined, df: string | undefined;
+      if (mesFiltro && /^\d{4}-\d{2}$/.test(mesFiltro)) {
+        const [y, mo] = mesFiltro.split('-').map(Number);
+        di = new Date(y, mo - 1, 1).toISOString();
+        df = new Date(y, mo, 0, 23, 59, 59).toISOString();
+      }
+      const res = await apiClient.getCasos(page, limit, statusFilter || undefined, undefined, undefined, busca || undefined, di, df);
       const data = res.data.data;
       setCasos(data.casos || []);
       setTotal(data.total || 0);
@@ -153,7 +161,7 @@ export default function CasosPage() {
 
   useEffect(() => {
     if (isAuthenticated) fetchCasos();
-  }, [isAuthenticated, page, statusFilter]);
+  }, [isAuthenticated, page, statusFilter, mesFiltro]);
 
   // Ranking de saúde da carteira por técnico (mesma fonte do Health Score).
   useEffect(() => {
@@ -293,14 +301,17 @@ export default function CasosPage() {
           </div>
         </div>
 
-        {/* Busca por cliente */}
-        <div className="mb-2">
+        {/* Busca por cliente + filtro mensal */}
+        <div className="mb-2 flex gap-2 flex-wrap items-center">
           <input
             value={busca}
             onChange={e => setBusca(e.target.value)}
             placeholder="🔍 Buscar cliente por razão social, nome fantasia, código ou CNPJ…"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="flex-1 min-w-[220px] px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
+          <input type="month" value={mesFiltro} onChange={e => { setPage(0); setMesFiltro(e.target.value); }}
+            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm" title="Filtrar por mês (1º ao último dia)" />
+          {mesFiltro && <button onClick={() => setMesFiltro('')} className="text-xs text-gray-500 hover:text-gray-700 underline">limpar mês</button>}
         </div>
 
         {/* Status filter tabs */}

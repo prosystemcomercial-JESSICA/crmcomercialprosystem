@@ -24,6 +24,8 @@ export const ListCasoChurnSchema = z.object({
   risco_min: z.coerce.number().optional(),
   risco_max: z.coerce.number().optional(),
   busca: z.string().optional(), // por razão social, fantasia, nome, código, CNPJ
+  data_inicio: z.string().optional(), // filtro mensal (1º dia do mês)
+  data_fim: z.string().optional(),    // filtro mensal (último dia do mês)
   page: z.coerce.number().default(0),
   limit: z.coerce.number().default(20)
 });

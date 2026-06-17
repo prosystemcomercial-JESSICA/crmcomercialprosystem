@@ -132,12 +132,14 @@ class ApiClient {
   }
 
   // Cases endpoints
-  async getCasos(page = 0, limit = 20, status?: string, risco_min?: number, risco_max?: number, busca?: string) {
+  async getCasos(page = 0, limit = 20, status?: string, risco_min?: number, risco_max?: number, busca?: string, data_inicio?: string, data_fim?: string) {
     const params: any = { page, limit };
     if (status) params.status = status;
     if (risco_min !== undefined) params.risco_min = risco_min;
     if (risco_max !== undefined) params.risco_max = risco_max;
     if (busca) params.busca = busca;
+    if (data_inicio) params.data_inicio = data_inicio;
+    if (data_fim) params.data_fim = data_fim;
     return this.client.get('/casos-churn', { params });
   }
 
