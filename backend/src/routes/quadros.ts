@@ -172,6 +172,16 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
     const esc = ownerWhere(request, 'Lead'); // já exclui deleted_at
 
     if (quadro.tipo === 'PIPELINE') {
+      // Antes de montar o Pipeline, roda a regra de "parados +40 dias" dos quadros
+      // automáticos (ex.: Follow-up) para que os leads parados JÁ estejam lá — assim
+      // o Pipeline os esconde na mesma hora e nunca duplica (mesmo sem abrir o Follow-up).
+      const automaticos = await prisma.quadroComercial.findMany({
+        where: { ativo: true, regra_tipo: 'PARADOS_DIAS', NOT: { id } },
+      }).catch(() => [] as any[]);
+      for (const q of automaticos) {
+        if (q.regra_dias) await aplicarRegraParados(prisma, q).catch(() => {});
+      }
+
       // Leads que já estão ativos em OUTRO quadro (ex.: Follow-up) saem do Pipeline,
       // para não duplicar — cada quadro mostra coisas diferentes. (Finalizados no
       // outro quadro voltam a aparecer no Pipeline normalmente.)
