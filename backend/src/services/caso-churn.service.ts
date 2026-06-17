@@ -28,6 +28,15 @@ export class CasoChurnService {
       throw new NotFoundError(`Cliente ${data.clienteId} não encontrado`);
     }
 
+    // ANTI-DUPLICAÇÃO: se o cliente já tem um caso ABERTO (não perdido/recuperado),
+    // não cria outro — devolve o existente. Evita múltiplos casos por duplo clique.
+    const casoAberto = await this.prisma.casoChurn.findFirst({
+      where: { clienteId: data.clienteId, status: { notIn: ['PERDIDO', 'RECUPERADO'] } },
+      include: { cliente: true },
+      orderBy: { created_at: 'desc' },
+    }).catch(() => null);
+    if (casoAberto) return casoAberto;
+
     // Criar caso de churn. IMPORTANTE: gravar o motivo_principal — antes era
     // ignorado, então o "Dificuldade financeira" escolhido na tela sumia.
     const caso = await this.prisma.casoChurn.create({
