@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
 import { CasoChurnService } from '@/services/caso-churn.service';
 import { requireAuth, requireRole } from '@/middleware/auth';
 import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } from '@/types/dto';
