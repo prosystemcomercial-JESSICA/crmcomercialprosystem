@@ -188,7 +188,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     const { id } = request.params as { id: string };
     const user = getUser(request);
     const body = z.object({
-      etapa: z.enum(['A_CONTATAR', 'EM_CONTATO', 'CONCLUIDO', 'SEM_SUCESSO']).optional(),
+      etapa: z.enum(['A_CONTATAR', 'EM_CONTATO', 'COTACAO', 'EM_TRATAMENTO', 'CONCLUIDO', 'SEM_SUCESSO']).optional(),
       // questionário
       usa_sistema_ok: z.boolean().optional(),
       suporte_ok: z.boolean().optional(),
@@ -320,25 +320,34 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
 
     const contato = await prisma.contatoAtivo.update({ where: { id }, data });
 
-    // Ao CONCLUIR: registra na ficha (EventoCliente) e atualiza o HealthScore.
-    if (body.data.etapa === 'CONCLUIDO') {
+    // Ao registrar o contato (qualquer etapa final): grava na ficha + HealthScore.
+    // ANTI-DUPLICAÇÃO: só UM evento por contato (referencia_id). Se já existe, atualiza
+    // em vez de criar outro — era isso que gerava 5 eventos iguais na ficha.
+    const ETAPAS_FINAIS = ['CONCLUIDO', 'COTACAO', 'EM_TRATAMENTO', 'SEM_SUCESSO'];
+    if (body.data.etapa && ETAPAS_FINAIS.includes(body.data.etapa)) {
       const partes: string[] = [];
       if (contato.nota_prosystem != null) partes.push(`Nota Prosystem: ${contato.nota_prosystem}/5`);
       if (contato.suporte_ok === false) partes.push('Insatisfeito com suporte');
       if (contato.tecnico_ok === false) partes.push('Insatisfeito com o técnico');
       if (contato.plus_apresentado) partes.push('Plus apresentado');
       if (contato.gerou_venda) partes.push(`Oportunidade: ${contato.tipo_venda || 'venda'}`);
-      await (prisma as any).eventoCliente.create({
-        data: {
-          cliente_id: atual.cliente_id, tipo: 'OBSERVACAO',
-          titulo: `📞 Contato ativo (CS) — saúde: ${contato.saude || '—'}`,
-          descricao: [partes.join(' · '), contato.sugestoes ? `Sugestões: ${contato.sugestoes}` : '']
-            .filter(Boolean).join('\n') || undefined,
-          referencia_id: contato.id,
-          metadados: { nota: contato.nota_prosystem, saude: contato.saude, gerou_venda: contato.gerou_venda, tipo_venda: contato.tipo_venda, caso_churn_id: casoId },
-          feito_por: user?.id, feito_por_nome: user?.nome,
-        },
-      }).catch(() => {});
+      const eventoData = {
+        cliente_id: atual.cliente_id, tipo: 'OBSERVACAO',
+        titulo: `📞 Contato ativo (CS) — saúde: ${contato.saude || '—'}`,
+        descricao: [partes.join(' · '), contato.sugestoes ? `Sugestões: ${contato.sugestoes}` : '']
+          .filter(Boolean).join('\n') || undefined,
+        referencia_id: contato.id,
+        metadados: { nota: contato.nota_prosystem, saude: contato.saude, gerou_venda: contato.gerou_venda, tipo_venda: contato.tipo_venda, caso_churn_id: casoId },
+        feito_por: user?.id, feito_por_nome: user?.nome,
+      };
+      const eventoExistente = await (prisma as any).eventoCliente.findFirst({
+        where: { referencia_id: contato.id, tipo: 'OBSERVACAO' },
+      }).catch(() => null);
+      if (eventoExistente) {
+        await (prisma as any).eventoCliente.update({ where: { id: eventoExistente.id }, data: { titulo: eventoData.titulo, descricao: eventoData.descricao, metadados: eventoData.metadados } }).catch(() => {});
+      } else {
+        await (prisma as any).eventoCliente.create({ data: eventoData }).catch(() => {});
+      }
 
       // HealthScore: registra a saúde percebida (nunca melhora um cliente em churn).
       if (contato.saude) {
