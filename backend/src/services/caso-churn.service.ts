@@ -86,21 +86,39 @@ export class CasoChurnService {
       }
     }
 
-    // Churn/Health só medem clientes ATIVOS (inativo já saiu — não se mede).
-    // Mostra casos cujo cliente está ATIVA ou null (legado), exceto INATIVA.
-    where.cliente = { situacao: { not: 'INATIVA' } };
+    // Casos ABERTOS (em tratamento) só de clientes ATIVOS — inativo já saiu.
+    // Mas os ENCERRADOS (PERDIDO/RECUPERADO) DEVEM aparecer (são o histórico de saída),
+    // mesmo com o cliente inativo. Quando o filtro é PERDIDO/RECUPERADO, não esconde.
+    const ENCERRADOS = ['PERDIDO', 'RECUPERADO'];
+    const verEncerrados = filters.status && ENCERRADOS.includes(filters.status);
+    const clienteWhere: any = {};
+    if (!verEncerrados && !filters.status) {
+      // "Todos" sem filtro de status: esconde os de cliente inativo que NÃO são encerrados.
+      where.OR = [
+        { cliente: { situacao: { not: 'INATIVA' } } },
+        { status: { in: ENCERRADOS } },
+      ];
+    } else if (!verEncerrados) {
+      // filtro de status aberto (NOVO/EXECUTANDO/etc.) → só cliente ativo
+      clienteWhere.situacao = { not: 'INATIVA' };
+    }
 
     // Busca por cliente: razão social, fantasia, nome, empresa, código ou CNPJ.
     if (filters.busca && String(filters.busca).trim()) {
       const s = String(filters.busca).trim();
-      where.cliente = {
-        situacao: { not: 'INATIVA' },
-        OR: [
-          { razao_social: { contains: s } }, { nome_fantasia: { contains: s } },
-          { nome: { contains: s } }, { empresa: { contains: s } },
-          { codigo: { contains: s } }, { cnpj: { contains: s } },
-        ],
-      };
+      clienteWhere.OR = [
+        { razao_social: { contains: s } }, { nome_fantasia: { contains: s } },
+        { nome: { contains: s } }, { empresa: { contains: s } },
+        { codigo: { contains: s } }, { cnpj: { contains: s } },
+      ];
+    }
+    if (Object.keys(clienteWhere).length) where.cliente = clienteWhere;
+
+    // Filtro mensal (1º ao último dia do mês) por data de criação do caso.
+    if (filters.data_inicio || filters.data_fim) {
+      where.created_at = {};
+      if (filters.data_inicio) where.created_at.gte = new Date(filters.data_inicio);
+      if (filters.data_fim) where.created_at.lte = new Date(filters.data_fim);
     }
 
     const [casos, total] = await Promise.all([
