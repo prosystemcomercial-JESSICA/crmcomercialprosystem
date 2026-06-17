@@ -17,6 +17,24 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
 
   const NIVEIS = ['CRITICO', 'RISCO', 'ATENCAO', 'SAUDAVEL', 'EXCELENTE'];
 
+  // Análise PONDERADA de saúde do cliente a partir do contato ativo.
+  // Não é só a nota: pondera conhecimento das ferramentas, suporte, técnico, Plus e
+  // se há caso de churn aberto. Retorna score 0-100, nível, estrelas (1-5) e rótulo.
+  function analisarSaude(f: { nota?: number | null; conheceFerr?: boolean | null; suporteOk?: boolean | null; tecnicoOk?: boolean | null; plus?: boolean | null; temCaso?: boolean; saudeManual?: string | null }) {
+    let score = 50;
+    if (f.nota != null) score = (Number(f.nota) / 5) * 100;          // base = nota (0-100)
+    if (f.conheceFerr === true) score += 8; else if (f.conheceFerr === false) score -= 18; // usa o sistema?
+    if (f.suporteOk === false) score -= 15; else if (f.suporteOk === true) score += 5;
+    if (f.tecnicoOk === false) score -= 12;
+    if (f.plus === true) score += 4;
+    if (f.temCaso) score = Math.min(score, 38);                       // caso aberto trava em risco
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    const nivel = score >= 85 ? 'EXCELENTE' : score >= 70 ? 'SAUDAVEL' : score >= 50 ? 'ATENCAO' : score >= 30 ? 'RISCO' : 'CRITICO';
+    const estrelas = score >= 85 ? 5 : score >= 70 ? 4 : score >= 50 ? 3 : score >= 30 ? 2 : 1;
+    const rotulo = { EXCELENTE: 'Muito satisfeito', SAUDAVEL: 'Satisfeito', ATENCAO: 'Atenção', RISCO: 'Em risco', CRITICO: 'Crítico' }[nivel];
+    return { score, nivel, estrelas, rotulo };
+  }
+
   // ── Designar campanha (supervisão): puxa os clientes ATIVOS do grupo p/ a fila ──
   fastify.post('/ativos/campanhas', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
@@ -259,6 +277,22 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     if (body.data.etapa === 'EM_CONTATO' && atual.etapa === 'A_CONTATAR') data.tentativas = (atual.tentativas || 0) + 1;
     if (body.data.etapa === 'CONCLUIDO' || body.data.etapa === 'SEM_SUCESSO') data.contatado_em = new Date();
 
+    // MOVIMENTO de coluna (kanban): registra na ficha do cliente todo movimento, com detalhes.
+    const ROTULO_ETAPA: Record<string, string> = {
+      A_CONTATAR: 'A contatar', EM_CONTATO: 'Em contato', COTACAO: 'Cotação enviada',
+      EM_TRATAMENTO: 'Em tratamento', SEM_SUCESSO: 'Sem sucesso', CONCLUIDO: 'Concluído',
+    };
+    if (body.data.etapa && body.data.etapa !== atual.etapa) {
+      await (prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: atual.cliente_id, tipo: 'OBSERVACAO',
+          titulo: `🔄 Ativos: movido para "${ROTULO_ETAPA[body.data.etapa] || body.data.etapa}"`,
+          descricao: `Card movido de "${ROTULO_ETAPA[atual.etapa] || atual.etapa}" → "${ROTULO_ETAPA[body.data.etapa] || body.data.etapa}".`,
+          referencia_id: atual.id, feito_por: user?.id, feito_por_nome: user?.nome,
+        },
+      }).catch(() => {});
+    }
+
     // ── Regra de churn por SUBUTILIZAÇÃO (risco MÉDIO) ──
     // Cliente com nota 3 ou 4 E que NÃO conhece as ferramentas (não usa o sistema na
     // totalidade) vira caso de churn automaticamente, risco médio. Reaproveita os
@@ -279,15 +313,31 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       // risco: problema relatado = alto (75); subutilização = médio (50).
       const riskScore = abrir_caso ? 75 : 50;
       const motivo = abrir_caso ? 'Identificado no contato ativo' : 'Subutilização de ferramentas';
-      const descCaso = abrir_caso
-        ? (body.data.problema_descricao || 'Problema relatado no contato ativo (CS comercial).')
-        : `Cliente com nota ${nota}/5 e que não conhece/não usa as novas ferramentas — risco de subutilização (não aproveita o sistema na totalidade).`;
+      // Relato COMPLETO do contato ativo (origem + tudo que foi apurado) para a aba de churn.
+      const suporteTxt = (body.data.suporte_ok ?? atual.suporte_ok) === false ? 'insatisfeito com suporte' : (body.data.suporte_ok ?? atual.suporte_ok) === true ? 'suporte OK' : '';
+      const tecnicoTxt = (body.data.tecnico_ok ?? atual.tecnico_ok) === false ? 'insatisfeito com o técnico' : '';
+      const ferrTxt = conheceFerr === false ? 'não conhece/não usa as novas ferramentas' : conheceFerr === true ? 'conhece as ferramentas' : '';
+      const sugestoes = (body.data.sugestoes ?? atual.sugestoes) || '';
+      const linhasRelato = [
+        `🟦 Origem: Contato ativo (CS comercial)`,
+        nota != null ? `Nota Prosystem: ${nota}/5` : '',
+        [suporteTxt, tecnicoTxt, ferrTxt].filter(Boolean).join(' · '),
+        body.data.problema_descricao ? `Problema relatado: ${body.data.problema_descricao}` : '',
+        sugestoes ? `Relato/Sugestões do cliente: ${sugestoes}` : '',
+        !abrir_caso ? 'Classificação automática: subutilização de ferramentas (risco médio).' : '',
+      ].filter(Boolean);
+      const descCaso = linhasRelato.join('\n');
       const caso = casoAberto || await prisma.casoChurn.create({
         data: {
           clienteId: atual.cliente_id, status: 'NOVO', risk_score: riskScore,
           motivo_principal: motivo, descricao: descCaso, created_by: user?.id || 'system',
         },
       }).catch(() => null);
+      // Se reaproveitou um caso aberto, ANEXA o novo relato (não perde o que já tinha).
+      if (casoAberto) {
+        const novaDesc = [(casoAberto as any).descricao || '', `\n--- Atualização (contato ativo ${new Date().toLocaleDateString('pt-BR')}) ---\n${descCaso}`].join('');
+        await prisma.casoChurn.update({ where: { id: casoAberto.id }, data: { descricao: novaDesc } }).catch(() => {});
+      }
       if (caso) {
         casoId = caso.id;
         data.caso_churn_id = caso.id;
@@ -359,19 +409,25 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
         await (prisma as any).eventoCliente.create({ data: eventoData }).catch(() => {});
       }
 
-      // HealthScore: registra a saúde percebida (nunca melhora um cliente em churn).
-      if (contato.saude) {
-        const scoreMap: Record<string, number> = { CRITICO: 15, RISCO: 35, ATENCAO: 55, SAUDAVEL: 80, EXCELENTE: 95 };
+      // HealthScore: ANÁLISE PONDERADA (não só o questionário) — gera 0-100 + nível + estrelas.
+      // Considera: nota Prosystem, conhece ferramentas, satisfação suporte/técnico, Plus,
+      // caso de churn aberto. Resultado vira as estrelas na ficha do cliente.
+      {
+        const analise = analisarSaude({
+          nota: contato.nota_prosystem, conheceFerr: contato.conhece_novas_ferr,
+          suporteOk: contato.suporte_ok, tecnicoOk: contato.tecnico_ok,
+          plus: contato.plus_apresentado, temCaso: !!casoId, saudeManual: contato.saude,
+        });
         const existente = await prisma.healthScore.findUnique({ where: { cliente_id: atual.cliente_id } }).catch(() => null);
-        const nivelFinal = (casoId && NIVEIS.indexOf(contato.saude) > NIVEIS.indexOf('RISCO')) ? 'RISCO' : contato.saude;
+        const fatores = { ...(existente?.fatores as any || {}), contato_ativo: { nota: contato.nota_prosystem, saude: contato.saude, estrelas: analise.estrelas, rotulo: analise.rotulo, analisado_em: new Date() } };
         if (existente) {
           await prisma.healthScore.update({
             where: { cliente_id: atual.cliente_id },
-            data: { nivel: nivelFinal, score: scoreMap[nivelFinal] ?? existente.score, calculado_at: new Date(), fatores: { ...(existente.fatores as any), contato_ativo: { nota: contato.nota_prosystem, saude: contato.saude } } as any },
+            data: { nivel: analise.nivel, score: analise.score, calculado_at: new Date(), fatores: fatores as any },
           }).catch(() => {});
         } else {
           await prisma.healthScore.create({
-            data: { cliente_id: atual.cliente_id, nivel: nivelFinal, score: scoreMap[nivelFinal] ?? 55, fatores: { contato_ativo: { nota: contato.nota_prosystem, saude: contato.saude } } as any },
+            data: { cliente_id: atual.cliente_id, nivel: analise.nivel, score: analise.score, fatores: fatores as any },
           }).catch(() => {});
         }
       }

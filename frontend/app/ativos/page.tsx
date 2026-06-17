@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -39,6 +39,7 @@ export default function AtivosPage() {
   const [painel, setPainel] = useState<any>(null);
   const [editando, setEditando] = useState<any>(null); // contato em edição (questionário)
   const [savingQ, setSavingQ] = useState(false); // trava duplo clique ao salvar o questionário
+  const kanbanRef = useRef<HTMLDivElement>(null); // p/ as setas de rolagem do kanban
   const [ficha, setFicha] = useState<any>(null);        // mini-ficha aberta (consulta)
   const [fichaLoading, setFichaLoading] = useState(false);
 
@@ -220,8 +221,17 @@ export default function AtivosPage() {
                   </div>
                 )}
 
-                {/* Kanban — 6 colunas lado a lado com rolagem horizontal (mostra todas) */}
-                <div className="flex gap-3 overflow-x-auto pb-2">
+                {/* Kanban — 6 colunas lado a lado, com setas flutuantes para rolar */}
+                <div className="relative">
+                  {/* Seta ◀ — rola para a esquerda (fixa no meio vertical da área visível) */}
+                  <button onClick={() => kanbanRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                    className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-left -ml-3 w-9 h-9 rounded-full bg-white shadow-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    style={{ position: 'sticky' }} title="Rolar para a esquerda">◀</button>
+                  {/* Seta ▶ — rola para a direita */}
+                  <button onClick={() => kanbanRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                    className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-right -mr-3 w-9 h-9 rounded-full bg-white shadow-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    title="Rolar para a direita">▶</button>
+                <div ref={kanbanRef} className="flex gap-3 overflow-x-auto pb-2 scroll-smooth">
                   {ETAPAS.map(et => {
                     const itens = contatos.filter(c => c.etapa === et.id);
                     return (
@@ -244,6 +254,18 @@ export default function AtivosPage() {
                                 {c.nota_prosystem != null && <span className="text-[10px] text-gray-500">★ {c.nota_prosystem}/5</span>}
                                 {c.caso_churn_id && <span className="text-[10px] text-red-600">⚠ caso</span>}
                                 {c.gerou_venda && <span className="text-[10px] text-blue-600">💰 {c.tipo_venda}</span>}
+                              </div>
+                              {/* Setas ◀ ▶ para mover o card entre colunas (cada movimento é registrado na ficha) */}
+                              <div className="flex items-center justify-between mt-2 mb-1">
+                                {(() => { const idx = ETAPAS.findIndex(e => e.id === et.id); return (
+                                  <>
+                                    <button disabled={idx <= 0} onClick={() => moverEtapa(c, ETAPAS[idx - 1].id)}
+                                      className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-600 disabled:opacity-30" title={idx > 0 ? `Mover p/ ${ETAPAS[idx - 1].label}` : ''}>◀</button>
+                                    <span className="text-[10px] text-gray-400">{et.label}</span>
+                                    <button disabled={idx >= ETAPAS.length - 1} onClick={() => moverEtapa(c, ETAPAS[idx + 1].id)}
+                                      className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-600 disabled:opacity-30" title={idx < ETAPAS.length - 1 ? `Mover p/ ${ETAPAS[idx + 1].label}` : ''}>▶</button>
+                                  </>
+                                ); })()}
                               </div>
                               <div className="flex gap-1 mt-2 flex-wrap">
                                 <button onClick={() => abrirFicha(c)} className="text-[11px] px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">📋 Ficha</button>
@@ -268,6 +290,7 @@ export default function AtivosPage() {
                       </div>
                     );
                   })}
+                </div>
                 </div>
               </>
             )}
