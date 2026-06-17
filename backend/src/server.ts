@@ -75,11 +75,15 @@ try {
 
   await fastify.register(cors, {
     origin: (origin, cb) => {
-      if (!origin || allowedOrigins.some(o => origin.startsWith(o))) {
-        cb(null, true);
-      } else {
-        cb(new Error('Not allowed by CORS'), false);
-      }
+      // Libera: sem origin (curl/health), os domínios da FRONTEND_URL, qualquer
+      // subdomínio *.up.railway.app (Railway) e *.vercel.app — assim trocar o link
+      // do CRM no Railway NUNCA derruba o login por CORS.
+      const ok = !origin
+        || allowedOrigins.some(o => origin.startsWith(o))
+        || /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin)
+        || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+      if (ok) cb(null, true);
+      else cb(new Error('Not allowed by CORS'), false);
     },
     credentials: true
   });
