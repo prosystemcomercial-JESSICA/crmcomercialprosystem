@@ -606,7 +606,9 @@ export default function LeadsPage() {
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao carregar controle total'); }
   };
 
-  useEffect(() => { if (isAuthenticated) loadData(); }, [isAuthenticated]);
+  // Recarrega ao trocar de quadro (Pipeline/Follow-up) ou de filtro — senão a aba
+  // do Follow-up mostrava os leads antigos do Pipeline (parecia duplicado).
+  useEffect(() => { if (isAuthenticated) loadData(); }, [isAuthenticated, quadroAtivo, filtroVendedor]);
 
   const openLead = async (lead: Lead) => {
     setSelectedLead(lead);
