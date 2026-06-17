@@ -275,4 +275,73 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
       },
     });
   });
+
+  // ── MÓDULO SEPARADO: Vendas Adicionais & Indicações (visão CEO) ──
+  // Faturamento (valor_venda) das vendas CONFIRMADAS no ano, com meta anual de
+  // R$30.000 (super R$50.000) e barra de acompanhamento.
+  fastify.get('/ceo/vendas-adicionais', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({ ano: z.coerce.number().default(new Date().getFullYear()) }).safeParse(request.query);
+    const ano = q.success ? q.data.ano : new Date().getFullYear();
+    const ini = new Date(ano, 0, 1), fim = new Date(ano, 11, 31, 23, 59, 59);
+
+    const META_ANUAL = 30000, SUPER_META = 50000;
+    const MES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+    const vendas = await prisma.vendaAdicional.findMany({
+      where: { status: 'CONFIRMADA' },
+      include: { parceiro: { select: { nome: true, categoria: true } }, cliente: { select: { razao_social: true, nome_fantasia: true, nome: true } } },
+      orderBy: { created_at: 'desc' },
+    }).catch(() => [] as any[]);
+
+    // Data de resultado = data_confirmacao (fallback data_venda/created_at).
+    const dataDe = (v: any) => v.data_confirmacao || v.data_venda || v.created_at;
+    const noAno = (vendas as any[]).filter(v => { const d = dataDe(v); return d && d >= ini && d <= fim; });
+
+    const idsV = [...new Set(noAno.map((v: any) => v.vendedor_id).filter(Boolean))];
+    const nomesV = await resolverNomesUsuarios(prisma, idsV).catch(() => ({} as any));
+
+    const lista = noAno.map((v: any) => ({
+      data: dataDe(v),
+      cliente: v.cliente?.razao_social || v.cliente?.nome_fantasia || v.cliente?.nome || '—',
+      vendedor: nomesV[v.vendedor_id] || v.vendedor_nome || '—',
+      parceiro: v.parceiro?.nome || '—', categoria: v.parceiro?.categoria || v.tipo_negocio || '—',
+      tipo: v.tipo_negocio || '—',
+      valor: Number(v.valor_venda || 0), acrescimo: Number(v.acrescimo_mensal || 0),
+    }));
+    const faturamento = lista.reduce((s, v) => s + v.valor, 0);
+    const acrescimoMrr = lista.reduce((s, v) => s + v.acrescimo, 0);
+
+    // Série mensal (faturamento por mês) p/ a evolução.
+    const porMesNum: Record<number, number> = {};
+    noAno.forEach((v: any) => { const d = dataDe(v); const mm = new Date(d).getMonth(); porMesNum[mm] = (porMesNum[mm] || 0) + Number(v.valor_venda || 0); });
+    const serie = MES_ABREV.map((rot, i) => ({ mes: rot, valor: Math.round(porMesNum[i] || 0) }));
+
+    // Por vendedor e por categoria (faturamento).
+    const porVend: Record<string, any> = {}, porCat: Record<string, any> = {};
+    lista.forEach(v => {
+      porVend[v.vendedor] = porVend[v.vendedor] || { vendedor: v.vendedor, qtd: 0, valor: 0, acrescimo: 0 };
+      porVend[v.vendedor].qtd++; porVend[v.vendedor].valor += v.valor; porVend[v.vendedor].acrescimo += v.acrescimo;
+      porCat[v.categoria] = porCat[v.categoria] || { categoria: v.categoria, qtd: 0, valor: 0 };
+      porCat[v.categoria].qtd++; porCat[v.categoria].valor += v.valor;
+    });
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+    return reply.send({
+      status: 'success',
+      data: {
+        ano,
+        meta_anual: META_ANUAL, super_meta: SUPER_META,
+        faturamento: round(faturamento),
+        acrescimo_mrr_total: round(acrescimoMrr),
+        pct_meta: Math.round((faturamento / META_ANUAL) * 100),
+        pct_super: Math.round((faturamento / SUPER_META) * 100),
+        total: lista.length,
+        serie,
+        por_vendedor: Object.values(porVend).sort((a: any, b: any) => b.valor - a.valor),
+        por_categoria: Object.values(porCat).sort((a: any, b: any) => b.valor - a.valor),
+        lista,
+      },
+    });
+  });
 }
