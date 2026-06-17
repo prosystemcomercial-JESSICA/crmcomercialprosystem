@@ -172,12 +172,22 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
     const esc = ownerWhere(request, 'Lead'); // já exclui deleted_at
 
     if (quadro.tipo === 'PIPELINE') {
+      // Leads que já estão ativos em OUTRO quadro (ex.: Follow-up) saem do Pipeline,
+      // para não duplicar — cada quadro mostra coisas diferentes. (Finalizados no
+      // outro quadro voltam a aparecer no Pipeline normalmente.)
+      const emOutroQuadro = await prisma.leadQuadroPosicao.findMany({
+        where: { quadro_id: { not: id }, finalizado: false },
+        select: { lead_id: true },
+      }).catch(() => [] as any[]);
+      const escondidos = new Set(emOutroQuadro.map((p: any) => p.lead_id));
+
       const leads = await prisma.lead.findMany({
         where: { ...esc }, orderBy: { updated_at: 'desc' },
         include: { etiquetas_lead: { include: { etiqueta: { select: { id: true, nome: true, cor: true } } } } },
       });
       const chaves = new Set(colunas.map(c => c.chave));
       for (const l of leads) {
+        if (escondidos.has(l.id)) continue; // está em outro quadro → não repete aqui
         const col = chaves.has(l.etapa_comercial) ? l.etapa_comercial
           : (l.status === 'GANHO' ? 'FECHADO' : l.status === 'PERDIDO' ? 'PERDIDO' : (colunas[0]?.chave));
         if (col) { if (!grouped[col]) grouped[col] = []; grouped[col].push(l); }
