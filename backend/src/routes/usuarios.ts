@@ -8,7 +8,8 @@ import { hashSenha } from '@/lib/seguranca';
 import { CONTAS_SISTEMA } from '@/lib/usuarios';
 
 // Apenas CEO pode criar/remover usuários
-const APENAS_CEO = ['CEO'];
+// Gestão máxima que pode criar/remover/resetar usuários: CEO + Administração (ADMIN/Diretora).
+const APENAS_CEO = ['CEO', 'ADMIN', 'DIRETOR'];
 // Supervisores e CEO podem ver e editar usuários
 const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN'];
 
