@@ -417,6 +417,14 @@ export default function ClienteDetailPage() {
                 {form.cnpj && <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{form.cnpj}</span>}
                 {form.grupo && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{form.grupo}</span>}
                 {form.atencao_especial && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-semibold">⚠ Atenção especial</span>}
+                {/* Satisfação (estrelas) — análise do módulo Ativos */}
+                {(() => { const saude = (cliente as any)?.saude; if (!saude) return null; return (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold"
+                    title={`Saúde: ${saude.rotulo} (${saude.score}/100) · atualizado ${saude.atualizado_em ? new Date(saude.atualizado_em).toLocaleDateString('pt-BR') : ''}`}
+                    style={{ background: saude.estrelas >= 4 ? '#dcfce7' : saude.estrelas === 3 ? '#fef9c3' : '#fee2e2', color: saude.estrelas >= 4 ? '#15803d' : saude.estrelas === 3 ? '#a16207' : '#b91c1c' }}>
+                    {'★'.repeat(saude.estrelas)}{'☆'.repeat(5 - saude.estrelas)} {saude.rotulo}
+                  </span>
+                ); })()}
               </div>
             </div>
           </div>

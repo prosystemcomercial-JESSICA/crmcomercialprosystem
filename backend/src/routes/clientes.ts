@@ -612,7 +612,17 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       where: { cliente_id: id }, orderBy: { created_at: 'desc' },
     }).catch(() => [] as any[]);
 
-    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes, mensalidade, renegociacoes: renegs, eventos, historico_cnpj } });
+    // Saúde do cliente (estrelas) — vinda da análise do módulo Ativos (HealthScore).
+    const hs = await prisma.healthScore.findUnique({ where: { cliente_id: id } }).catch(() => null);
+    let saude = null as any;
+    if (hs) {
+      const score = Number(hs.score || 0);
+      const estrelas = score >= 85 ? 5 : score >= 70 ? 4 : score >= 50 ? 3 : score >= 30 ? 2 : 1;
+      const rotulo = { EXCELENTE: 'Muito satisfeito', SAUDAVEL: 'Satisfeito', ATENCAO: 'Atenção', RISCO: 'Em risco', CRITICO: 'Crítico' }[hs.nivel as string] || hs.nivel;
+      saude = { nivel: hs.nivel, score, estrelas, rotulo, atualizado_em: hs.calculado_at, fatores: hs.fatores };
+    }
+
+    return reply.send({ status: 'success', data: { ...cliente, contatos, solicitacoes, mensalidade, renegociacoes: renegs, eventos, historico_cnpj, saude } });
   });
 
   // Create cliente
