@@ -41,7 +41,17 @@ const permVE = (alcance: Perm['alcance'] = 'todos'): Perm => ({ ...permVazia(), 
 
 // ─── Presets por cargo ────────────────────────────────────────
 export const PRESETS: Record<string, ModulosPermissao> = {
-  CEO: Object.fromEntries(MODULOS.map(m => [m, permTotal()])),
+  // CEO = visão EXECUTIVA (só resultado/direção), apenas LEITURA. Não é super-admin:
+  // não gerencia usuários, config nem operacional. O menu já restringe por role; o
+  // preset reflete isso (antes liberava TUDO como admin, o que confundia no cadastro).
+  CEO: {
+    'Dashboard Geral': permVer('todos'),
+    'Ranking': permVer('todos'),
+    'Relatórios Comerciais': { ...permVazia(), ver: true, exportar: true, alcance: 'todos' },
+    'Relatórios Financeiros': { ...permVazia(), ver: true, exportar: true, alcance: 'todos' },
+    'Financeiro': permVer('todos'),
+    'Comissões / Bônus': permVer('todos'),
+  },
 
   SUPERVISAO_COMERCIAL: {
     'Dashboard Geral': permVer('todos'),
