@@ -26,6 +26,7 @@ export default function NovoCasoPage() {
   const [buscando, setBuscando] = useState(false);
   const [clienteSel, setClienteSel] = useState<Cliente | null>(null);
   const [form, setForm] = useState({ clienteId: '', motivo_principal: '' });
+  const [outroMotivo, setOutroMotivo] = useState(''); // texto quando "Outro"
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -62,10 +63,17 @@ export default function NovoCasoPage() {
 
   const handleSave = async () => {
     if (!form.clienteId) { setError('Selecione um cliente'); return; }
+    // "Outro" exige descrição: o motivo gravado vira "Outro: <texto>".
+    if (form.motivo_principal === 'Outro' && !outroMotivo.trim()) {
+      setError('Descreva qual é o outro motivo.'); return;
+    }
+    const motivoFinal = form.motivo_principal === 'Outro'
+      ? `Outro: ${outroMotivo.trim()}`
+      : (form.motivo_principal || undefined);
     setSaving(true);
     setError('');
     try {
-      await apiClient.createCaso(form.clienteId, form.motivo_principal || undefined);
+      await apiClient.createCaso(form.clienteId, motivoFinal);
       router.push('/casos');
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Erro ao criar caso');
@@ -161,6 +169,21 @@ export default function NovoCasoPage() {
               <option value="">Selecione um motivo</option>
               {motivos.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
+
+            {/* Campo "Outro" — só aparece quando o motivo é Outro */}
+            {form.motivo_principal === 'Outro' && (
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Especifique o motivo *</label>
+                <input
+                  type="text"
+                  value={outroMotivo}
+                  onChange={e => setOutroMotivo(e.target.value)}
+                  placeholder="Descreva qual é o outro motivo…"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  autoFocus
+                />
+              </div>
+            )}
           </div>
 
           <div className="bg-blue-50 rounded-lg p-4">
