@@ -94,6 +94,9 @@ export default function RelatorioComercialPage() {
   const mrrLiquido = Number(rMrr) - Number(rMrrPerdido);
   // Rótulo do período: "Ano de 2026" quando mes=0, senão "Março / 2026".
   const periodoLabel = mes === 0 ? `Ano de ${ano}` : `${MESES[mes]} / ${ano}`;
+  // Sufixo dos títulos: "do ano" no anual, "do mês" no mensal.
+  const sufPeriodo = mes === 0 ? 'do ano' : 'do mês';
+  const SufPeriodo = mes === 0 ? 'do Ano' : 'do Mês';
 
   return (
     <DashboardLayout>
@@ -112,7 +115,7 @@ export default function RelatorioComercialPage() {
         <div className="flex items-start justify-between gap-3 flex-wrap print:hidden">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Relatório Comercial</h1>
-            <p className="text-gray-500 mt-1">Resultados do mês — visão executiva para a diretoria</p>
+            <p className="text-gray-500 mt-1">Resultados {sufPeriodo} — visão executiva para a diretoria</p>
           </div>
           <div className="flex items-center gap-2">
             <select value={mes} onChange={e => setMes(Number(e.target.value))} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
@@ -158,12 +161,12 @@ export default function RelatorioComercialPage() {
             </div>
 
             {/* Resumo geral */}
-            <Bloco titulo="Visão Geral do Mês">
+            <Bloco titulo={`Visão Geral ${SufPeriodo}`}>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KPI label="Contratos fechados" valor={rContratos} cor="text-green-700" />
                 <KPI label={`Meta (${metaContratos})`} valor={`${metaPct}%`} cor={metaPct >= 100 ? 'text-green-700' : metaPct >= 70 ? 'text-yellow-600' : 'text-red-600'} />
                 <KPI label="Instalações (setup)" valor={fmt(rSetup)} />
-                <KPI label="MRR do mês" valor={fmt(rMrr)} cor="text-blue-700" />
+                <KPI label={`MRR ${sufPeriodo}`} valor={fmt(rMrr)} cor="text-blue-700" />
                 <KPI label="Cancelamentos" valor={rPerdidos} cor="text-red-600" />
                 <KPI label="MRR perdido" valor={fmt(rMrrPerdido)} cor="text-red-600" />
                 <KPI label="MRR líquido" valor={fmt(mrrLiquido)} cor="text-green-700" />
@@ -173,7 +176,7 @@ export default function RelatorioComercialPage() {
             {/* 1B. Métricas reais do mês (leads, fechamentos, perdidos, indicações) */}
             {d.metricas && (
               <>
-                <Bloco num="1" titulo="📊 Números do Mês">
+                <Bloco num="1" titulo={`📊 Números ${SufPeriodo}`}>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <KPI label="Leads gerados" valor={d.metricas.total_leads} cor="text-indigo-700" />
                     <KPI label="Fechamentos" valor={d.metricas.fechamentos.total} cor="text-green-700" />
@@ -229,7 +232,7 @@ export default function RelatorioComercialPage() {
                 )}
 
                 {/* Entrada × Saída — seção gráfica de página inteira */}
-                <Bloco num="2" titulo="🔄 Entrada × Saída do Mês">
+                <Bloco num="2" titulo={`🔄 Entrada × Saída ${SufPeriodo}`}>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="rounded-xl p-4 text-center" style={{ background: '#dcfce7', border: '1px solid #86efac' }}>
                       <p className="text-xs text-green-800 font-semibold">ENTRADA</p>
@@ -296,7 +299,7 @@ export default function RelatorioComercialPage() {
 
                 {/* Lista de fechamentos do mês (nomes) */}
                 {d.metricas.fechamentos.lista.length > 0 && (
-                  <Bloco titulo={`✅ Fechamentos do mês (${d.metricas.fechamentos.total})`}>
+                  <Bloco titulo={`✅ Fechamentos ${sufPeriodo} (${d.metricas.fechamentos.total})`}>
                     <table className="w-full text-sm">
                       <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Vendedor</th><th className="text-right">Setup</th><th className="text-right">MRR</th></tr></thead>
                       <tbody>{d.metricas.fechamentos.lista.map((f: any, i: number) => (
@@ -308,7 +311,7 @@ export default function RelatorioComercialPage() {
 
                 {/* Lista de clientes perdidos (nomes) */}
                 {d.metricas.perdidos.lista.length > 0 && (
-                  <Bloco titulo={`❌ Clientes perdidos no mês (${d.metricas.perdidos.total})`}>
+                  <Bloco titulo={`❌ Clientes perdidos ${sufPeriodo} (${d.metricas.perdidos.total})`}>
                     <div className="space-y-2">
                       {d.metricas.perdidos.lista.map((c: any, i: number) => (
                         <div key={i} className="border border-gray-100 rounded-lg p-3" style={{ background: '#fff8f8' }}>
@@ -344,7 +347,7 @@ export default function RelatorioComercialPage() {
                   if (!va || va.total === 0) return null;
                   const tipoLabel: Record<string, string> = { INDICACAO: 'Indicações', REVENDA: 'Revendas', COMUNICACAO: 'Comunicação', TROCA_CNPJ: 'Troca de CNPJ' };
                   return (
-                    <Bloco titulo={`➕ Vendas adicionais do mês (${va.total}) — resultado separado`}>
+                    <Bloco titulo={`➕ Vendas adicionais ${sufPeriodo} (${va.total}) — resultado separado`}>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                         <KPI label="Setup entrando" valor={fmt(va.setup_total)} cor="text-green-700" />
                         <KPI label="Setup médio" valor={fmt(va.setup_medio)} />
@@ -372,7 +375,7 @@ export default function RelatorioComercialPage() {
 
                 {/* Lista de indicações/vendas adicionais (nomes) */}
                 {d.metricas.indicacoes.lista.length > 0 && (
-                  <Bloco titulo={`🤝 Indicações / vendas adicionais do mês (${d.metricas.indicacoes.total})`}>
+                  <Bloco titulo={`🤝 Indicações / vendas adicionais ${sufPeriodo} (${d.metricas.indicacoes.total})`}>
                     <table className="w-full text-sm">
                       <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Parceiro</th><th>Vendedor</th><th>Status</th></tr></thead>
                       <tbody>{d.metricas.indicacoes.lista.map((v: any, i: number) => (
