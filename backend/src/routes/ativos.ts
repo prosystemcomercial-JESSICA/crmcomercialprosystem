@@ -262,7 +262,13 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     // Abrir caso de churn (reaproveita o módulo de retenção) quando há problema.
     let casoId = atual.caso_churn_id || null;
     if (abrir_caso && !casoId) {
-      const caso = await prisma.casoChurn.create({
+      // ANTI-DUPLICAÇÃO: reaproveita caso ABERTO do cliente (não perdido/recuperado),
+      // p/ não duplicar por múltiplos cliques ou contatos diferentes do mesmo cliente.
+      const casoAberto = await prisma.casoChurn.findFirst({
+        where: { clienteId: atual.cliente_id, status: { notIn: ['PERDIDO', 'RECUPERADO'] } },
+        orderBy: { created_at: 'desc' },
+      }).catch(() => null);
+      const caso = casoAberto || await prisma.casoChurn.create({
         data: {
           clienteId: atual.cliente_id,
           status: 'NOVO',
