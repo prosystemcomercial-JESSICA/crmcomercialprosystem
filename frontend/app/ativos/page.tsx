@@ -40,6 +40,8 @@ export default function AtivosPage() {
   const [editando, setEditando] = useState<any>(null); // contato em edição (questionário)
   const [savingQ, setSavingQ] = useState(false); // trava duplo clique ao salvar o questionário
   const kanbanRef = useRef<HTMLDivElement>(null); // p/ as setas de rolagem do kanban
+  const [buscaAtivo, setBuscaAtivo] = useState('');     // busca por nome/código na fila
+  const [filtroEtapa, setFiltroEtapa] = useState('');   // '' = todas; ou uma etapa específica
   const [ficha, setFicha] = useState<any>(null);        // mini-ficha aberta (consulta)
   const [fichaLoading, setFichaLoading] = useState(false);
 
@@ -221,6 +223,23 @@ export default function AtivosPage() {
                   </div>
                 )}
 
+                {/* Filtros: buscar cliente + etapa (ex.: só "Em tratamento") */}
+                <div className="flex gap-2 flex-wrap items-center mb-3">
+                  <input value={buscaAtivo} onChange={e => setBuscaAtivo(e.target.value)}
+                    placeholder="🔍 Buscar cliente por nome ou código…"
+                    className="flex-1 min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <select value={filtroEtapa} onChange={e => setFiltroEtapa(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                    <option value="">Todas as etapas</option>
+                    {ETAPAS.map(et => <option key={et.id} value={et.id}>{et.label}</option>)}
+                  </select>
+                  <button onClick={() => setFiltroEtapa('EM_TRATAMENTO')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium border ${filtroEtapa === 'EM_TRATAMENTO' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-700 border-red-200'}`}>
+                    Em tratamento
+                  </button>
+                  {(buscaAtivo || filtroEtapa) && <button onClick={() => { setBuscaAtivo(''); setFiltroEtapa(''); }} className="text-xs text-gray-500 hover:text-gray-700 underline">limpar</button>}
+                </div>
+
                 {/* Kanban — 6 colunas lado a lado, com setas flutuantes para rolar */}
                 <div className="relative">
                   {/* Seta ◀ — rola para a esquerda (fixa no meio vertical da área visível) */}
@@ -232,8 +251,10 @@ export default function AtivosPage() {
                     className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-right -mr-3 w-9 h-9 rounded-full bg-white shadow-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
                     title="Rolar para a direita">▶</button>
                 <div ref={kanbanRef} className="flex gap-3 overflow-x-auto pb-2 scroll-smooth">
-                  {ETAPAS.map(et => {
-                    const itens = contatos.filter(c => c.etapa === et.id);
+                  {ETAPAS.filter(et => !filtroEtapa || et.id === filtroEtapa).map(et => {
+                    const termo = buscaAtivo.trim().toLowerCase();
+                    const itens = contatos.filter(c => c.etapa === et.id
+                      && (!termo || (c.cliente_nome || '').toLowerCase().includes(termo) || String(c.cliente_codigo || '').includes(termo)));
                     return (
                       <div key={et.id} className="bg-gray-50 rounded-xl p-2 min-h-[200px] flex-shrink-0 w-[280px]">
                         <div className="flex items-center justify-between px-2 py-1.5">
