@@ -36,17 +36,12 @@ export default function ComissoesVendasPage() {
         <div className="rounded-2xl mb-4 overflow-hidden" style={{ background: `linear-gradient(135deg, ${PRO_DARK}, ${PRO})` }}>
           <div className="px-5 py-5 text-white">
             <p className="text-[11px] font-bold tracking-[.2em] uppercase" style={{ color: 'rgba(255,255,255,.7)' }}>Resultado · Prosystem</p>
-            <h1 className="text-2xl md:text-3xl font-extrabold mt-1">Comissões & Vendas</h1>
-            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,.85)' }}>Comissões por estágio/mês e vendas adicionais/indicações por vendedor.</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold mt-1">Comissões</h1>
+            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,.85)' }}>Comissões por estágio, mês de pagamento e colaborador.</p>
           </div>
         </div>
 
-        <div className="flex gap-2 mb-4 border-b border-gray-200">
-          {[{ id: 'comissoes', l: '💰 Comissões' }, { id: 'vendas', l: '🤝 Vendas adicionais / Indicações' }].map(a => (
-            <button key={a.id} onClick={() => setAba(a.id as any)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${aba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500'}`}>{a.l}</button>
-          ))}
-        </div>
+        <p className="text-xs text-gray-400 mb-4">Vendas adicionais e indicações agora têm módulo próprio: <button onClick={() => router.push('/vendas-adicionais')} className="text-blue-600 underline">Vendas Adicionais</button>.</p>
 
         {carregando ? <div className="text-center py-16 text-gray-400">Carregando…</div> : !d ? <div className="text-center py-16 text-gray-400">Sem dados.</div> : (
           <>

@@ -1,0 +1,158 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { useRouter } from 'next/navigation';
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { apiClient } from '@/lib/api-client';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend,
+} from 'recharts';
+
+const PRO = '#417ABC', PRO_DARK = '#2E5A8F';
+const CORES = ['#417ABC', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
+const fmt = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+const fmt0 = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+
+export default function VendasAdicionaisPage() {
+  const { isAuthenticated, loading } = useAuth();
+  const router = useRouter();
+  const [d, setD] = useState<any>(null);
+  const [carregando, setCarregando] = useState(true);
+  const ano = new Date().getFullYear();
+
+  useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading]);
+  const load = useCallback(async () => {
+    setCarregando(true);
+    try { const r = await apiClient.getVendasAdicionaisCEO(ano); setD(r.data?.data || null); }
+    catch { setD(null); } finally { setCarregando(false); }
+  }, [ano]);
+  useEffect(() => { if (isAuthenticated) load(); }, [isAuthenticated, load]);
+
+  if (loading || !isAuthenticated) return null;
+
+  // Barra: até a meta é azul; entre meta e super é verde; o restante cinza.
+  const meta = d?.meta_anual || 30000;
+  const sup = d?.super_meta || 50000;
+  const fat = d?.faturamento || 0;
+  const pctMeta = Math.min(100, Math.round((fat / meta) * 100));
+  const pctSuper = Math.min(100, Math.round((fat / sup) * 100));
+  // posição da marca da meta dentro da barra que vai até a super
+  const markMeta = Math.round((meta / sup) * 100);
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-6xl mx-auto p-3 md:p-5 space-y-4">
+        {/* Capa azul */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: `linear-gradient(135deg, ${PRO_DARK}, ${PRO})` }}>
+          <div className="px-5 py-5 text-white">
+            <p className="text-[11px] font-bold tracking-[.2em] uppercase" style={{ color: 'rgba(255,255,255,.7)' }}>Resultado · Prosystem</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold mt-1">Vendas Adicionais & Indicações</h1>
+            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,.85)' }}>Faturamento de revendas, indicações e serviços do ano {d?.ano || ano}.</p>
+          </div>
+        </div>
+
+        {carregando ? <div className="text-center py-16 text-gray-400">Carregando…</div> : !d ? <div className="text-center py-16 text-gray-400">Sem dados.</div> : (
+          <>
+            {/* Barra de acompanhamento da meta anual (30k) / supermeta (50k) */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <div className="flex items-end justify-between flex-wrap gap-2 mb-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: PRO_DARK }}>Meta anual de vendas adicionais</p>
+                  <p className="text-3xl font-extrabold mt-1" style={{ color: PRO }}>{fmt0(fat)}</p>
+                  <p className="text-sm text-gray-500">de {fmt0(meta)} (meta) · super {fmt0(sup)}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: fat >= sup ? '#dcfce7' : fat >= meta ? '#fef9c3' : '#eef5fc', color: fat >= sup ? '#15803d' : fat >= meta ? '#a16207' : PRO_DARK }}>
+                    {fat >= sup ? '🏆 Supermeta batida!' : fat >= meta ? '✅ Meta batida!' : `${pctMeta}% da meta`}
+                  </span>
+                </div>
+              </div>
+              {/* Barra única que vai até a SUPER meta, com marca da meta */}
+              <div className="relative w-full rounded-full h-5" style={{ background: '#eef2f7' }}>
+                <div className="absolute left-0 top-0 h-5 rounded-full transition-all" style={{
+                  width: `${pctSuper}%`,
+                  background: fat >= meta ? 'linear-gradient(90deg,#417ABC,#16a34a)' : PRO,
+                }} />
+                {/* marca da meta (30k) */}
+                <span className="absolute top-[-3px] h-[26px] w-0.5 bg-gray-500" style={{ left: `${markMeta}%` }} title={`Meta ${fmt0(meta)}`} />
+              </div>
+              <div className="flex justify-between text-[11px] text-gray-400 mt-1">
+                <span>R$ 0</span>
+                <span style={{ position: 'relative', left: `${markMeta - 50}%` }}>Meta {fmt0(meta)}</span>
+                <span>Super {fmt0(sup)}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-500">Vendas confirmadas</p><p className="text-lg font-bold text-gray-800">{d.total}</p></div>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-500">↑ Mensalidade gerada</p><p className="text-lg font-bold text-blue-700">+{fmt0(d.acrescimo_mrr_total)}/mês</p></div>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-500">% da supermeta</p><p className="text-lg font-bold" style={{ color: PRO }}>{pctSuper}%</p></div>
+              </div>
+            </div>
+
+            {/* Evolução mensal */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>📈 Faturamento por mês ({d.ano})</h2>
+              <ResponsiveContainer width="100%" height={230}>
+                <BarChart data={d.serie} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: any) => fmt(v)} />
+                  <Bar dataKey="valor" name="Faturamento" fill={PRO} radius={[4, 4, 0, 0]} animationDuration={900} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Por vendedor */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por vendedor (faturamento)</h2>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={d.por_vendedor.map((v: any) => ({ nome: (v.vendedor || '').split(' ')[0], Faturamento: v.valor }))} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                    <XAxis dataKey="nome" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: any) => fmt(v)} />
+                    <Bar dataKey="Faturamento" fill={PRO} radius={[4, 4, 0, 0]} animationDuration={900} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Por categoria */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por categoria (valor)</h2>
+                {d.por_categoria.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie data={d.por_categoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" innerRadius={48} outerRadius={82} paddingAngle={2} animationDuration={900} label={(p: any) => p.categoria}>
+                        {d.por_categoria.map((_: any, i: number) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => fmt(v)} /><Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : <p className="text-center text-gray-400 py-12 text-sm">Sem dados.</p>}
+              </div>
+            </div>
+
+            {/* Lista */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>Vendas adicionais & indicações ({d.total})</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs text-gray-400 border-b">{['Cliente', 'Parceiro', 'Categoria', 'Vendedor', 'Valor', '+Mensalidade'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
+                  <tbody>{d.lista.map((v: any, i: number) => (
+                    <tr key={i} className="border-b border-gray-50">
+                      <td className="py-2 pr-3 font-medium text-gray-800">{v.cliente}</td>
+                      <td className="pr-3 text-gray-600">{v.parceiro}</td>
+                      <td className="pr-3 text-xs text-gray-500">{v.categoria}</td>
+                      <td className="pr-3 text-gray-600">{v.vendedor}</td>
+                      <td className="pr-3 text-gray-800 font-semibold">{fmt(v.valor)}</td>
+                      <td className="pr-3 text-blue-700">{v.acrescimo > 0 ? `+${fmt(v.acrescimo)}` : '—'}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}

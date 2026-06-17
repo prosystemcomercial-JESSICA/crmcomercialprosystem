@@ -1208,6 +1208,9 @@ class ApiClient {
   async getComissoesVendasCEO(mes_pagamento?: string) {
     return this.client.get('/ceo/comissoes-vendas', { params: mes_pagamento ? { mes_pagamento } : {} });
   }
+  async getVendasAdicionaisCEO(ano?: number) {
+    return this.client.get('/ceo/vendas-adicionais', { params: ano ? { ano } : {} });
+  }
   async salvarRelatorioComercial(data: any) {
     return this.client.put('/relatorio-comercial', data);
   }
