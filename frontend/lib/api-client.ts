@@ -629,6 +629,9 @@ class ApiClient {
   async atualizarContatoAtivo(id: string, data: any) {
     return this.client.patch(`/ativos/contatos/${id}`, data);
   }
+  async registrarTentativaAtivo(id: string, data?: { obs?: string; sem_sucesso?: boolean }) {
+    return this.client.post(`/ativos/contatos/${id}/tentativa`, data || {});
+  }
   async getAtivosDoCliente(clienteId: string) {
     return this.client.get(`/ativos/cliente/${clienteId}`);
   }

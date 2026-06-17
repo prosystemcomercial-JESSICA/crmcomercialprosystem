@@ -176,6 +176,17 @@ export class CasoChurnService {
       }).catch(e => console.error('[CasoChurn] Falha ao aplicar perda:', e));
     }
 
+    // RECUPERADO → o card do módulo Ativos vinculado a este caso vai para CONCLUÍDO
+    // (no Ativos, só conclui quando o churn é resolvido aqui). Tira o risco do cliente.
+    if (data.status === 'RECUPERADO') {
+      await (this.prisma as any).contatoAtivo.updateMany({
+        where: { caso_churn_id: id }, data: { etapa: 'CONCLUIDO' },
+      }).catch(() => {});
+      await this.prisma.cliente.update({
+        where: { id: updated.clienteId }, data: { risco_atencao: false },
+      }).catch(() => {});
+    }
+
     // Registra uma atualização na timeline quando muda status ou financeiro.
     try {
       if (data.status && data.status !== caso.status) {

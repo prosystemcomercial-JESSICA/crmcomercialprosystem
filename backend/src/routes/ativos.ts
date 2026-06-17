@@ -259,29 +259,39 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     if (body.data.etapa === 'EM_CONTATO' && atual.etapa === 'A_CONTATAR') data.tentativas = (atual.tentativas || 0) + 1;
     if (body.data.etapa === 'CONCLUIDO' || body.data.etapa === 'SEM_SUCESSO') data.contatado_em = new Date();
 
-    // Abrir caso de churn (reaproveita o módulo de retenção) quando há problema.
+    // ── Regra de churn por SUBUTILIZAÇÃO (risco MÉDIO) ──
+    // Cliente com nota 3 ou 4 E que NÃO conhece as ferramentas (não usa o sistema na
+    // totalidade) vira caso de churn automaticamente, risco médio. Reaproveita os
+    // dados deste contato; o motivo é "Subutilização de ferramentas".
+    const nota = body.data.nota_prosystem ?? atual.nota_prosystem;
+    const conheceFerr = body.data.conhece_novas_ferr ?? atual.conhece_novas_ferr;
+    const subutilizacao = (nota === 3 || nota === 4) && conheceFerr === false;
+
+    // Abrir caso de churn: manual (problema) OU automático (subutilização).
     let casoId = atual.caso_churn_id || null;
-    if (abrir_caso && !casoId) {
-      // ANTI-DUPLICAÇÃO: reaproveita caso ABERTO do cliente (não perdido/recuperado),
-      // p/ não duplicar por múltiplos cliques ou contatos diferentes do mesmo cliente.
+    const deveAbrir = abrir_caso || subutilizacao;
+    if (deveAbrir && !casoId) {
+      // ANTI-DUPLICAÇÃO: reaproveita caso ABERTO do cliente (não perdido/recuperado).
       const casoAberto = await prisma.casoChurn.findFirst({
         where: { clienteId: atual.cliente_id, status: { notIn: ['PERDIDO', 'RECUPERADO'] } },
         orderBy: { created_at: 'desc' },
       }).catch(() => null);
+      // risco: problema relatado = alto (75); subutilização = médio (50).
+      const riskScore = abrir_caso ? 75 : 50;
+      const motivo = abrir_caso ? 'Identificado no contato ativo' : 'Subutilização de ferramentas';
+      const descCaso = abrir_caso
+        ? (body.data.problema_descricao || 'Problema relatado no contato ativo (CS comercial).')
+        : `Cliente com nota ${nota}/5 e que não conhece/não usa as novas ferramentas — risco de subutilização (não aproveita o sistema na totalidade).`;
       const caso = casoAberto || await prisma.casoChurn.create({
         data: {
-          clienteId: atual.cliente_id,
-          status: 'NOVO',
-          motivo_principal: 'Identificado no contato ativo',
-          descricao: body.data.problema_descricao || 'Problema relatado no contato ativo (CS comercial).',
-          created_by: user?.id || 'system',
+          clienteId: atual.cliente_id, status: 'NOVO', risk_score: riskScore,
+          motivo_principal: motivo, descricao: descCaso, created_by: user?.id || 'system',
         },
       }).catch(() => null);
       if (caso) {
         casoId = caso.id;
         data.caso_churn_id = caso.id;
         data.tem_problema = true;
-        // Marca o cliente em risco/atenção (igual ao fluxo do churn).
         await prisma.cliente.update({ where: { id: atual.cliente_id }, data: { risco_atencao: true } }).catch(() => {});
         await prisma.healthScore.updateMany({
           where: { cliente_id: atual.cliente_id, nivel: { in: ['EXCELENTE', 'SAUDAVEL', 'ATENCAO'] } },
@@ -368,6 +378,41 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     }
 
     return reply.send({ status: 'success', data: { ...contato, caso_churn_id: casoId } });
+  });
+
+  // ── Registrar uma TENTATIVA de contato (sem responder o questionário) ──
+  // Incrementa o contador, registra a tentativa na ficha. Opcional: marcar sem sucesso.
+  fastify.post('/ativos/contatos/:id/tentativa', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ obs: z.string().optional(), sem_sucesso: z.boolean().optional() }).safeParse(request.body);
+    const user = (request as any).user;
+    const atual = await prisma.contatoAtivo.findUnique({ where: { id } });
+    if (!atual) return reply.status(404).send({ status: 'error', message: 'Contato não encontrado' });
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null && atual.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
+
+    const tentativas = (atual.tentativas || 0) + 1;
+    const semSucesso = body.success ? !!body.data.sem_sucesso : false;
+    const contato = await prisma.contatoAtivo.update({
+      where: { id },
+      data: {
+        tentativas,
+        // Sai de "A contatar" para "Em contato" na 1ª tentativa; vai p/ Sem Sucesso se marcado.
+        etapa: semSucesso ? 'SEM_SUCESSO' : (atual.etapa === 'A_CONTATAR' ? 'EM_CONTATO' : atual.etapa),
+        contatado_em: new Date(),
+      },
+    });
+    // Registra a tentativa na ficha do cliente (timeline) — sem mexer no questionário.
+    const obs = body.success ? (body.data.obs || '').trim() : '';
+    await (prisma as any).eventoCliente.create({
+      data: {
+        cliente_id: atual.cliente_id, tipo: 'OBSERVACAO',
+        titulo: semSucesso ? `📞 Tentativa de contato #${tentativas} — sem sucesso` : `📞 Tentativa de contato #${tentativas}`,
+        descricao: obs || (semSucesso ? 'Sem resposta do cliente.' : 'Contato tentado.'),
+        feito_por: user?.id, feito_por_nome: user?.nome,
+      },
+    }).catch(() => {});
+    return reply.send({ status: 'success', data: contato });
   });
 
   // ── Contatos ativos de um cliente (p/ aba na ficha) ──
