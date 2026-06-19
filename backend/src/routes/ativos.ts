@@ -565,7 +565,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     const isGestor = podeVerTudo(user);
     if (!isGestor && scopeId !== null && oport.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
 
-    // Cria a VendaAdicional real
+    // Cria a VendaAdicional real (nasce PENDENTE — gestão confirma/data pelo fluxo normal)
     let vendaId: string | null = null;
     if (oport.parceiro_id) {
       const venda = await prisma.vendaAdicional.create({
@@ -592,6 +592,31 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
         confirmado_em: new Date(),
       },
     });
+
+    // Atualiza o ContatoAtivo: etapa → CONCLUIDO, registra venda_ref_id para rastreio
+    const contato = await prisma.contatoAtivo.findUnique({ where: { id: oport.contato_id } }).catch(() => null);
+    if (contato) {
+      await prisma.contatoAtivo.update({
+        where: { id: contato.id },
+        data: { etapa: 'CONCLUIDO', venda_ref_id: vendaId || contato.venda_ref_id },
+      }).catch(() => {});
+
+      // Registra fechamento na ficha do cliente
+      await (prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: oport.cliente_id,
+          tipo: 'OBSERVACAO',
+          titulo: `✅ Venda confirmada — ${oport.parceiro_nome || oport.categoria || 'Oportunidade'}`,
+          descricao: [
+            oport.valor_venda ? `Setup: R$ ${oport.valor_venda}` : '',
+            oport.acrescimo_mensal ? `+R$ ${oport.acrescimo_mensal}/mês` : '',
+            oport.observacao || '',
+          ].filter(Boolean).join(' · ') || undefined,
+          feito_por: user?.id,
+          feito_por_nome: user?.nome,
+        },
+      }).catch(() => {});
+    }
 
     return reply.send({ status: 'success', data: { oportunidade: updated, venda_id: vendaId } });
   });
@@ -725,36 +750,31 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
   fastify.post('/ativos/migrar-oportunidades', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
 
-    // Busca contatos com venda_ref_id preenchido (fluxo antigo)
-    const contatos = await prisma.contatoAtivo.findMany({
+    // CASO 1: contatos com venda_ref_id preenchido (VendaAdicional criada prematuramente)
+    const comRef = await prisma.contatoAtivo.findMany({
       where: { venda_ref_id: { not: null } },
     });
 
-    if (contatos.length === 0) return reply.send({ status: 'success', data: { migrados: 0, msg: 'Nada a migrar.' } });
-
-    const vendaIds = contatos.map(c => c.venda_ref_id).filter(Boolean) as string[];
+    const vendaIds = comRef.map(c => c.venda_ref_id).filter(Boolean) as string[];
     const vendas = await prisma.vendaAdicional.findMany({
       where: { id: { in: vendaIds }, status: 'PENDENTE' },
     });
     const vendaMap: Record<string, any> = Object.fromEntries(vendas.map(v => [v.id, v]));
 
     let migrados = 0;
-    for (const ct of contatos) {
+    for (const ct of comRef) {
       const venda = ct.venda_ref_id ? vendaMap[ct.venda_ref_id] : null;
-      if (!venda) continue; // já confirmada ou não encontrada — não mexe
+      if (!venda) continue;
 
-      // Verifica se já existe OportunidadeAtivo para este contato (idempotência)
       const jaExiste = await (prisma as any).oportunidadeAtivo.findFirst({
         where: { contato_id: ct.id, status: 'NEGOCIACAO' },
       });
       if (jaExiste) {
-        // Apenas limpa a venda pendente e o ref
         await prisma.vendaAdicional.delete({ where: { id: venda.id } }).catch(() => {});
         await prisma.contatoAtivo.update({ where: { id: ct.id }, data: { venda_ref_id: null } }).catch(() => {});
         continue;
       }
 
-      // Cria OportunidadeAtivo com os dados da VendaAdicional antiga
       await (prisma as any).oportunidadeAtivo.create({
         data: {
           contato_id: ct.id,
@@ -771,15 +791,41 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
         },
       });
 
-      // Remove a VendaAdicional PENDENTE (era prematura)
       await prisma.vendaAdicional.delete({ where: { id: venda.id } }).catch(() => {});
-
-      // Limpa venda_ref_id no contato (mantém gerou_venda=true e etapa COTACAO)
       await prisma.contatoAtivo.update({ where: { id: ct.id }, data: { venda_ref_id: null } });
-
       migrados++;
     }
 
-    return reply.send({ status: 'success', data: { migrados, total_encontrados: contatos.length } });
+    // CASO 2: contatos com gerou_venda=true mas SEM venda_ref_id e SEM OportunidadeAtivo
+    // (fluxo antigo onde gerou_venda foi marcado mas a venda não chegou a ser criada)
+    const semRef = await prisma.contatoAtivo.findMany({
+      where: { gerou_venda: true, venda_ref_id: null },
+    });
+
+    for (const ct of semRef) {
+      const jaExiste = await (prisma as any).oportunidadeAtivo.findFirst({
+        where: { contato_id: ct.id },
+      });
+      if (jaExiste) continue; // já tem oportunidade — não duplica
+
+      await (prisma as any).oportunidadeAtivo.create({
+        data: {
+          contato_id: ct.id,
+          cliente_id: ct.cliente_id,
+          vendedor_id: ct.vendedor_id,
+          parceiro_id: null,
+          parceiro_nome: null,
+          categoria: ct.tipo_venda || 'INDICACAO',
+          status: 'NEGOCIACAO',
+          valor_venda: (ct as any).venda_valor ?? null,
+          acrescimo_mensal: (ct as any).venda_acrescimo ?? null,
+          observacao: (ct as any).venda_obs || 'Migrado do fluxo antigo — preencha os detalhes.',
+          criado_por: ct.vendedor_id,
+        },
+      });
+      migrados++;
+    }
+
+    return reply.send({ status: 'success', data: { migrados, total_encontrados: comRef.length + semRef.length } });
   });
 }
