@@ -1655,6 +1655,39 @@ model ContatoAtivo {
   @@index([cliente_id])
 }
 
+// Oportunidades de venda geradas a partir do módulo Ativos.
+// Uma por produto/parceiro por cliente, múltiplas permitidas.
+// Fica em NEGOCIACAO até o vendedor confirmar o fechamento.
+// Ao confirmar, cria a VendaAdicional real e muda para CONFIRMADA.
+model OportunidadeAtivo {
+  id           String  @id @default(cuid())
+  contato_id   String  // ContatoAtivo (card kanban)
+  cliente_id   String
+  vendedor_id  String
+  parceiro_id  String?
+  parceiro_nome String?
+  categoria    String? // FISCAL | TEF | TRIBUTARIO | COMUNICACAO | UPGRADE | OUTRO
+
+  status       String  @default("NEGOCIACAO") // NEGOCIACAO | CONFIRMADA | CANCELADA
+  valor_venda  Float?
+  acrescimo_mensal Float?
+  observacao   String? @db.Text
+
+  venda_adicional_id String? // VendaAdicional criada ao confirmar
+
+  criado_por   String?
+  confirmado_por String?
+  confirmado_em DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([contato_id])
+  @@index([cliente_id])
+  @@index([vendedor_id])
+  @@index([status])
+}
+
 // ===== UTILITARIOS =====
 
 model Credito {

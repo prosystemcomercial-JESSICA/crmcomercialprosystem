@@ -130,7 +130,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     const where: any = { campanha_id: id };
     if (!ehGestor) where.oculto = false;
     const contatos = await prisma.contatoAtivo.findMany({
-      where, orderBy: [{ etapa: 'asc' }, { cliente_nome: 'asc' }],
+      where, orderBy: [{ updated_at: 'desc' }],
     });
 
     // Enriquece cada contato com dados do Cliente (plano + telefones + segmento)
@@ -478,6 +478,174 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       where: { cliente_id: clienteId }, orderBy: { created_at: 'desc' },
     });
     return reply.send({ status: 'success', data: contatos });
+  });
+
+  // ── OPORTUNIDADES DE VENDA (múltiplas por cliente, independentes) ──
+
+  // Criar nova oportunidade (NEGOCIACAO) — não cria VendaAdicional ainda.
+  fastify.post('/ativos/contatos/:id/oportunidades', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      parceiro_id: z.string().min(1),
+      valor_venda:  z.number().optional(),
+      acrescimo_mensal: z.number().optional(),
+      observacao: z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Dados inválidos' });
+
+    const user = getUser(request);
+    const contato = await prisma.contatoAtivo.findUnique({ where: { id } });
+    if (!contato) return reply.status(404).send({ status: 'error', message: 'Contato não encontrado' });
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null && contato.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
+
+    const parceiro = await prisma.parceiro.findUnique({ where: { id: body.data.parceiro_id } }).catch(() => null);
+    const oport = await (prisma as any).oportunidadeAtivo.create({
+      data: {
+        contato_id: id,
+        cliente_id: contato.cliente_id,
+        vendedor_id: contato.vendedor_id,
+        parceiro_id: body.data.parceiro_id,
+        parceiro_nome: parceiro?.nome || null,
+        categoria: parceiro?.categoria || null,
+        status: 'NEGOCIACAO',
+        valor_venda: body.data.valor_venda ?? null,
+        acrescimo_mensal: body.data.acrescimo_mensal ?? null,
+        observacao: body.data.observacao ?? null,
+        criado_por: user?.id ?? null,
+      },
+    });
+
+    // Marca o contato com gerou_venda e atualiza etapa para COTACAO
+    await prisma.contatoAtivo.update({
+      where: { id },
+      data: { gerou_venda: true, tipo_venda: parceiro?.categoria || 'INDICACAO', etapa: 'COTACAO' },
+    }).catch(() => {});
+
+    // Registra na ficha do cliente
+    await (prisma as any).eventoCliente.create({
+      data: {
+        cliente_id: contato.cliente_id, tipo: 'OBSERVACAO',
+        titulo: `💰 Oportunidade de venda: ${parceiro?.nome || body.data.parceiro_id}`,
+        descricao: body.data.observacao || `Categoria: ${parceiro?.categoria || '—'}`,
+        feito_por: user?.id, feito_por_nome: user?.nome,
+      },
+    }).catch(() => {});
+
+    return reply.send({ status: 'success', data: oport });
+  });
+
+  // Listar oportunidades de um contato
+  fastify.get('/ativos/contatos/:id/oportunidades', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const contato = await prisma.contatoAtivo.findUnique({ where: { id } });
+    if (!contato) return reply.status(404).send({ status: 'error', message: 'Contato não encontrado' });
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null && contato.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
+    const oports = await (prisma as any).oportunidadeAtivo.findMany({
+      where: { contato_id: id }, orderBy: { created_at: 'desc' },
+    });
+    return reply.send({ status: 'success', data: oports });
+  });
+
+  // Confirmar fechamento → cria VendaAdicional + muda status para CONFIRMADA
+  fastify.post('/ativos/oportunidades/:id/confirmar', async (request, reply) => {
+    const { oId } = request.params as { oId: string };
+    const resolvedId = (request.params as any).id || oId;
+    const body = z.object({
+      vendedor_id: z.string().optional(),
+    }).safeParse(request.body);
+
+    const user = getUser(request);
+    const oport = await (prisma as any).oportunidadeAtivo.findUnique({ where: { id: resolvedId } });
+    if (!oport) return reply.status(404).send({ status: 'error', message: 'Oportunidade não encontrada' });
+    if (oport.status !== 'NEGOCIACAO') return reply.status(400).send({ status: 'error', message: 'Oportunidade já foi confirmada ou cancelada' });
+
+    const scopeId = scopeUserId(request);
+    const isGestor = podeVerTudo(user);
+    if (!isGestor && scopeId !== null && oport.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
+
+    // Cria a VendaAdicional real
+    let vendaId: string | null = null;
+    if (oport.parceiro_id) {
+      const venda = await prisma.vendaAdicional.create({
+        data: {
+          cliente_id: oport.cliente_id,
+          parceiro_id: oport.parceiro_id,
+          vendedor_id: body.success && body.data.vendedor_id ? body.data.vendedor_id : oport.vendedor_id,
+          tipo_negocio: 'INDICACAO',
+          valor_venda: oport.valor_venda ?? undefined,
+          acrescimo_mensal: oport.acrescimo_mensal ?? undefined,
+          status: 'PENDENTE',
+          observacoes: oport.observacao ?? undefined,
+        } as any,
+      }).catch(() => null);
+      vendaId = venda?.id || null;
+    }
+
+    const updated = await (prisma as any).oportunidadeAtivo.update({
+      where: { id: resolvedId },
+      data: {
+        status: 'CONFIRMADA',
+        venda_adicional_id: vendaId,
+        confirmado_por: user?.id ?? null,
+        confirmado_em: new Date(),
+      },
+    });
+
+    return reply.send({ status: 'success', data: { oportunidade: updated, venda_id: vendaId } });
+  });
+
+  // Cancelar oportunidade
+  fastify.post('/ativos/oportunidades/:id/cancelar', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = getUser(request);
+    const oport = await (prisma as any).oportunidadeAtivo.findUnique({ where: { id } });
+    if (!oport) return reply.status(404).send({ status: 'error', message: 'Oportunidade não encontrada' });
+    if (oport.status !== 'NEGOCIACAO') return reply.status(400).send({ status: 'error', message: 'Só pode cancelar oportunidades em negociação' });
+    const scopeId = scopeUserId(request);
+    if (!podeVerTudo(user) && scopeId !== null && oport.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
+    const updated = await (prisma as any).oportunidadeAtivo.update({
+      where: { id }, data: { status: 'CANCELADA' },
+    });
+    return reply.send({ status: 'success', data: updated });
+  });
+
+  // ── Listar TODAS as oportunidades em NEGOCIACAO (para aba "Em negociação" em Indicações) ──
+  fastify.get('/ativos/oportunidades', async (request, reply) => {
+    const user = getUser(request);
+    const scopeId = scopeUserId(request);
+    const where: any = { status: 'NEGOCIACAO' };
+    if (scopeId !== null) where.vendedor_id = scopeId;
+
+    const oports = await (prisma as any).oportunidadeAtivo.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+    });
+
+    // Enriquece com nomes de clientes e parceiros
+    const clienteIds = [...new Set(oports.map((o: any) => o.cliente_id))];
+    const parceiroIds = [...new Set(oports.map((o: any) => o.parceiro_id).filter(Boolean))];
+    const vendedorIds = [...new Set(oports.map((o: any) => o.vendedor_id).filter(Boolean))];
+
+    const [clientes, parceiros, nomes] = await Promise.all([
+      clienteIds.length ? prisma.cliente.findMany({ where: { id: { in: clienteIds as string[] } }, select: { id: true, razao_social: true, nome_fantasia: true, nome: true, codigo: true } }) : [],
+      parceiroIds.length ? prisma.parceiro.findMany({ where: { id: { in: parceiroIds as string[] } }, select: { id: true, nome: true, categoria: true } }) : [],
+      vendedorIds.length ? resolverNomesUsuarios(prisma, vendedorIds as string[]) : {},
+    ]);
+    const cliMap: Record<string, any> = Object.fromEntries((clientes as any[]).map(c => [c.id, c]));
+    const parMap: Record<string, any> = Object.fromEntries((parceiros as any[]).map(p => [p.id, p]));
+
+    const lista = oports.map((o: any) => ({
+      ...o,
+      cliente_nome: cliMap[o.cliente_id]?.razao_social || cliMap[o.cliente_id]?.nome_fantasia || cliMap[o.cliente_id]?.nome || '—',
+      cliente_codigo: cliMap[o.cliente_id]?.codigo || null,
+      parceiro_nome: parMap[o.parceiro_id]?.nome || o.parceiro_nome || '—',
+      categoria: parMap[o.parceiro_id]?.categoria || o.categoria || '—',
+      vendedor_nome: (nomes as any)[o.vendedor_id] || '—',
+    }));
+
+    return reply.send({ status: 'success', data: lista });
   });
 
   // ── PAINEL DA SUPERVISÃO: saúde da carteira por fila/vendedor/técnico ──
