@@ -92,8 +92,10 @@ export default function IndicacoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
-  const [tab, setTab] = useState<'vendas' | 'parceiros'>('vendas');
+  const [tab, setTab] = useState<'vendas' | 'negociacao' | 'parceiros'>('vendas');
   const [vendas, setVendas] = useState<VendaAdicional[]>([]);
+  const [negociacoes, setNegociacoes] = useState<any[]>([]);
+  const [negociacaoLoading, setNegociacaoLoading] = useState(false);
   const [parceiros, setParceiros] = useState<Parceiro[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -226,11 +228,18 @@ export default function IndicacoesPage() {
     } catch (e) { console.error(e); }
   }, []);
 
+  const loadNegociacoes = useCallback(async () => {
+    setNegociacaoLoading(true);
+    try { const r = await apiClient.getOportunidadesNegociacao(); setNegociacoes(r.data?.data || []); }
+    catch { setNegociacoes([]); } finally { setNegociacaoLoading(false); }
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     loadVendas();
     loadParceiros();
-  }, [isAuthenticated, loadVendas, loadParceiros]);
+    loadNegociacoes();
+  }, [isAuthenticated, loadVendas, loadParceiros, loadNegociacoes]);
 
   const openNovaVenda = async () => {
     setClienteBusca('');
@@ -497,9 +506,13 @@ export default function IndicacoesPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-gray-200">
-          {([['vendas', 'Vendas'], ['parceiros', 'Parceiros & Produtos']] as const).map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          {([
+            ['vendas', 'Vendas'],
+            ['negociacao', `Em negociação${negociacoes.length ? ` (${negociacoes.length})` : ''}`],
+            ['parceiros', 'Parceiros & Produtos'],
+          ] as const).map(([key, label]) => (
+            <button key={key} onClick={() => { setTab(key); if (key === 'negociacao') loadNegociacoes(); }}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === key ? (key === 'negociacao' ? 'border-amber-500 text-amber-600' : 'border-blue-600 text-blue-600') : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {label}
             </button>
           ))}
@@ -725,6 +738,86 @@ export default function IndicacoesPage() {
               );
             })()}
           </>
+        )}
+
+        {/* Tab: Em negociação (oportunidades do Ativo ainda não confirmadas) */}
+        {tab === 'negociacao' && (
+          <div className="space-y-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+              <p className="font-semibold">💬 Oportunidades em negociação</p>
+              <p className="text-xs mt-0.5">Estes leads foram identificados no módulo Ativos. Ao confirmar o fechamento, a venda é registrada oficialmente em Vendas.</p>
+            </div>
+
+            {negociacaoLoading ? (
+              <div className="text-center py-8 text-gray-400">Carregando…</div>
+            ) : negociacoes.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <div className="text-4xl mb-3">🤝</div>
+                <p className="text-gray-500 font-medium">Nenhuma oportunidade em negociação</p>
+                <p className="text-sm text-gray-400 mt-1">Quando um vendedor identificar uma oportunidade nos Ativos, ela aparece aqui para confirmar o fechamento.</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr className="text-left text-xs text-gray-500">
+                      <th className="py-2.5 px-4">Cliente</th>
+                      <th className="px-4">Produto / Oferta</th>
+                      <th className="px-4">Categoria</th>
+                      <th className="px-4">Vendedor</th>
+                      <th className="px-4">Valor</th>
+                      <th className="px-4">Observação</th>
+                      <th className="px-4">Data</th>
+                      <th className="px-4">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {negociacoes.map((o: any) => (
+                      <tr key={o.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <td className="py-2.5 px-4 font-medium text-gray-800 text-sm">
+                          {o.cliente_codigo ? `${o.cliente_codigo} · ` : ''}{o.cliente_nome}
+                        </td>
+                        <td className="px-4 text-sm text-gray-700">{o.parceiro_nome}</td>
+                        <td className="px-4">
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${CATEGORIA_COLOR[o.categoria] || 'bg-gray-100 text-gray-600'}`}>
+                            {CATEGORIA_LABEL[o.categoria] || o.categoria}
+                          </span>
+                        </td>
+                        <td className="px-4 text-sm text-gray-600">{o.vendedor_nome}</td>
+                        <td className="px-4 text-sm text-gray-700">
+                          {o.valor_venda ? `R$ ${Number(o.valor_venda).toLocaleString('pt-BR')}` : '—'}
+                          {o.acrescimo_mensal ? <span className="block text-xs text-blue-600">+R$ {Number(o.acrescimo_mensal).toLocaleString('pt-BR')}/mês</span> : null}
+                        </td>
+                        <td className="px-4 text-xs text-gray-500 max-w-[160px]">{o.observacao || '—'}</td>
+                        <td className="px-4 text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td className="px-4">
+                          <div className="flex gap-1">
+                            <button onClick={async () => {
+                              if (!window.confirm(`Confirmar fechamento de "${o.parceiro_nome}" para "${o.cliente_nome}"?\n\nIsso vai criar a venda em Vendas Adicionais.`)) return;
+                              try {
+                                await apiClient.confirmarOportunidade(o.id);
+                                loadNegociacoes();
+                                loadVendas();
+                              } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao confirmar'); }
+                            }} className="text-[11px] px-2.5 py-1 rounded-lg bg-green-600 text-white font-semibold whitespace-nowrap">
+                              ✓ Confirmar fechamento
+                            </button>
+                            <button onClick={async () => {
+                              if (!window.confirm('Cancelar esta oportunidade?')) return;
+                              try { await apiClient.cancelarOportunidade(o.id); loadNegociacoes(); }
+                              catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+                            }} className="text-[11px] px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 whitespace-nowrap">
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Tab: Parceiros */}

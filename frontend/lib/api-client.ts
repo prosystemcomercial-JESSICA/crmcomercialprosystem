@@ -648,6 +648,21 @@ class ApiClient {
   async getFichaContatoAtivo(id: string) {
     return this.client.get(`/ativos/contatos/${id}/ficha`);
   }
+  async getOportunidadesContato(contatoId: string) {
+    return this.client.get(`/ativos/contatos/${contatoId}/oportunidades`);
+  }
+  async criarOportunidadeAtivo(contatoId: string, data: any) {
+    return this.client.post(`/ativos/contatos/${contatoId}/oportunidades`, data);
+  }
+  async confirmarOportunidade(id: string) {
+    return this.client.post(`/ativos/oportunidades/${id}/confirmar`, {});
+  }
+  async cancelarOportunidade(id: string) {
+    return this.client.post(`/ativos/oportunidades/${id}/cancelar`, {});
+  }
+  async getOportunidadesNegociacao() {
+    return this.client.get('/ativos/oportunidades');
+  }
 
   // Troca de CNPJ (venda adicional): atualiza cadastro (guarda antigo na ficha),
   // gera venda+comissão da taxa e cria contrato novo do mesmo plano.

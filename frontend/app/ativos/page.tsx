@@ -44,12 +44,32 @@ export default function AtivosPage() {
   const [filtroEtapa, setFiltroEtapa] = useState('');   // '' = todas; ou uma etapa específica
   const [ficha, setFicha] = useState<any>(null);        // mini-ficha aberta (consulta)
   const [fichaLoading, setFichaLoading] = useState(false);
+  const [fichaAba, setFichaAba] = useState<'dados' | 'questionario' | 'oportunidades'>('dados');
+  const [fichaOports, setFichaOports] = useState<any[]>([]);
+  const [fichaOportsLoading, setFichaOportsLoading] = useState(false);
+  const [novaOport, setNovaOport] = useState<{ parceiroId: string; valor: string; acrescimo: string; obs: string } | null>(null);
+  const [savingOport, setSavingOport] = useState(false);
 
-  const abrirFicha = async (contato: any) => {
-    setFicha({ contato, dados: null }); setFichaLoading(true);
-    try { const r = await apiClient.getFichaContatoAtivo(contato.id); setFicha({ contato, dados: r.data?.data || null }); }
-    catch { setFicha({ contato, dados: null }); }
+  const abrirFicha = async (contato: any, aba: 'dados' | 'questionario' | 'oportunidades' = 'dados') => {
+    setFicha({ contato, dados: null });
+    setFichaAba(aba);
+    setFichaLoading(true);
+    setFichaOports([]);
+    try {
+      const [fichaR, oportsR] = await Promise.all([
+        apiClient.getFichaContatoAtivo(contato.id),
+        apiClient.getOportunidadesContato(contato.id),
+      ]);
+      setFicha({ contato, dados: fichaR.data?.data || null });
+      setFichaOports(oportsR.data?.data || []);
+    } catch { setFicha({ contato, dados: null }); }
     finally { setFichaLoading(false); }
+  };
+
+  const carregarOports = async (contatoId: string) => {
+    setFichaOportsLoading(true);
+    try { const r = await apiClient.getOportunidadesContato(contatoId); setFichaOports(r.data?.data || []); }
+    catch { /* */ } finally { setFichaOportsLoading(false); }
   };
 
   // Designar campanha (gestão)
@@ -100,7 +120,15 @@ export default function AtivosPage() {
   };
 
   const moverEtapa = async (contato: any, etapa: string) => {
-    try { await apiClient.atualizarContatoAtivo(contato.id, { etapa }); loadContatos(); }
+    try {
+      await apiClient.atualizarContatoAtivo(contato.id, { etapa });
+      // Atualiza localmente: move o card para o topo da coluna destino (sem reordenar o resto)
+      setContatos(prev => {
+        const sem = prev.filter(c => c.id !== contato.id);
+        const atualizado = { ...contato, etapa, updated_at: new Date().toISOString() };
+        return [atualizado, ...sem];
+      });
+    }
     catch (e: any) { alert(e?.response?.data?.message || 'Erro ao mover.'); }
   };
 
@@ -147,7 +175,7 @@ export default function AtivosPage() {
       : satisfacao100 ? 'CONCLUIDO'
       : 'EM_CONTATO';
     try {
-      await apiClient.atualizarContatoAtivo(editando.id, {
+      await apiClient.atualizarContatoAtivo((editando.id || ficha?.contato?.id), {
         etapa: etapaFinal,
         usa_sistema_ok: editando.usa_sistema_ok, suporte_ok: editando.suporte_ok, tecnico_ok: editando.tecnico_ok,
         conhece_novas_ferr: editando.conhece_novas_ferr, plus_apresentado: editando.plus_apresentado,
@@ -165,7 +193,13 @@ export default function AtivosPage() {
         cli_telefone2: editando.atualizar_cliente ? (editando.cli_telefone2 || undefined) : undefined,
         cli_segmento: editando.atualizar_cliente ? (editando.cli_segmento || undefined) : undefined,
       });
-      setEditando(null); loadContatos();
+      setEditando(null);
+      loadContatos();
+      // Se a ficha estiver aberta, permanece aberta na aba questionário com dados frescos
+      if (ficha) {
+        const id = editando.id || ficha.contato?.id;
+        if (id) { setFichaLoading(true); apiClient.getFichaContatoAtivo(id).then(r => setFicha((f: any) => f ? { ...f, dados: r.data?.data || null } : f)).catch(() => {}).finally(() => setFichaLoading(false)); }
+      }
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar.'); }
     finally { setSavingQ(false); }
   };
@@ -263,46 +297,44 @@ export default function AtivosPage() {
                         </div>
                         <div className="space-y-2">
                           {itens.map(c => (
-                            <div key={c.id} className={`bg-white rounded-lg border p-2.5 shadow-sm ${c.oculto ? 'border-dashed border-gray-300 opacity-70' : 'border-gray-100'}`}>
+                            <div key={c.id}
+                              onClick={() => abrirFicha(c, 'dados')}
+                              className={`bg-white rounded-lg border p-2.5 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all ${c.oculto ? 'border-dashed border-gray-300 opacity-70' : 'border-gray-100'}`}>
                               <p className="text-sm font-semibold text-gray-800">
                                 {c.cliente_codigo ? `${c.cliente_codigo} · ` : ''}{c.cliente_nome || 'Cliente'}
                                 {c.plano && <span className="ml-1.5 align-middle text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: planoCor(c.plano) }}>{c.plano}</span>}
                               </p>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {c.etiqueta && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: c.etiqueta_cor || '#dc2626' }}>{c.etiqueta}</span>}
-                                {c.oculto && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">🙈 Oculto p/ vendedor</span>}
+                                {c.oculto && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">🙈 Oculto</span>}
                                 {c.saude && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: SAUDE_COR[c.saude] }}>{c.saude}</span>}
                                 {c.nota_prosystem != null && <span className="text-[10px] text-gray-500">★ {c.nota_prosystem}/5</span>}
                                 {c.caso_churn_id && <span className="text-[10px] text-red-600">⚠ caso</span>}
-                                {c.gerou_venda && <span className="text-[10px] text-blue-600">💰 {c.tipo_venda}</span>}
+                                {c.gerou_venda && <span className="text-[10px] text-blue-600">💰 oport.</span>}
                               </div>
-                              {/* Setas ◀ ▶ para mover o card entre colunas (cada movimento é registrado na ficha) */}
-                              <div className="flex items-center justify-between mt-2 mb-1">
+                              {/* Setas ◀ ▶ para mover o card — stopPropagation para não abrir a ficha */}
+                              <div className="flex items-center justify-between mt-2 mb-1" onClick={e => e.stopPropagation()}>
                                 {(() => { const idx = ETAPAS.findIndex(e => e.id === et.id); return (
                                   <>
-                                    <button disabled={idx <= 0} onClick={() => moverEtapa(c, ETAPAS[idx - 1].id)}
+                                    <button disabled={idx <= 0} onClick={e => { e.stopPropagation(); moverEtapa(c, ETAPAS[idx - 1].id); }}
                                       className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-600 disabled:opacity-30" title={idx > 0 ? `Mover p/ ${ETAPAS[idx - 1].label}` : ''}>◀</button>
                                     <span className="text-[10px] text-gray-400">{et.label}</span>
-                                    <button disabled={idx >= ETAPAS.length - 1} onClick={() => moverEtapa(c, ETAPAS[idx + 1].id)}
+                                    <button disabled={idx >= ETAPAS.length - 1} onClick={e => { e.stopPropagation(); moverEtapa(c, ETAPAS[idx + 1].id); }}
                                       className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-600 disabled:opacity-30" title={idx < ETAPAS.length - 1 ? `Mover p/ ${ETAPAS[idx + 1].label}` : ''}>▶</button>
                                   </>
                                 ); })()}
                               </div>
-                              <div className="flex gap-1 mt-2 flex-wrap">
-                                <button onClick={() => abrirFicha(c)} className="text-[11px] px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">📋 Ficha</button>
-                                {et.id === 'A_CONTATAR' && <button onClick={() => moverEtapa(c, 'EM_CONTATO')} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Iniciar</button>}
-                                {/* Registrar TENTATIVA sem precisar do questionário (conta no contador) */}
-                                {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={() => registrarTentativa(c)} className="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">📞 +1 tentativa{c.tentativas ? ` (${c.tentativas})` : ''}</button>}
-                                {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">Registrar contato</button>}
-                                {et.id === 'EM_CONTATO' && <button onClick={() => registrarTentativa(c, true)} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">Sem sucesso</button>}
-                                {/* Cotação enviada → fechar (concluir) */}
-                                {et.id === 'COTACAO' && <button onClick={() => moverEtapa(c, 'CONCLUIDO')} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Fechou</button>}
-                                {/* Em tratamento (churn) → resolvido (concluir) */}
-                                {et.id === 'EM_TRATAMENTO' && <button onClick={() => moverEtapa(c, 'CONCLUIDO')} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Resolvido</button>}
-                                {(et.id === 'COTACAO' || et.id === 'EM_TRATAMENTO' || et.id === 'SEM_SUCESSO') && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
-                                {et.id === 'CONCLUIDO' && <button onClick={() => setEditando({ ...c })} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
-                                {isGestor && <button onClick={() => etiquetarContato(c)} className="text-[11px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">🏷️ Etiqueta</button>}
-                                {isGestor && <button onClick={() => ocultarContato(c)} className="text-[11px] px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">{c.oculto ? '👁️ Exibir' : '🙈 Ocultar'}</button>}
+                              <div className="flex gap-1 mt-1 flex-wrap" onClick={e => e.stopPropagation()}>
+                                {et.id === 'A_CONTATAR' && <button onClick={e => { e.stopPropagation(); moverEtapa(c, 'EM_CONTATO'); }} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Iniciar</button>}
+                                {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={e => { e.stopPropagation(); registrarTentativa(c); }} className="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">📞 +1{c.tentativas ? ` (${c.tentativas})` : ''}</button>}
+                                {(et.id === 'A_CONTATAR' || et.id === 'EM_CONTATO') && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'questionario'); }} className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">📋 Questionário</button>}
+                                {et.id === 'EM_CONTATO' && <button onClick={e => { e.stopPropagation(); registrarTentativa(c, true); }} className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">Sem sucesso</button>}
+                                {et.id === 'COTACAO' && <button onClick={e => { e.stopPropagation(); moverEtapa(c, 'CONCLUIDO'); }} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Fechou</button>}
+                                {et.id === 'EM_TRATAMENTO' && <button onClick={e => { e.stopPropagation(); moverEtapa(c, 'CONCLUIDO'); }} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Resolvido</button>}
+                                {(et.id === 'COTACAO' || et.id === 'EM_TRATAMENTO' || et.id === 'SEM_SUCESSO') && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'questionario'); }} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
+                                {et.id === 'CONCLUIDO' && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'questionario'); }} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
+                                {isGestor && <button onClick={e => { e.stopPropagation(); etiquetarContato(c); }} className="text-[11px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">🏷️</button>}
+                                {isGestor && <button onClick={e => { e.stopPropagation(); ocultarContato(c); }} className="text-[11px] px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">{c.oculto ? '👁️' : '🙈'}</button>}
                               </div>
                             </div>
                           ))}
@@ -408,11 +440,14 @@ export default function AtivosPage() {
         </div>
       )}
 
-      {/* ─── Modal: Registrar contato (questionário) ─── */}
+      {/* ─── Modal: Registrar contato (questionário) — acessível via ficha ─── */}
       {editando && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold">Contato ativo — {editando.cliente_nome}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Questionário — {editando.cliente_nome}</h2>
+              <button onClick={() => setEditando(null)} className="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+            </div>
             <div className="space-y-2">
               {[
                 ['usa_sistema_ok', 'Usa bem o sistema e as ferramentas?'],
@@ -555,74 +590,275 @@ export default function AtivosPage() {
         </div>
       )}
 
-      {/* ─── Modal: Mini-ficha do cliente (consulta rápida) ─── */}
+      {/* ─── Modal: Ficha do cliente com abas ─── */}
       {ficha && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+            {/* Cabeçalho fixo */}
             {(() => {
               const d = ficha.dados; const cli = d?.cliente; const c = ficha.contato;
               const fone = (t?: string) => (t || '').replace(/\D/g, '');
               const wpp = (t?: string) => { const n = fone(t); return n ? (n.startsWith('55') ? n : '55' + n) : ''; };
               return (
                 <>
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between p-5 border-b border-gray-100">
                     <div>
                       <h2 className="text-lg font-semibold text-gray-900">{cli?.razao_social || cli?.nome_fantasia || cli?.nome || c.cliente_nome}</h2>
                       <p className="text-xs text-gray-500">{cli?.codigo ? `Código ${cli.codigo}` : ''}{cli?.grupo_tecnico ? ` · ${cli.grupo_tecnico}` : ''}</p>
                     </div>
-                    <div className="flex gap-1 flex-wrap justify-end">
+                    <div className="flex items-start gap-2 flex-wrap justify-end">
                       {(cli?.plano || c.plano) && <span className="text-[11px] font-bold px-2 py-0.5 rounded text-white" style={{ background: planoCor(cli?.plano || c.plano) }}>{cli?.plano || c.plano}</span>}
                       {(cli?.segmento || c.cli_segmento) && <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-700">{cli?.segmento || c.cli_segmento}</span>}
+                      <button onClick={() => setFicha(null)} className="text-gray-400 hover:text-gray-700 text-xl leading-none ml-2">×</button>
                     </div>
                   </div>
 
-                  {fichaLoading ? <p className="text-sm text-gray-400 py-4 text-center">Carregando…</p> : (
-                    <>
-                      {/* Contatos / telefones */}
-                      <div className="bg-slate-50 rounded-lg p-3">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">Contato</p>
-                        {cli?.contato && <p className="text-sm text-gray-700 mb-1">👤 {cli.contato}</p>}
-                        {[cli?.telefone || cli?.telefone1, cli?.telefone2].filter(Boolean).map((t: string, i: number) => (
-                          <div key={i} className="flex items-center justify-between text-sm py-1">
-                            <span className="text-gray-700">📞 {t}</span>
-                            <span className="flex gap-2">
-                              <a href={`tel:${fone(t)}`} className="text-blue-600 text-xs font-semibold">Ligar</a>
-                              <a href={`https://wa.me/${wpp(t)}`} target="_blank" rel="noopener noreferrer" className="text-green-600 text-xs font-semibold">WhatsApp</a>
-                            </span>
+                  {/* Abas */}
+                  <div className="flex border-b border-gray-100 px-5">
+                    {([
+                      { id: 'dados', label: '📋 Dados e histórico' },
+                      { id: 'questionario', label: '📝 Questionário' },
+                      { id: 'oportunidades', label: `💰 Oportunidades${fichaOports.filter(o => o.status === 'NEGOCIACAO').length ? ` (${fichaOports.filter(o => o.status === 'NEGOCIACAO').length})` : ''}` },
+                    ] as const).map(a => (
+                      <button key={a.id} onClick={() => { setFichaAba(a.id); if (a.id === 'questionario' && !editando) setEditando({ ...c }); }}
+                        className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${fichaAba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Conteúdo com scroll */}
+                  <div className="overflow-y-auto flex-1 p-5 space-y-3">
+                    {fichaLoading ? <p className="text-sm text-gray-400 py-4 text-center">Carregando…</p> : (
+                      <>
+                        {/* ── ABA: DADOS ── */}
+                        {fichaAba === 'dados' && (
+                          <>
+                            <div className="bg-slate-50 rounded-lg p-3">
+                              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Contato</p>
+                              {cli?.contato && <p className="text-sm text-gray-700 mb-1">👤 {cli.contato}</p>}
+                              {[cli?.telefone || cli?.telefone1, cli?.telefone2].filter(Boolean).map((t: string, i: number) => (
+                                <div key={i} className="flex items-center justify-between text-sm py-1">
+                                  <span className="text-gray-700">📞 {t}</span>
+                                  <span className="flex gap-2">
+                                    <a href={`tel:${fone(t)}`} className="text-blue-600 text-xs font-semibold">Ligar</a>
+                                    <a href={`https://wa.me/${wpp(t)}`} target="_blank" rel="noopener noreferrer" className="text-green-600 text-xs font-semibold">WhatsApp</a>
+                                  </span>
+                                </div>
+                              ))}
+                              {!(cli?.telefone || cli?.telefone1 || cli?.telefone2) && <p className="text-xs text-gray-400">Sem telefone cadastrado. Atualize ao registrar o contato.</p>}
+                              {cli?.email && <p className="text-sm text-gray-600 mt-1">✉️ {cli.email}</p>}
+                              {cli?.mensalidade_base != null && <p className="text-xs text-gray-500 mt-1">Mensalidade base: R$ {Number(cli.mensalidade_base).toLocaleString('pt-BR')}</p>}
+                            </div>
+                            {d?.contatos_pessoas?.length > 0 && (
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase mb-1">Pessoas</p>
+                                {d.contatos_pessoas.map((p: any) => (
+                                  <p key={p.id} className="text-sm text-gray-700">• {p.nome}{p.cargo ? ` (${p.cargo})` : ''}{p.telefone ? ` — ${p.telefone}` : ''}{p.principal ? ' ⭐' : ''}</p>
+                                ))}
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 uppercase mb-1">Atualizações recentes</p>
+                              {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
+                                <div key={ev.id} className="border-b border-gray-50 py-1.5">
+                                  <p className="text-sm text-gray-800">{ev.titulo}</p>
+                                  {ev.descricao && <p className="text-xs text-gray-500 whitespace-pre-line">{ev.descricao}</p>}
+                                  <p className="text-[10px] text-gray-400">{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
+                                </div>
+                              )) : <p className="text-xs text-gray-400">Sem atualizações ainda.</p>}
+                            </div>
+                          </>
+                        )}
+
+                        {/* ── ABA: QUESTIONÁRIO ── */}
+                        {fichaAba === 'questionario' && (
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              {[
+                                ['usa_sistema_ok', 'Usa bem o sistema e as ferramentas?'],
+                                ['suporte_ok', 'Satisfeito com o atendimento do suporte?'],
+                                ['tecnico_ok', 'Satisfeito com o técnico que atende?'],
+                                ['conhece_novas_ferr', 'Conhece as novas ferramentas?'],
+                                ['plus_apresentado', 'O plano Plus foi apresentado?'],
+                              ].map(([campo, label]) => (
+                                <div key={campo} className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">{label}</span>
+                                  <div className="flex gap-1">
+                                    {[['Sim', true], ['Não', false]].map(([txt, val]) => (
+                                      <button key={txt as string} onClick={() => setEditando({ ...(editando || c), [campo as string]: val })}
+                                        className={`px-3 py-1 rounded text-xs border ${(editando || c)[campo as string] === val ? (val ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300') : 'bg-white text-gray-500 border-gray-200'}`}>{txt}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-600">Nota geral do Prosystem (1 a 5)</label>
+                              <div className="flex gap-1 mt-1">
+                                {[1,2,3,4,5].map(n => (
+                                  <button key={n} onClick={() => setEditando({ ...(editando || c), nota_prosystem: n })}
+                                    className={`w-9 h-9 rounded-lg text-sm font-bold border ${Number((editando || c).nota_prosystem) === n ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-gray-400 border-gray-200'}`}>{n}</button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-600">Saúde percebida do cliente</label>
+                              <div className="flex gap-1 mt-1 flex-wrap">
+                                {SAUDE.map(s => (
+                                  <button key={s} onClick={() => setEditando({ ...(editando || c), saude: s })}
+                                    className={`px-2.5 py-1 rounded text-xs font-semibold border ${(editando || c).saude === s ? 'text-white' : 'bg-white text-gray-500 border-gray-200'}`}
+                                    style={(editando || c).saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : {}}>{s}</button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-600">Sugestões / observações</label>
+                              <textarea value={(editando || c).sugestoes || ''} onChange={e => setEditando({ ...(editando || c), sugestoes: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                              <label className="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={!!(editando || c).atualizar_cliente} onChange={e => setEditando({ ...(editando || c), atualizar_cliente: e.target.checked, cli_nome: (editando || c).cli_nome ?? c.cliente_nome })} />
+                                Atualizar cadastro do cliente
+                              </label>
+                              {(editando || c).atualizar_cliente && (
+                                <div className="space-y-2">
+                                  <input value={(editando || c).cli_nome ?? ''} onChange={e => setEditando({ ...(editando || c), cli_nome: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Nome / razão social" />
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <input value={(editando || c).cli_telefone1 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone1: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Telefone 1" />
+                                    <input value={(editando || c).cli_telefone2 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone2: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Telefone 2" />
+                                  </div>
+                                  <select value={(editando || c).cli_segmento ?? ''} onChange={e => setEditando({ ...(editando || c), cli_segmento: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                                    <option value="">— segmento —</option>
+                                    {['Farmácia', 'Manipulação', 'Padaria', 'Varejo'].map(s => <option key={s} value={s}>{s}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-3 space-y-2">
+                              <label className="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={!!(editando || c).tem_problema} onChange={e => setEditando({ ...(editando || c), tem_problema: e.target.checked })} />
+                                Há um problema / algo não resolvido
+                              </label>
+                              {(editando || c).tem_problema && (
+                                <>
+                                  <textarea value={(editando || c).problema_descricao || ''} onChange={e => setEditando({ ...(editando || c), problema_descricao: e.target.value })} rows={2} placeholder="Descreva o problema" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                                  {!c.caso_churn_id && (
+                                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                                      <input type="checkbox" checked={!!(editando || c).abrir_caso} onChange={e => setEditando({ ...(editando || c), abrir_caso: e.target.checked })} />
+                                      Abrir caso de retenção (churn) para tratar
+                                    </label>
+                                  )}
+                                  {c.caso_churn_id && <p className="text-xs text-red-600">⚠ Já existe um caso aberto a partir deste contato.</p>}
+                                </>
+                              )}
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                              <button onClick={() => { setEditando(null); setFichaAba('oportunidades'); }} className="flex-1 px-4 py-2 text-sm font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+                                💰 Registrar oportunidade
+                              </button>
+                              <button onClick={() => { if (!editando) setEditando({ ...c }); salvarQuestionario(); }} disabled={savingQ}
+                                className="flex-1 px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg disabled:opacity-50">
+                                {savingQ ? 'Salvando…' : 'Salvar questionário'}
+                              </button>
+                            </div>
                           </div>
-                        ))}
-                        {!(cli?.telefone || cli?.telefone1 || cli?.telefone2) && <p className="text-xs text-gray-400">Sem telefone cadastrado. Atualize ao registrar o contato.</p>}
-                        {cli?.email && <p className="text-sm text-gray-600 mt-1">✉️ {cli.email}</p>}
-                        {cli?.mensalidade_base != null && <p className="text-xs text-gray-500 mt-1">Mensalidade base: R$ {Number(cli.mensalidade_base).toLocaleString('pt-BR')}</p>}
-                      </div>
+                        )}
 
-                      {/* Pessoas de contato (se houver) */}
-                      {d?.contatos_pessoas?.length > 0 && (
-                        <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase mb-1">Pessoas</p>
-                          {d.contatos_pessoas.map((p: any) => (
-                            <p key={p.id} className="text-sm text-gray-700">• {p.nome}{p.cargo ? ` (${p.cargo})` : ''}{p.telefone ? ` — ${p.telefone}` : ''}{p.principal ? ' ⭐' : ''}</p>
-                          ))}
-                        </div>
-                      )}
+                        {/* ── ABA: OPORTUNIDADES ── */}
+                        {fichaAba === 'oportunidades' && (
+                          <div className="space-y-3">
+                            {fichaOports.length === 0 && !fichaOportsLoading && (
+                              <p className="text-xs text-gray-400 text-center py-3">Nenhuma oportunidade registrada ainda.</p>
+                            )}
+                            {fichaOports.map((o: any) => (
+                              <div key={o.id} className={`rounded-lg border p-3 ${o.status === 'NEGOCIACAO' ? 'border-blue-200 bg-blue-50' : o.status === 'CONFIRMADA' ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-semibold text-gray-800">{o.parceiro_nome || o.categoria || '—'}</p>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.status === 'NEGOCIACAO' ? 'bg-blue-200 text-blue-800' : o.status === 'CONFIRMADA' ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
+                                    {o.status === 'NEGOCIACAO' ? 'Em negociação' : o.status === 'CONFIRMADA' ? 'Confirmada' : 'Cancelada'}
+                                  </span>
+                                </div>
+                                {o.observacao && <p className="text-xs text-gray-600 mt-1">{o.observacao}</p>}
+                                {(o.valor_venda || o.acrescimo_mensal) && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {o.valor_venda ? `Setup: R$ ${Number(o.valor_venda).toLocaleString('pt-BR')}` : ''}
+                                    {o.acrescimo_mensal ? ` +R$ ${Number(o.acrescimo_mensal).toLocaleString('pt-BR')}/mês` : ''}
+                                  </p>
+                                )}
+                                <p className="text-[10px] text-gray-400 mt-1">{new Date(o.created_at).toLocaleDateString('pt-BR')}</p>
+                                {o.status === 'NEGOCIACAO' && (
+                                  <div className="flex gap-1 mt-2">
+                                    <button onClick={async () => {
+                                      if (!window.confirm('Confirmar fechamento? Isso vai criar a venda em Indicações.')) return;
+                                      try { await apiClient.confirmarOportunidade(o.id); carregarOports(c.id); loadContatos(); }
+                                      catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+                                    }} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Confirmar fechamento</button>
+                                    <button onClick={async () => {
+                                      if (!window.confirm('Cancelar esta oportunidade?')) return;
+                                      try { await apiClient.cancelarOportunidade(o.id); carregarOports(c.id); }
+                                      catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+                                    }} className="text-[11px] px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200">✕ Cancelar</button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
 
-                      {/* Atualizações / linha do tempo */}
-                      <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-1">Atualizações recentes</p>
-                        {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
-                          <div key={ev.id} className="border-b border-gray-50 py-1.5">
-                            <p className="text-sm text-gray-800">{ev.titulo}</p>
-                            {ev.descricao && <p className="text-xs text-gray-500 whitespace-pre-line">{ev.descricao}</p>}
-                            <p className="text-[10px] text-gray-400">{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
+                            {/* Form nova oportunidade */}
+                            {novaOport ? (
+                              <div className="bg-white rounded-lg border border-blue-200 p-3 space-y-2">
+                                <p className="text-xs font-semibold text-blue-700">Nova oportunidade</p>
+                                <select value={novaOport.parceiroId} onChange={e => setNovaOport({ ...novaOport, parceiroId: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                                  <option value="">— escolha o produto/oferta —</option>
+                                  {parceiros.map((p: any) => <option key={p.id} value={p.id}>{p.categoria} · {p.nome}</option>)}
+                                </select>
+                                {novaOport.parceiroId && (() => { const p = parceiros.find((x: any) => x.id === novaOport.parceiroId); return p?.pitch ? <p className="text-[11px] text-gray-500">{p.pitch}</p> : null; })()}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <input type="number" value={novaOport.valor} onChange={e => setNovaOport({ ...novaOport, valor: e.target.value })} placeholder="Setup R$" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                                  <input type="number" value={novaOport.acrescimo} onChange={e => setNovaOport({ ...novaOport, acrescimo: e.target.value })} placeholder="+Mensal R$" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                                </div>
+                                <textarea value={novaOport.obs} onChange={e => setNovaOport({ ...novaOport, obs: e.target.value })} placeholder="Observação (opcional)" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                                <div className="flex gap-2">
+                                  <button onClick={() => setNovaOport(null)} className="flex-1 px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg">Cancelar</button>
+                                  <button disabled={!novaOport.parceiroId || savingOport} onClick={async () => {
+                                    if (!novaOport.parceiroId) return;
+                                    setSavingOport(true);
+                                    try {
+                                      await apiClient.criarOportunidadeAtivo(c.id, {
+                                        parceiro_id: novaOport.parceiroId,
+                                        valor_venda: novaOport.valor ? Number(novaOport.valor) : undefined,
+                                        acrescimo_mensal: novaOport.acrescimo ? Number(novaOport.acrescimo) : undefined,
+                                        observacao: novaOport.obs || undefined,
+                                      });
+                                      setNovaOport(null);
+                                      carregarOports(c.id);
+                                      loadContatos();
+                                    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao registrar oportunidade'); }
+                                    finally { setSavingOport(false); }
+                                  }} className="flex-1 px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50">
+                                    {savingOport ? 'Salvando…' : 'Registrar'}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button onClick={() => setNovaOport({ parceiroId: '', valor: '', acrescimo: '', obs: '' })}
+                                className="w-full py-2.5 rounded-lg border-2 border-dashed border-blue-200 text-blue-600 text-sm font-semibold hover:bg-blue-50 transition-colors">
+                                + Nova oportunidade de venda
+                              </button>
+                            )}
                           </div>
-                        )) : <p className="text-xs text-gray-400">Sem atualizações ainda.</p>}
-                      </div>
-                    </>
-                  )}
+                        )}
+                      </>
+                    )}
+                  </div>
 
-                  <div className="flex justify-end gap-2 pt-1">
+                  {/* Footer fixo */}
+                  <div className="flex justify-between items-center px-5 py-3 border-t border-gray-100">
                     <button onClick={() => setFicha(null)} className="px-4 py-2 text-sm text-gray-500">Fechar</button>
-                    <button onClick={() => { const ct = ficha.contato; setFicha(null); setEditando({ ...ct }); }} className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">Registrar contato</button>
+                    <button onClick={() => { setFichaAba('questionario'); if (!editando) setEditando({ ...c }); }}
+                      className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">
+                      📝 Ir ao questionário
+                    </button>
                   </div>
                 </>
               );
