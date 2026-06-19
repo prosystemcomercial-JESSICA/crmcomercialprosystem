@@ -14,12 +14,30 @@ const CORES = ['#417ABC', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626',
 const fmt = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 const fmt0 = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
 
+const CATEGORIA_LABEL: Record<string, string> = {
+  FISCAL:       'Pacote Fiscal',
+  TEF:          'TEF',
+  TRIBUTARIO:   'Tributário',
+  COMUNICACAO:  'Comunicação',
+  UPGRADE:      'Upgrade de Plano',
+  OUTRO:        'Outro',
+};
+
+const TIPO_LABEL: Record<string, string> = {
+  INDICACAO: 'Indicação',
+  REVENDA:   'Revenda',
+};
+
 export default function VendasAdicionaisPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [d, setD] = useState<any>(null);
   const [carregando, setCarregando] = useState(true);
   const ano = new Date().getFullYear();
+
+  // Filtros da lista
+  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
 
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading]);
   const load = useCallback(async () => {
@@ -133,22 +151,95 @@ export default function VendasAdicionaisPage() {
 
             {/* Lista */}
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
-              <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>Vendas adicionais & indicações ({d.total})</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-400 border-b">{['Cliente', 'Parceiro', 'Categoria', 'Vendedor', 'Valor', '+Mensalidade'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
-                  <tbody>{d.lista.map((v: any, i: number) => (
-                    <tr key={i} className="border-b border-gray-50">
-                      <td className="py-2 pr-3 font-medium text-gray-800">{v.cliente}</td>
-                      <td className="pr-3 text-gray-600">{v.parceiro}</td>
-                      <td className="pr-3 text-xs text-gray-500">{v.categoria}</td>
-                      <td className="pr-3 text-gray-600">{v.vendedor}</td>
-                      <td className="pr-3 text-gray-800 font-semibold">{fmt(v.valor)}</td>
-                      <td className="pr-3 text-blue-700">{v.acrescimo > 0 ? `+${fmt(v.acrescimo)}` : '—'}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
+              {/* Filtros */}
+              <div className="flex flex-wrap gap-2 mb-4 items-center">
+                <span className="text-xs font-bold text-gray-500 mr-1">Filtrar:</span>
+
+                {/* Categoria */}
+                <div className="flex flex-wrap gap-1.5">
+                  {['', ...Object.keys(CATEGORIA_LABEL)].map(cat => {
+                    const qtd = cat === '' ? d.lista.length : d.lista.filter((v: any) => v.categoria === cat).length;
+                    if (qtd === 0 && cat !== '') return null;
+                    return (
+                      <button key={cat} onClick={() => setFiltroCategoria(cat)}
+                        className="px-3 py-1 rounded-full text-xs font-semibold transition-colors whitespace-nowrap"
+                        style={filtroCategoria === cat
+                          ? { background: PRO, color: '#fff' }
+                          : { background: '#F3F7FB', color: '#4A6E8A', border: '1px solid #E3ECF5' }}>
+                        {cat === '' ? `Todos (${qtd})` : `${CATEGORIA_LABEL[cat] || cat} (${qtd})`}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Divisor */}
+                <span className="text-gray-300 mx-1 hidden sm:inline">|</span>
+
+                {/* Tipo negócio */}
+                <div className="flex gap-1.5">
+                  {['', 'INDICACAO', 'REVENDA'].map(tipo => {
+                    const qtd = tipo === '' ? d.lista.length : d.lista.filter((v: any) => v.tipo === tipo).length;
+                    if (qtd === 0 && tipo !== '') return null;
+                    return (
+                      <button key={tipo} onClick={() => setFiltroTipo(tipo)}
+                        className="px-3 py-1 rounded-full text-xs font-semibold transition-colors whitespace-nowrap"
+                        style={filtroTipo === tipo
+                          ? { background: '#7C3AED', color: '#fff' }
+                          : { background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
+                        {tipo === '' ? 'Qualquer tipo' : `${TIPO_LABEL[tipo]} (${qtd})`}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {(() => {
+                const lista = d.lista.filter((v: any) =>
+                  (filtroCategoria === '' || v.categoria === filtroCategoria) &&
+                  (filtroTipo === '' || v.tipo === filtroTipo)
+                );
+                return (
+                  <>
+                    <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>
+                      Vendas adicionais & indicações ({lista.length}{lista.length !== d.total ? ` de ${d.total}` : ''})
+                    </h2>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs text-gray-400 border-b">
+                            {['Cliente', 'Parceiro', 'Categoria', 'Tipo', 'Vendedor', 'Valor', '+Mensalidade'].map(h =>
+                              <th key={h} className="py-1.5 pr-3">{h}</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lista.length === 0 ? (
+                            <tr><td colSpan={7} className="py-10 text-center text-gray-400 text-xs">Nenhuma venda encontrada com esses filtros.</td></tr>
+                          ) : lista.map((v: any, i: number) => (
+                            <tr key={i} className="border-b border-gray-50">
+                              <td className="py-2 pr-3 font-medium text-gray-800">{v.cliente}</td>
+                              <td className="pr-3 text-gray-600">{v.parceiro}</td>
+                              <td className="pr-3">
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EEF4FB', color: PRO_DARK }}>
+                                  {CATEGORIA_LABEL[v.categoria] || v.categoria}
+                                </span>
+                              </td>
+                              <td className="pr-3">
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#F5F3FF', color: '#6D28D9' }}>
+                                  {TIPO_LABEL[v.tipo] || v.tipo || '—'}
+                                </span>
+                              </td>
+                              <td className="pr-3 text-gray-600">{v.vendedor}</td>
+                              <td className="pr-3 text-gray-800 font-semibold">{fmt(v.valor)}</td>
+                              <td className="pr-3 text-blue-700">{v.acrescimo > 0 ? `+${fmt(v.acrescimo)}` : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
