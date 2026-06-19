@@ -446,8 +446,8 @@ export default function AtivosPage() {
         </div>
       )}
 
-      {/* ─── Modal: Registrar contato (questionário) — acessível via ficha ─── */}
-      {editando && (
+      {/* ─── Modal: Registrar contato (questionário) — só abre quando a ficha NÃO está aberta ─── */}
+      {editando && !ficha && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
@@ -631,7 +631,7 @@ export default function AtivosPage() {
                     ] as const).map(a => (
                       <button key={a.id} onClick={() => {
                         setFichaAba(a.id);
-                        if ((a.id === 'questionario' || a.id === 'cadastro') && !editando) setEditando({ ...c });
+                        if (a.id === 'questionario' && !editando) setEditando({ ...c });
                         if (a.id === 'atualizacoes') setNovaAtualizacao('');
                       }}
                         className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${fichaAba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
