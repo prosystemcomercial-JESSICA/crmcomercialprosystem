@@ -30,16 +30,25 @@ const STATUS_COR: Record<string, { bg: string; text: string; dot: string }> = {
 const RISK_COR = (s: number) => s >= 85 ? '#B91C1C' : s >= 70 ? '#DC2626' : s >= 40 ? '#D97706' : '#16A34A';
 const RISK_LABEL = (s: number) => s >= 85 ? 'CRÍTICO' : s >= 70 ? 'ALTO' : s >= 40 ? 'MÉDIO' : 'BAIXO';
 
-function diasAberto(created_at: string) {
-  return Math.floor((Date.now() - new Date(created_at).getTime()) / 86_400_000);
+const ENCERRADOS = ['RECUPERADO', 'PERDIDO'];
+
+// Para casos encerrados: dias entre abertura e encerramento (fixo).
+// Para casos abertos: dias desde abertura até hoje (contagem correndo).
+function calcDias(caso: Pick<Caso, 'status' | 'created_at' | 'updated_at'>): number {
+  const inicio = new Date(caso.created_at).getTime();
+  const fim = ENCERRADOS.includes(caso.status) && caso.updated_at
+    ? new Date(caso.updated_at).getTime()
+    : Date.now();
+  return Math.max(0, Math.floor((fim - inicio) / 86_400_000));
 }
 
-function DiasChip({ dias }: { dias: number }) {
-  const cor = dias >= 30 ? '#B91C1C' : dias >= 14 ? '#D97706' : '#374151';
-  const bg  = dias >= 30 ? '#FEE2E2' : dias >= 14 ? '#FEF9C3' : '#F3F4F6';
+function DiasChip({ dias, encerrado }: { dias: number; encerrado?: boolean }) {
+  const cor = encerrado ? '#6B7280' : dias >= 30 ? '#B91C1C' : dias >= 14 ? '#D97706' : '#374151';
+  const bg  = encerrado ? '#F3F4F6' : dias >= 30 ? '#FEE2E2' : dias >= 14 ? '#FEF9C3' : '#F3F4F6';
   return (
-    <span style={{ background: bg, color: cor, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-      {dias}d
+    <span title={encerrado ? `Duração total: ${dias} dias` : `Aberto há ${dias} dias`}
+      style={{ background: bg, color: cor, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+      {dias}d{encerrado ? ' total' : ''}
     </span>
   );
 }
@@ -89,8 +98,9 @@ const URGENCIA_COR = (dias: number) =>
 
 function RadarCard({ item, onClick }: { item: RadarItem; onClick: () => void }) {
   const { caso, atts, loading } = item;
-  const dias = diasAberto(caso.created_at);
-  const urg = URGENCIA_COR(dias);
+  const encerrado = ENCERRADOS.includes(caso.status);
+  const dias = calcDias(caso);
+  const urg = encerrado ? { bg: '#F3F4F6', text: '#374151', borda: '#E5E7EB' } : URGENCIA_COR(dias);
   const cor = STATUS_COR[caso.status] || STATUS_COR.NOVO;
   const ultimaAtt = atts[0];
   const responsavel = caso.cliente?.grupo_tecnico || '—';
@@ -133,7 +143,9 @@ function RadarCard({ item, onClick }: { item: RadarItem; onClick: () => void }) 
         {/* Tempo */}
         <div className="rounded-xl p-2 text-center" style={{ background: urg.bg, border: `1px solid ${urg.borda}` }}>
           <p className="text-[18px] font-black leading-tight" style={{ color: urg.text }}>{dias}</p>
-          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: urg.text, opacity: 0.75 }}>dias aberto</p>
+          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: urg.text, opacity: 0.75 }}>
+            {encerrado ? 'dias (total)' : 'dias aberto'}
+          </p>
         </div>
         {/* Ações */}
         <div className="rounded-xl p-2 text-center" style={{ background: '#F0F4FF', border: '1px solid #C7D7F5' }}>
@@ -387,7 +399,8 @@ export default function ChurnCEOPage() {
             ) : casos.length === 0 ? (
               <div className="text-center py-16 text-gray-400">Nenhum caso encontrado.</div>
             ) : casos.map(c => {
-              const dias = diasAberto(c.created_at);
+              const encerrado = ENCERRADOS.includes(c.status);
+              const dias = calcDias(c);
               const cor = STATUS_COR[c.status] || STATUS_COR.NOVO;
               const selecionado = casoSelecionado?.id === c.id;
               return (
@@ -418,7 +431,7 @@ export default function ChurnCEOPage() {
                         <span style={{ color: RISK_COR(c.risk_score), fontSize: 11, fontWeight: 700 }}>
                           {RISK_LABEL(c.risk_score)}
                         </span>
-                        <DiasChip dias={dias} />
+                        <DiasChip dias={dias} encerrado={encerrado} />
                       </div>
 
                       {/* Linha 2: técnico + motivo */}
@@ -441,17 +454,27 @@ export default function ChurnCEOPage() {
                       )}
                     </div>
 
-                    {/* Última atualização */}
+                    {/* Data + desfecho */}
                     <div className="text-right flex-shrink-0">
-                      <p className="text-[11px] text-gray-400">
-                        {c.updated_at
-                          ? new Date(c.updated_at).toLocaleDateString('pt-BR')
-                          : new Date(c.created_at).toLocaleDateString('pt-BR')}
-                      </p>
-                      {['RECUPERADO', 'PERDIDO'].includes(c.status) && (
-                        <p className="text-[11px] font-bold mt-0.5" style={{ color: c.status === 'RECUPERADO' ? '#16A34A' : '#DC2626' }}>
-                          {c.status === 'RECUPERADO' ? '✓ Resolvido' : '✕ Perdido'}
-                        </p>
+                      {encerrado ? (
+                        <>
+                          <p className="text-[10px] text-gray-400">encerrado em</p>
+                          <p className="text-[11px] font-semibold text-gray-600">
+                            {c.updated_at
+                              ? new Date(c.updated_at).toLocaleDateString('pt-BR')
+                              : new Date(c.created_at).toLocaleDateString('pt-BR')}
+                          </p>
+                          <p className="text-[11px] font-bold mt-0.5" style={{ color: c.status === 'RECUPERADO' ? '#16A34A' : '#DC2626' }}>
+                            {c.status === 'RECUPERADO' ? '✓ Recuperado' : '✕ Perdido'}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[10px] text-gray-400">aberto em</p>
+                          <p className="text-[11px] font-semibold text-gray-600">
+                            {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                          </p>
+                        </>
                       )}
                     </div>
                   </div>
@@ -475,7 +498,7 @@ export default function ChurnCEOPage() {
                     }}>
                       {STATUS_LABEL[casoSelecionado.status] || casoSelecionado.status}
                     </span>
-                    <DiasChip dias={diasAberto(casoSelecionado.created_at)} />
+                    <DiasChip dias={calcDias(casoSelecionado)} encerrado={ENCERRADOS.includes(casoSelecionado.status)} />
                   </div>
                 </div>
                 <button onClick={() => setCasoSelecionado(null)} className="text-gray-400 hover:text-gray-700 ml-2 flex-shrink-0">✕</button>
