@@ -15,12 +15,13 @@ const fmt = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFr
 const fmt0 = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
 
 const CATEGORIA_LABEL: Record<string, string> = {
-  FISCAL:       'Pacote Fiscal',
-  TEF:          'TEF',
-  TRIBUTARIO:   'Tributário',
-  COMUNICACAO:  'Comunicação',
-  UPGRADE:      'Upgrade de Plano',
-  OUTRO:        'Outro',
+  FISCAL:      'Pacote Fiscal',
+  TEF:         'TEF',
+  TRIBUTARIO:  'Tributário',
+  COMUNICACAO: 'Comunicação',
+  UPGRADE:     'Upgrade de Plano',
+  TROCA_CNPJ:  'Troca de CNPJ',
+  OUTRO:       'Outro',
 };
 
 const TIPO_LABEL: Record<string, string> = {
@@ -139,7 +140,7 @@ export default function VendasAdicionaisPage() {
                 {d.por_categoria.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
-                      <Pie data={d.por_categoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" innerRadius={48} outerRadius={82} paddingAngle={2} animationDuration={900} label={(p: any) => p.categoria}>
+                      <Pie data={d.por_categoria.map((c: any) => ({ ...c, nome: CATEGORIA_LABEL[c.categoria] || c.categoria }))} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={48} outerRadius={82} paddingAngle={2} animationDuration={900} label={(p: any) => p.nome}>
                         {d.por_categoria.map((_: any, i: number) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
                       </Pie>
                       <Tooltip formatter={(v: any) => fmt(v)} /><Legend />
