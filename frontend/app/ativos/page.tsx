@@ -106,6 +106,8 @@ export default function AtivosPage() {
       apiClient.getGruposTecnicos().then(r => setGrupos(r.data?.data || [])).catch(() => {});
       apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => {});
       apiClient.getPainelAtivos().then(r => setPainel(r.data?.data || null)).catch(() => {});
+      // Migração silenciosa: converte VendasAdicionais PENDENTE do fluxo antigo em OportunidadeAtivo
+      apiClient.migrarOportunidadesAtivos().catch(() => {});
     }
   }, [isAuthenticated, isGestor]);
 
