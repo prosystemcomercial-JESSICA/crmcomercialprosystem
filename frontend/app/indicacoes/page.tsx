@@ -96,6 +96,8 @@ export default function IndicacoesPage() {
   const [stats, setStats] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [categoriaFilter, setCategoriaFilter] = useState('');
+  const [vendedorFilter, setVendedorFilter] = useState('');
   const [clientes, setClientes] = useState<any[]>([]);
   const [clienteBusca, setClienteBusca] = useState('');
   const [clienteLoading, setClienteLoading] = useState(false);
@@ -242,6 +244,26 @@ export default function IndicacoesPage() {
   };
 
   const handleCreateVenda = async () => {
+    // Detecta duplicado: mesmo cliente + mesmo parceiro com venda não-cancelada
+    if (vendaForm.cliente_id && vendaForm.parceiro_id) {
+      const dupla = vendas.find(v =>
+        v.cliente_id === vendaForm.cliente_id &&
+        v.parceiro_id === vendaForm.parceiro_id &&
+        v.status !== 'CANCELADO'
+      );
+      if (dupla) {
+        const nomeCliente = dupla.cliente?.nome || vendaForm.cliente_id;
+        const nomeParceiro = dupla.parceiro?.nome || vendaForm.parceiro_id;
+        const confirmar = window.confirm(
+          `⚠️ POSSÍVEL DUPLICADO DETECTADO\n\n` +
+          `Já existe uma venda de "${nomeParceiro}" para "${nomeCliente}" com status "${STATUS_LABEL[dupla.status] || dupla.status}".\n\n` +
+          `Registrada em: ${new Date(dupla.created_at).toLocaleDateString('pt-BR')}\n\n` +
+          `Deseja registrar mesmo assim?`
+        );
+        if (!confirmar) return;
+      }
+    }
+
     setSavingVenda(true);
     try {
       const payload: any = {
@@ -479,23 +501,81 @@ export default function IndicacoesPage() {
         {/* Tab: Vendas */}
         {tab === 'vendas' && (
           <>
-            <div className="flex gap-2">
-              {(['', 'PENDENTE', 'CONFIRMADA', 'PAGA', 'CANCELADO'] as const).map(s => (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                  {s === '' ? 'Todas' : STATUS_LABEL[s]}
+            {/* Filtros */}
+            <div className="flex flex-wrap gap-x-4 gap-y-2 items-end">
+              {/* Status */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Status</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['', 'PENDENTE', 'CONFIRMADA', 'PAGA', 'CANCELADO'] as const).map(s => (
+                    <button key={s} onClick={() => setStatusFilter(s)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      {s === '' ? 'Todas' : STATUS_LABEL[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Categoria */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Categoria</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['', ...Object.keys(CATEGORIA_LABEL)] as const).map(cat => {
+                    const qtd = cat === '' ? vendas.length : vendas.filter(v => v.parceiro.categoria === cat).length;
+                    if (qtd === 0 && cat !== '') return null;
+                    return (
+                      <button key={cat} onClick={() => setCategoriaFilter(cat)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${categoriaFilter === cat ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                        {cat === '' ? 'Todas' : `${CATEGORIA_LABEL[cat]} (${qtd})`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Vendedor (gestor only) */}
+              {isGestor && (() => {
+                const vendedoresUnicos = [...new Map(
+                  vendas.filter(v => v.vendedor_id).map(v => [v.vendedor_id, (v as any).vendedor_nome || v.vendedor_id])
+                ).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+                if (vendedoresUnicos.length < 2) return null;
+                return (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Vendedor</p>
+                    <select value={vendedorFilter} onChange={e => setVendedorFilter(e.target.value)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                      <option value="">Todos</option>
+                      {vendedoresUnicos.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
+
+              {/* Limpar filtros */}
+              {(statusFilter || categoriaFilter || vendedorFilter) && (
+                <button onClick={() => { setStatusFilter(''); setCategoriaFilter(''); setVendedorFilter(''); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50 transition-colors self-end">
+                  ✕ Limpar filtros
                 </button>
-              ))}
+              )}
             </div>
 
+            {/* Lista filtrada */}
+            {(() => {
+              const listaFiltrada = vendas.filter(v =>
+                (!statusFilter || v.status === statusFilter) &&
+                (!categoriaFilter || v.parceiro.categoria === categoriaFilter) &&
+                (!vendedorFilter || v.vendedor_id === vendedorFilter)
+              );
+              return (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               {dataLoading ? (
                 <div className="p-8 text-center text-gray-500">Carregando...</div>
-              ) : vendas.length === 0 ? (
+              ) : listaFiltrada.length === 0 ? (
                 <div className="p-12 text-center">
                   <div className="text-4xl mb-3">💰</div>
-                  <p className="text-gray-500 font-medium">Nenhuma venda adicional registrada</p>
-                  <p className="text-sm text-gray-400 mt-1">Registre vendas de Pacote Fiscal, TEF, Avant/Imendes, Upgrade e mais</p>
+                  <p className="text-gray-500 font-medium">{vendas.length === 0 ? 'Nenhuma venda adicional registrada' : 'Nenhuma venda com esses filtros'}</p>
+                  <p className="text-sm text-gray-400 mt-1">{vendas.length === 0 ? 'Registre vendas de Pacote Fiscal, TEF, Avant/Imendes, Upgrade e mais' : `${vendas.length} venda(s) no total — ajuste os filtros acima`}</p>
                 </div>
               ) : (
                 <table className="w-full">
@@ -510,7 +590,7 @@ export default function IndicacoesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {vendas.map(v => (
+                    {listaFiltrada.map(v => (
                       <tr key={v.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-4">
                           <p className="font-medium text-gray-900">{v.cliente.nome}</p>
@@ -608,6 +688,8 @@ export default function IndicacoesPage() {
                 </table>
               )}
             </div>
+              );
+            })()}
           </>
         )}
 
@@ -739,6 +821,22 @@ export default function IndicacoesPage() {
                     {parceiroSelecionado.tabela_valores && ` · ${parceiroSelecionado.tabela_valores}`}
                   </p>
                 )}
+                {/* Aviso inline de duplicado */}
+                {vendaForm.cliente_id && vendaForm.parceiro_id && (() => {
+                  const dupla = vendas.find(v =>
+                    v.cliente_id === vendaForm.cliente_id &&
+                    v.parceiro_id === vendaForm.parceiro_id &&
+                    v.status !== 'CANCELADO'
+                  );
+                  if (!dupla) return null;
+                  return (
+                    <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      <p className="font-bold mb-0.5">⚠️ Possível duplicado detectado</p>
+                      <p>Já existe uma venda de <b>{dupla.parceiro?.nome}</b> para este cliente com status <b>{STATUS_LABEL[dupla.status] || dupla.status}</b> (registrada em {new Date(dupla.created_at).toLocaleDateString('pt-BR')}).</p>
+                      <p className="mt-0.5 text-amber-700">Você ainda pode salvar, mas confirme se não é um lançamento repetido.</p>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* ── COMUNICAÇÃO: lojas que vão se comunicar (acréscimo por loja) ── */}
