@@ -650,7 +650,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     const v: any = await prisma.vendaAdicional.findUnique({
       where: { id },
       include: {
-        cliente: { select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true } },
+        cliente: { select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true, grupo_tecnico: true } },
         parceiro: { select: { categoria: true, nome: true } },
       },
     });
@@ -730,10 +730,11 @@ ${setup > 0 ? condicoes : 'Sem cobrança de setup. Nova mensalidade a partir do 
     } else {
       // FISCAL / pacote fiscal e demais
       const titulo = cat === 'FISCAL' ? 'PACOTE FISCAL CONTRATADO:' : `${(v.parceiro?.nome || 'SERVIÇO ADICIONAL').toUpperCase()} CONTRATADO:`;
+      const tecnicoLinha = cli.grupo_tecnico ? `\nTécnico responsável: ${cli.grupo_tecnico}` : '';
       texto =
 `${titulo}
 
-${linhaCli(cli)}
+${linhaCli(cli)}${tecnicoLinha}
 
 A negociação ficou definida da seguinte forma:
 
