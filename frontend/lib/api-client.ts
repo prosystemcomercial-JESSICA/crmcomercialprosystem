@@ -663,6 +663,9 @@ class ApiClient {
   async getOportunidadesNegociacao() {
     return this.client.get('/ativos/oportunidades');
   }
+  async migrarOportunidadesAtivos() {
+    return this.client.post('/ativos/migrar-oportunidades', {});
+  }
 
   // Troca de CNPJ (venda adicional): atualiza cadastro (guarda antigo na ficha),
   // gera venda+comissão da taxa e cria contrato novo do mesmo plano.
