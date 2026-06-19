@@ -44,11 +44,13 @@ export default function AtivosPage() {
   const [filtroEtapa, setFiltroEtapa] = useState('');   // '' = todas; ou uma etapa específica
   const [ficha, setFicha] = useState<any>(null);        // mini-ficha aberta (consulta)
   const [fichaLoading, setFichaLoading] = useState(false);
-  const [fichaAba, setFichaAba] = useState<'dados' | 'questionario' | 'oportunidades'>('dados');
+  const [fichaAba, setFichaAba] = useState<'dados' | 'atualizacoes' | 'questionario' | 'oportunidades'>('dados');
   const [fichaOports, setFichaOports] = useState<any[]>([]);
   const [fichaOportsLoading, setFichaOportsLoading] = useState(false);
   const [novaOport, setNovaOport] = useState<{ parceiroId: string; valor: string; acrescimo: string; obs: string } | null>(null);
   const [savingOport, setSavingOport] = useState(false);
+  const [novaAtualizacao, setNovaAtualizacao] = useState('');
+  const [savingAtualizacao, setSavingAtualizacao] = useState(false);
 
   const abrirFicha = async (contato: any, aba: 'dados' | 'questionario' | 'oportunidades' = 'dados') => {
     setFicha({ contato, dados: null });
@@ -618,11 +620,12 @@ export default function AtivosPage() {
                   {/* Abas */}
                   <div className="flex border-b border-gray-100 px-5">
                     {([
-                      { id: 'dados', label: '📋 Dados e histórico' },
+                      { id: 'dados', label: '📋 Dados' },
+                      { id: 'atualizacoes', label: '✏️ Atualizações' },
                       { id: 'questionario', label: '📝 Questionário' },
-                      { id: 'oportunidades', label: `💰 Oportunidades${fichaOports.filter(o => o.status === 'NEGOCIACAO').length ? ` (${fichaOports.filter(o => o.status === 'NEGOCIACAO').length})` : ''}` },
+                      { id: 'oportunidades', label: `💰 Oport.${fichaOports.filter(o => o.status === 'NEGOCIACAO').length ? ` (${fichaOports.filter(o => o.status === 'NEGOCIACAO').length})` : ''}` },
                     ] as const).map(a => (
-                      <button key={a.id} onClick={() => { setFichaAba(a.id); if (a.id === 'questionario' && !editando) setEditando({ ...c }); }}
+                      <button key={a.id} onClick={() => { setFichaAba(a.id); if (a.id === 'questionario' && !editando) setEditando({ ...c }); if (a.id === 'atualizacoes') setNovaAtualizacao(''); }}
                         className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${fichaAba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                         {a.label}
                       </button>
@@ -671,6 +674,53 @@ export default function AtivosPage() {
                               )) : <p className="text-xs text-gray-400">Sem atualizações ainda.</p>}
                             </div>
                           </>
+                        )}
+
+                        {/* ── ABA: ATUALIZAÇÕES ── */}
+                        {fichaAba === 'atualizacoes' && (
+                          <div className="space-y-3">
+                            {/* Campo livre para nova atualização */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
+                              <p className="text-xs font-semibold text-gray-600">Nova atualização</p>
+                              <textarea
+                                value={novaAtualizacao}
+                                onChange={e => setNovaAtualizacao(e.target.value)}
+                                rows={3}
+                                placeholder="Escreva uma observação, próximo passo, retorno combinado…"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                              />
+                              <button
+                                disabled={!novaAtualizacao.trim() || savingAtualizacao}
+                                onClick={async () => {
+                                  if (!novaAtualizacao.trim()) return;
+                                  setSavingAtualizacao(true);
+                                  try {
+                                    await apiClient.registrarTentativaAtivo(c.id, { obs: novaAtualizacao.trim() });
+                                    setNovaAtualizacao('');
+                                    // Recarrega ficha para mostrar nova entrada na linha do tempo
+                                    const r = await apiClient.getFichaContatoAtivo(c.id);
+                                    setFicha((f: any) => f ? { ...f, dados: r.data?.data || null } : f);
+                                  } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar'); }
+                                  finally { setSavingAtualizacao(false); }
+                                }}
+                                className="w-full py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white disabled:opacity-40 transition-opacity"
+                              >
+                                {savingAtualizacao ? 'Salvando…' : '💾 Salvar atualização'}
+                              </button>
+                            </div>
+
+                            {/* Histórico de atualizações */}
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Histórico</p>
+                              {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
+                                <div key={ev.id} className="border-b border-gray-100 py-2">
+                                  <p className="text-sm text-gray-800">{ev.titulo}</p>
+                                  {ev.descricao && <p className="text-xs text-gray-600 whitespace-pre-line mt-0.5">{ev.descricao}</p>}
+                                  <p className="text-[10px] text-gray-400 mt-0.5">{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
+                                </div>
+                              )) : <p className="text-xs text-gray-400">Sem registros ainda.</p>}
+                            </div>
+                          </div>
                         )}
 
                         {/* ── ABA: QUESTIONÁRIO ── */}
