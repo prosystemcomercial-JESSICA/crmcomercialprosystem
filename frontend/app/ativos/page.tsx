@@ -44,7 +44,7 @@ export default function AtivosPage() {
   const [filtroEtapa, setFiltroEtapa] = useState('');   // '' = todas; ou uma etapa específica
   const [ficha, setFicha] = useState<any>(null);        // mini-ficha aberta (consulta)
   const [fichaLoading, setFichaLoading] = useState(false);
-  const [fichaAba, setFichaAba] = useState<'dados' | 'atualizacoes' | 'questionario' | 'oportunidades'>('dados');
+  const [fichaAba, setFichaAba] = useState<'dados' | 'atualizacoes' | 'questionario' | 'cadastro' | 'caso' | 'oportunidades'>('dados');
   const [fichaOports, setFichaOports] = useState<any[]>([]);
   const [fichaOportsLoading, setFichaOportsLoading] = useState(false);
   const [novaOport, setNovaOport] = useState<{ parceiroId: string; valor: string; acrescimo: string; obs: string } | null>(null);
@@ -623,10 +623,16 @@ export default function AtivosPage() {
                       { id: 'dados', label: '📋 Dados' },
                       { id: 'atualizacoes', label: '✏️ Atualizações' },
                       { id: 'questionario', label: '📝 Questionário' },
+                      { id: 'cadastro', label: '👤 Cadastro' },
+                      { id: 'caso', label: c.caso_churn_id ? '⚠️ Caso ●' : '⚠️ Caso' },
                       { id: 'oportunidades', label: `💰 Oport.${fichaOports.filter(o => o.status === 'NEGOCIACAO').length ? ` (${fichaOports.filter(o => o.status === 'NEGOCIACAO').length})` : ''}` },
                     ] as const).map(a => (
-                      <button key={a.id} onClick={() => { setFichaAba(a.id); if (a.id === 'questionario' && !editando) setEditando({ ...c }); if (a.id === 'atualizacoes') setNovaAtualizacao(''); }}
-                        className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${fichaAba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                      <button key={a.id} onClick={() => {
+                        setFichaAba(a.id);
+                        if ((a.id === 'questionario' || a.id === 'cadastro') && !editando) setEditando({ ...c });
+                        if (a.id === 'atualizacoes') setNovaAtualizacao('');
+                      }}
+                        className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${fichaAba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                         {a.label}
                       </button>
                     ))}
@@ -768,45 +774,8 @@ export default function AtivosPage() {
                               <label className="text-xs font-medium text-gray-600">Sugestões / observações</label>
                               <textarea value={(editando || c).sugestoes || ''} onChange={e => setEditando({ ...(editando || c), sugestoes: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                             </div>
-                            <div className="bg-slate-50 rounded-lg p-3 space-y-2">
-                              <label className="flex items-center gap-2 text-sm text-gray-700">
-                                <input type="checkbox" checked={!!(editando || c).atualizar_cliente} onChange={e => setEditando({ ...(editando || c), atualizar_cliente: e.target.checked, cli_nome: (editando || c).cli_nome ?? c.cliente_nome })} />
-                                Atualizar cadastro do cliente
-                              </label>
-                              {(editando || c).atualizar_cliente && (
-                                <div className="space-y-2">
-                                  <input value={(editando || c).cli_nome ?? ''} onChange={e => setEditando({ ...(editando || c), cli_nome: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Nome / razão social" />
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <input value={(editando || c).cli_telefone1 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone1: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Telefone 1" />
-                                    <input value={(editando || c).cli_telefone2 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone2: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Telefone 2" />
-                                  </div>
-                                  <select value={(editando || c).cli_segmento ?? ''} onChange={e => setEditando({ ...(editando || c), cli_segmento: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                                    <option value="">— segmento —</option>
-                                    {['Farmácia', 'Manipulação', 'Padaria', 'Varejo'].map(s => <option key={s} value={s}>{s}</option>)}
-                                  </select>
-                                </div>
-                              )}
-                            </div>
-                            <div className="bg-red-50 rounded-lg p-3 space-y-2">
-                              <label className="flex items-center gap-2 text-sm text-gray-700">
-                                <input type="checkbox" checked={!!(editando || c).tem_problema} onChange={e => setEditando({ ...(editando || c), tem_problema: e.target.checked })} />
-                                Há um problema / algo não resolvido
-                              </label>
-                              {(editando || c).tem_problema && (
-                                <>
-                                  <textarea value={(editando || c).problema_descricao || ''} onChange={e => setEditando({ ...(editando || c), problema_descricao: e.target.value })} rows={2} placeholder="Descreva o problema" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-                                  {!c.caso_churn_id && (
-                                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                                      <input type="checkbox" checked={!!(editando || c).abrir_caso} onChange={e => setEditando({ ...(editando || c), abrir_caso: e.target.checked })} />
-                                      Abrir caso de retenção (churn) para tratar
-                                    </label>
-                                  )}
-                                  {c.caso_churn_id && <p className="text-xs text-red-600">⚠ Já existe um caso aberto a partir deste contato.</p>}
-                                </>
-                              )}
-                            </div>
                             <div className="flex gap-2 pt-1">
-                              <button onClick={() => { setEditando(null); setFichaAba('oportunidades'); }} className="flex-1 px-4 py-2 text-sm font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+                              <button onClick={() => { setFichaAba('oportunidades'); }} className="flex-1 px-4 py-2 text-sm font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
                                 💰 Registrar oportunidade
                               </button>
                               <button onClick={() => { if (!editando) setEditando({ ...c }); salvarQuestionario(); }} disabled={savingQ}
@@ -814,6 +783,76 @@ export default function AtivosPage() {
                                 {savingQ ? 'Salvando…' : 'Salvar questionário'}
                               </button>
                             </div>
+                          </div>
+                        )}
+
+                        {/* ── ABA: CADASTRO ── */}
+                        {fichaAba === 'cadastro' && (
+                          <div className="space-y-3">
+                            <p className="text-xs text-gray-500">Atualize os dados cadastrais do cliente. As alterações são salvas junto com o questionário.</p>
+                            <div className="space-y-2">
+                              <div>
+                                <label className="text-xs font-medium text-gray-600">Nome / Razão social</label>
+                                <input value={(editando || c).cli_nome ?? c.cliente_nome ?? ''} onChange={e => setEditando({ ...(editando || c), cli_nome: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Nome / razão social" />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs font-medium text-gray-600">Telefone 1</label>
+                                  <input value={(editando || c).cli_telefone1 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone1: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-gray-600">Telefone 2</label>
+                                  <input value={(editando || c).cli_telefone2 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone2: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs font-medium text-gray-600">Segmento</label>
+                                <select value={(editando || c).cli_segmento ?? ''} onChange={e => setEditando({ ...(editando || c), cli_segmento: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                                  <option value="">— segmento —</option>
+                                  {['Farmácia', 'Manipulação', 'Padaria', 'Varejo'].map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                            <button onClick={() => { if (!editando) setEditando({ ...c }); salvarQuestionario(); }} disabled={savingQ}
+                              className="w-full py-2 text-sm font-semibold bg-green-600 text-white rounded-lg disabled:opacity-50">
+                              {savingQ ? 'Salvando…' : '💾 Salvar cadastro'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* ── ABA: CASO ── */}
+                        {fichaAba === 'caso' && (
+                          <div className="space-y-3">
+                            {c.caso_churn_id ? (
+                              <div className="bg-red-50 rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-red-700">⚠️ Caso de retenção aberto</p>
+                                <p className="text-xs text-red-600">Este cliente já possui um caso de churn vinculado. Acesse a aba Churn para acompanhar.</p>
+                              </div>
+                            ) : (
+                              <div className="bg-red-50 rounded-lg p-4 space-y-3">
+                                <p className="text-sm font-semibold text-red-700">Abrir caso de retenção</p>
+                                <p className="text-xs text-gray-600">Use quando o cliente reportar um problema sério, risco de cancelamento ou insatisfação que precisa de acompanhamento.</p>
+                                <div>
+                                  <label className="text-xs font-medium text-gray-600">Descrição do problema</label>
+                                  <textarea
+                                    value={(editando || c).problema_descricao || ''}
+                                    onChange={e => setEditando({ ...(editando || c), problema_descricao: e.target.value, tem_problema: true })}
+                                    rows={3}
+                                    placeholder="Descreva o problema ou motivo do risco de churn…"
+                                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none"
+                                  />
+                                </div>
+                                <button
+                                  disabled={!(editando || c).problema_descricao?.trim() || savingQ}
+                                  onClick={() => {
+                                    setEditando({ ...(editando || c), abrir_caso: true, tem_problema: true });
+                                    setTimeout(() => salvarQuestionario(), 0);
+                                  }}
+                                  className="w-full py-2 text-sm font-semibold bg-red-600 text-white rounded-lg disabled:opacity-40">
+                                  {savingQ ? 'Abrindo…' : '⚠️ Abrir caso de retenção'}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
 
