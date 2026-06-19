@@ -112,7 +112,18 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); k=d['data']['kpis']; print\\(f'leads_total: {k.get\\(\\\\\"leads_mes\\\\\"\\)}, MRR: R\\\\$ {k.get\\(\\\\\"mrr\\\\\"\\)}, ganhos: {k.get\\(\\\\\"leads_ganhos_mes\\\\\"\\)}, perdidos: {k.get\\(\\\\\"leads_perdidos_mes\\\\\"\\)}'\\)\")",
       "Bash(Start-Sleep -Seconds 8)",
       "Bash(Get-Content \"C:\\\\Users\\\\prosy\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-prosy-Documents-CRM-COMERCIAL-PROSYSTEM\\\\fd8392b6-84d3-46bf-a707-12ce44a66201\\\\tasks\\\\bgbvrm8gr.output\")",
-      "Bash(Select-Object -First 50)"
+      "Bash(Select-Object -First 50)",
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $env:PATH = $env:PATH + \";C:\\\\Program Files\\\\Git\\\\cmd;C:\\\\Program Files\\\\Git\\\\bin\"; git remote -v; Write-Host \"=== STATUS ===\"; git status; Write-Host \"=== BRANCH ===\"; git branch -a)",
+      "PowerShell(& \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" --version)",
+      "PowerShell(& \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" repo view prosystemcomercial-JESSICA/crmcomercialprosystem 2>&1)",
+      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\Git\\\\cmd\"; git --version)",
+      "Read(//c/Program Files/Git/cmd/**)",
+      "Read(//c/Program Files/**)",
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; & \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" api repos/prosystemcomercial-JESSICA/crmcomercialprosystem/branches 2>&1 | ConvertFrom-Json | ForEach-Object { $_.name })",
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $result = & \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" api \"repos/prosystemcomercial-JESSICA/crmcomercialprosystem/commits\" 2>&1; $json = $result | ConvertFrom-Json; $json | ForEach-Object { $_.commit.author.date.Substring\\(0,10\\) + \" | \" + $_.commit.message.Split\\(\"`n\"\\)[0] } | Select-Object -First 15)",
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $result = & \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" api \"repos/prosystemcomercial-JESSICA/crmcomercialprosystem/commits\" 2>&1; $json = $result | ConvertFrom-Json; $json | ForEach-Object { $_.commit.author.date.Substring\\(0,10\\) + \" | \" + $_.commit.message.Split\\(\"`n\"\\)[0] } | Select-Object -Skip 15 -First 15)",
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $env:GIT_EXEC_PATH = \"\"; & \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status 2>&1 | Select-Object -First 3)",
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $gitExe = \"C:\\\\Users\\\\prosy\\\\AppData\\\\Local\\\\GitHubDesktop\\\\app-3.4.20\\\\resources\\\\app\\\\git\\\\mingw64\\\\bin\\\\git.exe\"; if \\(Test-Path $gitExe\\) { & $gitExe --version } else { Write-Host \"nao encontrado\" })"
     ],
     "additionalDirectories": [
       "C:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\frontend\\app\\p\\[token]"
