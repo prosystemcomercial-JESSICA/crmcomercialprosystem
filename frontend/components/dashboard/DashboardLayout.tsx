@@ -28,7 +28,7 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN'];
 // O CEO vê só o EXECUTIVO (resultado/direção) — nada de operacional/admin.
 // Estas são as ÚNICAS rotas visíveis no menu para o role CEO.
-const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/comissoes-vendas', '/vendas-adicionais'];
+const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/comissoes-vendas', '/vendas-adicionais', '/churn-ceo'];
 
 type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp'; externoComToken?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
@@ -88,6 +88,7 @@ const navGroups: NavGroup[] = [
     label: 'Retenção',
     items: [
       { href: '/ativos',       icon: Sprout,   label: 'Ativos (CS)',      roles: COMERCIAL },
+      { href: '/churn-ceo',    icon: Flame,    label: 'Churn — Visão CEO', roles: SO_CEO },
       { href: '/casos',        icon: Flame,    label: 'Churn & Retenção', roles: TECNICO },
       { href: '/health-score', icon: Activity, label: 'Health Score',     roles: TECNICO },
       { href: '/nps',          icon: Star,     label: 'NPS',              roles: TECNICO },
