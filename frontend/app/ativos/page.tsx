@@ -615,7 +615,7 @@ export default function AtivosPage() {
                     <div className="flex items-start gap-2 flex-wrap justify-end">
                       {(cli?.plano || c.plano) && <span className="text-[11px] font-bold px-2 py-0.5 rounded text-white" style={{ background: planoCor(cli?.plano || c.plano) }}>{cli?.plano || c.plano}</span>}
                       {(cli?.segmento || c.cli_segmento) && <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-700">{cli?.segmento || c.cli_segmento}</span>}
-                      <button onClick={() => setFicha(null)} className="text-gray-400 hover:text-gray-700 text-xl leading-none ml-2">×</button>
+                      <button onClick={() => { setFicha(null); setEditando(null); }} className="text-gray-400 hover:text-gray-700 text-xl leading-none ml-2">×</button>
                     </div>
                   </div>
 
@@ -947,7 +947,7 @@ export default function AtivosPage() {
 
                   {/* Footer fixo */}
                   <div className="flex justify-between items-center px-5 py-3 border-t border-gray-100">
-                    <button onClick={() => setFicha(null)} className="px-4 py-2 text-sm text-gray-500">Fechar</button>
+                    <button onClick={() => { setFicha(null); setEditando(null); }} className="px-4 py-2 text-sm text-gray-500">Fechar</button>
                     <button onClick={() => { setFichaAba('questionario'); if (!editando) setEditando({ ...c }); }}
                       className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">
                       📝 Ir ao questionário
