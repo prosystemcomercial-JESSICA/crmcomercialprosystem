@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { ownerWhere } from '@/lib/scope';
+import { ownerWhere, getUser, podeVerTudo } from '@/lib/scope';
 
 export async function complementosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -78,27 +78,35 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
   // ===== ALERTAS =====
   fastify.get('/alertas', async (request, reply) => {
     const now = new Date();
-    const ontem = new Date(now);
-    ontem.setDate(ontem.getDate() - 1);
     const seteAtras = new Date(now);
     seteAtras.setDate(seteAtras.getDate() - 7);
-    const trintaAtras = new Date(now);
-    trintaAtras.setDate(trintaAtras.getDate() - 30);
+    const tresDiasAtras = new Date(now);
+    tresDiasAtras.setDate(tresDiasAtras.getDate() - 3);
+
+    const user = getUser(request);
+    const role = (user?.role || '').toUpperCase();
+    const isCEO = role === 'CEO';
+    const isAdmin = role === 'ADMIN';
+    const isGestorComercial = isCEO || isAdmin || role === 'SUPERVISAO_COMERCIAL' || role === 'SUPERVISAO';
 
     // Cada alerta é escopado ao dono: vendedor vê só os seus; gestor vê todos.
     const escAtiv = ownerWhere(request, 'Atividade');
     const escLead = ownerWhere(request, 'Lead');
     const escProp = ownerWhere(request, 'Proposta');
+
+    // CEO e ADMIN não precisam de alertas de leads sem atividade nem proposta expirando.
+    // CEO não precisa de alertas de atividades (foco em novas vendas).
+    // ADMIN foca em compromissos (atividades) + novas vendas.
     const [atrasadas, vencem_hoje, sem_atividade, propostas_expiram] = await Promise.all([
-      // Atividades atrasadas (vencidas e ainda pendentes)
-      prisma.atividade.findMany({
+      // Atividades atrasadas — CEO não vê (não gerencia atividades de vendedores no sino)
+      isCEO ? Promise.resolve([]) : prisma.atividade.findMany({
         where: { status: 'PENDENTE', data_prevista: { lt: now }, ...escAtiv },
         include: { lead: { select: { id: true, nome: true, empresa: true } } },
         orderBy: { data_prevista: 'asc' },
         take: 20
       }),
-      // Atividades que vencem hoje
-      prisma.atividade.findMany({
+      // Atividades que vencem hoje — CEO não vê
+      isCEO ? Promise.resolve([]) : prisma.atividade.findMany({
         where: {
           status: 'PENDENTE',
           data_prevista: {
@@ -110,8 +118,8 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         include: { lead: { select: { id: true, nome: true, empresa: true } } },
         take: 20
       }),
-      // Leads sem atividade há 7+ dias
-      prisma.lead.findMany({
+      // Leads sem atividade — só vendedores e supervisão comercial (não CEO/ADMIN)
+      (isCEO || isAdmin) ? Promise.resolve([]) : prisma.lead.findMany({
         where: {
           status: { notIn: ['GANHO', 'PERDIDO'] },
           updated_at: { lt: seteAtras },
@@ -120,8 +128,8 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         orderBy: { updated_at: 'asc' },
         take: 15
       }),
-      // Propostas que expiram nos próximos 3 dias
-      prisma.proposta.findMany({
+      // Propostas expirando — só vendedores e supervisão (não CEO/ADMIN)
+      (isCEO || isAdmin) ? Promise.resolve([]) : prisma.proposta.findMany({
         where: {
           status: { in: ['ENVIADA', 'VISUALIZADA'] },
           validade: { gt: now, lt: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) },
@@ -133,11 +141,10 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     ]);
 
     // Novos leads atribuídos pela supervisão (ainda não vistos pelo vendedor)
-    // Escopo por dono via SQL (atribuicao_vista pode não existir em bases antigas → catch).
     const escNovo = ownerWhere(request, 'Lead');
     let novos_atribuidos: any[] = [];
-    if (escNovo.OR || escNovo.responsavel_id) {
-      const uid = (request as any).user?.id || '__no_user__';
+    if (!isCEO && !isAdmin && (escNovo.OR || escNovo.responsavel_id)) {
+      const uid = user?.id || '__no_user__';
       novos_atribuidos = await prisma.$queryRawUnsafe(
         `SELECT id, nome, empresa, atribuido_em FROM \`Lead\`
          WHERE atribuicao_vista = 0 AND atribuido_em IS NOT NULL
@@ -146,11 +153,11 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       ).catch(() => []);
     }
 
-    // Follow-up: leads cuja PRÓXIMA AÇÃO de cadência já venceu (toque pendente).
+    // Follow-up: leads cuja PRÓXIMA AÇÃO de cadência já venceu (CEO não vê)
     let followup_pendente: any[] = [];
-    {
-      const uid = (request as any).user?.id || '__no_user__';
-      const verTudo = !(escNovo.OR || escNovo.responsavel_id); // gestor vê tudo
+    if (!isCEO) {
+      const uid = user?.id || '__no_user__';
+      const verTudo = podeVerTudo(user);
       followup_pendente = await prisma.$queryRawUnsafe(
         `SELECT p.lead_id AS id, p.coluna_chave, p.tentativas, p.proxima_acao_em, l.nome, l.empresa
            FROM LeadQuadroPosicao p
@@ -163,11 +170,11 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       ).catch(() => []);
     }
 
-    // Implantações com prazo de virada/finalização perto ou estourado (técnico + gestão).
+    // Implantações com prazo perto ou estourado (técnico + gestão, não CEO)
     let implantacoes_prazo: any[] = [];
-    {
-      const uid = (request as any).user?.id || '__no_user__';
-      const verTudo = !(escNovo.OR || escNovo.responsavel_id);
+    if (!isCEO) {
+      const uid = user?.id || '__no_user__';
+      const verTudo = podeVerTudo(user);
       implantacoes_prazo = await prisma.$queryRawUnsafe(
         `SELECT id, cliente_razao_social, tecnico_id, tecnico_nome, prazo_virada, prazo_finalizacao,
                 data_instalacao, data_conclusao, status
@@ -183,7 +190,75 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       ).catch(() => []);
     }
 
+    // ── Novas vendas adicionais/indicações (últimos 3 dias, qualquer vendedor)
+    // CEO e ADMIN veem todas; outros não veem este bloco.
+    let novas_vendas: any[] = [];
+    if (isCEO || isAdmin) {
+      novas_vendas = await (prisma as any).vendaAdicional.findMany({
+        where: { created_at: { gte: tresDiasAtras } },
+        include: {
+          cliente: { select: { razao_social: true, nome_fantasia: true, nome: true } },
+          parceiro: { select: { nome: true, categoria: true } },
+        },
+        orderBy: { created_at: 'desc' },
+        take: 30,
+      }).catch(() => []);
+    }
+
+    // ── Novos contratos comerciais (últimos 3 dias, qualquer vendedor) — CEO e ADMIN
+    let novos_contratos: any[] = [];
+    if (isCEO || isAdmin) {
+      novos_contratos = await (prisma as any).contratoComercial.findMany({
+        where: { created_at: { gte: tresDiasAtras } },
+        select: {
+          id: true, created_at: true,
+          razao_social: true, nome_fantasia: true,
+          plano_contratado: true, tipo_servico: true,
+          vendedor_nome: true,
+        },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+      }).catch(() => []);
+    }
+
+    const CATEGORIA_LABEL: Record<string, string> = {
+      FISCAL: 'Pacote Fiscal', TEF: 'TEF', TRIBUTARIO: 'Tributário',
+      COMUNICACAO: 'Comunicação', UPGRADE: 'Upgrade', TROCA_CNPJ: 'Troca CNPJ', OUTRO: 'Outro',
+    };
+
     const alertas = [
+      // Novas vendas adicionais/indicações (CEO e ADMIN)
+      ...novas_vendas.map((v: any) => {
+        const nomeCliente = v.cliente?.razao_social || v.cliente?.nome_fantasia || v.cliente?.nome || 'Cliente';
+        const cat = CATEGORIA_LABEL[v.parceiro?.categoria] || v.parceiro?.categoria || '';
+        const dias = Math.floor((now.getTime() - new Date(v.created_at).getTime()) / 86_400_000);
+        return {
+          id: `nv-${v.id}`,
+          tipo: 'NOVA_VENDA_ADICIONAL',
+          urgencia: 'ALTA' as const,
+          titulo: `Nova venda: ${v.parceiro?.nome || cat}`,
+          descricao: `${nomeCliente} · ${cat}${dias === 0 ? ' · hoje' : ` · há ${dias} dia(s)`}`,
+          data: v.created_at,
+          link: `/indicacoes`,
+        };
+      }),
+      // Novos contratos (CEO e ADMIN)
+      ...novos_contratos.map((c: any) => {
+        const nomeCliente = c.razao_social || c.nome_fantasia || 'Cliente';
+        const dias = Math.floor((now.getTime() - new Date(c.created_at).getTime()) / 86_400_000);
+        const tipo = c.tipo_servico === 'TROCA_CNPJ' ? 'Troca de CNPJ' : 'Novo contrato';
+        const plano = c.plano_contratado ? ` · ${c.plano_contratado}` : '';
+        const vendedor = c.vendedor_nome ? ` · ${c.vendedor_nome}` : '';
+        return {
+          id: `nc-${c.id}`,
+          tipo: 'NOVO_CONTRATO',
+          urgencia: 'ALTA' as const,
+          titulo: `${tipo}: ${nomeCliente}`,
+          descricao: `${plano}${vendedor}${dias === 0 ? ' · hoje' : ` · há ${dias} dia(s)`}`.replace(/^\s*·\s*/, '').trim(),
+          data: c.created_at,
+          link: `/contratos-comerciais`,
+        };
+      }),
       ...implantacoes_prazo.map((i: any) => {
         const venceVirada = !i.data_instalacao && i.prazo_virada;
         const alvo = venceVirada ? i.prazo_virada : i.prazo_finalizacao;
@@ -217,7 +292,7 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         data: l.proxima_acao_em,
         link: `/leads?id=${l.id}`
       })),
-      ...atrasadas.map(a => ({
+      ...atrasadas.map((a: any) => ({
         id: `at-${a.id}`,
         tipo: 'ATIVIDADE_ATRASADA',
         urgencia: 'ALTA',
@@ -226,7 +301,7 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         data: a.data_prevista,
         link: `/leads?id=${a.lead_id}`
       })),
-      ...vencem_hoje.map(a => ({
+      ...vencem_hoje.map((a: any) => ({
         id: `vh-${a.id}`,
         tipo: 'VENCE_HOJE',
         urgencia: 'MEDIA',
@@ -235,7 +310,7 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         data: a.data_prevista,
         link: `/leads?id=${a.lead_id}`
       })),
-      ...sem_atividade.map(l => ({
+      ...sem_atividade.map((l: any) => ({
         id: `sa-${l.id}`,
         tipo: 'SEM_ATIVIDADE',
         urgencia: 'BAIXA',
@@ -244,7 +319,7 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         data: l.updated_at,
         link: `/leads`
       })),
-      ...propostas_expiram.map(p => ({
+      ...propostas_expiram.map((p: any) => ({
         id: `pe-${p.id}`,
         tipo: 'PROPOSTA_EXPIRANDO',
         urgencia: 'ALTA',
