@@ -800,7 +800,39 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         'Os dados já foram trocados no suporte e CRM',
       ].join('\n');
 
-      return reply.send({ status: 'success', data: { cliente, venda, contrato, resumo }, message: 'Troca de CNPJ registrada: cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.' });
+      // Texto para o técnico responsável: instruções de troca de CNPJ no sistema.
+      const tecnico = atual.grupo_tecnico || null;
+      const endNovo = [b.endereco, b.numero_end, b.bairro, b.cidade, b.estado].filter(Boolean).join(', ');
+      const endAntigo = [atual.endereco, atual.numero_end, atual.bairro, atual.cidade, atual.estado].filter(Boolean).join(', ');
+      const resumo_tecnico = [
+        tecnico ? `Responsável técnico: ${tecnico}` : 'Responsável técnico: (não definido no cadastro)',
+        '',
+        '📋 DEMANDA — Troca de CNPJ no sistema',
+        '',
+        '▸ CLIENTE',
+        `  Código: ${atual.codigo || '(sem código)'}`,
+        `  CNPJ ANTIGO: ${atual.cnpj || '(vazio)'}`,
+        `  Razão Social ANTIGA: ${razaoAntiga}`,
+        atual.nome_fantasia ? `  Nome Fantasia ANTIGO: ${atual.nome_fantasia}` : '',
+        atual.inscricao_estadual ? `  Inscrição Est. ANTIGA: ${atual.inscricao_estadual}` : '',
+        endAntigo ? `  Endereço ANTIGO: ${endAntigo}` : '',
+        '',
+        '▸ NOVOS DADOS',
+        `  CNPJ NOVO: ${b.cnpj_novo}`,
+        b.razao_social_nova ? `  Razão Social NOVA: ${b.razao_social_nova}` : '',
+        b.nome_fantasia_nova ? `  Nome Fantasia NOVO: ${b.nome_fantasia_nova}` : '',
+        b.inscricao_nova ? `  Inscrição Est. NOVA: ${b.inscricao_nova}` : '',
+        endNovo ? `  Endereço NOVO: ${endNovo}` : '',
+        b.cep ? `  CEP: ${b.cep}` : '',
+        b.telefone ? `  Telefone: ${b.telefone}` : '',
+        b.email ? `  E-mail: ${b.email}` : '',
+        b.motivo ? `  Motivo: ${b.motivo}` : '',
+        '',
+        'Por favor, atualize o cadastro no sistema com os novos dados acima.',
+        'Os dados já foram atualizados no CRM.',
+      ].filter(l => l !== '').join('\n');
+
+      return reply.send({ status: 'success', data: { cliente, venda, contrato, resumo, resumo_tecnico, tecnico_responsavel: tecnico }, message: 'Troca de CNPJ registrada: cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.' });
     } catch (err: any) {
       console.error('[POST /contratos-comerciais/troca-cnpj]', err);
       return reply.status(500).send({ status: 'error', message: 'Erro ao processar a troca de CNPJ' });
