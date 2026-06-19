@@ -44,21 +44,23 @@ interface VendaAdicional {
 }
 
 const CATEGORIA_LABEL: Record<string, string> = {
-  FISCAL: 'Fiscal',
-  TEF: 'TEF',
-  TRIBUTARIO: 'Corretor Tributário',
+  FISCAL:      'Fiscal',
+  TEF:         'TEF',
+  TRIBUTARIO:  'Corretor Tributário',
   COMUNICACAO: 'Comunicação',
-  UPGRADE: 'Upgrade',
-  OUTRO: 'Outro',
+  UPGRADE:     'Upgrade',
+  TROCA_CNPJ:  'Troca de CNPJ',
+  OUTRO:       'Outro',
 };
 
 const CATEGORIA_COLOR: Record<string, string> = {
-  FISCAL: 'bg-blue-100 text-blue-700',
-  TEF: 'bg-purple-100 text-purple-700',
-  TRIBUTARIO: 'bg-amber-100 text-amber-700',
+  FISCAL:      'bg-blue-100 text-blue-700',
+  TEF:         'bg-purple-100 text-purple-700',
+  TRIBUTARIO:  'bg-amber-100 text-amber-700',
   COMUNICACAO: 'bg-teal-100 text-teal-700',
-  UPGRADE: 'bg-green-100 text-green-700',
-  OUTRO: 'bg-gray-100 text-gray-600',
+  UPGRADE:     'bg-green-100 text-green-700',
+  TROCA_CNPJ:  'bg-violet-100 text-violet-700',
+  OUTRO:       'bg-gray-100 text-gray-600',
 };
 
 // Status flow: PENDENTE → CONFIRMADA → PAGA | CANCELADO
