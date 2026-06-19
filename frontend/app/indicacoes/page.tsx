@@ -109,7 +109,8 @@ export default function IndicacoesPage() {
   const [trocaResultados, setTrocaResultados] = useState<any[]>([]);
   const [trocaCli, setTrocaCli] = useState<any>(null);
   const [trocaSalvando, setTrocaSalvando] = useState(false);
-  const [trocaResumo, setTrocaResumo] = useState<{ texto: string; numero?: string } | null>(null);
+  const [trocaResumo, setTrocaResumo] = useState<{ texto: string; numero?: string; textoTecnico?: string; tecnico?: string | null } | null>(null);
+  const [abaResumoTroca, setAbaResumoTroca] = useState<'financeiro' | 'tecnico'>('financeiro');
   const [trocaForm, setTrocaForm] = useState<any>({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
 
   const buscarTroca = useCallback(async (termo: string) => {
@@ -147,10 +148,13 @@ export default function IndicacoesPage() {
       });
       const numero = resp.data?.data?.contrato?.numero_contrato;
       const resumo = resp.data?.data?.resumo || '';
+      const textoTecnico = resp.data?.data?.resumo_tecnico || '';
+      const tecnico = resp.data?.data?.tecnico_responsavel || null;
       setShowTroca(false); setTrocaCli(null); setTrocaBusca(''); setTrocaResultados([]);
       setTrocaForm({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
       loadVendas();
-      setTrocaResumo({ texto: resumo, numero });
+      setAbaResumoTroca('financeiro');
+      setTrocaResumo({ texto: resumo, numero, textoTecnico, tecnico });
     } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao processar a troca.'); }
     finally { setTrocaSalvando(false); }
   };
@@ -1354,17 +1358,56 @@ export default function IndicacoesPage() {
       {/* ─── Modal: Resumo da Troca de CNPJ (copiar p/ financeiro) ─── */}
       {trocaResumo && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-3">
+          <div className="bg-white rounded-2xl w-full max-w-xl p-6 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">✅ Troca de CNPJ registrada</h2>
               <button onClick={() => setTrocaResumo(null)} className="text-gray-400 text-xl">×</button>
             </div>
-            <p className="text-xs text-gray-500">Contrato {trocaResumo.numero || ''} gerado (marcado como serviço, não conta como cliente novo). Copie o resumo abaixo para lançar a cobrança.</p>
-            <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-800 whitespace-pre-wrap font-sans">{trocaResumo.texto}</pre>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => router.push('/contratos')} className="px-4 py-2 text-sm font-medium text-violet-700 border border-violet-200 rounded-lg">Abrir Contratos</button>
-              <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo.texto); alert('Resumo copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg">📋 Copiar resumo</button>
+            <p className="text-xs text-gray-500">Contrato {trocaResumo.numero || ''} gerado (marcado como serviço, não conta como cliente novo).</p>
+
+            {/* Abas: Financeiro / Técnico */}
+            <div className="flex gap-1 border-b border-gray-200">
+              {([['financeiro', '💰 Para o Financeiro'], ['tecnico', `🔧 Para o Técnico${trocaResumo.tecnico ? ` (${trocaResumo.tecnico})` : ''}`]] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setAbaResumoTroca(key)}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${abaResumoTroca === key ? 'border-violet-600 text-violet-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                  {label}
+                </button>
+              ))}
             </div>
+
+            {abaResumoTroca === 'financeiro' && (
+              <>
+                <p className="text-xs text-gray-400">Copie e encaminhe ao financeiro para lançar a cobrança.</p>
+                <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-800 whitespace-pre-wrap font-sans max-h-64 overflow-y-auto">{trocaResumo.texto}</pre>
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => router.push('/contratos')} className="px-4 py-2 text-sm font-medium text-violet-700 border border-violet-200 rounded-lg">Abrir Contratos</button>
+                  <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo!.texto); alert('Resumo copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg">📋 Copiar</button>
+                </div>
+              </>
+            )}
+
+            {abaResumoTroca === 'tecnico' && (
+              <>
+                {trocaResumo.tecnico ? (
+                  <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+                    <span className="text-blue-600 text-base">🔧</span>
+                    <div>
+                      <p className="text-xs font-bold text-blue-800">Técnico responsável</p>
+                      <p className="text-sm font-semibold text-blue-900">{trocaResumo.tecnico}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                    ⚠️ Técnico responsável não definido no cadastro deste cliente.
+                  </div>
+                )}
+                <p className="text-xs text-gray-400">Copie e encaminhe ao técnico para atualizar o cadastro no sistema.</p>
+                <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-800 whitespace-pre-wrap font-sans max-h-64 overflow-y-auto">{trocaResumo.textoTecnico}</pre>
+                <div className="flex justify-end">
+                  <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo!.textoTecnico || ''); alert('Texto do técnico copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg">📋 Copiar texto do técnico</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
