@@ -100,6 +100,7 @@ export default function IndicacoesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState('');
   const [vendedorFilter, setVendedorFilter] = useState('');
+  const [apenasNovas, setApenasNovas] = useState(false);
   const [clientes, setClientes] = useState<any[]>([]);
   const [clienteBusca, setClienteBusca] = useState('');
   const [clienteLoading, setClienteLoading] = useState(false);
@@ -509,13 +510,33 @@ export default function IndicacoesPage() {
           <>
             {/* Filtros */}
             <div className="flex flex-wrap gap-x-4 gap-y-2 items-end">
+              {/* Novas (1–3 dias) — destaque para admin */}
+              {isGestor && (() => {
+                const agora = Date.now();
+                const qtdNovas = vendas.filter(v => {
+                  const dias = Math.floor((agora - new Date(v.created_at).getTime()) / 86_400_000);
+                  return dias >= 0 && dias <= 3 && v.status === 'PENDENTE';
+                }).length;
+                if (qtdNovas === 0) return null;
+                return (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Atenção</p>
+                    <button onClick={() => setApenasNovas(v => !v)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${apenasNovas ? 'bg-emerald-600 text-white' : 'bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100'}`}>
+                      🆕 Novas ({qtdNovas})
+                      <span className="text-[10px] font-normal opacity-80">· últimos 3 dias</span>
+                    </button>
+                  </div>
+                );
+              })()}
+
               {/* Status */}
               <div>
                 <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Status</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(['', 'PENDENTE', 'CONFIRMADA', 'PAGA', 'CANCELADO'] as const).map(s => (
-                    <button key={s} onClick={() => setStatusFilter(s)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                    <button key={s} onClick={() => { setStatusFilter(s); setApenasNovas(false); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s && !apenasNovas ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                       {s === '' ? 'Todas' : STATUS_LABEL[s]}
                     </button>
                   ))}
@@ -558,8 +579,8 @@ export default function IndicacoesPage() {
               })()}
 
               {/* Limpar filtros */}
-              {(statusFilter || categoriaFilter || vendedorFilter) && (
-                <button onClick={() => { setStatusFilter(''); setCategoriaFilter(''); setVendedorFilter(''); }}
+              {(statusFilter || categoriaFilter || vendedorFilter || apenasNovas) && (
+                <button onClick={() => { setStatusFilter(''); setCategoriaFilter(''); setVendedorFilter(''); setApenasNovas(false); }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50 transition-colors self-end">
                   ✕ Limpar filtros
                 </button>
@@ -568,11 +589,18 @@ export default function IndicacoesPage() {
 
             {/* Lista filtrada */}
             {(() => {
-              const listaFiltrada = vendas.filter(v =>
-                (!statusFilter || v.status === statusFilter) &&
-                (!categoriaFilter || v.parceiro.categoria === categoriaFilter) &&
-                (!vendedorFilter || v.vendedor_id === vendedorFilter)
-              );
+              const agora = Date.now();
+              const listaFiltrada = vendas.filter(v => {
+                if (apenasNovas) {
+                  const dias = Math.floor((agora - new Date(v.created_at).getTime()) / 86_400_000);
+                  return dias >= 0 && dias <= 3 && v.status === 'PENDENTE';
+                }
+                return (
+                  (!statusFilter || v.status === statusFilter) &&
+                  (!categoriaFilter || v.parceiro.categoria === categoriaFilter) &&
+                  (!vendedorFilter || v.vendedor_id === vendedorFilter)
+                );
+              });
               return (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               {dataLoading ? (
