@@ -3,6 +3,64 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor } from '@/lib/scope';
 
+// ── Similaridade de strings (0.0 a 1.0) ──────────────────────────────────────
+// Usa coeficiente de Dice sobre bigramas. Normaliza (lowercase, sem acentos,
+// sem "ltda/eireli/me/sa/epp" e pontuação) para reduzir falsos negativos.
+function normalizar(s: string): string {
+  return s.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\b(ltda?|eireli|me|sa|epp|ss|sc|cia|inc|s\.a\.?)\b/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+function bigramas(s: string): Set<string> {
+  const set = new Set<string>();
+  for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
+  return set;
+}
+function similaridade(a: string, b: string): number {
+  const na = normalizar(a); const nb = normalizar(b);
+  if (na === nb) return 1.0;
+  const ba = bigramas(na); const bb = bigramas(nb);
+  if (ba.size === 0 || bb.size === 0) return 0;
+  let inter = 0;
+  ba.forEach(g => { if (bb.has(g)) inter++; });
+  return (2 * inter) / (ba.size + bb.size);
+}
+
+// Tenta casar o termo digitado com clientes da base usando similaridade ≥ 90%.
+// Se mais de um cliente passar o limiar, NÃO associa (ambíguo).
+async function buscarClienteExato(prisma: PrismaClient, termo: string): Promise<{ id: string; nome: string } | null> {
+  if (!termo || termo.trim().length < 3) return null;
+  const t = termo.trim();
+  // Busca candidatos com contains para não varrer toda a tabela
+  const candidatos = await prisma.cliente.findMany({
+    where: {
+      OR: [
+        { razao_social: { contains: t.split(' ')[0] } }, // primeira palavra
+        { nome_fantasia: { contains: t.split(' ')[0] } },
+        { empresa: { contains: t.split(' ')[0] } },
+        { nome: { contains: t.split(' ')[0] } },
+      ],
+    },
+    select: { id: true, nome: true, razao_social: true, nome_fantasia: true, empresa: true },
+    take: 50,
+  }).catch(() => [] as any[]);
+
+  const LIMIAR = 0.90;
+  const aprovados: { id: string; nome: string; sim: number }[] = [];
+
+  for (const c of candidatos) {
+    const campos = [c.razao_social, c.nome_fantasia, c.empresa, c.nome].filter(Boolean) as string[];
+    const melhor = Math.max(...campos.map(campo => similaridade(t, campo)));
+    if (melhor >= LIMIAR) aprovados.push({ id: c.id, nome: c.razao_social || c.nome || '', sim: melhor });
+  }
+
+  // Só associa se houver exatamente UM cliente com similaridade suficiente
+  if (aprovados.length === 1) return { id: aprovados[0].id, nome: aprovados[0].nome };
+  return null; // 0 = não encontrou; >1 = ambíguo → supervisão decide
+}
+
 // ── Palavras críticas que acionam alerta mesmo com score alto ─────────────────
 const PALAVRAS_CRITICAS = [
   'cancelar', 'cancela', 'cancelamento', 'sair', 'saindo',
@@ -159,19 +217,9 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
     // Cargo do dono tem peso: nota ruim de dono = churn mais grave
     const respondenteÉDono = d.cargo_respondente === 'dono';
 
-    // Tenta casar com cliente da base
-    const termo = d.identificacao.trim();
-    const cliente = await prisma.cliente.findFirst({
-      where: {
-        OR: [
-          { razao_social: { contains: termo } },
-          { nome_fantasia: { contains: termo } },
-          { empresa: { contains: termo } },
-          { nome: { contains: termo } },
-        ],
-      },
-      select: { id: true, nome: true },
-    }).catch(() => null);
+    // Tenta casar com cliente da base — similaridade ≥ 90% e resultado único
+    // Se ambíguo ou não encontrado, deixa sem associação (supervisão decide)
+    const cliente = await buscarClienteExato(prisma, d.identificacao);
 
     // Atualiza ficha do cliente com conhecimento de produtos
     if (cliente) {

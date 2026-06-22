@@ -497,7 +497,14 @@ export default function PesquisasPage() {
   // Filtrar lista por aba e busca
   const todasComScore = respostas.map(p => ({ ...p, _score: calcScore(p) }));
   const excelentes = todasComScore.filter(p => p._score >= 90);
-  const criticas = todasComScore.filter(p => p.critico || p._score < 40);
+  // Crítica = score < 70 OU problema não resolvido OU nota muito baixa (≤2)
+  // NÃO inclui só por "desconhecer ferramentas" — isso é oportunidade, não crítica
+  const criticas = todasComScore.filter(p =>
+    p._score < 70 ||
+    (p as any).resolucao === 'nao_resolveu' ||
+    (p.nota_atendimento && p.nota_atendimento <= 2) ||
+    (p.nota_geral && p.nota_geral <= 2)
+  );
 
   const listaBase = aba === 'nao_casadas' ? naoCasadas.map(p => ({ ...p, _score: calcScore(p) }))
     : aba === 'excelentes' ? excelentes
