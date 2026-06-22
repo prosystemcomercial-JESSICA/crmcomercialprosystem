@@ -2025,6 +2025,19 @@ model PesquisaSatisfacao {
   observacao        String?  @db.Text
   sugestoes         String?  @db.Text
 
+  // Novos campos (formulário v2 — score 0-100)
+  cargo_respondente String?  // dono|gerente|balconista|financeiro|outro
+  resolucao         String?  // totalmente|parcialmente|nao_resolveu|nao_sei
+  rapidez           String?  // muito_rapido|esperado|demorou_pouco|demorou_muito
+  interesse_comercial String? // sim|talvez|nao  — quer conhecer ferramentas?
+  whatsapp          String?  // contato WhatsApp do respondente
+
+  // Score 0-100 calculado pelo backend conforme fórmula ponderada
+  score             Int      @default(0)
+  // Alertas especiais (palavras críticas no comentário, problema não resolvido etc.)
+  alerta_especial   Boolean  @default(false)
+  alerta_motivo     String?  // descrição resumida do alerta
+
   // Classificação automática
   critico           Boolean  @default(false) // nota < 3 OU não conhece o plano
   media             Float    @default(0)      // média das duas notas
@@ -2035,6 +2048,7 @@ model PesquisaSatisfacao {
 
   @@index([cliente_id])
   @@index([critico])
+  @@index([score])
   @@index([created_at])
 }
 
