@@ -344,4 +344,53 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
       },
     });
   });
+
+  // ── ACOMPANHAMENTO DE CASOS DE CHURN (visão CEO, só leitura) ──
+  // Lista os casos com o TEMPO em aberto (da abertura até hoje, ou até a resolução),
+  // agrupados por situação, + KPIs. O detalhe (observações/atualizações) vem do
+  // endpoint já existente /casos-churn/:id/atualizacoes.
+  fastify.get('/ceo/churn-acompanhamento', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const ABERTOS = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO'];
+    const casos = await prisma.casoChurn.findMany({
+      include: { cliente: { select: { razao_social: true, nome_fantasia: true, nome: true, codigo: true, grupo_tecnico: true, mrr_perdido: true, mensalidade_base: true } } },
+      orderBy: { created_at: 'desc' },
+    }).catch(() => [] as any[]);
+
+    const hoje = new Date();
+    const dias = (a: Date, b: Date) => Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000));
+    const lista = (casos as any[]).map(k => {
+      const aberto = ABERTOS.includes(k.status);
+      const emTratamento = k.status === 'EXECUTANDO' || k.status === 'PLANEJADO' || k.status === 'DIAGNOSTICADO';
+      // Resolução = updated_at quando o caso saiu para RECUPERADO/PERDIDO.
+      const fim = (k.status === 'RECUPERADO' || k.status === 'PERDIDO') ? new Date(k.updated_at) : null;
+      const diasEmAberto = dias(new Date(k.created_at), fim || hoje);
+      return {
+        id: k.id, status: k.status, aberto, em_tratamento: emTratamento,
+        cliente: k.cliente?.razao_social || k.cliente?.nome_fantasia || k.cliente?.nome || '—',
+        codigo: k.cliente?.codigo || '—', fila: k.cliente?.grupo_tecnico || '—',
+        motivo: k.motivo_principal || '—', descricao: k.descricao || '',
+        risco: Number(k.risk_score || 0),
+        mrr_em_risco: Number(k.cliente?.mrr_perdido || k.cliente?.mensalidade_base || 0),
+        aberto_em: k.created_at, resolvido_em: fim,
+        dias_em_aberto: diasEmAberto, resolvido: !!fim,
+      };
+    });
+
+    const abertos = lista.filter(l => l.aberto);
+    const tratamento = lista.filter(l => l.em_tratamento);
+    const resolvidos = lista.filter(l => l.resolvido);
+    const kpis = {
+      total: lista.length,
+      abertos: abertos.length,
+      em_tratamento: tratamento.length,
+      perdidos: lista.filter(l => l.status === 'PERDIDO').length,
+      recuperados: lista.filter(l => l.status === 'RECUPERADO').length,
+      mrr_em_risco: Math.round(abertos.reduce((s, l) => s + l.mrr_em_risco, 0)),
+      tempo_medio_aberto: abertos.length ? Math.round(abertos.reduce((s, l) => s + l.dias_em_aberto, 0) / abertos.length) : 0,
+      tempo_medio_resolucao: resolvidos.length ? Math.round(resolvidos.reduce((s, l) => s + l.dias_em_aberto, 0) / resolvidos.length) : 0,
+      mais_antigo: abertos.length ? Math.max(...abertos.map(l => l.dias_em_aberto)) : 0,
+    };
+    return reply.send({ status: 'success', data: { kpis, lista } });
+  });
 }
