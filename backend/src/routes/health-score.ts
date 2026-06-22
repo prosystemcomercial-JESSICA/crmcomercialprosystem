@@ -69,14 +69,21 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
   fastify.post('/health-scores/:clienteId/calcular', async (request, reply) => {
     const { clienteId } = request.params as { clienteId: string };
 
-    const cliente = await prisma.cliente.findUnique({
-      where: { id: clienteId },
-      include: {
-        licencas: { where: { status: 'ATIVA' } },
-        tickets: { where: { status: { notIn: ['FECHADO', 'RESOLVIDO'] } } },
-        caso_churn: { orderBy: { created_at: 'desc' }, take: 1 }
-      }
-    });
+    const [cliente, ultimaPesquisa] = await Promise.all([
+      prisma.cliente.findUnique({
+        where: { id: clienteId },
+        include: {
+          licencas: { where: { status: 'ATIVA' } },
+          tickets: { where: { status: { notIn: ['FECHADO', 'RESOLVIDO'] } } },
+          caso_churn: { orderBy: { created_at: 'desc' }, take: 1 }
+        }
+      }),
+      (prisma as any).pesquisaSatisfacao.findFirst({
+        where: { cliente_id: clienteId },
+        orderBy: { created_at: 'desc' },
+        select: { score: true, critico: true, resolucao: true, created_at: true, nota_geral: true, media: true },
+      }).catch(() => null),
+    ]);
 
     if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
 
@@ -110,6 +117,31 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
     if (diasSemUpdate >= 90) score -= 15;
     else if (diasSemUpdate >= 30) score -= 7;
 
+    // 5. Score NPS da última pesquisa de satisfação (peso: ±15 pontos)
+    if (ultimaPesquisa) {
+      const nps = ultimaPesquisa.score > 0 ? ultimaPesquisa.score
+        : ultimaPesquisa.nota_geral ? Math.round(((ultimaPesquisa.nota_geral - 1) / 4) * 100)
+        : Math.round(((ultimaPesquisa.media - 1) / 4) * 100);
+
+      fatores.nps_score = nps;
+      fatores.nps_data = ultimaPesquisa.created_at;
+      fatores.nps_problema_nao_resolvido = ultimaPesquisa.resolucao === 'nao_resolveu';
+
+      // Pesquisa muito antiga (> 180 dias) tem impacto reduzido
+      const diasPesquisa = Math.floor((Date.now() - new Date(ultimaPesquisa.created_at).getTime()) / 86400000);
+      const pesoNps = diasPesquisa > 180 ? 0.5 : 1.0;
+
+      if (nps >= 90)       score += Math.round(10 * pesoNps); // bônus promotor
+      else if (nps >= 70)  score += 0;                         // neutro
+      else if (nps >= 50)  score -= Math.round(8  * pesoNps);  // atenção
+      else                 score -= Math.round(15 * pesoNps);  // detrator
+
+      // Problema explicitamente não resolvido → penalidade adicional
+      if (ultimaPesquisa.resolucao === 'nao_resolveu') score -= 10;
+    } else {
+      fatores.nps_score = null; // sem pesquisa respondida ainda
+    }
+
     // Garantir 0-100
     score = Math.max(0, Math.min(100, score));
     // Cliente em tratamento de churn (caso aberto) ou marcado em risco_atencao
@@ -139,14 +171,21 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
 
     for (const cliente of clientes) {
       try {
-        const c = await prisma.cliente.findUnique({
-          where: { id: cliente.id },
-          include: {
-            licencas: { where: { status: 'ATIVA' } },
-            tickets: { where: { status: { notIn: ['FECHADO', 'RESOLVIDO'] } } },
-            caso_churn: { orderBy: { created_at: 'desc' }, take: 1 }
-          }
-        });
+        const [c, ultimaPesq] = await Promise.all([
+          prisma.cliente.findUnique({
+            where: { id: cliente.id },
+            include: {
+              licencas: { where: { status: 'ATIVA' } },
+              tickets: { where: { status: { notIn: ['FECHADO', 'RESOLVIDO'] } } },
+              caso_churn: { orderBy: { created_at: 'desc' }, take: 1 }
+            }
+          }),
+          (prisma as any).pesquisaSatisfacao.findFirst({
+            where: { cliente_id: cliente.id },
+            orderBy: { created_at: 'desc' },
+            select: { score: true, critico: true, resolucao: true, created_at: true, nota_geral: true, media: true },
+          }).catch(() => null),
+        ]);
         if (!c) continue;
 
         let score = 100;
@@ -166,6 +205,22 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
         fatores.dias_sem_interacao = diasSemUpdate;
         if (diasSemUpdate >= 90) score -= 15;
         else if (diasSemUpdate >= 30) score -= 7;
+        // NPS da pesquisa
+        if (ultimaPesq) {
+          const nps = ultimaPesq.score > 0 ? ultimaPesq.score
+            : ultimaPesq.nota_geral ? Math.round(((ultimaPesq.nota_geral - 1) / 4) * 100)
+            : Math.round(((ultimaPesq.media - 1) / 4) * 100);
+          fatores.nps_score = nps;
+          fatores.nps_data = ultimaPesq.created_at;
+          const diasPesq = Math.floor((Date.now() - new Date(ultimaPesq.created_at).getTime()) / 86400000);
+          const peso = diasPesq > 180 ? 0.5 : 1.0;
+          if (nps >= 90) score += Math.round(10 * peso);
+          else if (nps < 70 && nps >= 50) score -= Math.round(8 * peso);
+          else if (nps < 50) score -= Math.round(15 * peso);
+          if (ultimaPesq.resolucao === 'nao_resolveu') score -= 10;
+        } else {
+          fatores.nps_score = null;
+        }
         score = Math.max(0, Math.min(100, score));
 
         // Em tratamento de churn ou risco_atencao → no mínimo "em risco".
