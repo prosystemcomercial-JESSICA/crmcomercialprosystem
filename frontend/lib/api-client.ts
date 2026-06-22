@@ -1234,6 +1234,9 @@ class ApiClient {
   async getVendasAdicionaisCEO(ano?: number) {
     return this.client.get('/ceo/vendas-adicionais', { params: ano ? { ano } : {} });
   }
+  async getChurnAcompanhamentoCEO() {
+    return this.client.get('/ceo/churn-acompanhamento');
+  }
   async salvarRelatorioComercial(data: any) {
     return this.client.put('/relatorio-comercial', data);
   }
