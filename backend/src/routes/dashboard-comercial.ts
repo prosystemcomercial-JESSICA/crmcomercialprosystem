@@ -8,6 +8,19 @@ export async function dashboardComercialRoutes(
 ) {
   const { prisma } = options;
 
+  const withReconnect = async <T>(fn: () => Promise<T>): Promise<T> => {
+    try { return await fn(); }
+    catch (err: any) {
+      if (/server has closed the connection|ECONNRESET|ETIMEDOUT|connection lost/i.test(err?.message || '')) {
+        try { await prisma.$disconnect(); } catch {}
+        await new Promise(r => setTimeout(r, 500));
+        await prisma.$connect();
+        return await fn();
+      }
+      throw err;
+    }
+  };
+
   fastify.get('/dashboard/comercial', async (request, reply) => {
     // ── Escopo de dados ──
     // Vendedor: sempre o próprio. Gestor: vê tudo, OU filtra por um vendedor
@@ -26,7 +39,8 @@ export async function dashboardComercialRoutes(
     // ── Radar ─────────────────────────────────────────────────────────────────
 
     // 1. Leads novos sem contato real (> 24h, sem obs de contato)
-    const sem_contato: any[] = await prisma.$queryRawUnsafe(`
+    // withReconnect na primeira query: se MySQL fechou a conexão idle, reconecta antes de continuar.
+    const sem_contato: any[] = await withReconnect(() => prisma.$queryRawUnsafe(`
       SELECT l.id, l.nome, l.nome_fantasia, l.segmento, l.temperatura,
              l.etapa_comercial, l.vendedor_nome, l.created_at,
              TIMESTAMPDIFF(SECOND, l.created_at, NOW())/3600 AS horas_sem_contato
@@ -40,7 +54,7 @@ export async function dashboardComercialRoutes(
         )
       ORDER BY l.created_at ASC
       LIMIT 30
-    `, h24, ...sc.params).catch(() => []);
+    `, h24, ...sc.params)).catch(() => []);
 
     // 2. Retornos vencidos (proximo_contato passou)
     const retorno_vencido = await prisma.lead.findMany({
