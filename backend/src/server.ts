@@ -402,6 +402,16 @@ const start = async () => {
     iniciarSchedulerLembretes();
     iniciarSchedulerDigest();
     iniciarSchedulerAutomacao();
+
+    // Keepalive: MySQL do Railway fecha conexões idle após ~8 min.
+    // Um SELECT 1 a cada 4 min mantém a conexão viva sem custo.
+    if (prismaClient) {
+      setInterval(async () => {
+        try { await prismaClient.$queryRaw`SELECT 1`; }
+        catch { /* silencioso — reconecta sozinho na próxima query */ }
+      }, 4 * 60 * 1000);
+      console.log('[BOOT] Keepalive do banco iniciado (4 min)');
+    }
   } catch (err: any) {
     console.error('[BOOT] ❌ Falha no fastify.listen:', err?.message || err);
     if (err?.stack) console.error(err.stack);
