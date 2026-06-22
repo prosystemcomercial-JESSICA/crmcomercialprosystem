@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -133,6 +133,156 @@ function Field({ label, value, onChange, placeholder, type = 'text', disabled = 
 }
 
 // ─── Main Page ────────────────────────────────────────────────
+// ── Card de pesquisa com modal embutido (hook fora do .map) ──────────────────
+function CardPesquisaCliente({ p }: { p: any }) {
+  const [aberto, setAberto] = useState(false);
+  const score = p.score && p.score > 0 ? p.score
+    : p.nota_atendimento
+      ? Math.round(((p.nota_atendimento - 1) / 4) * 25 + ((p.nota_conhecimento - 1) / 4) * 15 + ((p.nota_geral - 1) / 4) * 15 + 20)
+      : Math.round(((((p.nota_suporte + p.nota_sistema) / 2) - 1) / 4) * 100);
+  const scoreColor = score >= 90 ? '#15803d' : score >= 70 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626';
+  const resolucaoLabel: Record<string, string> = { totalmente: '✅ Resolveu totalmente', parcialmente: '⚠️ Resolveu parcialmente', nao_resolveu: '❌ Ainda não resolveu', nao_sei: '🤔 Não sei avaliar' };
+  const rapidezLabel: Record<string, string> = { muito_rapido: '⚡ Muito rápido', esperado: '👍 Dentro do esperado', demorou_pouco: '⏳ Demorou um pouco', demorou_muito: '😔 Demorou muito' };
+
+  return (
+    <>
+      {aberto && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,34,56,0.65)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget) setAberto(false); }}>
+          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(13,34,56,0.35)' }}>
+            <div style={{ background: 'linear-gradient(135deg,#0D2238,#1A4E82)', padding: '22px 26px', borderRadius: '20px 20px 0 0', color: 'white' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: '#90BEF0', textTransform: 'uppercase', margin: '0 0 4px' }}>Formulário completo respondido</p>
+                  <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800 }}>{p.identificacao}</h3>
+                  <p style={{ margin: 0, fontSize: 12, color: '#90BEF0' }}>
+                    {new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {p.respondente_nome && ` · ${p.respondente_nome}`}
+                  </p>
+                </div>
+                <button onClick={() => setAberto(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '6px 10px', cursor: 'pointer', color: 'white', fontSize: 18, lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 16px' }}>
+                <div style={{ position: 'relative', width: 60, height: 60, flexShrink: 0 }}>
+                  <svg width={60} height={60} style={{ transform: 'rotate(-90deg)' }}>
+                    <circle cx={30} cy={30} r={25} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth={4} />
+                    <circle cx={30} cy={30} r={25} fill="none" stroke={scoreColor} strokeWidth={4}
+                      strokeDasharray={`${(score / 100) * 2 * Math.PI * 25} ${2 * Math.PI * 25}`} strokeLinecap="round" />
+                  </svg>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: 'white', lineHeight: 1 }}>{score}</span>
+                    <span style={{ fontSize: 8, color: '#90BEF0' }}>/100</span>
+                  </div>
+                </div>
+                <div>
+                  <p style={{ margin: '0 0 2px', fontSize: 12, color: '#90BEF0', fontWeight: 600 }}>Score NPS de Satisfação</p>
+                  <span style={{ fontSize: 14, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: scoreColor + '30', color: 'white' }}>
+                    {score >= 90 ? '🏆 Excelente' : score >= 80 ? '😊 Bom' : score >= 70 ? '⚠️ Atenção' : '🚨 Risco de churn'}
+                  </span>
+                  {score < 70 && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#fca5a5' }}>Caso de churn aberto automaticamente</p>}
+                  {p.alerta_motivo && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#fde68a' }}>⚠️ {p.alerta_motivo}</p>}
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {(p.resolucao || p.rapidez) && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {p.resolucao && <div style={{ padding: '12px 14px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <p style={{ margin: '0 0 2px', fontSize: 11, color: '#94a3b8', fontWeight: 700 }}>SOLICITAÇÃO RESOLVIDA?</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2238' }}>{resolucaoLabel[p.resolucao] || p.resolucao}</p>
+                  </div>}
+                  {p.rapidez && <div style={{ padding: '12px 14px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <p style={{ margin: '0 0 2px', fontSize: 11, color: '#94a3b8', fontWeight: 700 }}>RAPIDEZ</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2238' }}>{rapidezLabel[p.rapidez] || p.rapidez}</p>
+                  </div>}
+                </div>
+              )}
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Notas</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { l: 'Atendimento', n: p.nota_atendimento || p.nota_suporte },
+                    { l: 'Conhecimento do técnico', n: p.nota_conhecimento },
+                    { l: 'ProSystem (nota geral)', n: p.nota_geral || p.nota_sistema },
+                  ].filter(x => x.n).map(({ l, n }) => (
+                    <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0D2238' }}>{l}</span>
+                      <span style={{ color: '#FBBF24', fontSize: 16 }}>{'★'.repeat(n)}{'☆'.repeat(5 - n)}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: n >= 4 ? '#16a34a' : n === 3 ? '#d97706' : '#dc2626', minWidth: 28 }}>{n}/5</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Conhece os diferenciais ProSystem?</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {[{ l: 'Plano Plus', v: p.conhece_plus, e: '⭐' }, { l: 'Dashboard', v: p.conhece_dashboard, e: '📊' }, { l: 'Mensageria', v: p.conhece_mensageria, e: '💬' }, { l: 'Gerencial', v: p.conhece_gerencial, e: '📈' }].map(({ l, v, e }) => (
+                    <div key={l} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid', background: v ? '#f0fdf4' : '#fef2f2', borderColor: v ? '#86efac' : '#fca5a5' }}>
+                      <span style={{ fontSize: 12 }}>{e} </span><span style={{ fontSize: 12, fontWeight: 600, color: v ? '#15803d' : '#991b1b' }}>{l}</span>
+                      <p style={{ margin: 0, fontSize: 11, color: v ? '#16a34a' : '#dc2626' }}>{v ? '✓ Conhece / usa' : '✗ Não conhece — oportunidade'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {(p.recado || p.observacao) && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>Mensagem do cliente</p>
+                  {p.recado && <div style={{ padding: '12px 14px', borderLeft: '3px solid #4B8EC8', background: '#f8fafc', borderRadius: '0 10px 10px 0', fontSize: 13, color: '#0D2238', lineHeight: 1.6, fontStyle: 'italic' }}>"{p.recado}"</div>}
+                  {p.observacao && <div style={{ padding: '12px 14px', borderLeft: '3px solid #4B8EC8', background: '#f8fafc', borderRadius: '0 10px 10px 0', fontSize: 13, color: '#0D2238', lineHeight: 1.6, marginTop: 8 }}>{p.observacao}</div>}
+                </div>
+              )}
+              {(p.email || p.whatsapp) && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {p.email && <a href={`mailto:${p.email}`} style={{ padding: '7px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: '#4B8EC8', fontWeight: 600, textDecoration: 'none' }}>✉️ {p.email}</a>}
+                  {p.whatsapp && <a href={`https://wa.me/${p.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ padding: '7px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: 12, color: '#16a34a', fontWeight: 600, textDecoration: 'none' }}>📱 {p.whatsapp}</a>}
+                </div>
+              )}
+              <button onClick={() => setAberto(false)} style={{ width: '100%', padding: '12px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 14, fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Card clicável */}
+      <div className="rounded-lg border p-3 cursor-pointer" onClick={() => setAberto(true)}
+        style={{ borderColor: score >= 90 ? '#86efac' : p.critico ? '#fecaca' : 'var(--t-card-border)', background: score >= 90 ? '#f0fdf4' : p.critico ? '#fef2f2' : 'var(--t-content-bg)', transition: 'all 0.15s' }}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
+              <svg width={36} height={36} style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx={18} cy={18} r={14} fill="none" stroke="#e2e8f0" strokeWidth={3} />
+                <circle cx={18} cy={18} r={14} fill="none" stroke={scoreColor} strokeWidth={3}
+                  strokeDasharray={`${(score / 100) * 2 * Math.PI * 14} ${2 * Math.PI * 14}`} strokeLinecap="round" />
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 9, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{score}</span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-bold" style={{ color: scoreColor }}>{score >= 90 ? '🏆 Excelente' : score >= 70 ? '✅ Satisfeito' : score >= 50 ? '⚠️ Atenção' : '🚨 Crítico'}</span>
+                {p.critico && score < 90 && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">⚠️</span>}
+                {p.alerta_especial && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">🔔</span>}
+              </div>
+              <div className="flex gap-2 mt-0.5 text-xs flex-wrap" style={{ color: 'var(--t-text-muted)' }}>
+                {p.nota_atendimento ? <span>Atend.:{p.nota_atendimento}★</span> : null}
+                {p.nota_geral ? <span>Geral:{p.nota_geral}★</span> : null}
+                {!p.nota_atendimento && <span>{p.nota_suporte}★·{p.nota_sistema}★</span>}
+                {p.resolucao === 'nao_resolveu' && <span className="text-red-600 font-semibold">❌ Não resolveu</span>}
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
+            <p className="text-xs mt-0.5 font-semibold" style={{ color: '#4B8EC8' }}>Ver completo →</p>
+          </div>
+        </div>
+        {p.recado && <p className="text-xs mt-1.5 italic" style={{ color: 'var(--t-text-secondary)' }}>💬 "{p.recado}"</p>}
+      </div>
+    </>
+  );
+}
+
 export default function ClienteDetailPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
@@ -1036,33 +1186,54 @@ export default function ClienteDetailPage() {
           <div className="space-y-5">
             {pesquisas.length > 0 && (
               <Section title={`Pesquisas de satisfação (${pesquisas.length})`}>
-                <div className="space-y-2">
-                  {pesquisas.map((p: any) => {
-                    const media = ((p.nota_suporte + p.nota_sistema) / 2).toFixed(1);
-                    return (
-                      <div key={p.id} className="rounded-lg border p-3" style={{ borderColor: p.critico ? '#fecaca' : 'var(--t-card-border)', background: p.critico ? '#fef2f2' : 'var(--t-content-bg)' }}>
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 text-sm">
-                            <span style={{ color: '#FBBF24' }}>{'★'.repeat(Math.round((p.nota_suporte + p.nota_sistema) / 2))}</span>
-                            <span className="font-semibold" style={{ color: 'var(--t-text-primary)' }}>média {media}</span>
-                            {p.critico && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">⚠️ Crítico</span>}
-                            {!p.conhece_plano && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">não conhece o plano</span>}
+                {/* Resumo da última pesquisa em destaque */}
+                {(() => {
+                  const ultima = pesquisas[0];
+                  const score = ultima.score && ultima.score > 0 ? ultima.score
+                    : ultima.nota_atendimento
+                      ? Math.round(((ultima.nota_atendimento - 1) / 4) * 0.25 * 100 + ((ultima.nota_conhecimento - 1) / 4) * 0.15 * 100 + ((ultima.nota_geral - 1) / 4) * 0.15 * 100 + 20)
+                      : Math.round(((((ultima.nota_suporte + ultima.nota_sistema) / 2) - 1) / 4) * 100);
+                  const scoreColor = score >= 90 ? '#15803d' : score >= 70 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626';
+                  return (
+                    <div className="mb-3 rounded-xl border-2 p-4" style={{ borderColor: scoreColor + '40', background: scoreColor + '08' }}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
+                          <svg width={52} height={52} style={{ transform: 'rotate(-90deg)' }}>
+                            <circle cx={26} cy={26} r={22} fill="none" stroke="#e2e8f0" strokeWidth={4} />
+                            <circle cx={26} cy={26} r={22} fill="none" stroke={scoreColor} strokeWidth={4}
+                              strokeDasharray={`${(score / 100) * 2 * Math.PI * 22} ${2 * Math.PI * 22}`} strokeLinecap="round" />
+                          </svg>
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: 13, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{score}</span>
+                            <span style={{ fontSize: 7, color: '#94a3b8' }}>/100</span>
                           </div>
-                          <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
                         </div>
-                        <div className="flex gap-3 mt-1 text-xs flex-wrap" style={{ color: 'var(--t-text-secondary)' }}>
-                          {p.nota_atendimento ? <span>Atend.: {p.nota_atendimento}★</span> : null}
-                          {p.nota_eficiencia ? <span>Efic.: {p.nota_eficiencia}★</span> : null}
-                          {p.nota_conhecimento ? <span>Conhec.: {p.nota_conhecimento}★</span> : null}
-                          {p.nota_geral ? <span className="font-semibold">Prosystem: {p.nota_geral}★</span> : null}
-                          {!p.nota_atendimento && <span>Suporte: {p.nota_suporte}★ · Sistema: {p.nota_sistema}★</span>}
+                        <div className="flex-1">
+                          <p className="text-xs font-bold mb-1" style={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Última pesquisa</p>
+                          <div className="flex gap-2 flex-wrap">
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: scoreColor + '20', color: scoreColor }}>
+                              {score >= 90 ? '🏆 Excelente' : score >= 70 ? '✅ Satisfeito' : score >= 50 ? '⚠️ Atenção' : '🚨 Risco'}
+                            </span>
+                            {ultima.alerta_especial && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">🔔 Alerta</span>}
+                            {ultima.critico && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠️ Crítico</span>}
+                          </div>
+                          <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                            {new Date(ultima.created_at).toLocaleDateString('pt-BR')}
+                            {ultima.respondente_nome && ` · por ${ultima.respondente_nome}`}
+                          </p>
                         </div>
-                        {p.recado && <p className="text-xs mt-1.5" style={{ color: 'var(--t-text-secondary)' }}>💬 {p.recado}</p>}
-                        {p.observacao && <p className="text-xs mt-1.5" style={{ color: 'var(--t-text-secondary)' }}>💬 {p.observacao}</p>}
-                        {p.sugestoes && <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>💡 {p.sugestoes}</p>}
                       </div>
-                    );
-                  })}
+                      {ultima.recado && (
+                        <p className="text-xs mt-2 italic" style={{ color: '#4A6E8A', borderLeft: '2px solid #90BEF0', paddingLeft: 8 }}>
+                          "{ultima.recado}"
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="space-y-2">
+                  {pesquisas.map((p: any) => <CardPesquisaCliente key={p.id} p={p} />)}
                 </div>
               </Section>
             )}

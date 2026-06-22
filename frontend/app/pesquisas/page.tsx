@@ -9,20 +9,25 @@ import { X, Star, Award, TrendingUp, AlertTriangle, Users, ChevronRight, Search 
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Pesquisa {
-  id: string; identificacao: string; respondente_nome?: string; email?: string;
+  id: string; identificacao: string; respondente_nome?: string; email?: string; whatsapp?: string;
   cliente_id?: string; cliente_casado: boolean;
+  cargo_respondente?: string;
   nota_suporte: number; nota_sistema: number; conhece_plano: boolean;
   nota_atendimento?: number; nota_eficiencia?: number; nota_conhecimento?: number; nota_geral?: number;
+  resolucao?: string; rapidez?: string; interesse_comercial?: string;
   conhece_plus?: boolean; conhece_dashboard?: boolean; conhece_mensageria?: boolean; conhece_gerencial?: boolean;
   recado?: string; observacao?: string; sugestoes?: string; critico: boolean; media: number;
+  score?: number; alerta_especial?: boolean; alerta_motivo?: string;
   created_at: string;
 }
-interface Resumo { total: number; criticos: number; nao_conhece_plano: number; media_suporte: number; media_sistema: number; }
+interface Resumo { total: number; criticos: number; nao_conhece_plano: number; media_suporte: number; media_sistema: number; score_medio?: number; alertas?: number; excelentes?: number; }
 
 // ── Score 0-100 ───────────────────────────────────────────────────────────────
-// Fórmula: média das notas (1-5) → converte para 0-100
-// Peso: atendimento 30% + eficiência 25% + conhecimento 25% + geral 20%
+// Usa score calculado pelo backend quando disponível (novo formulário).
+// Fallback para cálculo local em respostas antigas sem campo score.
 function calcScore(p: Pesquisa): number {
+  if (p.score && p.score > 0) return p.score;
+  // legado: média simples das notas 1-5 convertida para 0-100
   const notas = [
     { nota: p.nota_atendimento ?? p.nota_suporte, peso: 0.30 },
     { nota: p.nota_eficiencia ?? p.nota_sistema,  peso: 0.25 },
@@ -74,21 +79,39 @@ function ScoreRing({ score, size = 64 }: { score: number; size?: number }) {
   );
 }
 
+// ── Helpers de label ──────────────────────────────────────────────────────────
+const RESOLUCAO_LABEL: Record<string, { l: string; cor: string; emoji: string }> = {
+  totalmente:   { l: 'Sim, resolveu totalmente',  cor: '#16a34a', emoji: '✅' },
+  parcialmente: { l: 'Resolveu parcialmente',     cor: '#d97706', emoji: '⚠️' },
+  nao_resolveu: { l: 'Ainda não resolveu',        cor: '#dc2626', emoji: '❌' },
+  nao_sei:      { l: 'Não sei avaliar',           cor: '#94a3b8', emoji: '🤔' },
+};
+const RAPIDEZ_LABEL: Record<string, { l: string; cor: string; emoji: string }> = {
+  muito_rapido:   { l: 'Muito rápido',         cor: '#16a34a', emoji: '⚡' },
+  esperado:       { l: 'Dentro do esperado',   cor: '#4B8EC8', emoji: '👍' },
+  demorou_pouco:  { l: 'Demorou um pouco',     cor: '#d97706', emoji: '⏳' },
+  demorou_muito:  { l: 'Demorou muito',        cor: '#dc2626', emoji: '😔' },
+};
+const CARGO_LABEL: Record<string, string> = {
+  dono: '👑 Dono / Responsável', gerente: '🧑‍💼 Gerente',
+  balconista: '🖥️ Balconista / Operador', financeiro: '📋 Financeiro / Adm.', outro: '👤 Outro',
+};
+
 // ── Modal formulário completo ─────────────────────────────────────────────────
 function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: () => void }) {
   const score = calcScore(pesquisa);
   const cfg = scoreConfig(score);
 
   const notasDetalhadas = [
-    { label: 'Qualidade deste atendimento',        nota: pesquisa.nota_atendimento, peso: '30%' },
-    { label: 'Eficiência e rapidez na resolução',  nota: pesquisa.nota_eficiencia,  peso: '25%' },
-    { label: 'Conhecimento do técnico',             nota: pesquisa.nota_conhecimento,peso: '25%' },
-    { label: 'Nota geral para a ProSystem',         nota: pesquisa.nota_geral,       peso: '20%' },
+    { label: 'Qualidade deste atendimento',        nota: pesquisa.nota_atendimento, peso: '25 pts' },
+    { label: 'Conhecimento do técnico',             nota: pesquisa.nota_conhecimento,peso: '15 pts' },
+    { label: 'Nota geral para a ProSystem',         nota: pesquisa.nota_geral,       peso: '15 pts' },
+    { label: 'Eficiência e rapidez',               nota: pesquisa.nota_eficiencia,  peso: '' },
   ].filter(n => n.nota);
 
-  const legado = !pesquisa.nota_atendimento && [
-    { label: 'Suporte técnico',  nota: pesquisa.nota_suporte },
-    { label: 'Sistema',          nota: pesquisa.nota_sistema },
+  const legado = notasDetalhadas.length === 0 && [
+    { label: 'Suporte técnico',  nota: pesquisa.nota_suporte, peso: '' },
+    { label: 'Sistema',          nota: pesquisa.nota_sistema,  peso: '' },
   ];
 
   const diferenciais = [
@@ -98,28 +121,36 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
     { label: 'Gerencial',     conhece: pesquisa.conhece_gerencial,  icon: '📈' },
   ];
 
+  const resolucaoInfo = pesquisa.resolucao ? RESOLUCAO_LABEL[pesquisa.resolucao] : null;
+  const rapidezInfo   = pesquisa.rapidez   ? RAPIDEZ_LABEL[pesquisa.rapidez]     : null;
+
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(13,34,56,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 580, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(13,34,56,0.3)' }}>
+      <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 600, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(13,34,56,0.3)' }}>
 
         {/* Header */}
         <div style={{ background: 'linear-gradient(135deg, #0D2238 0%, #1A4E82 100%)', padding: '24px 28px', borderRadius: '20px 20px 0 0', color: 'white' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#90BEF0', textTransform: 'uppercase', margin: '0 0 4px' }}>
-                Formulário completo
+                Formulário completo respondido
               </p>
               <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>
                 {pesquisa.identificacao}
               </h2>
-              {pesquisa.respondente_nome && (
-                <p style={{ margin: 0, fontSize: 13, color: '#90BEF0' }}>Respondido por: {pesquisa.respondente_nome}</p>
-              )}
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#7AAACB' }}>
-                {new Date(pesquisa.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                {pesquisa.respondente_nome && (
+                  <span style={{ fontSize: 12, color: '#90BEF0' }}>👤 {pesquisa.respondente_nome}</span>
+                )}
+                {pesquisa.cargo_respondente && (
+                  <span style={{ fontSize: 12, color: '#90BEF0' }}>{CARGO_LABEL[pesquisa.cargo_respondente] || pesquisa.cargo_respondente}</span>
+                )}
+              </div>
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: '#7AAACB' }}>
+                📅 {new Date(pesquisa.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
             <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'white', flexShrink: 0 }}>
@@ -128,20 +159,20 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
           </div>
 
           {/* Score destaque */}
-          <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '14px 18px' }}>
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: '14px 18px' }}>
             <ScoreRing score={score} size={72} />
-            <div>
-              <p style={{ margin: '0 0 2px', fontSize: 13, color: '#90BEF0', fontWeight: 600 }}>Score de Satisfação</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 13, color: '#90BEF0', fontWeight: 600 }}>Score de Satisfação NPS</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 28, fontWeight: 900, color: 'white' }}>{score}</span>
                 <span style={{ fontSize: 14, color: '#90BEF0' }}>/ 100</span>
                 <span style={{ fontSize: 16 }}>{cfg.emoji}</span>
                 <span style={{ fontSize: 13, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
               </div>
-              {score >= 90 && (
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#86efac', fontWeight: 600 }}>
-                  ✅ Entrará no Radar de Excelência
-                </p>
+              {score >= 90 && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#86efac', fontWeight: 600 }}>🏆 Radar de Excelência — promotor da ProSystem</p>}
+              {score < 70 && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#fca5a5', fontWeight: 600 }}>🚨 Caso de churn aberto automaticamente</p>}
+              {pesquisa.alerta_especial && pesquisa.alerta_motivo && (
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: '#fde68a', fontWeight: 600 }}>⚠️ Alerta: {pesquisa.alerta_motivo}</p>
               )}
             </div>
           </div>
@@ -149,28 +180,47 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
 
         <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+          {/* Resolução e Rapidez — destaque visual */}
+          {(resolucaoInfo || rapidezInfo) && (
+            <div style={{ display: 'grid', gridTemplateColumns: resolucaoInfo && rapidezInfo ? '1fr 1fr' : '1fr', gap: 10 }}>
+              {resolucaoInfo && (
+                <div style={{ padding: '14px 16px', borderRadius: 14, border: `2px solid ${resolucaoInfo.cor}40`, background: resolucaoInfo.cor + '10' }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Solicitação resolvida?</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: resolucaoInfo.cor }}>{resolucaoInfo.emoji} {resolucaoInfo.l}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>peso 20 pts no score</p>
+                </div>
+              )}
+              {rapidezInfo && (
+                <div style={{ padding: '14px 16px', borderRadius: 14, border: `2px solid ${rapidezInfo.cor}40`, background: rapidezInfo.cor + '10' }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Rapidez do atendimento</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: rapidezInfo.cor }}>{rapidezInfo.emoji} {rapidezInfo.l}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>peso 15 pts no score</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Notas detalhadas */}
           <div>
             <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 12px' }}>
               Notas por categoria
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(notasDetalhadas.length > 0 ? notasDetalhadas : (legado || [])).map(({ label, nota, peso }: any) => (
                 nota ? (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0D2238' }}>{label}</p>
-                      {peso && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>peso {peso} no score</p>}
+                      {peso && <p style={{ margin: '1px 0 0', fontSize: 11, color: '#94a3b8' }}>{peso} no score</p>}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
-                      <Stars value={nota} size={18} />
+                      <Stars value={nota} size={16} />
                       <span style={{ fontSize: 12, fontWeight: 700, color: nota >= 4 ? '#16a34a' : nota === 3 ? '#d97706' : '#dc2626', marginTop: 2 }}>
-                        {nota}/5 — {['', 'Muito insatisfeito', 'Insatisfeito', 'Neutro', 'Satisfeito', 'Muito satisfeito'][nota]}
+                        {nota}/5 — {['', 'Muito ruim', 'Ruim', 'Regular', 'Bom', 'Excelente'][nota]}
                       </span>
                     </div>
-                    {/* Barra visual */}
-                    <div style={{ width: 48, height: 6, background: '#e2e8f0', borderRadius: 3, flexShrink: 0 }}>
-                      <div style={{ width: `${(nota / 5) * 100}%`, height: '100%', borderRadius: 3, background: nota >= 4 ? '#16a34a' : nota === 3 ? '#d97706' : '#dc2626', transition: 'width 0.5s ease' }} />
+                    <div style={{ width: 40, height: 5, background: '#e2e8f0', borderRadius: 3, flexShrink: 0 }}>
+                      <div style={{ width: `${(nota / 5) * 100}%`, height: '100%', borderRadius: 3, background: nota >= 4 ? '#16a34a' : nota === 3 ? '#d97706' : '#dc2626' }} />
                     </div>
                   </div>
                 ) : null
@@ -195,12 +245,19 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
                   <div>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: conhece ? '#15803d' : '#991b1b' }}>{label}</p>
                     <p style={{ margin: 0, fontSize: 11, color: conhece ? '#16a34a' : '#dc2626' }}>
-                      {conhece ? '✓ Conhece / usa' : '✗ Não conhece — oportunidade'}
+                      {conhece ? '✓ Conhece / usa' : '✗ Oportunidade comercial'}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
+            {pesquisa.interesse_comercial && pesquisa.interesse_comercial !== 'nao' && (
+              <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: '#EBF4FF', border: '1px solid #90BEF0' }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#1A4E82' }}>
+                  📞 {pesquisa.interesse_comercial === 'sim' ? 'Quer conhecer as ferramentas — contato comercial!' : 'Talvez queira conhecer — pode chamar depois'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Recado/mensagem */}
@@ -228,39 +285,53 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
             </div>
           )}
 
-          {/* Dados de contato */}
-          {pesquisa.email && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: 14 }}>✉️</span>
-              <a href={`mailto:${pesquisa.email}`} style={{ fontSize: 13, color: '#4B8EC8', fontWeight: 600, textDecoration: 'none' }}>{pesquisa.email}</a>
+          {/* Contato */}
+          {(pesquisa.email || pesquisa.whatsapp) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {pesquisa.email && (
+                <a href={`mailto:${pesquisa.email}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, color: '#4B8EC8', fontWeight: 600, textDecoration: 'none' }}>
+                  ✉️ {pesquisa.email}
+                </a>
+              )}
+              {pesquisa.whatsapp && (
+                <a href={`https://wa.me/${pesquisa.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f0fdf4', borderRadius: 10, border: '1px solid #86efac', fontSize: 13, color: '#16a34a', fontWeight: 600, textDecoration: 'none' }}>
+                  📱 {pesquisa.whatsapp}
+                </a>
+              )}
             </div>
           )}
 
-          {/* Score explicado */}
-          <div style={{ background: score >= 90 ? '#f0fdf4' : '#f8fafc', border: `1px solid ${cfg.border}`, borderRadius: 14, padding: '16px 18px' }}>
-            <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: cfg.color, textTransform: 'uppercase', letterSpacing: 1 }}>
-              {cfg.emoji} Como o score é calculado
+          {/* Score e classificação */}
+          <div style={{ background: score >= 90 ? '#f0fdf4' : score < 70 ? '#fef2f2' : '#f8fafc', border: `1px solid ${cfg.border}`, borderRadius: 14, padding: '14px 16px' }}>
+            <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 800, color: cfg.color, textTransform: 'uppercase', letterSpacing: 1 }}>
+              {cfg.emoji} Classificação: {cfg.label}
             </p>
-            <p style={{ margin: '0 0 6px', fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
-              Score ponderado: Atendimento (30%) + Eficiência (25%) + Conhecimento (25%) + Nota Geral (20%), convertido de 1–5 para 0–100.
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { f: score >= 90,           l: '🏆 Radar de Excelência', c: '#15803d' },
+                { f: score >= 80 && score < 90, l: '✅ Bom — acompanhar', c: '#2E6EAB' },
+                { f: score >= 70 && score < 80, l: '⚠️ Ponto de atenção — tarefa CS', c: '#d97706' },
+                { f: score < 70,            l: '🚨 Churn aberto automaticamente', c: '#dc2626' },
+                { f: !!pesquisa.alerta_especial, l: '🔔 Alerta especial ativo', c: '#7c3aed' },
+              ].filter(x => x.f).map(x => (
+                <span key={x.l} style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: x.c + '15', color: x.c, border: `1px solid ${x.c}30` }}>{x.l}</span>
+              ))}
+            </div>
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+              Score ponderado: Atend. 25pts · Resolução 20pts · Rapidez 15pts · Técnico 15pts · ProSystem 15pts · Ferramentas 10pts
             </p>
-            {score >= 90 && (
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#15803d' }}>
-                🏆 Score acima de 90 → cliente entra no Radar de Excelência como promotor da ProSystem.
-              </p>
-            )}
           </div>
 
           {/* Ações */}
           <div style={{ display: 'flex', gap: 10 }}>
             {pesquisa.cliente_id && (
               <a href={`/clientes/${pesquisa.cliente_id}`}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px', borderRadius: 12, background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)', color: 'white', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '13px', borderRadius: 12, background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)', color: 'white', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
                 Ver ficha do cliente <ChevronRight size={14} />
               </a>
             )}
             <button onClick={onClose}
-              style={{ flex: pesquisa.cliente_id ? 0 : 1, padding: '12px 20px', borderRadius: 12, border: '1px solid #e2e8f0', background: 'white', fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>
+              style={{ flex: pesquisa.cliente_id ? 0 : 1, padding: '13px 20px', borderRadius: 12, border: '1px solid #e2e8f0', background: 'white', fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>
               Fechar
             </button>
           </div>
