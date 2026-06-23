@@ -214,125 +214,112 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
     const desconheceAlgo = !d.conhece_plus || !d.conhece_dashboard || !d.conhece_mensageria || !d.conhece_gerencial;
     const critico = notaBaixa || desconheceAlgo || problemaNaoResolvido || score < 70;
 
-    // Cargo do dono tem peso: nota ruim de dono = churn mais grave
     const respondenteÉDono = d.cargo_respondente === 'dono';
 
-    // Tenta casar com cliente da base — similaridade ≥ 90% e resultado único
-    // Se ambíguo ou não encontrado, deixa sem associação (supervisão decide)
-    const cliente = await buscarClienteExato(prisma, d.identificacao);
-
-    // Atualiza ficha do cliente com conhecimento de produtos
-    if (cliente) {
-      const fichaUpd: any = {};
-      if (d.conhece_plus !== undefined) fichaUpd.apresentou_plus = d.conhece_plus;
-      if (d.conhece_dashboard !== undefined) fichaUpd.conhece_dashboard = d.conhece_dashboard;
-      if (d.conhece_mensageria !== undefined) fichaUpd.conhece_mensageria = d.conhece_mensageria;
-      if (d.conhece_gerencial !== undefined) fichaUpd.conhece_gerencial = d.conhece_gerencial;
-      if (critico || alertaEspecial) fichaUpd.risco_atencao = true;
-      if (Object.keys(fichaUpd).length) {
-        await prisma.cliente.update({ where: { id: cliente.id }, data: fichaUpd }).catch(() => {});
-      }
-    }
-
-    // Abertura automática de caso de churn — score < 70 OU nota muito baixa
-    let casoChurnId: string | undefined;
-    const deveAbrirChurn = (score < 70 || notaBaixa || problemaNaoResolvido) && cliente;
-    if (deveAbrirChurn && cliente) {
-      try {
-        // Motivo principal com mais detalhes
-        const motivoPrincipal = notaBaixa
-          ? `Nota baixa na pesquisa (score ${score}/100)`
-          : problemaNaoResolvido
-            ? `Problema não resolvido (score ${score}/100)`
-            : `Score baixo de satisfação (${score}/100)`;
-
-        // Prioridade maior se é o dono respondendo
-        const riskScore = respondenteÉDono
-          ? Math.min(100, 100 - score + 15)
-          : 100 - score;
-
-        const observacaoChurn = [
-          `📊 Score de satisfação: ${score}/100`,
-          `👤 Cargo do respondente: ${d.cargo_respondente ?? 'não informado'}`,
-          `✅ Problema resolvido: ${d.resolucao ?? 'não informado'}`,
-          `⚡ Rapidez: ${d.rapidez ?? 'não informado'}`,
-          `⭐ Nota atendimento: ${d.nota_atendimento}/5`,
-          `⭐ Nota técnico: ${d.nota_conhecimento}/5`,
-          `⭐ Nota geral ProSystem: ${d.nota_geral}/5`,
-          d.recado ? `💬 Comentário: "${d.recado}"` : null,
-          alertaMotivos.length > 0 ? `⚠️ Alertas: ${alertaMotivos.join(', ')}` : null,
-        ].filter(Boolean).join('\n');
-
-        const caso = await prisma.casoChurn.create({
-          data: {
-            clienteId: cliente.id,
-            status: 'NOVO',
-            risk_score: riskScore,
-            motivo_principal: motivoPrincipal,
-            created_by: 'pesquisa-satisfacao',
-            descricao: observacaoChurn,
-          },
-        });
-        casoChurnId = caso.id;
-        await prisma.cliente.update({ where: { id: cliente.id }, data: { risco_atencao: true } }).catch(() => {});
-      } catch (e: any) { console.error('[PESQUISA] abrir caso churn:', e?.message); }
-    }
-
+    // ── 1) Salva a pesquisa IMEDIATAMENTE — sem esperar busca de cliente ──────
     let pesquisa: any;
     try {
-    pesquisa = await prisma.pesquisaSatisfacao.create({
-      data: {
-        identificacao: d.identificacao,
-        respondente_nome: d.respondente_nome,
-        cliente_id: cliente?.id,
-        cliente_casado: !!cliente,
-        email: d.email,
-        whatsapp: d.whatsapp,
-        cargo_respondente: d.cargo_respondente,
-        nota_atendimento: d.nota_atendimento,
-        nota_eficiencia: notaEfic,
-        nota_conhecimento: d.nota_conhecimento,
-        nota_geral: d.nota_geral,
-        resolucao: d.resolucao,
-        rapidez: d.rapidez,
-        interesse_comercial: d.interesse_comercial,
-        recado: d.recado,
-        conhece_plus: d.conhece_plus ?? false,
-        conhece_dashboard: d.conhece_dashboard ?? false,
-        conhece_mensageria: d.conhece_mensageria ?? false,
-        conhece_gerencial: d.conhece_gerencial ?? false,
-        // legados/compat
-        nota_suporte: d.nota_suporte ?? d.nota_atendimento,
-        nota_sistema: d.nota_sistema ?? d.nota_geral,
-        conhece_plano: d.conhece_plano ?? false,
-        observacao: d.observacao,
-        sugestoes: d.sugestoes,
-        score,
-        critico,
-        media,
-        alerta_especial: alertaEspecial,
-        alerta_motivo: alertaMotivos.length > 0 ? alertaMotivos.join(' · ') : null,
-        caso_churn_id: casoChurnId,
-        ip_address: (request.headers['x-forwarded-for'] as string)?.split(',')[0] || request.ip,
-      },
-    });
+      pesquisa = await prisma.pesquisaSatisfacao.create({
+        data: {
+          identificacao: d.identificacao,
+          respondente_nome: d.respondente_nome,
+          email: d.email,
+          whatsapp: d.whatsapp,
+          cargo_respondente: d.cargo_respondente,
+          nota_atendimento: d.nota_atendimento,
+          nota_eficiencia: notaEfic,
+          nota_conhecimento: d.nota_conhecimento,
+          nota_geral: d.nota_geral,
+          resolucao: d.resolucao,
+          rapidez: d.rapidez,
+          interesse_comercial: d.interesse_comercial,
+          recado: d.recado,
+          conhece_plus: d.conhece_plus ?? false,
+          conhece_dashboard: d.conhece_dashboard ?? false,
+          conhece_mensageria: d.conhece_mensageria ?? false,
+          conhece_gerencial: d.conhece_gerencial ?? false,
+          nota_suporte: d.nota_suporte ?? d.nota_atendimento,
+          nota_sistema: d.nota_sistema ?? d.nota_geral,
+          conhece_plano: d.conhece_plano ?? false,
+          observacao: d.observacao,
+          sugestoes: d.sugestoes,
+          score,
+          critico,
+          media,
+          alerta_especial: alertaEspecial,
+          alerta_motivo: alertaMotivos.length > 0 ? alertaMotivos.join(' · ') : null,
+          ip_address: (request.headers['x-forwarded-for'] as string)?.split(',')[0] || request.ip,
+        },
+      });
     } catch (e: any) {
       console.error('[PESQUISA] ERRO ao salvar:', JSON.stringify({ code: e?.code, msg: e?.message, meta: e?.meta }));
       return reply.status(500).send({ status: 'error', message: `Erro ao salvar: ${e?.code ?? ''} ${e?.message ?? ''}`.trim() });
     }
 
-    // Classificação da mensagem de retorno ao cliente conforme score
+    // ── 2) Responde ao cliente sem esperar nada mais ───────────────────────────
     const categoria = score >= 90 ? 'excelente' : score >= 80 ? 'bom' : score >= 70 ? 'atencao' : 'churn';
-
-    return reply.send({
+    reply.send({
       status: 'success',
-      data: {
-        id: pesquisa.id,
-        score,
-        categoria,
-        obrigado: true,
-        interesse_comercial: d.interesse_comercial,
-      },
+      data: { id: pesquisa.id, score, categoria, obrigado: true, interesse_comercial: d.interesse_comercial },
+    });
+
+    // ── 3) Pós-processamento em background (não bloqueia o cliente) ───────────
+    setImmediate(async () => {
+      try {
+        const cliente = await buscarClienteExato(prisma, d.identificacao);
+
+        // Vincula a pesquisa ao cliente encontrado
+        if (cliente) {
+          await prisma.pesquisaSatisfacao.update({
+            where: { id: pesquisa.id },
+            data: { cliente_id: cliente.id, cliente_casado: true },
+          }).catch(() => {});
+
+          // Atualiza ficha com radar de produtos
+          const fichaUpd: any = {};
+          if (d.conhece_plus !== undefined) fichaUpd.apresentou_plus = d.conhece_plus;
+          if (d.conhece_dashboard !== undefined) fichaUpd.conhece_dashboard = d.conhece_dashboard;
+          if (d.conhece_mensageria !== undefined) fichaUpd.conhece_mensageria = d.conhece_mensageria;
+          if (d.conhece_gerencial !== undefined) fichaUpd.conhece_gerencial = d.conhece_gerencial;
+          if (critico || alertaEspecial) fichaUpd.risco_atencao = true;
+          if (Object.keys(fichaUpd).length) {
+            await prisma.cliente.update({ where: { id: cliente.id }, data: fichaUpd }).catch(() => {});
+          }
+
+          // Abertura automática de caso de churn
+          const deveAbrirChurn = score < 70 || notaBaixa || problemaNaoResolvido;
+          if (deveAbrirChurn) {
+            const motivoPrincipal = notaBaixa
+              ? `Nota baixa na pesquisa (score ${score}/100)`
+              : problemaNaoResolvido
+                ? `Problema não resolvido (score ${score}/100)`
+                : `Score baixo de satisfação (${score}/100)`;
+            const riskScore = respondenteÉDono ? Math.min(100, 100 - score + 15) : 100 - score;
+            const descricaoChurn = [
+              `📊 Score de satisfação: ${score}/100`,
+              `👤 Cargo do respondente: ${d.cargo_respondente ?? 'não informado'}`,
+              `✅ Problema resolvido: ${d.resolucao ?? 'não informado'}`,
+              `⚡ Rapidez: ${d.rapidez ?? 'não informado'}`,
+              `⭐ Nota atendimento: ${d.nota_atendimento}/5`,
+              `⭐ Nota técnico: ${d.nota_conhecimento}/5`,
+              `⭐ Nota geral ProSystem: ${d.nota_geral}/5`,
+              d.recado ? `💬 Comentário: "${d.recado}"` : null,
+              alertaMotivos.length > 0 ? `⚠️ Alertas: ${alertaMotivos.join(', ')}` : null,
+            ].filter(Boolean).join('\n');
+
+            const caso = await prisma.casoChurn.create({
+              data: { clienteId: cliente.id, status: 'NOVO', risk_score: riskScore, motivo_principal: motivoPrincipal, created_by: 'pesquisa-satisfacao', descricao: descricaoChurn },
+            }).catch((e: any) => { console.error('[PESQUISA] abrir caso churn:', e?.message); return null; });
+
+            if (caso) {
+              await prisma.pesquisaSatisfacao.update({ where: { id: pesquisa.id }, data: { caso_churn_id: caso.id } }).catch(() => {});
+              await prisma.cliente.update({ where: { id: cliente.id }, data: { risco_atencao: true } }).catch(() => {});
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error('[PESQUISA] erro pós-processamento background:', e?.message);
+      }
     });
   });
 
