@@ -75,7 +75,7 @@ function BotaoOpcao({ label, sub, cor, ativo, onClick, emoji }: {
 // ── Tela de conclusão ─────────────────────────────────────────────────────────
 function Obrigado({ score, categoria, interesseComercial }: { score: number; categoria: string; interesseComercial?: string }) {
   const config = {
-    excelente: { emoji: '🏆', cor: C.green, titulo: 'Uau! Que avaliação incrível!', msg: 'Ficamos muito felizes com sua experiência! Sua resposta nos motiva a continuar entregando o melhor para o seu varejo.' },
+    excelente: { emoji: '🏆', cor: C.green, titulo: 'Uau! Que avaliação incrível!', msg: 'Ficamos muito felizes com sua experiência! Sua resposta nos motiva a continuar entregando o melhor para a sua empresa.' },
     bom:       { emoji: '😊', cor: C.blue2, titulo: 'Obrigado pela sua avaliação!', msg: 'Identificamos alguns pontos que podem ser melhorados e nosso time vai acompanhar para garantir uma experiência ainda melhor.' },
     atencao:   { emoji: '🤝', cor: C.yellow, titulo: 'Obrigado por nos contar!', msg: 'Recebemos sua avaliação e nosso time de Customer Success vai analisar os pontos informados para melhorar sua experiência.' },
     churn:     { emoji: '💙', cor: C.red, titulo: 'Obrigado por nos contar!', msg: 'Sua avaliação será tratada com prioridade. Nosso time irá entrar em contato em até 24 horas para resolver a situação.' },
@@ -104,8 +104,15 @@ function Obrigado({ score, categoria, interesseComercial }: { score: number; cat
         </div>
       )}
 
+      {/* Instagram */}
+      <a href="https://www.instagram.com/prosystemoficial/" target="_blank" rel="noreferrer"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 10, margin: '0 auto 20px', padding: '11px 22px', borderRadius: 50, background: 'linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7)', color: 'white', textDecoration: 'none', fontWeight: 700, fontSize: 14, boxShadow: '0 4px 18px rgba(238,42,123,0.35)' }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.326 3.608 1.301.975.975 1.24 2.242 1.301 3.608.058 1.265.069 1.645.069 4.849s-.012 3.584-.07 4.849c-.062 1.366-.326 2.633-1.301 3.608-.975.975-2.242 1.24-3.608 1.301-1.265.058-1.645.069-4.849.069s-3.584-.012-4.849-.07c-1.366-.062-2.633-.326-3.608-1.301-.975-.975-1.24-2.242-1.301-3.608C2.175 15.584 2.163 15.204 2.163 12s.012-3.584.07-4.849c.062-1.366.326-2.633 1.301-3.608.975-.975 2.242-1.24 3.608-1.301C8.416 2.175 8.796 2.163 12 2.163zm0-2.163C8.741 0 8.332.014 7.052.072 5.197.157 3.355.673 1.924 2.104.493 3.535-.023 5.377.072 7.232.014 8.332 0 8.741 0 12c0 3.259.014 3.668.072 4.948.095 1.855.611 3.697 2.042 5.128 1.431 1.431 3.273 1.947 5.128 2.042C8.332 23.986 8.741 24 12 24s3.668-.014 4.948-.072c1.855-.095 3.697-.611 5.128-2.042 1.431-1.431 1.947-3.273 2.042-5.128.058-1.28.072-1.689.072-4.948 0-3.259-.014-3.668-.072-4.948-.095-1.855-.611-3.697-2.042-5.128C20.645.673 18.803.157 16.948.072 15.668.014 15.259 0 12 0z"/><path d="M12 5.838a6.162 6.162 0 1 0 0 12.324A6.162 6.162 0 0 0 12 5.838zm0 10.162a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+        Nos siga no Instagram e acompanhe nosso dia a dia!
+      </a>
+
       <div style={{ paddingTop: 20, borderTop: `1px solid ${C.border}`, fontSize: 13, color: C.muted }}>
-        ProSystem Sistemas · Transformando a gestão do varejo · (27) 3327-6739
+        ProSystem Sistemas · Transformando a gestão da sua empresa · (27) 3327-6739
       </div>
     </div>
   );
