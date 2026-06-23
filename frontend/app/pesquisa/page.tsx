@@ -171,7 +171,7 @@ export default function PesquisaPublicaPage() {
     'Estou insatisfeito com o suporte',
   ];
 
-  const [enviando, setEnviando] = useState(false);
+
   const [resultado, setResultado] = useState<{ score: number; categoria: string; interesseComercial?: string } | null>(null);
   const [erro, setErro] = useState('');
 
@@ -210,10 +210,23 @@ export default function PesquisaPublicaPage() {
     { k: 'nao',    l: 'Não tenho interesse agora',    sub: '',                            cor: C.muted,  emoji: '—' },
   ];
 
+  // Calcula score localmente (mesma fórmula do backend) para mostrar tela final sem esperar servidor
+  const calcScoreLocal = () => {
+    const pontoAtend = Math.round(((notaAtendimento - 1) / 4) * 25);
+    const pontoConhec = Math.round(((notaConhecimento - 1) / 4) * 15);
+    const pontoGeral  = Math.round(((notaGeral - 1) / 4) * 15);
+    const pontoResolucao = resolucao === 'totalmente' ? 20 : resolucao === 'parcialmente' ? 12 : resolucao === 'nao_resolveu' ? 3 : resolucao === 'nao_sei' ? 8 : 12;
+    const pontoRapidez   = rapidez === 'muito_rapido' ? 15 : rapidez === 'esperado' ? 12 : rapidez === 'demorou_pouco' ? 7 : rapidez === 'demorou_muito' ? 2 : 10;
+    const ferrConhecidas = ['plus','dashboard','mensageria','gerencial'].filter(k => ferramentas[k] && ferramentas[k] !== 'nao').length;
+    const pontoFerr = ferrConhecidas >= 3 ? 10 : ferrConhecidas >= 1 ? 7 : 3;
+    return Math.min(100, pontoAtend + pontoResolucao + pontoRapidez + pontoConhec + pontoGeral + pontoFerr);
+  };
+
   const avancar = () => {
     setErro('');
     if (etapa === 1) {
       if (!identificacao.trim()) { setErro('Por favor, informe a razão social da sua empresa.'); return; }
+      if (!whatsapp.trim()) { setErro('Por favor, informe seu WhatsApp/celular para contato.'); return; }
       if (!cargoRespondente) { setErro('Por favor, selecione seu cargo/função.'); return; }
     }
     if (etapa === 2) {
@@ -231,46 +244,40 @@ export default function PesquisaPublicaPage() {
 
   const voltar = () => { setErro(''); setEtapa(e => e - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
-  const enviar = async () => {
+  const enviar = () => {
     setErro('');
-    setEnviando(true);
-    try {
-      const ferramentasMap: Record<string, boolean | undefined> = {
-        plus: ferramentas.plus !== undefined ? ferramentas.plus !== 'nao' : undefined,
-        dashboard: ferramentas.dashboard !== undefined ? ferramentas.dashboard !== 'nao' : undefined,
-        mensageria: ferramentas.mensageria !== undefined ? ferramentas.mensageria !== 'nao' : undefined,
-        gerencial: ferramentas.gerencial !== undefined ? ferramentas.gerencial !== 'nao' : undefined,
-      };
 
-      const res = await apiClient.responderPesquisa({
-        identificacao,
-        respondente_nome: respondente || undefined,
-        whatsapp: whatsapp || undefined,
-        cargo_respondente: (cargoRespondente as any) || undefined,
-        nota_atendimento: notaAtendimento,
-        nota_eficiencia: notaAtendimento, // compat legado
-        nota_conhecimento: notaConhecimento,
-        nota_geral: notaGeral,
-        resolucao: (resolucao as any) || undefined,
-        rapidez: (rapidez as any) || undefined,
-        conhece_plus: ferramentasMap.plus,
-        conhece_dashboard: ferramentasMap.dashboard,
-        conhece_mensageria: ferramentasMap.mensageria,
-        conhece_gerencial: ferramentasMap.gerencial,
-        interesse_comercial: (interesseComercial as any) || undefined,
-        recado: recado || undefined,
-      });
+    // Calcula score localmente e mostra tela final IMEDIATAMENTE — zero espera para o cliente
+    const scoreLocal = calcScoreLocal();
+    const categoriaLocal = scoreLocal >= 90 ? 'excelente' : scoreLocal >= 80 ? 'bom' : scoreLocal >= 70 ? 'atencao' : 'churn';
+    setResultado({ score: scoreLocal, categoria: categoriaLocal, interesseComercial });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      const data = res.data?.data || {};
-      setResultado({
-        score: data.score ?? 0,
-        categoria: data.categoria ?? 'bom',
-        interesseComercial: interesseComercial,
-      });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || 'Não foi possível enviar. Tente novamente.');
-    } finally { setEnviando(false); }
+    // Envia ao backend em background — cliente já viu a tela de obrigado
+    const ferramentasMap: Record<string, boolean | undefined> = {
+      plus:      ferramentas.plus      !== undefined ? ferramentas.plus      !== 'nao' : undefined,
+      dashboard: ferramentas.dashboard !== undefined ? ferramentas.dashboard !== 'nao' : undefined,
+      mensageria:ferramentas.mensageria!== undefined ? ferramentas.mensageria!== 'nao' : undefined,
+      gerencial: ferramentas.gerencial !== undefined ? ferramentas.gerencial !== 'nao' : undefined,
+    };
+    apiClient.responderPesquisa({
+      identificacao,
+      respondente_nome: respondente || undefined,
+      whatsapp: whatsapp || undefined,
+      cargo_respondente: (cargoRespondente as any) || undefined,
+      nota_atendimento: notaAtendimento,
+      nota_eficiencia: notaAtendimento,
+      nota_conhecimento: notaConhecimento,
+      nota_geral: notaGeral,
+      resolucao: (resolucao as any) || undefined,
+      rapidez: (rapidez as any) || undefined,
+      conhece_plus: ferramentasMap.plus,
+      conhece_dashboard: ferramentasMap.dashboard,
+      conhece_mensageria: ferramentasMap.mensageria,
+      conhece_gerencial: ferramentasMap.gerencial,
+      interesse_comercial: (interesseComercial as any) || undefined,
+      recado: recado || undefined,
+    }).catch((e: any) => console.error('[pesquisa] erro ao enviar background:', e?.message));
   };
 
   const wrap: React.CSSProperties = {
@@ -344,9 +351,9 @@ export default function PesquisaPublicaPage() {
               </div>
 
               <div style={sBloco}>
-                <p style={sTitulo}>WhatsApp ou e-mail <span style={sOpc}>(opcional, para contato)</span></p>
+                <p style={sTitulo}>WhatsApp / Celular <span style={{ color: C.red, fontWeight: 700 }}>*</span></p>
                 <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)}
-                  placeholder="(27) 9 9999-0000 ou email@empresa.com" style={sInput} />
+                  placeholder="(27) 9 9999-0000" style={sInput} inputMode="tel" />
               </div>
 
               <div style={sBloco}>
@@ -518,13 +525,13 @@ export default function PesquisaPublicaPage() {
                 Continuar →
               </button>
             ) : (
-              <button onClick={enviar} disabled={enviando} style={{
+              <button onClick={enviar} style={{
                 flex: 1, padding: '16px', borderRadius: 12, border: 'none',
-                background: enviando ? '#9CB8D4' : `linear-gradient(135deg,${C.green},#15803D)`,
-                color: '#fff', fontSize: 15, fontWeight: 800, cursor: enviando ? 'default' : 'pointer',
-                boxShadow: enviando ? 'none' : '0 6px 20px rgba(22,163,74,.35)',
+                background: `linear-gradient(135deg,${C.green},#15803D)`,
+                color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+                boxShadow: '0 6px 20px rgba(22,163,74,.35)',
               }}>
-                {enviando ? 'Enviando…' : '✓ Enviar minha avaliação'}
+                ✓ Enviar minha avaliação
               </button>
             )}
           </div>
