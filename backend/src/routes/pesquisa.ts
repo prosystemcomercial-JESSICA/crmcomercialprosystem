@@ -280,7 +280,7 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
 
     const pesquisa = await prisma.pesquisaSatisfacao.create({
       data: {
-        identificacao: termo,
+        identificacao: d.identificacao,
         respondente_nome: d.respondente_nome,
         cliente_id: cliente?.id,
         cliente_casado: !!cliente,
