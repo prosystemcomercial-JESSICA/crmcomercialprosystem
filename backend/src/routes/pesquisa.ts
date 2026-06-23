@@ -278,7 +278,9 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
       } catch (e: any) { console.error('[PESQUISA] abrir caso churn:', e?.message); }
     }
 
-    const pesquisa = await prisma.pesquisaSatisfacao.create({
+    let pesquisa: any;
+    try {
+    pesquisa = await prisma.pesquisaSatisfacao.create({
       data: {
         identificacao: d.identificacao,
         respondente_nome: d.respondente_nome,
@@ -314,6 +316,10 @@ export async function pesquisaRoutes(fastify: FastifyInstance, options: { prisma
         ip_address: (request.headers['x-forwarded-for'] as string)?.split(',')[0] || request.ip,
       },
     });
+    } catch (e: any) {
+      console.error('[PESQUISA] ERRO ao salvar:', JSON.stringify({ code: e?.code, msg: e?.message, meta: e?.meta }));
+      return reply.status(500).send({ status: 'error', message: `Erro ao salvar: ${e?.code ?? ''} ${e?.message ?? ''}`.trim() });
+    }
 
     // Classificação da mensagem de retorno ao cliente conforme score
     const categoria = score >= 90 ? 'excelente' : score >= 80 ? 'bom' : score >= 70 ? 'atencao' : 'churn';

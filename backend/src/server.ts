@@ -133,6 +133,9 @@ fastify.setErrorHandler((error: any, request, reply) => {
   else if (msg.includes('timeout')) { statusCode = 504; userMsg = 'Tempo de resposta excedido. Tente novamente.'; }
   else if (error?.statusCode) { statusCode = error.statusCode; userMsg = msg; }
 
+  // Log detalhado para diagnóstico (aparece nos logs do Railway)
+  console.error('[ERROR HANDLER]', JSON.stringify({ code: error?.code, msg, meta: error?.meta, url: request.url }));
+
   fastify.log.error({
     err: error,
     url: request.url,
