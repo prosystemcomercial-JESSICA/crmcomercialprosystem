@@ -1493,8 +1493,8 @@ model VendaAdicional {
   cliente_id String
   cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  parceiro_id String
-  parceiro    Parceiro @relation(fields: [parceiro_id], references: [id])
+  parceiro_id String?
+  parceiro    Parceiro? @relation(fields: [parceiro_id], references: [id])
 
   vendedor_id   String
   vendedor_nome String? // nome do vendedor que fez a venda (exibição)
@@ -1544,6 +1544,8 @@ model VendaAdicional {
   status String @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
 
   observacoes String? @db.Text
+
+  origem_oportunidade_id String? // OportunidadeAtivo que gerou esta venda (módulo Ativos)
 
   created_by String
   created_at DateTime @default(now())

@@ -566,22 +566,25 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     if (!isGestor && scopeId !== null && oport.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
 
     // Cria a VendaAdicional real (nasce PENDENTE — gestão confirma/data pelo fluxo normal)
+    // Cria sempre, com ou sem parceiro (vendas internas do módulo Ativos não têm parceiro externo)
+    const vendedorId = body.success && body.data.vendedor_id ? body.data.vendedor_id : oport.vendedor_id;
+    const tipoNegocio = oport.parceiro_id ? 'INDICACAO' : 'EXPANSAO';
     let vendaId: string | null = null;
-    if (oport.parceiro_id) {
-      const venda = await prisma.vendaAdicional.create({
-        data: {
-          cliente_id: oport.cliente_id,
-          parceiro_id: oport.parceiro_id,
-          vendedor_id: body.success && body.data.vendedor_id ? body.data.vendedor_id : oport.vendedor_id,
-          tipo_negocio: 'INDICACAO',
-          valor_venda: oport.valor_venda ?? undefined,
-          acrescimo_mensal: oport.acrescimo_mensal ?? undefined,
-          status: 'PENDENTE',
-          observacoes: oport.observacao ?? undefined,
-        } as any,
-      }).catch(() => null);
-      vendaId = venda?.id || null;
-    }
+    const venda = await prisma.vendaAdicional.create({
+      data: {
+        cliente_id: oport.cliente_id,
+        parceiro_id: oport.parceiro_id ?? null,
+        vendedor_id: vendedorId,
+        tipo_negocio: tipoNegocio,
+        valor_venda: oport.valor_venda ?? undefined,
+        acrescimo_mensal: oport.acrescimo_mensal ?? undefined,
+        status: 'PENDENTE',
+        observacoes: oport.observacao ?? undefined,
+        origem_oportunidade_id: oport.id,
+        created_by: user?.id ?? vendedorId,
+      } as any,
+    }).catch((e: any) => { console.error('[ATIVOS] criar VendaAdicional:', e?.message); return null; });
+    vendaId = venda?.id || null;
 
     const updated = await (prisma as any).oportunidadeAtivo.update({
       where: { id: resolvedId },
