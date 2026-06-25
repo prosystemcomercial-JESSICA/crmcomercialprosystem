@@ -621,6 +621,34 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       }).catch(() => {});
     }
 
+    // Cria comissão do vendedor para a venda recém-criada
+    if (venda) {
+      const proximoMes = () => {
+        const prox = new Date(); prox.setMonth(prox.getMonth() + 1); prox.setDate(1);
+        return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, '0')}`;
+      };
+      // Busca valor de comissão do parceiro; fallback R$50
+      const parceiro = oport.parceiro_id
+        ? await prisma.parceiro.findUnique({ where: { id: oport.parceiro_id } }).catch(() => null)
+        : null;
+      const comissaoValor = parceiro?.comissao_valor ?? 50;
+      await prisma.comissao.create({
+        data: {
+          responsavel_id: vendedorId,
+          tipo: 'VENDA_ADICIONAL',
+          referencia_id: venda.id,
+          descricao: `Venda Adicional: ${oport.parceiro_nome || oport.categoria || 'Expansão'} — ${oport.cliente_id}`,
+          valor_base: comissaoValor,
+          percentual: 100,
+          valor_comissao: comissaoValor,
+          papel: 'VENDEDOR',
+          periodo: proximoMes(),
+          status: 'APROVADA',
+          created_by: user?.id ?? vendedorId,
+        },
+      }).catch((e: any) => console.error('[ATIVOS] criar comissão:', e?.message));
+    }
+
     return reply.send({ status: 'success', data: { oportunidade: updated, venda_id: vendaId } });
   });
 
