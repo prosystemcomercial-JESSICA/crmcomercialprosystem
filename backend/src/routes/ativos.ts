@@ -357,11 +357,17 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     if (body.data.gerou_venda && parceiro_id && !atual.venda_ref_id) {
       const parceiro = await prisma.parceiro.findUnique({ where: { id: parceiro_id } }).catch(() => null);
       if (parceiro) {
+        const supervisorCS = await (prisma as any).usuarioCRM.findFirst({
+          where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+          orderBy: { nome: 'asc' },
+          select: { id: true },
+        }).catch(() => null);
         const venda = await prisma.vendaAdicional.create({
           data: {
             cliente_id: atual.cliente_id,
             parceiro_id,
             vendedor_id: atual.vendedor_id,
+            supervisao_id: supervisorCS?.id || null,
             tipo_negocio: 'INDICACAO',
             valor_venda: venda_valor ?? undefined,
             acrescimo_mensal: venda_acrescimo ?? undefined,
@@ -569,12 +575,22 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     // Cria sempre, com ou sem parceiro (vendas internas do módulo Ativos não têm parceiro externo)
     const vendedorId = body.success && body.data.vendedor_id ? body.data.vendedor_id : oport.vendedor_id;
     const tipoNegocio = oport.parceiro_id ? 'INDICACAO' : 'EXPANSAO';
+
+    // Supervisão = sempre o usuário com role SUPERVISAO cadastrado, nunca quem está logado.
+    const supervisorAtivos = await (prisma as any).usuarioCRM.findFirst({
+      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+      orderBy: { nome: 'asc' },
+      select: { id: true },
+    }).catch(() => null);
+    const supervisaoIdAtivos = supervisorAtivos?.id || null;
+
     let vendaId: string | null = null;
     const venda = await prisma.vendaAdicional.create({
       data: {
         cliente_id: oport.cliente_id,
         parceiro_id: oport.parceiro_id ?? null,
         vendedor_id: vendedorId,
+        supervisao_id: supervisaoIdAtivos,
         tipo_negocio: tipoNegocio,
         valor_venda: oport.valor_venda ?? undefined,
         acrescimo_mensal: oport.acrescimo_mensal ?? undefined,
