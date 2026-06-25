@@ -831,4 +831,49 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
 
     return reply.send({ status: 'success', data: { migrados, total_encontrados: comRef.length + semRef.length } });
   });
+
+  // ── MIGRAÇÃO: cria VendaAdicional para oportunidades CONFIRMADAS sem venda vinculada
+  // Cobre o caso das confirmações feitas antes do parceiro_id se tornar opcional.
+  // Rota idempotente — pode ser chamada mais de uma vez sem duplicar.
+  fastify.post('/ativos/migrar-vendas-confirmadas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+
+    const oprtsSemVenda = await (prisma as any).oportunidadeAtivo.findMany({
+      where: { status: 'CONFIRMADA', venda_adicional_id: null },
+    });
+
+    let criadas = 0;
+    const erros: string[] = [];
+
+    for (const oport of oprtsSemVenda) {
+      try {
+        const tipoNegocio = oport.parceiro_id ? 'INDICACAO' : 'EXPANSAO';
+        const venda = await prisma.vendaAdicional.create({
+          data: {
+            cliente_id: oport.cliente_id,
+            parceiro_id: oport.parceiro_id ?? null,
+            vendedor_id: oport.vendedor_id,
+            tipo_negocio: tipoNegocio,
+            valor_venda: oport.valor_venda ?? undefined,
+            acrescimo_mensal: oport.acrescimo_mensal ?? undefined,
+            status: 'PENDENTE',
+            observacoes: oport.observacao ?? undefined,
+            origem_oportunidade_id: oport.id,
+            created_by: oport.confirmado_por ?? oport.vendedor_id ?? oport.criado_por,
+          } as any,
+        });
+
+        await (prisma as any).oportunidadeAtivo.update({
+          where: { id: oport.id },
+          data: { venda_adicional_id: venda.id },
+        });
+        criadas++;
+      } catch (e: any) {
+        console.error('[MIGRAR-VENDAS] erro oport', oport.id, e?.message);
+        erros.push(oport.id);
+      }
+    }
+
+    return reply.send({ status: 'success', data: { criadas, total: oprtsSemVenda.length, erros } });
+  });
 }
