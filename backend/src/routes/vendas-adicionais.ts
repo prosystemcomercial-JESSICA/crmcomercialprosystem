@@ -328,7 +328,15 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
           ? 50
           : (body.data.tipo_negocio === 'INDICACAO' ? 50 : parceiro.comissao_valor));
     const comissaoValor = body.data.comissao_valor ?? comissaoPadrao;
-    const supervisaoId = user?.id || null;
+
+    // Supervisão = primeiro usuário ativo com role SUPERVISAO ou SUPERVISAO_COMERCIAL.
+    // NÃO usa quem está logado — o vendedor não é a supervisão.
+    const supervisorCRM = await (prisma as any).usuarioCRM.findFirst({
+      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+      orderBy: { nome: 'asc' },
+      select: { id: true },
+    }).catch(() => null);
+    const supervisaoId = supervisorCRM?.id || null;
 
     // O vendedor que fez a venda: gestão pode escolher qualquer vendedor; um vendedor
     // logado só registra para SI MESMO (segurança). Resolve o nome para exibição.
