@@ -904,4 +904,50 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
 
     return reply.send({ status: 'success', data: { criadas, total: oprtsSemVenda.length, erros } });
   });
+
+  // ── MIGRAÇÃO: corrige comissões SUPERVISAO_VENDA_ADICIONAL que ficaram com responsavel_id errado.
+  // Ocorreu porque o sistema usava user?.id (vendedor logado) como supervisao_id.
+  // Agora usa o usuário com role SUPERVISAO. Esta rota corrige os registros antigos.
+  fastify.post('/ativos/corrigir-comissoes-supervisao', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+
+    const supervisora = await (prisma as any).usuarioCRM.findFirst({
+      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+      orderBy: { nome: 'asc' },
+    }).catch(() => null);
+
+    if (!supervisora) return reply.status(404).send({ status: 'error', message: 'Nenhuma supervisora com role SUPERVISAO encontrada.' });
+
+    // Corrige comissões com tipo SUPERVISAO mas responsavel_id diferente da supervisora
+    const comissoesErradas = await prisma.comissao.findMany({
+      where: { tipo: 'SUPERVISAO_VENDA_ADICIONAL', NOT: { responsavel_id: supervisora.id } },
+    });
+
+    let corrigidasComissoes = 0;
+    for (const c of comissoesErradas) {
+      await prisma.comissao.update({ where: { id: c.id }, data: { responsavel_id: supervisora.id } }).catch(() => null);
+      corrigidasComissoes++;
+    }
+
+    // Corrige vendas com supervisao_id diferente da supervisora
+    const vendasErradas = await (prisma as any).vendaAdicional.findMany({
+      where: { supervisao_id: { not: null, notIn: [supervisora.id] } },
+      select: { id: true },
+    }).catch(() => []);
+
+    let corrigidasVendas = 0;
+    for (const v of vendasErradas) {
+      await (prisma as any).vendaAdicional.update({ where: { id: v.id }, data: { supervisao_id: supervisora.id } }).catch(() => null);
+      corrigidasVendas++;
+    }
+
+    return reply.send({
+      status: 'success',
+      data: {
+        supervisora: supervisora.nome,
+        comissoes_corrigidas: corrigidasComissoes,
+        vendas_corrigidas: corrigidasVendas,
+      },
+    });
+  });
 }
