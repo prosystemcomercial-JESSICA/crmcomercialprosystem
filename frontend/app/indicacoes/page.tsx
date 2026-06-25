@@ -19,7 +19,7 @@ interface Parceiro {
 interface VendaAdicional {
   id: string;
   cliente_id: string;
-  parceiro_id: string;
+  parceiro_id?: string | null;
   vendedor_id: string;
   vendedor_nome?: string;
   tipo_negocio?: string;
@@ -39,8 +39,9 @@ interface VendaAdicional {
   data_fechamento?: string;
   primeiro_vencimento?: string;
   acrescimo_mensal?: number;
+  origem_oportunidade_id?: string | null;
   cliente: { id: string; nome: string; empresa?: string; telefone?: string };
-  parceiro: { id: string; nome: string; categoria: string; comissao_valor: number };
+  parceiro?: { id: string; nome: string; categoria: string; comissao_valor: number } | null;
 }
 
 const CATEGORIA_LABEL: Record<string, string> = {
@@ -561,7 +562,7 @@ export default function IndicacoesPage() {
                 <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Categoria</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(['', ...Object.keys(CATEGORIA_LABEL)] as const).map(cat => {
-                    const qtd = cat === '' ? vendas.length : vendas.filter(v => v.parceiro.categoria === cat).length;
+                    const qtd = cat === '' ? vendas.length : vendas.filter(v => v.parceiro?.categoria === cat).length;
                     if (qtd === 0 && cat !== '') return null;
                     return (
                       <button key={cat} onClick={() => setCategoriaFilter(cat)}
@@ -610,7 +611,7 @@ export default function IndicacoesPage() {
                 }
                 return (
                   (!statusFilter || v.status === statusFilter) &&
-                  (!categoriaFilter || v.parceiro.categoria === categoriaFilter) &&
+                  (!categoriaFilter || v.parceiro?.categoria === categoriaFilter) &&
                   (!vendedorFilter || v.vendedor_id === vendedorFilter)
                 );
               });
@@ -645,14 +646,25 @@ export default function IndicacoesPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORIA_COLOR[v.parceiro.categoria] || 'bg-gray-100 text-gray-600'}`}>
-                              {CATEGORIA_LABEL[v.parceiro.categoria] || v.parceiro.categoria}
-                            </span>
-                            <span className="text-sm text-gray-700">{v.parceiro.nome}</span>
+                            {v.parceiro ? (
+                              <>
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORIA_COLOR[v.parceiro.categoria] || 'bg-gray-100 text-gray-600'}`}>
+                                  {CATEGORIA_LABEL[v.parceiro.categoria] || v.parceiro.categoria}
+                                </span>
+                                <span className="text-sm text-gray-700">{v.parceiro.nome}</span>
+                              </>
+                            ) : (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                Expansão Interna
+                              </span>
+                            )}
                             {(v as any).tipo_negocio && (
                               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                                style={{ background: (v as any).tipo_negocio === 'REVENDA' ? '#dcfce7' : '#fef3c7', color: (v as any).tipo_negocio === 'REVENDA' ? '#16a34a' : '#d97706' }}>
-                                {(v as any).tipo_negocio === 'REVENDA' ? 'Revenda' : 'Indicação'}
+                                style={{
+                                  background: (v as any).tipo_negocio === 'REVENDA' ? '#dcfce7' : (v as any).tipo_negocio === 'EXPANSAO' ? '#eff6ff' : '#fef3c7',
+                                  color: (v as any).tipo_negocio === 'REVENDA' ? '#16a34a' : (v as any).tipo_negocio === 'EXPANSAO' ? '#1d4ed8' : '#d97706'
+                                }}>
+                                {(v as any).tipo_negocio === 'REVENDA' ? 'Revenda' : (v as any).tipo_negocio === 'EXPANSAO' ? 'Expansão' : 'Indicação'}
                               </span>
                             )}
                           </div>
