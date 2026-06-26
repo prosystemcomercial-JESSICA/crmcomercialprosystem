@@ -181,8 +181,12 @@ export default function AtivosPage() {
     try {
       await apiClient.atualizarContatoAtivo((editando.id || ficha?.contato?.id), {
         etapa: etapaFinal,
-        usa_sistema_ok: editando.usa_sistema_ok, suporte_ok: editando.suporte_ok, tecnico_ok: editando.tecnico_ok,
-        conhece_novas_ferr: editando.conhece_novas_ferr, plus_apresentado: editando.plus_apresentado,
+        // null → undefined para não quebrar validação boolean no backend
+        usa_sistema_ok: editando.usa_sistema_ok ?? undefined,
+        suporte_ok: editando.suporte_ok ?? undefined,
+        tecnico_ok: editando.tecnico_ok ?? undefined,
+        conhece_novas_ferr: editando.conhece_novas_ferr ?? undefined,
+        plus_apresentado: editando.plus_apresentado ?? undefined,
         nota_prosystem: editando.nota_prosystem ? Number(editando.nota_prosystem) : undefined,
         sugestoes: editando.sugestoes || undefined, saude: editando.saude || undefined,
         tem_problema: !!editando.tem_problema, problema_descricao: editando.problema_descricao || undefined,
@@ -196,6 +200,12 @@ export default function AtivosPage() {
         cli_telefone1: editando.atualizar_cliente ? (editando.cli_telefone1 || undefined) : undefined,
         cli_telefone2: editando.atualizar_cliente ? (editando.cli_telefone2 || undefined) : undefined,
         cli_segmento: editando.atualizar_cliente ? (editando.cli_segmento || undefined) : undefined,
+        cli_responsavel_nome: editando.atualizar_cliente ? (editando.cli_responsavel_nome || undefined) : undefined,
+        cli_responsavel_cargo: editando.atualizar_cliente ? (editando.cli_responsavel_cargo || undefined) : undefined,
+        cli_responsavel_telefone: editando.atualizar_cliente ? (editando.cli_responsavel_telefone || undefined) : undefined,
+        cli_contatos_adicionais: editando.atualizar_cliente && editando.cli_contatos_adicionais?.length
+          ? editando.cli_contatos_adicionais.filter((ct: any) => ct.nome?.trim())
+          : undefined,
       });
       setEditando(null);
       loadContatos();
@@ -813,6 +823,94 @@ export default function AtivosPage() {
                                   <option value="">— segmento —</option>
                                   {['Farmácia', 'Manipulação', 'Padaria', 'Varejo'].map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
+                              </div>
+
+                              {/* ── Responsável principal ── */}
+                              <div className="border-t border-gray-100 pt-3 mt-1">
+                                <p className="text-xs font-semibold text-gray-700 mb-2">Responsável / Contato</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-xs font-medium text-gray-600">Nome do responsável</label>
+                                    <input value={(editando || c).cli_responsavel_nome ?? ''} onChange={e => setEditando({ ...(editando || c), cli_responsavel_nome: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Ex.: João Silva" />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs font-medium text-gray-600">Cargo</label>
+                                    <input value={(editando || c).cli_responsavel_cargo ?? ''} onChange={e => setEditando({ ...(editando || c), cli_responsavel_cargo: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Ex.: Gerente, Proprietário" />
+                                  </div>
+                                </div>
+                                <div className="mt-2">
+                                  <label className="text-xs font-medium text-gray-600">Telefone do responsável</label>
+                                  <input value={(editando || c).cli_responsavel_telefone ?? ''} onChange={e => setEditando({ ...(editando || c), cli_responsavel_telefone: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
+                                </div>
+                              </div>
+
+                              {/* ── Contatos adicionais ── */}
+                              <div className="border-t border-gray-100 pt-3">
+                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                                  <input type="checkbox"
+                                    checked={!!((editando || c).cli_tem_mais_contatos)}
+                                    onChange={e => {
+                                      const base = editando || c;
+                                      setEditando({ ...base, cli_tem_mais_contatos: e.target.checked, atualizar_cliente: true,
+                                        cli_contatos_adicionais: e.target.checked ? (base.cli_contatos_adicionais?.length ? base.cli_contatos_adicionais : [{ nome: '', cargo: '', telefone: '' }]) : [] });
+                                    }}
+                                    className="w-4 h-4 accent-green-600"
+                                  />
+                                  Há mais de um contato nesta empresa
+                                </label>
+
+                                {(editando || c).cli_tem_mais_contatos && (
+                                  <div className="mt-2 space-y-2">
+                                    {((editando || c).cli_contatos_adicionais || []).map((ct: any, idx: number) => (
+                                      <div key={idx} className="bg-gray-50 rounded-lg p-2 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-xs font-medium text-gray-500">Contato {idx + 1}</span>
+                                          <button type="button" onClick={() => {
+                                            const base = editando || c;
+                                            const lista = [...(base.cli_contatos_adicionais || [])];
+                                            lista.splice(idx, 1);
+                                            setEditando({ ...base, cli_contatos_adicionais: lista });
+                                          }} className="text-xs text-red-500 hover:text-red-700">Remover</button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="text-xs text-gray-500">Nome</label>
+                                            <input value={ct.nome ?? ''} onChange={e => {
+                                              const base = editando || c;
+                                              const lista = [...(base.cli_contatos_adicionais || [])];
+                                              lista[idx] = { ...lista[idx], nome: e.target.value };
+                                              setEditando({ ...base, cli_contatos_adicionais: lista, atualizar_cliente: true });
+                                            }} className="w-full mt-0.5 px-2 py-1.5 border border-gray-200 rounded text-sm" placeholder="Nome" />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs text-gray-500">Cargo</label>
+                                            <input value={ct.cargo ?? ''} onChange={e => {
+                                              const base = editando || c;
+                                              const lista = [...(base.cli_contatos_adicionais || [])];
+                                              lista[idx] = { ...lista[idx], cargo: e.target.value };
+                                              setEditando({ ...base, cli_contatos_adicionais: lista });
+                                            }} className="w-full mt-0.5 px-2 py-1.5 border border-gray-200 rounded text-sm" placeholder="Cargo" />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-gray-500">Telefone</label>
+                                          <input value={ct.telefone ?? ''} onChange={e => {
+                                            const base = editando || c;
+                                            const lista = [...(base.cli_contatos_adicionais || [])];
+                                            lista[idx] = { ...lista[idx], telefone: e.target.value };
+                                            setEditando({ ...base, cli_contatos_adicionais: lista });
+                                          }} className="w-full mt-0.5 px-2 py-1.5 border border-gray-200 rounded text-sm" placeholder="(00) 00000-0000" />
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <button type="button" onClick={() => {
+                                      const base = editando || c;
+                                      setEditando({ ...base, cli_contatos_adicionais: [...(base.cli_contatos_adicionais || []), { nome: '', cargo: '', telefone: '' }] });
+                                    }} className="w-full py-1.5 text-xs font-medium border border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-green-400 hover:text-green-600">
+                                      + Adicionar contato
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <button onClick={() => { if (!editando) setEditando({ ...c }); salvarQuestionario(); }} disabled={savingQ}
