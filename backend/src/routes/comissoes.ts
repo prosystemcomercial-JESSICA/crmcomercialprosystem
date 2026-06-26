@@ -362,13 +362,24 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     const ids = [...new Set(comissoes.map((c: any) => c.responsavel_id).filter(Boolean))];
     const nomeDe = await resolverNomesUsuarios(prisma, ids).catch(() => ({} as any));
 
-    // Agrupa por responsável; separa papel (VENDEDOR/SUPERVISAO) p/ totalizar.
+    // Supervisora real = único usuário com role SUPERVISAO — garante exibição correta
+    // mesmo que registros antigos tenham responsavel_id errado.
+    const supervisoraReal = await (prisma as any).usuarioCRM.findFirst({
+      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+      orderBy: { nome: 'asc' },
+      select: { id: true, nome: true },
+    }).catch(() => null);
+
+    // Agrupa por responsável; comissões de supervisão sempre vão para a supervisora real.
     const grupos: Record<string, any> = {};
     for (const c of comissoes as any[]) {
-      const rid = c.responsavel_id || 'sem';
+      const ehSupervisao = c.tipo === 'SUPERVISAO_VENDA_ADICIONAL' || c.papel === 'SUPERVISAO';
+      // Se é comissão de supervisão, força responsavel_id para a supervisora cadastrada
+      const rid = ehSupervisao && supervisoraReal ? supervisoraReal.id : (c.responsavel_id || 'sem');
+      const nomeExibir = ehSupervisao && supervisoraReal ? supervisoraReal.nome : (nomeDe[rid] || rid);
       grupos[rid] = grupos[rid] || {
-        responsavel_id: rid, responsavel_nome: nomeDe[rid] || rid,
-        papel: c.papel || 'VENDEDOR', total: 0, itens: [] as any[],
+        responsavel_id: rid, responsavel_nome: nomeExibir,
+        papel: ehSupervisao ? 'SUPERVISAO' : (c.papel || 'VENDEDOR'), total: 0, itens: [] as any[],
       };
       grupos[rid].total += Number(c.valor_comissao || 0);
       grupos[rid].itens.push({
@@ -500,16 +511,26 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     const clienteDe = await mapaClientes(comissoesRaw as any[]);
     const respIds = [...new Set(comissoesRaw.map((c: any) => c.responsavel_id).filter(Boolean))];
     const nomeDe = await resolverNomesUsuarios(prisma, respIds);
-    const comissoes = comissoesRaw.map((c: any) => ({
-      ...c,
-      cliente: clienteDe[c.referencia_id || ''] || null,
-      responsavel_nome: nomeDe[c.responsavel_id] || null,
-    }));
+    // Busca supervisora real para exibir nome correto nas comissões de supervisão
+    const supervisoraLista = await (prisma as any).usuarioCRM.findFirst({
+      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+      orderBy: { nome: 'asc' }, select: { id: true, nome: true },
+    }).catch(() => null);
+
+    const comissoes = comissoesRaw.map((c: any) => {
+      const ehSupervisao = c.tipo === 'SUPERVISAO_VENDA_ADICIONAL' || c.papel === 'SUPERVISAO';
+      return {
+        ...c,
+        cliente: clienteDe[c.referencia_id || ''] || null,
+        responsavel_nome: ehSupervisao && supervisoraLista ? supervisoraLista.nome : (nomeDe[c.responsavel_id] || null),
+        responsavel_id: ehSupervisao && supervisoraLista ? supervisoraLista.id : c.responsavel_id,
+      };
+    });
 
     // Agrupado por responsável
     const por_responsavel = comissoes.reduce((acc: any, c) => {
       if (!acc[c.responsavel_id]) {
-        acc[c.responsavel_id] = { responsavel_id: c.responsavel_id, responsavel_nome: nomeDe[c.responsavel_id] || null, total: 0, pendente: 0, pago: 0, count: 0 };
+        acc[c.responsavel_id] = { responsavel_id: c.responsavel_id, responsavel_nome: c.responsavel_nome || nomeDe[c.responsavel_id] || null, total: 0, pendente: 0, pago: 0, count: 0 };
       }
       acc[c.responsavel_id].total += c.valor_comissao;
       acc[c.responsavel_id].count += 1;
