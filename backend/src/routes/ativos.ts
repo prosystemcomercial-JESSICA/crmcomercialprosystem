@@ -233,6 +233,16 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       cli_telefone1: z.string().optional(),
       cli_telefone2: z.string().optional(),
       cli_segmento: z.string().optional(),   // Padaria | Farmácia | Manipulação | Varejo
+      // Responsável de contato (salvo em ContatoCliente)
+      cli_responsavel_nome: z.string().optional(),
+      cli_responsavel_cargo: z.string().optional(),
+      cli_responsavel_telefone: z.string().optional(),
+      // Contatos adicionais (array de {nome, cargo, telefone})
+      cli_contatos_adicionais: z.array(z.object({
+        nome: z.string(),
+        cargo: z.string().optional(),
+        telefone: z.string().optional(),
+      })).optional(),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Dados inválidos' });
 
@@ -245,7 +255,10 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     }
 
     const { abrir_caso, parceiro_id, venda_valor, venda_acrescimo,
-      atualizar_cliente, cli_nome, cli_telefone1, cli_telefone2, cli_segmento, ...campos } = body.data;
+      atualizar_cliente, cli_nome, cli_telefone1, cli_telefone2, cli_segmento,
+      cli_responsavel_nome, cli_responsavel_cargo, cli_responsavel_telefone,
+      cli_contatos_adicionais,
+      ...campos } = body.data;
     const data: any = { ...campos };
 
     // Atualiza o CADASTRO do cliente na base (nome/telefones/segmento) → ficha.
@@ -270,6 +283,51 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
             feito_por: user?.id, feito_por_nome: user?.nome,
           },
         }).catch(() => {});
+      }
+
+      // Salva responsável principal em ContatoCliente (upsert: atualiza se já existe como principal)
+      if (cli_responsavel_nome && cli_responsavel_nome.trim()) {
+        const contatoExistente = await (prisma as any).contatoCliente.findFirst({
+          where: { cliente_id: atual.cliente_id, principal: true },
+        }).catch(() => null);
+        if (contatoExistente) {
+          await (prisma as any).contatoCliente.update({
+            where: { id: contatoExistente.id },
+            data: {
+              nome: cli_responsavel_nome.trim(),
+              cargo: cli_responsavel_cargo?.trim() || contatoExistente.cargo,
+              telefone: cli_responsavel_telefone?.trim() || contatoExistente.telefone,
+            },
+          }).catch(() => {});
+        } else {
+          await (prisma as any).contatoCliente.create({
+            data: {
+              cliente_id: atual.cliente_id,
+              nome: cli_responsavel_nome.trim(),
+              cargo: cli_responsavel_cargo?.trim() || null,
+              telefone: cli_responsavel_telefone?.trim() || null,
+              principal: true,
+              origem: 'MANUAL',
+            },
+          }).catch(() => {});
+        }
+      }
+
+      // Salva contatos adicionais (sempre cria novos — não remove os anteriores)
+      if (cli_contatos_adicionais && cli_contatos_adicionais.length > 0) {
+        for (const ct of cli_contatos_adicionais) {
+          if (!ct.nome?.trim()) continue;
+          await (prisma as any).contatoCliente.create({
+            data: {
+              cliente_id: atual.cliente_id,
+              nome: ct.nome.trim(),
+              cargo: ct.cargo?.trim() || null,
+              telefone: ct.telefone?.trim() || null,
+              principal: false,
+              origem: 'MANUAL',
+            },
+          }).catch(() => {});
+        }
       }
     }
 
