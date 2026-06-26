@@ -370,19 +370,23 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       select: { id: true, nome: true },
     }).catch(() => null);
 
-    // Agrupa por responsável; comissões de supervisão sempre vão para a supervisora real.
+    // Agrupa por (responsavel_id + papel) — chave composta para separar corretamente
+    // a Jessica-vendedora da Jessica-supervisora (ou qualquer pessoa com dois papéis).
+    // Comissões de supervisão sempre vão para a supervisora cadastrada com role SUPERVISAO.
     const grupos: Record<string, any> = {};
     for (const c of comissoes as any[]) {
       const ehSupervisao = c.tipo === 'SUPERVISAO_VENDA_ADICIONAL' || c.papel === 'SUPERVISAO';
-      // Se é comissão de supervisão, força responsavel_id para a supervisora cadastrada
       const rid = ehSupervisao && supervisoraReal ? supervisoraReal.id : (c.responsavel_id || 'sem');
+      const papel = ehSupervisao ? 'SUPERVISAO' : 'VENDEDOR';
       const nomeExibir = ehSupervisao && supervisoraReal ? supervisoraReal.nome : (nomeDe[rid] || rid);
-      grupos[rid] = grupos[rid] || {
+      // Chave composta: mesmo responsavel com papéis diferentes → blocos separados
+      const chave = `${rid}::${papel}`;
+      grupos[chave] = grupos[chave] || {
         responsavel_id: rid, responsavel_nome: nomeExibir,
-        papel: ehSupervisao ? 'SUPERVISAO' : (c.papel || 'VENDEDOR'), total: 0, itens: [] as any[],
+        papel, total: 0, itens: [] as any[],
       };
-      grupos[rid].total += Number(c.valor_comissao || 0);
-      grupos[rid].itens.push({
+      grupos[chave].total += Number(c.valor_comissao || 0);
+      grupos[chave].itens.push({
         cliente: clienteDe[c.referencia_id || ''] || c.descricao || '—',
         demanda: c.descricao || (c.tipo === 'VENDA_ADICIONAL' ? 'Venda adicional' : c.tipo === 'BONUS' ? 'Bônus' : 'Instalação'),
         valor_servico: Number(c.valor_base || 0),

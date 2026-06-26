@@ -593,9 +593,9 @@ export default function ComissoesPage() {
               </div>
             </div>
             {ordem.grupos.map((g: any) => (
-              <div key={g.responsavel_id} className="rounded-lg border border-gray-100 overflow-hidden">
+              <div key={`${g.responsavel_id}::${g.papel}`} className="rounded-lg border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2" style={{ background: g.papel === 'SUPERVISAO' ? '#f5f3ff' : '#f8fafc' }}>
-                  <span className="font-semibold text-gray-800">COMISSÃO {g.responsavel_nome}{g.papel === 'SUPERVISAO' ? ' (Supervisão)' : ''}</span>
+                  <span className="font-semibold text-gray-800">COMISSÃO {g.responsavel_nome}{g.papel === 'SUPERVISAO' ? ' (Supervisão)' : ' (Vendedor)'}</span>
                   <span className="font-bold text-gray-900">R$ {Number(g.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <table className="w-full text-sm">
