@@ -99,7 +99,10 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
   async function mapaClientes(comissoes: any[]): Promise<Record<string, string>> {
     const mapa: Record<string, string> = {};
     const contratoIds = [...new Set(comissoes.filter(c => c.tipo === 'CONTRATO' && c.referencia_id).map(c => c.referencia_id))];
-    const vendaIds = [...new Set(comissoes.filter(c => c.tipo === 'VENDA_ADICIONAL' && c.referencia_id).map(c => c.referencia_id))];
+    // SUPERVISAO_VENDA_ADICIONAL tem referencia_id = VendaAdicional.id (igual ao VENDA_ADICIONAL)
+    const vendaIds = [...new Set(comissoes.filter(c =>
+      (c.tipo === 'VENDA_ADICIONAL' || c.tipo === 'SUPERVISAO_VENDA_ADICIONAL') && c.referencia_id
+    ).map(c => c.referencia_id))];
 
     if (contratoIds.length) {
       const cts = await prisma.contratoComercial.findMany({
@@ -109,9 +112,15 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     }
     if (vendaIds.length) {
       const vas = await prisma.vendaAdicional.findMany({
-        where: { id: { in: vendaIds } }, select: { id: true, cliente: { select: { nome: true, empresa: true } } },
+        where: { id: { in: vendaIds } },
+        select: { id: true, cliente: { select: { nome: true, razao_social: true, nome_fantasia: true, empresa: true, codigo: true } } },
       }).catch(() => [] as any[]);
-      vas.forEach((v: any) => { mapa[v.id] = v.cliente?.empresa || v.cliente?.nome || v.id; });
+      vas.forEach((v: any) => {
+        const cli = v.cliente;
+        const nome = cli?.razao_social || cli?.nome_fantasia || cli?.empresa || cli?.nome || v.id;
+        const cod = cli?.codigo ? ` · Cód. ${cli.codigo}` : '';
+        mapa[v.id] = nome + cod;
+      });
     }
     return mapa;
   }
