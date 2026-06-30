@@ -63,6 +63,7 @@ const navGroups: NavGroup[] = [
       { href: '/clientes',     icon: Building2,  label: 'Clientes',     roles: ALL },
       { href: '/indicacoes',   icon: Handshake,  label: 'Indicações',   roles: COMERCIAL },
       { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
+      { href: '/implantacoes/atendimento', icon: Headphones, label: 'Atendimento ao Cliente', roles: ALL },
       // Portal de Implantação & Onboarding (app separado) — abre com SSO (token na URL).
       { href: process.env.NEXT_PUBLIC_PORTAL_URL || '#', icon: Rocket, label: 'Implantação & Onboarding', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'], externoComToken: true },
     ],
