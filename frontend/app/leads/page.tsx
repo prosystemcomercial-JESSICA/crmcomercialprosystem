@@ -443,6 +443,8 @@ export default function LeadsPage() {
   const [obsLoading, setObsLoading] = useState(false);
   const [obsForm, setObsForm] = useState({ tipo: '', descricao: '', proxima_acao: '', data_proximo_retorno: '' });
   const [addingObs, setAddingObs] = useState(false);
+  const [agendaForm, setAgendaForm] = useState({ titulo: '', tipo: 'LIGACAO', data: '', hora: '' });
+  const [showAgendaForm, setShowAgendaForm] = useState(false);
 
   // Modals
   const [showNewLead, setShowNewLead]     = useState(false);
@@ -705,9 +707,26 @@ export default function LeadsPage() {
         created_by_name: (user as any)?.nome || 'Usuário',
         data_proximo_retorno: obsForm.data_proximo_retorno || undefined,
       });
+
+      // Se preencheu próxima ação → Agenda, cria a atividade
+      if (showAgendaForm && agendaForm.titulo && agendaForm.data && agendaForm.hora) {
+        const dataPrevista = new Date(`${agendaForm.data}T${agendaForm.hora}:00`).toISOString();
+        await apiClient.createAtividade({
+          titulo: agendaForm.titulo,
+          tipo: agendaForm.tipo,
+          lead_id: selectedLead.id,
+          data_prevista: dataPrevista,
+          descricao: obsForm.proxima_acao || undefined,
+          responsavel_id: (user as any)?.id || undefined,
+          vinculo_tipo: 'LEAD',
+        });
+      }
+
       const res = await apiClient.getLeadObservacoes(selectedLead.id);
       setObservacoes(res.data.data || []);
       setObsForm({ tipo: '', descricao: '', proxima_acao: '', data_proximo_retorno: '' });
+      setAgendaForm({ titulo: '', tipo: 'LIGACAO', data: '', hora: '' });
+      setShowAgendaForm(false);
       await loadData();
     } catch (e: any) {
       console.error(e);
@@ -1898,16 +1917,52 @@ export default function LeadsPage() {
                   {OBS_TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
                 <textarea value={obsForm.descricao} onChange={e => setObsForm(p => ({ ...p, descricao: e.target.value }))}
-                  placeholder="O que aconteceu..." rows={3}
+                  placeholder="Atualização de contato — o que aconteceu..." rows={3}
                   className="w-full text-xs px-2.5 py-2 rounded-lg resize-none outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }} />
                 <input value={obsForm.proxima_acao} onChange={e => setObsForm(p => ({ ...p, proxima_acao: e.target.value }))}
-                  placeholder="Próxima ação..."
+                  placeholder="Próxima ação (nota rápida)..."
                   className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid #D8E8F5', color: '#0D2238' }} />
-                <p className="text-[9px]" style={{ color: '#9AA7B4' }}>A data e hora do registro são gravadas automaticamente.</p>
+
+                {/* Toggle próxima ação → Agenda */}
+                <button
+                  onClick={() => setShowAgendaForm(p => !p)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-semibold"
+                  style={{ border: `1.5px solid ${showAgendaForm ? '#4B8EC8' : '#D8E8F5'}`, color: showAgendaForm ? '#4B8EC8' : '#7AAACB', background: showAgendaForm ? '#EBF4FF' : 'transparent' }}>
+                  <span>📅 Agendar próxima ação na Agenda</span>
+                  <ChevronDown size={12} style={{ transform: showAgendaForm ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
+                </button>
+
+                {showAgendaForm && (
+                  <div className="space-y-2 rounded-lg p-2.5" style={{ background: '#F0F7FF', border: '1px solid #C3DCFC' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#4B8EC8' }}>Próxima ação → Agenda</p>
+                    <input value={agendaForm.titulo} onChange={e => setAgendaForm(p => ({ ...p, titulo: e.target.value }))}
+                      placeholder="Título do compromisso..."
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: '#0D2238' }} />
+                    <select value={agendaForm.tipo} onChange={e => setAgendaForm(p => ({ ...p, tipo: e.target.value }))}
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: '#0D2238' }}>
+                      <option value="LIGACAO">📞 Ligação</option>
+                      <option value="WHATSAPP">💬 WhatsApp</option>
+                      <option value="REUNIAO">🤝 Reunião</option>
+                      <option value="EMAIL">✉️ E-mail</option>
+                      <option value="VISITA">📍 Visita</option>
+                      <option value="TAREFA">📋 Tarefa</option>
+                      <option value="OUTRO">📌 Outro</option>
+                    </select>
+                    <div className="flex gap-1.5">
+                      <input type="date" value={agendaForm.data} onChange={e => setAgendaForm(p => ({ ...p, data: e.target.value }))}
+                        className="flex-1 text-xs px-2 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: '#0D2238' }} />
+                      <input type="time" value={agendaForm.hora} onChange={e => setAgendaForm(p => ({ ...p, hora: e.target.value }))}
+                        className="w-20 text-xs px-2 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: '#0D2238' }} />
+                    </div>
+                    <p className="text-[9px]" style={{ color: '#4B8EC8' }}>Será criado automaticamente na Agenda com vínculo a este lead.</p>
+                  </div>
+                )}
+
                 <button onClick={addObs} disabled={addingObs || !obsForm.tipo || !obsForm.descricao}
                   className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40"
                   style={{ background: '#4B8EC8' }}>
-                  {addingObs ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Registrar
+                  {addingObs ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                  {showAgendaForm && agendaForm.titulo && agendaForm.data && agendaForm.hora ? 'Registrar + Agendar' : 'Registrar'}
                 </button>
               </div>
 
