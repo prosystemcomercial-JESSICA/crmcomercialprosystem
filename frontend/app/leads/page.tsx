@@ -437,6 +437,7 @@ export default function LeadsPage() {
   const [trilhaLoading, setTrilhaLoading] = useState(false);
   const [editForm, setEditForm]   = useState<any>({});
   const [savingLead, setSavingLead] = useState(false);
+  const [savedLeadOk, setSavedLeadOk] = useState(false);
 
   // Observações
   const [observacoes, setObservacoes] = useState<Observacao[]>([]);
@@ -616,12 +617,23 @@ export default function LeadsPage() {
     setSelectedLead(lead);
     setDetailTab('dados');
     setEditForm({ ...lead });
+    setSavedLeadOk(false);
     setObservacoes([]);
     setObsLoading(true);
+    // Carrega o lead completo do servidor (o objeto do kanban é resumido e pode
+    // não ter todos os campos editáveis — causaria perda de dados ao reabrir).
     try {
-      const res = await apiClient.getLeadObservacoes(lead.id);
-      setObservacoes(res.data.data || []);
-    } catch { /**/ } finally { setObsLoading(false); }
+      const [leadRes, obsRes] = await Promise.all([
+        apiClient.getLeadById(lead.id),
+        apiClient.getLeadObservacoes(lead.id),
+      ]);
+      const leadCompleto = leadRes.data?.data || leadRes.data || lead;
+      setSelectedLead(leadCompleto);
+      setEditForm({ ...leadCompleto });
+      setObservacoes(obsRes.data.data || []);
+    } catch {
+      // Fallback: usa os dados do kanban
+    } finally { setObsLoading(false); }
   };
 
   const setF = (k: string, v: any) => setEditForm((p: any) => ({ ...p, [k]: v }));
@@ -635,7 +647,8 @@ export default function LeadsPage() {
       const NAO_ENVIAR = new Set([
         'id', 'created_at', 'updated_at', 'createdAt', 'updatedAt', 'created_by',
         'atribuido_em', 'ultima_obs_at', 'deleted_at', 'deleted_by', 'deletado_motivo',
-        '_count', 'observacoes', 'etiquetas', 'atividades', 'quadros', 'criado_por', 'responsavel',
+        '_count', 'observacoes', 'etiquetas', 'etiquetas_lead', 'atividades', 'quadros',
+        'criado_por', 'responsavel', 'vendedor', 'supervisor',
       ]);
       const payload: any = {};
       for (const [k, v] of Object.entries(editForm as any)) {
@@ -649,6 +662,8 @@ export default function LeadsPage() {
       await apiClient.updateLead(selectedLead.id, payload);
       await loadData();
       setSelectedLead(p => p ? { ...p, ...payload } : p);
+      setSavedLeadOk(true);
+      setTimeout(() => setSavedLeadOk(false), 2000);
     } catch (e: any) {
       const msg = e?.response?.data?.detalhes?.join('\n') || e?.response?.data?.message || e?.message || 'Erro desconhecido';
       alert(`Não foi possível salvar a ficha:\n${msg}`);
@@ -934,6 +949,14 @@ export default function LeadsPage() {
 
       const res = await apiClient.createPropostaComercial(payload);
       setPropostaGerada(res.data.data);
+
+      // Move o lead automaticamente para "Proposta Enviada" no kanban
+      await apiClient.updateLead(selectedLead.id, {
+        etapa_comercial: 'PROPOSTA_ENVIADA',
+        status_atendimento: 'PROPOSTA_ENVIADA',
+      });
+      setSelectedLead(p => p ? { ...p, etapa_comercial: 'PROPOSTA_ENVIADA', status_atendimento: 'PROPOSTA_ENVIADA' } : p);
+
       const obsRes = await apiClient.getLeadObservacoes(selectedLead.id);
       setObservacoes(obsRes.data.data || []);
       await loadData();
@@ -1454,11 +1477,13 @@ export default function LeadsPage() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-3">
+                      {savedLeadOk && <span className="text-xs font-semibold" style={{ color: '#16a34a' }}>✓ Salvo com sucesso!</span>}
                       <button onClick={saveLead} disabled={savingLead}
                         className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-                        style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
-                        {savingLead ? <Loader2 size={14} className="animate-spin" /> : null} Salvar
+                        style={{ background: savedLeadOk ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
+                        {savingLead ? <Loader2 size={14} className="animate-spin" /> : null}
+                        {savedLeadOk ? '✓ Salvo' : 'Salvar'}
                       </button>
                     </div>
                   </div>
@@ -1484,11 +1509,13 @@ export default function LeadsPage() {
                       <p style={{ color: '#7AAACB' }}>Última obs: <span style={{ color: '#0D2238' }}>{fmtDateTime(selectedLead.ultima_obs_at) || '—'}</span></p>
                       <p className="mt-0.5" style={{ color: '#7AAACB' }}>Próximo contato: <span style={{ color: selectedLead.proximo_contato && new Date(selectedLead.proximo_contato) <= new Date() ? '#dc2626' : '#0D2238' }}>{fmtDateTime(selectedLead.proximo_contato) || '—'}</span></p>
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-3">
+                      {savedLeadOk && <span className="text-xs font-semibold" style={{ color: '#16a34a' }}>✓ Salvo com sucesso!</span>}
                       <button onClick={saveLead} disabled={savingLead}
                         className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-                        style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
-                        {savingLead ? <Loader2 size={14} className="animate-spin" /> : null} Salvar
+                        style={{ background: savedLeadOk ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
+                        {savingLead ? <Loader2 size={14} className="animate-spin" /> : null}
+                        {savedLeadOk ? '✓ Salvo' : 'Salvar'}
                       </button>
                     </div>
                   </div>
