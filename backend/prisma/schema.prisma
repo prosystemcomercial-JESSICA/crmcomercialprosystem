@@ -1392,6 +1392,9 @@ model PropostaComercial {
   observacao_cobranca String?
   condicao_especial   String?
 
+  // Proposta multi-loja: array JSON de { razao_social, cnpj, maquinas, tipo_loja, plano, mensalidade, valor_implantacao, entrada, parcelas, valor_parcela, servicos_adicionais }
+  lojas_projeto Json?
+
   // Conteúdo editorial da proposta
   titulo_proposta String?
   frase_hero      String?
