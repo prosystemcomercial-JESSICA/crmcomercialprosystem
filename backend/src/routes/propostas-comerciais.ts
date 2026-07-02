@@ -61,6 +61,8 @@ const PropostaSchema = z.object({
   texto_valor:          z.string().optional(),
   observacoes:          z.string().optional(),
 
+  lojas_projeto: z.array(z.any()).optional(),
+
   comissao_vendedor_pct:   z.number().optional(),
   comissao_supervisor_pct: z.number().optional(),
 
@@ -118,11 +120,12 @@ function proximoMes(): string {
 export async function propostasComerciais(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // Soft-delete: garante as colunas em bases existentes (não-bloqueante)
+  // Soft-delete + multi-loja: garante colunas em bases existentes (não-bloqueante)
   Promise.all([
     prisma.$executeRawUnsafe(`ALTER TABLE PropostaComercial ADD COLUMN deleted_at DATETIME NULL`).catch(() => {}),
     prisma.$executeRawUnsafe(`ALTER TABLE PropostaComercial ADD COLUMN deleted_by VARCHAR(255) NULL`).catch(() => {}),
     prisma.$executeRawUnsafe(`ALTER TABLE PropostaComercial ADD COLUMN motivo_exclusao TEXT NULL`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE PropostaComercial ADD COLUMN lojas_projeto JSON NULL`).catch(() => {}),
   ]).catch(() => {});
 
   // ===== LISTAR =====

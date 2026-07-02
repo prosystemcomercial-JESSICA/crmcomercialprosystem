@@ -109,6 +109,27 @@ const BLANK_FORM = {
   status: 'RASCUNHO',
 };
 
+// ── Projeto Multi-loja ──────────────────────────────────────────────────────
+interface LojaProjeto {
+  razao_social: string;
+  cnpj: string;
+  maquinas: string;
+  tipo_loja: string;
+  plano: string;
+  mensalidade: string;      // MRR desta loja
+  valor_implantacao: string;
+  entrada: string;
+  parcelas: string;
+  valor_parcela: string;
+  servicos_adicionais: string; // texto livre: "Comunicação entre Empresas, TEF..."
+}
+
+const LOJA_BLANK: LojaProjeto = {
+  razao_social: '', cnpj: '', maquinas: '', tipo_loja: '', plano: '',
+  mensalidade: '', valor_implantacao: '', entrada: '', parcelas: '',
+  valor_parcela: '', servicos_adicionais: '',
+};
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   RASCUNHO:      { label: 'Rascunho',       color: '#6b7280', bg: '#f3f4f6' },
   ENVIADA:       { label: 'Enviada',         color: '#2563eb', bg: '#dbeafe' },
@@ -242,6 +263,10 @@ export default function PropostasComerciais() {
   const [draggingProposta, setDraggingProposta] = useState<PropostaComercial | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
+  // Multi-loja
+  const [modoMultiLoja, setModoMultiLoja] = useState(false);
+  const [lojasProjeto, setLojasProjeto] = useState<LojaProjeto[]>([]);
+
   // Domínio do link do cliente: usa o domínio onde o CRM está aberto (online),
   // depois a env, e só por último localhost (dev). Evita link "localhost" em produção.
   const BASE_URL = (typeof window !== 'undefined' && window.location?.origin)
@@ -268,12 +293,13 @@ export default function PropostasComerciais() {
 
   const openNew = () => {
     setEditingId(null);
-    // Já preenche o vendedor (nome + telefone) com o cadastro do usuário logado.
     setForm({
       ...BLANK_FORM,
       vendedor_nome: meuPerfil?.nome || user?.nome || '',
       vendedor_telefone: meuPerfil?.telefone || '',
     });
+    setModoMultiLoja(false);
+    setLojasProjeto([]);
     setActiveSection(0);
     setShowForm(true);
   };
@@ -291,13 +317,13 @@ export default function PropostasComerciais() {
       const seg = dados.segmento as string;
       const tpl = seg ? tplDoSegmento(seg) : null;
       setEditingId(null);
+      setModoMultiLoja(false);
+      setLojasProjeto([]);
       setForm({
         ...BLANK_FORM,
         ...dados,
-        // auto-fill vendedor a partir do perfil logado, se o lead não trouxe
         vendedor_nome: dados.vendedor_nome || meuPerfil?.nome || user?.nome || '',
         vendedor_telefone: dados.vendedor_telefone || meuPerfil?.telefone || '',
-        // conteúdo direcionado ao segmento (igual ao aplicarSegmento)
         titulo_proposta: dados.titulo_proposta || (tpl ? tpl.titulo : ''),
         frase_hero:      dados.frase_hero      || (tpl ? tpl.hero  : ''),
         texto_valor:     dados.texto_valor     || (tpl ? tpl.valor : ''),
@@ -312,6 +338,10 @@ export default function PropostasComerciais() {
 
   const openEdit = (p: PropostaComercial) => {
     setEditingId(p.id);
+    // Recupera lojas do projeto multi-loja se existirem
+    const lojasExistentes: LojaProjeto[] = Array.isArray((p as any).lojas_projeto) ? (p as any).lojas_projeto : [];
+    setLojasProjeto(lojasExistentes);
+    setModoMultiLoja(lojasExistentes.length > 0);
     setForm({
       razao_social: p.razao_social || '',
       nome_fantasia: p.nome_fantasia || '',
@@ -389,8 +419,22 @@ export default function PropostasComerciais() {
     }
     setSaving(true);
     try {
-      // Garante conteúdo direcionado ao segmento (título sempre gerado; hero/valor se vazios)
       const tpl = tplDoSegmento(form.segmento as string);
+
+      // Em modo multi-loja: calcula totais consolidados de todas as lojas
+      let valorImplantacaoFinal = parseNum(form.valor_implantacao as string);
+      let entradaFinal = parseNum(form.entrada as string);
+      let mensalidadePlusFinal = parseNum(form.mensalidade_plus as string);
+
+      if (modoMultiLoja && lojasProjeto.length > 0) {
+        const totalImpl = lojasProjeto.reduce((s, l) => s + (parseNum(l.valor_implantacao) || 0), 0);
+        const totalEntrada = lojasProjeto.reduce((s, l) => s + (parseNum(l.entrada) || 0), 0);
+        const totalMrr = lojasProjeto.reduce((s, l) => s + (parseNum(l.mensalidade) || 0), 0);
+        if (totalImpl > 0) valorImplantacaoFinal = totalImpl;
+        if (totalEntrada > 0) entradaFinal = totalEntrada;
+        if (totalMrr > 0) mensalidadePlusFinal = totalMrr;
+      }
+
       const payload: any = {
         ...form,
         titulo_proposta: (form.titulo_proposta as string)?.trim() || tpl?.titulo || '',
@@ -399,18 +443,19 @@ export default function PropostasComerciais() {
         maquinas: parseNum(form.maquinas as string),
         mensalidade_basic: parseNum(form.mensalidade_basic as string),
         mensalidade_pro: parseNum(form.mensalidade_pro as string),
-        mensalidade_plus: parseNum(form.mensalidade_plus as string),
-        valor_implantacao: parseNum(form.valor_implantacao as string),
+        mensalidade_plus: mensalidadePlusFinal,
+        valor_implantacao: valorImplantacaoFinal,
         valor_conversao: parseNum(form.valor_conversao as string),
         desconto: parseNum(form.desconto as string),
-        valor_final: parseNum(form.valor_final as string),
-        entrada: parseNum(form.entrada as string),
+        valor_final: modoMultiLoja && lojasProjeto.length > 0
+          ? (valorImplantacaoFinal || 0) - (parseNum(form.desconto as string) || 0)
+          : parseNum(form.valor_final as string),
+        entrada: entradaFinal,
         parcelas: parseNum(form.parcelas as string) ? parseInt(form.parcelas as string) : undefined,
         valor_parcela: parseNum(form.valor_parcela as string),
         validade: toIsoSeguro(form.validade as string),
+        lojas_projeto: modoMultiLoja && lojasProjeto.length > 0 ? lojasProjeto : undefined,
       };
-      // remove vazios/nulos/NaN — qualquer um deles derruba a validação ou o
-      // gravamento no backend.
       Object.keys(payload).forEach(k => {
         const v = payload[k];
         if (v === '' || v === null || v === undefined || (typeof v === 'number' && Number.isNaN(v))) delete payload[k];
@@ -580,12 +625,24 @@ export default function PropostasComerciais() {
     return true; // TODOS
   });
 
+  // Helpers para edição de lojas no projeto multi-loja
+  const setLoja = (idx: number, field: keyof LojaProjeto, val: string) =>
+    setLojasProjeto(ls => ls.map((l, i) => i === idx ? { ...l, [field]: val } : l));
+  const addLoja = () => setLojasProjeto(ls => [...ls, { ...LOJA_BLANK }]);
+  const removeLoja = (idx: number) => setLojasProjeto(ls => ls.filter((_, i) => i !== idx));
+
+  // Totais calculados para o resumo do projeto multi-loja
+  const totalMrrProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.mensalidade) || 0), 0);
+  const totalImplProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.valor_implantacao) || 0), 0);
+  const totalEntradaProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.entrada) || 0), 0);
+
   // ── Seções do formulário
   const sections = [
     { label: 'Empresa' },
     { label: 'Responsável' },
     { label: 'Comercial' },
     { label: 'Plano & Produtos' },
+    { label: 'Lojas do Projeto' },
     { label: 'Valores' },
     { label: 'Conteúdo' },
   ];
@@ -1175,11 +1232,177 @@ export default function PropostasComerciais() {
                   </div>
                 )}
 
-                {/* Seção 4 — Valores */}
+                {/* Seção 4 — Lojas do Projeto (multi-loja) */}
                 {activeSection === 4 && (
+                  <div>
+                    {/* Toggle modo multi-loja */}
+                    <div style={{
+                      padding: '14px 16px', borderRadius: 10, marginBottom: 16,
+                      background: modoMultiLoja ? '#eff6ff' : 'var(--t-content-bg)',
+                      border: `1.5px solid ${modoMultiLoja ? '#93c5fd' : 'var(--t-card-border)'}`,
+                      display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                      <input
+                        type="checkbox"
+                        id="chk-multiloja"
+                        checked={modoMultiLoja}
+                        onChange={e => {
+                          setModoMultiLoja(e.target.checked);
+                          if (e.target.checked && lojasProjeto.length === 0) {
+                            setLojasProjeto([{ ...LOJA_BLANK }, { ...LOJA_BLANK }]);
+                          }
+                        }}
+                        style={{ width: 16, height: 16, cursor: 'pointer' }}
+                      />
+                      <label htmlFor="chk-multiloja" style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: modoMultiLoja ? '#1d4ed8' : 'var(--t-text-primary)' }}>
+                        Projeto Multi-loja / Multi-CNPJ
+                      </label>
+                      <span style={{ fontSize: 12, color: 'var(--t-text-muted)', marginLeft: 4 }}>
+                        — Use quando a negociação envolve 2 ou mais CNPJs distintos
+                      </span>
+                    </div>
+
+                    {!modoMultiLoja && (
+                      <p style={{ fontSize: 13, color: 'var(--t-text-muted)', textAlign: 'center', padding: '32px 0' }}>
+                        Ative o modo Multi-loja acima para cadastrar lojas individuais.<br />
+                        Para proposta de uma única empresa, preencha os valores na aba <strong>Valores</strong>.
+                      </p>
+                    )}
+
+                    {modoMultiLoja && (
+                      <div>
+                        {lojasProjeto.map((loja, idx) => (
+                          <div key={idx} style={{
+                            border: '1.5px solid var(--t-card-border)', borderRadius: 12,
+                            marginBottom: 16, overflow: 'hidden',
+                          }}>
+                            {/* Cabeçalho da loja */}
+                            <div style={{
+                              padding: '10px 16px', background: 'var(--t-content-bg)',
+                              borderBottom: '1px solid var(--t-card-border)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>
+                                Loja {idx + 1}{loja.razao_social ? ` — ${loja.razao_social}` : ''}
+                              </span>
+                              {lojasProjeto.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeLoja(idx)}
+                                  style={{ fontSize: 11, color: '#dc2626', background: '#fee2e2', border: 'none', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontWeight: 600 }}
+                                >
+                                  Remover
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Campos da loja */}
+                            <div className="grid grid-cols-2 gap-3" style={{ padding: 16 }}>
+                              <FormField label="Razão Social" col={2}>
+                                <input value={loja.razao_social} onChange={e => setLoja(idx, 'razao_social', e.target.value)} className="ps-input w-full" placeholder="Razão social completa" />
+                              </FormField>
+                              <FormField label="CNPJ">
+                                <input value={loja.cnpj} onChange={e => setLoja(idx, 'cnpj', e.target.value)} className="ps-input w-full" placeholder="00.000.000/0001-00" />
+                              </FormField>
+                              <FormField label="Qtd. Máquinas">
+                                <input type="number" value={loja.maquinas} onChange={e => setLoja(idx, 'maquinas', e.target.value)} className="ps-input w-full" placeholder="Ex: 3" />
+                              </FormField>
+                              <FormField label="Tipo de Implantação">
+                                <select value={loja.tipo_loja} onChange={e => setLoja(idx, 'tipo_loja', e.target.value)} className="ps-input w-full">
+                                  <option value="">Selecione...</option>
+                                  {TIPOS_LOJA.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                              </FormField>
+                              <FormField label="Plano">
+                                <input value={loja.plano} onChange={e => setLoja(idx, 'plano', e.target.value)} className="ps-input w-full" placeholder="Ex: Farma Plus" />
+                              </FormField>
+                              <FormField label="Mensalidade / MRR (R$)">
+                                <input type="number" value={loja.mensalidade} onChange={e => setLoja(idx, 'mensalidade', e.target.value)} className="ps-input w-full" placeholder="Ex: 380" />
+                              </FormField>
+                              <FormField label="Valor de Implantação (R$)">
+                                <input type="number" value={loja.valor_implantacao} onChange={e => setLoja(idx, 'valor_implantacao', e.target.value)} className="ps-input w-full" placeholder="Ex: 1750" />
+                              </FormField>
+                              <FormField label="Entrada (R$)">
+                                <input type="number" value={loja.entrada} onChange={e => setLoja(idx, 'entrada', e.target.value)} className="ps-input w-full" placeholder="Ex: 650" />
+                              </FormField>
+                              <FormField label="Nº Parcelas">
+                                <input type="number" value={loja.parcelas} onChange={e => setLoja(idx, 'parcelas', e.target.value)} className="ps-input w-full" placeholder="Ex: 4" />
+                              </FormField>
+                              <FormField label="Valor da Parcela (R$)">
+                                <input type="number" value={loja.valor_parcela} onChange={e => setLoja(idx, 'valor_parcela', e.target.value)} className="ps-input w-full" placeholder="Ex: 275" />
+                              </FormField>
+                              <FormField label="Serviços / Módulos adicionais desta loja" col={2}>
+                                <input value={loja.servicos_adicionais} onChange={e => setLoja(idx, 'servicos_adicionais', e.target.value)} className="ps-input w-full" placeholder="Ex: Comunicação entre Empresas, TEF..." />
+                              </FormField>
+                            </div>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={addLoja}
+                          style={{
+                            width: '100%', padding: '10px', borderRadius: 8,
+                            border: '1.5px dashed var(--t-card-border)', background: 'transparent',
+                            fontSize: 13, fontWeight: 600, color: 'var(--t-primary)', cursor: 'pointer',
+                            marginBottom: 16,
+                          }}
+                        >
+                          + Adicionar mais uma loja / CNPJ
+                        </button>
+
+                        {/* Resumo consolidado */}
+                        {lojasProjeto.length > 0 && (
+                          <div style={{
+                            padding: 16, borderRadius: 10,
+                            background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
+                            border: '1.5px solid #93c5fd',
+                          }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 10 }}>
+                              Resumo Consolidado do Projeto
+                            </p>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--t-primary)' }}>{fmtBRL(totalImplProjeto)}</div>
+                                <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Total Implantação</div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: '#16a34a' }}>{fmtBRL(totalEntradaProjeto)}</div>
+                                <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Total Entrada</div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: '#7c3aed' }}>{fmtBRL(totalMrrProjeto)}/mês</div>
+                                <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>MRR Total</div>
+                              </div>
+                            </div>
+                            <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 10 }}>
+                              Os totais acima serão usados automaticamente na aba Valores.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Seção 5 — Valores */}
+                {activeSection === 5 && (
                   <div className="grid grid-cols-2 gap-4">
+                    {modoMultiLoja && lojasProjeto.length > 0 && (
+                      <div className="col-span-2" style={{
+                        padding: '10px 14px', borderRadius: 8, marginBottom: 4,
+                        background: '#eff6ff', border: '1px solid #93c5fd', fontSize: 12, color: '#1d4ed8',
+                      }}>
+                        Modo multi-loja ativo — os campos abaixo mostram os totais consolidados (editáveis para ajuste fino). MRR total: <strong>{fmtBRL(totalMrrProjeto)}/mês</strong> · Implantação total: <strong>{fmtBRL(totalImplProjeto)}</strong>
+                      </div>
+                    )}
                     <FormField label="Valor de Implantação / Setup (R$)">
-                      <input type="number" value={form.valor_implantacao as string} onChange={e => setField('valor_implantacao', e.target.value)} className="ps-input w-full" placeholder="0,00" />
+                      <input
+                        type="number"
+                        value={modoMultiLoja && lojasProjeto.length > 0 && !form.valor_implantacao ? totalImplProjeto.toString() : form.valor_implantacao as string}
+                        onChange={e => setField('valor_implantacao', e.target.value)}
+                        className="ps-input w-full" placeholder="0,00"
+                      />
                     </FormField>
                     <FormField label="Valor de Conversão de Dados (R$)">
                       <input type="number" value={form.valor_conversao as string} onChange={e => setField('valor_conversao', e.target.value)} className="ps-input w-full" placeholder="0,00" />
@@ -1193,11 +1416,18 @@ export default function PropostasComerciais() {
                         color: 'var(--t-primary)', background: 'var(--t-primary-light)',
                         border: '1.5px solid var(--t-primary-border)'
                       }}>
-                        {fmtBRL(valorFinalCalc)}
+                        {modoMultiLoja && lojasProjeto.length > 0
+                          ? fmtBRL(totalImplProjeto - (parseNum(form.desconto as string) || 0))
+                          : fmtBRL(valorFinalCalc)}
                       </div>
                     </FormField>
                     <FormField label="Entrada (R$)">
-                      <input type="number" value={form.entrada as string} onChange={e => setField('entrada', e.target.value)} className="ps-input w-full" placeholder="0,00" />
+                      <input
+                        type="number"
+                        value={modoMultiLoja && lojasProjeto.length > 0 && !form.entrada ? totalEntradaProjeto.toString() : form.entrada as string}
+                        onChange={e => setField('entrada', e.target.value)}
+                        className="ps-input w-full" placeholder="0,00"
+                      />
                     </FormField>
                     <FormField label="Número de Parcelas">
                       <input type="number" value={form.parcelas as string} onChange={e => setField('parcelas', e.target.value)} className="ps-input w-full" placeholder="Ex: 12" />
@@ -1223,8 +1453,8 @@ export default function PropostasComerciais() {
                   </div>
                 )}
 
-                {/* Seção 5 — Conteúdo */}
-                {activeSection === 5 && (
+                {/* Seção 6 — Conteúdo */}
+                {activeSection === 6 && (
                   <div className="grid grid-cols-2 gap-4">
                     <FormField label="Título da Proposta (gerado pelo segmento)" col={2}>
                       <div style={{ padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
