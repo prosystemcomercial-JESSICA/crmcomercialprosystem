@@ -252,6 +252,7 @@ export default function DashboardPage() {
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [filtroVendedorId, setFiltroVendedorId] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [showFinanceiro, setShowFinanceiro] = useState(false);
 
   const isGestor = podeVerTudo(user?.role);
 
@@ -406,41 +407,10 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ── KPIs Financeiro ─────────────────────────────── */}
+            {/* ── KPIs Comercial (foco principal) ─────────────── */}
             <div className="fade-up-2">
-              <SectionHeader>Financeiro & Contratos</SectionHeader>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard
-                  label="MRR Recorrente" value={fmt(data.kpis.mrr)} rawValue={data.kpis.mrr}
-                  sub={`${data.kpis.contratos_ativos} contratos ativos`}
-                  icon={DollarSign} delta={data.kpis.mrr_delta} accent="#16a34a" pulse animate
-                />
-                <MetricCard
-                  label="Contratos Ativos" value={fmtNum(data.kpis.contratos_ativos)}
-                  sub={`+${data.kpis.contratos_mes} este mês`} icon={FileCheck2} accent="#4B8EC8"
-                />
-                <MetricCard
-                  label="Pipeline Total" value={fmt(data.kpis.pipeline_valor)}
-                  sub="valor estimado em aberto" icon={BarChart3} accent="#6366F1"
-                />
-                <MetricCard
-                  label="NPS Score"
-                  value={data.kpis.nps_score !== null ? String(data.kpis.nps_score) : '—'}
-                  sub={data.kpis.nps_score !== null
-                    ? (data.kpis.nps_score >= 50 ? '⭐ Excelente' : data.kpis.nps_score >= 0 ? '👍 Bom' : '⚠️ Crítico')
-                    : 'sem respostas ainda'}
-                  icon={Star}
-                  accent={data.kpis.nps_score !== null
-                    ? (data.kpis.nps_score >= 50 ? '#16a34a' : data.kpis.nps_score >= 0 ? '#d97706' : '#dc2626')
-                    : '#9CA3AF'}
-                />
-              </div>
-            </div>
-
-            {/* ── KPIs Comercial ──────────────────────────────── */}
-            <div className="fade-up-3">
               <SectionHeader>Comercial — Este Mês</SectionHeader>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <MetricCard
                   label="Leads Captados" value={fmtNum(data.kpis.leads_mes)}
                   sub={`${data.kpis.leads_ganhos_mes} convertidos`} icon={Target} accent="#4B8EC8"
@@ -453,15 +423,18 @@ export default function DashboardPage() {
                   pulse={data.kpis.taxa_conversao < 10}
                 />
                 <MetricCard
+                  label="Pipeline Total" value={fmt(data.kpis.pipeline_valor)}
+                  sub="valor estimado em aberto" icon={BarChart3} accent="#6366F1"
+                />
+                <MetricCard
                   label="Propostas Abertas" value={fmtNum(data.kpis.propostas_abertas)}
                   sub={`${data.kpis.propostas_aceitas_mes} aceitas este mês`} icon={FileText} accent="#8B5CF6"
                 />
                 <MetricCard
-                  label="Tickets em Aberto" value={fmtNum(data.kpis.tickets_abertos)}
-                  sub={data.kpis.tickets_criticos > 0 ? `⚠️ ${data.kpis.tickets_criticos} críticos` : '✅ Nenhum crítico'}
-                  icon={Headphones}
-                  accent={data.kpis.tickets_criticos > 0 ? '#dc2626' : '#4B8EC8'}
-                  pulse={data.kpis.tickets_criticos > 0}
+                  label="Perdidos no Mês" value={fmtNum(data.kpis.leads_perdidos_mes)}
+                  sub={`mês anterior: ${data.kpis.leads_perdidos_mes_anterior}`}
+                  icon={XCircle}
+                  accent={data.kpis.leads_perdidos_mes > 0 ? '#dc2626' : '#16a34a'}
                 />
               </div>
             </div>
@@ -652,20 +625,13 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            {/* ── Perda + Motivos ─────────────────────────────── */}
+            {/* ── Perda + Motivos — só aparece quando há perdidos ── */}
+            {(data.kpis.leads_perdidos_mes > 0 || data.ranking_motivos_perda?.length > 0) && (
             <div className="fade-up-6">
-              <SectionHeader>Negócios Perdidos</SectionHeader>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+              <SectionHeader>Análise de Negócios Perdidos</SectionHeader>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                 <MetricCard
-                  label="Perdidos no Mês" value={fmtNum(data.kpis.leads_perdidos_mes)}
-                  sub={`mês anterior: ${data.kpis.leads_perdidos_mes_anterior}`}
-                  icon={XCircle} accent="#dc2626"
-                  delta={data.kpis.leads_perdidos_mes_anterior > 0
-                    ? Math.round(((data.kpis.leads_perdidos_mes - data.kpis.leads_perdidos_mes_anterior) / data.kpis.leads_perdidos_mes_anterior) * 100)
-                    : undefined}
-                />
-                <MetricCard
-                  label="Valor Perdido" value={fmt(data.kpis.valor_perdido_mes)}
+                  label="Valor Perdido no Mês" value={fmt(data.kpis.valor_perdido_mes)}
                   sub="oportunidades não convertidas" icon={TrendingDown} accent="#dc2626"
                 />
                 <MetricCard
@@ -711,6 +677,7 @@ export default function DashboardPage() {
                 </Card>
               )}
             </div>
+            )}
 
             {/* ── Atividades ──────────────────────────────────── */}
             {(() => {
@@ -745,7 +712,7 @@ export default function DashboardPage() {
                 <Card>
                   <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid #EBF4FF' }}>
                     <div>
-                      <p className="text-sm font-black" style={{ color: '#0D2238' }}>Minhas Atividades</p>
+                      <p className="text-sm font-black" style={{ color: '#0D2238' }}>Atividades em Aberto</p>
                       <p className="text-[10px] font-medium mt-0.5" style={{ color: '#94a3b8' }}>Ordenadas por prioridade e vencimento</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -804,62 +771,97 @@ export default function DashboardPage() {
               );
             })()}
 
-            {/* ── Saúde dos Clientes ──────────────────────────── */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-sm font-black" style={{ color: '#0D2238' }}>Saúde da Base de Clientes</p>
-                <a href="/health-score" className="text-xs font-bold transition-opacity hover:opacity-70" style={{ color: '#4B8EC8' }}>Ver todos →</a>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { label: 'Críticos', value: data.kpis.hs_criticos, icon: AlertTriangle, bg: 'linear-gradient(135deg, #FEF2F2, #FEE2E2)', color: '#991B1B', accent: '#dc2626', href: '/health-score' },
-                  { label: 'Em Risco', value: Math.max(0, data.alertas.hs_em_risco - data.kpis.hs_criticos), icon: Heart, bg: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)', color: '#92400E', accent: '#d97706', href: '/health-score' },
-                  { label: 'Renovações Urgentes', value: data.kpis.renovacoes_criticas, icon: RotateCcw, bg: 'linear-gradient(135deg, #FFF7ED, #FFEDD5)', color: '#9A3412', accent: '#ea580c', href: '/renovacoes' },
-                ].map(stat => (
-                  <a
-                    key={stat.label}
-                    href={stat.href}
-                    className="text-center p-5 rounded-2xl transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer"
-                    style={{ background: stat.bg }}
+            {/* ── Financeiro & Base — colapsável (mostra quando tiver dados) ── */}
+            {(() => {
+              const temMrr = data.kpis.mrr > 0;
+              const temContratos = data.kpis.contratos_ativos > 0;
+              const temNps = data.kpis.nps_score !== null;
+              const temSaude = data.alertas.hs_em_risco > 0 || data.kpis.hs_criticos > 0 || data.kpis.renovacoes_criticas > 0;
+              const temDados = temMrr || temContratos || temNps || temSaude;
+              // Abre automaticamente se houver dados reais
+              const aberto = showFinanceiro || temDados;
+              return (
+                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #E8F1FB', background: 'white', boxShadow: '0 2px 8px rgba(13,34,56,0.06)' }}>
+                  <button
+                    onClick={() => setShowFinanceiro(p => !p)}
+                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors"
                   >
-                    <div className="flex justify-center mb-2">
-                      <stat.icon size={20} style={{ color: stat.accent }} />
+                    <div className="flex items-center gap-3">
+                      <div className="h-4 w-1 rounded-full" style={{ background: 'linear-gradient(to bottom, #16a34a, #15803d)' }} />
+                      <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#0D2238' }}>
+                        Financeiro, Contratos & Base de Clientes
+                      </p>
+                      {!temDados && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#F1F5F9', color: '#94a3b8' }}>
+                          Sem dados ainda
+                        </span>
+                      )}
                     </div>
-                    <p className="text-4xl font-black leading-none mb-2" style={{ color: stat.accent }}>
-                      <AnimatedNumber value={stat.value} />
-                    </p>
-                    <p className="text-xs font-bold" style={{ color: stat.color }}>{stat.label}</p>
-                  </a>
-                ))}
-              </div>
-            </Card>
+                    <span className="text-xs font-bold transition-transform duration-200" style={{ color: '#7AAACB', display: 'inline-block', transform: aberto ? 'rotate(180deg)' : 'none' }}>▾</span>
+                  </button>
 
-            {/* ── Alertas críticos inline se houver ───────────── */}
-            {(data.alertas.atividades_atrasadas > 0 || data.kpis.renovacoes_criticas > 0) && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { label: 'Atividades Atrasadas', value: data.alertas.atividades_atrasadas, icon: Zap, color: '#dc2626', href: '/atividades' },
-                  { label: 'Tickets Críticos', value: data.alertas.tickets_criticos, icon: Headphones, color: '#9333ea', href: '/suporte' },
-                  { label: 'Renovações Urgentes', value: data.alertas.renovacoes_criticas, icon: RotateCcw, color: '#ea580c', href: '/renovacoes' },
-                  { label: 'Clientes em Risco', value: data.alertas.hs_em_risco, icon: AlertTriangle, color: '#d97706', href: '/health-score' },
-                ].filter(a => a.value > 0).map(alert => (
-                  <a
-                    key={alert.label}
-                    href={alert.href}
-                    className="flex items-center gap-3 p-4 rounded-2xl transition-all hover:scale-105 hover:shadow-md"
-                    style={{ background: `${alert.color}10`, border: `1px solid ${alert.color}30` }}
-                  >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${alert.color}20` }}>
-                      <alert.icon size={16} style={{ color: alert.color }} />
+                  {aberto && (
+                    <div className="px-6 pb-6 space-y-4">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <MetricCard
+                          label="MRR Recorrente" value={fmt(data.kpis.mrr)} rawValue={data.kpis.mrr}
+                          sub={`${data.kpis.contratos_ativos} contratos ativos`}
+                          icon={DollarSign} delta={data.kpis.mrr_delta} accent="#16a34a" pulse={temMrr} animate
+                        />
+                        <MetricCard
+                          label="Contratos Ativos" value={fmtNum(data.kpis.contratos_ativos)}
+                          sub={`+${data.kpis.contratos_mes} este mês`} icon={FileCheck2} accent="#4B8EC8"
+                        />
+                        <MetricCard
+                          label="NPS Score"
+                          value={temNps ? String(data.kpis.nps_score) : '—'}
+                          sub={temNps
+                            ? (data.kpis.nps_score! >= 50 ? '⭐ Excelente' : data.kpis.nps_score! >= 0 ? '👍 Bom' : '⚠️ Crítico')
+                            : 'sem respostas ainda'}
+                          icon={Star}
+                          accent={temNps
+                            ? (data.kpis.nps_score! >= 50 ? '#16a34a' : data.kpis.nps_score! >= 0 ? '#d97706' : '#dc2626')
+                            : '#9CA3AF'}
+                        />
+                        <MetricCard
+                          label="Tickets em Aberto" value={fmtNum(data.kpis.tickets_abertos)}
+                          sub={data.kpis.tickets_criticos > 0 ? `⚠️ ${data.kpis.tickets_criticos} críticos` : '✅ Nenhum crítico'}
+                          icon={Headphones}
+                          accent={data.kpis.tickets_criticos > 0 ? '#dc2626' : '#4B8EC8'}
+                          pulse={data.kpis.tickets_criticos > 0}
+                        />
+                      </div>
+
+                      {temSaude && (
+                        <div className="grid grid-cols-3 gap-4">
+                          {[
+                            { label: 'Críticos', value: data.kpis.hs_criticos, icon: AlertTriangle, bg: 'linear-gradient(135deg,#FEF2F2,#FEE2E2)', color: '#991B1B', accent: '#dc2626', href: '/health-score' },
+                            { label: 'Em Risco', value: Math.max(0, data.alertas.hs_em_risco - data.kpis.hs_criticos), icon: Heart, bg: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', color: '#92400E', accent: '#d97706', href: '/health-score' },
+                            { label: 'Renovações Urgentes', value: data.kpis.renovacoes_criticas, icon: RotateCcw, bg: 'linear-gradient(135deg,#FFF7ED,#FFEDD5)', color: '#9A3412', accent: '#ea580c', href: '/renovacoes' },
+                          ].map(stat => (
+                            <a key={stat.label} href={stat.href}
+                              className="text-center p-5 rounded-2xl transition-all duration-200 hover:scale-105 hover:shadow-md"
+                              style={{ background: stat.bg }}>
+                              <div className="flex justify-center mb-2"><stat.icon size={20} style={{ color: stat.accent }} /></div>
+                              <p className="text-4xl font-black leading-none mb-2" style={{ color: stat.accent }}>
+                                <AnimatedNumber value={stat.value} />
+                              </p>
+                              <p className="text-xs font-bold" style={{ color: stat.color }}>{stat.label}</p>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                      {!temDados && (
+                        <p className="text-center text-xs font-medium py-4" style={{ color: '#94a3b8' }}>
+                          Estes dados aparecem quando os módulos de Contratos, NPS e Health Score forem utilizados.
+                        </p>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-xl font-black" style={{ color: alert.color }}>{alert.value}</p>
-                      <p className="text-[10px] font-semibold leading-tight" style={{ color: alert.color }}>{alert.label}</p>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
 
           </>
         )}
