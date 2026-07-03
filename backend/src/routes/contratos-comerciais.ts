@@ -832,6 +832,26 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         'Os dados já foram atualizados no CRM.',
       ].filter(l => l !== '').join('\n');
 
+      // Persiste os resumos PRONTOS na venda para que possam ser reabertos/copiados
+      // a qualquer momento (o botão "Resumo" na tabela de Vendas Adicionais). Guarda
+      // como JSON em observacoes; um marcador permite o endpoint resumo-financeiro
+      // devolver o texto exato — sem regenerar (o CNPJ antigo já foi sobrescrito).
+      if (venda) {
+        await prisma.vendaAdicional.update({
+          where: { id: venda.id },
+          data: {
+            observacoes: JSON.stringify({
+              tipo: 'TROCA_CNPJ',
+              resumo,
+              resumo_tecnico,
+              tecnico_responsavel: tecnico,
+              cnpj_antigo: atual.cnpj || null,
+              cnpj_novo: b.cnpj_novo,
+            }),
+          },
+        }).catch(() => {});
+      }
+
       return reply.send({ status: 'success', data: { cliente, venda, contrato, resumo, resumo_tecnico, tecnico_responsavel: tecnico }, message: 'Troca de CNPJ registrada: cadastro atualizado (antigo guardado na ficha), venda/comissão e contrato gerados.' });
     } catch (err: any) {
       console.error('[POST /contratos-comerciais/troca-cnpj]', err);
