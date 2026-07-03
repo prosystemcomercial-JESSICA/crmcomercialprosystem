@@ -130,6 +130,21 @@ const LOJA_BLANK: LojaProjeto = {
   valor_parcela: '', servicos_adicionais: '',
 };
 
+// Serviço de Comunicação entre Empresas: compartilhado pelo projeto (não pertence
+// a uma loja só). Setup próprio (parcelável) + acréscimo de mensalidade POR LOJA.
+interface ComunicacaoProjeto {
+  ativo: boolean;
+  valor_implantacao: string;   // setup total da comunicação
+  entrada: string;
+  parcelas: string;
+  valor_parcela: string;
+  acrescimo_por_loja: string;  // acréscimo mensal em CADA loja
+}
+
+const COMUNICACAO_BLANK: ComunicacaoProjeto = {
+  ativo: false, valor_implantacao: '', entrada: '', parcelas: '', valor_parcela: '', acrescimo_por_loja: '',
+};
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   RASCUNHO:      { label: 'Rascunho',       color: '#6b7280', bg: '#f3f4f6' },
   ENVIADA:       { label: 'Enviada',         color: '#2563eb', bg: '#dbeafe' },
@@ -266,6 +281,7 @@ export default function PropostasComerciais() {
   // Multi-loja
   const [modoMultiLoja, setModoMultiLoja] = useState(false);
   const [lojasProjeto, setLojasProjeto] = useState<LojaProjeto[]>([]);
+  const [comunicacao, setComunicacao] = useState<ComunicacaoProjeto>({ ...COMUNICACAO_BLANK });
 
   // Domínio do link do cliente: usa o domínio onde o CRM está aberto (online),
   // depois a env, e só por último localhost (dev). Evita link "localhost" em produção.
@@ -300,6 +316,7 @@ export default function PropostasComerciais() {
     });
     setModoMultiLoja(false);
     setLojasProjeto([]);
+    setComunicacao({ ...COMUNICACAO_BLANK });
     setActiveSection(0);
     setShowForm(true);
   };
@@ -319,6 +336,7 @@ export default function PropostasComerciais() {
       setEditingId(null);
       setModoMultiLoja(false);
       setLojasProjeto([]);
+      setComunicacao({ ...COMUNICACAO_BLANK });
       setForm({
         ...BLANK_FORM,
         ...dados,
@@ -338,10 +356,16 @@ export default function PropostasComerciais() {
 
   const openEdit = (p: PropostaComercial) => {
     setEditingId(p.id);
-    // Recupera lojas do projeto multi-loja se existirem
-    const lojasExistentes: LojaProjeto[] = Array.isArray((p as any).lojas_projeto) ? (p as any).lojas_projeto : [];
+    // Recupera lojas do projeto multi-loja se existirem. A Comunicação entre
+    // Empresas fica gravada no MESMO array como item marcado (_tipo: 'COMUNICACAO').
+    const arrSalvo: any[] = Array.isArray((p as any).lojas_projeto) ? (p as any).lojas_projeto : [];
+    const comSalva = arrSalvo.find((x: any) => x && x._tipo === 'COMUNICACAO');
+    const lojasExistentes: LojaProjeto[] = arrSalvo.filter((x: any) => !x || x._tipo !== 'COMUNICACAO');
     setLojasProjeto(lojasExistentes);
     setModoMultiLoja(lojasExistentes.length > 0);
+    setComunicacao(comSalva
+      ? { ativo: true, valor_implantacao: comSalva.valor_implantacao || '', entrada: comSalva.entrada || '', parcelas: comSalva.parcelas || '', valor_parcela: comSalva.valor_parcela || '', acrescimo_por_loja: comSalva.acrescimo_por_loja || '' }
+      : { ...COMUNICACAO_BLANK });
     setForm({
       razao_social: p.razao_social || '',
       nome_fantasia: p.nome_fantasia || '',
@@ -421,18 +445,31 @@ export default function PropostasComerciais() {
     try {
       const tpl = tplDoSegmento(form.segmento as string);
 
-      // Em modo multi-loja: calcula totais consolidados de todas as lojas
+      // Em modo multi-loja: calcula totais consolidados de todas as lojas +
+      // Comunicação entre Empresas (setup próprio + acréscimo mensal POR LOJA).
       let valorImplantacaoFinal = parseNum(form.valor_implantacao as string);
       let entradaFinal = parseNum(form.entrada as string);
       let mensalidadePlusFinal = parseNum(form.mensalidade_plus as string);
+      const comAtiva = modoMultiLoja && comunicacao.ativo;
 
       if (modoMultiLoja && lojasProjeto.length > 0) {
-        const totalImpl = lojasProjeto.reduce((s, l) => s + (parseNum(l.valor_implantacao) || 0), 0);
-        const totalEntrada = lojasProjeto.reduce((s, l) => s + (parseNum(l.entrada) || 0), 0);
-        const totalMrr = lojasProjeto.reduce((s, l) => s + (parseNum(l.mensalidade) || 0), 0);
+        let totalImpl = lojasProjeto.reduce((s, l) => s + (parseNum(l.valor_implantacao) || 0), 0);
+        let totalEntrada = lojasProjeto.reduce((s, l) => s + (parseNum(l.entrada) || 0), 0);
+        let totalMrr = lojasProjeto.reduce((s, l) => s + (parseNum(l.mensalidade) || 0), 0);
+        if (comAtiva) {
+          totalImpl += parseNum(comunicacao.valor_implantacao) || 0;
+          totalEntrada += parseNum(comunicacao.entrada) || 0;
+          totalMrr += (parseNum(comunicacao.acrescimo_por_loja) || 0) * lojasProjeto.length;
+        }
         if (totalImpl > 0) valorImplantacaoFinal = totalImpl;
         if (totalEntrada > 0) entradaFinal = totalEntrada;
         if (totalMrr > 0) mensalidadePlusFinal = totalMrr;
+      }
+
+      // Array a salvar: lojas + (opcional) item da Comunicação marcado.
+      const arrLojasSalvar: any[] = modoMultiLoja && lojasProjeto.length > 0 ? [...lojasProjeto] : [];
+      if (comAtiva && arrLojasSalvar.length > 0) {
+        arrLojasSalvar.push({ _tipo: 'COMUNICACAO', ...comunicacao });
       }
 
       const payload: any = {
@@ -454,7 +491,7 @@ export default function PropostasComerciais() {
         parcelas: parseNum(form.parcelas as string) ? parseInt(form.parcelas as string) : undefined,
         valor_parcela: parseNum(form.valor_parcela as string),
         validade: toIsoSeguro(form.validade as string),
-        lojas_projeto: modoMultiLoja && lojasProjeto.length > 0 ? lojasProjeto : undefined,
+        lojas_projeto: arrLojasSalvar.length > 0 ? arrLojasSalvar : undefined,
       };
       Object.keys(payload).forEach(k => {
         const v = payload[k];
@@ -631,10 +668,16 @@ export default function PropostasComerciais() {
   const addLoja = () => setLojasProjeto(ls => [...ls, { ...LOJA_BLANK }]);
   const removeLoja = (idx: number) => setLojasProjeto(ls => ls.filter((_, i) => i !== idx));
 
-  // Totais calculados para o resumo do projeto multi-loja
-  const totalMrrProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.mensalidade) || 0), 0);
-  const totalImplProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.valor_implantacao) || 0), 0);
-  const totalEntradaProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.entrada) || 0), 0);
+  // Totais calculados para o resumo do projeto multi-loja.
+  // A Comunicação entre Empresas (quando ativa) soma seu setup/entrada ao total e
+  // o acréscimo mensal POR LOJA ao MRR (acréscimo × nº de lojas).
+  const comAtivaCalc = comunicacao.ativo && lojasProjeto.length > 0;
+  const comImpl = comAtivaCalc ? (parseNum(comunicacao.valor_implantacao) || 0) : 0;
+  const comEntrada = comAtivaCalc ? (parseNum(comunicacao.entrada) || 0) : 0;
+  const comMrr = comAtivaCalc ? (parseNum(comunicacao.acrescimo_por_loja) || 0) * lojasProjeto.length : 0;
+  const totalMrrProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.mensalidade) || 0), 0) + comMrr;
+  const totalImplProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.valor_implantacao) || 0), 0) + comImpl;
+  const totalEntradaProjeto = lojasProjeto.reduce((s, l) => s + (parseNum(l.entrada) || 0), 0) + comEntrada;
 
   // ── Seções do formulário
   const sections = [
@@ -1351,6 +1394,57 @@ export default function PropostasComerciais() {
                           + Adicionar mais uma loja / CNPJ
                         </button>
 
+                        {/* Comunicação entre Empresas — serviço compartilhado do projeto */}
+                        <div style={{
+                          border: `1.5px solid ${comunicacao.ativo ? '#5eead4' : 'var(--t-card-border)'}`,
+                          borderRadius: 12, marginBottom: 16, overflow: 'hidden',
+                          background: comunicacao.ativo ? '#f0fdfa' : 'transparent',
+                        }}>
+                          <label style={{
+                            padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                            borderBottom: comunicacao.ativo ? '1px solid #99f6e4' : 'none',
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={comunicacao.ativo}
+                              onChange={e => setComunicacao(c => ({ ...c, ativo: e.target.checked }))}
+                              style={{ width: 16, height: 16, cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: comunicacao.ativo ? '#0f766e' : 'var(--t-text-primary)' }}>
+                              Incluir Comunicação entre Empresas
+                            </span>
+                            <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
+                              — setup do serviço + acréscimo mensal por loja
+                            </span>
+                          </label>
+
+                          {comunicacao.ativo && (
+                            <div className="grid grid-cols-2 gap-3" style={{ padding: 16 }}>
+                              <FormField label="Implantação da Comunicação (R$)">
+                                <input type="number" value={comunicacao.valor_implantacao} onChange={e => setComunicacao(c => ({ ...c, valor_implantacao: e.target.value }))} className="ps-input w-full" placeholder="Ex: 1640" />
+                              </FormField>
+                              <FormField label="Acréscimo mensal POR LOJA (R$)">
+                                <input type="number" value={comunicacao.acrescimo_por_loja} onChange={e => setComunicacao(c => ({ ...c, acrescimo_por_loja: e.target.value }))} className="ps-input w-full" placeholder="Ex: 130" />
+                              </FormField>
+                              <FormField label="Entrada (R$)">
+                                <input type="number" value={comunicacao.entrada} onChange={e => setComunicacao(c => ({ ...c, entrada: e.target.value }))} className="ps-input w-full" placeholder="Ex: 450" />
+                              </FormField>
+                              <FormField label="Nº Parcelas">
+                                <input type="number" value={comunicacao.parcelas} onChange={e => setComunicacao(c => ({ ...c, parcelas: e.target.value }))} className="ps-input w-full" placeholder="Ex: 4" />
+                              </FormField>
+                              <FormField label="Valor da Parcela (R$)">
+                                <input type="number" value={comunicacao.valor_parcela} onChange={e => setComunicacao(c => ({ ...c, valor_parcela: e.target.value }))} className="ps-input w-full" placeholder="Ex: 297,50" />
+                              </FormField>
+                              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                                <div style={{ fontSize: 12, color: '#0f766e', background: '#ccfbf1', border: '1px solid #5eead4', borderRadius: 8, padding: '8px 12px', width: '100%' }}>
+                                  {lojasProjeto.length} loja(s) × {fmtBRL(parseNum(comunicacao.acrescimo_por_loja) || 0)} ={' '}
+                                  <strong>{fmtBRL((parseNum(comunicacao.acrescimo_por_loja) || 0) * lojasProjeto.length)}/mês</strong> no MRR
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
                         {/* Resumo consolidado */}
                         {lojasProjeto.length > 0 && (
                           <div style={{
@@ -1375,6 +1469,17 @@ export default function PropostasComerciais() {
                                 <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>MRR Total</div>
                               </div>
                             </div>
+                            {comAtivaCalc && (
+                              <div style={{
+                                marginTop: 12, padding: '8px 12px', borderRadius: 8,
+                                background: '#ccfbf1', border: '1px solid #5eead4',
+                                fontSize: 12, color: '#0f766e',
+                              }}>
+                                <strong>Comunicação entre Empresas incluída:</strong> {fmtBRL(comImpl)} de implantação
+                                {' '}+ {fmtBRL(parseNum(comunicacao.acrescimo_por_loja) || 0)}/loja
+                                {' '}({fmtBRL(comMrr)}/mês no total).
+                              </div>
+                            )}
                             <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 10 }}>
                               Os totais acima serão usados automaticamente na aba Valores.
                             </p>
