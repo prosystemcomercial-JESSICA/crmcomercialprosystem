@@ -79,7 +79,18 @@ function buildProposalData(p: any) {
   const rawPhone = (p.responsavel_telefone || '').replace(/\D/g, '');
   const clientPhone = rawPhone.startsWith('55') ? rawPhone : '55' + rawPhone;
 
+  // Projeto multi-loja: separa as lojas (CNPJs) e o serviço de Comunicação
+  // (item marcado _tipo:'COMUNICACAO'). A apresentação mostra CADA item como
+  // foi lançado — não um valor único consolidado.
+  const arrProjeto: any[] = Array.isArray(p.lojas_projeto) ? p.lojas_projeto : [];
+  const projetoLojas = arrProjeto.filter((x: any) => x && x._tipo !== 'COMUNICACAO');
+  const projetoComunicacao = arrProjeto.find((x: any) => x && x._tipo === 'COMUNICACAO') || null;
+  const isMultiLoja = projetoLojas.length > 0;
+
   return {
+    isMultiLoja,
+    projetoLojas,
+    projetoComunicacao,
     companyName: p.razao_social || '',
     tradeName: p.nome_fantasia || '',
     cnpj: p.cnpj || '',
@@ -1209,8 +1220,11 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
         <h2 class="display-lg">Proposta exclusiva para<br><span id="s18-company" style="color:#0B7384;">${data.companyName || 'sua empresa'}</span></h2>
         <p class="body-md mt8">Preparada especialmente para sua operação, com condições que refletem o perfil do seu negócio.</p>
       </div>
-      <!-- Implantação -->
-      <div class="flex gap12 flex-wrap price-row">
+      <!-- Detalhamento multi-loja (preenchido via JS quando houver projeto multi-CNPJ) -->
+      <div id="s18-multiloja" style="display:none;"></div>
+
+      <!-- Implantação (proposta de loja única) -->
+      <div class="flex gap12 flex-wrap price-row" id="s18-single-impl">
         <div class="price-card" style="flex:1;min-width:200px;">
           <div class="pc-label">Implantação original</div>
           <div class="pc-old" id="s18-original">R$ 0,00</div>
@@ -1224,7 +1238,7 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
       </div>
 
       <!-- Mensalidade: Pro x Plus (Plus dominante) -->
-      <div>
+      <div id="s18-single-monthly">
         <div id="s18-monthly-label" style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Mensalidade recorrente &mdash; compare e escolha</div>
         <div class="flex gap12 flex-wrap price-row" id="s18-monthly-row" style="align-items:stretch;">
           <div class="price-card" id="s18-pro-card" style="flex:0.8;min-width:170px;opacity:.92;">
@@ -1689,17 +1703,67 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
         tip('Mais margem: análise de descontos protege o seu lucro.') +
         tip('Equipe produtiva: metas por colaborador e avisos via WhatsApp.');
 
+    // ── Projeto multi-loja: detalhamento POR LOJA + Comunicação, como lançado ──
+    // Mostra cada CNPJ com seus próprios valores (não um total único).
+    var multiLojaBlock = '';
+    if (p.isMultiLoja) {
+      var lojaCard = function(titulo, sub, impl, entrada, parc, valParc, mrr, mrrLabel) {
+        var linhas = '';
+        if (impl > 0)    linhas += '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:' + TXT + ';margin:3px 0;"><span>Implantação</span><b>' + formatMoney(impl) + '</b></div>';
+        if (entrada > 0 || parc > 0) {
+          var cond = (entrada > 0 ? 'Entrada ' + formatMoney(entrada) : '') + (parc > 0 ? (entrada > 0 ? ' + ' : '') + parc + 'x ' + formatMoney(valParc) : '');
+          linhas += '<div style="display:flex;justify-content:space-between;font-size:11px;color:' + MUT + ';margin:3px 0;"><span>Pagamento</span><span>' + cond + '</span></div>';
+        }
+        if (mrr > 0)     linhas += '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:' + TXT + ';margin:3px 0;"><span>' + (mrrLabel || 'Mensalidade') + '</span><b style="color:' + NAVY + ';">' + formatMoney(mrr) + '/mês</b></div>';
+        return '<div style="flex:1;min-width:170px;border:1px solid ' + BD + ';border-radius:12px;padding:12px 14px;background:#fff;">' +
+          '<div style="font-size:12.5px;font-weight:900;color:' + INK + ';line-height:1.25;">' + titulo + '</div>' +
+          (sub ? '<div style="font-size:10px;color:' + MUT + ';margin-bottom:6px;">' + sub + '</div>' : '<div style="margin-bottom:6px;"></div>') +
+          linhas + '</div>';
+      };
+      var cards = '';
+      var totImpl = 0, totEntrada = 0, totMrr = 0;
+      (p.projetoLojas || []).forEach(function(l, i) {
+        var impl = Number(l.valor_implantacao) || 0, ent = Number(l.entrada) || 0, prc = Number(l.parcelas) || 0, vp = Number(l.valor_parcela) || 0, mrr = Number(l.mensalidade) || 0;
+        totImpl += impl; totEntrada += ent; totMrr += mrr;
+        var nome = (l.razao_social || ('Loja ' + (i + 1)));
+        var sub = (l.cnpj ? 'CNPJ ' + l.cnpj : '') + (l.plano ? (l.cnpj ? ' &bull; ' : '') + l.plano : '') + (l.maquinas ? ' &bull; ' + l.maquinas + ' máq.' : '');
+        cards += lojaCard(nome, sub, impl, ent, prc, vp, mrr, 'Mensalidade');
+      });
+      // Comunicação entre Empresas (serviço compartilhado)
+      var com = p.projetoComunicacao;
+      if (com) {
+        var cImpl = Number(com.valor_implantacao) || 0, cEnt = Number(com.entrada) || 0, cPrc = Number(com.parcelas) || 0, cVp = Number(com.valor_parcela) || 0;
+        var nLojas = (p.projetoLojas || []).length;
+        var cMrr = (Number(com.acrescimo_por_loja) || 0) * nLojas;
+        totImpl += cImpl; totEntrada += cEnt; totMrr += cMrr;
+        cards += lojaCard('Comunicação entre Empresas', nLojas + ' loja(s) &bull; ' + formatMoney(Number(com.acrescimo_por_loja) || 0) + '/loja', cImpl, cEnt, cPrc, cVp, cMrr, 'Acréscimo mensal');
+      }
+      multiLojaBlock =
+        eyebrow('Detalhamento do projeto &mdash; por empresa', NAVY) +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">' + cards + '</div>' +
+        '<div style="display:flex;gap:12px;margin-bottom:16px;padding:12px 16px;border:1.5px solid ' + NAVY + ';border-radius:12px;background:rgba(11,39,64,0.03);">' +
+          '<div style="flex:1;text-align:center;"><div style="font-size:16px;font-weight:900;color:' + NAVY + ';">' + formatMoney(totImpl) + '</div><div style="font-size:9.5px;color:' + MUT + ';text-transform:uppercase;letter-spacing:.08em;">Implantação total</div></div>' +
+          '<div style="flex:1;text-align:center;"><div style="font-size:16px;font-weight:900;color:' + GR + ';">' + formatMoney(totEntrada) + '</div><div style="font-size:9.5px;color:' + MUT + ';text-transform:uppercase;letter-spacing:.08em;">Entrada total</div></div>' +
+          '<div style="flex:1;text-align:center;"><div style="font-size:16px;font-weight:900;color:' + BLUE + ';">' + formatMoney(totMrr) + '/mês</div><div style="font-size:9.5px;color:' + MUT + ';text-transform:uppercase;letter-spacing:.08em;">Mensalidade total</div></div>' +
+        '</div>';
+    }
+
     const page2 =
       '<section class="print-page" style="background:#fff;color:' + TXT + ';">' +
         header2 +
         compBlock +
-        valuesBlock +
-        '<div style="font-size:11.5px;color:' + TXT + ';margin-bottom:16px;padding:10px 14px;border:1px solid ' + BD + ';border-radius:10px;">' +
-          '<b style="color:' + NAVY + ';">Pagamento:</b> ' +
-          'Entrada ' + (p.entryValue > 0 ? formatMoney(p.entryValue) : 'a combinar') + ' &nbsp;&bull;&nbsp; ' +
-          (p.installments > 0 ? p.installments + 'x de ' + formatMoney(p.installmentValue) : 'à vista') + ' &nbsp;&bull;&nbsp; Total ' + formatMoney(p.setupFinal) +
-          ' &nbsp;|&nbsp; <span style="color:' + MUT + ';">Implantação + conversão de dados + 5 meses de treinamento inclusos.</span>' +
-        '</div>' +
+        (p.isMultiLoja ? multiLojaBlock : valuesBlock) +
+        (p.isMultiLoja
+          ? '<div style="font-size:11.5px;color:' + TXT + ';margin-bottom:16px;padding:10px 14px;border:1px solid ' + BD + ';border-radius:10px;">' +
+              '<b style="color:' + NAVY + ';">Condições:</b> ' +
+              '<span style="color:' + MUT + ';">Cada empresa tem sua própria implantação e mensalidade, conforme detalhado acima. Implantação inclui configuração completa e 5 meses de treinamento.</span>' +
+            '</div>'
+          : '<div style="font-size:11.5px;color:' + TXT + ';margin-bottom:16px;padding:10px 14px;border:1px solid ' + BD + ';border-radius:10px;">' +
+              '<b style="color:' + NAVY + ';">Pagamento:</b> ' +
+              'Entrada ' + (p.entryValue > 0 ? formatMoney(p.entryValue) : 'a combinar') + ' &nbsp;&bull;&nbsp; ' +
+              (p.installments > 0 ? p.installments + 'x de ' + formatMoney(p.installmentValue) : 'à vista') + ' &nbsp;&bull;&nbsp; Total ' + formatMoney(p.setupFinal) +
+              ' &nbsp;|&nbsp; <span style="color:' + MUT + ';">Implantação + conversão de dados + 5 meses de treinamento inclusos.</span>' +
+            '</div>') +
 
         '<div style="display:flex;gap:14px;margin-bottom:16px;">' +
           '<div style="flex:1;border:1px solid ' + BD + ';border-radius:12px;padding:14px 16px;">' +
@@ -1966,6 +2030,55 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     set('s18-company',  proposalData.companyName || 'sua empresa');
     set('s18-original', formatMoney(proposalData.setupOriginal));
     set('s18-final',    formatMoney(proposalData.setupFinal));
+
+    // ── Projeto multi-loja: mostra CADA empresa como foi lançada (não um total).
+    if (proposalData.isMultiLoja) {
+      const singleImpl = getEl('s18-single-impl');
+      const singleMonthly = getEl('s18-single-monthly');
+      if (singleImpl) singleImpl.style.display = 'none';
+      if (singleMonthly) singleMonthly.style.display = 'none';
+      const box = getEl('s18-multiloja');
+      if (box) {
+        const cardML = (titulo, sub, impl, entrada, parc, valParc, mrr, mrrLabel) => {
+          let linhas = '';
+          if (impl > 0) linhas += '<div style="display:flex;justify-content:space-between;font-size:13px;margin:4px 0;"><span style="color:var(--text-secondary);">Implantação</span><b>' + formatMoney(impl) + '</b></div>';
+          if (entrada > 0 || parc > 0) {
+            const cond = (entrada > 0 ? 'Entrada ' + formatMoney(entrada) : '') + (parc > 0 ? (entrada > 0 ? ' + ' : '') + parc + 'x ' + formatMoney(valParc) : '');
+            linhas += '<div style="display:flex;justify-content:space-between;font-size:12px;margin:4px 0;"><span style="color:var(--text-secondary);">Pagamento</span><span style="color:var(--text-secondary);">' + cond + '</span></div>';
+          }
+          if (mrr > 0) linhas += '<div style="display:flex;justify-content:space-between;font-size:13px;margin:4px 0;"><span style="color:var(--text-secondary);">' + (mrrLabel || 'Mensalidade') + '</span><b style="color:var(--accent-ink);">' + formatMoney(mrr) + '/mês</b></div>';
+          return '<div class="price-card" style="flex:1;min-width:220px;">' +
+            '<div style="font-size:14px;font-weight:900;color:var(--accent-ink);line-height:1.25;">' + titulo + '</div>' +
+            (sub ? '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">' + sub + '</div>' : '<div style="margin-bottom:8px;"></div>') +
+            linhas + '</div>';
+        };
+        let cards = '', totImpl = 0, totEntrada = 0, totMrr = 0;
+        (proposalData.projetoLojas || []).forEach((l, i) => {
+          const impl = Number(l.valor_implantacao) || 0, ent = Number(l.entrada) || 0, prc = Number(l.parcelas) || 0, vp = Number(l.valor_parcela) || 0, mrr = Number(l.mensalidade) || 0;
+          totImpl += impl; totEntrada += ent; totMrr += mrr;
+          const nome = l.razao_social || ('Loja ' + (i + 1));
+          const sub = (l.cnpj ? 'CNPJ ' + l.cnpj : '') + (l.plano ? (l.cnpj ? ' • ' : '') + l.plano : '') + (l.maquinas ? ' • ' + l.maquinas + ' máq.' : '');
+          cards += cardML(nome, sub, impl, ent, prc, vp, mrr, 'Mensalidade');
+        });
+        const com = proposalData.projetoComunicacao;
+        if (com) {
+          const cImpl = Number(com.valor_implantacao) || 0, cEnt = Number(com.entrada) || 0, cPrc = Number(com.parcelas) || 0, cVp = Number(com.valor_parcela) || 0;
+          const nLojas = (proposalData.projetoLojas || []).length;
+          const cMrr = (Number(com.acrescimo_por_loja) || 0) * nLojas;
+          totImpl += cImpl; totEntrada += cEnt; totMrr += cMrr;
+          cards += cardML('Comunicação entre Empresas', nLojas + ' loja(s) • ' + formatMoney(Number(com.acrescimo_por_loja) || 0) + '/loja', cImpl, cEnt, cPrc, cVp, cMrr, 'Acréscimo mensal');
+        }
+        box.style.display = 'block';
+        box.innerHTML =
+          '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;">Detalhamento do projeto — por empresa</div>' +
+          '<div class="flex gap12 flex-wrap price-row" style="align-items:stretch;">' + cards + '</div>' +
+          '<div class="plus-highlight-box" style="display:flex;gap:18px;margin-top:14px;flex-wrap:wrap;justify-content:space-around;">' +
+            '<div style="text-align:center;"><div style="font-size:22px;font-weight:900;color:var(--accent-ink);">' + formatMoney(totImpl) + '</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);">Implantação total</div></div>' +
+            '<div style="text-align:center;"><div style="font-size:22px;font-weight:900;color:var(--green);">' + formatMoney(totEntrada) + '</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);">Entrada total</div></div>' +
+            '<div style="text-align:center;"><div style="font-size:22px;font-weight:900;color:var(--accent-ink);">' + formatMoney(totMrr) + '/mês</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);">Mensalidade total</div></div>' +
+          '</div>';
+      }
+    }
     // ── Par dinâmico: card da DIREITA (featured/Recomendado) = plano selecionado
     // (prioridade da loja); card da ESQUERDA = nível ao lado (upgrade).
     const tierNome = [nomes.basic, nomes.pro, nomes.plus];
@@ -2011,6 +2124,13 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     set('s19-total',         formatMoney(proposalData.setupFinal));
     set('s19-seller',        proposalData.sellerName  || '—');
     set('s19-seller-phone',  proposalData.sellerPhone || '');
+    // Multi-loja: o parcelamento é individual por empresa — aponta ao detalhamento.
+    if (proposalData.isMultiLoja) {
+      const inst = getEl('s19-installments');
+      if (inst) { inst.textContent = 'Individual por empresa'; inst.style.fontSize = '18px'; }
+      const instLbl = inst && inst.parentElement && inst.parentElement.querySelector('.pc-label');
+      if (instLbl) instLbl.textContent = 'Parcelamento';
+    }
 
     // Slide 20
     set('s20-valid',  proposalData.validUntil || '—');
