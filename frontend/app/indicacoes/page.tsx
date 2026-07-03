@@ -81,6 +81,22 @@ const STATUS_LABEL: Record<string, string> = {
 
 const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIRETOR'];
 
+// Tempo entre o LANÇAMENTO da venda e a sua CONFIRMAÇÃO (onde o serviço finaliza).
+// Retorna { dias, label } ou null quando ainda não confirmada / sem datas.
+function prazoFinalizacao(v: VendaAdicional): { dias: number; label: string } | null {
+  const inicioStr = v.data_indicacao || v.created_at;
+  const fimStr = v.data_confirmacao || (v.status === 'CONFIRMADA' || v.status === 'PAGA' ? v.data_fechamento : undefined);
+  if (!inicioStr || !fimStr) return null;
+  const ini = new Date(inicioStr); const fim = new Date(fimStr);
+  if (isNaN(ini.getTime()) || isNaN(fim.getTime())) return null;
+  // zera horas p/ contar dias de calendário
+  const d0 = Date.UTC(ini.getFullYear(), ini.getMonth(), ini.getDate());
+  const d1 = Date.UTC(fim.getFullYear(), fim.getMonth(), fim.getDate());
+  const dias = Math.max(0, Math.round((d1 - d0) / 86400000));
+  const label = dias === 0 ? 'no mesmo dia' : dias === 1 ? 'em 1 dia' : `em ${dias} dias`;
+  return { dias, label };
+}
+
 const PLANOS = ['MEI', 'Basic', 'Pro', 'Plus'];
 
 const MOCK_VENDEDORES = [
@@ -359,6 +375,24 @@ export default function IndicacoesPage() {
     }
   };
 
+  // Reabre o resumo de uma Troca de CNPJ já lançada (financeiro + técnico), a
+  // qualquer momento, para copiar de novo. Usa o mesmo modal do pós-registro.
+  const verResumoTroca = async (id: string, numeroContrato?: string) => {
+    try {
+      const res = await apiClient.resumoFinanceiroVenda(id);
+      const d = res.data?.data || {};
+      setAbaResumoTroca('financeiro');
+      setTrocaResumo({
+        texto: d.texto || '',
+        textoTecnico: d.textoTecnico || '',
+        tecnico: d.tecnico || null,
+        numero: numeroContrato,
+      });
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Não foi possível carregar o resumo.');
+    }
+  };
+
   const handlePagarComissao = async (id: string) => {
     await apiClient.updateVendaAdicional(id, { comissao_paga: true, status: 'PAGA' });
     loadVendas();
@@ -634,6 +668,7 @@ export default function IndicacoesPage() {
                       <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendedor</th>
                       <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Comissão</th>
                       <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Prazo</th>
                       <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ações</th>
                     </tr>
                   </thead>
@@ -714,11 +749,38 @@ export default function IndicacoesPage() {
                             {STATUS_LABEL[v.status] || v.status}
                           </span>
                         </td>
+                        <td className="px-5 py-4">
+                          {(() => {
+                            const p = prazoFinalizacao(v);
+                            if (!p) {
+                              // Ainda em aberto: mostra há quantos dias está pendente.
+                              if (v.status === 'PENDENTE') {
+                                const ini = new Date(v.data_indicacao || v.created_at);
+                                const dias = isNaN(ini.getTime()) ? null : Math.max(0, Math.round((Date.now() - ini.getTime()) / 86400000));
+                                return dias == null ? <span className="text-xs text-gray-300">—</span>
+                                  : <span className="text-xs text-amber-600" title="Dias em aberto desde o lançamento">⏳ {dias === 0 ? 'hoje' : `${dias}d em aberto`}</span>;
+                              }
+                              return <span className="text-xs text-gray-300">—</span>;
+                            }
+                            return (
+                              <span className="text-xs font-medium text-green-700" title="Tempo entre o lançamento e a confirmação da venda">
+                                ✅ Finalizado {p.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-5 py-4 text-right">
                           {/* Resumo p/ financeiro — Comunicação, Upgrade e Fiscal */}
-                          {['COMUNICACAO', 'UPGRADE', 'FISCAL'].includes(v.parceiro.categoria) && (
+                          {['COMUNICACAO', 'UPGRADE', 'FISCAL'].includes(v.parceiro?.categoria || '') && (
                             <button onClick={() => copiarResumoFinanceiro(v.id)} title="Copiar resumo para o financeiro"
                               className="mr-1 text-xs text-teal-700 border border-teal-200 rounded-lg px-2 py-1 hover:bg-teal-50 font-medium transition-colors">
+                              📋 Resumo
+                            </button>
+                          )}
+                          {/* Troca de CNPJ — reabre o resumo (financeiro + técnico) p/ copiar */}
+                          {v.parceiro?.categoria === 'TROCA_CNPJ' && (
+                            <button onClick={() => verResumoTroca(v.id)} title="Ver resumo da troca de CNPJ (financeiro e técnico)"
+                              className="mr-1 text-xs text-violet-700 border border-violet-200 rounded-lg px-2 py-1 hover:bg-violet-50 font-medium transition-colors">
                               📋 Resumo
                             </button>
                           )}
@@ -1495,10 +1557,12 @@ export default function IndicacoesPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-xl p-6 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">✅ Troca de CNPJ registrada</h2>
+              <h2 className="text-lg font-semibold text-gray-900">🔄 Resumo da Troca de CNPJ</h2>
               <button onClick={() => setTrocaResumo(null)} className="text-gray-400 text-xl">×</button>
             </div>
-            <p className="text-xs text-gray-500">Contrato {trocaResumo.numero || ''} gerado (marcado como serviço, não conta como cliente novo).</p>
+            {trocaResumo.numero && (
+              <p className="text-xs text-gray-500">Contrato {trocaResumo.numero} gerado (marcado como serviço, não conta como cliente novo).</p>
+            )}
 
             {/* Abas: Financeiro / Técnico */}
             <div className="flex gap-1 border-b border-gray-200">

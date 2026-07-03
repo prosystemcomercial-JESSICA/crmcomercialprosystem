@@ -664,6 +664,26 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     });
     if (!v) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada' });
 
+    // TROCA DE CNPJ: o resumo (financeiro + técnico) é montado no registro e salvo
+    // em observacoes (JSON). Devolvemos o texto EXATO — o CNPJ antigo já foi
+    // sobrescrito no cadastro, então não dá para regenerar fielmente.
+    if (v.parceiro?.categoria === 'TROCA_CNPJ') {
+      let salvo: any = null;
+      try { salvo = v.observacoes ? JSON.parse(v.observacoes) : null; } catch { salvo = null; }
+      if (salvo && salvo.tipo === 'TROCA_CNPJ') {
+        return reply.send({ status: 'success', data: {
+          texto: salvo.resumo || '',
+          textoTecnico: salvo.resumo_tecnico || '',
+          tecnico: salvo.tecnico_responsavel || null,
+        } });
+      }
+      // Fallback p/ trocas antigas (sem resumo salvo): texto simples do que temos.
+      return reply.send({ status: 'success', data: {
+        texto: `Troca de CNPJ\n\n${(v.observacoes || '').replace(/^\{.*\}$/s, '')}`.trim(),
+        textoTecnico: '', tecnico: null,
+      } });
+    }
+
     const brl = (n?: number | null) => `R$ ${Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     const dataBR = (d?: Date | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '___/___/______';
     const cli = v.cliente || {};
