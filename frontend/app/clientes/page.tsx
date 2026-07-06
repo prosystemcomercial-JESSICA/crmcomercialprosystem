@@ -173,27 +173,25 @@ export default function ClientesPage() {
     try {
       const prev = await apiClient.client.post('/clientes/limpar-invalidos');
       const qtd = prev.data?.data?.invalidos ?? 0;
-      if (qtd === 0) { alert('Nenhum registro inválido encontrado. ✅'); return; }
+      if (qtd === 0) { return; }
       const ex = (prev.data?.data?.amostra || []).slice(0, 5).map((a: any) => `• ${a.codigo || '(sem código)'} — ${a.nome}`).join('\n');
       if (!window.confirm(`Encontrei ${qtd} cliente(s) com código inválido (lixo de importação):\n\n${ex}${qtd > 5 ? '\n…' : ''}\n\nApagar TODOS esses ${qtd}? (não há desfazer)`)) return;
-      const res = await apiClient.client.post('/clientes/limpar-invalidos?confirmar=1');
-      alert(res.data?.message || 'Limpeza concluída.');
+      await apiClient.client.post('/clientes/limpar-invalidos?confirmar=1');
       setPage(0); fetchClientes();
     } catch (e: any) {
-      alert('Erro: ' + (e?.response?.data?.message || e?.message || 'desconhecido'));
+      setError(e?.response?.data?.message || e?.message || 'Erro ao limpar registros inválidos');
     }
   };
 
-  // Zera a base de clientes (só CEO) — pede confirmação digitando ZERAR.
-  const zerarBase = async () => {
-    const c = window.prompt('⚠️ Isso APAGA TODOS os clientes (e vínculos). Não há como desfazer.\n\nDigite ZERAR para confirmar:');
-    if (c !== 'ZERAR') { if (c !== null) alert('Confirmação incorreta. Nada foi apagado.'); return; }
+  // Zera a base de clientes (só CEO) — pede confirmação inline.
+  const zerarBase = () => { setZerarConfirmando(true); };
+  const zerarBaseConfirmar = async () => {
+    setZerarConfirmando(false);
     try {
-      const res = await apiClient.client.post('/clientes/zerar-base', { confirmacao: 'ZERAR' });
-      alert(res.data?.message || 'Base zerada.');
+      await apiClient.client.post('/clientes/zerar-base', { confirmacao: 'ZERAR' });
       setPage(0); fetchClientes();
     } catch (e: any) {
-      alert('Erro ao zerar: ' + (e?.response?.data?.message || e?.message || 'desconhecido'));
+      setError(e?.response?.data?.message || e?.message || 'Erro ao zerar base');
     }
   };
 
@@ -213,6 +211,7 @@ export default function ClientesPage() {
   const [form, setForm] = useState<ClienteForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [zerarConfirmando, setZerarConfirmando] = useState(false);
   const limit = 20;
 
   // Import state
@@ -311,12 +310,12 @@ export default function ClientesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja remover este cliente?')) return;
     try { await apiClient.deleteCliente(id); fetchClientes(); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remover'); }
+    catch (e: any) { setError(e?.response?.data?.message || 'Erro ao remover cliente'); }
   };
 
   // ===== IMPORT =====
   const openImport = () => {
-    setImportStep('upload'); setImportRows([]); setImportMapping({}); setImportResult(null); setShowImport(true);
+    setImportStep('upload'); setImportRows([]); setImportMapping({}); setImportResult(null); setError(''); setShowImport(true);
   };
 
   const handleFile = (file: File) => {
@@ -324,7 +323,7 @@ export default function ClientesPage() {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const rows = parseCSV(text);
-      if (rows.length === 0) { alert('Arquivo vazio ou formato inválido.'); return; }
+      if (rows.length === 0) { setError('Arquivo vazio ou formato inválido.'); return; }
 
       // Auto-map headers
       const rawHeaders = Object.keys(rows[0]);
@@ -366,7 +365,7 @@ export default function ClientesPage() {
 
   const runImport = async () => {
     const payload = buildPayload();
-    if (payload.length === 0) { alert('Nenhuma linha válida (sem código/nome/razão social/email) encontrada.'); return; }
+    if (payload.length === 0) { setError('Nenhuma linha válida (sem código/nome/razão social/email) encontrada.'); return; }
     setImporting(true);
     setImportProgress({ feitos: 0, total: payload.length });
     // Envia em LOTES p/ não estourar limite de body nem dar timeout do gateway
@@ -392,9 +391,9 @@ export default function ClientesPage() {
       setImportStep('result');
       fetchClientes();
     } catch (e: any) {
-      const det = e?.response?.data?.errors ? '\n' + JSON.stringify(e.response.data.errors).slice(0, 300) : '';
-      alert((e?.response?.data?.message || 'Erro ao importar. Verifique o arquivo.') + det +
-        `\n\nImportados antes da falha: ${acc.criados + acc.atualizados}.`);
+      const msg = e?.response?.data?.message || 'Erro ao importar. Verifique o arquivo.';
+      setError(`${msg} Importados antes da falha: ${acc.criados + acc.atualizados}.`);
+      console.error('Erro de importação:', e?.response?.data?.errors || e);
     } finally { setImporting(false); setImportProgress(null); }
   };
 
@@ -408,6 +407,13 @@ export default function ClientesPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Erro global da página */}
+        {error && !showModal && (
+          <div className="flex items-center justify-between p-3 rounded-lg border border-red-200 text-sm" style={{ background: '#fef2f2', color: '#b91c1c' }}>
+            <span>{error}</span>
+            <button onClick={() => setError('')} className="ml-4 text-xs underline" style={{ color: '#b91c1c' }}>Fechar</button>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -463,7 +469,7 @@ export default function ClientesPage() {
                 >
                   🧹 Limpar inválidos
                 </button>
-                {isCEO && (
+                {isCEO && !zerarConfirmando && (
                   <button
                     onClick={zerarBase}
                     title="Apaga TODOS os clientes para reimportar do zero (só CEO)"
@@ -472,6 +478,13 @@ export default function ClientesPage() {
                   >
                     🗑️ Zerar base
                   </button>
+                )}
+                {isCEO && zerarConfirmando && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border" style={{ borderColor: '#dc2626', background: '#fef2f2' }}>
+                    <span className="text-xs font-medium" style={{ color: '#b91c1c' }}>Apagar TODOS os clientes?</span>
+                    <button onClick={zerarBaseConfirmar} className="px-2 py-0.5 text-xs rounded font-semibold text-white" style={{ background: '#dc2626' }}>Confirmar</button>
+                    <button onClick={() => setZerarConfirmando(false)} className="px-2 py-0.5 text-xs rounded border" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Cancelar</button>
+                  </div>
                 )}
               </>
             )}
@@ -488,7 +501,7 @@ export default function ClientesPage() {
             className="w-full pl-10 pr-4 py-2.5 border rounded-lg outline-none text-sm"
             style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
           />
-          <span className="absolute left-3 top-2.5 text-gray-400 text-base">🔍</span>
+          <span className="absolute left-3 top-2.5 text-base" style={{ color: 'var(--t-text-muted)' }}>🔍</span>
         </div>
 
         {/* Filtros da base */}
@@ -602,7 +615,8 @@ export default function ClientesPage() {
                         {c.segmento && <p style={{ color: 'var(--t-text-muted)' }}>{c.segmento}</p>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${c.situacao === 'INATIVA' ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'}`}>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={c.situacao === 'INATIVA' ? { background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)' } : { background: '#dcfce7', color: '#15803d' }}>
                           {c.situacao === 'INATIVA' ? 'Inativa' : 'Ativa'}
                         </span>
                         {c.risco_atencao && <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700" title="Cliente em risco">⚠️</span>}
@@ -719,8 +733,8 @@ export default function ClientesPage() {
                 <div className="flex items-center gap-3 mt-1">
                   {(['upload','preview','result'] as ImportStep[]).map((s, i) => (
                     <div key={s} className="flex items-center gap-1.5">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${importStep === s ? 'text-white' : i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? 'bg-green-500 text-white' : 'text-gray-400'}`}
-                        style={importStep === s ? { background: 'var(--t-primary)' } : i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? {} : { background: 'var(--t-card-border)' }}>
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${importStep === s ? 'text-white' : i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? 'bg-green-500 text-white' : ''}`}
+                        style={importStep === s ? { background: 'var(--t-primary)' } : i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? {} : { background: 'var(--t-card-border)', color: 'var(--t-text-muted)' }}>
                         {i < (['upload','preview','result'] as ImportStep[]).indexOf(importStep) ? '✓' : i + 1}
                       </div>
                       <span className="text-xs capitalize" style={{ color: importStep === s ? 'var(--t-text-primary)' : 'var(--t-text-muted)' }}>
@@ -731,10 +745,20 @@ export default function ClientesPage() {
                   ))}
                 </div>
               </div>
-              <button onClick={() => setShowImport(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100" style={{ color: 'var(--t-text-muted)' }}>✕</button>
+              <button onClick={() => setShowImport(false)} className="w-8 h-8 flex items-center justify-center rounded-full transition-colors"
+                style={{ color: 'var(--t-text-muted)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-content-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>✕</button>
             </div>
 
             <div className="p-6">
+              {/* Erro de importação */}
+              {error && showImport && (
+                <div className="mb-4 flex items-center justify-between p-3 rounded-lg border border-red-200 text-sm" style={{ background: '#fef2f2', color: '#b91c1c' }}>
+                  <span>{error}</span>
+                  <button onClick={() => setError('')} className="ml-4 text-xs underline" style={{ color: '#b91c1c' }}>Fechar</button>
+                </div>
+              )}
               {/* STEP 1: Upload */}
               {importStep === 'upload' && (
                 <div className="space-y-4">
@@ -876,14 +900,14 @@ export default function ClientesPage() {
                 <div className="space-y-5">
                   <div className="grid grid-cols-4 gap-3">
                     {[
-                      { label: 'Total', value: importResult.total, color: 'text-gray-600', bg: 'bg-gray-50' },
-                      { label: 'Criados', value: importResult.criados, color: 'text-green-700', bg: 'bg-green-50' },
-                      { label: 'Atualizados', value: importResult.atualizados, color: 'text-blue-700', bg: 'bg-blue-50' },
-                      { label: 'Erros', value: importResult.erros_total, color: importResult.erros_total > 0 ? 'text-red-700' : 'text-gray-400', bg: importResult.erros_total > 0 ? 'bg-red-50' : 'bg-gray-50' }
+                      { label: 'Total', value: importResult.total, valueCss: { color: 'var(--t-text-secondary)' }, bgCss: { background: 'var(--t-content-bg)' } },
+                      { label: 'Criados', value: importResult.criados, valueCss: { color: '#15803d' }, bgCss: { background: '#f0fdf4' } },
+                      { label: 'Atualizados', value: importResult.atualizados, valueCss: { color: '#1d4ed8' }, bgCss: { background: '#eff6ff' } },
+                      { label: 'Erros', value: importResult.erros_total, valueCss: importResult.erros_total > 0 ? { color: '#b91c1c' } : { color: 'var(--t-text-muted)' }, bgCss: importResult.erros_total > 0 ? { background: '#fef2f2' } : { background: 'var(--t-content-bg)' } }
                     ].map(k => (
-                      <div key={k.label} className={`${k.bg} rounded-xl p-4 text-center`}>
-                        <p className="text-xs font-medium text-gray-500">{k.label}</p>
-                        <p className={`text-2xl font-bold mt-1 ${k.color}`}>{k.value}</p>
+                      <div key={k.label} className="rounded-xl p-4 text-center" style={k.bgCss}>
+                        <p className="text-xs font-medium" style={{ color: 'var(--t-text-muted)' }}>{k.label}</p>
+                        <p className="text-2xl font-bold mt-1" style={k.valueCss}>{k.value}</p>
                       </div>
                     ))}
                   </div>
@@ -897,7 +921,7 @@ export default function ClientesPage() {
                         {importResult.erros.map((e, i) => (
                           <div key={i} className="px-4 py-2 flex items-start gap-3 text-xs">
                             <span className="text-red-400 font-mono">L{e.linha}</span>
-                            <span className="text-gray-600">{e.email}</span>
+                            <span style={{ color: 'var(--t-text-secondary)' }}>{e.email}</span>
                             <span className="text-red-600 flex-1">{e.motivo}</span>
                           </div>
                         ))}
