@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -11,6 +11,7 @@ import {
   Percent, FileText, Headphones, XCircle,
   Flame, Thermometer, Snowflake, CheckCircle2, ClipboardList,
   AlertTriangle, Zap, Heart, RotateCcw,
+  Phone, Mail, Users, Car, Bell, FileOutput, Pin,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -64,9 +65,14 @@ const ETAPA_LABEL: Record<string, string> = {
   NEGOCIACAO: 'Negociação', FECHAMENTO: 'Fechamento',
 };
 
-const TIPO_LABEL: Record<string, { icon: string }> = {
-  LIGACAO: { icon: '📞' }, EMAIL: { icon: '✉️' }, REUNIAO: { icon: '🤝' },
-  VISITA: { icon: '🚗' }, FOLLOW_UP: { icon: '🔔' }, PROPOSTA: { icon: '📄' }, OUTRO: { icon: '📌' },
+const TIPO_LABEL: Record<string, { Icon: React.ElementType; label: string }> = {
+  LIGACAO:   { Icon: Phone,      label: 'Ligação' },
+  EMAIL:     { Icon: Mail,       label: 'E-mail' },
+  REUNIAO:   { Icon: Users,      label: 'Reunião' },
+  VISITA:    { Icon: Car,        label: 'Visita' },
+  FOLLOW_UP: { Icon: Bell,       label: 'Follow-up' },
+  PROPOSTA:  { Icon: FileOutput, label: 'Proposta' },
+  OUTRO:     { Icon: Pin,        label: 'Outro' },
 };
 
 // ── Animated Counter ──────────────────────────────────────────────────────────
@@ -111,31 +117,22 @@ function PulseDot({ color }: { color: string }) {
 
 // ── Metric Card ───────────────────────────────────────────────────────────────
 function MetricCard({
-  label, value, sub, icon: Icon, accent = '#4B8EC8', delta, pulse, animate: doAnimate, rawValue,
+  label, value, sub, icon: Icon, accent = 'var(--t-primary)', delta, pulse, animate: doAnimate, rawValue,
 }: {
   label: string; value: string; sub?: string; icon: React.ElementType;
   accent?: string; delta?: number; pulse?: boolean; animate?: boolean; rawValue?: number;
 }) {
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl p-5 group transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
-      style={{
-        background: 'white',
-        border: '1px solid #E8F1FB',
-        boxShadow: '0 2px 8px rgba(13,34,56,0.06)',
-      }}
-    >
-      {/* Background glow on hover */}
+    <div className="ps-card relative overflow-hidden rounded-2xl p-5 group transition-all duration-300 hover:-translate-y-0.5">
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-        style={{ background: `radial-gradient(circle at 20% 50%, ${accent}08 0%, transparent 70%)` }}
+        style={{ background: `radial-gradient(circle at 20% 50%, ${accent}0A 0%, transparent 70%)` }}
       />
-
       <div className="relative z-10">
         <div className="flex items-start justify-between mb-4">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
-            style={{ background: `${accent}15` }}
+            style={{ background: `${accent}18` }}
           >
             <Icon size={18} style={{ color: accent }} />
           </div>
@@ -145,7 +142,7 @@ function MetricCard({
               <span
                 className="flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full"
                 style={{
-                  background: delta >= 0 ? '#DCFCE7' : '#FEE2E2',
+                  background: delta >= 0 ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)',
                   color: delta >= 0 ? '#16a34a' : '#dc2626',
                 }}
               >
@@ -155,17 +152,16 @@ function MetricCard({
             )}
           </div>
         </div>
-
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: '#94a3b8' }}>
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-text-muted)' }}>
           {label}
         </p>
-        <p className="text-2xl font-black tracking-tight leading-none" style={{ color: '#0D2238' }}>
+        <p className="text-2xl font-black tracking-tight leading-none" style={{ color: 'var(--t-text-primary)' }}>
           {doAnimate && rawValue !== undefined
             ? <AnimatedNumber value={rawValue} />
             : value}
         </p>
         {sub && (
-          <p className="text-xs mt-1.5 font-medium" style={{ color: '#7AAACB' }}>{sub}</p>
+          <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--t-text-secondary)' }}>{sub}</p>
         )}
       </div>
     </div>
@@ -178,22 +174,22 @@ function AlertBanner({ alertas }: { alertas: DashboardPower['alertas'] }) {
   if (total === 0) return null;
 
   const items = [
-    { count: alertas.atividades_atrasadas, label: 'atividades atrasadas', color: '#dc2626', bg: '#FEE2E2', href: '/atividades' },
-    { count: alertas.tickets_criticos, label: 'tickets críticos', color: '#9333ea', bg: '#F3E8FF', href: '/suporte' },
-    { count: alertas.renovacoes_criticas, label: 'renovações urgentes', color: '#ea580c', bg: '#FFEDD5', href: '/renovacoes' },
-    { count: alertas.hs_em_risco, label: 'clientes em risco', color: '#d97706', bg: '#FEF3C7', href: '/health-score' },
+    { count: alertas.atividades_atrasadas, label: 'atividades atrasadas', color: '#dc2626', bg: 'rgba(220,38,38,0.10)', href: '/atividades' },
+    { count: alertas.tickets_criticos, label: 'tickets críticos', color: '#9333ea', bg: 'rgba(147,51,234,0.10)', href: '/suporte' },
+    { count: alertas.renovacoes_criticas, label: 'renovações urgentes', color: '#ea580c', bg: 'rgba(234,88,12,0.10)', href: '/renovacoes' },
+    { count: alertas.hs_em_risco, label: 'clientes em risco', color: '#d97706', bg: 'rgba(217,119,6,0.10)', href: '/health-score' },
   ].filter(i => i.count > 0);
 
   return (
     <div
-      className="rounded-2xl px-5 py-4 flex items-center gap-4 flex-wrap animate-pulse-slow"
-      style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FEF2F2 100%)', border: '1px solid #FECACA' }}
+      className="rounded-2xl px-5 py-4 flex items-center gap-4 flex-wrap"
+      style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.20)' }}
     >
       <div className="flex items-center gap-2.5 flex-shrink-0">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#FEE2E2' }}>
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(220,38,38,0.12)' }}>
           <AlertTriangle size={15} style={{ color: '#dc2626' }} />
         </div>
-        <span className="text-sm font-bold" style={{ color: '#7f1d1d' }}>Atenção necessária</span>
+        <span className="text-sm font-bold" style={{ color: '#dc2626' }}>Atenção necessária</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {items.map(item => (
@@ -217,11 +213,11 @@ function SectionHeader({ children, href }: { children: React.ReactNode; href?: s
   return (
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-3">
-        <div className="h-4 w-1 rounded-full" style={{ background: 'linear-gradient(to bottom, #4B8EC8, #2E6EAB)' }} />
-        <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#0D2238' }}>{children}</p>
+        <div className="h-4 w-1 rounded-full" style={{ background: 'var(--t-primary)' }} />
+        <p className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--t-text-primary)' }}>{children}</p>
       </div>
       {href && (
-        <a href={href} className="text-xs font-semibold transition-colors hover:opacity-70" style={{ color: '#4B8EC8' }}>
+        <a href={href} className="text-xs font-semibold transition-colors hover:opacity-70" style={{ color: 'var(--t-primary)' }}>
           Ver todos →
         </a>
       )}
@@ -232,10 +228,7 @@ function SectionHeader({ children, href }: { children: React.ReactNode; href?: s
 // ── Card ──────────────────────────────────────────────────────────────────────
 function Card({ children, className = '', style = {} }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <div
-      className={`rounded-2xl ${className}`}
-      style={{ background: 'white', border: '1px solid #E8F1FB', boxShadow: '0 2px 8px rgba(13,34,56,0.06)', ...style }}
-    >
+    <div className={`ps-card rounded-2xl ${className}`} style={style}>
       {children}
     </div>
   );
@@ -286,10 +279,10 @@ export default function DashboardPage() {
 
   if (loading || !isAuthenticated || (user && !isGestor)) {
     return (
-      <div className="flex items-center justify-center min-h-screen" style={{ background: '#0D2238' }}>
+      <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-sidebar-grad-from)' }}>
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#4B8EC8', borderTopColor: 'transparent' }} />
-          <p className="text-sm font-medium" style={{ color: '#7AAACB' }}>Carregando painel...</p>
+          <div className="w-12 h-12 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--t-primary)', borderTopColor: 'transparent' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--t-text-secondary)' }}>Carregando painel...</p>
         </div>
       </div>
     );
@@ -320,7 +313,7 @@ export default function DashboardPage() {
         .fade-up-5 { animation: fadeUp 0.5s 0.25s ease both; }
         .fade-up-6 { animation: fadeUp 0.5s 0.30s ease both; }
         .skeleton {
-          background: linear-gradient(90deg, #f0f4f8 25%, #e2eaf3 50%, #f0f4f8 75%);
+          background: linear-gradient(90deg, var(--t-card-border) 25%, var(--t-primary-light) 50%, var(--t-card-border) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
           border-radius: 12px;
@@ -332,13 +325,13 @@ export default function DashboardPage() {
         {/* ── Header ──────────────────────────────────────────── */}
         <div className="fade-up flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-black tracking-tight" style={{ color: '#0D2238' }}>
+            <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--t-text-primary)' }}>
               Dashboard Executivo
             </h1>
-            <p className="text-sm mt-0.5 font-medium" style={{ color: '#7AAACB' }}>
+            <p className="text-sm mt-0.5 font-medium" style={{ color: 'var(--t-text-secondary)' }}>
               Visão 360° do negócio
               {lastUpdate && (
-                <span className="ml-2 text-xs" style={{ color: '#94a3b8' }}>
+                <span className="ml-2 text-xs" style={{ color: 'var(--t-text-muted)' }}>
                   · atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
@@ -350,17 +343,16 @@ export default function DashboardPage() {
                 value={filtroVendedorId}
                 onChange={e => setFiltroVendedorId(e.target.value)}
                 className="px-3 py-2 rounded-xl text-sm border font-medium"
-                style={{ borderColor: '#D8E8F5', color: '#0D2238', background: 'white' }}
+                style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }}
               >
-                <option value="">👥 Todos os vendedores</option>
+                <option value="">Todos os vendedores</option>
                 {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
               </select>
             )}
             <button
               onClick={loadData}
               disabled={dataLoading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50 hover:scale-105 active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #4B8EC8 0%, #2E6EAB 100%)', boxShadow: '0 4px 14px rgba(75,142,200,0.35)' }}
+              className="ps-btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50 hover:scale-105 active:scale-95 transition-all"
             >
               <RefreshCw size={14} className={dataLoading ? 'animate-spin' : ''} />
               Atualizar
@@ -371,29 +363,29 @@ export default function DashboardPage() {
         {/* ── Skeleton Loading ─────────────────────────────────── */}
         {dataLoading && !data && (
           <div className="space-y-6 fade-up">
-            <div className="skeleton h-14 w-full" />
+            <div className="skeleton h-14 w-full rounded-xl" style={{ background: 'var(--t-card-border)' }} />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-28" />)}
+              {[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-xl animate-pulse" style={{ background: 'var(--t-card-border)' }} />)}
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-28" />)}
+              {[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-xl animate-pulse" style={{ background: 'var(--t-card-border)' }} />)}
             </div>
           </div>
         )}
 
         {/* ── Error ───────────────────────────────────────────── */}
         {!dataLoading && !data && (
-          <div className="fade-up" style={{ background: 'white', borderRadius: 20, padding: '40px 32px', textAlign: 'center', border: '1px solid #fca5a5', maxWidth: 560, margin: '40px auto' }}>
-            <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div className="fade-up ps-card" style={{ borderRadius: 20, padding: '40px 32px', textAlign: 'center', border: '1px solid rgba(220,38,38,0.30)', maxWidth: 560, margin: '40px auto' }}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(220,38,38,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <AlertTriangle size={28} style={{ color: '#dc2626' }} />
             </div>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0D2238', marginBottom: 8 }}>Não foi possível carregar o dashboard</h3>
-            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>{loadError}</p>
-            <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 20 }}>
-              <strong>Seus registros foram preservados</strong> — nenhuma informação foi perdida. Os dashboards apenas leem dados, não modificam.
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--t-text-primary)', marginBottom: 8 }}>Não foi possível carregar o dashboard</h3>
+            <p style={{ fontSize: 13, color: 'var(--t-text-secondary)', marginBottom: 8 }}>{loadError}</p>
+            <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 20 }}>
+              <strong>Seus registros foram preservados</strong> — nenhuma informação foi perdida.
             </p>
-            <button onClick={loadData} style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)', color: '#fff', border: 'none', padding: '11px 24px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-              ↻ Tentar novamente
+            <button onClick={loadData} className="ps-btn-primary" style={{ padding: '11px 24px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer', border: 'none' }}>
+              Tentar novamente
             </button>
           </div>
         )}
@@ -471,14 +463,14 @@ export default function DashboardPage() {
 
                 {/* Temperatura breakdown */}
                 <Card className="p-6">
-                  <p className="text-sm font-black mb-5" style={{ color: '#0D2238' }}>Propostas por Temperatura</p>
+                  <p className="text-sm font-black mb-5" style={{ color: 'var(--t-text-primary)' }}>Propostas por Temperatura</p>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {[
-                      { label: 'Quente — A Fechar', sub: 'Em negociação ativa', icon: Flame, d: data.pipeline_propostas.quente, accent: '#dc2626', bg: 'linear-gradient(135deg, #FEF2F2, #FEE2E2)' },
-                      { label: 'Morno — Aguardando', sub: 'Retorno pendente', icon: Thermometer, d: data.pipeline_propostas.morno, accent: '#d97706', bg: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' },
-                      { label: 'Frio — Rascunho', sub: 'Ainda não enviada', icon: Snowflake, d: data.pipeline_propostas.frio, accent: '#2563eb', bg: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)' },
+                      { label: 'Quente — A Fechar', sub: 'Em negociação ativa', icon: Flame, d: data.pipeline_propostas.quente, accent: '#dc2626', bg: 'rgba(220,38,38,0.07)' },
+                      { label: 'Morno — Aguardando', sub: 'Retorno pendente', icon: Thermometer, d: data.pipeline_propostas.morno, accent: '#d97706', bg: 'rgba(217,119,6,0.07)' },
+                      { label: 'Frio — Rascunho', sub: 'Ainda não enviada', icon: Snowflake, d: data.pipeline_propostas.frio, accent: '#2563eb', bg: 'rgba(37,99,235,0.07)' },
                     ].map(({ label, sub, icon: Icon, d, accent, bg }) => (
-                      <div key={label} className="rounded-xl p-4 transition-transform duration-200 hover:scale-105" style={{ background: bg }}>
+                      <div key={label} className="rounded-xl p-4 transition-transform duration-200 hover:scale-105" style={{ background: bg, border: `1px solid ${accent}20` }}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${accent}20` }}>
@@ -493,12 +485,12 @@ export default function DashboardPage() {
                         </div>
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-semibold" style={{ color: '#6b7280' }}>MRR</span>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>MRR</span>
                             <span className="text-sm font-black" style={{ color: accent }}>{fmt(d.mrr)}</span>
                           </div>
                           <div className="h-px" style={{ background: `${accent}30` }} />
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-semibold" style={{ color: '#6b7280' }}>Setup</span>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>Setup</span>
                             <span className="text-sm font-black" style={{ color: accent }}>{fmt(d.setup)}</span>
                           </div>
                         </div>
@@ -521,10 +513,10 @@ export default function DashboardPage() {
                           {pctF > 0 && <div className="transition-all duration-700" style={{ width: `${pctF}%`, background: 'linear-gradient(90deg, #2563eb, #3b82f6)', borderRadius: 4 }} />}
                         </div>
                         <div className="flex items-center gap-4 mt-2">
-                          {[{ c: '#ef4444', l: `🔥 Quente ${pctQ}%` }, { c: '#f59e0b', l: `🌡 Morno ${pctM}%` }, { c: '#3b82f6', l: `❄️ Frio ${pctF}%` }].map(({ c, l }) => (
+                          {[{ c: '#ef4444', l: `Quente ${pctQ}%` }, { c: '#f59e0b', l: `Morno ${pctM}%` }, { c: '#3b82f6', l: `Frio ${pctF}%` }].map(({ c, l }) => (
                             <div key={l} className="flex items-center gap-1.5">
                               <div className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
-                              <span className="text-[11px] font-semibold" style={{ color: '#64748b' }}>{l}</span>
+                              <span className="text-[11px] font-semibold" style={{ color: 'var(--t-text-muted)' }}>{l}</span>
                             </div>
                           ))}
                         </div>
@@ -540,7 +532,7 @@ export default function DashboardPage() {
 
               {/* Pipeline por etapa */}
               <Card className="p-6">
-                <p className="text-sm font-black mb-5" style={{ color: '#0D2238' }}>Pipeline por Etapa</p>
+                <p className="text-sm font-black mb-5" style={{ color: 'var(--t-text-primary)' }}>Pipeline por Etapa</p>
                 <div className="space-y-4">
                   {data.pipeline_funil.map((p, i) => {
                     const widthPct = maxPipelineVal > 0 ? (p.valor / maxPipelineVal) * 100 : 0;
@@ -549,7 +541,7 @@ export default function DashboardPage() {
                     return (
                       <div key={p.etapa}>
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs font-bold" style={{ color: '#0D2238' }}>
+                          <span className="text-xs font-bold" style={{ color: 'var(--t-text-primary)' }}>
                             {ETAPA_LABEL[p.etapa] || p.etapa}
                           </span>
                           <div className="flex items-center gap-2">
@@ -559,7 +551,7 @@ export default function DashboardPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="w-full rounded-full h-2" style={{ background: '#F1F5F9' }}>
+                        <div className="w-full rounded-full h-2" style={{ background: 'var(--t-card-border)' }}>
                           <div
                             className="h-2 rounded-full transition-all duration-700"
                             style={{
@@ -573,49 +565,52 @@ export default function DashboardPage() {
                     );
                   })}
                   {data.pipeline_funil.every(p => p.count === 0) && (
-                    <p className="text-xs text-center py-6 font-medium" style={{ color: '#7AAACB' }}>Nenhum lead ativo no funil</p>
+                    <p className="text-xs text-center py-6 font-medium" style={{ color: 'var(--t-text-secondary)' }}>Nenhum lead ativo no funil</p>
                   )}
                 </div>
               </Card>
 
               {/* Top 5 Leads */}
               <Card className="p-6">
-                <p className="text-sm font-black mb-5" style={{ color: '#0D2238' }}>Top 5 Leads — Maior Potencial</p>
+                <p className="text-sm font-black mb-5" style={{ color: 'var(--t-text-primary)' }}>Top 5 Leads — Maior Potencial</p>
                 {data.top_leads.length === 0 ? (
-                  <p className="text-xs text-center py-8 font-medium" style={{ color: '#7AAACB' }}>Nenhum lead com valor estimado</p>
+                  <p className="text-xs text-center py-8 font-medium" style={{ color: 'var(--t-text-secondary)' }}>Nenhum lead com valor estimado</p>
                 ) : (
                   <div className="space-y-3">
                     {data.top_leads.map((l, i) => {
-                      const tempColors: Record<string, { bg: string; color: string; emoji: string }> = {
-                        MUITO_QUENTE: { bg: '#FEF2F2', color: '#dc2626', emoji: '⚡' },
-                        QUENTE:       { bg: '#FEF2F2', color: '#ef4444', emoji: '🔥' },
-                        MORNO:        { bg: '#FEF3C7', color: '#d97706', emoji: '🌡' },
-                        FRIO:         { bg: '#EFF6FF', color: '#2563eb', emoji: '❄️' },
+                      const tempColors: Record<string, { bg: string; color: string; label: string }> = {
+                        MUITO_QUENTE: { bg: 'rgba(220,38,38,0.10)', color: '#dc2626', label: 'Muito Quente' },
+                        QUENTE:       { bg: 'rgba(239,68,68,0.10)', color: '#ef4444', label: 'Quente' },
+                        MORNO:        { bg: 'rgba(217,119,6,0.10)', color: '#d97706', label: 'Morno' },
+                        FRIO:         { bg: 'rgba(37,99,235,0.10)', color: '#2563eb', label: 'Frio' },
                       };
                       const tc = tempColors[l.temperatura] || tempColors.FRIO;
-                      const rankColors = ['#f59e0b', '#9ca3af', '#d97706', '#7AAACB', '#94a3b8'];
+                      const rankColors = ['#f59e0b', '#9ca3af', '#d97706', 'var(--t-primary)', '#94a3b8'];
                       return (
                         <div
                           key={l.id}
                           className="flex items-center gap-3 p-3 rounded-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer"
-                          style={{ background: i === 0 ? '#F0F7FF' : 'transparent', border: i === 0 ? '1px solid #BFDBFE' : '1px solid transparent' }}
+                          style={{
+                            background: i === 0 ? 'var(--t-primary-light)' : 'transparent',
+                            border: i === 0 ? '1px solid var(--t-card-border)' : '1px solid transparent',
+                          }}
                         >
                           <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 text-white"
                             style={{ background: rankColors[i] }}>
                             {i + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold truncate" style={{ color: '#0D2238' }}>{l.nome}</p>
+                            <p className="text-sm font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>{l.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: tc.bg, color: tc.color }}>
-                                {tc.emoji} {l.temperatura.replace('_', ' ')}
+                                {tc.label}
                               </span>
-                              <span className="text-[10px] font-medium" style={{ color: '#94a3b8' }}>{l.probabilidade}% prob.</span>
+                              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{l.probabilidade}% prob.</span>
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-sm font-black" style={{ color: '#16a34a' }}>{fmt(l.valor_ponderado)}</p>
-                            <p className="text-[10px] font-medium" style={{ color: '#94a3b8' }}>ponderado</p>
+                            <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>ponderado</p>
                           </div>
                         </div>
                       );
@@ -645,7 +640,7 @@ export default function DashboardPage() {
 
               {data.ranking_motivos_perda?.length > 0 && (
                 <Card className="p-6">
-                  <p className="text-sm font-black mb-5" style={{ color: '#0D2238' }}>Por que estamos perdendo negócios?</p>
+                  <p className="text-sm font-black mb-5" style={{ color: 'var(--t-text-primary)' }}>Por que estamos perdendo negócios?</p>
                   <div className="space-y-3.5">
                     {data.ranking_motivos_perda.map((item, i) => (
                       <div key={item.motivo}>
@@ -655,17 +650,17 @@ export default function DashboardPage() {
                               style={{ background: i === 0 ? '#dc2626' : i === 1 ? '#ef4444' : '#f87171' }}>
                               {i + 1}
                             </span>
-                            <span className="text-xs font-semibold truncate" style={{ color: '#0D2238' }}>{item.motivo}</span>
+                            <span className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-primary)' }}>{item.motivo}</span>
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0 ml-2">
                             <span className="text-xs font-black" style={{ color: '#dc2626' }}>{item.total}×</span>
-                            <span className="text-xs font-semibold" style={{ color: '#7AAACB' }}>{fmt(item.valor_total)}</span>
-                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: '#FEF2F2', color: '#991B1B' }}>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--t-text-secondary)' }}>{fmt(item.valor_total)}</span>
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: 'rgba(220,38,38,0.10)', color: '#b91c1c' }}>
                               {item.pct}%
                             </span>
                           </div>
                         </div>
-                        <div className="w-full rounded-full h-2" style={{ background: '#FEF2F2' }}>
+                        <div className="w-full rounded-full h-2" style={{ background: 'rgba(220,38,38,0.08)' }}>
                           <div
                             className="h-2 rounded-full transition-all duration-700"
                             style={{ width: `${item.pct}%`, background: 'linear-gradient(90deg, #dc2626, #ef4444)', transitionDelay: `${i * 100}ms` }}
@@ -692,13 +687,13 @@ export default function DashboardPage() {
               data.agenda_hoje.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: false }); seen.add(a.id); } });
 
               const prioCfg = (it: Item) => {
-                if (it._atrasada) return { label: 'Atrasada', cor: '#dc2626', bg: '#FEE2E2', ordem: 0 };
+                if (it._atrasada) return { label: 'Atrasada', cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
                 const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
                 const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
-                if (dias < 0)  return { label: 'Atrasada',         cor: '#dc2626', bg: '#FEE2E2', ordem: 0 };
-                if (dias <= 3) return { label: 'Prioridade máx.',  cor: '#ea580c', bg: '#FFEDD5', ordem: 1 };
-                if (dias <= 7) return { label: 'Próxima',          cor: '#d97706', bg: '#FEF3C7', ordem: 2 };
-                return                  { label: 'Dentro do prazo', cor: '#16a34a', bg: '#DCFCE7', ordem: 3 };
+                if (dias < 0)  return { label: 'Atrasada',         cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
+                if (dias <= 3) return { label: 'Prioridade máx.',  cor: '#ea580c', bg: 'rgba(234,88,12,0.10)',  ordem: 1 };
+                if (dias <= 7) return { label: 'Próxima',          cor: '#d97706', bg: 'rgba(217,119,6,0.10)',  ordem: 2 };
+                return                  { label: 'Dentro do prazo', cor: '#16a34a', bg: 'rgba(22,163,74,0.10)', ordem: 3 };
               };
 
               const ordered = merged
@@ -710,48 +705,53 @@ export default function DashboardPage() {
 
               return (
                 <Card>
-                  <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid #EBF4FF' }}>
+                  <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
                     <div>
-                      <p className="text-sm font-black" style={{ color: '#0D2238' }}>Atividades em Aberto</p>
-                      <p className="text-[10px] font-medium mt-0.5" style={{ color: '#94a3b8' }}>Ordenadas por prioridade e vencimento</p>
+                      <p className="text-sm font-black" style={{ color: 'var(--t-text-primary)' }}>Atividades em Aberto</p>
+                      <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Ordenadas por prioridade e vencimento</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {atrasadas > 0 && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#FEE2E2', color: '#991B1B' }}>
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}>
                           <PulseDot color="#dc2626" />{atrasadas} atrasada{atrasadas !== 1 ? 's' : ''}
                         </span>
                       )}
                       {maxima > 0 && (
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: '#FFEDD5', color: '#9A3412' }}>
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(234,88,12,0.10)', color: '#ea580c' }}>
                           {maxima} expirando
                         </span>
                       )}
-                      <a href="/atividades" className="text-xs font-bold transition-opacity hover:opacity-70" style={{ color: '#4B8EC8' }}>Ver todas →</a>
+                      <a href="/atividades" className="text-xs font-bold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)' }}>Ver todas →</a>
                     </div>
                   </div>
                   {ordered.length === 0 ? (
-                    <p className="p-8 text-center text-sm font-bold" style={{ color: '#16a34a' }}>✅ Tudo em dia! Sem atividades urgentes.</p>
+                    <p className="p-8 text-center text-sm font-bold" style={{ color: '#16a34a' }}>Tudo em dia — sem atividades urgentes.</p>
                   ) : (
                     <div>
                       {ordered.slice(0, 10).map(({ it, cfg }) => {
-                        const t = TIPO_LABEL[it.tipo] || { icon: '📌' };
+                        const t = TIPO_LABEL[it.tipo] || { Icon: Pin, label: 'Outro' };
                         const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
                         const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
                         const diasLabel = dias < 0 ? `${Math.abs(dias)}d atrasada` : dias === 0 ? 'hoje' : `em ${dias}d`;
                         return (
                           <a key={it.id} href="/atividades"
-                            className="px-6 py-3.5 flex items-center gap-3 hover:bg-slate-50 transition-colors"
-                            style={{ borderBottom: '1px solid #F4F7FB', borderLeft: `3px solid ${cfg.cor}` }}>
-                            <span className="text-base flex-shrink-0">{t.icon}</span>
+                            className="px-6 py-3.5 flex items-center gap-3 transition-colors"
+                            style={{ borderBottom: '1px solid var(--t-card-border)', borderLeft: `3px solid ${cfg.cor}` }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <span className="flex-shrink-0 rounded-lg flex items-center justify-center" style={{ width: 28, height: 28, background: `${cfg.cor}15`, color: cfg.cor }}>
+                              <t.Icon size={14} />
+                            </span>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-semibold truncate" style={{ color: '#0D2238' }}>{it.titulo}</p>
+                                <p className="text-sm font-semibold truncate" style={{ color: 'var(--t-text-primary)' }}>{it.titulo}</p>
                                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: cfg.bg, color: cfg.cor }}>
                                   {cfg.label}
                                 </span>
                               </div>
                               {it.lead && (
-                                <p className="text-xs font-medium truncate mt-0.5" style={{ color: '#7AAACB' }}>
+                                <p className="text-xs font-medium truncate mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
                                   {it.lead.nome}{(it.lead as any).empresa ? ` · ${(it.lead as any).empresa}` : ''}
                                 </p>
                               )}
@@ -761,7 +761,7 @@ export default function DashboardPage() {
                         );
                       })}
                       {ordered.length > 10 && (
-                        <a href="/atividades" className="block text-center text-xs font-bold py-3.5 hover:bg-slate-50 transition-colors" style={{ color: '#4B8EC8', borderTop: '1px solid #F4F7FB' }}>
+                        <a href="/atividades" className="block text-center text-xs font-bold py-3.5 transition-colors" style={{ color: 'var(--t-primary)', borderTop: '1px solid var(--t-card-border)' }}>
                           + {ordered.length - 10} atividades adicionais
                         </a>
                       )}
@@ -781,18 +781,21 @@ export default function DashboardPage() {
               // Abre automaticamente se houver dados reais
               const aberto = showFinanceiro || temDados;
               return (
-                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #E8F1FB', background: 'white', boxShadow: '0 2px 8px rgba(13,34,56,0.06)' }}>
+                <div className="ps-card rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setShowFinanceiro(p => !p)}
-                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors"
+                    className="w-full px-6 py-4 flex items-center justify-between text-left transition-colors"
+                    style={{ borderBottom: aberto ? '1px solid var(--t-card-border)' : 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-4 w-1 rounded-full" style={{ background: 'linear-gradient(to bottom, #16a34a, #15803d)' }} />
-                      <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#0D2238' }}>
+                      <div className="h-4 w-1 rounded-full" style={{ background: '#16a34a' }} />
+                      <p className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--t-text-primary)' }}>
                         Financeiro, Contratos & Base de Clientes
                       </p>
                       {!temDados && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#F1F5F9', color: '#94a3b8' }}>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--t-card-border)', color: 'var(--t-text-muted)' }}>
                           Sem dados ainda
                         </span>
                       )}
@@ -816,7 +819,7 @@ export default function DashboardPage() {
                           label="NPS Score"
                           value={temNps ? String(data.kpis.nps_score) : '—'}
                           sub={temNps
-                            ? (data.kpis.nps_score! >= 50 ? '⭐ Excelente' : data.kpis.nps_score! >= 0 ? '👍 Bom' : '⚠️ Crítico')
+                            ? (data.kpis.nps_score! >= 50 ? 'Excelente' : data.kpis.nps_score! >= 0 ? 'Bom' : 'Crítico')
                             : 'sem respostas ainda'}
                           icon={Star}
                           accent={temNps
@@ -825,7 +828,7 @@ export default function DashboardPage() {
                         />
                         <MetricCard
                           label="Tickets em Aberto" value={fmtNum(data.kpis.tickets_abertos)}
-                          sub={data.kpis.tickets_criticos > 0 ? `⚠️ ${data.kpis.tickets_criticos} críticos` : '✅ Nenhum crítico'}
+                          sub={data.kpis.tickets_criticos > 0 ? `${data.kpis.tickets_criticos} críticos` : 'Nenhum crítico'}
                           icon={Headphones}
                           accent={data.kpis.tickets_criticos > 0 ? '#dc2626' : '#4B8EC8'}
                           pulse={data.kpis.tickets_criticos > 0}
@@ -835,9 +838,9 @@ export default function DashboardPage() {
                       {temSaude && (
                         <div className="grid grid-cols-3 gap-4">
                           {[
-                            { label: 'Críticos', value: data.kpis.hs_criticos, icon: AlertTriangle, bg: 'linear-gradient(135deg,#FEF2F2,#FEE2E2)', color: '#991B1B', accent: '#dc2626', href: '/health-score' },
-                            { label: 'Em Risco', value: Math.max(0, data.alertas.hs_em_risco - data.kpis.hs_criticos), icon: Heart, bg: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', color: '#92400E', accent: '#d97706', href: '/health-score' },
-                            { label: 'Renovações Urgentes', value: data.kpis.renovacoes_criticas, icon: RotateCcw, bg: 'linear-gradient(135deg,#FFF7ED,#FFEDD5)', color: '#9A3412', accent: '#ea580c', href: '/renovacoes' },
+                            { label: 'Críticos', value: data.kpis.hs_criticos, icon: AlertTriangle, bg: 'rgba(220,38,38,0.07)', color: '#b91c1c', accent: '#dc2626', href: '/health-score' },
+                            { label: 'Em Risco', value: Math.max(0, data.alertas.hs_em_risco - data.kpis.hs_criticos), icon: Heart, bg: 'rgba(217,119,6,0.07)', color: '#92400e', accent: '#d97706', href: '/health-score' },
+                            { label: 'Renovações Urgentes', value: data.kpis.renovacoes_criticas, icon: RotateCcw, bg: 'rgba(234,88,12,0.07)', color: '#9a3412', accent: '#ea580c', href: '/renovacoes' },
                           ].map(stat => (
                             <a key={stat.label} href={stat.href}
                               className="text-center p-5 rounded-2xl transition-all duration-200 hover:scale-105 hover:shadow-md"
@@ -853,7 +856,7 @@ export default function DashboardPage() {
                       )}
 
                       {!temDados && (
-                        <p className="text-center text-xs font-medium py-4" style={{ color: '#94a3b8' }}>
+                        <p className="text-center text-xs font-medium py-4" style={{ color: 'var(--t-text-muted)' }}>
                           Estes dados aparecem quando os módulos de Contratos, NPS e Health Score forem utilizados.
                         </p>
                       )}
