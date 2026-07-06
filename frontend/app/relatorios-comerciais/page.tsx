@@ -137,7 +137,7 @@ export default function RelatoriosComerciaisPage() {
       await carregarMeses();
       setEditando(false);
     } catch (e) {
-      alert('Erro ao salvar. Tente novamente.');
+      console.warn('Erro ao salvar. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -150,7 +150,7 @@ export default function RelatoriosComerciaisPage() {
       await carregarMeses();
       abrirMes(mes);
     } catch {
-      alert('Erro ao gerar relatório automático.');
+      console.warn('Erro ao gerar relatório automático.');
     } finally {
       setGenerating(null);
     }
@@ -280,7 +280,7 @@ export default function RelatoriosComerciaisPage() {
                         <td className="px-3 py-2.5 text-xs" style={{ color: 'var(--t-text-secondary)' }}>{temDados ? fmt(m.mrr_perdido) : '—'}</td>
                         <td className="px-3 py-2.5">
                           {!temDados ? (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">sem dados</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-opacity-0 ">sem dados</span>
                           ) : m.fonte === 'AUTO' ? (
                             <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">AUTO</span>
                           ) : (
@@ -604,7 +604,7 @@ export default function RelatoriosComerciaisPage() {
                     className="text-sm px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50"
                   >{generating === mesAberto ? 'Gerando...' : 'Gerar do CRM'}</button>
                 )}
-                <button onClick={() => setMesAberto(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">✕</button>
+                <button onClick={() => setMesAberto(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:opacity-80 ">✕</button>
               </div>
             </div>
 

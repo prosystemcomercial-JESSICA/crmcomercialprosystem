@@ -93,7 +93,7 @@ export default function HealthScorePage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Health Score</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Health Score</h1>
             <p className="text-gray-500 mt-1">Saúde dos clientes baseada em múltiplos indicadores</p>
           </div>
           <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export default function HealthScorePage() {
                 className={`${cfg.bg} border-2 ${nivelFilter === nivel ? cfg.border : 'border-transparent'} rounded-xl p-4 text-center transition-all hover:opacity-90`}>
                 <div className="text-2xl mb-1">{cfg.icon}</div>
                 <p className={`text-2xl font-bold ${cfg.color}`}>{count}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{nivel}</p>
+                <p className="text-xs  mt-0.5">{nivel}</p>
               </button>
             );
           })}
@@ -134,16 +134,16 @@ export default function HealthScorePage() {
 
         {/* Ranking de saúde da carteira por TÉCNICO (grupo de atendimento) */}
         {rankingTec.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+          <div className="ps-card rounded-xl border border-gray-200 p-5 mb-5">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-gray-900">🩺 Saúde da carteira por técnico</h2>
-              <span className="text-xs text-gray-400">só clientes ativos · "saíram" = churn consumado</span>
+              <h2 className="text-lg font-bold text-sm font-semibold">🩺 Saúde da carteira por técnico</h2>
+              <span className="text-xs ">só clientes ativos · "saíram" = churn consumado</span>
             </div>
-            <p className="text-sm text-gray-500 mb-3">Quem mantém a carteira saudável e quem tem mais clientes em risco/saindo.</p>
+            <p className="text-sm  mb-3">Quem mantém a carteira saudável e quem tem mais clientes em risco/saindo.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+                  <tr className="text-left text-xs  border-b border-gray-100">
                     <th className="py-2 pr-3">#</th>
                     <th className="py-2 pr-3">Técnico (grupo)</th>
                     <th className="py-2 pr-3 text-center">Ativos</th>
@@ -160,16 +160,16 @@ export default function HealthScorePage() {
                     const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
                     return (
                       <tr key={t.tecnico} className="border-b border-gray-50">
-                        <td className="py-2 pr-3 text-gray-400">{medalha}</td>
-                        <td className="py-2 pr-3 font-medium text-gray-800">{t.tecnico}</td>
-                        <td className="py-2 pr-3 text-center text-gray-700">{t.ativos}</td>
+                        <td className="py-2 pr-3 ">{medalha}</td>
+                        <td className="py-2 pr-3 font-medium ">{t.tecnico}</td>
+                        <td className="py-2 pr-3 text-center ">{t.ativos}</td>
                         <td className="py-2 pr-3 text-center text-green-700 font-semibold">{t.saudaveis}</td>
                         <td className="py-2 pr-3 text-center text-amber-600">{t.em_risco}</td>
                         <td className="py-2 pr-3 text-center text-red-600 font-semibold">{t.em_churn}</td>
-                        <td className="py-2 pr-3 text-center text-gray-400">{t.inativos}</td>
+                        <td className="py-2 pr-3 text-center ">{t.inativos}</td>
                         <td className="py-2 pr-3 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <div className="w-16 h-1.5 rounded-full bg-gray-100">
+                            <div className="w-16 h-1.5 rounded-full bg-opacity-0">
                               <div className="h-1.5 rounded-full" style={{ width: `${t.indice_saude}%`, background: cor }} />
                             </div>
                             <span className="font-bold" style={{ color: cor }}>{t.indice_saude}%</span>
@@ -185,33 +185,33 @@ export default function HealthScorePage() {
         )}
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Calculando health scores...</div>
+          <div className="text-center p-12 ">Calculando health scores...</div>
         ) : scores.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
             <div className="text-4xl mb-3">💊</div>
             <p className="text-gray-500 font-medium">Nenhum health score calculado</p>
-            <p className="text-sm text-gray-400 mt-1">Clique em "Calcular todos" para gerar os scores dos seus clientes</p>
+            <p className="text-sm  mt-1">Clique em "Calcular todos" para gerar os scores dos seus clientes</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-opacity-0 border-b border-gray-200">
                 <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cliente</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Score</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nível</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fatores</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Atualizado</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Cliente</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Score</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Nível</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Fatores</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Atualizado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {scores.map(hs => {
                   const cfg = NIVEL_CONFIG[hs.nivel] || NIVEL_CONFIG.ATENCAO;
                   return (
-                    <tr key={hs.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={hs.id} className="hover:opacity-80 transition-colors">
                       <td className="px-5 py-4">
-                        <p className="font-medium text-gray-900">{hs.cliente.nome}</p>
-                        {hs.cliente.empresa && <p className="text-xs text-gray-500">{hs.cliente.empresa}</p>}
+                        <p className="font-medium text-sm font-semibold">{hs.cliente.nome}</p>
+                        {hs.cliente.empresa && <p className="text-xs ">{hs.cliente.empresa}</p>}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -248,7 +248,7 @@ export default function HealthScorePage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-xs text-gray-400">
+                      <td className="px-5 py-4 text-xs ">
                         {new Date(hs.calculado_at).toLocaleDateString('pt-BR')}
                       </td>
                     </tr>

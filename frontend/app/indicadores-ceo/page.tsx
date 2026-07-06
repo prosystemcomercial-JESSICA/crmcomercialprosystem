@@ -62,8 +62,8 @@ export default function IndicadoresCEOPage() {
   return (
     <DashboardLayout>
       <div className="max-w-2xl mx-auto p-4 md:p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Indicadores do CEO — lançamento mensal</h1>
-        <p className="text-sm text-gray-500 mt-1">Preencha os números que o sistema não calcula sozinho (financeiro, marketing, NPS). Lance um mês por vez — inclusive os retroativos de jan→mai.</p>
+        <h1 className="text-2xl font-bold text-sm font-semibold">Indicadores do CEO — lançamento mensal</h1>
+        <p className="text-sm  mt-1">Preencha os números que o sistema não calcula sozinho (financeiro, marketing, NPS). Lance um mês por vez — inclusive os retroativos de jan→mai.</p>
 
         <div className="flex items-center gap-2 my-4">
           <select value={mes} onChange={e => setMes(Number(e.target.value))} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
@@ -72,18 +72,18 @@ export default function IndicadoresCEOPage() {
           <select value={ano} onChange={e => setAno(Number(e.target.value))} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
             {[2025, 2026, 2027].map(a => <option key={a} value={a}>{a}</option>)}
           </select>
-          <span className="text-xs text-gray-400">Editando {MESES[mes]}/{ano}</span>
+          <span className="text-xs ">Editando {MESES[mes]}/{ano}</span>
         </div>
 
         {msg && <div className={`mb-3 rounded-lg px-3 py-2 text-sm font-medium ${msg.startsWith('✅') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>{msg}</div>}
 
         {grupos.map(g => (
-          <div key={g} className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+          <div key={g} className="ps-card rounded-xl border border-gray-200 p-4 mb-3">
             <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO }}>{g}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {CAMPOS.filter(c => c.grupo === g).map(c => (
                 <div key={c.k}>
-                  <label className="text-xs font-medium text-gray-600">{c.label}</label>
+                  <label className="text-xs font-medium ">{c.label}</label>
                   <input type="number" value={form[c.k] ?? ''} onChange={e => setForm({ ...form, [c.k]: e.target.value })}
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0" />
                 </div>
@@ -92,8 +92,8 @@ export default function IndicadoresCEOPage() {
           </div>
         ))}
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
-          <label className="text-xs font-medium text-gray-600">Observações</label>
+        <div className="ps-card rounded-xl border border-gray-200 p-4 mb-3">
+          <label className="text-xs font-medium ">Observações</label>
           <textarea value={form.observacoes || ''} onChange={e => setForm({ ...form, observacoes: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
         </div>
 

@@ -26,14 +26,14 @@ const STATUS_COLOR: Record<string, string> = {
   PENDENTE: 'bg-yellow-100 text-yellow-700',
   APROVADA: 'bg-blue-100 text-blue-700',
   PAGA: 'bg-green-100 text-green-700',
-  CANCELADA: 'bg-gray-100 text-gray-500',
+  CANCELADA: 'bg-opacity-0 ',
 };
 
 const TIPO_LABEL: Record<string, { label: string; color: string }> = {
   CONTRATO:                    { label: 'Contrato',          color: 'bg-blue-100 text-blue-700' },
   PROPOSTA:                    { label: 'Proposta',           color: 'bg-purple-100 text-purple-700' },
   LEAD:                        { label: 'Lead',               color: 'bg-indigo-100 text-indigo-700' },
-  MANUAL:                      { label: 'Manual',             color: 'bg-gray-100 text-gray-600' },
+  MANUAL:                      { label: 'Manual',             color: 'bg-opacity-0 ' },
   BONUS:                       { label: 'Bônus',              color: 'bg-pink-100 text-pink-700' },
   VENDA_ADICIONAL:             { label: 'Venda Adicional',    color: 'bg-green-100 text-green-700' },
   SUPERVISAO_VENDA_ADICIONAL:  { label: 'Supervisão',         color: 'bg-teal-100 text-teal-700' },
@@ -121,7 +121,7 @@ export default function ComissoesPage() {
     try {
       await apiClient.marcarComissoesPagas({ mes_pagamento: mes });
       loadData();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao marcar pagas.'); }
+    } catch (e: any) { console.error('Erro ao marcar pagas.', e); }
   };
 
   // Remarca o mês de pagamento de uma comissão específica (instalação atrasou etc.).
@@ -131,7 +131,7 @@ export default function ComissoesPage() {
       await apiClient.remarcarMesComissao(id, novoMes);
       loadData();
       carregarOrdem();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remarcar o mês.'); }
+    } catch (e: any) { console.error('Erro ao remarcar o mês.', e); }
   };
 
   // Ordem de pagamento do mês selecionado (comissões a pagar por vendedor/supervisão).
@@ -166,9 +166,9 @@ export default function ComissoesPage() {
     try {
       const r = await apiClient.lancarBonusTrimestral(periodo);
       const d = r.data?.data;
-      alert(`Bônus lançado para pagamento em ${d?.mes_pagamento}.\nNovos: ${d?.bonus_criados} · Já existiam: ${d?.ja_existiam}`);
+      console.info('Bônus lançado:', d?.mes_pagamento, d?.bonus_criados);
       loadData(); carregarOrdem();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao lançar bônus.'); }
+    } catch (e: any) { console.error('Erro ao lançar bônus.', e); }
     finally { setLancandoBonus(false); }
   };
 
@@ -208,13 +208,13 @@ export default function ComissoesPage() {
       const sugestao = periodo; // mês selecionado como padrão
       const mes = prompt('Mês de pagamento da comissão (AAAA-MM):', sugestao);
       if (!mes || !/^\d{4}-\d{2}$/.test(mes.trim())) {
-        if (mes !== null) alert('Mês inválido. Use o formato AAAA-MM (ex.: 2026-07).');
+        if (mes !== null) console.warn('Mês inválido. Use o formato AAAA-MM (ex.: 2026-07).');
         return;
       }
       try {
         await apiClient.aprovarComissao(id, mes.trim());
         loadData();
-      } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao aprovar.'); }
+      } catch (e: any) { console.error('Erro ao aprovar.', e); }
       return;
     }
     await apiClient.updateComissao(id, { status });
@@ -291,7 +291,7 @@ export default function ComissoesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Comissões</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Comissões</h1>
             <p className="text-gray-500 mt-1">
               {isGestor ? 'Extrato completo de comissões por vendedor e período' : 'Suas comissões do período'}
             </p>
@@ -331,7 +331,7 @@ export default function ComissoesPage() {
         <div className="flex gap-2 flex-wrap">
           {periods.map(p => (
             <button key={p} onClick={() => setPeriodo(p)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${periodo === p ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${periodo === p ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200  hover:bg-opacity-0'}`}>
               {p}
             </button>
           ))}
@@ -340,44 +340,44 @@ export default function ComissoesPage() {
         {/* Filtros (gestão): vendedor, tipo de venda e status — refinam a tabela,
             os totais e o que o botão Baixar/Exportar gera (relatório/ordem de pgto). */}
         {isGestor && (
-          <div className="flex gap-2 flex-wrap items-center bg-white border border-gray-200 rounded-xl p-3">
-            <span className="text-xs font-semibold text-gray-500">Filtros:</span>
+          <div className="flex gap-2 flex-wrap items-center ps-card border border-gray-200 rounded-xl p-3">
+            <span className="text-xs font-semibold ">Filtros:</span>
             <select value={fVendedor} onChange={e => setFVendedor(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm ps-card">
               <option value="">Todos os vendedores</option>
               {vendedoresFiltro.map((v: any) => <option key={v.id} value={v.id}>{v.nome}</option>)}
             </select>
             <select value={fTipo} onChange={e => setFTipo(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm ps-card">
               <option value="">Todos os tipos</option>
               {tiposPresentes.map(t => <option key={t} value={t}>{TIPO_LABEL[t]?.label || t}</option>)}
             </select>
             <select value={fStatus} onChange={e => setFStatus(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm ps-card">
               <option value="">Todos os status</option>
               {['PENDENTE', 'APROVADA', 'PAGA', 'CANCELADA'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             {temFiltro && (
               <button onClick={() => { setFVendedor(''); setFTipo(''); setFStatus(''); }}
-                className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">Limpar filtros</button>
+                className="px-3 py-1.5 text-sm  hover:text-gray-700">Limpar filtros</button>
             )}
-            <span className="ml-auto text-xs text-gray-500">{comissoesFiltradas.length} de {comissoes.length} lançamento(s)</span>
+            <span className="ml-auto text-xs ">{comissoesFiltradas.length} de {comissoes.length} lançamento(s)</span>
           </div>
         )}
 
         {/* Totais (refletem os filtros aplicados) */}
         {totais && (
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <p className="text-sm text-gray-500">Total{temFiltro ? ' (filtrado)' : ' calculado'}</p>
-              <p className="text-2xl font-bold text-gray-700 mt-1">R$ {totaisFiltrados.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            <div className="bg-opacity-0 rounded-xl p-4 border border-gray-200">
+              <p className="text-sm ">Total{temFiltro ? ' (filtrado)' : ' calculado'}</p>
+              <p className="text-2xl font-bold  mt-1">R$ {totaisFiltrados.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <p className="text-sm text-gray-500">A pagar</p>
+              <p className="text-sm ">A pagar</p>
               <p className="text-2xl font-bold text-yellow-700 mt-1">R$ {totaisFiltrados.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-              <p className="text-sm text-gray-500">Pago</p>
+              <p className="text-sm ">Pago</p>
               <p className="text-2xl font-bold text-green-700 mt-1">R$ {totaisFiltrados.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
           </div>
@@ -385,11 +385,11 @@ export default function ComissoesPage() {
 
         {/* Bônus Trimestral — Programa Acelerador de Resultados (trimestres a partir de maio) */}
         {bonus && bonus.linhas?.length > 0 && (
-          <div className="bg-white rounded-xl border-2 p-5" style={{ borderColor: '#fde68a' }}>
+          <div className="ps-card rounded-xl border-2 p-5" style={{ borderColor: '#fde68a' }}>
             <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-              <h2 className="text-base font-semibold text-gray-900">🏆 Bônus Trimestral — Acelerador <span className="text-gray-400 font-normal">({bonus.trimestre})</span></h2>
+              <h2 className="text-base font-semibold text-sm font-semibold">🏆 Bônus Trimestral — Acelerador <span className="text-gray-400 font-normal">({bonus.trimestre})</span></h2>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500">Faixas: 15→R$400 · 22→R$600 · 30→R$1.000</span>
+                <span className="text-xs ">Faixas: 15→R$400 · 22→R$600 · 30→R$1.000</span>
                 {isCEO && (
                   <button onClick={lancarBonus} disabled={lancandoBonus}
                     className="text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}
@@ -405,16 +405,16 @@ export default function ComissoesPage() {
                 return (
                   <div key={l.vendedor_id} className="rounded-lg border border-gray-100 p-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="font-medium text-gray-800">{l.vendedor_nome}</span>
+                      <span className="font-medium ">{l.vendedor_nome}</span>
                       <span className="text-sm">
-                        <b className="text-gray-900">{l.contratos}</b> <span className="text-gray-400">contratos</span>
+                        <b className="text-sm font-semibold">{l.contratos}</b> <span className="text-gray-400">contratos</span>
                         {l.premio > 0
                           ? <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">🏆 {l.faixa_atingida} · R$ {l.premio.toLocaleString('pt-BR')}</span>
-                          : (l.proxima_faixa && <span className="ml-2 text-xs text-gray-500">faltam {l.proxima_faixa.faltam} p/ R$ {l.proxima_faixa.premio.toLocaleString('pt-BR')}</span>)}
+                          : (l.proxima_faixa && <span className="ml-2 text-xs ">faltam {l.proxima_faixa.faltam} p/ R$ {l.proxima_faixa.premio.toLocaleString('pt-BR')}</span>)}
                       </span>
                     </div>
                     {/* barra de progresso com marcações 15/22/30 */}
-                    <div className="relative mt-2 h-2 rounded-full bg-gray-100">
+                    <div className="relative mt-2 h-2 rounded-full bg-opacity-0">
                       <div className="absolute left-0 top-0 h-2 rounded-full" style={{ width: `${pct}%`, background: l.premio > 0 ? '#f59e0b' : '#93c5fd' }} />
                       {[15, 22, 30].map(m => (
                         <span key={m} className="absolute -top-0.5 w-px h-3 bg-gray-400" style={{ left: `${(m / 30) * 100}%` }} title={`${m} contratos`} />
@@ -429,44 +429,44 @@ export default function ComissoesPage() {
 
         {/* Comissão da Supervisão Comercial — 0,5% do faturamento do setor */}
         {supervisao && (isGestor || (user?.role || '').toUpperCase() === 'SUPERVISAO_COMERCIAL') && (
-          <div className="bg-white rounded-xl border-2 p-5" style={{ borderColor: '#c7d8ec' }}>
+          <div className="ps-card rounded-xl border-2 p-5" style={{ borderColor: '#c7d8ec' }}>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Supervisão Comercial — Override {supervisao.percentual}%</h2>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <h2 className="text-base font-semibold text-sm font-semibold">Supervisão Comercial — Override {supervisao.percentual}%</h2>
+                <p className="text-sm  mt-0.5">
                   {supervisao.percentual}% sobre o faturamento do setor (setup dos contratos assinados + vendas adicionais) no período {supervisao.periodo}.
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-500">Comissão por supervisor</p>
-                <p className="text-2xl font-bold" style={{ color: '#2E6EAB' }}>
+                <p className="text-xs ">Comissão por supervisor</p>
+                <p className="text-2xl font-bold" style={{ color: 'var(--t-primary-dark)' }}>
                   R$ {Number(supervisao.comissao_por_supervisor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <p className="text-xs text-gray-500">Faturamento do setor</p>
-                <p className="text-lg font-bold text-gray-700">R$ {Number(supervisao.faturamento_setor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <div className="bg-opacity-0 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs ">Faturamento do setor</p>
+                <p className="text-lg font-bold ">R$ {Number(supervisao.faturamento_setor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <p className="text-xs text-gray-500">Setup (contratos assinados)</p>
-                <p className="text-lg font-bold text-gray-700">R$ {Number(supervisao.faturamento_contratos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                <p className="text-[10px] text-gray-400">{supervisao.qtd_contratos} contrato(s)</p>
+              <div className="bg-opacity-0 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs ">Setup (contratos assinados)</p>
+                <p className="text-lg font-bold ">R$ {Number(supervisao.faturamento_contratos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <p className="text-[10px] ">{supervisao.qtd_contratos} contrato(s)</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <p className="text-xs text-gray-500">Vendas adicionais</p>
-                <p className="text-lg font-bold text-gray-700">R$ {Number(supervisao.faturamento_vendas_adicionais || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                <p className="text-[10px] text-gray-400">{supervisao.qtd_vendas_adicionais} venda(s)</p>
+              <div className="bg-opacity-0 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs ">Vendas adicionais</p>
+                <p className="text-lg font-bold ">R$ {Number(supervisao.faturamento_vendas_adicionais || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <p className="text-[10px] ">{supervisao.qtd_vendas_adicionais} venda(s)</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                <p className="text-xs text-gray-500">Supervisores</p>
+                <p className="text-xs ">Supervisores</p>
                 <p className="text-sm font-semibold text-blue-700">
                   {supervisao.supervisores?.length
                     ? supervisao.supervisores.map((s: any) => s.nome).join(', ')
                     : 'Nenhum ativo'}
                 </p>
-                <p className="text-[10px] text-gray-400">cada um recebe {supervisao.percentual}% cheios</p>
+                <p className="text-[10px] ">cada um recebe {supervisao.percentual}% cheios</p>
               </div>
             </div>
           </div>
@@ -474,11 +474,11 @@ export default function ComissoesPage() {
 
         {/* Relatório de comissões a pagar (supervisão → financeiro) — só gestão */}
         {isGestor && relatorio && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <div className="ps-card rounded-xl border border-gray-200 p-5 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Relatório para o Financeiro</h2>
-                <p className="text-sm text-gray-500">Comissões de vendedores e supervisão por mês de pagamento.</p>
+                <h2 className="text-base font-semibold text-sm font-semibold">Relatório para o Financeiro</h2>
+                <p className="text-sm ">Comissões de vendedores e supervisão por mês de pagamento.</p>
               </div>
               <ExportButton
                 nome="comissoes-financeiro" titulo="Comissões a pagar — Financeiro"
@@ -507,17 +507,17 @@ export default function ComissoesPage() {
 
             {/* Por mês de pagamento */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Por mês de pagamento</h3>
+              <h3 className="text-sm font-semibold  mb-2">Por mês de pagamento</h3>
               <div className="space-y-2">
                 {(relatorio.por_mes || []).sort((a: any, b: any) => (a.mes_pagamento > b.mes_pagamento ? 1 : -1)).map((m: any) => (
                   <div key={m.mes_pagamento} className="rounded-lg border border-gray-100" style={{ background: '#fafbfc' }}>
                     <div className="flex items-center justify-between p-3">
                       <button onClick={() => setMesAberto(mesAberto === m.mes_pagamento ? null : m.mes_pagamento)} className="text-left">
-                        <span className="font-semibold text-gray-800">{mesAberto === m.mes_pagamento ? '▾ ' : '▸ '}{m.mes_pagamento === 'A confirmar' ? '⏳ A confirmar' : `📅 ${m.mes_pagamento}`}</span>
-                        <span className="text-xs text-gray-500 ml-2">{m.count} comissão(ões)</span>
+                        <span className="font-semibold ">{mesAberto === m.mes_pagamento ? '▾ ' : '▸ '}{m.mes_pagamento === 'A confirmar' ? '⏳ A confirmar' : `📅 ${m.mes_pagamento}`}</span>
+                        <span className="text-xs  ml-2">{m.count} comissão(ões)</span>
                       </button>
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-gray-800">R$ {Number(m.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        <span className="font-bold ">R$ {Number(m.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         {m.mes_pagamento !== 'A confirmar' && (
                           <button onClick={() => marcarMesPago(m.mes_pagamento)}
                             className="text-xs font-semibold px-3 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0' }}>
@@ -534,9 +534,9 @@ export default function ComissoesPage() {
                               <b>{i.responsavel_nome}</b>{i.cliente ? ` · ${i.cliente}` : ''}{i.descricao ? ` · ${i.descricao}` : ''}
                               <span className="ml-1" style={{ color: i.estagio === 'PAGA' ? '#16a34a' : '#2563eb' }}>({i.estagio === 'PAGA' ? 'paga' : 'a pagar'})</span>
                             </span>
-                            <span className="font-semibold text-gray-800">R$ {Number(i.valor_comissao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold ">R$ {Number(i.valor_comissao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                             {i.estagio !== 'PAGA' && (
-                              <label className="flex items-center gap-1 text-gray-500">
+                              <label className="flex items-center gap-1 ">
                                 Pagar em:
                                 <input type="month" defaultValue={m.mes_pagamento !== 'A confirmar' ? m.mes_pagamento : ''}
                                   onChange={e => remarcarComissao(i.id, e.target.value)}
@@ -554,22 +554,22 @@ export default function ComissoesPage() {
 
             {/* Por responsável */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Por colaborador</h3>
+              <h3 className="text-sm font-semibold  mb-2">Por colaborador</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-500">
+                  <thead><tr className="text-left text-xs ">
                     {['Colaborador', 'Papel', 'A receber', 'A confirmar', 'A pagar', 'Paga', 'Total'].map(h => <th key={h} className="py-1.5 pr-4">{h}</th>)}
                   </tr></thead>
                   <tbody>
                     {(relatorio.por_responsavel || []).map((r: any) => (
                       <tr key={r.responsavel_id} className="border-t border-gray-100">
-                        <td className="py-2 pr-4 font-medium text-gray-800">{r.responsavel_nome}</td>
-                        <td className="py-2 pr-4 text-gray-500">{r.papel || r.cargo}</td>
-                        <td className="py-2 pr-4 text-gray-600">R$ {Number(r.a_receber).toLocaleString('pt-BR')}</td>
-                        <td className="py-2 pr-4 text-gray-600">R$ {Number(r.a_confirmar).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 pr-4 font-medium ">{r.responsavel_nome}</td>
+                        <td className="py-2 pr-4 ">{r.papel || r.cargo}</td>
+                        <td className="py-2 pr-4 ">R$ {Number(r.a_receber).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 pr-4 ">R$ {Number(r.a_confirmar).toLocaleString('pt-BR')}</td>
                         <td className="py-2 pr-4 font-semibold" style={{ color: '#2563eb' }}>R$ {Number(r.confirmada).toLocaleString('pt-BR')}</td>
                         <td className="py-2 pr-4" style={{ color: '#16a34a' }}>R$ {Number(r.paga).toLocaleString('pt-BR')}</td>
-                        <td className="py-2 pr-4 font-bold text-gray-800">R$ {Number(r.total).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 pr-4 font-bold ">R$ {Number(r.total).toLocaleString('pt-BR')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -581,33 +581,33 @@ export default function ComissoesPage() {
 
         {/* ORDEM DE PAGAMENTO mensal — comissões a pagar por vendedor/supervisão */}
         {isGestor && ordem && ordem.grupos?.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4" id="ordem-pagamento">
+          <div className="ps-card rounded-xl border border-gray-200 p-5 space-y-4" id="ordem-pagamento">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h2 className="text-base font-semibold text-gray-900">🧾 Ordem de Pagamento — {ordem.mes_pagamento}</h2>
-                <p className="text-sm text-gray-500">Comissões a pagar no mês, por vendedor e supervisão.</p>
+                <h2 className="text-base font-semibold text-sm font-semibold">🧾 Ordem de Pagamento — {ordem.mes_pagamento}</h2>
+                <p className="text-sm ">Comissões a pagar no mês, por vendedor e supervisão.</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-gray-800">Total: R$ {Number(ordem.total_geral).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-sm font-bold ">Total: R$ {Number(ordem.total_geral).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 <button onClick={() => imprimirOrdem(ordem)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe' }}>🖨️ Imprimir / PDF</button>
               </div>
             </div>
             {ordem.grupos.map((g: any) => (
               <div key={`${g.responsavel_id}::${g.papel}`} className="rounded-lg border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2" style={{ background: g.papel === 'SUPERVISAO' ? '#f5f3ff' : '#f8fafc' }}>
-                  <span className="font-semibold text-gray-800">COMISSÃO {g.responsavel_nome}{g.papel === 'SUPERVISAO' ? ' (Supervisão)' : ' (Vendedor)'}</span>
-                  <span className="font-bold text-gray-900">R$ {Number(g.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-semibold ">COMISSÃO {g.responsavel_nome}{g.papel === 'SUPERVISAO' ? ' (Supervisão)' : ' (Vendedor)'}</span>
+                  <span className="font-bold text-sm font-semibold">R$ {Number(g.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-400 border-b">
+                  <thead><tr className="text-left text-xs  border-b">
                     <th className="px-4 py-1.5">Razão Social e Código</th><th>Demanda</th><th className="text-right">Valor Serviço</th><th className="text-right">Comissão</th><th className="text-right px-4">Valor Comissão</th>
                   </tr></thead>
                   <tbody>{g.itens.map((i: any, idx: number) => (
                     <tr key={idx} className="border-b border-gray-50">
-                      <td className="px-4 py-1.5 text-gray-800">{i.cliente}</td>
+                      <td className="px-4 py-1.5 ">{i.cliente}</td>
                       <td className="text-gray-600">{i.demanda}</td>
-                      <td className="text-right text-gray-600">R$ {Number(i.valor_servico).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                      <td className="text-right text-gray-500">{i.percentual}%</td>
+                      <td className="text-right ">R$ {Number(i.valor_servico).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                      <td className="text-right ">{i.percentual}%</td>
                       <td className="text-right px-4 font-semibold text-green-700">R$ {Number(i.valor_comissao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                     </tr>
                   ))}</tbody>
@@ -615,16 +615,16 @@ export default function ComissoesPage() {
               </div>
             ))}
             <div className="flex justify-end gap-6 text-sm pt-1">
-              <span className="text-gray-600">Vendedores: <b className="text-gray-900">R$ {Number(ordem.total_vendedores).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
-              <span className="text-gray-600">Supervisão: <b className="text-gray-900">R$ {Number(ordem.total_supervisao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
+              <span className="text-gray-600">Vendedores: <b className="text-sm font-semibold">R$ {Number(ordem.total_vendedores).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
+              <span className="text-gray-600">Supervisão: <b className="text-sm font-semibold">R$ {Number(ordem.total_supervisao).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
             </div>
           </div>
         )}
 
         {/* Resumo por vendedor — apenas gestores */}
         {isGestor && resumo.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-base font-semibold text-gray-900 mb-3">Por Vendedor / Responsável</h2>
+          <div className="ps-card rounded-xl border border-gray-200 p-5">
+            <h2 className="text-base font-semibold text-sm font-semibold mb-3">Por Vendedor / Responsável</h2>
             <div className="space-y-2">
               {resumo.map((r: any) => (
                 <div key={r.responsavel_id} className="flex items-center gap-4">
@@ -632,11 +632,11 @@ export default function ComissoesPage() {
                     {(r.responsavel_nome || nomeVendedor(r.responsavel_id)).charAt(0)}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{r.responsavel_nome || nomeVendedor(r.responsavel_id)}</p>
-                    <p className="text-xs text-gray-500">{r.count} registros</p>
+                    <p className="text-sm font-medium text-sm font-semibold">{r.responsavel_nome || nomeVendedor(r.responsavel_id)}</p>
+                    <p className="text-xs ">{r.count} registros</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">R$ {r.total.toLocaleString('pt-BR')}</p>
+                    <p className="text-sm font-bold text-sm font-semibold">R$ {r.total.toLocaleString('pt-BR')}</p>
                     <p className="text-xs text-yellow-600">R$ {r.pendente.toLocaleString('pt-BR')} pendente</p>
                   </div>
                 </div>
@@ -646,43 +646,43 @@ export default function ComissoesPage() {
         )}
 
         {/* Tabela */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
           {dataLoading ? (
-            <div className="p-8 text-center text-gray-500">Carregando...</div>
+            <div className="p-8 text-center ">Carregando...</div>
           ) : comissoesFiltradas.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-4xl mb-3">💰</div>
               <p className="text-gray-500">{temFiltro ? 'Nenhuma comissão com os filtros aplicados.' : `Nenhuma comissão em ${periodo}`}</p>
-              {isCEO && !temFiltro && <p className="text-sm text-gray-400 mt-1">Clique em "Calcular mês" para gerar automaticamente pelos contratos</p>}
+              {isCEO && !temFiltro && <p className="text-sm  mt-1">Clique em "Calcular mês" para gerar automaticamente pelos contratos</p>}
             </div>
           ) : (
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-opacity-0 border-b border-gray-200">
                 <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendedor</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cliente</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Descrição</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Base</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">%</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Comissão</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Vendedor</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Cliente</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Descrição</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Base</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">%</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Comissão</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {comissoesFiltradas.map(c => (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-4 text-sm font-medium text-gray-900">{c.responsavel_nome || nomeVendedor(c.responsavel_id)}</td>
-                    <td className="px-5 py-4 text-sm font-semibold text-gray-800">{c.cliente || '—'}</td>
+                  <tr key={c.id} className="hover:opacity-80 transition-colors">
+                    <td className="px-5 py-4 text-sm font-medium text-sm font-semibold">{c.responsavel_nome || nomeVendedor(c.responsavel_id)}</td>
+                    <td className="px-5 py-4 text-sm font-semibold ">{c.cliente || '—'}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${(TIPO_LABEL[c.tipo] || TIPO_LABEL.MANUAL).color}`}>
                           {(TIPO_LABEL[c.tipo] || TIPO_LABEL.MANUAL).label}
                         </span>
-                        <span className="text-sm text-gray-600">{c.descricao || c.tipo}</span>
+                        <span className="text-sm ">{c.descricao || c.tipo}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-right text-sm text-gray-600">R$ {c.valor_base.toLocaleString('pt-BR')}</td>
-                    <td className="px-5 py-4 text-right text-sm text-gray-600">{c.percentual}%</td>
+                    <td className="px-5 py-4 text-right text-sm ">R$ {c.valor_base.toLocaleString('pt-BR')}</td>
+                    <td className="px-5 py-4 text-right text-sm ">{c.percentual}%</td>
                     <td className="px-5 py-4 text-right text-sm font-bold text-green-700">R$ {c.valor_comissao.toLocaleString('pt-BR')}</td>
                     <td className="px-5 py-4">
                       {isCEO ? (
@@ -704,37 +704,37 @@ export default function ComissoesPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <div className="ps-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Lançar Comissão Manual</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">ID do Vendedor *</label>
+                <label className="text-sm font-medium ">ID do Vendedor *</label>
                 <input value={form.responsavel_id} onChange={e => setForm((p: any) => ({ ...p, responsavel_id: e.target.value }))}
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: vendedor-1" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Descrição</label>
+                <label className="text-sm font-medium ">Descrição</label>
                 <input value={form.descricao} onChange={e => setForm((p: any) => ({ ...p, descricao: e.target.value }))}
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: Bônus trimestral" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Valor base (R$)</label>
+                  <label className="text-sm font-medium ">Valor base (R$)</label>
                   <input type="number" value={form.valor_base} onChange={e => setForm((p: any) => ({ ...p, valor_base: e.target.value }))}
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Percentual (%)</label>
+                  <label className="text-sm font-medium ">Percentual (%)</label>
                   <input type="number" value={form.percentual} onChange={e => setForm((p: any) => ({ ...p, percentual: e.target.value }))}
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm  hover:opacity-80">Cancelar</button>
               <button onClick={handleCreate} disabled={!form.responsavel_id || !form.valor_base || saving}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                 {saving ? 'Salvando...' : 'Lançar'}
@@ -750,7 +750,7 @@ export default function ComissoesPage() {
 function EstagioCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="rounded-lg p-3 border" style={{ background: `${color}0d`, borderColor: `${color}33` }}>
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-xs ">{label}</p>
       <p className="text-lg font-bold" style={{ color }}>R$ {Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
     </div>
   );

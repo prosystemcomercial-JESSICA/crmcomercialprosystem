@@ -71,7 +71,7 @@ interface ContratoComercial {
 // ── Configuração de status ─────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  A_GERAR:             { label: 'A Gerar',              color: '#6b7280', bg: '#f3f4f6', icon: FileCheck2 },
+  A_GERAR:             { label: 'A Gerar',              color: 'var(--t-text-muted)', bg: '#f3f4f6', icon: FileCheck2 },
   GERADO:              { label: 'Gerado',               color: '#2563eb', bg: '#dbeafe', icon: FileCheck2 },
   ENVIADO_ASSINATURA:  { label: 'Enviado p/ Assinatura',color: '#7c3aed', bg: '#ede9fe', icon: Send },
   AGUARDANDO_ASSINATURA:{ label: 'Aguardando Assinatura',color: '#d97706', bg: '#fef3c7', icon: Pen },
@@ -226,7 +226,7 @@ export default function ContratosPage() {
 
   const salvarRevisao = async () => {
     if (!selected) return;
-    if (!editForm.razao_social?.trim()) { alert('Razão social é obrigatória.'); return; }
+    if (!editForm.razao_social?.trim()) { console.warn('Razão social é obrigatória.'); return; }
     setSalvandoEdit(true);
     try {
       const payload: any = {
@@ -243,7 +243,7 @@ export default function ContratosPage() {
       setEditDirty(false);
       load();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao salvar os dados.');
+      console.error('Erro ao salvar os dados.', e);
     } finally { setSalvandoEdit(false); }
   };
 
@@ -271,9 +271,9 @@ export default function ContratosPage() {
       const { grupo_tecnico_novo, ...rest } = gcForm;
       const r = await apiClient.gerarClienteDoContrato(selected.id, { ...rest, grupo_tecnico: grupoFinal });
       setShowGerarCliente(false);
-      alert(r.data?.message || 'Cadastro gerado no CRM!');
+      void 0 // cadastro gerado;
       load();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao gerar cadastro.'); }
+    } catch (e: any) { console.error('Erro ao gerar cadastro.', e); }
     finally { setGerandoCli(false); }
   };
 
@@ -532,7 +532,7 @@ export default function ContratosPage() {
                           </span>
                         )}
                         {c.cidade && (
-                          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 999, background: '#EBF4FF', color: '#2E6EAB' }}>
+                          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 999, background: 'var(--t-primary-light)', color: 'var(--t-primary-dark)' }}>
                             {c.cidade}/{c.estado}
                           </span>
                         )}

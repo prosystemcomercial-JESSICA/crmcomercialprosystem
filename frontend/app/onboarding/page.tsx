@@ -19,7 +19,7 @@ interface Onboarding {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  PENDENTE: 'bg-gray-100 text-gray-600',
+  PENDENTE: 'bg-opacity-0 ',
   EM_ANDAMENTO: 'bg-blue-100 text-blue-700',
   CONCLUIDO: 'bg-green-100 text-green-700',
   PAUSADO: 'bg-yellow-100 text-yellow-700',
@@ -80,19 +80,19 @@ export default function OnboardingPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Onboarding de Clientes</h1>
+          <h1 className="text-3xl font-bold text-sm font-semibold">Onboarding de Clientes</h1>
           <p className="text-gray-500 mt-1">Acompanhe a implantação de novos clientes</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total', value: stats.total, color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200' },
-            { label: 'Pendentes', value: stats.pendentes, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' },
+            { label: 'Total', value: stats.total, color: 'text-gray-700', bg: 'bg-opacity-0 border-gray-200' },
+            { label: 'Pendentes', value: stats.pendentes, color: 'text-gray-600', bg: 'bg-opacity-0 border-gray-200' },
             { label: 'Em Andamento', value: stats.em_andamento, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
             { label: 'Concluídos', value: stats.concluidos, color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
           ].map(c => (
             <div key={c.label} className={`${c.bg} border rounded-xl p-4`}>
-              <p className="text-sm text-gray-500">{c.label}</p>
+              <p className="text-sm ">{c.label}</p>
               <p className={`text-3xl font-bold ${c.color} mt-1`}>{c.value}</p>
             </div>
           ))}
@@ -101,38 +101,38 @@ export default function OnboardingPage() {
         <div className="flex gap-2">
           {['', 'PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDO', 'PAUSADO'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200  hover:bg-opacity-0'}`}>
               {s === '' ? 'Todos' : s.replace('_', ' ')}
             </button>
           ))}
         </div>
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Carregando...</div>
+          <div className="text-center p-12 ">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
             <div className="text-4xl mb-3">🚀</div>
             <p className="text-gray-500">Nenhum onboarding em andamento</p>
-            <p className="text-sm text-gray-400 mt-1">Os onboardings são criados automaticamente quando uma licença é ativada</p>
+            <p className="text-sm  mt-1">Os onboardings são criados automaticamente quando uma licença é ativada</p>
           </div>
         ) : (
           <div className="space-y-3">
             {filtered.map(ob => (
-              <div key={ob.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div key={ob.id} className="ps-card rounded-xl border border-gray-200 overflow-hidden">
                 <div
-                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-4 p-4 cursor-pointer hover:opacity-80 transition-colors"
                   onClick={() => setExpandido(expandido === ob.id ? null : ob.id)}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-gray-900">{ob.licenca.cliente.nome}</p>
-                      {ob.licenca.cliente.empresa && <span className="text-xs text-gray-500">· {ob.licenca.cliente.empresa}</span>}
-                      {ob.licenca.plano && <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{ob.licenca.plano.nome}</span>}
+                      <p className="font-semibold text-sm font-semibold">{ob.licenca.cliente.nome}</p>
+                      {ob.licenca.cliente.empresa && <span className="text-xs ">· {ob.licenca.cliente.empresa}</span>}
+                      {ob.licenca.plano && <span className="text-xs bg-opacity-0  px-1.5 py-0.5 rounded">{ob.licenca.plano.nome}</span>}
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">Iniciado em {new Date(ob.created_at).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-sm  mt-0.5">Iniciado em {new Date(ob.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
                   <div className="flex items-center gap-4 flex-shrink-0">
                     <div className="text-right">
-                      <p className="text-sm font-bold text-gray-900">{ob.progresso}%</p>
+                      <p className="text-sm font-bold text-sm font-semibold">{ob.progresso}%</p>
                       <div className="w-24 bg-gray-200 rounded-full h-1.5 mt-1">
                         <div className={`h-1.5 rounded-full ${ob.progresso === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
                           style={{ width: `${ob.progresso}%` }} />
@@ -148,12 +148,12 @@ export default function OnboardingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {ob.etapas.map((etapa, idx) => (
                         <button key={idx} onClick={() => handleToggleEtapa(ob, idx)} disabled={saving}
-                          className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${etapa.concluido ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+                          className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${etapa.concluido ? 'bg-green-50 border-green-200' : 'bg-opacity-0 border-gray-200 hover:bg-opacity-0'}`}>
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${etapa.concluido ? 'bg-green-500 text-white' : 'border-2 border-gray-300'}`}>
                             {etapa.concluido && <span className="text-xs">✓</span>}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium ${etapa.concluido ? 'text-green-800 line-through' : 'text-gray-900'}`}>{etapa.titulo}</p>
+                            <p className={`text-sm font-medium ${etapa.concluido ? 'text-green-800 line-through' : 'text-sm font-semibold'}`}>{etapa.titulo}</p>
                             {etapa.data_conclusao && <p className="text-xs text-green-600 mt-0.5">{new Date(etapa.data_conclusao).toLocaleDateString('pt-BR')}</p>}
                           </div>
                         </button>

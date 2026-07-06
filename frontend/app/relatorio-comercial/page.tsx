@@ -21,7 +21,7 @@ const INK = '#0D2238';        // texto forte
 // Bloco: card branco com cabeçalho de barra azul e número de seção opcional.
 function Bloco({ titulo, num, children }: { titulo: string; num?: string; children: any }) {
   return (
-    <div className="rel-bloco bg-white rounded-2xl mb-4" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.04)' }}>
+    <div className="rel-bloco ps-card rounded-2xl mb-4" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.04)' }}>
       <div className="flex items-center gap-2.5 px-5 py-3" style={{ borderBottom: '1px solid #EEF3F9' }}>
         {num && <span className="flex items-center justify-center text-xs font-bold text-white rounded-md" style={{ width: 22, height: 22, background: PRO }}>{num}</span>}
         <h2 className="text-sm font-extrabold uppercase tracking-wide" style={{ color: PRO_DARK }}>{titulo}</h2>
@@ -114,7 +114,7 @@ export default function RelatorioComercialPage() {
         {/* Cabeçalho + seletor + imprimir */}
         <div className="flex items-start justify-between gap-3 flex-wrap print:hidden">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Relatório Comercial</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Relatório Comercial</h1>
             <p className="text-gray-500 mt-1">Resultados {sufPeriodo} — visão executiva para a diretoria</p>
           </div>
           <div className="flex items-center gap-2">
@@ -130,9 +130,9 @@ export default function RelatorioComercialPage() {
         </div>
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Carregando…</div>
+          <div className="text-center p-12 ">Carregando…</div>
         ) : !d ? (
-          <div className="text-center p-12 text-gray-400">Sem dados para {periodoLabel}.</div>
+          <div className="text-center p-12 ">Sem dados para {periodoLabel}.</div>
         ) : (
           <div id="relatorio">
             {/* Capa executiva (azul institucional Prosystem) */}
@@ -200,7 +200,7 @@ export default function RelatorioComercialPage() {
                 {serie.length > 0 && (
                   <Bloco titulo={`📈 Evolução do Ano (${ano})`}>
                     <div className="print:hidden">
-                      <p className="text-xs font-semibold text-gray-500 mb-1">MRR ganho × perdido e saldo por mês</p>
+                      <p className="text-xs font-semibold  mb-1">MRR ganho × perdido e saldo por mês</p>
                       <ResponsiveContainer width="100%" height={260}>
                         <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
@@ -213,7 +213,7 @@ export default function RelatorioComercialPage() {
                           <Line type="monotone" dataKey="saldo_mrr" name="Saldo MRR" stroke={PRO} strokeWidth={3} dot={{ r: 3 }} animationDuration={1100} />
                         </ComposedChart>
                       </ResponsiveContainer>
-                      <p className="text-xs font-semibold text-gray-500 mb-1 mt-4">Fechamentos × Perdidos por mês</p>
+                      <p className="text-xs font-semibold  mb-1 mt-4">Fechamentos × Perdidos por mês</p>
                       <ResponsiveContainer width="100%" height={220}>
                         <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
@@ -266,7 +266,7 @@ export default function RelatorioComercialPage() {
                     return (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 mb-1">Clientes (entrada × saída)</p>
+                          <p className="text-xs font-semibold  mb-1">Clientes (entrada × saída)</p>
                           <ResponsiveContainer width="100%" height={210}>
                             <PieChart>
                               <Pie data={dadosClientes.length ? dadosClientes : [{ name: 'Sem dados', value: 1, fill: '#e5e7eb' }]}
@@ -279,7 +279,7 @@ export default function RelatorioComercialPage() {
                           </ResponsiveContainer>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 mb-1">MRR (R$/mês)</p>
+                          <p className="text-xs font-semibold  mb-1">MRR (R$/mês)</p>
                           <ResponsiveContainer width="100%" height={210}>
                             <BarChart data={dadosMRR} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
@@ -301,9 +301,9 @@ export default function RelatorioComercialPage() {
                 {d.metricas.fechamentos.lista.length > 0 && (
                   <Bloco titulo={`✅ Fechamentos ${sufPeriodo} (${d.metricas.fechamentos.total})`}>
                     <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Vendedor</th><th className="text-right">Setup</th><th className="text-right">MRR</th></tr></thead>
+                      <thead><tr className="text-left text-xs  border-b"><th className="py-1.5">Cliente</th><th>Vendedor</th><th className="text-right">Setup</th><th className="text-right">MRR</th></tr></thead>
                       <tbody>{d.metricas.fechamentos.lista.map((f: any, i: number) => (
-                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{f.cliente}</td><td className="text-gray-600">{f.vendedor}</td><td className="text-right">{fmt(f.setup)}</td><td className="text-right text-green-700">{fmt(f.mrr)}</td></tr>
+                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium ">{f.cliente}</td><td className="text-gray-600">{f.vendedor}</td><td className="text-right">{fmt(f.setup)}</td><td className="text-right text-green-700">{fmt(f.mrr)}</td></tr>
                       ))}</tbody>
                     </table>
                   </Bloco>
@@ -317,23 +317,23 @@ export default function RelatorioComercialPage() {
                         <div key={i} className="border border-gray-100 rounded-lg p-3" style={{ background: '#fff8f8' }}>
                           <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div>
-                              <p className="font-semibold text-gray-800">{c.cliente}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">
+                              <p className="font-semibold ">{c.cliente}</p>
+                              <p className="text-xs  mt-0.5">
                                 Fila/Técnico: <b className="text-gray-700">{c.tecnico}</b>
                                 {c.data ? ` · Inativado em ${new Date(c.data).toLocaleDateString('pt-BR')}` : ''}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs text-gray-400">MRR perdido</p>
+                              <p className="text-xs ">MRR perdido</p>
                               <p className="text-red-600 font-bold">{fmt(c.mrr_perdido)}/mês</p>
                               {Number(c.valor_devedor) > 0 && (
                                 <p className="text-xs text-amber-700 mt-0.5">Devedor: <b>{fmt(c.valor_devedor)}</b>{c.dias_atraso ? ` (${c.dias_atraso}d)` : ''}</p>
                               )}
                             </div>
                           </div>
-                          <p className="text-sm mt-2"><span className="text-xs font-bold text-gray-500 uppercase">Motivo:</span> <span className="text-gray-700">{c.motivo}</span>{c.fin_situacao ? <span className="text-xs text-amber-700"> · {c.fin_situacao}</span> : null}</p>
+                          <p className="text-sm mt-2"><span className="text-xs font-bold  uppercase">Motivo:</span> <span className="text-gray-700">{c.motivo}</span>{c.fin_situacao ? <span className="text-xs text-amber-700"> · {c.fin_situacao}</span> : null}</p>
                           {c.resumo && (
-                            <p className="text-sm text-gray-600 mt-1"><span className="text-xs font-bold text-gray-500 uppercase">Relato:</span> {c.resumo}</p>
+                            <p className="text-sm  mt-1"><span className="text-xs font-bold  uppercase">Relato:</span> {c.resumo}</p>
                           )}
                         </div>
                       ))}
@@ -356,17 +356,17 @@ export default function RelatorioComercialPage() {
                       </div>
                       {va.por_tipo?.length > 0 && (
                         <table className="w-full text-sm mb-3">
-                          <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Tipo</th><th className="text-right">Qtd</th><th className="text-right">Setup</th><th className="text-right">Aumento de mensalidade</th></tr></thead>
+                          <thead><tr className="text-left text-xs  border-b"><th className="py-1.5">Tipo</th><th className="text-right">Qtd</th><th className="text-right">Setup</th><th className="text-right">Aumento de mensalidade</th></tr></thead>
                           <tbody>{va.por_tipo.map((t: any) => (
-                            <tr key={t.tipo} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-700">{tipoLabel[t.tipo] || t.tipo}</td><td className="text-right">{t.qtd}</td><td className="text-right text-green-700">{fmt(t.setup)}</td><td className="text-right text-blue-700">+{fmt(t.acrescimo)}/mês</td></tr>
+                            <tr key={t.tipo} className="border-b border-gray-50"><td className="py-1.5 font-medium ">{tipoLabel[t.tipo] || t.tipo}</td><td className="text-right">{t.qtd}</td><td className="text-right text-green-700">{fmt(t.setup)}</td><td className="text-right text-blue-700">+{fmt(t.acrescimo)}/mês</td></tr>
                           ))}</tbody>
                           <tfoot><tr className="border-t-2 font-bold"><td className="py-1.5">Total</td><td className="text-right">{va.total}</td><td className="text-right text-green-700">{fmt(va.setup_total)}</td><td className="text-right text-blue-700">+{fmt(va.acrescimo_mrr_total)}/mês</td></tr></tfoot>
                         </table>
                       )}
                       <table className="w-full text-sm">
-                        <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Parceiro</th><th>Vendedor</th><th className="text-right">Setup</th><th className="text-right">+Mensalidade</th></tr></thead>
+                        <thead><tr className="text-left text-xs  border-b"><th className="py-1.5">Cliente</th><th>Parceiro</th><th>Vendedor</th><th className="text-right">Setup</th><th className="text-right">+Mensalidade</th></tr></thead>
                         <tbody>{va.lista.map((v: any, i: number) => (
-                          <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{v.cliente}</td><td className="text-gray-600">{v.parceiro}</td><td className="text-gray-500">{v.vendedor}</td><td className="text-right text-green-700">{fmt(v.setup)}</td><td className="text-right text-blue-700">{v.acrescimo > 0 ? `+${fmt(v.acrescimo)}` : '—'}</td></tr>
+                          <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium ">{v.cliente}</td><td className="text-gray-600">{v.parceiro}</td><td className="text-gray-500">{v.vendedor}</td><td className="text-right text-green-700">{fmt(v.setup)}</td><td className="text-right text-blue-700">{v.acrescimo > 0 ? `+${fmt(v.acrescimo)}` : '—'}</td></tr>
                         ))}</tbody>
                       </table>
                     </Bloco>
@@ -377,9 +377,9 @@ export default function RelatorioComercialPage() {
                 {d.metricas.indicacoes.lista.length > 0 && (
                   <Bloco titulo={`🤝 Indicações / vendas adicionais ${sufPeriodo} (${d.metricas.indicacoes.total})`}>
                     <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-gray-400 border-b"><th className="py-1.5">Cliente</th><th>Parceiro</th><th>Vendedor</th><th>Status</th></tr></thead>
+                      <thead><tr className="text-left text-xs  border-b"><th className="py-1.5">Cliente</th><th>Parceiro</th><th>Vendedor</th><th>Status</th></tr></thead>
                       <tbody>{d.metricas.indicacoes.lista.map((v: any, i: number) => (
-                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium text-gray-800">{v.cliente}</td><td className="text-gray-600">{v.parceiro}</td><td className="text-gray-500">{v.vendedor}</td><td className="text-xs">{v.status}</td></tr>
+                        <tr key={i} className="border-b border-gray-50"><td className="py-1.5 font-medium ">{v.cliente}</td><td className="text-gray-600">{v.parceiro}</td><td className="text-gray-500">{v.vendedor}</td><td className="text-xs">{v.status}</td></tr>
                       ))}</tbody>
                     </table>
                   </Bloco>
@@ -421,7 +421,7 @@ export default function RelatorioComercialPage() {
                   </ResponsiveContainer>
                 </div>
                 <table className="w-full text-sm mt-3">
-                  <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <thead><tr className="text-left text-xs  border-b border-gray-100">
                     <th className="py-2">Vendedor</th><th>Propostas</th><th>Setup pot.</th><th>MRR pot.</th><th>Em neg.</th><th>Fechadas</th><th>Part.</th>
                   </tr></thead>
                   <tbody>
@@ -456,7 +456,7 @@ export default function RelatorioComercialPage() {
                   </ResponsiveContainer>
                 </div>
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <thead><tr className="text-left text-xs  border-b border-gray-100">
                     <th className="py-2">Segmento</th><th>Propostas</th><th>Setup total</th><th>MRR total</th><th>Ticket MRR</th><th>Part. MRR</th>
                   </tr></thead>
                   <tbody>
@@ -475,7 +475,7 @@ export default function RelatorioComercialPage() {
             {Array.isArray(d.contratos_lista) && d.contratos_lista.length > 0 && (
               <Bloco titulo="5. Contratos Fechados">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <thead><tr className="text-left text-xs  border-b border-gray-100">
                     <th className="py-2">Empresa</th><th>Segmento</th><th>Instalação</th><th>MRR</th><th>Origem</th>
                   </tr></thead>
                   <tbody>
@@ -521,7 +521,7 @@ export default function RelatorioComercialPage() {
               </Bloco>
             )}
 
-            <p className="text-xs text-gray-400 text-center mt-4 print:hidden">
+            <p className="text-xs  text-center mt-4 print:hidden">
               Pipeline calculado automaticamente das propostas. Dados de receita/marketing/churn podem ser editados via API.
             </p>
           </div>

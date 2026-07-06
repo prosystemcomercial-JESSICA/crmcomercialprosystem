@@ -29,7 +29,7 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
             <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1A4E82', marginBottom: 8 }}>
               {ehChunk ? 'Atualizando o sistema…' : 'Algo deu errado'}
             </h2>
-            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 20 }}>
+            <p style={{ fontSize: 14, color: 'var(--t-text-muted)', marginBottom: 20 }}>
               {ehChunk ? 'Uma nova versão foi publicada. Recarregando…' : 'Recarregue a página para continuar.'}
             </p>
             <button onClick={() => window.location.reload()}

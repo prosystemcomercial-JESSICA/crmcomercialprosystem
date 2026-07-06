@@ -9,7 +9,7 @@ import { apiClient } from '@/lib/api-client';
 type Aba = 'venda' | 'comissao' | 'saida';
 
 const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
-const labelCls = 'block text-xs font-medium text-gray-600 mb-1';
+const labelCls = 'block text-xs font-medium  mb-1';
 
 function Campo({ label, children }: { label: string; children: any }) {
   return (
@@ -112,8 +112,8 @@ export default function LancamentosRetroativosPage() {
     <DashboardLayout>
       <div className="max-w-3xl mx-auto p-4 md:p-6">
         <div className="mb-5">
-          <h1 className="text-2xl font-bold text-gray-900">Lançamentos Retroativos</h1>
-          <p className="text-sm text-gray-500 mt-1">Complete o histórico do ano. Cada lançamento entra no <b>mês da data informada</b> e reflete no relatório mensal, metas, comissões e entrada×saída.</p>
+          <h1 className="text-2xl font-bold text-sm font-semibold">Lançamentos Retroativos</h1>
+          <p className="text-sm  mt-1">Complete o histórico do ano. Cada lançamento entra no <b>mês da data informada</b> e reflete no relatório mensal, metas, comissões e entrada×saída.</p>
         </div>
 
         {msg && (
@@ -124,7 +124,7 @@ export default function LancamentosRetroativosPage() {
         <div className="flex gap-2 mb-5 border-b border-gray-200">
           {abas.map(a => (
             <button key={a.id} onClick={() => setAba(a.id)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${aba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${aba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent  hover:text-gray-700'}`}>
               {a.icone} {a.label}
             </button>
           ))}
@@ -132,7 +132,7 @@ export default function LancamentosRetroativosPage() {
 
         {/* ── ABA VENDA ── */}
         {aba === 'venda' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <div className="ps-card rounded-xl border border-gray-200 p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Campo label="Cliente (razão social) *"><input className={inputCls} value={venda.razao_social} onChange={e => setVenda({ ...venda, razao_social: e.target.value })} placeholder="Ex.: Farmácia Modelo Ltda" /></Campo>
               <Campo label="CNPJ"><input className={inputCls} value={venda.cnpj} onChange={e => setVenda({ ...venda, cnpj: e.target.value })} /></Campo>
@@ -153,22 +153,22 @@ export default function LancamentosRetroativosPage() {
               </Campo>
             </div>
             <Campo label="Observações"><textarea className={inputCls} rows={2} value={venda.observacoes} onChange={e => setVenda({ ...venda, observacoes: e.target.value })} /></Campo>
-            <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+            <div className="bg-opacity-0 rounded-lg p-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm ">
                 <input type="checkbox" checked={venda.gerar_comissao} onChange={e => setVenda({ ...venda, gerar_comissao: e.target.checked })} />
                 Gerar comissão do vendedor (15% do setup) automaticamente
               </label>
               {venda.gerar_comissao && (
-                <label className="flex items-center gap-2 text-sm text-gray-700 ml-6">
+                <label className="flex items-center gap-2 text-sm  ml-6">
                   <input type="checkbox" checked={venda.comissao_paga} onChange={e => setVenda({ ...venda, comissao_paga: e.target.checked })} />
                   Essa comissão já foi <b>paga</b> (senão fica como “a pagar”)
                 </label>
               )}
               {venda.gerar_comissao && (
                 <div className="ml-6">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Mês de pagamento da comissão</label>
+                  <label className="block text-xs font-medium  mb-1">Mês de pagamento da comissão</label>
                   <input type="month" className={inputCls + ' max-w-[200px]'} value={venda.mes_pagamento_comissao} onChange={e => setVenda({ ...venda, mes_pagamento_comissao: e.target.value })} />
-                  <p className="text-xs text-gray-500 mt-1">{venda.comissao_paga ? 'Entra como paga no relatório deste mês.' : 'Fica em "A pagar" neste mês (na aba de Comissões). Em branco = mês da venda.'}</p>
+                  <p className="text-xs  mt-1">{venda.comissao_paga ? 'Entra como paga no relatório deste mês.' : 'Fica em "A pagar" neste mês (na aba de Comissões). Em branco = mês da venda.'}</p>
                 </div>
               )}
               {venda.gerar_comissao && !venda.vendedor_id && <p className="text-xs text-amber-600 ml-6">Selecione um vendedor para gerar a comissão.</p>}
@@ -181,7 +181,7 @@ export default function LancamentosRetroativosPage() {
 
         {/* ── ABA COMISSÃO ── */}
         {aba === 'comissao' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <div className="ps-card rounded-xl border border-gray-200 p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Campo label="Vendedor *">
                 <select className={inputCls} value={comissao.vendedor_id} onChange={e => setComissao({ ...comissao, vendedor_id: e.target.value })}>
@@ -194,11 +194,11 @@ export default function LancamentosRetroativosPage() {
               <Campo label="Mês de pagamento da comissão"><input type="month" className={inputCls} value={comissao.mes_pagamento_comissao} onChange={e => setComissao({ ...comissao, mes_pagamento_comissao: e.target.value })} /></Campo>
               <Campo label="Descrição"><input className={inputCls} value={comissao.descricao} onChange={e => setComissao({ ...comissao, descricao: e.target.value })} placeholder="Ex.: venda adicional / upgrade" /></Campo>
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm ">
               <input type="checkbox" checked={comissao.paga} onChange={e => setComissao({ ...comissao, paga: e.target.checked })} />
               Essa comissão já foi <b>paga</b> (senão fica como “a pagar”)
             </label>
-            <p className="text-xs text-gray-500">Mês de pagamento em branco = mês da competência. Não paga → entra em "A pagar" na aba de Comissões.</p>
+            <p className="text-xs ">Mês de pagamento em branco = mês da competência. Não paga → entra em "A pagar" na aba de Comissões.</p>
             <button disabled={salvando} onClick={salvarComissao} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm">
               {salvando ? 'Salvando...' : 'Lançar comissão retroativa'}
             </button>
@@ -207,7 +207,7 @@ export default function LancamentosRetroativosPage() {
 
         {/* ── ABA SAÍDA ── */}
         {aba === 'saida' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <div className="ps-card rounded-xl border border-gray-200 p-5 space-y-4">
             <Campo label="Cliente da base (buscar por nome/razão/código/CNPJ)">
               <input className={inputCls} value={saida.busca}
                 onChange={e => { const v = e.target.value; setSaida({ ...saida, busca: v, cliente_id: '', cliente_nome: '' }); buscarCliente(v); }}
@@ -242,9 +242,9 @@ export default function LancamentosRetroativosPage() {
 
         {/* Histórico da sessão */}
         {historico.length > 0 && (
-          <div className="mt-6 bg-white rounded-xl border border-gray-200 p-4">
-            <h3 className="text-sm font-bold text-gray-700 mb-2">Lançado nesta sessão</h3>
-            <ul className="text-xs text-gray-600 space-y-1">
+          <div className="mt-6 ps-card rounded-xl border border-gray-200 p-4">
+            <h3 className="text-sm font-bold  mb-2">Lançado nesta sessão</h3>
+            <ul className="text-xs  space-y-1">
               {historico.map((h, i) => <li key={i}>{h}</li>)}
             </ul>
           </div>

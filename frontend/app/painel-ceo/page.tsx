@@ -91,25 +91,25 @@ export default function PainelCEOPage() {
         </div>
 
         {carregando ? (
-          <div className="text-center py-16 text-gray-400">Carregando…</div>
+          <div className="text-center py-16 ">Carregando…</div>
         ) : !d ? (
-          <div className="text-center py-16 text-gray-400">Sem dados para o período.</div>
+          <div className="text-center py-16 ">Sem dados para o período.</div>
         ) : (
           <>
             {/* 12 indicadores — grid responsivo (2 col no celular, 3-4 no desktop) */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
               {cards.map((c, i) => (
-                <div key={i} className="bg-white rounded-2xl p-4 relative overflow-hidden" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
+                <div key={i} className="ps-card rounded-2xl p-4 relative overflow-hidden" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
                   <span className="absolute left-0 top-0 bottom-0" style={{ width: 4, background: c.cor }} />
-                  <p className="text-[11px] font-medium text-gray-500 pl-1.5">{c.l}</p>
+                  <p className="text-[11px] font-medium  pl-1.5">{c.l}</p>
                   <p className="text-2xl font-extrabold pl-1.5 mt-1" style={{ color: c.cor }}>{c.v}</p>
-                  <p className="text-[10px] text-gray-400 pl-1.5 mt-0.5">{c.sub}</p>
+                  <p className="text-[10px]  pl-1.5 mt-0.5">{c.sub}</p>
                 </div>
               ))}
             </div>
 
             {/* Marketing: gasto × retorno */}
-            <div className="bg-white rounded-2xl p-4 mb-5" style={{ border: '1px solid #E3ECF5' }}>
+            <div className="ps-card rounded-2xl p-4 mb-5" style={{ border: '1px solid #E3ECF5' }}>
               <h2 className="text-sm font-extrabold uppercase mb-3" style={{ color: PRO_DARK }}>📣 Marketing — gasto × retorno</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Mini l="Investido" v={d.marketing_investido != null ? fmt(d.marketing_investido) : '— (preencher)'} />
@@ -120,7 +120,7 @@ export default function PainelCEOPage() {
             </div>
 
             {/* Financeiro do setor */}
-            <div className="bg-white rounded-2xl p-4 mb-5" style={{ border: '1px solid #E3ECF5' }}>
+            <div className="ps-card rounded-2xl p-4 mb-5" style={{ border: '1px solid #E3ECF5' }}>
               <h2 className="text-sm font-extrabold uppercase mb-3" style={{ color: PRO_DARK }}>💼 Financeiro</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Mini l="Faturamento" v={d.faturamento != null ? fmt(d.faturamento) : '— (preencher)'} />
@@ -132,7 +132,7 @@ export default function PainelCEOPage() {
 
             {/* Evolução do ano (tendência) */}
             {serie.length > 0 && (
-              <div className="bg-white rounded-2xl p-4 mb-5" style={{ border: '1px solid #E3ECF5' }}>
+              <div className="ps-card rounded-2xl p-4 mb-5" style={{ border: '1px solid #E3ECF5' }}>
                 <h2 className="text-sm font-extrabold uppercase mb-3" style={{ color: PRO_DARK }}>📈 Evolução do Ano ({ano})</h2>
                 <ResponsiveContainer width="100%" height={260}>
                   <ComposedChart data={serie} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -148,7 +148,7 @@ export default function PainelCEOPage() {
               </div>
             )}
 
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs  text-center">
               Indicadores manuais (CAC, caixa, NPS, marketing, despesas) são lançados mês a mês em <button onClick={() => router.push('/indicadores-ceo')} className="text-blue-600 underline">Indicadores do CEO</button>.
             </p>
           </>
@@ -161,7 +161,7 @@ export default function PainelCEOPage() {
 function Mini({ l, v, cor = '#0D2238' }: { l: string; v: any; cor?: string }) {
   return (
     <div className="rounded-xl p-3" style={{ background: '#F7FAFD', border: '1px solid #E9F0F7' }}>
-      <p className="text-[11px] text-gray-500">{l}</p>
+      <p className="text-[11px] ">{l}</p>
       <p className="text-lg font-bold mt-0.5" style={{ color: cor }}>{v}</p>
     </div>
   );

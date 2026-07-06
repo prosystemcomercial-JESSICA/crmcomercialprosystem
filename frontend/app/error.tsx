@@ -30,7 +30,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1A4E82', marginBottom: 8 }}>
           {ehChunk ? 'Atualizando a página…' : 'Algo deu errado'}
         </h2>
-        <p style={{ fontSize: 14, color: '#64748b', marginBottom: 20 }}>
+        <p style={{ fontSize: 14, color: 'var(--t-text-muted)', marginBottom: 20 }}>
           {ehChunk
             ? 'Uma nova versão do sistema foi publicada. Estamos recarregando para você.'
             : 'Ocorreu um erro inesperado nesta tela. Tente novamente.'}
@@ -41,7 +41,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
             Recarregar
           </button>
           <button onClick={() => reset()}
-            style={{ padding: '10px 20px', borderRadius: 8, background: 'transparent', color: '#2E6EAB', border: '1px solid #2E6EAB', fontWeight: 600, cursor: 'pointer' }}>
+            style={{ padding: '10px 20px', borderRadius: 8, background: 'transparent', color: 'var(--t-primary-dark)', border: '1px solid #2E6EAB', fontWeight: 600, cursor: 'pointer' }}>
             Tentar de novo
           </button>
         </div>

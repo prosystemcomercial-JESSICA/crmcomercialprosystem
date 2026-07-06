@@ -10,6 +10,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
   PieChart, Pie,
 } from 'recharts';
+import { Trophy, Medal, Award, Loader2, User } from 'lucide-react';
 
 interface RankingItem {
   posicao: number;
@@ -25,8 +26,6 @@ interface RankingItem {
   media_mrr?: number;
 }
 
-const MEDALS = ['🥇', '🥈', '🥉'];
-
 const USUARIOS_NAMES: Record<string, string> = {
   'user-ceo': 'CEO',
   'user-supervisao': 'Supervisão',
@@ -34,6 +33,12 @@ const USUARIOS_NAMES: Record<string, string> = {
   'vendedor-2': 'Vendedor 2',
   'vendedor-3': 'Vendedor 3',
 };
+
+const MEDAL_ICONS = [
+  <Trophy key="1" size={22} style={{ color: '#f59e0b' }} />,
+  <Medal  key="2" size={22} style={{ color: 'var(--t-text-muted)' }} />,
+  <Award  key="3" size={22} style={{ color: '#b45309' }} />,
+];
 
 function periodoAtual() {
   const now = new Date();
@@ -43,7 +48,7 @@ function periodoAtual() {
 export default function RankingPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const { blocked } = useRequireGestorRedirect();  // ranking só p/ supervisão
+  const { blocked } = useRequireGestorRedirect();
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [periodo, setPeriodo] = useState(periodoAtual());
   const [dataLoading, setDataLoading] = useState(true);
@@ -61,7 +66,6 @@ export default function RankingPage() {
       .finally(() => setDataLoading(false));
   }, [isAuthenticated, periodo]);
 
-  // Prioriza o nome resolvido pelo backend (responsavel_nome); fallback no dicionário.
   const nomeVendedor = (idOuItem: any): string => {
     if (idOuItem && typeof idOuItem === 'object') return idOuItem.responsavel_nome || nomeVendedor(idOuItem.responsavel_id);
     const id = String(idOuItem || '');
@@ -75,7 +79,11 @@ export default function RankingPage() {
   });
 
   if (loading || !isAuthenticated || blocked) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin" style={{ width: 48, height: 48, color: 'var(--t-primary)' }} />
+      </div>
+    );
   }
 
   const maxValor = ranking.length > 0 ? ranking[0].valor_total : 1;
@@ -85,8 +93,8 @@ export default function RankingPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Ranking Comercial</h1>
-            <p className="text-gray-500 mt-1">Performance por vendedor no período</p>
+            <h1 className="text-3xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Ranking Comercial</h1>
+            <p className="mt-1" style={{ color: 'var(--t-text-muted)' }}>Performance por vendedor no período</p>
           </div>
           <ExportButton
             nome="ranking" titulo={`Ranking Comercial — ${periodo}`}
@@ -104,10 +112,13 @@ export default function RankingPage() {
               { header: 'Valor total (R$)', value: (r: RankingItem) => r.valor_total },
             ]}
           />
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {periods.map(p => (
               <button key={p} onClick={() => setPeriodo(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${periodo === p ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                className="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                style={periodo === p
+                  ? { background: 'var(--t-primary)', color: '#fff' }
+                  : { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
                 {p}
               </button>
             ))}
@@ -115,12 +126,12 @@ export default function RankingPage() {
         </div>
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Calculando ranking...</div>
+          <div className="text-center p-12" style={{ color: 'var(--t-text-secondary)' }}>Calculando ranking...</div>
         ) : ranking.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="text-4xl mb-3">🏆</div>
-            <p className="text-gray-500">Sem dados de vendas para {periodo}</p>
-            <p className="text-sm text-gray-400 mt-1">Registre leads ganhos e propostas aceitas para aparecer no ranking</p>
+          <div className="ps-card rounded-xl p-12 text-center" style={{ border: '1px solid var(--t-card-border)' }}>
+            <Trophy size={40} className="mx-auto mb-3" style={{ color: 'var(--t-text-muted)' }} />
+            <p style={{ color: 'var(--t-text-secondary)' }}>Sem dados de vendas para {periodo}</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--t-text-muted)' }}>Registre leads ganhos e propostas aceitas para aparecer no ranking</p>
           </div>
         ) : (
           <>
@@ -130,47 +141,55 @@ export default function RankingPage() {
                 {[ranking[1], ranking[0], ranking[2]].filter(Boolean).map((item, idx) => {
                   const originalPos = idx === 0 ? 1 : idx === 1 ? 0 : 2;
                   const heights = ['h-28', 'h-36', 'h-24'];
-                  const bgs = ['bg-gray-100', 'bg-yellow-50 border-2 border-yellow-300', 'bg-orange-50'];
+                  const podiumStyles = [
+                    { background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' },
+                    { background: 'rgba(245,158,11,0.06)', border: '2px solid #fde68a' },
+                    { background: 'rgba(180,87,9,0.06)', border: '1px solid var(--t-card-border)' },
+                  ];
                   return (
-                    <div key={item.responsavel_id} className={`flex-1 max-w-48 ${bgs[idx]} rounded-xl p-4 text-center ${heights[idx]} flex flex-col justify-end`}>
-                      <div className="text-2xl mb-1">{MEDALS[originalPos] || `#${item.posicao}`}</div>
-                      <p className="font-bold text-gray-900 text-sm">{nomeVendedor(item)}</p>
-                      <p className="text-lg font-bold text-green-700">R$ {item.valor_total.toLocaleString('pt-BR')}</p>
-                      <p className="text-xs text-gray-500">{item.leads_ganhos} ganhos · {item.contratos} contratos</p>
+                    <div key={item.responsavel_id}
+                      className={`flex-1 max-w-48 rounded-xl p-4 text-center ${heights[idx]} flex flex-col justify-end`}
+                      style={podiumStyles[idx]}>
+                      <div className="flex justify-center mb-1">
+                        {MEDAL_ICONS[originalPos] ?? <span className="text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>#{item.posicao}</span>}
+                      </div>
+                      <p className="font-bold text-sm" style={{ color: 'var(--t-text-primary)' }}>{nomeVendedor(item)}</p>
+                      <p className="text-lg font-bold" style={{ color: '#16a34a' }}>R$ {item.valor_total.toLocaleString('pt-BR')}</p>
+                      <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{item.leads_ganhos} ganhos · {item.contratos} contratos</p>
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {/* Gráficos visuais dos resultados */}
+            {/* Gráficos */}
             {(() => {
               const comResultado = ranking.filter((r: RankingItem) => (r.valor_total || 0) > 0);
               if (comResultado.length === 0) return null;
               const dados = comResultado.map((r: RankingItem) => ({
-                nome: (nomeVendedor(r) || '').split(' ')[0], // primeiro nome p/ caber no eixo
+                nome: (nomeVendedor(r) || '').split(' ')[0],
                 Setup: Number(r.setup_total || 0),
                 Mensalidade: Number(r.mrr_total || 0),
                 valor: Number(r.valor_total || 0),
               }));
-              const cores = ['#417ABC', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
+              const cores = ['var(--t-primary)', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', 'var(--t-text-muted)'];
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-xl border border-gray-200 p-4">
-                    <h2 className="text-sm font-bold uppercase mb-2" style={{ color: '#2E5A8F' }}>Setup × Mensalidade por vendedor</h2>
+                  <div className="ps-card rounded-xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
+                    <h2 className="text-sm font-bold uppercase mb-2" style={{ color: 'var(--t-primary-dark)' }}>Setup × Mensalidade por vendedor</h2>
                     <ResponsiveContainer width="100%" height={260}>
                       <BarChart data={dados} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
                         <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                         <Tooltip formatter={(v: any) => `R$ ${Number(v).toLocaleString('pt-BR')}`} /><Legend />
-                        <Bar dataKey="Setup" fill="#417ABC" radius={[4, 4, 0, 0]} animationDuration={900} />
+                        <Bar dataKey="Setup" fill="var(--t-primary)" radius={[4, 4, 0, 0]} animationDuration={900} />
                         <Bar dataKey="Mensalidade" fill="#16a34a" radius={[4, 4, 0, 0]} animationDuration={900} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4">
-                    <h2 className="text-sm font-bold uppercase mb-2" style={{ color: '#2E5A8F' }}>Participação no valor total</h2>
+                  <div className="ps-card rounded-xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
+                    <h2 className="text-sm font-bold uppercase mb-2" style={{ color: 'var(--t-primary-dark)' }}>Participação no valor total</h2>
                     <ResponsiveContainer width="100%" height={260}>
                       <PieChart>
                         <Pie data={dados} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={55} outerRadius={90}
@@ -185,50 +204,47 @@ export default function RankingPage() {
               );
             })()}
 
-            {/* Full ranking */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            {/* Tabela completa */}
+            <div className="ps-card rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead style={{ background: 'var(--t-content-bg)', borderBottom: '1px solid var(--t-card-border)' }}>
                   <tr>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendedor</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Leads Ganhos</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Propostas Aceitas</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contratos</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Setup acum.</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Mensalidade acum.</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Média setup</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Média mens.</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Valor Total</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Barra</th>
+                    {['#', 'Vendedor', 'Leads Ganhos', 'Propostas Aceitas', 'Contratos', 'Setup acum.', 'Mensalidade acum.', 'Média setup', 'Média mens.', 'Valor Total', 'Barra'].map(h => (
+                      <th key={h} className={`px-5 py-3 text-xs font-semibold uppercase ${h === 'Setup acum.' || h === 'Mensalidade acum.' || h === 'Média setup' || h === 'Média mens.' ? 'text-right' : 'text-left'}`}
+                        style={{ color: 'var(--t-text-muted)' }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody style={{ borderTop: 'none' }}>
                   {ranking.map(item => (
-                    <tr key={item.responsavel_id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-4 text-xl">{MEDALS[item.posicao - 1] || `#${item.posicao}`}</td>
+                    <tr key={item.responsavel_id} className="transition-colors hover:opacity-80" style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                      <td className="px-5 py-4">
+                        {item.posicao <= 3
+                          ? <span className="flex">{MEDAL_ICONS[item.posicao - 1]}</span>
+                          : <span className="text-sm font-semibold" style={{ color: 'var(--t-text-muted)' }}>#{item.posicao}</span>}
+                      </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0"
+                            style={{ background: 'rgba(65,122,188,0.12)', color: 'var(--t-primary)' }}>
                             {nomeVendedor(item).charAt(0)}
                           </div>
-                          <p className="font-medium text-gray-900">{nomeVendedor(item)}</p>
+                          <p className="font-medium" style={{ color: 'var(--t-text-primary)' }}>{nomeVendedor(item)}</p>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-sm text-gray-700">{item.leads_ganhos}</td>
-                      <td className="px-5 py-4 text-sm text-gray-700">{item.propostas_aceitas}</td>
-                      <td className="px-5 py-4 text-sm text-gray-700">{item.contratos}</td>
-                      <td className="px-5 py-4 text-sm text-right text-gray-700">R$ {Number(item.setup_total || 0).toLocaleString('pt-BR')}</td>
-                      <td className="px-5 py-4 text-sm text-right text-blue-700">R$ {Number(item.mrr_total || 0).toLocaleString('pt-BR')}/mês</td>
-                      <td className="px-5 py-4 text-sm text-right text-gray-600">R$ {Number(item.media_setup || 0).toLocaleString('pt-BR')}</td>
-                      <td className="px-5 py-4 text-sm text-right text-gray-600">R$ {Number(item.media_mrr || 0).toLocaleString('pt-BR')}/mês</td>
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--t-text-secondary)' }}>{item.leads_ganhos}</td>
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--t-text-secondary)' }}>{item.propostas_aceitas}</td>
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--t-text-secondary)' }}>{item.contratos}</td>
+                      <td className="px-5 py-4 text-sm text-right" style={{ color: 'var(--t-text-secondary)' }}>R$ {Number(item.setup_total || 0).toLocaleString('pt-BR')}</td>
+                      <td className="px-5 py-4 text-sm text-right" style={{ color: 'var(--t-primary)' }}>R$ {Number(item.mrr_total || 0).toLocaleString('pt-BR')}/mês</td>
+                      <td className="px-5 py-4 text-sm text-right" style={{ color: 'var(--t-text-secondary)' }}>R$ {Number(item.media_setup || 0).toLocaleString('pt-BR')}</td>
+                      <td className="px-5 py-4 text-sm text-right" style={{ color: 'var(--t-text-secondary)' }}>R$ {Number(item.media_mrr || 0).toLocaleString('pt-BR')}/mês</td>
                       <td className="px-5 py-4">
-                        <p className="text-sm font-bold text-green-700">R$ {item.valor_total.toLocaleString('pt-BR')}</p>
+                        <p className="text-sm font-bold" style={{ color: '#16a34a' }}>R$ {item.valor_total.toLocaleString('pt-BR')}</p>
                       </td>
                       <td className="px-5 py-4 w-32">
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div className="h-2 rounded-full bg-green-500"
-                            style={{ width: `${(item.valor_total / maxValor) * 100}%` }} />
+                        <div className="w-full rounded-full h-2" style={{ background: 'var(--t-content-bg)' }}>
+                          <div className="h-2 rounded-full" style={{ width: `${(item.valor_total / maxValor) * 100}%`, background: '#16a34a' }} />
                         </div>
                       </td>
                     </tr>

@@ -43,7 +43,7 @@ interface Caso {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  NOVO: 'bg-gray-100 text-gray-700',
+  NOVO: 'bg-opacity-0 ',
   DIAGNOSTICADO: 'bg-blue-100 text-blue-700',
   PLANEJADO: 'bg-yellow-100 text-yellow-700',
   EXECUTANDO: 'bg-purple-100 text-purple-700',
@@ -144,8 +144,8 @@ export default function CasosPage() {
       if (finForm.fin_dias_atraso !== '') payload.fin_dias_atraso = Number(finForm.fin_dias_atraso);
       await apiClient.updateCaso(dossie.id, payload);
       await fetchCasos();
-      alert('Caso atualizado.');
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar.'); }
+      console.warn('Caso atualizado.');
+    } catch (e: any) { console.error('Erro ao salvar.', e); }
     finally { setSalvandoDossie(false); }
   };
 
@@ -174,18 +174,18 @@ export default function CasosPage() {
   };
   const copiarParaTecnico = async () => {
     const txt = textoSupervisorTecnico(dossie, atualizacoes);
-    try { await navigator.clipboard.writeText(txt); alert('Texto copiado! Cole no WhatsApp/e-mail do supervisor técnico.'); }
+    try { await navigator.clipboard.writeText(txt); console.warn('Texto copiado! Cole no WhatsApp/e-mail do supervisor técnico.'); }
     catch { /* fallback: mostra para copiar manual */ window.prompt('Copie o texto para o supervisor técnico:', txt); }
   };
 
   const addAtualizacao = async () => {
-    if (!dossie || !novaAtt.texto.trim()) { alert('Escreva a atualização.'); return; }
+    if (!dossie || !novaAtt.texto.trim()) { console.warn('Escreva a atualização.'); return; }
     try {
       await apiClient.addAtualizacaoCaso(dossie.id, novaAtt);
       const r = await apiClient.getAtualizacoesCaso(dossie.id);
       setAtualizacoes(r.data.data || []);
       setNovaAtt({ tipo: 'OBSERVACAO', texto: '', canal: '', resultado: '' });
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao adicionar.'); }
+    } catch (e: any) { console.error('Erro ao adicionar.', e); }
   };
 
   useEffect(() => {
@@ -212,7 +212,7 @@ export default function CasosPage() {
       fetchCasos();
     } catch (e: any) {
       console.error(e);
-      alert(e?.response?.data?.message || 'Não foi possível mudar o status. Tente novamente.');
+      console.error('Não foi possível mudar o status. Tente novamente.', e);
     }
   };
 
@@ -222,7 +222,7 @@ export default function CasosPage() {
       await apiClient.updateCaso(id, { risk_score: valor });
       fetchCasos();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao classificar o risco.');
+      console.error('Erro ao classificar o risco.', e);
     }
   };
 
@@ -299,7 +299,7 @@ export default function CasosPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Churn & Retenção</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Churn & Retenção</h1>
             <p className="text-gray-500 mt-1">{total} casos registrados</p>
           </div>
           <div className="flex items-center gap-2">
@@ -340,7 +340,7 @@ export default function CasosPage() {
           />
           <input type="month" value={mesFiltro} onChange={e => { setPage(0); setMesFiltro(e.target.value); }}
             className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm" title="Filtrar por mês (1º ao último dia)" />
-          {mesFiltro && <button onClick={() => setMesFiltro('')} className="text-xs text-gray-500 hover:text-gray-700 underline">limpar mês</button>}
+          {mesFiltro && <button onClick={() => setMesFiltro('')} className="text-xs  hover:text-gray-700 underline">limpar mês</button>}
         </div>
 
         {/* Status filter tabs */}
@@ -352,7 +352,7 @@ export default function CasosPage() {
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 statusFilter === s
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  : 'bg-white border border-gray-200  hover:bg-opacity-0'
               }`}
             >
               {s === '' ? 'Todos' : s}
@@ -362,14 +362,14 @@ export default function CasosPage() {
 
         {/* Ranking de saúde da carteira por técnico (quem tem mais clientes saindo) */}
         {rankingTec.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="ps-card rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-bold text-gray-900">🩺 Saúde da carteira por técnico</h2>
-              <span className="text-xs text-gray-400">só ativos · ordenado por mais risco/churn</span>
+              <h2 className="text-sm font-bold text-sm font-semibold">🩺 Saúde da carteira por técnico</h2>
+              <span className="text-xs ">só ativos · ordenado por mais risco/churn</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead><tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+                <thead><tr className="text-left text-xs  border-b border-gray-100">
                   <th className="py-1.5 pr-3">Técnico</th><th className="py-1.5 px-2 text-center">Ativos</th>
                   <th className="py-1.5 px-2 text-center">Em risco</th><th className="py-1.5 px-2 text-center">Em churn</th>
                   <th className="py-1.5 px-2 text-center">Saíram</th><th className="py-1.5 px-2 text-center">Saúde</th>
@@ -379,11 +379,11 @@ export default function CasosPage() {
                     const cor = t.indice_saude >= 90 ? '#16a34a' : t.indice_saude >= 75 ? '#d97706' : '#dc2626';
                     return (
                       <tr key={t.tecnico} className="border-b border-gray-50">
-                        <td className="py-1.5 pr-3 font-medium text-gray-800">{t.tecnico}</td>
-                        <td className="py-1.5 px-2 text-center text-gray-700">{t.ativos}</td>
+                        <td className="py-1.5 pr-3 font-medium ">{t.tecnico}</td>
+                        <td className="py-1.5 px-2 text-center ">{t.ativos}</td>
                         <td className="py-1.5 px-2 text-center text-amber-600 font-semibold">{t.em_risco}</td>
                         <td className="py-1.5 px-2 text-center text-red-600 font-bold">{t.em_churn}</td>
-                        <td className="py-1.5 px-2 text-center text-gray-400">{t.inativos}</td>
+                        <td className="py-1.5 px-2 text-center ">{t.inativos}</td>
                         <td className="py-1.5 px-2 text-center font-bold" style={{ color: cor }}>{t.indice_saude}%</td>
                       </tr>
                     );
@@ -395,9 +395,9 @@ export default function CasosPage() {
         )}
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
           {dataLoading ? (
-            <div className="p-8 text-center text-gray-500">Carregando...</div>
+            <div className="p-8 text-center ">Carregando...</div>
           ) : casos.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-4xl mb-3">📋</div>
@@ -408,20 +408,20 @@ export default function CasosPage() {
             </div>
           ) : (
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-opacity-0 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Técnico</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Risco</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Motivo</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Data</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Ações</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Cliente</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Técnico</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Risco</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Motivo</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Data</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold  uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {casos.map((caso) => (
-                  <tr key={caso.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={caso.id} className="hover:opacity-80 transition-colors">
                     <td className="px-6 py-4">
                       <button onClick={() => abrirDossie(caso)} className="flex items-center gap-3 text-left hover:opacity-80" title="Abrir caso (ver como está sendo tratado)">
                         <div className="w-9 h-9 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-semibold">
@@ -429,15 +429,15 @@ export default function CasosPage() {
                         </div>
                         <div>
                           <p className="font-medium text-blue-700 hover:underline">{caso.cliente?.razao_social || caso.cliente?.nome_fantasia || caso.cliente?.nome}</p>
-                          <p className="text-sm text-gray-500">{caso.cliente?.empresa || (caso.fin_situacao === 'EM_ATRASO' || caso.fin_situacao === 'INADIMPLENTE' ? `⚠ em atraso${caso.fin_valor_atraso ? ' R$ ' + Number(caso.fin_valor_atraso).toLocaleString('pt-BR') : ''}` : '')}</p>
+                          <p className="text-sm ">{caso.cliente?.empresa || (caso.fin_situacao === 'EM_ATRASO' || caso.fin_situacao === 'INADIMPLENTE' ? `⚠ em atraso${caso.fin_valor_atraso ? ' R$ ' + Number(caso.fin_valor_atraso).toLocaleString('pt-BR') : ''}` : '')}</p>
                         </div>
                       </button>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600">{caso.cliente?.grupo_tecnico || '—'}</span>
+                      <span className="text-sm ">{caso.cliente?.grupo_tecnico || '—'}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[caso.status] || 'bg-gray-100 text-gray-700'}`}>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[caso.status] || 'bg-opacity-0 '}`}>
                         {caso.status}
                       </span>
                     </td>
@@ -461,9 +461,9 @@ export default function CasosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600 max-w-xs truncate">{caso.motivo_principal || '—'}</p>
+                      <p className="text-sm  max-w-xs truncate">{caso.motivo_principal || '—'}</p>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm ">
                       {new Date(caso.created_at).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -474,7 +474,7 @@ export default function CasosPage() {
                           className={`text-sm px-2.5 py-1 rounded-lg border font-medium transition-colors whitespace-nowrap ${
                             caso.reneg_ativa
                               ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
-                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                              : 'bg-white border-gray-200  hover:bg-opacity-0'
                           }`}
                         >
                           💰 {caso.reneg_ativa ? 'Acordo' : 'Renegociar'}
@@ -500,12 +500,12 @@ export default function CasosPage() {
         {/* Pagination */}
         {total > limit && (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Mostrando {page * limit + 1}–{Math.min((page + 1) * limit, total)} de {total}</p>
+            <p className="text-sm ">Mostrando {page * limit + 1}–{Math.min((page + 1) * limit, total)} de {total}</p>
             <div className="flex gap-2">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50">Anterior</button>
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:opacity-80">Anterior</button>
               <button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * limit >= total}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50">Próximo</button>
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:opacity-80">Próximo</button>
             </div>
           </div>
         )}
@@ -514,11 +514,11 @@ export default function CasosPage() {
       {/* ── Modal DOSSIÊ do caso (como está sendo tratado) ───────────────────── */}
       {dossie && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDossie(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between">
+          <div className="ps-card rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 ps-card border-b px-5 py-3 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-gray-900">{dossie.cliente?.razao_social || dossie.cliente?.nome_fantasia || dossie.cliente?.nome}</h3>
-                <p className="text-xs text-gray-500">Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)}</p>
+                <h3 className="font-bold text-sm font-semibold">{dossie.cliente?.razao_social || dossie.cliente?.nome_fantasia || dossie.cliente?.nome}</h3>
+                <p className="text-xs ">Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)}</p>
               </div>
               <button onClick={() => setDossie(null)} className="text-gray-400 hover:text-gray-700">✕</button>
             </div>
@@ -530,19 +530,19 @@ export default function CasosPage() {
                   <p className="text-sm font-bold text-sky-800">🔧 Encaminhar ao supervisor técnico</p>
                   <button onClick={copiarParaTecnico} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700">📋 Copiar texto</button>
                 </div>
-                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans bg-white rounded-lg border border-sky-100 p-3 max-h-40 overflow-y-auto">{textoSupervisorTecnico(dossie, atualizacoes)}</pre>
+                <pre className="text-xs  whitespace-pre-wrap font-sans ps-card rounded-lg border border-sky-100 p-3 max-h-40 overflow-y-auto">{textoSupervisorTecnico(dossie, atualizacoes)}</pre>
                 <p className="text-[11px] text-sky-700 mt-1">Inclui nome + código do cliente, a fila/técnico que atende e a observação registrada. Atualiza ao adicionar novas observações abaixo.</p>
               </div>
 
               {/* Motivo + descrição do problema */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Motivo principal</label>
+                  <label className="block text-xs font-medium  mb-1">Motivo principal</label>
                   <input value={finForm.motivo_principal || ''} onChange={e => setFinForm((f: any) => ({ ...f, motivo_principal: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Ex.: Dificuldade financeira" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Descrição do problema / contexto</label>
+                  <label className="block text-xs font-medium  mb-1">Descrição do problema / contexto</label>
                   <textarea value={finForm.descricao || ''} onChange={e => setFinForm((f: any) => ({ ...f, descricao: e.target.value }))} rows={2}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="O que motivou a abertura do caso, contexto, histórico…" />
                 </div>
@@ -553,9 +553,9 @@ export default function CasosPage() {
                 <p className="text-sm font-bold text-amber-800 mb-2">💵 Situação financeira</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Situação</label>
+                    <label className="block text-xs font-medium  mb-1">Situação</label>
                     <select value={finForm.fin_situacao || ''} onChange={e => setFinForm((f: any) => ({ ...f, fin_situacao: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card">
                       <option value="">—</option>
                       <option value="EM_DIA">Em dia</option>
                       <option value="EM_ATRASO">Em atraso</option>
@@ -564,18 +564,18 @@ export default function CasosPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Valor em atraso (R$)</label>
+                    <label className="block text-xs font-medium  mb-1">Valor em atraso (R$)</label>
                     <input type="number" step="0.01" value={finForm.fin_valor_atraso} onChange={e => setFinForm((f: any) => ({ ...f, fin_valor_atraso: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0,00" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Dias em atraso</label>
+                    <label className="block text-xs font-medium  mb-1">Dias em atraso</label>
                     <input type="number" value={finForm.fin_dias_atraso} onChange={e => setFinForm((f: any) => ({ ...f, fin_dias_atraso: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0" />
                   </div>
                 </div>
                 <textarea value={finForm.fin_observacao || ''} onChange={e => setFinForm((f: any) => ({ ...f, fin_observacao: e.target.value }))} rows={2}
-                  className="w-full mt-2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white" placeholder="Detalhes: boletos vencidos, parcelas, acordo em andamento…" />
+                  className="w-full mt-2 px-3 py-2 border border-amber-200 rounded-lg text-sm ps-card" placeholder="Detalhes: boletos vencidos, parcelas, acordo em andamento…" />
               </div>
 
               <div className="flex justify-end">
@@ -587,12 +587,12 @@ export default function CasosPage() {
 
               {/* Linha do tempo / atualizações */}
               <div>
-                <p className="text-sm font-bold text-gray-800 mb-2">🕓 Atualizações, contatos e tentativas</p>
+                <p className="text-sm font-bold  mb-2">🕓 Atualizações, contatos e tentativas</p>
                 {/* Adicionar */}
                 <div className="rounded-lg border border-gray-200 p-3 mb-3 space-y-2">
                   <div className="flex gap-2 flex-wrap">
                     <select value={novaAtt.tipo} onChange={e => setNovaAtt((a: any) => ({ ...a, tipo: e.target.value }))}
-                      className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                      className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm ps-card">
                       <option value="OBSERVACAO">📝 Observação</option>
                       <option value="CONTATO">📞 Contato</option>
                       <option value="TENTATIVA">📲 Tentativa</option>
@@ -601,13 +601,13 @@ export default function CasosPage() {
                     {(novaAtt.tipo === 'CONTATO' || novaAtt.tipo === 'TENTATIVA') && (
                       <>
                         <select value={novaAtt.canal} onChange={e => setNovaAtt((a: any) => ({ ...a, canal: e.target.value }))}
-                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm ps-card">
                           <option value="">Canal…</option>
                           <option value="TELEFONE">Telefone</option><option value="WHATSAPP">WhatsApp</option>
                           <option value="EMAIL">E-mail</option><option value="PRESENCIAL">Presencial</option><option value="OUTRO">Outro</option>
                         </select>
                         <select value={novaAtt.resultado} onChange={e => setNovaAtt((a: any) => ({ ...a, resultado: e.target.value }))}
-                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm ps-card">
                           <option value="">Resultado…</option>
                           <option value="ATENDEU">Atendeu</option><option value="NAO_ATENDEU">Não atendeu</option>
                           <option value="RETORNARA">Vai retornar</option><option value="SEM_RESPOSTA">Sem resposta</option><option value="RESOLVIDO">Resolvido</option>
@@ -623,15 +623,15 @@ export default function CasosPage() {
                 </div>
                 {/* Lista */}
                 <div className="space-y-2 max-h-64 overflow-auto">
-                  {atualizacoes.length === 0 && <p className="text-sm text-gray-400">Nenhuma atualização ainda.</p>}
+                  {atualizacoes.length === 0 && <p className="text-sm ">Nenhuma atualização ainda.</p>}
                   {atualizacoes.map((a: any) => {
                     const ICON: Record<string, string> = { OBSERVACAO: '📝', CONTATO: '📞', TENTATIVA: '📲', FINANCEIRO: '💵', STATUS: '🔄', SISTEMA: '⚙️' };
                     return (
                       <div key={a.id} className="flex gap-2 rounded-lg border border-gray-100 px-3 py-2">
                         <span>{ICON[a.tipo] || '•'}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-gray-800">{a.texto}</p>
-                          <p className="text-[11px] text-gray-400">
+                          <p className="text-sm ">{a.texto}</p>
+                          <p className="text-[11px] ">
                             {a.canal ? `${a.canal} · ` : ''}{a.resultado ? `${a.resultado} · ` : ''}
                             {a.feito_por_nome || ''} · {new Date(a.created_at).toLocaleString('pt-BR')}
                           </p>
@@ -650,14 +650,14 @@ export default function CasosPage() {
       {reneg && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReneg(null)}>
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
+            className="ps-card rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             {/* header */}
-            <div className="flex items-start justify-between gap-4 p-6 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+            <div className="flex items-start justify-between gap-4 p-6 border-b border-gray-100 sticky top-0 ps-card rounded-t-2xl">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">💰 Renegociação de dívida</h2>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <h2 className="text-xl font-bold text-sm font-semibold flex items-center gap-2">💰 Renegociação de dívida</h2>
+                <p className="text-sm  mt-0.5">
                   {reneg.cliente?.nome}{reneg.cliente?.empresa ? ` — ${reneg.cliente.empresa}` : ''}
                 </p>
               </div>
@@ -677,7 +677,7 @@ export default function CasosPage() {
               {/* valores */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor devido (R$) *</label>
+                  <label className="block text-sm font-medium  mb-1">Valor devido (R$) *</label>
                   <input
                     type="number" min="0" step="0.01" inputMode="decimal"
                     value={renegForm.reneg_valor_devido}
@@ -687,7 +687,7 @@ export default function CasosPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Entrada (R$)</label>
+                  <label className="block text-sm font-medium  mb-1">Entrada (R$)</label>
                   <input
                     type="number" min="0" step="0.01" inputMode="decimal"
                     value={renegForm.reneg_valor_entrada}
@@ -697,7 +697,7 @@ export default function CasosPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data do acordo</label>
+                  <label className="block text-sm font-medium  mb-1">Data do acordo</label>
                   <input
                     type="date"
                     value={renegForm.reneg_data}
@@ -709,14 +709,14 @@ export default function CasosPage() {
 
               {/* parcelas — só quando há valor devido informado */}
               {rDevido > 0 && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                <div className="bg-opacity-0 border border-gray-200 rounded-lg p-4 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas restantes</label>
+                      <label className="block text-sm font-medium  mb-1">Parcelas restantes</label>
                       <select
                         value={renegForm.reneg_parcelas}
                         onChange={e => setRenegForm((f: any) => ({ ...f, reneg_parcelas: e.target.value }))}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ps-card"
                       >
                         <option value="">À vista / sem parcelar</option>
                         {[1, 2, 3, 4, 5, 6].map(n => (
@@ -724,22 +724,22 @@ export default function CasosPage() {
                         ))}
                       </select>
                     </div>
-                    <div className="text-sm text-gray-600 space-y-0.5">
-                      <p>Saldo a parcelar: <b className="text-gray-900">{fmtBRL(rSaldo)}</b></p>
+                    <div className="text-sm  space-y-0.5">
+                      <p>Saldo a parcelar: <b className="text-sm font-semibold">{fmtBRL(rSaldo)}</b></p>
                       {rParcelas > 0 && (
                         <p>{rParcelas}x de <b className="text-emerald-700">{fmtBRL(rValorParcela)}</b></p>
                       )}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data do próximo vencimento</label>
+                    <label className="block text-sm font-medium  mb-1">Data do próximo vencimento</label>
                     <input
                       type="date"
                       value={renegForm.reneg_proximo_vencimento || ''}
                       onChange={e => setRenegForm((f: any) => ({ ...f, reneg_proximo_vencimento: e.target.value }))}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ps-card"
                     />
-                    <p className="text-xs text-gray-400 mt-1">Quando vence a entrada/1ª parcela acordada.</p>
+                    <p className="text-xs  mt-1">Quando vence a entrada/1ª parcela acordada.</p>
                   </div>
                 </div>
               )}
@@ -747,7 +747,7 @@ export default function CasosPage() {
               {/* responsável */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Responsável (nome completo) *</label>
+                  <label className="block text-sm font-medium  mb-1">Responsável (nome completo) *</label>
                   <input
                     type="text"
                     value={renegForm.reneg_responsavel}
@@ -757,7 +757,7 @@ export default function CasosPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CPF do responsável *</label>
+                  <label className="block text-sm font-medium  mb-1">CPF do responsável *</label>
                   <input
                     type="text"
                     value={renegForm.reneg_responsavel_cpf}
@@ -770,7 +770,7 @@ export default function CasosPage() {
 
               {/* contexto de retenção */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">O que foi feito para manter o cliente?</label>
+                <label className="block text-sm font-medium  mb-1">O que foi feito para manter o cliente?</label>
                 <textarea
                   rows={2}
                   value={renegForm.reneg_como_mantido}
@@ -780,7 +780,7 @@ export default function CasosPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Como ficou após a renegociação?</label>
+                <label className="block text-sm font-medium  mb-1">Como ficou após a renegociação?</label>
                 <textarea
                   rows={2}
                   value={renegForm.reneg_resultado}
@@ -794,10 +794,10 @@ export default function CasosPage() {
               {rDevido > 0 && (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-sm font-bold text-emerald-800 mb-2">📋 Resumo do acordo</p>
-                  <div className="space-y-1 text-sm text-gray-700">
-                    <div className="flex justify-between"><span>Mensalidade do cliente (cadastro)</span><b className="text-gray-900">{fmtBRL(Number(reneg?.cliente?.mensalidade_base || 0))}</b></div>
-                    <div className="flex justify-between"><span>Valor devido</span><b className="text-gray-900">{fmtBRL(rDevido)}</b></div>
-                    {rEntrada > 0 && <div className="flex justify-between"><span>Entrada no ato</span><b className="text-gray-900">{fmtBRL(rEntrada)}</b></div>}
+                  <div className="space-y-1 text-sm ">
+                    <div className="flex justify-between"><span>Mensalidade do cliente (cadastro)</span><b className="text-sm font-semibold">{fmtBRL(Number(reneg?.cliente?.mensalidade_base || 0))}</b></div>
+                    <div className="flex justify-between"><span>Valor devido</span><b className="text-sm font-semibold">{fmtBRL(rDevido)}</b></div>
+                    {rEntrada > 0 && <div className="flex justify-between"><span>Entrada no ato</span><b className="text-sm font-semibold">{fmtBRL(rEntrada)}</b></div>}
                     <div className="flex justify-between">
                       <span>Parcelamento do débito</span>
                       <b className="text-emerald-700">{rParcelas > 0 ? `${rParcelas}x de ${fmtBRL(rValorParcela)}` : 'À vista'}</b>
@@ -805,7 +805,7 @@ export default function CasosPage() {
                     {renegForm.reneg_proximo_vencimento && (
                       <div className="flex justify-between border-t border-emerald-200 pt-1 mt-1">
                         <span>Próximo vencimento</span>
-                        <b className="text-gray-900">{new Date(renegForm.reneg_proximo_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</b>
+                        <b className="text-sm font-semibold">{new Date(renegForm.reneg_proximo_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</b>
                       </div>
                     )}
                   </div>
@@ -815,17 +815,17 @@ export default function CasosPage() {
             </div>
 
             {/* footer */}
-            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 p-6 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 p-6 border-t border-gray-100 sticky bottom-0 ps-card rounded-b-2xl">
               <button
                 onClick={() => setReneg(null)}
-                className="px-4 py-2.5 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2.5  border border-gray-300 rounded-lg hover:opacity-80 transition-colors"
               >
                 Fechar
               </button>
               <button
                 onClick={async () => { const ok = await salvarRenegociacao(); if (ok) setReneg(null); }}
                 disabled={renegSaving}
-                className="px-5 py-2.5 bg-white border border-blue-600 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors font-medium"
+                className="px-5 py-2.5 ps-card border border-blue-600 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors font-medium"
               >
                 {renegSaving ? 'Salvando…' : 'Salvar acordo'}
               </button>

@@ -103,25 +103,25 @@ export default function NovoCasoPage() {
     <DashboardLayout>
       <div className="max-w-2xl">
         <div className="mb-6">
-          <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-700 mb-2 flex items-center gap-1">
+          <button onClick={() => router.back()} className="text-sm  hover:text-gray-700 mb-2 flex items-center gap-1">
             ← Voltar
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Novo Caso de Churn</h1>
+          <h1 className="text-3xl font-bold text-sm font-semibold">Novo Caso de Churn</h1>
           <p className="text-gray-500 mt-1">Registre um novo caso de risco de churn</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+        <div className="ps-card rounded-xl border border-gray-200 p-6 space-y-5">
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
           )}
 
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cliente *</label>
+            <label className="block text-sm font-medium  mb-1">Cliente *</label>
             {clienteSel ? (
               <div className="flex items-center justify-between gap-3 px-3 py-2.5 border border-blue-300 bg-blue-50 rounded-lg">
                 <div className="min-w-0">
-                  <div className="font-medium text-gray-900 truncate">{nomeCliente(clienteSel)}</div>
-                  <div className="text-xs text-gray-500 truncate">
+                  <div className="font-medium text-sm font-semibold truncate">{nomeCliente(clienteSel)}</div>
+                  <div className="text-xs  truncate">
                     {clienteSel.codigo ? `#${clienteSel.codigo}` : ''}{clienteSel.cidade ? ` · ${clienteSel.cidade}` : ''}{clienteSel.cnpj ? ` · ${clienteSel.cnpj}` : ''}
                   </div>
                 </div>
@@ -139,16 +139,16 @@ export default function NovoCasoPage() {
                   autoComplete="off"
                 />
                 {busca.trim().length >= 2 && (
-                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-auto">
-                    {buscando && <div className="px-3 py-2.5 text-sm text-gray-500">Buscando…</div>}
+                  <div className="absolute z-10 left-0 right-0 mt-1 ps-card border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-auto">
+                    {buscando && <div className="px-3 py-2.5 text-sm ">Buscando…</div>}
                     {!buscando && resultados.length === 0 && (
-                      <div className="px-3 py-2.5 text-sm text-gray-500">Nenhum cliente encontrado.</div>
+                      <div className="px-3 py-2.5 text-sm ">Nenhum cliente encontrado.</div>
                     )}
                     {resultados.map(c => (
                       <button key={c.id} type="button" onClick={() => selecionar(c)}
                         className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-0">
-                        <div className="font-medium text-gray-900 truncate">{nomeCliente(c)}</div>
-                        <div className="text-xs text-gray-500 truncate">
+                        <div className="font-medium text-sm font-semibold truncate">{nomeCliente(c)}</div>
+                        <div className="text-xs  truncate">
                           {c.codigo ? `#${c.codigo}` : ''}{c.cidade ? ` · ${c.cidade}` : ''}{c.cnpj ? ` · ${c.cnpj}` : ''}
                         </div>
                       </button>
@@ -160,7 +160,7 @@ export default function NovoCasoPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Motivo Principal</label>
+            <label className="block text-sm font-medium  mb-1">Motivo Principal</label>
             <select
               value={form.motivo_principal}
               onChange={e => setForm(f => ({ ...f, motivo_principal: e.target.value }))}
@@ -173,7 +173,7 @@ export default function NovoCasoPage() {
             {/* Campo "Outro" — só aparece quando o motivo é Outro */}
             {form.motivo_principal === 'Outro' && (
               <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Especifique o motivo *</label>
+                <label className="block text-sm font-medium  mb-1">Especifique o motivo *</label>
                 <input
                   type="text"
                   value={outroMotivo}
@@ -196,7 +196,7 @@ export default function NovoCasoPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button onClick={() => router.back()} className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <button onClick={() => router.back()} className="px-4 py-2  border border-gray-300 rounded-lg hover:opacity-80 transition-colors">
               Cancelar
             </button>
             <button

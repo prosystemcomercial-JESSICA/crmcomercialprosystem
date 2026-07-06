@@ -206,7 +206,7 @@ export default function UsuariosPage() {
         setSenhaGerada({ senha: senha_gerada, email, nome });
       }
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao salvar');
+      console.error('Erro ao salvar', e);
     } finally { setSaving(false); }
   };
 

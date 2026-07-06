@@ -146,7 +146,7 @@ const COMUNICACAO_BLANK: ComunicacaoProjeto = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  RASCUNHO:      { label: 'Rascunho',       color: '#6b7280', bg: '#f3f4f6' },
+  RASCUNHO:      { label: 'Rascunho',       color: 'var(--t-text-muted)', bg: '#f3f4f6' },
   ENVIADA:       { label: 'Enviada',         color: '#2563eb', bg: '#dbeafe' },
   EM_NEGOCIACAO: { label: 'Em Negociação',   color: '#d97706', bg: '#fef3c7' },
   ACEITA:        { label: 'Aceita',          color: '#16a34a', bg: '#dcfce7' },
@@ -438,7 +438,7 @@ export default function PropostasComerciais() {
 
   const handleSave = async () => {
     if (!form.razao_social.trim()) {
-      alert('Razão social é obrigatória');
+      console.warn('Razão social é obrigatória');
       return;
     }
     setSaving(true);
@@ -506,7 +506,7 @@ export default function PropostasComerciais() {
       setShowForm(false);
       load();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao salvar proposta');
+      console.error('Erro ao salvar proposta', e);
     } finally {
       setSaving(false);
     }
@@ -595,7 +595,7 @@ export default function PropostasComerciais() {
   const handleWppCliente = (p: PropostaComercial) => {
     const tel = (p.responsavel_telefone || '').replace(/\D/g, '');
     if (!tel) {
-      alert('Cliente sem telefone/WhatsApp cadastrado na proposta.');
+      console.warn('Cliente sem telefone/WhatsApp cadastrado na proposta.');
       return;
     }
     const msg = encodeURIComponent(resumoPropostaWhats(p));
@@ -761,8 +761,8 @@ export default function PropostasComerciais() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           {[
-            { label: 'Total', value: stats.total || 0, color: '#6b7280' },
-            { label: 'Rascunho', value: stats.rascunho || 0, color: '#6b7280' },
+            { label: 'Total', value: stats.total || 0, color: 'var(--t-text-muted)' },
+            { label: 'Rascunho', value: stats.rascunho || 0, color: 'var(--t-text-muted)' },
             { label: 'Enviadas', value: stats.enviada || 0, color: '#2563eb' },
             { label: 'Negociação', value: stats.em_negociacao || 0, color: '#d97706' },
             { label: 'Aceitas', value: stats.aceita || 0, color: '#16a34a' },
@@ -984,7 +984,7 @@ export default function PropostasComerciais() {
                         {/* Segmento + plano */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                           {p.segmento && (
-                            <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: '#EBF4FF', color: '#2E6EAB' }}>
+                            <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: 'var(--t-primary-light)', color: 'var(--t-primary-dark)' }}>
                               {p.segmento}
                             </span>
                           )}
