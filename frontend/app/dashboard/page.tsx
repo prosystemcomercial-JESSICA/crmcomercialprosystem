@@ -800,7 +800,7 @@ export default function DashboardPage() {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-bold transition-transform duration-200" style={{ color: '#7AAACB', display: 'inline-block', transform: aberto ? 'rotate(180deg)' : 'none' }}>▾</span>
+                    <span className="text-xs font-bold transition-transform duration-200" style={{ color: 'var(--t-text-secondary)', display: 'inline-block', transform: aberto ? 'rotate(180deg)' : 'none' }}>▾</span>
                   </button>
 
                   {aberto && (

@@ -73,7 +73,7 @@ function ScoreRing({ score, size = 64 }: { score: number; size?: number }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size > 56 ? 16 : 13, fontWeight: 800, color: cfg.color, lineHeight: 1 }}>{score}</span>
-        <span style={{ fontSize: 8, color: '#94a3b8', fontWeight: 600 }}>/ 100</span>
+        <span style={{ fontSize: 8, color: 'var(--t-text-muted)', fontWeight: 600 }}>/ 100</span>
       </div>
     </div>
   );
@@ -129,7 +129,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
       style={{ position: 'fixed', inset: 0, background: 'rgba(13,34,56,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 600, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(13,34,56,0.3)' }}>
+      <div style={{ background: 'var(--t-card-bg)', borderRadius: 20, width: '100%', maxWidth: 600, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(13,34,56,0.3)' }}>
 
         {/* Header */}
         <div style={{ background: 'linear-gradient(135deg, #0D2238 0%, #1A4E82 100%)', padding: '24px 28px', borderRadius: '20px 20px 0 0', color: 'white' }}>
@@ -149,7 +149,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
                   <span style={{ fontSize: 12, color: '#90BEF0' }}>{CARGO_LABEL[pesquisa.cargo_respondente] || pesquisa.cargo_respondente}</span>
                 )}
               </div>
-              <p style={{ margin: '6px 0 0', fontSize: 12, color: '#7AAACB' }}>
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--t-text-secondary)' }}>
                 📅 {new Date(pesquisa.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
@@ -185,16 +185,16 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
             <div style={{ display: 'grid', gridTemplateColumns: resolucaoInfo && rapidezInfo ? '1fr 1fr' : '1fr', gap: 10 }}>
               {resolucaoInfo && (
                 <div style={{ padding: '14px 16px', borderRadius: 14, border: `2px solid ${resolucaoInfo.cor}40`, background: resolucaoInfo.cor + '10' }}>
-                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Solicitação resolvida?</p>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Solicitação resolvida?</p>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: resolucaoInfo.cor }}>{resolucaoInfo.emoji} {resolucaoInfo.l}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>peso 20 pts no score</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>peso 20 pts no score</p>
                 </div>
               )}
               {rapidezInfo && (
                 <div style={{ padding: '14px 16px', borderRadius: 14, border: `2px solid ${rapidezInfo.cor}40`, background: rapidezInfo.cor + '10' }}>
-                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Rapidez do atendimento</p>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Rapidez do atendimento</p>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: rapidezInfo.cor }}>{rapidezInfo.emoji} {rapidezInfo.l}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>peso 15 pts no score</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>peso 15 pts no score</p>
                 </div>
               )}
             </div>
@@ -202,7 +202,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
 
           {/* Notas detalhadas */}
           <div>
-            <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 12px' }}>
+            <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '0 0 12px' }}>
               Notas por categoria
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -210,8 +210,8 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
                 nota ? (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0D2238' }}>{label}</p>
-                      {peso && <p style={{ margin: '1px 0 0', fontSize: 11, color: '#94a3b8' }}>{peso} no score</p>}
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{label}</p>
+                      {peso && <p style={{ margin: '1px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>{peso} no score</p>}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
                       <Stars value={nota} size={16} />
@@ -230,7 +230,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
 
           {/* Diferenciais ProSystem */}
           <div>
-            <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 12px' }}>
+            <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '0 0 12px' }}>
               Conhece os diferenciais ProSystem?
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -252,7 +252,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
               ))}
             </div>
             {pesquisa.interesse_comercial && pesquisa.interesse_comercial !== 'nao' && (
-              <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: '#EBF4FF', border: '1px solid #90BEF0' }}>
+              <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: 'var(--t-primary-light)', border: '1px solid #90BEF0' }}>
                 <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#1A4E82' }}>
                   📞 {pesquisa.interesse_comercial === 'sim' ? 'Quer conhecer as ferramentas — contato comercial!' : 'Talvez queira conhecer — pode chamar depois'}
                 </p>
@@ -263,17 +263,17 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
           {/* Recado/mensagem */}
           {(pesquisa.recado || pesquisa.observacao || pesquisa.sugestoes) && (
             <div>
-              <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 12px' }}>
+              <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: 'var(--t-text-muted)', textTransform: 'uppercase', margin: '0 0 12px' }}>
                 Mensagem do cliente
               </p>
               {pesquisa.recado && (
                 <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #4B8EC8', borderRadius: '0 12px 12px 0', padding: '14px 16px' }}>
-                  <p style={{ margin: 0, fontSize: 14, color: '#0D2238', lineHeight: 1.6, fontStyle: 'italic' }}>"{pesquisa.recado}"</p>
+                  <p style={{ margin: 0, fontSize: 14, color: 'var(--t-text-primary)', lineHeight: 1.6, fontStyle: 'italic' }}>"{pesquisa.recado}"</p>
                 </div>
               )}
               {pesquisa.observacao && (
                 <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #4B8EC8', borderRadius: '0 12px 12px 0', padding: '14px 16px', marginTop: 8 }}>
-                  <p style={{ margin: 0, fontSize: 14, color: '#0D2238', lineHeight: 1.6 }}>{pesquisa.observacao}</p>
+                  <p style={{ margin: 0, fontSize: 14, color: 'var(--t-text-primary)', lineHeight: 1.6 }}>{pesquisa.observacao}</p>
                 </div>
               )}
               {pesquisa.sugestoes && (
@@ -289,7 +289,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
           {(pesquisa.email || pesquisa.whatsapp) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {pesquisa.email && (
-                <a href={`mailto:${pesquisa.email}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, color: '#4B8EC8', fontWeight: 600, textDecoration: 'none' }}>
+                <a href={`mailto:${pesquisa.email}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, color: 'var(--t-primary)', fontWeight: 600, textDecoration: 'none' }}>
                   ✉️ {pesquisa.email}
                 </a>
               )}
@@ -317,7 +317,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
                 <span key={x.l} style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: x.c + '15', color: x.c, border: `1px solid ${x.c}30` }}>{x.l}</span>
               ))}
             </div>
-            <p style={{ margin: '8px 0 0', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--t-text-muted)', lineHeight: 1.5 }}>
               Score ponderado: Atend. 25pts · Resolução 20pts · Rapidez 15pts · Técnico 15pts · ProSystem 15pts · Ferramentas 10pts
             </p>
           </div>
@@ -331,7 +331,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
               </a>
             )}
             <button onClick={onClose}
-              style={{ flex: pesquisa.cliente_id ? 0 : 1, padding: '13px 20px', borderRadius: 12, border: '1px solid #e2e8f0', background: 'white', fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>
+              style={{ flex: pesquisa.cliente_id ? 0 : 1, padding: '13px 20px', borderRadius: 12, border: '1px solid #e2e8f0', background: 'var(--t-card-bg)', fontSize: 13, fontWeight: 600, color: 'var(--t-text-muted)', cursor: 'pointer' }}>
               Fechar
             </button>
           </div>
@@ -374,7 +374,7 @@ function CardPesquisa({ p, onVerDetalhes, comVincular, onVincular }: {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0D2238' }}>{p.identificacao}</p>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--t-text-primary)' }}>{p.identificacao}</p>
             <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
               {cfg.emoji} {cfg.label}
             </span>
@@ -391,15 +391,15 @@ function CardPesquisa({ p, onVerDetalhes, comVincular, onVincular }: {
           </div>
 
           {p.respondente_nome && (
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#7AAACB' }}>por {p.respondente_nome}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--t-text-secondary)' }}>por {p.respondente_nome}</p>
           )}
 
           <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-            {p.nota_atendimento && <span style={{ fontSize: 12, color: '#64748b' }}>Atend.: <Stars value={p.nota_atendimento} size={12} /></span>}
-            {p.nota_eficiencia && <span style={{ fontSize: 12, color: '#64748b' }}>Efic.: <Stars value={p.nota_eficiencia} size={12} /></span>}
-            {p.nota_conhecimento && <span style={{ fontSize: 12, color: '#64748b' }}>Conhec.: <Stars value={p.nota_conhecimento} size={12} /></span>}
-            {p.nota_geral && <span style={{ fontSize: 12, fontWeight: 700, color: '#0D2238' }}>Geral: <Stars value={p.nota_geral} size={12} /></span>}
-            {!p.nota_atendimento && <span style={{ fontSize: 12, color: '#64748b' }}>Média: <Stars value={p.media} size={12} /></span>}
+            {p.nota_atendimento && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Atend.: <Stars value={p.nota_atendimento} size={12} /></span>}
+            {p.nota_eficiencia && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Efic.: <Stars value={p.nota_eficiencia} size={12} /></span>}
+            {p.nota_conhecimento && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Conhec.: <Stars value={p.nota_conhecimento} size={12} /></span>}
+            {p.nota_geral && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)' }}>Geral: <Stars value={p.nota_geral} size={12} /></span>}
+            {!p.nota_atendimento && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Média: <Stars value={p.media} size={12} /></span>}
           </div>
 
           {naoConhece.length > 0 && (
@@ -413,14 +413,14 @@ function CardPesquisa({ p, onVerDetalhes, comVincular, onVincular }: {
         </div>
 
         <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text-muted)' }}>
             {new Date(p.created_at).toLocaleDateString('pt-BR')}
           </p>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#4B8EC8' }}>Ver detalhes →</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-primary)' }}>Ver detalhes →</span>
           {!p.cliente_casado && comVincular && onVincular && (
             <button
               onClick={e => { e.stopPropagation(); onVincular(p); }}
-              style={{ fontSize: 11, fontWeight: 600, color: '#4B8EC8', background: '#EBF4FF', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}
+              style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-primary)', background: 'var(--t-primary-light)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}
             >
               🔗 Vincular
             </button>
@@ -482,7 +482,7 @@ export default function PesquisasPage() {
       setVinculando(null); setBuscaCliente(''); setResultados([]);
       load();
     } catch (e: any) {
-      alert('Erro ao vincular: ' + (e?.response?.data?.message || e.message));
+      console.error('Erro ao vincular', e?.response?.data?.message || e.message);
     }
   };
 
@@ -528,10 +528,10 @@ export default function PesquisasPage() {
       {/* Vincular overlay */}
       {vinculando && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,34,56,0.5)', zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: 'white', borderRadius: 16, padding: 24, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: 'var(--t-card-bg)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0D2238' }}>🔗 Vincular ao cliente</p>
-              <button onClick={() => { setVinculando(null); setBuscaCliente(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--t-text-primary)' }}>🔗 Vincular ao cliente</p>
+              <button onClick={() => { setVinculando(null); setBuscaCliente(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t-text-muted)' }}>
                 <X size={20} />
               </button>
             </div>
@@ -542,9 +542,9 @@ export default function PesquisasPage() {
               <div style={{ marginTop: 8, border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
                 {resultados.map(c => (
                   <button key={c.id} onClick={() => vincular(vinculando, c.id)}
-                    style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'white', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: 14 }}>
-                    <span style={{ fontWeight: 600, color: '#0D2238' }}>{c.razao_social || c.nome}</span>
-                    {c.codigo && <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>#{c.codigo}</span>}
+                    style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'var(--t-card-bg)', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: 14 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--t-text-primary)' }}>{c.razao_social || c.nome}</span>
+                    {c.codigo && <span style={{ fontSize: 12, color: 'var(--t-text-muted)', marginLeft: 8 }}>#{c.codigo}</span>}
                   </button>
                 ))}
               </div>
@@ -556,24 +556,24 @@ export default function PesquisasPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-black" style={{ color: '#0D2238' }}>Pesquisas de Satisfação</h1>
-          <p className="text-sm mt-1" style={{ color: '#7AAACB' }}>Clique em qualquer resposta para ver o formulário completo</p>
+          <h1 className="text-2xl font-black" style={{ color: 'var(--t-text-primary)' }}>Pesquisas de Satisfação</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--t-text-secondary)' }}>Clique em qualquer resposta para ver o formulário completo</p>
         </div>
 
         {/* KPIs */}
         {resumo && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
-              { l: 'Total de respostas', v: resumo.total,              icon: Users,         color: '#4B8EC8' },
+              { l: 'Total de respostas', v: resumo.total,              icon: Users,         color: 'var(--t-primary)' },
               { l: 'Score médio',        v: `${scoresMedio}/100`,       icon: Star,          color: cfgMedio.color },
               { l: 'Excelentes (≥90)',   v: excelentes.length,          icon: Award,         color: '#15803d' },
               { l: 'Críticos',           v: resumo.criticos,            icon: AlertTriangle, color: '#dc2626' },
               { l: 'Oportunidade upsell',v: resumo.nao_conhece_plano,  icon: TrendingUp,    color: '#d97706' },
             ].map(k => (
-              <div key={k.l} className="bg-white border rounded-2xl p-4" style={{ borderColor: '#E8F1FB', boxShadow: '0 2px 8px rgba(13,34,56,0.05)' }}>
+              <div key={k.l} className="ps-card border rounded-2xl p-4" style={{ borderColor: 'var(--t-card-border)', boxShadow: '0 2px 8px rgba(13,34,56,0.05)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <k.icon size={14} style={{ color: k.color }} />
-                  <p className="text-xs font-semibold" style={{ color: '#94a3b8' }}>{k.l}</p>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>{k.l}</p>
                 </div>
                 <p className="text-2xl font-black" style={{ color: k.color }}>{k.v}</p>
               </div>
@@ -597,15 +597,15 @@ export default function PesquisasPage() {
               {excelentes.slice(0, 5).map(p => (
                 <div key={p.id}
                   onClick={() => setModalPesquisa(p)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'white', borderRadius: 12, border: '1px solid #bbf7d0', cursor: 'pointer' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'var(--t-card-bg)', borderRadius: 12, border: '1px solid #bbf7d0', cursor: 'pointer' }}>
                   <ScoreRing score={p._score} size={44} />
                   <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0D2238' }}>{p.identificacao}</p>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>{p.identificacao}</p>
                     {p.respondente_nome && <p style={{ margin: 0, fontSize: 12, color: '#16a34a' }}>{p.respondente_nome}</p>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    {p.recado && <p style={{ margin: 0, fontSize: 12, color: '#4B8EC8', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{p.recado}"</p>}
-                    <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</p>
+                    {p.recado && <p style={{ margin: 0, fontSize: 12, color: 'var(--t-primary)', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{p.recado}"</p>}
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
                   <ChevronRight size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
                 </div>
@@ -637,21 +637,21 @@ export default function PesquisasPage() {
               {label}
             </button>
           ))}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'white', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 12px' }}>
-            <Search size={14} style={{ color: '#94a3b8' }} />
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--t-card-bg)', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 12px' }}>
+            <Search size={14} style={{ color: 'var(--t-text-muted)' }} />
             <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar empresa…"
-              style={{ border: 'none', outline: 'none', fontSize: 13, color: '#0D2238', width: 160 }} />
+              style={{ border: 'none', outline: 'none', fontSize: 13, color: 'var(--t-text-primary)', width: 160 }} />
           </div>
         </div>
 
         {/* Lista */}
         {dataLoading ? (
-          <div style={{ textAlign: 'center', padding: '48px', color: '#94a3b8' }}>Carregando…</div>
+          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--t-text-muted)' }}>Carregando…</div>
         ) : lista.length === 0 ? (
-          <div style={{ background: 'white', borderRadius: 20, border: '1px solid #e2e8f0', padding: '48px', textAlign: 'center' }}>
+          <div style={{ background: 'var(--t-card-bg)', borderRadius: 20, border: '1px solid #e2e8f0', padding: '48px', textAlign: 'center' }}>
             <p style={{ fontSize: 40, margin: '0 0 12px' }}>📋</p>
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#0D2238', margin: '0 0 4px' }}>Nenhuma resposta encontrada</p>
-            <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--t-text-primary)', margin: '0 0 4px' }}>Nenhuma resposta encontrada</p>
+            <p style={{ fontSize: 13, color: 'var(--t-text-muted)', margin: 0 }}>
               {aba === 'excelentes' ? 'Nenhum cliente com score ≥ 90 ainda.'
                : aba === 'criticas' ? 'Ótimo! Nenhuma resposta crítica.'
                : aba === 'nao_casadas' ? 'Todas as pesquisas estão vinculadas a clientes.'

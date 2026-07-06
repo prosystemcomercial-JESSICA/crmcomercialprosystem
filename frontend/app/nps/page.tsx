@@ -37,7 +37,7 @@ function NpsGauge({ score }: { score: number }) {
         </div>
       </div>
       <p className="text-sm font-medium mt-1" style={{ color }}>{label}</p>
-      <p className="text-xs text-gray-400">NPS Score</p>
+      <p className="text-xs ">NPS Score</p>
     </div>
   );
 }
@@ -73,15 +73,15 @@ export default function NpsPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard NPS</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Dashboard NPS</h1>
             <p className="text-gray-500 mt-1">Net Promoter Score — satisfação dos clientes</p>
           </div>
           <button
             onClick={() => {
               const link = `${window.location.origin}/pesquisa`;
               navigator.clipboard.writeText(link).then(
-                () => alert(`Link da pesquisa copiado!\n\n${link}\n\nEnvie ao cliente no fim do atendimento.`),
-                () => prompt('Copie o link da pesquisa:', link)
+                () => console.info('Link copiado:', link),
+                () => console.warn('Clipboard indisponível:', link)
               );
             }}
             className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">
@@ -105,41 +105,41 @@ export default function NpsPage() {
         </div>
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Carregando...</div>
+          <div className="text-center p-12 ">Carregando...</div>
         ) : !data || data.total === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
             <div className="text-5xl mb-4">📊</div>
             <p className="text-gray-700 font-medium text-lg">Sem respostas de pesquisa ainda</p>
             <p className="text-gray-400 text-sm mt-1">As respostas das pesquisas de churn aparecerão aqui automaticamente</p>
-            <p className="text-xs text-gray-400 mt-2">Acesse <strong>Churn & Retenção</strong> para enviar pesquisas a clientes em risco</p>
+            <p className="text-xs  mt-2">Acesse <strong>Churn & Retenção</strong> para enviar pesquisas a clientes em risco</p>
           </div>
         ) : (
           <>
             {/* Score principal */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-center justify-center">
+              <div className="ps-card rounded-xl border border-gray-200 p-6 flex items-center justify-center">
                 <NpsGauge score={data.nps_score} />
               </div>
               <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-500 mb-1">😊 Promotores (9-10)</p>
+                <p className="text-xs  mb-1">😊 Promotores (9-10)</p>
                 <p className="text-4xl font-bold text-green-700">{data.promoters}</p>
                 <p className="text-xs text-green-600 mt-1">{data.total > 0 ? Math.round((data.promoters / data.total) * 100) : 0}%</p>
               </div>
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-500 mb-1">😐 Neutros (7-8)</p>
+                <p className="text-xs  mb-1">😐 Neutros (7-8)</p>
                 <p className="text-4xl font-bold text-yellow-700">{data.neutrals}</p>
                 <p className="text-xs text-yellow-600 mt-1">{data.total > 0 ? Math.round((data.neutrals / data.total) * 100) : 0}%</p>
               </div>
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-500 mb-1">😟 Detratores (1-6)</p>
+                <p className="text-xs  mb-1">😟 Detratores (1-6)</p>
                 <p className="text-4xl font-bold text-red-700">{data.detractors}</p>
                 <p className="text-xs text-red-600 mt-1">{data.total > 0 ? Math.round((data.detractors / data.total) * 100) : 0}%</p>
               </div>
             </div>
 
             {/* Distribuição de scores */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Distribuição de Scores</h2>
+            <div className="ps-card rounded-xl border border-gray-200 p-5">
+              <h2 className="text-base font-semibold text-sm font-semibold mb-4">Distribuição de Scores</h2>
               <div className="flex items-end gap-1.5 h-24">
                 {data.distribuicao.map(d => {
                   const maxCount = Math.max(...data.distribuicao.map(x => x.count), 1);
@@ -147,11 +147,11 @@ export default function NpsPage() {
                   const color = d.score >= 9 ? 'bg-green-500' : d.score >= 7 ? 'bg-yellow-400' : 'bg-red-400';
                   return (
                     <div key={d.score} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-xs text-gray-500">{d.count || ''}</span>
+                      <span className="text-xs ">{d.count || ''}</span>
                       <div className="w-full flex flex-col justify-end" style={{ height: '80px' }}>
                         <div className={`w-full rounded-t ${color}`} style={{ height: `${Math.max(height, d.count > 0 ? 10 : 0)}%` }} />
                       </div>
-                      <span className="text-xs text-gray-400">{d.score}</span>
+                      <span className="text-xs ">{d.score}</span>
                     </div>
                   );
                 })}
@@ -160,21 +160,21 @@ export default function NpsPage() {
 
             {/* Métricas adicionais */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-sm text-gray-500">Total de respostas</p>
-                <p className="text-3xl font-bold text-gray-700 mt-1">{data.total}</p>
+              <div className="ps-card rounded-xl border border-gray-200 p-4">
+                <p className="text-sm ">Total de respostas</p>
+                <p className="text-3xl font-bold  mt-1">{data.total}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-sm text-gray-500">Avaliação média</p>
+              <div className="ps-card rounded-xl border border-gray-200 p-4">
+                <p className="text-sm ">Avaliação média</p>
                 <p className="text-3xl font-bold text-yellow-600 mt-1">{'⭐'.repeat(Math.round(data.avg_stars))} {data.avg_stars}</p>
               </div>
             </div>
 
             {/* Respostas recentes */}
             {data.recentes.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100">
-                  <h2 className="text-base font-semibold text-gray-900">Respostas Recentes</h2>
+                  <h2 className="text-base font-semibold text-sm font-semibold">Respostas Recentes</h2>
                 </div>
                 <div className="divide-y divide-gray-50">
                   {data.recentes.map((r, i) => (
@@ -184,16 +184,16 @@ export default function NpsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-900 text-sm">{r.cliente?.nome || 'Anônimo'}</p>
-                          {r.cliente?.empresa && <span className="text-xs text-gray-400">· {r.cliente.empresa}</span>}
+                          <p className="font-medium text-sm font-semibold text-sm">{r.cliente?.nome || 'Anônimo'}</p>
+                          {r.cliente?.empresa && <span className="text-xs ">· {r.cliente.empresa}</span>}
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-3 mt-1 text-xs ">
                           <span>{starLabel(r.stars)}</span>
                           <span>{q4Label[r.q4] || r.q4}</span>
-                          {r.motivo && <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{r.motivo}</span>}
+                          {r.motivo && <span className="bg-opacity-0 px-1.5 py-0.5 rounded ">{r.motivo}</span>}
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400 flex-shrink-0">{new Date(r.data).toLocaleDateString('pt-BR')}</p>
+                      <p className="text-xs  flex-shrink-0">{new Date(r.data).toLocaleDateString('pt-BR')}</p>
                     </div>
                   ))}
                 </div>

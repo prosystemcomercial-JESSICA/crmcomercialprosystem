@@ -52,10 +52,10 @@ export default function CicloVendasPage() {
       <div className="p-6 space-y-6">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <h1 className="text-2xl font-bold  flex items-center gap-2">
               <Clock size={24} className="text-blue-600" /> Ciclo de Vendas
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Tempo da entrada do lead até a assinatura — dias corridos por etapa e gargalos.</p>
+            <p className="text-sm  mt-0.5">Tempo da entrada do lead até a assinatura — dias corridos por etapa e gargalos.</p>
           </div>
           {data && (
             <ExportButton
@@ -71,32 +71,32 @@ export default function CicloVendasPage() {
         </div>
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Calculando ciclo de vendas...</div>
+          <div className="text-center p-12 ">Calculando ciclo de vendas...</div>
         ) : !data ? (
-          <div className="text-center p-12 text-gray-500">Sem dados.</div>
+          <div className="text-center p-12 ">Sem dados.</div>
         ) : (
           <>
             {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {[
-                { label: 'Ciclo médio (entrada→assinatura)', value: `${data.ciclo_medio_dias} dias`, color: '#417ABC', icon: TrendingUp },
+                { label: 'Ciclo médio (entrada→assinatura)', value: `${data.ciclo_medio_dias} dias`, color: 'var(--t-primary)', icon: TrendingUp },
                 { label: 'Mais rápido', value: `${data.ciclo_min} dias`, color: '#16a34a', icon: CheckCircle2 },
                 { label: 'Mais lento', value: `${data.ciclo_max} dias`, color: '#dc2626', icon: Hourglass },
                 { label: 'Fechados (assinados)', value: data.fechados, color: '#00BFD1', icon: CheckCircle2 },
                 { label: 'Em aberto', value: data.em_aberto, color: '#ea580c', icon: Clock },
               ].map(k => (
-                <div key={k.label} className="bg-white border rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-gray-500"><k.icon size={14} /><p className="text-xs">{k.label}</p></div>
+                <div key={k.label} className="ps-card border rounded-xl p-4">
+                  <div className="flex items-center gap-2 "><k.icon size={14} /><p className="text-xs">{k.label}</p></div>
                   <p className="text-2xl font-bold mt-1" style={{ color: k.color }}>{k.value}</p>
                 </div>
               ))}
             </div>
 
             {/* Tempo médio por etapa */}
-            <div className="bg-white border rounded-xl p-5">
-              <h3 className="font-semibold text-gray-700 mb-4">Tempo médio por etapa (dias corridos)</h3>
+            <div className="ps-card border rounded-xl p-5">
+              <h3 className="font-semibold  mb-4">Tempo médio por etapa (dias corridos)</h3>
               {chartData.length === 0 ? (
-                <p className="text-sm text-gray-400">Ainda sem transições de etapa registradas.</p>
+                <p className="text-sm ">Ainda sem transições de etapa registradas.</p>
               ) : (
                 <div style={{ width: '100%', height: 320 }}>
                   <ResponsiveContainer>
@@ -115,22 +115,22 @@ export default function CicloVendasPage() {
             </div>
 
             {/* Tabela detalhada */}
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b"><h3 className="font-semibold text-gray-700">Detalhe por etapa</h3></div>
+            <div className="ps-card border rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b"><h3 className="font-semibold ">Detalhe por etapa</h3></div>
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-opacity-0 border-b">
                   <tr>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Etapa</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Tempo médio (dias)</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amostras</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Etapa</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Tempo médio (dias)</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Amostras</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {data.tempo_medio_por_etapa.map(e => (
-                    <tr key={e.etapa} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 text-sm text-gray-800">{fmtEtapa(e.etapa)}</td>
-                      <td className="px-5 py-3 text-right text-sm font-semibold text-gray-700">{e.dias_medio}</td>
-                      <td className="px-5 py-3 text-right text-sm text-gray-500">{e.amostras}</td>
+                    <tr key={e.etapa} className="hover:opacity-80">
+                      <td className="px-5 py-3 text-sm ">{fmtEtapa(e.etapa)}</td>
+                      <td className="px-5 py-3 text-right text-sm font-semibold ">{e.dias_medio}</td>
+                      <td className="px-5 py-3 text-right text-sm ">{e.amostras}</td>
                     </tr>
                   ))}
                 </tbody>

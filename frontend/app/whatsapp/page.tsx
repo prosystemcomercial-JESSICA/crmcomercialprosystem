@@ -163,7 +163,7 @@ export default function WhatsappPage() {
 
   // Criar nova instância nomeada (novo número).
   const criarInstancia = async () => {
-    if (!novaInstNome.trim()) { alert('Dê um nome para a instância (ex.: Comercial).'); return; }
+    if (!novaInstNome.trim()) { console.warn('Dê um nome para a instância (ex.: Comercial).'); return; }
     setCriandoInst(true);
     try {
       const res = await apiClient.criarInstanciaWhatsapp(novaInstNome.trim());
@@ -172,24 +172,24 @@ export default function WhatsappPage() {
       setInstAtivaId(res.data.data.instancia.id);
       setStatus('CONECTANDO');
       setQr(res.data.data.qr || null);
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao criar instância'); }
+    } catch (e: any) { console.error('Falha ao criar instância', e); }
     finally { setCriandoInst(false); }
   };
 
   // Reconectar / desconectar / renomear a instância ativa.
   const reconectarAtiva = async () => {
     if (!instAtivaId) return;
-    try { const r = await apiClient.conectarInstanciaWhatsapp(instAtivaId); setQr(r.data.data.qr || null); setStatus('CONECTANDO'); } catch (e: any) { alert(e?.response?.data?.message || 'Falha'); }
+    try { const r = await apiClient.conectarInstanciaWhatsapp(instAtivaId); setQr(r.data.data.qr || null); setStatus('CONECTANDO'); } catch (e: any) { console.error('Falha', e); }
   };
   const desconectarAtiva = async () => {
     if (!instAtivaId || !confirm('Desconectar este WhatsApp?')) return;
-    try { await apiClient.desconectarInstanciaWhatsapp(instAtivaId); await checarStatus(); } catch (e: any) { alert(e?.response?.data?.message || 'Falha'); }
+    try { await apiClient.desconectarInstanciaWhatsapp(instAtivaId); await checarStatus(); } catch (e: any) { console.error('Falha', e); }
   };
   const renomearAtiva = async () => {
     if (!instAtivaId) return;
     const nome = prompt('Novo nome da instância:');
     if (!nome?.trim()) return;
-    try { await apiClient.renomearInstanciaWhatsapp(instAtivaId, nome.trim()); await checarStatus(); } catch (e: any) { alert(e?.response?.data?.message || 'Falha'); }
+    try { await apiClient.renomearInstanciaWhatsapp(instAtivaId, nome.trim()); await checarStatus(); } catch (e: any) { console.error('Falha', e); }
   };
   // Apaga a instância de vez (quando "desconectar" não resolve / instância travada).
   const excluirInstancia = async () => {
@@ -198,7 +198,7 @@ export default function WhatsappPage() {
       await apiClient.deletarInstanciaWhatsapp(instAtivaId);
       setInstAtivaId(null);
       await checarStatus();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao excluir'); }
+    } catch (e: any) { console.error('Falha ao excluir', e); }
   };
   // Desvincular a conversa do funil (não conta como lead no dashboard).
   const desvincularFunil = async () => {
@@ -208,7 +208,7 @@ export default function WhatsappPage() {
       await apiClient.desvincularConversaFunil(ativa.id);
       setAtiva({ ...ativa, lead_id: null });
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null } : c));
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao desvincular'); }
+    } catch (e: any) { console.error('Falha ao desvincular', e); }
   };
 
   // Abrir modal de vincular cliente: pré-preenche o nome com o do contato.
@@ -231,7 +231,7 @@ export default function WhatsappPage() {
   }, [vincBusca, showVincCliente, vincSel]);
 
   const salvarVincCliente = async () => {
-    if (!ativa || !vincSel) { alert('Selecione o cliente.'); return; }
+    if (!ativa || !vincSel) { console.warn('Selecione o cliente.'); return; }
     setVincSalvando(true);
     try {
       await apiClient.vincularConversaCliente(ativa.id, {
@@ -243,14 +243,14 @@ export default function WhatsappPage() {
       setAtiva(prev => prev ? ({ ...prev, cliente_id: vincSel.id, cliente_codigo: cod, cliente_razao: razao } as any) : prev);
       setConversas(prev => prev.map(c => c.id === ativa.id ? ({ ...c, cliente_id: vincSel.id, cliente_codigo: cod, cliente_razao: razao } as any) : c));
       setShowVincCliente(false);
-      alert('Conversa vinculada ao cliente e contato registrado na ficha! ✅');
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao vincular ao cliente'); }
+      console.warn('Conversa vinculada ao cliente e contato registrado na ficha! ✅');
+    } catch (e: any) { console.error('Falha ao vincular ao cliente', e); }
     finally { setVincSalvando(false); }
   };
 
   // Agendar reunião: cria a atividade e envia o link pelo WhatsApp do contato.
   const agendarReuniao = async () => {
-    if (!ativa || !reuniao.data) { alert('Escolha a data e hora da reunião.'); return; }
+    if (!ativa || !reuniao.data) { console.warn('Escolha a data e hora da reunião.'); return; }
     setSalvandoReuniao(true);
     try {
       await apiClient.agendarReuniaoWhatsapp(ativa.id, {
@@ -264,9 +264,9 @@ export default function WhatsappPage() {
       // Recarrega as mensagens p/ mostrar a confirmação enviada.
       const res = await apiClient.getWhatsappMensagens(ativa.id);
       setMensagens(res.data.data.mensagens);
-      alert('Reunião agendada e link enviado no WhatsApp! 📅');
+      console.warn('Reunião agendada e link enviado no WhatsApp! 📅');
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Falha ao agendar reunião');
+      console.error('Falha ao agendar reunião', e);
     } finally { setSalvandoReuniao(false); }
   };
 
@@ -277,7 +277,7 @@ export default function WhatsappPage() {
       await apiClient.excluirConversaWhatsapp(id);
       if (ativa?.id === id) setAtiva(null);
       setConversas(prev => prev.filter(c => c.id !== id));
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao excluir conversa'); }
+    } catch (e: any) { console.error('Falha ao excluir conversa', e); }
   };
 
   // Vindo de um botão de WhatsApp do CRM (/whatsapp?numero=...&nome=...&lead=...):
@@ -296,7 +296,7 @@ export default function WhatsappPage() {
         // limpa o query string para não reabrir ao atualizar
         window.history.replaceState({}, '', '/whatsapp');
       } catch (e: any) {
-        alert(e?.response?.data?.message || 'Não foi possível abrir a conversa. Conecte seu WhatsApp.');
+        console.error('Não foi possível abrir a conversa. Conecte seu WhatsApp.', e);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,7 +335,7 @@ export default function WhatsappPage() {
       setMensagens(prev => [...prev, res.data.data]);
       setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Falha ao enviar');
+      console.error('Falha ao enviar', e);
       setTexto(txt);
     } finally {
       setEnviando(false);
@@ -372,7 +372,7 @@ export default function WhatsappPage() {
             setMensagens(prev => [...prev, res.data.data]);
             setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
           } catch (e: any) {
-            alert(e?.response?.data?.message || 'Falha ao enviar o áudio');
+            console.error('Falha ao enviar o áudio', e);
           }
         }
       };
@@ -382,7 +382,7 @@ export default function WhatsappPage() {
       setGravTempo(0);
       gravTimerRef.current = setInterval(() => setGravTempo(t => t + 1), 1000);
     } catch {
-      alert('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
+      console.warn('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
     }
   };
 
@@ -400,14 +400,14 @@ export default function WhatsappPage() {
   // Iniciar nova conversa digitando número com DDD.
   const iniciarConversa = async () => {
     const num = novoNumero.replace(/\D/g, '');
-    if (num.length < 10) { alert('Digite o número com DDD (ex.: 27999998888).'); return; }
+    if (num.length < 10) { console.warn('Digite o número com DDD (ex.: 27999998888).'); return; }
     try {
       const res = await apiClient.abrirConversaWhatsapp(num);
       setNovoNumero('');
       await carregarConversas();
       await abrir(res.data.data);
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Não foi possível iniciar a conversa.');
+      console.error('Não foi possível iniciar a conversa.', e);
     }
   };
 
@@ -420,7 +420,7 @@ export default function WhatsappPage() {
       setAtiva({ ...ativa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id });
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
       setMenuEtiqueta(false);
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao etiquetar'); }
+    } catch (e: any) { console.error('Falha ao etiquetar', e); }
   };
 
   // Aplica etiqueta a uma conversa por id (usado ao arrastar no Kanban).
@@ -430,7 +430,7 @@ export default function WhatsappPage() {
       const upd = res.data.data;
       setConversas(prev => prev.map(c => c.id === convId ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
       if (ativa?.id === convId) setAtiva({ ...ativa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id });
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao etiquetar'); }
+    } catch (e: any) { console.error('Falha ao etiquetar', e); }
   };
 
   // Colunas do Kanban: "Sem classificação" + uma por etiqueta (segmento + tipo).
@@ -448,10 +448,10 @@ export default function WhatsappPage() {
     try {
       await apiClient.transferirConversa(ativa.id, vendedorId);
       setMenuTransferir(false);
-      alert('Conversa transferida com sucesso.');
+      console.warn('Conversa transferida com sucesso.');
       await carregarConversas();
       setAtiva(null);
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao transferir'); }
+    } catch (e: any) { console.error('Falha ao transferir', e); }
   };
 
   const podeTransferir = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'DIRETOR'].includes(((user as any)?.role || '').toUpperCase());
@@ -481,7 +481,7 @@ export default function WhatsappPage() {
       <div className="flex flex-col gap-3 h-full min-h-0">
         <div className="flex items-center justify-between gap-2 flex-wrap flex-shrink-0">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">WhatsApp</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-sm font-semibold">WhatsApp</h1>
             <p className="text-gray-500 text-sm hidden sm:block">Atenda seus clientes sem sair do CRM</p>
           </div>
           <div className="flex items-center gap-2">
@@ -507,7 +507,7 @@ export default function WhatsappPage() {
             <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
               status === 'CONECTADO' ? 'bg-green-50 text-green-700 border border-green-200'
               : status === 'CONECTANDO' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-              : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
+              : 'bg-opacity-0  border border-gray-200'}`}>
               <span className={`w-2 h-2 rounded-full ${status === 'CONECTADO' ? 'bg-green-500' : status === 'CONECTANDO' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`} />
               {status === 'CONECTADO' ? 'Conectado' : status === 'CONECTANDO' ? 'Conectando…' : 'Desconectado'}
             </span>
@@ -516,10 +516,10 @@ export default function WhatsappPage() {
 
         {/* Barra de instâncias (multi-WhatsApp) — abas p/ trocar + ações */}
         {configurado && (
-          <div className="flex items-center gap-2 flex-wrap bg-white border border-gray-200 rounded-xl p-2 flex-shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-2 flex-wrap ps-card border border-gray-200 rounded-xl p-2 flex-shrink-0 overflow-x-auto">
             {instancias.map(i => (
               <button key={i.id} onClick={() => trocarInstancia(i.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${instAtivaId === i.id ? 'text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${instAtivaId === i.id ? 'text-white' : 'text-gray-600 hover:bg-opacity-0'}`}
                 style={instAtivaId === i.id ? { background: 'linear-gradient(135deg,#128C7E,#075E54)', borderColor: '#128C7E' } : { borderColor: '#e5e7eb' }}>
                 <span className={`w-2 h-2 rounded-full ${i.status === 'CONECTADO' ? 'bg-green-400' : i.status === 'CONECTANDO' ? 'bg-yellow-400' : 'bg-gray-400'}`} />
                 {i.apelido || i.numero || 'WhatsApp'}
@@ -530,7 +530,7 @@ export default function WhatsappPage() {
               <input value={novaInstNome} onChange={e => setNovaInstNome(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') criarInstancia(); }}
                 placeholder="Nome do novo WhatsApp"
-                className="bg-gray-100 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none w-40" />
+                className="bg-opacity-0 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none w-40" />
               <button onClick={criarInstancia} disabled={criandoInst}
                 className="text-white rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-50" style={{ background: '#128C7E' }}>+ Conectar</button>
             </div>
@@ -558,19 +558,19 @@ export default function WhatsappPage() {
 
         {/* Conexão via QR Code */}
         {configurado && status !== 'CONECTADO' && (
-          <div className="bg-white border border-gray-200 rounded-xl p-8 text-center max-w-md mx-auto">
+          <div className="ps-card border border-gray-200 rounded-xl p-8 text-center max-w-md mx-auto">
             {qr ? (
               <>
-                <p className="font-medium text-gray-900 mb-2">Escaneie o QR Code</p>
-                <p className="text-sm text-gray-500 mb-4">No WhatsApp do celular: <strong>Aparelhos conectados → Conectar aparelho</strong></p>
+                <p className="font-medium text-sm font-semibold mb-2">Escaneie o QR Code</p>
+                <p className="text-sm  mb-4">No WhatsApp do celular: <strong>Aparelhos conectados → Conectar aparelho</strong></p>
                 <img src={qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`} alt="QR Code WhatsApp" className="mx-auto w-56 h-56 border rounded-lg" />
-                <p className="text-xs text-gray-400 mt-3">Aguardando leitura… a tela atualiza sozinha.</p>
+                <p className="text-xs  mt-3">Aguardando leitura… a tela atualiza sozinha.</p>
               </>
             ) : (
               <>
                 <div className="text-5xl mb-3">📱</div>
-                <p className="font-medium text-gray-900 mb-1">{instancias.length === 0 ? 'Conecte seu primeiro WhatsApp' : 'Instância desconectada'}</p>
-                <p className="text-sm text-gray-500 mb-5">
+                <p className="font-medium text-sm font-semibold mb-1">{instancias.length === 0 ? 'Conecte seu primeiro WhatsApp' : 'Instância desconectada'}</p>
+                <p className="text-sm  mb-5">
                   {instancias.length === 0
                     ? 'Dê um nome (ex.: "Comercial") na barra acima e clique em "+ Conectar" para gerar o QR Code.'
                     : 'Clique em "Reconectar" na barra acima para gerar um novo QR Code desta instância.'}
@@ -597,38 +597,38 @@ export default function WhatsappPage() {
               <div className="p-2 border-b border-gray-100 space-y-2">
                 <input value={buscaConv} onChange={e => setBuscaConv(e.target.value)}
                   placeholder="🔍 Buscar conversa…"
-                  className="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                  className="w-full bg-opacity-0 rounded-lg px-3 py-2 text-sm focus:outline-none" />
                 <div className="flex gap-1.5">
                   <input value={novoNumero} onChange={e => setNovoNumero(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') iniciarConversa(); }}
                     placeholder="Novo: nº com DDD (27999998888)"
-                    className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                    className="flex-1 bg-opacity-0 rounded-lg px-3 py-2 text-sm focus:outline-none" />
                   <button onClick={iniciarConversa} title="Iniciar conversa"
                     className="text-white rounded-lg px-3 text-sm font-bold" style={{ background: '#128C7E' }}>+</button>
                 </div>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">
-                {conversasFiltradas.length === 0 && <p className="text-center text-gray-400 text-sm p-6">Nenhuma conversa</p>}
+                {conversasFiltradas.length === 0 && <p className="text-center  text-sm p-6">Nenhuma conversa</p>}
                 {conversasFiltradas.map(c => (
                   <button key={c.id} onClick={() => abrir(c)}
-                    className={`w-full text-left px-3 py-3 flex items-center gap-3 border-b border-gray-50 transition-colors ${ativa?.id === c.id ? 'bg-green-50' : 'hover:bg-gray-50'}`}>
+                    className={`w-full text-left px-3 py-3 flex items-center gap-3 border-b border-gray-50 transition-colors ${ativa?.id === c.id ? 'bg-green-50' : 'hover:bg-opacity-0'}`}>
                     <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-lg" style={{ background: corAvatar(nomeContato(c)) }}>
                       {nomeContato(c).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-semibold text-gray-900 text-sm truncate">{nomeContato(c)}</p>
-                        <span className="text-[11px] text-gray-400 flex-shrink-0">{fmtHora(c.ultima_em)}</span>
+                        <p className="font-semibold text-sm font-semibold text-sm truncate">{nomeContato(c)}</p>
+                        <span className="text-[11px]  flex-shrink-0">{fmtHora(c.ultima_em)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <p className="text-[13px] text-gray-500 truncate">{c.ultima_mensagem || '—'}</p>
+                        <p className="text-[13px]  truncate">{c.ultima_mensagem || '—'}</p>
                         {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[11px] font-bold rounded-full px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0">{c.nao_lidas}</span>}
                       </div>
                       {c.etiqueta && (
                         <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
                       )}
                       {verSupervisao && c.instancia?.dono_nome && (
-                        <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#E5EEF7', color: '#2E6EAB' }}>
+                        <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#E5EEF7', color: 'var(--t-primary-dark)' }}>
                           👤 {c.instancia.dono_nome}
                         </span>
                       )}
@@ -642,7 +642,7 @@ export default function WhatsappPage() {
             <div className={`md:col-span-2 flex-col min-h-0 w-full flex-1 ${ativa ? 'flex' : 'hidden md:flex'}`}
               style={{ background: '#ECE5DD' }}>
               {!ativa ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-400" style={{ background: '#F0F2F5' }}>
+                <div className="flex-1 flex flex-col items-center justify-center " style={{ background: '#F0F2F5' }}>
                   <div className="text-6xl mb-3">💬</div>
                   <p className="text-sm">Selecione uma conversa para começar a atender</p>
                 </div>
@@ -683,30 +683,30 @@ export default function WhatsappPage() {
                     <button onClick={() => excluirConversa(ativa.id)} title="Excluir conversa" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🗑️</button>
                     {/* Menu etiqueta */}
                     {menuEtiqueta && (
-                      <div className="absolute right-3 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-80 overflow-y-auto">
-                        <p className="text-[10px] font-semibold text-gray-400 px-1 mb-1 uppercase">Segmento (comercial)</p>
+                      <div className="absolute right-3 top-14 ps-card rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-80 overflow-y-auto">
+                        <p className="text-[10px] font-semibold  px-1 mb-1 uppercase">Segmento (comercial)</p>
                         {ETIQUETAS.map(e => (
-                          <button key={e.nome} onClick={() => aplicarEtiqueta(e.nome, e.cor)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 flex items-center gap-2 text-sm">
+                          <button key={e.nome} onClick={() => aplicarEtiqueta(e.nome, e.cor)} className="w-full text-left px-2 py-1.5 rounded hover:opacity-80 flex items-center gap-2 text-sm">
                             <span className="w-3 h-3 rounded-full" style={{ background: e.cor }} />{e.nome}
                           </button>
                         ))}
-                        <p className="text-[10px] font-semibold text-gray-400 px-1 mt-2 mb-1 uppercase">Tipo de atendimento</p>
-                        <p className="text-[10px] text-gray-400 px-1 mb-1">Estes saem do funil (não viram lead)</p>
+                        <p className="text-[10px] font-semibold  px-1 mt-2 mb-1 uppercase">Tipo de atendimento</p>
+                        <p className="text-[10px]  px-1 mb-1">Estes saem do funil (não viram lead)</p>
                         {ETIQUETAS_TIPO.map(e => (
-                          <button key={e.nome} onClick={() => aplicarEtiqueta(e.nome, e.cor)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 flex items-center gap-2 text-sm">
+                          <button key={e.nome} onClick={() => aplicarEtiqueta(e.nome, e.cor)} className="w-full text-left px-2 py-1.5 rounded hover:opacity-80 flex items-center gap-2 text-sm">
                             <span className="w-3 h-3 rounded-full" style={{ background: e.cor }} />{e.nome}
                           </button>
                         ))}
-                        <button onClick={() => aplicarEtiqueta(null)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 text-sm text-gray-400 mt-1 border-t border-gray-100">Remover etiqueta</button>
+                        <button onClick={() => aplicarEtiqueta(null)} className="w-full text-left px-2 py-1.5 rounded hover:opacity-80 text-sm  mt-1 border-t border-gray-100">Remover etiqueta</button>
                       </div>
                     )}
                     {/* Menu transferir */}
                     {menuTransferir && (
-                      <div className="absolute right-3 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-72 overflow-y-auto">
-                        <p className="text-xs text-gray-400 px-1 mb-1">Transferir para</p>
-                        {vendedores.length === 0 ? <p className="text-xs text-gray-400 px-2 py-2">Carregando…</p> :
+                      <div className="absolute right-3 top-14 ps-card rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-72 overflow-y-auto">
+                        <p className="text-xs  px-1 mb-1">Transferir para</p>
+                        {vendedores.length === 0 ? <p className="text-xs  px-2 py-2">Carregando…</p> :
                           vendedores.map(v => (
-                            <button key={v.id} onClick={() => transferir(v.id)} className="w-full text-left px-2 py-1.5 rounded hover:bg-gray-50 text-sm">{v.nome}</button>
+                            <button key={v.id} onClick={() => transferir(v.id)} className="w-full text-left px-2 py-1.5 rounded hover:opacity-80 text-sm">{v.nome}</button>
                           ))}
                       </div>
                     )}
@@ -715,7 +715,7 @@ export default function WhatsappPage() {
                     style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M0 0h40v40H0z%22 fill=%22%23ECE5DD%22/%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%221%22 fill=%22%23D9D2C9%22/%3E%3C/svg%3E")' }}>
                     {mensagens.map(m => (
                       <div key={m.id} className={`flex ${m.direcao === 'SAIDA' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm ${m.direcao === 'SAIDA' ? 'rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}
+                        <div className={`max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm ${m.direcao === 'SAIDA' ? 'rounded-br-none' : 'bg-white  rounded-bl-none'}`}
                           style={m.direcao === 'SAIDA' ? { background: '#DCF8C6', color: '#111' } : {}}>
                           {m.enviada_por === 'bot' && <p className="text-[10px] font-semibold text-green-700 mb-0.5">🤖 Atendimento automático</p>}
                           {m.tipo === 'IMAGEM' && m.midia_url && (
@@ -730,7 +730,7 @@ export default function WhatsappPage() {
                           {!(m.tipo === 'IMAGEM' && m.midia_url) && (
                             <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
                           )}
-                          <p className="text-[10px] mt-0.5 text-right text-gray-400">{fmtHora(m.created_at)}</p>
+                          <p className="text-[10px] mt-0.5 text-right ">{fmtHora(m.created_at)}</p>
                         </div>
                       </div>
                     ))}
@@ -739,12 +739,12 @@ export default function WhatsappPage() {
                   <div className="p-3 flex items-center gap-2" style={{ background: '#F0F2F5' }}>
                     {gravando ? (
                       <>
-                        <div className="flex-1 flex items-center gap-2 bg-white rounded-full px-4 py-2.5 text-sm shadow-sm">
+                        <div className="flex-1 flex items-center gap-2 ps-card rounded-full px-4 py-2.5 text-sm shadow-sm">
                           <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
                           <span className="text-red-600 font-medium">Gravando… {String(Math.floor(gravTempo / 60)).padStart(2, '0')}:{String(gravTempo % 60).padStart(2, '0')}</span>
                         </div>
                         <button onClick={() => pararGravacao(true)} title="Cancelar"
-                          className="text-gray-500 rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg bg-white hover:bg-gray-100">
+                          className="text-gray-500 rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg ps-card hover:opacity-80">
                           🗑️
                         </button>
                         <button onClick={() => pararGravacao(false)} title="Enviar áudio"
@@ -759,7 +759,7 @@ export default function WhatsappPage() {
                           onChange={e => setTexto(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
                           placeholder="Escreva uma mensagem…"
-                          className="flex-1 bg-white rounded-full px-4 py-2.5 text-sm focus:outline-none shadow-sm"
+                          className="flex-1 ps-card rounded-full px-4 py-2.5 text-sm focus:outline-none shadow-sm"
                         />
                         {texto.trim() ? (
                           <button onClick={enviar} disabled={enviando}
@@ -792,26 +792,26 @@ export default function WhatsappPage() {
                   <div key={col.nome}
                     onDragOver={e => e.preventDefault()}
                     onDrop={() => { if (dragConvId) { etiquetarPorId(dragConvId, semClass ? null : col.nome, semClass ? undefined : col.cor); setDragConvId(null); } }}
-                    className="flex flex-col bg-gray-50 rounded-xl border border-gray-200 flex-shrink-0 w-72 min-h-0">
+                    className="flex flex-col bg-opacity-0 rounded-xl border border-gray-200 flex-shrink-0 w-72 min-h-0">
                     <div className="px-3 py-2.5 flex items-center gap-2 border-b border-gray-200 rounded-t-xl" style={{ background: `${col.cor}15` }}>
                       <span className="w-3 h-3 rounded-full" style={{ background: col.cor }} />
-                      <span className="font-semibold text-sm text-gray-800">{col.nome}</span>
-                      <span className="ml-auto text-xs text-gray-400">{cards.length}</span>
+                      <span className="font-semibold text-sm ">{col.nome}</span>
+                      <span className="ml-auto text-xs ">{cards.length}</span>
                     </div>
                     <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
-                      {cards.length === 0 && <p className="text-center text-gray-300 text-xs py-6">—</p>}
+                      {cards.length === 0 && <p className="text-center  text-xs py-6">—</p>}
                       {cards.map(c => (
                         <div key={c.id}
                           draggable onDragStart={() => setDragConvId(c.id)} onDragEnd={() => setDragConvId(null)}
                           onClick={() => { setViewMode('inbox'); abrir(c); }}
-                          className="bg-white rounded-lg border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm">
+                          className="ps-card rounded-lg border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ background: corAvatar(nomeContato(c)) }}>
                               {nomeContato(c).charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-gray-900 truncate">{nomeContato(c)}</p>
-                              <p className="text-xs text-gray-400 truncate">{c.ultima_mensagem || '—'}</p>
+                              <p className="text-sm font-medium text-sm font-semibold truncate">{nomeContato(c)}</p>
+                              <p className="text-xs  truncate">{c.ultima_mensagem || '—'}</p>
                             </div>
                             {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
                           </div>
@@ -839,9 +839,9 @@ export default function WhatsappPage() {
       {/* Modal: vincular conversa a um cliente da base */}
       {showVincCliente && ativa && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-5 w-full max-w-md">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">👤 Vincular a um cliente</h3>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="ps-card rounded-xl p-5 w-full max-w-md">
+            <h3 className="text-lg font-bold text-sm font-semibold mb-1">👤 Vincular a um cliente</h3>
+            <p className="text-sm  mb-4">
               Este contato ({ativa.contato_numero}) será registrado na ficha do cliente com nome, telefone e cargo.
             </p>
 
@@ -849,8 +849,8 @@ export default function WhatsappPage() {
             {vincSel ? (
               <div className="flex items-center justify-between gap-3 px-3 py-2.5 border border-emerald-300 bg-emerald-50 rounded-lg mb-3">
                 <div className="min-w-0">
-                  <div className="font-medium text-gray-900 truncate">{vincSel.nome_fantasia || vincSel.razao_social || vincSel.nome}</div>
-                  <div className="text-xs text-gray-500 truncate">{vincSel.codigo ? `#${vincSel.codigo}` : ''}{vincSel.cidade ? ` · ${vincSel.cidade}` : ''}</div>
+                  <div className="font-medium text-sm font-semibold truncate">{vincSel.nome_fantasia || vincSel.razao_social || vincSel.nome}</div>
+                  <div className="text-xs  truncate">{vincSel.codigo ? `#${vincSel.codigo}` : ''}{vincSel.cidade ? ` · ${vincSel.cidade}` : ''}</div>
                 </div>
                 <button type="button" onClick={() => setVincSel(null)} className="text-sm text-emerald-700 shrink-0">Trocar</button>
               </div>
@@ -860,12 +860,12 @@ export default function WhatsappPage() {
                   placeholder="Buscar cliente por código, razão, fantasia, CNPJ…"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm" />
                 {vincBusca.trim().length >= 2 && vincResultados.length > 0 && (
-                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                  <div className="absolute z-10 left-0 right-0 mt-1 ps-card border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
                     {vincResultados.map(c => (
                       <button key={c.id} type="button" onClick={() => setVincSel(c)}
                         className="w-full text-left px-3 py-2 hover:bg-emerald-50 border-b border-gray-100 last:border-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">{c.nome_fantasia || c.razao_social || c.nome}</div>
-                        <div className="text-xs text-gray-500 truncate">{c.codigo ? `#${c.codigo}` : ''}{c.cidade ? ` · ${c.cidade}` : ''}</div>
+                        <div className="text-sm font-medium text-sm font-semibold truncate">{c.nome_fantasia || c.razao_social || c.nome}</div>
+                        <div className="text-xs  truncate">{c.codigo ? `#${c.codigo}` : ''}{c.cidade ? ` · ${c.cidade}` : ''}</div>
                       </button>
                     ))}
                   </div>
@@ -873,15 +873,15 @@ export default function WhatsappPage() {
               </div>
             )}
 
-            <label className="block text-xs font-medium text-gray-500 mb-1">Nome do contato</label>
+            <label className="block text-xs font-medium  mb-1">Nome do contato</label>
             <input value={vincNome} onChange={e => setVincNome(e.target.value)}
               placeholder="Nome de quem fala no WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
-            <label className="block text-xs font-medium text-gray-500 mb-1">Cargo</label>
+            <label className="block text-xs font-medium  mb-1">Cargo</label>
             <input value={vincCargo} onChange={e => setVincCargo(e.target.value)}
               placeholder="Ex.: Proprietário, Gerente, Financeiro, Comprador" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowVincCliente(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={() => setShowVincCliente(false)} className="px-4 py-2 text-sm ">Cancelar</button>
               <button onClick={salvarVincCliente} disabled={vincSalvando || !vincSel}
                 className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#128C7E' }}>
                 {vincSalvando ? 'Vinculando…' : 'Vincular e salvar contato'}
@@ -893,30 +893,30 @@ export default function WhatsappPage() {
 
       {showReuniao && ativa && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-5 w-full max-w-md">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">📅 Agendar reunião</h3>
-            <p className="text-sm text-gray-500 mb-4">Com {ativa.contato_nome || ativa.contato_numero}. A confirmação vai pelo WhatsApp.</p>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Título</label>
+          <div className="ps-card rounded-xl p-5 w-full max-w-md">
+            <h3 className="text-lg font-bold text-sm font-semibold mb-1">📅 Agendar reunião</h3>
+            <p className="text-sm  mb-4">Com {ativa.contato_nome || ativa.contato_numero}. A confirmação vai pelo WhatsApp.</p>
+            <label className="block text-xs font-medium  mb-1">Título</label>
             <input value={reuniao.titulo} onChange={e => setReuniao(r => ({ ...r, titulo: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Data e hora *</label>
+                <label className="block text-xs font-medium  mb-1">Data e hora *</label>
                 <input type="datetime-local" value={reuniao.data} onChange={e => setReuniao(r => ({ ...r, data: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Duração (min)</label>
+                <label className="block text-xs font-medium  mb-1">Duração (min)</label>
                 <input type="number" value={reuniao.duracao_minutos} onChange={e => setReuniao(r => ({ ...r, duracao_minutos: Number(e.target.value) }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
               </div>
             </div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Link da reunião (opcional)</label>
+            <label className="block text-xs font-medium  mb-1">Link da reunião (opcional)</label>
             <input value={reuniao.link} onChange={e => setReuniao(r => ({ ...r, link: e.target.value }))}
               placeholder="https://meet.google.com/… (cole o link, se houver)"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowReuniao(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={() => setShowReuniao(false)} className="px-4 py-2 text-sm ">Cancelar</button>
               <button onClick={agendarReuniao} disabled={salvandoReuniao} className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#128C7E' }}>
                 {salvandoReuniao ? 'Agendando…' : 'Agendar e enviar'}
               </button>

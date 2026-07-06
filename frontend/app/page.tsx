@@ -19,7 +19,7 @@ export default function Home() {
             className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
             style={{ borderColor: '#4B8EC8', borderTopColor: 'transparent' }}
           />
-          <p className="text-sm" style={{ color: '#7AAACB' }}>
+          <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>
             Carregando...
           </p>
         </div>
@@ -77,9 +77,9 @@ export default function Home() {
             >
               Inteligência comercial
               <br />
-              <span style={{ color: '#4B8EC8' }}>para crescer mais.</span>
+              <span style={{ color: 'var(--t-primary)' }}>para crescer mais.</span>
             </h1>
-            <p className="text-base leading-relaxed" style={{ color: '#7AAACB' }}>
+            <p className="text-base leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>
               Gerencie leads, funil de vendas, retenção e performance da sua equipe em um único lugar.
             </p>
           </div>
@@ -96,10 +96,10 @@ export default function Home() {
                 className="rounded-xl p-4"
                 style={{ background: 'rgba(75,142,200,0.08)', border: '1px solid rgba(75,142,200,0.15)' }}
               >
-                <p className="text-xl font-bold" style={{ color: '#4B8EC8' }}>
+                <p className="text-xl font-bold" style={{ color: 'var(--t-primary)' }}>
                   {stat.num}
                 </p>
-                <p className="text-xs mt-0.5" style={{ color: '#4B7A9C' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
                   {stat.label}
                 </p>
               </div>
@@ -118,7 +118,7 @@ export default function Home() {
       {/* ── Painel direito — formulário ─────────────────────── */}
       <div
         className="flex-1 flex flex-col items-center justify-center px-8 sm:px-16 lg:px-20"
-        style={{ background: '#F4F7FB' }}
+        style={{ background: 'var(--t-content-bg)' }}
       >
         {/* Logo mobile */}
         <div className="mb-8 lg:hidden">
@@ -136,11 +136,11 @@ export default function Home() {
           <div className="mb-8">
             <h2
               className="text-2xl font-bold mb-1"
-              style={{ color: '#0D2238' }}
+              style={{ color: 'var(--t-text-primary)' }}
             >
               Bem-vindo de volta
             </h2>
-            <p className="text-sm" style={{ color: '#7AAACB' }}>
+            <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>
               Acesse o CRM Comercial ProSystem
             </p>
           </div>

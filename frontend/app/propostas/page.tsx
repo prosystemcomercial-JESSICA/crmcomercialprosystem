@@ -7,6 +7,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 export default function PropostasRedirect() {
   const router = useRouter();
@@ -15,10 +16,10 @@ export default function PropostasRedirect() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: '#F4F7FB' }}>
+    <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-content-bg)' }}>
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#4B8EC8', borderTopColor: 'transparent' }} />
-        <p className="text-sm" style={{ color: '#7AAACB' }}>Abrindo o Gerador de Proposta…</p>
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--t-primary)' }} />
+        <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>Abrindo o Gerador de Proposta…</p>
       </div>
     </div>
   );

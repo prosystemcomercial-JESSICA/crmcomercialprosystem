@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { StatusBadge, type BadgeColor } from '@/components/ui/StatusBadge';
 import { apiClient } from '@/lib/api-client';
 
 interface Parceiro {
@@ -54,28 +55,28 @@ const CATEGORIA_LABEL: Record<string, string> = {
   OUTRO:       'Outro',
 };
 
-const CATEGORIA_COLOR: Record<string, string> = {
-  FISCAL:      'bg-blue-100 text-blue-700',
-  TEF:         'bg-purple-100 text-purple-700',
-  TRIBUTARIO:  'bg-amber-100 text-amber-700',
-  COMUNICACAO: 'bg-teal-100 text-teal-700',
-  UPGRADE:     'bg-green-100 text-green-700',
-  TROCA_CNPJ:  'bg-violet-100 text-violet-700',
-  OUTRO:       'bg-gray-100 text-gray-600',
+const CATEGORIA_COLOR: Record<string, BadgeColor> = {
+  FISCAL:      'blue',
+  TEF:         'purple',
+  TRIBUTARIO:  'yellow',
+  COMUNICACAO: 'cyan',
+  UPGRADE:     'green',
+  TROCA_CNPJ:  'indigo',
+  OUTRO:       'gray',
 };
 
 // Status flow: PENDENTE → CONFIRMADA → PAGA | CANCELADO
-const STATUS_COLOR: Record<string, string> = {
-  PENDENTE:    'bg-yellow-100 text-yellow-700',
-  CONFIRMADA:  'bg-blue-100 text-blue-700',
-  PAGA:        'bg-green-100 text-green-700',
-  CANCELADO:   'bg-red-100 text-red-700',
+const STATUS_COLOR: Record<string, BadgeColor> = {
+  PENDENTE:    'yellow',
+  CONFIRMADA:  'blue',
+  PAGA:        'green',
+  CANCELADO:   'red',
 };
 
 const STATUS_LABEL: Record<string, string> = {
   PENDENTE:    'Pendente',
-  CONFIRMADA:  'Confirmada — A Pagar',
-  PAGA:        'Comissão Paga',
+  CONFIRMADA:  'A Pagar',
+  PAGA:        'Paga',
   CANCELADO:   'Cancelado',
 };
 
@@ -99,11 +100,7 @@ function prazoFinalizacao(v: VendaAdicional): { dias: number; label: string } | 
 
 const PLANOS = ['MEI', 'Basic', 'Pro', 'Plus'];
 
-const MOCK_VENDEDORES = [
-  { id: 'jessica', nome: 'Jessica (CEO)' },
-  { id: 'vendedor1', nome: 'Vendedor 1' },
-  { id: 'vendedor2', nome: 'Vendedor 2' },
-];
+// Vendedores carregados dinamicamente do backend (ver useEffect abaixo)
 
 export default function IndicacoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -143,15 +140,15 @@ export default function IndicacoesPage() {
   // Abre a Troca de CNPJ garantindo a lista de vendedores carregada no dropdown.
   const abrirTroca = async () => {
     if (usuarios.length === 0) {
-      try { const r = await apiClient.getVendedores(); setUsuarios((r.data?.data?.length ? r.data.data : MOCK_VENDEDORES)); }
-      catch { setUsuarios(MOCK_VENDEDORES); }
+      try { const r = await apiClient.getVendedores(); setUsuarios(r.data?.data || []); }
+      catch { setUsuarios([]); }
     }
     setShowTroca(true);
   };
 
   const salvarTroca = async () => {
-    if (!trocaCli) return alert('Selecione o cliente.');
-    if (!trocaForm.cnpj_novo.trim()) return alert('Informe o novo CNPJ.');
+    if (!trocaCli) return console.warn('Selecione o cliente.');
+    if (!trocaForm.cnpj_novo.trim()) return console.warn('Informe o novo CNPJ.');
     setTrocaSalvando(true);
     try {
       const resp = await apiClient.trocaCnpj({
@@ -177,7 +174,7 @@ export default function IndicacoesPage() {
       loadVendas();
       setAbaResumoTroca('financeiro');
       setTrocaResumo({ texto: resumo, numero, textoTecnico, tecnico });
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao processar a troca.'); }
+    } catch (e: any) { console.error('Erro ao processar a troca.', e); }
     finally { setTrocaSalvando(false); }
   };
 
@@ -267,8 +264,8 @@ export default function IndicacoesPage() {
         apiClient.getVendedores().catch(() => ({ data: { data: [] } })),
       ]);
       const vendList = vends.data.data || [];
-      setUsuarios(vendList.length ? vendList : MOCK_VENDEDORES);
-    } catch { setClientes([]); setUsuarios(MOCK_VENDEDORES); }
+      setUsuarios(vendList.length ? vendList : []);
+    } catch { setClientes([]); setUsuarios([]); }
     setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', acrescimo_mensal: '', plano_anterior: '', plano_novo: '', observacoes: '', setup_forma: 'PARCELADO', setup_entrada: '', setup_parcelas: 1, setup_primeiro_venc: '',
       // comunicação multi-loja + datas
       lojas_ids: [], setup_loja_id: '', data_venda: '', data_inicio_comunicacao: '', primeiro_vencimento: '', data_indicacao: '', data_fechamento: '' });
@@ -369,9 +366,9 @@ export default function IndicacoesPage() {
       const res = await apiClient.resumoFinanceiroVenda(id);
       const texto = res.data?.data?.texto || '';
       await navigator.clipboard.writeText(texto);
-      alert('Resumo copiado! É só colar para o financeiro.\n\n' + texto);
+      // resumo copiado para área de transferência
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Não foi possível gerar o resumo.');
+      console.error('Não foi possível gerar o resumo.', e);
     }
   };
 
@@ -389,7 +386,7 @@ export default function IndicacoesPage() {
         numero: numeroContrato,
       });
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Não foi possível carregar o resumo.');
+      console.error('Não foi possível carregar o resumo.', e);
     }
   };
 
@@ -486,7 +483,7 @@ export default function IndicacoesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Vendas Adicionais</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Vendas Adicionais</h1>
             <p className="text-gray-500 mt-1">Cross-sell para clientes da base — parceiros e comissões do vendedor</p>
           </div>
           {/* Vendedor também registra a própria venda; gestão confirma/data/libera. */}
@@ -510,31 +507,31 @@ export default function IndicacoesPage() {
         {/* Stats */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
-              <p className="text-xs text-gray-500 uppercase font-semibold">Total</p>
-              <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
+            <div className="ps-card rounded-xl p-4 border border-gray-200">
+              <p className="text-xs  uppercase font-semibold">Total</p>
+              <p className="text-3xl font-bold  mt-1">{stats.total}</p>
             </div>
             <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <p className="text-xs text-gray-500 uppercase font-semibold">Pendentes</p>
+              <p className="text-xs  uppercase font-semibold">Pendentes</p>
               <p className="text-3xl font-bold text-yellow-700 mt-1">{stats.pendentes}</p>
             </div>
             <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-              <p className="text-xs text-gray-500 uppercase font-semibold">Confirmadas</p>
+              <p className="text-xs  uppercase font-semibold">Confirmadas</p>
               <p className="text-3xl font-bold text-blue-700 mt-1">{stats.confirmadas}</p>
             </div>
             <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-              <p className="text-xs text-gray-500 uppercase font-semibold">Pagas</p>
+              <p className="text-xs  uppercase font-semibold">Pagas</p>
               <p className="text-3xl font-bold text-green-700 mt-1">{stats.pagas}</p>
             </div>
             <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
-              <p className="text-xs text-gray-500 uppercase font-semibold">Comissões Vendedor</p>
+              <p className="text-xs  uppercase font-semibold">Comissões Vendedor</p>
               <p className="text-xl font-bold text-orange-700 mt-1">R$ {(stats.comissoes_a_pagar || 0).toLocaleString('pt-BR')}</p>
-              <p className="text-xs text-gray-400 mt-0.5">a pagar</p>
+              <p className="text-xs  mt-0.5">a pagar</p>
             </div>
             <div className="bg-teal-50 rounded-xl p-4 border border-teal-200">
-              <p className="text-xs text-gray-500 uppercase font-semibold">Comissões Supervisão</p>
+              <p className="text-xs  uppercase font-semibold">Comissões Supervisão</p>
               <p className="text-xl font-bold text-teal-700 mt-1">R$ {(stats.supervisao_a_pagar || 0).toLocaleString('pt-BR')}</p>
-              <p className="text-xs text-gray-400 mt-0.5">a pagar</p>
+              <p className="text-xs  mt-0.5">a pagar</p>
             </div>
           </div>
         )}
@@ -547,7 +544,7 @@ export default function IndicacoesPage() {
             ['parceiros', 'Parceiros & Produtos'],
           ] as const).map(([key, label]) => (
             <button key={key} onClick={() => { setTab(key); if (key === 'negociacao') loadNegociacoes(); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === key ? (key === 'negociacao' ? 'border-amber-500 text-amber-600' : 'border-blue-600 text-blue-600') : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === key ? (key === 'negociacao' ? 'border-amber-500 text-amber-600' : 'border-blue-600 text-blue-600') : 'border-transparent  hover:text-gray-700'}`}>
               {label}
             </button>
           ))}
@@ -568,7 +565,7 @@ export default function IndicacoesPage() {
                 if (qtdNovas === 0) return null;
                 return (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Atenção</p>
+                    <p className="text-[11px] font-semibold uppercase  mb-1">Atenção</p>
                     <button onClick={() => setApenasNovas(v => !v)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${apenasNovas ? 'bg-emerald-600 text-white' : 'bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100'}`}>
                       🆕 Novas ({qtdNovas})
@@ -580,11 +577,11 @@ export default function IndicacoesPage() {
 
               {/* Status */}
               <div>
-                <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Status</p>
+                <p className="text-[11px] font-semibold uppercase  mb-1">Status</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(['', 'PENDENTE', 'CONFIRMADA', 'PAGA', 'CANCELADO'] as const).map(s => (
                     <button key={s} onClick={() => { setStatusFilter(s); setApenasNovas(false); }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s && !apenasNovas ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s && !apenasNovas ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200  hover:bg-opacity-0'}`}>
                       {s === '' ? 'Todas' : STATUS_LABEL[s]}
                     </button>
                   ))}
@@ -593,14 +590,14 @@ export default function IndicacoesPage() {
 
               {/* Categoria */}
               <div>
-                <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Categoria</p>
+                <p className="text-[11px] font-semibold uppercase  mb-1">Categoria</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(['', ...Object.keys(CATEGORIA_LABEL)] as const).map(cat => {
                     const qtd = cat === '' ? vendas.length : vendas.filter(v => v.parceiro?.categoria === cat).length;
                     if (qtd === 0 && cat !== '') return null;
                     return (
                       <button key={cat} onClick={() => setCategoriaFilter(cat)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${categoriaFilter === cat ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${categoriaFilter === cat ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200  hover:bg-opacity-0'}`}>
                         {cat === '' ? 'Todas' : `${CATEGORIA_LABEL[cat]} (${qtd})`}
                       </button>
                     );
@@ -616,9 +613,9 @@ export default function IndicacoesPage() {
                 if (vendedoresUnicos.length < 2) return null;
                 return (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase text-gray-400 mb-1">Vendedor</p>
+                    <p className="text-[11px] font-semibold uppercase  mb-1">Vendedor</p>
                     <select value={vendedorFilter} onChange={e => setVendedorFilter(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200  ps-card focus:outline-none focus:ring-1 focus:ring-indigo-400">
                       <option value="">Todos</option>
                       {vendedoresUnicos.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
                     </select>
@@ -650,61 +647,59 @@ export default function IndicacoesPage() {
                 );
               });
               return (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
               {dataLoading ? (
-                <div className="p-8 text-center text-gray-500">Carregando...</div>
+                <div className="p-8 text-center ">Carregando...</div>
               ) : listaFiltrada.length === 0 ? (
                 <div className="p-12 text-center">
                   <div className="text-4xl mb-3">💰</div>
                   <p className="text-gray-500 font-medium">{vendas.length === 0 ? 'Nenhuma venda adicional registrada' : 'Nenhuma venda com esses filtros'}</p>
-                  <p className="text-sm text-gray-400 mt-1">{vendas.length === 0 ? 'Registre vendas de Pacote Fiscal, TEF, Avant/Imendes, Upgrade e mais' : `${vendas.length} venda(s) no total — ajuste os filtros acima`}</p>
+                  <p className="text-sm  mt-1">{vendas.length === 0 ? 'Registre vendas de Pacote Fiscal, TEF, Avant/Imendes, Upgrade e mais' : `${vendas.length} venda(s) no total — ajuste os filtros acima`}</p>
                 </div>
               ) : (
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-opacity-0 border-b border-gray-200">
                     <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cliente</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Produto / Parceiro</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendedor</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Comissão</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Prazo</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Cliente</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Produto / Parceiro</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Vendedor</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Comissão</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Status</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Prazo</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {listaFiltrada.map(v => (
-                      <tr key={v.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={v.id} className="hover:opacity-80 transition-colors">
                         <td className="px-5 py-4">
-                          <p className="font-medium text-gray-900">{v.cliente.nome}</p>
-                          {v.cliente.empresa && <p className="text-xs text-gray-400">{v.cliente.empresa}</p>}
+                          <p className="font-medium text-sm font-semibold">{v.cliente.nome}</p>
+                          {v.cliente.empresa && <p className="text-xs ">{v.cliente.empresa}</p>}
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2 flex-wrap">
                             {v.parceiro ? (
                               <>
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORIA_COLOR[v.parceiro.categoria] || 'bg-gray-100 text-gray-600'}`}>
-                                  {CATEGORIA_LABEL[v.parceiro.categoria] || v.parceiro.categoria}
-                                </span>
-                                <span className="text-sm text-gray-700">{v.parceiro.nome}</span>
+                                <StatusBadge
+                                  label={CATEGORIA_LABEL[v.parceiro.categoria] || v.parceiro.categoria}
+                                  color={CATEGORIA_COLOR[v.parceiro.categoria] || 'gray'}
+                                  size="sm"
+                                />
+                                <span className="text-sm" style={{ color: 'var(--t-text-primary)' }}>{v.parceiro.nome}</span>
                               </>
                             ) : (
-                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                                Expansão Interna
-                              </span>
+                              <StatusBadge label="Expansão Interna" color="blue" size="sm" />
                             )}
                             {(v as any).tipo_negocio && (
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                                style={{
-                                  background: (v as any).tipo_negocio === 'REVENDA' ? '#dcfce7' : (v as any).tipo_negocio === 'EXPANSAO' ? '#eff6ff' : '#fef3c7',
-                                  color: (v as any).tipo_negocio === 'REVENDA' ? '#16a34a' : (v as any).tipo_negocio === 'EXPANSAO' ? '#1d4ed8' : '#d97706'
-                                }}>
-                                {(v as any).tipo_negocio === 'REVENDA' ? 'Revenda' : (v as any).tipo_negocio === 'EXPANSAO' ? 'Expansão' : 'Indicação'}
-                              </span>
+                              <StatusBadge
+                                size="sm"
+                                label={(v as any).tipo_negocio === 'REVENDA' ? 'Revenda' : (v as any).tipo_negocio === 'EXPANSAO' ? 'Expansão' : 'Indicação'}
+                                color={(v as any).tipo_negocio === 'REVENDA' ? 'green' : (v as any).tipo_negocio === 'EXPANSAO' ? 'blue' : 'yellow'}
+                              />
                             )}
                           </div>
                           {v.plano_anterior && v.plano_novo && (
-                            <p className="text-xs text-gray-400 mt-0.5">{v.plano_anterior} → {v.plano_novo}</p>
+                            <p className="text-xs  mt-0.5">{v.plano_anterior} → {v.plano_novo}</p>
                           )}
                           {(v.mensalidade_anterior != null || v.mensalidade_nova != null) && (
                             <p className="text-xs mt-0.5">
@@ -715,11 +710,11 @@ export default function IndicacoesPage() {
                             </p>
                           )}
                           {v.valor_venda && (
-                            <p className="text-xs text-gray-400 mt-0.5">R$ {v.valor_venda.toLocaleString('pt-BR')}/mês</p>
+                            <p className="text-xs  mt-0.5">R$ {v.valor_venda.toLocaleString('pt-BR')}/mês</p>
                           )}
                           {/* Datas do ciclo (indicação / confirmação / 1º venc.) */}
                           {(v.data_indicacao || v.data_confirmacao || v.data_fechamento || v.primeiro_vencimento) && (
-                            <p className="text-[11px] text-gray-500 mt-1 flex flex-wrap gap-x-3">
+                            <p className="text-[11px]  mt-1 flex flex-wrap gap-x-3">
                               {v.data_indicacao && <span>📅 Indicado: <b>{new Date(v.data_indicacao).toLocaleDateString('pt-BR')}</b></span>}
                               {v.data_fechamento && <span>🤝 Fechado: <b>{new Date(v.data_fechamento).toLocaleDateString('pt-BR')}</b></span>}
                               {v.data_confirmacao && <span>✅ Confirmado: <b>{new Date(v.data_confirmacao).toLocaleDateString('pt-BR')}</b></span>}
@@ -728,26 +723,28 @@ export default function IndicacoesPage() {
                           )}
                         </td>
                         <td className="px-5 py-4">
-                          <p className="text-sm text-gray-700">
+                          <p className="text-sm ">
                             {(v as any).vendedor_nome || usuarios.find((u: any) => u.id === v.vendedor_id)?.nome || v.vendedor_id}
                           </p>
                         </td>
                         <td className="px-5 py-4">
                           <div>
-                            <p className="text-xs text-gray-400 mb-0.5">Vendedor</p>
-                            <p className="text-sm font-semibold text-gray-800">R$ {v.comissao_valor.toLocaleString('pt-BR')}</p>
+                            <p className="text-xs  mb-0.5">Vendedor</p>
+                            <p className="text-sm font-semibold ">R$ {v.comissao_valor.toLocaleString('pt-BR')}</p>
                           </div>
                           {(v as any).comissao_supervisao_valor > 0 && (
                             <div className="mt-1">
-                              <p className="text-xs text-gray-400 mb-0.5">Supervisão</p>
+                              <p className="text-xs  mb-0.5">Supervisão</p>
                               <p className="text-sm font-medium text-teal-700">R$ {(v as any).comissao_supervisao_valor.toLocaleString('pt-BR')}</p>
                             </div>
                           )}
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLOR[v.status] || 'bg-gray-100 text-gray-600'}`}>
-                            {STATUS_LABEL[v.status] || v.status}
-                          </span>
+                          <StatusBadge
+                            label={STATUS_LABEL[v.status] || v.status}
+                            color={STATUS_COLOR[v.status] || 'gray'}
+                            dot
+                          />
                         </td>
                         <td className="px-5 py-4">
                           {(() => {
@@ -757,10 +754,10 @@ export default function IndicacoesPage() {
                               if (v.status === 'PENDENTE') {
                                 const ini = new Date(v.data_indicacao || v.created_at);
                                 const dias = isNaN(ini.getTime()) ? null : Math.max(0, Math.round((Date.now() - ini.getTime()) / 86400000));
-                                return dias == null ? <span className="text-xs text-gray-300">—</span>
+                                return dias == null ? <span className="text-xs ">—</span>
                                   : <span className="text-xs text-amber-600" title="Dias em aberto desde o lançamento">⏳ {dias === 0 ? 'hoje' : `${dias}d em aberto`}</span>;
                               }
-                              return <span className="text-xs text-gray-300">—</span>;
+                              return <span className="text-xs ">—</span>;
                             }
                             return (
                               <span className="text-xs font-medium text-green-700" title="Tempo entre o lançamento e a confirmação da venda">
@@ -823,18 +820,18 @@ export default function IndicacoesPage() {
             </div>
 
             {negociacaoLoading ? (
-              <div className="text-center py-8 text-gray-400">Carregando…</div>
+              <div className="text-center py-8 ">Carregando…</div>
             ) : negociacoes.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
                 <div className="text-4xl mb-3">🤝</div>
                 <p className="text-gray-500 font-medium">Nenhuma oportunidade em negociação</p>
-                <p className="text-sm text-gray-400 mt-1">Quando um vendedor identificar uma oportunidade nos Ativos, ela aparece aqui para confirmar o fechamento.</p>
+                <p className="text-sm  mt-1">Quando um vendedor identificar uma oportunidade nos Ativos, ela aparece aqui para confirmar o fechamento.</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr className="text-left text-xs text-gray-500">
+                  <thead className="bg-opacity-0 border-b border-gray-200">
+                    <tr className="text-left text-xs ">
                       <th className="py-2.5 px-4">Cliente</th>
                       <th className="px-4">Produto / Oferta</th>
                       <th className="px-4">Categoria</th>
@@ -847,23 +844,25 @@ export default function IndicacoesPage() {
                   </thead>
                   <tbody>
                     {negociacoes.map((o: any) => (
-                      <tr key={o.id} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2.5 px-4 font-medium text-gray-800 text-sm">
+                      <tr key={o.id} className="border-b border-gray-50 hover:opacity-80">
+                        <td className="py-2.5 px-4 font-medium  text-sm">
                           {o.cliente_codigo ? `${o.cliente_codigo} · ` : ''}{o.cliente_nome}
                         </td>
-                        <td className="px-4 text-sm text-gray-700">{o.parceiro_nome}</td>
+                        <td className="px-4 text-sm ">{o.parceiro_nome}</td>
                         <td className="px-4">
-                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${CATEGORIA_COLOR[o.categoria] || 'bg-gray-100 text-gray-600'}`}>
-                            {CATEGORIA_LABEL[o.categoria] || o.categoria}
-                          </span>
+                          <StatusBadge
+                            label={CATEGORIA_LABEL[o.categoria] || o.categoria}
+                            color={CATEGORIA_COLOR[o.categoria] || 'gray'}
+                            size="sm"
+                          />
                         </td>
-                        <td className="px-4 text-sm text-gray-600">{o.vendedor_nome}</td>
-                        <td className="px-4 text-sm text-gray-700">
+                        <td className="px-4 text-sm ">{o.vendedor_nome}</td>
+                        <td className="px-4 text-sm ">
                           {o.valor_venda ? `R$ ${Number(o.valor_venda).toLocaleString('pt-BR')}` : '—'}
                           {o.acrescimo_mensal ? <span className="block text-xs text-blue-600">+R$ {Number(o.acrescimo_mensal).toLocaleString('pt-BR')}/mês</span> : null}
                         </td>
-                        <td className="px-4 text-xs text-gray-500 max-w-[160px]">{o.observacao || '—'}</td>
-                        <td className="px-4 text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td className="px-4 text-xs  max-w-[160px]">{o.observacao || '—'}</td>
+                        <td className="px-4 text-xs ">{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
                         <td className="px-4">
                           <div className="flex gap-1">
                             <button onClick={async () => {
@@ -872,14 +871,14 @@ export default function IndicacoesPage() {
                                 await apiClient.confirmarOportunidade(o.id);
                                 loadNegociacoes();
                                 loadVendas();
-                              } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao confirmar'); }
+                              } catch (e: any) { console.error('Erro ao confirmar', e); }
                             }} className="text-[11px] px-2.5 py-1 rounded-lg bg-green-600 text-white font-semibold whitespace-nowrap">
                               ✓ Confirmar fechamento
                             </button>
                             <button onClick={async () => {
                               if (!window.confirm('Cancelar esta oportunidade?')) return;
                               try { await apiClient.cancelarOportunidade(o.id); loadNegociacoes(); }
-                              catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+                              catch (e: any) { console.error('Erro', e); }
                             }} className="text-[11px] px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 whitespace-nowrap">
                               ✕
                             </button>
@@ -908,29 +907,31 @@ export default function IndicacoesPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {parceiros.map(p => (
-                <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+                <div key={p.id} className="ps-card rounded-xl p-5 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORIA_COLOR[p.categoria] || 'bg-gray-100 text-gray-600'}`}>
-                        {CATEGORIA_LABEL[p.categoria] || p.categoria}
-                      </span>
-                      <h3 className="font-semibold text-gray-900 mt-1.5">{p.nome}</h3>
+                      <StatusBadge
+                        label={CATEGORIA_LABEL[p.categoria] || p.categoria}
+                        color={CATEGORIA_COLOR[p.categoria] || 'gray'}
+                        size="sm"
+                      />
+                      <h3 className="font-semibold mt-1.5" style={{ color: 'var(--t-text-primary)' }}>{p.nome}</h3>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-green-700">R$ {p.comissao_valor.toLocaleString('pt-BR')}</p>
-                      <p className="text-xs text-gray-400">comissão/venda</p>
+                      <p className="text-xs ">comissão/venda</p>
                     </div>
                   </div>
 
                   {p.pitch && (
                     <div className="bg-blue-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Abordagem</p>
-                      <p className="text-sm text-gray-700 italic">"{p.pitch}"</p>
+                      <p className="text-xs  uppercase font-semibold mb-1">Abordagem</p>
+                      <p className="text-sm  italic">"{p.pitch}"</p>
                     </div>
                   )}
 
                   {p.tabela_valores && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs ">
                       <span className="font-medium">Valor para o cliente:</span> {p.tabela_valores}
                     </p>
                   )}
@@ -955,7 +956,7 @@ export default function IndicacoesPage() {
       {/* Modal: Nova Venda */}
       {showVendaModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="ps-card rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Registrar Venda Adicional</h2>
               <button onClick={() => setShowVendaModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
@@ -963,7 +964,7 @@ export default function IndicacoesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Cliente da base *</label>
+                <label className="text-sm font-medium ">Cliente da base *</label>
                 <div className="flex gap-2 mt-1">
                   <input
                     type="text"
@@ -996,11 +997,11 @@ export default function IndicacoesPage() {
                     );
                   })}
                 </select>
-                <p className="mt-1 text-xs text-gray-400">Digite e clique em Buscar (ou Enter). Busca toda a base por código, razão social, nome fantasia, nome ou CNPJ.</p>
+                <p className="mt-1 text-xs ">Digite e clique em Buscar (ou Enter). Busca toda a base por código, razão social, nome fantasia, nome ou CNPJ.</p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700">Produto / Parceiro *</label>
+                <label className="text-sm font-medium ">Produto / Parceiro *</label>
                 <select value={vendaForm.parceiro_id} onChange={e => setVendaForm((p: any) => ({ ...p, parceiro_id: e.target.value, plano_anterior: '', plano_novo: '' }))}
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Selecione...</option>
@@ -1017,7 +1018,7 @@ export default function IndicacoesPage() {
                   <p className="mt-1.5 text-xs text-blue-600 bg-blue-50 rounded p-2 italic">"{parceiroSelecionado.pitch}"</p>
                 )}
                 {parceiroSelecionado && (
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs ">
                     Comissão: <span className="font-semibold text-green-700">R$ {parceiroSelecionado.comissao_valor.toLocaleString('pt-BR')}</span>
                     {parceiroSelecionado.tabela_valores && ` · ${parceiroSelecionado.tabela_valores}`}
                   </p>
@@ -1052,13 +1053,13 @@ export default function IndicacoesPage() {
                     value={lojaBusca}
                     onChange={e => setLojaBusca(e.target.value)}
                     placeholder="🔍 Pesquisar loja por código, razão social, fantasia ou CNPJ…"
-                    className="w-full px-3 py-2 border border-teal-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    className="w-full px-3 py-2 border border-teal-200 rounded-lg text-sm ps-card focus:outline-none focus:ring-2 focus:ring-teal-400"
                     autoComplete="off"
                   />
                   {lojaBusca.trim().length >= 2 && (
-                    <div className="max-h-40 overflow-auto rounded border border-teal-200 bg-white divide-y">
-                      {lojaLoading && <p className="text-xs text-gray-400 p-2">Buscando…</p>}
-                      {!lojaLoading && lojaResultados.length === 0 && <p className="text-xs text-gray-400 p-2">Nenhuma loja encontrada.</p>}
+                    <div className="max-h-40 overflow-auto rounded border border-teal-200 ps-card divide-y">
+                      {lojaLoading && <p className="text-xs  p-2">Buscando…</p>}
+                      {!lojaLoading && lojaResultados.length === 0 && <p className="text-xs  p-2">Nenhuma loja encontrada.</p>}
                       {lojaResultados.map((c: any) => {
                         const nome = c.nome_fantasia || c.razao_social || c.nome || 'Sem nome';
                         const marcada = (vendaForm.lojas_ids || []).includes(c.id);
@@ -1075,7 +1076,7 @@ export default function IndicacoesPage() {
                   {/* Lojas selecionadas — cada uma com seu acréscimo individual.
                       Deixe 0 (ou vazio) p/ lojas que já comunicam e estão só sendo associadas. */}
                   {(vendaForm.lojas_ids || []).length > 0 && (
-                    <div className="rounded border border-teal-200 bg-white divide-y">
+                    <div className="rounded border border-teal-200 ps-card divide-y">
                       {(vendaForm.lojas_ids || []).map((lid: string) => {
                         const info = lojasSelMap[lid] || lojaResultados.find((x: any) => x.id === lid) || {};
                         const nome = info.nome || info.nome_fantasia || info.razao_social || lid;
@@ -1084,14 +1085,14 @@ export default function IndicacoesPage() {
                             <button type="button" title="Remover loja"
                               onClick={() => { setVendaForm((p: any) => ({ ...p, lojas_ids: (p.lojas_ids || []).filter((x: string) => x !== lid), setup_loja_id: p.setup_loja_id === lid ? '' : p.setup_loja_id })); setLojasAcrescimo(prev => { const n = { ...prev }; delete n[lid]; return n; }); }}
                               className="text-red-400 hover:text-red-600 font-bold text-sm">×</button>
-                            <span className="flex-1 text-sm text-gray-800 truncate">{info.codigo ? `${info.codigo} · ` : ''}{nome}</span>
+                            <span className="flex-1 text-sm  truncate">{info.codigo ? `${info.codigo} · ` : ''}{nome}</span>
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className="text-[11px] text-gray-500">+ R$</span>
+                              <span className="text-[11px] ">+ R$</span>
                               <input type="number" step="0.01" min="0" value={lojasAcrescimo[lid] || ''}
                                 onChange={e => setLojasAcrescimo(prev => ({ ...prev, [lid]: e.target.value }))}
                                 placeholder="0,00"
                                 className="w-24 px-2 py-1 border border-gray-200 rounded text-sm text-right" />
-                              <span className="text-[11px] text-gray-400">/mês</span>
+                              <span className="text-[11px] ">/mês</span>
                             </div>
                           </div>
                         );
@@ -1104,19 +1105,19 @@ export default function IndicacoesPage() {
                   </div>
 
                   {/* Setup: valor cobrado + de qual loja + forma de pagamento */}
-                  <div className="rounded border border-teal-200 bg-white p-2 space-y-2">
+                  <div className="rounded border border-teal-200 ps-card p-2 space-y-2">
                     <p className="text-xs font-semibold text-teal-800">Setup (cobrado de UMA loja)</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Valor do setup (R$)</label>
+                        <label className="text-xs font-medium ">Valor do setup (R$)</label>
                         <input type="number" step="0.01" min="0" value={vendaForm.valor_venda || ''}
                           onChange={e => setVendaForm((p: any) => ({ ...p, valor_venda: e.target.value }))}
-                          placeholder="Ex: 650,00" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                          placeholder="Ex: 650,00" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Cobrado da loja</label>
+                        <label className="text-xs font-medium ">Cobrado da loja</label>
                         <select value={vendaForm.setup_loja_id || ''} onChange={e => setVendaForm((p: any) => ({ ...p, setup_loja_id: e.target.value }))}
-                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card">
                           <option value="">Selecione a loja…</option>
                           {(vendaForm.lojas_ids || []).map((lid: string) => {
                             const info = lojasSelMap[lid] || {};
@@ -1129,7 +1130,7 @@ export default function IndicacoesPage() {
                     <div className="flex gap-2">
                       {[['PARCELADO', 'Parcelamento direto'], ['ENTRADA_PARCELAS', 'Entrada + parcelamento']].map(([v, label]) => (
                         <button key={v} type="button" onClick={() => setVendaForm((p: any) => ({ ...p, setup_forma: v }))}
-                          className={`flex-1 px-2 py-1.5 rounded-lg text-xs border ${vendaForm.setup_forma === v ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                          className={`flex-1 px-2 py-1.5 rounded-lg text-xs border ${vendaForm.setup_forma === v ? 'bg-teal-600 text-white border-teal-600' : 'bg-white  border-gray-200'}`}>
                           {label}
                         </button>
                       ))}
@@ -1137,17 +1138,17 @@ export default function IndicacoesPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {vendaForm.setup_forma === 'ENTRADA_PARCELAS' && (
                         <div>
-                          <label className="text-xs font-medium text-gray-600">Entrada (R$)</label>
+                          <label className="text-xs font-medium ">Entrada (R$)</label>
                           <input type="number" step="0.01" min="0" value={vendaForm.setup_entrada || ''}
                             onChange={e => setVendaForm((p: any) => ({ ...p, setup_entrada: e.target.value }))}
-                            placeholder="0,00" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                            placeholder="0,00" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card" />
                         </div>
                       )}
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Nº de parcelas</label>
+                        <label className="text-xs font-medium ">Nº de parcelas</label>
                         <input type="number" min="1" max="24" value={vendaForm.setup_parcelas || 1}
                           onChange={e => setVendaForm((p: any) => ({ ...p, setup_parcelas: e.target.value }))}
-                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card" />
                       </div>
                     </div>
                     {Number(vendaForm.valor_venda || 0) > 0 && (
@@ -1166,19 +1167,19 @@ export default function IndicacoesPage() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs font-medium text-gray-600">Data inicial da venda</label>
+                      <label className="text-xs font-medium ">Data inicial da venda</label>
                       <input type="date" value={vendaForm.data_venda || ''} onChange={e => setVendaForm((p: any) => ({ ...p, data_venda: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600">Início da comunicação</label>
+                      <label className="text-xs font-medium ">Início da comunicação</label>
                       <input type="date" value={vendaForm.data_inicio_comunicacao || ''} onChange={e => setVendaForm((p: any) => ({ ...p, data_inicio_comunicacao: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card" />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-xs font-medium text-gray-600">Primeiro vencimento</label>
+                      <label className="text-xs font-medium ">Primeiro vencimento</label>
                       <input type="date" value={vendaForm.primeiro_vencimento || ''} onChange={e => setVendaForm((p: any) => ({ ...p, primeiro_vencimento: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card" />
                       <p className="text-[11px] text-teal-700 mt-1">A comissão do vendedor entra no <b>mês seguinte</b> a este vencimento.</p>
                     </div>
                   </div>
@@ -1187,7 +1188,7 @@ export default function IndicacoesPage() {
 
               {/* Tipo do negócio: Indicação (R$50) ou Revenda (valor do parceiro) */}
               <div>
-                <label className="text-sm font-medium text-gray-700">Tipo do negócio *</label>
+                <label className="text-sm font-medium ">Tipo do negócio *</label>
                 <div className="flex gap-2 mt-1">
                   {[['INDICACAO', 'Indicação', 'Comissão R$ 50'], ['REVENDA', 'Revenda', 'Comissão do parceiro']].map(([val, label, hint]) => {
                     const ativo = (vendaForm.tipo_negocio || 'INDICACAO') === val;
@@ -1196,12 +1197,12 @@ export default function IndicacoesPage() {
                         className="flex-1 px-3 py-2 rounded-lg border text-sm text-left transition-colors"
                         style={{ borderColor: ativo ? '#2563eb' : '#e5e7eb', background: ativo ? '#eff6ff' : '#fff' }}>
                         <div className="font-semibold" style={{ color: ativo ? '#2563eb' : '#374151' }}>{label}</div>
-                        <div className="text-[10px] text-gray-500">{hint}</div>
+                        <div className="text-[10px] ">{hint}</div>
                       </button>
                     );
                   })}
                 </div>
-                <p className="mt-1 text-[11px] text-gray-500">
+                <p className="mt-1 text-[11px] ">
                   Indicação fica <b>pendente</b> até o retorno do parceiro — depois você confirma a venda.
                 </p>
               </div>
@@ -1209,7 +1210,7 @@ export default function IndicacoesPage() {
               {/* Acréscimo na mensalidade — oculto na Comunicação (cada loja tem o seu) */}
               {!ehComunicacao && (
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium ">
                   Acréscimo na mensalidade (R$/mês)
                   {parceiroSelecionado?.categoria === 'FISCAL' && <span className="text-amber-600"> *</span>}
                 </label>
@@ -1217,7 +1218,7 @@ export default function IndicacoesPage() {
                   onChange={e => setVendaForm((p: any) => ({ ...p, acrescimo_mensal: e.target.value }))}
                   placeholder="Ex: 80,00"
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <p className="mt-1 text-[11px] text-gray-500">
+                <p className="mt-1 text-[11px] ">
                   Valor negociado a mais por mês com o cliente. Soma na <b>mensalidade total</b> da ficha do cliente quando a venda for confirmada.
                 </p>
               </div>
@@ -1228,19 +1229,19 @@ export default function IndicacoesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {!ehComunicacao && (
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Data da indicação</label>
+                    <label className="text-sm font-medium ">Data da indicação</label>
                     <input type="date" value={vendaForm.data_indicacao || ''} onChange={e => setVendaForm((p: any) => ({ ...p, data_indicacao: e.target.value }))}
                       className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 )}
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Data de fechamento</label>
+                  <label className="text-sm font-medium ">Data de fechamento</label>
                   <input type="date" value={vendaForm.data_fechamento || ''} onChange={e => setVendaForm((p: any) => ({ ...p, data_fechamento: e.target.value }))}
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
               {!ehComunicacao && (
-                <p className="text-[11px] text-gray-500">Ao confirmar, você informa a data da confirmação e a comissão entra no <b>mês seguinte</b>.</p>
+                <p className="text-[11px] ">Ao confirmar, você informa a data da confirmação e a comissão entra no <b>mês seguinte</b>.</p>
               )}
 
               {/* Mensalidade atual → nova (atual + acréscimo) */}
@@ -1249,15 +1250,15 @@ export default function IndicacoesPage() {
                   <p className="text-xs font-semibold text-blue-700 mb-2">💳 Impacto na mensalidade do cliente</p>
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-center flex-1">
-                      <p className="text-[11px] text-gray-500">Plano atual</p>
-                      <p className="text-base font-bold text-gray-700">{fmtReal(mensalidadeAtual)}</p>
-                      <p className="text-[10px] text-gray-400">{clienteSelecionado?.plano || '—'}/mês</p>
+                      <p className="text-[11px] ">Plano atual</p>
+                      <p className="text-base font-bold ">{fmtReal(mensalidadeAtual)}</p>
+                      <p className="text-[10px] ">{clienteSelecionado?.plano || '—'}/mês</p>
                     </div>
                     <span className="text-gray-400 text-lg">→</span>
                     <div className="text-center flex-1">
-                      <p className="text-[11px] text-gray-500">Novo plano</p>
+                      <p className="text-[11px] ">Novo plano</p>
                       <p className="text-base font-extrabold text-green-700">{fmtReal(mensalidadeNova)}</p>
-                      <p className="text-[10px] text-gray-400">
+                      <p className="text-[10px] ">
                         {acrescimo > 0 ? `+ ${fmtReal(acrescimo)}/mês` : 'sem acréscimo'}
                       </p>
                     </div>
@@ -1269,7 +1270,7 @@ export default function IndicacoesPage() {
               )}
 
               <div>
-                <label className="text-sm font-medium text-gray-700">Vendedor *</label>
+                <label className="text-sm font-medium ">Vendedor *</label>
                 {isGestor ? (
                   // Supervisão/CEO: pode indicar qual vendedor fez a venda.
                   <select value={vendaForm.vendedor_id} onChange={e => setVendaForm((p: any) => ({ ...p, vendedor_id: e.target.value }))}
@@ -1284,7 +1285,7 @@ export default function IndicacoesPage() {
                   <input
                     value={(user as any)?.nome || 'Você'}
                     disabled
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-600"
+                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-opacity-0 "
                   />
                 )}
               </div>
@@ -1292,7 +1293,7 @@ export default function IndicacoesPage() {
               {parceiroSelecionado?.categoria === 'UPGRADE' ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Plano atual</label>
+                    <label className="text-sm font-medium ">Plano atual</label>
                     <select value={vendaForm.plano_anterior} onChange={e => setVendaForm((p: any) => ({ ...p, plano_anterior: e.target.value }))}
                       className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Selecione...</option>
@@ -1300,7 +1301,7 @@ export default function IndicacoesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Novo plano</label>
+                    <label className="text-sm font-medium ">Novo plano</label>
                     <select value={vendaForm.plano_novo} onChange={e => setVendaForm((p: any) => ({ ...p, plano_novo: e.target.value }))}
                       className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Selecione...</option>
@@ -1309,18 +1310,18 @@ export default function IndicacoesPage() {
                   </div>
                   {/* Setup do upgrade (valor único cobrado pela mudança de plano) */}
                   <div className="col-span-2">
-                    <label className="text-sm font-medium text-gray-700">Valor do setup do upgrade (R$)</label>
+                    <label className="text-sm font-medium ">Valor do setup do upgrade (R$)</label>
                     <input type="number" step="0.01" min="0" value={vendaForm.valor_venda}
                       onChange={e => setVendaForm((p: any) => ({ ...p, valor_venda: e.target.value }))}
                       placeholder="Ex: 200,00"
                       className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <p className="mt-1 text-[11px] text-gray-500">Valor único cobrado pelo upgrade. O acréscimo na mensalidade é informado no campo acima.</p>
+                    <p className="mt-1 text-[11px] ">Valor único cobrado pelo upgrade. O acréscimo na mensalidade é informado no campo acima.</p>
                   </div>
 
                   {/* Forma de pagamento do setup */}
                   {setupTotal > 0 && (
-                    <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
-                      <p className="text-xs font-semibold text-gray-600">Forma de pagamento do setup</p>
+                    <div className="col-span-2 rounded-xl border border-gray-200 bg-opacity-0 p-3 space-y-3">
+                      <p className="text-xs font-semibold ">Forma de pagamento do setup</p>
                       <div className="flex gap-2">
                         {[
                           { v: 'PARCELADO', l: 'Parcelado direto' },
@@ -1329,7 +1330,7 @@ export default function IndicacoesPage() {
                           <button key={o.v} type="button"
                             onClick={() => setVendaForm((p: any) => ({ ...p, setup_forma: o.v }))}
                             className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                              vendaForm.setup_forma === o.v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
+                              vendaForm.setup_forma === o.v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white  border-gray-200'
                             }`}>
                             {o.l}
                           </button>
@@ -1339,7 +1340,7 @@ export default function IndicacoesPage() {
                       <div className="grid grid-cols-2 gap-3">
                         {vendaForm.setup_forma === 'ENTRADA_PARCELAS' && (
                           <div>
-                            <label className="text-[11px] font-medium text-gray-600">Entrada (R$)</label>
+                            <label className="text-[11px] font-medium ">Entrada (R$)</label>
                             <input type="number" step="0.01" min="0" value={vendaForm.setup_entrada || ''}
                               onChange={e => setVendaForm((p: any) => ({ ...p, setup_entrada: e.target.value }))}
                               placeholder="0,00"
@@ -1347,15 +1348,15 @@ export default function IndicacoesPage() {
                           </div>
                         )}
                         <div>
-                          <label className="text-[11px] font-medium text-gray-600">Parcelas do saldo</label>
+                          <label className="text-[11px] font-medium ">Parcelas do saldo</label>
                           <select value={vendaForm.setup_parcelas || 1}
                             onChange={e => setVendaForm((p: any) => ({ ...p, setup_parcelas: Number(e.target.value) }))}
-                            className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm ps-card focus:outline-none focus:ring-2 focus:ring-blue-500">
                             {[1, 2, 3, 4, 5, 6, 10, 12].map(n => <option key={n} value={n}>{n}x</option>)}
                           </select>
                         </div>
                         <div className={vendaForm.setup_forma === 'ENTRADA_PARCELAS' ? '' : 'col-span-1'}>
-                          <label className="text-[11px] font-medium text-gray-600">Vencimento da 1ª parcela</label>
+                          <label className="text-[11px] font-medium ">Vencimento da 1ª parcela</label>
                           <input type="date" value={vendaForm.setup_primeiro_venc || ''}
                             onChange={e => setVendaForm((p: any) => ({ ...p, setup_primeiro_venc: e.target.value }))}
                             className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -1363,7 +1364,7 @@ export default function IndicacoesPage() {
                       </div>
 
                       {/* Resumo do parcelamento */}
-                      <div className="text-[11px] text-gray-600 bg-white rounded-lg border border-gray-100 p-2">
+                      <div className="text-[11px]  ps-card rounded-lg border border-gray-100 p-2">
                         {vendaForm.setup_forma === 'ENTRADA_PARCELAS' && setupEntrada > 0 && (
                           <p>Entrada: <b>{fmtReal(setupEntrada)}</b></p>
                         )}
@@ -1377,7 +1378,7 @@ export default function IndicacoesPage() {
                 </div>
               ) : (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Valor para o cliente (R$/mês)</label>
+                  <label className="text-sm font-medium ">Valor para o cliente (R$/mês)</label>
                   <input type="number" value={vendaForm.valor_venda} onChange={e => setVendaForm((p: any) => ({ ...p, valor_venda: e.target.value }))}
                     placeholder="Opcional"
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -1385,7 +1386,7 @@ export default function IndicacoesPage() {
               )}
 
               <div>
-                <label className="text-sm font-medium text-gray-700">Observações</label>
+                <label className="text-sm font-medium ">Observações</label>
                 <textarea value={vendaForm.observacoes} onChange={e => setVendaForm((p: any) => ({ ...p, observacoes: e.target.value }))}
                   rows={2} placeholder="Detalhes da conversa, próximos passos..."
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
@@ -1394,7 +1395,7 @@ export default function IndicacoesPage() {
 
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowVendaModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm  hover:opacity-80">
                 Cancelar
               </button>
               <button onClick={handleCreateVenda}
@@ -1410,7 +1411,7 @@ export default function IndicacoesPage() {
       {/* Modal: Parceiro */}
       {showParceiroModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <div className="ps-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">{editingParceiro ? 'Editar Parceiro' : 'Novo Parceiro'}</h2>
               <button onClick={() => setShowParceiroModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
@@ -1418,14 +1419,14 @@ export default function IndicacoesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Nome *</label>
+                <label className="text-sm font-medium ">Nome *</label>
                 <input value={parceiroForm.nome} onChange={e => setParceiroForm((p: any) => ({ ...p, nome: e.target.value }))}
                   placeholder="Ex: BM Fiscal, Stone TEF..."
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700">Categoria *</label>
+                <label className="text-sm font-medium ">Categoria *</label>
                 <select value={parceiroForm.categoria} onChange={e => setParceiroForm((p: any) => ({ ...p, categoria: e.target.value }))}
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {Object.entries(CATEGORIA_LABEL).map(([key, label]) => (
@@ -1435,7 +1436,7 @@ export default function IndicacoesPage() {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700">Abordagem de venda</label>
+                <label className="text-sm font-medium ">Abordagem de venda</label>
                 <textarea value={parceiroForm.pitch} onChange={e => setParceiroForm((p: any) => ({ ...p, pitch: e.target.value }))}
                   rows={3} placeholder="Como apresentar para o cliente..."
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
@@ -1443,12 +1444,12 @@ export default function IndicacoesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Comissão do vendedor (R$)</label>
+                  <label className="text-sm font-medium ">Comissão do vendedor (R$)</label>
                   <input type="number" value={parceiroForm.comissao_valor} onChange={e => setParceiroForm((p: any) => ({ ...p, comissao_valor: e.target.value }))}
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Valor para o cliente</label>
+                  <label className="text-sm font-medium ">Valor para o cliente</label>
                   <input value={parceiroForm.tabela_valores} onChange={e => setParceiroForm((p: any) => ({ ...p, tabela_valores: e.target.value }))}
                     placeholder="Ex: R$ 100/mês"
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -1458,7 +1459,7 @@ export default function IndicacoesPage() {
 
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowParceiroModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm  hover:opacity-80">
                 Cancelar
               </button>
               <button onClick={handleSaveParceiro}
@@ -1474,17 +1475,17 @@ export default function IndicacoesPage() {
       {/* ─── Modal: Troca de CNPJ ─── */}
       {showTroca && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 space-y-3 max-h-[92vh] overflow-y-auto">
+          <div className="ps-card rounded-2xl w-full max-w-2xl p-6 space-y-3 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">🔄 Troca de CNPJ</h2>
+              <h2 className="text-lg font-semibold text-sm font-semibold">🔄 Troca de CNPJ</h2>
               <button onClick={() => setShowTroca(false)} className="text-gray-400 text-xl">×</button>
             </div>
-            <p className="text-xs text-gray-500">Mesmo cadastro, mesmo plano e mesma mensalidade. Cobra a taxa do serviço, gera venda + comissão (15%/5%) e um contrato novo com os dados novos. Os dados antigos ficam guardados na ficha.</p>
+            <p className="text-xs ">Mesmo cadastro, mesmo plano e mesma mensalidade. Cobra a taxa do serviço, gera venda + comissão (15%/5%) e um contrato novo com os dados novos. Os dados antigos ficam guardados na ficha.</p>
 
             {/* Buscar cliente */}
             {!trocaCli ? (
               <div>
-                <label className="text-xs font-medium text-gray-600">Cliente (buscar por nome/razão/código/CNPJ)</label>
+                <label className="text-xs font-medium ">Cliente (buscar por nome/razão/código/CNPJ)</label>
                 <input value={trocaBusca} onChange={e => { setTrocaBusca(e.target.value); buscarTroca(e.target.value); }} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Digite para buscar…" />
                 {trocaResultados.length > 0 && (
                   <div className="mt-1 border border-gray-200 rounded-lg divide-y max-h-44 overflow-auto">
@@ -1502,50 +1503,50 @@ export default function IndicacoesPage() {
                   <span><b>{trocaCli.razao_social || trocaCli.nome_fantasia || trocaCli.nome}</b>{trocaCli.codigo ? ` · ${trocaCli.codigo}` : ''}</span>
                   <button className="text-violet-700 text-xs underline" onClick={() => setTrocaCli(null)}>trocar</button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Atual: CNPJ {trocaCli.cnpj || '—'} · Plano {trocaCli.plano || '—'} · Mensalidade R$ {Number(trocaCli.mensalidade_base || 0).toLocaleString('pt-BR')} (mantidos)</p>
+                <p className="text-xs  mt-1">Atual: CNPJ {trocaCli.cnpj || '—'} · Plano {trocaCli.plano || '—'} · Mensalidade R$ {Number(trocaCli.mensalidade_base || 0).toLocaleString('pt-BR')} (mantidos)</p>
               </div>
             )}
 
             {trocaCli && (
               <>
-                <p className="text-xs font-bold text-gray-500 uppercase mt-1">Novos dados</p>
+                <p className="text-xs font-bold  uppercase mt-1">Novos dados</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-xs text-gray-600">Novo CNPJ *</label><input value={trocaForm.cnpj_novo} onChange={e => setTrocaForm({ ...trocaForm, cnpj_novo: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Inscrição estadual</label><input value={trocaForm.inscricao_nova} onChange={e => setTrocaForm({ ...trocaForm, inscricao_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div className="col-span-2"><label className="text-xs text-gray-600">Razão social</label><input value={trocaForm.razao_social_nova} onChange={e => setTrocaForm({ ...trocaForm, razao_social_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div className="col-span-2"><label className="text-xs text-gray-600">Nome fantasia</label><input value={trocaForm.nome_fantasia_nova} onChange={e => setTrocaForm({ ...trocaForm, nome_fantasia_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">CEP</label><input value={trocaForm.cep} onChange={e => setTrocaForm({ ...trocaForm, cep: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Endereço</label><input value={trocaForm.endereco} onChange={e => setTrocaForm({ ...trocaForm, endereco: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Número</label><input value={trocaForm.numero_end} onChange={e => setTrocaForm({ ...trocaForm, numero_end: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Bairro</label><input value={trocaForm.bairro} onChange={e => setTrocaForm({ ...trocaForm, bairro: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Cidade</label><input value={trocaForm.cidade} onChange={e => setTrocaForm({ ...trocaForm, cidade: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Estado (UF)</label><input value={trocaForm.estado} onChange={e => setTrocaForm({ ...trocaForm, estado: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Telefone</label><input value={trocaForm.telefone} onChange={e => setTrocaForm({ ...trocaForm, telefone: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">E-mail</label><input value={trocaForm.email} onChange={e => setTrocaForm({ ...trocaForm, email: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Novo CNPJ *</label><input value={trocaForm.cnpj_novo} onChange={e => setTrocaForm({ ...trocaForm, cnpj_novo: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Inscrição estadual</label><input value={trocaForm.inscricao_nova} onChange={e => setTrocaForm({ ...trocaForm, inscricao_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div className="col-span-2"><label className="text-xs ">Razão social</label><input value={trocaForm.razao_social_nova} onChange={e => setTrocaForm({ ...trocaForm, razao_social_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div className="col-span-2"><label className="text-xs ">Nome fantasia</label><input value={trocaForm.nome_fantasia_nova} onChange={e => setTrocaForm({ ...trocaForm, nome_fantasia_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">CEP</label><input value={trocaForm.cep} onChange={e => setTrocaForm({ ...trocaForm, cep: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Endereço</label><input value={trocaForm.endereco} onChange={e => setTrocaForm({ ...trocaForm, endereco: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Número</label><input value={trocaForm.numero_end} onChange={e => setTrocaForm({ ...trocaForm, numero_end: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Bairro</label><input value={trocaForm.bairro} onChange={e => setTrocaForm({ ...trocaForm, bairro: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Cidade</label><input value={trocaForm.cidade} onChange={e => setTrocaForm({ ...trocaForm, cidade: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Estado (UF)</label><input value={trocaForm.estado} onChange={e => setTrocaForm({ ...trocaForm, estado: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Telefone</label><input value={trocaForm.telefone} onChange={e => setTrocaForm({ ...trocaForm, telefone: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">E-mail</label><input value={trocaForm.email} onChange={e => setTrocaForm({ ...trocaForm, email: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
                 </div>
 
-                <p className="text-xs font-bold text-gray-500 uppercase mt-2">Taxa do serviço + comissão</p>
+                <p className="text-xs font-bold  uppercase mt-2">Taxa do serviço + comissão</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-xs text-gray-600">Taxa (R$) *</label><input type="number" value={trocaForm.taxa} onChange={e => setTrocaForm({ ...trocaForm, taxa: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0" /></div>
-                  <div><label className="text-xs text-gray-600">Vendedor</label>
+                  <div><label className="text-xs ">Taxa (R$) *</label><input type="number" value={trocaForm.taxa} onChange={e => setTrocaForm({ ...trocaForm, taxa: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0" /></div>
+                  <div><label className="text-xs ">Vendedor</label>
                     <select value={trocaForm.vendedor_id} onChange={e => setTrocaForm({ ...trocaForm, vendedor_id: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
                       <option value="">— selecione —</option>
                       {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
                     </select>
                   </div>
-                  <div><label className="text-xs text-gray-600">Entrada (R$)</label><input type="number" value={trocaForm.taxa_entrada} onChange={e => setTrocaForm({ ...trocaForm, taxa_entrada: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">Parcelas</label><input type="number" value={trocaForm.taxa_parcelas} onChange={e => setTrocaForm({ ...trocaForm, taxa_parcelas: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-                  <div><label className="text-xs text-gray-600">1º vencimento</label><input type="date" value={trocaForm.taxa_primeiro_venc} onChange={e => setTrocaForm({ ...trocaForm, taxa_primeiro_venc: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Entrada (R$)</label><input type="number" value={trocaForm.taxa_entrada} onChange={e => setTrocaForm({ ...trocaForm, taxa_entrada: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Parcelas</label><input type="number" value={trocaForm.taxa_parcelas} onChange={e => setTrocaForm({ ...trocaForm, taxa_parcelas: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">1º vencimento</label><input type="date" value={trocaForm.taxa_primeiro_venc} onChange={e => setTrocaForm({ ...trocaForm, taxa_primeiro_venc: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
                 </div>
                 {Number(trocaForm.taxa) > 0 && (
                   <p className="text-[11px] text-green-700">Comissão: Vendedor 15% = R$ {(Number(trocaForm.taxa) * 0.15).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} · Supervisão 5% = R$ {(Number(trocaForm.taxa) * 0.05).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 )}
-                <div><label className="text-xs text-gray-600">Motivo / observação</label><input value={trocaForm.motivo} onChange={e => setTrocaForm({ ...trocaForm, motivo: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                <div><label className="text-xs ">Motivo / observação</label><input value={trocaForm.motivo} onChange={e => setTrocaForm({ ...trocaForm, motivo: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
               </>
             )}
 
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setShowTroca(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={() => setShowTroca(false)} className="px-4 py-2 text-sm ">Cancelar</button>
               <button onClick={salvarTroca} disabled={trocaSalvando || !trocaCli} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg disabled:opacity-50">{trocaSalvando ? 'Processando…' : 'Confirmar troca de CNPJ'}</button>
             </div>
           </div>
@@ -1555,20 +1556,20 @@ export default function IndicacoesPage() {
       {/* ─── Modal: Resumo da Troca de CNPJ (copiar p/ financeiro) ─── */}
       {trocaResumo && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-xl p-6 space-y-3">
+          <div className="ps-card rounded-2xl w-full max-w-xl p-6 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">🔄 Resumo da Troca de CNPJ</h2>
+              <h2 className="text-lg font-semibold text-sm font-semibold">🔄 Resumo da Troca de CNPJ</h2>
               <button onClick={() => setTrocaResumo(null)} className="text-gray-400 text-xl">×</button>
             </div>
             {trocaResumo.numero && (
-              <p className="text-xs text-gray-500">Contrato {trocaResumo.numero} gerado (marcado como serviço, não conta como cliente novo).</p>
+              <p className="text-xs ">Contrato {trocaResumo.numero} gerado (marcado como serviço, não conta como cliente novo).</p>
             )}
 
             {/* Abas: Financeiro / Técnico */}
             <div className="flex gap-1 border-b border-gray-200">
               {([['financeiro', '💰 Para o Financeiro'], ['tecnico', `🔧 Para o Técnico${trocaResumo.tecnico ? ` (${trocaResumo.tecnico})` : ''}`]] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setAbaResumoTroca(key)}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${abaResumoTroca === key ? 'border-violet-600 text-violet-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${abaResumoTroca === key ? 'border-violet-600 text-violet-700' : 'border-transparent  hover:text-gray-700'}`}>
                   {label}
                 </button>
               ))}
@@ -1576,11 +1577,11 @@ export default function IndicacoesPage() {
 
             {abaResumoTroca === 'financeiro' && (
               <>
-                <p className="text-xs text-gray-400">Copie e encaminhe ao financeiro para lançar a cobrança.</p>
-                <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-800 whitespace-pre-wrap font-sans max-h-64 overflow-y-auto">{trocaResumo.texto}</pre>
+                <p className="text-xs ">Copie e encaminhe ao financeiro para lançar a cobrança.</p>
+                <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs  whitespace-pre-wrap font-sans max-h-64 overflow-y-auto">{trocaResumo.texto}</pre>
                 <div className="flex justify-end gap-2">
                   <button onClick={() => router.push('/contratos')} className="px-4 py-2 text-sm font-medium text-violet-700 border border-violet-200 rounded-lg">Abrir Contratos</button>
-                  <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo!.texto); alert('Resumo copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg">📋 Copiar</button>
+                  <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo!.texto); console.warn('Resumo copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg">📋 Copiar</button>
                 </div>
               </>
             )}
@@ -1600,10 +1601,10 @@ export default function IndicacoesPage() {
                     ⚠️ Técnico responsável não definido no cadastro deste cliente.
                   </div>
                 )}
-                <p className="text-xs text-gray-400">Copie e encaminhe ao técnico para atualizar o cadastro no sistema.</p>
-                <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-800 whitespace-pre-wrap font-sans max-h-64 overflow-y-auto">{trocaResumo.textoTecnico}</pre>
+                <p className="text-xs ">Copie e encaminhe ao técnico para atualizar o cadastro no sistema.</p>
+                <pre className="bg-slate-50 border border-gray-200 rounded-lg p-3 text-xs  whitespace-pre-wrap font-sans max-h-64 overflow-y-auto">{trocaResumo.textoTecnico}</pre>
                 <div className="flex justify-end">
-                  <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo!.textoTecnico || ''); alert('Texto do técnico copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg">📋 Copiar texto do técnico</button>
+                  <button onClick={async () => { await navigator.clipboard.writeText(trocaResumo!.textoTecnico || ''); console.warn('Texto do técnico copiado!'); }} className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg">📋 Copiar texto do técnico</button>
                 </div>
               </>
             )}

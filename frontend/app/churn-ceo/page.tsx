@@ -126,7 +126,7 @@ function RadarCard({ item, onClick }: { item: RadarItem; onClick: () => void }) 
             {nomeCliente.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-sm text-gray-900 truncate max-w-[180px]">{nomeCliente}</p>
+            <p className="font-bold text-sm text-sm font-semibold truncate max-w-[180px]">{nomeCliente}</p>
             <span style={{ background: cor.bg, color: cor.text, borderRadius: 5, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>
               {STATUS_LABEL[caso.status] || caso.status}
             </span>
@@ -164,29 +164,29 @@ function RadarCard({ item, onClick }: { item: RadarItem; onClick: () => void }) 
       {/* Breakdown de ações */}
       {!loading && atts.length > 0 && (
         <div className="flex gap-2 mb-2 flex-wrap">
-          {contatos > 0 && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">📞 {contatos} contato{contatos > 1 ? 's' : ''}</span>}
-          {observacoes > 0 && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">📝 {observacoes} obs.</span>}
-          {financeiro > 0 && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">💵 {financeiro} fin.</span>}
+          {contatos > 0 && <span className="text-[10px] font-semibold  bg-opacity-0 rounded-full px-2 py-0.5">📞 {contatos} contato{contatos > 1 ? 's' : ''}</span>}
+          {observacoes > 0 && <span className="text-[10px] font-semibold  bg-opacity-0 rounded-full px-2 py-0.5">📝 {observacoes} obs.</span>}
+          {financeiro > 0 && <span className="text-[10px] font-semibold  bg-opacity-0 rounded-full px-2 py-0.5">💵 {financeiro} fin.</span>}
         </div>
       )}
 
       {/* Última ação */}
       <div className="border-t pt-2" style={{ borderColor: '#F0F4F8' }}>
         {loading ? (
-          <p className="text-[11px] text-gray-400">Carregando ações…</p>
+          <p className="text-[11px] ">Carregando ações…</p>
         ) : ultimaAtt ? (
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Última ação</p>
-            <p className="text-[11px] text-gray-700 leading-snug line-clamp-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider  mb-0.5">Última ação</p>
+            <p className="text-[11px]  leading-snug line-clamp-2">
               {ICON[ultimaAtt.tipo] || '•'} {ultimaAtt.texto}
             </p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
+            <p className="text-[10px]  mt-0.5">
               {ultimaAtt.feito_por_nome ? `${ultimaAtt.feito_por_nome} · ` : ''}
               {new Date(ultimaAtt.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
             </p>
           </div>
         ) : (
-          <p className="text-[11px] text-gray-400 italic">Nenhuma ação registrada ainda.</p>
+          <p className="text-[11px]  italic">Nenhuma ação registrada ainda.</p>
         )}
       </div>
     </button>
@@ -318,9 +318,9 @@ export default function ChurnCEOPage() {
             { l: 'Recuperados', v: encerrados.filter(c => c.status === 'RECUPERADO').length, cor: '#16A34A' },
             { l: 'Perdidos', v: encerrados.filter(c => c.status === 'PERDIDO').length, cor: '#B91C1C' },
           ].map((k, i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 relative overflow-hidden" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
+            <div key={i} className="ps-card rounded-2xl p-4 relative overflow-hidden" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
               <span className="absolute left-0 top-0 bottom-0" style={{ width: 4, background: k.cor }} />
-              <p className="text-[11px] font-medium text-gray-500 pl-1.5">{k.l}</p>
+              <p className="text-[11px] font-medium  pl-1.5">{k.l}</p>
               <p className="text-3xl font-extrabold pl-1.5 mt-1" style={{ color: k.cor }}>{k.v}</p>
             </div>
           ))}
@@ -359,8 +359,8 @@ export default function ChurnCEOPage() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-bold text-gray-700">Radar de Casos em Aberto</p>
-                <p className="text-xs text-gray-400">Tempo registrado · ações tomadas · responsável atual — apenas casos ativos</p>
+                <p className="text-sm font-bold ">Radar de Casos em Aberto</p>
+                <p className="text-xs ">Tempo registrado · ações tomadas · responsável atual — apenas casos ativos</p>
               </div>
               <button onClick={() => { radarCarregadoRef.current = false; carregarRadar(casos); }}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
@@ -369,7 +369,7 @@ export default function ChurnCEOPage() {
               </button>
             </div>
             {radarItems.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
+              <div className="text-center py-16 ">
                 {casos.length === 0 ? 'Nenhum caso registrado.' : 'Nenhum caso ativo no momento.'}
               </div>
             ) : (
@@ -395,9 +395,9 @@ export default function ChurnCEOPage() {
           {/* Lista de casos */}
           <div className="flex-1 min-w-0 space-y-2">
             {carregando ? (
-              <div className="text-center py-16 text-gray-400">Carregando…</div>
+              <div className="text-center py-16 ">Carregando…</div>
             ) : casos.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">Nenhum caso encontrado.</div>
+              <div className="text-center py-16 ">Nenhum caso encontrado.</div>
             ) : casos.map(c => {
               const encerrado = ENCERRADOS.includes(c.status);
               const dias = calcDias(c);
@@ -424,7 +424,7 @@ export default function ChurnCEOPage() {
                     <div className="flex-1 min-w-0">
                       {/* Linha 1: nome + status + dias */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-sm text-gray-900 truncate max-w-[220px]">{nomeCliente(c)}</p>
+                        <p className="font-bold text-sm text-sm font-semibold truncate max-w-[220px]">{nomeCliente(c)}</p>
                         <span style={{ background: cor.bg, color: cor.text, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                           {STATUS_LABEL[c.status] || c.status}
                         </span>
@@ -437,12 +437,12 @@ export default function ChurnCEOPage() {
                       {/* Linha 2: técnico + motivo */}
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         {c.cliente?.grupo_tecnico && (
-                          <span className="text-[12px] text-gray-500">
+                          <span className="text-[12px] ">
                             👤 {c.cliente.grupo_tecnico}
                           </span>
                         )}
                         {c.motivo_principal && (
-                          <span className="text-[12px] text-gray-500 truncate max-w-[200px]">
+                          <span className="text-[12px]  truncate max-w-[200px]">
                             · {c.motivo_principal}
                           </span>
                         )}
@@ -450,7 +450,7 @@ export default function ChurnCEOPage() {
 
                       {/* Linha 3: descrição resumida */}
                       {c.descricao && (
-                        <p className="text-[12px] text-gray-400 mt-0.5 truncate">{c.descricao}</p>
+                        <p className="text-[12px]  mt-0.5 truncate">{c.descricao}</p>
                       )}
                     </div>
 
@@ -458,8 +458,8 @@ export default function ChurnCEOPage() {
                     <div className="text-right flex-shrink-0">
                       {encerrado ? (
                         <>
-                          <p className="text-[10px] text-gray-400">encerrado em</p>
-                          <p className="text-[11px] font-semibold text-gray-600">
+                          <p className="text-[10px] ">encerrado em</p>
+                          <p className="text-[11px] font-semibold ">
                             {c.updated_at
                               ? new Date(c.updated_at).toLocaleDateString('pt-BR')
                               : new Date(c.created_at).toLocaleDateString('pt-BR')}
@@ -470,8 +470,8 @@ export default function ChurnCEOPage() {
                         </>
                       ) : (
                         <>
-                          <p className="text-[10px] text-gray-400">aberto em</p>
-                          <p className="text-[11px] font-semibold text-gray-600">
+                          <p className="text-[10px] ">aberto em</p>
+                          <p className="text-[11px] font-semibold ">
                             {new Date(c.created_at).toLocaleDateString('pt-BR')}
                           </p>
                         </>
@@ -485,11 +485,11 @@ export default function ChurnCEOPage() {
 
           {/* Painel lateral — detalhe do caso selecionado (read-only) */}
           {casoSelecionado && (
-            <div className="w-80 xl:w-96 flex-shrink-0 bg-white rounded-2xl sticky top-4" style={{ border: '1px solid #E3ECF5', boxShadow: '0 4px 20px rgba(13,34,56,.08)' }}>
+            <div className="w-80 xl:w-96 flex-shrink-0 ps-card rounded-2xl sticky top-4" style={{ border: '1px solid #E3ECF5', boxShadow: '0 4px 20px rgba(13,34,56,.08)' }}>
               {/* Header do painel */}
               <div className="flex items-start justify-between p-4 border-b" style={{ borderColor: '#E3ECF5' }}>
                 <div className="min-w-0">
-                  <p className="font-bold text-gray-900 text-sm truncate">{nomeCliente(casoSelecionado)}</p>
+                  <p className="font-bold text-sm font-semibold text-sm truncate">{nomeCliente(casoSelecionado)}</p>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <span style={{
                       background: STATUS_COR[casoSelecionado.status]?.bg,
@@ -508,39 +508,39 @@ export default function ChurnCEOPage() {
 
                 {/* Responsável técnico */}
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Responsável</p>
-                  <p className="text-sm font-semibold text-gray-800">
+                  <p className="text-[10px] font-bold uppercase tracking-widest  mb-1">Responsável</p>
+                  <p className="text-sm font-semibold ">
                     {casoSelecionado.cliente?.grupo_tecnico || '—'}
                   </p>
                 </div>
 
                 {/* Risco */}
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Risco</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest  mb-1">Risco</p>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold" style={{ color: RISK_COR(casoSelecionado.risk_score) }}>
                       {RISK_LABEL(casoSelecionado.risk_score)}
                     </span>
-                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="flex-1 h-1.5 rounded-full bg-opacity-0 overflow-hidden">
                       <div className="h-full rounded-full transition-all" style={{ width: `${casoSelecionado.risk_score}%`, background: RISK_COR(casoSelecionado.risk_score) }} />
                     </div>
-                    <span className="text-xs text-gray-400">{casoSelecionado.risk_score}%</span>
+                    <span className="text-xs ">{casoSelecionado.risk_score}%</span>
                   </div>
                 </div>
 
                 {/* Motivo */}
                 {casoSelecionado.motivo_principal && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Motivo</p>
-                    <p className="text-sm text-gray-700">{casoSelecionado.motivo_principal}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest  mb-1">Motivo</p>
+                    <p className="text-sm ">{casoSelecionado.motivo_principal}</p>
                   </div>
                 )}
 
                 {/* Contexto / problema */}
                 {casoSelecionado.descricao && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Contexto do caso</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{casoSelecionado.descricao}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest  mb-1">Contexto do caso</p>
+                    <p className="text-sm  whitespace-pre-line">{casoSelecionado.descricao}</p>
                   </div>
                 )}
 
@@ -564,19 +564,19 @@ export default function ChurnCEOPage() {
 
                 {/* Linha do tempo */}
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">O que está sendo feito</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest  mb-2">O que está sendo feito</p>
                   {loadingAtt ? (
-                    <p className="text-xs text-gray-400">Carregando…</p>
+                    <p className="text-xs ">Carregando…</p>
                   ) : atualizacoes.length === 0 ? (
-                    <p className="text-xs text-gray-400">Nenhuma atualização registrada.</p>
+                    <p className="text-xs ">Nenhuma atualização registrada.</p>
                   ) : (
                     <div className="space-y-2">
                       {atualizacoes.map(a => (
                         <div key={a.id} className="flex gap-2 rounded-xl border p-2.5" style={{ borderColor: '#E3ECF5', background: '#F7FAFD' }}>
                           <span className="text-base flex-shrink-0 mt-0.5">{ICON[a.tipo] || '•'}</span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[12px] text-gray-800 leading-snug">{a.texto}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">
+                            <p className="text-[12px]  leading-snug">{a.texto}</p>
+                            <p className="text-[10px]  mt-0.5">
                               {a.canal ? `${a.canal} · ` : ''}
                               {a.resultado ? `${a.resultado} · ` : ''}
                               {a.feito_por_nome ? `${a.feito_por_nome} · ` : ''}

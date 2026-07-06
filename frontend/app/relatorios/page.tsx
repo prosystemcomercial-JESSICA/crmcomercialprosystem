@@ -77,7 +77,7 @@ export default function RelatoriosPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Relatórios</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Relatórios</h1>
             <p className="text-gray-500 mt-1">Análise de performance e retenção</p>
           </div>
           <select
@@ -90,25 +90,25 @@ export default function RelatoriosPage() {
         </div>
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Carregando relatório...</div>
+          <div className="text-center p-12 ">Carregando relatório...</div>
         ) : kpis ? (
           <>
             {/* KPI Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <p className="text-sm text-gray-500">Total de Casos</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{kpis.total_casos}</p>
+              <div className="ps-card rounded-xl border border-gray-200 p-5">
+                <p className="text-sm ">Total de Casos</p>
+                <p className="text-3xl font-bold text-sm font-semibold mt-1">{kpis.total_casos}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <p className="text-sm text-gray-500">Taxa de Recuperação</p>
+              <div className="ps-card rounded-xl border border-gray-200 p-5">
+                <p className="text-sm ">Taxa de Recuperação</p>
                 <p className="text-3xl font-bold text-green-600 mt-1">{kpis.taxa_recuperados.toFixed(1)}%</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <p className="text-sm text-gray-500">Ações Pendentes</p>
+              <div className="ps-card rounded-xl border border-gray-200 p-5">
+                <p className="text-sm ">Ações Pendentes</p>
                 <p className="text-3xl font-bold text-yellow-600 mt-1">{kpis.acoes_pendentes}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <p className="text-sm text-gray-500">Valor em Risco</p>
+              <div className="ps-card rounded-xl border border-gray-200 p-5">
+                <p className="text-sm ">Valor em Risco</p>
                 <p className="text-3xl font-bold text-red-600 mt-1">
                   {kpis.valor_total_em_risco > 0
                     ? `R$ ${(kpis.valor_total_em_risco / 1000).toFixed(1)}k`
@@ -119,18 +119,18 @@ export default function RelatoriosPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Status por caso */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Casos por Status</h2>
+              <div className="ps-card rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-sm font-semibold mb-4">Casos por Status</h2>
                 <div className="space-y-3">
                   {Object.entries(kpis.casos_por_status).map(([status, count]) => {
                     const pct = kpis.total_casos > 0 ? (count / kpis.total_casos) * 100 : 0;
                     return (
                       <div key={status}>
                         <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium text-gray-700">{status}</span>
+                          <span className="font-medium ">{status}</span>
                           <span className="text-gray-500">{count} ({pct.toFixed(1)}%)</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="w-full bg-opacity-0 rounded-full h-2">
                           <div
                             className="h-2 rounded-full transition-all"
                             style={{ width: `${pct}%`, backgroundColor: STATUS_COLORS[status] || '#94a3b8' }}
@@ -143,8 +143,8 @@ export default function RelatoriosPage() {
               </div>
 
               {/* Distribuição de risco */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Distribuição de Risco</h2>
+              <div className="ps-card rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-sm font-semibold mb-4">Distribuição de Risco</h2>
                 <div className="space-y-4">
                   {[
                     { label: 'Baixo Risco', value: kpis.risco_distribution.BAIXO, color: 'bg-green-500', text: 'text-green-700' },
@@ -158,7 +158,7 @@ export default function RelatoriosPage() {
                           <span className={`font-medium ${r.text}`}>{r.label}</span>
                           <span className="text-gray-500">{r.value} ({pct.toFixed(1)}%)</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-3">
+                        <div className="w-full bg-opacity-0 rounded-full h-3">
                           <div className={`h-3 rounded-full ${r.color} transition-all`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
@@ -168,15 +168,15 @@ export default function RelatoriosPage() {
 
                 <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <p className="text-xs text-gray-500">Diagnosticados</p>
+                    <p className="text-xs ">Diagnosticados</p>
                     <p className="text-lg font-bold text-blue-600">{kpis.taxa_diagnosticados.toFixed(1)}%</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Planejados</p>
+                    <p className="text-xs ">Planejados</p>
                     <p className="text-lg font-bold text-yellow-600">{kpis.taxa_planejados.toFixed(1)}%</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Recuperados</p>
+                    <p className="text-xs ">Recuperados</p>
                     <p className="text-lg font-bold text-green-600">{kpis.taxa_recuperados.toFixed(1)}%</p>
                   </div>
                 </div>
@@ -185,23 +185,23 @@ export default function RelatoriosPage() {
 
             {/* Top clientes em risco */}
             {topRisco.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Top 10 Clientes em Risco</h2>
+              <div className="ps-card rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-sm font-semibold mb-4">Top 10 Clientes em Risco</h2>
                 <div className="space-y-3">
                   {topRisco.map((item: any, idx: number) => (
                     <div key={item.id || idx} className="flex items-center gap-4">
-                      <span className="text-sm font-medium text-gray-400 w-5">{idx + 1}</span>
+                      <span className="text-sm font-medium  w-5">{idx + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.cliente?.nome || item.nome}</p>
-                        <p className="text-xs text-gray-500">{item.cliente?.empresa || item.empresa}</p>
+                        <p className="text-sm font-medium text-sm font-semibold truncate">{item.cliente?.nome || item.nome}</p>
+                        <p className="text-xs ">{item.cliente?.empresa || item.empresa}</p>
                       </div>
                       <div className="text-right">
                         <p className={`text-sm font-bold ${item.risk_score >= 70 ? 'text-red-600' : item.risk_score >= 40 ? 'text-yellow-600' : 'text-green-600'}`}>
                           {Math.round(item.risk_score)}/100
                         </p>
-                        <p className="text-xs text-gray-500">{item.status}</p>
+                        <p className="text-xs ">{item.status}</p>
                       </div>
-                      <div className="w-20 bg-gray-100 rounded-full h-2">
+                      <div className="w-20 bg-opacity-0 rounded-full h-2">
                         <div
                           className={`h-2 rounded-full ${item.risk_score >= 70 ? 'bg-red-500' : item.risk_score >= 40 ? 'bg-yellow-500' : 'bg-green-500'}`}
                           style={{ width: `${item.risk_score}%` }}
@@ -214,7 +214,7 @@ export default function RelatoriosPage() {
             )}
           </>
         ) : (
-          <div className="text-center p-12 text-gray-500">Sem dados disponíveis</div>
+          <div className="text-center p-12 ">Sem dados disponíveis</div>
         )}
       </div>
     </DashboardLayout>

@@ -70,13 +70,13 @@ export default function PrevisaoPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Previsão de Fechamento</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Previsão de Fechamento</h1>
             <p className="text-gray-500 mt-1">Sua meta do período e a estimativa de receita do seu pipeline</p>
           </div>
           <div className="flex gap-2">
             {[15, 30, 60, 90].map(d => (
               <button key={d} onClick={() => setDias(d)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${dias === d ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${dias === d ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200  hover:bg-opacity-0'}`}>
                 {d}d
               </button>
             ))}
@@ -85,36 +85,36 @@ export default function PrevisaoPage() {
 
         {/* Meta do período (definida pela supervisão) + evolução */}
         {meta && meta.valor_alvo > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="ps-card rounded-xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-900">Minha meta — {meta.periodo}</h2>
+              <h2 className="text-lg font-semibold text-sm font-semibold">Minha meta — {meta.periodo}</h2>
               <span className="text-sm font-bold text-blue-700">{meta.pct_evolucao}% atingido</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-4 mb-3">
+            <div className="w-full bg-opacity-0 rounded-full h-4 mb-3">
               <div className={`h-4 rounded-full transition-all ${meta.pct_evolucao >= 100 ? 'bg-green-500' : meta.pct_evolucao >= 70 ? 'bg-yellow-500' : 'bg-blue-500'}`}
                 style={{ width: `${Math.min(100, meta.pct_evolucao)}%` }} />
             </div>
             <div className="grid grid-cols-3 gap-3 text-sm">
-              <div><p className="text-gray-500">Meta</p><p className="font-bold text-gray-800">{fmt(meta.valor_alvo)}</p></div>
+              <div><p className="text-gray-500">Meta</p><p className="font-bold ">{fmt(meta.valor_alvo)}</p></div>
               <div><p className="text-gray-500">Realizado</p><p className="font-bold text-green-700">{fmt(meta.valor_atual)}</p></div>
-              <div><p className="text-gray-500">Falta</p><p className="font-bold text-gray-800">{fmt(meta.falta_para_meta)}</p></div>
+              <div><p className="text-gray-500">Falta</p><p className="font-bold ">{fmt(meta.falta_para_meta)}</p></div>
             </div>
           </div>
         )}
 
         {/* Forecast ponderado (EVO-5): receita esperada = Σ valor × probabilidade da etapa */}
         {forecast && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Forecast de Receita (ponderado)</h2>
-            <p className="text-sm text-gray-500 mb-4">Receita esperada do pipeline considerando a probabilidade de cada etapa.</p>
+          <div className="ps-card rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-sm font-semibold mb-1">Forecast de Receita (ponderado)</h2>
+            <p className="text-sm  mb-4">Receita esperada do pipeline considerando a probabilidade de cada etapa.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
               <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">💰 Receita esperada (ponderada)</p>
+                <p className="text-xs  mb-1">💰 Receita esperada (ponderada)</p>
                 <p className="text-3xl font-bold text-green-700">{fmt(forecast.receita_esperada)}</p>
               </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">📊 Pipeline bruto (sem ponderar)</p>
-                <p className="text-3xl font-bold text-gray-700">{fmt(forecast.valor_pipeline_bruto)}</p>
+              <div className="bg-opacity-0 border border-gray-200 rounded-xl p-4">
+                <p className="text-xs  mb-1">📊 Pipeline bruto (sem ponderar)</p>
+                <p className="text-3xl font-bold ">{fmt(forecast.valor_pipeline_bruto)}</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -122,12 +122,12 @@ export default function PrevisaoPage() {
                 const max = Math.max(...forecast.etapas.map(x => x.valor_ponderado), 1);
                 return (
                   <div key={e.etapa} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-600 w-40 flex-shrink-0 truncate">{e.label} <span className="text-gray-400">({Math.round(e.prob * 100)}%)</span></span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-5 relative">
+                    <span className="text-xs  w-40 flex-shrink-0 truncate">{e.label} <span className="text-gray-400">({Math.round(e.prob * 100)}%)</span></span>
+                    <div className="flex-1 bg-opacity-0 rounded-full h-5 relative">
                       <div className="bg-blue-500 h-5 rounded-full" style={{ width: `${(e.valor_ponderado / max) * 100}%` }} />
                     </div>
-                    <span className="text-xs font-medium text-gray-700 w-28 text-right flex-shrink-0">{fmt(e.valor_ponderado)}</span>
-                    <span className="text-xs text-gray-400 w-10 text-right flex-shrink-0">{e.qtd}×</span>
+                    <span className="text-xs font-medium  w-28 text-right flex-shrink-0">{fmt(e.valor_ponderado)}</span>
+                    <span className="text-xs  w-10 text-right flex-shrink-0">{e.qtd}×</span>
                   </div>
                 );
               })}
@@ -136,33 +136,33 @@ export default function PrevisaoPage() {
         )}
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Calculando previsão...</div>
+          <div className="text-center p-12 ">Calculando previsão...</div>
         ) : (
           <>
             {/* KPI summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <p className="text-sm text-gray-500">Oportunidades</p>
-                <p className="text-3xl font-bold text-gray-700 mt-1">{totalOps}</p>
+              <div className="bg-opacity-0 rounded-xl p-4 border border-gray-200">
+                <p className="text-sm ">Oportunidades</p>
+                <p className="text-3xl font-bold  mt-1">{totalOps}</p>
               </div>
               <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                <p className="text-sm text-gray-500">Pipeline Total</p>
+                <p className="text-sm ">Pipeline Total</p>
                 <p className="text-2xl font-bold text-blue-700 mt-1">{fmt(pipeline)}</p>
               </div>
               <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                <p className="text-sm text-gray-500">Realista</p>
+                <p className="text-sm ">Realista</p>
                 <p className="text-2xl font-bold text-green-700 mt-1">{previsao ? fmt(previsao.realista) : '-'}</p>
               </div>
               <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-                <p className="text-sm text-gray-500">Otimista</p>
+                <p className="text-sm ">Otimista</p>
                 <p className="text-2xl font-bold text-purple-700 mt-1">{previsao ? fmt(previsao.otimista) : '-'}</p>
               </div>
             </div>
 
             {/* Cenários */}
             {previsao && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Cenários de Fechamento</h2>
+              <div className="ps-card rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-sm font-semibold mb-4">Cenários de Fechamento</h2>
                 <div className="space-y-4">
                   {[
                     { label: 'Otimista', desc: '100% do pipeline', value: previsao.otimista, color: 'bg-purple-500', pct: 100 },
@@ -171,16 +171,16 @@ export default function PrevisaoPage() {
                   ].map(c => (
                     <div key={c.label} className="flex items-center gap-4">
                       <div className="w-28 flex-shrink-0">
-                        <p className="text-sm font-semibold text-gray-700">{c.label}</p>
-                        <p className="text-xs text-gray-400">{c.desc}</p>
+                        <p className="text-sm font-semibold ">{c.label}</p>
+                        <p className="text-xs ">{c.desc}</p>
                       </div>
-                      <div className="flex-1 bg-gray-100 rounded-full h-6 relative">
+                      <div className="flex-1 bg-opacity-0 rounded-full h-6 relative">
                         <div className={`h-6 rounded-full ${c.color} transition-all flex items-center justify-end pr-3`}
                           style={{ width: `${Math.max(c.pct, 2)}%` }}>
                           {c.pct > 20 && <span className="text-xs text-white font-medium">{fmt(c.value)}</span>}
                         </div>
                       </div>
-                      {c.pct <= 20 && <span className="text-sm font-bold text-gray-700 w-24 text-right">{fmt(c.value)}</span>}
+                      {c.pct <= 20 && <span className="text-sm font-bold  w-24 text-right">{fmt(c.value)}</span>}
                     </div>
                   ))}
                 </div>
@@ -189,31 +189,31 @@ export default function PrevisaoPage() {
 
             {/* Top oportunidades */}
             {top.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100">
-                  <h2 className="text-lg font-semibold text-gray-900">Top Oportunidades</h2>
+                  <h2 className="text-lg font-semibold text-sm font-semibold">Top Oportunidades</h2>
                 </div>
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-opacity-0 border-b border-gray-200">
                     <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lead</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Etapa</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Valor Est.</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Prob.</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ponderado</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Lead</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Etapa</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Valor Est.</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Prob.</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Ponderado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {top.map(op => (
-                      <tr key={op.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={op.id} className="hover:opacity-80 transition-colors">
                         <td className="px-5 py-4">
-                          <p className="font-medium text-gray-900">{op.nome}</p>
-                          {op.empresa && <p className="text-xs text-gray-500">{op.empresa}</p>}
+                          <p className="font-medium text-sm font-semibold">{op.nome}</p>
+                          {op.empresa && <p className="text-xs ">{op.empresa}</p>}
                         </td>
                         <td className="px-5 py-4">
-                          <span className="text-sm text-gray-600">{ETAPA_LABELS[op.etapa] || op.etapa}</span>
+                          <span className="text-sm ">{ETAPA_LABELS[op.etapa] || op.etapa}</span>
                         </td>
-                        <td className="px-5 py-4 text-right text-sm text-gray-700">{fmt(op.valor_estimado)}</td>
+                        <td className="px-5 py-4 text-right text-sm ">{fmt(op.valor_estimado)}</td>
                         <td className="px-5 py-4 text-right">
                           <span className={`text-sm font-medium ${op.probabilidade >= 70 ? 'text-green-600' : op.probabilidade >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
                             {op.probabilidade}%
@@ -228,10 +228,10 @@ export default function PrevisaoPage() {
             )}
 
             {top.length === 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
                 <div className="text-4xl mb-3">📈</div>
                 <p className="text-gray-500">Sem oportunidades com valor estimado no pipeline</p>
-                <p className="text-sm text-gray-400 mt-1">Adicione valor estimado e probabilidade aos leads para ver a previsão</p>
+                <p className="text-sm  mt-1">Adicione valor estimado e probabilidade aos leads para ver a previsão</p>
               </div>
             )}
           </>

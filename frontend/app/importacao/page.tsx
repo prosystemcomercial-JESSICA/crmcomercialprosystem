@@ -100,7 +100,7 @@ export default function ImportacaoPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Importação de Leads</h1>
+          <h1 className="text-3xl font-bold text-sm font-semibold">Importação de Leads</h1>
           <p className="text-gray-500 mt-1">Importe leads em massa via arquivo CSV</p>
         </div>
 
@@ -132,7 +132,7 @@ export default function ImportacaoPage() {
           {/* Input area */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <label className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors">
+              <label className="px-4 py-2 ps-card border border-gray-200 rounded-lg text-sm font-medium  cursor-pointer hover:opacity-80 transition-colors">
                 📁 Carregar arquivo .csv
                 <input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} />
               </label>
@@ -158,16 +158,16 @@ export default function ImportacaoPage() {
 
           {/* Preview */}
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-3">Pré-visualização</p>
+            <p className="text-sm font-semibold  mb-3">Pré-visualização</p>
             {parsed.length === 0 ? (
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm">
+              <div className="bg-opacity-0 border border-gray-200 rounded-xl p-8 text-center  text-sm">
                 Clique em "Pré-visualizar" para conferir os dados antes de importar
               </div>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {parsed.slice(0, 20).map((lead, i) => (
-                  <div key={i} className="bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm">
-                    <p className="font-medium text-gray-900">{lead.nome}</p>
+                  <div key={i} className="ps-card border border-gray-200 rounded-lg px-4 py-3 text-sm">
+                    <p className="font-medium text-sm font-semibold">{lead.nome}</p>
                     <div className="flex gap-2 mt-1 flex-wrap">
                       {lead.empresa && <span className="text-gray-500">{lead.empresa}</span>}
                       {lead.email && <span className="text-gray-400">{lead.email}</span>}
@@ -176,7 +176,7 @@ export default function ImportacaoPage() {
                   </div>
                 ))}
                 {parsed.length > 20 && (
-                  <p className="text-xs text-gray-400 text-center py-2">... e mais {parsed.length - 20} leads</p>
+                  <p className="text-xs  text-center py-2">... e mais {parsed.length - 20} leads</p>
                 )}
               </div>
             )}

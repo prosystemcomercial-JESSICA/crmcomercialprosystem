@@ -70,7 +70,7 @@ export default function AlertasPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Alertas e Notificações</h1>
+          <h1 className="text-3xl font-bold text-sm font-semibold">Alertas e Notificações</h1>
           <p className="text-gray-500 mt-1">Atividades atrasadas, vencimentos e oportunidades em risco</p>
         </div>
 
@@ -87,13 +87,13 @@ export default function AlertasPage() {
         {resumo && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Total', value: resumo.total, color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' },
+              { label: 'Total', value: resumo.total, color: 'text-gray-700', bg: 'bg-opacity-0', border: 'border-gray-200' },
               { label: 'Alta Prioridade', value: resumo.alta, color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200' },
               { label: 'Média Prioridade', value: resumo.media, color: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200' },
               { label: 'Baixa Prioridade', value: resumo.baixa, color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
             ].map(c => (
               <div key={c.label} className={`${c.bg} border ${c.border} rounded-xl p-4`}>
-                <p className="text-sm text-gray-500">{c.label}</p>
+                <p className="text-sm ">{c.label}</p>
                 <p className={`text-3xl font-bold ${c.color} mt-1`}>{c.value}</p>
               </div>
             ))}
@@ -104,7 +104,7 @@ export default function AlertasPage() {
         <div className="flex gap-2">
           {['TODOS', 'ALTA', 'MEDIA', 'BAIXA'].map(f => (
             <button key={f} onClick={() => setFiltro(f)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filtro === f ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filtro === f ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200  hover:bg-opacity-0'}`}>
               {f === 'TODOS' ? 'Todos' : f.charAt(0) + f.slice(1).toLowerCase()}
             </button>
           ))}
@@ -112,12 +112,12 @@ export default function AlertasPage() {
 
         {/* Lista de alertas */}
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Carregando alertas...</div>
+          <div className="text-center p-12 ">Carregando alertas...</div>
         ) : alertasFiltrados.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
             <div className="text-4xl mb-3">✅</div>
             <p className="text-gray-500 font-medium">Nenhum alerta {filtro !== 'TODOS' ? `de prioridade ${filtro.toLowerCase()}` : ''}</p>
-            <p className="text-sm text-gray-400 mt-1">Tudo em dia!</p>
+            <p className="text-sm  mt-1">Tudo em dia!</p>
           </div>
         ) : (
           <div className="space-y-2">

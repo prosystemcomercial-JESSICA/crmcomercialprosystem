@@ -324,7 +324,7 @@ export default function AtivosPage() {
                               </p>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {c.etiqueta && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: c.etiqueta_cor || '#dc2626' }}>{c.etiqueta}</span>}
-                                {c.oculto && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">🙈 Oculto</span>}
+                                {c.oculto && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 ">🙈 Oculto</span>}
                                 {c.saude && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: SAUDE_COR[c.saude] }}>{c.saude}</span>}
                                 {c.nota_prosystem != null && <span className="text-[10px]" style={{ color: 'var(--t-text-secondary)' }}>★ {c.nota_prosystem}/5</span>}
                                 {c.caso_churn_id && <span className="text-[10px] text-red-600">⚠ caso</span>}
@@ -351,10 +351,10 @@ export default function AtivosPage() {
                                 {et.id === 'COTACAO' && !c.gerou_venda && <button onClick={e => { e.stopPropagation(); moverEtapa(c, 'CONCLUIDO'); }} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Fechou</button>}
                                 {et.id === 'COTACAO' && c.gerou_venda && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'oportunidades'); }} className="text-[11px] px-2 py-0.5 rounded bg-blue-600 text-white">💰 Ver oport.</button>}
                                 {et.id === 'EM_TRATAMENTO' && <button onClick={e => { e.stopPropagation(); moverEtapa(c, 'CONCLUIDO'); }} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Resolvido</button>}
-                                {(et.id === 'COTACAO' || et.id === 'EM_TRATAMENTO' || et.id === 'SEM_SUCESSO') && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'questionario'); }} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
-                                {et.id === 'CONCLUIDO' && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'questionario'); }} className="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600">Ver / editar</button>}
+                                {(et.id === 'COTACAO' || et.id === 'EM_TRATAMENTO' || et.id === 'SEM_SUCESSO') && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'questionario'); }} className="text-[11px] px-2 py-0.5 rounded bg-opacity-0 ">Ver / editar</button>}
+                                {et.id === 'CONCLUIDO' && <button onClick={e => { e.stopPropagation(); abrirFicha(c, 'questionario'); }} className="text-[11px] px-2 py-0.5 rounded bg-opacity-0 ">Ver / editar</button>}
                                 {isGestor && <button onClick={e => { e.stopPropagation(); etiquetarContato(c); }} className="text-[11px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">🏷️</button>}
-                                {isGestor && <button onClick={e => { e.stopPropagation(); ocultarContato(c); }} className="text-[11px] px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">{c.oculto ? '👁️' : '🙈'}</button>}
+                                {isGestor && <button onClick={e => { e.stopPropagation(); ocultarContato(c); }} className="text-[11px] px-2 py-0.5 rounded bg-opacity-0  border border-gray-200">{c.oculto ? '👁️' : '🙈'}</button>}
                               </div>
                             </div>
                           ))}
@@ -855,7 +855,7 @@ export default function AtivosPage() {
 
                               {/* ── Contatos adicionais ── */}
                               <div className="border-t border-gray-100 pt-3">
-                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                                <label className="flex items-center gap-2 text-xs font-semibold  cursor-pointer">
                                   <input type="checkbox"
                                     checked={!!((editando || c).cli_tem_mais_contatos)}
                                     onChange={e => {
@@ -972,10 +972,10 @@ export default function AtivosPage() {
                               <p className="text-xs text-center py-3" style={{ color: 'var(--t-text-muted)' }}>Nenhuma oportunidade registrada ainda.</p>
                             )}
                             {fichaOports.map((o: any) => (
-                              <div key={o.id} className={`rounded-lg border p-3 ${o.status === 'NEGOCIACAO' ? 'border-blue-200 bg-blue-50' : o.status === 'CONFIRMADA' ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
+                              <div key={o.id} className={`rounded-lg border p-3 ${o.status === 'NEGOCIACAO' ? 'border-blue-200 bg-blue-50' : o.status === 'CONFIRMADA' ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-opacity-0 opacity-70'}`}>
                                 <div className="flex items-center justify-between">
-                                  <p className="text-sm font-semibold text-gray-800">{o.parceiro_nome || o.categoria || '—'}</p>
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.status === 'NEGOCIACAO' ? 'bg-blue-200 text-blue-800' : o.status === 'CONFIRMADA' ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
+                                  <p className="text-sm font-semibold ">{o.parceiro_nome || o.categoria || '—'}</p>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.status === 'NEGOCIACAO' ? 'bg-blue-200 text-blue-800' : o.status === 'CONFIRMADA' ? 'bg-green-200 text-green-800' : 'bg-gray-200 '}`}>
                                     {o.status === 'NEGOCIACAO' ? 'Em negociação' : o.status === 'CONFIRMADA' ? 'Confirmada' : 'Cancelada'}
                                   </span>
                                 </div>

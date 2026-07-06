@@ -112,10 +112,10 @@ function fmtDate(s?: string) {
   try { return new Date(s).toLocaleString('pt-BR'); } catch { return s; }
 }
 function statusInfo(v: string) {
-  return STATUS_OPTIONS.find(s => s.value === v) || { label: v, color: '#6b7280' };
+  return STATUS_OPTIONS.find(s => s.value === v) || { label: v, color: 'var(--t-text-muted)' };
 }
 function prioInfo(v: string) {
-  return PRIORIDADE_OPTIONS.find(p => p.value === v) || { label: v, color: '#6b7280' };
+  return PRIORIDADE_OPTIONS.find(p => p.value === v) || { label: v, color: 'var(--t-text-muted)' };
 }
 
 // ─── Input component ──────────────────────────────────────────
@@ -149,7 +149,7 @@ function CardPesquisaCliente({ p }: { p: any }) {
       {aberto && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,34,56,0.65)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
           onClick={e => { if (e.target === e.currentTarget) setAberto(false); }}>
-          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(13,34,56,0.35)' }}>
+          <div style={{ background: 'var(--t-card-bg)', borderRadius: 20, width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(13,34,56,0.35)' }}>
             <div style={{ background: 'linear-gradient(135deg,#0D2238,#1A4E82)', padding: '22px 26px', borderRadius: '20px 20px 0 0', color: 'white' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ flex: 1 }}>
@@ -188,17 +188,17 @@ function CardPesquisaCliente({ p }: { p: any }) {
               {(p.resolucao || p.rapidez) && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {p.resolucao && <div style={{ padding: '12px 14px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <p style={{ margin: '0 0 2px', fontSize: 11, color: '#94a3b8', fontWeight: 700 }}>SOLICITAÇÃO RESOLVIDA?</p>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2238' }}>{resolucaoLabel[p.resolucao] || p.resolucao}</p>
+                    <p style={{ margin: '0 0 2px', fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 700 }}>SOLICITAÇÃO RESOLVIDA?</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>{resolucaoLabel[p.resolucao] || p.resolucao}</p>
                   </div>}
                   {p.rapidez && <div style={{ padding: '12px 14px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <p style={{ margin: '0 0 2px', fontSize: 11, color: '#94a3b8', fontWeight: 700 }}>RAPIDEZ</p>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2238' }}>{rapidezLabel[p.rapidez] || p.rapidez}</p>
+                    <p style={{ margin: '0 0 2px', fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 700 }}>RAPIDEZ</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>{rapidezLabel[p.rapidez] || p.rapidez}</p>
                   </div>}
                 </div>
               )}
               <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Notas</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Notas</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[
                     { l: 'Atendimento', n: p.nota_atendimento || p.nota_suporte },
@@ -206,7 +206,7 @@ function CardPesquisaCliente({ p }: { p: any }) {
                     { l: 'ProSystem (nota geral)', n: p.nota_geral || p.nota_sistema },
                   ].filter(x => x.n).map(({ l, n }) => (
                     <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0D2238' }}>{l}</span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{l}</span>
                       <span style={{ color: '#FBBF24', fontSize: 16 }}>{'★'.repeat(n)}{'☆'.repeat(5 - n)}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: n >= 4 ? '#16a34a' : n === 3 ? '#d97706' : '#dc2626', minWidth: 28 }}>{n}/5</span>
                     </div>
@@ -214,7 +214,7 @@ function CardPesquisaCliente({ p }: { p: any }) {
                 </div>
               </div>
               <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Conhece os diferenciais ProSystem?</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Conhece os diferenciais ProSystem?</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   {[{ l: 'Plano Plus', v: p.conhece_plus, e: '⭐' }, { l: 'Dashboard', v: p.conhece_dashboard, e: '📊' }, { l: 'Mensageria', v: p.conhece_mensageria, e: '💬' }, { l: 'Gerencial', v: p.conhece_gerencial, e: '📈' }].map(({ l, v, e }) => (
                     <div key={l} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid', background: v ? '#f0fdf4' : '#fef2f2', borderColor: v ? '#86efac' : '#fca5a5' }}>
@@ -226,18 +226,18 @@ function CardPesquisaCliente({ p }: { p: any }) {
               </div>
               {(p.recado || p.observacao) && (
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>Mensagem do cliente</p>
-                  {p.recado && <div style={{ padding: '12px 14px', borderLeft: '3px solid #4B8EC8', background: '#f8fafc', borderRadius: '0 10px 10px 0', fontSize: 13, color: '#0D2238', lineHeight: 1.6, fontStyle: 'italic' }}>"{p.recado}"</div>}
-                  {p.observacao && <div style={{ padding: '12px 14px', borderLeft: '3px solid #4B8EC8', background: '#f8fafc', borderRadius: '0 10px 10px 0', fontSize: 13, color: '#0D2238', lineHeight: 1.6, marginTop: 8 }}>{p.observacao}</div>}
+                  <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>Mensagem do cliente</p>
+                  {p.recado && <div style={{ padding: '12px 14px', borderLeft: '3px solid #4B8EC8', background: '#f8fafc', borderRadius: '0 10px 10px 0', fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, fontStyle: 'italic' }}>"{p.recado}"</div>}
+                  {p.observacao && <div style={{ padding: '12px 14px', borderLeft: '3px solid #4B8EC8', background: '#f8fafc', borderRadius: '0 10px 10px 0', fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, marginTop: 8 }}>{p.observacao}</div>}
                 </div>
               )}
               {(p.email || p.whatsapp) && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {p.email && <a href={`mailto:${p.email}`} style={{ padding: '7px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: '#4B8EC8', fontWeight: 600, textDecoration: 'none' }}>✉️ {p.email}</a>}
+                  {p.email && <a href={`mailto:${p.email}`} style={{ padding: '7px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: 'var(--t-primary)', fontWeight: 600, textDecoration: 'none' }}>✉️ {p.email}</a>}
                   {p.whatsapp && <a href={`https://wa.me/${p.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ padding: '7px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: 12, color: '#16a34a', fontWeight: 600, textDecoration: 'none' }}>📱 {p.whatsapp}</a>}
                 </div>
               )}
-              <button onClick={() => setAberto(false)} style={{ width: '100%', padding: '12px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 14, fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>Fechar</button>
+              <button onClick={() => setAberto(false)} style={{ width: '100%', padding: '12px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 14, fontWeight: 600, color: 'var(--t-text-muted)', cursor: 'pointer' }}>Fechar</button>
             </div>
           </div>
         </div>
@@ -274,7 +274,7 @@ function CardPesquisaCliente({ p }: { p: any }) {
           </div>
           <div className="text-right">
             <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
-            <p className="text-xs mt-0.5 font-semibold" style={{ color: '#4B8EC8' }}>Ver completo →</p>
+            <p className="text-xs mt-0.5 font-semibold" style={{ color: 'var(--t-primary)' }}>Ver completo →</p>
           </div>
         </div>
         {p.recado && <p className="text-xs mt-1.5 italic" style={{ color: 'var(--t-text-secondary)' }}>💬 "{p.recado}"</p>}
@@ -419,31 +419,31 @@ export default function ClienteDetailPage() {
   };
 
   const desativarCliente = async () => {
-    if (desativaMotivo.trim().length < 3) { alert('Descreva o motivo da desativação.'); return; }
+    if (desativaMotivo.trim().length < 3) { console.warn('Descreva o motivo da desativação.'); return; }
     try {
       await apiClient.desativarCliente(id as string, desativaMotivo, desativaMrr ? Number(desativaMrr) : undefined);
       setShowDesativar(false); setDesativaMotivo(''); setDesativaMrr('');
       fetchCliente();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao desativar'); }
+    } catch (e: any) { console.error('Falha ao desativar', e); }
   };
   const reativarCliente = async () => {
     if (!confirm('Reativar este cliente?')) return;
     try { await apiClient.reativarCliente(id as string); fetchCliente(); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Falha ao reativar'); }
+    catch (e: any) { console.error('Falha ao reativar', e); }
   };
   const abrirTrocaCnpj = () => {
     setTrocaForm({ cnpj_novo: '', razao_social_nova: cliente?.razao_social || '', nome_fantasia_nova: cliente?.fantasia || '', inscricao_nova: '', motivo: '' });
     setShowTrocaCnpj(true);
   };
   const trocarCnpj = async () => {
-    if (!trocaForm.cnpj_novo.trim()) { alert('Informe o novo CNPJ.'); return; }
+    if (!trocaForm.cnpj_novo.trim()) { console.warn('Informe o novo CNPJ.'); return; }
     setTrocandoCnpj(true);
     try {
       await apiClient.trocarCnpjCliente(id as string, trocaForm);
       setShowTrocaCnpj(false);
       fetchCliente();
-      alert('CNPJ trocado. Os dados antigos foram guardados no histórico.');
-    } catch (e: any) { alert(e?.response?.data?.message || 'Falha ao trocar o CNPJ'); }
+      console.warn('CNPJ trocado. Os dados antigos foram guardados no histórico.');
+    } catch (e: any) { console.error('Falha ao trocar o CNPJ', e); }
     finally { setTrocandoCnpj(false); }
   };
 
@@ -635,19 +635,19 @@ export default function ClienteDetailPage() {
         {/* Modal desativar */}
         {showDesativar && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-5 w-full max-w-md">
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Desativar cliente</h3>
-              <p className="text-sm text-gray-500 mb-4">Registre o motivo detalhado e o MRR perdido (churn).</p>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Motivo detalhado *</label>
+            <div className="ps-card rounded-xl p-5 w-full max-w-md">
+              <h3 className="text-lg font-bold text-sm font-semibold mb-1">Desativar cliente</h3>
+              <p className="text-sm  mb-4">Registre o motivo detalhado e o MRR perdido (churn).</p>
+              <label className="block text-xs font-medium  mb-1">Motivo detalhado *</label>
               <textarea value={desativaMotivo} onChange={e => setDesativaMotivo(e.target.value)} rows={3}
                 placeholder="Ex.: trocou de sistema; insatisfação com suporte…"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
-              <label className="block text-xs font-medium text-gray-500 mb-1">MRR perdido (R$)</label>
+              <label className="block text-xs font-medium  mb-1">MRR perdido (R$)</label>
               <input type="number" value={desativaMrr} onChange={e => setDesativaMrr(e.target.value)}
                 placeholder={`Mensalidade do cliente (${Number(cliente?.mensalidade_base || 0).toLocaleString('pt-BR')})`}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowDesativar(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+                <button onClick={() => setShowDesativar(false)} className="px-4 py-2 text-sm ">Cancelar</button>
                 <button onClick={desativarCliente} className="px-4 py-2 text-sm font-semibold text-white rounded-lg" style={{ background: '#dc2626' }}>Confirmar desativação</button>
               </div>
             </div>
@@ -657,41 +657,41 @@ export default function ClienteDetailPage() {
         {/* ─── Modal: Trocar CNPJ ─────────────── */}
         {showTrocaCnpj && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-5 w-full max-w-lg">
-              <h3 className="text-lg font-bold text-gray-900 mb-1">🔁 Trocar CNPJ</h3>
-              <p className="text-sm text-gray-500 mb-3">
+            <div className="ps-card rounded-xl p-5 w-full max-w-lg">
+              <h3 className="text-lg font-bold text-sm font-semibold mb-1">🔁 Trocar CNPJ</h3>
+              <p className="text-sm  mb-3">
                 Mantém o mesmo código do cliente. Os dados <b>atuais</b> ({cliente?.cnpj || 'sem CNPJ'}) serão guardados no histórico de trocas.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Novo CNPJ *</label>
+                  <label className="block text-xs font-medium  mb-1">Novo CNPJ *</label>
                   <input value={trocaForm.cnpj_novo} onChange={e => setTrocaForm(f => ({ ...f, cnpj_novo: e.target.value }))}
                     placeholder="00.000.000/0001-00" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Nova razão social</label>
+                  <label className="block text-xs font-medium  mb-1">Nova razão social</label>
                   <input value={trocaForm.razao_social_nova} onChange={e => setTrocaForm(f => ({ ...f, razao_social_nova: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Novo nome fantasia</label>
+                  <label className="block text-xs font-medium  mb-1">Novo nome fantasia</label>
                   <input value={trocaForm.nome_fantasia_nova} onChange={e => setTrocaForm(f => ({ ...f, nome_fantasia_nova: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Nova inscrição estadual</label>
+                  <label className="block text-xs font-medium  mb-1">Nova inscrição estadual</label>
                   <input value={trocaForm.inscricao_nova} onChange={e => setTrocaForm(f => ({ ...f, inscricao_nova: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Motivo da troca</label>
+                  <label className="block text-xs font-medium  mb-1">Motivo da troca</label>
                   <textarea value={trocaForm.motivo} onChange={e => setTrocaForm(f => ({ ...f, motivo: e.target.value }))} rows={2}
                     placeholder="Ex.: abertura de nova empresa, mudança de razão social, sucessão…"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => setShowTrocaCnpj(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+                <button onClick={() => setShowTrocaCnpj(false)} className="px-4 py-2 text-sm ">Cancelar</button>
                 <button onClick={trocarCnpj} disabled={trocandoCnpj || !trocaForm.cnpj_novo.trim()}
                   className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: 'var(--t-primary)' }}>
                   {trocandoCnpj ? 'Trocando…' : 'Confirmar troca'}
@@ -1205,11 +1205,11 @@ export default function ClienteDetailPage() {
                           </svg>
                           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                             <span style={{ fontSize: 13, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{score}</span>
-                            <span style={{ fontSize: 7, color: '#94a3b8' }}>/100</span>
+                            <span style={{ fontSize: 7, color: 'var(--t-text-muted)' }}>/100</span>
                           </div>
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs font-bold mb-1" style={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Última pesquisa</p>
+                          <p className="text-xs font-bold mb-1" style={{ color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Última pesquisa</p>
                           <div className="flex gap-2 flex-wrap">
                             <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: scoreColor + '20', color: scoreColor }}>
                               {score >= 90 ? '🏆 Excelente' : score >= 70 ? '✅ Satisfeito' : score >= 50 ? '⚠️ Atenção' : '🚨 Risco'}
@@ -1217,7 +1217,7 @@ export default function ClienteDetailPage() {
                             {ultima.alerta_especial && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">🔔 Alerta</span>}
                             {ultima.critico && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠️ Crítico</span>}
                           </div>
-                          <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                          <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>
                             {new Date(ultima.created_at).toLocaleDateString('pt-BR')}
                             {ultima.respondente_nome && ` · por ${ultima.respondente_nome}`}
                           </p>

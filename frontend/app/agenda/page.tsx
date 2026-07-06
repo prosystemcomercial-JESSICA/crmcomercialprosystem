@@ -48,23 +48,23 @@ interface Atividade {
 // ─── Constants ────────────────────────────────────────────
 
 const TIPO_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string }> = {
-  REUNIAO:   { label: 'Reunião',    icon: Video,          color: '#4B8EC8', bg: '#EBF4FF' },
-  LIGACAO:   { label: 'Ligação',    icon: Phone,          color: '#0891b2', bg: '#ecfeff' },
-  EMAIL:     { label: 'E-mail',     icon: Mail,           color: '#7c3aed', bg: '#f5f3ff' },
-  WHATSAPP:  { label: 'WhatsApp',   icon: MessageCircle,  color: '#16a34a', bg: '#dcfce7' },
-  VISITA:    { label: 'Visita',     icon: MapPin,         color: '#ea580c', bg: '#fff7ed' },
-  TAREFA:    { label: 'Tarefa',     icon: FileText,       color: '#ca8a04', bg: '#fefce8' },
-  OUTRO:     { label: 'Outro',      icon: CalendarDays,   color: '#6b7280', bg: '#f3f4f6' }
+  REUNIAO:   { label: 'Reunião',    icon: Video,          color: 'var(--t-primary)',        bg: 'rgba(75,142,200,0.08)' },
+  LIGACAO:   { label: 'Ligação',    icon: Phone,          color: '#0891b2',                 bg: 'rgba(8,145,178,0.08)' },
+  EMAIL:     { label: 'E-mail',     icon: Mail,           color: '#7c3aed',                 bg: 'rgba(124,58,237,0.08)' },
+  WHATSAPP:  { label: 'WhatsApp',   icon: MessageCircle,  color: '#16a34a',                 bg: 'rgba(22,163,74,0.08)' },
+  VISITA:    { label: 'Visita',     icon: MapPin,         color: '#ea580c',                 bg: 'rgba(234,88,12,0.08)' },
+  TAREFA:    { label: 'Tarefa',     icon: FileText,       color: '#ca8a04',                 bg: 'rgba(202,138,4,0.08)' },
+  OUTRO:     { label: 'Outro',      icon: CalendarDays,   color: 'var(--t-text-muted)',     bg: 'rgba(100,116,139,0.08)' }
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  PENDENTE:               { label: 'Agendada',               color: '#ca8a04', bg: '#fefce8', border: '#fde047' },
-  CONFIRMADA:             { label: 'Confirmada',             color: '#4B8EC8', bg: '#EBF4FF', border: '#C3DCFC' },
-  REALIZADA:              { label: 'Realizada',              color: '#16a34a', bg: '#dcfce7', border: '#86efac' },
-  CANCELADA:              { label: 'Cancelada',              color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
-  REMARCADA:              { label: 'Reagendada',             color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd' },
-  CLIENTE_NAO_COMPARECEU: { label: 'Não compareceu',         color: '#9a3412', bg: '#fff7ed', border: '#fed7aa' },
-  AGUARDANDO_RETORNO:     { label: 'Aguardando retorno',     color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4' }
+  PENDENTE:               { label: 'Agendada',               color: '#ca8a04', bg: 'rgba(202,138,4,0.08)',   border: 'rgba(202,138,4,0.25)' },
+  CONFIRMADA:             { label: 'Confirmada',             color: 'var(--t-primary)', bg: 'rgba(75,142,200,0.08)', border: 'var(--t-card-border)' },
+  REALIZADA:              { label: 'Realizada',              color: '#16a34a', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)' },
+  CANCELADA:              { label: 'Cancelada',              color: '#dc2626', bg: 'rgba(220,38,38,0.08)',   border: 'rgba(220,38,38,0.25)' },
+  REMARCADA:              { label: 'Reagendada',             color: '#7c3aed', bg: 'rgba(124,58,237,0.08)',  border: 'rgba(124,58,237,0.25)' },
+  CLIENTE_NAO_COMPARECEU: { label: 'Não compareceu',         color: '#9a3412', bg: 'rgba(154,52,18,0.08)',   border: 'rgba(154,52,18,0.25)' },
+  AGUARDANDO_RETORNO:     { label: 'Aguardando retorno',     color: '#0f766e', bg: 'rgba(15,118,110,0.08)',  border: 'rgba(15,118,110,0.25)' }
 };
 
 const DURACAO_OPCOES = [
@@ -141,7 +141,7 @@ function formatTime(d?: string) {
 }
 
 const VINCULO_ICON: Record<string, string> = {
-  LEAD: '👤', PARCEIRO: '🤝', INTERNO: '🏢', MARKETING: '📣', EXTERNO: '🌐', NENHUM: '—',
+  LEAD: '', PARCEIRO: '', INTERNO: '', MARKETING: '', EXTERNO: '', NENHUM: '—',
 };
 
 // Rótulo de "com quem" é o compromisso: lead vinculado OU nome do vínculo (parceiro/interno/etc).
@@ -189,11 +189,11 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 20px', borderBottom: '1px solid #D8E8F5'
+          padding: '16px 20px', borderBottom: '1px solid var(--t-card-border)'
         }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0D2238' }}>{title}</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--t-text-primary)' }}>{title}</h3>
           <button onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7AAACB', borderRadius: 6, padding: 4 }}>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t-text-secondary)', borderRadius: 6, padding: 4 }}>
             <X size={18} />
           </button>
         </div>
@@ -243,7 +243,7 @@ function WhatsAppPanel({ atividade }: { atividade: Partial<Atividade> }) {
         ))}
       </div>
       <pre style={{
-        fontSize: 12, lineHeight: 1.8, color: '#0D2238',
+        fontSize: 12, lineHeight: 1.8, color: 'var(--t-text-primary)',
         background: '#fff', borderRadius: 8, padding: '12px 14px',
         border: '1px solid #86efac', whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit'
       }}>
@@ -264,7 +264,7 @@ function WhatsAppPanel({ atividade }: { atividade: Partial<Atividade> }) {
         </a>
       </div>
       {!telefone && (
-        <p style={{ fontSize: 10, color: '#7AAACB', marginTop: 6 }}>
+        <p style={{ fontSize: 10, color: 'var(--t-text-secondary)', marginTop: 6 }}>
           Sem telefone cadastrado — mensagem abrirá sem número pré-preenchido.
         </p>
       )}
@@ -295,8 +295,8 @@ function AtividadeDetail({
 
   const row = (label: string, value: React.ReactNode) => (
     <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-      <span style={{ fontSize: 12, color: '#7AAACB', fontWeight: 600, minWidth: 120 }}>{label}</span>
-      <span style={{ fontSize: 13, color: '#0D2238', flex: 1 }}>{value || '—'}</span>
+      <span style={{ fontSize: 12, color: 'var(--t-text-secondary)', fontWeight: 600, minWidth: 120 }}>{label}</span>
+      <span style={{ fontSize: 13, color: 'var(--t-text-primary)', flex: 1 }}>{value || '—'}</span>
     </div>
   );
 
@@ -323,9 +323,9 @@ function AtividadeDetail({
         </div>
       </div>
 
-      <div style={{ background: '#F4F7FB', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+      <div style={{ background: 'var(--t-content-bg)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
         {atividade.lead && row('Contato', `${atividade.lead.nome}${atividade.lead.empresa ? ` · ${atividade.lead.empresa}` : ''}`)}
-        {atividade.lead?.email && row('E-mail', <a href={`mailto:${atividade.lead.email}`} style={{ color: '#4B8EC8' }}>{atividade.lead.email}</a>)}
+        {atividade.lead?.email && row('E-mail', <a href={`mailto:${atividade.lead.email}`} style={{ color: 'var(--t-primary)' }}>{atividade.lead.email}</a>)}
         {atividade.lead?.telefone && row('Telefone', atividade.lead.telefone)}
         {!atividade.lead && atividade.vinculo_nome && row(
           atividade.vinculo_tipo === 'PARCEIRO' ? 'Parceiro'
@@ -335,7 +335,7 @@ function AtividadeDetail({
           `${VINCULO_ICON[atividade.vinculo_tipo || ''] || ''} ${atividade.vinculo_nome}`.trim()
         )}
         {atividade.link_externo && row('Link da reunião',
-          <a href={atividade.link_externo} target="_blank" rel="noreferrer" style={{ color: '#4B8EC8', wordBreak: 'break-all' }}>{atividade.link_externo}</a>
+          <a href={atividade.link_externo} target="_blank" rel="noreferrer" style={{ color: 'var(--t-primary)', wordBreak: 'break-all' }}>{atividade.link_externo}</a>
         )}
         {row('Data prevista', formatDateTime(atividade.data_prevista))}
         {atividade.data_realizada && row('Realizada em', formatDateTime(atividade.data_realizada))}
@@ -346,7 +346,7 @@ function AtividadeDetail({
       {atividade.descricao && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#4A6E8A', marginBottom: 6 }}>Descrição</div>
-          <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, background: '#F4F7FB', borderRadius: 8, padding: '10px 12px' }}>
+          <div style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
             {atividade.descricao}
           </div>
         </div>
@@ -355,7 +355,7 @@ function AtividadeDetail({
       {atividade.resultado && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#16a34a', marginBottom: 6 }}>Resultado / Resumo da reunião</div>
-          <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, background: '#dcfce7', borderRadius: 8, padding: '10px 12px', border: '1px solid #86efac', whiteSpace: 'pre-wrap' }}>
+          <div style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, background: '#dcfce7', borderRadius: 8, padding: '10px 12px', border: '1px solid #86efac', whiteSpace: 'pre-wrap' }}>
             {atividade.resultado}
           </div>
         </div>
@@ -364,22 +364,22 @@ function AtividadeDetail({
       {/* Notas e percepção da reunião (nota 1-5, tags e observações finais) */}
       {(atividade.percepcao_observ || (atividade.percepcao_nota || 0) > 0 || (atividade.percepcao_tags?.length || 0) > 0) && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#4B8EC8', marginBottom: 6 }}>Notas e percepção da reunião</div>
-          <div style={{ background: '#EBF4FF', borderRadius: 8, padding: '10px 12px', border: '1px solid #C3DCFC' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-primary)', marginBottom: 6 }}>Notas e percepção da reunião</div>
+          <div style={{ background: 'var(--t-primary-light)', borderRadius: 8, padding: '10px 12px', border: '1px solid #C3DCFC' }}>
             {(atividade.percepcao_nota || 0) > 0 && (
-              <div style={{ fontSize: 13, color: '#0D2238', marginBottom: 6 }}>
+              <div style={{ fontSize: 13, color: 'var(--t-text-primary)', marginBottom: 6 }}>
                 Nota: <b>{'★'.repeat(atividade.percepcao_nota || 0)}{'☆'.repeat(5 - (atividade.percepcao_nota || 0))}</b> <span style={{ color: '#4A6E8A' }}>({atividade.percepcao_nota}/5)</span>
               </div>
             )}
             {(atividade.percepcao_tags?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: atividade.percepcao_observ ? 8 : 0 }}>
                 {atividade.percepcao_tags!.map(t => (
-                  <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 14, background: '#fff', color: '#2E6EAB', border: '1px solid #C3DCFC' }}>{t}</span>
+                  <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 14, background: '#fff', color: 'var(--t-primary-dark)', border: '1px solid #C3DCFC' }}>{t}</span>
                 ))}
               </div>
             )}
             {atividade.percepcao_observ && (
-              <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{atividade.percepcao_observ}</div>
+              <div style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{atividade.percepcao_observ}</div>
             )}
           </div>
         </div>
@@ -388,7 +388,7 @@ function AtividadeDetail({
       {atividade.motivo_cancelamento && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', marginBottom: 6 }}>Motivo do Cancelamento</div>
-          <div style={{ fontSize: 13, color: '#0D2238', lineHeight: 1.6, background: '#fef2f2', borderRadius: 8, padding: '10px 12px', border: '1px solid #fca5a5' }}>
+          <div style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, background: '#fef2f2', borderRadius: 8, padding: '10px 12px', border: '1px solid #fca5a5' }}>
             {atividade.motivo_cancelamento}
           </div>
         </div>
@@ -416,13 +416,13 @@ function AtividadeDetail({
       )}
 
       {isActive && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid #D8E8F5', paddingTop: 16, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--t-card-border)', paddingTop: 16, marginTop: 8 }}>
           {atividade.tipo === 'REUNIAO' && !atividade.google_meet_link && (
             <button onClick={onCriarMeet} disabled={creatinguMeet}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
                 borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1.5px solid #C3DCFC',
-                color: '#4B8EC8', background: '#fff'
+                color: 'var(--t-primary)', background: '#fff'
               }}>
               <Video size={13} /> {creatinguMeet ? 'Criando...' : 'Criar Link Meet'}
             </button>
@@ -432,7 +432,7 @@ function AtividadeDetail({
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
                 borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1.5px solid #C3DCFC',
-                color: '#4B8EC8', background: '#fff'
+                color: 'var(--t-primary)', background: '#fff'
               }}>
               <Check size={13} /> Confirmar
             </button>
@@ -506,7 +506,7 @@ const PERCEPCAO_OPCOES: Array<{ value: string; label: string; emoji: string; col
   { value: 'PRODUTIVA',           label: 'Produtiva',                emoji: '🚀', color: '#16a34a', bg: '#dcfce7' },
   { value: 'CLIENTE_INTERESSADO', label: 'Cliente muito interessado',emoji: '🔥', color: '#16a34a', bg: '#dcfce7' },
   { value: 'AVANCOU_FUNIL',       label: 'Avançou no funil',         emoji: '📈', color: '#16a34a', bg: '#dcfce7' },
-  { value: 'TECNICA_DEMO',        label: 'Técnica / Demo',           emoji: '🖥️', color: '#4B8EC8', bg: '#EBF4FF' },
+  { value: 'TECNICA_DEMO',        label: 'Técnica / Demo',           emoji: '🖥️', color: 'var(--t-primary)', bg: '#EBF4FF' },
   { value: 'COM_OBJECOES',        label: 'Com objeções',             emoji: '⚠️', color: '#ca8a04', bg: '#fefce8' },
   { value: 'SEM_DECISAO',         label: 'Sem decisão (retorno)',    emoji: '⏳', color: '#ca8a04', bg: '#fefce8' },
   { value: 'POUCO_COMUNICATIVA',  label: 'Pouco comunicativa',       emoji: '💤', color: '#7c2d12', bg: '#fef3c7' },
@@ -734,7 +734,7 @@ export default function AgendaPage() {
       // Compromisso ligado a LEAD: pode criar um lead novo ("não cadastrado").
       if (ehLead && novoLead) {
         if (!novoLeadData.nome || !novoLeadData.telefone) {
-          alert('Informe pelo menos nome e telefone do novo lead');
+          console.warn('Informe pelo menos nome e telefone do novo lead');
           setSaving(false);
           return;
         }
@@ -752,9 +752,9 @@ export default function AgendaPage() {
       }
 
       // Validação por tipo de vínculo
-      if (ehLead && !data.lead_id) { alert('Selecione o lead do compromisso (ou troque o tipo de vínculo).'); setSaving(false); return; }
+      if (ehLead && !data.lead_id) { console.warn('Selecione o lead do compromisso (ou troque o tipo de vínculo).'); setSaving(false); return; }
       if (!ehLead && data.vinculo_tipo !== 'NENHUM' && !data.vinculo_nome?.trim()) {
-        alert('Informe com quem é o compromisso (ex.: Skytef (Fiserv), Reunião geral, Marketing).'); setSaving(false); return;
+        console.warn('Informe com quem é o compromisso (ex.: Skytef (Fiserv), Reunião geral, Marketing).'); setSaving(false); return;
       }
       // Sem vínculo de lead → não envia lead_id
       if (!ehLead) data.lead_id = null;
@@ -774,7 +774,7 @@ export default function AgendaPage() {
       setShowWaPreview(false);
       load();
     } catch (err: any) {
-      alert('Erro ao criar atividade: ' + (err?.response?.data?.message || err?.message || 'desconhecido'));
+      console.error('Erro ao criar atividade', err);
     }
     setSaving(false);
   };
@@ -874,7 +874,7 @@ export default function AgendaPage() {
       await apiClient.reagendarRapido(id, iso);
       load();
     } catch (err: any) {
-      alert('Erro ao reagendar: ' + (err?.response?.data?.message || 'data inválida'));
+      console.error('Erro ao reagendar', err);
     }
   };
 
@@ -931,7 +931,7 @@ export default function AgendaPage() {
 
   // ── Styles ────────────────────────────────────────────────
   const card: React.CSSProperties = {
-    background: '#fff', border: '1px solid #D8E8F5',
+    background: '#fff', border: '1px solid var(--t-card-border)',
     borderRadius: 12, boxShadow: '0 1px 3px rgba(13,34,56,0.06)'
   };
 
@@ -946,13 +946,13 @@ export default function AgendaPage() {
   const btnOutline: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-    color: '#4B8EC8', cursor: 'pointer', background: '#fff',
+    color: 'var(--t-primary)', cursor: 'pointer', background: '#fff',
     border: '1.5px solid #C3DCFC'
   };
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 12px', border: '1px solid #C3DCFC',
-    borderRadius: 8, fontSize: 13, color: '#0D2238', background: '#fff', outline: 'none'
+    borderRadius: 8, fontSize: 13, color: 'var(--t-text-primary)', background: '#fff', outline: 'none'
   };
 
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#4A6E8A', marginBottom: 4 };
@@ -992,12 +992,12 @@ export default function AgendaPage() {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: '24px', minHeight: '100vh', background: '#F4F7FB' }}>
+      <div style={{ padding: '24px', minHeight: '100vh', background: 'var(--t-content-bg)' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0D2238', marginBottom: 2 }}>Agenda</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 2 }}>Agenda</h1>
             <p style={{ fontSize: 13, color: '#4A6E8A' }}>Reuniões, atividades e integração com Google Calendar e WhatsApp</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -1030,7 +1030,7 @@ export default function AgendaPage() {
         {isAdmin && colaboradores.length > 0 && (
           <div style={{ ...card, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <Users size={14} color="#4B8EC8" />
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#4B8EC8', marginRight: 6 }}>Filtrar por colaborador:</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', marginRight: 6 }}>Filtrar por colaborador:</span>
             <button onClick={() => setFiltroColaborador('')}
               style={{
                 padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
@@ -1084,7 +1084,7 @@ export default function AgendaPage() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {view === 'lista' && (
                 <div style={{ position: 'relative' }}>
-                  <Search size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#7AAACB' }} />
+                  <Search size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--t-text-secondary)' }} />
                   <input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
                     style={{ ...inputStyle, paddingLeft: 28, width: 180 }} />
                 </div>
@@ -1106,11 +1106,11 @@ export default function AgendaPage() {
         {/* ── MÊS VIEW ── */}
         {(view === 'mes' || view === 'semana') && (
           <div style={card}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #D8E8F5' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--t-card-border)' }}>
               <button onClick={prevPeriod} style={{ ...btnOutline, padding: '6px 12px' }}>
                 <ChevronLeft size={14} />
               </button>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#0D2238', textTransform: 'capitalize' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)', textTransform: 'capitalize' }}>
                 {periodLabel()}
               </span>
               <button onClick={nextPeriod} style={{ ...btnOutline, padding: '6px 12px' }}>
@@ -1119,13 +1119,13 @@ export default function AgendaPage() {
             </div>
 
             {/* Day headers */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #EBF4FF' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--t-card-border)' }}>
               {DAY_NAMES.map((name, i) => (
                 <div key={i} style={{
                   padding: '8px 6px', textAlign: 'center',
                   borderRight: i < 6 ? '1px solid #EBF4FF' : 'none'
                 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#7AAACB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{name}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{name}</span>
                 </div>
               ))}
             </div>
@@ -1164,7 +1164,7 @@ export default function AgendaPage() {
                               <Icon size={11} color={cfg.color} />
                               <span style={{ fontSize: 10, fontWeight: 600, color: cfg.color }}>{formatTime(a.data_prevista)}</span>
                             </div>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2238', lineHeight: 1.3 }} title={a.titulo}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-primary)', lineHeight: 1.3 }} title={a.titulo}>
                               {a.titulo.length > 22 ? a.titulo.slice(0, 22) + '…' : a.titulo}
                             </div>
                             {a.lead && <div style={{ fontSize: 10, color: '#4A6E8A' }}>{a.lead.nome}</div>}
@@ -1188,7 +1188,7 @@ export default function AgendaPage() {
                             {a.google_meet_link && (
                               <a href={a.google_meet_link} target="_blank" rel="noreferrer"
                                 onClick={e => e.stopPropagation()}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 10, color: '#4B8EC8', textDecoration: 'none' }}>
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 10, color: 'var(--t-primary)', textDecoration: 'none' }}>
                                 <Video size={9} /> Meet
                               </a>
                             )}
@@ -1209,7 +1209,7 @@ export default function AgendaPage() {
                     if (!day) return (
                       <div key={i} style={{
                         borderRight: i % 7 < 6 ? '1px solid #EBF4FF' : 'none',
-                        borderBottom: '1px solid #EBF4FF',
+                        borderBottom: '1px solid var(--t-card-border)',
                         minHeight: 90, background: '#FAFAFA'
                       }} />
                     );
@@ -1219,7 +1219,7 @@ export default function AgendaPage() {
                     return (
                       <div key={i} style={{
                         borderRight: i % 7 < 6 ? '1px solid #EBF4FF' : 'none',
-                        borderBottom: '1px solid #EBF4FF',
+                        borderBottom: '1px solid var(--t-card-border)',
                         padding: '6px 5px', minHeight: 90, cursor: 'pointer',
                         background: isToday ? '#FAFCFF' : isCurrentMonth ? '#fff' : '#FAFAFA'
                       }}
@@ -1250,7 +1250,7 @@ export default function AgendaPage() {
                           );
                         })}
                         {dayAtividades.length > 3 && (
-                          <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 600 }}>+{dayAtividades.length - 3} mais</div>
+                          <div style={{ fontSize: 10, color: 'var(--t-text-secondary)', fontWeight: 600 }}>+{dayAtividades.length - 3} mais</div>
                         )}
                       </div>
                     );
@@ -1267,30 +1267,30 @@ export default function AgendaPage() {
             {/* Métricas resumo */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 8 }}>
               <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #4B8EC8' }}>
-                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Agendadas</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#0D2238', marginTop: 2 }}>{metricas.agendadas}</div>
+                <div style={{ fontSize: 10, color: 'var(--t-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Agendadas</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)', marginTop: 2 }}>{metricas.agendadas}</div>
               </div>
               <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #16a34a' }}>
-                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizadas</div>
+                <div style={{ fontSize: 10, color: 'var(--t-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizadas</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a', marginTop: 2 }}>{metricas.realizadas}</div>
               </div>
               <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #dc2626' }}>
-                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Canceladas</div>
+                <div style={{ fontSize: 10, color: 'var(--t-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Canceladas</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626', marginTop: 2 }}>{metricas.canceladas}</div>
               </div>
               <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #ea580c' }}>
-                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Não Compareceu</div>
+                <div style={{ fontSize: 10, color: 'var(--t-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Não Compareceu</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#ea580c', marginTop: 2 }}>{metricas.naoCompareceu}</div>
               </div>
               <div style={{ ...card, padding: '12px 14px', borderLeft: '3px solid #7c3aed' }}>
-                <div style={{ fontSize: 10, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Taxa Sucesso</div>
+                <div style={{ fontSize: 10, color: 'var(--t-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Taxa Sucesso</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#7c3aed', marginTop: 2 }}>{taxaSucesso}%</div>
               </div>
             </div>
 
-            {loading && <div style={{ textAlign: 'center', padding: 40, color: '#7AAACB' }}>Carregando...</div>}
+            {loading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-text-secondary)' }}>Carregando...</div>}
             {!loading && filteredLista.length === 0 && filteredProblemas.length === 0 && (
-              <div style={{ ...card, padding: 40, textAlign: 'center', color: '#7AAACB' }}>
+              <div style={{ ...card, padding: 40, textAlign: 'center', color: 'var(--t-text-secondary)' }}>
                 <CalendarDays size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
                 <p>Nenhuma atividade encontrada</p>
               </div>
@@ -1306,7 +1306,7 @@ export default function AgendaPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#0D2238' }}>{a.titulo}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{a.titulo}</span>
                       <Badge status={a.status} />
                       <TipoBadge tipo={a.tipo} />
                       {/* Etiqueta colorida do colaborador (só admin) */}
@@ -1329,13 +1329,13 @@ export default function AgendaPage() {
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       {a.lead && <span style={{ fontSize: 12, color: '#4A6E8A' }}>{a.lead.nome}{a.lead.empresa ? ` · ${a.lead.empresa}` : ''}</span>}
                       {a.data_prevista && (
-                        <span style={{ fontSize: 12, color: '#7AAACB', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Clock size={11} /> {formatDateTime(a.data_prevista)}
                         </span>
                       )}
                       {a.google_meet_link && (
                         <a href={a.google_meet_link} target="_blank" rel="noreferrer"
-                          style={{ fontSize: 12, color: '#4B8EC8', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                          style={{ fontSize: 12, color: 'var(--t-primary)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
                           <Video size={11} /> Link Meet
                         </a>
                       )}
@@ -1379,7 +1379,7 @@ export default function AgendaPage() {
               <div style={{ marginTop: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 4, height: 22, background: '#64748b', borderRadius: 2 }} />
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0D2238' }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>
                     Histórico — realizadas, canceladas, não compareceu e reagendadas ({filteredProblemas.length})
                   </h3>
                 </div>
@@ -1417,7 +1417,7 @@ export default function AgendaPage() {
                       </div>
                       <div style={{ flex: 1, minWidth: 200 }}>
                         <div style={{
-                          fontSize: 14, fontWeight: 700, color: '#0D2238',
+                          fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)',
                           textDecoration: a.status === 'REALIZADA' ? 'none' : 'line-through',
                           textDecorationColor: statusCor
                         }}>{a.titulo}</div>
@@ -1530,7 +1530,7 @@ export default function AgendaPage() {
                         const res = await apiClient.getDashboardProdutividade(params);
                         setDashboardProd(res.data.data);
                       } catch (err: any) {
-                        alert('Erro: ' + (err?.response?.data?.message || err?.message));
+                        console.error('Erro ao salvar', err);
                       }
                     }}>
                     <BarChart2 size={13} /> Dashboard Produtividade {filtroColaborador && '· filtrado'}
@@ -1543,12 +1543,12 @@ export default function AgendaPage() {
             {isAdmin && dashboardProd && (
               <div style={{ ...card, padding: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0D2238' }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--t-text-primary)' }}>
                     Ranking de Produtividade — {dashboardProd.total_usuarios} colaborador(es)
                   </h3>
                   {dashboardProd.percepcoes?.nota_media_geral && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, color: '#7AAACB', fontWeight: 600 }}>Nota média geral:</span>
+                      <span style={{ fontSize: 11, color: 'var(--t-text-secondary)', fontWeight: 600 }}>Nota média geral:</span>
                       <span style={{ fontSize: 16, fontWeight: 800, color: '#f59e0b' }}>★ {dashboardProd.percepcoes.nota_media_geral}</span>
                     </div>
                   )}
@@ -1569,41 +1569,41 @@ export default function AgendaPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             {medalha && <span style={{ fontSize: 18 }}>{medalha}</span>}
                             <div>
-                              <div style={{ fontSize: 14, fontWeight: 700, color: '#0D2238' }}>{u.nome}</div>
-                              <div style={{ fontSize: 10, color: '#7AAACB' }}>{u.email}</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>{u.nome}</div>
+                              <div style={{ fontSize: 10, color: 'var(--t-text-secondary)' }}>{u.email}</div>
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: 22, fontWeight: 800, color: cor }}>{u.realizadas}</div>
-                            <div style={{ fontSize: 9, color: '#7AAACB', fontWeight: 700, textTransform: 'uppercase' }}>Realizadas</div>
+                            <div style={{ fontSize: 9, color: 'var(--t-text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Realizadas</div>
                           </div>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10, fontSize: 11 }}>
-                          <div><div style={{ color: '#4B8EC8', fontWeight: 700 }}>{u.agendadas}</div><div style={{ color: '#7AAACB', fontSize: 9 }}>Agendadas</div></div>
-                          <div><div style={{ color: '#dc2626', fontWeight: 700 }}>{u.canceladas}</div><div style={{ color: '#7AAACB', fontSize: 9 }}>Cancel.</div></div>
-                          <div><div style={{ color: '#ea580c', fontWeight: 700 }}>{u.nao_compareceu}</div><div style={{ color: '#7AAACB', fontSize: 9 }}>No-show</div></div>
-                          <div><div style={{ color: '#7c3aed', fontWeight: 700 }}>{u.remarcadas}</div><div style={{ color: '#7AAACB', fontSize: 9 }}>Remarc.</div></div>
+                          <div><div style={{ color: 'var(--t-primary)', fontWeight: 700 }}>{u.agendadas}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Agendadas</div></div>
+                          <div><div style={{ color: '#dc2626', fontWeight: 700 }}>{u.canceladas}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Cancel.</div></div>
+                          <div><div style={{ color: '#ea580c', fontWeight: 700 }}>{u.nao_compareceu}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>No-show</div></div>
+                          <div><div style={{ color: '#7c3aed', fontWeight: 700 }}>{u.remarcadas}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Remarc.</div></div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 8, fontSize: 11, paddingTop: 8, borderTop: '1px solid #EBF4FF' }}>
+                        <div style={{ display: 'flex', gap: 8, fontSize: 11, paddingTop: 8, borderTop: '1px solid var(--t-card-border)' }}>
                           <div style={{ flex: 1 }}>
                             <div style={{ color: '#16a34a', fontWeight: 700 }}>{u.taxa_sucesso}%</div>
-                            <div style={{ color: '#7AAACB', fontSize: 9 }}>Taxa Sucesso</div>
+                            <div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Taxa Sucesso</div>
                           </div>
                           <div style={{ flex: 1 }}>
                             <div style={{ color: '#dc2626', fontWeight: 700 }}>{u.taxa_no_show}%</div>
-                            <div style={{ color: '#7AAACB', fontSize: 9 }}>Taxa No-show</div>
+                            <div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Taxa No-show</div>
                           </div>
                           {u.nota_media != null && (
                             <div style={{ flex: 1 }}>
                               <div style={{ color: '#f59e0b', fontWeight: 700 }}>★ {u.nota_media}</div>
-                              <div style={{ color: '#7AAACB', fontSize: 9 }}>Nota Média</div>
+                              <div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Nota Média</div>
                             </div>
                           )}
                         </div>
 
-                        <div style={{ display: 'flex', gap: 6, marginTop: 10, fontSize: 9, color: '#7AAACB', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 6, marginTop: 10, fontSize: 9, color: 'var(--t-text-secondary)', flexWrap: 'wrap' }}>
                           {u.reunioes > 0 && <span>🎥 {u.reunioes} Reuniões</span>}
                           {u.ligacoes > 0 && <span>📞 {u.ligacoes} Ligações</span>}
                           {u.visitas > 0 && <span>📍 {u.visitas} Visitas</span>}
@@ -1617,7 +1617,7 @@ export default function AgendaPage() {
                 {/* Distribuição de percepções */}
                 {dashboardProd.percepcoes?.tags && Object.keys(dashboardProd.percepcoes.tags).length > 0 && (
                   <div style={{ ...card, padding: 14, marginTop: 8 }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: '#0D2238', marginBottom: 10 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 10 }}>
                       Percepções das reuniões (consolidado)
                     </h4>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1644,7 +1644,7 @@ export default function AgendaPage() {
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                   {[
-                    { label: 'Total', value: relatorio.total, icon: BarChart2, color: '#4B8EC8' },
+                    { label: 'Total', value: relatorio.total, icon: BarChart2, color: 'var(--t-primary)' },
                     { label: 'Reuniões', value: relatorio.reunioes_total, icon: Video, color: '#7c3aed' },
                     { label: 'Realizadas', value: relatorio.reunioes_realizadas, icon: CheckCircle2, color: '#16a34a' },
                     { label: 'Canceladas', value: relatorio.reunioes_canceladas, icon: XCircle, color: '#dc2626' },
@@ -1659,7 +1659,7 @@ export default function AgendaPage() {
                         </div>
                         <div>
                           <div style={{ fontSize: 11, color: '#4A6E8A', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
-                          <div style={{ fontSize: 22, fontWeight: 700, color: '#0D2238' }}>{k.value}</div>
+                          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--t-text-primary)' }}>{k.value}</div>
                         </div>
                       </div>
                     );
@@ -1667,13 +1667,13 @@ export default function AgendaPage() {
                 </div>
 
                 <div style={{ ...card, overflow: 'hidden' }}>
-                  <div style={{ padding: '14px 16px', borderBottom: '1px solid #D8E8F5' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#0D2238' }}>Detalhamento — {relatorio.total} registro(s)</span>
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--t-card-border)' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>Detalhamento — {relatorio.total} registro(s)</span>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
-                        <tr style={{ background: '#F4F7FB' }}>
+                        <tr style={{ background: 'var(--t-content-bg)' }}>
                           {['Título', 'Lead', 'Tipo', 'Status', 'Data', 'Duração'].map(h => (
                             <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#4A6E8A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                           ))}
@@ -1681,8 +1681,8 @@ export default function AgendaPage() {
                       </thead>
                       <tbody>
                         {relatorio.atividades.map((a: Atividade) => (
-                          <tr key={a.id} style={{ borderTop: '1px solid #EBF4FF' }}>
-                            <td style={{ padding: '10px 12px', color: '#0D2238', fontWeight: 500 }}>{a.titulo}</td>
+                          <tr key={a.id} style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                            <td style={{ padding: '10px 12px', color: 'var(--t-text-primary)', fontWeight: 500 }}>{a.titulo}</td>
                             <td style={{ padding: '10px 12px', color: '#4A6E8A' }}>{vinculoLabel(a)}</td>
                             <td style={{ padding: '10px 12px' }}><TipoBadge tipo={a.tipo} /></td>
                             <td style={{ padding: '10px 12px' }}><Badge status={a.status} /></td>
@@ -1691,7 +1691,7 @@ export default function AgendaPage() {
                           </tr>
                         ))}
                         {relatorio.atividades.length === 0 && (
-                          <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#7AAACB' }}>Nenhum resultado</td></tr>
+                          <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--t-text-secondary)' }}>Nenhum resultado</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -1911,7 +1911,7 @@ export default function AgendaPage() {
               <div>
                 <label style={labelStyle}>
                   Resumo / Pauta para o cliente
-                  <span style={{ marginLeft: 6, fontSize: 10, color: '#7AAACB', fontWeight: 400 }}>Aparece nas mensagens WhatsApp</span>
+                  <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--t-text-secondary)', fontWeight: 400 }}>Aparece nas mensagens WhatsApp</span>
                 </label>
                 <textarea value={formData.resumo_reuniao}
                   onChange={e => setFormData(p => ({ ...p, resumo_reuniao: e.target.value }))}
@@ -1922,10 +1922,10 @@ export default function AgendaPage() {
 
             {/* Google Meet link generator */}
             {formData.tipo === 'REUNIAO' && (
-              <div style={{ background: '#EBF4FF', borderRadius: 10, padding: 14, border: '1px solid #C3DCFC' }}>
+              <div style={{ background: 'var(--t-primary-light)', borderRadius: 10, padding: 14, border: '1px solid #C3DCFC' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: meetLinkForm ? 10 : 0 }}>
                   <Video size={14} color="#4B8EC8" />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#4B8EC8', flex: 1 }}>Google Meet</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', flex: 1 }}>Google Meet</span>
                   {!meetLinkForm && (
                     <button onClick={handleGerarMeetForm} disabled={generatingMeet || !formData.titulo || !formData.data_prevista}
                       style={{
@@ -1956,7 +1956,7 @@ export default function AgendaPage() {
                 {meetLinkForm && !meetError && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                     <a href={meetLinkForm} target="_blank" rel="noreferrer"
-                      style={{ fontSize: 12, color: '#4B8EC8', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      style={{ fontSize: 12, color: 'var(--t-primary)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Video size={12} /> {meetLinkForm}
                     </a>
                     <CopyButton text={meetLinkForm} />
@@ -1967,7 +1967,7 @@ export default function AgendaPage() {
                   </div>
                 )}
                 {!meetLinkForm && !meetError && !formData.titulo && (
-                  <p style={{ fontSize: 11, color: '#7AAACB', marginTop: 6 }}>Preencha o título e a data para gerar o link.</p>
+                  <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginTop: 6 }}>Preencha o título e a data para gerar o link.</p>
                 )}
               </div>
             )}
@@ -1978,7 +1978,7 @@ export default function AgendaPage() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#16a34a' }}>Mensagens WhatsApp</span>
                   <button onClick={() => setShowWaPreview(v => !v)}
-                    style={{ fontSize: 11, color: '#7AAACB', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    style={{ fontSize: 11, color: 'var(--t-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>
                     {showWaPreview ? 'Ocultar' : 'Mostrar'}
                   </button>
                 </div>
@@ -2018,8 +2018,8 @@ export default function AgendaPage() {
       {/* ══ MODAL: Concluir ══════════════════════════════════════ */}
       {showConcluir && (
         <Modal title="Concluir Atividade" onClose={() => setShowConcluir(null)}>
-          <div style={{ marginBottom: 12, padding: 12, background: '#EBF4FF', borderRadius: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#0D2238' }}>{showConcluir.titulo}</div>
+          <div style={{ marginBottom: 12, padding: 12, background: 'var(--t-primary-light)', borderRadius: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{showConcluir.titulo}</div>
             {showConcluir.lead && <div style={{ fontSize: 12, color: '#4A6E8A', marginTop: 2 }}>{showConcluir.lead.nome}</div>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -2041,8 +2041,8 @@ export default function AgendaPage() {
             </div>
             {/* Percepção da reunião — só para tipo REUNIAO */}
             {showConcluir.tipo === 'REUNIAO' && (
-              <div style={{ background: '#EBF4FF', border: '1px solid #C3DCFC', borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#4B8EC8', marginBottom: 8 }}>
+              <div style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC', borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', marginBottom: 8 }}>
                   Como foi a reunião? Marque suas percepções (opcional)
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
@@ -2086,7 +2086,7 @@ export default function AgendaPage() {
                       }}>★</button>
                   ))}
                   {concluirForm.percepcao_nota > 0 && (
-                    <span style={{ fontSize: 11, color: '#7AAACB' }}>{concluirForm.percepcao_nota}/5</span>
+                    <span style={{ fontSize: 11, color: 'var(--t-text-secondary)' }}>{concluirForm.percepcao_nota}/5</span>
                   )}
                 </div>
 
@@ -2149,7 +2149,7 @@ export default function AgendaPage() {
       {showRemarcar && (
         <Modal title="Reagendar Atividade" onClose={() => setShowRemarcar(null)}>
           <div style={{ marginBottom: 12, padding: 12, background: '#f5f3ff', borderRadius: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#0D2238' }}>{showRemarcar.titulo}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{showRemarcar.titulo}</div>
             {showRemarcar.data_prevista && (
               <div style={{ fontSize: 12, color: '#4A6E8A', marginTop: 2 }}>
                 Data atual: {formatDateTime(showRemarcar.data_prevista)}

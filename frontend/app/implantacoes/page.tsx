@@ -109,7 +109,7 @@ export default function ImplantacoesPage() {
   const designar = async (tecnicoId: string) => {
     if (!exec || !tecnicoId) return;
     try { await apiClient.designarTecnico(exec.id, tecnicoId); await recarregarExec(); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao designar.'); }
+    catch (e: any) { console.error('Erro ao designar.', e); }
   };
   const moverEtapa = async (etapa: string) => { if (exec) { await apiClient.moverEtapaImplantacao(exec.id, etapa); await recarregarExec(); } };
   const treinamento = async (acao: 'INICIAR' | 'ENCERRAR') => { if (exec) { await apiClient.treinamentoImplantacao(exec.id, acao); await recarregarExec(); } };
@@ -134,7 +134,7 @@ export default function ImplantacoesPage() {
       setSel(null);
       await load();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao salvar.');
+      console.error('Erro ao salvar.', e);
     } finally { setSaving(false); }
   };
 
@@ -207,7 +207,7 @@ export default function ImplantacoesPage() {
                     <td style={{ padding: '10px 12px', color: 'var(--t-text-muted)' }}>{fmtData(i.data_primeiro_vencimento)}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 700, color: i.mes_pagamento_comissao ? '#2E6EAB' : 'var(--t-text-muted)' }}>{fmtMes(i.mes_pagamento_comissao)}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button onClick={() => abrir(i)} style={{ fontSize: 12, fontWeight: 600, color: '#2E6EAB', background: 'transparent', border: '1px solid #c7d8ec', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', marginRight: 6 }}>
+                      <button onClick={() => abrir(i)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-primary-dark)', background: 'transparent', border: '1px solid #c7d8ec', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', marginRight: 6 }}>
                         Datas
                       </button>
                       <button onClick={() => abrirExec(i)} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#2E6EAB', border: 'none', borderRadius: 8, padding: '5px 12px', cursor: 'pointer' }}>
@@ -237,7 +237,7 @@ export default function ImplantacoesPage() {
                   <input type="date" value={form.data_primeiro_vencimento} onChange={e => setForm((p: any) => ({ ...p, data_primeiro_vencimento: e.target.value }))} className="ps-input w-full" />
                 </Campo>
                 {previewMesPag && (
-                  <div style={{ background: '#EBF4FF', border: '1px solid #c7d8ec', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#2E6EAB' }}>
+                  <div style={{ background: 'var(--t-primary-light)', border: '1px solid #c7d8ec', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--t-primary-dark)' }}>
                     💰 Comissão será paga em <strong>{fmtMes(previewMesPag)}</strong> (mês seguinte ao 1º vencimento).
                   </div>
                 )}
@@ -302,7 +302,7 @@ export default function ImplantacoesPage() {
                     <option value="">Designar técnico…</option>
                     {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome} ({t.cargo})</option>)}
                   </select>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#2E6EAB', background: '#EBF4FF', padding: '3px 8px', borderRadius: 999 }}>{exec.etapa_execucao}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-primary-dark)', background: 'var(--t-primary-light)', padding: '3px 8px', borderRadius: 999 }}>{exec.etapa_execucao}</span>
                 </div>
 
                 {/* Botões de etapa */}
@@ -394,7 +394,7 @@ export default function ImplantacoesPage() {
                     <div className="space-y-2">
                       {(exec.arquivos || []).map((a: any) => (
                         <div key={a.id} className="flex items-center justify-between" style={{ padding: 8, borderRadius: 8, border: '1px solid var(--t-card-border)' }}>
-                          <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#2E6EAB', fontWeight: 600 }}>📎 {a.nome} ↗</a>
+                          <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--t-primary-dark)', fontWeight: 600 }}>📎 {a.nome} ↗</a>
                           <button onClick={() => delArquivo(a.id)} style={{ fontSize: 11, color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer' }}>remover</button>
                         </div>
                       ))}

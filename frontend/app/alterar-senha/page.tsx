@@ -61,22 +61,22 @@ export default function AlterarSenhaPage() {
 
   const input: React.CSSProperties = {
     width: '100%', padding: '11px 14px', paddingRight: 44, border: '1.5px solid #C3DCFC',
-    borderRadius: 9, fontSize: 14, color: '#0D2238', background: '#fff',
+    borderRadius: 9, fontSize: 14, color: 'var(--t-text-primary)', background: '#fff',
     outline: 'none', boxSizing: 'border-box', fontFamily: 'monospace', letterSpacing: 2
   };
 
   if (success) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F4F7FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ minHeight: '100vh', background: 'var(--t-content-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ background: '#fff', borderRadius: 20, padding: 48, maxWidth: 420, width: '100%', textAlign: 'center', boxShadow: '0 8px 40px rgba(13,34,56,0.10)' }}>
           <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
             <CheckCircle size={36} color="#16a34a" />
           </div>
-          <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 700, color: '#0D2238' }}>Senha alterada!</h2>
+          <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 700, color: 'var(--t-text-primary)' }}>Senha alterada!</h2>
           <p style={{ margin: '0 0 24px', fontSize: 14, color: '#4A6E8A', lineHeight: 1.7 }}>
             Sua nova senha foi salva com sucesso. Redirecionando para o dashboard...
           </p>
-          <div style={{ height: 4, background: '#EBF4FF', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ height: 4, background: 'var(--t-primary-light)', borderRadius: 4, overflow: 'hidden' }}>
             <div style={{ height: '100%', background: '#16a34a', borderRadius: 4, animation: 'progress 2.5s linear forwards' }} />
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function AlterarSenhaPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F4F7FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--t-content-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', maxWidth: 460, width: '100%', boxShadow: '0 8px 40px rgba(13,34,56,0.12)' }}>
 
         {/* Header ProSystem */}
@@ -130,7 +130,7 @@ export default function AlterarSenhaPage() {
                 style={{ ...input, letterSpacing: form.senha_atual ? 4 : 0 }}
               />
               <button type="button" onClick={() => setShow(p => ({ ...p, atual: !p.atual }))}
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#7AAACB', padding: 0 }}>
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t-text-secondary)', padding: 0 }}>
                 {show.atual ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -151,7 +151,7 @@ export default function AlterarSenhaPage() {
                 style={{ ...input, letterSpacing: form.nova_senha ? 4 : 0 }}
               />
               <button type="button" onClick={() => setShow(p => ({ ...p, nova: !p.nova }))}
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#7AAACB', padding: 0 }}>
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t-text-secondary)', padding: 0 }}>
                 {show.nova ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -167,7 +167,7 @@ export default function AlterarSenhaPage() {
               </div>
               <p style={{ margin: 0, fontSize: 11, color: strength.color, fontWeight: 600 }}>
                 Força: {strength.label}
-                {strength.score < 4 && <span style={{ color: '#7AAACB', fontWeight: 400 }}> · Adicione maiúsculas, números ou símbolos (@#$!)</span>}
+                {strength.score < 4 && <span style={{ color: 'var(--t-text-secondary)', fontWeight: 400 }}> · Adicione maiúsculas, números ou símbolos (@#$!)</span>}
               </p>
             </div>
           )}
@@ -191,7 +191,7 @@ export default function AlterarSenhaPage() {
                 }}
               />
               <button type="button" onClick={() => setShow(p => ({ ...p, confirmar: !p.confirmar }))}
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#7AAACB', padding: 0 }}>
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t-text-secondary)', padding: 0 }}>
                 {show.confirmar ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -200,7 +200,7 @@ export default function AlterarSenhaPage() {
           </div>
 
           {/* Dicas rápidas */}
-          <div style={{ background: '#F4F7FB', border: '1px solid #D8E8F5', borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
+          <div style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
               <Shield size={13} color="#4B8EC8" />
               <span style={{ fontSize: 12, fontWeight: 700, color: '#1A4E82' }}>Requisitos de segurança</span>
@@ -241,7 +241,7 @@ export default function AlterarSenhaPage() {
             {loading ? 'Salvando...' : '🔒 Salvar Nova Senha'}
           </button>
 
-          <p style={{ margin: '16px 0 0', fontSize: 12, color: '#7AAACB', textAlign: 'center', lineHeight: 1.6 }}>
+          <p style={{ margin: '16px 0 0', fontSize: 12, color: 'var(--t-text-secondary)', textAlign: 'center', lineHeight: 1.6 }}>
             Após salvar, use sua nova senha em todos os próximos acessos.
           </p>
         </form>

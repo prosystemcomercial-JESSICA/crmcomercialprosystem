@@ -77,38 +77,38 @@ export default function PerdidosPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Perdidos</h1>
+          <h1 className="text-3xl font-bold text-sm font-semibold">Perdidos</h1>
           <p className="text-gray-500 mt-1">{total} leads perdidos · R$ {valorTotal.toLocaleString('pt-BR')} em oportunidades perdidas</p>
         </div>
 
         {/* Analysis */}
         {leads.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">Perdidos por Etapa</h3>
+            <div className="ps-card rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-sm font-semibold mb-4">Perdidos por Etapa</h3>
               <div className="space-y-2">
                 {Object.entries(etapaPerda).sort(([, a], [, b]) => b - a).map(([etapa, count]) => (
                   <div key={etapa} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-28">{etapa}</span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <span className="text-sm  w-28">{etapa}</span>
+                    <div className="flex-1 bg-opacity-0 rounded-full h-2">
                       <div className="h-2 rounded-full bg-red-400" style={{ width: `${(count / total) * 100}%` }} />
                     </div>
-                    <span className="text-sm font-medium text-gray-700 w-8 text-right">{count}</span>
+                    <span className="text-sm font-medium  w-8 text-right">{count}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">Perdidos por Origem</h3>
+            <div className="ps-card rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-sm font-semibold mb-4">Perdidos por Origem</h3>
               <div className="space-y-2">
                 {Object.entries(origemCounts).sort(([, a], [, b]) => b - a).map(([origem, count]) => (
                   <div key={origem} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-24">{origem}</span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <span className="text-sm  w-24">{origem}</span>
+                    <div className="flex-1 bg-opacity-0 rounded-full h-2">
                       <div className="h-2 rounded-full bg-orange-400" style={{ width: `${(count / total) * 100}%` }} />
                     </div>
-                    <span className="text-sm font-medium text-gray-700 w-8 text-right">{count}</span>
+                    <span className="text-sm font-medium  w-8 text-right">{count}</span>
                   </div>
                 ))}
               </div>
@@ -117,9 +117,9 @@ export default function PerdidosPage() {
         )}
 
         {/* List */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
           {dataLoading ? (
-            <div className="p-8 text-center text-gray-500">Carregando...</div>
+            <div className="p-8 text-center ">Carregando...</div>
           ) : leads.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-4xl mb-3">🎉</div>
@@ -127,39 +127,39 @@ export default function PerdidosPage() {
             </div>
           ) : (
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-opacity-0 border-b border-gray-200">
                 <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lead</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Etapa da Perda</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Origem</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Valor Perdido</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Lead</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Etapa da Perda</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Origem</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Valor Perdido</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Data</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {leads.map(l => (
-                  <tr key={l.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={l.id} className="hover:opacity-80 transition-colors">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-red-100 rounded-full flex items-center justify-center text-red-500 font-semibold">
                           {l.nome.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{l.nome}</p>
-                          <p className="text-xs text-gray-500">{l.empresa}</p>
-                          <p className="text-xs text-gray-400">{l.telefone || l.email}</p>
+                          <p className="font-medium text-sm font-semibold">{l.nome}</p>
+                          <p className="text-xs ">{l.empresa}</p>
+                          <p className="text-xs ">{l.telefone || l.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-sm text-gray-600">{ETAPA_LABELS[l.etapa_funil] || l.etapa_funil}</td>
-                    <td className="px-5 py-4 text-sm text-gray-600">{l.origem}</td>
+                    <td className="px-5 py-4 text-sm ">{ETAPA_LABELS[l.etapa_funil] || l.etapa_funil}</td>
+                    <td className="px-5 py-4 text-sm ">{l.origem}</td>
                     <td className="px-5 py-4">
                       {l.valor_estimado
                         ? <span className="text-sm font-semibold text-red-600">R$ {l.valor_estimado.toLocaleString('pt-BR')}</span>
                         : <span className="text-gray-400 text-sm">—</span>}
                     </td>
-                    <td className="px-5 py-4 text-sm text-gray-500">{new Date(l.updated_at).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-5 py-4 text-sm ">{new Date(l.updated_at).toLocaleDateString('pt-BR')}</td>
                     <td className="px-5 py-4 text-right">
                       <button onClick={() => handleReativar(l.id)}
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium">

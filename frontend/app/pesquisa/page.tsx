@@ -97,7 +97,7 @@ function Obrigado({ score, categoria, interesseComercial }: { score: number; cat
       <p style={{ color: C.sub, fontSize: 15, lineHeight: 1.65, margin: '0 auto 24px', maxWidth: 380 }}>{config.msg}</p>
 
       {interesseComercial && ['sim', 'talvez'].includes(interesseComercial) && (
-        <div style={{ background: '#EBF4FF', border: `1px solid ${C.blue3}`, borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
+        <div style={{ background: 'var(--t-primary-light)', border: `1px solid ${C.blue3}`, borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.blue }}>
             📞 Ótimo! Nosso time vai entrar em contato para apresentar as soluções que podem agregar ainda mais valor ao seu negócio.
           </p>
@@ -123,7 +123,7 @@ function BarraProgresso({ etapa, total }: { etapa: number; total: number }) {
   const pct = Math.round((etapa / total) * 100);
   return (
     <div>
-      <div style={{ height: 5, background: '#EBF4FF' }}>
+      <div style={{ height: 5, background: 'var(--t-primary-light)' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg,${C.blue3},${C.light})`, transition: 'width .4s ease' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 20px 0', fontSize: 11, color: C.muted, fontWeight: 600 }}>
@@ -442,7 +442,7 @@ export default function PesquisaPublicaPage() {
 
               {/* Só mostra interesse comercial se há ferramentas desconhecidas */}
               {Object.values(ferramentas).some(v => v === 'nao' || v === 'conhece') && (
-                <div style={{ ...sBloco, background: '#EBF4FF', borderColor: C.blue3 }}>
+                <div style={{ ...sBloco, background: 'var(--t-primary-light)', borderColor: C.blue3 }}>
                   <p style={sTitulo}>📞 Você gostaria que nosso time apresentasse alguma dessas soluções?</p>
                   {INTERESSE_COMERCIAL.map(i => (
                     <BotaoOpcao key={i.k} label={i.l} sub={i.sub} cor={i.cor} emoji={i.emoji} ativo={interesseComercial === i.k} onClick={() => setInteresseComercial(i.k)} />

@@ -71,15 +71,15 @@ export default function VendasAdicionaisPage() {
           </div>
         </div>
 
-        {carregando ? <div className="text-center py-16 text-gray-400">Carregando…</div> : !d ? <div className="text-center py-16 text-gray-400">Sem dados.</div> : (
+        {carregando ? <div className="text-center py-16 ">Carregando…</div> : !d ? <div className="text-center py-16 ">Sem dados.</div> : (
           <>
             {/* Barra de acompanhamento da meta anual (30k) / supermeta (50k) */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+            <div className="ps-card rounded-2xl border border-gray-200 p-5">
               <div className="flex items-end justify-between flex-wrap gap-2 mb-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: PRO_DARK }}>Meta anual de vendas adicionais</p>
                   <p className="text-3xl font-extrabold mt-1" style={{ color: PRO }}>{fmt0(fat)}</p>
-                  <p className="text-sm text-gray-500">de {fmt0(meta)} (meta) · super {fmt0(sup)}</p>
+                  <p className="text-sm ">de {fmt0(meta)} (meta) · super {fmt0(sup)}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: fat >= sup ? '#dcfce7' : fat >= meta ? '#fef9c3' : '#eef5fc', color: fat >= sup ? '#15803d' : fat >= meta ? '#a16207' : PRO_DARK }}>
@@ -94,22 +94,22 @@ export default function VendasAdicionaisPage() {
                   background: fat >= meta ? 'linear-gradient(90deg,#417ABC,#16a34a)' : PRO,
                 }} />
                 {/* marca da meta (30k) */}
-                <span className="absolute top-[-3px] h-[26px] w-0.5 bg-gray-500" style={{ left: `${markMeta}%` }} title={`Meta ${fmt0(meta)}`} />
+                <span className="absolute top-[-3px] h-[26px] w-0.5 bg-opacity-00" style={{ left: `${markMeta}%` }} title={`Meta ${fmt0(meta)}`} />
               </div>
-              <div className="flex justify-between text-[11px] text-gray-400 mt-1">
+              <div className="flex justify-between text-[11px]  mt-1">
                 <span>R$ 0</span>
                 <span style={{ position: 'relative', left: `${markMeta - 50}%` }}>Meta {fmt0(meta)}</span>
                 <span>Super {fmt0(sup)}</span>
               </div>
               <div className="grid grid-cols-3 gap-3 mt-4">
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-500">Vendas confirmadas</p><p className="text-lg font-bold text-gray-800">{d.total}</p></div>
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-500">↑ Mensalidade gerada</p><p className="text-lg font-bold text-blue-700">+{fmt0(d.acrescimo_mrr_total)}/mês</p></div>
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-500">% da supermeta</p><p className="text-lg font-bold" style={{ color: PRO }}>{pctSuper}%</p></div>
+                <div className="bg-opacity-0 rounded-lg p-3 border border-gray-100"><p className="text-xs ">Vendas confirmadas</p><p className="text-lg font-bold ">{d.total}</p></div>
+                <div className="bg-opacity-0 rounded-lg p-3 border border-gray-100"><p className="text-xs ">↑ Mensalidade gerada</p><p className="text-lg font-bold text-blue-700">+{fmt0(d.acrescimo_mrr_total)}/mês</p></div>
+                <div className="bg-opacity-0 rounded-lg p-3 border border-gray-100"><p className="text-xs ">% da supermeta</p><p className="text-lg font-bold" style={{ color: PRO }}>{pctSuper}%</p></div>
               </div>
             </div>
 
             {/* Evolução mensal */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+            <div className="ps-card rounded-2xl border border-gray-200 p-4">
               <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>📈 Faturamento por mês ({d.ano})</h2>
               <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={d.serie} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -123,7 +123,7 @@ export default function VendasAdicionaisPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Por vendedor */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <div className="ps-card rounded-2xl border border-gray-200 p-4">
                 <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por vendedor (faturamento)</h2>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={d.por_vendedor.map((v: any) => ({ nome: (v.vendedor || '').split(' ')[0], Faturamento: v.valor }))} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -135,7 +135,7 @@ export default function VendasAdicionaisPage() {
                 </ResponsiveContainer>
               </div>
               {/* Por categoria */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <div className="ps-card rounded-2xl border border-gray-200 p-4">
                 <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por categoria (valor)</h2>
                 {d.por_categoria.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
@@ -146,15 +146,15 @@ export default function VendasAdicionaisPage() {
                       <Tooltip formatter={(v: any) => fmt(v)} /><Legend />
                     </PieChart>
                   </ResponsiveContainer>
-                ) : <p className="text-center text-gray-400 py-12 text-sm">Sem dados.</p>}
+                ) : <p className="text-center  py-12 text-sm">Sem dados.</p>}
               </div>
             </div>
 
             {/* Lista */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+            <div className="ps-card rounded-2xl border border-gray-200 p-4">
               {/* Filtros */}
               <div className="flex flex-wrap gap-2 mb-4 items-center">
-                <span className="text-xs font-bold text-gray-500 mr-1">Filtrar:</span>
+                <span className="text-xs font-bold  mr-1">Filtrar:</span>
 
                 {/* Categoria */}
                 <div className="flex flex-wrap gap-1.5">
@@ -207,7 +207,7 @@ export default function VendasAdicionaisPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="text-left text-xs text-gray-400 border-b">
+                          <tr className="text-left text-xs  border-b">
                             {['Cliente', 'Parceiro', 'Categoria', 'Tipo', 'Vendedor', 'Valor', '+Mensalidade'].map(h =>
                               <th key={h} className="py-1.5 pr-3">{h}</th>
                             )}
@@ -215,11 +215,11 @@ export default function VendasAdicionaisPage() {
                         </thead>
                         <tbody>
                           {lista.length === 0 ? (
-                            <tr><td colSpan={7} className="py-10 text-center text-gray-400 text-xs">Nenhuma venda encontrada com esses filtros.</td></tr>
+                            <tr><td colSpan={7} className="py-10 text-center  text-xs">Nenhuma venda encontrada com esses filtros.</td></tr>
                           ) : lista.map((v: any, i: number) => (
                             <tr key={i} className="border-b border-gray-50">
-                              <td className="py-2 pr-3 font-medium text-gray-800">{v.cliente}</td>
-                              <td className="pr-3 text-gray-600">{v.parceiro}</td>
+                              <td className="py-2 pr-3 font-medium ">{v.cliente}</td>
+                              <td className="pr-3 ">{v.parceiro}</td>
                               <td className="pr-3">
                                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EEF4FB', color: PRO_DARK }}>
                                   {CATEGORIA_LABEL[v.categoria] || v.categoria}
@@ -230,8 +230,8 @@ export default function VendasAdicionaisPage() {
                                   {TIPO_LABEL[v.tipo] || v.tipo || '—'}
                                 </span>
                               </td>
-                              <td className="pr-3 text-gray-600">{v.vendedor}</td>
-                              <td className="pr-3 text-gray-800 font-semibold">{fmt(v.valor)}</td>
+                              <td className="pr-3 ">{v.vendedor}</td>
+                              <td className="pr-3  font-semibold">{fmt(v.valor)}</td>
                               <td className="pr-3 text-blue-700">{v.acrescimo > 0 ? `+${fmt(v.acrescimo)}` : '—'}</td>
                             </tr>
                           ))}

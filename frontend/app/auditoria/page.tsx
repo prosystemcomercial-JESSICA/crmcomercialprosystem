@@ -82,10 +82,10 @@ export default function AuditoriaPage() {
       <div className="p-6 space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <h1 className="text-2xl font-bold  flex items-center gap-2">
               <Shield size={24} className="text-blue-600" /> Auditoria
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Trilha completa de tudo que acontece — propostas, leads e usuários — por usuário e período.</p>
+            <p className="text-sm  mt-0.5">Trilha completa de tudo que acontece — propostas, leads e usuários — por usuário e período.</p>
           </div>
           <div className="flex items-center gap-2">
             <ExportButton
@@ -102,32 +102,32 @@ export default function AuditoriaPage() {
                 { header: 'Detalhe', value: (e: Evento) => e.detalhe || '' },
               ]}
             />
-            <button onClick={() => { setPage(0); load(); }} className="flex items-center gap-2 px-3 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50">
+            <button onClick={() => { setPage(0); load(); }} className="flex items-center gap-2 px-3 py-2 text-sm ps-card border rounded-lg hover:opacity-80">
               <RefreshCw size={14} /> Atualizar
             </button>
           </div>
         </div>
 
         {/* Filtros */}
-        <div className="bg-white border rounded-xl p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div className="ps-card border rounded-xl p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
           <div className="md:col-span-2">
-            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Buscar</label>
+            <label className="block text-[11px] font-semibold  mb-1">Buscar</label>
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+              <Search size={14} className="absolute left-2.5 top-2.5 " />
               <input value={busca} onChange={e => { setBusca(e.target.value); setPage(0); }} placeholder="Nome, alvo, detalhe..."
                 className="w-full pl-8 pr-2 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Usuário</label>
-            <select value={atorId} onChange={e => { setAtorId(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+            <label className="block text-[11px] font-semibold  mb-1">Usuário</label>
+            <select value={atorId} onChange={e => { setAtorId(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg ps-card">
               <option value="">Todos</option>
               {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}{u.cargo ? ` · ${cargoLabel(u.cargo)}` : ''}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Módulo</label>
-            <select value={modulo} onChange={e => { setModulo(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+            <label className="block text-[11px] font-semibold  mb-1">Módulo</label>
+            <select value={modulo} onChange={e => { setModulo(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg ps-card">
               <option value="">Todos</option>
               <option value="PROPOSTA">Proposta</option>
               <option value="LEAD">Lead</option>
@@ -135,44 +135,44 @@ export default function AuditoriaPage() {
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Ação</label>
-            <select value={tipo} onChange={e => { setTipo(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+            <label className="block text-[11px] font-semibold  mb-1">Ação</label>
+            <select value={tipo} onChange={e => { setTipo(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg ps-card">
               <option value="">Todas</option>
               {tipos.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">De</label>
+              <label className="block text-[11px] font-semibold  mb-1">De</label>
               <input type="date" value={dataInicio} onChange={e => { setDataInicio(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg" />
             </div>
             <div className="flex-1">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Até</label>
+              <label className="block text-[11px] font-semibold  mb-1">Até</label>
               <input type="date" value={dataFim} onChange={e => { setDataFim(e.target.value); setPage(0); }} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg" />
             </div>
           </div>
           <div className="md:col-span-6 flex justify-between items-center">
-            <span className="text-xs text-gray-400">{total} evento(s) encontrado(s)</span>
+            <span className="text-xs ">{total} evento(s) encontrado(s)</span>
             <button onClick={limparFiltros} className="text-xs text-blue-600 font-semibold hover:underline">Limpar filtros</button>
           </div>
         </div>
 
         {/* Tabela */}
-        <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="ps-card border rounded-xl overflow-hidden">
           {dataLoading ? (
-            <div className="p-10 text-center text-gray-500 text-sm">Carregando trilha...</div>
+            <div className="p-10 text-center  text-sm">Carregando trilha...</div>
           ) : eventos.length === 0 ? (
-            <div className="p-10 text-center text-gray-500 text-sm">Nenhum evento para os filtros selecionados.</div>
+            <div className="p-10 text-center  text-sm">Nenhum evento para os filtros selecionados.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-opacity-0 border-b">
                   <tr>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase">Quando</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase">Módulo</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase">Ação</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase">Quem</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase">Sobre / Detalhe</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold  uppercase">Quando</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold  uppercase">Módulo</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold  uppercase">Ação</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold  uppercase">Quem</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold  uppercase">Sobre / Detalhe</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -180,22 +180,22 @@ export default function AuditoriaPage() {
                     const cfg = MODULO_CFG[e.modulo] || { label: e.modulo, cor: '#6b7280', bg: '#f3f4f6', icon: Shield };
                     const Icon = cfg.icon;
                     return (
-                      <tr key={e.id} className="hover:bg-gray-50 align-top">
-                        <td className="px-4 py-2.5 whitespace-nowrap text-xs text-gray-500">{fmtDateTime(e.data)}</td>
+                      <tr key={e.id} className="hover:opacity-80 align-top">
+                        <td className="px-4 py-2.5 whitespace-nowrap text-xs ">{fmtDateTime(e.data)}</td>
                         <td className="px-4 py-2.5">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ color: cfg.cor, background: cfg.bg }}>
                             <Icon size={11} /> {cfg.label}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-xs font-medium text-gray-700">{e.tipo}</td>
+                        <td className="px-4 py-2.5 text-xs font-medium ">{e.tipo}</td>
                         <td className="px-4 py-2.5 text-xs">
-                          <p className="font-medium text-gray-800">{e.ator_nome || '—'}</p>
-                          {e.ator_role && <p className="text-[10px] text-gray-400">{cargoLabel(e.ator_role)}</p>}
+                          <p className="font-medium ">{e.ator_nome || '—'}</p>
+                          {e.ator_role && <p className="text-[10px] ">{cargoLabel(e.ator_role)}</p>}
                         </td>
-                        <td className="px-4 py-2.5 text-xs text-gray-600">
+                        <td className="px-4 py-2.5 text-xs ">
                           <p className="text-gray-800">{e.descricao}</p>
-                          {e.alvo && <p className="text-[11px] text-gray-400 mt-0.5">{e.alvo}</p>}
-                          {e.detalhe && <p className="text-[11px] text-gray-500 mt-0.5">{e.detalhe}</p>}
+                          {e.alvo && <p className="text-[11px]  mt-0.5">{e.alvo}</p>}
+                          {e.detalhe && <p className="text-[11px]  mt-0.5">{e.detalhe}</p>}
                         </td>
                       </tr>
                     );
@@ -210,10 +210,10 @@ export default function AuditoriaPage() {
         {total > limit && (
           <div className="flex items-center justify-between">
             <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}
-              className="px-3 py-1.5 text-sm rounded-lg border bg-white disabled:opacity-50">Anterior</button>
-            <span className="text-xs text-gray-500">Página {page + 1} de {totalPaginas}</span>
+              className="px-3 py-1.5 text-sm rounded-lg border ps-card disabled:opacity-50">Anterior</button>
+            <span className="text-xs ">Página {page + 1} de {totalPaginas}</span>
             <button disabled={page + 1 >= totalPaginas} onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1.5 text-sm rounded-lg border bg-white disabled:opacity-50">Próxima</button>
+              className="px-3 py-1.5 text-sm rounded-lg border ps-card disabled:opacity-50">Próxima</button>
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { AlertaReuniaoModal } from "@/components/ui/AlertaReuniaoModal";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,8 +29,10 @@ export default function RootLayout({
       <body className="h-full">
         <AuthProvider>
           <ThemeProvider>
-            {children}
-            <AlertaReuniaoModal />
+            <ToastProvider>
+              {children}
+              <AlertaReuniaoModal />
+            </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

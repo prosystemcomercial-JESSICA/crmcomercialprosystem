@@ -562,7 +562,7 @@ export default function ManualPage() {
 
         {/* Busca */}
         <div style={{ position: 'relative', marginBottom: 20 }}>
-          <Search size={16} style={{ position: 'absolute', left: 14, top: 14, color: '#7AAACB' }} />
+          <Search size={16} style={{ position: 'absolute', left: 14, top: 14, color: 'var(--t-text-secondary)' }} />
           <input
             type="text"
             value={busca}
@@ -579,7 +579,7 @@ export default function ManualPage() {
         {/* Lista de seções como cards expansíveis */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {secoesFiltradas.length === 0 && (
-            <div style={{ background: '#fff', padding: 30, borderRadius: 12, textAlign: 'center', color: '#7AAACB' }}>
+            <div style={{ background: '#fff', padding: 30, borderRadius: 12, textAlign: 'center', color: 'var(--t-text-secondary)' }}>
               Nenhum tópico encontrado para "{busca}".
             </div>
           )}
@@ -610,14 +610,14 @@ export default function ManualPage() {
                     <Icon size={20} color={secao.cor} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0D2238', marginBottom: 2 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 2 }}>
                       {secao.titulo}
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>{secao.resumo}</div>
+                    <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{secao.resumo}</div>
                   </div>
                   <ChevronRight size={18}
                     style={{
-                      color: '#7AAACB', flexShrink: 0,
+                      color: 'var(--t-text-secondary)', flexShrink: 0,
                       transform: aberta ? 'rotate(90deg)' : 'none',
                       transition: 'transform 0.2s'
                     }} />
@@ -631,12 +631,12 @@ export default function ManualPage() {
                   }}>
                     {secao.blocos.map((bloco, idx) => (
                       <div key={idx} style={{
-                        background: '#F8FBFF', borderRadius: 10, padding: 14,
+                        background: 'var(--t-content-bg)', borderRadius: 10, padding: 14,
                         borderLeft: `3px solid ${secao.cor}`
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                           <ArrowRight size={14} color={secao.cor} />
-                          <h4 style={{ fontSize: 13, fontWeight: 700, color: '#0D2238' }}>
+                          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>
                             {bloco.titulo}
                           </h4>
                         </div>
@@ -684,8 +684,8 @@ export default function ManualPage() {
         }}>
           <AlertCircle size={20} color="#4B8EC8" />
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0D2238' }}>Precisa de ajuda?</div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>Precisa de ajuda?</div>
+            <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
               Fale com seu supervisor ou abra um ticket interno se algo não funcionar como descrito.
             </div>
           </div>

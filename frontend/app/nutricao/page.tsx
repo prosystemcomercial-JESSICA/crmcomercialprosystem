@@ -72,12 +72,12 @@ export default function NutricaoPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Nutrição / Recontato</h1>
+            <h1 className="text-3xl font-bold text-sm font-semibold">Nutrição / Recontato</h1>
             <p className="text-gray-500 mt-1">Leads em espera para recontato futuro</p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-gray-700">{leads.length}</p>
-            <p className="text-xs text-gray-500">leads em nutrição</p>
+            <p className="text-2xl font-bold ">{leads.length}</p>
+            <p className="text-xs ">leads em nutrição</p>
           </div>
         </div>
 
@@ -92,39 +92,39 @@ export default function NutricaoPage() {
         </div>
 
         {dataLoading ? (
-          <div className="text-center p-12 text-gray-500">Carregando...</div>
+          <div className="text-center p-12 ">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
             <div className="text-4xl mb-3">🌱</div>
             <p className="text-gray-500 font-medium">Nenhum lead em nutrição</p>
-            <p className="text-sm text-gray-400 mt-1">Leads com status NUTRIÇÃO aparecerão aqui</p>
+            <p className="text-sm  mt-1">Leads com status NUTRIÇÃO aparecerão aqui</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-opacity-0 border-b border-gray-200">
                 <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lead</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Origem</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Histórico</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Sem contato</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Lead</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Origem</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Histórico</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Sem contato</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map(lead => (
-                  <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={lead.id} className="hover:opacity-80 transition-colors">
                     <td className="px-5 py-4">
-                      <p className="font-medium text-gray-900">{lead.nome}</p>
-                      {lead.empresa && <p className="text-xs text-gray-500">{lead.empresa}</p>}
-                      {lead.email && <p className="text-xs text-gray-400">{lead.email}</p>}
+                      <p className="font-medium text-sm font-semibold">{lead.nome}</p>
+                      {lead.empresa && <p className="text-xs ">{lead.empresa}</p>}
+                      {lead.email && <p className="text-xs ">{lead.email}</p>}
                     </td>
                     <td className="px-5 py-4">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{lead.origem}</span>
+                      <span className="text-xs bg-opacity-0  px-2 py-1 rounded-full">{lead.origem}</span>
                     </td>
-                    <td className="px-5 py-4 text-sm text-gray-600">
+                    <td className="px-5 py-4 text-sm ">
                       <span>{lead._count.atividades} atividades</span>
-                      <span className="mx-1.5 text-gray-300">·</span>
+                      <span className="mx-1.5 ">·</span>
                       <span>{lead._count.propostas} propostas</span>
                     </td>
                     <td className="px-5 py-4">

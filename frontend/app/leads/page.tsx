@@ -538,7 +538,7 @@ export default function LeadsPage() {
   // Atribui o lead aberto a um vendedor (cria alerta no sininho dele)
   // Cria um novo quadro (gestor). Colunas separadas por vírgula.
   const criarQuadro = async () => {
-    if (!newQuadro.nome.trim()) { alert('Informe o nome do quadro'); return; }
+    if (!newQuadro.nome.trim()) { console.warn('Informe o nome do quadro'); return; }
     const colunas = newQuadro.colunas.split(',').map(s => s.trim()).filter(Boolean).map(nome => ({ nome }));
     try {
       const r = await apiClient.criarQuadro({ nome: newQuadro.nome.trim(), cor: newQuadro.cor, colunas });
@@ -549,7 +549,7 @@ export default function LeadsPage() {
       const criado = (lista.data?.data || []).find((q: any) => q.id === r.data?.data?.id);
       if (criado) setQuadroAtivo(criado);
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao criar quadro.');
+      console.error('Erro ao criar quadro.', e);
     }
   };
 
@@ -563,7 +563,7 @@ export default function LeadsPage() {
       setSelectedLead(null);
       await loadData();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao excluir o lead.');
+      console.error('Erro ao excluir o lead.', e);
     }
   };
 
@@ -576,7 +576,7 @@ export default function LeadsPage() {
       setSelectedLead(prev => prev && prev.id === leadId
         ? { ...prev, responsavel_id: vendedorId, vendedor_nome: v?.nome } as Lead : prev);
       await loadData();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao atribuir vendedor.'); }
+    } catch (e: any) { console.error('Erro ao atribuir vendedor.', e); }
     finally { setAtribuindo(false); }
   };
 
@@ -585,31 +585,31 @@ export default function LeadsPage() {
     try {
       await apiClient.client.patch(`/funil/etapas/${etapa.id}`, dados);
       await loadData();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+    } catch (e: any) { console.error('Erro', e); }
   };
   const removerEtapaFunil = async (etapa: EtapaFunil) => {
-    if (etapa.fixo) { alert(`A etapa "${etapa.nome}" é fixa e não pode ser removida.`); return; }
+    if (etapa.fixo) { return; }
     if (!confirm(`Remover a etapa "${etapa.nome}"?`)) return;
     try {
       await apiClient.client.delete(`/funil/etapas/${etapa.id}`);
       await loadData();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao remover etapa'); }
+    } catch (e: any) { console.error('Erro ao remover etapa', e); }
   };
   const criarNovaEtapaFunil = async () => {
-    if (!formEtapa.codigo || !formEtapa.nome) return alert('Código e nome são obrigatórios');
+    if (!formEtapa.codigo || !formEtapa.nome) return console.warn('Código e nome são obrigatórios');
     try {
       await apiClient.client.post('/funil/etapas', formEtapa);
       setShowNovaEtapa(false);
       setFormEtapa({ codigo: '', nome: '', cor: '#6b7280', ordem: 99, tipo: 'ANDAMENTO', conta_pipeline: true });
       await loadData();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao criar etapa'); }
+    } catch (e: any) { console.error('Erro ao criar etapa', e); }
   };
   const abrirControle = async () => {
     try {
       const res = await apiClient.client.get('/funil/controle-total');
       setControleData(res.data.data.por_vendedor || []);
       setShowControle(true);
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao carregar controle total'); }
+    } catch (e: any) { console.error('Erro ao carregar controle total', e); }
   };
 
   // Recarrega ao trocar de quadro (Pipeline/Follow-up) ou de filtro — senão a aba
@@ -669,7 +669,7 @@ export default function LeadsPage() {
       setTimeout(() => setSavedLeadOk(false), 2000);
     } catch (e: any) {
       const msg = e?.response?.data?.detalhes?.join('\n') || e?.response?.data?.message || e?.message || 'Erro desconhecido';
-      alert(`Não foi possível salvar a ficha:\n${msg}`);
+      console.error('Não foi possível salvar a ficha:', msg);
       console.error('[saveLead]', e?.response?.data || e);
     } finally { setSavingLead(false); }
   };
@@ -748,7 +748,7 @@ export default function LeadsPage() {
       await loadData();
     } catch (e: any) {
       console.error(e);
-      alert(e?.response?.data?.message || 'Não foi possível registrar o contato. Tente novamente.');
+      console.error('Não foi possível registrar o contato. Tente novamente.', e);
     } finally { setAddingObs(false); }
   };
 
@@ -905,7 +905,7 @@ export default function LeadsPage() {
 
   const handleSaveProposta = async () => {
     if (!selectedLead) return;
-    if (!propostaForm.razao_social?.trim()) { alert('Razão social é obrigatória'); return; }
+    if (!propostaForm.razao_social?.trim()) { console.warn('Razão social é obrigatória'); return; }
     setSavingProposta(true);
     try {
       // Nunca retorna NaN (NaN passa no z.number() mas o Prisma rejeita Float NaN
@@ -964,7 +964,7 @@ export default function LeadsPage() {
       setObservacoes(obsRes.data.data || []);
       await loadData();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Erro ao salvar proposta');
+      console.error('Erro ao salvar proposta', e);
     } finally {
       setSavingProposta(false);
     }
@@ -1028,7 +1028,7 @@ export default function LeadsPage() {
       const msg = e?.response?.data?.message
         || e?.response?.data?.errors?.[0]?.message
         || 'Não foi possível salvar o lead. Verifique os campos e tente novamente.';
-      alert(`Erro ao salvar lead: ${msg}`);
+      console.error('Erro ao salvar lead:', msg);
       console.error('createLead falhou:', e?.response?.data || e);
     } finally {
       setSavingNewLead(false);
@@ -1389,7 +1389,7 @@ export default function LeadsPage() {
               </div>
 
               {/* Stage mover */}
-              <div className="flex items-center gap-1 px-4 py-1.5 overflow-x-auto flex-shrink-0" style={{ borderBottom: '1px solid #EBF4FF', background: 'var(--t-content-bg)' }}>
+              <div className="flex items-center gap-1 px-4 py-1.5 overflow-x-auto flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
                 {colunas.map(col => (
                   <button key={col.chave} onClick={() => moveColumn(selectedLead, col.chave)}
                     className="flex-shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full transition-all"
@@ -1940,7 +1940,7 @@ export default function LeadsPage() {
               </div>
 
               {/* Add obs form */}
-              <div className="p-3 flex-shrink-0 space-y-2" style={{ borderBottom: '1px solid #EBF4FF' }}>
+              <div className="p-3 flex-shrink-0 space-y-2" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
                 <select value={obsForm.tipo} onChange={e => setObsForm(p => ({ ...p, tipo: e.target.value }))}
                   className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }}>
                   <option value="">Tipo de contato...</option>
@@ -1963,7 +1963,7 @@ export default function LeadsPage() {
                 </button>
 
                 {showAgendaForm && (
-                  <div className="space-y-2 rounded-lg p-2.5" style={{ background: '#F0F7FF', border: '1px solid #C3DCFC' }}>
+                  <div className="space-y-2 rounded-lg p-2.5" style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC' }}>
                     <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>Próxima ação → Agenda</p>
                     <input value={agendaForm.titulo} onChange={e => setAgendaForm(p => ({ ...p, titulo: e.target.value }))}
                       placeholder="Título do compromisso..."
@@ -2073,7 +2073,7 @@ export default function LeadsPage() {
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid #D8E8F5' }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid var(--t-card-border)' }}>
               <div className="flex gap-1">{[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full" style={{ background: newLeadSection === i ? '#4B8EC8' : '#D8E8F5' }} />)}</div>
               <div className="flex gap-2">
                 {newLeadSection > 0 && <button onClick={() => setNewLeadSection(p => p-1)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>Anterior</button>}
@@ -2243,7 +2243,7 @@ export default function LeadsPage() {
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid #D8E8F5' }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid var(--t-card-border)' }}>
               <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>🔒 Colunas fixas não podem ser removidas. Tipo "Perdida" exige motivo ao mover.</p>
               <button onClick={() => { setFormEtapa({ codigo: '', nome: '', cor: '#6b7280', ordem: 99, tipo: 'ANDAMENTO', conta_pipeline: true }); setShowNovaEtapa(true); }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#4B8EC8' }}>

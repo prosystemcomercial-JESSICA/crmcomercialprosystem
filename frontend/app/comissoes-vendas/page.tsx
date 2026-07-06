@@ -41,9 +41,9 @@ export default function ComissoesVendasPage() {
           </div>
         </div>
 
-        <p className="text-xs text-gray-400 mb-4">Vendas adicionais e indicações agora têm módulo próprio: <button onClick={() => router.push('/vendas-adicionais')} className="text-blue-600 underline">Vendas Adicionais</button>.</p>
+        <p className="text-xs  mb-4">Vendas adicionais e indicações agora têm módulo próprio: <button onClick={() => router.push('/vendas-adicionais')} className="text-blue-600 underline">Vendas Adicionais</button>.</p>
 
-        {carregando ? <div className="text-center py-16 text-gray-400">Carregando…</div> : !d ? <div className="text-center py-16 text-gray-400">Sem dados.</div> : (
+        {carregando ? <div className="text-center py-16 ">Carregando…</div> : !d ? <div className="text-center py-16 ">Sem dados.</div> : (
           <>
             {/* ── COMISSÕES ── */}
             {aba === 'comissoes' && (
@@ -55,39 +55,39 @@ export default function ComissoesVendasPage() {
                   <KPI l="Paga" v={fmt(d.comissoes.totais.paga)} cor="#16a34a" />
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div className="ps-card rounded-2xl border border-gray-200 p-4">
                   <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>Por mês de pagamento</h2>
                   <div className="space-y-2">
                     {d.comissoes.por_mes.map((m: any) => (
                       <div key={m.mes_pagamento} className="flex items-center justify-between p-3 rounded-lg border border-gray-100" style={{ background: '#fafbfc' }}>
-                        <span className="font-semibold text-gray-800">{m.mes_pagamento === 'A definir' ? '⏳ A definir' : `📅 ${m.mes_pagamento}`} <span className="text-xs text-gray-400 ml-1">{m.count} comissão(ões)</span></span>
+                        <span className="font-semibold ">{m.mes_pagamento === 'A definir' ? '⏳ A definir' : `📅 ${m.mes_pagamento}`} <span className="text-xs  ml-1">{m.count} comissão(ões)</span></span>
                         <span className="text-sm flex items-center gap-3">
                           <span className="text-green-700">Paga: {fmt(m.paga)}</span>
                           <span className="text-blue-700">A pagar: {fmt(m.a_pagar)}</span>
-                          <b className="text-gray-900">{fmt(m.total)}</b>
+                          <b className="text-sm font-semibold">{fmt(m.total)}</b>
                         </span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div className="ps-card rounded-2xl border border-gray-200 p-4">
                   <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>Por colaborador</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-gray-400 border-b">{['Colaborador', 'Papel', 'A pagar', 'Paga', 'Total'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
+                      <thead><tr className="text-left text-xs  border-b">{['Colaborador', 'Papel', 'A pagar', 'Paga', 'Total'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
                       <tbody>{d.comissoes.por_colaborador.map((r: any) => (
                         <tr key={r.responsavel_id} className="border-b border-gray-50">
-                          <td className="py-2 pr-3 font-medium text-gray-800">{r.nome}</td>
-                          <td className="pr-3 text-gray-500">{r.papel}</td>
+                          <td className="py-2 pr-3 font-medium ">{r.nome}</td>
+                          <td className="pr-3 ">{r.papel}</td>
                           <td className="pr-3 text-blue-700">{fmt(r.a_pagar)}</td>
                           <td className="pr-3 text-green-700">{fmt(r.paga)}</td>
-                          <td className="pr-3 font-bold text-gray-900">{fmt(r.total)}</td>
+                          <td className="pr-3 font-bold text-sm font-semibold">{fmt(r.total)}</td>
                         </tr>
                       ))}</tbody>
                     </table>
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">Para marcar pago / remarcar mês, use o módulo <button onClick={() => router.push('/comissoes')} className="text-blue-600 underline">Comissões</button> (gestão).</p>
+                  <p className="text-xs  mt-2">Para marcar pago / remarcar mês, use o módulo <button onClick={() => router.push('/comissoes')} className="text-blue-600 underline">Comissões</button> (gestão).</p>
                 </div>
               </div>
             )}
@@ -96,7 +96,7 @@ export default function ComissoesVendasPage() {
             {aba === 'vendas' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                  <div className="ps-card rounded-2xl border border-gray-200 p-4">
                     <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por vendedor (comissão)</h2>
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={d.vendas.por_vendedor.map((v: any) => ({ nome: (v.vendedor || '').split(' ')[0], Comissão: v.comissao }))} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -107,7 +107,7 @@ export default function ComissoesVendasPage() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                  <div className="ps-card rounded-2xl border border-gray-200 p-4">
                     <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por categoria (valor)</h2>
                     <ResponsiveContainer width="100%" height={240}>
                       <PieChart>
@@ -120,16 +120,16 @@ export default function ComissoesVendasPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div className="ps-card rounded-2xl border border-gray-200 p-4">
                   <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>Resumo por vendedor</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-gray-400 border-b">{['Vendedor', 'Qtd', 'Valor', 'Acréscimo/mês', 'Comissão'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
+                      <thead><tr className="text-left text-xs  border-b">{['Vendedor', 'Qtd', 'Valor', 'Acréscimo/mês', 'Comissão'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
                       <tbody>{d.vendas.por_vendedor.map((v: any, i: number) => (
                         <tr key={i} className="border-b border-gray-50">
-                          <td className="py-2 pr-3 font-medium text-gray-800">{v.vendedor}</td>
+                          <td className="py-2 pr-3 font-medium ">{v.vendedor}</td>
                           <td className="pr-3">{v.qtd}</td>
-                          <td className="pr-3 text-gray-700">{fmt(v.valor)}</td>
+                          <td className="pr-3 ">{fmt(v.valor)}</td>
                           <td className="pr-3 text-blue-700">{fmt(v.acrescimo)}</td>
                           <td className="pr-3 font-bold text-green-700">{fmt(v.comissao)}</td>
                         </tr>
@@ -138,18 +138,18 @@ export default function ComissoesVendasPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div className="ps-card rounded-2xl border border-gray-200 p-4">
                   <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>Vendas ({d.vendas.total})</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-left text-xs text-gray-400 border-b">{['Cliente', 'Parceiro', 'Categoria', 'Vendedor', 'Valor', 'Comissão', 'Status'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
+                      <thead><tr className="text-left text-xs  border-b">{['Cliente', 'Parceiro', 'Categoria', 'Vendedor', 'Valor', 'Comissão', 'Status'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}</tr></thead>
                       <tbody>{d.vendas.lista.map((v: any, i: number) => (
                         <tr key={i} className="border-b border-gray-50">
-                          <td className="py-2 pr-3 font-medium text-gray-800">{v.cliente}</td>
-                          <td className="pr-3 text-gray-600">{v.parceiro}</td>
-                          <td className="pr-3 text-xs text-gray-500">{v.categoria}</td>
-                          <td className="pr-3 text-gray-600">{v.vendedor}</td>
-                          <td className="pr-3 text-gray-700">{fmt(v.valor)}</td>
+                          <td className="py-2 pr-3 font-medium ">{v.cliente}</td>
+                          <td className="pr-3 ">{v.parceiro}</td>
+                          <td className="pr-3 text-xs ">{v.categoria}</td>
+                          <td className="pr-3 ">{v.vendedor}</td>
+                          <td className="pr-3 ">{fmt(v.valor)}</td>
                           <td className="pr-3 text-green-700">{fmt(v.comissao)}</td>
                           <td className="pr-3 text-xs">{v.status}</td>
                         </tr>
@@ -168,9 +168,9 @@ export default function ComissoesVendasPage() {
 
 function KPI({ l, v, cor = '#0D2238' }: { l: string; v: any; cor?: string }) {
   return (
-    <div className="bg-white rounded-2xl p-4 relative overflow-hidden" style={{ border: '1px solid #E3ECF5' }}>
+    <div className="ps-card rounded-2xl p-4 relative overflow-hidden" style={{ border: '1px solid #E3ECF5' }}>
       <span className="absolute left-0 top-0 bottom-0" style={{ width: 4, background: cor }} />
-      <p className="text-[11px] text-gray-500 pl-1.5">{l}</p>
+      <p className="text-[11px]  pl-1.5">{l}</p>
       <p className="text-xl font-extrabold pl-1.5 mt-1" style={{ color: cor }}>{v}</p>
     </div>
   );
