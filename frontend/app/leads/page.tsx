@@ -286,10 +286,8 @@ function iniciaisDono(nome?: string): string {
 function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => void; onDragStart: (e: React.DragEvent) => void }) {
   const temp = TEMP_CONFIG[lead.temperatura as keyof typeof TEMP_CONFIG] || TEMP_CONFIG.FRIO;
   const empresa = lead.razao_social || lead.nome_fantasia || lead.nome;
-  const resp  = lead.responsavel_nome;
-  const tel   = lead.responsavel_telefone;
-  const tags  = lead.etiquetas_lead || [];
-  const utmOrig = lead.campanha_nome || lead.utm_campaign || lead.plataforma;
+  const tel     = lead.responsavel_telefone;
+  const tags    = lead.etiquetas_lead || [];
   const corDono = corDoLead(lead);
   const donoNome = lead.vendedor_nome || lead.responsavel_nome || '';
 
@@ -298,112 +296,104 @@ function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => v
     : null;
 
   return (
-    <div onClick={onClick}
+    <div
+      onClick={onClick}
       draggable
       onDragStart={onDragStart}
-      className="relative group rounded-xl p-3 pl-3.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow overflow-hidden ps-card"
-      style={{ border: '1px solid var(--t-card-border)', boxShadow: '0 1px 2px rgba(13,34,56,.05)' }}>
-
-      {/* Faixa lateral colorida = dono do lead (identificação rápida por cor) */}
-      <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ background: corDono }} />
-
-      {/* Temp indicator strip */}
-      <div className="h-0.5 rounded-full mb-2.5 -mx-3 -mt-3 rounded-t-xl" style={{ background: temp.color }} />
-
-
-      <div className="flex items-start justify-between mb-1.5">
-        <p className="text-[11px] font-extrabold truncate flex-1 leading-tight" style={{ color: 'var(--t-text-primary)' }}>{empresa}</p>
-        <span className="flex-shrink-0 ml-1.5" style={{ color: temp.color }}>
-          <temp.icon size={11} />
-        </span>
-      </div>
-
-      {/* Chip do dono — inicial colorida + nome do vendedor */}
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="inline-flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
-          style={{ background: corDono, width: 16, height: 16, fontSize: 8 }}>
-          {iniciaisDono(donoNome)}
-        </span>
-        <span className="text-[10px] font-semibold truncate" style={{ color: corDono }}>
-          {donoNome || (lead.responsavel_id ? 'Responsável' : 'Sem responsável')}
-        </span>
-      </div>
-
-      {resp && (
-        <div className="flex items-center gap-1 mb-1">
-          <User size={9} style={{ color: 'var(--t-text-secondary)' }} />
-          <span className="text-[10px] truncate" style={{ color: 'var(--t-text-secondary)' }}>{resp}</span>
+      className="group relative rounded-xl cursor-grab active:cursor-grabbing transition-all duration-150 hover:shadow-lg overflow-hidden"
+      style={{
+        background: 'var(--t-card-bg)',
+        border: '1px solid var(--t-card-border)',
+        borderLeft: `3px solid ${temp.color}`,
+      }}
+    >
+      <div className="p-3">
+        {/* Nome da empresa */}
+        <div className="flex items-start justify-between gap-1.5 mb-2">
+          <p className="text-[12px] font-semibold leading-snug" style={{ color: 'var(--t-text-primary)' }}>{empresa}</p>
+          <span className="flex-shrink-0 opacity-60 mt-0.5" style={{ color: temp.color }}>
+            <temp.icon size={10} />
+          </span>
         </div>
-      )}
-      {tel && (
-        <div className="flex items-center gap-1 mb-1">
-          <Phone size={9} style={{ color: 'var(--t-text-secondary)' }} />
-          <span className="text-[10px]" style={{ color: 'var(--t-text-secondary)' }}>{tel}</span>
-        </div>
-      )}
-      {lead.segmento && (
-        <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded mb-1"
-          style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>{lead.segmento}</span>
-      )}
-      {utmOrig && (
-        <div className="flex items-center gap-1 mb-1">
-          <Tag size={9} style={{ color: 'var(--t-text-muted)' }} />
-          <span className="text-[10px] truncate" style={{ color: 'var(--t-text-muted)' }}>{utmOrig}</span>
-        </div>
-      )}
 
-      {/* Tags */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1.5 mb-1">
-          {tags.slice(0, 3).map(t => (
-            <span key={t.etiqueta.id} className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
-              style={{ background: `${t.etiqueta.cor}20`, color: t.etiqueta.cor, border: `1px solid ${t.etiqueta.cor}40` }}>
-              {t.etiqueta.nome}
+        {/* Dono */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="inline-flex items-center justify-center rounded-full text-white font-bold flex-shrink-0 text-[8px]"
+            style={{ background: corDono, width: 17, height: 17 }}>
+            {iniciaisDono(donoNome)}
+          </span>
+          <span className="text-[10px] truncate font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+            {donoNome || 'Sem responsável'}
+          </span>
+        </div>
+
+        {/* Detalhes linha única */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {lead.segmento && (
+            <span className="text-[9px] font-semibold px-1.5 py-px rounded"
+              style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>
+              {lead.segmento}
             </span>
-          ))}
-          {tags.length > 3 && (
-            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>
-              +{tags.length - 3}
+          )}
+          {tel && (
+            <span className="flex items-center gap-0.5 text-[9px]" style={{ color: 'var(--t-text-muted)' }}>
+              <Phone size={8} />{tel}
             </span>
           )}
         </div>
-      )}
 
-      <div className="flex items-center justify-between mt-2 pt-1.5" style={{ borderTop: '1px solid var(--t-card-border)' }}>
-        <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>
-          {lead.origem?.toLowerCase().replace(/_/g, ' ')}
-        </span>
-        <div className="flex items-center gap-1.5">
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {tags.slice(0, 2).map(t => (
+              <span key={t.etiqueta.id} className="text-[8px] font-semibold px-1.5 py-px rounded-full"
+                style={{ background: `${t.etiqueta.cor}18`, color: t.etiqueta.cor, border: `1px solid ${t.etiqueta.cor}30` }}>
+                {t.etiqueta.nome}
+              </span>
+            ))}
+            {tags.length > 2 && (
+              <span className="text-[8px] font-semibold px-1.5 py-px rounded-full" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>
+                +{tags.length - 2}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderTop: '1px solid var(--t-card-border)' }}>
+        <div className="flex items-center gap-2">
           {lead.proximo_contato && new Date(lead.proximo_contato) <= new Date() && (
             <Clock size={9} style={{ color: '#dc2626' }} />
           )}
           {(lead._count?.observacoes_lead || 0) > 0 && (
-            <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>{lead._count?.observacoes_lead}</span>
+            <span className="text-[9px] font-medium" style={{ color: 'var(--t-text-muted)' }}>
+              {lead._count?.observacoes_lead} obs.
+            </span>
           )}
-          {wppLink && (
-            <a
-              href={wppLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              onDragStart={e => e.preventDefault()}
-              title={`WhatsApp: ${tel}`}
-              style={{
-                width: 22, height: 22,
-                borderRadius: '50%',
-                background: '#25D366',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 5px rgba(37,211,102,.45)',
-                flexShrink: 0,
-              }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="white">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.559 4.122 1.532 5.847L.057 23.617a.75.75 0 0 0 .921.921l5.696-1.489A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.667-.523-5.181-1.432l-.371-.218-3.383.885.898-3.285-.237-.385A9.958 9.958 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
-              </svg>
-            </a>
+          {lead.origem && (
+            <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>
+              {lead.origem.toLowerCase().replace(/_/g, ' ')}
+            </span>
           )}
         </div>
+        {wppLink && (
+          <a
+            href={wppLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            onDragStart={e => e.preventDefault()}
+            title={`WhatsApp: ${tel}`}
+            className="flex items-center justify-center rounded-full flex-shrink-0"
+            style={{ width: 20, height: 20, background: '#25D366' }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.559 4.122 1.532 5.847L.057 23.617a.75.75 0 0 0 .921.921l5.696-1.489A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.667-.523-5.181-1.432l-.371-.218-3.383.885.898-3.285-.237-.385A9.958 9.958 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+            </svg>
+          </a>
+        )}
       </div>
     </div>
   );
@@ -1050,87 +1040,89 @@ export default function LeadsPage() {
 
   return (
     <DashboardLayout>
-      <div className="w-full px-4 sm:px-6 py-4 space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 64px)' }}>
+      <div className="w-full space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 56px)' }}>
 
-        {/* ═══ 1. HEADER + AÇÕES ═══════════════════════════════════════════ */}
-        <div className="rounded-2xl ps-cardp-4 sm:p-5 flex items-center justify-between flex-wrap gap-3"
-          style={{ border: '1px solid var(--t-card-border)', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center"
-              style={{ background: 'var(--t-primary)' }}>
-              <TargetIcon size={20} color="white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>Pipeline Comercial</h1>
-              <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>
-                {isVendedor ? 'Acompanhe seus leads, metas e bônus' : 'Painel de performance da equipe comercial'}
-                {' · '}{totalLeads} leads no funil
-              </p>
-            </div>
+        {/* ═══ 1. HEADER ═══════════════════════════════════════════════════ */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Pipeline Comercial</h1>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
+              {isVendedor ? 'Seus leads, metas e bônus' : 'Performance da equipe comercial'}
+              {' · '}<span style={{ color: 'var(--t-primary)' }}>{totalLeads} leads</span> no funil
+            </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--t-text-secondary)' }} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 py-2 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 190, color: 'var(--t-text-primary)' }} />
             </div>
-            {/* Filtro Total x por vendedor — só gestor (CEO/Supervisão) */}
+            {/* Busca */}
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--t-text-muted)' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 180, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+            </div>
+            {/* Filtro vendedor */}
             {isGestor && (
-              <select
-                value={filtroVendedor}
-                onChange={e => setFiltroVendedor(e.target.value)}
-                title="Filtrar volume por vendedor"
-                className="px-3 py-2 text-xs rounded-lg outline-none font-semibold"
-                style={{ border: '1px solid var(--t-card-border)', color: filtroVendedor ? 'var(--t-primary-dark)' : 'var(--t-text-primary)', background: filtroVendedor ? 'var(--t-primary-light)' : 'var(--t-card-bg)' }}>
+              <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}
+                className="h-8 px-3 text-xs rounded-lg outline-none"
+                style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: filtroVendedor ? 'var(--t-primary-light)' : 'var(--t-card-bg)', maxWidth: 160 }}>
                 <option value="">Todos (Total)</option>
                 {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
               </select>
             )}
-            <button onClick={loadData} title="Atualizar" className="p-2 rounded-lg" style={{ border: '1px solid var(--t-card-border)' }}>
-              <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
-            </button>
-            <ExportButton
-              nome="leads" titulo="Pipeline Comercial — Leads" small
-              linhas={Object.values(kanban).flat()}
-              colunas={[
-                { header: 'Lead', value: (l: Lead) => l.razao_social || l.nome_fantasia || l.nome },
-                { header: 'CNPJ', value: (l: Lead) => (l as any).cnpj || '' },
-                { header: 'Segmento', value: (l: Lead) => l.segmento || '' },
-                { header: 'Etapa', value: (l: Lead) => l.etapa_comercial },
-                { header: 'Temperatura', value: (l: Lead) => l.temperatura },
-                { header: 'Vendedor', value: (l: Lead) => l.vendedor_nome || '' },
-                { header: 'Valor estimado (R$)', value: (l: Lead) => (l as any).valor_estimado ?? '' },
-                { header: 'Origem', value: (l: Lead) => l.origem || '' },
-              ]}
-            />
-            <button onClick={() => setShowNewEtiq(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
-              <Tag size={12} /> Etiqueta
-            </button>
-            {!quadroAtivo && (
-              <button onClick={() => setShowNewCol(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
-                <Plus size={12} /> Coluna
+            {/* Grupo de ações secundárias */}
+            <div className="flex items-center rounded-lg overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
+              <button onClick={loadData} title="Atualizar" className="h-8 w-8 flex items-center justify-center transition-colors" style={{ borderRight: '1px solid var(--t-card-border)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
               </button>
-            )}
-            {isGestor && !quadroAtivo && (
-              <>
-                <button onClick={() => setShowConfigFunil(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                  style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
-                  <Wrench size={12} /> Configurar Funil
+              <ExportButton nome="leads" titulo="Pipeline Comercial — Leads" small
+                linhas={Object.values(kanban).flat()}
+                colunas={[
+                  { header: 'Lead', value: (l: Lead) => l.razao_social || l.nome_fantasia || l.nome },
+                  { header: 'CNPJ', value: (l: Lead) => (l as any).cnpj || '' },
+                  { header: 'Segmento', value: (l: Lead) => l.segmento || '' },
+                  { header: 'Etapa', value: (l: Lead) => l.etapa_comercial },
+                  { header: 'Temperatura', value: (l: Lead) => l.temperatura },
+                  { header: 'Vendedor', value: (l: Lead) => l.vendedor_nome || '' },
+                  { header: 'Valor estimado (R$)', value: (l: Lead) => (l as any).valor_estimado ?? '' },
+                  { header: 'Origem', value: (l: Lead) => l.origem || '' },
+                ]}
+              />
+              <button onClick={() => setShowNewEtiq(true)} title="Etiquetas"
+                className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <Tag size={11} /> Etiqueta
+              </button>
+              {!quadroAtivo && (
+                <button onClick={() => setShowNewCol(true)} title="Nova coluna"
+                  className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <Plus size={11} /> Coluna
                 </button>
-                <button onClick={abrirControle}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                  style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
-                  <BarChart3 size={12} /> Controle Total
-                </button>
-              </>
-            )}
+              )}
+              {isGestor && !quadroAtivo && (
+                <>
+                  <button onClick={() => setShowConfigFunil(true)} title="Configurar Funil"
+                    className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <Wrench size={11} /> Configurar Funil
+                  </button>
+                  <button onClick={abrirControle} title="Controle Total"
+                    className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <BarChart3 size={11} /> Controle Total
+                  </button>
+                </>
+              )}
+            </div>
             <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [], vendedor_nome: (user as any)?.nome || '' }); setShowNewLead(true); }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white"
-              style={{ background: 'var(--t-primary)' }}>
+              className="ps-btn-primary h-8 flex items-center gap-1.5 px-4 rounded-lg text-xs font-semibold text-white">
               <Plus size={13} /> Novo Lead
             </button>
           </div>
@@ -1286,9 +1278,12 @@ export default function LeadsPage() {
                     setDraggingLead(null);
                   }}
                 >
-                  <div className="px-3 py-2 flex items-center justify-between flex-shrink-0" style={{ borderBottom: `2px solid ${col.cor}44`, background: `${col.cor}08` }}>
-                    <span className="text-[11px] font-extrabold truncate" style={{ color: col.cor }}>{col.nome}</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1" style={{ background: `${col.cor}18`, color: col.cor }}>{colLeads.length}</span>
+                  <div className="px-3 py-2.5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: `1px solid var(--t-card-border)` }}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.cor }} />
+                      <span className="text-[11px] font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>{col.nome}</span>
+                    </div>
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-muted)' }}>{colLeads.length}</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2 space-y-2">
                     {colLeads.map(lead => (
@@ -2399,15 +2394,14 @@ function KpiCard({ icon: Icon, label, value, color }: {
   icon: React.ComponentType<any>; label: string; value: string; color: string;
 }) {
   return (
-    <div className="rounded-xl ps-cardp-3 flex items-center gap-3 transition-all hover:shadow-md"
-      style={{ border: '1px solid var(--t-card-border)', boxShadow: '0 1px 2px rgba(13,34,56,.04)' }}>
-      <div className="flex items-center justify-center rounded-lg flex-shrink-0"
-        style={{ width: 36, height: 36, background: `${color}18`, color }}>
-        <Icon size={16} />
+    <div className="ps-card rounded-xl p-4 flex items-start gap-3 transition-all hover:shadow-md relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none" style={{ background: `radial-gradient(circle, ${color}08 0%, transparent 70%)` }} />
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}12`, color }}>
+        <Icon size={14} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] uppercase tracking-wider font-semibold truncate" style={{ color: 'var(--t-text-secondary)' }}>{label}</p>
-        <p className="text-base font-extrabold leading-tight truncate" style={{ color }}>{value}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--t-text-muted)' }}>{label}</p>
+        <p className="text-[15px] font-bold leading-tight truncate mt-0.5" style={{ color: 'var(--t-text-primary)' }}>{value}</p>
       </div>
     </div>
   );
