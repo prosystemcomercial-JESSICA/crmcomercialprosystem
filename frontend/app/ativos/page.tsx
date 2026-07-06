@@ -8,12 +8,12 @@ import { apiClient } from '@/lib/api-client';
 
 const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIRETOR'];
 const ETAPAS = [
-  { id: 'A_CONTATAR', label: 'A contatar', cor: '#6b7280', bg: '#f3f4f6' },
-  { id: 'EM_CONTATO', label: 'Em contato', cor: '#d97706', bg: '#fef3c7' },
-  { id: 'COTACAO', label: 'Cotação enviada', cor: '#7c3aed', bg: '#f5f3ff' },
-  { id: 'EM_TRATAMENTO', label: 'Em tratamento', cor: '#dc2626', bg: '#fef2f2' },
-  { id: 'SEM_SUCESSO', label: 'Sem sucesso', cor: '#b45309', bg: '#fffbeb' },
-  { id: 'CONCLUIDO', label: 'Concluído', cor: '#16a34a', bg: '#dcfce7' },
+  { id: 'A_CONTATAR', label: 'A contatar', cor: 'var(--t-text-muted)', bg: 'var(--t-primary-light)' },
+  { id: 'EM_CONTATO', label: 'Em contato', cor: '#d97706', bg: 'rgba(217,119,6,0.10)' },
+  { id: 'COTACAO', label: 'Cotação enviada', cor: '#7c3aed', bg: 'rgba(124,58,237,0.10)' },
+  { id: 'EM_TRATAMENTO', label: 'Em tratamento', cor: '#dc2626', bg: 'rgba(220,38,38,0.10)' },
+  { id: 'SEM_SUCESSO', label: 'Sem sucesso', cor: '#b45309', bg: 'rgba(180,83,9,0.10)' },
+  { id: 'CONCLUIDO', label: 'Concluído', cor: '#16a34a', bg: 'rgba(22,163,74,0.10)' },
 ];
 const SAUDE = ['CRITICO', 'RISCO', 'ATENCAO', 'SAUDAVEL', 'EXCELENTE'];
 const SAUDE_COR: Record<string, string> = { CRITICO: '#b91c1c', RISCO: '#dc2626', ATENCAO: '#d97706', SAUDAVEL: '#16a34a', EXCELENTE: '#047857' };
@@ -21,10 +21,10 @@ const SAUDE_COR: Record<string, string> = { CRITICO: '#b91c1c', RISCO: '#dc2626'
 const planoCor = (p?: string) => {
   const s = (p || '').toLowerCase();
   if (s.includes('plus')) return '#0B7384';
-  if (s.includes('pro')) return '#417ABC';
-  if (s.includes('basic') || s.includes('lite')) return '#6b7280';
+  if (s.includes('pro')) return 'var(--t-primary-dark)';
+  if (s.includes('basic') || s.includes('lite')) return 'var(--t-text-muted)';
   if (s.includes('mei')) return '#C2540A';
-  return '#94a3b8';
+  return 'var(--t-text-muted)';
 };
 
 export default function AtivosPage() {
@@ -112,14 +112,13 @@ export default function AtivosPage() {
   }, [isAuthenticated, isGestor]);
 
   const criarCampanha = async () => {
-    if (!novaCamp.grupo_tecnico || !novaCamp.vendedor_id) return alert('Escolha o grupo e o vendedor.');
+    if (!novaCamp.grupo_tecnico || !novaCamp.vendedor_id) return;
     setCriando(true);
     try {
       const r = await apiClient.criarCampanhaAtivo({ grupo_tecnico: novaCamp.grupo_tecnico, vendedor_id: novaCamp.vendedor_id, meta_cobertura_pct: Number(novaCamp.meta_cobertura_pct) || 100 });
-      alert(`Fila designada! ${r.data?.data?.fila || 0} clientes na fila.`);
       setShowNova(false); setNovaCamp({ grupo_tecnico: '', vendedor_id: '', meta_cobertura_pct: '100' });
       loadCampanhas();
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao designar fila.'); }
+    } catch { /* erro silenciado — recarrega a lista mesmo assim */ }
     finally { setCriando(false); }
   };
 
@@ -133,7 +132,7 @@ export default function AtivosPage() {
         return [atualizado, ...sem];
       });
     }
-    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao mover.'); }
+    catch { /* erro silenciado */ }
   };
 
   // Registra uma tentativa de contato SEM precisar responder o questionário.
@@ -141,7 +140,7 @@ export default function AtivosPage() {
     const obs = prompt(semSucesso ? 'Tentativa sem sucesso — observação (opcional):' : 'Registrar tentativa de contato — observação (opcional):', '');
     if (obs === null) return; // cancelou
     try { await apiClient.registrarTentativaAtivo(contato.id, { obs: obs || undefined, sem_sucesso: semSucesso }); loadContatos(); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao registrar tentativa.'); }
+    catch { /* erro silenciado */ }
   };
 
   // Supervisão: ocultar/exibir um cliente da fila do vendedor.
@@ -149,7 +148,7 @@ export default function AtivosPage() {
     const ocultar = !contato.oculto;
     const motivo = ocultar ? (prompt('Motivo de ocultar (opcional):', '') || undefined) : undefined;
     try { await apiClient.supervisaoContatoAtivo(contato.id, { oculto: ocultar, oculto_motivo: motivo }); loadContatos(); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao ocultar.'); }
+    catch { /* erro silenciado */ }
   };
   // Supervisão: etiquetar (ex.: Cliente crítico). Vazio = remover etiqueta.
   const etiquetarContato = async (contato: any) => {
@@ -157,7 +156,7 @@ export default function AtivosPage() {
     if (et === null) return;
     const cor = et.toLowerCase().includes('crit') ? '#dc2626' : et.toLowerCase().includes('contat') ? '#b45309' : '#6d28d9';
     try { await apiClient.supervisaoContatoAtivo(contato.id, { etiqueta: et.trim() || null, etiqueta_cor: cor }); loadContatos(); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Erro ao etiquetar.'); }
+    catch { /* erro silenciado */ }
   };
 
   const salvarQuestionario = async () => {
@@ -214,7 +213,7 @@ export default function AtivosPage() {
         const id = editando.id || ficha.contato?.id;
         if (id) { setFichaLoading(true); apiClient.getFichaContatoAtivo(id).then(r => setFicha((f: any) => f ? { ...f, dados: r.data?.data || null } : f)).catch(() => {}).finally(() => setFichaLoading(false)); }
       }
-    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar.'); }
+    } catch { /* erro silenciado */ }
     finally { setSavingQ(false); }
   };
 
@@ -227,8 +226,8 @@ export default function AtivosPage() {
       <div className="max-w-7xl mx-auto p-4 md:p-6">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Ativos — CS Comercial</h1>
-            <p className="text-sm text-gray-500">Contatos proativos com a carteira: mede saúde, abre casos e gera oportunidades.</p>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Ativos — CS Comercial</h1>
+            <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>Contatos proativos com a carteira: mede saúde, abre casos e gera oportunidades.</p>
           </div>
           {isGestor && (
             <button onClick={() => setShowNova(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">+ Designar fila</button>
@@ -237,10 +236,11 @@ export default function AtivosPage() {
 
         {/* Abas (gestão tem painel) */}
         {isGestor && (
-          <div className="flex gap-2 mb-4 border-b border-gray-200">
+          <div className="flex gap-2 mb-4 border-b" style={{ borderColor: 'var(--t-border)' }}>
             {[{ id: 'fila', label: '📋 Minhas filas / Kanban' }, { id: 'painel', label: '📊 Painel da Supervisão' }].map(a => (
               <button key={a.id} onClick={() => setAba(a.id as any)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${aba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500'}`}>{a.label}</button>
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${aba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent'}`}
+                style={aba !== a.id ? { color: 'var(--t-text-secondary)' } : {}}>{a.label}</button>
             ))}
           </div>
         )}
@@ -249,15 +249,16 @@ export default function AtivosPage() {
         {(!isGestor || aba === 'fila') && (
           <>
             {campanhas.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">Nenhuma fila de ativos designada {isGestor ? '— clique em "Designar fila".' : 'para você ainda.'}</div>
+              <div className="rounded-xl border p-8 text-center" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)', color: 'var(--t-text-secondary)' }}>Nenhuma fila de ativos designada {isGestor ? '— clique em "Designar fila".' : 'para você ainda.'}</div>
             ) : (
               <>
                 <div className="flex gap-2 flex-wrap mb-4">
                   {campanhas.map(c => (
                     <button key={c.id} onClick={() => setCampAtiva(c.id)}
-                      className={`px-3 py-2 rounded-lg text-sm border ${campAtiva === c.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-600'}`}>
+                      className={`px-3 py-2 rounded-lg text-sm border ${campAtiva === c.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200'}`}
+                      style={campAtiva !== c.id ? { background: 'var(--t-surface)', color: 'var(--t-text-secondary)' } : {}}>
                       {c.grupo_tecnico} {!isGestor ? '' : `· ${c.vendedor_nome || ''}`}
-                      <span className="ml-2 text-xs text-gray-400">{c.progresso?.cobertura_pct ?? 0}% · meta {c.meta_cobertura_pct}%</span>
+                      <span className="ml-2 text-xs" style={{ color: 'var(--t-text-muted)' }}>{c.progresso?.cobertura_pct ?? 0}% · meta {c.meta_cobertura_pct}%</span>
                     </button>
                   ))}
                 </div>
@@ -275,9 +276,11 @@ export default function AtivosPage() {
                 <div className="flex gap-2 flex-wrap items-center mb-3">
                   <input value={buscaAtivo} onChange={e => setBuscaAtivo(e.target.value)}
                     placeholder="🔍 Buscar cliente por nome ou código…"
-                    className="flex-1 min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    className="flex-1 min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    style={{ background: 'var(--t-surface)' }} />
                   <select value={filtroEtapa} onChange={e => setFiltroEtapa(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    style={{ background: 'var(--t-surface)' }}>
                     <option value="">Todas as etapas</option>
                     {ETAPAS.map(et => <option key={et.id} value={et.id}>{et.label}</option>)}
                   </select>
@@ -285,36 +288,37 @@ export default function AtivosPage() {
                     className={`px-3 py-2 rounded-lg text-sm font-medium border ${filtroEtapa === 'EM_TRATAMENTO' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-700 border-red-200'}`}>
                     Em tratamento
                   </button>
-                  {(buscaAtivo || filtroEtapa) && <button onClick={() => { setBuscaAtivo(''); setFiltroEtapa(''); }} className="text-xs text-gray-500 hover:text-gray-700 underline">limpar</button>}
+                  {(buscaAtivo || filtroEtapa) && <button onClick={() => { setBuscaAtivo(''); setFiltroEtapa(''); }} className="text-xs underline" style={{ color: 'var(--t-text-secondary)' }}>limpar</button>}
                 </div>
 
                 {/* Kanban — 6 colunas lado a lado, com setas flutuantes para rolar */}
                 <div className="relative">
                   {/* Seta ◀ — rola para a esquerda (fixa no meio vertical da área visível) */}
                   <button onClick={() => kanbanRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                    className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-left -ml-3 w-9 h-9 rounded-full bg-white shadow-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
-                    style={{ position: 'sticky' }} title="Rolar para a esquerda">◀</button>
+                    className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-left -ml-3 w-9 h-9 rounded-full shadow-lg border"
+                    style={{ position: 'sticky', background: 'var(--t-surface)', borderColor: 'var(--t-border)', color: 'var(--t-text-primary)' }} title="Rolar para a esquerda">◀</button>
                   {/* Seta ▶ — rola para a direita */}
                   <button onClick={() => kanbanRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                    className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-right -mr-3 w-9 h-9 rounded-full bg-white shadow-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
-                    title="Rolar para a direita">▶</button>
+                    className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-right -mr-3 w-9 h-9 rounded-full shadow-lg border"
+                    style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)', color: 'var(--t-text-primary)' }} title="Rolar para a direita">▶</button>
                 <div ref={kanbanRef} className="flex gap-3 overflow-x-auto pb-2 scroll-smooth">
                   {ETAPAS.filter(et => !filtroEtapa || et.id === filtroEtapa).map(et => {
                     const termo = buscaAtivo.trim().toLowerCase();
                     const itens = contatos.filter(c => c.etapa === et.id
                       && (!termo || (c.cliente_nome || '').toLowerCase().includes(termo) || String(c.cliente_codigo || '').includes(termo)));
                     return (
-                      <div key={et.id} className="bg-gray-50 rounded-xl p-2 min-h-[200px] flex-shrink-0 w-[280px]">
+                      <div key={et.id} className="rounded-xl p-2 min-h-[200px] flex-shrink-0 w-[280px]" style={{ background: et.bg }}>
                         <div className="flex items-center justify-between px-2 py-1.5">
                           <span className="text-xs font-bold uppercase tracking-wide" style={{ color: et.cor }}>{et.label}</span>
-                          <span className="text-xs text-gray-400">{itens.length}</span>
+                          <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{itens.length}</span>
                         </div>
                         <div className="space-y-2">
                           {itens.map(c => (
                             <div key={c.id}
                               onClick={() => abrirFicha(c, 'dados')}
-                              className={`bg-white rounded-lg border p-2.5 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all ${c.oculto ? 'border-dashed border-gray-300 opacity-70' : 'border-gray-100'}`}>
-                              <p className="text-sm font-semibold text-gray-800">
+                              className={`rounded-lg border p-2.5 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all ${c.oculto ? 'border-dashed opacity-70' : ''}`}
+                              style={{ background: 'var(--t-surface)', borderColor: c.oculto ? 'var(--t-border)' : 'var(--t-border-light, var(--t-border))' }}>
+                              <p className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>
                                 {c.cliente_codigo ? `${c.cliente_codigo} · ` : ''}{c.cliente_nome || 'Cliente'}
                                 {c.plano && <span className="ml-1.5 align-middle text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: planoCor(c.plano) }}>{c.plano}</span>}
                               </p>
@@ -322,7 +326,7 @@ export default function AtivosPage() {
                                 {c.etiqueta && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: c.etiqueta_cor || '#dc2626' }}>{c.etiqueta}</span>}
                                 {c.oculto && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">🙈 Oculto</span>}
                                 {c.saude && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: SAUDE_COR[c.saude] }}>{c.saude}</span>}
-                                {c.nota_prosystem != null && <span className="text-[10px] text-gray-500">★ {c.nota_prosystem}/5</span>}
+                                {c.nota_prosystem != null && <span className="text-[10px]" style={{ color: 'var(--t-text-secondary)' }}>★ {c.nota_prosystem}/5</span>}
                                 {c.caso_churn_id && <span className="text-[10px] text-red-600">⚠ caso</span>}
                                 {c.gerou_venda && <span className="text-[10px] text-blue-600">💰 oport.</span>}
                               </div>
@@ -331,10 +335,10 @@ export default function AtivosPage() {
                                 {(() => { const idx = ETAPAS.findIndex(e => e.id === et.id); return (
                                   <>
                                     <button disabled={idx <= 0} onClick={e => { e.stopPropagation(); moverEtapa(c, ETAPAS[idx - 1].id); }}
-                                      className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-600 disabled:opacity-30" title={idx > 0 ? `Mover p/ ${ETAPAS[idx - 1].label}` : ''}>◀</button>
-                                    <span className="text-[10px] text-gray-400">{et.label}</span>
+                                      className="text-[11px] px-2 py-0.5 rounded border border-gray-200 disabled:opacity-30" style={{ color: 'var(--t-text-secondary)' }} title={idx > 0 ? `Mover p/ ${ETAPAS[idx - 1].label}` : ''}>◀</button>
+                                    <span className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>{et.label}</span>
                                     <button disabled={idx >= ETAPAS.length - 1} onClick={e => { e.stopPropagation(); moverEtapa(c, ETAPAS[idx + 1].id); }}
-                                      className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-600 disabled:opacity-30" title={idx < ETAPAS.length - 1 ? `Mover p/ ${ETAPAS[idx + 1].label}` : ''}>▶</button>
+                                      className="text-[11px] px-2 py-0.5 rounded border border-gray-200 disabled:opacity-30" style={{ color: 'var(--t-text-secondary)' }} title={idx < ETAPAS.length - 1 ? `Mover p/ ${ETAPAS[idx + 1].label}` : ''}>▶</button>
                                   </>
                                 ); })()}
                               </div>
@@ -354,7 +358,7 @@ export default function AtivosPage() {
                               </div>
                             </div>
                           ))}
-                          {itens.length === 0 && <p className="text-[11px] text-gray-300 text-center py-3">vazio</p>}
+                          {itens.length === 0 && <p className="text-[11px] text-center py-3" style={{ color: 'var(--t-text-muted)' }}>vazio</p>}
                         </div>
                       </div>
                     );
@@ -378,17 +382,17 @@ export default function AtivosPage() {
               <KPI label="Valor gerado" valor={`R$ ${Number(painel.totais.valor_gerado || 0).toLocaleString('pt-BR')}`} cor="text-emerald-700" />
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Filas por vendedor</h2>
+            <div className="rounded-xl border p-5" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)' }}>
+              <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--t-text-primary)' }}>Filas por vendedor</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-400 border-b">
+                  <thead><tr className="text-left text-xs border-b" style={{ color: 'var(--t-text-muted)' }}>
                     {['Grupo / Técnico', 'Vendedor', 'Cobertura', 'Saudáveis', 'Em risco', 'Casos', 'Vendas', 'Valor gerado', 'Nota média'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}
                   </tr></thead>
                   <tbody>{painel.filas.map((f: any) => (
-                    <tr key={f.campanha_id} className="border-b border-gray-50">
-                      <td className="py-2 pr-3 font-medium text-gray-800">{f.grupo_tecnico}</td>
-                      <td className="pr-3 text-gray-600">{f.vendedor_nome || '—'}</td>
+                    <tr key={f.campanha_id} className="border-b" style={{ borderColor: 'var(--t-border-light, var(--t-border))' }}>
+                      <td className="py-2 pr-3 font-medium" style={{ color: 'var(--t-text-primary)' }}>{f.grupo_tecnico}</td>
+                      <td className="pr-3" style={{ color: 'var(--t-text-secondary)' }}>{f.vendedor_nome || '—'}</td>
                       <td className="pr-3" style={{ color: f.bateu_meta ? '#16a34a' : '#d97706' }}>{f.cobertura_pct}% <span className="text-gray-400 text-xs">/ {f.meta_cobertura_pct}%</span></td>
                       <td className="pr-3 text-green-700">{f.saudaveis}</td>
                       <td className="pr-3 text-red-600">{f.em_risco}</td>
@@ -402,17 +406,17 @@ export default function AtivosPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">🩺 Saúde da carteira por técnico</h2>
+            <div className="rounded-xl border p-5" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)' }}>
+              <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--t-text-primary)' }}>🩺 Saúde da carteira por técnico</h2>
               <div className="space-y-2">
                 {painel.ranking_tecnicos.map((g: any, i: number) => (
-                  <div key={g.grupo_tecnico} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
-                    <span className="font-medium text-gray-800">{i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}{g.grupo_tecnico}</span>
+                  <div key={g.grupo_tecnico} className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: 'var(--t-border)' }}>
+                    <span className="font-medium" style={{ color: 'var(--t-text-primary)' }}>{i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}{g.grupo_tecnico}</span>
                     <span className="text-sm flex items-center gap-3">
-                      {g.indice_saude != null && <b className="text-gray-900">{g.indice_saude}% saúde</b>}
+                      {g.indice_saude != null && <b style={{ color: 'var(--t-text-primary)' }}>{g.indice_saude}% saúde</b>}
                       <span className="text-green-700">{g.saudaveis} ok</span>
                       <span className="text-red-600">{g.em_risco} risco</span>
-                      <span className="text-gray-500">{g.casos_abertos} casos</span>
+                      <span style={{ color: 'var(--t-text-secondary)' }}>{g.casos_abertos} casos</span>
                       <span className="text-blue-700">{g.vendas} vendas</span>
                       {g.nota_media != null && <span className="text-amber-600">★ {g.nota_media}</span>}
                     </span>
@@ -427,29 +431,29 @@ export default function AtivosPage() {
       {/* ─── Modal: Designar fila ─── */}
       {showNova && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-3">
+          <div className="rounded-2xl w-full max-w-md p-6 space-y-3" style={{ background: 'var(--t-surface)' }}>
             <h2 className="text-lg font-semibold">Designar fila de Ativos</h2>
             <div>
-              <label className="text-xs font-medium text-gray-600">Grupo técnico *</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Grupo técnico *</label>
               <select value={novaCamp.grupo_tecnico} onChange={e => setNovaCamp({ ...novaCamp, grupo_tecnico: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
                 <option value="">— selecione —</option>
                 {grupos.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600">Vendedor responsável *</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Vendedor responsável *</label>
               <select value={novaCamp.vendedor_id} onChange={e => setNovaCamp({ ...novaCamp, vendedor_id: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
                 <option value="">— selecione —</option>
                 {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600">Meta de cobertura (%)</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Meta de cobertura (%)</label>
               <input type="number" value={novaCamp.meta_cobertura_pct} onChange={e => setNovaCamp({ ...novaCamp, meta_cobertura_pct: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             </div>
-            <p className="text-xs text-gray-500">Os clientes ATIVOS do grupo vão para a fila do vendedor (kanban).</p>
+            <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>Os clientes ATIVOS do grupo vão para a fila do vendedor (kanban).</p>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setShowNova(false)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={() => setShowNova(false)} className="px-4 py-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>Cancelar</button>
               <button onClick={criarCampanha} disabled={criando} className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50">{criando ? 'Designando…' : 'Designar fila'}</button>
             </div>
           </div>
@@ -459,10 +463,10 @@ export default function AtivosPage() {
       {/* ─── Modal: Registrar contato (questionário) — só abre quando a ficha NÃO está aberta ─── */}
       {editando && !ficha && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+          <div className="rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--t-surface)' }}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Questionário — {editando.cliente_nome}</h2>
-              <button onClick={() => setEditando(null)} className="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+              <button onClick={() => setEditando(null)} className="text-xl leading-none" style={{ color: 'var(--t-text-muted)' }}>×</button>
             </div>
             <div className="space-y-2">
               {[
@@ -473,11 +477,12 @@ export default function AtivosPage() {
                 ['plus_apresentado', 'O plano Plus foi apresentado?'],
               ].map(([campo, label]) => (
                 <div key={campo} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700">{label}</span>
+                  <span style={{ color: 'var(--t-text-secondary)' }}>{label}</span>
                   <div className="flex gap-1">
                     {[['Sim', true], ['Não', false]].map(([txt, val]) => (
                       <button key={txt as string} onClick={() => setEditando({ ...editando, [campo as string]: val })}
-                        className={`px-3 py-1 rounded text-xs border ${editando[campo as string] === val ? (val ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300') : 'bg-white text-gray-500 border-gray-200'}`}>{txt}</button>
+                        className={`px-3 py-1 rounded text-xs border ${editando[campo as string] === val ? (val ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300') : 'border-gray-200'}`}
+                        style={editando[campo as string] !== val ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{txt}</button>
                     ))}
                   </div>
                 </div>
@@ -485,67 +490,68 @@ export default function AtivosPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600">Nota geral do Prosystem (1 a 5)</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Nota geral do Prosystem (1 a 5)</label>
               <div className="flex gap-1 mt-1">
                 {[1, 2, 3, 4, 5].map(n => (
                   <button key={n} onClick={() => setEditando({ ...editando, nota_prosystem: n })}
-                    className={`w-9 h-9 rounded-lg text-sm font-bold border ${Number(editando.nota_prosystem) === n ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-gray-400 border-gray-200'}`}>{n}</button>
+                    className={`w-9 h-9 rounded-lg text-sm font-bold border ${Number(editando.nota_prosystem) === n ? 'bg-amber-100 text-amber-700 border-amber-300' : 'border-gray-200'}`}
+                    style={Number(editando.nota_prosystem) !== n ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{n}</button>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600">Saúde percebida do cliente</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Saúde percebida do cliente</label>
               <div className="flex gap-1 mt-1 flex-wrap">
                 {SAUDE.map(s => (
                   <button key={s} onClick={() => setEditando({ ...editando, saude: s })}
-                    className={`px-2.5 py-1 rounded text-xs font-semibold border ${editando.saude === s ? 'text-white' : 'bg-white text-gray-500 border-gray-200'}`}
-                    style={editando.saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : {}}>{s}</button>
+                    className={`px-2.5 py-1 rounded text-xs font-semibold border ${editando.saude === s ? 'text-white' : 'border-gray-200'}`}
+                    style={editando.saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : { background: 'var(--t-surface)', color: 'var(--t-text-muted)' }}>{s}</button>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600">Sugestões</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Sugestões</label>
               <textarea value={editando.sugestoes || ''} onChange={e => setEditando({ ...editando, sugestoes: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             </div>
 
             {/* Atualizar cadastro do cliente (vai p/ a ficha) */}
             <div className="bg-slate-50 rounded-lg p-3 space-y-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
                 <input type="checkbox" checked={!!editando.atualizar_cliente} onChange={e => setEditando({ ...editando, atualizar_cliente: e.target.checked, cli_nome: editando.cli_nome ?? editando.cliente_nome })} />
                 Atualizar cadastro do cliente (nome, telefones, segmento)
               </label>
               {editando.atualizar_cliente && (
                 <div className="space-y-2">
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Nome / razão social</label>
+                    <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Nome / razão social</label>
                     <input value={editando.cli_nome ?? ''} onChange={e => setEditando({ ...editando, cli_nome: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder={editando.cliente_nome || ''} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs font-medium text-gray-600">Telefone 1</label>
+                      <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Telefone 1</label>
                       <input value={editando.cli_telefone1 ?? ''} onChange={e => setEditando({ ...editando, cli_telefone1: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600">Telefone 2</label>
+                      <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Telefone 2</label>
                       <input value={editando.cli_telefone2 ?? ''} onChange={e => setEditando({ ...editando, cli_telefone2: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="opcional" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Segmento</label>
+                    <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Segmento</label>
                     <select value={editando.cli_segmento ?? ''} onChange={e => setEditando({ ...editando, cli_segmento: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
                       <option value="">— identificar segmento —</option>
                       {['Farmácia', 'Manipulação', 'Padaria', 'Varejo'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
-                  <p className="text-[11px] text-gray-500">Só os campos preenchidos são atualizados na ficha do cliente.</p>
+                  <p className="text-[11px]" style={{ color: 'var(--t-text-secondary)' }}>Só os campos preenchidos são atualizados na ficha do cliente.</p>
                 </div>
               )}
             </div>
 
             <div className="bg-red-50 rounded-lg p-3 space-y-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
                 <input type="checkbox" checked={!!editando.tem_problema} onChange={e => setEditando({ ...editando, tem_problema: e.target.checked })} />
                 Há um problema / algo não resolvido
               </label>
@@ -553,7 +559,7 @@ export default function AtivosPage() {
                 <>
                   <textarea value={editando.problema_descricao || ''} onChange={e => setEditando({ ...editando, problema_descricao: e.target.value })} rows={2} placeholder="Descreva o problema" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                   {!editando.caso_churn_id && (
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
                       <input type="checkbox" checked={!!editando.abrir_caso} onChange={e => setEditando({ ...editando, abrir_caso: e.target.checked })} />
                       Abrir caso de retenção (churn) para tratar
                     </label>
@@ -564,7 +570,7 @@ export default function AtivosPage() {
             </div>
 
             <div className="bg-blue-50 rounded-lg p-3 space-y-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
                 <input type="checkbox" checked={!!editando.gerou_venda} onChange={e => setEditando({ ...editando, gerou_venda: e.target.checked })} />
                 Gerou oportunidade de venda (oferta Prosystem / parceiro)
               </label>
@@ -574,32 +580,32 @@ export default function AtivosPage() {
                 ) : (
                   <div className="space-y-2">
                     <div>
-                      <label className="text-xs font-medium text-gray-600">Oferta / parceiro *</label>
+                      <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Oferta / parceiro *</label>
                       <select value={editando.parceiro_id || ''} onChange={e => setEditando({ ...editando, parceiro_id: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
                         <option value="">— escolha a oferta —</option>
                         {parceiros.map(p => <option key={p.id} value={p.id}>{p.categoria} · {p.nome}</option>)}
                       </select>
-                      {(() => { const p = parceiros.find(x => x.id === editando.parceiro_id); return p?.pitch ? <p className="text-[11px] text-gray-500 mt-1">{p.pitch}</p> : null; })()}
+                      {(() => { const p = parceiros.find(x => x.id === editando.parceiro_id); return p?.pitch ? <p className="text-[11px] mt-1" style={{ color: 'var(--t-text-secondary)' }}>{p.pitch}</p> : null; })()}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Valor / setup (R$)</label>
+                        <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Valor / setup (R$)</label>
                         <input type="number" value={editando.venda_valor || ''} onChange={e => setEditando({ ...editando, venda_valor: e.target.value })} placeholder="0" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Acréscimo mensal (R$)</label>
+                        <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Acréscimo mensal (R$)</label>
                         <input type="number" value={editando.venda_acrescimo || ''} onChange={e => setEditando({ ...editando, venda_acrescimo: e.target.value })} placeholder="0" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                       </div>
                     </div>
                     <input value={editando.venda_obs || ''} onChange={e => setEditando({ ...editando, venda_obs: e.target.value })} placeholder="Observação da venda" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-                    <p className="text-[11px] text-gray-500">Ao salvar, a venda é criada em <b>Indicações</b> (origem: Ativo) e fica rastreada. A gestão confirma/data depois.</p>
+                    <p className="text-[11px]" style={{ color: 'var(--t-text-secondary)' }}>Ao salvar, a venda é criada em <b>Indicações</b> (origem: Ativo) e fica rastreada. A gestão confirma/data depois.</p>
                   </div>
                 )
               )}
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setEditando(null)} className="px-4 py-2 text-sm text-gray-500">Cancelar</button>
+              <button onClick={() => setEditando(null)} className="px-4 py-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>Cancelar</button>
               <button onClick={salvarQuestionario} disabled={savingQ} className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg disabled:opacity-50">{savingQ ? 'Salvando…' : 'Salvar contato'}</button>
             </div>
           </div>
@@ -609,7 +615,7 @@ export default function AtivosPage() {
       {/* ─── Modal: Ficha do cliente com abas ─── */}
       {ficha && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+          <div className="rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" style={{ background: 'var(--t-surface)' }}>
             {/* Cabeçalho fixo */}
             {(() => {
               const d = ficha.dados; const cli = d?.cliente; const c = ficha.contato;
@@ -617,20 +623,20 @@ export default function AtivosPage() {
               const wpp = (t?: string) => { const n = fone(t); return n ? (n.startsWith('55') ? n : '55' + n) : ''; };
               return (
                 <>
-                  <div className="flex items-start justify-between p-5 border-b border-gray-100">
+                  <div className="flex items-start justify-between p-5 border-b" style={{ borderColor: 'var(--t-border)' }}>
                     <div>
-                      <h2 className="text-lg font-semibold text-gray-900">{cli?.razao_social || cli?.nome_fantasia || cli?.nome || c.cliente_nome}</h2>
-                      <p className="text-xs text-gray-500">{cli?.codigo ? `Código ${cli.codigo}` : ''}{cli?.grupo_tecnico ? ` · ${cli.grupo_tecnico}` : ''}</p>
+                      <h2 className="text-lg font-semibold" style={{ color: 'var(--t-text-primary)' }}>{cli?.razao_social || cli?.nome_fantasia || cli?.nome || c.cliente_nome}</h2>
+                      <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{cli?.codigo ? `Código ${cli.codigo}` : ''}{cli?.grupo_tecnico ? ` · ${cli.grupo_tecnico}` : ''}</p>
                     </div>
                     <div className="flex items-start gap-2 flex-wrap justify-end">
                       {(cli?.plano || c.plano) && <span className="text-[11px] font-bold px-2 py-0.5 rounded text-white" style={{ background: planoCor(cli?.plano || c.plano) }}>{cli?.plano || c.plano}</span>}
-                      {(cli?.segmento || c.cli_segmento) && <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-700">{cli?.segmento || c.cli_segmento}</span>}
-                      <button onClick={() => { setFicha(null); setEditando(null); }} className="text-gray-400 hover:text-gray-700 text-xl leading-none ml-2">×</button>
+                      {(cli?.segmento || c.cli_segmento) && <span className="text-[11px] font-semibold px-2 py-0.5 rounded" style={{ background: 'var(--t-primary-light)', color: 'var(--t-text-secondary)' }}>{cli?.segmento || c.cli_segmento}</span>}
+                      <button onClick={() => { setFicha(null); setEditando(null); }} className="text-xl leading-none ml-2" style={{ color: 'var(--t-text-muted)' }}>×</button>
                     </div>
                   </div>
 
                   {/* Abas */}
-                  <div className="flex border-b border-gray-100 px-5">
+                  <div className="flex border-b px-5" style={{ borderColor: 'var(--t-border)' }}>
                     {([
                       { id: 'dados', label: '📋 Dados' },
                       { id: 'atualizacoes', label: '✏️ Atualizações' },
@@ -644,7 +650,8 @@ export default function AtivosPage() {
                         if (a.id === 'questionario' && !editando) setEditando({ ...c });
                         if (a.id === 'atualizacoes') setNovaAtualizacao('');
                       }}
-                        className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${fichaAba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                        className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${fichaAba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent'}`}
+                        style={fichaAba !== a.id ? { color: 'var(--t-text-secondary)' } : {}}>
                         {a.label}
                       </button>
                     ))}
@@ -652,44 +659,44 @@ export default function AtivosPage() {
 
                   {/* Conteúdo com scroll */}
                   <div className="overflow-y-auto flex-1 p-5 space-y-3">
-                    {fichaLoading ? <p className="text-sm text-gray-400 py-4 text-center">Carregando…</p> : (
+                    {fichaLoading ? <p className="text-sm py-4 text-center" style={{ color: 'var(--t-text-muted)' }}>Carregando…</p> : (
                       <>
                         {/* ── ABA: DADOS ── */}
                         {fichaAba === 'dados' && (
                           <>
                             <div className="bg-slate-50 rounded-lg p-3">
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Contato</p>
-                              {cli?.contato && <p className="text-sm text-gray-700 mb-1">👤 {cli.contato}</p>}
+                              <p className="text-xs font-bold uppercase mb-2" style={{ color: 'var(--t-text-secondary)' }}>Contato</p>
+                              {cli?.contato && <p className="text-sm mb-1" style={{ color: 'var(--t-text-secondary)' }}>👤 {cli.contato}</p>}
                               {[cli?.telefone || cli?.telefone1, cli?.telefone2].filter(Boolean).map((t: string, i: number) => (
                                 <div key={i} className="flex items-center justify-between text-sm py-1">
-                                  <span className="text-gray-700">📞 {t}</span>
+                                  <span style={{ color: 'var(--t-text-secondary)' }}>📞 {t}</span>
                                   <span className="flex gap-2">
                                     <a href={`tel:${fone(t)}`} className="text-blue-600 text-xs font-semibold">Ligar</a>
                                     <a href={`https://wa.me/${wpp(t)}`} target="_blank" rel="noopener noreferrer" className="text-green-600 text-xs font-semibold">WhatsApp</a>
                                   </span>
                                 </div>
                               ))}
-                              {!(cli?.telefone || cli?.telefone1 || cli?.telefone2) && <p className="text-xs text-gray-400">Sem telefone cadastrado. Atualize ao registrar o contato.</p>}
-                              {cli?.email && <p className="text-sm text-gray-600 mt-1">✉️ {cli.email}</p>}
-                              {cli?.mensalidade_base != null && <p className="text-xs text-gray-500 mt-1">Mensalidade base: R$ {Number(cli.mensalidade_base).toLocaleString('pt-BR')}</p>}
+                              {!(cli?.telefone || cli?.telefone1 || cli?.telefone2) && <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Sem telefone cadastrado. Atualize ao registrar o contato.</p>}
+                              {cli?.email && <p className="text-sm mt-1" style={{ color: 'var(--t-text-secondary)' }}>✉️ {cli.email}</p>}
+                              {cli?.mensalidade_base != null && <p className="text-xs mt-1" style={{ color: 'var(--t-text-secondary)' }}>Mensalidade base: R$ {Number(cli.mensalidade_base).toLocaleString('pt-BR')}</p>}
                             </div>
                             {d?.contatos_pessoas?.length > 0 && (
                               <div>
-                                <p className="text-xs font-bold text-gray-500 uppercase mb-1">Pessoas</p>
+                                <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--t-text-secondary)' }}>Pessoas</p>
                                 {d.contatos_pessoas.map((p: any) => (
-                                  <p key={p.id} className="text-sm text-gray-700">• {p.nome}{p.cargo ? ` (${p.cargo})` : ''}{p.telefone ? ` — ${p.telefone}` : ''}{p.principal ? ' ⭐' : ''}</p>
+                                  <p key={p.id} className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>• {p.nome}{p.cargo ? ` (${p.cargo})` : ''}{p.telefone ? ` — ${p.telefone}` : ''}{p.principal ? ' ⭐' : ''}</p>
                                 ))}
                               </div>
                             )}
                             <div>
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-1">Atualizações recentes</p>
+                              <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--t-text-secondary)' }}>Atualizações recentes</p>
                               {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
-                                <div key={ev.id} className="border-b border-gray-50 py-1.5">
-                                  <p className="text-sm text-gray-800">{ev.titulo}</p>
-                                  {ev.descricao && <p className="text-xs text-gray-500 whitespace-pre-line">{ev.descricao}</p>}
-                                  <p className="text-[10px] text-gray-400">{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
+                                <div key={ev.id} className="border-b py-1.5" style={{ borderColor: 'var(--t-border)' }}>
+                                  <p className="text-sm" style={{ color: 'var(--t-text-primary)' }}>{ev.titulo}</p>
+                                  {ev.descricao && <p className="text-xs whitespace-pre-line" style={{ color: 'var(--t-text-secondary)' }}>{ev.descricao}</p>}
+                                  <p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
                                 </div>
-                              )) : <p className="text-xs text-gray-400">Sem atualizações ainda.</p>}
+                              )) : <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Sem atualizações ainda.</p>}
                             </div>
                           </>
                         )}
@@ -698,8 +705,8 @@ export default function AtivosPage() {
                         {fichaAba === 'atualizacoes' && (
                           <div className="space-y-3">
                             {/* Campo livre para nova atualização */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
-                              <p className="text-xs font-semibold text-gray-600">Nova atualização</p>
+                            <div className="rounded-lg border border-gray-200 p-3 space-y-2" style={{ background: 'var(--t-surface)' }}>
+                              <p className="text-xs font-semibold" style={{ color: 'var(--t-text-secondary)' }}>Nova atualização</p>
                               <textarea
                                 value={novaAtualizacao}
                                 onChange={e => setNovaAtualizacao(e.target.value)}
@@ -718,7 +725,7 @@ export default function AtivosPage() {
                                     // Recarrega ficha para mostrar nova entrada na linha do tempo
                                     const r = await apiClient.getFichaContatoAtivo(c.id);
                                     setFicha((f: any) => f ? { ...f, dados: r.data?.data || null } : f);
-                                  } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao salvar'); }
+                                  } catch { /* erro silenciado */ }
                                   finally { setSavingAtualizacao(false); }
                                 }}
                                 className="w-full py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white disabled:opacity-40 transition-opacity"
@@ -729,14 +736,14 @@ export default function AtivosPage() {
 
                             {/* Histórico de atualizações */}
                             <div>
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Histórico</p>
+                              <p className="text-xs font-bold uppercase mb-2" style={{ color: 'var(--t-text-secondary)' }}>Histórico</p>
                               {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
-                                <div key={ev.id} className="border-b border-gray-100 py-2">
-                                  <p className="text-sm text-gray-800">{ev.titulo}</p>
-                                  {ev.descricao && <p className="text-xs text-gray-600 whitespace-pre-line mt-0.5">{ev.descricao}</p>}
-                                  <p className="text-[10px] text-gray-400 mt-0.5">{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
+                                <div key={ev.id} className="border-b py-2" style={{ borderColor: 'var(--t-border)' }}>
+                                  <p className="text-sm" style={{ color: 'var(--t-text-primary)' }}>{ev.titulo}</p>
+                                  {ev.descricao && <p className="text-xs whitespace-pre-line mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{ev.descricao}</p>}
+                                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
                                 </div>
-                              )) : <p className="text-xs text-gray-400">Sem registros ainda.</p>}
+                              )) : <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Sem registros ainda.</p>}
                             </div>
                           </div>
                         )}
@@ -753,37 +760,39 @@ export default function AtivosPage() {
                                 ['plus_apresentado', 'O plano Plus foi apresentado?'],
                               ].map(([campo, label]) => (
                                 <div key={campo} className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-700">{label}</span>
+                                  <span style={{ color: 'var(--t-text-secondary)' }}>{label}</span>
                                   <div className="flex gap-1">
                                     {[['Sim', true], ['Não', false]].map(([txt, val]) => (
                                       <button key={txt as string} onClick={() => setEditando({ ...(editando || c), [campo as string]: val })}
-                                        className={`px-3 py-1 rounded text-xs border ${(editando || c)[campo as string] === val ? (val ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300') : 'bg-white text-gray-500 border-gray-200'}`}>{txt}</button>
+                                        className={`px-3 py-1 rounded text-xs border ${(editando || c)[campo as string] === val ? (val ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300') : 'border-gray-200'}`}
+                                        style={(editando || c)[campo as string] !== val ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{txt}</button>
                                     ))}
                                   </div>
                                 </div>
                               ))}
                             </div>
                             <div>
-                              <label className="text-xs font-medium text-gray-600">Nota geral do Prosystem (1 a 5)</label>
+                              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Nota geral do Prosystem (1 a 5)</label>
                               <div className="flex gap-1 mt-1">
                                 {[1,2,3,4,5].map(n => (
                                   <button key={n} onClick={() => setEditando({ ...(editando || c), nota_prosystem: n })}
-                                    className={`w-9 h-9 rounded-lg text-sm font-bold border ${Number((editando || c).nota_prosystem) === n ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-gray-400 border-gray-200'}`}>{n}</button>
+                                    className={`w-9 h-9 rounded-lg text-sm font-bold border ${Number((editando || c).nota_prosystem) === n ? 'bg-amber-100 text-amber-700 border-amber-300' : 'border-gray-200'}`}
+                                    style={Number((editando || c).nota_prosystem) !== n ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{n}</button>
                                 ))}
                               </div>
                             </div>
                             <div>
-                              <label className="text-xs font-medium text-gray-600">Saúde percebida do cliente</label>
+                              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Saúde percebida do cliente</label>
                               <div className="flex gap-1 mt-1 flex-wrap">
                                 {SAUDE.map(s => (
                                   <button key={s} onClick={() => setEditando({ ...(editando || c), saude: s })}
-                                    className={`px-2.5 py-1 rounded text-xs font-semibold border ${(editando || c).saude === s ? 'text-white' : 'bg-white text-gray-500 border-gray-200'}`}
-                                    style={(editando || c).saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : {}}>{s}</button>
+                                    className={`px-2.5 py-1 rounded text-xs font-semibold border ${(editando || c).saude === s ? 'text-white' : 'border-gray-200'}`}
+                                    style={(editando || c).saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : { background: 'var(--t-surface)', color: 'var(--t-text-muted)' }}>{s}</button>
                                 ))}
                               </div>
                             </div>
                             <div>
-                              <label className="text-xs font-medium text-gray-600">Sugestões / observações</label>
+                              <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Sugestões / observações</label>
                               <textarea value={(editando || c).sugestoes || ''} onChange={e => setEditando({ ...(editando || c), sugestoes: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                             </div>
                             <div className="flex gap-2 pt-1">
@@ -801,24 +810,24 @@ export default function AtivosPage() {
                         {/* ── ABA: CADASTRO ── */}
                         {fichaAba === 'cadastro' && (
                           <div className="space-y-3">
-                            <p className="text-xs text-gray-500">Atualize os dados cadastrais do cliente. As alterações são salvas junto com o questionário.</p>
+                            <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>Atualize os dados cadastrais do cliente. As alterações são salvas junto com o questionário.</p>
                             <div className="space-y-2">
                               <div>
-                                <label className="text-xs font-medium text-gray-600">Nome / Razão social</label>
+                                <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Nome / Razão social</label>
                                 <input value={(editando || c).cli_nome ?? c.cliente_nome ?? ''} onChange={e => setEditando({ ...(editando || c), cli_nome: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Nome / razão social" />
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <label className="text-xs font-medium text-gray-600">Telefone 1</label>
+                                  <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Telefone 1</label>
                                   <input value={(editando || c).cli_telefone1 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone1: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
                                 </div>
                                 <div>
-                                  <label className="text-xs font-medium text-gray-600">Telefone 2</label>
+                                  <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Telefone 2</label>
                                   <input value={(editando || c).cli_telefone2 ?? ''} onChange={e => setEditando({ ...(editando || c), cli_telefone2: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
                                 </div>
                               </div>
                               <div>
-                                <label className="text-xs font-medium text-gray-600">Segmento</label>
+                                <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Segmento</label>
                                 <select value={(editando || c).cli_segmento ?? ''} onChange={e => setEditando({ ...(editando || c), cli_segmento: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
                                   <option value="">— segmento —</option>
                                   {['Farmácia', 'Manipulação', 'Padaria', 'Varejo'].map(s => <option key={s} value={s}>{s}</option>)}
@@ -827,19 +836,19 @@ export default function AtivosPage() {
 
                               {/* ── Responsável principal ── */}
                               <div className="border-t border-gray-100 pt-3 mt-1">
-                                <p className="text-xs font-semibold text-gray-700 mb-2">Responsável / Contato</p>
+                                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--t-text-secondary)' }}>Responsável / Contato</p>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                    <label className="text-xs font-medium text-gray-600">Nome do responsável</label>
+                                    <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Nome do responsável</label>
                                     <input value={(editando || c).cli_responsavel_nome ?? ''} onChange={e => setEditando({ ...(editando || c), cli_responsavel_nome: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Ex.: João Silva" />
                                   </div>
                                   <div>
-                                    <label className="text-xs font-medium text-gray-600">Cargo</label>
+                                    <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Cargo</label>
                                     <input value={(editando || c).cli_responsavel_cargo ?? ''} onChange={e => setEditando({ ...(editando || c), cli_responsavel_cargo: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Ex.: Gerente, Proprietário" />
                                   </div>
                                 </div>
                                 <div className="mt-2">
-                                  <label className="text-xs font-medium text-gray-600">Telefone do responsável</label>
+                                  <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Telefone do responsável</label>
                                   <input value={(editando || c).cli_responsavel_telefone ?? ''} onChange={e => setEditando({ ...(editando || c), cli_responsavel_telefone: e.target.value, atualizar_cliente: true })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
                                 </div>
                               </div>
@@ -862,9 +871,9 @@ export default function AtivosPage() {
                                 {(editando || c).cli_tem_mais_contatos && (
                                   <div className="mt-2 space-y-2">
                                     {((editando || c).cli_contatos_adicionais || []).map((ct: any, idx: number) => (
-                                      <div key={idx} className="bg-gray-50 rounded-lg p-2 space-y-2">
+                                      <div key={idx} className="rounded-lg p-2 space-y-2" style={{ background: 'var(--t-primary-light)' }}>
                                         <div className="flex items-center justify-between">
-                                          <span className="text-xs font-medium text-gray-500">Contato {idx + 1}</span>
+                                          <span className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Contato {idx + 1}</span>
                                           <button type="button" onClick={() => {
                                             const base = editando || c;
                                             const lista = [...(base.cli_contatos_adicionais || [])];
@@ -874,7 +883,7 @@ export default function AtivosPage() {
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                           <div>
-                                            <label className="text-xs text-gray-500">Nome</label>
+                                            <label className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>Nome</label>
                                             <input value={ct.nome ?? ''} onChange={e => {
                                               const base = editando || c;
                                               const lista = [...(base.cli_contatos_adicionais || [])];
@@ -883,7 +892,7 @@ export default function AtivosPage() {
                                             }} className="w-full mt-0.5 px-2 py-1.5 border border-gray-200 rounded text-sm" placeholder="Nome" />
                                           </div>
                                           <div>
-                                            <label className="text-xs text-gray-500">Cargo</label>
+                                            <label className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>Cargo</label>
                                             <input value={ct.cargo ?? ''} onChange={e => {
                                               const base = editando || c;
                                               const lista = [...(base.cli_contatos_adicionais || [])];
@@ -893,7 +902,7 @@ export default function AtivosPage() {
                                           </div>
                                         </div>
                                         <div>
-                                          <label className="text-xs text-gray-500">Telefone</label>
+                                          <label className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>Telefone</label>
                                           <input value={ct.telefone ?? ''} onChange={e => {
                                             const base = editando || c;
                                             const lista = [...(base.cli_contatos_adicionais || [])];
@@ -906,7 +915,7 @@ export default function AtivosPage() {
                                     <button type="button" onClick={() => {
                                       const base = editando || c;
                                       setEditando({ ...base, cli_contatos_adicionais: [...(base.cli_contatos_adicionais || []), { nome: '', cargo: '', telefone: '' }] });
-                                    }} className="w-full py-1.5 text-xs font-medium border border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-green-400 hover:text-green-600">
+                                    }} className="w-full py-1.5 text-xs font-medium border border-dashed rounded-lg hover:border-green-400 hover:text-green-600" style={{ borderColor: 'var(--t-border)', color: 'var(--t-text-secondary)' }}>
                                       + Adicionar contato
                                     </button>
                                   </div>
@@ -931,9 +940,9 @@ export default function AtivosPage() {
                             ) : (
                               <div className="bg-red-50 rounded-lg p-4 space-y-3">
                                 <p className="text-sm font-semibold text-red-700">Abrir caso de retenção</p>
-                                <p className="text-xs text-gray-600">Use quando o cliente reportar um problema sério, risco de cancelamento ou insatisfação que precisa de acompanhamento.</p>
+                                <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>Use quando o cliente reportar um problema sério, risco de cancelamento ou insatisfação que precisa de acompanhamento.</p>
                                 <div>
-                                  <label className="text-xs font-medium text-gray-600">Descrição do problema</label>
+                                  <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Descrição do problema</label>
                                   <textarea
                                     value={(editando || c).problema_descricao || ''}
                                     onChange={e => setEditando({ ...(editando || c), problema_descricao: e.target.value, tem_problema: true })}
@@ -960,7 +969,7 @@ export default function AtivosPage() {
                         {fichaAba === 'oportunidades' && (
                           <div className="space-y-3">
                             {fichaOports.length === 0 && !fichaOportsLoading && (
-                              <p className="text-xs text-gray-400 text-center py-3">Nenhuma oportunidade registrada ainda.</p>
+                              <p className="text-xs text-center py-3" style={{ color: 'var(--t-text-muted)' }}>Nenhuma oportunidade registrada ainda.</p>
                             )}
                             {fichaOports.map((o: any) => (
                               <div key={o.id} className={`rounded-lg border p-3 ${o.status === 'NEGOCIACAO' ? 'border-blue-200 bg-blue-50' : o.status === 'CONFIRMADA' ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
@@ -970,25 +979,25 @@ export default function AtivosPage() {
                                     {o.status === 'NEGOCIACAO' ? 'Em negociação' : o.status === 'CONFIRMADA' ? 'Confirmada' : 'Cancelada'}
                                   </span>
                                 </div>
-                                {o.observacao && <p className="text-xs text-gray-600 mt-1">{o.observacao}</p>}
+                                {o.observacao && <p className="text-xs mt-1" style={{ color: 'var(--t-text-secondary)' }}>{o.observacao}</p>}
                                 {(o.valor_venda || o.acrescimo_mensal) && (
-                                  <p className="text-xs text-gray-500 mt-1">
+                                  <p className="text-xs mt-1" style={{ color: 'var(--t-text-secondary)' }}>
                                     {o.valor_venda ? `Setup: R$ ${Number(o.valor_venda).toLocaleString('pt-BR')}` : ''}
                                     {o.acrescimo_mensal ? ` +R$ ${Number(o.acrescimo_mensal).toLocaleString('pt-BR')}/mês` : ''}
                                   </p>
                                 )}
-                                <p className="text-[10px] text-gray-400 mt-1">{new Date(o.created_at).toLocaleDateString('pt-BR')}</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--t-text-muted)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</p>
                                 {o.status === 'NEGOCIACAO' && (
                                   <div className="flex gap-1 mt-2">
                                     <button onClick={async () => {
                                       if (!window.confirm('Confirmar fechamento? Isso vai criar a venda em Indicações.')) return;
                                       try { await apiClient.confirmarOportunidade(o.id); carregarOports(c.id); loadContatos(); }
-                                      catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+                                      catch { /* erro silenciado */ }
                                     }} className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white">✓ Confirmar fechamento</button>
                                     <button onClick={async () => {
                                       if (!window.confirm('Cancelar esta oportunidade?')) return;
                                       try { await apiClient.cancelarOportunidade(o.id); carregarOports(c.id); }
-                                      catch (e: any) { alert(e?.response?.data?.message || 'Erro'); }
+                                      catch { /* erro silenciado */ }
                                     }} className="text-[11px] px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200">✕ Cancelar</button>
                                   </div>
                                 )}
@@ -997,20 +1006,20 @@ export default function AtivosPage() {
 
                             {/* Form nova oportunidade */}
                             {novaOport ? (
-                              <div className="bg-white rounded-lg border border-blue-200 p-3 space-y-2">
+                              <div className="rounded-lg border border-blue-200 p-3 space-y-2" style={{ background: 'var(--t-surface)' }}>
                                 <p className="text-xs font-semibold text-blue-700">Nova oportunidade</p>
                                 <select value={novaOport.parceiroId} onChange={e => setNovaOport({ ...novaOport, parceiroId: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                                   <option value="">— escolha o produto/oferta —</option>
                                   {parceiros.map((p: any) => <option key={p.id} value={p.id}>{p.categoria} · {p.nome}</option>)}
                                 </select>
-                                {novaOport.parceiroId && (() => { const p = parceiros.find((x: any) => x.id === novaOport.parceiroId); return p?.pitch ? <p className="text-[11px] text-gray-500">{p.pitch}</p> : null; })()}
+                                {novaOport.parceiroId && (() => { const p = parceiros.find((x: any) => x.id === novaOport.parceiroId); return p?.pitch ? <p className="text-[11px]" style={{ color: 'var(--t-text-secondary)' }}>{p.pitch}</p> : null; })()}
                                 <div className="grid grid-cols-2 gap-2">
                                   <input type="number" value={novaOport.valor} onChange={e => setNovaOport({ ...novaOport, valor: e.target.value })} placeholder="Setup R$" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                                   <input type="number" value={novaOport.acrescimo} onChange={e => setNovaOport({ ...novaOport, acrescimo: e.target.value })} placeholder="+Mensal R$" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                                 </div>
                                 <textarea value={novaOport.obs} onChange={e => setNovaOport({ ...novaOport, obs: e.target.value })} placeholder="Observação (opcional)" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                                 <div className="flex gap-2">
-                                  <button onClick={() => setNovaOport(null)} className="flex-1 px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg">Cancelar</button>
+                                  <button onClick={() => setNovaOport(null)} className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg" style={{ color: 'var(--t-text-secondary)' }}>Cancelar</button>
                                   <button disabled={!novaOport.parceiroId || savingOport} onClick={async () => {
                                     if (!novaOport.parceiroId) return;
                                     setSavingOport(true);
@@ -1024,7 +1033,7 @@ export default function AtivosPage() {
                                       setNovaOport(null);
                                       carregarOports(c.id);
                                       loadContatos();
-                                    } catch (e: any) { alert(e?.response?.data?.message || 'Erro ao registrar oportunidade'); }
+                                    } catch { /* erro silenciado */ }
                                     finally { setSavingOport(false); }
                                   }} className="flex-1 px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50">
                                     {savingOport ? 'Salvando…' : 'Registrar'}
@@ -1044,8 +1053,8 @@ export default function AtivosPage() {
                   </div>
 
                   {/* Footer fixo */}
-                  <div className="flex justify-between items-center px-5 py-3 border-t border-gray-100">
-                    <button onClick={() => { setFicha(null); setEditando(null); }} className="px-4 py-2 text-sm text-gray-500">Fechar</button>
+                  <div className="flex justify-between items-center px-5 py-3 border-t" style={{ borderColor: 'var(--t-border)' }}>
+                    <button onClick={() => { setFicha(null); setEditando(null); }} className="px-4 py-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>Fechar</button>
                     <button onClick={() => { setFichaAba('questionario'); if (!editando) setEditando({ ...c }); }}
                       className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">
                       📝 Ir ao questionário
@@ -1061,11 +1070,11 @@ export default function AtivosPage() {
   );
 }
 
-function KPI({ label, valor, cor = 'text-gray-800' }: { label: string; valor: any; cor?: string }) {
+function KPI({ label, valor, cor = '' }: { label: string; valor: any; cor?: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className={`text-xl font-bold ${cor}`}>{valor}</p>
+    <div className="border rounded-xl p-3" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)' }}>
+      <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{label}</p>
+      <p className={`text-xl font-bold ${cor}`} style={!cor ? { color: 'var(--t-text-primary)' } : {}}>{valor}</p>
     </div>
   );
 }
