@@ -1011,4 +1011,54 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     await prisma.$executeRawUnsafe(`DELETE FROM SolicitacaoServico WHERE id = ?`, sid);
     return reply.send({ status: 'success', message: 'Solicitação removida' });
   });
+
+  // ===== ROTA GLOBAL DE DEMANDAS TÉCNICAS =====
+  // Retorna todas as SolicitacaoServico com dados do cliente, paginadas e filtradas.
+  fastify.get('/solicitacoes', async (request, reply) => {
+    const q = request.query as any;
+    const conditions: string[] = [];
+    const vals: any[] = [];
+
+    if (q.status)       { conditions.push('s.status = ?');       vals.push(q.status); }
+    if (q.tipo_servico) { conditions.push('s.tipo_servico = ?'); vals.push(q.tipo_servico); }
+    if (q.prioridade)   { conditions.push('s.prioridade = ?');   vals.push(q.prioridade); }
+    if (q.responsavel)  { conditions.push('s.usuario_responsavel LIKE ?'); vals.push(`%${q.responsavel}%`); }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const page  = Math.max(0, parseInt(q.page || '0'));
+    const limit = Math.min(100, parseInt(q.limit || '50'));
+
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT s.*, c.nome AS cliente_nome, c.empresa AS cliente_empresa, c.cnpj AS cliente_cnpj
+       FROM SolicitacaoServico s
+       LEFT JOIN Cliente c ON c.id = s.cliente_id
+       ${where}
+       ORDER BY
+         CASE s.prioridade WHEN 'URGENTE' THEN 1 WHEN 'ALTA' THEN 2 WHEN 'MEDIA' THEN 3 ELSE 4 END,
+         s.data_solicitacao DESC
+       LIMIT ? OFFSET ?`,
+      ...vals, limit, page * limit
+    ).catch(() => []) as any[];
+
+    const countRows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) AS total FROM SolicitacaoServico s ${where}`,
+      ...vals
+    ).catch(() => [{ total: 0 }]) as any[];
+
+    const statsRows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT tipo_servico, status, COUNT(*) AS total
+       FROM SolicitacaoServico
+       WHERE status NOT IN ('FINALIZADA','CANCELADA')
+       GROUP BY tipo_servico, status`
+    ).catch(() => []) as any[];
+
+    return reply.send({
+      status: 'success',
+      data: {
+        solicitacoes: rows,
+        total: Number(countRows[0]?.total || 0),
+        stats: statsRows,
+      }
+    });
+  });
 }
