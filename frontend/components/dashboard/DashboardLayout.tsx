@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import VersionWatcher from '@/components/VersionWatcher';
 import {
-  LayoutDashboard, Target, GitMerge, CalendarCheck, FileCheck2,
+  LayoutDashboard, Target, GitMerge, CalendarCheck, Calendar as CalendarIcon, FileCheck2,
   TrendingDown, Megaphone, Trophy, Medal, Building2, Users, DollarSign,
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, Bell, TrendingUp, Sprout, Upload,
@@ -42,7 +42,8 @@ const navGroups: NavGroup[] = [
   {
     label: 'Comercial',
     items: [
-      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades & Agenda', roles: ALL },
+      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',           roles: ALL },
+      { href: '/agenda',                icon: CalendarIcon,  label: 'Agenda Google',        roles: ALL },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
       { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
