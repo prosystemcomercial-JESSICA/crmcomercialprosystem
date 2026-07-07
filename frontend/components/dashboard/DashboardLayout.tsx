@@ -52,11 +52,18 @@ const navGroups: NavGroup[] = [
   {
     label: 'Clientes & Base',
     items: [
-      { href: '/clientes',     icon: Building2,  label: 'Clientes',     roles: ALL },
-      { href: '/indicacoes',   icon: Handshake,  label: 'Indicações',   roles: COMERCIAL },
-      { href: '/implantacoes', icon: Wrench,     label: 'Implantações', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
-      { href: '/implantacoes/atendimento', icon: Headphones, label: 'Atendimento ao Cliente', roles: ALL },
-      { href: process.env.NEXT_PUBLIC_PORTAL_URL || '#', icon: Rocket, label: 'Implantação & Onboarding', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'], externoComToken: true },
+      { href: '/clientes',   icon: Building2, label: 'Clientes',   roles: ALL },
+      { href: '/indicacoes', icon: Handshake, label: 'Indicações', roles: COMERCIAL },
+    ],
+  },
+  {
+    label: 'Técnico',
+    items: [
+      { href: '/implantacoes',              icon: Wrench,     label: 'Implantações',          roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
+      { href: '/onboarding',                icon: Rocket,     label: 'Onboarding',            roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
+      { href: '/implantacoes/atendimento',  icon: Headphones, label: 'Atendimento ao Cliente',roles: ALL },
+      { href: '/suporte',                   icon: Headphones, label: 'Suporte',               roles: TECNICO },
+      { href: process.env.NEXT_PUBLIC_PORTAL_URL || '#', icon: Rocket, label: 'Portal Técnico', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'], externoComToken: true },
     ],
   },
   {
@@ -86,7 +93,6 @@ const navGroups: NavGroup[] = [
       { href: '/nps',          icon: Star,          label: 'NPS',               roles: TECNICO },
       { href: '/pesquisas',    icon: MessageSquare, label: 'Pesquisas',         roles: TECNICO },
       { href: '/renovacoes',   icon: RefreshCw,     label: 'Renovações',        roles: TECNICO },
-      { href: '/suporte',      icon: Headphones,    label: 'Suporte',           roles: TECNICO },
     ],
   },
   {
