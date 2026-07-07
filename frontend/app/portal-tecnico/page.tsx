@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { useSearchParams } from 'next/navigation';
@@ -348,12 +346,23 @@ type Tab = 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte';
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
   const [tab, setTab] = useState<Tab>(tabParam || 'implantacoes');
 
-  useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading, router]);
+  // Bootstrap auth from URL token (when opened as external window)
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (token && typeof window !== 'undefined') {
+      localStorage.setItem('accessToken', token);
+      apiClient.setTokens(token, '');
+      // Remove token from URL then reload so auth-context picks it up from localStorage
+      const url = new URL(window.location.href);
+      url.searchParams.delete('token');
+      window.history.replaceState({}, '', url.toString());
+      window.location.reload();
+    }
+  }, []);
 
   // ── Implantações state ──
   const [implLista, setImplLista] = useState<Implantacao[]>([]);
@@ -559,7 +568,11 @@ export default function PortalTecnicoPage() {
   };
 
   if (loading) {
-    return <DashboardLayout><div className="flex items-center justify-center h-64"><Loader2 size={32} className="animate-spin" style={{ color: 'var(--t-primary)' }} /></div></DashboardLayout>;
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--t-content-bg)' }}>
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--t-primary)' }} />
+      </div>
+    );
   }
 
   const TABS: { key: Tab; label: string; icon: any }[] = [
@@ -573,31 +586,41 @@ export default function PortalTecnicoPage() {
   const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 500, color: 'var(--t-text-secondary)' };
 
   return (
-    <DashboardLayout>
-      <div style={{ maxWidth: 1200 }}>
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#4B8EC8,#2E6EAB)' }}>
-            <Wrench size={20} color="white" />
+    <div style={{ minHeight: '100vh', background: 'var(--t-content-bg)', display: 'flex', flexDirection: 'column' }}>
+      {/* Portal header bar */}
+      <div style={{ background: 'var(--t-card-bg)', borderBottom: '1px solid var(--t-card-border)', padding: '0 24px', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, height: 56 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#4B8EC8,#2E6EAB)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Wrench size={16} color="white" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--t-text-primary)', lineHeight: 1.1 }}>Portal Técnico</div>
+              <div style={{ fontSize: 10, color: 'var(--t-text-muted)', lineHeight: 1 }}>ProSystem</div>
+            </div>
           </div>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Portal Técnico</h1>
-            <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Implantações · Onboarding · Atendimento · Suporte</p>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
-          {TABS.map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => setTab(key)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, padding: '8px 14px', background: 'transparent', border: 'none', cursor: 'pointer',
-                borderBottom: tab === key ? '2px solid #2E6EAB' : '2px solid transparent',
-                color: tab === key ? '#2E6EAB' : 'var(--t-text-muted)', marginBottom: -1 }}>
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
+          <div style={{ flex: 1, display: 'flex', gap: 2 }}>
+            {TABS.map(({ key, label, icon: Icon }) => (
+              <button key={key} onClick={() => setTab(key)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, padding: '6px 14px', background: 'transparent', border: 'none', cursor: 'pointer',
+                  borderBottom: tab === key ? '2px solid #2E6EAB' : '2px solid transparent',
+                  color: tab === key ? '#2E6EAB' : 'var(--t-text-muted)', height: 56, marginBottom: 0 }}>
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={() => window.close()} title="Fechar portal"
+            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)', flexShrink: 0 }}>
+            <X size={14} />
+          </button>
         </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, maxWidth: 1200, margin: '0 auto', width: '100%', padding: '24px 24px' }}>
 
         {/* ── TAB: IMPLANTAÇÕES ── */}
         {tab === 'implantacoes' && (
@@ -1221,6 +1244,6 @@ export default function PortalTecnicoPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

@@ -60,7 +60,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Técnico',
     items: [
-      { href: '/portal-tecnico', icon: Wrench, label: 'Portal Técnico', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'] },
+      { href: '/portal-tecnico', icon: Wrench, label: 'Portal Técnico', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'], externoComToken: true },
     ],
   },
   {
