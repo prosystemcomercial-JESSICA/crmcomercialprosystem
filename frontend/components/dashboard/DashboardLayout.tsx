@@ -12,7 +12,7 @@ import {
   LayoutDashboard, Target, GitMerge, CalendarCheck, FileCheck2,
   TrendingDown, Megaphone, Trophy, Medal, Building2, Users, DollarSign,
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
-  Headphones, CalendarDays, Bell, TrendingUp, Sprout, Upload,
+  Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
   Maximize2, Minimize2, ChevronDown, User,
@@ -42,8 +42,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Comercial',
     items: [
-      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',         roles: ALL },
-      { href: '/agenda',                icon: CalendarDays,  label: 'Agenda (Google)',    roles: ALL },
+      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades & Agenda', roles: ALL },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
       { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
