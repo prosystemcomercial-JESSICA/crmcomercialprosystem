@@ -10,6 +10,7 @@ import {
   CheckCircle, X, Loader2, FileText, Briefcase, Coins, BookOpen,
   Copy, Check, AlertTriangle, User, MessageSquare, Send, ChevronDown,
   BarChart2, Timer, ShieldAlert, PhoneCall, Mail, Zap,
+  LayoutGrid, RefreshCw, Printer, Building2, ArrowRight, Plus,
 } from 'lucide-react';
 
 // ─── tipos ───────────────────────────────────────────────────────────────────
@@ -343,7 +344,7 @@ function CategoriaIcon({ categoria, size = 14 }: { categoria: string; size?: num
 
 // ─── página principal ─────────────────────────────────────────────────────────
 
-type Tab = 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte';
+type Tab = 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas';
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -402,6 +403,17 @@ export default function PortalTecnicoPage() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [ticketForm, setTicketForm] = useState<any>({ cliente_id: '', titulo: '', descricao: '', categoria: 'TECNICO', prioridade: 'MEDIA', sla_horas: '' });
   const [ticketSaving, setTicketSaving] = useState(false);
+  // ── Demandas state ──
+  const [demandas, setDemandas] = useState<any[]>([]);
+  const [demandasLoading, setDemandasLoading] = useState(true);
+  const [demandasStats, setDemandasStats] = useState<any[]>([]);
+  const [demandasFiltroStatus, setDemandasFiltroStatus] = useState('');
+  const [demandasFiltroTipo, setDemandasFiltroTipo] = useState('');
+  const [demandasView, setDemandasView] = useState<'kanban' | 'lista'>('kanban');
+  const [demandaDetalhe, setDemandaDetalhe] = useState<any | null>(null);
+  const [demandaForm, setDemandaForm] = useState<any>({});
+  const [demandaSaving, setDemandaSaving] = useState(false);
+
   // ── Suporte extras ──
   const [ticketDetalhe, setTicketDetalhe] = useState<Ticket | null>(null);
   const [ticketComentario, setTicketComentario] = useState('');
@@ -446,9 +458,24 @@ export default function PortalTecnicoPage() {
       .finally(() => setTicketLoading(false));
   }, [ticketStatusFilter, ticketPrioFilter]);
 
+  const loadDemandas = useCallback(() => {
+    setDemandasLoading(true);
+    const params: any = {};
+    if (demandasFiltroStatus) params.status = demandasFiltroStatus;
+    if (demandasFiltroTipo)   params.tipo_servico = demandasFiltroTipo;
+    apiClient.getSolicitacoes(params)
+      .then(res => {
+        setDemandas(res.data.data.solicitacoes || []);
+        setDemandasStats(res.data.data.stats || []);
+      })
+      .catch(console.error)
+      .finally(() => setDemandasLoading(false));
+  }, [demandasFiltroStatus, demandasFiltroTipo]);
+
   useEffect(() => { if (isAuthenticated) { loadImpl(); apiClient.getTecnicosImplantacao().then(r => setTecnicos(r.data?.data || [])).catch(() => {}); } }, [isAuthenticated, loadImpl]);
   useEffect(() => { if (isAuthenticated) loadOnboarding(); }, [isAuthenticated, loadOnboarding]);
   useEffect(() => { if (isAuthenticated) loadTickets(); }, [isAuthenticated, loadTickets]);
+  useEffect(() => { if (isAuthenticated) loadDemandas(); }, [isAuthenticated, loadDemandas]);
 
   // ── implantações actions ───────────────────────────────────────────────────
 
@@ -633,6 +660,85 @@ export default function PortalTecnicoPage() {
   const suporteCanalDo = (t: typeof TEMPLATES[0]) => suporteCanalAtivo[t.id] || (Object.keys(t.canais)[0] as any);
   const suporteTemplatesFiltrados = suporteCatFilter === 'all' ? TEMPLATES : TEMPLATES.filter(t => t.cat === suporteCatFilter);
 
+  // ── Demandas helpers ────────────────────────────────────────────────────────
+
+  const updateDemanda = async (sid: string, clienteId: string, data: any) => {
+    setDemandaSaving(true);
+    try {
+      await apiClient.updateSolicitacao(clienteId, sid, data);
+      loadDemandas();
+      if (demandaDetalhe?.id === sid) setDemandaDetalhe((d: any) => ({ ...d, ...data }));
+    } catch { /* ignore */ } finally { setDemandaSaving(false); }
+  };
+
+  const TIPO_SERVICO_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string; sla_dias: number; marco: string }> = {
+    'Conversão de Dados':       { label: 'Conversão',       icon: RefreshCw,  color: '#7c3aed', bg: 'rgba(124,58,237,0.08)',  sla_dias: 30, marco: 'Virada para ProSystem' },
+    'Instalação Banco Zerado':  { label: 'Banco Zerado',    icon: Building2,  color: '#2563eb', bg: 'rgba(37,99,235,0.08)',   sla_dias: 14, marco: 'Sistema em Operação' },
+    'Troca de CNPJ':            { label: 'Troca de CNPJ',   icon: FileText,   color: '#d97706', bg: 'rgba(217,119,6,0.08)',   sla_dias: 7,  marco: 'Conclusão do Serviço' },
+    'Instalação de Impressora': { label: 'Impressora',      icon: Printer,    color: '#0891b2', bg: 'rgba(8,145,178,0.08)',   sla_dias: 3,  marco: 'Impressora Configurada' },
+    'Treinamento':              { label: 'Treinamento',     icon: BookOpen,   color: '#16a34a', bg: 'rgba(22,163,74,0.08)',   sla_dias: 5,  marco: 'Treinamento Concluído' },
+    'Suporte Técnico':          { label: 'Suporte',         icon: Headphones, color: '#6366f1', bg: 'rgba(99,102,241,0.08)',  sla_dias: 2,  marco: 'Problema Resolvido' },
+    'Outros':                   { label: 'Outros',          icon: Wrench,     color: '#64748b', bg: 'rgba(100,116,139,0.08)', sla_dias: 5,  marco: 'Conclusão' },
+  };
+
+  const getTipoConfig = (tipo: string) => TIPO_SERVICO_CONFIG[tipo] || TIPO_SERVICO_CONFIG['Outros'];
+
+  const demandaSlaStatus = (d: any) => {
+    if (!d.data_solicitacao) return null;
+    const cfg = getTipoConfig(d.tipo_servico);
+    if (d.status === 'FINALIZADA' || d.status === 'CANCELADA') {
+      if (d.data_finalizacao) {
+        const diasGastos = Math.round((new Date(d.data_finalizacao).getTime() - new Date(d.data_solicitacao).getTime()) / 86400000);
+        const noPrazo = diasGastos <= cfg.sla_dias;
+        return { pct: Math.min((diasGastos / cfg.sla_dias) * 100, 100), label: noPrazo ? 'Concluído no prazo' : 'Concluído fora do prazo', color: noPrazo ? '#16a34a' : '#d97706', concluido: true };
+      }
+      return null;
+    }
+    const diasAberto = Math.round((Date.now() - new Date(d.data_solicitacao).getTime()) / 86400000);
+    const pct = (diasAberto / cfg.sla_dias) * 100;
+    if (pct >= 100) return { pct: 100, label: `SLA estourado (${diasAberto}d)`,          color: '#dc2626', concluido: false };
+    if (pct >= 75)  return { pct,      label: `Em risco — ${cfg.sla_dias - diasAberto}d`, color: '#d97706', concluido: false };
+    return              { pct,          label: `${cfg.sla_dias - diasAberto}d restantes`,  color: '#16a34a', concluido: false };
+  };
+
+  const STATUS_DEMANDA: Record<string, { label: string; color: string; bg: string }> = {
+    ABERTA:                     { label: 'Aberta',               color: '#a16207', bg: 'rgba(234,179,8,0.1)' },
+    EM_ATENDIMENTO:             { label: 'Em Atendimento',       color: 'var(--t-primary)', bg: 'rgba(75,142,200,0.1)' },
+    AGUARDANDO_CLIENTE:         { label: 'Aguard. Cliente',      color: '#7e22ce', bg: 'rgba(126,34,206,0.1)' },
+    AGUARDANDO_SUPORTE_INTERNO: { label: 'Aguard. Suporte Int.', color: '#0f766e', bg: 'rgba(15,118,110,0.1)' },
+    AGUARDANDO_FINANCEIRO:      { label: 'Aguard. Financeiro',   color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
+    AGUARDANDO_COMERCIAL:       { label: 'Aguard. Comercial',    color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
+    FINALIZADA:                 { label: 'Finalizada',           color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+    CANCELADA:                  { label: 'Cancelada',            color: '#9ca3af', bg: 'rgba(148,163,184,0.1)' },
+    REABERTA:                   { label: 'Reaberta',             color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
+  };
+
+  const PRIO_DEMANDA: Record<string, { color: string; bg: string }> = {
+    URGENTE: { color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
+    ALTA:    { color: '#ea580c', bg: 'rgba(234,88,12,0.1)' },
+    MEDIA:   { color: 'var(--t-primary)', bg: 'rgba(75,142,200,0.1)' },
+    BAIXA:   { color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
+  };
+
+  // Agrupar demandas por tipo para kanban
+  const KANBAN_COLUNAS = [
+    { status: 'ABERTA',                     label: 'Abertas' },
+    { status: 'EM_ATENDIMENTO',             label: 'Em Atendimento' },
+    { status: 'AGUARDANDO_CLIENTE',         label: 'Aguardando' },
+    { status: 'FINALIZADA',                 label: 'Finalizadas' },
+  ];
+
+  const demandasPorStatus = (status: string) => demandas.filter(d =>
+    status === 'AGUARDANDO_CLIENTE'
+      ? ['AGUARDANDO_CLIENTE','AGUARDANDO_SUPORTE_INTERNO','AGUARDANDO_FINANCEIRO','AGUARDANDO_COMERCIAL'].includes(d.status)
+      : d.status === status
+  );
+
+  const demandasCriticas = demandas.filter(d => {
+    const s = demandaSlaStatus(d);
+    return s && !s.concluido && s.pct >= 100;
+  });
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--t-content-bg)' }}>
@@ -642,6 +748,7 @@ export default function PortalTecnicoPage() {
   }
 
   const TABS: { key: Tab; label: string; icon: any }[] = [
+    { key: 'demandas',     label: 'Demandas',     icon: LayoutGrid },
     { key: 'implantacoes', label: 'Implantações', icon: Wrench },
     { key: 'onboarding',   label: 'Onboarding',   icon: Rocket },
     { key: 'atendimento',  label: 'Atendimento',  icon: Headphones },
@@ -687,6 +794,317 @@ export default function PortalTecnicoPage() {
 
       {/* Main content */}
       <div style={{ flex: 1, maxWidth: 1200, margin: '0 auto', width: '100%', padding: '24px 24px' }}>
+
+        {/* ── TAB: DEMANDAS ── */}
+        {tab === 'demandas' && (
+          <div>
+            {/* Alertas SLA estourado */}
+            {demandasCriticas.length > 0 && (
+              <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AlertTriangle size={16} color="#dc2626" />
+                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+                  {demandasCriticas.length} demanda{demandasCriticas.length > 1 ? 's' : ''} com SLA estourado
+                </span>
+                <span style={{ fontSize: 12, color: '#dc2626', opacity: 0.8 }}>
+                  — {demandasCriticas.map(d => d.cliente_nome || d.cliente_empresa || '—').join(', ')}
+                </span>
+              </div>
+            )}
+
+            {/* KPIs + controles */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+              {demandasStats.map((s: any) => {
+                const cfg = getTipoConfig(s.tipo_servico);
+                const Icon = cfg.icon;
+                return (
+                  <div key={s.tipo_servico} style={{ background: cfg.bg, border: `1px solid ${cfg.color}30`, borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, minWidth: 130, cursor: 'pointer', transition: 'box-shadow 0.15s' }}
+                    onClick={() => setDemandasFiltroTipo(demandasFiltroTipo === s.tipo_servico ? '' : s.tipo_servico)}>
+                    <Icon size={16} color={cfg.color} />
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: cfg.color, lineHeight: 1 }}>{s.total ?? 0}</div>
+                      <div style={{ fontSize: 10, color: 'var(--t-text-muted)', lineHeight: 1.2 }}>{cfg.label}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <select value={demandasFiltroStatus} onChange={e => setDemandasFiltroStatus(e.target.value)}
+                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
+                  <option value="">Todos os status</option>
+                  {Object.entries(STATUS_DEMANDA).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+                <button onClick={() => setDemandasView(demandasView === 'kanban' ? 'lista' : 'kanban')}
+                  style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <LayoutGrid size={14} />
+                  {demandasView === 'kanban' ? 'Lista' : 'Kanban'}
+                </button>
+                <button onClick={() => loadDemandas()}
+                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-muted)', cursor: 'pointer' }}>
+                  <RefreshCw size={14} />
+                </button>
+              </div>
+            </div>
+
+            {demandasLoading ? (
+              <div style={{ textAlign: 'center', padding: 48, color: 'var(--t-text-muted)' }}><Loader2 size={24} className="animate-spin" style={{ margin: '0 auto' }} /></div>
+            ) : demandasView === 'kanban' ? (
+              /* ── KANBAN VIEW ── */
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, alignItems: 'start' }}>
+                {KANBAN_COLUNAS.map(col => {
+                  const cards = demandasPorStatus(col.status).filter(d =>
+                    (!demandasFiltroTipo || d.tipo_servico === demandasFiltroTipo) &&
+                    (!demandasFiltroStatus || d.status === demandasFiltroStatus || col.status === 'AGUARDANDO_CLIENTE')
+                  );
+                  return (
+                    <div key={col.status} style={{ background: 'var(--t-content-bg)', borderRadius: 12, border: '1px solid var(--t-card-border)', overflow: 'hidden' }}>
+                      <div style={{ padding: '10px 14px', background: 'var(--t-card-bg)', borderBottom: '1px solid var(--t-card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)' }}>{col.label}</span>
+                        <span style={{ fontSize: 11, color: 'var(--t-text-muted)', background: 'var(--t-content-bg)', borderRadius: 99, padding: '1px 8px' }}>{cards.length}</span>
+                      </div>
+                      <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 120 }}>
+                        {cards.length === 0 && (
+                          <div style={{ textAlign: 'center', color: 'var(--t-text-muted)', fontSize: 12, padding: '16px 0', opacity: 0.5 }}>Nenhuma</div>
+                        )}
+                        {cards.map(d => {
+                          const cfg = getTipoConfig(d.tipo_servico);
+                          const sla = demandaSlaStatus(d);
+                          const prio = PRIO_DEMANDA[d.prioridade] || PRIO_DEMANDA['BAIXA'];
+                          const stsCfg = STATUS_DEMANDA[d.status] || STATUS_DEMANDA['ABERTA'];
+                          const Icon = cfg.icon;
+                          return (
+                            <div key={d.id} onClick={() => { setDemandaDetalhe(d); setDemandaForm({ status: d.status, usuario_responsavel: d.usuario_responsavel || '', observacoes: d.observacoes || '' }); }}
+                              style={{ background: 'var(--t-card-bg)', border: `1px solid ${sla && !sla.concluido && sla.pct >= 100 ? '#dc2626' : 'var(--t-card-border)'}`, borderRadius: 10, padding: 12, cursor: 'pointer', transition: 'box-shadow 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                              {/* Tipo + prioridade */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <Icon size={12} color={cfg.color} />
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
+                                </div>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: prio.color, background: prio.bg, borderRadius: 99, padding: '1px 7px' }}>{d.prioridade}</span>
+                              </div>
+                              {/* Cliente */}
+                              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-primary)', marginBottom: 2, lineHeight: 1.3 }}>{d.cliente_nome || d.cliente_empresa || '—'}</div>
+                              {d.cliente_empresa && d.cliente_nome && (
+                                <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 6 }}>{d.cliente_empresa}</div>
+                              )}
+                              {/* Descrição curta */}
+                              {d.descricao && (
+                                <div style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginBottom: 6, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{d.descricao}</div>
+                              )}
+                              {/* SLA bar */}
+                              {sla && (
+                                <div style={{ marginBottom: 6 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                    <span style={{ fontSize: 10, color: sla.color, fontWeight: 600 }}>{sla.label}</span>
+                                    <span style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>{Math.round(sla.pct)}%</span>
+                                  </div>
+                                  <div style={{ height: 3, background: 'var(--t-content-bg)', borderRadius: 99, overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${Math.min(sla.pct, 100)}%`, background: sla.color, borderRadius: 99, transition: 'width 0.3s' }} />
+                                  </div>
+                                </div>
+                              )}
+                              {/* Status + responsável */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: 10, color: stsCfg.color, background: stsCfg.bg, borderRadius: 99, padding: '1px 7px', fontWeight: 600 }}>{stsCfg.label}</span>
+                                {d.usuario_responsavel && (
+                                  <span style={{ fontSize: 10, color: 'var(--t-text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <User size={10} />{d.usuario_responsavel}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Marco SLA */}
+                              <div style={{ marginTop: 6, fontSize: 10, color: 'var(--t-text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <ArrowRight size={9} />
+                                <span>Marco: {cfg.marco} — {cfg.sla_dias}d SLA</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* ── LISTA VIEW ── */
+              <div className="ps-card rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: 'var(--t-content-bg)', textAlign: 'left' }}>
+                      {['Tipo', 'Cliente', 'Prioridade', 'Status', 'Responsável', 'SLA', 'Marco', ''].map(h => (
+                        <th key={h} style={{ padding: '10px 12px', fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 700 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {demandas.filter(d =>
+                      (!demandasFiltroTipo || d.tipo_servico === demandasFiltroTipo) &&
+                      (!demandasFiltroStatus || d.status === demandasFiltroStatus)
+                    ).map((d, i) => {
+                      const cfg = getTipoConfig(d.tipo_servico);
+                      const sla = demandaSlaStatus(d);
+                      const prio = PRIO_DEMANDA[d.prioridade] || PRIO_DEMANDA['BAIXA'];
+                      const stsCfg = STATUS_DEMANDA[d.status] || STATUS_DEMANDA['ABERTA'];
+                      const Icon = cfg.icon;
+                      return (
+                        <tr key={d.id} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--t-content-bg)', cursor: 'pointer', borderTop: '1px solid var(--t-card-border)' }}
+                          onClick={() => { setDemandaDetalhe(d); setDemandaForm({ status: d.status, usuario_responsavel: d.usuario_responsavel || '', observacoes: d.observacoes || '' }); }}>
+                          <td style={{ padding: '10px 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Icon size={13} color={cfg.color} />
+                              <span style={{ fontSize: 12, color: cfg.color, fontWeight: 600 }}>{cfg.label}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-primary)' }}>{d.cliente_nome || d.cliente_empresa || '—'}</div>
+                            {d.cliente_empresa && d.cliente_nome && <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{d.cliente_empresa}</div>}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <span style={{ fontSize: 11, color: prio.color, background: prio.bg, borderRadius: 99, padding: '2px 8px', fontWeight: 700 }}>{d.prioridade}</span>
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <span style={{ fontSize: 11, color: stsCfg.color, background: stsCfg.bg, borderRadius: 99, padding: '2px 8px', fontWeight: 600 }}>{stsCfg.label}</span>
+                          </td>
+                          <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t-text-secondary)' }}>{d.usuario_responsavel || '—'}</td>
+                          <td style={{ padding: '10px 12px', minWidth: 120 }}>
+                            {sla ? (
+                              <div>
+                                <div style={{ fontSize: 11, color: sla.color, fontWeight: 600, marginBottom: 3 }}>{sla.label}</div>
+                                <div style={{ height: 3, background: 'var(--t-content-bg)', borderRadius: 99, overflow: 'hidden', width: 80 }}>
+                                  <div style={{ height: '100%', width: `${Math.min(sla.pct, 100)}%`, background: sla.color, borderRadius: 99 }} />
+                                </div>
+                              </div>
+                            ) : <span style={{ color: 'var(--t-text-muted)', fontSize: 11 }}>—</span>}
+                          </td>
+                          <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--t-text-muted)' }}>{cfg.marco}</td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <ArrowRight size={14} style={{ color: 'var(--t-text-muted)' }} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {demandas.length === 0 && (
+                      <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--t-text-muted)', fontSize: 13 }}>Nenhuma demanda encontrada</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ── Drawer: detalhe da demanda ── */}
+            {demandaDetalhe && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex' }}>
+                <div style={{ flex: 1, background: 'rgba(0,0,0,0.4)' }} onClick={() => setDemandaDetalhe(null)} />
+                <div style={{ width: 480, background: 'var(--t-card-bg)', borderLeft: '1px solid var(--t-card-border)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+                  {/* Header */}
+                  <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--t-card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--t-content-bg)' }}>
+                    <div>
+                      {(() => { const cfg = getTipoConfig(demandaDetalhe.tipo_servico); const Icon = cfg.icon; return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon size={16} color={cfg.color} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>{cfg.label}</div>
+                            <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>#{demandaDetalhe.id?.slice(-6)}</div>
+                          </div>
+                        </div>
+                      ); })()}
+                    </div>
+                    <button onClick={() => setDemandaDetalhe(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t-text-muted)', padding: 4 }}>
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                    {/* Info grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>Cliente</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{demandaDetalhe.cliente_nome || demandaDetalhe.cliente_empresa || '—'}</div>
+                      </div>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>Prioridade</div>
+                        {(() => { const p = PRIO_DEMANDA[demandaDetalhe.prioridade] || PRIO_DEMANDA['BAIXA']; return (
+                          <span style={{ fontSize: 12, fontWeight: 700, color: p.color }}>{demandaDetalhe.prioridade}</span>
+                        ); })()}
+                      </div>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>Aberta em</div>
+                        <div style={{ fontSize: 12, color: 'var(--t-text-primary)' }}>
+                          {demandaDetalhe.data_solicitacao ? new Date(demandaDetalhe.data_solicitacao).toLocaleDateString('pt-BR') : '—'}
+                        </div>
+                      </div>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>CNPJ</div>
+                        <div style={{ fontSize: 12, color: 'var(--t-text-primary)' }}>{demandaDetalhe.cliente_cnpj || '—'}</div>
+                      </div>
+                    </div>
+
+                    {/* SLA */}
+                    {(() => { const sla = demandaSlaStatus(demandaDetalhe); const cfg = getTipoConfig(demandaDetalhe.tipo_servico); return sla ? (
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 10, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-primary)' }}>SLA — {cfg.marco}</div>
+                          <div style={{ fontSize: 11, color: sla.color, fontWeight: 700 }}>{sla.label}</div>
+                        </div>
+                        <div style={{ height: 6, background: 'var(--t-card-border)', borderRadius: 99, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.min(sla.pct, 100)}%`, background: sla.color, borderRadius: 99, transition: 'width 0.3s' }} />
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 4 }}>Prazo: {cfg.sla_dias} dias — {Math.round(sla.pct)}% utilizado</div>
+                      </div>
+                    ) : null; })()}
+
+                    {/* Descrição */}
+                    {demandaDetalhe.descricao && (
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>DESCRIÇÃO</div>
+                        <div style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>{demandaDetalhe.descricao}</div>
+                      </div>
+                    )}
+
+                    {/* Responsável */}
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>RESPONSÁVEL</div>
+                      <select value={demandaForm.usuario_responsavel || ''} onChange={e => setDemandaForm((f: any) => ({ ...f, usuario_responsavel: e.target.value }))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        <option value="">Sem responsável</option>
+                        {tecnicos.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>STATUS</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {Object.entries(STATUS_DEMANDA).map(([k, v]) => (
+                          <button key={k} onClick={() => setDemandaForm((f: any) => ({ ...f, status: k }))}
+                            style={{ fontSize: 11, padding: '5px 12px', borderRadius: 99, border: `1px solid ${demandaForm.status === k ? v.color : 'var(--t-card-border)'}`, background: demandaForm.status === k ? v.bg : 'transparent', color: demandaForm.status === k ? v.color : 'var(--t-text-muted)', cursor: 'pointer', fontWeight: demandaForm.status === k ? 700 : 400, transition: 'all 0.15s' }}>
+                            {v.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Observações */}
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>OBSERVAÇÕES</div>
+                      <textarea value={demandaForm.observacoes || ''} onChange={e => setDemandaForm((f: any) => ({ ...f, observacoes: e.target.value }))} rows={3}
+                        placeholder="Anotações sobre o andamento…"
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
+                    </div>
+
+                    {/* Salvar */}
+                    <button disabled={demandaSaving} onClick={() => updateDemanda(demandaDetalhe.id, demandaDetalhe.cliente_id, demandaForm)}
+                      style={{ padding: '10px 0', borderRadius: 10, background: 'var(--t-primary)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 14, cursor: demandaSaving ? 'not-allowed' : 'pointer', opacity: demandaSaving ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      {demandaSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                      Salvar alterações
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── TAB: IMPLANTAÇÕES ── */}
         {tab === 'implantacoes' && (

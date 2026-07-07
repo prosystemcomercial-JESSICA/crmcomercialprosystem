@@ -806,6 +806,19 @@ class ApiClient {
     return this.client.patch(`/renovacoes/${id}`, data);
   }
 
+  // Demandas técnicas (SolicitacaoServico global)
+  async getSolicitacoes(params?: { status?: string; tipo_servico?: string; prioridade?: string; responsavel?: string; page?: number; limit?: number }) {
+    return this.client.get('/solicitacoes', { params });
+  }
+
+  async updateSolicitacao(clienteId: string, sid: string, data: any) {
+    return this.client.patch(`/clientes/${clienteId}/solicitacoes/${sid}`, data);
+  }
+
+  async createSolicitacao(clienteId: string, data: any) {
+    return this.client.post(`/clientes/${clienteId}/solicitacoes`, data);
+  }
+
   // Tickets de suporte endpoints
   async getTickets(params?: { status?: string; prioridade?: string; cliente_id?: string; page?: number }) {
     return this.client.get('/tickets', { params });
