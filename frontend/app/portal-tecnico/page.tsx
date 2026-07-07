@@ -8,7 +8,8 @@ import { useSearchParams } from 'next/navigation';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
   CheckCircle, X, Loader2, FileText, Briefcase, Coins, BookOpen,
-  Copy, Check,
+  Copy, Check, AlertTriangle, User, MessageSquare, Send, ChevronDown,
+  BarChart2, Timer, ShieldAlert, PhoneCall, Mail, Zap,
 } from 'lucide-react';
 
 // ─── tipos ───────────────────────────────────────────────────────────────────
@@ -32,7 +33,7 @@ interface Onboarding {
 interface Ticket {
   id: string; titulo: string; descricao?: string; categoria: string;
   prioridade: string; status: string; created_at: string; resolucao_at?: string;
-  sla_horas?: number;
+  sla_horas?: number; responsavel_id?: string;
   cliente: { id: string; nome: string; empresa?: string };
   licenca?: { plano?: { nome: string } };
 }
@@ -401,6 +402,14 @@ export default function PortalTecnicoPage() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [ticketForm, setTicketForm] = useState<any>({ cliente_id: '', titulo: '', descricao: '', categoria: 'TECNICO', prioridade: 'MEDIA', sla_horas: '' });
   const [ticketSaving, setTicketSaving] = useState(false);
+  // ── Suporte extras ──
+  const [ticketDetalhe, setTicketDetalhe] = useState<Ticket | null>(null);
+  const [ticketComentario, setTicketComentario] = useState('');
+  const [ticketComentarios, setTicketComentarios] = useState<{ texto: string; autor: string; data: string }[]>([]);
+  const [suporteView, setSuporteView] = useState<'tickets' | 'sla' | 'templates'>('tickets');
+  const [suporteCatFilter, setSuporteCatFilter] = useState('all');
+  const [suporteCanalAtivo, setSuporteCanalAtivo] = useState<Record<string, 'whatsapp' | 'email' | 'telefone'>>({});
+  const [suporteCopiadoId, setSuporteCopiadoId] = useState<string | null>(null);
 
   // ── loaders ───────────────────────────────────────────────────────────────
 
@@ -555,6 +564,32 @@ export default function PortalTecnicoPage() {
   const updateTicketStatus = async (id: string, status: string) => {
     await apiClient.updateTicket(id, { status });
     loadTickets();
+    if (ticketDetalhe?.id === id) setTicketDetalhe(t => t ? { ...t, status } : t);
+  };
+
+  const updateTicketResponsavel = async (id: string, responsavel_id: string) => {
+    await apiClient.updateTicket(id, { responsavel_id });
+    loadTickets();
+    if (ticketDetalhe?.id === id) setTicketDetalhe(t => t ? { ...t, responsavel_id } : t);
+  };
+
+  const abrirDetalhe = (ticket: Ticket) => {
+    setTicketDetalhe(ticket);
+    // Comentários são locais (sem endpoint no backend); recupera do localStorage
+    try {
+      const raw = localStorage.getItem(`ticket_comments_${ticket.id}`);
+      setTicketComentarios(raw ? JSON.parse(raw) : []);
+    } catch { setTicketComentarios([]); }
+    setTicketComentario('');
+  };
+
+  const adicionarComentario = () => {
+    if (!ticketComentario.trim() || !ticketDetalhe) return;
+    const novo = { texto: ticketComentario.trim(), autor: 'Você', data: new Date().toISOString() };
+    const atualizado = [...ticketComentarios, novo];
+    setTicketComentarios(atualizado);
+    try { localStorage.setItem(`ticket_comments_${ticketDetalhe.id}`, JSON.stringify(atualizado)); } catch {}
+    setTicketComentario('');
   };
 
   const tempoAberto = (dt: string) => {
@@ -566,6 +601,37 @@ export default function PortalTecnicoPage() {
     const s = ticketStats.find((x: any) => x.status === status);
     return s ? s._count.id : 0;
   };
+
+  // SLA helpers
+  const slaStatus = (ticket: Ticket) => {
+    if (!ticket.sla_horas || ticket.status === 'RESOLVIDO' || ticket.status === 'FECHADO') return null;
+    const horasAbertas = (Date.now() - new Date(ticket.created_at).getTime()) / 3600000;
+    const pct = (horasAbertas / ticket.sla_horas) * 100;
+    if (pct >= 100) return { label: 'SLA Estourado', color: '#dc2626', bg: '#fee2e2', pct: 100 };
+    if (pct >= 75)  return { label: 'SLA em risco',  color: '#d97706', bg: '#fef3c7', pct };
+    return { label: 'No SLA', color: '#16a34a', bg: '#dcfce7', pct };
+  };
+
+  const ticketsCriticos = tickets.filter(t => t.prioridade === 'CRITICA' && t.status !== 'RESOLVIDO' && t.status !== 'FECHADO');
+  const ticketsEmAtraso = tickets.filter(t => {
+    const s = slaStatus(t);
+    return s && s.pct >= 100;
+  });
+  const tempoMedioResol = (() => {
+    const resolvidos = tickets.filter(t => t.resolucao_at);
+    if (!resolvidos.length) return null;
+    const somaH = resolvidos.reduce((acc, t) => acc + (new Date(t.resolucao_at!).getTime() - new Date(t.created_at).getTime()) / 3600000, 0);
+    const media = somaH / resolvidos.length;
+    return media < 24 ? `${Math.round(media)}h` : `${Math.round(media / 24)}d`;
+  })();
+
+  const suporteCopiar = (id: string, texto: string) => {
+    navigator.clipboard.writeText(texto);
+    setSuporteCopiadoId(id);
+    setTimeout(() => setSuporteCopiadoId(null), 2000);
+  };
+  const suporteCanalDo = (t: typeof TEMPLATES[0]) => suporteCanalAtivo[t.id] || (Object.keys(t.canais)[0] as any);
+  const suporteTemplatesFiltrados = suporteCatFilter === 'all' ? TEMPLATES : TEMPLATES.filter(t => t.cat === suporteCatFilter);
 
   if (loading) {
     return (
@@ -1057,13 +1123,22 @@ export default function PortalTecnicoPage() {
 
         {/* ── TAB: SUPORTE ── */}
         {tab === 'suporte' && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <div />
+          <div className="space-y-4">
+
+            {/* Sub-nav: Tickets | SLA | Templates */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex gap-1" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 3 }}>
+                {([['tickets', 'Tickets', Headphones], ['sla', 'Painel SLA', BarChart2], ['templates', 'Templates', MessageSquare]] as const).map(([v, l, Icon]) => (
+                  <button key={v} onClick={() => setSuporteView(v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                      background: suporteView === v ? 'var(--t-primary)' : 'transparent',
+                      color: suporteView === v ? '#fff' : 'var(--t-text-muted)' }}>
+                    <Icon size={13} />{l}
+                  </button>
+                ))}
+              </div>
               <div className="flex items-center gap-2">
-                <ExportButton
-                  nome="suporte-tickets" titulo="Suporte Técnico — Tickets"
-                  linhas={tickets}
+                <ExportButton nome="suporte-tickets" titulo="Suporte Técnico — Tickets" linhas={tickets}
                   colunas={[
                     { header: 'Título',       value: (t: Ticket) => t.titulo },
                     { header: 'Cliente',      value: (t: Ticket) => t.cliente?.nome || '' },
@@ -1073,111 +1148,439 @@ export default function PortalTecnicoPage() {
                     { header: 'Status',       value: (t: Ticket) => t.status },
                     { header: 'Aberto em',    value: (t: Ticket) => t.created_at ? new Date(t.created_at).toLocaleString('pt-BR') : '' },
                     { header: 'Resolvido em', value: (t: Ticket) => t.resolucao_at ? new Date(t.resolucao_at).toLocaleString('pt-BR') : '' },
-                  ]}
-                />
-                <button onClick={openTicket}
-                  style={{ padding: '8px 16px', background: 'var(--t-primary)', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer' }}>
+                  ]} />
+                <button onClick={openTicket} style={{ padding: '7px 14px', background: 'var(--t-primary)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
                   + Abrir Ticket
                 </button>
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {/* Stats rápidos sempre visíveis */}
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {[
                 { label: 'Abertos',            status: 'ABERTO' },
                 { label: 'Em Atendimento',     status: 'EM_ATENDIMENTO' },
-                { label: 'Aguardando Cliente', status: 'AGUARDANDO_CLIENTE' },
+                { label: 'Aguardando',         status: 'AGUARDANDO_CLIENTE' },
                 { label: 'Resolvidos',         status: 'RESOLVIDO' },
                 { label: 'Fechados',           status: 'FECHADO' },
               ].map(c => (
-                <div key={c.status} style={{ ...TICKET_STATS_STYLE[c.status].card, borderRadius: 12, padding: 12 }}>
-                  <p style={{ fontSize: 12, color: 'var(--t-text-muted)', margin: 0 }}>{c.label}</p>
-                  <p style={{ ...TICKET_STATS_STYLE[c.status].value, fontSize: '1.5rem', fontWeight: 700, marginTop: 2 }}>{statsCount(c.status)}</p>
+                <div key={c.status} onClick={() => { setSuporteView('tickets'); setTicketStatusFilter(ticketStatusFilter === c.status ? '' : c.status); }}
+                  style={{ ...TICKET_STATS_STYLE[c.status].card, borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+                    border: ticketStatusFilter === c.status ? `2px solid ${Object.values(TICKET_STATS_STYLE[c.status].value)[0]}` : '1px solid transparent' }}>
+                  <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: 0 }}>{c.label}</p>
+                  <p style={{ ...TICKET_STATS_STYLE[c.status].value, fontSize: '1.4rem', fontWeight: 800, marginTop: 2 }}>{statsCount(c.status)}</p>
                 </div>
               ))}
-            </div>
-
-            {/* Filtros */}
-            <div className="flex gap-3 flex-wrap">
-              <div className="flex gap-1 flex-wrap">
-                {['', 'ABERTO', 'EM_ATENDIMENTO', 'RESOLVIDO', 'FECHADO'].map(s => (
-                  <button key={s} onClick={() => setTicketStatusFilter(s)}
-                    style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                      border: ticketStatusFilter === s ? 'none' : '1px solid var(--t-card-border)',
-                      background: ticketStatusFilter === s ? 'var(--t-primary)' : 'var(--t-card-bg)',
-                      color: ticketStatusFilter === s ? '#fff' : 'var(--t-text-secondary)' }}>
-                    {s === '' ? 'Todos' : s.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-1 flex-wrap">
-                {['', 'CRITICA', 'ALTA', 'MEDIA', 'BAIXA'].map(p => (
-                  <button key={p} onClick={() => setTicketPrioFilter(p)}
-                    style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                      border: ticketPrioFilter === p ? 'none' : '1px solid var(--t-card-border)',
-                      background: ticketPrioFilter === p ? '#dc2626' : 'var(--t-card-bg)',
-                      color: ticketPrioFilter === p ? '#fff' : 'var(--t-text-secondary)' }}>
-                    {p === '' ? 'Todas prioridades' : p}
-                  </button>
-                ))}
+              <div style={{ background: ticketsCriticos.length > 0 ? 'rgba(220,38,38,0.08)' : 'rgba(148,163,184,0.08)', borderRadius: 10, padding: '10px 12px' }}>
+                <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: 0 }}>Críticos</p>
+                <p style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: 2, color: ticketsCriticos.length > 0 ? '#dc2626' : 'var(--t-text-muted)' }}>{ticketsCriticos.length}</p>
               </div>
             </div>
 
-            {/* Tabela */}
-            <div className="ps-card" style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--t-card-border)' }}>
-              {ticketLoading ? (
-                <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-text-muted)' }}>Carregando…</div>
-              ) : tickets.length === 0 ? (
-                <div style={{ padding: 48, textAlign: 'center' }}>
-                  <Headphones size={40} style={{ color: 'var(--t-text-muted)', margin: '0 auto 12px' }} />
-                  <p style={{ color: 'var(--t-text-muted)' }}>Nenhum ticket encontrado</p>
-                </div>
-              ) : (
-                <table className="w-full">
-                  <thead style={{ background: 'var(--t-content-bg)', borderBottom: '1px solid var(--t-card-border)' }}>
-                    <tr>
-                      {['Ticket', 'Cliente', 'Categoria', 'Prioridade', 'Tempo', 'Status'].map(h => (
-                        <th key={h} style={{ padding: '12px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--t-text-muted)' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tickets.map((ticket, idx) => (
-                      <tr key={ticket.id} style={{ borderTop: idx > 0 ? '1px solid var(--t-card-border)' : 'none', background: 'var(--t-card-bg)' }}>
-                        <td style={{ padding: '16px 20px' }}>
-                          <p style={{ fontWeight: 500, color: 'var(--t-text-primary)', margin: 0 }}>{ticket.titulo}</p>
-                          {ticket.descricao && <p style={{ fontSize: 12, color: 'var(--t-text-muted)', margin: '2px 0 0', maxWidth: 256, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.descricao}</p>}
-                        </td>
-                        <td style={{ padding: '16px 20px' }}>
-                          <p style={{ fontSize: 14, color: 'var(--t-text-primary)', margin: 0 }}>{ticket.cliente.nome}</p>
-                          {ticket.cliente.empresa && <p style={{ fontSize: 12, color: 'var(--t-text-muted)', margin: '2px 0 0' }}>{ticket.cliente.empresa}</p>}
-                        </td>
-                        <td style={{ padding: '16px 20px' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'var(--t-text-secondary)' }}>
-                            <CategoriaIcon categoria={ticket.categoria} />
-                            {ticket.categoria}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 20px' }}>
-                          <span style={{ ...TICKET_PRIO_COLOR[ticket.prioridade], fontSize: 12, fontWeight: 500, padding: '3px 10px', borderRadius: 9999 }}>{ticket.prioridade}</span>
-                        </td>
-                        <td style={{ padding: '16px 20px' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14, color: 'var(--t-text-secondary)' }}>
-                            <Clock size={13} />{tempoAberto(ticket.created_at)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 20px' }}>
-                          <select value={ticket.status} onChange={e => updateTicketStatus(ticket.id, e.target.value)}
-                            style={{ ...TICKET_STATUS_COLOR[ticket.status], fontSize: 12, fontWeight: 500, padding: '3px 10px', borderRadius: 9999, cursor: 'pointer', border: 'none', outline: 'none' }}>
-                            {['ABERTO', 'EM_ATENDIMENTO', 'AGUARDANDO_CLIENTE', 'RESOLVIDO', 'FECHADO'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                          </select>
-                        </td>
-                      </tr>
+            {/* ── VIEW: TICKETS ── */}
+            {suporteView === 'tickets' && (
+              <div className="space-y-3">
+                {/* Filtros */}
+                <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-1 flex-wrap">
+                    {['', 'ABERTO', 'EM_ATENDIMENTO', 'AGUARDANDO_CLIENTE', 'RESOLVIDO', 'FECHADO'].map(s => (
+                      <button key={s} onClick={() => setTicketStatusFilter(s)}
+                        style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                          border: ticketStatusFilter === s ? 'none' : '1px solid var(--t-card-border)',
+                          background: ticketStatusFilter === s ? 'var(--t-primary)' : 'var(--t-card-bg)',
+                          color: ticketStatusFilter === s ? '#fff' : 'var(--t-text-secondary)' }}>
+                        {s === '' ? 'Todos' : s.replace(/_/g, ' ')}
+                      </button>
                     ))}
-                  </tbody>
-                </table>
-              )}
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {['', 'CRITICA', 'ALTA', 'MEDIA', 'BAIXA'].map(p => (
+                      <button key={p} onClick={() => setTicketPrioFilter(p)}
+                        style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                          border: ticketPrioFilter === p ? 'none' : '1px solid var(--t-card-border)',
+                          background: ticketPrioFilter === p ? '#dc2626' : 'var(--t-card-bg)',
+                          color: ticketPrioFilter === p ? '#fff' : 'var(--t-text-secondary)' }}>
+                        {p === '' ? 'Todas prio.' : p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tabela */}
+                <div className="ps-card" style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--t-card-border)' }}>
+                  {ticketLoading ? (
+                    <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-text-muted)' }}>Carregando…</div>
+                  ) : tickets.length === 0 ? (
+                    <div style={{ padding: 48, textAlign: 'center' }}>
+                      <Headphones size={40} style={{ color: 'var(--t-text-muted)', margin: '0 auto 12px' }} />
+                      <p style={{ color: 'var(--t-text-muted)' }}>Nenhum ticket encontrado</p>
+                    </div>
+                  ) : (
+                    <table className="w-full">
+                      <thead style={{ background: 'var(--t-content-bg)', borderBottom: '1px solid var(--t-card-border)' }}>
+                        <tr>
+                          {['Ticket', 'Cliente', 'Categoria', 'Prio.', 'SLA', 'Tempo', 'Responsável', 'Status', ''].map(h => (
+                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--t-text-muted)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tickets.map((ticket, idx) => {
+                          const sla = slaStatus(ticket);
+                          return (
+                            <tr key={ticket.id} style={{ borderTop: idx > 0 ? '1px solid var(--t-card-border)' : 'none', background: 'var(--t-card-bg)', cursor: 'pointer' }}
+                              onClick={() => abrirDetalhe(ticket)}>
+                              <td style={{ padding: '12px 14px' }}>
+                                <p style={{ fontWeight: 600, color: 'var(--t-text-primary)', margin: 0, fontSize: 13 }}>{ticket.titulo}</p>
+                                {ticket.descricao && <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: '2px 0 0', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.descricao}</p>}
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <p style={{ fontSize: 13, color: 'var(--t-text-primary)', margin: 0 }}>{ticket.cliente.nome}</p>
+                                {ticket.cliente.empresa && <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: '2px 0 0' }}>{ticket.cliente.empresa}</p>}
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--t-text-secondary)' }}>
+                                  <CategoriaIcon categoria={ticket.categoria} size={12} />{ticket.categoria}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <span style={{ ...TICKET_PRIO_COLOR[ticket.prioridade], fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 9999 }}>{ticket.prioridade}</span>
+                              </td>
+                              <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
+                                {sla ? (
+                                  <div>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: sla.color, background: sla.bg, padding: '2px 6px', borderRadius: 6 }}>{sla.label}</span>
+                                    <div style={{ height: 3, borderRadius: 2, background: 'var(--t-card-border)', marginTop: 4, overflow: 'hidden', width: 60 }}>
+                                      <div style={{ width: `${Math.min(sla.pct, 100)}%`, height: '100%', background: sla.color }} />
+                                    </div>
+                                  </div>
+                                ) : <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>—</span>}
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--t-text-secondary)' }}>
+                                  <Clock size={12} />{tempoAberto(ticket.created_at)}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
+                                <select value={ticket.responsavel_id || ''} onChange={e => updateTicketResponsavel(ticket.id, e.target.value)}
+                                  style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-secondary)', cursor: 'pointer', maxWidth: 120 }}>
+                                  <option value="">Não designado</option>
+                                  {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                </select>
+                              </td>
+                              <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
+                                <select value={ticket.status} onChange={e => updateTicketStatus(ticket.id, e.target.value)}
+                                  style={{ ...TICKET_STATUS_COLOR[ticket.status], fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 9999, cursor: 'pointer', border: 'none', outline: 'none' }}>
+                                  {['ABERTO', 'EM_ATENDIMENTO', 'AGUARDANDO_CLIENTE', 'RESOLVIDO', 'FECHADO'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                                </select>
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <span style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 600 }}>Ver →</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── VIEW: PAINEL SLA ── */}
+            {suporteView === 'sla' && (
+              <div className="space-y-4">
+                {/* KPIs SLA */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div style={{ background: 'rgba(220,38,38,0.08)', borderRadius: 12, padding: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <ShieldAlert size={16} color="#dc2626" />
+                      <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>SLA Estourado</span>
+                    </div>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>{ticketsEmAtraso.length}</p>
+                  </div>
+                  <div style={{ background: 'rgba(220,38,38,0.06)', borderRadius: 12, padding: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <Zap size={16} color="#dc2626" />
+                      <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Críticos abertos</span>
+                    </div>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>{ticketsCriticos.length}</p>
+                  </div>
+                  <div style={{ background: 'rgba(22,163,74,0.08)', borderRadius: 12, padding: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <Timer size={16} color="#16a34a" />
+                      <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Tempo médio resolução</span>
+                    </div>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#16a34a', margin: 0 }}>{tempoMedioResol || '—'}</p>
+                  </div>
+                  <div style={{ background: 'rgba(75,142,200,0.08)', borderRadius: 12, padding: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <BarChart2 size={16} color="var(--t-primary)" />
+                      <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Total abertos</span>
+                    </div>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--t-primary)', margin: 0 }}>{statsCount('ABERTO') + statsCount('EM_ATENDIMENTO')}</p>
+                  </div>
+                </div>
+
+                {/* Tickets em atraso de SLA */}
+                {ticketsEmAtraso.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle size={15} color="#dc2626" />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>Tickets com SLA estourado</span>
+                    </div>
+                    <div className="space-y-2">
+                      {ticketsEmAtraso.map(t => (
+                        <div key={t.id} onClick={() => abrirDetalhe(t)} style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(220,38,38,0.3)', background: 'rgba(220,38,38,0.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                          <div>
+                            <p style={{ fontWeight: 600, color: 'var(--t-text-primary)', margin: 0, fontSize: 13 }}>{t.titulo}</p>
+                            <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: '2px 0 0' }}>{t.cliente.nome} · {tempoAberto(t.created_at)} aberto</p>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <span style={{ ...TICKET_PRIO_COLOR[t.prioridade], fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 9999 }}>{t.prioridade}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '2px 8px', borderRadius: 6 }}>SLA ESTOURADO</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tickets críticos */}
+                {ticketsCriticos.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShieldAlert size={15} color="#dc2626" />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#9a3412' }}>Tickets de prioridade crítica em aberto</span>
+                    </div>
+                    <div className="space-y-2">
+                      {ticketsCriticos.map(t => {
+                        const sla = slaStatus(t);
+                        return (
+                          <div key={t.id} onClick={() => abrirDetalhe(t)} style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(234,88,12,0.25)', background: 'rgba(234,88,12,0.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontWeight: 600, color: 'var(--t-text-primary)', margin: 0, fontSize: 13 }}>{t.titulo}</p>
+                              <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: '2px 0 0' }}>{t.cliente.nome} · {tempoAberto(t.created_at)} aberto</p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {sla && <span style={{ fontSize: 10, fontWeight: 700, color: sla.color, background: sla.bg, padding: '2px 6px', borderRadius: 6 }}>{sla.label}</span>}
+                              <span style={{ ...TICKET_STATUS_COLOR[t.status], fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 9999 }}>{t.status.replace(/_/g, ' ')}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {ticketsEmAtraso.length === 0 && ticketsCriticos.length === 0 && (
+                  <div style={{ padding: 48, textAlign: 'center', borderRadius: 12, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
+                    <CheckCircle size={40} style={{ color: '#16a34a', margin: '0 auto 12px' }} />
+                    <p style={{ fontWeight: 700, color: '#16a34a', fontSize: 15, margin: 0 }}>Tudo em dia!</p>
+                    <p style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 4 }}>Nenhum ticket crítico ou com SLA estourado.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── VIEW: TEMPLATES ── */}
+            {suporteView === 'templates' && (
+              <div>
+                <div style={{ padding: '12px 16px', background: 'var(--t-card-bg)', borderRadius: 10, border: '1px solid var(--t-card-border)', marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>VARIÁVEIS</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {VARIAVEIS.map(v => (
+                      <button key={v} onClick={() => suporteCopiar(v, v)}
+                        style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
+                          border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-primary-dark)' }}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap mb-4">
+                  {CATS_ATEND.map(c => (
+                    <button key={c.id} onClick={() => setSuporteCatFilter(c.id)}
+                      style={{ padding: '5px 11px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        border: suporteCatFilter === c.id ? 'none' : '1px solid var(--t-card-border)',
+                        background: suporteCatFilter === c.id ? c.cor : 'var(--t-card-bg)',
+                        color: suporteCatFilter === c.id ? '#fff' : 'var(--t-text-muted)' }}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  {suporteTemplatesFiltrados.map(t => {
+                    const canal = suporteCanalDo(t);
+                    const canaisDisponiveis = Object.keys(t.canais) as ('whatsapp' | 'email' | 'telefone')[];
+                    const sev = SEV_COLOR[t.severity] || SEV_COLOR.baixa;
+                    const copiado = suporteCopiadoId === `${t.id}-${canal}`;
+                    return (
+                      <div key={t.id} className="ps-card rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
+                        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--t-card-border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 5px', borderRadius: 4, background: sev.bg, color: sev.cor }}>{t.severity.toUpperCase()}</span>
+                              <span style={{ fontSize: 9, color: 'var(--t-text-muted)' }}>{t.catLabel} · {t.id}</span>
+                            </div>
+                            <div style={{ fontWeight: 700, color: 'var(--t-text-primary)', fontSize: 13 }}>{t.titulo}</div>
+                            <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 1 }}>{t.cenario}</div>
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0">
+                            {canaisDisponiveis.map(c => (
+                              <button key={c} onClick={() => setSuporteCanalAtivo(p => ({ ...p, [t.id]: c }))}
+                                style={{ fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
+                                  border: canal === c ? 'none' : '1px solid var(--t-card-border)',
+                                  background: canal === c ? '#2E6EAB' : 'var(--t-card-bg)',
+                                  color: canal === c ? '#fff' : 'var(--t-text-muted)' }}>
+                                {c === 'whatsapp' ? 'WA' : c === 'email' ? 'Email' : 'Tel'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ padding: '10px 14px' }}>
+                          <pre style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'inherit' }}>
+                            {(t.canais as any)[canal]}
+                          </pre>
+                          <div className="flex justify-end mt-2">
+                            <button onClick={() => suporteCopiar(`${t.id}-${canal}`, (t.canais as any)[canal])}
+                              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 7, cursor: 'pointer',
+                                border: 'none', background: copiado ? '#dcfce7' : '#2E6EAB', color: copiado ? '#15803d' : '#fff' }}>
+                              {copiado ? <><Check size={11} />Copiado!</> : <><Copy size={11} />Copiar</>}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DRAWER: FICHA DO TICKET ── */}
+        {ticketDetalhe && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end' }} onClick={() => setTicketDetalhe(null)}>
+            <div style={{ background: 'var(--t-card-bg)', width: '100%', maxWidth: 520, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+              {/* Drawer header */}
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--t-card-border)', position: 'sticky', top: 0, background: 'var(--t-card-bg)', zIndex: 1 }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-text-primary)', wordBreak: 'break-word' }}>{ticketDetalhe.titulo}</div>
+                    <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 3 }}>
+                      {ticketDetalhe.cliente.nome}{ticketDetalhe.cliente.empresa ? ` · ${ticketDetalhe.cliente.empresa}` : ''}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span style={{ ...TICKET_PRIO_COLOR[ticketDetalhe.prioridade], fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 9999 }}>{ticketDetalhe.prioridade}</span>
+                      <span style={{ ...TICKET_STATUS_COLOR[ticketDetalhe.status], fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 9999 }}>{ticketDetalhe.status.replace(/_/g, ' ')}</span>
+                      {ticketDetalhe.licenca?.plano && <span style={{ fontSize: 11, color: 'var(--t-text-muted)', border: '1px solid var(--t-card-border)', padding: '2px 7px', borderRadius: 9999 }}>{ticketDetalhe.licenca.plano.nome}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => setTicketDetalhe(null)} style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                    <X size={18} style={{ color: 'var(--t-text-muted)' }} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawer body */}
+              <div style={{ flex: 1, padding: 20, overflowY: 'auto' }} className="space-y-5">
+                {/* Info grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>ABERTO EM</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{new Date(ticketDetalhe.created_at).toLocaleString('pt-BR')}</div>
+                  </div>
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>TEMPO ABERTO</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{tempoAberto(ticketDetalhe.created_at)}</div>
+                  </div>
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>CATEGORIA</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>
+                      <CategoriaIcon categoria={ticketDetalhe.categoria} size={13} />{ticketDetalhe.categoria}
+                    </div>
+                  </div>
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>SLA</div>
+                    {(() => { const s = slaStatus(ticketDetalhe); return s
+                      ? <div><span style={{ fontSize: 11, fontWeight: 700, color: s.color, background: s.bg, padding: '2px 7px', borderRadius: 6 }}>{s.label}</span>
+                          <div style={{ height: 4, borderRadius: 2, background: 'var(--t-card-border)', marginTop: 6, overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(s.pct, 100)}%`, height: '100%', background: s.color }} />
+                          </div></div>
+                      : <span style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Sem SLA</span>;
+                    })()}
+                  </div>
+                </div>
+
+                {/* Responsável */}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>RESPONSÁVEL</div>
+                  <select value={ticketDetalhe.responsavel_id || ''} onChange={e => updateTicketResponsavel(ticketDetalhe.id, e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, cursor: 'pointer' }}>
+                    <option value="">Não designado</option>
+                    {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome} ({t.cargo})</option>)}
+                  </select>
+                </div>
+
+                {/* Mudar status */}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>STATUS</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {['ABERTO', 'EM_ATENDIMENTO', 'AGUARDANDO_CLIENTE', 'RESOLVIDO', 'FECHADO'].map(s => (
+                      <button key={s} onClick={() => updateTicketStatus(ticketDetalhe.id, s)}
+                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                          border: 'none', ...(ticketDetalhe.status === s ? TICKET_STATUS_COLOR[s] : { background: 'var(--t-content-bg)', color: 'var(--t-text-muted)' }) }}>
+                        {s.replace(/_/g, ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Descrição */}
+                {ticketDetalhe.descricao && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>DESCRIÇÃO</div>
+                    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)', fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6 }}>
+                      {ticketDetalhe.descricao}
+                    </div>
+                  </div>
+                )}
+
+                {/* Resolução */}
+                {ticketDetalhe.resolucao_at && (
+                  <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', marginBottom: 3 }}>RESOLVIDO EM</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#15803d' }}>{new Date(ticketDetalhe.resolucao_at).toLocaleString('pt-BR')}</div>
+                  </div>
+                )}
+
+                {/* Comentários */}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 10 }}>HISTÓRICO DE COMENTÁRIOS</div>
+                  {ticketComentarios.length === 0
+                    ? <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Nenhum comentário ainda.</p>
+                    : <div className="space-y-2">
+                        {ticketComentarios.map((c, i) => (
+                          <div key={i} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
+                            <div style={{ fontSize: 12, color: 'var(--t-text-primary)', lineHeight: 1.5 }}>{c.texto}</div>
+                            <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 4 }}>{c.autor} · {new Date(c.data).toLocaleString('pt-BR')}</div>
+                          </div>
+                        ))}
+                      </div>
+                  }
+                  <div className="flex gap-2 mt-3">
+                    <input value={ticketComentario} onChange={e => setTicketComentario(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && adicionarComentario()}
+                      placeholder="Adicionar comentário…"
+                      style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--t-card-border)', borderRadius: 8, fontSize: 13, background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', outline: 'none' }} />
+                    <button onClick={adicionarComentario} disabled={!ticketComentario.trim()}
+                      style={{ padding: '7px 14px', borderRadius: 8, background: '#2E6EAB', color: '#fff', border: 'none', cursor: ticketComentario.trim() ? 'pointer' : 'not-allowed', opacity: ticketComentario.trim() ? 1 : 0.5 }}>
+                      <Send size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
