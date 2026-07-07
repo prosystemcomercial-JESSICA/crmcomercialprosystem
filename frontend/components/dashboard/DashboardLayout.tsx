@@ -265,6 +265,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .join('')
     .toUpperCase() || 'U';
 
+  // ── Popup campanha ativa ──────────────────────────────────────────────────
+  const [campanhaPopup, setCampanhaPopup] = useState<{ nome: string; descricao?: string; nicho?: string; plano_alvo?: string; mensalidade?: number; meta_contratos?: number; condicao_especial?: string } | null>(null);
+  const isVendedor = user?.role === 'VENDEDOR';
+
+  useEffect(() => {
+    if (!user || !isVendedor) return;
+    // Só mostra uma vez por sessão (sessionStorage)
+    const KEY = `campanha_popup_seen_${user.id}`;
+    if (sessionStorage.getItem(KEY)) return;
+    apiClient.getCampanhas(0, 10, 'ATIVA').then(res => {
+      const ativas: any[] = res.data?.data?.campanhas || [];
+      if (ativas.length === 0) return;
+      const c = ativas[0];
+      setCampanhaPopup({
+        nome: c.nome,
+        descricao: c.descricao,
+        nicho: c.nicho,
+        plano_alvo: c.plano_alvo,
+        mensalidade: c.mensalidade,
+        meta_contratos: c.meta_contratos,
+        condicao_especial: c.condicao_especial,
+      });
+      sessionStorage.setItem(KEY, '1');
+      // Som curto de 3 segundos: 3 bipes ascendentes
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const freqs = [523, 659, 784]; // Dó, Mi, Sol
+        freqs.forEach((freq, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sine';
+          o.frequency.value = freq;
+          const t0 = ctx.currentTime + i * 0.22;
+          g.gain.setValueAtTime(0, t0);
+          g.gain.linearRampToValueAtTime(0.18, t0 + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4);
+          o.start(t0); o.stop(t0 + 0.4);
+        });
+      } catch {}
+    }).catch(() => {});
+  }, [user, isVendedor]);
+
   // Dropdown compartilhado
   const dropdownStyle: React.CSSProperties = {
     position: 'absolute', top: 46, right: 0,
@@ -279,6 +322,83 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
       <VersionWatcher />
+
+      {/* ── Popup campanha ativa (vendedor, 1x por sessão) ── */}
+      {campanhaPopup && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+          style={{ background: 'rgba(13,34,56,0.65)' }}>
+          <div className="rounded-2xl shadow-2xl w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            style={{ maxWidth: 440, background: 'var(--t-card-bg)', border: '2px solid var(--t-primary)' }}>
+            {/* Header colorido */}
+            <div className="px-6 py-4 flex items-center gap-3"
+              style={{ background: 'linear-gradient(135deg, var(--t-primary), var(--t-primary-dark))' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <Megaphone size={20} color="white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white opacity-70">Campanha Ativa</p>
+                <h2 className="text-base font-extrabold text-white truncate">{campanhaPopup.nome}</h2>
+              </div>
+            </div>
+
+            <div className="px-6 py-5 space-y-3">
+              {campanhaPopup.descricao && (
+                <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>{campanhaPopup.descricao}</p>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                {campanhaPopup.nicho && (
+                  <div className="rounded-lg px-3 py-2" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--t-primary)' }}>Nicho</p>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{campanhaPopup.nicho}</p>
+                  </div>
+                )}
+                {campanhaPopup.plano_alvo && (
+                  <div className="rounded-lg px-3 py-2" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--t-primary)' }}>Plano alvo</p>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{campanhaPopup.plano_alvo}</p>
+                  </div>
+                )}
+                {campanhaPopup.mensalidade != null && (
+                  <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: '#16a34a' }}>Mensalidade</p>
+                    <p className="text-xs font-bold" style={{ color: '#16a34a' }}>
+                      {campanhaPopup.mensalidade.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                    </p>
+                  </div>
+                )}
+                {campanhaPopup.meta_contratos != null && (
+                  <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: '#16a34a' }}>Meta</p>
+                    <p className="text-xs font-bold" style={{ color: '#16a34a' }}>{campanhaPopup.meta_contratos} contratos</p>
+                  </div>
+                )}
+              </div>
+
+              {campanhaPopup.condicao_especial && (
+                <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.25)' }}>
+                  <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: '#7c3aed' }}>Condição especial</p>
+                  <p className="text-xs font-semibold" style={{ color: '#7c3aed' }}>{campanhaPopup.condicao_especial}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => { setCampanhaPopup(null); router.push('/campanhas'); }}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold"
+                  style={{ border: '1.5px solid var(--t-primary)', color: 'var(--t-primary)', background: 'var(--t-primary-light)' }}>
+                  Ver campanha completa
+                </button>
+                <button onClick={() => setCampanhaPopup(null)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg, var(--t-primary), var(--t-primary-dark))' }}>
+                  Entendido, vamos vender!
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Topbar ─────────────────────────────────────────── */}
       <header
