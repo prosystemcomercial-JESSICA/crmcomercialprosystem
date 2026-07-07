@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -51,6 +52,8 @@ export default function AtivosPage() {
   const [savingOport, setSavingOport] = useState(false);
   const [novaAtualizacao, setNovaAtualizacao] = useState('');
   const [savingAtualizacao, setSavingAtualizacao] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const abrirFicha = async (contato: any, aba: 'dados' | 'questionario' | 'oportunidades' = 'dados') => {
     setFicha({ contato, dados: null });
@@ -428,9 +431,12 @@ export default function AtivosPage() {
         )}
       </div>
 
+      {/* ─── Modais — renderizados no <body> via portal para escapar do overflow do layout ─── */}
+      {mounted && createPortal(<>
+
       {/* ─── Modal: Designar fila ─── */}
       {showNova && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <div className="rounded-2xl w-full max-w-md p-6 space-y-3" style={{ background: 'var(--t-surface)' }}>
             <h2 className="text-lg font-semibold">Designar fila de Ativos</h2>
             <div>
@@ -462,7 +468,7 @@ export default function AtivosPage() {
 
       {/* ─── Modal: Registrar contato (questionário) — só abre quando a ficha NÃO está aberta ─── */}
       {editando && !ficha && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
           <div className="rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--t-surface)' }}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Questionário — {editando.cliente_nome}</h2>
@@ -614,7 +620,7 @@ export default function AtivosPage() {
 
       {/* ─── Modal: Ficha do cliente com abas ─── */}
       {ficha && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <div className="rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" style={{ background: 'var(--t-surface)' }}>
             {/* Cabeçalho fixo */}
             {(() => {
@@ -1066,6 +1072,8 @@ export default function AtivosPage() {
           </div>
         </div>
       )}
+
+      </>, document.body)}
     </DashboardLayout>
   );
 }
