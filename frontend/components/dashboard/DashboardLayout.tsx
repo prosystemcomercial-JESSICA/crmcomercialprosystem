@@ -59,11 +59,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Técnico',
     items: [
-      { href: '/implantacoes',              icon: Wrench,     label: 'Implantações',          roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
-      { href: '/onboarding',                icon: Rocket,     label: 'Onboarding',            roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] },
-      { href: '/implantacoes/atendimento',  icon: Headphones, label: 'Atendimento ao Cliente',roles: ALL },
-      { href: '/suporte',                   icon: Headphones, label: 'Suporte',               roles: TECNICO },
-      { href: process.env.NEXT_PUBLIC_PORTAL_URL || '#', icon: Rocket, label: 'Portal Técnico', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'], externoComToken: true },
+      { href: '/portal-tecnico', icon: Wrench, label: 'Portal Técnico', roles: [...GESTAO_COMERCIAL, 'TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'] },
     ],
   },
   {
