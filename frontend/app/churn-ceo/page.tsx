@@ -376,7 +376,7 @@ export default function ChurnCEOPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {radarItems
                   .slice()
-                  .sort((a, b) => diasAberto(b.caso.created_at) - diasAberto(a.caso.created_at))
+                  .sort((a, b) => new Date(b.caso.created_at).getTime() - new Date(a.caso.created_at).getTime())
                   .map(item => (
                     <RadarCard
                       key={item.caso.id}
