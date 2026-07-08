@@ -404,6 +404,15 @@ model Campanha {
   data_inicio DateTime
   data_fim    DateTime
 
+  nicho             String? @db.VarChar(100)
+  plano_alvo        String? @db.VarChar(80)
+  mensalidade       Float?
+  valor_setup       Float?
+  setup_condicao    String? @db.VarChar(200)
+  condicao_especial String? @db.VarChar(500)
+  meta_contratos    Int?
+  meta_receita      Float?
+
   created_by String
   created_at DateTime @default(now())
   updated_by String?
