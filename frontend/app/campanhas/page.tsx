@@ -123,6 +123,7 @@ export default function CampanhasPage() {
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [viewingCampanha, setViewingCampanha] = useState<Campanha | null>(null);
 
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading, router]);
 
@@ -306,8 +307,9 @@ export default function CampanhasPage() {
             {campanhas.map(c => {
               const cfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.RASCUNHO;
               return (
-                <div key={c.id} className="ps-card rounded-xl overflow-hidden hover:shadow-md transition-shadow"
-                  style={{ border: '1px solid var(--t-card-border)', borderTop: `3px solid ${cfg.color}` }}>
+                <div key={c.id} className="ps-card rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                  style={{ border: '1px solid var(--t-card-border)', borderTop: `3px solid ${cfg.color}` }}
+                  onClick={() => setViewingCampanha(c)}>
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="min-w-0">
@@ -405,46 +407,224 @@ export default function CampanhasPage() {
                   </div>
 
                   {/* Footer actions */}
-                  {podeGerenciar && (
-                    <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderTop: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
-                      <select value={c.status} onChange={e => handleChangeStatus(c.id, e.target.value)}
+                  <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderTop: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}
+                    onClick={e => e.stopPropagation()}>
+                    {podeGerenciar && (
+                      <select value={c.status} onChange={e => { e.stopPropagation(); handleChangeStatus(c.id, e.target.value); }}
                         className="flex-1 text-xs rounded-lg px-2 py-1 outline-none"
                         style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
                         {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                           <option key={k} value={k}>{v.label}</option>
                         ))}
                       </select>
-                      <button onClick={() => openEdit(c)}
+                    )}
+                    {podeGerenciar && (
+                      <button onClick={e => { e.stopPropagation(); openEdit(c); }}
                         className="h-7 px-3 rounded-lg text-xs font-semibold flex items-center gap-1"
                         style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)', background: 'var(--t-card-bg)' }}>
                         <Edit3 size={10} /> Editar
                       </button>
-                      {confirmDelete === c.id ? (
+                    )}
+                    {podeGerenciar && (
+                      confirmDelete === c.id ? (
                         <div className="flex gap-1">
-                          <button onClick={() => handleDelete(c.id)}
+                          <button onClick={e => { e.stopPropagation(); handleDelete(c.id); }}
                             className="h-7 px-2 rounded-lg text-xs font-bold text-white" style={{ background: '#dc2626' }}>
                             Sim
                           </button>
-                          <button onClick={() => setConfirmDelete(null)}
+                          <button onClick={e => { e.stopPropagation(); setConfirmDelete(null); }}
                             className="h-7 px-2 rounded-lg text-xs" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)' }}>
                             Não
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => setConfirmDelete(c.id)}
+                        <button onClick={e => { e.stopPropagation(); setConfirmDelete(c.id); }}
                           className="h-7 w-7 flex items-center justify-center rounded-lg"
                           style={{ border: '1px solid #fca5a5', color: '#dc2626', background: '#fee2e2' }}>
                           <Trash2 size={10} />
                         </button>
-                      )}
-                    </div>
-                  )}
+                      )
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* ── MODAL Ver Campanha Completa ── */}
+      {viewingCampanha && (() => {
+        const c = viewingCampanha;
+        const cfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.RASCUNHO;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(13,34,56,.55)' }}
+            onClick={() => setViewingCampanha(null)}>
+            <div className="rounded-2xl shadow-2xl w-full overflow-y-auto"
+              style={{ maxWidth: 640, maxHeight: '92vh', background: 'var(--t-card-bg)' }}
+              onClick={e => e.stopPropagation()}>
+
+              {/* Header */}
+              <div className="px-6 py-5" style={{ borderBottom: '4px solid ' + cfg.color, background: 'var(--t-primary-light)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 inline-block"
+                      style={{ background: cfg.bg, color: cfg.color }}>
+                      {cfg.label}
+                    </span>
+                    <h2 className="text-lg font-bold leading-tight" style={{ color: 'var(--t-text-primary)' }}>{c.nome}</h2>
+                    {c.nicho && (
+                      <span className="text-xs font-semibold mt-1 inline-block" style={{ color: 'var(--t-primary)' }}>{c.nicho}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {podeGerenciar && (
+                      <button onClick={() => { setViewingCampanha(null); openEdit(c); }}
+                        className="h-8 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                        style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)', background: 'var(--t-card-bg)' }}>
+                        <Edit3 size={11} /> Editar
+                      </button>
+                    )}
+                    <button onClick={() => setViewingCampanha(null)}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg"
+                      style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)', background: 'var(--t-card-bg)' }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-5">
+
+                {/* Descrição */}
+                {c.descricao && (
+                  <div className="rounded-xl p-4" style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--t-text-muted)' }}>Objetivo / Descrição</p>
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--t-text-primary)' }}>{c.descricao}</p>
+                  </div>
+                )}
+
+                {/* Período */}
+                <div className="rounded-xl p-4" style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--t-text-muted)' }}>
+                    <Calendar size={11} /> Período
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
+                      <p className="text-[10px] font-semibold mb-0.5" style={{ color: 'var(--t-text-muted)' }}>Início</p>
+                      <p className="text-sm font-bold" style={{ color: 'var(--t-primary)' }}>{fmtDate(c.data_inicio)}</p>
+                    </div>
+                    <span className="text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>→</span>
+                    <div className="flex-1 rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
+                      <p className="text-[10px] font-semibold mb-0.5" style={{ color: 'var(--t-text-muted)' }}>Fim</p>
+                      <p className="text-sm font-bold" style={{ color: 'var(--t-primary)' }}>{fmtDate(c.data_fim)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Plano e Valores */}
+                {(c.plano_alvo || c.mensalidade != null || c.valor_setup != null || c.setup_condicao) && (
+                  <div className="rounded-xl p-4" style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--t-text-muted)' }}>
+                      <Package size={11} /> Plano e Valores
+                    </p>
+                    <div className="space-y-2">
+                      {c.plano_alvo && (
+                        <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>Plano alvo</span>
+                          <span className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{c.plano_alvo}</span>
+                        </div>
+                      )}
+                      {c.mensalidade != null && (
+                        <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>Mensalidade</span>
+                          <span className="text-sm font-bold" style={{ color: '#16a34a' }}>{fmtBRL(c.mensalidade)}/mês</span>
+                        </div>
+                      )}
+                      {c.valor_setup != null && (
+                        <div className="flex justify-between items-center py-1.5" style={{ borderBottom: c.setup_condicao ? '1px solid var(--t-card-border)' : 'none' }}>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>Setup / Implantação</span>
+                          <span className="text-sm font-bold" style={{ color: 'var(--t-primary)' }}>{fmtBRL(c.valor_setup)}</span>
+                        </div>
+                      )}
+                      {c.setup_condicao && (
+                        <div className="flex justify-between items-center py-1.5">
+                          <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>Parcelamento do setup</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{c.setup_condicao}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Condição especial */}
+                {c.condicao_especial && (
+                  <div className="rounded-xl p-4" style={{ background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.25)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#7c3aed' }}>Condição especial desta campanha</p>
+                    <p className="text-sm font-semibold leading-relaxed" style={{ color: '#7c3aed' }}>{c.condicao_especial}</p>
+                  </div>
+                )}
+
+                {/* Metas */}
+                {(c.meta_contratos || c.meta_receita) && (
+                  <div className="rounded-xl p-4" style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.20)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#16a34a' }}>
+                      <Target size={11} /> Metas
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {c.meta_contratos && (
+                        <div className="rounded-lg p-3 text-center" style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.20)' }}>
+                          <p className="text-[10px] font-semibold mb-1" style={{ color: '#16a34a' }}>Contratos fechados</p>
+                          <p className="text-2xl font-bold" style={{ color: '#16a34a' }}>{c.meta_contratos}</p>
+                        </div>
+                      )}
+                      {c.meta_receita && (
+                        <div className="rounded-lg p-3 text-center" style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.20)' }}>
+                          <p className="text-[10px] font-semibold mb-1" style={{ color: '#16a34a' }}>Meta de receita (MRR)</p>
+                          <p className="text-xl font-bold" style={{ color: '#16a34a' }}>{fmtBRL(c.meta_receita)}</p>
+                        </div>
+                      )}
+                    </div>
+                    {c.meta_contratos && c.mensalidade && (
+                      <p className="text-xs font-semibold mt-3 text-center" style={{ color: '#16a34a' }}>
+                        MRR potencial: {fmtBRL(c.meta_contratos * c.mensalidade)}/mês
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Resultados */}
+                <div className="rounded-xl p-4" style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--t-text-muted)' }}>
+                    <BarChart2 size={11} /> Resultados
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
+                      <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>Disparos</p>
+                      <p className="text-2xl font-bold" style={{ color: 'var(--t-primary)' }}>{c._count?.disparos || 0}</p>
+                    </div>
+                    <div className="rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
+                      <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>Ações</p>
+                      <p className="text-2xl font-bold" style={{ color: 'var(--t-primary)' }}>{c._count?.acoes || 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end px-6 py-4" style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                <button onClick={() => setViewingCampanha(null)}
+                  className="h-9 px-5 rounded-lg text-xs font-semibold"
+                  style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)', background: 'transparent' }}>
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── MODAL Nova / Editar Campanha ── */}
       {showModal && (
