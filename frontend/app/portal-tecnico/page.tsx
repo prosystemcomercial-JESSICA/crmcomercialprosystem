@@ -747,53 +747,95 @@ export default function PortalTecnicoPage() {
     );
   }
 
-  const TABS: { key: Tab; label: string; icon: any }[] = [
-    { key: 'demandas',     label: 'Demandas',     icon: LayoutGrid },
-    { key: 'implantacoes', label: 'Implantações', icon: Wrench },
-    { key: 'onboarding',   label: 'Onboarding',   icon: Rocket },
-    { key: 'atendimento',  label: 'Atendimento',  icon: Headphones },
-    { key: 'suporte',      label: 'Suporte',      icon: Headphones },
+  const SIDEBAR_GROUPS = [
+    {
+      group: 'IMPLANTAÇÃO',
+      color: '#2E6EAB',
+      items: [
+        { key: 'demandas'    as Tab, label: 'Demandas',     icon: LayoutGrid,   badge: demandas.filter(d => { const s = demandaSlaStatus(d); return s && !s.concluido && s.pct >= 100; }).length || null },
+        { key: 'implantacoes'as Tab, label: 'Implantações', icon: Wrench,       badge: null },
+        { key: 'onboarding'  as Tab, label: 'Onboarding',   icon: Rocket,       badge: null },
+      ],
+    },
+    {
+      group: 'SUPORTE',
+      color: '#7c3aed',
+      items: [
+        { key: 'suporte'    as Tab, label: 'Tickets & SLA', icon: Headphones,   badge: tickets.filter(t => t.status === 'ABERTO').length || null },
+        { key: 'atendimento'as Tab, label: 'Templates',     icon: MessageSquare, badge: null },
+      ],
+    },
   ];
+
+  const TAB_TITLE: Record<Tab, string> = {
+    demandas:     'Demandas Técnicas',
+    implantacoes: 'Implantações',
+    onboarding:   'Onboarding',
+    suporte:      'Suporte — Tickets & SLA',
+    atendimento:  'Templates de Atendimento',
+  };
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid var(--t-card-border)', borderRadius: 8, fontSize: 14, background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', outline: 'none' };
   const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 500, color: 'var(--t-text-secondary)' };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--t-content-bg)', display: 'flex', flexDirection: 'column' }}>
-      {/* Portal header bar */}
-      <div style={{ background: 'var(--t-card-bg)', borderBottom: '1px solid var(--t-card-border)', padding: '0 24px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, height: 56 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#4B8EC8,#2E6EAB)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Wrench size={16} color="white" />
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--t-text-primary)', lineHeight: 1.1 }}>Portal Técnico</div>
-              <div style={{ fontSize: 10, color: 'var(--t-text-muted)', lineHeight: 1 }}>ProSystem</div>
-            </div>
-          </div>
 
-          <div style={{ flex: 1, display: 'flex', gap: 2 }}>
-            {TABS.map(({ key, label, icon: Icon }) => (
-              <button key={key} onClick={() => setTab(key)}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, padding: '6px 14px', background: 'transparent', border: 'none', cursor: 'pointer',
-                  borderBottom: tab === key ? '2px solid #2E6EAB' : '2px solid transparent',
-                  color: tab === key ? '#2E6EAB' : 'var(--t-text-muted)', height: 56, marginBottom: 0 }}>
-                <Icon size={14} />
-                {label}
-              </button>
-            ))}
+      {/* ── Top bar: logo + título + fechar ── */}
+      <div style={{ background: 'var(--t-card-bg)', borderBottom: '1px solid var(--t-card-border)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 14, position: 'sticky', top: 0, zIndex: 50, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg,#4B8EC8,#2E6EAB)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Wrench size={15} color="white" />
           </div>
-
-          <button onClick={() => window.close()} title="Fechar portal"
-            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)', flexShrink: 0 }}>
-            <X size={14} />
-          </button>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--t-text-primary)', lineHeight: 1.1 }}>Portal Técnico</div>
+            <div style={{ fontSize: 10, color: 'var(--t-text-muted)', lineHeight: 1 }}>ProSystem</div>
+          </div>
         </div>
+        <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => window.close()} title="Fechar portal"
+          style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
+          <X size={13} />
+        </button>
       </div>
 
-      {/* Main content */}
-      <div style={{ flex: 1, maxWidth: 1200, margin: '0 auto', width: '100%', padding: '24px 24px' }}>
+      {/* ── Body: sidebar + content ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        {/* ── SIDEBAR ── */}
+        <aside style={{ width: 210, flexShrink: 0, background: 'var(--t-card-bg)', borderRight: '1px solid var(--t-card-border)', display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '12px 0' }}>
+          {SIDEBAR_GROUPS.map(grp => (
+            <div key={grp.group} style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, color: grp.color, padding: '6px 16px 4px', textTransform: 'uppercase' }}>{grp.group}</div>
+              {grp.items.map(item => {
+                const active = tab === item.key;
+                const Icon = item.icon;
+                return (
+                  <button key={item.key} onClick={() => setTab(item.key)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', border: 'none', background: active ? `${grp.color}14` : 'transparent', cursor: 'pointer', transition: 'background 0.15s', position: 'relative',
+                      borderLeft: active ? `3px solid ${grp.color}` : '3px solid transparent' }}>
+                    <Icon size={15} color={active ? grp.color : 'var(--t-text-muted)'} />
+                    <span style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? grp.color : 'var(--t-text-secondary)', flex: 1, textAlign: 'left' }}>{item.label}</span>
+                    {item.badge ? (
+                      <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 99, background: '#dc2626', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{item.badge}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Divider + versão */}
+          <div style={{ flex: 1 }} />
+          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--t-card-border)', marginTop: 8 }}>
+            <div style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>CRM Técnico — ProSystem</div>
+          </div>
+        </aside>
+
+        {/* ── CONTENT ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
 
         {/* ── TAB: DEMANDAS ── */}
         {tab === 'demandas' && (
@@ -2002,7 +2044,8 @@ export default function PortalTecnicoPage() {
             </div>
           </div>
         )}
-      </div>
+      </div>{/* fim: div content */}
+      </div>{/* fim: div body (sidebar + content) */}
 
       {/* Modal — Abrir Ticket */}
       {showTicketModal && (
