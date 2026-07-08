@@ -361,6 +361,8 @@ async function loadRoutes() {
     ['lancamentos-retroativos', () => import('./routes/lancamentos-retroativos'), 'lancamentosRetroativosRoutes'],
     ['ativos',                () => import('./routes/ativos'),                'ativosRoutes'],
     ['ceo',                   () => import('./routes/ceo'),                   'ceoRoutes'],
+    ['kb',                    () => import('./routes/kb'),                    'kbRoutes'],
+    ['csat',                  () => import('./routes/csat'),                  'csatRoutes'],
   ];
 
   let ok = 0;

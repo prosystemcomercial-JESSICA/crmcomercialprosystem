@@ -2164,3 +2164,68 @@ model WhatsappMensagem {
   @@index([conversaId])
   @@index([direcao])
 }
+
+// ─── BASE DE CONHECIMENTO TÉCNICA ─────────────────────────────────────────────
+
+model KbCategoria {
+  id          String   @id @default(cuid())
+  nome        String
+  descricao   String?
+  icone       String?  // nome do ícone lucide-react
+  ordem       Int      @default(0)
+  parent_id   String?
+  parent      KbCategoria?  @relation("KbCatFilhas", fields: [parent_id], references: [id])
+  filhas      KbCategoria[] @relation("KbCatFilhas")
+  artigos     KbArtigo[]
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([parent_id])
+}
+
+model KbArtigo {
+  id           String      @id @default(cuid())
+  titulo       String
+  conteudo     String      @db.LongText
+  resumo       String?     @db.Text
+  categoria_id String?
+  categoria    KbCategoria? @relation(fields: [categoria_id], references: [id])
+  autor_id     String?     // UsuarioCRM.id
+  autor_nome   String?
+  status       String      @default("RASCUNHO") // RASCUNHO | PUBLICADO | ARQUIVADO
+  visibilidade String      @default("INTERNO")  // INTERNO | PUBLICO (portal cliente)
+  tags         String?     // JSON array de strings
+  views        Int         @default(0)
+  util_sim     Int         @default(0) // feedback positivo
+  util_nao     Int         @default(0) // feedback negativo
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  @@index([categoria_id])
+  @@index([status])
+  @@index([visibilidade])
+}
+
+// ─── CSAT — PESQUISA DE SATISFAÇÃO PÓS-TICKET / PÓS-IMPLANTAÇÃO ───────────────
+
+model CsatSurvey {
+  id              String      @id @default(cuid())
+  tipo            String      // TICKET | IMPLANTACAO
+  referencia_id   String      // id do ticket ou implantação
+  cliente_id      String?
+  cliente_nome    String?
+  token           String      @unique @default(cuid()) // magic link token
+  status          String      @default("PENDENTE") // PENDENTE | RESPONDIDO | EXPIRADO
+  nota            Int?        // 1-5
+  comentario      String?     @db.Text
+  respondido_at   DateTime?
+  expira_at       DateTime    // geralmente 7 dias após criação
+  criado_por      String?     // UsuarioCRM.id que fechou o ticket
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  @@index([referencia_id])
+  @@index([token])
+  @@index([status])
+  @@index([tipo])
+}

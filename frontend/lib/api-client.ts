@@ -1259,6 +1259,35 @@ class ApiClient {
   async vincularPesquisa(id: string, cliente_id: string) {
     return this.client.post(`/pesquisa/${id}/vincular`, { cliente_id });
   }
+
+  // ─── KB ───────────────────────────────────────────────────────────────────
+  async getKbCategorias() { return this.client.get('/kb/categorias'); }
+  async createKbCategoria(data: any) { return this.client.post('/kb/categorias', data); }
+  async updateKbCategoria(id: string, data: any) { return this.client.patch(`/kb/categorias/${id}`, data); }
+  async deleteKbCategoria(id: string) { return this.client.delete(`/kb/categorias/${id}`); }
+  async getKbArtigos(params?: { status?: string; visibilidade?: string; categoria_id?: string; busca?: string; page?: number; limit?: number }) {
+    return this.client.get('/kb/artigos', { params });
+  }
+  async getKbArtigo(id: string) { return this.client.get(`/kb/artigos/${id}`); }
+  async createKbArtigo(data: any) { return this.client.post('/kb/artigos', data); }
+  async updateKbArtigo(id: string, data: any) { return this.client.patch(`/kb/artigos/${id}`, data); }
+  async deleteKbArtigo(id: string) { return this.client.delete(`/kb/artigos/${id}`); }
+  async feedbackKbArtigo(id: string, util: boolean) { return this.client.post(`/kb/artigos/${id}/feedback`, { util }); }
+
+  // ─── CSAT ────────────────────────────────────────────────────────────────
+  async createCsatSurvey(data: { tipo: string; referencia_id: string; cliente_id?: string; cliente_nome?: string }) {
+    return this.client.post('/csat/surveys', data);
+  }
+  async getCsatPublic(token: string) { return this.client.get(`/csat/public/${token}`); }
+  async votarCsat(token: string, data: { nota: number; comentario?: string }) {
+    return this.client.post(`/csat/public/${token}/votar`, data);
+  }
+  async getCsatMetricas(params?: { tipo?: string; de?: string; ate?: string }) {
+    return this.client.get('/csat/metricas', { params });
+  }
+  async getCsatSurveys(params?: { status?: string; tipo?: string; page?: number; limit?: number }) {
+    return this.client.get('/csat/surveys', { params });
+  }
 }
 
 export const apiClient = new ApiClient();

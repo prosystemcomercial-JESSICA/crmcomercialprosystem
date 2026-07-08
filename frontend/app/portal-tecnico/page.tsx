@@ -11,6 +11,7 @@ import {
   Copy, Check, AlertTriangle, User, MessageSquare, Send, ChevronDown,
   BarChart2, Timer, ShieldAlert, PhoneCall, Mail, Zap,
   LayoutGrid, RefreshCw, Printer, Building2, ArrowRight, Plus,
+  Star, Database, BookMarked, ThumbsUp, ThumbsDown, Edit3, Trash2, FolderOpen, Eye, Globe,
 } from 'lucide-react';
 
 // ─── tipos ───────────────────────────────────────────────────────────────────
@@ -344,7 +345,7 @@ function CategoriaIcon({ categoria, size = 14 }: { categoria: string; size?: num
 
 // ─── página principal ─────────────────────────────────────────────────────────
 
-type Tab = 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas';
+type Tab = 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -413,6 +414,75 @@ export default function PortalTecnicoPage() {
   const [demandaDetalhe, setDemandaDetalhe] = useState<any | null>(null);
   const [demandaForm, setDemandaForm] = useState<any>({});
   const [demandaSaving, setDemandaSaving] = useState(false);
+
+  // ── KB states ─────────────────────────────────────────────────────────────
+  const [kbCategorias, setKbCategorias] = useState<any[]>([]);
+  const [kbArtigos, setKbArtigos] = useState<any[]>([]);
+  const [kbTotal, setKbTotal] = useState(0);
+  const [kbLoading, setKbLoading] = useState(false);
+  const [kbBusca, setKbBusca] = useState('');
+  const [kbCatFiltro, setKbCatFiltro] = useState('');
+  const [kbArtigoAberto, setKbArtigoAberto] = useState<any>(null);
+  const [kbArtigoLoading, setKbArtigoLoading] = useState(false);
+  const [kbModo, setKbModo] = useState<'lista' | 'editor'>('lista');
+  const [kbForm, setKbForm] = useState<any>({ titulo: '', conteudo: '', resumo: '', categoria_id: '', status: 'RASCUNHO', visibilidade: 'INTERNO', tags: [] });
+  const [kbSaving, setKbSaving] = useState(false);
+  const [kbFeedbackEnviado, setKbFeedbackEnviado] = useState<string | null>(null);
+
+  const loadKb = useCallback(async () => {
+    setKbLoading(true);
+    try {
+      const [artsR, catsR] = await Promise.all([
+        apiClient.getKbArtigos({ busca: kbBusca || undefined, categoria_id: kbCatFiltro || undefined, limit: 50 }),
+        apiClient.getKbCategorias(),
+      ]);
+      setKbArtigos(artsR.data?.data?.artigos || []);
+      setKbTotal(artsR.data?.data?.total || 0);
+      setKbCategorias(catsR.data?.data || []);
+    } catch { /* ignore */ } finally { setKbLoading(false); }
+  }, [kbBusca, kbCatFiltro]);
+
+  useEffect(() => { if (tab === 'kb') loadKb(); }, [tab, kbBusca, kbCatFiltro]);
+
+  const abrirArtigoKb = async (artigo: any) => {
+    setKbArtigoAberto(artigo);
+    setKbArtigoLoading(true);
+    try {
+      const r = await apiClient.getKbArtigo(artigo.id);
+      setKbArtigoAberto(r.data?.data || artigo);
+    } catch { /* ignore */ } finally { setKbArtigoLoading(false); }
+  };
+
+  const salvarArtigoKb = async () => {
+    setKbSaving(true);
+    try {
+      if (kbForm.id) await apiClient.updateKbArtigo(kbForm.id, kbForm);
+      else await apiClient.createKbArtigo(kbForm);
+      setKbModo('lista');
+      setKbForm({ titulo: '', conteudo: '', resumo: '', categoria_id: '', status: 'RASCUNHO', visibilidade: 'INTERNO', tags: [] });
+      loadKb();
+    } catch { /* ignore */ } finally { setKbSaving(false); }
+  };
+
+  // ── CSAT states ──────────────────────────────────────────────────────────
+  const [csatMetricas, setCsatMetricas] = useState<any>(null);
+  const [csatSurveys, setCsatSurveys] = useState<any[]>([]);
+  const [csatLoading, setCsatLoading] = useState(false);
+  const [csatView, setCsatView] = useState<'dashboard' | 'lista'>('dashboard');
+
+  const loadCsat = useCallback(async () => {
+    setCsatLoading(true);
+    try {
+      const [metR, surR] = await Promise.all([
+        apiClient.getCsatMetricas(),
+        apiClient.getCsatSurveys({ limit: 50 }),
+      ]);
+      setCsatMetricas(metR.data?.data || null);
+      setCsatSurveys(surR.data?.data?.surveys || []);
+    } catch { /* ignore */ } finally { setCsatLoading(false); }
+  }, []);
+
+  useEffect(() => { if (tab === 'csat') loadCsat(); }, [tab]);
 
   // ── Suporte extras ──
   const [ticketDetalhe, setTicketDetalhe] = useState<Ticket | null>(null);
@@ -761,8 +831,16 @@ export default function PortalTecnicoPage() {
       group: 'SUPORTE',
       color: '#7c3aed',
       items: [
-        { key: 'suporte'    as Tab, label: 'Tickets & SLA', icon: Headphones,   badge: tickets.filter(t => t.status === 'ABERTO').length || null },
+        { key: 'suporte'    as Tab, label: 'Tickets & SLA', icon: Headphones,    badge: tickets.filter(t => t.status === 'ABERTO').length || null },
         { key: 'atendimento'as Tab, label: 'Templates',     icon: MessageSquare, badge: null },
+        { key: 'csat'       as Tab, label: 'Satisfação',    icon: Star,          badge: null },
+      ],
+    },
+    {
+      group: 'CONHECIMENTO',
+      color: '#0891b2',
+      items: [
+        { key: 'kb' as Tab, label: 'Base de Conhecimento', icon: BookMarked, badge: null },
       ],
     },
   ];
@@ -773,6 +851,8 @@ export default function PortalTecnicoPage() {
     onboarding:   'Onboarding',
     suporte:      'Suporte — Tickets & SLA',
     atendimento:  'Templates de Atendimento',
+    kb:           'Base de Conhecimento',
+    csat:         'Satisfação (CSAT)',
   };
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid var(--t-card-border)', borderRadius: 8, fontSize: 14, background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', outline: 'none' };
@@ -2044,6 +2124,275 @@ export default function PortalTecnicoPage() {
             </div>
           </div>
         )}
+
+        {/* ── TAB: BASE DE CONHECIMENTO ── */}
+        {tab === 'kb' && (
+          <div>
+            {kbModo === 'editor' ? (
+              /* ── EDITOR DE ARTIGO ── */
+              <div style={{ maxWidth: 800 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                  <button onClick={() => { setKbModo('lista'); setKbForm({ titulo: '', conteudo: '', resumo: '', categoria_id: '', status: 'RASCUNHO', visibilidade: 'INTERNO', tags: [] }); }}
+                    style={{ fontSize: 13, color: 'var(--t-text-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ArrowRight size={13} style={{ transform: 'rotate(180deg)' }} /> Voltar
+                  </button>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--t-text-primary)', margin: 0 }}>{kbForm.id ? 'Editar Artigo' : 'Novo Artigo'}</h2>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>TÍTULO</label>
+                    <input value={kbForm.titulo} onChange={e => setKbForm((f: any) => ({ ...f, titulo: e.target.value }))} placeholder="Título do artigo"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 15, fontWeight: 600 }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>CATEGORIA</label>
+                      <select value={kbForm.categoria_id} onChange={e => setKbForm((f: any) => ({ ...f, categoria_id: e.target.value }))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        <option value="">Sem categoria</option>
+                        {kbCategorias.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>STATUS</label>
+                      <select value={kbForm.status} onChange={e => setKbForm((f: any) => ({ ...f, status: e.target.value }))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        <option value="RASCUNHO">Rascunho</option>
+                        <option value="PUBLICADO">Publicado</option>
+                        <option value="ARQUIVADO">Arquivado</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>VISIBILIDADE</label>
+                      <select value={kbForm.visibilidade} onChange={e => setKbForm((f: any) => ({ ...f, visibilidade: e.target.value }))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        <option value="INTERNO">Interno (equipe)</option>
+                        <option value="PUBLICO">Público (portal cliente)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>RESUMO</label>
+                    <textarea value={kbForm.resumo || ''} onChange={e => setKbForm((f: any) => ({ ...f, resumo: e.target.value }))} rows={2} placeholder="Resumo curto do artigo (aparece na listagem)"
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>CONTEÚDO</label>
+                    <textarea value={kbForm.conteudo || ''} onChange={e => setKbForm((f: any) => ({ ...f, conteudo: e.target.value }))} rows={16} placeholder="Conteúdo do artigo (suporta Markdown)"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'monospace', lineHeight: 1.6 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setKbModo('lista')} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-secondary)', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                    <button onClick={salvarArtigoKb} disabled={kbSaving || !kbForm.titulo}
+                      style={{ padding: '9px 20px', borderRadius: 8, background: '#0891b2', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: kbSaving || !kbForm.titulo ? 'not-allowed' : 'pointer', opacity: kbSaving || !kbForm.titulo ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {kbSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                      Salvar Artigo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : kbArtigoAberto ? (
+              /* ── LEITURA DE ARTIGO ── */
+              <div style={{ maxWidth: 800 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                  <button onClick={() => setKbArtigoAberto(null)} style={{ fontSize: 13, color: 'var(--t-text-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ArrowRight size={13} style={{ transform: 'rotate(180deg)' }} /> Voltar
+                  </button>
+                  {kbArtigoAberto.categoria && <span style={{ fontSize: 11, color: '#0891b2', background: 'rgba(8,145,178,0.08)', borderRadius: 6, padding: '2px 8px' }}>{kbArtigoAberto.categoria.nome}</span>}
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--t-text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Eye size={11} />{kbArtigoAberto.views} visualizações</span>
+                </div>
+                <div style={{ background: 'var(--t-card-bg)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: '28px 32px' }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)', marginBottom: 8 }}>{kbArtigoAberto.titulo}</h1>
+                  {kbArtigoAberto.resumo && <p style={{ fontSize: 14, color: 'var(--t-text-secondary)', marginBottom: 20, lineHeight: 1.6 }}>{kbArtigoAberto.resumo}</p>}
+                  <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 24, display: 'flex', gap: 16 }}>
+                    {kbArtigoAberto.autor_nome && <span>Por {kbArtigoAberto.autor_nome}</span>}
+                    <span>Atualizado em {new Date(kbArtigoAberto.updated_at).toLocaleDateString('pt-BR')}</span>
+                    <span style={{ color: kbArtigoAberto.visibilidade === 'PUBLICO' ? '#16a34a' : 'var(--t-text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {kbArtigoAberto.visibilidade === 'PUBLICO' ? <><Globe size={10} /> Público</> : 'Interno'}
+                    </span>
+                  </div>
+                  {kbArtigoLoading ? (
+                    <div style={{ textAlign: 'center', padding: 32 }}><Loader2 size={20} className="animate-spin" style={{ color: '#0891b2' }} /></div>
+                  ) : (
+                    <div style={{ fontSize: 14, color: 'var(--t-text-primary)', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{kbArtigoAberto.conteudo}</div>
+                  )}
+                  {/* Feedback */}
+                  <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid var(--t-card-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Este artigo foi útil?</span>
+                    {kbFeedbackEnviado === kbArtigoAberto.id ? (
+                      <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>Obrigado pelo feedback!</span>
+                    ) : (
+                      <>
+                        <button onClick={() => { apiClient.feedbackKbArtigo(kbArtigoAberto.id, true); setKbFeedbackEnviado(kbArtigoAberto.id); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', color: '#16a34a', fontSize: 12, cursor: 'pointer' }}>
+                          <ThumbsUp size={13} /> Sim
+                        </button>
+                        <button onClick={() => { apiClient.feedbackKbArtigo(kbArtigoAberto.id, false); setKbFeedbackEnviado(kbArtigoAberto.id); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', color: '#dc2626', fontSize: 12, cursor: 'pointer' }}>
+                          <ThumbsDown size={13} /> Não
+                        </button>
+                      </>
+                    )}
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                      <button onClick={() => { setKbForm({ ...kbArtigoAberto, tags: kbArtigoAberto.tags ? JSON.parse(kbArtigoAberto.tags) : [] }); setKbModo('editor'); setKbArtigoAberto(null); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-secondary)', fontSize: 12, cursor: 'pointer' }}>
+                        <Edit3 size={12} /> Editar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── LISTAGEM ── */
+              <div>
+                {/* Controles */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input value={kbBusca} onChange={e => setKbBusca(e.target.value)} placeholder="Buscar artigos..." style={{ flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }} />
+                  <select value={kbCatFiltro} onChange={e => setKbCatFiltro(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                    <option value="">Todas as categorias</option>
+                    {kbCategorias.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                  <button onClick={() => setKbModo('editor')} style={{ padding: '8px 16px', background: '#0891b2', color: '#fff', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Plus size={14} /> Novo Artigo
+                  </button>
+                </div>
+
+                {/* Lista de artigos */}
+                {kbLoading ? (
+                  <div style={{ textAlign: 'center', padding: 48 }}><Loader2 size={24} className="animate-spin" style={{ color: '#0891b2', margin: '0 auto' }} /></div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {kbArtigos.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: 48, color: 'var(--t-text-muted)' }}>
+                        <BookMarked size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                        <p style={{ fontSize: 14 }}>Nenhum artigo encontrado.</p>
+                        <button onClick={() => setKbModo('editor')} style={{ marginTop: 12, padding: '8px 20px', background: '#0891b2', color: '#fff', borderRadius: 8, border: 'none', fontSize: 13, cursor: 'pointer' }}>Criar primeiro artigo</button>
+                      </div>
+                    )}
+                    {kbArtigos.map((a: any) => (
+                      <div key={a.id} onClick={() => abrirArtigoKb(a)} style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '14px 16px', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                        <BookMarked size={16} color="#0891b2" style={{ marginTop: 2, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{a.titulo}</span>
+                            <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, fontWeight: 600, color: a.status === 'PUBLICADO' ? '#16a34a' : a.status === 'RASCUNHO' ? '#a16207' : 'var(--t-text-muted)', background: a.status === 'PUBLICADO' ? 'rgba(22,163,74,0.1)' : a.status === 'RASCUNHO' ? 'rgba(234,179,8,0.1)' : 'rgba(148,163,184,0.1)' }}>{a.status}</span>
+                            {a.visibilidade === 'PUBLICO' && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, color: '#0891b2', background: 'rgba(8,145,178,0.1)', display: 'flex', alignItems: 'center', gap: 3 }}><Globe size={9} /> Público</span>}
+                          </div>
+                          {a.resumo && <p style={{ fontSize: 12, color: 'var(--t-text-secondary)', margin: 0, lineHeight: 1.5 }}>{a.resumo}</p>}
+                          <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 11, color: 'var(--t-text-muted)' }}>
+                            {a.categoria && <span style={{ color: '#0891b2' }}>{a.categoria.nome}</span>}
+                            <span><Eye size={10} style={{ display: 'inline', marginRight: 2 }} />{a.views}</span>
+                            <span><ThumbsUp size={10} style={{ display: 'inline', marginRight: 2 }} />{a.util_sim}</span>
+                            <span>Atualizado {new Date(a.updated_at).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                        </div>
+                        <ArrowRight size={14} style={{ color: 'var(--t-text-muted)', flexShrink: 0, marginTop: 4 }} />
+                      </div>
+                    ))}
+                    {kbTotal > kbArtigos.length && <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--t-text-muted)' }}>Mostrando {kbArtigos.length} de {kbTotal}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB: CSAT ── */}
+        {tab === 'csat' && (
+          <div>
+            {/* Sub-nav */}
+            <div style={{ display: 'flex', gap: 1, marginBottom: 20, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 3, width: 'fit-content' }}>
+              {([['dashboard', 'Dashboard', BarChart2], ['lista', 'Respostas', FileText]] as const).map(([v, l, Icon]) => (
+                <button key={v} onClick={() => setCsatView(v)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: csatView === v ? '#7c3aed' : 'transparent', color: csatView === v ? '#fff' : 'var(--t-text-muted)' }}>
+                  <Icon size={13} />{l}
+                </button>
+              ))}
+            </div>
+
+            {csatLoading ? (
+              <div style={{ textAlign: 'center', padding: 48 }}><Loader2 size={24} className="animate-spin" style={{ color: '#7c3aed', margin: '0 auto' }} /></div>
+            ) : csatView === 'dashboard' ? (
+              <div>
+                {!csatMetricas || csatMetricas.total === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 48, color: 'var(--t-text-muted)' }}>
+                    <Star size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                    <p style={{ fontSize: 14 }}>Nenhuma pesquisa de satisfação enviada ainda.</p>
+                    <p style={{ fontSize: 12, marginTop: 6 }}>As pesquisas são criadas automaticamente ao fechar um ticket.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* KPIs */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+                      <Kpi label="Total enviadas"    value={csatMetricas.total}          color="#7c3aed" icon={Send} />
+                      <Kpi label="Respondidas"       value={csatMetricas.respondidos}     color="#16a34a" icon={Check} />
+                      <Kpi label="Taxa de resposta"  value={`${csatMetricas.taxa_resposta}%`} color="#0891b2" icon={BarChart2} />
+                      <Kpi label="Nota média"        value={csatMetricas.media ? `${csatMetricas.media.toFixed(1)} ★` : '—'} color="#f59e0b" icon={Star} />
+                    </div>
+                    {/* Distribuição de notas */}
+                    <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, padding: '20px 24px', marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 14 }}>DISTRIBUIÇÃO DE NOTAS</div>
+                      {csatMetricas.distribuicao?.map((d: any) => (
+                        <div key={d.nota} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', gap: 2, width: 80 }}>
+                            {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={12} fill={i < d.nota ? '#f59e0b' : 'none'} color={i < d.nota ? '#f59e0b' : 'var(--t-card-border)'} />)}
+                          </div>
+                          <div style={{ flex: 1, height: 8, background: 'var(--t-content-bg)', borderRadius: 99, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${csatMetricas.respondidos > 0 ? (d.qtd / csatMetricas.respondidos) * 100 : 0}%`, background: '#f59e0b', borderRadius: 99 }} />
+                          </div>
+                          <span style={{ fontSize: 12, color: 'var(--t-text-secondary)', width: 24, textAlign: 'right' }}>{d.qtd}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Últimas respostas com comentário */}
+                    {csatMetricas.respostas?.filter((r: any) => r.comentario).length > 0 && (
+                      <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, padding: '20px 24px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 14 }}>COMENTÁRIOS RECENTES</div>
+                        {csatMetricas.respostas.filter((r: any) => r.comentario).slice(0, 5).map((r: any, i: number) => (
+                          <div key={i} style={{ padding: '10px 0', borderBottom: i < 4 ? '1px solid var(--t-card-border)' : 'none' }}>
+                            <div style={{ display: 'flex', gap: 2, marginBottom: 4 }}>
+                              {Array.from({ length: 5 }).map((_, j) => <Star key={j} size={11} fill={j < r.nota ? '#f59e0b' : 'none'} color={j < r.nota ? '#f59e0b' : 'var(--t-card-border)'} />)}
+                            </div>
+                            <p style={{ fontSize: 13, color: 'var(--t-text-primary)', margin: '0 0 4px' }}>{r.comentario}</p>
+                            <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{r.respondido_at ? new Date(r.respondido_at).toLocaleDateString('pt-BR') : ''} · {r.tipo}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ── LISTA DE SURVEYS ── */
+              <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, overflow: 'hidden' }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: 'var(--t-content-bg)' }}>
+                      {['Tipo', 'Cliente', 'Nota', 'Status', 'Enviado em', 'Expiração'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 700, textAlign: 'left' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csatSurveys.map((s: any, i: number) => (
+                      <tr key={s.id} style={{ borderTop: '1px solid var(--t-card-border)', background: i % 2 === 0 ? 'transparent' : 'var(--t-content-bg)' }}>
+                        <td style={{ padding: '10px 14px' }}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: s.tipo === 'TICKET' ? 'rgba(124,58,237,0.1)' : 'rgba(8,145,178,0.1)', color: s.tipo === 'TICKET' ? '#7c3aed' : '#0891b2', fontWeight: 600 }}>{s.tipo}</span></td>
+                        <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--t-text-primary)' }}>{s.cliente_nome || '—'}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          {s.nota ? <div style={{ display: 'flex', gap: 1 }}>{Array.from({ length: 5 }).map((_, j) => <Star key={j} size={12} fill={j < s.nota ? '#f59e0b' : 'none'} color={j < s.nota ? '#f59e0b' : 'var(--t-card-border)'} />)}</div> : <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>—</span>}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, fontWeight: 600, color: s.status === 'RESPONDIDO' ? '#16a34a' : s.status === 'EXPIRADO' ? '#9ca3af' : '#a16207', background: s.status === 'RESPONDIDO' ? 'rgba(22,163,74,0.1)' : s.status === 'EXPIRADO' ? 'rgba(148,163,184,0.1)' : 'rgba(234,179,8,0.1)' }}>{s.status}</span></td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t-text-muted)' }}>{new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t-text-muted)' }}>{new Date(s.expira_at).toLocaleDateString('pt-BR')}</td>
+                      </tr>
+                    ))}
+                    {csatSurveys.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--t-text-muted)', fontSize: 13 }}>Nenhuma pesquisa enviada</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>{/* fim: div content */}
       </div>{/* fim: div body (sidebar + content) */}
 
