@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+// Garante que o Route Handler nunca seja cacheado pelo Next.js em produção.
+// Sem isso, o Next.js 14 pode servir o HTML gerado do cache mesmo após edição da proposta.
+export const dynamic = 'force-dynamic';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // Cache em memória das imagens convertidas para base64 (sobrevive até o restart)
@@ -2766,13 +2770,15 @@ export async function GET(
 
     // ?modo=express → versão DIRETA (clientes leigos): resumo + escolher plano + aceitar.
     const modo = (_req.nextUrl.searchParams.get('modo') || _req.nextUrl.searchParams.get('mode') || '').toLowerCase();
+    const noCache = { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Content-Type': 'text/html; charset=utf-8' };
+
     if (modo === 'express' || modo === 'direto' || modo === 'rapido') {
       const expressHtml = generateExpressHTML(data, images, token, API_URL);
-      return new NextResponse(expressHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      return new NextResponse(expressHtml, { headers: noCache });
     }
 
     const html = generateHTML(data, images, token, API_URL);
-    return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    return new NextResponse(html, { headers: noCache });
   } catch {
     return new NextResponse(
       '<html><body style="font-family:sans-serif;text-align:center;padding:80px;background:#fff;color:#081330"><h2>Erro ao carregar proposta.</h2></body></html>',
