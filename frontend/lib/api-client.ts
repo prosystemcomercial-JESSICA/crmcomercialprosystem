@@ -844,6 +844,9 @@ class ApiClient {
   async getBonusTrimestral(params?: { ref?: string; vendedor_id?: string }) {
     return this.client.get('/comissoes/bonus-trimestral', { params });
   }
+  async getBonusTrimestralContratos(params?: { ref?: string; vendedor_id?: string }) {
+    return this.client.get('/comissoes/bonus-trimestral/contratos', { params });
+  }
 
   async createComissao(data: any) {
     return this.client.post('/comissoes', data);
