@@ -2,19 +2,28 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const CreateCampanhaSchema = z.object({
+const CampanhaFieldsSchema = {
   nome: z.string().min(1),
   descricao: z.string().optional(),
   data_inicio: z.string().datetime(),
-  data_fim: z.string().datetime()
-});
+  data_fim: z.string().datetime(),
+  nicho: z.string().optional(),
+  plano_alvo: z.string().optional(),
+  mensalidade: z.number().optional(),
+  valor_setup: z.number().optional(),
+  setup_condicao: z.string().optional(),
+  condicao_especial: z.string().optional(),
+  meta_contratos: z.number().int().optional(),
+  meta_receita: z.number().optional(),
+};
+
+const CreateCampanhaSchema = z.object(CampanhaFieldsSchema);
 
 const UpdateCampanhaSchema = z.object({
-  nome: z.string().optional(),
-  descricao: z.string().optional(),
+  ...Object.fromEntries(
+    Object.entries(CampanhaFieldsSchema).map(([k, v]) => [k, (v as any).optional()])
+  ),
   status: z.enum(['RASCUNHO', 'ATIVA', 'PAUSADA', 'FINALIZADA', 'ARQUIVADA']).optional(),
-  data_inicio: z.string().datetime().optional(),
-  data_fim: z.string().datetime().optional()
 });
 
 const ListCampanhaSchema = z.object({
