@@ -93,6 +93,64 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     });
   });
 
+  // ── Lista detalhada dos contratos do trimestre (para o painel Acelerador) ──
+  fastify.get('/comissoes/bonus-trimestral/contratos', async (request, reply) => {
+    const q = z.object({ ref: z.string().optional(), vendedor_id: z.string().optional() }).safeParse(request.query);
+    const agora = new Date();
+    const [yy, mm] = q.data?.ref ? q.data.ref.split('-').map(Number) : [agora.getFullYear(), agora.getMonth() + 1];
+    const tri = trimestreProsystem(yy, mm);
+
+    const scopeId = scopeUserId(request);
+    const whereVend: any = {};
+    if (scopeId !== null) whereVend.vendedor_id = scopeId;
+    else if (q.data?.vendedor_id) whereVend.vendedor_id = q.data.vendedor_id;
+
+    const props = await prisma.propostaComercial.findMany({
+      where: {
+        ...whereVend,
+        status: { in: STATUS_FECHADA_BONUS },
+        OR: [
+          { data_aceite: { gte: tri.inicio, lte: tri.fim } },
+          { AND: [{ data_aceite: null }, { created_at: { gte: tri.inicio, lte: tri.fim } }] },
+        ],
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        vendedor_id: true,
+        vendedor_nome: true,
+        razao_social: true,
+        nome_fantasia: true,
+        plano: true,
+        preco_instalacao: true,
+        preco_mensal: true,
+        status: true,
+        data_aceite: true,
+        created_at: true,
+      },
+      orderBy: [{ data_aceite: 'desc' }, { created_at: 'desc' }],
+    }).catch(() => [] as any[]);
+
+    const ids = [...new Set(props.map((p: any) => p.vendedor_id).filter(Boolean))];
+    const nomes = await resolverNomesUsuarios(prisma, ids as string[]).catch(() => ({} as Record<string, string>));
+
+    const contratos = props.map((p: any) => ({
+      id: p.id,
+      vendedor_nome: nomes[p.vendedor_id] || p.vendedor_nome || p.vendedor_id || '—',
+      cliente: p.razao_social || p.nome_fantasia || '—',
+      plano: p.plano || '—',
+      preco_instalacao: p.preco_instalacao ?? null,
+      preco_mensal: p.preco_mensal ?? null,
+      data: p.data_aceite || p.created_at,
+      status: p.status,
+    }));
+
+    return reply.send({
+      status: 'success',
+      data: { trimestre: tri.rotulo, total: contratos.length, contratos },
+    });
+  });
+
   // Resolve a RAZÃO SOCIAL do cliente de cada comissão (em vez do id do contrato):
   //  - CONTRATO        → ContratoComercial.razao_social (via referencia_id)
   //  - VENDA_ADICIONAL → VendaAdicional → Cliente.nome

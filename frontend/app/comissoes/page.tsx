@@ -80,6 +80,10 @@ export default function ComissoesPage() {
   const [lancandoBonus, setLancandoBonus] = useState(false);
   // Bônus trimestral (Programa Acelerador) — trimestres iniciam em maio.
   const [bonus, setBonus] = useState<any>(null);
+  const [bonusContratos, setBonusContratos] = useState<any[]>([]);
+  const [bonusContratosAberto, setBonusContratosAberto] = useState(false);
+  const [bonusContratosLoading, setBonusContratosLoading] = useState(false);
+  const [bonusContratosFiltroVend, setBonusContratosFiltroVend] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -160,6 +164,18 @@ export default function ComissoesPage() {
   };
 
   // Lançar o bônus trimestral (paga no mês seguinte ao fim do trimestre).
+  const carregarBonusContratos = async () => {
+    if (bonusContratosAberto) { setBonusContratosAberto(false); return; }
+    setBonusContratosAberto(true);
+    if (bonusContratos.length > 0) return; // já carregado
+    setBonusContratosLoading(true);
+    try {
+      const r = await apiClient.getBonusTrimestralContratos({ ref: periodo });
+      setBonusContratos(r.data?.data?.contratos || []);
+    } catch { setBonusContratos([]); }
+    finally { setBonusContratosLoading(false); }
+  };
+
   const lancarBonus = async () => {
     if (!confirm('Lançar o bônus trimestral para quem bateu a meta? O pagamento será no mês seguinte ao fim do trimestre.')) return;
     setLancandoBonus(true);
@@ -423,6 +439,97 @@ export default function ComissoesPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Botão + tabela de contratos do trimestre */}
+            <div className="mt-3 border-t pt-3" style={{ borderColor: '#fde68a' }}>
+              <button onClick={carregarBonusContratos}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                style={{ background: bonusContratosAberto ? '#fef3c7' : 'transparent', color: '#92400e', border: '1px solid #fde68a' }}>
+                {bonusContratosAberto ? '▲ Ocultar contratos' : `▼ Ver contratos fechados (${bonus.linhas?.reduce((s: number, l: any) => s + l.contratos, 0) ?? 0})`}
+              </button>
+
+              {bonusContratosAberto && (
+                <div className="mt-3">
+                  {bonusContratosLoading ? (
+                    <p className="text-xs py-3 text-center" style={{ color: 'var(--t-text-muted)' }}>Carregando…</p>
+                  ) : (
+                    <>
+                      {/* Filtro por vendedor */}
+                      {[...new Set(bonusContratos.map((c: any) => c.vendedor_nome))].length > 1 && (
+                        <div className="mb-2 flex gap-2 flex-wrap">
+                          <button onClick={() => setBonusContratosFiltroVend('')}
+                            className="text-xs px-2 py-0.5 rounded-full border"
+                            style={{ background: bonusContratosFiltroVend === '' ? '#fef3c7' : 'transparent', borderColor: '#fde68a', color: '#92400e', fontWeight: bonusContratosFiltroVend === '' ? 700 : 400 }}>
+                            Todos
+                          </button>
+                          {[...new Set(bonusContratos.map((c: any) => c.vendedor_nome))].map((v: any) => (
+                            <button key={v} onClick={() => setBonusContratosFiltroVend(v === bonusContratosFiltroVend ? '' : v)}
+                              className="text-xs px-2 py-0.5 rounded-full border"
+                              style={{ background: bonusContratosFiltroVend === v ? '#fef3c7' : 'transparent', borderColor: '#fde68a', color: '#92400e', fontWeight: bonusContratosFiltroVend === v ? 700 : 400 }}>
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="rounded-lg overflow-hidden border" style={{ borderColor: '#fde68a' }}>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr style={{ background: '#fef9ec' }}>
+                              {['#', 'Cliente', 'Plano', 'Vendedor', 'Instalação', 'Mensal', 'Data'].map(h => (
+                                <th key={h} className="px-3 py-2 text-left font-semibold" style={{ color: '#92400e' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {bonusContratos
+                              .filter((c: any) => !bonusContratosFiltroVend || c.vendedor_nome === bonusContratosFiltroVend)
+                              .map((c: any, i: number) => (
+                                <tr key={c.id} style={{ background: i % 2 === 0 ? 'transparent' : '#fffbf0', borderTop: '1px solid #fde68a20' }}>
+                                  <td className="px-3 py-2" style={{ color: 'var(--t-text-muted)' }}>{i + 1}</td>
+                                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--t-text-primary)' }}>{c.cliente}</td>
+                                  <td className="px-3 py-2">
+                                    {c.plano && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: 'var(--t-primary)' }}>{c.plano}</span>}
+                                  </td>
+                                  <td className="px-3 py-2" style={{ color: 'var(--t-text-secondary)' }}>{c.vendedor_nome}</td>
+                                  <td className="px-3 py-2" style={{ color: 'var(--t-text-secondary)' }}>
+                                    {c.preco_instalacao != null ? `R$ ${Number(c.preco_instalacao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}` : '—'}
+                                  </td>
+                                  <td className="px-3 py-2" style={{ color: 'var(--t-text-secondary)' }}>
+                                    {c.preco_mensal != null ? `R$ ${Number(c.preco_mensal).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}` : '—'}
+                                  </td>
+                                  <td className="px-3 py-2" style={{ color: 'var(--t-text-muted)' }}>
+                                    {c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            {bonusContratos.filter((c: any) => !bonusContratosFiltroVend || c.vendedor_nome === bonusContratosFiltroVend).length === 0 && (
+                              <tr><td colSpan={7} className="px-3 py-4 text-center" style={{ color: 'var(--t-text-muted)' }}>Nenhum contrato encontrado</td></tr>
+                            )}
+                          </tbody>
+                          {/* Totalizador */}
+                          {bonusContratos.filter((c: any) => !bonusContratosFiltroVend || c.vendedor_nome === bonusContratosFiltroVend).length > 0 && (() => {
+                            const lista = bonusContratos.filter((c: any) => !bonusContratosFiltroVend || c.vendedor_nome === bonusContratosFiltroVend);
+                            const totalInst = lista.reduce((s: number, c: any) => s + (c.preco_instalacao ?? 0), 0);
+                            const totalMens = lista.reduce((s: number, c: any) => s + (c.preco_mensal ?? 0), 0);
+                            return (
+                              <tfoot>
+                                <tr style={{ background: '#fef3c7', borderTop: '2px solid #fde68a' }}>
+                                  <td colSpan={3} className="px-3 py-2 font-bold text-xs" style={{ color: '#92400e' }}>Total — {lista.length} contratos</td>
+                                  <td className="px-3 py-2" />
+                                  <td className="px-3 py-2 font-bold" style={{ color: '#92400e' }}>R$ {totalInst.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</td>
+                                  <td className="px-3 py-2 font-bold" style={{ color: '#92400e' }}>R$ {totalMens.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}/mês</td>
+                                  <td />
+                                </tr>
+                              </tfoot>
+                            );
+                          })()}
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
