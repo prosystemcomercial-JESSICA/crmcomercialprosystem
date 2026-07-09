@@ -331,6 +331,7 @@ async function loadRoutes() {
     ['dashboard-retencao',    () => import('./routes/dashboard-retencao'),    'dashboardRetencaoRoutes'],
     ['clientes',              () => import('./routes/clientes'),              'clientesRoutes'],
     ['campanhas',             () => import('./routes/campanhas'),             'campanhasRoutes'],
+    ['cliente-documentos',    () => import('./routes/cliente-documentos'),    'clienteDocumentosRoutes'],
     ['leads',                 () => import('./routes/leads'),                 'leadsRoutes'],
     ['atividades',            () => import('./routes/atividades'),            'atividadesRoutes'],
     ['propostas',             () => import('./routes/propostas'),             'propostasRoutes'],
