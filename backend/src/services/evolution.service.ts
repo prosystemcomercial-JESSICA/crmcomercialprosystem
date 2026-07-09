@@ -1,13 +1,9 @@
-// Integração Evolution API — WhatsApp Inbox multi-instância (conexão via QR Code)
+// Integração UazAPI — WhatsApp multi-instância
 //
-// Documentação: https://doc.evolution-api.com/
-// A Evolution API roda como serviço próprio (self-host no Railway). Cada usuário
-// do CRM cria a SUA instância (instancia_nome único) e pareia lendo o QR Code,
-// igual ao WhatsApp Web. Daí o CRM envia/recebe via esta API.
-//
-// Variáveis de ambiente necessárias (configurar no Railway):
-//   EVOLUTION_API_URL   → ex.: https://evolution-production-xxxx.up.railway.app
-//   EVOLUTION_API_KEY   → a AUTHENTICATION_API_KEY definida no serviço Evolution
+// Documentação: https://docs.uazapi.com/
+// Variáveis de ambiente necessárias:
+//   EVOLUTION_API_URL   → ex.: https://free.uazapi.com  (subdomínio da conta)
+//   EVOLUTION_API_KEY   → token da conta UazAPI
 //   EVOLUTION_WEBHOOK_URL (opcional) → URL pública deste backend + /whatsapp/webhook
 
 function getBaseUrl(): string {
@@ -22,7 +18,6 @@ function getApiKey(): string {
   return key;
 }
 
-/** true se a Evolution está minimamente configurada (sem lançar). */
 export function evolutionConfigurada(): boolean {
   return !!process.env.EVOLUTION_API_URL && !!process.env.EVOLUTION_API_KEY;
 }
@@ -30,165 +25,123 @@ export function evolutionConfigurada(): boolean {
 async function call(path: string, method: 'GET' | 'POST' | 'DELETE', body?: any) {
   const res = await fetch(`${getBaseUrl()}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', apikey: getApiKey() },
+    headers: {
+      'Content-Type': 'application/json',
+      'token': getApiKey(),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   let json: any = null;
   try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text }; }
   if (!res.ok) {
-    throw new Error(`Evolution ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
+    throw new Error(`UazAPI ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
   }
   return json;
 }
 
 /**
- * Cria (ou recria) uma instância e já solicita o QR Code para pareamento.
- * Retorna o base64 do QR quando disponível.
+ * Cria (conecta) uma instância e solicita o QR Code para pareamento.
+ * Na UazAPI não há criação separada — POST /instance/connect já inicia tudo.
  */
 export async function criarInstancia(instanciaNome: string): Promise<{ qr?: string; status: string }> {
-  const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL;
-  const payload: any = {
-    instanceName: instanciaNome,
-    qrcode: true,
-    integration: 'WHATSAPP-BAILEYS',
-  };
-  if (webhookUrl) {
-    payload.webhook = {
-      url: webhookUrl,
-      byEvents: false,
-      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
-    };
-  }
-  const data = await call('/instance/create', 'POST', payload);
-  // Evolution retorna o QR em data.qrcode.base64 (formatos variam por versão).
-  const qr = data?.qrcode?.base64 || data?.qrcode?.code || data?.base64;
+  const data = await call('/instance/connect', 'POST', {
+    browser: 'auto',
+    systemName: instanciaNome,
+    proxy_managed_country: 'br',
+  });
+  const qr = data?.qrcode?.base64 || data?.qr || data?.base64 || data?.qrCode;
   return { qr, status: 'CONECTANDO' };
 }
 
-/** Reobtém o QR Code de uma instância já criada (ex.: usuário reabre a tela). */
+/** Reobtém o QR Code / status de uma instância (GET /instance/status). */
 export async function obterQrCode(instanciaNome: string): Promise<{ qr?: string }> {
-  const data = await call(`/instance/connect/${encodeURIComponent(instanciaNome)}`, 'GET');
-  const qr = data?.qrcode?.base64 || data?.base64 || data?.code;
-  return { qr };
+  try {
+    const data = await call(`/instance/status?instanceName=${encodeURIComponent(instanciaNome)}`, 'GET');
+    const qr = data?.qrcode?.base64 || data?.qr || data?.base64 || data?.qrCode;
+    return { qr };
+  } catch {
+    return {};
+  }
 }
 
-/** Estado da conexão: 'open' (conectado), 'connecting', 'close'. */
+/** Estado da conexão via GET /instance/status */
 export async function obterStatus(instanciaNome: string): Promise<'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'> {
   try {
-    const data = await call(`/instance/connectionState/${encodeURIComponent(instanciaNome)}`, 'GET');
-    const state = data?.instance?.state || data?.state;
-    if (state === 'open') return 'CONECTADO';
-    if (state === 'connecting') return 'CONECTANDO';
+    const data = await call(`/instance/status?instanceName=${encodeURIComponent(instanciaNome)}`, 'GET');
+    const state = data?.state || data?.status || data?.instance?.state;
+    if (state === 'connected') return 'CONECTADO';
+    if (state === 'connecting' || state === 'hibernated') return 'CONECTANDO';
     return 'DESCONECTADO';
   } catch {
     return 'DESCONECTADO';
   }
 }
 
-/** Desconecta (logout) a instância sem apagá-la. */
+/** Desconecta a instância. */
 export async function desconectarInstancia(instanciaNome: string): Promise<void> {
-  await call(`/instance/logout/${encodeURIComponent(instanciaNome)}`, 'DELETE').catch(() => {});
+  await call('/instance/disconnect', 'POST', { instanceName: instanciaNome }).catch(() => {});
 }
 
-/** Apaga a instância da Evolution de vez (logout + delete). */
+/** Deleta a instância. */
 export async function deletarInstancia(instanciaNome: string): Promise<void> {
-  await call(`/instance/logout/${encodeURIComponent(instanciaNome)}`, 'DELETE').catch(() => {});
-  await call(`/instance/delete/${encodeURIComponent(instanciaNome)}`, 'DELETE').catch(() => {});
+  await call(`/instance/delete?instanceName=${encodeURIComponent(instanciaNome)}`, 'DELETE').catch(() => {});
 }
 
-/** Normaliza um telefone BR para o formato que a Evolution espera (JID sem máscara). */
+/** Normaliza telefone BR para formato internacional sem caracteres especiais. */
 export function normalizarNumero(numero: string): string {
   let n = (numero || '').replace(/\D/g, '');
-  if (n.length <= 11 && !n.startsWith('55')) n = `55${n}`; // assume Brasil
+  if (n.length <= 11 && !n.startsWith('55')) n = `55${n}`;
   return n;
 }
 
-/**
- * Envia uma mensagem de texto. Retorna o id externo da mensagem (para idempotência).
- */
+/** Envia mensagem de texto via POST /send/text */
 export async function enviarTexto(
   instanciaNome: string,
   numero: string,
   texto: string,
 ): Promise<{ externo_id?: string }> {
-  const data = await call(`/message/sendText/${encodeURIComponent(instanciaNome)}`, 'POST', {
+  const data = await call('/send/text', 'POST', {
+    instanceName: instanciaNome,
     number: normalizarNumero(numero),
     text: texto,
   });
-  const externo_id = data?.key?.id || data?.id;
+  const externo_id = data?.id || data?.key?.id || data?.messageId;
   return { externo_id };
 }
 
 /**
- * Envia um áudio (gravado no Inbox) como mensagem de voz.
- * `audioDataUrlOuBase64` pode vir como data URL (data:<mime>;base64,...) ou base64 puro.
- *
- * A Evolution é exigente e varia por versão. Para ser DEFINITIVO, tentamos em
- * ordem várias formas até uma funcionar, capturando o 400 de cada:
- *   1) sendWhatsAppAudio com base64 PURO (sem prefixo data:)  ← mais comum
- *   2) sendWhatsAppAudio com data URL completo
- *   3) sendMedia (mediatype audio) com base64 puro            ← fallback robusto
+ * Envia áudio como mensagem de voz via POST /send/audio (UazAPI).
+ * Recebe base64 puro ou data URL.
  */
 export async function enviarAudio(
   instanciaNome: string,
   numero: string,
   audioDataUrlOuBase64: string,
 ): Promise<{ externo_id?: string }> {
-  const inst = encodeURIComponent(instanciaNome);
-  const number = normalizarNumero(numero);
-  // SEMPRE extrai o base64 PURO (sem o prefixo data:...;base64,). A Evolution
-  // recusa data URL com prefixo no sendMedia ("Owned media must be a url or
-  // base64"); o endpoint correto p/ voz é o sendWhatsAppAudio com base64 puro.
   const m = audioDataUrlOuBase64.match(/^data:([^;]+);base64,(.*)$/s);
-  const mime = m ? m[1] : 'audio/ogg';
   const base64Puro = (m ? m[2] : audioDataUrlOuBase64).replace(/\s/g, '');
 
-  // Ordem da mais compatível p/ menos. O sendWhatsAppAudio (PTT) com base64 puro
-  // é o que funciona na Evolution v2/Baileys; `encoding: true` força a conversão
-  // interna do container (webm/opus → ogg) quando há ffmpeg. As variações cobrem
-  // diferenças de versão (delay/encoding opcionais).
-  const tentativas: Array<{ path: string; body: any; nota: string }> = [
-    { path: `/message/sendWhatsAppAudio/${inst}`, nota: 'wpAudio+encoding', body: { number, audio: base64Puro, encoding: true } },
-    { path: `/message/sendWhatsAppAudio/${inst}`, nota: 'wpAudio puro',     body: { number, audio: base64Puro } },
-    { path: `/message/sendWhatsAppAudio/${inst}`, nota: 'wpAudio+options',  body: { number, audio: base64Puro, options: { presence: 'recording', encoding: true } } },
-    { path: `/message/sendMedia/${inst}`,         nota: 'sendMedia b64puro',body: { number, mediatype: 'audio', mimetype: mime, media: base64Puro, fileName: 'audio.ogg' } },
-  ];
-
-  const errosPorTentativa: string[] = [];
-  for (let i = 0; i < tentativas.length; i++) {
-    const t = tentativas[i];
-    try {
-      const data = await call(t.path, 'POST', t.body);
-      const externo_id = data?.key?.id || data?.id;
-      console.log(`[WPP áudio] ENVIADO via tentativa ${i + 1} (${t.nota})`);
-      return { externo_id };
-    } catch (e: any) {
-      const msg = e?.message || String(e);
-      errosPorTentativa.push(`${t.nota}: ${msg.slice(0, 120)}`);
-      console.warn(`[WPP áudio] tentativa ${i + 1} (${t.nota}) falhou: ${msg.slice(0, 200)}`);
-    }
-  }
-  // Se TODAS falharam com "must be a url or base64" / formato, é quase certo que
-  // a Evolution não tem ffmpeg p/ converter o opus do navegador → orienta a causa.
-  const tudo = errosPorTentativa.join(' | ');
-  const provavelFfmpeg = /url or base64|convert|ffmpeg|format/i.test(tudo);
-  throw new Error(
-    `Não foi possível enviar o áudio. ${provavelFfmpeg ? 'A Evolution provavelmente está sem ffmpeg para converter o áudio do navegador. ' : ''}Detalhe: ${tudo.slice(0, 200)}`
-  );
+  const data = await call('/send/audio', 'POST', {
+    instanceName: instanciaNome,
+    number: normalizarNumero(numero),
+    audio: base64Puro,
+    encoding: true,
+  });
+  const externo_id = data?.id || data?.key?.id || data?.messageId;
+  return { externo_id };
 }
 
 /**
- * Baixa a mídia de uma mensagem como base64 (imagem/áudio/documento).
- * A url crua do WhatsApp é criptografada; este endpoint devolve o conteúdo real.
- * `mensagemKey` é o objeto data.key recebido no webhook.
+ * Baixa mídia de uma mensagem como base64.
  */
 export async function baixarMidiaBase64(
   instanciaNome: string,
   mensagemKey: any,
 ): Promise<{ base64?: string; mimetype?: string }> {
   try {
-    const data = await call(`/chat/getBase64FromMediaMessage/${encodeURIComponent(instanciaNome)}`, 'POST', {
+    const data = await call('/chat/getBase64FromMediaMessage', 'POST', {
+      instanceName: instanciaNome,
       message: { key: mensagemKey },
       convertToMp4: false,
     });
