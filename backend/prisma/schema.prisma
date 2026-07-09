@@ -114,6 +114,7 @@ model Cliente {
   historico_cnpj    HistoricoCnpjCliente[]
   eventos           EventoCliente[]
   contatos          ContatoCliente[]
+  documentos        ClienteDocumento[]
 
   @@index([email])
   @@index([empresa])
@@ -121,6 +122,29 @@ model Cliente {
   @@index([situacao])
   @@index([grupo_tecnico])
   @@index([segmento])
+}
+
+// ===== DOCUMENTOS DO CLIENTE =====
+// Arquivos (PDF, imagens, docs) vinculados a um cliente. Armazenados como base64
+// para não depender de storage externo. Limite por arquivo: ~5MB (prático para PDFs de contrato).
+model ClienteDocumento {
+  id         String  @id @default(cuid())
+  cliente_id String
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  nome       String      @db.VarChar(255)   // nome original do arquivo
+  tipo       String      @default("OUTRO")  // CONTRATO | COMPROVANTE | IDENTIDADE | NOTA_FISCAL | OUTRO
+  mime_type  String      @db.VarChar(100)   // application/pdf | image/jpeg | image/png | etc.
+  tamanho    Int                            // tamanho em bytes
+  conteudo   Bytes       @db.MediumBlob     // conteúdo binário do arquivo (até ~16MB)
+  descricao  String?     @db.Text
+
+  enviado_por      String?
+  enviado_por_nome String?
+  created_at       DateTime @default(now())
+
+  @@index([cliente_id])
+  @@index([tipo])
 }
 
 // Histórico de TROCAS DE CNPJ do cliente. Quando a empresa troca de CNPJ mas
