@@ -116,6 +116,7 @@ function buildProposalData(p: any) {
     planPair,
     setupOriginal: originalValue,
     setupFinal: finalValue,
+    desconto: p.desconto ?? 0,
     entryValue: p.entrada ?? 0,
     installments: p.parcelas ?? 0,
     installmentValue: p.valor_parcela ?? 0,
@@ -1685,12 +1686,18 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     const compBlock = isMEI
       ? eyebrow('O que o plano MEI inclui', NAVY) + meiList
       : eyebrow('Comparativo de planos &mdash; por que o ' + nomes.plus, NAVY) + cmpTable;
+    const descontoBadge = p.desconto > 0
+      ? '<div style="display:inline-flex;align-items:center;gap:8px;background:#dcfce7;border:1.5px solid #16a34a;border-radius:10px;padding:8px 14px;margin-bottom:12px;">' +
+          '<span style="font-size:13px;font-weight:900;color:#15803d;">&#9733; Desconto especial concedido: ' + formatMoney(p.desconto) + '</span>' +
+          '<span style="font-size:11px;color:#166534;opacity:0.8;">De ' + formatMoney(p.setupOriginal) + ' por ' + formatMoney(p.setupFinal) + '</span>' +
+        '</div>'
+      : '';
     const valuesBlock = isMEI
-      ? '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
+      ? descontoBadge + '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
           valBox('Implantação', formatMoney(p.setupFinal), 'Condição exclusiva', true, p.setupOriginal > p.setupFinal ? formatMoney(p.setupOriginal) : '') +
           valBox('Mensalidade MEI', formatMoney(p.monthlyValue), 'Plano único', true) +
         '</div>'
-      : '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
+      : descontoBadge + '<div style="display:flex;gap:12px;margin-bottom:14px;">' +
           valBox('Implantação', formatMoney(p.setupFinal), 'Condição exclusiva', true, p.setupOriginal > p.setupFinal ? formatMoney(p.setupOriginal) : '') +
           proBox +
           valBox('Mensalidade ' + nomes.plus + ' &#9733;', formatMoney(p.monthlyPlus > 0 ? p.monthlyPlus : p.monthlyValue), 'Plano recomendado', true) +
