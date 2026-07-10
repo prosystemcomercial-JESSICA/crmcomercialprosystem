@@ -257,6 +257,7 @@ export default function PropostasComerciais() {
 
   const [filterStatus, setFilterStatus] = useState('');
   const [filterVendedor, setFilterVendedor] = useState('');
+  const [filterSegmento, setFilterSegmento] = useState('');
   const [search, setSearch] = useState('');
   // Filtro de data: modo MES (padrão = mês atual) ou PERIODO (intervalo). TODOS = sem filtro.
   const mesAtualYM = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
@@ -646,6 +647,7 @@ export default function PropostasComerciais() {
     const s = search.toLowerCase();
     const okBusca = !s || p.razao_social.toLowerCase().includes(s) || (p.vendedor_nome || '').toLowerCase().includes(s);
     if (!okBusca) return false;
+    if (filterSegmento && p.segmento !== filterSegmento) return false;
     // Filtro por data de criação.
     const dt = (p as any).created_at ? new Date((p as any).created_at) : null;
     if (dataModo === 'MES' && filtroMes) {
@@ -796,6 +798,15 @@ export default function PropostasComerciais() {
             {Object.entries(STATUS_CONFIG).map(([k, v]) => (
               <option key={k} value={k}>{v.label}</option>
             ))}
+          </select>
+          <select
+            value={filterSegmento}
+            onChange={e => setFilterSegmento(e.target.value)}
+            className="ps-input text-sm"
+            style={{ width: 180 }}
+          >
+            <option value="">Todos os segmentos</option>
+            {SEGMENTOS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
           {/* Filtro de data: Mês (padrão) / Período / Todos */}
