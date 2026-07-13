@@ -46,3 +46,17 @@ e ao aceitar uma proposta o projeto de implantação nasce automaticamente no po
 ## Funis, SLAs e automações
 Definidos em `backend/src/funis.ts` (fonte única). Automações em `backend/src/automacoes.ts`:
 transição 1.5→2.1, 2.5→3.1, SLA fiscal (>5d na 2.2), e-mail Freshdesk (15d na 3.1) e NPS (3.4).
+
+### Fase 1.0 — Primeiro Contato & Diagnóstico
+Todo projeto entra na implantação por esta fase (seja pela ponte do CRM ou criado à mão),
+**antes** de qualquer conversão de dados ou instalação. Nela o técnico:
+
+1. Se apresenta ao cliente como **Técnico Responsável** pela implantação;
+2. Preenche a ficha de diagnóstico (Documento Padrão de Onboarding — ERP e PDV Farmácia):
+   dados da empresa, estrutura, infraestrutura, equipamentos, fiscal, estoque/migração,
+   financeiro, integrações, operação e treinamento;
+3. Fecha as pendências e colhe a aprovação do cliente.
+
+O avanço para a Fase 1.1 (Conversão) é **bloqueado** enquanto o checklist (21 itens) não
+estiver 100% e os campos obrigatórios não estiverem preenchidos: técnico responsável,
+contato principal, segmento, tipo de implantação e volumetria de PDVs. SLA: 2 dias.

@@ -32,7 +32,48 @@ const COMERCIAL: FaseDef[] = [
 // Todas as fases bloqueiam o avanço enquanto o checklist não estiver 100%.
 const IMPLANTACAO: FaseDef[] = [
   {
-    codigo: 'IMP_CONVERSAO', funil: 'IMPLANTACAO', nome: 'Fase 1.1 — Conversão de Dados', ordem: 1,
+    // Primeiro contato: o técnico se apresenta como responsável pela implantação e
+    // levanta o diagnóstico completo (Documento Padrão de Onboarding — ERP e PDV).
+    // Nada é instalado antes desta ficha estar fechada e aprovada pelo cliente.
+    codigo: 'IMP_KICKOFF', funil: 'IMPLANTACAO', nome: 'Fase 1.0 — Primeiro Contato & Diagnóstico', ordem: 1,
+    sla_dias: 2, checklist_obrigatorio: true,
+    exige_campos: ['tecnico_responsavel', 'contato_principal', 'segmento_atuacao', 'tipo_implantacao', 'volumetria_pdvs'],
+    checklist: [
+      // 0. Apresentação
+      'Apresentar-se ao cliente como Técnico Responsável pela implantação',
+      'Confirmar contato principal (nome, telefone e e-mail) e canal de comunicação',
+      'Explicar as etapas da implantação, prazos (SLA) e o que se espera do cliente',
+      // 1. Diagnóstico inicial
+      'Diagnóstico: Razão Social, Nome Fantasia e CNPJ confirmados',
+      'Diagnóstico: Inscrição Estadual, Regime Tributário e endereço completo',
+      'Diagnóstico: contador responsável e contato da contabilidade',
+      // 2. Estrutura da empresa
+      'Estrutura: nº de lojas (única/matriz/filiais), PDVs, computadores e usuários',
+      'Estrutura: responsável pela administração do ERP definido',
+      // 3. Infraestrutura
+      'Infra: computadores ligados, Windows atualizado e permissões de administrador',
+      'Infra: rede e internet testadas (velocidade de download/upload registrada)',
+      // 4. Equipamentos
+      'Equipamentos do caixa conferidos (leitor, impressora térmica, gaveta, Pin Pad, nobreak)',
+      'Outros equipamentos conferidos (impressora de etiquetas, balança, coletor)',
+      // 5. Fiscal
+      'Fiscal: certificado digital (A1/A3), CSC, IE e ambiente (produção/homologação)',
+      // 6. Estoque e migração
+      'Estoque: sistema anterior, escopo da migração e volume aproximado de produtos',
+      'Estoque: controle de lote, validade e medicamentos controlados definido',
+      // 7-8. Financeiro e integrações
+      'Financeiro: módulos utilizados e formas de pagamento mapeados',
+      'Integrações mapeadas (TEF, PBM, Farmácia Popular, convênios, e-commerce)',
+      // 9-10. Operação e treinamento
+      'Operação: horário de funcionamento, dias de pico e janela ideal de implantação',
+      'Treinamento: perfis a treinar, nº de pessoas e modalidade (presencial/remoto)',
+      // 12-13. Fechamento
+      'Pendências registradas com responsável e prazo',
+      'Documento de onboarding aprovado e assinado pelo cliente',
+    ],
+  },
+  {
+    codigo: 'IMP_CONVERSAO', funil: 'IMPLANTACAO', nome: 'Fase 1.1 — Conversão de Dados', ordem: 2,
     sla_condicional: { campo: 'tipo_implantacao', mapa: { BANCO_ZERADO: 3, MIGRACAO_DADOS: 30 } }, // condicional p/ sistema legado (20-30d)
     checklist_obrigatorio: true,
     checklist: [
@@ -49,7 +90,7 @@ const IMPLANTACAO: FaseDef[] = [
     ],
   },
   {
-    codigo: 'IMP_SETUP', funil: 'IMPLANTACAO', nome: 'Fase 1.2 — Setup de Infraestrutura e Instalação', ordem: 2,
+    codigo: 'IMP_SETUP', funil: 'IMPLANTACAO', nome: 'Fase 1.2 — Setup de Infraestrutura e Instalação', ordem: 3,
     sla_dias: 3, checklist_obrigatorio: true,
     checklist: [
       'Instalação do servidor, terminais e Caixa',
@@ -63,7 +104,7 @@ const IMPLANTACAO: FaseDef[] = [
     ],
   },
   {
-    codigo: 'IMP_GOLIVE', funil: 'IMPLANTACAO', nome: 'Fase 1.3 — Homologação e Go-Live', ordem: 3,
+    codigo: 'IMP_GOLIVE', funil: 'IMPLANTACAO', nome: 'Fase 1.3 — Homologação e Go-Live', ordem: 4,
     sla_dias: 2, checklist_obrigatorio: true,
     checklist: [
       'Testar Cadastro de Clientes',
@@ -149,6 +190,21 @@ export const OPCOES = {
     { v: 'A1', l: 'A1 (Arquivo)' },
     { v: 'A3', l: 'A3 (Cartão/Token)' },
     { v: 'NAO_POSSUI', l: 'Não Possui' },
+  ],
+  // ── Diagnóstico do primeiro contato (Fase 1.0) ──
+  tipo_estrutura: [
+    { v: 'LOJA_UNICA', l: 'Loja única' },
+    { v: 'MATRIZ', l: 'Matriz' },
+    { v: 'MATRIZ_FILIAIS', l: 'Matriz + Filiais' },
+  ],
+  ambiente_fiscal: [
+    { v: 'PRODUCAO', l: 'Produção' },
+    { v: 'HOMOLOGACAO', l: 'Homologação' },
+  ],
+  modalidade_treinamento: [
+    { v: 'PRESENCIAL', l: 'Presencial' },
+    { v: 'REMOTO', l: 'Remoto' },
+    { v: 'HIBRIDO', l: 'Híbrido' },
   ],
 };
 

@@ -32,10 +32,11 @@ export async function ponteRoutes(fastify: FastifyInstance, options: { prisma: P
     const existente = await prisma.projetoImplantacao.findFirst({ where: { contrato_crm_id: body.data.contrato_crm_id } });
     if (existente) return reply.send({ status: 'success', data: existente, message: 'Projeto já existia (idempotente)' });
 
-    // Nasce no Funil 2 — Kick-off (a venda foi fechada no comercial).
-    const kickoff = FASES.find(f => f.codigo === 'IMP_CONVERSAO')!;
+    // Nasce no Funil 2 — Fase 1.0 (Primeiro Contato & Diagnóstico). O técnico se
+    // apresenta e levanta a ficha de onboarding ANTES de qualquer conversão/instalação.
+    const kickoff = FASES.find(f => f.codigo === 'IMP_KICKOFF')!;
     const data: any = {
-      funil: 'IMPLANTACAO', fase: 'IMP_CONVERSAO', fase_desde: new Date(),
+      funil: 'IMPLANTACAO', fase: 'IMP_KICKOFF', fase_desde: new Date(),
       data_fechamento_comercial: new Date(), // início do TTV
       tipo_servico: body.data.tipo_servico || 'IMPLANTACAO',
     };
@@ -46,7 +47,7 @@ export async function ponteRoutes(fastify: FastifyInstance, options: { prisma: P
 
     const projeto = await prisma.projetoImplantacao.create({ data });
     await criarChecklistDaFase(prisma, projeto.id, kickoff);
-    await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_para: 'IMPLANTACAO', fase_para: 'IMP_CONVERSAO', movido_por_nome: 'Ponte CRM Comercial' } });
+    await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_para: 'IMPLANTACAO', fase_para: 'IMP_KICKOFF', movido_por_nome: 'Ponte CRM Comercial' } });
     return reply.status(201).send({ status: 'success', data: projeto });
   });
 

@@ -60,6 +60,38 @@ model ProjetoImplantacao {
   dados_contador     String? @db.Text
   csc_sefaz          String?
 
+  // ── FASE 1.0: diagnóstico do primeiro contato (Documento Padrão de Onboarding) ──
+  // Preenchidos pelo técnico na visita/call de kickoff, antes de qualquer instalação.
+  tecnico_responsavel   String?  // quem se apresentou como responsável pela implantação
+  contato_principal     String?  // nome do interlocutor do cliente
+  inscricao_estadual    String?
+  endereco              String?  @db.Text
+  // Estrutura da empresa
+  tipo_estrutura        String?  // LOJA_UNICA | MATRIZ | MATRIZ_FILIAIS
+  qtd_lojas             Int?
+  qtd_computadores      Int?
+  qtd_usuarios          Int?
+  admin_erp             String?  // responsável pela administração do ERP no cliente
+  // Infraestrutura
+  internet_download     String?
+  internet_upload       String?
+  // Fiscal
+  ambiente_fiscal       String?  // PRODUCAO | HOMOLOGACAO
+  // Estoque / migração
+  qtd_produtos          Int?     // volume aproximado a migrar
+  escopo_migracao       String?  @db.Text // o que será migrado (produtos, clientes, financeiro…)
+  // Integrações e operação
+  integracoes           String?  @db.Text // TEF, PBM, Farmácia Popular, convênios, e-commerce…
+  horario_funcionamento String?
+  data_prevista_golive  DateTime?
+  // Treinamento
+  modalidade_treinamento String? // PRESENCIAL | REMOTO | HIBRIDO
+  qtd_pessoas_treinar    Int?
+  perfis_treinamento     String? @db.Text // proprietário, gerente, caixa, compras, estoque, financeiro
+  // Fechamento do kickoff
+  pendencias_kickoff     String?  @db.Text // pendência | responsável | prazo
+  onboarding_aprovado_em DateTime? // cliente assinou/aprovou o documento de onboarding
+
   // ── Funil/fase atual ──
   funil         String @default("COMERCIAL") // COMERCIAL | IMPLANTACAO | ONBOARDING
   fase          String @default("COM_PROSPECCAO") // código da fase (ver FASES no código)

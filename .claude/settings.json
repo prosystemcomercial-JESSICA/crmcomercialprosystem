@@ -123,10 +123,38 @@
       "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $result = & \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" api \"repos/prosystemcomercial-JESSICA/crmcomercialprosystem/commits\" 2>&1; $json = $result | ConvertFrom-Json; $json | ForEach-Object { $_.commit.author.date.Substring\\(0,10\\) + \" | \" + $_.commit.message.Split\\(\"`n\"\\)[0] } | Select-Object -First 15)",
       "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $result = & \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" api \"repos/prosystemcomercial-JESSICA/crmcomercialprosystem/commits\" 2>&1; $json = $result | ConvertFrom-Json; $json | ForEach-Object { $_.commit.author.date.Substring\\(0,10\\) + \" | \" + $_.commit.message.Split\\(\"`n\"\\)[0] } | Select-Object -Skip 15 -First 15)",
       "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $env:GIT_EXEC_PATH = \"\"; & \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status 2>&1 | Select-Object -First 3)",
-      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $gitExe = \"C:\\\\Users\\\\prosy\\\\AppData\\\\Local\\\\GitHubDesktop\\\\app-3.4.20\\\\resources\\\\app\\\\git\\\\mingw64\\\\bin\\\\git.exe\"; if \\(Test-Path $gitExe\\) { & $gitExe --version } else { Write-Host \"nao encontrado\" })"
+      "PowerShell(cd \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\"; $gitExe = \"C:\\\\Users\\\\prosy\\\\AppData\\\\Local\\\\GitHubDesktop\\\\app-3.4.20\\\\resources\\\\app\\\\git\\\\mingw64\\\\bin\\\\git.exe\"; if \\(Test-Path $gitExe\\) { & $gitExe --version } else { Write-Host \"nao encontrado\" })",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" log --oneline -10)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" status --short)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" diff HEAD frontend/components/dashboard/DashboardLayout.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" diff HEAD -- frontend/components/dashboard/DashboardLayout.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add frontend/app/churn-ceo/page.tsx frontend/components/dashboard/DashboardLayout.tsx)",
+      "Bash(git -C 'c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem' commit -m ' *)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" push origin main)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add frontend/app/vendas-adicionais/page.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add frontend/app/churn-ceo/page.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add frontend/app/indicacoes/page.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add frontend/app/indicacoes/page.tsx backend/src/routes/contratos-comerciais.ts)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add backend/src/routes/complementos.ts)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add backend/prisma/schema.prisma backend/src/routes/ativos.ts frontend/lib/api-client.ts frontend/app/ativos/page.tsx frontend/app/indicacoes/page.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add frontend/app/ativos/page.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add backend/src/routes/ativos.ts frontend/lib/api-client.ts frontend/app/ativos/page.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\prosy\\\\Documents\\\\crmcomercialprosystem\" add backend/src/routes/ativos.ts)",
+      "Bash(npx ts-node -e ' *)",
+      "Bash(xargs grep -l \"salvarCadastro\\\\|atualizar_cliente\")",
+      "Bash(xargs grep -l \"atualizar_cliente\\\\|salvarCadastro\\\\|Salvar cadastro\")"
     ],
     "additionalDirectories": [
-      "C:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\frontend\\app\\p\\[token]"
+      "C:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\frontend\\app\\p\\[token]",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\backend\\src",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\backend",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\dashboard",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\pesquisas",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\pesquisa",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\indicacoes",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\ativos",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\comissoes",
+      "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\backend\\src\\routes"
     ]
   }
 }

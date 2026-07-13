@@ -3,23 +3,16 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
-const OPCOES: Record<string, { v: string; l: string }[]> = {
-  segmento_atuacao: [
-    { v: 'FARMACIA_DROGARIA', l: 'Farmácia/Drogaria' }, { v: 'PADARIA_PERECIVEIS', l: 'Padaria/Perecíveis' },
-    { v: 'VESTUARIO_CALCADOS', l: 'Vestuário/Calçados' }, { v: 'VAREJO_GERAL', l: 'Varejo Geral' }, { v: 'FOOD_SERVICE', l: 'Food Service' },
-  ],
-  regime_tributario: [{ v: 'SIMPLES_NACIONAL', l: 'Simples Nacional' }, { v: 'LUCRO_PRESUMIDO', l: 'Lucro Presumido' }, { v: 'LUCRO_REAL', l: 'Lucro Real' }],
-  tipo_implantacao: [{ v: 'BANCO_ZERADO', l: 'Banco Zerado (SLA 7 dias)' }, { v: 'MIGRACAO_DADOS', l: 'Migração de Dados (SLA 30 dias)' }],
-  tipo_certificado: [{ v: 'A1', l: 'A1 (Arquivo)' }, { v: 'A3', l: 'A3 (Cartão/Token)' }, { v: 'NAO_POSSUI', l: 'Não Possui' }],
-};
+type Opcao = { v: string; l: string };
 
 export default function FichaProjeto({ id, onClose, onChange }: { id: string | null; onClose: () => void; onChange: () => void }) {
   const novo = id === null;
   const [p, setP] = useState<any>(novo ? { cliente_nome: '', funil: 'IMPLANTACAO' } : null);
   const [funis, setFunis] = useState<any[]>([]);
+  const [opcoes, setOpcoes] = useState<Record<string, Opcao[]>>({});
   const [salvando, setSalvando] = useState(false);
 
-  useEffect(() => { api.config().then(r => setFunis(r.data.funis)).catch(() => {}); }, []);
+  useEffect(() => { api.config().then(r => { setFunis(r.data.funis); setOpcoes(r.data.opcoes || {}); }).catch(() => {}); }, []);
   useEffect(() => { if (!novo && id) api.projeto(id).then(r => setP(r.data)).catch(() => {}); }, [id, novo]);
 
   if (!p) return null;
@@ -49,17 +42,26 @@ export default function FichaProjeto({ id, onClose, onChange }: { id: string | n
   const Campo = ({ k, label, tipo = 'text' }: { k: string; label: string; tipo?: string }) => (
     <div>
       <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
-      {OPCOES[k] ? (
+      {opcoes[k] ? (
         <select value={p[k] || ''} onChange={e => setF(k, e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
           <option value="">Selecione…</option>
-          {OPCOES[k].map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+          {opcoes[k].map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
       ) : tipo === 'textarea' ? (
         <textarea value={p[k] || ''} onChange={e => setF(k, e.target.value)} rows={2} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+      ) : tipo === 'date' ? (
+        <input type="date" value={p[k] ? String(p[k]).slice(0, 10) : ''} onChange={e => setF(k, e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
       ) : (
-        <input type={tipo} value={p[k] ?? ''} onChange={e => setF(k, tipo === 'number' ? e.target.value : e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+        <input type={tipo} value={p[k] ?? ''} onChange={e => setF(k, e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
       )}
     </div>
+  );
+
+  const Secao = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
+    <>
+      <p className="text-xs font-bold text-prosystem-600 pt-2">{titulo}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
+    </>
   );
 
   return (
@@ -81,18 +83,56 @@ export default function FichaProjeto({ id, onClose, onChange }: { id: string | n
             <Campo k="email" label="E-mail" />
           </div>
 
-          {/* Campos personalizados (Parte 1) */}
-          <p className="text-xs font-bold text-prosystem-600 pt-2">Dados da implantação</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Campo k="segmento_atuacao" label="Segmento de Atuação" />
+          <Secao titulo="Primeiro contato — responsáveis">
+            <Campo k="tecnico_responsavel" label="Técnico Responsável *" />
+            <Campo k="contato_principal" label="Contato principal no cliente *" />
+          </Secao>
+
+          <Secao titulo="Dados da implantação">
+            <Campo k="segmento_atuacao" label="Segmento de Atuação *" />
             <Campo k="regime_tributario" label="Regime Tributário" />
-            <Campo k="tipo_implantacao" label="Tipo de Implantação" />
-            <Campo k="tipo_certificado" label="Certificado Digital" />
+            <Campo k="tipo_implantacao" label="Tipo de Implantação *" />
+            <Campo k="inscricao_estadual" label="Inscrição Estadual" />
             <Campo k="erp_anterior" label="ERP/Sistema Anterior" />
-            <Campo k="volumetria_pdvs" label="Volumetria de Caixas (PDVs)" tipo="number" />
+            <Campo k="endereco" label="Endereço completo" tipo="textarea" />
+            <Campo k="dados_contador" label="Contador / contabilidade" tipo="textarea" />
+          </Secao>
+
+          <Secao titulo="Estrutura da empresa">
+            <Campo k="tipo_estrutura" label="Tipo de estrutura" />
+            <Campo k="qtd_lojas" label="Quantidade de lojas" tipo="number" />
+            <Campo k="volumetria_pdvs" label="Quantidade de PDVs (caixas) *" tipo="number" />
+            <Campo k="qtd_computadores" label="Quantidade de computadores" tipo="number" />
+            <Campo k="qtd_usuarios" label="Usuários do sistema" tipo="number" />
+            <Campo k="admin_erp" label="Responsável pela administração do ERP" />
+          </Secao>
+
+          <Secao titulo="Infraestrutura e fiscal">
+            <Campo k="internet_download" label="Internet — download" />
+            <Campo k="internet_upload" label="Internet — upload" />
+            <Campo k="tipo_certificado" label="Certificado Digital" />
+            <Campo k="ambiente_fiscal" label="Ambiente fiscal" />
             <Campo k="csc_sefaz" label="ID do CSC SEFAZ" />
-            <Campo k="dados_contador" label="Dados do Contador" tipo="textarea" />
-          </div>
+          </Secao>
+
+          <Secao titulo="Estoque, migração e integrações">
+            <Campo k="qtd_produtos" label="Qtd. aproximada de produtos" tipo="number" />
+            <Campo k="escopo_migracao" label="O que será migrado" tipo="textarea" />
+            <Campo k="integracoes" label="Integrações (TEF, PBM, Farmácia Popular…)" tipo="textarea" />
+          </Secao>
+
+          <Secao titulo="Operação e treinamento">
+            <Campo k="horario_funcionamento" label="Horário de funcionamento" />
+            <Campo k="data_prevista_golive" label="Data prevista de entrada em produção" tipo="date" />
+            <Campo k="modalidade_treinamento" label="Modalidade do treinamento" />
+            <Campo k="qtd_pessoas_treinar" label="Pessoas a treinar" tipo="number" />
+            <Campo k="perfis_treinamento" label="Perfis a treinar (proprietário, caixa, compras…)" tipo="textarea" />
+          </Secao>
+
+          <Secao titulo="Fechamento do primeiro contato">
+            <Campo k="pendencias_kickoff" label="Pendências (o quê / quem / prazo)" tipo="textarea" />
+            <Campo k="onboarding_aprovado_em" label="Onboarding aprovado pelo cliente em" tipo="date" />
+          </Secao>
 
           <div className="flex justify-end">
             <button onClick={salvarCampos} disabled={salvando || !p.cliente_nome?.trim()}
@@ -110,8 +150,8 @@ export default function FichaProjeto({ id, onClose, onChange }: { id: string | n
                   <p className="text-xs font-bold text-prosystem-600 mb-2">Checklist da fase atual</p>
                   <div className="space-y-1.5">
                     {p.checklists.filter((c: any) => c.fase === p.fase).map((c: any) => (
-                      <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input type="checkbox" checked={c.concluido} onChange={() => toggleItem(c)} />
+                      <label key={c.id} className="flex items-start gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" checked={c.concluido} onChange={() => toggleItem(c)} className="mt-0.5" />
                         <span className={c.concluido ? 'line-through text-slate-400' : 'text-slate-700'}>{c.titulo}</span>
                       </label>
                     ))}
