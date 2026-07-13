@@ -7,6 +7,7 @@ import { projetosRoutes } from './routes/projetos.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { ponteRoutes } from './routes/ponte.js';
 import { iniciarSchedulerAutomacoes } from './automacoes.js';
+import { rodarMigracoes } from './migracoes.js';
 import { FUNIS, OPCOES } from './funis.js';
 
 // Garante as tabelas no boot (o Railway nem sempre roda o `start` com o db push).
@@ -63,6 +64,7 @@ const port = Number(process.env.PORT || 3002);
 fastify.listen({ port, host: '0.0.0.0' })
   .then(() => {
     console.log(`[PORTAL-IMPLANTACAO] backend na porta ${port}`);
+    rodarMigracoes(prisma);             // migrações de dados idempotentes (não bloqueiam o boot)
     iniciarSchedulerAutomacoes(prisma); // gatilhos por tempo (SLA fiscal 5d, engajamento 15d)
   })
   .catch((err) => { fastify.log.error(err); process.exit(1); });
