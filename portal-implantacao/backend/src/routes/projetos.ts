@@ -4,11 +4,36 @@ import { z } from 'zod';
 import { FASES, FASE_POR_CODIGO, FaseDef } from '../funis.js';
 import { dispararAutomacoesPosMovimento, criarChecklistDaFase } from '../automacoes.js';
 
+// Campos numéricos e de data precisam de conversão antes de ir ao Prisma (o front manda string).
+const CAMPOS_NUMERICOS = ['volumetria_pdvs', 'qtd_lojas', 'qtd_computadores', 'qtd_usuarios', 'qtd_produtos', 'qtd_pessoas_treinar'];
+const CAMPOS_DATA = ['data_prevista_golive', 'onboarding_aprovado_em'];
+
 const CAMPOS_PROJETO = [
   'cliente_nome', 'razao_social', 'nome_fantasia', 'cnpj', 'telefone', 'email',
   'segmento_atuacao', 'regime_tributario', 'tipo_implantacao', 'erp_anterior',
   'volumetria_pdvs', 'tipo_certificado', 'dados_contador', 'csc_sefaz', 'responsavel_id',
+  // Fase 1.0 — diagnóstico do primeiro contato
+  'tecnico_responsavel', 'contato_principal', 'inscricao_estadual', 'endereco',
+  'tipo_estrutura', 'qtd_lojas', 'qtd_computadores', 'qtd_usuarios', 'admin_erp',
+  'internet_download', 'internet_upload', 'ambiente_fiscal',
+  'qtd_produtos', 'escopo_migracao', 'integracoes', 'horario_funcionamento', 'data_prevista_golive',
+  'modalidade_treinamento', 'qtd_pessoas_treinar', 'perfis_treinamento',
+  'pendencias_kickoff', 'onboarding_aprovado_em',
 ];
+
+/** Converte um valor cru do request para o tipo que o Prisma espera. `''` vira null (limpar campo). */
+function coagirCampo(campo: string, valor: any): { ok: boolean; valor?: any } {
+  if (valor === '' || valor === null) return { ok: true, valor: null };
+  if (CAMPOS_NUMERICOS.includes(campo)) {
+    const n = Number(valor);
+    return Number.isFinite(n) ? { ok: true, valor: Math.trunc(n) } : { ok: false };
+  }
+  if (CAMPOS_DATA.includes(campo)) {
+    const d = new Date(valor);
+    return Number.isNaN(d.getTime()) ? { ok: false } : { ok: true, valor: d };
+  }
+  return { ok: true, valor };
+}
 
 export async function projetosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -55,8 +80,6 @@ export async function projetosRoutes(fastify: FastifyInstance, options: { prisma
   fastify.post('/projetos', async (request, reply) => {
     const body = z.object({
       cliente_nome: z.string().min(1),
-      ...Object.fromEntries(CAMPOS_PROJETO.filter(c => c !== 'cliente_nome' && c !== 'volumetria_pdvs').map(c => [c, z.string().optional()])),
-      volumetria_pdvs: z.coerce.number().int().optional(),
       funil: z.enum(['COMERCIAL', 'IMPLANTACAO', 'ONBOARDING']).optional(),
       cliente_crm_id: z.string().optional(), contrato_crm_id: z.string().optional(),
     }).passthrough().safeParse(request.body);
@@ -67,7 +90,13 @@ export async function projetosRoutes(fastify: FastifyInstance, options: { prisma
     const user = getUser(request);
 
     const data: any = { funil, fase: primeiraFase.codigo, fase_desde: new Date() };
-    for (const c of CAMPOS_PROJETO) if ((body.data as any)[c] !== undefined && (body.data as any)[c] !== '') data[c] = (body.data as any)[c];
+    for (const c of CAMPOS_PROJETO) {
+      const bruto = (body.data as any)[c];
+      if (bruto === undefined || bruto === '') continue;
+      const r = coagirCampo(c, bruto);
+      if (!r.ok) return reply.status(400).send({ status: 'error', message: `Valor inválido para "${c}"` });
+      data[c] = r.valor;
+    }
     if (body.data.cliente_crm_id) data.cliente_crm_id = body.data.cliente_crm_id;
     if (body.data.contrato_crm_id) data.contrato_crm_id = body.data.contrato_crm_id;
 
@@ -84,8 +113,9 @@ export async function projetosRoutes(fastify: FastifyInstance, options: { prisma
     const data: any = {};
     for (const c of CAMPOS_PROJETO) {
       if (raw[c] === undefined) continue;
-      if (c === 'volumetria_pdvs') { const n = Number(raw[c]); if (Number.isFinite(n)) data[c] = n; continue; }
-      data[c] = raw[c] === '' ? null : raw[c];
+      const r = coagirCampo(c, raw[c]);
+      if (!r.ok) return reply.status(400).send({ status: 'error', message: `Valor inválido para "${c}"` });
+      data[c] = r.valor;
     }
     const p = await prisma.projetoImplantacao.update({ where: { id }, data }).catch(() => null);
     if (!p) return reply.status(404).send({ status: 'error', message: 'Projeto não encontrado' });

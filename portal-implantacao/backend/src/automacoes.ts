@@ -32,13 +32,16 @@ async function marcar(prisma: PrismaClient, projetoId: string, gatilho: string, 
 
 /** Automações disparadas logo APÓS um movimento de fase (transições e NPS). */
 export async function dispararAutomacoesPosMovimento(prisma: PrismaClient, projeto: any, destino: FaseDef) {
-  // Gatilho 1 — Negócio Fechado (comercial) → entra na Implantação (Fase 1.1 Conversão).
+  // Gatilho 1 — Negócio Fechado (comercial) → entra na Implantação na Fase 1.0
+  // (Primeiro Contato & Diagnóstico): o técnico se apresenta e levanta a ficha de
+  // onboarding antes de qualquer conversão de dados.
   if (destino.codigo === 'COM_FECHADO') {
-    if (await marcar(prisma, projeto.id, 'TRANSICAO_1', 'Negócio fechado → Implantação (Conversão de Dados)')) {
-      const f = FASE_POR_CODIGO['IMP_CONVERSAO'];
-      await prisma.projetoImplantacao.update({ where: { id: projeto.id }, data: { funil: 'IMPLANTACAO', fase: 'IMP_CONVERSAO', fase_desde: new Date() } });
-      await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_de: 'COMERCIAL', fase_de: 'COM_FECHADO', funil_para: 'IMPLANTACAO', fase_para: 'IMP_CONVERSAO', movido_por_nome: 'Automação' } });
+    if (await marcar(prisma, projeto.id, 'TRANSICAO_1', 'Negócio fechado → Implantação (Primeiro Contato & Diagnóstico)')) {
+      const f = FASE_POR_CODIGO['IMP_KICKOFF'];
+      await prisma.projetoImplantacao.update({ where: { id: projeto.id }, data: { funil: 'IMPLANTACAO', fase: 'IMP_KICKOFF', fase_desde: new Date() } });
+      await prisma.historicoFase.create({ data: { projeto_id: projeto.id, funil_de: 'COMERCIAL', fase_de: 'COM_FECHADO', funil_para: 'IMPLANTACAO', fase_para: 'IMP_KICKOFF', movido_por_nome: 'Automação' } });
       await criarChecklistDaFase(prisma, projeto.id, f);
+      await alertaGestor(`👋 PRIMEIRO CONTATO: ${projeto.cliente_nome} entrou na implantação. Designar técnico responsável e agendar o kickoff (SLA 2 dias).`);
     }
     return;
   }
