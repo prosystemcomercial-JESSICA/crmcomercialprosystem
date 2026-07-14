@@ -239,7 +239,7 @@ export default function AtivosPage() {
 
         {/* Abas (gestão tem painel) */}
         {isGestor && (
-          <div className="flex gap-2 mb-4 border-b" style={{ borderColor: 'var(--t-border)' }}>
+          <div className="flex gap-2 mb-4 border-b" style={{ borderColor: 'var(--t-card-border)' }}>
             {[{ id: 'fila', label: '📋 Minhas filas / Kanban' }, { id: 'painel', label: '📊 Painel da Supervisão' }].map(a => (
               <button key={a.id} onClick={() => setAba(a.id as any)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${aba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent'}`}
@@ -252,14 +252,14 @@ export default function AtivosPage() {
         {(!isGestor || aba === 'fila') && (
           <>
             {campanhas.length === 0 ? (
-              <div className="rounded-xl border p-8 text-center" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)', color: 'var(--t-text-secondary)' }}>Nenhuma fila de ativos designada {isGestor ? '— clique em "Designar fila".' : 'para você ainda.'}</div>
+              <div className="rounded-xl border p-8 text-center" style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Nenhuma fila de ativos designada {isGestor ? '— clique em "Designar fila".' : 'para você ainda.'}</div>
             ) : (
               <>
                 <div className="flex gap-2 flex-wrap mb-4">
                   {campanhas.map(c => (
                     <button key={c.id} onClick={() => setCampAtiva(c.id)}
                       className={`px-3 py-2 rounded-lg text-sm border ${campAtiva === c.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200'}`}
-                      style={campAtiva !== c.id ? { background: 'var(--t-surface)', color: 'var(--t-text-secondary)' } : {}}>
+                      style={campAtiva !== c.id ? { background: 'var(--t-card-bg)', color: 'var(--t-text-secondary)' } : {}}>
                       {c.grupo_tecnico} {!isGestor ? '' : `· ${c.vendedor_nome || ''}`}
                       <span className="ml-2 text-xs" style={{ color: 'var(--t-text-muted)' }}>{c.progresso?.cobertura_pct ?? 0}% · meta {c.meta_cobertura_pct}%</span>
                     </button>
@@ -280,10 +280,10 @@ export default function AtivosPage() {
                   <input value={buscaAtivo} onChange={e => setBuscaAtivo(e.target.value)}
                     placeholder="🔍 Buscar cliente por nome ou código…"
                     className="flex-1 min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    style={{ background: 'var(--t-surface)' }} />
+                    style={{ background: 'var(--t-card-bg)' }} />
                   <select value={filtroEtapa} onChange={e => setFiltroEtapa(e.target.value)}
                     className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                    style={{ background: 'var(--t-surface)' }}>
+                    style={{ background: 'var(--t-card-bg)' }}>
                     <option value="">Todas as etapas</option>
                     {ETAPAS.map(et => <option key={et.id} value={et.id}>{et.label}</option>)}
                   </select>
@@ -299,11 +299,11 @@ export default function AtivosPage() {
                   {/* Seta ◀ — rola para a esquerda (fixa no meio vertical da área visível) */}
                   <button onClick={() => kanbanRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
                     className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-left -ml-3 w-9 h-9 rounded-full shadow-lg border"
-                    style={{ position: 'sticky', background: 'var(--t-surface)', borderColor: 'var(--t-border)', color: 'var(--t-text-primary)' }} title="Rolar para a esquerda">◀</button>
+                    style={{ position: 'sticky', background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }} title="Rolar para a esquerda">◀</button>
                   {/* Seta ▶ — rola para a direita */}
                   <button onClick={() => kanbanRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
                     className="hidden md:flex items-center justify-center sticky top-1/2 z-20 float-right -mr-3 w-9 h-9 rounded-full shadow-lg border"
-                    style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)', color: 'var(--t-text-primary)' }} title="Rolar para a direita">▶</button>
+                    style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }} title="Rolar para a direita">▶</button>
                 <div ref={kanbanRef} className="flex gap-3 overflow-x-auto pb-2 scroll-smooth">
                   {ETAPAS.filter(et => !filtroEtapa || et.id === filtroEtapa).map(et => {
                     const termo = buscaAtivo.trim().toLowerCase();
@@ -320,7 +320,7 @@ export default function AtivosPage() {
                             <div key={c.id}
                               onClick={() => abrirFicha(c, 'dados')}
                               className={`rounded-lg border p-2.5 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all ${c.oculto ? 'border-dashed opacity-70' : ''}`}
-                              style={{ background: 'var(--t-surface)', borderColor: c.oculto ? 'var(--t-border)' : 'var(--t-border-light, var(--t-border))' }}>
+                              style={{ background: 'var(--t-card-bg)', borderColor: c.oculto ? 'var(--t-card-border)' : 'var(--t-border-light, var(--t-card-border))' }}>
                               <p className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>
                                 {c.cliente_codigo ? `${c.cliente_codigo} · ` : ''}{c.cliente_nome || 'Cliente'}
                                 {c.plano && <span className="ml-1.5 align-middle text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: planoCor(c.plano) }}>{c.plano}</span>}
@@ -385,7 +385,7 @@ export default function AtivosPage() {
               <KPI label="Valor gerado" valor={`R$ ${Number(painel.totais.valor_gerado || 0).toLocaleString('pt-BR')}`} cor="text-emerald-700" />
             </div>
 
-            <div className="rounded-xl border p-5" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)' }}>
+            <div className="rounded-xl border p-5" style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)' }}>
               <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--t-text-primary)' }}>Filas por vendedor</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -393,7 +393,7 @@ export default function AtivosPage() {
                     {['Grupo / Técnico', 'Vendedor', 'Cobertura', 'Saudáveis', 'Em risco', 'Casos', 'Vendas', 'Valor gerado', 'Nota média'].map(h => <th key={h} className="py-1.5 pr-3">{h}</th>)}
                   </tr></thead>
                   <tbody>{painel.filas.map((f: any) => (
-                    <tr key={f.campanha_id} className="border-b" style={{ borderColor: 'var(--t-border-light, var(--t-border))' }}>
+                    <tr key={f.campanha_id} className="border-b" style={{ borderColor: 'var(--t-border-light, var(--t-card-border))' }}>
                       <td className="py-2 pr-3 font-medium" style={{ color: 'var(--t-text-primary)' }}>{f.grupo_tecnico}</td>
                       <td className="pr-3" style={{ color: 'var(--t-text-secondary)' }}>{f.vendedor_nome || '—'}</td>
                       <td className="pr-3" style={{ color: f.bateu_meta ? '#16a34a' : '#d97706' }}>{f.cobertura_pct}% <span className="text-gray-400 text-xs">/ {f.meta_cobertura_pct}%</span></td>
@@ -409,11 +409,11 @@ export default function AtivosPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border p-5" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)' }}>
+            <div className="rounded-xl border p-5" style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)' }}>
               <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--t-text-primary)' }}>🩺 Saúde da carteira por técnico</h2>
               <div className="space-y-2">
                 {painel.ranking_tecnicos.map((g: any, i: number) => (
-                  <div key={g.grupo_tecnico} className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: 'var(--t-border)' }}>
+                  <div key={g.grupo_tecnico} className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: 'var(--t-card-border)' }}>
                     <span className="font-medium" style={{ color: 'var(--t-text-primary)' }}>{i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}{g.grupo_tecnico}</span>
                     <span className="text-sm flex items-center gap-3">
                       {g.indice_saude != null && <b style={{ color: 'var(--t-text-primary)' }}>{g.indice_saude}% saúde</b>}
@@ -437,7 +437,7 @@ export default function AtivosPage() {
       {/* ─── Modal: Designar fila ─── */}
       {showNova && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-          <div className="rounded-2xl w-full max-w-md p-6 space-y-3" style={{ background: 'var(--t-surface)' }}>
+          <div className="rounded-2xl w-full max-w-md p-6 space-y-3" style={{ background: 'var(--t-card-bg)' }}>
             <h2 className="text-lg font-semibold">Designar fila de Ativos</h2>
             <div>
               <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Grupo técnico *</label>
@@ -469,7 +469,7 @@ export default function AtivosPage() {
       {/* ─── Modal: Registrar contato (questionário) — só abre quando a ficha NÃO está aberta ─── */}
       {editando && !ficha && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--t-surface)' }}>
+          <div className="rounded-2xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--t-card-bg)' }}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Questionário — {editando.cliente_nome}</h2>
               <button onClick={() => setEditando(null)} className="text-xl leading-none" style={{ color: 'var(--t-text-muted)' }}>×</button>
@@ -488,7 +488,7 @@ export default function AtivosPage() {
                     {[['Sim', true], ['Não', false]].map(([txt, val]) => (
                       <button key={txt as string} onClick={() => setEditando({ ...editando, [campo as string]: val })}
                         className={`px-3 py-1 rounded text-xs border ${editando[campo as string] === val ? (val ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300') : 'border-gray-200'}`}
-                        style={editando[campo as string] !== val ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{txt}</button>
+                        style={editando[campo as string] !== val ? { background: 'var(--t-card-bg)', color: 'var(--t-text-muted)' } : {}}>{txt}</button>
                     ))}
                   </div>
                 </div>
@@ -501,7 +501,7 @@ export default function AtivosPage() {
                 {[1, 2, 3, 4, 5].map(n => (
                   <button key={n} onClick={() => setEditando({ ...editando, nota_prosystem: n })}
                     className={`w-9 h-9 rounded-lg text-sm font-bold border ${Number(editando.nota_prosystem) === n ? 'bg-amber-100 text-amber-700 border-amber-300' : 'border-gray-200'}`}
-                    style={Number(editando.nota_prosystem) !== n ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{n}</button>
+                    style={Number(editando.nota_prosystem) !== n ? { background: 'var(--t-card-bg)', color: 'var(--t-text-muted)' } : {}}>{n}</button>
                 ))}
               </div>
             </div>
@@ -512,7 +512,7 @@ export default function AtivosPage() {
                 {SAUDE.map(s => (
                   <button key={s} onClick={() => setEditando({ ...editando, saude: s })}
                     className={`px-2.5 py-1 rounded text-xs font-semibold border ${editando.saude === s ? 'text-white' : 'border-gray-200'}`}
-                    style={editando.saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : { background: 'var(--t-surface)', color: 'var(--t-text-muted)' }}>{s}</button>
+                    style={editando.saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : { background: 'var(--t-card-bg)', color: 'var(--t-text-muted)' }}>{s}</button>
                 ))}
               </div>
             </div>
@@ -621,7 +621,7 @@ export default function AtivosPage() {
       {/* ─── Modal: Ficha do cliente com abas ─── */}
       {ficha && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-          <div className="rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" style={{ background: 'var(--t-surface)' }}>
+          <div className="rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" style={{ background: 'var(--t-card-bg)' }}>
             {/* Cabeçalho fixo */}
             {(() => {
               const d = ficha.dados; const cli = d?.cliente; const c = ficha.contato;
@@ -629,7 +629,7 @@ export default function AtivosPage() {
               const wpp = (t?: string) => { const n = fone(t); return n ? (n.startsWith('55') ? n : '55' + n) : ''; };
               return (
                 <>
-                  <div className="flex items-start justify-between p-5 border-b" style={{ borderColor: 'var(--t-border)' }}>
+                  <div className="flex items-start justify-between p-5 border-b" style={{ borderColor: 'var(--t-card-border)' }}>
                     <div>
                       <h2 className="text-lg font-semibold" style={{ color: 'var(--t-text-primary)' }}>{cli?.razao_social || cli?.nome_fantasia || cli?.nome || c.cliente_nome}</h2>
                       <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{cli?.codigo ? `Código ${cli.codigo}` : ''}{cli?.grupo_tecnico ? ` · ${cli.grupo_tecnico}` : ''}</p>
@@ -642,7 +642,7 @@ export default function AtivosPage() {
                   </div>
 
                   {/* Abas */}
-                  <div className="flex border-b px-5" style={{ borderColor: 'var(--t-border)' }}>
+                  <div className="flex border-b px-5" style={{ borderColor: 'var(--t-card-border)' }}>
                     {([
                       { id: 'dados', label: '📋 Dados' },
                       { id: 'atualizacoes', label: '✏️ Atualizações' },
@@ -697,7 +697,7 @@ export default function AtivosPage() {
                             <div>
                               <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--t-text-secondary)' }}>Atualizações recentes</p>
                               {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
-                                <div key={ev.id} className="border-b py-1.5" style={{ borderColor: 'var(--t-border)' }}>
+                                <div key={ev.id} className="border-b py-1.5" style={{ borderColor: 'var(--t-card-border)' }}>
                                   <p className="text-sm" style={{ color: 'var(--t-text-primary)' }}>{ev.titulo}</p>
                                   {ev.descricao && <p className="text-xs whitespace-pre-line" style={{ color: 'var(--t-text-secondary)' }}>{ev.descricao}</p>}
                                   <p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
@@ -711,7 +711,7 @@ export default function AtivosPage() {
                         {fichaAba === 'atualizacoes' && (
                           <div className="space-y-3">
                             {/* Campo livre para nova atualização */}
-                            <div className="rounded-lg border border-gray-200 p-3 space-y-2" style={{ background: 'var(--t-surface)' }}>
+                            <div className="rounded-lg border border-gray-200 p-3 space-y-2" style={{ background: 'var(--t-card-bg)' }}>
                               <p className="text-xs font-semibold" style={{ color: 'var(--t-text-secondary)' }}>Nova atualização</p>
                               <textarea
                                 value={novaAtualizacao}
@@ -744,7 +744,7 @@ export default function AtivosPage() {
                             <div>
                               <p className="text-xs font-bold uppercase mb-2" style={{ color: 'var(--t-text-secondary)' }}>Histórico</p>
                               {d?.eventos?.length > 0 ? d.eventos.map((ev: any) => (
-                                <div key={ev.id} className="border-b py-2" style={{ borderColor: 'var(--t-border)' }}>
+                                <div key={ev.id} className="border-b py-2" style={{ borderColor: 'var(--t-card-border)' }}>
                                   <p className="text-sm" style={{ color: 'var(--t-text-primary)' }}>{ev.titulo}</p>
                                   {ev.descricao && <p className="text-xs whitespace-pre-line mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{ev.descricao}</p>}
                                   <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{new Date(ev.created_at).toLocaleString('pt-BR')}{ev.feito_por_nome ? ` · ${ev.feito_por_nome}` : ''}</p>
@@ -771,7 +771,7 @@ export default function AtivosPage() {
                                     {[['Sim', true], ['Não', false]].map(([txt, val]) => (
                                       <button key={txt as string} onClick={() => setEditando({ ...(editando || c), [campo as string]: val })}
                                         className={`px-3 py-1 rounded text-xs border ${(editando || c)[campo as string] === val ? (val ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300') : 'border-gray-200'}`}
-                                        style={(editando || c)[campo as string] !== val ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{txt}</button>
+                                        style={(editando || c)[campo as string] !== val ? { background: 'var(--t-card-bg)', color: 'var(--t-text-muted)' } : {}}>{txt}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -783,7 +783,7 @@ export default function AtivosPage() {
                                 {[1,2,3,4,5].map(n => (
                                   <button key={n} onClick={() => setEditando({ ...(editando || c), nota_prosystem: n })}
                                     className={`w-9 h-9 rounded-lg text-sm font-bold border ${Number((editando || c).nota_prosystem) === n ? 'bg-amber-100 text-amber-700 border-amber-300' : 'border-gray-200'}`}
-                                    style={Number((editando || c).nota_prosystem) !== n ? { background: 'var(--t-surface)', color: 'var(--t-text-muted)' } : {}}>{n}</button>
+                                    style={Number((editando || c).nota_prosystem) !== n ? { background: 'var(--t-card-bg)', color: 'var(--t-text-muted)' } : {}}>{n}</button>
                                 ))}
                               </div>
                             </div>
@@ -793,7 +793,7 @@ export default function AtivosPage() {
                                 {SAUDE.map(s => (
                                   <button key={s} onClick={() => setEditando({ ...(editando || c), saude: s })}
                                     className={`px-2.5 py-1 rounded text-xs font-semibold border ${(editando || c).saude === s ? 'text-white' : 'border-gray-200'}`}
-                                    style={(editando || c).saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : { background: 'var(--t-surface)', color: 'var(--t-text-muted)' }}>{s}</button>
+                                    style={(editando || c).saude === s ? { background: SAUDE_COR[s], borderColor: SAUDE_COR[s] } : { background: 'var(--t-card-bg)', color: 'var(--t-text-muted)' }}>{s}</button>
                                 ))}
                               </div>
                             </div>
@@ -921,7 +921,7 @@ export default function AtivosPage() {
                                     <button type="button" onClick={() => {
                                       const base = editando || c;
                                       setEditando({ ...base, cli_contatos_adicionais: [...(base.cli_contatos_adicionais || []), { nome: '', cargo: '', telefone: '' }] });
-                                    }} className="w-full py-1.5 text-xs font-medium border border-dashed rounded-lg hover:border-green-400 hover:text-green-600" style={{ borderColor: 'var(--t-border)', color: 'var(--t-text-secondary)' }}>
+                                    }} className="w-full py-1.5 text-xs font-medium border border-dashed rounded-lg hover:border-green-400 hover:text-green-600" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
                                       + Adicionar contato
                                     </button>
                                   </div>
@@ -1012,7 +1012,7 @@ export default function AtivosPage() {
 
                             {/* Form nova oportunidade */}
                             {novaOport ? (
-                              <div className="rounded-lg border border-blue-200 p-3 space-y-2" style={{ background: 'var(--t-surface)' }}>
+                              <div className="rounded-lg border border-blue-200 p-3 space-y-2" style={{ background: 'var(--t-card-bg)' }}>
                                 <p className="text-xs font-semibold text-blue-700">Nova oportunidade</p>
                                 <select value={novaOport.parceiroId} onChange={e => setNovaOport({ ...novaOport, parceiroId: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                                   <option value="">— escolha o produto/oferta —</option>
@@ -1059,7 +1059,7 @@ export default function AtivosPage() {
                   </div>
 
                   {/* Footer fixo */}
-                  <div className="flex justify-between items-center px-5 py-3 border-t" style={{ borderColor: 'var(--t-border)' }}>
+                  <div className="flex justify-between items-center px-5 py-3 border-t" style={{ borderColor: 'var(--t-card-border)' }}>
                     <button onClick={() => { setFicha(null); setEditando(null); }} className="px-4 py-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>Fechar</button>
                     <button onClick={() => { setFichaAba('questionario'); if (!editando) setEditando({ ...c }); }}
                       className="px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg">
@@ -1080,7 +1080,7 @@ export default function AtivosPage() {
 
 function KPI({ label, valor, cor = '' }: { label: string; valor: any; cor?: string }) {
   return (
-    <div className="border rounded-xl p-3" style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)' }}>
+    <div className="border rounded-xl p-3" style={{ background: 'var(--t-card-bg)', borderColor: 'var(--t-card-border)' }}>
       <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{label}</p>
       <p className={`text-xl font-bold ${cor}`} style={!cor ? { color: 'var(--t-text-primary)' } : {}}>{valor}</p>
     </div>
