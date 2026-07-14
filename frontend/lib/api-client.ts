@@ -1076,6 +1076,12 @@ class ApiClient {
     return this.client.get(`/propostas-comerciais/${id}`);
   }
 
+  // Métricas do gerador (produção, fechamento, segmentos e tempos/SLA).
+  // Respeita os mesmos filtros da tela; os tempos vêm do histórico de status.
+  async getMetricasPropostas(params?: { mes?: string; de?: string; ate?: string; status?: string; segmento?: string; vendedor?: string }) {
+    return this.client.get('/propostas-comerciais/metricas', { params });
+  }
+
   async createPropostaComercial(data: any) {
     return this.client.post('/propostas-comerciais', data);
   }

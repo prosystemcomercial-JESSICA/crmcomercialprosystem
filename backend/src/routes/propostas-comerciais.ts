@@ -7,6 +7,29 @@ import * as evo from '@/services/evolution.service';
 import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarIdPropostaUnico } from '@/lib/ids';
 
+// ── Métricas do gerador ────────────────────────────────────────────────────
+// "Fechada" inclui os estados de contrato: o aceite do cliente já move a proposta
+// para CONTRATO_EM_GERACAO automaticamente, então parar em ACEITA subestimaria.
+const FECHADAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
+const PERDIDAS = ['RECUSADA', 'PERDIDA'];
+
+/**
+ * O campo `segmento` é texto livre ("Farmácia / Drogaria", "Padaria", "Outro"…),
+ * então agrupamos por palavra-chave. Sem match → VAREJO (balde padrão).
+ */
+function segmentoDe(s?: string | null): 'FARMACIA' | 'PADARIA' | 'VAREJO' {
+  const t = (s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // tira acentos
+    .toLowerCase();
+  if (/farm|drog/.test(t)) return 'FARMACIA';
+  if (/padar|confeit|pao|paes/.test(t)) return 'PADARIA';
+  return 'VAREJO';
+}
+
+const soma  = (ns: number[]) => ns.reduce((a, b) => a + b, 0);
+const media = (ns: number[]) => (ns.length ? Math.round((soma(ns) / ns.length) * 10) / 10 : 0);
+const pct   = (parte: number, todo: number) => (todo ? Math.round((parte / todo) * 1000) / 10 : 0);
+
 const PropostaSchema = z.object({
   razao_social:         z.string().min(1),
   nome_fantasia:        z.string().optional(),
@@ -167,6 +190,147 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     };
 
     return reply.send({ status: 'success', data: { propostas, total, stats } });
+  });
+
+  // ===== MÉTRICAS DO GERADOR (respeita os MESMOS filtros da tela) =====
+  // Produção, fechamento, quebra por segmento e TEMPOS (SLA por etapa + tempo até
+  // a decisão). Os tempos são reconstruídos do PropostaHistorico (tipo STATUS), que
+  // já grava cada mudança de status com valor_anterior/valor_novo/created_at.
+  fastify.get('/propostas-comerciais/metricas', async (request, reply) => {
+    const q = z.object({
+      mes:      z.string().optional(),  // 'YYYY-MM' — período analisado
+      de:       z.string().optional(),  // alternativa: intervalo livre
+      ate:      z.string().optional(),
+      status:   z.string().optional(),
+      segmento: z.string().optional(),  // FARMACIA | PADARIA | VAREJO
+      vendedor: z.string().optional(),
+    }).safeParse(request.query);
+    if (!q.success) return reply.status(400).send({ status: 'error', message: 'Filtros inválidos' });
+
+    // Janela de tempo: por mês (padrão) ou intervalo livre.
+    let inicio: Date | undefined, fim: Date | undefined;
+    if (q.data.mes && /^\d{4}-\d{2}$/.test(q.data.mes)) {
+      const [a, m] = q.data.mes.split('-').map(Number);
+      inicio = new Date(a, m - 1, 1);
+      fim    = new Date(a, m, 1); // exclusivo
+    } else if (q.data.de || q.data.ate) {
+      if (q.data.de)  inicio = new Date(q.data.de);
+      if (q.data.ate) { fim = new Date(q.data.ate); fim.setDate(fim.getDate() + 1); }
+    }
+
+    // Mesmo escopo da listagem: vendedor só vê as próprias; excluídas ficam fora.
+    const where: any = { ...ownerWhere(request, 'PropostaComercial'), deleted_at: null };
+    if (inicio || fim) where.created_at = { ...(inicio && { gte: inicio }), ...(fim && { lt: fim }) };
+    if (q.data.status)   where.status = q.data.status;
+    if (q.data.vendedor) where.vendedor_nome = { contains: q.data.vendedor, mode: 'insensitive' };
+
+    const propostas = await prisma.propostaComercial.findMany({
+      where,
+      select: {
+        id: true, razao_social: true, segmento: true, status: true, valor_final: true,
+        created_at: true, data_aceite: true, data_fechamento: true,
+        historico: {
+          where: { tipo: 'STATUS' },
+          orderBy: { created_at: 'asc' },
+          select: { valor_anterior: true, valor_novo: true, created_at: true },
+        },
+      },
+    });
+
+    // Filtro por segmento roda em memória: o campo é texto livre e precisa ser
+    // normalizado antes de comparar (ver segmentoDe).
+    const alvo = (q.data.segmento || '').toUpperCase();
+    const lista = alvo ? propostas.filter(p => segmentoDe(p.segmento) === alvo) : propostas;
+
+    const total    = lista.length;
+    const fechadas = lista.filter(p => FECHADAS.includes(p.status));
+    const perdidas = lista.filter(p => PERDIDAS.includes(p.status));
+    const abertas  = total - fechadas.length - perdidas.length;
+
+    // Quebra por segmento (Farmácia | Padaria | Varejo)
+    const porSegmento = ['FARMACIA', 'PADARIA', 'VAREJO'].map(seg => {
+      const doSeg = lista.filter(p => segmentoDe(p.segmento) === seg);
+      const fech  = doSeg.filter(p => FECHADAS.includes(p.status));
+      return {
+        segmento: seg,
+        total: doSeg.length,
+        fechadas: fech.length,
+        valor_fechado: soma(fech.map(p => p.valor_final || 0)),
+        taxa_pct: pct(fech.length, doSeg.length),
+      };
+    });
+
+    // ── TEMPOS ──
+    // 1) Quanto tempo a proposta passou em cada etapa (média em dias).
+    // 2) Quanto tempo entre ENVIADA e a decisão (fechamento ou declínio).
+    const temposPorEtapa: Record<string, number[]> = {};
+    const ateDecisao: number[] = [];
+    const ateFechamento: number[] = [];
+    const ateDeclinio: number[] = [];
+
+    for (const p of lista) {
+      // Linha do tempo: nasce em RASCUNHO no created_at, depois cada mudança de status.
+      const eventos = [
+        { status: 'RASCUNHO', em: p.created_at },
+        ...p.historico.map(h => ({ status: h.valor_novo || '', em: h.created_at })),
+      ].filter(e => e.status);
+
+      // Tempo em cada etapa = intervalo até o próximo evento (a última etapa segue
+      // aberta, então conta até agora só se a proposta não foi decidida).
+      const decidida = FECHADAS.includes(p.status) || PERDIDAS.includes(p.status);
+      for (let i = 0; i < eventos.length; i++) {
+        const ini = eventos[i].em;
+        const proximo = eventos[i + 1]?.em ?? (decidida ? null : new Date());
+        if (!proximo) continue;
+        const dias = (new Date(proximo).getTime() - new Date(ini).getTime()) / 86400000;
+        if (dias >= 0) (temposPorEtapa[eventos[i].status] ||= []).push(dias);
+      }
+
+      // Da ENVIADA até a decisão. Sem registro de envio, cai no created_at.
+      const envio = eventos.find(e => e.status === 'ENVIADA')?.em ?? p.created_at;
+      const decisao = eventos.find(e => FECHADAS.includes(e.status) || PERDIDAS.includes(e.status))?.em
+                   ?? p.data_fechamento ?? p.data_aceite;
+      if (decisao) {
+        const dias = (new Date(decisao).getTime() - new Date(envio).getTime()) / 86400000;
+        if (dias >= 0) {
+          ateDecisao.push(dias);
+          (FECHADAS.includes(p.status) ? ateFechamento : ateDeclinio).push(dias);
+        }
+      }
+    }
+
+    const etapas = Object.entries(temposPorEtapa).map(([etapa, ds]) => ({
+      etapa,
+      media_dias: media(ds),
+      maior_dias: Math.round(Math.max(...ds) * 10) / 10,
+      qtd: ds.length,
+    })).sort((a, b) => b.media_dias - a.media_dias);
+
+    return reply.send({
+      status: 'success',
+      data: {
+        periodo: { mes: q.data.mes || null, de: inicio || null, ate: fim || null },
+        producao: {
+          total,
+          fechadas: fechadas.length,
+          perdidas: perdidas.length,
+          em_aberto: abertas,
+          valor_fechado: soma(fechadas.map(p => p.valor_final || 0)),
+          ticket_medio: fechadas.length ? Math.round(soma(fechadas.map(p => p.valor_final || 0)) / fechadas.length) : 0,
+          // % de fechamento sobre o total produzido no período.
+          taxa_fechamento_pct: pct(fechadas.length, total),
+        },
+        por_segmento: porSegmento,
+        tempos: {
+          // SLA: quanto tempo, em média, a proposta fica parada em cada etapa.
+          por_etapa: etapas,
+          // Da proposta enviada até a decisão do cliente.
+          ate_decisao_dias:   media(ateDecisao),
+          ate_fechamento_dias: media(ateFechamento),
+          ate_declinio_dias:   media(ateDeclinio),
+        },
+      },
+    });
   });
 
   // ===== BUSCAR UMA =====
