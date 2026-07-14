@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -163,6 +163,26 @@ const COLUNA_DO_STATUS = (status: string): string => {
   return STATUS_CONFIG[status] ? status : 'RASCUNHO';
 };
 
+// ── Métricas do painel ──
+// "Fechada" inclui os estados de contrato: o aceite do cliente já move a proposta
+// para CONTRATO_EM_GERACAO, então parar em ACEITA subestimaria o fechamento.
+const ST_FECHADAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO', 'ACEITO'];
+const ST_PERDIDAS = ['RECUSADA', 'PERDIDA', 'EXPIRADA', 'DECLINADA'];
+
+// O campo `segmento` é texto livre ("Farmácia / Drogaria", "Padaria", "Outro"…),
+// então agrupamos por palavra-chave. Mesma regra do backend (segmentoDe).
+const grupoSegmento = (s?: string | null): 'FARMACIA' | 'PADARIA' | 'VAREJO' => {
+  const t = (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  if (/farm|drog/.test(t)) return 'FARMACIA';
+  if (/padar|confeit|pao|paes/.test(t)) return 'PADARIA';
+  return 'VAREJO';
+};
+
+const LABEL_SEGMENTO: Record<string, string> = { FARMACIA: 'Farmácia', PADARIA: 'Padaria', VAREJO: 'Varejo' };
+const COR_SEGMENTO: Record<string, string> = { FARMACIA: '#0891b2', PADARIA: '#d97706', VAREJO: '#7c3aed' };
+
+const fmtDias = (d?: number | null) => (d == null || d === 0 ? '—' : `${Number(d).toFixed(1)}d`);
+
 const MODULOS = [
   'Frente de Caixa', 'Estoque', 'Financeiro', 'Relatórios', 'Multi-empresa',
   'Controle de Acesso', 'Vendas Online', 'Delivery', 'NFe/NFCe', 'SAT/MFE',
@@ -246,7 +266,6 @@ export default function PropostasComerciais() {
   const isGestor = podeVerTudo(user?.role);
 
   const [propostas, setPropostas] = useState<PropostaComercial[]>([]);
-  const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -268,6 +287,10 @@ export default function PropostasComerciais() {
 
   const [previewProposta, setPreviewProposta] = useState<PropostaComercial | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Métricas do período (SLA e tempos). Os tempos vêm do backend porque dependem do
+  // histórico de mudanças de status — o front só tem o estado atual da proposta.
+  const [metricas, setMetricas] = useState<any>(null);
 
   // Perfil completo do vendedor logado (nome + telefone) p/ auto-preencher a proposta
   const [meuPerfil, setMeuPerfil] = useState<{ nome?: string; telefone?: string } | null>(null);
@@ -293,12 +316,14 @@ export default function PropostasComerciais() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // limit alto: o kanban e o painel do período precisam de TODAS as propostas.
+      // Sem isso o backend pagina em 20 e os totais da tela sairiam truncados.
       const res = await apiClient.getPropostasComerciais({
         status: filterStatus || undefined,
         vendedor: filterVendedor || undefined,
+        limit: 1000,
       });
       setPropostas(res.data.data.propostas || []);
-      setStats(res.data.data.stats || {});
     } catch {
       // ignore
     } finally {
@@ -307,6 +332,19 @@ export default function PropostasComerciais() {
   }, [filterStatus, filterVendedor]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Métricas seguem exatamente os filtros da tela (mês/período, status, segmento).
+  useEffect(() => {
+    const params: any = {};
+    if (dataModo === 'MES' && filtroMes) params.mes = filtroMes;
+    if (dataModo === 'PERIODO') { if (periodoIni) params.de = periodoIni; if (periodoFim) params.ate = periodoFim; }
+    if (filterStatus) params.status = filterStatus;
+    if (filterSegmento) params.segmento = grupoSegmento(filterSegmento);
+    if (filterVendedor) params.vendedor = filterVendedor;
+    apiClient.getMetricasPropostas(params)
+      .then(r => setMetricas(r.data?.data || null))
+      .catch(() => setMetricas(null));
+  }, [dataModo, filtroMes, periodoIni, periodoFim, filterStatus, filterSegmento, filterVendedor]);
 
   const openNew = () => {
     setEditingId(null);
@@ -664,6 +702,37 @@ export default function PropostasComerciais() {
     return true; // TODOS
   });
 
+  // ── Resumo do período ──
+  // Derivado de `filtered` (e não do backend) para o painel bater EXATAMENTE com os
+  // cards que estão na tela. Os tempos/SLA vêm de `metricas` (dependem do histórico).
+  const resumo = useMemo(() => {
+    const total = filtered.length;
+    const fechadas = filtered.filter(p => ST_FECHADAS.includes(p.status));
+    const perdidas = filtered.filter(p => ST_PERDIDAS.includes(p.status));
+    const valorFechado = fechadas.reduce((a, p) => a + (Number((p as any).valor_final) || 0), 0);
+    const porSegmento = (['FARMACIA', 'PADARIA', 'VAREJO'] as const).map(seg => {
+      const doSeg = filtered.filter(p => grupoSegmento(p.segmento) === seg);
+      const fech = doSeg.filter(p => ST_FECHADAS.includes(p.status));
+      return {
+        seg,
+        total: doSeg.length,
+        fechadas: fech.length,
+        valor: fech.reduce((a, p) => a + (Number((p as any).valor_final) || 0), 0),
+        taxa: doSeg.length ? Math.round((fech.length / doSeg.length) * 1000) / 10 : 0,
+      };
+    });
+    return {
+      total,
+      fechadas: fechadas.length,
+      perdidas: perdidas.length,
+      emAberto: total - fechadas.length - perdidas.length,
+      valorFechado,
+      // % de fechamento sobre o total produzido no período.
+      taxa: total ? Math.round((fechadas.length / total) * 1000) / 10 : 0,
+      porSegmento,
+    };
+  }, [filtered]);
+
   // Helpers para edição de lojas no projeto multi-loja
   const setLoja = (idx: number, field: keyof LojaProjeto, val: string) =>
     setLojasProjeto(ls => ls.map((l, i) => i === idx ? { ...l, [field]: val } : l));
@@ -760,20 +829,102 @@ export default function PropostasComerciais() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        {/* ── RESULTADO DO PERÍODO — tudo abaixo obedece aos filtros da tela ── */}
+        {/* Produção e fechamento */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
           {[
-            { label: 'Total', value: stats.total || 0, color: 'var(--t-text-muted)' },
-            { label: 'Rascunho', value: stats.rascunho || 0, color: 'var(--t-text-muted)' },
-            { label: 'Enviadas', value: stats.enviada || 0, color: '#2563eb' },
-            { label: 'Negociação', value: stats.em_negociacao || 0, color: '#d97706' },
-            { label: 'Aceitas', value: stats.aceita || 0, color: '#16a34a' },
+            { label: 'Produzidas', value: resumo.total, color: 'var(--t-text-primary)' },
+            { label: 'Fechadas', value: resumo.fechadas, color: '#16a34a' },
+            { label: 'Em aberto', value: resumo.emAberto, color: '#d97706' },
+            { label: 'Perdidas', value: resumo.perdidas, color: '#dc2626' },
+            { label: '% Fechamento', value: `${resumo.taxa}%`, color: '#2563eb' },
           ].map(s => (
             <div key={s.label} className="ps-card p-3 rounded-xl text-center">
               <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+          {/* Segmentos: Farmácia | Padaria | Varejo */}
+          <div className="ps-card p-4 rounded-xl">
+            <div className="flex items-baseline justify-between mb-2">
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)' }}>Por segmento</span>
+              <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
+                {fmtBRL(resumo.valorFechado)} fechado
+              </span>
+            </div>
+            <table className="w-full" style={{ fontSize: 12 }}>
+              <thead>
+                <tr style={{ color: 'var(--t-text-muted)', fontSize: 11 }}>
+                  <th style={{ textAlign: 'left', fontWeight: 500, paddingBottom: 4 }}>Segmento</th>
+                  <th style={{ textAlign: 'right', fontWeight: 500 }}>Produzidas</th>
+                  <th style={{ textAlign: 'right', fontWeight: 500 }}>Fechadas</th>
+                  <th style={{ textAlign: 'right', fontWeight: 500 }}>%</th>
+                  <th style={{ textAlign: 'right', fontWeight: 500 }}>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resumo.porSegmento.map(s => (
+                  <tr key={s.seg} style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                    <td style={{ padding: '6px 0' }}>
+                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 99, background: COR_SEGMENTO[s.seg], marginRight: 6 }} />
+                      <span style={{ color: 'var(--t-text-primary)', fontWeight: 600 }}>{LABEL_SEGMENTO[s.seg]}</span>
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--t-text-secondary)' }}>{s.total}</td>
+                    <td style={{ textAlign: 'right', color: '#16a34a', fontWeight: 700 }}>{s.fechadas}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--t-text-secondary)' }}>{s.taxa}%</td>
+                    <td style={{ textAlign: 'right', color: 'var(--t-text-secondary)' }}>{s.valor ? fmtBRL(s.valor) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Tempos / SLA — vêm do histórico de status (backend) */}
+          <div className="ps-card p-4 rounded-xl">
+            <div className="flex items-baseline justify-between mb-2">
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)' }}>Tempos (SLA)</span>
+              <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>média em dias</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {[
+                { l: 'Envio → decisão', v: metricas?.tempos?.ate_decisao_dias, c: 'var(--t-text-primary)' },
+                { l: 'Envio → fechamento', v: metricas?.tempos?.ate_fechamento_dias, c: '#16a34a' },
+                { l: 'Envio → declínio', v: metricas?.tempos?.ate_declinio_dias, c: '#dc2626' },
+              ].map(t => (
+                <div key={t.l} style={{ background: 'var(--t-primary-light)', borderRadius: 8, padding: '8px 6px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: t.c }}>{fmtDias(t.v)}</div>
+                  <div style={{ fontSize: 10, color: 'var(--t-text-secondary)', marginTop: 2 }}>{t.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 4 }}>Tempo parado em cada etapa</div>
+            {metricas?.tempos?.por_etapa?.length ? (
+              <div className="space-y-1">
+                {metricas.tempos.por_etapa.slice(0, 5).map((e: any) => {
+                  const cfg = STATUS_CONFIG[e.etapa];
+                  const max = metricas.tempos.por_etapa[0]?.media_dias || 1;
+                  return (
+                    <div key={e.etapa} className="flex items-center gap-2" style={{ fontSize: 11 }}>
+                      <span style={{ width: 96, color: 'var(--t-text-secondary)' }}>{cfg?.label || e.etapa}</span>
+                      <div style={{ flex: 1, height: 6, background: 'var(--t-card-border)', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.max(3, (e.media_dias / max) * 100)}%`, height: '100%', background: cfg?.color || '#2563eb', borderRadius: 99 }} />
+                      </div>
+                      <span style={{ width: 38, textAlign: 'right', fontWeight: 700, color: 'var(--t-text-primary)' }}>{fmtDias(e.media_dias)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: 11, color: 'var(--t-text-muted)', padding: '8px 0' }}>
+                Sem histórico de etapas no período.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Filtros */}
