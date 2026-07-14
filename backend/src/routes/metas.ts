@@ -91,13 +91,38 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
     const q = z.object({ ano: z.coerce.number().default(new Date().getFullYear()) }).safeParse(request.query);
     const ano = q.success ? q.data.ano : new Date().getFullYear();
 
-    // Vendedoras ativas (visão total) ou só o próprio (vendedor).
+    // Quem aparece no detalhamento: vendedores ativos + QUALQUER pessoa que tenha
+    // fechado no ano (a supervisão/diretoria também lança propostas). Antes a lista
+    // era só cargo=VENDEDOR, então os fechamentos da supervisão sumiam do gráfico.
     const scopeId = scopeUserId(request);
-    const usuarios = await prisma.usuarioCRM.findMany({
+    const vendedores = await prisma.usuarioCRM.findMany({
       where: { status: 'ATIVO', cargo: 'VENDEDOR', ...(scopeId ? { id: scopeId } : {}) },
       select: { id: true, nome: true },
     }).catch(() => [] as any[]);
-    const ids = usuarios.map((u: any) => u.id);
+
+    // Quem de fato fechou no ano (por vendedor_id da proposta).
+    const fechadores = await prisma.propostaComercial.findMany({
+      where: {
+        status: { in: ['CONTRATO_ASSINADO', 'ASSINADO', 'ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO'] },
+        deleted_at: null as any,
+        vendedor_id: scopeId ? scopeId : { not: null },
+        OR: [
+          { data_aceite: { gte: new Date(ano, 0, 1), lt: new Date(ano + 1, 0, 1) } },
+          { AND: [{ data_aceite: null }, { created_at: { gte: new Date(ano, 0, 1), lt: new Date(ano + 1, 0, 1) } }] },
+        ],
+      },
+      select: { vendedor_id: true, vendedor_nome: true },
+      distinct: ['vendedor_id'],
+    }).catch(() => [] as any[]);
+
+    const porId = new Map<string, { id: string; nome: string }>();
+    for (const v of vendedores as any[]) porId.set(v.id, { id: v.id, nome: v.nome });
+    for (const f of fechadores as any[]) {
+      if (f.vendedor_id && !porId.has(f.vendedor_id)) {
+        porId.set(f.vendedor_id, { id: f.vendedor_id, nome: f.vendedor_nome || f.vendedor_id });
+      }
+    }
+    const usuarios = [...porId.values()];
 
     // calcula o realizado de um período (reusa a fonte única do meta-progress).
     const realizadoDe = (responsaveis: string[], periodo: string) =>
@@ -106,7 +131,12 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
     const meses = [];
     for (let mes = 1; mes <= 12; mes++) {
       const periodo = `${ano}-${String(mes).padStart(2, '0')}`;
-      const equipe = await realizadoDe(ids, periodo).catch(() => null);
+      // Total da EQUIPE: soma TODO fechamento do mês (não depende da lista de pessoas).
+      // Quando é um vendedor logado (scopeId), o total é o dele — não o da empresa.
+      const equipe = await (scopeId
+        ? realizadoDe([scopeId], periodo)
+        : calcularRealizadoMeta(prisma, { todos: true, periodo_tipo: 'MENSAL', periodo })
+      ).catch(() => null);
       const porVendedora = await Promise.all(usuarios.map(async (u: any) => ({
         id: u.id, nome: u.nome,
         ...(await realizadoDe([u.id], periodo).catch(() => ({ contratos: 0, valor_total: 0, mrr_total: 0 }))),

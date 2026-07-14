@@ -50,7 +50,13 @@ export async function calcularRealizadoMeta(prisma: PrismaClient, meta: any): Pr
   const responsaveis: string[] = (Array.isArray(meta.responsaveis_ids) && meta.responsaveis_ids.length)
     ? meta.responsaveis_ids
     : (meta.responsavel_id ? [meta.responsavel_id] : []);
-  if (!responsaveis.length) return zero();
+
+  // `todos: true` → total da EQUIPE: conta TODO fechamento do período, não importa
+  // quem lançou (vendedor, supervisão ou diretoria). Sem isso o total da equipe era
+  // a soma de uma lista de ids filtrada por cargo=VENDEDOR, e os fechamentos lançados
+  // pela supervisão sumiam do gráfico (era o caso de julho/2026).
+  const todos = meta.todos === true;
+  if (!todos && !responsaveis.length) return zero();
 
   const { inicio, fim } = resolverPeriodo(meta);
 
@@ -62,10 +68,12 @@ export async function calcularRealizadoMeta(prisma: PrismaClient, meta: any): Pr
     where: {
       status: { in: STATUS_FECHADA },
       deleted_at: null as any,
-      OR: [
-        { vendedor_id: { in: responsaveis } },
-        { created_by: { in: responsaveis } },
-      ],
+      ...(todos ? {} : {
+        OR: [
+          { vendedor_id: { in: responsaveis } },
+          { created_by: { in: responsaveis } },
+        ],
+      }),
       AND: [{
         OR: [
           { data_aceite: { gte: inicio, lte: fim } },
