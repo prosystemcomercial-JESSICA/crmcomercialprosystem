@@ -11,8 +11,8 @@ Maio e junho de 2026 já têm vendas fechadas e comissões geradas (antes desta 
 ## Escopo
 
 1. **Card "Comissão gerada a pagar"** na tela de Relatório Comercial, mostrando o total de comissão (vendedor + supervisão) gerada no mês, somando contratos novos (setup) e vendas adicionais, com detalhamento por origem.
-2. **Automação**: ao gerar uma `Comissao` (contrato novo ou venda adicional confirmada), criar automaticamente um `LancamentoFinanceiro` (SAIDA, categoria COMISSAO) no Centro de Custos, na competência do mês em que a venda foi fechada.
-3. **Backfill** das comissões já existentes de maio e junho/2026 para gerar os lançamentos retroativos correspondentes, uma única vez.
+2. **Sincronização**: endpoint/função que garante que toda `Comissao` ativa (não cancelada) tenha um `LancamentoFinanceiro` (SAIDA, categoria COMISSAO) correspondente no Centro de Custos, na competência do mês em que a venda foi fechada.
+3. **Backfill** das comissões já existentes de maio e junho/2026, usando a mesma função de sincronização — cobre o retroativo e valida a automação de uma vez.
 
 ## Fora de escopo
 
@@ -43,44 +43,64 @@ Novo card "💰 Comissão gerada a pagar", posicionado ao lado/abaixo da seção
 - Subtotais: vendedor / supervisão
 - Subtotais: contratos novos (setup) / vendas adicionais
 
-### 2. Automação: Comissão → Despesa no Centro de Custos
+### 2. Sincronização: Comissão → Despesa no Centro de Custos
 
-Ponto de criação da `Comissao` hoje: `backend/src/lib/comissao-fluxo.ts`, função `upsertComissaoContrato`, chamada por `criarImplantacaoEComissoes` (contratos novos) e pelo fluxo de venda adicional confirmada.
+**Por que sincronização em vez de instrumentar cada ponto de criação:** a criação/atualização de `Comissao` está espalhada em pelo menos 4 lugares (`comissao-fluxo.ts` para contratos novos; `vendas-adicionais.ts`, `contratos-comerciais.ts` e `ativos.ts` para vendas adicionais, incluindo um endpoint de backfill próprio para comunicações). Instrumentar despesa automática em cada um é frágil — fácil esquecer um ponto ao adicionar um fluxo novo no futuro. Em vez disso, uma função de sincronização única varre a tabela `Comissao` e garante que cada uma tenha seu `LancamentoFinanceiro` correspondente.
 
-Seguindo o precedente já existente no código (`backend/src/routes/clientes.ts:668`, que lança o MRR perdido de churn como `LancamentoFinanceiro` best-effort), adicionar logo após a criação/upsert da `Comissao`:
+**Idempotência**: adicionar campos `origem_tipo String?` e `origem_id String?` (nullable) ao model `LancamentoFinanceiro`, com `@@unique([origem_tipo, origem_id])`. Lançamentos manuais existentes ficam com esses campos `null` (não conflitam entre si — MySQL trata múltiplos `NULL` como distintos em índice único).
+
+**Função central** (`backend/src/lib/comissao-fluxo.ts`, nova função `sincronizarLancamentosDeComissao`):
 
 ```ts
-await prisma.lancamentoFinanceiro.upsert({
-  where: { origem_unica: { origem_tipo: 'COMISSAO', origem_id: comissao.id } }, // precisa de campo novo, ver abaixo
-  create: {
-    tipo: 'SAIDA', categoria: 'COMISSAO', recorrencia: 'PONTUAL',
-    valor: comissao.valor_comissao,
-    competencia_ano: anoDoPeriodo, competencia_mes: mesDoPeriodo, // do campo `periodo` da comissão (mês da venda)
-    descricao: `Comissão ${papel} — ${nomeCliente}`,
-    vendedor_id: comissao.responsavel_id,
-    origem_tipo: 'COMISSAO', origem_id: comissao.id,
-    created_by: 'system',
-  },
-  update: {},
-}).catch(() => {});
+export async function sincronizarLancamentosDeComissao(prisma: PrismaClient, filtro?: { periodoDe?: string; periodoAte?: string }) {
+  const where: any = { status: { not: 'CANCELADA' } };
+  if (filtro?.periodoDe && filtro?.periodoAte) {
+    where.periodo = { gte: filtro.periodoDe, lte: filtro.periodoAte };
+  }
+  const comissoes = await prisma.comissao.findMany({ where });
+  let criados = 0, jaExistiam = 0;
+  for (const c of comissoes) {
+    if (!c.periodo) continue;
+    const [anoStr, mesStr] = c.periodo.split('-');
+    const existente = await prisma.lancamentoFinanceiro.findFirst({
+      where: { origem_tipo: 'COMISSAO', origem_id: c.id },
+    });
+    if (existente) { jaExistiam++; continue; }
+    await prisma.lancamentoFinanceiro.create({
+      data: {
+        tipo: 'SAIDA', categoria: 'COMISSAO', recorrencia: 'PONTUAL',
+        valor: c.valor_comissao,
+        competencia_ano: Number(anoStr), competencia_mes: Number(mesStr),
+        descricao: c.descricao || `Comissão ${c.papel || ''}`,
+        vendedor_id: c.responsavel_id,
+        origem_tipo: 'COMISSAO', origem_id: c.id,
+        created_by: 'system',
+      },
+    }).catch(() => {});
+    criados++;
+  }
+  // Cancela lançamentos cuja comissão de origem foi cancelada (recuo/distrato).
+  const canceladas = await prisma.comissao.findMany({ where: { status: 'CANCELADA' }, select: { id: true } });
+  let removidos = 0;
+  for (const c of canceladas) {
+    const del = await prisma.lancamentoFinanceiro.deleteMany({ where: { origem_tipo: 'COMISSAO', origem_id: c.id } });
+    removidos += del.count;
+  }
+  return { criados, jaExistiam, removidos };
+}
 ```
 
-**Idempotência**: `LancamentoFinanceiro` não tem hoje um campo de origem rastreável. Adicionar `origem_tipo String?` e `origem_id String?` (nullable, sem quebrar lançamentos manuais existentes) + índice único parcial (`@@unique([origem_tipo, origem_id])`, tolerando nulls conforme comportamento do Prisma/MySQL) para permitir upsert idempotente e evitar duplicar o lançamento se o fluxo rodar mais de uma vez para a mesma comissão (ex.: reprocessamento, correção manual).
-
-Se a criação da comissão for cancelada depois (recuo/distrato, já tratado em `aplicarRecuo`), o lançamento de despesa correspondente também deve ser removido/cancelado no mesmo fluxo — usar o `origem_id` para localizá-lo.
+Essa função é chamada de duas formas:
+- **Sob demanda / contínua**: um endpoint `POST /relatorio-comercial/sincronizar-comissoes` (gestão only, `requireGestor`) que roda a sincronização completa. Chamado manualmente pela tela de Relatório Comercial (botão) sempre que necessário, e também automaticamente no `onReady` do backend (mesmo padrão do seed existente em `relatorio-comercial.ts:19`) para manter tudo sincronizado a cada deploy/restart sem exigir ação manual.
+- **Backfill de maio/junho**: mesma função, chamada com `filtro: { periodoDe: '2026-05', periodoAte: '2026-06' }` (ver item 3).
 
 ### 3. Backfill de maio/junho
 
-Script one-off (`backend/scripts/backfill-lancamentos-comissao.ts`), executado manualmente uma vez:
-
-- Busca todas as `Comissao` com `periodo` em `2026-05` ou `2026-06`, `status != 'CANCELADA'`.
-- Para cada uma, aplica a mesma lógica de upsert do item 2 (reaproveitando uma função extraída, ex. `criarLancamentoDeComissao(prisma, comissao)`, compartilhada entre o fluxo automático e o backfill).
-- Idempotente: pode rodar mais de uma vez sem duplicar, graças ao `@@unique([origem_tipo, origem_id])`.
-- Loga quantos lançamentos foram criados/já existiam.
+Não precisa de script separado — é a mesma `sincronizarLancamentosDeComissao` chamada uma vez com o filtro de período, seja via endpoint (`POST /relatorio-comercial/sincronizar-comissoes?periodoDe=2026-05&periodoAte=2026-06`) seja diretamente no `onReady` (que já roda a sincronização completa, cobrindo maio/junho automaticamente na primeira execução após o deploy).
 
 ## Testes
 
-- Unitário/manual: gerar uma comissão de contrato novo em ambiente de dev → conferir que aparece um `LancamentoFinanceiro` categoria COMISSAO com a competência correta.
-- Rodar o backfill duas vezes seguidas → confirmar que não duplica.
-- Conferir o card no Relatório Comercial de maio e junho/2026 após o backfill → valores batem com a soma manual das comissões desses meses na tela `/comissoes`.
-- Testar recuo de contrato → lançamento de despesa correspondente é removido/cancelado.
+- Unitário/manual: gerar uma comissão de contrato novo em ambiente de dev → rodar a sincronização → conferir que aparece um `LancamentoFinanceiro` categoria COMISSAO com a competência correta.
+- Rodar a sincronização duas vezes seguidas → confirmar que não duplica (segunda vez conta tudo em `jaExistiam`).
+- Conferir o card no Relatório Comercial de maio e junho/2026 após a sincronização com filtro de período → valores batem com a soma manual das comissões desses meses na tela `/comissoes`.
+- Testar recuo de contrato (comissão cancelada) → rodar sincronização → lançamento de despesa correspondente é removido.
