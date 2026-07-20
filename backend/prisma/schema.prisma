@@ -2109,6 +2109,9 @@ model LancamentoFinanceiro {
   // Vínculos opcionais (rastreabilidade)
   vendedor_id  String?
   cliente_id   String?
+  // Origem automática (ex.: COMISSAO → Comissao.id). Null para lançamentos manuais.
+  origem_tipo  String?
+  origem_id    String?
 
   created_by   String?
   created_at   DateTime @default(now())
@@ -2118,6 +2121,7 @@ model LancamentoFinanceiro {
   @@index([categoria])
   @@index([competencia_ano, competencia_mes])
   @@index([recorrencia])
+  @@unique([origem_tipo, origem_id], name: "uq_lancamento_origem")
 }
 
 // ===== WHATSAPP (Inbox multi-instância via Evolution API) =====

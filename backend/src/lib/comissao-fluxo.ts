@@ -180,3 +180,61 @@ export async function confirmarImplantacao(
 
   return atualizada;
 }
+
+// Garante que toda Comissao ativa tenha um LancamentoFinanceiro (SAIDA, categoria
+// COMISSAO) correspondente no Centro de Custos, e remove o lançamento de comissões
+// que foram canceladas (recuo/distrato). Idempotente — pode rodar quantas vezes
+// precisar (ex.: onReady do backend, botão manual, backfill de período).
+export async function sincronizarLancamentosDeComissao(
+  prisma: PrismaClient,
+  filtro?: { periodoDe?: string; periodoAte?: string },
+): Promise<{ criados: number; jaExistiam: number; removidos: number; semPeriodo: number }> {
+  const where: any = { status: { not: 'CANCELADA' } };
+  if (filtro?.periodoDe && filtro?.periodoAte) {
+    where.periodo = { gte: filtro.periodoDe, lte: filtro.periodoAte };
+  }
+  const comissoes = await prisma.comissao.findMany({ where });
+
+  let criados = 0, jaExistiam = 0, semPeriodo = 0;
+  for (const c of comissoes) {
+    if (!c.periodo || !/^\d{4}-\d{2}$/.test(c.periodo)) { semPeriodo++; continue; }
+    const [anoStr, mesStr] = c.periodo.split('-');
+    const existente = await prisma.lancamentoFinanceiro.findFirst({
+      where: { origem_tipo: 'COMISSAO', origem_id: c.id },
+      select: { id: true },
+    });
+    if (existente) { jaExistiam++; continue; }
+    await prisma.lancamentoFinanceiro.create({
+      data: {
+        tipo: 'SAIDA',
+        categoria: 'COMISSAO',
+        recorrencia: 'PONTUAL',
+        valor: c.valor_comissao,
+        competencia_ano: Number(anoStr),
+        competencia_mes: Number(mesStr),
+        descricao: c.descricao || `Comissão ${c.papel || ''}`.trim(),
+        vendedor_id: c.responsavel_id,
+        origem_tipo: 'COMISSAO',
+        origem_id: c.id,
+        created_by: 'system',
+      } as any,
+    }).catch(() => {});
+    criados++;
+  }
+
+  // Remove lançamentos cuja comissão de origem foi cancelada (recuo/distrato).
+  const canceladasWhere: any = { status: 'CANCELADA' };
+  if (filtro?.periodoDe && filtro?.periodoAte) {
+    canceladasWhere.periodo = { gte: filtro.periodoDe, lte: filtro.periodoAte };
+  }
+  const canceladas = await prisma.comissao.findMany({ where: canceladasWhere, select: { id: true } });
+  let removidos = 0;
+  for (const c of canceladas) {
+    const del = await prisma.lancamentoFinanceiro.deleteMany({
+      where: { origem_tipo: 'COMISSAO', origem_id: c.id },
+    });
+    removidos += del.count;
+  }
+
+  return { criados, jaExistiam, removidos, semPeriodo };
+}

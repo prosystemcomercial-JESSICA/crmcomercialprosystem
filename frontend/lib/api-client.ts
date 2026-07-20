@@ -1239,6 +1239,12 @@ class ApiClient {
   async getRelatorioSerieAnual(ano: number) {
     return this.client.get('/relatorio-comercial/serie-anual', { params: { ano } });
   }
+  // Sincroniza manualmente comissões → despesas do Centro de Custos.
+  async sincronizarComissoes(periodoDe?: string, periodoAte?: string) {
+    return this.client.post('/relatorio-comercial/sincronizar-comissoes', null, {
+      params: { periodoDe, periodoAte },
+    });
+  }
   // ── Painel Executivo do CEO ──
   async getPainelCEO(params: { periodo: string; ano: number; mes: number }) {
     return this.client.get('/ceo/painel', { params });
