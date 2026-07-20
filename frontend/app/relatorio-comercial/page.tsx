@@ -373,6 +373,27 @@ export default function RelatorioComercialPage() {
                   );
                 })()}
 
+                {/* Comissão gerada no mês (vendedor + supervisão) — vai automaticamente
+                    para o Centro de Custos como despesa (categoria COMISSAO). */}
+                {(() => {
+                  const cg = d.metricas.comissao_gerada;
+                  if (!cg || cg.total_geral === 0) return null;
+                  return (
+                    <Bloco titulo={`💰 Comissão gerada a pagar ${sufPeriodo}`}>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <KPI label="Total gerado" valor={fmt(cg.total_geral)} cor="text-amber-700" />
+                        <KPI label="Comissão vendedor" valor={fmt(cg.total_vendedor)} cor="text-blue-700" />
+                        <KPI label="Comissão supervisão" valor={fmt(cg.total_supervisao)} cor="text-indigo-700" />
+                        <KPI label="Sobre contratos novos" valor={fmt(cg.total_contratos_novos)} cor="text-green-700" />
+                        <KPI label="Sobre vendas adicionais" valor={fmt(cg.total_vendas_adicionais)} cor="text-teal-700" />
+                      </div>
+                      <p className="text-xs  mt-3">
+                        Esses valores entram automaticamente como despesa (categoria "Comissão") no Centro de Custos, na competência {sufPeriodo}.
+                      </p>
+                    </Bloco>
+                  );
+                })()}
+
                 {/* Lista de indicações/vendas adicionais (nomes) */}
                 {d.metricas.indicacoes.lista.length > 0 && (
                   <Bloco titulo={`🤝 Indicações / vendas adicionais ${sufPeriodo} (${d.metricas.indicacoes.total})`}>

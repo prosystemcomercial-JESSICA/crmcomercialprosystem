@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
+import { sincronizarLancamentosDeComissao } from '@/lib/comissao-fluxo';
 
 // Relatório Comercial mensal (o que vai para o CEO).
 // GET calcula o pipeline automaticamente das PropostasComerciais e mescla com o
@@ -69,6 +70,13 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       });
       console.log('[RELATORIO] Março/2026 seedado.');
     } catch (e: any) { console.error('[RELATORIO] seed:', e?.message); }
+
+    // Garante que toda comissão ativa tenha seu lançamento de despesa correspondente
+    // no Centro de Custos (cobre também o backfill de maio/junho/2026 na primeira execução).
+    try {
+      const r = await sincronizarLancamentosDeComissao(prisma);
+      console.log(`[RELATORIO] Sincronização comissão→despesa: ${r.criados} criados, ${r.jaExistiam} já existiam, ${r.removidos} removidos.`);
+    } catch (e: any) { console.error('[RELATORIO] sincronizarLancamentosDeComissao:', e?.message); }
   });
 
   // Calcula o pipeline do mês a partir das propostas comerciais.
@@ -241,6 +249,23 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       lista: comissoes_lista,
     };
 
+    // 4c) Comissão GERADA no mês (competência = mês da venda, campo `periodo`),
+    // independente do mês em que o financeiro vai pagar. Isso alimenta o card
+    // "Comissão gerada a pagar" do relatório — soma contratos novos + vendas adicionais.
+    const mesCompetencia = `${ano}-${String(mes).padStart(2, '0')}`;
+    const comissoesGeradasMes = await prisma.comissao.findMany({
+      where: { periodo: mesCompetencia, status: { not: 'CANCELADA' } },
+      select: { papel: true, tipo: true, valor_comissao: true },
+    }).catch(() => [] as any[]);
+    const vendasAdicionaisTipos = ['VENDA_ADICIONAL', 'SUPERVISAO_VENDA_ADICIONAL'];
+    const comissao_gerada = {
+      total_geral: Math.round(comissoesGeradasMes.reduce((s: number, c: any) => s + Number(c.valor_comissao || 0), 0)),
+      total_vendedor: Math.round(comissoesGeradasMes.filter((c: any) => c.papel === 'VENDEDOR').reduce((s: number, c: any) => s + Number(c.valor_comissao || 0), 0)),
+      total_supervisao: Math.round(comissoesGeradasMes.filter((c: any) => c.papel === 'SUPERVISAO').reduce((s: number, c: any) => s + Number(c.valor_comissao || 0), 0)),
+      total_contratos_novos: Math.round(comissoesGeradasMes.filter((c: any) => c.tipo === 'CONTRATO').reduce((s: number, c: any) => s + Number(c.valor_comissao || 0), 0)),
+      total_vendas_adicionais: Math.round(comissoesGeradasMes.filter((c: any) => vendasAdicionaisTipos.includes(c.tipo)).reduce((s: number, c: any) => s + Number(c.valor_comissao || 0), 0)),
+    };
+
     // 5) Entrada × Saída (MRR): ganho (fechamentos) vs perdido (churn) no mês.
     const entrada_x_saida = {
       mrr_entrada: Math.round(mrrGanhoTotal),
@@ -258,6 +283,7 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       indicacoes: { total: indicacoes_lista.length, lista: indicacoes_lista },
       vendas_adicionais,
       comissoes,
+      comissao_gerada,
       entrada_x_saida,
     };
   }
@@ -279,6 +305,11 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     const vaSetup = somaL(x => x.vendas_adicionais?.setup_total || 0);
     const vaAcr = somaL(x => x.vendas_adicionais?.acrescimo_mrr_total || 0);
     const vaTotal = somaL(x => x.vendas_adicionais?.total || 0);
+    const comissaoGeradaTotal = somaL(x => x.comissao_gerada?.total_geral || 0);
+    const comissaoGeradaVendedor = somaL(x => x.comissao_gerada?.total_vendedor || 0);
+    const comissaoGeradaSupervisao = somaL(x => x.comissao_gerada?.total_supervisao || 0);
+    const comissaoGeradaContratos = somaL(x => x.comissao_gerada?.total_contratos_novos || 0);
+    const comissaoGeradaVendasAdicionais = somaL(x => x.comissao_gerada?.total_vendas_adicionais || 0);
 
     return {
       total_leads: somaL(x => x.total_leads),
@@ -296,6 +327,11 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
         por_tipo: [], lista: concat(x => x.vendas_adicionais?.lista || []),
       },
       comissoes: { total: 0, total_valor: 0, pagas_valor: 0, a_pagar_valor: 0, lista: [] },
+      comissao_gerada: {
+        total_geral: comissaoGeradaTotal, total_vendedor: comissaoGeradaVendedor,
+        total_supervisao: comissaoGeradaSupervisao, total_contratos_novos: comissaoGeradaContratos,
+        total_vendas_adicionais: comissaoGeradaVendasAdicionais,
+      },
       entrada_x_saida: {
         mrr_entrada: mrrGanhoTotal, mrr_saida: mrrPerdidoTotal, saldo_mrr: mrrGanhoTotal - mrrPerdidoTotal,
         clientes_entrada: totalFechamentos, clientes_saida: totalPerdidos, saldo_clientes: totalFechamentos - totalPerdidos,
@@ -384,5 +420,17 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       update: resto as any,
     });
     return reply.send({ status: 'success', data: rel });
+  });
+
+  // Sincroniza manualmente as comissões → despesas do Centro de Custos.
+  // Opcional periodoDe/periodoAte ("YYYY-MM") para rodar só um recorte (ex.: backfill).
+  fastify.post('/relatorio-comercial/sincronizar-comissoes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = z.object({ periodoDe: z.string().optional(), periodoAte: z.string().optional() }).safeParse(request.query);
+    if (!q.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
+    const resultado = await sincronizarLancamentosDeComissao(prisma, {
+      periodoDe: q.data.periodoDe, periodoAte: q.data.periodoAte,
+    });
+    return reply.send({ status: 'success', data: resultado });
   });
 }
