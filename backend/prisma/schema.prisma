@@ -2121,7 +2121,7 @@ model LancamentoFinanceiro {
   @@index([categoria])
   @@index([competencia_ano, competencia_mes])
   @@index([recorrencia])
-  @@unique([origem_tipo, origem_id], name: "uq_lancamento_origem")
+  @@index([origem_tipo, origem_id])
 }
 
 // ===== WHATSAPP (Inbox multi-instância via Evolution API) =====
