@@ -13,6 +13,10 @@ import {
   AlertTriangle, Zap, Heart, ChevronDown,
   Phone, Mail, Users, Car, Bell, FileOutput, Pin, ArrowRight,
 } from 'lucide-react';
+import { MrrTrendCard } from './components/MrrTrendCard';
+import { PipelineFunnelChart } from './components/PipelineFunnelChart';
+import { TemperaturaGauge } from './components/TemperaturaGauge';
+import { MotivosPerdaDonut } from './components/MotivosPerdaDonut';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DashboardPower {
@@ -371,6 +375,16 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* ── Hero MRR ─────────────────────────────────────── */}
+            <MrrTrendCard
+              mrr={data.kpis.mrr}
+              mrrDelta={data.kpis.mrr_delta}
+              contratosAtivos={data.kpis.contratos_ativos}
+              contratosMes={data.kpis.contratos_mes}
+              AnimatedNumber={AnimatedNumber}
+              fmt={fmt}
+            />
+
             {/* ── KPIs Comercial ───────────────────────────────── */}
             <div className="du-fade-2">
               <SectionLabel>Comercial — Este Mês</SectionLabel>
@@ -472,31 +486,12 @@ export default function DashboardPage() {
                     ))}
                   </div>
 
-                  {/* Proportion bar */}
-                  {(() => {
-                    const total = data.pipeline_propostas.quente.count + data.pipeline_propostas.morno.count + data.pipeline_propostas.frio.count;
-                    if (total === 0) return null;
-                    const pctQ = Math.round((data.pipeline_propostas.quente.count / total) * 100);
-                    const pctM = Math.round((data.pipeline_propostas.morno.count / total) * 100);
-                    const pctF = 100 - pctQ - pctM;
-                    return (
-                      <div className="mt-4">
-                        <div className="flex rounded-full overflow-hidden h-1.5 gap-px">
-                          {pctQ > 0 && <div className="transition-all duration-700" style={{ width: `${pctQ}%`, background: '#dc2626' }} />}
-                          {pctM > 0 && <div className="transition-all duration-700" style={{ width: `${pctM}%`, background: '#d97706' }} />}
-                          {pctF > 0 && <div className="transition-all duration-700" style={{ width: `${pctF}%`, background: '#2563eb' }} />}
-                        </div>
-                        <div className="flex items-center gap-4 mt-2">
-                          {[{ c: '#dc2626', l: `Quente ${pctQ}%` }, { c: '#d97706', l: `Morno ${pctM}%` }, { c: '#2563eb', l: `Frio ${pctF}%` }].map(({ c, l }) => (
-                            <div key={l} className="flex items-center gap-1">
-                              <div className="w-2 h-2 rounded-full" style={{ background: c }} />
-                              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{l}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {/* Distribuição por temperatura */}
+                  <TemperaturaGauge
+                    quente={data.pipeline_propostas.quente.count}
+                    morno={data.pipeline_propostas.morno.count}
+                    frio={data.pipeline_propostas.frio.count}
+                  />
                 </div>
               </div>
             )}
@@ -505,44 +500,11 @@ export default function DashboardPage() {
             <div className="du-fade-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
 
               {/* Pipeline por etapa */}
-              <div className="ps-card rounded-xl p-5">
-                <p className="text-xs font-semibold mb-4" style={{ color: 'var(--t-text-primary)' }}>Pipeline por Etapa</p>
-                <div className="space-y-3.5">
-                  {data.pipeline_funil.map((p, i) => {
-                    const widthPct = maxPipelineVal > 0 ? (p.valor / maxPipelineVal) * 100 : 0;
-                    const colors = ['#4B8EC8', '#2E6EAB', '#1A4E82', '#6366F1', '#8B5CF6', '#7C3AED'];
-                    const color = colors[i % colors.length];
-                    return (
-                      <div key={p.etapa}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium" style={{ color: 'var(--t-text-primary)' }}>
-                            {ETAPA_LABEL[p.etapa] || p.etapa}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold" style={{ color }}>{fmt(p.valor)}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: `${color}12`, color }}>
-                              {p.count}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="w-full rounded-full h-1.5" style={{ background: 'var(--t-card-border)' }}>
-                          <div
-                            className="h-1.5 rounded-full transition-all duration-700"
-                            style={{
-                              width: `${Math.max(widthPct, p.valor > 0 ? 3 : 0)}%`,
-                              background: color,
-                              transitionDelay: `${i * 60}ms`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {data.pipeline_funil.every(p => p.count === 0) && (
-                    <p className="text-xs text-center py-6" style={{ color: 'var(--t-text-secondary)' }}>Nenhum lead ativo no funil</p>
-                  )}
-                </div>
-              </div>
+              <PipelineFunnelChart
+                pipelineFunil={data.pipeline_funil}
+                etapaLabel={ETAPA_LABEL}
+                fmt={fmt}
+              />
 
               {/* Top 5 Leads */}
               <div className="ps-card rounded-xl p-5">
@@ -613,39 +575,7 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                {data.ranking_motivos_perda?.length > 0 && (
-                  <div className="ps-card rounded-xl p-5">
-                    <p className="text-xs font-semibold mb-4" style={{ color: 'var(--t-text-primary)' }}>Principais motivos de perda</p>
-                    <div className="space-y-3">
-                      {data.ranking_motivos_perda.map((item, i) => (
-                        <div key={item.motivo}>
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-                                style={{ background: i === 0 ? '#dc2626' : i === 1 ? '#ef4444' : '#f87171' }}>
-                                {i + 1}
-                              </span>
-                              <span className="text-xs font-medium truncate" style={{ color: 'var(--t-text-primary)' }}>{item.motivo}</span>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                              <span className="text-xs font-semibold" style={{ color: '#dc2626' }}>{item.total}×</span>
-                              <span className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{fmt(item.valor_total)}</span>
-                              <span className="text-[10px] font-semibold px-1.5 py-px rounded" style={{ background: 'rgba(220,38,38,0.08)', color: '#b91c1c' }}>
-                                {item.pct}%
-                              </span>
-                            </div>
-                          </div>
-                          <div className="w-full rounded-full h-1" style={{ background: 'rgba(220,38,38,0.08)' }}>
-                            <div
-                              className="h-1 rounded-full transition-all duration-700"
-                              style={{ width: `${item.pct}%`, background: '#dc2626', transitionDelay: `${i * 80}ms` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <MotivosPerdaDonut motivos={data.ranking_motivos_perda} fmt={fmt} />
               </div>
             )}
 
@@ -785,16 +715,7 @@ export default function DashboardPage() {
 
                   {aberto && (
                     <div className="px-5 pb-5 pt-4 space-y-3">
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <KpiCard
-                          label="MRR Recorrente" value={fmt(data.kpis.mrr)} rawValue={data.kpis.mrr}
-                          sub={`${data.kpis.contratos_ativos} contratos ativos`}
-                          icon={DollarSign} delta={data.kpis.mrr_delta} accent="#16a34a" pulse={temMrr} animate
-                        />
-                        <KpiCard
-                          label="Contratos Ativos" value={fmtNum(data.kpis.contratos_ativos)}
-                          sub={`+${data.kpis.contratos_mes} este mês`} icon={FileCheck2} accent="#4B8EC8"
-                        />
+                      <div className="grid grid-cols-2 gap-3">
                         <KpiCard
                           label="NPS Score"
                           value={temNps ? String(data.kpis.nps_score) : '—'}
