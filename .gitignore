@@ -7,3 +7,4 @@ node_modules/
 squads/*/state.json
 squads/*/state.json.tmp
 squads/*/output/
+.refs/
