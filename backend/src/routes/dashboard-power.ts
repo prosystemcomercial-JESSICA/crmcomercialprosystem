@@ -211,18 +211,28 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
     // Fica vazio até que a captura de motivo seja implementada no fluxo de propostas.
     const ranking_motivos: { motivo: string; total: number; valor_total: number; pct: number }[] = [];
 
-    // NPS rápido
-    const nps_total = await prisma.surveyResposta.count();
-    const nps_promoters = await prisma.surveyResposta.count({ where: { q3_score: { gte: 9 } } });
-    const nps_detractors = await prisma.surveyResposta.count({ where: { q3_score: { lte: 6 } } });
+    // NPS rápido — combina as duas fontes reais (mesma lógica de /nps/dashboard em health-score.ts):
+    // SurveyResposta (pós-churn, score 0-10 direto) + PesquisaSatisfacao (nota geral 1-5 → 0-10).
+    const nps_surveys = await prisma.surveyResposta.findMany({ select: { q3_score: true } });
+    const nps_pesquisas = await prisma.pesquisaSatisfacao.findMany({ select: { nota_geral: true, media: true } }).catch(() => [] as any[]);
+    const nps_scores = [
+      ...nps_surveys.map(s => s.q3_score),
+      ...nps_pesquisas.map((p: any) => {
+        const base = p.nota_geral && p.nota_geral > 0 ? p.nota_geral : p.media;
+        return Math.round(base * 2);
+      }),
+    ].filter((s): s is number => s !== null && s !== undefined);
+    const nps_total = nps_scores.length;
+    const nps_promoters = nps_scores.filter(s => s >= 9).length;
+    const nps_detractors = nps_scores.filter(s => s <= 6).length;
     const nps_score = nps_total > 0 ? Math.round(((nps_promoters - nps_detractors) / nps_total) * 100) : null;
 
     // Taxa de conversão
     const taxa_conversao = leads_total > 0 ? Math.round((leads_ganhos_mes / Math.max(leads_mes, 1)) * 100) : 0;
 
     // Delta MRR
-    const mrr_atual = mrr_result._sum.valor || 0;
-    const mrr_ant = mrr_anterior._sum.valor || 0;
+    const mrr_atual = mrr_result._sum.mensalidade || 0;
+    const mrr_ant = mrr_anterior._sum.mensalidade || 0;
     const mrr_delta = mrr_ant > 0 ? Math.round(((mrr_atual - mrr_ant) / mrr_ant) * 100) : 0;
 
     const ETAPA_ORDER = ['PROSPECCAO', 'QUALIFICACAO', 'APRESENTACAO', 'PROPOSTA', 'NEGOCIACAO', 'FECHAMENTO'];
