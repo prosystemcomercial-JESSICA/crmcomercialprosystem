@@ -21,7 +21,7 @@ export function TemperaturaGauge({ quente, morno, frio }: TemperaturaGaugeProps)
   ];
 
   return (
-    <div className="mt-4" style={{ height: 140 }}>
+    <div className="mt-4" style={{ height: 200 }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadialBarChart
           innerRadius="30%"
