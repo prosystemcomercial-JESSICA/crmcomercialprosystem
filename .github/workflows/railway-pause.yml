@@ -1,0 +1,67 @@
+name: Railway - Pausar serviços fora do horário comercial
+
+# Roda todo dia às 22:00 no horário de Brasília (America/Sao_Paulo, UTC-3).
+# GitHub Actions só agenda em UTC, então 22:00 BRT = 01:00 UTC do dia seguinte.
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch: {} # permite rodar manualmente pelo GitHub também
+
+env:
+  RAILWAY_API: https://backboard.railway.com/graphql/v2
+  PROJECT_ID: ede19c82-82d4-42ab-b6a5-f6caa8a92e3c
+  BACKEND_SERVICE_ID: b262eb57-67fb-48d4-b993-aaacbb4f27b4
+  FRONTEND_SERVICE_ID: 452af43f-0bb3-4d4b-8af8-44c11937b35d
+
+jobs:
+  pause:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolver environmentId (production)
+        id: env
+        run: |
+          RESP=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"query(\$id: String!) { project(id: \$id) { environments { edges { node { id name } } } } }\",\"variables\":{\"id\":\"$PROJECT_ID\"}}")
+          echo "Resposta: $RESP"
+          ENV_ID=$(echo "$RESP" | jq -r '.data.project.environments.edges[] | select(.node.name == "production") | .node.id')
+          if [ -z "$ENV_ID" ] || [ "$ENV_ID" == "null" ]; then
+            echo "Não encontrou ambiente 'production', usando o primeiro ambiente da lista."
+            ENV_ID=$(echo "$RESP" | jq -r '.data.project.environments.edges[0].node.id')
+          fi
+          echo "environment_id=$ENV_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Parar deployment do backend
+        run: |
+          RESP=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"query(\$sid: String!, \$eid: String!) { serviceInstance(serviceId: \$sid, environmentId: \$eid) { latestDeployment { id status } } }\",\"variables\":{\"sid\":\"$BACKEND_SERVICE_ID\",\"eid\":\"${{ steps.env.outputs.environment_id }}\"}}")
+          echo "Deployment atual (backend): $RESP"
+          DEPLOY_ID=$(echo "$RESP" | jq -r '.data.serviceInstance.latestDeployment.id')
+          if [ -n "$DEPLOY_ID" ] && [ "$DEPLOY_ID" != "null" ]; then
+            curl -s -X POST "$RAILWAY_API" \
+              -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"mutation(\$id: String!) { deploymentStop(id: \$id) }\",\"variables\":{\"id\":\"$DEPLOY_ID\"}}"
+          else
+            echo "Nenhum deployment ativo encontrado para o backend — nada a parar."
+          fi
+
+      - name: Parar deployment do frontend
+        run: |
+          RESP=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"query(\$sid: String!, \$eid: String!) { serviceInstance(serviceId: \$sid, environmentId: \$eid) { latestDeployment { id status } } }\",\"variables\":{\"sid\":\"$FRONTEND_SERVICE_ID\",\"eid\":\"${{ steps.env.outputs.environment_id }}\"}}")
+          echo "Deployment atual (frontend): $RESP"
+          DEPLOY_ID=$(echo "$RESP" | jq -r '.data.serviceInstance.latestDeployment.id')
+          if [ -n "$DEPLOY_ID" ] && [ "$DEPLOY_ID" != "null" ]; then
+            curl -s -X POST "$RAILWAY_API" \
+              -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"mutation(\$id: String!) { deploymentStop(id: \$id) }\",\"variables\":{\"id\":\"$DEPLOY_ID\"}}"
+          else
+            echo "Nenhum deployment ativo encontrado para o frontend — nada a parar."
+          fi
