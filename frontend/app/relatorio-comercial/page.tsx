@@ -462,11 +462,13 @@ export default function RelatorioComercialPage() {
               <Bloco titulo="4. Pipeline por Segmento">
                 {/* Rosca animada: participação de MRR por segmento */}
                 <div className="print:hidden mb-3">
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
-                      <Pie data={d.por_segmento.map((s: any) => ({ name: s.segmento, value: Number(s.mrr_total || 0) }))}
-                        dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90}
-                        paddingAngle={2} animationDuration={900} label={(p: any) => p.name}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
+                      <Pie data={d.por_segmento.map((s: any) => ({ name: s.segmento, value: Number(s.mrr_total || 0), pct: s.participacao }))}
+                        dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80}
+                        paddingAngle={2} animationDuration={900}
+                        labelLine={{ stroke: 'var(--t-text-muted, #94a3b8)', strokeWidth: 1 }}
+                        label={(p: any) => `${p.name} ${p.pct}%`}>
                         {d.por_segmento.map((_: any, i: number) => {
                           const cores = [PRO, '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
                           return <Cell key={i} fill={cores[i % cores.length]} />;
