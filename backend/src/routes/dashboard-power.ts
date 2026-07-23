@@ -63,15 +63,15 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.lead.count({ where: { created_at: { gte: inicioMes }, ...fLead } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes }, ...fLead } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior }, ...fLead } }),
-      // Perdidos este mês (via LeadPerda — registra o momento real da perda)
-      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ?${scopeId ? ' AND vendedor_id = ?' : ''}`, inicioMes, ...(scopeId ? [scopeId] : [])).then((r: any) => num(r[0]?.n)).catch(() => 0),
-      prisma.$queryRawUnsafe(`SELECT COUNT(*) as n FROM LeadPerda WHERE created_at >= ? AND created_at <= ?${scopeId ? ' AND vendedor_id = ?' : ''}`, inicioMesAnterior, fimMesAnterior, ...(scopeId ? [scopeId] : [])).then((r: any) => num(r[0]?.n)).catch(() => 0),
+      // Perdidos este mês (via PropostaComercial — LeadPerda é uma tabela legada nunca populada)
+      prisma.propostaComercial.count({ where: { status: { in: ['RECUSADA', 'PERDIDA'] }, updated_at: { gte: inicioMes }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
+      prisma.propostaComercial.count({ where: { status: { in: ['RECUSADA', 'PERDIDA'] }, updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
 
-      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, ...(scopeId ? { created_by: scopeId } : {}) } }),
-      prisma.contrato.count({ where: { status: 'ATIVO', deleted_at: null, created_at: { gte: inicioMes }, ...(scopeId ? { created_by: scopeId } : {}) } }),
+      prisma.contratoComercial.count({ where: { status: 'ASSINADO', ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
+      prisma.contratoComercial.count({ where: { status: 'ASSINADO', signed_at: { gte: inicioMes }, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
 
-      prisma.proposta.count({ where: { status: { in: ['ENVIADA', 'VISUALIZADA'] }, ...(scopeId ? { created_by: scopeId } : {}) } }),
-      prisma.proposta.count({ where: { status: 'ACEITA', updated_at: { gte: inicioMes }, ...(scopeId ? { created_by: scopeId } : {}) } }),
+      prisma.propostaComercial.count({ where: { status: { in: ['ENVIADA', 'EM_NEGOCIACAO'] }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
+      prisma.propostaComercial.count({ where: { status: { in: ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'] }, updated_at: { gte: inicioMes }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
 
       prisma.atividade.count({ where: { status: 'PENDENTE', data_prevista: { gte: hoje_inicio, lt: hoje_fim }, ...(scopeId ? { OR: [{ responsavel_id: scopeId }, { created_by: scopeId }] } : {}) } }),
       prisma.atividade.count({ where: { status: 'PENDENTE', data_prevista: { lt: now }, ...(scopeId ? { OR: [{ responsavel_id: scopeId }, { created_by: scopeId }] } : {}) } }),
@@ -151,16 +151,33 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       perdido: { count: pipeline_propostas_raw.filter(r => ['RECUSADA','PERDIDA'].includes(r.status)).reduce((s,r)=>s+num(r.count),0) },
     };
 
-    // MRR dos contratos ativos
-    const mrr_result = await prisma.contrato.aggregate({
-      where: { status: 'ATIVO', deleted_at: null },
-      _sum: { valor: true }
+    // Funil de propostas comerciais por etapa (fonte real do funil comercial —
+    // complementa o pipeline_funil de Lead.etapa_funil, que hoje só tem a etapa Prospecção em uso).
+    const FUNIL_PROPOSTA_ETAPAS: { chave: string; statuses: string[] }[] = [
+      { chave: 'RASCUNHO', statuses: ['RASCUNHO'] },
+      { chave: 'ENVIADA', statuses: ['ENVIADA'] },
+      { chave: 'EM_NEGOCIACAO', statuses: ['EM_NEGOCIACAO'] },
+      { chave: 'FECHADA', statuses: ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'] },
+    ];
+    const pipeline_funil_propostas = FUNIL_PROPOSTA_ETAPAS.map(({ chave, statuses }) => {
+      const rows = pipeline_propostas_raw.filter(r => statuses.includes(r.status));
+      return {
+        etapa: chave,
+        count: rows.reduce((s, r) => s + num(r.count), 0),
+        valor: Math.round(rows.reduce((s, r) => s + num(r.setup_total), 0)),
+      };
+    });
+
+    // MRR dos contratos ativos (ContratoComercial é a fonte real — Contrato é legado e está sempre vazio)
+    const mrr_result = await prisma.contratoComercial.aggregate({
+      where: { status: 'ASSINADO' },
+      _sum: { mensalidade: true }
     });
 
     // MRR mês anterior
-    const mrr_anterior = await prisma.contrato.aggregate({
-      where: { status: 'ATIVO', deleted_at: null, created_at: { lte: fimMesAnterior } },
-      _sum: { valor: true }
+    const mrr_anterior = await prisma.contratoComercial.aggregate({
+      where: { status: 'ASSINADO', signed_at: { lte: fimMesAnterior } },
+      _sum: { mensalidade: true }
     });
 
     // Pipeline valor total
@@ -182,28 +199,17 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       take: 8
     });
 
-    // Valor total perdido no mês
-    const valor_perdido_mes_result: any[] = await prisma.$queryRawUnsafe(
-      `SELECT COALESCE(SUM(valor_oportunidade),0) as total FROM LeadPerda WHERE created_at >= ?`, inicioMes
-    ).catch(() => [{ total: 0 }]);
-    const valor_perdido_mes = Math.round(num(valor_perdido_mes_result[0]?.total));
+    // Valor total perdido no mês (via PropostaComercial — LeadPerda é legada e nunca é populada)
+    const valor_perdido_mes_result = await prisma.propostaComercial.aggregate({
+      where: { status: { in: ['RECUSADA', 'PERDIDA'] }, updated_at: { gte: inicioMes }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) },
+      _sum: { valor_final: true }
+    });
+    const valor_perdido_mes = Math.round(valor_perdido_mes_result._sum.valor_final || 0);
 
-    // Ranking de motivos de perda (todos os tempos, top 8)
-    const ranking_motivos_raw: any[] = await prisma.$queryRawUnsafe(
-      `SELECT motivo, COUNT(*) as total, COALESCE(SUM(valor_oportunidade),0) as valor_total
-       FROM LeadPerda
-       WHERE motivo IS NOT NULL
-       GROUP BY motivo
-       ORDER BY total DESC
-       LIMIT 8`
-    ).catch(() => []);
-    const total_perdas = ranking_motivos_raw.reduce((s, r) => s + num(r.total), 0);
-    const ranking_motivos = ranking_motivos_raw.map(r => ({
-      motivo: r.motivo,
-      total: num(r.total),
-      valor_total: Math.round(num(r.valor_total)),
-      pct: total_perdas > 0 ? Math.round((num(r.total) / total_perdas) * 100) : 0
-    }));
+    // Ranking de motivos de perda: o fluxo atual de PropostaComercial não captura motivo
+    // estruturado de recusa/perda (só existe na tabela legada LeadPerda, nunca populada).
+    // Fica vazio até que a captura de motivo seja implementada no fluxo de propostas.
+    const ranking_motivos: { motivo: string; total: number; valor_total: number; pct: number }[] = [];
 
     // NPS rápido
     const nps_total = await prisma.surveyResposta.count();
@@ -253,6 +259,7 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       },
       ranking_motivos_perda: ranking_motivos,
       pipeline_funil,
+      pipeline_funil_propostas,
       top_leads: top_leads.map(l => ({
         ...l,
         valor_ponderado: Math.round((l.valor_estimado || 0) * ((l.probabilidade || 50) / 100))
