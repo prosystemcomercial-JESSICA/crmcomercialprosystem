@@ -750,36 +750,6 @@ class ApiClient {
     return this.client.post(`/leads/${id}/reativar`);
   }
 
-  // Planos endpoints
-  async getPlanos(params?: { segmento?: string; ativo?: boolean }) {
-    return this.client.get('/catalogo', { params });
-  }
-
-  async createPlanoServico(data: any) {
-    return this.client.post('/catalogo', data);
-  }
-
-  async updatePlanoServico(id: string, data: any) {
-    return this.client.patch(`/catalogo/${id}`, data);
-  }
-
-  async deletePlanoServico(id: string) {
-    return this.client.delete(`/catalogo/${id}`);
-  }
-
-  // Licenças endpoints
-  async getLicencas(params?: { status?: string; cliente_id?: string; page?: number; limit?: number }) {
-    return this.client.get('/licencas', { params });
-  }
-
-  async createLicenca(data: any) {
-    return this.client.post('/licencas', data);
-  }
-
-  async updateLicenca(id: string, data: any) {
-    return this.client.patch(`/licencas/${id}`, data);
-  }
-
   // Onboarding endpoints
   async getOnboardings(params?: { status?: string }) {
     return this.client.get('/onboardings', { params });
@@ -791,19 +761,6 @@ class ApiClient {
 
   async updateOnboarding(id: string, data: any) {
     return this.client.patch(`/onboardings/${id}`, data);
-  }
-
-  // Renovações endpoints
-  async getRenovacoes(params?: { status?: string; dias?: number }) {
-    return this.client.get('/renovacoes', { params });
-  }
-
-  async createRenovacao(data: any) {
-    return this.client.post('/renovacoes', data);
-  }
-
-  async updateRenovacao(id: string, data: any) {
-    return this.client.patch(`/renovacoes/${id}`, data);
   }
 
   // Demandas técnicas (SolicitacaoServico global)
@@ -1254,10 +1211,6 @@ class ApiClient {
   }
   async salvarIndicadoresCEO(data: any) {
     return this.client.put('/ceo/indicadores', data);
-  }
-  // Módulo Comissões & Vendas (resumo executivo).
-  async getComissoesVendasCEO(mes_pagamento?: string) {
-    return this.client.get('/ceo/comissoes-vendas', { params: mes_pagamento ? { mes_pagamento } : {} });
   }
   async getVendasAdicionaisCEO(ano?: number) {
     return this.client.get('/ceo/vendas-adicionais', { params: ano ? { ano } : {} });
