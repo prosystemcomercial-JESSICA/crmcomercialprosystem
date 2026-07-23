@@ -8,7 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import {
   RefreshCw, TrendingUp, TrendingDown,
   DollarSign, FileCheck2, BarChart3, Star, Target,
-  Percent, FileText, Headphones, XCircle,
+  Percent, FileText, XCircle,
   Flame, Thermometer, Snowflake, CheckCircle2, ClipboardList,
   AlertTriangle, Zap, Heart, ChevronDown,
   Phone, Mail, Users, Car, Bell, FileOutput, Pin, ArrowRight,
@@ -724,7 +724,7 @@ export default function DashboardPage() {
 
                   {aberto && (
                     <div className="px-5 pb-5 pt-4 space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3">
                         <KpiCard
                           label="NPS Score"
                           value={temNps ? String(data.kpis.nps_score) : '—'}
@@ -735,13 +735,6 @@ export default function DashboardPage() {
                           accent={temNps
                             ? (data.kpis.nps_score! >= 50 ? '#16a34a' : data.kpis.nps_score! >= 0 ? '#d97706' : '#dc2626')
                             : '#9CA3AF'}
-                        />
-                        <KpiCard
-                          label="Tickets em Aberto" value={fmtNum(data.kpis.tickets_abertos)}
-                          sub={data.kpis.tickets_criticos > 0 ? `${data.kpis.tickets_criticos} críticos` : 'Nenhum crítico'}
-                          icon={Headphones}
-                          accent={data.kpis.tickets_criticos > 0 ? '#dc2626' : '#4B8EC8'}
-                          pulse={data.kpis.tickets_criticos > 0}
                         />
                       </div>
 
