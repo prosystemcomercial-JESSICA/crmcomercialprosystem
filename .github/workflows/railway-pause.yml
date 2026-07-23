@@ -17,6 +17,9 @@ jobs:
   pause:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Resolver environmentId (production)
         id: env
         run: |
@@ -33,35 +36,15 @@ jobs:
           echo "environment_id=$ENV_ID" >> "$GITHUB_OUTPUT"
 
       - name: Parar deployment do backend
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
-          RESP=$(curl -s -X POST "$RAILWAY_API" \
-            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\":\"query(\$sid: String!, \$eid: String!) { serviceInstance(serviceId: \$sid, environmentId: \$eid) { latestDeployment { id status } } }\",\"variables\":{\"sid\":\"$BACKEND_SERVICE_ID\",\"eid\":\"${{ steps.env.outputs.environment_id }}\"}}")
-          echo "Deployment atual (backend): $RESP"
-          DEPLOY_ID=$(echo "$RESP" | jq -r '.data.serviceInstance.latestDeployment.id')
-          if [ -n "$DEPLOY_ID" ] && [ "$DEPLOY_ID" != "null" ]; then
-            curl -s -X POST "$RAILWAY_API" \
-              -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"query\":\"mutation(\$id: String!) { deploymentStop(id: \$id) }\",\"variables\":{\"id\":\"$DEPLOY_ID\"}}"
-          else
-            echo "Nenhum deployment ativo encontrado para o backend — nada a parar."
-          fi
+          chmod +x .github/scripts/railway-stop-service.sh
+          .github/scripts/railway-stop-service.sh "$BACKEND_SERVICE_ID" "${{ steps.env.outputs.environment_id }}" "backend"
 
       - name: Parar deployment do frontend
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
-          RESP=$(curl -s -X POST "$RAILWAY_API" \
-            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\":\"query(\$sid: String!, \$eid: String!) { serviceInstance(serviceId: \$sid, environmentId: \$eid) { latestDeployment { id status } } }\",\"variables\":{\"sid\":\"$FRONTEND_SERVICE_ID\",\"eid\":\"${{ steps.env.outputs.environment_id }}\"}}")
-          echo "Deployment atual (frontend): $RESP"
-          DEPLOY_ID=$(echo "$RESP" | jq -r '.data.serviceInstance.latestDeployment.id')
-          if [ -n "$DEPLOY_ID" ] && [ "$DEPLOY_ID" != "null" ]; then
-            curl -s -X POST "$RAILWAY_API" \
-              -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"query\":\"mutation(\$id: String!) { deploymentStop(id: \$id) }\",\"variables\":{\"id\":\"$DEPLOY_ID\"}}"
-          else
-            echo "Nenhum deployment ativo encontrado para o frontend — nada a parar."
-          fi
+          chmod +x .github/scripts/railway-stop-service.sh
+          .github/scripts/railway-stop-service.sh "$FRONTEND_SERVICE_ID" "${{ steps.env.outputs.environment_id }}" "frontend"
