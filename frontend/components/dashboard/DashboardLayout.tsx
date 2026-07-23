@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/api-client';
 import VersionWatcher from '@/components/VersionWatcher';
 import {
   LayoutDashboard, Target, GitMerge, CalendarCheck, Calendar as CalendarIcon, FileCheck2,
-  TrendingDown, Megaphone, Trophy, Medal, Building2, Users, DollarSign,
+  Megaphone, Trophy, Medal, Building2, Users, DollarSign,
   Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
   Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
@@ -47,7 +47,6 @@ const navGroups: NavGroup[] = [
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
       { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
-      { href: '/perdidos',              icon: TrendingDown,  label: 'Perdidos',           roles: COMERCIAL },
     ],
   },
   {
