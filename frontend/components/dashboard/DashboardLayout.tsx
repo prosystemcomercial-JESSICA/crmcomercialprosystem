@@ -53,7 +53,7 @@ const navGroups: NavGroup[] = [
     label: 'Clientes & Base',
     items: [
       { href: '/clientes',   icon: Building2, label: 'Clientes',   roles: ALL },
-      { href: '/indicacoes', icon: Handshake, label: 'Indicações', roles: COMERCIAL },
+      { href: '/indicacoes', icon: Handshake, label: 'Cross-sell', roles: COMERCIAL },
     ],
   },
   {
