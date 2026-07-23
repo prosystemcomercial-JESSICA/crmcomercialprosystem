@@ -10,7 +10,7 @@ import {
   DollarSign, FileCheck2, BarChart3, Star, Target,
   Percent, FileText, Headphones, XCircle,
   Flame, Thermometer, Snowflake, CheckCircle2, ClipboardList,
-  AlertTriangle, Zap, Heart, RotateCcw, ChevronDown,
+  AlertTriangle, Zap, Heart, ChevronDown,
   Phone, Mail, Users, Car, Bell, FileOutput, Pin, ArrowRight,
 } from 'lucide-react';
 
@@ -171,7 +171,6 @@ function AlertStrip({ alertas }: { alertas: DashboardPower['alertas'] }) {
   const items = [
     { count: alertas.atividades_atrasadas, label: 'atividades atrasadas', color: '#dc2626', href: '/atividades' },
     { count: alertas.tickets_criticos, label: 'tickets críticos', color: '#9333ea', href: '/suporte' },
-    { count: alertas.renovacoes_criticas, label: 'renovações urgentes', color: '#ea580c', href: '/renovacoes' },
     { count: alertas.hs_em_risco, label: 'clientes em risco', color: '#d97706', href: '/health-score' },
   ].filter(i => i.count > 0);
 
@@ -817,11 +816,10 @@ export default function DashboardPage() {
                       </div>
 
                       {temSaude && (
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                           {[
                             { label: 'Críticos',           value: data.kpis.hs_criticos, icon: AlertTriangle, bg: 'rgba(220,38,38,0.06)', color: '#b91c1c', accent: '#dc2626', href: '/health-score' },
                             { label: 'Em Risco',            value: Math.max(0, data.alertas.hs_em_risco - data.kpis.hs_criticos), icon: Heart, bg: 'rgba(217,119,6,0.06)', color: '#92400e', accent: '#d97706', href: '/health-score' },
-                            { label: 'Renovações Urgentes', value: data.kpis.renovacoes_criticas, icon: RotateCcw, bg: 'rgba(234,88,12,0.06)', color: '#9a3412', accent: '#ea580c', href: '/renovacoes' },
                           ].map(stat => (
                             <a key={stat.label} href={stat.href}
                               className="text-center p-4 rounded-xl transition-all duration-150 hover:scale-[1.02]"

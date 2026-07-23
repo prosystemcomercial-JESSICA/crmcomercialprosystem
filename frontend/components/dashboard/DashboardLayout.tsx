@@ -9,9 +9,9 @@ import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import VersionWatcher from '@/components/VersionWatcher';
 import {
-  LayoutDashboard, Target, GitMerge, CalendarCheck, Calendar as CalendarIcon, FileCheck2,
+  LayoutDashboard, GitMerge, CalendarCheck, Calendar as CalendarIcon, FileCheck2,
   Megaphone, Trophy, Medal, Building2, Users, DollarSign,
-  Handshake, Flame, Activity, Star, Package, KeyRound, Rocket, RefreshCw,
+  Handshake, Flame, Activity, Star, KeyRound, RefreshCw,
   Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
@@ -24,7 +24,7 @@ const TECNICO = ['CEO', 'ADMIN', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'];
 const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
 const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN'];
-const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/comissoes-vendas', '/vendas-adicionais', '/churn-ceo'];
+const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/vendas-adicionais', '/churn-ceo'];
 
 type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp'; externoComToken?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
@@ -72,11 +72,9 @@ const navGroups: NavGroup[] = [
       { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
       { href: '/painel-ceo',              icon: TrendingUp,   label: 'Painel do CEO',      roles: GESTAO_COMERCIAL },
       { href: '/indicadores-ceo',         icon: DollarSign,   label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
-      { href: '/comissoes-vendas',        icon: DollarSign,   label: 'Comissões',          roles: GESTAO_COMERCIAL },
       { href: '/vendas-adicionais',       icon: Handshake,    label: 'Vendas Adicionais',  roles: GESTAO_COMERCIAL },
       { href: '/relatorio-comercial',     icon: LineChart,    label: 'Relatório (CEO)',     roles: GESTAO_COMERCIAL },
       { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
-      { href: '/plano-comercial',         icon: Target,       label: 'Plano Comercial',    roles: COMERCIAL },
     ],
   },
   {
@@ -88,7 +86,6 @@ const navGroups: NavGroup[] = [
       { href: '/health-score', icon: Activity,      label: 'Health Score',      roles: TECNICO },
       { href: '/nps',          icon: Star,          label: 'NPS',               roles: TECNICO },
       { href: '/pesquisas',    icon: MessageSquare, label: 'Pesquisas',         roles: TECNICO },
-      { href: '/renovacoes',   icon: RefreshCw,     label: 'Renovações',        roles: TECNICO },
     ],
   },
   {
@@ -97,17 +94,7 @@ const navGroups: NavGroup[] = [
       { href: '/alertas',               icon: Bell,      label: 'Alertas',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/previsao',              icon: TrendingUp, label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/nutricao',              icon: Sprout,    label: 'Nutrição',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/relatorios-comerciais', icon: BarChart2, label: 'Rel. Comercial',   roles: GESTAO_COMERCIAL },
       { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas',  roles: GESTAO_COMERCIAL },
-      { href: '/relatorios',            icon: LineChart, label: 'Rel. Retenção',    roles: TECNICO },
-    ],
-  },
-  {
-    label: 'Serviços',
-    items: [
-      { href: '/catalogo',   icon: Package,  label: 'Catálogo',   roles: GESTORES },
-      { href: '/licencas',   icon: KeyRound, label: 'Licenças',   roles: GESTORES },
-      { href: '/onboarding', icon: Rocket,   label: 'Onboarding', roles: TECNICO },
     ],
   },
   {

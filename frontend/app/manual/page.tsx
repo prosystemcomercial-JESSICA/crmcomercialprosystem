@@ -219,6 +219,48 @@ const VENDEDOR_SECOES: Secao[] = [
       },
     ],
   },
+  {
+    id: 'plano-comercial',
+    titulo: 'Plano Comercial Prosystem 2026',
+    icone: Target,
+    cor: '#2E6EAB',
+    resumo: 'Papéis, processo, regras, comissionamento e objetivos da equipe',
+    blocos: [
+      {
+        titulo: 'Papéis da equipe',
+        conteudo: 'Jessica Cardoso (Supervisora/Diretora Comercial): gestão da operação, planejamento estratégico, acompanhamento de metas e indicadores, desenvolvimento da equipe, negociações estratégicas, aprovação de condições especiais, fechamento de contratos estratégicos, expansão da carteira e treinamento. Meta: garantir o atingimento das metas gerais da equipe. Sarah (SDR e Closer): prospecção ativa, captação, ligações, WhatsApp, qualificação, agendamento, demonstrações, follow-up, negociação e fechamento. Vende upgrades, Comunicação entre Lojas, PAC, TEF e Auditoria Tributária. Atualização diária do CRM. Meta: 3 a 7 contratos fechados por mês.',
+      },
+      {
+        titulo: 'Processo comercial (5 etapas)',
+        conteudo: '1) Prospecção (Sarah): pesquisa de mercado, captação de leads, 1º contato, qualificação. 2) Apresentação (Sarah): demonstração, levantamento de necessidades, oportunidades. 3) Negociação (Sarah): proposta, negociação, tratamento de objeções. 4) Fechamento (Sarah): assinatura, confirmação da venda, encaminhar para implantação. 5) Gestão (Jessica): indicadores, oportunidades, revisão de metas, estratégia.',
+      },
+      {
+        titulo: 'Regras operacionais',
+        conteudo: 'Atualização diária obrigatória do CRM. Toda negociação deve ter registro. Todo lead deve ter status atualizado. Todo contrato fechado deve ser registrado. Toda oportunidade perdida deve ter motivo registrado. O que não está registrado no CRM não existe.',
+      },
+      {
+        titulo: 'Reunião comercial semanal',
+        conteudo: '30 minutos, com Jessica e Sarah. Pauta: leads, apresentações, propostas, contratos, negociações em andamento, upgrades, Comunicação, PAC, TEF, Auditoria e indicadores.',
+      },
+      {
+        titulo: 'Comissionamento',
+        conteudo: 'Novos contratos (setup): 15% para Sarah/vendedor, 5% para Jessica (override de todos os setups da equipe). Upgrade de plano (setup): 15% / 5%. Comunicação entre Lojas (setup): 15% / 5%. PAC: R$ 50,00 por venda (só vendedor). TEF: R$ 50,00 por ativação (só vendedor). Auditoria Tributária (Avant/Imendes): R$ 50,00 por ativação (só vendedor). Quando a Jessica atua direto na venda, recebe 15% como vendedora em vez do override de 5%.',
+      },
+      {
+        titulo: 'Bônus trimestral — Programa Acelerador',
+        conteudo: 'Válido a partir dos trimestres de maio: 100% da meta (15 contratos) → R$ 400,00. 150% da meta (22 contratos) → R$ 600,00. 200% da meta (30 contratos) → R$ 1.000,00.',
+        dica: 'O acompanhamento ao vivo do bônus fica na aba Comissões, no card "Bônus Trimestral — Acelerador".',
+      },
+      {
+        titulo: 'Indicadores de desempenho acompanhados mensalmente',
+        conteudo: 'Leads gerados, apresentações, taxa de conversão, contratos fechados, receita de setup, MRR, upgrades, Comunicação entre Lojas, PAC, TEF, auditorias tributárias.',
+      },
+      {
+        titulo: 'Objetivos 2026',
+        conteudo: 'Aumentar a base de clientes ativos e o ticket médio. Melhorar a taxa de conversão e a previsibilidade. Expandir serviços complementares e reduzir dependência de indicações. Criar uma máquina comercial escalável. Tornar a Prosystem referência em gestão para farmácias, manipulação, padarias e varejo.',
+      },
+    ],
+  },
 ];
 
 const SUP_COMERCIAL_SECOES: Secao[] = [
