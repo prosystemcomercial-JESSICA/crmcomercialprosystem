@@ -16,7 +16,6 @@ import {
 import { MrrTrendCard } from './components/MrrTrendCard';
 import { PipelineFunnelChart } from './components/PipelineFunnelChart';
 import { TemperaturaGauge } from './components/TemperaturaGauge';
-import { MotivosPerdaDonut } from './components/MotivosPerdaDonut';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DashboardPower {
@@ -32,6 +31,7 @@ interface DashboardPower {
   };
   ranking_motivos_perda: { motivo: string; total: number; valor_total: number; pct: number }[];
   pipeline_funil: { etapa: string; count: number; valor: number }[];
+  pipeline_funil_propostas: { etapa: string; count: number; valor: number }[];
   top_leads: {
     id: string; nome: string; empresa?: string; valor_estimado: number;
     probabilidade: number; etapa_funil: string; temperatura: string; valor_ponderado: number;
@@ -67,6 +67,11 @@ const ETAPA_LABEL: Record<string, string> = {
   PROSPECCAO: 'Prospecção', QUALIFICACAO: 'Qualificação',
   APRESENTACAO: 'Apresentação', PROPOSTA: 'Proposta',
   NEGOCIACAO: 'Negociação', FECHAMENTO: 'Fechamento',
+};
+
+const ETAPA_PROPOSTA_LABEL: Record<string, string> = {
+  RASCUNHO: 'Rascunho', ENVIADA: 'Enviada',
+  EM_NEGOCIACAO: 'Em Negociação', FECHADA: 'Fechada',
 };
 
 const TIPO_LABEL: Record<string, { Icon: React.ElementType; label: string }> = {
@@ -496,17 +501,23 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ── Pipeline por Etapa + Top Leads ──────────────── */}
+            {/* ── Funis: Leads e Propostas ──────────────────────── */}
             <div className="du-fade-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-              {/* Pipeline por etapa */}
               <PipelineFunnelChart
                 pipelineFunil={data.pipeline_funil}
                 etapaLabel={ETAPA_LABEL}
                 fmt={fmt}
               />
+              <PipelineFunnelChart
+                pipelineFunil={data.pipeline_funil_propostas}
+                etapaLabel={ETAPA_PROPOSTA_LABEL}
+                fmt={fmt}
+                titulo="Funil de Propostas Comerciais"
+              />
+            </div>
 
-              {/* Top 5 Leads */}
+            {/* ── Top 5 Leads ──────────────────────────────────── */}
+            <div className="du-fade-4">
               <div className="ps-card rounded-xl p-5">
                 <p className="text-xs font-semibold mb-4" style={{ color: 'var(--t-text-primary)' }}>Top 5 Leads — Maior Potencial</p>
                 {data.top_leads.length === 0 ? (
@@ -558,7 +569,7 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Análise de Perdas ────────────────────────────── */}
-            {(data.kpis.leads_perdidos_mes > 0 || data.ranking_motivos_perda?.length > 0) && (
+            {data.kpis.leads_perdidos_mes > 0 && (
               <div className="du-fade-5">
                 <SectionLabel>Análise de Negócios Perdidos</SectionLabel>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
@@ -574,8 +585,6 @@ export default function DashboardPage() {
                     accent={data.kpis.leads_perdidos_mes > data.kpis.leads_ganhos_mes ? '#dc2626' : '#d97706'}
                   />
                 </div>
-
-                <MotivosPerdaDonut motivos={data.ranking_motivos_perda} fmt={fmt} />
               </div>
             )}
 

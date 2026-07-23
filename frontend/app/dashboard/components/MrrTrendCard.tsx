@@ -58,7 +58,7 @@ export function MrrTrendCard({ mrr, mrrDelta, contratosAtivos, contratosMes, Ani
               <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>
                 MRR Recorrente
               </p>
-              <p className="text-2xl font-bold tracking-tight leading-none mt-1" style={{ color: 'var(--t-text-primary)' }}>
+              <p className="text-4xl font-extrabold tracking-tight leading-none mt-1.5" style={{ color: 'var(--t-text-primary)' }}>
                 <AnimatedNumber value={mrr} prefix="R$ " />
               </p>
             </div>
@@ -78,7 +78,7 @@ export function MrrTrendCard({ mrr, mrrDelta, contratosAtivos, contratosMes, Ani
         </div>
 
         {temTendencia ? (
-          <div className="h-24 mt-3 -mx-2">
+          <div className="h-40 mt-4 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={serie} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
                 <defs>
@@ -118,7 +118,7 @@ export function MrrTrendCard({ mrr, mrrDelta, contratosAtivos, contratosMes, Ani
         <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>
           Contratos Ativos
         </p>
-        <p className="text-2xl font-bold tracking-tight leading-none" style={{ color: 'var(--t-text-primary)' }}>
+        <p className="text-4xl font-extrabold tracking-tight leading-none" style={{ color: 'var(--t-text-primary)' }}>
           <AnimatedNumber value={contratosAtivos} />
         </p>
         <p className="text-[11px] mt-1.5" style={{ color: 'var(--t-text-secondary)' }}>
