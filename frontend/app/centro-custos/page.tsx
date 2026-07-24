@@ -40,6 +40,7 @@ export default function CentroCustosPage() {
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showCriterios, setShowCriterios] = useState(false);
   const [form, setForm] = useState<any>({ tipo: 'SAIDA', categoria: 'SALARIO', valor: '', recorrencia: 'MENSAL', descricao: '' });
   const [saving, setSaving] = useState(false);
 
@@ -406,6 +407,78 @@ export default function CentroCustosPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Critério de geração da comissão — menu suspenso no rodapé */}
+            <div className="ps-card border border-gray-200 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setShowCriterios(s => !s)}
+                className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left"
+              >
+                <span className="font-semibold text-sm">📋 Como a comissão é calculada</span>
+                <span className="text-xs text-gray-400">{showCriterios ? '▲ recolher' : '▼ ver critério'}</span>
+              </button>
+              {showCriterios && (
+                <div className="px-5 pb-5 pt-1 space-y-5 text-sm text-gray-700 border-t border-gray-100">
+                  <div>
+                    <p className="font-semibold text-xs uppercase tracking-wide text-gray-500 mb-2">1. Contratos novos</p>
+                    <p className="mb-2">Gerada no momento em que o contrato é marcado como <b>ASSINADO</b>. A competência (mês em que a comissão "nasce", usada nesta página) é o mês da assinatura.</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border border-gray-100 rounded-lg overflow-hidden">
+                        <thead className="bg-gray-50">
+                          <tr className="text-left">
+                            <th className="px-3 py-2">Papel</th><th className="px-3 py-2">Percentual</th><th className="px-3 py-2">Base de cálculo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-gray-100"><td className="px-3 py-2">Vendedor</td><td className="px-3 py-2 font-semibold">15%</td><td className="px-3 py-2">Valor de setup do contrato</td></tr>
+                          <tr className="border-t border-gray-100"><td className="px-3 py-2">Supervisão</td><td className="px-3 py-2 font-semibold">5%</td><td className="px-3 py-2">Mesmo valor de setup (pago a cada supervisor/admin ativo)</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-xs uppercase tracking-wide text-gray-500 mb-2">2. Vendas adicionais (indicações, upgrades, revendas)</p>
+                    <p className="mb-2">A regra varia por categoria do parceiro. A competência usada nesta página é o <b>mês seguinte</b> à confirmação da venda (ou ao 1º vencimento, no caso de Comunicação de Dados) — diferente dos contratos novos.</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border border-gray-100 rounded-lg overflow-hidden">
+                        <thead className="bg-gray-50">
+                          <tr className="text-left">
+                            <th className="px-3 py-2">Categoria do parceiro</th><th className="px-3 py-2">Comissão do vendedor</th><th className="px-3 py-2">Comissão da supervisão</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-gray-100">
+                            <td className="px-3 py-2 font-medium">Comunicação de Dados</td>
+                            <td className="px-3 py-2">15% sobre o setup</td>
+                            <td className="px-3 py-2">5% sobre o setup</td>
+                          </tr>
+                          <tr className="border-t border-gray-100">
+                            <td className="px-3 py-2 font-medium">Upgrade de Plano</td>
+                            <td className="px-3 py-2">Valor fixo (R$ 50)</td>
+                            <td className="px-3 py-2">5% sobre o setup</td>
+                          </tr>
+                          <tr className="border-t border-gray-100">
+                            <td className="px-3 py-2 font-medium">Pacote Fiscal / TEF / Avant / Imendes</td>
+                            <td className="px-3 py-2">Valor fixo (R$ 50)</td>
+                            <td className="px-3 py-2">5% sobre o acréscimo de mensalidade</td>
+                          </tr>
+                          <tr className="border-t border-gray-100">
+                            <td className="px-3 py-2 font-medium">Demais parceiros</td>
+                            <td className="px-3 py-2">Valor fixo (cadastrado por parceiro)</td>
+                            <td className="px-3 py-2">Percentual configurável por parceiro</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-400 border-t border-gray-100 pt-3">
+                    O lançamento de despesa desta página é criado automaticamente a partir da comissão gerada, na mesma competência (mês) em que ela nasceu — não no mês em que o financeiro efetivamente paga.
+                  </p>
                 </div>
               )}
             </div>
