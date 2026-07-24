@@ -469,6 +469,8 @@ class ApiClient {
     percepcao_tags?: string[];
     percepcao_nota?: number;
     percepcao_observ?: string;
+    temperatura?: string;
+    valor_estimado?: number;
   }) {
     return this.client.post(`/atividades/${id}/concluir`, data);
   }
