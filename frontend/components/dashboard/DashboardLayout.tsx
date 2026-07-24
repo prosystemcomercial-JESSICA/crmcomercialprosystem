@@ -95,6 +95,7 @@ const navGroups: NavGroup[] = [
       { href: '/previsao',              icon: TrendingUp, label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/nutricao',              icon: Sprout,    label: 'Nutrição',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas',  roles: GESTAO_COMERCIAL },
+      { href: '/analise-comercial',     icon: BarChart2, label: 'Análise Comercial', roles: COMERCIAL },
     ],
   },
   {

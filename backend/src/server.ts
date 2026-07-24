@@ -356,6 +356,7 @@ async function loadRoutes() {
     ['auditoria',             () => import('./routes/auditoria'),             'auditoriaRoutes'],
     ['whatsapp',              () => import('./routes/whatsapp'),              'whatsappRoutes'],
     ['forecast',              () => import('./routes/forecast'),              'forecastRoutes'],
+    ['analise-comercial',     () => import('./routes/analise-comercial'),     'analiseComercialRoutes'],
     ['financeiro',            () => import('./routes/financeiro'),            'financeiroRoutes'],
     ['pesquisa',              () => import('./routes/pesquisa'),              'pesquisaRoutes'],
     ['relatorio-comercial',   () => import('./routes/relatorio-comercial'),   'relatorioComercialRoutes'],
