@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { enviarEmailConfirmacaoAgendamento } from '../services/email.service';
 import { ownerWhere } from '@/lib/scope';
+import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 
 const STATUS = ['PENDENTE', 'CONFIRMADA', 'REALIZADA', 'CANCELADA', 'REMARCADA', 'CLIENTE_NAO_COMPARECEU', 'AGUARDANDO_RETORNO'] as const;
 const TIPOS = ['LIGACAO', 'EMAIL', 'REUNIAO', 'WHATSAPP', 'VISITA', 'TAREFA', 'OUTRO'] as const;
@@ -69,13 +70,17 @@ const PERCEPCAO_TAGS = [
   'CLIENTE_INTERESSADO', 'TECNICA_DEMO', 'AVANCOU_FUNIL', 'SEM_DECISAO'
 ] as const;
 
+const TEMPERATURAS = ['FRIO', 'MORNO', 'QUENTE', 'MUITO_QUENTE'] as const;
+
 const ConcluirSchema = z.object({
   resultado: z.string().min(1),
   duracao_minutos: z.number().optional(),
   data_realizada: z.string().datetime().optional(),
   percepcao_tags: z.array(z.enum(PERCEPCAO_TAGS)).optional(),
   percepcao_nota: z.number().int().min(1).max(5).optional(),
-  percepcao_observ: z.string().optional()
+  percepcao_observ: z.string().optional(),
+  temperatura: z.enum(TEMPERATURAS).optional(),
+  valor_estimado: z.number().positive().optional()
 });
 
 const CancelarSchema = z.object({
@@ -156,7 +161,7 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
         skip,
         take,
         orderBy: [{ data_prevista: 'asc' }, { created_at: 'desc' }],
-        include: { lead: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } } },
+        include: { lead: { select: { id: true, nome: true, empresa: true, email: true, telefone: true, temperatura: true, valor_estimado: true } } },
       });
 
       let lista = todas;
@@ -184,7 +189,7 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     const atividade = await prisma.atividade.findUnique({
       where: { id },
       include: {
-        lead: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } }
+        lead: { select: { id: true, nome: true, empresa: true, email: true, telefone: true, temperatura: true, valor_estimado: true } }
       }
     });
     if (!atividade) return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
@@ -505,6 +510,30 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
 
       // Registra no card do LEAD que a atividade foi REALIZADA + a observação/resultado.
       await registrarAtividadeNoLead(prisma, atividade, 'REALIZADA', body.data.resultado, request).catch(() => {});
+
+      // Atualiza temperatura/valor estimado do lead vinculado (best-effort — não
+      // bloqueia a conclusão da atividade se o lead não existir ou a escrita falhar).
+      if (atividade.lead_id && (body.data.temperatura !== undefined || body.data.valor_estimado !== undefined)) {
+        const user = (request as any).user;
+        await (async () => {
+          const leadAntes = await prisma.lead.findUnique({ where: { id: atividade.lead_id! }, select: { temperatura: true } });
+          const leadUpdateData: any = {};
+          if (body.data.valor_estimado !== undefined) leadUpdateData.valor_estimado = body.data.valor_estimado;
+          if (body.data.temperatura !== undefined) leadUpdateData.temperatura = body.data.temperatura;
+          if (Object.keys(leadUpdateData).length > 0) {
+            await prisma.lead.update({ where: { id: atividade.lead_id! }, data: leadUpdateData });
+          }
+          if (body.data.temperatura !== undefined) {
+            await registrarMudancaTemperatura(prisma, {
+              leadId: atividade.lead_id!,
+              temperaturaAnterior: leadAntes?.temperatura,
+              temperaturaNova: body.data.temperatura,
+              autorId: user?.id,
+              autorNome: user?.nome || 'Sistema',
+            });
+          }
+        })().catch(() => {});
+      }
 
       return reply.send({ status: 'success', data: atividade });
     } catch (err: any) {
