@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  LineChart, Line, Legend,
+  LineChart, Line, Legend, Tooltip,
 } from 'recharts';
 import { ChartTooltip } from '../dashboard/components/ChartTooltip';
 
@@ -336,6 +336,7 @@ export default function AnaliseComercialPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
                     <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
                     <YAxis tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
+                    <Tooltip content={<ChartTooltip formatter={(v) => fmt(Number(v))} />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Line type="monotone" dataKey="Setup" stroke="#4B8EC8" strokeWidth={2} dot={false} />
                     <Line type="monotone" dataKey="MRR" stroke="#16a34a" strokeWidth={2} dot={false} />
@@ -353,6 +354,7 @@ export default function AnaliseComercialPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
                     <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
                     <YAxis tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--t-content-bg)' }} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Bar dataKey="Ano anterior" fill="#94a3b8" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="Este ano" fill="#4B8EC8" radius={[4, 4, 0, 0]} />
