@@ -312,4 +312,77 @@ export async function financeiroRoutes(fastify: FastifyInstance, options: { pris
       },
     });
   });
+
+  // Fluxo de caixa projetado (M+1, M+2, M+3): entradas = MRR contratado atual (recorrente
+  // esperado); saídas = despesas JÁ LANÇADAS com competência naquele mês futuro (não infere
+  // recorrência — só existe se alguém cadastrou com repetir_meses). Se não houver nenhuma
+  // saída lançada pro mês, `despesas_lancadas` fica false p/ o front avisar em vez de sugerir custo zero.
+  fastify.get('/financeiro/fluxo-projetado', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    const mrrAtualResult = await prisma.contratoComercial.aggregate({
+      where: { status: 'ASSINADO' },
+      _sum: { mensalidade: true },
+    }).catch(() => ({ _sum: { mensalidade: 0 } }) as any);
+    const mrrAtual = mrrAtualResult._sum.mensalidade || 0;
+
+    const hoje = new Date();
+    const pontos = [];
+    for (let i = 1; i <= 3; i++) {
+      const idxMes0 = hoje.getMonth() + i;
+      const ano = hoje.getFullYear() + Math.floor(idxMes0 / 12);
+      const mes = (idxMes0 % 12) + 1;
+
+      const saidasMes = await prisma.lancamentoFinanceiro.findMany({
+        where: { tipo: 'SAIDA', competencia_ano: ano, competencia_mes: mes },
+        select: { valor: true },
+      }).catch(() => [] as any[]);
+      const totalSaidas = saidasMes.reduce((s, l) => s + Number(l.valor), 0);
+
+      pontos.push({
+        mes: `M+${i}`,
+        ano, mes_numero: mes,
+        entrada_mrr: round2(mrrAtual),
+        saida_lancada: round2(totalSaidas),
+        despesas_lancadas: saidasMes.length > 0,
+        resultado: round2(mrrAtual - totalSaidas),
+      });
+    }
+
+    return reply.send({ status: 'success', data: { mrr_atual: round2(mrrAtual), pontos } });
+  });
+
+  // Churn financeiro mensal: MRR perdido (Cliente.mrr_perdido) agrupado por mês de
+  // inativação (Cliente.inativado_em), últimos 6 meses — série pra gráfico de barras.
+  fastify.get('/financeiro/churn-mensal', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    const hoje = new Date();
+    const desde = new Date(hoje.getFullYear(), hoje.getMonth() - 5, 1);
+    const clientesInativados = await prisma.cliente.findMany({
+      where: { situacao: 'INATIVA', inativado_em: { gte: desde } },
+      select: { mrr_perdido: true, inativado_em: true },
+    }).catch(() => [] as any[]);
+
+    const porMes = new Map<string, number>();
+    for (const c of clientesInativados) {
+      if (!c.inativado_em) continue;
+      const chave = `${c.inativado_em.getFullYear()}-${String(c.inativado_em.getMonth() + 1).padStart(2, '0')}`;
+      porMes.set(chave, (porMes.get(chave) || 0) + (c.mrr_perdido || 0));
+    }
+
+    const MES_LABEL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const serie = [];
+    for (let i = 5; i >= 0; i--) {
+      const idxMes0 = hoje.getMonth() - i;
+      const ano = hoje.getFullYear() + Math.floor(idxMes0 / 12);
+      const mes = ((idxMes0 % 12) + 12) % 12; // 0-11, sempre positivo
+      const chave = `${ano}-${String(mes + 1).padStart(2, '0')}`;
+      serie.push({ mes: `${MES_LABEL[mes]}/${String(ano).slice(2)}`, mrr_perdido: round2(porMes.get(chave) || 0) });
+    }
+
+    return reply.send({ status: 'success', data: { serie } });
+  });
 }

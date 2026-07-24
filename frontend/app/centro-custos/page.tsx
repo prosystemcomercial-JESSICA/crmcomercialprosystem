@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 interface Lancamento {
   id: string; tipo: 'ENTRADA' | 'SAIDA'; categoria: string; descricao?: string;
@@ -35,6 +36,8 @@ export default function CentroCustosPage() {
   const [mes, setMes] = useState<number | 0>(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [balanco, setBalanco] = useState<any | null>(null);
+  const [fluxoProjetado, setFluxoProjetado] = useState<any | null>(null);
+  const [churnMensal, setChurnMensal] = useState<{ mes: string; mrr_perdido: number }[] | null>(null);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [cats, setCats] = useState<{ entrada: string[]; saida: string[] }>({ entrada: [], saida: [] });
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
@@ -49,14 +52,18 @@ export default function CentroCustosPage() {
   const load = useCallback(async () => {
     setDataLoading(true);
     try {
-      const [r, l, b] = await Promise.all([
+      const [r, l, b, f, c] = await Promise.all([
         apiClient.getFinanceiroResumo(ano, mes || undefined),
         apiClient.getLancamentos({ ano, mes: mes || undefined }),
         apiClient.getFinanceiroBalanco(ano, mes || undefined).catch(() => null),
+        apiClient.getFinanceiroFluxoProjetado().catch(() => null),
+        apiClient.getFinanceiroChurnMensal().catch(() => null),
       ]);
       setResumo(r.data.data);
       setLancamentos(l.data.data);
       setBalanco(b?.data?.data || null);
+      setFluxoProjetado(f?.data?.data || null);
+      setChurnMensal(c?.data?.data?.serie || null);
     } catch (e) { console.error(e); } finally { setDataLoading(false); }
   }, [ano, mes]);
 
@@ -340,6 +347,88 @@ export default function CentroCustosPage() {
                     O faturamento e o MRR vêm <b>automaticamente</b> dos contratos assinados e vendas à base do período.
                     As despesas vêm dos lançamentos de saída que você registra acima.
                   </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── DRE SIMPLIFICADO ───────────────────────────────────────────── */}
+            {balanco && (
+              <div className="ps-card border rounded-2xl overflow-hidden">
+                <div className="px-5 py-3 bg-gray-50 border-b flex items-center justify-between flex-wrap gap-2">
+                  <h2 className="text-base font-bold">📋 DRE simplificado</h2>
+                  <span className="text-xs text-gray-500">{mes ? `${MESES[mes]}/${ano}` : `Ano ${ano}`}</span>
+                </div>
+                <div className="p-5 space-y-2 text-sm">
+                  <div className="flex items-center justify-between py-1.5">
+                    <span>Receita comercial (imediato + MRR projetado)</span>
+                    <span className="font-semibold text-green-700">{fmt(balanco.receita_comercial_total)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-t border-dashed">
+                    <span>(−) Custos e despesas do setor</span>
+                    <span className="font-semibold text-red-700">{fmt(balanco.despesa_setor)}</span>
+                  </div>
+                  {(() => {
+                    const comissaoTotal = balanco.despesa_por_categoria?.find((c: any) => c.categoria === 'COMISSAO')?.valor || 0;
+                    return comissaoTotal > 0 ? (
+                      <div className="flex items-center justify-between py-1.5 pl-4 text-xs text-gray-500">
+                        <span>— incluindo comissões</span>
+                        <span>{fmt(comissaoTotal)}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className="flex items-center justify-between py-2 border-t-2 border-gray-200 mt-1">
+                    <span className="font-bold">Resultado líquido projetado</span>
+                    <span className={`font-extrabold text-lg ${balanco.resultado_projetado >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>
+                      {fmt(balanco.resultado_projetado)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── FLUXO DE CAIXA PROJETADO (M+1 a M+3) ───────────────────────── */}
+            {fluxoProjetado && (
+              <div className="ps-card border rounded-2xl overflow-hidden">
+                <div className="px-5 py-3 bg-gray-50 border-b">
+                  <h2 className="text-base font-bold">📅 Fluxo de caixa projetado</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">MRR contratado atual − despesas já lançadas para cada mês futuro</p>
+                </div>
+                <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {fluxoProjetado.pontos.map((p: any) => (
+                    <div key={p.mes} className={`rounded-xl p-4 border ${p.resultado >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
+                      <p className="text-xs font-semibold">{p.mes} · {MESES[p.mes_numero]}/{p.ano}</p>
+                      <p className={`text-xl font-extrabold mt-1 ${p.resultado >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>{fmt(p.resultado)}</p>
+                      <p className="text-[11px] text-gray-500 mt-1">MRR: {fmt(p.entrada_mrr)} · despesas: {fmt(p.saida_lancada)}</p>
+                      {!p.despesas_lancadas && (
+                        <p className="text-[11px] text-amber-600 mt-1">⚠ nenhuma despesa lançada ainda para este mês</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── CHURN FINANCEIRO MENSAL ─────────────────────────────────────── */}
+            {churnMensal && (
+              <div className="ps-card border rounded-2xl overflow-hidden">
+                <div className="px-5 py-3 bg-gray-50 border-b">
+                  <h2 className="text-base font-bold">📉 MRR perdido por mês (churn financeiro)</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Últimos 6 meses — mensalidade perdida na desativação de clientes</p>
+                </div>
+                <div className="p-5">
+                  {churnMensal.every(c => c.mrr_perdido === 0) ? (
+                    <p className="text-xs text-center py-6 text-gray-400">Nenhum churn registrado no período</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={churnMensal}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                        <Bar dataKey="mrr_perdido" name="MRR perdido" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
             )}
