@@ -252,10 +252,13 @@ export default function CentroCustosPage() {
                 <div className="space-y-2">
                   {resumo!.por_categoria.sort((a, b) => b.valor - a.valor).map(c => {
                     const max = Math.max(...resumo!.por_categoria.map(x => x.valor), 1);
+                    const ehSaida = cats.saida.includes(c.categoria);
                     return (
                       <div key={c.categoria} className="flex items-center gap-3">
                         <span className="text-xs  w-36 flex-shrink-0">{CAT_LABEL[c.categoria] || c.categoria}</span>
-                        <div className="flex-1 bg-opacity-0 rounded-full h-4"><div className="bg-blue-500 h-4 rounded-full" style={{ width: `${(c.valor / max) * 100}%` }} /></div>
+                        <div className="flex-1 bg-opacity-0 rounded-full h-4">
+                          <div className={`h-4 rounded-full ${ehSaida ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${(c.valor / max) * 100}%` }} />
+                        </div>
                         <span className="text-xs font-medium  w-28 text-right">{fmt(c.valor)}</span>
                       </div>
                     );
