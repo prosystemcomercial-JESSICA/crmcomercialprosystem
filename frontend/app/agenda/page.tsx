@@ -18,7 +18,7 @@ import {
 interface Atividade {
   id: string;
   lead_id?: string | null;
-  lead?: { id: string; nome: string; empresa?: string; email?: string; telefone?: string } | null;
+  lead?: { id: string; nome: string; empresa?: string; email?: string; telefone?: string; temperatura?: string; valor_estimado?: number | null } | null;
   vinculo_tipo?: string;
   vinculo_nome?: string;
   link_externo?: string;
@@ -56,6 +56,13 @@ const TIPO_CONFIG: Record<string, { label: string; icon: any; color: string; bg:
   TAREFA:    { label: 'Tarefa',     icon: FileText,       color: '#ca8a04',                 bg: 'rgba(202,138,4,0.08)' },
   OUTRO:     { label: 'Outro',      icon: CalendarDays,   color: 'var(--t-text-muted)',     bg: 'rgba(100,116,139,0.08)' }
 };
+
+const TEMPERATURA_OPCOES: { value: string; label: string; color: string; bg: string }[] = [
+  { value: 'FRIO',         label: 'Frio',         color: '#2563eb', bg: 'rgba(37,99,235,0.10)' },
+  { value: 'MORNO',        label: 'Morno',        color: '#d97706', bg: 'rgba(217,119,6,0.10)' },
+  { value: 'QUENTE',       label: 'Quente',       color: '#ef4444', bg: 'rgba(239,68,68,0.10)' },
+  { value: 'MUITO_QUENTE', label: 'Muito Quente', color: '#dc2626', bg: 'rgba(220,38,38,0.10)' },
+];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   PENDENTE:               { label: 'Agendada',               color: '#ca8a04', bg: 'rgba(202,138,4,0.08)',   border: 'rgba(202,138,4,0.25)' },
@@ -580,7 +587,8 @@ export default function AgendaPage() {
   const [concluirForm, setConcluirForm] = useState<{
     resultado: string; duracao_minutos: string;
     percepcao_tags: string[]; percepcao_nota: number; percepcao_observ: string;
-  }>({ resultado: '', duracao_minutos: '', percepcao_tags: [], percepcao_nota: 0, percepcao_observ: '' });
+    temperatura: string; valor_estimado: string;
+  }>({ resultado: '', duracao_minutos: '', percepcao_tags: [], percepcao_nota: 0, percepcao_observ: '', temperatura: '', valor_estimado: '' });
   const [cancelarForm, setCancelarForm] = useState({ motivo_cancelamento: '' });
   const [remarcarForm, setRemarcarForm] = useState({ nova_data_remarcada: '', motivo: '' });
   const [leads, setLeads] = useState<any[]>([]);
@@ -788,10 +796,12 @@ export default function AgendaPage() {
         duracao_minutos: concluirForm.duracao_minutos ? parseInt(concluirForm.duracao_minutos) : undefined,
         percepcao_tags: concluirForm.percepcao_tags.length > 0 ? concluirForm.percepcao_tags : undefined,
         percepcao_nota: concluirForm.percepcao_nota > 0 ? concluirForm.percepcao_nota : undefined,
-        percepcao_observ: concluirForm.percepcao_observ || undefined
+        percepcao_observ: concluirForm.percepcao_observ || undefined,
+        temperatura: concluirForm.temperatura || undefined,
+        valor_estimado: concluirForm.valor_estimado ? parseFloat(concluirForm.valor_estimado) : undefined
       });
       setShowConcluir(null);
-      setConcluirForm({ resultado: '', duracao_minutos: '', percepcao_tags: [], percepcao_nota: 0, percepcao_observ: '' });
+      setConcluirForm({ resultado: '', duracao_minutos: '', percepcao_tags: [], percepcao_nota: 0, percepcao_observ: '', temperatura: '', valor_estimado: '' });
       load();
     } catch { /* ignore */ }
     setSaving(false);
@@ -1355,7 +1365,14 @@ export default function AgendaPage() {
                     )}
                     {isActive && (
                       <>
-                        <button onClick={() => setShowConcluir(a)} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#16a34a', border: '1.5px solid #86efac' }}>
+                        <button onClick={() => {
+                          setConcluirForm(p => ({
+                            ...p,
+                            temperatura: a.lead?.temperatura || '',
+                            valor_estimado: a.lead?.valor_estimado != null ? String(a.lead.valor_estimado) : '',
+                          }));
+                          setShowConcluir(a);
+                        }} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#16a34a', border: '1.5px solid #86efac' }}>
                           <CheckCircle2 size={12} />
                         </button>
                         <button onClick={() => setShowRemarcar(a)} style={{ ...btnOutline, padding: '5px 10px', fontSize: 12, color: '#7c3aed', border: '1.5px solid #c4b5fd' }}>
@@ -2039,6 +2056,40 @@ export default function AgendaPage() {
                 {DURACAO_OPCOES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
               </select>
             </div>
+            {showConcluir.lead && (
+              <div style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC', borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', marginBottom: 8 }}>
+                  Como está o lead agora? (opcional — ajuda a priorizar quem contatar)
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {TEMPERATURA_OPCOES.map(opt => {
+                    const ativo = concluirForm.temperatura === opt.value;
+                    return (
+                      <button key={opt.value} type="button"
+                        onClick={() => setConcluirForm(p => ({ ...p, temperatura: opt.value }))}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          padding: '6px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                          background: ativo ? opt.color : opt.bg,
+                          color: ativo ? '#fff' : opt.color,
+                          border: `1.5px solid ${opt.color}`,
+                          cursor: 'pointer', transition: 'all 0.15s'
+                        }}>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, fontSize: 11 }}>Valor estimado (R$)</label>
+                  <input type="number" min="0" step="0.01"
+                    value={concluirForm.valor_estimado}
+                    onChange={e => setConcluirForm(p => ({ ...p, valor_estimado: e.target.value }))}
+                    placeholder="0,00"
+                    style={inputStyle} />
+                </div>
+              </div>
+            )}
             {/* Percepção da reunião — só para tipo REUNIAO */}
             {showConcluir.tipo === 'REUNIAO' && (
               <div style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC', borderRadius: 10, padding: 14 }}>
@@ -2186,7 +2237,15 @@ export default function AgendaPage() {
         <Modal title="Detalhes da Atividade" onClose={() => setShowDetail(null)} wide>
           <AtividadeDetail
             atividade={showDetail}
-            onConcluir={() => { setShowDetail(null); setShowConcluir(showDetail); }}
+            onConcluir={() => {
+              setConcluirForm(p => ({
+                ...p,
+                temperatura: showDetail?.lead?.temperatura || '',
+                valor_estimado: showDetail?.lead?.valor_estimado != null ? String(showDetail.lead.valor_estimado) : '',
+              }));
+              setShowDetail(null);
+              setShowConcluir(showDetail);
+            }}
             onCancelar={() => { setShowDetail(null); setShowCancelar(showDetail); }}
             onRemarcar={() => { setShowDetail(null); setShowRemarcar(showDetail); }}
             onCriarMeet={() => handleCriarMeet(showDetail.id)}
