@@ -155,8 +155,11 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
       where: { cliente_id: clienteId },
       update: { score, nivel, fatores, calculado_at: new Date() },
       create: { cliente_id: clienteId, score, nivel, fatores },
-      include: { cliente: { select: { id: true, nome: true, empresa: true } } }
+      include: { cliente: { select: { id: true, nome: true, empresa: true, mensalidade_base: true } } }
     });
+    prisma.healthScoreSnapshot.create({
+      data: { cliente_id: clienteId, score, nivel, mrr_momento: hs.cliente?.mensalidade_base ?? null },
+    }).catch(() => {});
 
     return reply.send({ status: 'success', data: hs });
   });
@@ -234,6 +237,9 @@ export async function healthScoreRoutes(fastify: FastifyInstance, options: { pri
           update: { score, nivel, fatores, calculado_at: new Date() },
           create: { cliente_id: cliente.id, score, nivel, fatores }
         });
+        prisma.healthScoreSnapshot.create({
+          data: { cliente_id: cliente.id, score, nivel, mrr_momento: (c as any).mensalidade_base ?? null },
+        }).catch(() => {});
         processados++;
       } catch (e) { /* skip */ }
     }

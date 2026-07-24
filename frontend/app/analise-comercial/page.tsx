@@ -7,10 +7,11 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import {
   RefreshCw, TrendingUp, Target, Percent, Users, Clock, Repeat, Star,
+  Flame, AlertTriangle,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  LineChart, Line, Legend, Tooltip,
+  LineChart, Line, Legend, Tooltip, AreaChart, Area,
 } from 'recharts';
 import { ChartTooltip } from '../dashboard/components/ChartTooltip';
 
@@ -24,12 +25,18 @@ interface AnaliseComercial {
     por_segmento: { segmento: string; ganhas: number; perdidas: number; win_rate: number | null }[];
     por_vendedor: { vendedor_id: string; vendedor_nome: string; ganhas: number; perdidas: number; win_rate: number | null }[];
   };
-  atingimento_meta: { vendedor_id: string; vendedor_nome: string; realizado_valor: number; meta_valor: number; percentual: number | null }[];
+  atingimento_meta: {
+    vendedor_id: string; vendedor_nome: string; realizado_valor: number; meta_valor: number; percentual: number | null;
+    dias_decorridos_pct: number; ritmo: 'acima' | 'no_ritmo' | 'abaixo' | null; projecao_fim_mes: number | null;
+  }[];
   forecast_comparativo: { vendedor_id: string; vendedor_nome: string; valor_ponderado: number; oportunidades: number }[];
   ticket_medio_historico: { mes: string; ticket_medio_setup: number; ticket_medio_mrr: number; qtd: number }[];
   sazonalidade: { mes: number; ano_atual: number; ano_anterior: number }[];
   churn_mrr: { taxa_percentual: number | null; mrr_perdido_periodo: number; mrr_base_ativo: number };
   expansao_mrr: { taxa_percentual: number | null; mrr_expansao: number; mrr_novo: number };
+  projecao_mrr: { mrr_atual: number; pontos: { mes: string; mrr_projetado: number }[] };
+  leads_priorizados: { lead_id: string; nome: string; etapa: string; etapa_label: string; temperatura: string; score_pct: number; valor_estimado: number; valor_ponderado: number }[];
+  clientes_em_risco: { cliente_id: string; nome: string; score: number; nivel: string; mrr_em_risco: number; tendencia: 'piorando' | 'estavel' | 'melhorando' | null }[];
   nps_segmentado: {
     por_plano: { plano: string; nps: number | null; respostas: number }[];
     por_tempo_casa: { faixa: string; nps: number | null; respostas: number }[];
@@ -287,23 +294,35 @@ export default function AnaliseComercialPage() {
               )}
             </div>
 
-            {/* ─── % de atingimento de meta ───────── */}
+            {/* ─── % de atingimento de meta + ritmo ── */}
             <Card>
-              <SectionTitle icon={Target} title="% de atingimento de meta (mês atual)" subtitle="Ranking justo: percentual da meta batida, não valor absoluto" />
+              <SectionTitle icon={Target} title="% de atingimento de meta (mês atual)" subtitle="Ranking justo: percentual da meta batida, comparado ao ritmo do mês" />
               {data.atingimento_meta.length === 0 ? <EmptyState /> : (
-                <div className="space-y-2">
-                  {data.atingimento_meta.map(m => (
-                    <div key={m.vendedor_id} className="flex items-center gap-3">
-                      <span className="text-xs w-32 truncate" style={{ color: 'var(--t-text-secondary)' }}>{m.vendedor_nome}</span>
-                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--t-content-bg)' }}>
-                        <div className="h-full rounded-full" style={{
-                          width: `${Math.min(100, m.percentual ?? 0)}%`,
-                          background: (m.percentual ?? 0) >= 100 ? '#16a34a' : (m.percentual ?? 0) >= 60 ? '#d97706' : '#dc2626',
-                        }} />
+                <div className="space-y-3">
+                  {data.atingimento_meta.map(m => {
+                    const corRitmo = m.ritmo === 'acima' ? '#16a34a' : m.ritmo === 'abaixo' ? '#dc2626' : '#d97706';
+                    const labelRitmo = m.ritmo === 'acima' ? 'Acima do ritmo' : m.ritmo === 'abaixo' ? 'Abaixo do ritmo' : m.ritmo === 'no_ritmo' ? 'No ritmo' : null;
+                    return (
+                      <div key={m.vendedor_id}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs w-32 truncate" style={{ color: 'var(--t-text-secondary)' }}>{m.vendedor_nome}</span>
+                          <div className="flex-1 h-2 rounded-full overflow-hidden relative" style={{ background: 'var(--t-content-bg)' }}>
+                            <div className="h-full rounded-full" style={{
+                              width: `${Math.min(100, m.percentual ?? 0)}%`,
+                              background: (m.percentual ?? 0) >= 100 ? '#16a34a' : (m.percentual ?? 0) >= 60 ? '#d97706' : '#dc2626',
+                            }} />
+                            <div className="absolute top-0 bottom-0 w-0.5" style={{ left: `${Math.min(100, m.dias_decorridos_pct)}%`, background: 'var(--t-text-muted)' }} title="Ritmo esperado (dia do mês)" />
+                          </div>
+                          <span className="text-xs font-semibold w-16 text-right" style={{ color: 'var(--t-text-primary)' }}>{pct(m.percentual)}</span>
+                        </div>
+                        {labelRitmo && (
+                          <p className="text-[11px] mt-0.5 ml-[8.5rem]" style={{ color: corRitmo }}>
+                            {labelRitmo} · projeção fim do mês: {m.projecao_fim_mes !== null ? fmt(m.projecao_fim_mes) : '—'}
+                          </p>
+                        )}
                       </div>
-                      <span className="text-xs font-semibold w-16 text-right" style={{ color: 'var(--t-text-primary)' }}>{pct(m.percentual)}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -326,6 +345,68 @@ export default function AnaliseComercialPage() {
                 )}
               </Card>
             )}
+
+            {/* ─── Projeção de MRR futuro ─────────── */}
+            <Card>
+              <SectionTitle icon={TrendingUp} title="Projeção de MRR — próximos 3 meses" subtitle="MRR atual + pipeline ponderado esperado − churn esperado (clientes em risco)" />
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={[{ mes: 'Hoje', mrr: data.projecao_mrr.mrr_atual }, ...data.projecao_mrr.pontos.map(p => ({ mes: p.mes, mrr: p.mrr_projetado }))]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
+                  <Tooltip content={<ChartTooltip formatter={(v) => fmt(Number(v))} />} />
+                  <Area type="monotone" dataKey="mrr" name="MRR projetado" stroke="#16a34a" fill="#16a34a" fillOpacity={0.15} strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* ─── Leads priorizados por score ────── */}
+              <Card>
+                <SectionTitle icon={Flame} title="Leads priorizados" subtitle="Score de fechamento por sinais históricos (etapa + temperatura), ordenado por valor ponderado" />
+                {data.leads_priorizados.length === 0 ? <EmptyState /> : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {data.leads_priorizados.map(l => (
+                      <div key={l.lead_id} className="flex items-center justify-between text-xs gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium" style={{ color: 'var(--t-text-primary)' }}>{l.nome}</p>
+                          <p style={{ color: 'var(--t-text-muted)' }}>{l.etapa_label} · {l.temperatura}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold" style={{ color: 'var(--t-text-primary)' }}>{fmt(l.valor_ponderado)}</p>
+                          <p style={{ color: 'var(--t-text-muted)' }}>{pct(l.score_pct)} score</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              {/* ─── Clientes em risco de churn ─────── */}
+              <Card>
+                <SectionTitle icon={AlertTriangle} title="Clientes em risco de churn" subtitle="Health Score crítico/em risco, ordenado por MRR em risco" />
+                {data.clientes_em_risco.length === 0 ? <EmptyState label="Nenhum cliente em risco crítico no momento" /> : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {data.clientes_em_risco.map(c => {
+                      const corNivel = c.nivel === 'CRITICO' ? '#dc2626' : '#d97706';
+                      const tendenciaLabel = c.tendencia === 'piorando' ? '↓ piorando' : c.tendencia === 'melhorando' ? '↑ melhorando' : c.tendencia === 'estavel' ? '→ estável' : null;
+                      return (
+                        <div key={c.cliente_id} className="flex items-center justify-between text-xs gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium" style={{ color: 'var(--t-text-primary)' }}>{c.nome}</p>
+                            <p style={{ color: corNivel }}>
+                              {c.nivel} · score {c.score}
+                              {tendenciaLabel && <span style={{ color: 'var(--t-text-muted)' }}> · {tendenciaLabel}</span>}
+                            </p>
+                          </div>
+                          <span className="font-semibold shrink-0" style={{ color: 'var(--t-text-primary)' }}>{fmt(c.mrr_em_risco)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+            </div>
 
             {/* ─── Ticket médio histórico ─────────── */}
             <Card>

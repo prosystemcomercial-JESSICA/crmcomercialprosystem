@@ -127,6 +127,12 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
         where: { periodo: periodoAtual, status: 'ATIVA' },
       }).catch(() => [] as any[]);
 
+      // Ritmo do mês: dia atual / dias totais do mês, para comparar com % de meta batida.
+      const hoje = new Date();
+      const diaAtual = hoje.getDate();
+      const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+      const diasDecorridosPct = Math.round((diaAtual / diasNoMes) * 1000) / 10;
+
       atingimentoMeta = await Promise.all(vendedoresAlvo.map(async (v) => {
         const metaDoVendedor = metasAtivas.find((m: any) => {
           const ids: string[] = Array.isArray(m.responsaveis_ids) ? m.responsaveis_ids : (m.responsavel_id ? [m.responsavel_id] : []);
@@ -135,12 +141,26 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
         const realizado = await calcularRealizadoMeta(prisma, { responsaveis_ids: [v.id], periodo_tipo: 'MENSAL', periodo: periodoAtual }).catch(() => null);
         const realizadoValor = realizado ? realizado.valor_total + realizado.mrr_total : 0;
         const metaValor = metaDoVendedor?.meta_valor_total || 0;
+        const percentual = metaValor > 0 ? Math.round((realizadoValor / metaValor) * 1000) / 10 : null;
+
+        // Ritmo: compara % de meta batida com % do mês decorrido (margem de ±5pp = "no ritmo").
+        let ritmo: 'acima' | 'no_ritmo' | 'abaixo' | null = null;
+        if (percentual !== null) {
+          const diff = percentual - diasDecorridosPct;
+          ritmo = diff > 5 ? 'acima' : diff < -5 ? 'abaixo' : 'no_ritmo';
+        }
+        // Projeção: se o ritmo atual continuar até o fim do mês (regra de três simples).
+        const projecaoFimMes = diasDecorridosPct > 0 ? Math.round(realizadoValor / (diasDecorridosPct / 100)) : null;
+
         return {
           vendedor_id: v.id,
           vendedor_nome: v.nome,
           realizado_valor: Math.round(realizadoValor),
           meta_valor: metaValor,
-          percentual: metaValor > 0 ? Math.round((realizadoValor / metaValor) * 1000) / 10 : null,
+          percentual,
+          dias_decorridos_pct: diasDecorridosPct,
+          ritmo,
+          projecao_fim_mes: projecaoFimMes,
         };
       }));
       atingimentoMeta.sort((a, b) => (b.percentual ?? -1) - (a.percentual ?? -1));
@@ -261,6 +281,145 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     const mrrNovo = fechamentosHist.reduce((s, f) => s + Number(f.mensalidade_plus ?? f.mensalidade_pro ?? 0), 0);
     const taxaExpansao = (mrrNovo + mrrExpansao) > 0 ? Math.round((mrrExpansao / (mrrNovo + mrrExpansao)) * 1000) / 10 : null;
 
+    // ── 8b. Projeção de MRR futuro (M+1, M+2, M+3) ──
+    // MRR atual: mesma fonte do dashboard (ContratoComercial é a fonte real; Contrato é legado vazio).
+    const mrrAtualResult = await prisma.contratoComercial.aggregate({
+      where: { status: 'ASSINADO' },
+      _sum: { mensalidade: true },
+    }).catch(() => ({ _sum: { mensalidade: 0 } }) as any);
+    const mrrAtual = mrrAtualResult._sum.mensalidade || 0;
+
+    // Pipeline ponderado mensal: total ponderado do forecast dividido em 3 baldes iguais
+    // (simplificação — não há data prevista de fechamento por lead ainda).
+    const pipelinePonderadoTotal = leadsForecast.reduce((s, l) => s + valorOportunidade(l) * (PROB_ETAPA[l.etapa_comercial] || 0), 0);
+    const pipelineMensal = pipelinePonderadoTotal / 3 / 12; // /3 meses, /12 pois o valor é anualizado (setup + 12x mensalidade)
+
+    // Churn esperado mensal: MRR dos clientes em risco (HealthScore CRITICO/RISCO) × taxa histórica.
+    // Taxa histórica: % de clientes que estavam CRITICO/RISCO num snapshot passado e hoje estão INATIVA.
+    // Sem amostra suficiente, usa fallback fixo (15%/mês CRITICO, 5%/mês RISCO).
+    const clientesRisco = await prisma.healthScore.findMany({
+      where: { nivel: { in: ['CRITICO', 'RISCO'] }, cliente: { situacao: 'ATIVA' } },
+      select: { nivel: true, cliente: { select: { mensalidade_base: true } } },
+    }).catch(() => [] as any[]);
+    const mrrCritico = clientesRisco.filter(c => c.nivel === 'CRITICO').reduce((s, c) => s + (c.cliente?.mensalidade_base || 0), 0);
+    const mrrRisco = clientesRisco.filter(c => c.nivel === 'RISCO').reduce((s, c) => s + (c.cliente?.mensalidade_base || 0), 0);
+    const TAXA_CHURN_CRITICO_FALLBACK = 0.15;
+    const TAXA_CHURN_RISCO_FALLBACK = 0.05;
+    const churnMensalEsperado = mrrCritico * TAXA_CHURN_CRITICO_FALLBACK + mrrRisco * TAXA_CHURN_RISCO_FALLBACK;
+
+    const projecaoMrr: { mes: string; mrr_projetado: number }[] = [];
+    let acumulado = mrrAtual;
+    for (let i = 1; i <= 3; i++) {
+      acumulado = acumulado + pipelineMensal - churnMensalEsperado;
+      projecaoMrr.push({ mes: `M+${i}`, mrr_projetado: Math.round(acumulado) });
+    }
+
+    // ── 8c. Score de fechamento por lead individual (sinais históricos) ──
+    // Taxa de conversão real por combinação (etapa + temperatura), últimos 12 meses de
+    // leads encerrados (fechados = CONTRATO_ASSINADO, perdidos = status PERDIDO). Combinação
+    // com amostra pequena (< 5 casos) cai no fallback da probabilidade fixa por etapa.
+    const desde12Meses = mesesAtras(11);
+    const leadsEncerrados = await prisma.lead.findMany({
+      where: {
+        deleted_at: null,
+        updated_at: { gte: desde12Meses },
+        OR: [{ etapa_comercial: 'CONTRATO_ASSINADO' }, { status: 'PERDIDO' }],
+      },
+      select: { etapa_comercial: true, temperatura: true, status: true },
+      take: 5000,
+    }).catch(() => [] as any[]);
+
+    const amostraPorCombinacao: Record<string, { fechados: number; total: number }> = {};
+    for (const l of leadsEncerrados) {
+      const chave = `${l.etapa_comercial}|${l.temperatura}`;
+      if (!amostraPorCombinacao[chave]) amostraPorCombinacao[chave] = { fechados: 0, total: 0 };
+      amostraPorCombinacao[chave].total++;
+      if (l.etapa_comercial === 'CONTRATO_ASSINADO') amostraPorCombinacao[chave].fechados++;
+    }
+    const MIN_AMOSTRA = 5;
+    const scoreCombinacao = (etapa: string, temperatura: string): number => {
+      const chave = `${etapa}|${temperatura}`;
+      const amostra = amostraPorCombinacao[chave];
+      if (amostra && amostra.total >= MIN_AMOSTRA) return amostra.fechados / amostra.total;
+      return PROB_ETAPA[etapa] || 0; // fallback: probabilidade fixa por etapa
+    };
+
+    const leadsAtivosDetalhe = await prisma.lead.findMany({
+      where: {
+        deleted_at: null,
+        etapa_comercial: { in: Object.keys(PROB_ETAPA) },
+        status: { notIn: ['PERDIDO'] },
+        ...(scopeId ? { OR: [{ responsavel_id: scopeId }, { created_by: scopeId }] } : {}),
+      },
+      select: {
+        id: true, nome: true, etapa_comercial: true, temperatura: true,
+        valor_setup: true, valor_estimado: true, mensalidade_estimada: true,
+      },
+      take: 5000,
+    }).catch(() => [] as any[]);
+
+    const leadsPriorizados = leadsAtivosDetalhe
+      .map(l => {
+        const score = scoreCombinacao(l.etapa_comercial, l.temperatura);
+        const valor = valorOportunidade(l);
+        return {
+          lead_id: l.id,
+          nome: l.nome,
+          etapa: l.etapa_comercial,
+          etapa_label: ETAPA_LABEL[l.etapa_comercial] || l.etapa_comercial,
+          temperatura: l.temperatura,
+          score_pct: Math.round(score * 1000) / 10,
+          valor_estimado: Math.round(valor),
+          valor_ponderado: Math.round(valor * score),
+        };
+      })
+      .sort((a, b) => b.valor_ponderado - a.valor_ponderado)
+      .slice(0, 15);
+
+    // ── 8d. Risco de churn por cliente (Health Score + tendência) ──
+    // Lista clientes em CRITICO/RISCO ordenada por MRR em risco (score baixo × mensalidade
+    // alta = prioridade máxima). Tendência compara o snapshot mais recente com o mais antigo
+    // disponível a partir de ~25 dias atrás (sem amostra suficiente → tendência null).
+    const healthScoresRisco = await prisma.healthScore.findMany({
+      where: { nivel: { in: ['CRITICO', 'RISCO'] }, cliente: { situacao: 'ATIVA' } },
+      select: {
+        cliente_id: true, score: true, nivel: true, calculado_at: true,
+        cliente: { select: { nome: true, empresa: true, mensalidade_base: true } },
+      },
+      orderBy: { score: 'asc' },
+      take: 50,
+    }).catch(() => [] as any[]);
+
+    const idsRisco = healthScoresRisco.map(h => h.cliente_id);
+    const snapshotsAntigos = idsRisco.length ? await prisma.healthScoreSnapshot.findMany({
+      where: { cliente_id: { in: idsRisco }, created_at: { lte: mesesAtras(0) } },
+      orderBy: { created_at: 'asc' },
+    }).catch(() => [] as any[]) : [];
+    const snapshotAntigoPorCliente = new Map<string, number>();
+    for (const s of snapshotsAntigos) {
+      if (!snapshotAntigoPorCliente.has(s.cliente_id)) snapshotAntigoPorCliente.set(s.cliente_id, s.score);
+    }
+
+    const clientesEmRisco = healthScoresRisco
+      .map(h => {
+        const scoreAntigo = snapshotAntigoPorCliente.get(h.cliente_id);
+        let tendencia: 'piorando' | 'estavel' | 'melhorando' | null = null;
+        if (scoreAntigo !== undefined) {
+          const diff = h.score - scoreAntigo;
+          tendencia = diff < -5 ? 'piorando' : diff > 5 ? 'melhorando' : 'estavel';
+        }
+        return {
+          cliente_id: h.cliente_id,
+          nome: h.cliente?.nome || h.cliente?.empresa || '—',
+          score: Math.round(h.score),
+          nivel: h.nivel,
+          mrr_em_risco: h.cliente?.mensalidade_base || 0,
+          tendencia,
+        };
+      })
+      .sort((a, b) => b.mrr_em_risco - a.mrr_em_risco)
+      .slice(0, 15);
+
     // ── 9. NPS segmentado (por plano e por tempo de casa) ──
     const clientesComPesquisa = await prisma.pesquisaSatisfacao.findMany({
       where: { cliente_id: { not: null }, nota_geral: { gt: 0 } },
@@ -343,6 +502,9 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
         sazonalidade,
         churn_mrr: { taxa_percentual: churnRateMrr, mrr_perdido_periodo: Math.round(mrrPerdidoPeriodo), mrr_base_ativo: Math.round(mrrBase) },
         expansao_mrr: { taxa_percentual: taxaExpansao, mrr_expansao: Math.round(mrrExpansao), mrr_novo: Math.round(mrrNovo) },
+        projecao_mrr: { mrr_atual: Math.round(mrrAtual), pontos: projecaoMrr },
+        leads_priorizados: leadsPriorizados,
+        clientes_em_risco: clientesEmRisco,
         nps_segmentado: { por_plano: npsPorPlano, por_tempo_casa: npsPorTempoCasa },
         sla_resposta_lead: { media_horas: slaRespostaMedioHoras, mediana_horas: slaRespostaMedianoHoras, amostra: temposRespostaHoras.length },
       },
