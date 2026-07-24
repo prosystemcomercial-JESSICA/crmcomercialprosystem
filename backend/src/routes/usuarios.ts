@@ -460,17 +460,51 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: rows });
   });
 
+  // ─── Vínculos de dados de negócio de um usuário ──────────────
+  async function contarVinculosUsuario(id: string) {
+    const [leads, atividades, comissoes, propostas, vendasAdicionais, contratos] = await Promise.all([
+      prisma.lead.count({ where: { responsavel_id: id } }),
+      prisma.atividade.count({ where: { responsavel_id: id } }),
+      prisma.comissao.count({ where: { responsavel_id: id } }),
+      prisma.propostaComercial.count({ where: { vendedor_id: id } }),
+      prisma.vendaAdicional.count({ where: { OR: [{ vendedor_id: id }, { supervisao_id: id }] } }),
+      prisma.contratoComercial.count({ where: { vendedor_id: id } }),
+    ]);
+    return { leads, atividades, comissoes, propostas, vendasAdicionais, contratos };
+  }
+
+  // ─── GET /usuarios/:id/vinculos (checagem antes de excluir) ─
+  fastify.get('/usuarios/:id/vinculos', { onRequest: requireAuth }, async (request, reply) => {
+    if (!checkCeo(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const vinculos = await contarVinculosUsuario(id);
+    const total = Object.values(vinculos).reduce((a, b) => a + b, 0);
+    return reply.send({ status: 'success', data: { vinculos, total } });
+  });
+
   // ─── DELETE /usuarios/:id (apenas CEO) ──────────────────────
   fastify.delete('/usuarios/:id', { onRequest: requireAuth }, async (request, reply) => {
     if (!checkCeo(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
+    const { confirmar_nome } = (request.query as { confirmar_nome?: string }) || {};
 
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT nome FROM UsuarioCRM WHERE id = ?`, id);
     if (!rows.length) return reply.status(404).send({ status: 'error', message: 'Usuário não encontrado' });
     const nome = rows[0].nome;
+
+    const vinculos = await contarVinculosUsuario(id);
+    const total = Object.values(vinculos).reduce((a, b) => a + b, 0);
+    if (total > 0 && confirmar_nome?.trim() !== nome) {
+      return reply.status(409).send({
+        status: 'error',
+        message: 'Usuário possui dados vinculados. Confirme digitando o nome exato para prosseguir.',
+        data: { vinculos, total, nome },
+      });
+    }
+
     await prisma.$executeRawUnsafe(`DELETE FROM UsuarioCRM WHERE id = ?`, id);
-    await auditoria(ator, 'REMOVEU_USUARIO', id, nome);
+    await auditoria(ator, 'REMOVEU_USUARIO', id, nome + (total > 0 ? ` (com ${total} vínculo(s) de dados)` : ''));
     return reply.send({ status: 'success', message: 'Usuário removido' });
   });
 }

@@ -95,6 +95,9 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [confirmCritica, setConfirmCritica] = useState<string[] | null>(null);
   const [senhaGerada, setSenhaGerada] = useState<{ senha: string; email: string; nome: string } | null>(null);
+  const [excluindo, setExcluindo] = useState<{ id: string; nome: string; vinculos: Record<string, number>; total: number } | null>(null);
+  const [confirmNomeInput, setConfirmNomeInput] = useState('');
+  const [excluindoLoading, setExcluindoLoading] = useState(false);
 
   // Form
   const [form, setForm] = useState({
@@ -218,6 +221,37 @@ export default function UsuariosPage() {
     } catch { }
   };
 
+  const VINCULO_LABELS: Record<string, string> = {
+    leads: 'Leads', atividades: 'Atividades', comissoes: 'Comissões',
+    propostas: 'Propostas comerciais', vendasAdicionais: 'Vendas adicionais', contratos: 'Contratos',
+  };
+
+  const handleExcluirClick = async (id: string, nome: string) => {
+    try {
+      const res = await apiClient.client.get(`/usuarios/${id}/vinculos`);
+      const { vinculos, total } = res.data.data;
+      setExcluindo({ id, nome, vinculos, total });
+      setConfirmNomeInput('');
+    } catch {
+      alert('Não foi possível verificar os vínculos deste usuário. Tente novamente.');
+    }
+  };
+
+  const confirmarExclusao = async () => {
+    if (!excluindo) return;
+    setExcluindoLoading(true);
+    try {
+      const params = excluindo.total > 0 ? { confirmar_nome: confirmNomeInput } : {};
+      await apiClient.client.delete(`/usuarios/${excluindo.id}`, { params });
+      setExcluindo(null);
+      await fetchData();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Erro ao excluir usuário');
+    } finally {
+      setExcluindoLoading(false);
+    }
+  };
+
   const handleRedefinirSenha = async (id: string) => {
     if (!confirm('Gerar nova senha aleatória para este usuário?')) return;
     try {
@@ -335,6 +369,7 @@ export default function UsuariosPage() {
                             {u.status === 'ATIVO' && (
                               <button onClick={() => handleDesativar(u.id, u.nome)} className="text-xs text-red-500 hover:text-red-700">Desativar</button>
                             )}
+                            <button onClick={() => handleExcluirClick(u.id, u.nome)} className="text-xs text-red-700 hover:underline font-medium">Excluir</button>
                           </div>
                         ) : (
                           <button onClick={() => openEdit(u)} className="text-xs hover:underline" style={{ color: 'var(--t-text-muted)' }}>Ver permissões</button>
@@ -575,6 +610,60 @@ export default function UsuariosPage() {
               </button>
               <button onClick={doSave} className="px-4 py-2 text-sm rounded-lg text-white font-medium bg-red-500 hover:bg-red-600">
                 Confirmar e salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL: Confirmação de exclusão de usuário ═══════ */}
+      {excluindo && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl shadow-2xl p-6" style={{ background: 'var(--t-card-bg)' }}>
+            <div className="text-3xl mb-3">{excluindo.total > 0 ? '⚠️' : '🗑️'}</div>
+            <h3 className="text-base font-bold mb-2" style={{ color: 'var(--t-text-primary)' }}>
+              Excluir "{excluindo.nome}"?
+            </h3>
+
+            {excluindo.total > 0 ? (
+              <>
+                <p className="text-sm mb-3" style={{ color: 'var(--t-text-muted)' }}>
+                  Este usuário possui dados gerados no sistema. Excluí-lo <strong>não apaga</strong> esses registros, mas eles ficarão sem responsável vinculado:
+                </p>
+                <ul className="mb-4 space-y-1 rounded-lg p-3" style={{ background: 'var(--t-content-bg)' }}>
+                  {Object.entries(excluindo.vinculos).filter(([, v]) => v > 0).map(([k, v]) => (
+                    <li key={k} className="text-xs font-medium flex items-center justify-between" style={{ color: 'var(--t-text-secondary)' }}>
+                      <span>{VINCULO_LABELS[k] || k}</span>
+                      <span className="font-bold text-red-600">{v}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs mb-2" style={{ color: 'var(--t-text-muted)' }}>
+                  Considere <strong>Desativar</strong> em vez de excluir, para manter o histórico rastreável. Se ainda assim quiser excluir, digite o nome exato do usuário abaixo:
+                </p>
+                <input
+                  value={confirmNomeInput}
+                  onChange={e => setConfirmNomeInput(e.target.value)}
+                  placeholder={excluindo.nome}
+                  className="w-full px-3 py-2 border rounded-lg text-sm mb-4"
+                  style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                />
+              </>
+            ) : (
+              <p className="text-sm mb-4" style={{ color: 'var(--t-text-muted)' }}>
+                Este usuário não possui dados vinculados (leads, propostas, contratos, comissões ou atividades). A exclusão é segura.
+              </p>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setExcluindo(null)} className="px-4 py-2 text-sm rounded-lg border" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarExclusao}
+                disabled={excluindoLoading || (excluindo.total > 0 && confirmNomeInput.trim() !== excluindo.nome)}
+                className="px-4 py-2 text-sm rounded-lg text-white font-medium bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                {excluindoLoading ? 'Excluindo...' : 'Confirmar exclusão'}
               </button>
             </div>
           </div>
