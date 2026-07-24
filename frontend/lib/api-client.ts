@@ -1177,6 +1177,12 @@ class ApiClient {
   async getFinanceiroBalanco(ano: number, mes?: number) {
     return this.client.get('/financeiro/balanco', { params: mes ? { ano, mes } : { ano } });
   }
+  async getFinanceiroFluxoProjetado() {
+    return this.client.get('/financeiro/fluxo-projetado');
+  }
+  async getFinanceiroChurnMensal() {
+    return this.client.get('/financeiro/churn-mensal');
+  }
 
   // Pesquisa de satisfação
   async responderPesquisa(data: any) {
