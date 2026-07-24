@@ -246,6 +246,10 @@ export default function ContratosPage() {
       mensalidade: dados.mensalidade != null ? String(dados.mensalidade) : '',
       dia_vencimento: dados.dia_vencimento != null ? String(dados.dia_vencimento) : '',
       valor_setup_total: dados.valor_setup_total != null ? String(dados.valor_setup_total) : '',
+      setup_a_vista: !!dados.setup_a_vista,
+      valor_setup_entrada: dados.valor_setup_entrada != null ? String(dados.valor_setup_entrada) : '',
+      setup_parcelas: dados.setup_parcelas != null ? String(dados.setup_parcelas) : '',
+      valor_setup_parcela: dados.valor_setup_parcela != null ? String(dados.valor_setup_parcela) : '',
       vendedor_id: dados.vendedor_id || '', vendedor_nome: dados.vendedor_nome || '',
     });
     setEditDirty(false);
@@ -268,6 +272,10 @@ export default function ContratosPage() {
         mensalidade: editForm.mensalidade !== '' ? parseFloat(editForm.mensalidade) : undefined,
         dia_vencimento: editForm.dia_vencimento !== '' ? parseInt(editForm.dia_vencimento) : undefined,
         valor_setup_total: editForm.valor_setup_total !== '' ? parseFloat(editForm.valor_setup_total) : undefined,
+        setup_a_vista: !!editForm.setup_a_vista,
+        valor_setup_entrada: editForm.setup_a_vista ? undefined : (editForm.valor_setup_entrada !== '' ? parseFloat(editForm.valor_setup_entrada) : undefined),
+        setup_parcelas: editForm.setup_a_vista ? undefined : (editForm.setup_parcelas !== '' ? parseInt(editForm.setup_parcelas) : undefined),
+        valor_setup_parcela: editForm.setup_a_vista ? undefined : (editForm.valor_setup_parcela !== '' ? parseFloat(editForm.valor_setup_parcela) : undefined),
       };
       Object.keys(payload).forEach(k => { if (payload[k] === '') payload[k] = undefined; });
       const res = await apiClient.updateContratoComercial(selected.id, payload);
@@ -698,7 +706,24 @@ export default function ContratosPage() {
                       <CampoEdit label="Mensalidade (R$)" type="number" value={editForm.mensalidade} onChange={(v: string) => { setEditForm((p: any) => ({ ...p, mensalidade: v })); setEditDirty(true); }} />
                       <CampoEdit label="Dia vencimento" type="number" value={editForm.dia_vencimento} onChange={(v: string) => { setEditForm((p: any) => ({ ...p, dia_vencimento: v })); setEditDirty(true); }} />
                       <CampoEdit label="Setup (R$)" type="number" value={editForm.valor_setup_total} onChange={(v: string) => { setEditForm((p: any) => ({ ...p, valor_setup_total: v })); setEditDirty(true); }} />
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>Forma de pagamento (setup)</label>
+                        <select value={editForm.setup_a_vista ? 'AVISTA' : 'PARCELADO'}
+                          onChange={e => { setEditForm((p: any) => ({ ...p, setup_a_vista: e.target.value === 'AVISTA' })); setEditDirty(true); }}
+                          className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                          style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
+                          <option value="AVISTA">À vista</option>
+                          <option value="PARCELADO">Parcelado</option>
+                        </select>
+                      </div>
                     </div>
+                    {!editForm.setup_a_vista && (
+                      <div className="grid grid-cols-3 gap-3 mt-3">
+                        <CampoEdit label="Entrada (R$)" type="number" value={editForm.valor_setup_entrada} onChange={(v: string) => { setEditForm((p: any) => ({ ...p, valor_setup_entrada: v })); setEditDirty(true); }} />
+                        <CampoEdit label="Nº parcelas" type="number" value={editForm.setup_parcelas} onChange={(v: string) => { setEditForm((p: any) => ({ ...p, setup_parcelas: v })); setEditDirty(true); }} />
+                        <CampoEdit label="Valor da parcela (R$)" type="number" value={editForm.valor_setup_parcela} onChange={(v: string) => { setEditForm((p: any) => ({ ...p, valor_setup_parcela: v })); setEditDirty(true); }} />
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
                     <button onClick={fecharRevisao} className="h-8 px-4 rounded-lg text-xs font-semibold"
