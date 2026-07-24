@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { ownerWhere, scopeUserId, requireGestor, podeVerTudo } from '@/lib/scope';
 import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 import { CONTAS_SISTEMA } from '@/lib/usuarios';
+import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 
 const ETAPAS_COMERCIAIS = [
   'NOVO_LEAD','PRIMEIRO_CONTATO','EM_ATENDIMENTO','AGUARDANDO_RETORNO',
@@ -599,17 +600,14 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       }
 
       // Auto-register temperature change
-      if (before && data.temperatura && data.temperatura !== before.temperatura) {
-        await prisma.leadObservacao.create({
-          data: {
-            lead_id: id, tipo: 'SISTEMA',
-            descricao: `Temperatura alterada: ${before.temperatura} → ${data.temperatura}`,
-            temperatura_anterior: before.temperatura,
-            temperatura_nova: data.temperatura,
-            created_by: user?.id || 'system', created_by_name: 'Sistema',
-          },
+      if (before && data.temperatura) {
+        await registrarMudancaTemperatura(prisma, {
+          leadId: id,
+          temperaturaAnterior: before.temperatura,
+          temperaturaNova: data.temperatura,
+          autorId: user?.id,
+          autorNome: user?.nome || 'Sistema',
         });
-        await prisma.lead.update({ where: { id }, data: { ultima_obs_at: new Date() } });
       }
 
       // Auto update status_atendimento when moving to PERDIDO
