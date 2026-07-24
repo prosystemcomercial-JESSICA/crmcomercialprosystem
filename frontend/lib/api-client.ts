@@ -1151,6 +1151,11 @@ class ApiClient {
     return this.client.get('/dashboard/forecast');
   }
 
+  // Análise Comercial: métricas avançadas (funil, win rate, meta%, forecast comparativo, etc.)
+  async getAnaliseComercial(params?: { vendedor_id?: string; periodo_meses?: number }) {
+    return this.client.get('/analise-comercial', { params: params || {} });
+  }
+
   // Centro de custos comercial
   async getFinanceiroCategorias() {
     return this.client.get('/financeiro/categorias');
