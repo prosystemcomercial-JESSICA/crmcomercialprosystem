@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api-client';
 interface Lancamento {
   id: string; tipo: 'ENTRADA' | 'SAIDA'; categoria: string; descricao?: string;
   valor: string | number; recorrencia: string; competencia_ano: number; competencia_mes: number;
+  vendedor_id?: string | null;
 }
 interface Resumo {
   total_entradas: number; total_saidas: number; resultado: number;
@@ -36,6 +37,7 @@ export default function CentroCustosPage() {
   const [balanco, setBalanco] = useState<any | null>(null);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [cats, setCats] = useState<{ entrada: string[]; saida: string[] }>({ entrada: [], saida: [] });
+  const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<any>({ tipo: 'SAIDA', categoria: 'SALARIO', valor: '', recorrencia: 'MENSAL', descricao: '' });
@@ -59,6 +61,12 @@ export default function CentroCustosPage() {
 
   useEffect(() => { if (isAuthenticated) load(); }, [isAuthenticated, load]);
   useEffect(() => { if (isAuthenticated) apiClient.getFinanceiroCategorias().then(r => setCats(r.data.data)).catch(() => {}); }, [isAuthenticated]);
+  useEffect(() => { if (isAuthenticated) apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => {}); }, [isAuthenticated]);
+
+  const nomeVendedor = useCallback((id?: string | null) => {
+    if (!id) return null;
+    return vendedores.find(v => v.id === id)?.nome || null;
+  }, [vendedores]);
 
   const salvar = async () => {
     if (!form.valor || Number(form.valor) <= 0) { console.warn('Informe um valor válido'); return; }
@@ -87,6 +95,20 @@ export default function CentroCustosPage() {
   };
 
   const catsDisponiveis = form.tipo === 'ENTRADA' ? cats.entrada : cats.saida;
+
+  // Comissões separadas do restante dos lançamentos (Salário, Marketing etc.) e
+  // agrupadas por mês de competência — mês de GERAÇÃO da comissão (competencia_mes),
+  // não o mês de pagamento. Ordenado do mês mais recente para o mais antigo.
+  const comissoes = lancamentos.filter(l => l.categoria === 'COMISSAO');
+  const outrosLancamentos = lancamentos.filter(l => l.categoria !== 'COMISSAO');
+  const comissoesPorMes = comissoes
+    .reduce((grupos: { ano: number; mes: number; itens: Lancamento[] }[], l) => {
+      let grupo = grupos.find(g => g.ano === l.competencia_ano && g.mes === l.competencia_mes);
+      if (!grupo) { grupo = { ano: l.competencia_ano, mes: l.competencia_mes, itens: [] }; grupos.push(grupo); }
+      grupo.itens.push(l);
+      return grupos;
+    }, [])
+    .sort((a, b) => (b.ano - a.ano) || (b.mes - a.mes));
 
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
@@ -318,14 +340,58 @@ export default function CentroCustosPage() {
               </div>
             )}
 
-            {/* Lista de lançamentos */}
+            {/* Comissões do mês — separadas, agrupadas por mês de GERAÇÃO (não pagamento) */}
+            {comissoes.length > 0 && (
+              <div className="ps-card border border-amber-200 rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-amber-100 bg-amber-50 flex items-center justify-between gap-3 flex-wrap">
+                  <span className="font-semibold text-sm text-amber-900">💰 Comissões do mês ({comissoes.length})</span>
+                  <span className="text-xs text-amber-700">
+                    Total: <span className="font-bold">{fmt(comissoes.reduce((s, l) => s + Number(l.valor), 0))}</span>
+                  </span>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {comissoesPorMes.map(grupo => {
+                    const subtotal = grupo.itens.reduce((s, l) => s + Number(l.valor), 0);
+                    return (
+                      <div key={`${grupo.ano}-${grupo.mes}`} className="px-5 py-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-gray-700">{MESES[grupo.mes]}/{grupo.ano}</span>
+                          <span className="text-xs font-bold text-red-700">− {fmt(subtotal)}</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {grupo.itens.map(l => {
+                            const nome = nomeVendedor(l.vendedor_id);
+                            return (
+                              <div key={l.id} className="flex items-center justify-between gap-3 pl-3 border-l-2 border-amber-200">
+                                <div className="min-w-0">
+                                  <p className="text-sm truncate">
+                                    {l.descricao || 'Comissão'}
+                                    {nome && <span className="text-gray-400"> · {nome}</span>}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <span className="text-sm font-medium text-red-700">− {fmt(l.valor)}</span>
+                                  <button onClick={() => remover(l.id)} className="text-xs hover:text-red-600">remover</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Lista de lançamentos (demais categorias — comissão fica na seção acima) */}
             <div className="ps-card border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm font-semibold">Lançamentos ({lancamentos.length})</div>
-              {lancamentos.length === 0 ? (
+              <div className="px-5 py-3 border-b border-gray-100 font-semibold text-sm font-semibold">Lançamentos ({outrosLancamentos.length})</div>
+              {outrosLancamentos.length === 0 ? (
                 <p className="p-8 text-center  text-sm">Nenhum lançamento no período. Clique em "+ Novo lançamento".</p>
               ) : (
                 <div className="divide-y divide-gray-50">
-                  {lancamentos.map(l => (
+                  {outrosLancamentos.map(l => (
                     <div key={l.id} className="px-5 py-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${l.tipo === 'ENTRADA' ? 'bg-green-500' : 'bg-red-500'}`} />
