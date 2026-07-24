@@ -1613,6 +1613,20 @@ model HealthScore {
   @@index([score])
 }
 
+// Snapshot histórico do HealthScore — HealthScore só guarda o valor ATUAL
+// (sobrescrito a cada recálculo). Esta tabela acumula um ponto por recálculo
+// para permitir calcular TENDÊNCIA (piorando/melhorando) ao longo do tempo.
+model HealthScoreSnapshot {
+  id          String   @id @default(cuid())
+  cliente_id  String
+  score       Float
+  nivel       String
+  mrr_momento Float? // mensalidade_base do cliente no momento do snapshot
+  created_at  DateTime @default(now())
+
+  @@index([cliente_id, created_at])
+}
+
 // ===== MÓDULO ATIVOS (CS comercial feito pelos vendedores) =====
 // A supervisão designa um GRUPO TÉCNICO a um vendedor → CampanhaAtivo. A fila de
 // clientes ATIVOS daquele grupo vira ContatoAtivo (cards de kanban). O vendedor
