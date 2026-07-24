@@ -137,11 +137,28 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     // 2) Fechamentos do mês = propostas que ficaram ASSINADAS/fechadas (data_aceite no mês).
     const fechamentos = await prisma.propostaComercial.findMany({
       where: { status: { in: STATUS_FECHADA }, data_aceite: noMes, deleted_at: null as any },
-      select: { razao_social: true, nome_fantasia: true, vendedor_nome: true, valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true, data_aceite: true },
+      select: { id: true, razao_social: true, nome_fantasia: true, vendedor_nome: true, valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true, data_aceite: true },
       orderBy: { data_aceite: 'desc' },
     }).catch(() => [] as any[]);
-    const setupDe = (p: any) => Number(p.valor_implantacao ?? p.valor_final ?? 0);
-    const mrrDe = (p: any) => Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0);
+    // O CONTRATO (quando existe) é a fonte de verdade do valor final — a proposta pode ter
+    // sido revisada depois (forma de pagamento, desconto) sem que valor_implantacao/mensalidade
+    // da proposta original fossem atualizados. Busca os contratos vinculados p/ sobrescrever.
+    const contratosVinculados = fechamentos.length ? await prisma.contratoComercial.findMany({
+      where: { proposta_comercial_id: { in: fechamentos.map((p: any) => p.id) } },
+      select: { proposta_comercial_id: true, valor_setup_total: true, mensalidade: true },
+    }).catch(() => [] as any[]) : [];
+    const contratoPorProposta = new Map(contratosVinculados.map((c: any) => [c.proposta_comercial_id, c]));
+
+    const setupDe = (p: any) => {
+      const contrato = contratoPorProposta.get(p.id);
+      if (contrato?.valor_setup_total != null) return Number(contrato.valor_setup_total);
+      return Number(p.valor_implantacao ?? p.valor_final ?? 0);
+    };
+    const mrrDe = (p: any) => {
+      const contrato = contratoPorProposta.get(p.id);
+      if (contrato?.mensalidade != null) return Number(contrato.mensalidade);
+      return Number(p.mensalidade_plus ?? p.mensalidade_pro ?? 0);
+    };
     const fechamentos_lista = fechamentos.map((p: any) => ({
       cliente: p.razao_social || p.nome_fantasia || '—', vendedor: p.vendedor_nome || '—',
       setup: setupDe(p), mrr: mrrDe(p), data: p.data_aceite,
