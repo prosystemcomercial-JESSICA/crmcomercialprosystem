@@ -143,8 +143,9 @@ export default function RelatorioComercialPage() {
                 <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,.85)' }}>Visão executiva para a diretoria · Supervisora: {d.supervisor || 'Jessica Cardoso'}</p>
                 {/* Faixa de KPIs-destaque na capa */}
                 {d.metricas && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-5">
                     {[
+                      { l: 'Leads captados', v: d.metricas.total_leads },
                       { l: 'Fechamentos', v: d.metricas.fechamentos.total },
                       { l: 'MRR ganho', v: `${fmt(d.metricas.fechamentos.mrr_total)}` },
                       { l: 'Clientes perdidos', v: d.metricas.perdidos.total },
@@ -178,7 +179,7 @@ export default function RelatorioComercialPage() {
               <>
                 <Bloco num="1" titulo={`📊 Números ${SufPeriodo}`}>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <KPI label="Leads gerados" valor={d.metricas.total_leads} cor="text-indigo-700" />
+                    <KPI label="Leads captados" valor={d.metricas.total_leads} cor="text-indigo-700" />
                     <KPI label="Fechamentos" valor={d.metricas.fechamentos.total} cor="text-green-700" />
                     <KPI label="Ticket médio (setup)" valor={fmt(d.metricas.fechamentos.setup_medio)} />
                     <KPI label="MRR médio" valor={`${fmt(d.metricas.fechamentos.mrr_medio)}/mês`} cor="text-blue-700" />
