@@ -171,6 +171,39 @@ export async function casosChurnRoutes(
     }
   );
 
+  // POST /casos-churn/:id/reabrir — Reabrir caso RECUPERADO (só uma vez, mesmo motivo)
+  fastify.post(
+    '/casos-churn/:id/reabrir',
+    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO'])] },
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const body = z.object({ relato: z.string().min(1, 'Descreva o que aconteceu de novo') }).safeParse(request.body);
+        if (!body.success) return reply.status(400).send({ status: 'error', message: 'Descreva o que aconteceu de novo' });
+        const user = (request as any).user;
+
+        const caso = await service.reabrir(id, body.data.relato, user.id);
+
+        return reply.status(200).send({
+          status: 'success',
+          data: caso,
+          message: 'Caso reaberto com sucesso'
+        });
+      } catch (error: any) {
+        console.error('[POST /casos-churn/:id/reabrir]', error);
+
+        if (error.name === 'NotFoundError') {
+          return reply.status(404).send({ status: 'error', message: error.message });
+        }
+        if (error.name === 'BadRequestError') {
+          return reply.status(400).send({ status: 'error', message: error.message });
+        }
+
+        return reply.status(500).send({ status: 'error', message: 'Erro ao reabrir caso' });
+      }
+    }
+  );
+
   // ── ATUALIZAÇÕES (linha do tempo do caso) ─────────────────────────────────
   // GET lista as atualizações; POST adiciona uma (observação/contato/tentativa).
   fastify.get('/casos-churn/:id/atualizacoes', { onRequest: requireAuth }, async (request, reply) => {

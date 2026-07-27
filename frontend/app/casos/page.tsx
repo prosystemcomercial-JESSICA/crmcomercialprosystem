@@ -29,6 +29,11 @@ interface Caso {
   reneg_responsavel_cpf?: string;
   reneg_data?: string;
   reneg_proximo_vencimento?: string;
+  resolvido_em?: string;
+  reaberto?: boolean;
+  reaberto_em?: string;
+  reaberto_motivo_travado?: string;
+  resolvido_em_2?: string;
   cliente: {
     id: string;
     nome: string;
@@ -98,6 +103,9 @@ export default function CasosPage() {
   const [finForm, setFinForm] = useState<any>({});
   const [novaAtt, setNovaAtt] = useState<any>({ tipo: 'OBSERVACAO', texto: '', canal: '', resultado: '' });
   const [salvandoDossie, setSalvandoDossie] = useState(false);
+  const [reabrirModal, setReabrirModal] = useState<Caso | null>(null);
+  const [reabrirRelato, setReabrirRelato] = useState('');
+  const [reabrindo, setReabrindo] = useState(false);
   const limit = 20;
 
   useEffect(() => {
@@ -213,6 +221,22 @@ export default function CasosPage() {
     } catch (e: any) {
       console.error(e);
       console.error('Não foi possível mudar o status. Tente novamente.', e);
+    }
+  };
+
+  const handleReabrir = async () => {
+    if (!reabrirModal || !reabrirRelato.trim()) return;
+    setReabrindo(true);
+    try {
+      await apiClient.reabrirCaso(reabrirModal.id, reabrirRelato.trim());
+      setReabrirModal(null);
+      setReabrirRelato('');
+      setDossie(null);
+      fetchCasos();
+    } catch (e: any) {
+      console.error('Erro ao reabrir caso.', e?.response?.data?.message || e);
+    } finally {
+      setReabrindo(false);
     }
   };
 
@@ -421,7 +445,7 @@ export default function CasosPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {casos.map((caso) => (
-                  <tr key={caso.id} className="hover:opacity-80 transition-colors">
+                  <tr key={caso.id} className={`hover:opacity-80 transition-colors ${caso.reaberto ? 'bg-orange-50' : ''}`}>
                     <td className="px-6 py-4">
                       <button onClick={() => abrirDossie(caso)} className="flex items-center gap-3 text-left hover:opacity-80" title="Abrir caso (ver como está sendo tratado)">
                         <div className="w-9 h-9 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-semibold">
@@ -437,9 +461,16 @@ export default function CasosPage() {
                       <span className="text-sm ">{caso.cliente?.grupo_tecnico || '—'}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[caso.status] || 'bg-opacity-0 '}`}>
-                        {caso.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[caso.status] || 'bg-opacity-0 '}`}>
+                          {caso.status}
+                        </span>
+                        {caso.reaberto && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-100 text-orange-700 border border-orange-300" title="Este caso já foi reaberto uma vez">
+                            🔄 Reaberto
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div>
@@ -515,12 +546,23 @@ export default function CasosPage() {
       {dossie && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDossie(null)}>
           <div className="ps-card rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 ps-card border-b px-5 py-3 flex items-center justify-between">
+            <div className="sticky top-0 ps-card border-b px-5 py-3 flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-bold text-sm font-semibold">{dossie.cliente?.razao_social || dossie.cliente?.nome_fantasia || dossie.cliente?.nome}</h3>
-                <p className="text-xs ">Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)}</p>
+                <p className="text-xs ">
+                  Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)}
+                  {dossie.reaberto && <span className="ml-1.5 text-orange-600 font-semibold">· 🔄 já reaberto uma vez</span>}
+                </p>
               </div>
-              <button onClick={() => setDossie(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+              <div className="flex items-center gap-2">
+                {dossie.status === 'RECUPERADO' && !dossie.reaberto && (
+                  <button onClick={() => { setReabrirModal(dossie); setReabrirRelato(''); }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200">
+                    🔄 Reabrir caso
+                  </button>
+                )}
+                <button onClick={() => setDossie(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+              </div>
             </div>
 
             <div className="p-5 space-y-5">
@@ -835,6 +877,42 @@ export default function CasosPage() {
                 className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors font-medium"
               >
                 📄 Gerar termo (PDF)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de REABERTURA (só permitida 1x, mesmo motivo travado) ──────── */}
+      {reabrirModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReabrirModal(null)}>
+          <div className="ps-card rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b flex items-center justify-between">
+              <h3 className="font-bold text-sm">🔄 Reabrir caso</h3>
+              <button onClick={() => setReabrirModal(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-gray-600">
+                Esta reabertura só pode ser feita <b>uma única vez</b>. O caso volta para "EXECUTANDO" mantendo o motivo original — se o cliente for perdido de novo depois desta reabertura, será necessário abrir um caso novo.
+              </p>
+              <div>
+                <label className="block text-xs font-medium mb-1">Motivo original (travado)</label>
+                <input value={reabrirModal.motivo_principal || '—'} disabled
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">O que aconteceu de novo?</label>
+                <textarea value={reabrirRelato} onChange={e => setReabrirRelato(e.target.value)} rows={3} autoFocus
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Descreva o que motivou a reabertura…" />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t">
+              <button onClick={() => setReabrirModal(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:opacity-80">
+                Cancelar
+              </button>
+              <button onClick={handleReabrir} disabled={reabrindo || !reabrirRelato.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50">
+                {reabrindo ? 'Reabrindo…' : 'Confirmar reabertura'}
               </button>
             </div>
           </div>

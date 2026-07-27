@@ -180,6 +180,18 @@ export class CasoChurnService {
       include: { cliente: true },
     });
 
+    // Marca o timestamp de resolução do round atual — idempotente (nunca sobrescreve
+    // um valor já preenchido). 1ª resolução → resolvido_em; se o caso já foi reaberto
+    // e ainda não tem resolvido_em_2, essa é a resolução do "segundo round".
+    if (data.status === 'RECUPERADO' || data.status === 'PERDIDO') {
+      const upResolucao: any = {};
+      if (!caso.resolvido_em) upResolucao.resolvido_em = new Date();
+      else if (caso.reaberto && !caso.resolvido_em_2) upResolucao.resolvido_em_2 = new Date();
+      if (Object.keys(upResolucao).length > 0) {
+        await this.prisma.casoChurn.update({ where: { id }, data: upResolucao }).catch(() => {});
+      }
+    }
+
     // PERDIDO → inativa o cliente e alimenta o relatório de saída (MRR perdido,
     // valor devido, motivo/relato, evento na ficha). Centralizado em aplicarPerda
     // p/ ser idempotente e reutilizado também no delete.
@@ -279,6 +291,51 @@ export class CasoChurnService {
         },
       }).catch(() => {});
     }
+  }
+
+  /**
+   * Reabre um caso RECUPERADO — permitido só UMA vez, pelo MESMO motivo original
+   * (travado em reaberto_motivo_travado, não editável). Volta o caso pra EXECUTANDO
+   * (pula NOVO/DIAGNOSTICADO/PLANEJADO — o diagnóstico e plano anteriores ainda valem).
+   */
+  async reabrir(id: string, novoRelato: string, userId: string) {
+    const caso = await this.getById(id);
+
+    if (caso.status !== 'RECUPERADO') {
+      throw new BadRequestError('Só é possível reabrir um caso RECUPERADO');
+    }
+    if (caso.reaberto) {
+      throw new BadRequestError('Este caso já foi reaberto uma vez — crie um caso novo para este cliente');
+    }
+
+    const updated = await this.prisma.casoChurn.update({
+      where: { id },
+      data: {
+        status: 'EXECUTANDO',
+        reaberto: true,
+        reaberto_em: new Date(),
+        reaberto_motivo_travado: caso.motivo_principal,
+        descricao: novoRelato,
+        updated_at: new Date(),
+      },
+      include: { cliente: true },
+    });
+
+    // Cliente volta a entrar nos radares de risco.
+    await this.prisma.cliente.update({
+      where: { id: updated.clienteId }, data: { risco_atencao: true },
+    }).catch(() => {});
+
+    await (this.prisma as any).atualizacaoCaso.create({
+      data: {
+        caso_churn_id: id, tipo: 'STATUS',
+        texto: `Caso reaberto — motivo original: ${caso.motivo_principal || 'não informado'}`,
+        feito_por: userId,
+      },
+    }).catch(() => {});
+
+    console.log(`[CasoChurn] Caso ${id} reaberto`);
+    return updated;
   }
 
   private isValidStatusTransition(_from: string, to: string): boolean {

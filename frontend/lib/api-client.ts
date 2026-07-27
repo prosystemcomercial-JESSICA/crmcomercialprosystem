@@ -166,6 +166,11 @@ class ApiClient {
     return this.client.patch(`/casos-churn/${id}`, data);
   }
 
+  // Reabre um caso RECUPERADO (só permitido uma vez, pelo mesmo motivo original).
+  async reabrirCaso(id: string, relato: string) {
+    return this.client.post(`/casos-churn/${id}/reabrir`, { relato });
+  }
+
   // Renegociação por dificuldade financeira (acordo de pagamento do caso de churn).
   async salvarRenegociacao(casoId: string, data: any) {
     return this.client.patch(`/casos-churn/${casoId}/renegociacao`, data);
