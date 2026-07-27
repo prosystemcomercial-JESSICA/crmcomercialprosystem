@@ -219,10 +219,12 @@ export default function CasosPage() {
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
       await apiClient.updateCaso(id, { status });
-      fetchCasos();
+      await fetchCasos();
+      return true;
     } catch (e: any) {
       console.error(e);
-      console.error('Não foi possível mudar o status. Tente novamente.', e);
+      alert(e?.response?.data?.message || 'Não foi possível mudar o status. Tente novamente.');
+      return false;
     }
   };
 
@@ -574,7 +576,7 @@ export default function CasosPage() {
                   </button>
                 )}
                 {dossie.status === 'PERDIDO' && !dossie.sistema_removido_em && (
-                  <button onClick={async () => { await handleUpdateStatus(dossie.id, 'SISTEMA_REMOVIDO'); setDossie(null); }}
+                  <button onClick={async () => { const ok = await handleUpdateStatus(dossie.id, 'SISTEMA_REMOVIDO'); if (ok) setDossie(null); }}
                     className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300">
                     🗑️ Marcar sistema removido
                   </button>
