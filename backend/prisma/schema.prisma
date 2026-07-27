@@ -248,6 +248,16 @@ model CasoChurn {
   reneg_data            DateTime? // data do acordo
   reneg_proximo_vencimento DateTime? // data do próximo vencimento acordado
 
+  // ── Resolução e reabertura (aditivo) ────────────────────────────────────────
+  // resolvido_em = 1ª vez que o caso virou RECUPERADO ou PERDIDO (idempotente).
+  // Reabertura é permitida SÓ UMA VEZ, e só a partir de RECUPERADO — trava o
+  // motivo original (reaberto_motivo_travado) pra garantir que é o mesmo problema.
+  resolvido_em             DateTime? // 1ª resolução (RECUPERADO ou PERDIDO)
+  reaberto                 Boolean   @default(false) // liga permanentemente, nunca desliga
+  reaberto_em              DateTime? // quando a reabertura aconteceu
+  reaberto_motivo_travado  String?   // snapshot do motivo_principal original
+  resolvido_em_2           DateTime? // 2ª resolução (pós-reabertura)
+
   created_by String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
