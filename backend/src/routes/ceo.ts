@@ -115,6 +115,22 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
     const ultimoMan: any = manuais.sort((a: any, b: any) => (a.ano * 12 + a.mes) - (b.ano * 12 + b.mes)).slice(-1)[0] || {};
     const mediaMan = (campo: string) => { const v = manuais.filter((m: any) => m[campo] != null); return v.length ? v.reduce((s: number, m: any) => s + Number(m[campo]), 0) / v.length : null; };
 
+    // ── NPS automático (mesma lógica de dashboard-power.ts): combina SurveyResposta
+    // (pós-churn, score 0-10) + PesquisaSatisfacao (nota geral 1-5 → 0-10), no período.
+    // O campo manual (IndicadorMensalCEO.nps) nunca foi preenchido — usa esse como fallback.
+    const nps_surveys = await prisma.surveyResposta.findMany({ where: { responded_at: noPeriodo }, select: { q3_score: true } }).catch(() => [] as any[]);
+    const nps_pesquisas = await prisma.pesquisaSatisfacao.findMany({ where: { created_at: noPeriodo }, select: { nota_geral: true, media: true } }).catch(() => [] as any[]);
+    const nps_scores = [
+      ...nps_surveys.map((s: any) => s.q3_score),
+      ...nps_pesquisas.map((p: any) => {
+        const base = p.nota_geral && p.nota_geral > 0 ? p.nota_geral : p.media;
+        return base ? Math.round(base * 2) : null;
+      }),
+    ].filter((s): s is number => s !== null && s !== undefined);
+    const npsPromotores = nps_scores.filter(s => s >= 9).length;
+    const npsDetratores = nps_scores.filter(s => s <= 6).length;
+    const npsAutomatico = nps_scores.length > 0 ? Math.round(((npsPromotores - npsDetratores) / nps_scores.length) * 100) : null;
+
     // Crescimento do MRR: compara com o mês anterior (snapshot via fechamentos-perdidos é aproximado).
     const data = {
       periodo, ano, mes,
@@ -146,7 +162,8 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
         marketing_investido: somaMan('marketing_investido') || null,
         cac: mediaMan('cac'),
         cpl: mediaMan('cpl'),
-        nps: mediaMan('nps'),
+        nps: npsAutomatico ?? mediaMan('nps'),
+        nps_amostra: nps_scores.length,
         // Marketing: gasto × retorno (MRR novo do período como retorno recorrente).
         roi_marketing: somaMan('marketing_investido') ? Math.round((mrrNovo / somaMan('marketing_investido')) * 100) / 100 : null,
       },
