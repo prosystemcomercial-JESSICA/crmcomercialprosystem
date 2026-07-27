@@ -522,7 +522,11 @@ export default function CasosPage() {
                           onChange={e => handleUpdateStatus(caso.id, e.target.value)}
                           className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
                         >
-                          {['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO'].map(s => (
+                          {[
+                            'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO',
+                            // "Sistema removido" só é uma opção válida a partir de PERDIDO (regra do backend).
+                            ...(caso.status === 'PERDIDO' || caso.status === 'SISTEMA_REMOVIDO' ? ['SISTEMA_REMOVIDO'] : []),
+                          ].map(s => (
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
