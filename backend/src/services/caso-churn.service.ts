@@ -169,6 +169,11 @@ export class CasoChurnService {
         `Transição inválida: ${caso.status} → ${data.status}`
       );
     }
+    // SISTEMA_REMOVIDO é um evento técnico posterior à perda comercial — só faz
+    // sentido a partir de PERDIDO (pode levar dias/semanas até o desligamento real).
+    if (data.status === 'SISTEMA_REMOVIDO' && caso.status !== 'PERDIDO') {
+      throw new BadRequestError('Só é possível marcar "Sistema removido" a partir de um caso PERDIDO');
+    }
 
     // Limpa campos: '' em enum/numéricos não pode ir pro banco.
     const limpo: any = { ...data };
@@ -204,6 +209,25 @@ export class CasoChurnService {
         valorDevido: valorDevido != null ? Number(valorDevido) : null,
         userId,
       }).catch(e => console.error('[CasoChurn] Falha ao aplicar perda:', e));
+    }
+
+    // SISTEMA_REMOVIDO → registra a data do desligamento técnico, no caso e no
+    // cliente (idempotente — não sobrescreve se já tiver sido marcado antes).
+    if (data.status === 'SISTEMA_REMOVIDO' && !caso.sistema_removido_em) {
+      const agora = new Date();
+      await this.prisma.casoChurn.update({ where: { id }, data: { sistema_removido_em: agora } }).catch(() => {});
+      await this.prisma.cliente.update({
+        where: { id: updated.clienteId },
+        data: { sistema_removido_em: agora },
+      }).catch(() => {});
+      await (this.prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: updated.clienteId, tipo: 'DESATIVACAO',
+          titulo: '🗑️ Sistema removido',
+          descricao: 'Sistema desligado/removido do cliente após confirmação da perda.',
+          referencia_id: id, feito_por: userId,
+        },
+      }).catch(() => {});
     }
 
     // RECUPERADO → o card do módulo Ativos vinculado a este caso vai para CONCLUÍDO
@@ -342,7 +366,7 @@ export class CasoChurnService {
     // A gestão pode mover o caso para QUALQUER etapa livremente (o kanban/seletor
     // mostra todas), inclusive pular etapas (ex.: NOVO → EXECUTANDO) ou reabrir um
     // caso. Só validamos que o destino é um status conhecido.
-    const STATUS_VALIDOS = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO'];
+    const STATUS_VALIDOS = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'];
     return STATUS_VALIDOS.includes(to);
   }
 }
