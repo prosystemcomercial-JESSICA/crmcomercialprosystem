@@ -45,6 +45,8 @@ export class CasoChurnService {
         status: 'NOVO',
         risk_score: 0,
         motivo_principal: data.motivo_principal || undefined,
+        retroativo: data.retroativo || false,
+        data_abertura_real: data.data_abertura_real ? new Date(data.data_abertura_real) : undefined,
         created_by: userId
       },
       include: {

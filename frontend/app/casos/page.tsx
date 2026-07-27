@@ -35,6 +35,8 @@ interface Caso {
   reaberto_motivo_travado?: string;
   resolvido_em_2?: string;
   sistema_removido_em?: string;
+  retroativo?: boolean;
+  data_abertura_real?: string;
   cliente: {
     id: string;
     nome: string;
@@ -78,6 +80,14 @@ const RISK_BAR = (score: number) => {
   if (score >= 70) return 'bg-red-500';
   if (score >= 40) return 'bg-yellow-500';
   return 'bg-green-500';
+};
+
+// Dias em aberto: da data de início (retroativo, se informada, senão created_at)
+// até a resolução (resolvido_em) ou até hoje, se ainda ativo.
+const diasEmAberto = (caso: Caso): number => {
+  const inicio = new Date(caso.data_abertura_real || caso.created_at).getTime();
+  const fim = caso.resolvido_em ? new Date(caso.resolvido_em).getTime() : Date.now();
+  return Math.max(0, Math.round((fim - inicio) / 86400000));
 };
 
 // Faixas que o gestor escolhe ao classificar manualmente (valor representativo).
@@ -444,6 +454,7 @@ export default function CasosPage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Risco</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Motivo</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Data</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider">Dias em aberto</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold  uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
@@ -504,7 +515,11 @@ export default function CasosPage() {
                       <p className="text-sm  max-w-xs truncate">{caso.motivo_principal || '—'}</p>
                     </td>
                     <td className="px-6 py-4 text-sm ">
-                      {new Date(caso.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(caso.data_abertura_real || caso.created_at).toLocaleDateString('pt-BR')}
+                      {caso.retroativo && <span className="ml-1 text-[10px] text-gray-400" title="Data retroativa informada manualmente">(retroativo)</span>}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold">
+                      {diasEmAberto(caso)} {diasEmAberto(caso) === 1 ? 'dia' : 'dias'}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -563,7 +578,8 @@ export default function CasosPage() {
               <div>
                 <h3 className="font-bold text-sm font-semibold">{dossie.cliente?.razao_social || dossie.cliente?.nome_fantasia || dossie.cliente?.nome}</h3>
                 <p className="text-xs ">
-                  Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)}
+                  Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)} · {diasEmAberto(dossie)} {diasEmAberto(dossie) === 1 ? 'dia' : 'dias'} em aberto
+                  {dossie.retroativo && <span className="ml-1.5 text-gray-500">(retroativo, iniciado em {new Date(dossie.data_abertura_real!).toLocaleDateString('pt-BR')})</span>}
                   {dossie.reaberto && <span className="ml-1.5 text-orange-600 font-semibold">· 🔄 já reaberto uma vez</span>}
                   {dossie.sistema_removido_em && <span className="ml-1.5 text-gray-500 font-semibold">· 🗑️ sistema removido em {new Date(dossie.sistema_removido_em).toLocaleDateString('pt-BR')}</span>}
                 </p>
