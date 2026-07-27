@@ -49,13 +49,13 @@ export default function PainelCEOPage() {
     { l: 'Net New MRR', v: `${d.net_new_mrr >= 0 ? '+' : ''}${fmt(d.net_new_mrr)}`, cor: d.net_new_mrr >= 0 ? '#16a34a' : '#dc2626', sub: 'novo + expansão − churn' },
     { l: 'Novos Clientes', v: num(d.novos_clientes), cor: '#16a34a', sub: fmt(d.mrr_novo) + '/mês' },
     { l: 'Cancelamentos', v: num(d.cancelamentos), cor: '#dc2626', sub: fmt(d.mrr_perdido) + ' perdido' },
-    { l: 'Churn %', v: `${d.churn_pct}%`, cor: d.churn_pct > 3 ? '#dc2626' : '#16a34a', sub: 'da base ativa' },
+    { l: 'Churn %', v: `${d.churn_pct}%`, cor: d.churn_pct > 3 ? '#dc2626' : '#16a34a', sub: d.cancelamentos > 0 ? 'da base ativa' : 'nenhuma inativação com data no período' },
     { l: 'Ticket Médio', v: fmt(d.ticket_medio), cor: PRO, sub: 'MRR por cliente' },
     { l: 'Pipeline Total', v: fmt(d.pipeline_mrr), cor: '#7c3aed', sub: `${d.pipeline_qtd} oportunidades` },
     { l: 'Previsão da Meta', v: `${d.previsao_meta_pct}%`, cor: d.previsao_meta_pct >= 100 ? '#16a34a' : d.previsao_meta_pct >= 70 ? '#ca8a04' : '#dc2626', sub: `${d.fechados_mes}/${d.meta_contratos} contratos` },
     { l: 'Leads Gerados', v: num(d.leads), cor: '#4338ca', sub: `${d.leads_campanha} de campanha` },
     { l: 'CAC', v: d.cac != null ? fmt(d.cac) : '— (preencher)', cor: '#0d9488', sub: 'custo de aquisição' },
-    { l: 'NPS', v: d.nps != null ? num(d.nps) : '— (preencher)', cor: '#0d9488', sub: 'satisfação' },
+    { l: 'NPS', v: d.nps != null ? num(d.nps) : '— (sem pesquisas no período)', cor: '#0d9488', sub: d.nps_amostra ? `${d.nps_amostra} resposta(s) no período` : 'satisfação' },
     { l: 'Caixa Disponível', v: d.caixa_disponivel != null ? fmt(d.caixa_disponivel) : '— (preencher)', cor: PRO_DARK, sub: 'saldo em caixa' },
   ] : [];
 

@@ -346,6 +346,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
         const emailValido = emailRaw && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw.trim()) ? emailRaw.trim() : undefined;
         // Observações: junta complemento_obs + comunicacao se vierem.
         const obs = [txt(c.complemento_obs), c.comunicacao ? `Comunicação: ${txt(c.comunicacao)}` : undefined].filter(Boolean).join(' | ') || undefined;
+        const situacaoImportada = normSituacao(c.situacao) || 'ATIVA';
 
         const data: any = {
           nome,
@@ -357,7 +358,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
           nome_fantasia: txt(c.nome_fantasia),
           cnpj:          txtId(c.cnpj),
           // Esta planilha contém SÓ os clientes ATIVOS → marca ATIVA (cai p/ o que vier na coluna situacao, se houver).
-          situacao:      normSituacao(c.situacao) || 'ATIVA',
+          situacao:      situacaoImportada,
           segmento:      txt(c.segmento),
           grupo_tecnico: txt(c.grupo_tecnico),
           plano:         txt(c.plano),
@@ -412,13 +413,20 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
           if (cnpjKey) porCnpj.set(cnpjKey, id);
         };
 
+        // Registro NOVO (create): a planilha não traz data real de saída — sem isso
+        // o cliente fica INATIVA com inativado_em null e nunca aparece em nenhum
+        // cálculo de churn por período. Usa a data da importação como aproximação
+        // (só em create — nunca sobrescreve a data real de quem já foi desativado
+        // pelo fluxo correto do CRM).
+        const dataCreate = situacaoImportada === 'INATIVA' ? { ...data, inativado_em: new Date() } : data;
+
         if (modo === 'CRIAR' || !temChave) {
-          const novo = await prisma.cliente.create({ data, select: { id: true } }); criados++; registrar(novo.id);
+          const novo = await prisma.cliente.create({ data: dataCreate, select: { id: true } }); criados++; registrar(novo.id);
         } else if (modo === 'ATUALIZAR') {
           if (!existenteId) { erros.push({ linha: i + 1, ref, motivo: 'Não encontrado' } as any); continue; }
           await prisma.cliente.update({ where: { id: existenteId }, data }); atualizados++;
         } else if (modo === 'COMPLEMENTAR') {
-          if (!existenteId) { const novo = await prisma.cliente.create({ data, select: { id: true } }); criados++; registrar(novo.id); continue; }
+          if (!existenteId) { const novo = await prisma.cliente.create({ data: dataCreate, select: { id: true } }); criados++; registrar(novo.id); continue; }
           const ex: any = await prisma.cliente.findUnique({ where: { id: existenteId } });
           const soVazios: any = {};
           for (const k of Object.keys(data)) {
@@ -426,10 +434,13 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
             const atual = ex?.[k];
             if (atual === null || atual === undefined || atual === '') soVazios[k] = data[k];
           }
+          // Cliente já INATIVA sem data registrada → preenche com a data da importação
+          // (aproximação, melhor que ficar invisível pra sempre nos cálculos de churn).
+          if (ex?.situacao === 'INATIVA' && !ex?.inativado_em) soVazios.inativado_em = new Date();
           if (Object.keys(soVazios).length > 0) { await prisma.cliente.update({ where: { id: existenteId }, data: soVazios }); atualizados++; }
         } else { // UPSERT
           if (existenteId) { await prisma.cliente.update({ where: { id: existenteId }, data }); atualizados++; }
-          else { const novo = await prisma.cliente.create({ data, select: { id: true } }); criados++; registrar(novo.id); }
+          else { const novo = await prisma.cliente.create({ data: dataCreate, select: { id: true } }); criados++; registrar(novo.id); }
         }
       } catch (err: any) {
         erros.push({ linha: i + 1, ref, motivo: err.code === 'P2002' ? 'Duplicado (código/email já existe)' : err.message } as any);
