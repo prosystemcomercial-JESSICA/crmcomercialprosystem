@@ -229,6 +229,12 @@ model CasoChurn {
   motivo_principal String?
   descricao        String? @db.Text // observações/contexto do problema ao abrir o caso
 
+  // Caso retroativo: quando o problema começou ANTES do cadastro no CRM.
+  // created_at continua sendo "quando foi cadastrado" (auditoria); data_abertura_real
+  // é usada pra contar os "dias em aberto" quando informada.
+  retroativo         Boolean   @default(false)
+  data_abertura_real DateTime?
+
   // ── Situação financeira do cliente (aditivo) ────────────────────────────────
   fin_situacao     String?  // EM_DIA | EM_ATRASO | NEGOCIANDO | INADIMPLENTE
   fin_valor_atraso Float?   // quanto está em atraso (quando EM_ATRASO/INADIMPLENTE)

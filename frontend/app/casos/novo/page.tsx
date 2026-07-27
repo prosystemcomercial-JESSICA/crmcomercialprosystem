@@ -27,6 +27,8 @@ export default function NovoCasoPage() {
   const [clienteSel, setClienteSel] = useState<Cliente | null>(null);
   const [form, setForm] = useState({ clienteId: '', motivo_principal: '' });
   const [outroMotivo, setOutroMotivo] = useState(''); // texto quando "Outro"
+  const [retroativo, setRetroativo] = useState(false);
+  const [dataAberturaReal, setDataAberturaReal] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -67,13 +69,17 @@ export default function NovoCasoPage() {
     if (form.motivo_principal === 'Outro' && !outroMotivo.trim()) {
       setError('Descreva qual é o outro motivo.'); return;
     }
+    if (retroativo && !dataAberturaReal) {
+      setError('Informe a data em que o cliente iniciou a tratativa.'); return;
+    }
     const motivoFinal = form.motivo_principal === 'Outro'
       ? `Outro: ${outroMotivo.trim()}`
       : (form.motivo_principal || undefined);
     setSaving(true);
     setError('');
     try {
-      await apiClient.createCaso(form.clienteId, motivoFinal);
+      const dataIso = retroativo && dataAberturaReal ? new Date(dataAberturaReal).toISOString() : undefined;
+      await apiClient.createCaso(form.clienteId, motivoFinal, undefined, retroativo, dataIso);
       router.push('/casos');
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Erro ao criar caso');
@@ -182,6 +188,24 @@ export default function NovoCasoPage() {
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   autoFocus
                 />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={retroativo}
+                onChange={e => { setRetroativo(e.target.checked); if (!e.target.checked) setDataAberturaReal(''); }}
+                className="w-4 h-4 rounded border-gray-300" />
+              <span className="text-sm font-medium">Caso retroativo (a tratativa já começou antes de hoje)</span>
+            </label>
+            {retroativo && (
+              <div className="mt-3">
+                <label className="block text-sm font-medium  mb-1">Quando o cliente iniciou a tratativa? *</label>
+                <input type="date" value={dataAberturaReal} onChange={e => setDataAberturaReal(e.target.value)}
+                  max={new Date().toISOString().slice(0, 10)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                <p className="text-xs  mt-1">A contagem de "dias em aberto" do caso vai começar a partir desta data, não da data de hoje.</p>
               </div>
             )}
           </div>

@@ -4,7 +4,10 @@ import { z } from 'zod';
 export const CreateCasoChurnSchema = z.object({
   clienteId: z.string().min(1, 'Cliente ID é obrigatório'),
   motivo_principal: z.string().optional(),
-  descricao: z.string().optional()
+  descricao: z.string().optional(),
+  // Caso retroativo: quando o problema começou antes do cadastro no CRM.
+  retroativo: z.boolean().optional(),
+  data_abertura_real: z.string().datetime().optional(),
 });
 
 export const UpdateCasoChurnSchema = z.object({

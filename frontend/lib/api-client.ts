@@ -150,11 +150,13 @@ class ApiClient {
     return this.client.post(`/casos-churn/${id}/atualizacoes`, data);
   }
 
-  async createCaso(clienteId: string, motivo_principal?: string, descricao?: string) {
+  async createCaso(clienteId: string, motivo_principal?: string, descricao?: string, retroativo?: boolean, data_abertura_real?: string) {
     return this.client.post('/casos-churn', {
       clienteId,
       motivo_principal,
-      descricao
+      descricao,
+      retroativo,
+      data_abertura_real,
     });
   }
 
