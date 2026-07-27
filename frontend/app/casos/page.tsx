@@ -34,6 +34,7 @@ interface Caso {
   reaberto_em?: string;
   reaberto_motivo_travado?: string;
   resolvido_em_2?: string;
+  sistema_removido_em?: string;
   cliente: {
     id: string;
     nome: string;
@@ -54,6 +55,7 @@ const STATUS_COLORS: Record<string, string> = {
   EXECUTANDO: 'bg-purple-100 text-purple-700',
   RECUPERADO: 'bg-green-100 text-green-700',
   PERDIDO: 'bg-red-100 text-red-700',
+  SISTEMA_REMOVIDO: 'bg-gray-200 text-gray-700',
 };
 
 // Classificação de risco do cliente em churn — 4 faixas.
@@ -315,7 +317,7 @@ export default function CasosPage() {
     );
   }
 
-  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO'];
+  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'];
 
   return (
     <DashboardLayout>
@@ -470,6 +472,11 @@ export default function CasosPage() {
                             🔄 Reaberto
                           </span>
                         )}
+                        {caso.sistema_removido_em && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-200 text-gray-700 border border-gray-300" title={`Sistema removido em ${new Date(caso.sistema_removido_em).toLocaleDateString('pt-BR')}`}>
+                            🗑️ Removido
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -552,6 +559,7 @@ export default function CasosPage() {
                 <p className="text-xs ">
                   Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)}
                   {dossie.reaberto && <span className="ml-1.5 text-orange-600 font-semibold">· 🔄 já reaberto uma vez</span>}
+                  {dossie.sistema_removido_em && <span className="ml-1.5 text-gray-500 font-semibold">· 🗑️ sistema removido em {new Date(dossie.sistema_removido_em).toLocaleDateString('pt-BR')}</span>}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -559,6 +567,12 @@ export default function CasosPage() {
                   <button onClick={() => { setReabrirModal(dossie); setReabrirRelato(''); }}
                     className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200">
                     🔄 Reabrir caso
+                  </button>
+                )}
+                {dossie.status === 'PERDIDO' && !dossie.sistema_removido_em && (
+                  <button onClick={async () => { await handleUpdateStatus(dossie.id, 'SISTEMA_REMOVIDO'); setDossie(null); }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300">
+                    🗑️ Marcar sistema removido
                   </button>
                 )}
                 <button onClick={() => setDossie(null)} className="text-gray-400 hover:text-gray-700">✕</button>

@@ -45,6 +45,7 @@ model Cliente {
   inativado_em      DateTime?                 // quando foi desativado
   mrr_perdido       Float?                    // mensalidade perdida na desativação (churn)
   valor_devido_inativacao Float?              // valor que o cliente ficou devendo ao sair
+  sistema_removido_em     DateTime?           // quando o sistema foi de fato desligado (evento técnico, pós-PERDIDO)
   segmento      String?                       // Farmácia|Padaria|Varejo|...
   grupo_tecnico String?                       // grupo de atendimento técnico
   plano         String?                       // BASIC|MEI|PRO|PLUS|...
@@ -223,7 +224,7 @@ model CasoChurn {
   clienteId String
   cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
-  status           String  @default("NOVO") // NOVO|DIAGNOSTICADO|PLANEJADO|EXECUTANDO|RECUPERADO|PERDIDO
+  status           String  @default("NOVO") // NOVO|DIAGNOSTICADO|PLANEJADO|EXECUTANDO|RECUPERADO|PERDIDO|SISTEMA_REMOVIDO
   risk_score       Float   @default(0)
   motivo_principal String?
   descricao        String? @db.Text // observações/contexto do problema ao abrir o caso
@@ -257,6 +258,11 @@ model CasoChurn {
   reaberto_em              DateTime? // quando a reabertura aconteceu
   reaberto_motivo_travado  String?   // snapshot do motivo_principal original
   resolvido_em_2           DateTime? // 2ª resolução (pós-reabertura)
+
+  // Evento técnico posterior a PERDIDO: quando o sistema foi de fato desligado
+  // (pode levar dias/semanas após a perda comercial). Só permitido a partir de
+  // PERDIDO; idempotente (não sobrescreve).
+  sistema_removido_em      DateTime?
 
   created_by String
   created_at DateTime @default(now())
