@@ -7,7 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import {
   RefreshCw, TrendingUp, Target, Percent, Users, Clock, Repeat, Star,
-  Flame, AlertTriangle,
+  Flame, AlertTriangle, Calendar, DollarSign, TrendingDown, ShieldAlert,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -55,6 +55,14 @@ const horas = (v: number | null) => {
 };
 
 const MES_LABEL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+// Intervalo real de datas coberto pelo filtro "últimos N meses" (mês corrente incluso).
+function intervaloPeriodo(meses: number): string {
+  const hoje = new Date();
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - (meses - 1), 1);
+  const fmtMes = (d: Date) => `${MES_LABEL[d.getMonth()]}/${d.getFullYear()}`;
+  return `${fmtMes(inicio)} – ${fmtMes(hoje)}`;
+}
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
@@ -154,7 +162,7 @@ export default function AnaliseComercialPage() {
           <div>
             <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Análise Comercial</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
-              Taxas e tendências que não cabem no resumo do dashboard — funil, conversão, forecast e retenção.
+              Visão executiva do comercial — funil, conversão, forecast e retenção, período a período.
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -181,12 +189,49 @@ export default function AnaliseComercialPage() {
           </div>
         </div>
 
+        {/* ─── Faixa de período selecionado ────── */}
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium w-fit"
+          style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)', border: '1px solid var(--t-card-border)' }}>
+          <Calendar size={14} style={{ color: 'var(--t-primary)' }} />
+          Período analisado: <span style={{ color: 'var(--t-text-primary)', fontWeight: 700 }}>{intervaloPeriodo(periodoMeses)}</span>
+          {vendedorId && vendedores.find(v => v.id === vendedorId) && (
+            <span>· vendedor: <span style={{ color: 'var(--t-text-primary)', fontWeight: 700 }}>{vendedores.find(v => v.id === vendedorId)?.nome}</span></span>
+          )}
+        </div>
+
         {fetching && !data ? (
           <Card><EmptyState label="Carregando..." /></Card>
         ) : !data ? (
           <Card><EmptyState label="Não foi possível carregar os dados" /></Card>
         ) : (
           <>
+            {/* ─── Resumo executivo (leitura rápida para a diretoria) ── */}
+            <div className="rounded-2xl p-5 text-white" style={{ background: 'linear-gradient(135deg, #1A4E82, #2E6EAB)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Resumo executivo</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><DollarSign size={13} /> MRR atual</div>
+                  <p className="text-2xl font-extrabold">{fmt(data.projecao_mrr.mrr_atual)}</p>
+                  <p className="text-[11px] opacity-70 mt-0.5">projeção em 3 meses: {fmt(data.projecao_mrr.pontos[2]?.mrr_projetado ?? data.projecao_mrr.mrr_atual)}</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><Target size={13} /> Win rate geral</div>
+                  <p className="text-2xl font-extrabold">{pct(data.win_rate.geral)}</p>
+                  <p className="text-[11px] opacity-70 mt-0.5">{data.win_rate.ganhas} fechadas de {data.win_rate.ganhas + data.win_rate.perdidas} propostas</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><TrendingDown size={13} /> Churn de MRR</div>
+                  <p className="text-2xl font-extrabold">{pct(data.churn_mrr.taxa_percentual)}</p>
+                  <p className="text-[11px] opacity-70 mt-0.5">{fmt(data.churn_mrr.mrr_perdido_periodo)} perdidos no período</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><ShieldAlert size={13} /> Clientes em risco</div>
+                  <p className="text-2xl font-extrabold">{data.clientes_em_risco.length}</p>
+                  <p className="text-[11px] opacity-70 mt-0.5">{fmt(data.clientes_em_risco.reduce((s, c) => s + c.mrr_em_risco, 0))} de MRR em risco</p>
+                </div>
+              </div>
+            </div>
+
             {/* ─── KPIs de resumo ─────────────────── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
