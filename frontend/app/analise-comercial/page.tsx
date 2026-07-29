@@ -59,8 +59,9 @@ const MES_LABEL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set'
 // Intervalo real de datas coberto pelo filtro "últimos N meses" (mês corrente incluso).
 function intervaloPeriodo(meses: number): string {
   const hoje = new Date();
-  const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - (meses - 1), 1);
   const fmtMes = (d: Date) => `${MES_LABEL[d.getMonth()]}/${d.getFullYear()}`;
+  if (meses <= 1) return fmtMes(hoje);
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - (meses - 1), 1);
   return `${fmtMes(inicio)} – ${fmtMes(hoje)}`;
 }
 
@@ -150,7 +151,7 @@ export default function AnaliseComercialPage() {
   const ticketChart = data?.ticket_medio_historico.map(t => ({
     mes: MES_LABEL[parseInt(t.mes.split('-')[1], 10) - 1],
     Setup: t.ticket_medio_setup,
-    MRR: t.ticket_medio_mrr,
+    'Receita Recorrente': t.ticket_medio_mrr,
   })) || [];
 
   return (
@@ -177,6 +178,7 @@ export default function AnaliseComercialPage() {
             <select value={periodoMeses} onChange={e => setPeriodoMeses(Number(e.target.value))}
               className="px-3 py-2 border rounded-lg text-sm"
               style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
+              <option value={1}>Mês atual</option>
               <option value={3}>Últimos 3 meses</option>
               <option value={6}>Últimos 6 meses</option>
               <option value={12}>Últimos 12 meses</option>
@@ -210,7 +212,7 @@ export default function AnaliseComercialPage() {
               <p className="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Resumo executivo</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><DollarSign size={13} /> MRR atual</div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><DollarSign size={13} /> Receita Recorrente Mensal atual</div>
                   <p className="text-2xl font-extrabold">{fmt(data.projecao_mrr.mrr_atual)}</p>
                   <p className="text-[11px] opacity-70 mt-0.5">projeção em 3 meses: {fmt(data.projecao_mrr.pontos[2]?.mrr_projetado ?? data.projecao_mrr.mrr_atual)}</p>
                 </div>
@@ -220,14 +222,14 @@ export default function AnaliseComercialPage() {
                   <p className="text-[11px] opacity-70 mt-0.5">{data.win_rate.ganhas} fechadas de {data.win_rate.ganhas + data.win_rate.perdidas} propostas</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><TrendingDown size={13} /> Churn de MRR</div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><TrendingDown size={13} /> Churn (Receita Recorrente)</div>
                   <p className="text-2xl font-extrabold">{pct(data.churn_mrr.taxa_percentual)}</p>
                   <p className="text-[11px] opacity-70 mt-0.5">{fmt(data.churn_mrr.mrr_perdido_periodo)} perdidos no período</p>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><ShieldAlert size={13} /> Clientes em risco</div>
                   <p className="text-2xl font-extrabold">{data.clientes_em_risco.length}</p>
-                  <p className="text-[11px] opacity-70 mt-0.5">{fmt(data.clientes_em_risco.reduce((s, c) => s + c.mrr_em_risco, 0))} de MRR em risco</p>
+                  <p className="text-[11px] opacity-70 mt-0.5">{fmt(data.clientes_em_risco.reduce((s, c) => s + c.mrr_em_risco, 0))} de receita recorrente em risco</p>
                 </div>
               </div>
             </div>
@@ -240,14 +242,14 @@ export default function AnaliseComercialPage() {
                 <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>{data.win_rate.ganhas} ganhas / {data.win_rate.perdidas} perdidas</p>
               </Card>
               <Card>
-                <p className="text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Churn de MRR</p>
+                <p className="text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Churn (Receita Recorrente)</p>
                 <p className="text-2xl font-bold" style={{ color: (data.churn_mrr.taxa_percentual || 0) > 5 ? '#dc2626' : 'var(--t-text-primary)' }}>{pct(data.churn_mrr.taxa_percentual)}</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>{fmt(data.churn_mrr.mrr_perdido_periodo)} perdidos no período</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>Geral: {fmt(data.churn_mrr.mrr_perdido_periodo)} perdidos no período</p>
               </Card>
               <Card>
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>Taxa de expansão (upsell)</p>
                 <p className="text-2xl font-bold" style={{ color: '#16a34a' }}>{pct(data.expansao_mrr.taxa_percentual)}</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>{fmt(data.expansao_mrr.mrr_expansao)} de MRR expandido</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>{fmt(data.expansao_mrr.mrr_expansao)} de receita recorrente expandida</p>
               </Card>
               <Card>
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--t-text-muted)' }}>SLA de resposta ao lead</p>
@@ -391,16 +393,16 @@ export default function AnaliseComercialPage() {
               </Card>
             )}
 
-            {/* ─── Projeção de MRR futuro ─────────── */}
+            {/* ─── Projeção de Receita Recorrente futura ── */}
             <Card>
-              <SectionTitle icon={TrendingUp} title="Projeção de MRR — próximos 3 meses" subtitle="MRR atual + pipeline ponderado esperado − churn esperado (clientes em risco)" />
+              <SectionTitle icon={TrendingUp} title="Projeção de Receita Recorrente Mensal — próximos 3 meses" subtitle="Receita recorrente atual + pipeline ponderado esperado − churn esperado (clientes em risco)" />
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={[{ mes: 'Hoje', mrr: data.projecao_mrr.mrr_atual }, ...data.projecao_mrr.pontos.map(p => ({ mes: p.mes, mrr: p.mrr_projetado }))]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
                   <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
                   <YAxis tick={{ fontSize: 11 }} stroke="var(--t-text-muted)" />
                   <Tooltip content={<ChartTooltip formatter={(v) => fmt(Number(v))} />} />
-                  <Area type="monotone" dataKey="mrr" name="MRR projetado" stroke="#16a34a" fill="#16a34a" fillOpacity={0.15} strokeWidth={2} />
+                  <Area type="monotone" dataKey="mrr" name="Receita recorrente projetada" stroke="#16a34a" fill="#16a34a" fillOpacity={0.15} strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
@@ -427,27 +429,21 @@ export default function AnaliseComercialPage() {
                 )}
               </Card>
 
-              {/* ─── Clientes em risco de churn ─────── */}
+              {/* ─── Clientes em risco de churn (visão geral) ── */}
               <Card>
-                <SectionTitle icon={AlertTriangle} title="Clientes em risco de churn" subtitle="Health Score crítico/em risco, ordenado por MRR em risco" />
+                <SectionTitle icon={AlertTriangle} title="Clientes em risco de churn" subtitle="Health Score crítico/em risco — visão geral" />
                 {data.clientes_em_risco.length === 0 ? <EmptyState label="Nenhum cliente em risco crítico no momento" /> : (
-                  <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {data.clientes_em_risco.map(c => {
-                      const corNivel = c.nivel === 'CRITICO' ? '#dc2626' : '#d97706';
-                      const tendenciaLabel = c.tendencia === 'piorando' ? '↓ piorando' : c.tendencia === 'melhorando' ? '↑ melhorando' : c.tendencia === 'estavel' ? '→ estável' : null;
-                      return (
-                        <div key={c.cliente_id} className="flex items-center justify-between text-xs gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium" style={{ color: 'var(--t-text-primary)' }}>{c.nome}</p>
-                            <p style={{ color: corNivel }}>
-                              {c.nivel} · score {c.score}
-                              {tendenciaLabel && <span style={{ color: 'var(--t-text-muted)' }}> · {tendenciaLabel}</span>}
-                            </p>
-                          </div>
-                          <span className="font-semibold shrink-0" style={{ color: 'var(--t-text-primary)' }}>{fmt(c.mrr_em_risco)}</span>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center justify-center h-full py-6">
+                    <div className="text-center">
+                      <p className="text-4xl font-extrabold" style={{ color: '#dc2626' }}>{data.clientes_em_risco.length}</p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>
+                        {data.clientes_em_risco.length === 1 ? 'cliente em risco' : 'clientes em risco'}
+                      </p>
+                      <p className="text-lg font-bold mt-4" style={{ color: 'var(--t-text-primary)' }}>
+                        {fmt(data.clientes_em_risco.reduce((s, c) => s + c.mrr_em_risco, 0))}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>Geral de receita recorrente em risco</p>
+                    </div>
                   </div>
                 )}
               </Card>
@@ -456,7 +452,7 @@ export default function AnaliseComercialPage() {
             {/* ─── Ticket médio histórico ─────────── */}
             <Card>
               <SectionTitle icon={TrendingUp} title="Ticket médio histórico" subtitle="Setup e mensalidade médios dos fechamentos, mês a mês" />
-              {ticketChart.every(t => t.Setup === 0 && t.MRR === 0) ? <EmptyState /> : (
+              {ticketChart.every(t => t.Setup === 0 && t['Receita Recorrente'] === 0) ? <EmptyState /> : (
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={ticketChart}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
@@ -465,7 +461,7 @@ export default function AnaliseComercialPage() {
                     <Tooltip content={<ChartTooltip formatter={(v) => fmt(Number(v))} />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Line type="monotone" dataKey="Setup" stroke="#4B8EC8" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="MRR" stroke="#16a34a" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Receita Recorrente" stroke="#16a34a" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               )}
