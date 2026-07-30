@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
+import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip, YAxis, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, FileCheck2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { ChartTooltip } from './ChartTooltip';
 
 interface SeriePonto {
   mes: string;
-  saldo_mrr: number;
+  'Ganho': number;
+  'Perdido': number;
 }
 
 interface MrrTrendCardProps {
@@ -29,22 +30,19 @@ export function MrrTrendCard({ mrr, mrrDelta, contratosAtivos, contratosMes, Ani
     const mesAtual = new Date().getMonth(); // 0-indexed
     apiClient.getRelatorioSerieAnual(anoAtual)
       .then(res => {
-        const serieCompleta: { mes: string; saldo_mrr: number }[] = res.data?.data?.serie || [];
+        const serieCompleta: { mes: string; mrr_ganho: number; mrr_perdido: number }[] = res.data?.data?.serie || [];
         // A rota devolve os 12 meses do ano, incluindo meses futuros (que vêm zerados).
         // Corta no mês atual para não desenhar uma queda artificial pra zero no futuro.
-        const acumulado: SeriePonto[] = [];
-        let saldoAcumulado = 0;
-        serieCompleta.slice(0, mesAtual + 1).forEach(p => {
-          saldoAcumulado += p.saldo_mrr;
-          acumulado.push({ mes: p.mes, saldo_mrr: saldoAcumulado });
-        });
-        setSerie(acumulado);
+        const pontos: SeriePonto[] = serieCompleta.slice(0, mesAtual + 1).map(p => ({
+          mes: p.mes, 'Ganho': p.mrr_ganho, 'Perdido': p.mrr_perdido,
+        }));
+        setSerie(pontos);
       })
       .catch(() => setSerie([]))
       .finally(() => setLoading(false));
   }, []);
 
-  const temTendencia = !loading && serie.length > 1 && serie.some(p => p.saldo_mrr !== 0);
+  const temTendencia = !loading && serie.length > 1 && serie.some(p => p['Ganho'] !== 0 || p['Perdido'] !== 0);
 
   return (
     <div className="du-fade-2 grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -80,28 +78,34 @@ export function MrrTrendCard({ mrr, mrrDelta, contratosAtivos, contratosMes, Ani
         {temTendencia ? (
           <div className="h-40 mt-4 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={serie} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="mrrGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#16a34a" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#16a34a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <LineChart data={serie} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
                 <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'var(--t-text-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis hide domain={['auto', 'auto']} />
                 <Tooltip content={<ChartTooltip formatter={(v) => fmt(Number(v))} />} />
-                <Area
+                <Legend wrapperStyle={{ fontSize: 11 }} iconType="line" iconSize={12} />
+                <Line
                   type="monotone"
-                  dataKey="saldo_mrr"
-                  name="Saldo MRR acumulado"
+                  dataKey="Ganho"
+                  name="Receita recorrente ganha"
                   stroke="#16a34a"
                   strokeWidth={2}
-                  fill="url(#mrrGradient)"
+                  dot={{ r: 3, fill: '#16a34a' }}
                   isAnimationActive
                   animationDuration={900}
                   animationEasing="ease-out"
                 />
-              </AreaChart>
+                <Line
+                  type="monotone"
+                  dataKey="Perdido"
+                  name="Receita recorrente perdida"
+                  stroke="#dc2626"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#dc2626' }}
+                  isAnimationActive
+                  animationDuration={900}
+                  animationEasing="ease-out"
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         ) : (
