@@ -373,7 +373,7 @@ export default function CasosPage() {
           <input
             value={busca}
             onChange={e => setBusca(e.target.value)}
-            placeholder="🔍 Buscar cliente por razão social, nome fantasia, código ou CNPJ…"
+            placeholder="🔍 Buscar cliente por razão social, nome fantasia, contato, código ou CNPJ…"
             className="flex-1 min-w-[220px] px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <input type="month" value={mesFiltro} onChange={e => { setPage(0); setMesFiltro(e.target.value); }}
