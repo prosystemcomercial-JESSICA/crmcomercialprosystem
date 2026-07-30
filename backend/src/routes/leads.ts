@@ -610,9 +610,16 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
         });
       }
 
-      // Auto update status_atendimento when moving to PERDIDO
-      if (data.etapa_comercial === 'PERDIDO' && !data.status_atendimento) {
-        await prisma.lead.update({ where: { id }, data: { status_atendimento: 'PERDIDO' } });
+      // Ao mover pra etapa PERDIDO, sincroniza status_atendimento E status (campo raiz
+      // usado em filtros de pipeline/dashboard — sem isso o lead some do funil visual
+      // mas continua contando como "ativo" em qualquer relatório que filtre por status).
+      if (data.etapa_comercial === 'PERDIDO') {
+        const syncData: any = {};
+        if (!data.status_atendimento) syncData.status_atendimento = 'PERDIDO';
+        if (!data.status) syncData.status = 'PERDIDO';
+        if (Object.keys(syncData).length > 0) {
+          await prisma.lead.update({ where: { id }, data: syncData });
+        }
       }
 
       return reply.send({ status: 'success', data: lead });

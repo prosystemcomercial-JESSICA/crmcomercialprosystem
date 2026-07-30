@@ -51,6 +51,41 @@ async function contarContratosAtivos(opts: { prisma: PrismaClient; scopeId: stri
   return contratos + propostasSemContrato;
 }
 
+// Perdidos no período: usa a data REAL da mudança de status pra RECUSADA/PERDIDA,
+// registrada em PropostaHistorico (tipo=STATUS, campo_alterado=status). O campo
+// updated_at da proposta é impreciso — qualquer edição posterior (ex: corrigir um
+// dado meses depois) reabre o "mês de perda". Propostas sem histórico registrado
+// (perdas antigas, antes desse tracking existir) caem no fallback por updated_at.
+async function contarPerdidosNoPeriodo(opts: { prisma: PrismaClient; scopeId: string | null; inicio: Date; fim?: Date }): Promise<number> {
+  const { prisma, scopeId, inicio, fim } = opts;
+  const STATUS_PERDIDA = ['RECUSADA', 'PERDIDA'];
+
+  const propostasPerdidas = await prisma.propostaComercial.findMany({
+    where: { status: { in: STATUS_PERDIDA }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) },
+    select: { id: true, updated_at: true },
+  });
+  if (propostasPerdidas.length === 0) return 0;
+
+  const historicos = await prisma.propostaHistorico.findMany({
+    where: {
+      proposta_id: { in: propostasPerdidas.map(p => p.id) },
+      tipo: 'STATUS', campo_alterado: 'status',
+      valor_novo: { in: STATUS_PERDIDA },
+    },
+    orderBy: { created_at: 'asc' },
+    select: { proposta_id: true, created_at: true },
+  });
+  const dataPerdaPorProposta = new Map<string, Date>();
+  for (const h of historicos) {
+    if (!dataPerdaPorProposta.has(h.proposta_id)) dataPerdaPorProposta.set(h.proposta_id, h.created_at);
+  }
+
+  return propostasPerdidas.filter(p => {
+    const data = dataPerdaPorProposta.get(p.id) ?? p.updated_at;
+    return data >= inicio && (!fim || data <= fim);
+  }).length;
+}
+
 export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -105,8 +140,8 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMes }, ...fLead } }),
       prisma.lead.count({ where: { status: 'GANHO', updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior }, ...fLead } }),
       // Perdidos este mês (via PropostaComercial — LeadPerda é uma tabela legada nunca populada)
-      prisma.propostaComercial.count({ where: { status: { in: ['RECUSADA', 'PERDIDA'] }, updated_at: { gte: inicioMes }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
-      prisma.propostaComercial.count({ where: { status: { in: ['RECUSADA', 'PERDIDA'] }, updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
+      contarPerdidosNoPeriodo({ prisma, scopeId, inicio: inicioMes }),
+      contarPerdidosNoPeriodo({ prisma, scopeId, inicio: inicioMesAnterior, fim: fimMesAnterior }),
 
       // ContratoComercial ASSINADO + PropostaComercial fechada que NÃO gerou contrato formal
       // (muitos fechamentos são lançados direto como proposta, sem passar pelo fluxo ZapSign —
@@ -224,8 +259,19 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       _sum: { mensalidade: true }
     });
 
-    // Pipeline valor total
-    const pipeline_valor = pipeline_data.reduce((s, p) => s + (p._sum.valor_estimado || 0), 0);
+    // Pipeline valor total — soma de PropostaComercial em aberto (setup + mensalidade).
+    // Trocado de Lead.valor_estimado: só 7 de ~206 leads ativos tinham esse campo
+    // preenchido (o vendedor raramente registra valor no lead), subestimando o pipeline
+    // em quase 100%. A proposta sempre carrega o valor (é gerada a partir do plano).
+    const propostasEmAberto = await prisma.propostaComercial.findMany({
+      where: { status: { in: ['ENVIADA', 'EM_NEGOCIACAO'] }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) },
+      select: { valor_final: true, mensalidade_plus: true, mensalidade_pro: true },
+    });
+    const pipeline_valor = propostasEmAberto.reduce((s, p) => {
+      const setup = p.valor_final ?? 0;
+      const mrr = p.mensalidade_plus ?? p.mensalidade_pro ?? 0;
+      return s + setup + mrr;
+    }, 0);
 
     // Atividades atrasadas (detalhes)
     const atividades_atrasadas_lista = await prisma.atividade.findMany({
