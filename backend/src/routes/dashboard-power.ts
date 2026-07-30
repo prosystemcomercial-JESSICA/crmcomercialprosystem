@@ -10,6 +10,47 @@ const num = (v: any): number => {
   return Number(v) || 0;
 };
 
+const STATUS_FECHADA = ['CONTRATO_ASSINADO', 'ASSINADO', 'ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO'];
+
+// Contratos ativos = ContratoComercial ASSINADO + PropostaComercial fechada que ainda
+// NÃO gerou um ContratoComercial vinculado (não há relação Prisma nomeada entre os dois
+// modelos, só o campo solto proposta_comercial_id — por isso a checagem via notIn).
+// `desde` filtra por "fechado a partir de" (contratos: signed_at; propostas: data_aceite
+// com fallback created_at) — usado pro card "+N este mês".
+async function contarContratosAtivos(opts: { prisma: PrismaClient; scopeId: string | null; desde?: Date }): Promise<number> {
+  const { prisma, scopeId, desde } = opts;
+  const vinculadas = await prisma.contratoComercial.findMany({
+    where: { proposta_comercial_id: { not: null } },
+    select: { proposta_comercial_id: true },
+  });
+  const idsVinculados = vinculadas.map(c => c.proposta_comercial_id).filter((id): id is string => !!id);
+
+  const [contratos, propostasSemContrato] = await Promise.all([
+    prisma.contratoComercial.count({
+      where: {
+        status: 'ASSINADO',
+        ...(desde ? { signed_at: { gte: desde } } : {}),
+        ...(scopeId ? { vendedor_id: scopeId } : {}),
+      },
+    }),
+    prisma.propostaComercial.count({
+      where: {
+        status: { in: STATUS_FECHADA },
+        deleted_at: null,
+        id: { notIn: idsVinculados },
+        ...(desde ? {
+          OR: [
+            { data_aceite: { gte: desde } },
+            { AND: [{ data_aceite: null }, { created_at: { gte: desde } }] },
+          ],
+        } : {}),
+        ...(scopeId ? { vendedor_id: scopeId } : {}),
+      },
+    }),
+  ]);
+  return contratos + propostasSemContrato;
+}
+
 export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -67,8 +108,11 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
       prisma.propostaComercial.count({ where: { status: { in: ['RECUSADA', 'PERDIDA'] }, updated_at: { gte: inicioMes }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
       prisma.propostaComercial.count({ where: { status: { in: ['RECUSADA', 'PERDIDA'] }, updated_at: { gte: inicioMesAnterior, lte: fimMesAnterior }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
 
-      prisma.contratoComercial.count({ where: { status: 'ASSINADO', ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
-      prisma.contratoComercial.count({ where: { status: 'ASSINADO', signed_at: { gte: inicioMes }, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
+      // ContratoComercial ASSINADO + PropostaComercial fechada que NÃO gerou contrato formal
+      // (muitos fechamentos são lançados direto como proposta, sem passar pelo fluxo ZapSign —
+      // contar só ContratoComercial subestimava bastante os contratos ativos reais).
+      contarContratosAtivos({ prisma, scopeId }),
+      contarContratosAtivos({ prisma, scopeId, desde: inicioMes }),
 
       prisma.propostaComercial.count({ where: { status: { in: ['ENVIADA', 'EM_NEGOCIACAO'] }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
       prisma.propostaComercial.count({ where: { status: { in: ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'] }, updated_at: { gte: inicioMes }, deleted_at: null, ...(scopeId ? { vendedor_id: scopeId } : {}) } }),
