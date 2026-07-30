@@ -89,9 +89,11 @@ export class CasoChurnService {
     }
 
     // Casos ABERTOS (em tratamento) só de clientes ATIVOS — inativo já saiu.
-    // Mas os ENCERRADOS (PERDIDO/RECUPERADO) DEVEM aparecer (são o histórico de saída),
-    // mesmo com o cliente inativo. Quando o filtro é PERDIDO/RECUPERADO, não esconde.
-    const ENCERRADOS = ['PERDIDO', 'RECUPERADO'];
+    // Mas os ENCERRADOS (PERDIDO/RECUPERADO/SISTEMA_REMOVIDO) DEVEM aparecer (são o
+    // histórico de saída), mesmo com o cliente inativo. SISTEMA_REMOVIDO só acontece
+    // depois de PERDIDO — o cliente já está sempre INATIVA nesse ponto — então sem
+    // isso aqui a aba SISTEMA_REMOVIDO nunca mostrava nada (filtrava o próprio caso).
+    const ENCERRADOS = ['PERDIDO', 'RECUPERADO', 'SISTEMA_REMOVIDO'];
     const verEncerrados = filters.status && ENCERRADOS.includes(filters.status);
     const clienteWhere: any = {};
     if (!verEncerrados && !filters.status) {
@@ -105,13 +107,14 @@ export class CasoChurnService {
       clienteWhere.situacao = { not: 'INATIVA' };
     }
 
-    // Busca por cliente: razão social, fantasia, nome, empresa, código ou CNPJ.
+    // Busca por cliente: razão social, fantasia, nome, empresa, código, CNPJ ou contato.
     if (filters.busca && String(filters.busca).trim()) {
       const s = String(filters.busca).trim();
       clienteWhere.OR = [
         { razao_social: { contains: s } }, { nome_fantasia: { contains: s } },
         { nome: { contains: s } }, { empresa: { contains: s } },
         { codigo: { contains: s } }, { cnpj: { contains: s } },
+        { contato: { contains: s } },
       ];
     }
     if (Object.keys(clienteWhere).length) where.cliente = clienteWhere;
