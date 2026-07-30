@@ -50,6 +50,10 @@ interface Caso {
   };
 }
 
+// Casos encerrados: risco não se aplica mais (não faz sentido reclassificar ou
+// destacar como crítico algo que já foi resolvido, perdido, ou teve o sistema removido).
+const ENCERRADOS = ['RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'];
+
 const STATUS_COLORS: Record<string, string> = {
   NOVO: 'bg-opacity-0 ',
   DIAGNOSTICADO: 'bg-blue-100 text-blue-700',
@@ -493,23 +497,27 @@ export default function CasosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div>
-                        <p className={`font-semibold text-sm ${RISK_COLOR(caso.risk_score)}`}>
-                          {RISK_LABEL(caso.risk_score)}
-                        </p>
-                        <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
-                          <div className={`h-1.5 rounded-full ${RISK_BAR(caso.risk_score)}`} style={{ width: `${caso.risk_score}%` }} />
+                      {ENCERRADOS.includes(caso.status) ? (
+                        <span className="text-sm text-gray-400">—</span>
+                      ) : (
+                        <div>
+                          <p className={`font-semibold text-sm ${RISK_COLOR(caso.risk_score)}`}>
+                            {RISK_LABEL(caso.risk_score)}
+                          </p>
+                          <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
+                            <div className={`h-1.5 rounded-full ${RISK_BAR(caso.risk_score)}`} style={{ width: `${caso.risk_score}%` }} />
+                          </div>
+                          {/* Classificar manualmente o risco do cliente */}
+                          <select
+                            value={RISK_LABEL(caso.risk_score)}
+                            onChange={e => { const n = RISK_NIVEIS.find(r => r.label === e.target.value); if (n) handleClassificarRisco(caso.id, n.valor); }}
+                            className="mt-1 text-xs border border-gray-200 rounded-md px-1.5 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
+                            title="Classificar risco do cliente"
+                          >
+                            {RISK_NIVEIS.map(r => <option key={r.label} value={r.label}>{r.label}</option>)}
+                          </select>
                         </div>
-                        {/* Classificar manualmente o risco do cliente */}
-                        <select
-                          value={RISK_LABEL(caso.risk_score)}
-                          onChange={e => { const n = RISK_NIVEIS.find(r => r.label === e.target.value); if (n) handleClassificarRisco(caso.id, n.valor); }}
-                          className="mt-1 text-xs border border-gray-200 rounded-md px-1.5 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
-                          title="Classificar risco do cliente"
-                        >
-                          {RISK_NIVEIS.map(r => <option key={r.label} value={r.label}>{r.label}</option>)}
-                        </select>
-                      </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm  max-w-xs truncate">{caso.motivo_principal || '—'}</p>
@@ -578,7 +586,7 @@ export default function CasosPage() {
               <div>
                 <h3 className="font-bold text-sm font-semibold">{dossie.cliente?.razao_social || dossie.cliente?.nome_fantasia || dossie.cliente?.nome}</h3>
                 <p className="text-xs ">
-                  Caso de churn · {dossie.status} · risco {RISK_LABEL(dossie.risk_score)} · {diasEmAberto(dossie)} {diasEmAberto(dossie) === 1 ? 'dia' : 'dias'} em aberto
+                  Caso de churn · {dossie.status}{!ENCERRADOS.includes(dossie.status) && <> · risco {RISK_LABEL(dossie.risk_score)}</>} · {diasEmAberto(dossie)} {diasEmAberto(dossie) === 1 ? 'dia' : 'dias'} em aberto
                   {dossie.retroativo && <span className="ml-1.5 text-gray-500">(retroativo, iniciado em {new Date(dossie.data_abertura_real!).toLocaleDateString('pt-BR')})</span>}
                   {dossie.reaberto && <span className="ml-1.5 text-orange-600 font-semibold">· 🔄 já reaberto uma vez</span>}
                   {dossie.sistema_removido_em && <span className="ml-1.5 text-gray-500 font-semibold">· 🗑️ sistema removido em {new Date(dossie.sistema_removido_em).toLocaleDateString('pt-BR')}</span>}
