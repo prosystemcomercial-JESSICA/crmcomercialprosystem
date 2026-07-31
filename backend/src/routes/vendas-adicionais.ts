@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, podeVerTudo, requireGestor } from '@/lib/scope';
-import { resolverNomesUsuarios } from '@/lib/usuarios';
+import { resolverNomesUsuarios, resolverSupervisorComercial } from '@/lib/usuarios';
 
 const PARCEIROS_DEFAULT = [
   {
@@ -329,13 +329,9 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
           : (body.data.tipo_negocio === 'INDICACAO' ? 50 : parceiro.comissao_valor));
     const comissaoValor = body.data.comissao_valor ?? comissaoPadrao;
 
-    // Supervisão = primeiro usuário ativo com role SUPERVISAO ou SUPERVISAO_COMERCIAL.
-    // NÃO usa quem está logado — o vendedor não é a supervisão.
-    const supervisorCRM = await (prisma as any).usuarioCRM.findFirst({
-      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
-      orderBy: { nome: 'asc' },
-      select: { id: true },
-    }).catch(() => null);
+    // Supervisão = resolverSupervisorComercial (cargo de supervisão, com fallback pra
+    // ADMIN ativo). NÃO usa quem está logado — o vendedor não é a supervisão.
+    const supervisorCRM = await resolverSupervisorComercial(prisma);
     const supervisaoId = supervisorCRM?.id || null;
 
     // O vendedor que fez a venda: gestão pode escolher qualquer vendedor; um vendedor

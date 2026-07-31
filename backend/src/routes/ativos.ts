@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, scopeUserId, podeVerTudo, getUser } from '@/lib/scope';
-import { resolverNomesUsuarios } from '@/lib/usuarios';
+import { resolverNomesUsuarios, resolverSupervisorComercial } from '@/lib/usuarios';
 
 /**
  * MÓDULO ATIVOS — CS comercial feito pelos vendedores.
@@ -415,11 +415,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     if (body.data.gerou_venda && parceiro_id && !atual.venda_ref_id) {
       const parceiro = await prisma.parceiro.findUnique({ where: { id: parceiro_id } }).catch(() => null);
       if (parceiro) {
-        const supervisorCS = await (prisma as any).usuarioCRM.findFirst({
-          where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
-          orderBy: { nome: 'asc' },
-          select: { id: true },
-        }).catch(() => null);
+        const supervisorCS = await resolverSupervisorComercial(prisma);
         const venda = await prisma.vendaAdicional.create({
           data: {
             cliente_id: atual.cliente_id,
@@ -634,12 +630,8 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     const vendedorId = body.success && body.data.vendedor_id ? body.data.vendedor_id : oport.vendedor_id;
     const tipoNegocio = oport.parceiro_id ? 'INDICACAO' : 'EXPANSAO';
 
-    // Supervisão = sempre o usuário com role SUPERVISAO cadastrado, nunca quem está logado.
-    const supervisorAtivos = await (prisma as any).usuarioCRM.findFirst({
-      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
-      orderBy: { nome: 'asc' },
-      select: { id: true },
-    }).catch(() => null);
+    // Supervisão = sempre resolverSupervisorComercial, nunca quem está logado.
+    const supervisorAtivos = await resolverSupervisorComercial(prisma);
     const supervisaoIdAtivos = supervisorAtivos?.id || null;
 
     let vendaId: string | null = null;
@@ -985,12 +977,9 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
   fastify.post('/ativos/corrigir-comissoes-supervisao', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
 
-    const supervisora = await (prisma as any).usuarioCRM.findFirst({
-      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
-      orderBy: { nome: 'asc' },
-    }).catch(() => null);
+    const supervisora = await resolverSupervisorComercial(prisma);
 
-    if (!supervisora) return reply.status(404).send({ status: 'error', message: 'Nenhuma supervisora com role SUPERVISAO encontrada.' });
+    if (!supervisora) return reply.status(404).send({ status: 'error', message: 'Nenhuma supervisora com cargo de supervisão encontrada.' });
 
     // Corrige comissões com tipo SUPERVISAO mas responsavel_id diferente da supervisora
     const comissoesErradas = await prisma.comissao.findMany({
