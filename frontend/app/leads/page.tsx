@@ -283,7 +283,10 @@ function iniciaisDono(nome?: string): string {
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
 }
 
-function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => void; onDragStart: (e: React.DragEvent) => void }) {
+function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
+  lead: Lead; onClick: () => void; onDragStart: (e: React.DragEvent) => void;
+  onExcluir: () => void; podeExcluir: boolean;
+}) {
   const temp = TEMP_CONFIG[lead.temperatura as keyof typeof TEMP_CONFIG] || TEMP_CONFIG.FRIO;
   const empresa = lead.razao_social || lead.nome_fantasia || lead.nome;
   const tel     = lead.responsavel_telefone;
@@ -377,23 +380,36 @@ function LeadCard({ lead, onClick, onDragStart }: { lead: Lead; onClick: () => v
             </span>
           )}
         </div>
-        {wppLink && (
-          <a
-            href={wppLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            onDragStart={e => e.preventDefault()}
-            title={`WhatsApp: ${tel}`}
-            className="flex items-center justify-center rounded-full flex-shrink-0"
-            style={{ width: 20, height: 20, background: '#25D366' }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.559 4.122 1.532 5.847L.057 23.617a.75.75 0 0 0 .921.921l5.696-1.489A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.667-.523-5.181-1.432l-.371-.218-3.383.885.898-3.285-.237-.385A9.958 9.958 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
-            </svg>
-          </a>
-        )}
+        <div className="flex items-center gap-1.5">
+          {podeExcluir && (
+            <button
+              onClick={e => { e.stopPropagation(); onExcluir(); }}
+              onDragStart={e => e.preventDefault()}
+              title="Excluir lead"
+              className="flex items-center justify-center rounded-full flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+              style={{ width: 20, height: 20 }}
+            >
+              <Trash2 size={11} style={{ color: '#dc2626' }} />
+            </button>
+          )}
+          {wppLink && (
+            <a
+              href={wppLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              onDragStart={e => e.preventDefault()}
+              title={`WhatsApp: ${tel}`}
+              className="flex items-center justify-center rounded-full flex-shrink-0"
+              style={{ width: 20, height: 20, background: '#25D366' }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.559 4.122 1.532 5.847L.057 23.617a.75.75 0 0 0 .921.921l5.696-1.489A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.667-.523-5.181-1.432l-.371-.218-3.383.885.898-3.285-.237-.385A9.958 9.958 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+              </svg>
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -462,6 +478,11 @@ export default function LeadsPage() {
   // Drag-and-drop
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null);
   const [dragOverCol, setDragOverCol]   = useState<string | null>(null);
+
+  // Exclusão de lead (com motivo obrigatório)
+  const [excluindoLead, setExcluindoLead] = useState<Lead | null>(null);
+  const [motivoExclusao, setMotivoExclusao] = useState('');
+  const [excluindoSaving, setExcluindoSaving] = useState(false);
 
   // Funil — métricas, etapas, controle total
   const [metricas, setMetricas]     = useState<Metricas | null>(null);
@@ -893,6 +914,21 @@ export default function LeadsPage() {
       return { ...p, [k]: atual.includes(val) ? atual.filter((x: string) => x !== val) : [...atual, val] };
     });
 
+  const handleExcluirLead = async () => {
+    if (!excluindoLead || !motivoExclusao.trim()) return;
+    setExcluindoSaving(true);
+    try {
+      await apiClient.deleteLead(excluindoLead.id, motivoExclusao.trim());
+      setExcluindoLead(null);
+      setMotivoExclusao('');
+      await loadData();
+    } catch (e: any) {
+      console.error('Erro ao excluir lead.', e?.response?.data?.message || e);
+    } finally {
+      setExcluindoSaving(false);
+    }
+  };
+
   const handleSaveProposta = async () => {
     if (!selectedLead) return;
     if (!propostaForm.razao_social?.trim()) { console.warn('Razão social é obrigatória'); return; }
@@ -1296,6 +1332,8 @@ export default function LeadsPage() {
                             e.dataTransfer.effectAllowed = 'move';
                             e.dataTransfer.setData('text/plain', lead.id);
                           }}
+                          onExcluir={() => { setExcluindoLead(lead); setMotivoExclusao(''); }}
+                          podeExcluir={podeVerTudo((user as any)?.role) || lead.responsavel_id === (user as any)?.id || (lead as any).created_by === (user as any)?.id}
                         />
                       </div>
                     ))}
@@ -2384,6 +2422,47 @@ export default function LeadsPage() {
             setMovingToFechamento(null);
           }}
         />
+      )}
+
+      {/* ── Modal de confirmação de exclusão de lead ────────────────────── */}
+      {excluindoLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setExcluindoLead(null)}>
+          <div className="ps-card rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b flex items-center justify-between">
+              <h3 className="font-bold text-sm flex items-center gap-2"><Trash2 size={16} style={{ color: '#dc2626' }} /> Excluir lead</h3>
+              <button onClick={() => setExcluindoLead(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>
+                Você está prestes a excluir <strong>{excluindoLead.razao_social || excluindoLead.nome_fantasia || excluindoLead.nome}</strong> do pipeline comercial. O lead sai de todos os quadros e relatórios, mas fica registrado na auditoria.
+              </p>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--t-text-secondary)' }}>Por que está excluindo este lead? *</label>
+                <textarea
+                  value={motivoExclusao}
+                  onChange={e => setMotivoExclusao(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Descreva o motivo da exclusão…"
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t">
+              <button onClick={() => setExcluindoLead(null)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
+                Cancelar
+              </button>
+              <button
+                onClick={handleExcluirLead}
+                disabled={excluindoSaving || !motivoExclusao.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {excluindoSaving ? 'Excluindo…' : 'Confirmar exclusão'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   );
