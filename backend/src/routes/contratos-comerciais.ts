@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarContratoPdf } from '@/lib/contrato-pdf';
-import { criarImplantacaoEComissoes } from '@/lib/comissao-fluxo';
+import { criarImplantacaoEComissoes, criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -721,26 +721,28 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       }).catch(() => null);
       // Comissão do vendedor (15% da taxa).
       if (venda && b.taxa > 0) {
-        await prisma.comissao.create({
-          data: {
-            responsavel_id: vendedorId, tipo: 'VENDA_ADICIONAL', referencia_id: venda.id,
-            descricao: `Troca de CNPJ — ${b.razao_social_nova || atual.razao_social || cliente.nome}`,
-            valor_base: b.taxa, percentual: 15, valor_comissao: comissaoVend, papel: 'VENDEDOR',
-            periodo: proximoMesYM(), status: 'PENDENTE', created_by: user?.id || 'system',
-          } as any,
-        }).catch(() => {});
+        await criarComissaoValidada(prisma, {
+          responsavel_id: vendedorId, tipo: 'VENDA_ADICIONAL', referencia_id: venda.id,
+          descricao: `Troca de CNPJ — ${b.razao_social_nova || atual.razao_social || cliente.nome}`,
+          valor_base: b.taxa, percentual: 15, valor_comissao: comissaoVend, papel: 'VENDEDOR',
+          periodo: proximoMesYM(), status: 'PENDENTE', created_by: user?.id || 'system',
+        }).catch(e => {
+          if (e instanceof ComissaoValidationError) console.error(`[TROCA-CNPJ] ${e.message}`);
+          else throw e;
+        });
         // Supervisão 5% (cada gestor comercial ativo: SUPERVISAO_COMERCIAL ou ADMIN/Diretora).
         const sups: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM UsuarioCRM WHERE cargo IN ('SUPERVISAO_COMERCIAL','ADMIN') AND status='ATIVO'`).catch(() => []);
         const comissaoSup = Math.round((b.taxa * 0.05) * 100) / 100;
         for (const s of sups) {
-          await prisma.comissao.create({
-            data: {
-              responsavel_id: s.id, tipo: 'SUPERVISAO_VENDA_ADICIONAL', referencia_id: venda.id,
-              descricao: `Supervisão — Troca de CNPJ: ${cliente.razao_social || cliente.nome}`,
-              valor_base: b.taxa, percentual: 5, valor_comissao: comissaoSup, papel: 'SUPERVISAO',
-              periodo: proximoMesYM(), status: 'PENDENTE', created_by: user?.id || 'system',
-            } as any,
-          }).catch(() => {});
+          await criarComissaoValidada(prisma, {
+            responsavel_id: s.id, tipo: 'SUPERVISAO_VENDA_ADICIONAL', referencia_id: venda.id,
+            descricao: `Supervisão — Troca de CNPJ: ${cliente.razao_social || cliente.nome}`,
+            valor_base: b.taxa, percentual: 5, valor_comissao: comissaoSup, papel: 'SUPERVISAO',
+            periodo: proximoMesYM(), status: 'PENDENTE', created_by: user?.id || 'system',
+          }).catch(e => {
+            if (e instanceof ComissaoValidationError) console.error(`[TROCA-CNPJ] ${e.message}`);
+            else throw e;
+          });
         }
       }
 

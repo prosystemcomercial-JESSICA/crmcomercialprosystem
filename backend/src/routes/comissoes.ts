@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
+import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -513,16 +514,20 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       const refId = `bonus-${tri.rotulo}-${vid}`; // idempotência por vendedor+trimestre
       const existe = await prisma.comissao.findFirst({ where: { referencia_id: refId, tipo: 'BONUS' } }).catch(() => null);
       if (existe) { jaExistiam++; continue; }
-      await prisma.comissao.create({
-        data: {
+      try {
+        await criarComissaoValidada(prisma, {
           responsavel_id: vid, tipo: 'BONUS', referencia_id: refId,
           descricao: `Bônus trimestral (${tri.rotulo}) — ${faixa.rotulo}, ${v.contratos} contratos`,
           valor_base: faixa.premio, percentual: 100, valor_comissao: faixa.premio,
           periodo: mesPagamento, mes_pagamento: mesPagamento, papel: 'VENDEDOR',
-          status: 'APROVADA', estagio: 'CONFIRMADA', aprovada_por: user?.id || 'system', aprovada_em: new Date(),
+          status: 'APROVADA', estagio: 'CONFIRMADA',
+          aprovada_por: user?.id || 'system', aprovada_em: new Date(),
           created_by: user?.id || 'system',
-        } as any,
-      });
+        });
+      } catch (e: any) {
+        if (e instanceof ComissaoValidationError) { console.error(`[BONUS-TRIMESTRAL] ${e.message}`); continue; }
+        throw e;
+      }
       criadas++;
       detalhe.push({ vendedor: nomes[vid] || v.nome || vid, contratos: v.contratos, faixa: faixa.rotulo, premio: faixa.premio });
     }
@@ -625,8 +630,11 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
   });
 
   fastify.post('/comissoes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const user = (request as any).user;
     const body = z.object({
       responsavel_id: z.string(),
+      papel: z.enum(['VENDEDOR', 'SUPERVISAO']),
       tipo: z.enum(['CONTRATO', 'PROPOSTA', 'LEAD', 'MANUAL', 'BONUS']).default('MANUAL'),
       referencia_id: z.string().optional(),
       descricao: z.string().optional(),
@@ -636,13 +644,16 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       regra_id: z.string().optional()
     }).safeParse(request.body);
 
-    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Dados inválidos' });
 
     const valor_comissao = body.data.valor_base * (body.data.percentual / 100);
-    const comissao = await prisma.comissao.create({
-      data: { ...body.data, valor_comissao }
-    });
-    return reply.status(201).send({ status: 'success', data: comissao });
+    try {
+      const comissao = await criarComissaoValidada(prisma, { ...body.data, valor_comissao, created_by: user?.id || 'system' });
+      return reply.status(201).send({ status: 'success', data: comissao });
+    } catch (e: any) {
+      if (e instanceof ComissaoValidationError) return reply.status(400).send({ status: 'error', message: e.message });
+      throw e;
+    }
   });
 
   fastify.patch('/comissoes/:id', async (request, reply) => {
@@ -693,8 +704,8 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       });
       if (existente) continue;
 
-      await prisma.comissao.create({
-        data: {
+      try {
+        await criarComissaoValidada(prisma, {
           responsavel_id,
           regra_id: regra.id,
           tipo: 'CONTRATO',
@@ -703,9 +714,13 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
           valor_base: contrato.valor,
           percentual: regra.percentual,
           valor_comissao: contrato.valor * (regra.percentual / 100),
-          periodo
-        }
-      });
+          periodo,
+          papel: 'VENDEDOR',
+        });
+      } catch (e: any) {
+        if (e instanceof ComissaoValidationError) { console.error(`[CALCULAR-MES] ${e.message}`); continue; }
+        throw e;
+      }
       criadas++;
     }
 

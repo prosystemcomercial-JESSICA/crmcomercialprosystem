@@ -6,6 +6,7 @@ import { enviarEmailProposta } from '@/services/email.service';
 import * as evo from '@/services/evolution.service';
 import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarIdPropostaUnico } from '@/lib/ids';
+import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 
 // ── Métricas do gerador ────────────────────────────────────────────────────
 // "Fechada" inclui os estados de contrato: o aceite do cliente já move a proposta
@@ -689,39 +690,43 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       // Criar comissão do vendedor no módulo de comissões
       if (atual?.vendedor_id && data.comissao_vendedor_valor > 0) {
         const periodo = proximoMes();
-        await prisma.comissao.create({
-          data: {
-            responsavel_id: atual.vendedor_id,
-            tipo:           'PROPOSTA',
-            referencia_id:  id,
-            descricao:      `Comissão por fechamento — ${atual.razao_social}`,
-            valor_base:     data.comissao_vendedor_valor ? (data.comissao_vendedor_valor / (data.comissao_vendedor_pct ?? 15)) * 100 : (atual.valor_final ?? 0),
-            percentual:     data.comissao_vendedor_pct ?? atual?.comissao_vendedor_pct ?? 15,
-            valor_comissao: data.comissao_vendedor_valor ?? atual?.comissao_vendedor_valor ?? 0,
-            periodo,
-            status:         'APROVADA',
-            created_by:     user?.id || 'system',
-          },
-        }).catch(() => null);
+        await criarComissaoValidada(prisma, {
+          responsavel_id: atual.vendedor_id,
+          tipo:           'PROPOSTA',
+          referencia_id:  id,
+          descricao:      `Comissão por fechamento — ${atual.razao_social}`,
+          valor_base:     data.comissao_vendedor_valor ? (data.comissao_vendedor_valor / (data.comissao_vendedor_pct ?? 15)) * 100 : (atual.valor_final ?? 0),
+          percentual:     data.comissao_vendedor_pct ?? atual?.comissao_vendedor_pct ?? 15,
+          valor_comissao: data.comissao_vendedor_valor ?? atual?.comissao_vendedor_valor ?? 0,
+          periodo,
+          papel:          'VENDEDOR',
+          status:         'APROVADA',
+          created_by:     user?.id || 'system',
+        }).catch(e => {
+          if (e instanceof ComissaoValidationError) console.error(`[PROPOSTA] ${e.message}`);
+          else throw e;
+        });
       }
 
       // Criar comissão do supervisor
       if (atual?.supervisor_id && (data.comissao_supervisor_valor ?? atual?.comissao_supervisor_valor ?? 0) > 0) {
         const periodo = proximoMes();
-        await prisma.comissao.create({
-          data: {
-            responsavel_id: atual.supervisor_id,
-            tipo:           'PROPOSTA',
-            referencia_id:  id,
-            descricao:      `Comissão supervisão — ${atual.razao_social}`,
-            valor_base:     atual.valor_final ?? 0,
-            percentual:     data.comissao_supervisor_pct ?? atual?.comissao_supervisor_pct ?? 5,
-            valor_comissao: data.comissao_supervisor_valor ?? atual?.comissao_supervisor_valor ?? 0,
-            periodo,
-            status:         'APROVADA',
-            created_by:     user?.id || 'system',
-          },
-        }).catch(() => null);
+        await criarComissaoValidada(prisma, {
+          responsavel_id: atual.supervisor_id,
+          tipo:           'PROPOSTA',
+          referencia_id:  id,
+          descricao:      `Comissão supervisão — ${atual.razao_social}`,
+          valor_base:     atual.valor_final ?? 0,
+          percentual:     data.comissao_supervisor_pct ?? atual?.comissao_supervisor_pct ?? 5,
+          valor_comissao: data.comissao_supervisor_valor ?? atual?.comissao_supervisor_valor ?? 0,
+          periodo,
+          papel:          'SUPERVISAO',
+          status:         'APROVADA',
+          created_by:     user?.id || 'system',
+        }).catch(e => {
+          if (e instanceof ComissaoValidationError) console.error(`[PROPOSTA] ${e.message}`);
+          else throw e;
+        });
       }
     }
 

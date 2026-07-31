@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor } from '@/lib/scope';
+import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 
 /**
  * LANÇAMENTOS RETROATIVOS (gestão)
@@ -99,32 +100,32 @@ export async function lancamentosRetroativosRoutes(
       } as any,
     });
 
-    // Comissão do vendedor (15% do setup) — opcional.
+    // Comissão do vendedor (15% do setup) — opcional. Lançamento retroativo é ação
+    // manual da gestão: se vendedor_id não for um vendedor real, o erro deve aparecer
+    // na hora (não silenciar), pra quem lançou corrigir o dado.
     let comissao: any = null;
     if (body.data.gerar_comissao && body.data.setup > 0 && body.data.vendedor_id) {
       const valor = Math.round(body.data.setup * 0.15 * 100) / 100;
-      comissao = await prisma.comissao.create({
-        data: {
-          responsavel_id: body.data.vendedor_id,
-          tipo: 'CONTRATO',
-          referencia_id: proposta.id,
-          descricao: `Comissão (retroativo): ${body.data.razao_social}`,
-          valor_base: body.data.setup,
-          percentual: 15,
-          valor_comissao: valor,
-          periodo: periodoDe(data),
-          papel: 'VENDEDOR',
-          // Retroativo: SEMPRE grava o mês de pagamento (informado ou o da venda).
-          // Não paga → estágio CONFIRMADA (entra na aba "A Pagar" daquele mês);
-          // paga → PAGA no mesmo mês.
-          status: body.data.comissao_paga ? 'PAGA' : 'PENDENTE',
-          estagio: body.data.comissao_paga ? 'PAGA' : 'CONFIRMADA',
-          mes_pagamento: mesPagto,
-          paga_em: body.data.comissao_paga ? data : undefined,
-          created_by: user?.id || 'system',
-          created_at: data,
-        } as any,
-      }).catch(() => null);
+      comissao = await criarComissaoValidada(prisma, {
+        responsavel_id: body.data.vendedor_id,
+        tipo: 'CONTRATO',
+        referencia_id: proposta.id,
+        descricao: `Comissão (retroativo): ${body.data.razao_social}`,
+        valor_base: body.data.setup,
+        percentual: 15,
+        valor_comissao: valor,
+        periodo: periodoDe(data),
+        papel: 'VENDEDOR',
+        // Retroativo: SEMPRE grava o mês de pagamento (informado ou o da venda).
+        // Não paga → estágio CONFIRMADA (entra na aba "A Pagar" daquele mês);
+        // paga → PAGA no mesmo mês.
+        status: body.data.comissao_paga ? 'PAGA' : 'PENDENTE',
+        estagio: body.data.comissao_paga ? 'PAGA' : 'CONFIRMADA',
+        mes_pagamento: mesPagto,
+        paga_em: body.data.comissao_paga ? data : undefined,
+        created_by: user?.id || 'system',
+        created_at: data,
+      });
     }
 
     // Comissão da SUPERVISÃO (5% do setup) — cada SUPERVISAO_COMERCIAL ativo recebe,
@@ -136,24 +137,22 @@ export async function lancamentosRetroativosRoutes(
       ).catch(() => []);
       const valorSup = Math.round(body.data.setup * 0.05 * 100) / 100;
       for (const s of sups) {
-        const cs = await prisma.comissao.create({
-          data: {
-            responsavel_id: s.id,
-            tipo: 'CONTRATO',
-            referencia_id: proposta.id,
-            descricao: `Comissão supervisão (retroativo): ${body.data.razao_social}`,
-            valor_base: body.data.setup,
-            percentual: 5,
-            valor_comissao: valorSup,
-            periodo: periodoDe(data),
-            papel: 'SUPERVISAO',
-            status: body.data.comissao_paga ? 'PAGA' : 'PENDENTE',
-            estagio: body.data.comissao_paga ? 'PAGA' : 'CONFIRMADA',
-            mes_pagamento: mesPagto,
-            paga_em: body.data.comissao_paga ? data : undefined,
-            created_by: user?.id || 'system',
-            created_at: data,
-          } as any,
+        const cs = await criarComissaoValidada(prisma, {
+          responsavel_id: s.id,
+          tipo: 'CONTRATO',
+          referencia_id: proposta.id,
+          descricao: `Comissão supervisão (retroativo): ${body.data.razao_social}`,
+          valor_base: body.data.setup,
+          percentual: 5,
+          valor_comissao: valorSup,
+          periodo: periodoDe(data),
+          papel: 'SUPERVISAO',
+          status: body.data.comissao_paga ? 'PAGA' : 'PENDENTE',
+          estagio: body.data.comissao_paga ? 'PAGA' : 'CONFIRMADA',
+          mes_pagamento: mesPagto,
+          paga_em: body.data.comissao_paga ? data : undefined,
+          created_by: user?.id || 'system',
+          created_at: data,
         }).catch(() => null);
         if (cs) comissoesSup.push(cs);
       }
@@ -189,8 +188,9 @@ export async function lancamentosRetroativosRoutes(
       ? body.data.mes_pagamento_comissao
       : periodoDe(data);
 
-    const comissao = await prisma.comissao.create({
-      data: {
+    let comissao;
+    try {
+      comissao = await criarComissaoValidada(prisma, {
         responsavel_id: body.data.vendedor_id,
         tipo: body.data.tipo,
         descricao: body.data.descricao || `Comissão retroativa`,
@@ -206,8 +206,13 @@ export async function lancamentosRetroativosRoutes(
         paga_em: body.data.paga ? data : undefined,
         created_by: user?.id || 'system',
         created_at: data,
-      } as any,
-    });
+      });
+    } catch (e: any) {
+      if (e instanceof ComissaoValidationError) {
+        return reply.status(400).send({ status: 'error', message: e.message });
+      }
+      throw e;
+    }
 
     return reply.status(201).send({ status: 'success', data: comissao });
   });
