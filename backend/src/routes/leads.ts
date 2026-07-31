@@ -633,13 +633,22 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   // Exclusão LÓGICA: o lead sai de TODOS os resultados (listas, quadro, dashboard,
   // metas) mas permanece na AUDITORIA/trilha. Registra ator, data e motivo.
   fastify.delete('/leads/:id', async (request, reply) => {
-    if (!requireGestor(request, reply)) return;
     const { id } = request.params as { id: string };
     const motivo = (request.body as any)?.motivo as string | undefined;
     const ator = (request as any).user;
 
-    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, etapa_funil: true } });
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, etapa_funil: true, responsavel_id: true, created_by: true } });
     if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+
+    // Gestão comercial exclui qualquer lead. Vendedor só pode excluir o próprio
+    // (responsável ou quem criou) — evita apagar lead de colega por engano/má-fé.
+    const ehDono = ator?.id && (lead.responsavel_id === ator.id || lead.created_by === ator.id);
+    if (!podeVerTudo(ator) && !ehDono) {
+      return reply.status(403).send({ status: 'error', message: 'Você só pode excluir leads pelos quais é responsável' });
+    }
+    if (!motivo || !motivo.trim()) {
+      return reply.status(400).send({ status: 'error', message: 'Informe o motivo da exclusão' });
+    }
 
     await prisma.$executeRawUnsafe(
       'UPDATE `Lead` SET deleted_at = NOW(), deleted_by = ?, motivo_exclusao = ?, updated_at = NOW() WHERE id = ?',
