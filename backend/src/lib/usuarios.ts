@@ -35,3 +35,26 @@ export async function resolverNomesUsuarios(prisma: PrismaClient, ids: string[])
   }
   return mapa;
 }
+
+/**
+ * Resolve o usuário que deve receber comissão de SUPERVISÃO em vendas adicionais.
+ * Prioriza cargos de supervisão dedicados (SUPERVISAO_COMERCIAL/SUPERVISAO_TECNICA);
+ * na ausência deles, cai para ADMIN ativo — hoje a única conta de supervisão comercial
+ * cadastrada com o cargo correto está INATIVA (duplicata antiga), e quem de fato
+ * supervisiona está com cargo ADMIN. NUNCA usa o vendedor logado (esse foi o bug
+ * original: supervisao_id = user?.id fazia o próprio vendedor "se auto-supervisionar").
+ */
+export async function resolverSupervisorComercial(prisma: PrismaClient): Promise<{ id: string; nome: string } | null> {
+  const porCargoSupervisao = await prisma.usuarioCRM.findFirst({
+    where: { cargo: { in: ['SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'] }, status: 'ATIVO' },
+    orderBy: { nome: 'asc' },
+    select: { id: true, nome: true },
+  }).catch(() => null);
+  if (porCargoSupervisao) return porCargoSupervisao;
+
+  return prisma.usuarioCRM.findFirst({
+    where: { cargo: 'ADMIN', status: 'ATIVO' },
+    orderBy: { nome: 'asc' },
+    select: { id: true, nome: true },
+  }).catch(() => null);
+}
