@@ -60,10 +60,10 @@ export async function criarComissaoValidada(prisma: PrismaClient, data: {
     );
   }
 
-  const CARGOS_SUPERVISAO = ['SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN', 'CEO', 'DIRETOR'];
-  if (data.papel === 'SUPERVISAO' && !CARGOS_SUPERVISAO.includes(usuario.cargo)) {
+  if (data.papel === 'SUPERVISAO' && usuario.cargo !== 'SUPERVISAO_COMERCIAL') {
     throw new ComissaoValidationError(
-      `Não é possível gerar comissão de SUPERVISAO para "${usuario.nome}" (cargo ${usuario.cargo}).`
+      `Não é possível gerar comissão de SUPERVISAO para "${usuario.nome}" (cargo ${usuario.cargo}) — ` +
+      `comissão de supervisão precisa ser designada a um usuário com cargo SUPERVISAO_COMERCIAL.`
     );
   }
 
