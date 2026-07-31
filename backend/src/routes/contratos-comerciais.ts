@@ -377,7 +377,9 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
   // ── LIST (kanban grouped)
   fastify.get('/contratos-comerciais', async (request, reply) => {
     const query = (request.query as any);
-    const { status, search, page = 0, limit = 200 } = query;
+    const { status, search } = query;
+    const page = Number(query.page) || 0;
+    const limit = Number(query.limit) || 200;
 
     const where: any = {};
     if (status) where.status = status;
