@@ -95,6 +95,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     info:    (title, description) => add({ type: 'info',    title, description }),
   };
 
+  // Conecta o singleton showToast (usável fora de componentes React) a este provider.
+  useEffect(() => { showToast._register(value); }, [value]);
+
   return (
     <ToastContext.Provider value={value}>
       {children}
