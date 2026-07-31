@@ -97,7 +97,7 @@ model Cliente {
   previsao_pagamento String?  // texto livre (pode vir "- -")
   regiao             String?
   valor_instalacao   Float?
-  condicao_pagamento String?
+  condicao_pagamento String? @db.Text
   data_cadastro      DateTime?
 
   created_at DateTime @default(now())
@@ -226,7 +226,7 @@ model CasoChurn {
 
   status           String  @default("NOVO") // NOVO|DIAGNOSTICADO|PLANEJADO|EXECUTANDO|RECUPERADO|PERDIDO|SISTEMA_REMOVIDO
   risk_score       Float   @default(0)
-  motivo_principal String?
+  motivo_principal String? @db.Text
   descricao        String? @db.Text // observações/contexto do problema ao abrir o caso
 
   // Caso retroativo: quando o problema começou ANTES do cadastro no CRM.
@@ -313,7 +313,7 @@ model DiagnosisChurn {
   caso_churn_id String    @unique
   caso_churn    CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
 
-  motivo_principal String
+  motivo_principal String @db.Text
   risco_score      Float
   fatores          Json // Array de fatores de risco
 
@@ -329,7 +329,7 @@ model PlanoRetencao {
   caso_churn    CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
 
   titulo    String
-  descricao String?
+  descricao String? @db.Text
   status    String  @default("RASCUNHO") // RASCUNHO|ATIVO|CONCLUIDO
 
   created_at DateTime @default(now())
@@ -349,7 +349,7 @@ model AcaoRetencao {
   plano    PlanoRetencao? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
 
   titulo          String
-  descricao       String?
+  descricao       String? @db.Text
   tipo            String // CONTATO|EMAIL|DESCONTO|PRODUTO|OUTRO
   status          String    @default("NOVA") // NOVA|EM_PROGRESSO|CONCLUIDA|CANCELADA
   responsavel_id  String?
@@ -365,7 +365,7 @@ model AcaoRetencao {
 model HistoricoLead {
   id             String  @id @default(cuid())
   tipo           String // caso_criado|status_alterado|acao_criada|survey_respondido|etc
-  descricao      String
+  descricao      String @db.Text
   relacionado_id String? // ID do caso/survey/acao relacionada
 
   created_by String
@@ -616,10 +616,10 @@ model Lead {
   parcelamento           Int?
   validade_proposta      DateTime?
   observacoes_comerciais String?   @db.Text
-  condicao_especial      String?
+  condicao_especial      String? @db.Text
 
   // Dados para proposta (pré-preenchimento)
-  frase_hero          String?
+  frase_hero          String? @db.Text
   texto_valor         String? @db.Text
   segmento_proposta   String?
   plano_recomendado   String?
@@ -638,7 +638,7 @@ model Lead {
   temperatura    String  @default("FRIO") // FRIO|MORNO|QUENTE|MUITO_QUENTE
   valor_estimado Float?
   probabilidade  Int?
-  motivo_perda   String?
+  motivo_perda   String? @db.Text
 
   // UTM / Campanha tracking
   utm_source    String?
@@ -764,7 +764,7 @@ model KanbanColuna {
 model QuadroComercial {
   id        String  @id @default(cuid())
   nome      String
-  descricao String?
+  descricao String? @db.Text
   tipo      String  @default("CUSTOM") // PIPELINE | FOLLOWUP | CUSTOM
   cor       String  @default("#417ABC")
   ordem     Int     @default(99)
@@ -813,7 +813,7 @@ model Etiqueta {
   id         String   @id @default(cuid())
   nome       String
   cor        String   @default("#4B8EC8")
-  descricao  String?
+  descricao  String? @db.Text
   tipo       String   @default("LEAD") // LEAD|CLIENTE|PARCEIRO — categoria da etiqueta
   sistema    Boolean  @default(false)  // true = criada/gerida pelo sistema (ex.: Cliente Convertido)
   ativa      Boolean  @default(true)
@@ -1020,7 +1020,7 @@ model Contrato {
   // Soft-delete: registro mantido para auditoria
   deleted_at      DateTime?
   deleted_by      String?
-  motivo_exclusao String?
+  motivo_exclusao String? @db.Text
 
   created_by String
   created_at DateTime @default(now())
@@ -1189,7 +1189,7 @@ model RegraComissao {
   tipo           String  @default("CONTRATO") // CONTRATO|PROPOSTA|LEAD
   percentual     Float // ex: 5.0 = 5%
   ativo          Boolean @default(true)
-  observacoes    String?
+  observacoes    String? @db.Text
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -1208,7 +1208,7 @@ model Comissao {
 
   tipo          String // CONTRATO|PROPOSTA|LEAD|MANUAL|BONUS
   referencia_id String? // ID do contrato/proposta/lead
-  descricao     String?
+  descricao     String? @db.Text
 
   valor_base     Float
   percentual     Float
@@ -1345,7 +1345,7 @@ model ImplantacaoArquivo {
   nome           String
   tipo           String      @default("LINK") // LINK | ANEXO
   url            String      @db.Text // URL do link ou caminho/base64 do anexo
-  descricao      String?
+  descricao      String? @db.Text
   enviado_por    String?
   created_at     DateTime    @default(now())
 
@@ -1384,7 +1384,7 @@ model Indicacao {
   status      String  @default("PENDENTE") // PENDENTE|CONTATO|CONVERTIDO|PERDIDO
   bonus_valor Float   @default(0)
   bonus_pago  Boolean @default(false)
-  observacoes String?
+  observacoes String? @db.Text
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -1444,15 +1444,15 @@ model PropostaComercial {
   parcelas            Int?
   valor_parcela       Float?
   data_vencimento     String?
-  observacao_cobranca String?
-  condicao_especial   String?
+  observacao_cobranca String? @db.Text
+  condicao_especial   String? @db.Text
 
   // Proposta multi-loja: array JSON de { razao_social, cnpj, maquinas, tipo_loja, plano, mensalidade, valor_implantacao, entrada, parcelas, valor_parcela, servicos_adicionais }
   lojas_projeto Json?
 
   // Conteúdo editorial da proposta
   titulo_proposta String?
-  frase_hero      String?
+  frase_hero      String? @db.Text
   texto_valor     String? @db.Text
   observacoes     String? @db.Text
 
@@ -1771,7 +1771,7 @@ model Credito {
 
   valor    Float
   validade DateTime
-  motivo   String?
+  motivo   String? @db.Text
 
   criado_em    DateTime  @default(now())
   utilizado_em DateTime?
@@ -1826,7 +1826,7 @@ model ContratoComercial {
   setup_parcelas          Int?
   valor_setup_parcela     Float?
   setup_a_vista           Boolean @default(false)
-  setup_condicao_especial String?
+  setup_condicao_especial String? @db.Text
 
   // Tipo do contrato p/ não confundir TROCA DE CNPJ (serviço) com cliente NOVO.
   tipo_servico      String? @default("NOVO") // NOVO | TROCA_CNPJ
@@ -1836,7 +1836,7 @@ model ContratoComercial {
   vendedor_nome     String?
   supervisor_nome   String?
   campanha          String?
-  condicao_especial String?
+  condicao_especial String? @db.Text
   data_contrato     DateTime @default(now())
 
   // Comissão do vendedor (15% sobre o setup/instalação, calculada na assinatura)
@@ -1845,7 +1845,7 @@ model ContratoComercial {
 
   // Recuo / distrato (cliente assinou e desistiu) — sai da meta e estorna comissão
   recuado_at   DateTime?
-  recuo_motivo String?
+  recuo_motivo String? @db.Text
 
   // Modelo ZapSign usado
   modelo_contrato        String? // "Pro" | "Plus" | "Farma Pro" | etc
@@ -1858,8 +1858,8 @@ model ContratoComercial {
   // ZapSign campos de rastreamento
   zapsign_doc_token       String?
   zapsign_signer_token    String?
-  zapsign_signing_url     String?
-  zapsign_signed_file_url String?
+  zapsign_signing_url     String? @db.Text
+  zapsign_signed_file_url String? @db.Text
   zapsign_status          String?
   gerado_at               DateTime?
   sent_to_sign_at         DateTime?
@@ -1886,7 +1886,7 @@ model ConfiguracaoIntegracao {
   id         String   @id @default(cuid())
   chave      String   @unique
   valor      String   @db.Text
-  descricao  String?
+  descricao  String? @db.Text
   updated_at DateTime @updatedAt
   updated_by String?  @default("system")
 }
@@ -2134,7 +2134,7 @@ model LancamentoFinanceiro {
   tipo         String   // ENTRADA | SAIDA
   categoria    String   // SALARIO|BENEFICIO|AJUDA_CUSTO|MARKETING|COMISSAO|OUTRO_CUSTO
                         // | MENSALIDADE|INSTALACAO|SERVICO|VENDA|OUTRA_ENTRADA
-  descricao    String?
+  descricao    String? @db.Text
   valor        Decimal  @db.Decimal(12, 2)
   recorrencia  String   @default("MENSAL") // MENSAL|ANUAL|PONTUAL|EXTRAORDINARIO
   // Competência (a que mês/ano o lançamento pertence — base dos filtros).
@@ -2243,7 +2243,7 @@ model WhatsappMensagem {
 model KbCategoria {
   id          String   @id @default(cuid())
   nome        String
-  descricao   String?
+  descricao   String? @db.Text
   icone       String?  // nome do ícone lucide-react
   ordem       Int      @default(0)
   parent_id   String?
