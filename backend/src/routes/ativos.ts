@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, scopeUserId, podeVerTudo, getUser } from '@/lib/scope';
 import { resolverNomesUsuarios, resolverSupervisorComercial } from '@/lib/usuarios';
+import { criarComissaoValidada } from '@/lib/comissao-fluxo';
 
 /**
  * MÓDULO ATIVOS — CS comercial feito pelos vendedores.
@@ -698,20 +699,18 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
         ? await prisma.parceiro.findUnique({ where: { id: oport.parceiro_id } }).catch(() => null)
         : null;
       const comissaoValor = parceiro?.comissao_valor ?? 50;
-      await prisma.comissao.create({
-        data: {
-          responsavel_id: vendedorId,
-          tipo: 'VENDA_ADICIONAL',
-          referencia_id: venda.id,
-          descricao: `Venda Adicional: ${oport.parceiro_nome || oport.categoria || 'Expansão'} — ${oport.cliente_id}`,
-          valor_base: comissaoValor,
-          percentual: 100,
-          valor_comissao: comissaoValor,
-          papel: 'VENDEDOR',
-          periodo: proximoMes(),
-          status: 'APROVADA',
-          created_by: user?.id ?? vendedorId,
-        },
+      await criarComissaoValidada(prisma, {
+        responsavel_id: vendedorId,
+        tipo: 'VENDA_ADICIONAL',
+        referencia_id: venda.id,
+        descricao: `Venda Adicional: ${oport.parceiro_nome || oport.categoria || 'Expansão'} — ${oport.cliente_id}`,
+        valor_base: comissaoValor,
+        percentual: 100,
+        valor_comissao: comissaoValor,
+        papel: 'VENDEDOR',
+        periodo: proximoMes(),
+        status: 'APROVADA',
+        created_by: user?.id ?? vendedorId,
       }).catch((e: any) => console.error('[ATIVOS] criar comissão:', e?.message));
     }
 

@@ -1,6 +1,98 @@
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
+export class ComissaoValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ComissaoValidationError';
+  }
+}
+
+/**
+ * Ponto ÚNICO de criação de Comissao — TODO código que gera comissão deve passar
+ * por aqui, nunca chamar prisma.comissao.create direto. Valida que responsavel_id
+ * é um cargo compatível com o papel da comissão:
+ *   - VENDEDOR   → só cargo VENDEDOR (nunca ADMIN/SUPERVISAO/CEO/técnico).
+ *   - SUPERVISAO → cargo de supervisão ou ADMIN/CEO (gestão comercial).
+ *
+ * Motivo: um bug histórico deixava comissão de vendedor cair na conta de quem
+ * LANÇOU a venda (supervisão/admin), em vez de no vendedor de fato responsável —
+ * ver commit 6c221dc. Essa validação existe pra nunca mais acontecer, silenciosamente
+ * ou não.
+ */
+export async function criarComissaoValidada(prisma: PrismaClient, data: {
+  responsavel_id: string;
+  papel: 'VENDEDOR' | 'SUPERVISAO';
+  tipo: string;
+  referencia_id?: string | null;
+  descricao?: string | null;
+  valor_base: number;
+  percentual: number;
+  valor_comissao: number;
+  periodo: string;
+  status?: string;
+  estagio?: string;
+  mes_pagamento?: string | null;
+  implantacao_id?: string | null;
+  created_by?: string;
+  id?: string;
+  paga_em?: Date | null;
+  created_at?: Date;
+  aprovada_por?: string | null;
+  aprovada_em?: Date | null;
+  regra_id?: string | null;
+}) {
+  const usuario = await prisma.usuarioCRM.findUnique({
+    where: { id: data.responsavel_id },
+    select: { id: true, nome: true, cargo: true, status: true },
+  });
+
+  if (!usuario) {
+    throw new ComissaoValidationError(
+      `Não é possível gerar comissão: usuário responsavel_id="${data.responsavel_id}" não existe em UsuarioCRM.`
+    );
+  }
+
+  if (data.papel === 'VENDEDOR' && usuario.cargo !== 'VENDEDOR') {
+    throw new ComissaoValidationError(
+      `Não é possível gerar comissão de VENDEDOR para "${usuario.nome}" (cargo ${usuario.cargo}) — ` +
+      `comissão de venda precisa ser designada a um usuário com cargo VENDEDOR. Escolha o vendedor real da venda.`
+    );
+  }
+
+  const CARGOS_SUPERVISAO = ['SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN', 'CEO', 'DIRETOR'];
+  if (data.papel === 'SUPERVISAO' && !CARGOS_SUPERVISAO.includes(usuario.cargo)) {
+    throw new ComissaoValidationError(
+      `Não é possível gerar comissão de SUPERVISAO para "${usuario.nome}" (cargo ${usuario.cargo}).`
+    );
+  }
+
+  return prisma.comissao.create({
+    data: {
+      id: data.id || randomUUID(),
+      responsavel_id: data.responsavel_id,
+      tipo: data.tipo,
+      referencia_id: data.referencia_id ?? undefined,
+      descricao: data.descricao ?? undefined,
+      valor_base: data.valor_base,
+      percentual: data.percentual,
+      valor_comissao: data.valor_comissao,
+      periodo: data.periodo,
+      status: data.status ?? 'PENDENTE',
+      estagio: data.estagio ?? 'A_RECEBER',
+      papel: data.papel,
+      mes_pagamento: data.mes_pagamento ?? undefined,
+      implantacao_id: data.implantacao_id ?? undefined,
+      created_by: data.created_by ?? 'system',
+      paga_em: data.paga_em ?? undefined,
+      created_at: data.created_at ?? undefined,
+      aprovada_por: data.aprovada_por ?? undefined,
+      aprovada_em: data.aprovada_em ?? undefined,
+      regra_id: data.regra_id ?? undefined,
+    } as any,
+  });
+}
+
 /**
  * Fluxo de comissão atrelado à implantação:
  *
@@ -103,7 +195,7 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
 }
 
 async function upsertComissaoContrato(prisma: PrismaClient, p: {
-  contratoId: string; responsavelId: string; papel: string; pct: number; setup: number; periodo: string; descricao: string;
+  contratoId: string; responsavelId: string; papel: 'VENDEDOR' | 'SUPERVISAO'; pct: number; setup: number; periodo: string; descricao: string;
 }) {
   const valor = Math.round(p.setup * (p.pct / 100) * 100) / 100;
   const existente = await prisma.comissao.findFirst({
@@ -111,22 +203,20 @@ async function upsertComissaoContrato(prisma: PrismaClient, p: {
     select: { id: true },
   }).catch(() => null);
   if (existente) return;
-  await prisma.comissao.create({
-    data: {
-      id: randomUUID(),
-      responsavel_id: p.responsavelId,
-      tipo: 'CONTRATO',
-      referencia_id: p.contratoId,
-      descricao: p.descricao,
-      valor_base: p.setup,
-      percentual: p.pct,
-      valor_comissao: valor,
-      periodo: p.periodo,
-      status: 'PENDENTE',
-      estagio: 'A_RECEBER',
-      papel: p.papel,
-    } as any,
-  }).catch(() => {});
+  await criarComissaoValidada(prisma, {
+    responsavel_id: p.responsavelId,
+    tipo: 'CONTRATO',
+    referencia_id: p.contratoId,
+    descricao: p.descricao,
+    valor_base: p.setup,
+    percentual: p.pct,
+    valor_comissao: valor,
+    periodo: p.periodo,
+    papel: p.papel,
+  }).catch(e => {
+    if (e instanceof ComissaoValidationError) console.error(`[COMISSAO] ${e.message}`);
+    else throw e;
+  });
 }
 
 // Ao informar instalação + 1º vencimento: define o mês de pagamento e move as comissões.

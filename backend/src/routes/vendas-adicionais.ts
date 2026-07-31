@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, podeVerTudo, requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios, resolverSupervisorComercial } from '@/lib/usuarios';
+import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 
 const PARCEIROS_DEFAULT = [
   {
@@ -412,21 +413,18 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     //  - COMUNICAÇÃO → mês seguinte ao 1º vencimento;
     //  - demais      → mês seguinte (a partir de hoje; reposicionado na confirmação).
     const periodo = ehComunicacao ? mesSeguinteDe(primeiro_vencimento) : proximoMes();
-    await prisma.comissao.create({
-      data: {
-        responsavel_id: vendedorId,
-        tipo: 'VENDA_ADICIONAL',
-        referencia_id: venda.id,
-        descricao: `Venda Adicional: ${parceiro.nome} — ${venda.cliente.nome}`,
-        // COMUNICAÇÃO: base = setup, 15%. Demais: valor fixo (base=valor, 100%).
-        valor_base: ehComunic ? Number(body.data.valor_venda || 0) : comissaoValor,
-        percentual: ehComunic ? 15 : 100,
-        valor_comissao: comissaoValor,
-        papel: 'VENDEDOR',
-        periodo,
-        status: 'PENDENTE',
-        created_by: user?.id || 'system',
-      },
+    await criarComissaoValidada(prisma, {
+      responsavel_id: vendedorId,
+      tipo: 'VENDA_ADICIONAL',
+      referencia_id: venda.id,
+      descricao: `Venda Adicional: ${parceiro.nome} — ${venda.cliente.nome}`,
+      // COMUNICAÇÃO: base = setup, 15%. Demais: valor fixo (base=valor, 100%).
+      valor_base: ehComunic ? Number(body.data.valor_venda || 0) : comissaoValor,
+      percentual: ehComunic ? 15 : 100,
+      valor_comissao: comissaoValor,
+      papel: 'VENDEDOR',
+      periodo,
+      created_by: user?.id || 'system',
     });
 
     // Salva a venda na FICHA de cada loja envolvida (timeline), com o acréscimo
@@ -602,28 +600,26 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
             where: { referencia_id: id, tipo: 'SUPERVISAO_VENDA_ADICIONAL' },
           });
 
-          if (!comissaoSupExistente) {
-            await prisma.comissao.create({
-              data: {
-                responsavel_id: vendaAtual.supervisao_id,
-                tipo: 'SUPERVISAO_VENDA_ADICIONAL',
-                referencia_id: id,
-                descricao: `Supervisão — ${vendaAtual.parceiro.nome}: ${vendaAtual.cliente.nome}`,
-                valor_base: baseComissaoSupervisao(
-                  vendaAtual.parceiro,
-                  body.data.valor_venda ?? vendaAtual.valor_venda,
-                  acrescimoMensal,
-                ),
-                percentual: pctComissaoSupervisao(vendaAtual.parceiro),
-                valor_comissao: comissaoSupervisao,
-                papel: 'SUPERVISAO',
-                // COMUNICAÇÃO: comissão no mês seguinte ao 1º vencimento (igual vendedor).
-                periodo: vendaAtual.parceiro?.categoria === 'COMUNICACAO'
-                  ? mesSeguinteDe((vendaAtual as any).primeiro_vencimento)
-                  : proximoMes(),
-                status: 'APROVADA',
-                created_by: user?.id || 'system',
-              },
+          if (!comissaoSupExistente && vendaAtual.supervisao_id) {
+            await criarComissaoValidada(prisma, {
+              responsavel_id: vendaAtual.supervisao_id,
+              tipo: 'SUPERVISAO_VENDA_ADICIONAL',
+              referencia_id: id,
+              descricao: `Supervisão — ${vendaAtual.parceiro.nome}: ${vendaAtual.cliente.nome}`,
+              valor_base: baseComissaoSupervisao(
+                vendaAtual.parceiro,
+                body.data.valor_venda ?? vendaAtual.valor_venda,
+                acrescimoMensal,
+              ),
+              percentual: pctComissaoSupervisao(vendaAtual.parceiro),
+              valor_comissao: comissaoSupervisao,
+              papel: 'SUPERVISAO',
+              // COMUNICAÇÃO: comissão no mês seguinte ao 1º vencimento (igual vendedor).
+              periodo: vendaAtual.parceiro?.categoria === 'COMUNICACAO'
+                ? mesSeguinteDe((vendaAtual as any).primeiro_vencimento)
+                : proximoMes(),
+              status: 'APROVADA',
+              created_by: user?.id || 'system',
             });
           }
         }
@@ -826,15 +822,16 @@ ${setup > 0 ? condicoes : `Acréscimo de ${brl(acrescimo)} na mensalidade a part
             });
             supervisaoAtualizadas++; tocou = true;
           }
-        } else if (comissaoSup > 0) {
-          await prisma.comissao.create({
-            data: {
-              responsavel_id: v.supervisao_id, tipo: 'SUPERVISAO_VENDA_ADICIONAL', referencia_id: v.id,
-              descricao: `Supervisão — ${v.parceiro.nome}: ${v.cliente?.nome || ''}`,
-              valor_base: setup, percentual: 5, valor_comissao: comissaoSup, papel: 'SUPERVISAO',
-              periodo: periodoSup, status: 'APROVADA', created_by: user?.id || 'system',
-            } as any,
-          }).catch(() => {});
+        } else if (comissaoSup > 0 && v.supervisao_id) {
+          await criarComissaoValidada(prisma, {
+            responsavel_id: v.supervisao_id, tipo: 'SUPERVISAO_VENDA_ADICIONAL', referencia_id: v.id,
+            descricao: `Supervisão — ${v.parceiro.nome}: ${v.cliente?.nome || ''}`,
+            valor_base: setup, percentual: 5, valor_comissao: comissaoSup, papel: 'SUPERVISAO',
+            periodo: periodoSup, status: 'APROVADA', created_by: user?.id || 'system',
+          }).catch(e => {
+            if (e instanceof ComissaoValidationError) console.error(`[BACKFILL] ${e.message}`);
+            else throw e;
+          });
           supervisaoCriadas++; tocou = true;
         }
       }
