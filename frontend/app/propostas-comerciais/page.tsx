@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
+import { showToast } from '@/components/ui/Toast';
 import {
   ClipboardList, Plus, Search, Eye, Trash2, Edit3, Send, CheckCircle,
   XCircle, Copy, ExternalLink, ChevronDown, ChevronUp, RefreshCw,
@@ -30,6 +31,7 @@ interface PropostaComercial {
   responsavel_cpf?: string;
   responsavel_cargo?: string;
   responsavel_horario?: string;
+  vendedor_id?: string;
   vendedor_nome?: string;
   vendedor_telefone?: string;
   supervisor_nome?: string;
@@ -79,6 +81,7 @@ const BLANK_FORM = {
   responsavel_cpf: '',
   responsavel_cargo: '',
   responsavel_horario: '',
+  vendedor_id: '',
   vendedor_nome: '',
   vendedor_telefone: '',
   supervisor_nome: '',
@@ -294,9 +297,16 @@ export default function PropostasComerciais() {
 
   // Perfil completo do vendedor logado (nome + telefone) p/ auto-preencher a proposta
   const [meuPerfil, setMeuPerfil] = useState<{ nome?: string; telefone?: string } | null>(null);
+  const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   useEffect(() => {
     apiClient.getMeuPerfil().then(r => setMeuPerfil(r.data?.data || null)).catch(() => {});
   }, []);
+  // Gestor pode gerar proposta em nome de outro vendedor — carrega a lista real
+  // (evita atribuir por texto livre, que sempre caía no usuário logado no backend).
+  useEffect(() => {
+    if (!isGestor) return;
+    apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => setVendedores([]));
+  }, [isGestor]);
 
   const [viewMode, setViewMode] = useState<'lista' | 'kanban'>('kanban');
   const [draggingProposta, setDraggingProposta] = useState<PropostaComercial | null>(null);
@@ -350,6 +360,7 @@ export default function PropostasComerciais() {
     setEditingId(null);
     setForm({
       ...BLANK_FORM,
+      vendedor_id: isGestor ? '' : (user?.id || ''),
       vendedor_nome: meuPerfil?.nome || user?.nome || '',
       vendedor_telefone: meuPerfil?.telefone || '',
     });
@@ -422,6 +433,7 @@ export default function PropostasComerciais() {
       responsavel_cpf: p.responsavel_cpf || '',
       responsavel_cargo: p.responsavel_cargo || '',
       responsavel_horario: p.responsavel_horario || '',
+      vendedor_id: p.vendedor_id || '',
       vendedor_nome: p.vendedor_nome || '',
       vendedor_telefone: p.vendedor_telefone || '',
       supervisor_nome: p.supervisor_nome || '',
@@ -477,7 +489,11 @@ export default function PropostasComerciais() {
 
   const handleSave = async () => {
     if (!form.razao_social.trim()) {
-      console.warn('Razão social é obrigatória');
+      showToast.error('Razão social é obrigatória', 'Preencha a razão social do cliente antes de salvar a proposta.');
+      return;
+    }
+    if (isGestor && !editingId && !(form.vendedor_id as string)) {
+      showToast.error('Selecione o vendedor', 'Escolha o vendedor responsável pela proposta na seção "Comercial" antes de salvar.');
       return;
     }
     setSaving(true);
@@ -546,6 +562,8 @@ export default function PropostasComerciais() {
       load();
     } catch (e: any) {
       console.error('Erro ao salvar proposta', e);
+      const msg = e?.response?.data?.message || 'Não foi possível salvar a proposta. Tente novamente.';
+      showToast.error('Erro ao salvar proposta', msg);
     } finally {
       setSaving(false);
     }
@@ -1341,8 +1359,31 @@ export default function PropostasComerciais() {
                 {activeSection === 2 && (
                   <div className="grid grid-cols-2 gap-4">
                     <FormField label="Vendedor Responsável">
-                      <input value={form.vendedor_nome as string} onChange={e => setField('vendedor_nome', e.target.value)} className="ps-input w-full" placeholder="Nome do vendedor" />
-                      <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 4 }}>Preenchido com o seu perfil; ajuste se gerar para outro vendedor.</p>
+                      {isGestor ? (
+                        <>
+                          <select
+                            value={(form.vendedor_id as string) || ''}
+                            onChange={e => {
+                              const id = e.target.value;
+                              const v = vendedores.find(x => x.id === id);
+                              setField('vendedor_id', id);
+                              setField('vendedor_nome', v?.nome || '');
+                            }}
+                            className="ps-input w-full"
+                          >
+                            <option value="">Selecione o vendedor…</option>
+                            {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                          </select>
+                          <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 4 }}>
+                            A comissão e o cadastro do vendedor selecionado serão usados na proposta.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <input value={form.vendedor_nome as string} disabled className="ps-input w-full" style={{ opacity: 0.7 }} />
+                          <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 4 }}>Proposta gerada em seu nome.</p>
+                        </>
+                      )}
                     </FormField>
                     <FormField label="Telefone do Vendedor">
                       <input value={form.vendedor_telefone as string} onChange={e => setField('vendedor_telefone', e.target.value)} className="ps-input w-full" placeholder="(27) 99999-0000" />
