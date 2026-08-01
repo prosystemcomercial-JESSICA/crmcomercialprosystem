@@ -20,10 +20,12 @@ import {
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
 const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
-const TECNICO = ['CEO', 'ADMIN', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'];
+const TECNICO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'];
 const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
 const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
-const SO_CEO = ['CEO', 'ADMIN'];
+// Supervisão Comercial tem acesso total ao menu (mesmo nível de CEO/ADMIN),
+// mantendo o cargo/permissões de dados como Supervisão Comercial.
+const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/vendas-adicionais', '/churn-ceo', '/analise-comercial'];
 
 type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp'; externoComToken?: boolean };
