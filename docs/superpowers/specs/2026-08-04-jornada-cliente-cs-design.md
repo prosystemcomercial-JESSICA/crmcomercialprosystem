@@ -4,13 +4,19 @@
 
 O CRM Prosystem já mede *resultado* de retenção — Health Score, Casos de Churn, contatos de Ativos — mas não mostra **em qual fase da jornada** e **em qual ponto de contato específico** a experiência do cliente piorou. Também trata toda a carteira com o mesmo nível de atenção, independente de tamanho ou risco.
 
-Esta feature adapta duas referências de mercado (o Customer Journey Map da Starbucks — fases × pontos de contato acima/abaixo de uma linha de base — e a pirâmide de modelos de CS por nível de "toque") ao contexto real da Prosystem, usando o máximo possível dos dados já existentes no sistema.
+Esta feature adapta três referências de mercado ao contexto real da Prosystem, usando o máximo possível dos dados já existentes no sistema:
 
-Três peças, construídas nesta ordem:
+- o Customer Journey Map da Starbucks (fases × pontos de contato acima/abaixo de uma linha de base);
+- a pirâmide de modelos de CS por nível de "toque";
+- a matriz de decisão de capital por LTV agregado × custo marginal de servir.
+
+Cinco peças, construídas nesta ordem:
 
 1. **Fases da jornada** — modelo fixo de 7 fases pelas quais todo cliente passa.
 2. **Touchpoints por fase** — o que medir em cada fase, majoritariamente de dados já existentes; 2 touchpoints novos (Treinamento, Primeira Operação) via checklist manual.
-3. **Nível de CS dinâmico** — Alto toque / Padrão / Baixo toque, recalculado por MRR + tempo de casa + Health Score.
+3. **Nível de CS dinâmico** — Alto toque / Padrão / Baixo toque, recalculado por LTV + tempo de casa + Health Score.
+4. **Levantamento Técnico de Implantação** — formulário estruturado que hoje não existe (é feito informalmente por WhatsApp/telefone), preenchido na fase Fechamento/Implantação.
+5. **LTV do cliente e análise de portfólio por segmento** — campo de LTV calculado (usado também na Peça 3) e uma visão agregada por segmento para decisão estratégica de onde investir atenção/capital.
 
 ## Peça 1 — Fases da jornada
 
@@ -20,7 +26,7 @@ Fases fixas, nesta ordem, com Risco/Saída como desvios possíveis a partir de q
 |---|------|------------------|--------------------------------------------------|
 | 1 | Pré-venda | Lead até proposta aceita | `Lead`, `PropostaComercial` sem contrato assinado |
 | 2 | Fechamento | Contrato assinado, aguardando início da implantação | `ContratoComercial.status = ASSINADO`, sem `data_inicio_implantacao` |
-| 3 | Implantação | Instalação técnica / migração de dados em andamento | Portal de Implantação (ponte já existente) |
+| 3 | Implantação | Instalação técnica / migração de dados em andamento. Começa com o **Levantamento Técnico** (Peça 4) | Portal de Implantação (ponte já existente) + `LevantamentoImplantacao` (novo) |
 | 4 | Treinamento | Capacitação da equipe do cliente | Novo: `ChecklistJornada` tipo `TREINAMENTO` |
 | 5 | Primeira Operação | Cliente realiza as primeiras operações reais no sistema | Novo: `ChecklistJornada` tipo `PRIMEIRA_OPERACAO` |
 | 6 | Uso Contínuo | Operação estabilizada, sem eventos relevantes | Default — nenhuma condição das outras fases se aplica |
@@ -96,21 +102,123 @@ Substitui o tratamento uniforme atual por 3 níveis, recalculados automaticament
 
 | Nível | Critério (combinação) | O que muda na prática |
 |-------|------------------------|-------------------------|
-| **Alto toque** | MRR no top 20% da base OU (cliente com < 90 dias de casa) OU Health Score em RISCO/CRÍTICO | Prioridade na fila de Ativos (aparece primeiro), frequência de contato maior (meta de cobertura mais agressiva) |
+| **Alto toque** | LTV no top 20% da base OU (cliente com < 90 dias de casa) OU Health Score em RISCO/CRÍTICO | Prioridade na fila de Ativos (aparece primeiro), frequência de contato maior (meta de cobertura mais agressiva) |
 | **Padrão** | Não se encaixa em Alto toque nem Baixo toque | Fluxo atual, sem mudança |
-| **Baixo toque** | MRR no bottom 30% da base E tempo de casa > 180 dias E Health Score SAUDÁVEL/EXCELENTE | Contato reativo — só entra na fila de Ativos por gatilho explícito (ticket aberto, queda de Health Score), não por rotina periódica |
+| **Baixo toque** | LTV no bottom 30% da base E tempo de casa > 180 dias E Health Score SAUDÁVEL/EXCELENTE | Contato reativo — só entra na fila de Ativos por gatilho explícito (ticket aberto, queda de Health Score), não por rotina periódica |
 
-Cálculo simples e explicável (sem pesos ocultos), reavaliado a cada recálculo de Health Score:
+Usa **LTV** (Peça 5) em vez de MRR isolado — um cliente com mensalidade média mas muito tempo de casa (alto valor acumulado) pesa mais do que um cliente novo com mensalidade alta mas ainda sem histórico. Cálculo simples e explicável (sem pesos ocultos), reavaliado a cada recálculo de Health Score:
 
 ```
 Se Health Score IN (RISCO, CRITICO) → Alto toque
 Senão se tempo_de_casa < 90 dias → Alto toque
-Senão se MRR >= percentil 80 da base → Alto toque
-Senão se MRR <= percentil 30 da base E tempo_de_casa > 180 dias E Health Score IN (SAUDAVEL, EXCELENTE) → Baixo toque
+Senão se LTV >= percentil 80 da base → Alto toque
+Senão se LTV <= percentil 30 da base E tempo_de_casa > 180 dias E Health Score IN (SAUDAVEL, EXCELENTE) → Baixo toque
 Senão → Padrão
 ```
 
 Armazenado em `Cliente.nivel_cs` (novo campo `String?`, valores `ALTO_TOQUE | PADRAO | BAIXO_TOQUE`), recalculado em batch — não em tempo real a cada request.
+
+## Peça 4 — Levantamento Técnico de Implantação
+
+Hoje esse levantamento é feito informalmente (WhatsApp/telefone), sem registro estruturado — o dado se perde ou fica espalhado em conversas. Vira um formulário único, preenchido pelo técnico no início da fase Implantação, logo após o contrato ser assinado.
+
+### Campos
+
+| Campo | Tipo |
+|-------|------|
+| Qtd. máquinas | Número |
+| Faturamento (médio mensal) | Valor (R$) |
+| Qtd. caixas/PDVs | Número |
+| Impressora NFCe | Texto curto (modelo/já possui) |
+| Etiquetas | Sim/Não + observação (usa impressora de etiquetas?) |
+| Qtd. colaboradores | Número |
+| Colaboradores (nomes/cargos) | Lista (nome + cargo) — reaproveitada como `participantes` do `ChecklistJornada` tipo TREINAMENTO (Peça 2), evitando reperguntar a mesma informação na fase seguinte |
+| PBMs utilizadas | Lista de texto livre (multi — cliente pode usar vários convênios) |
+| Financeiro | Sim/Não (módulo será ativado?) |
+| Corretor tributário | Sim/Não |
+| Gerencial | Sim/Não |
+| SNGPC | Sim/Não |
+| Comunicação (entre lojas) | Sim/Não |
+| Banco único (config. multi-loja) | Sim/Não |
+| Preço único (config. multi-loja) | Sim/Não |
+| TEF | Sim/Não + observação (operadora, se aplicável) |
+
+### Novo: `LevantamentoImplantacao` (model Prisma)
+
+Um registro por cliente (1:1 — se precisar atualizar, edita o mesmo registro; o histórico de mudança fica no `updated_at` e, se necessário no futuro, em `EventoCliente`).
+
+```prisma
+model LevantamentoImplantacao {
+  id         String  @id @default(cuid())
+  cliente_id String  @unique
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  qtd_maquinas      Int?
+  faturamento_medio Float?
+  qtd_caixas        Int?
+  impressora_nfce   String?
+  usa_etiquetas     Boolean?
+  etiquetas_obs     String? @db.Text
+
+  qtd_colaboradores Int?
+  colaboradores     Json?   // [{ nome, cargo }] — reaproveitado no ChecklistJornada TREINAMENTO
+
+  pbms_utilizadas   Json?   // string[] — nomes livres dos convênios/PBMs
+
+  usa_financeiro         Boolean?
+  usa_corretor_tributario Boolean?
+  usa_gerencial           Boolean?
+  usa_sngpc               Boolean?
+  usa_comunicacao         Boolean?
+  banco_unico             Boolean?
+  preco_unico             Boolean?
+  usa_tef                 Boolean?
+  tef_obs                 String? @db.Text
+
+  preenchido_por String?  // id do técnico
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+```
+
+Preenchimento: tela dentro da ficha do cliente (ou Portal de Implantação), acessível assim que o contrato é assinado — é o primeiro passo visível da fase Implantação. Fica editável durante toda a fase Implantação (dados podem mudar até a virada), e passa a só-leitura quando a fase avança para Treinamento — mesmo princípio de trava por fase que aplicamos aos casos de Churn encerrados nesta sessão.
+
+## Peça 5 — LTV do cliente e análise de portfólio por segmento
+
+### LTV do cliente (campo calculado)
+
+LTV realizado até hoje — não projetado. Fórmula simples com dados que já existem:
+
+```
+LTV = (mensalidade_base × meses_de_casa) + valor_instalacao
+    + soma(VendaAdicional.valor_venda + acrescimo_mensal × meses_desde_a_venda, status = CONFIRMADA)
+```
+
+`meses_de_casa` vem de `Cliente.data_entrada` até hoje (ou até `inativado_em`, se o cliente já saiu). Não desconta custo de servir nem projeta churn futuro — é o valor que o cliente **de fato já gerou**, decisão consciente de manter simples e auditável na v1 (ver "Fora de escopo").
+
+Armazenado em `Cliente.ltv_calculado` (novo campo `Float?`), recalculado no mesmo batch que recalcula `nivel_cs` (Peça 3) — os dois usam o mesmo job porque um depende do outro (percentil de LTV precisa do LTV de toda a base calculado primeiro).
+
+### Análise de portfólio por segmento
+
+Adaptação da matriz de decisão de capital (LTV agregado × custo marginal de servir) para orientar decisão estratégica de onde a gestão deve investir mais atenção/capital — não é uma métrica por cliente individual, é uma visão por **segmento** (agrupamento por `Cliente.segmento`, ou por `plano`, à escolha de quem está analisando).
+
+- **Eixo Y — LTV agregado do segmento**: soma do `ltv_calculado` de todos os clientes ativos daquele segmento.
+- **Eixo X — Custo marginal de servir**: estimativa manual por segmento, input da gestão (não calculado automaticamente — não há dado de custo real em R$ disponível hoje). Editável numa tela simples de configuração, ex.: "Farmácia multi-loja = custo alto", "Padaria loja única = custo baixo".
+
+Cada segmento vira um ponto no quadrante (LTV alto/baixo × custo alto/baixo), replicando a lógica do print: quadrante superior-esquerdo (LTV alto, custo baixo) é onde vale mais investir para crescer; inferior-direito (LTV baixo, custo alto) é candidato a repensar o nível de atendimento ou o próprio modelo comercial daquele segmento.
+
+Como não existe hoje um model `Segmento` próprio (segmento é hoje só um campo de texto livre em `Cliente`), a v1 usa uma tabela pequena de apoio:
+
+```prisma
+model CustoServirSegmento {
+  id        String @id @default(cuid())
+  segmento  String @unique // mesmo valor livre usado em Cliente.segmento
+  custo_nivel String @default("MEDIO") // BAIXO | MEDIO | ALTO
+  observacoes String? @db.Text
+  updated_by  String?
+  updated_at  DateTime @updatedAt
+}
+```
 
 ## Telas
 
@@ -120,7 +228,7 @@ Layout inspirado no mapa da Starbucks, adaptado para lista vertical (mais legív
 
 - Timeline horizontal com as 7 fases, fase atual destacada.
 - Abaixo de cada fase, os touchpoints medidos nela: ícone verde (acima da linha de base) ou vermelho (abaixo), com o valor/data que sustenta o julgamento.
-- Card lateral: nível de CS atual do cliente + motivo (qual critério bateu).
+- Card lateral: nível de CS atual do cliente + motivo (qual critério bateu) + LTV calculado.
 - Se em Risco/Saída: link direto para o `CasoChurn` aberto/fechado relacionado.
 
 ### 2. Visão agregada — expande o Painel da Supervisão (`/ativos`, aba já existente)
@@ -129,8 +237,16 @@ Layout inspirado no mapa da Starbucks, adaptado para lista vertical (mais legív
 - Nova coluna na tabela "Filas por vendedor": nível de CS predominante da fila (quantos Alto/Padrão/Baixo toque).
 - Filtro por nível de CS na fila de Ativos, para supervisão priorizar visualmente quem precisa de atenção.
 
+### 3. Matriz de portfólio por segmento (nova tela, visão estratégica — CEO/gestão)
+
+- Gráfico de dispersão: cada segmento é um ponto, eixo Y = LTV agregado do segmento, eixo X = custo marginal de servir (BAIXO/MÉDIO/ALTO, configurável).
+- Tela de configuração simples ao lado para a gestão ajustar o `custo_nivel` de cada segmento.
+- Ao clicar num segmento, abre a lista de clientes daquele segmento ordenada por LTV individual.
+
 ## Fora de escopo (v1)
 
 - Integração automática com o sistema operacional do cliente para detectar "primeira operação" automaticamente — hoje não existe esse canal; fica manual via checklist.
 - Reponderação automática de pesos no cálculo de nível de CS (o cálculo é fixo e auditável nesta versão).
 - Notificações/alertas proativos quando um touchpoint cai abaixo da linha de base — v1 é só visualização; alertas ficam para uma iteração seguinte.
+- LTV **projetado** (estimativa de valor futuro considerando churn médio do segmento) — v1 mede só o LTV **realizado** até hoje; projeção fica para uma iteração seguinte, quando houver dados suficientes de churn por segmento para uma taxa confiável.
+- Cálculo automático de custo de servir (ex.: a partir de volume de tickets/contatos) — v1 usa estimativa manual da gestão; automatizar fica para depois.
