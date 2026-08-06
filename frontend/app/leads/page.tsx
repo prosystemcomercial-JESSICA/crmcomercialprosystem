@@ -1292,13 +1292,13 @@ export default function LeadsPage() {
               const isDraggingToSame = draggingLead?.etapa_comercial === col.chave;
               return (
                 <div key={col.chave}
-                  className="flex flex-col rounded-xl flex-shrink-0 transition-all"
+                  className="flex flex-col rounded-xl flex-shrink-0 transition-colors"
                   style={{
                     width: 224,
                     background: isOver && !isDraggingToSame ? `${col.cor}08` : 'var(--t-card-bg)',
-                    border: isOver && !isDraggingToSame ? `2px solid ${col.cor}` : `1px solid ${col.cor}22`,
-                    transform: isOver && !isDraggingToSame ? 'scale(1.01)' : 'scale(1)',
-                    boxShadow: isOver && !isDraggingToSame ? `0 0 0 4px ${col.cor}18` : 'none',
+                    border: `1px solid ${isOver && !isDraggingToSame ? col.cor : `${col.cor}22`}`,
+                    outline: isOver && !isDraggingToSame ? `3px solid ${col.cor}18` : 'none',
+                    outlineOffset: -1,
                   }}
                   onDragOver={e => { e.preventDefault(); setDragOverCol(col.chave); }}
                   onDragEnter={e => { e.preventDefault(); setDragOverCol(col.chave); }}
