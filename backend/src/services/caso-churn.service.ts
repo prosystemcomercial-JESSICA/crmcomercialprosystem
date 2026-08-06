@@ -88,12 +88,24 @@ export class CasoChurnService {
       }
     }
 
-    // Casos NÃO encerrados (NOVO/DIAGNOSTICADO/PLANEJADO/EXECUTANDO) sempre aparecem,
-    // independente da situação do cliente — abrir um caso de churn é frequentemente
-    // uma REAÇÃO ao cliente já ter ficado inativo, então filtrar por "cliente ativo"
-    // escondia justamente os casos mais urgentes (bug: caso sumia da lista/aba "Novo"
-    // assim que o cliente virava inativo, mesmo com o caso ainda em tratamento).
+    // Casos ABERTOS (em tratamento) só de clientes ATIVOS — inativo já saiu.
+    // Mas os ENCERRADOS (PERDIDO/RECUPERADO/SISTEMA_REMOVIDO) DEVEM aparecer (são o
+    // histórico de saída), mesmo com o cliente inativo. SISTEMA_REMOVIDO só acontece
+    // depois de PERDIDO — o cliente já está sempre INATIVA nesse ponto — então sem
+    // isso aqui a aba SISTEMA_REMOVIDO nunca mostrava nada (filtrava o próprio caso).
+    const ENCERRADOS = ['PERDIDO', 'RECUPERADO', 'SISTEMA_REMOVIDO'];
+    const verEncerrados = filters.status && ENCERRADOS.includes(filters.status);
     const clienteWhere: any = {};
+    if (!verEncerrados && !filters.status) {
+      // "Todos" sem filtro de status: esconde os de cliente inativo que NÃO são encerrados.
+      where.OR = [
+        { cliente: { situacao: { not: 'INATIVA' } } },
+        { status: { in: ENCERRADOS } },
+      ];
+    } else if (!verEncerrados) {
+      // filtro de status aberto (NOVO/EXECUTANDO/etc.) → só cliente ativo
+      clienteWhere.situacao = { not: 'INATIVA' };
+    }
 
     // Busca por cliente: razão social, fantasia, nome, empresa, código, CNPJ ou contato.
     if (filters.busca && String(filters.busca).trim()) {
