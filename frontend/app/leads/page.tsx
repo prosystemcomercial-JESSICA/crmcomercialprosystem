@@ -1328,9 +1328,14 @@ export default function LeadsPage() {
                           lead={lead}
                           onClick={() => openLead(lead)}
                           onDragStart={e => {
-                            setDraggingLead(lead);
                             e.dataTransfer.effectAllowed = 'move';
                             e.dataTransfer.setData('text/plain', lead.id);
+                            // Adia a atualização de estado (opacity do card) para depois do
+                            // navegador capturar a imagem fantasma do drag — setState síncrono
+                            // aqui dentro do dragstart altera o próprio elemento sendo arrastado
+                            // e o Chrome/Edge cancela o drag silenciosamente (sem erro, o card
+                            // só "volta" pro lugar, e nenhum onDrop das colunas chega a disparar).
+                            setTimeout(() => setDraggingLead(lead), 0);
                           }}
                           onExcluir={() => { setExcluindoLead(lead); setMotivoExclusao(''); }}
                           podeExcluir={podeVerTudo((user as any)?.role) || lead.responsavel_id === (user as any)?.id || (lead as any).created_by === (user as any)?.id}
