@@ -7,12 +7,6 @@ import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 import { CONTAS_SISTEMA } from '@/lib/usuarios';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 
-const ETAPAS_COMERCIAIS = [
-  'NOVO_LEAD','PRIMEIRO_CONTATO','EM_ATENDIMENTO','AGUARDANDO_RETORNO',
-  'PROPOSTA_A_GERAR','PROPOSTA_ENVIADA','EM_NEGOCIACAO','ACEITO',
-  'CONTRATO_EM_ANDAMENTO','CONTRATO_ASSINADO','ONBOARDING','EXECUCAO_TECNICA','PERDIDO',
-] as const;
-
 const LeadSchema = z.object({
   nome:               z.string().min(1),
   razao_social:       z.string().optional(),
@@ -61,7 +55,10 @@ const LeadSchema = z.object({
   modulos_inclusos:    z.array(z.string()).optional(),
   servicos_adicionais: z.array(z.string()).optional(),
 
-  etapa_comercial: z.enum(ETAPAS_COMERCIAIS).optional(),
+  // Chave de coluna do kanban: dinâmica (tabela KanbanColuna, configurável pelo
+  // usuário via "+ Coluna"), não um enum fixo — travar num enum aqui rejeitava
+  // com 400 qualquer coluna customizada criada depois do deploy (ex.: "A retomar").
+  etapa_comercial: z.string().optional(),
   origem:          z.string().default('MANUAL'),
   status:          z.string().optional(),
   etapa_funil:     z.string().optional(),
