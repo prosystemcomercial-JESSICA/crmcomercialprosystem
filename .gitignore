@@ -8,3 +8,6 @@ squads/*/state.json
 squads/*/state.json.tmp
 squads/*/output/
 .refs/
+.env.backup
+backend/backup-diario.bat
+backend/backup-diario.log
