@@ -1338,6 +1338,18 @@ export async function enviarEmailLembreteAgendamento(params: AgendaParams): Prom
   }
 }
 
+// Escapa entidades HTML — o formulário público (/parceiro) não tem autenticação,
+// então qualquer campo de texto livre do candidato precisa ser tratado como
+// não-confiável antes de entrar no HTML do e-mail.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function enviarEmailNovaCandidaturaRepresentante(candidato: {
   nome: string; empresa?: string | null; telefone: string; email: string;
   cidade?: string | null; estado?: string | null; perfil_desejado: string;
@@ -1351,7 +1363,7 @@ export async function enviarEmailNovaCandidaturaRepresentante(candidato: {
   const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
   const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
   const appUrl    = process.env.FRONTEND_URL     || 'https://crmcomercialprosystem-eu96iiiml.vercel.app';
-  const destinatario = 'jessica@prosystemnet.com.br';
+  const destinatario = process.env.CANDIDATURA_NOTIFICACAO_EMAIL || 'jessica@prosystemnet.com.br';
 
   const PERFIL_LABEL: Record<string, string> = {
     INDICADOR: 'Indicador',
@@ -1359,9 +1371,16 @@ export async function enviarEmailNovaCandidaturaRepresentante(candidato: {
     FRANQUEADO: 'Franqueado',
   };
 
-  const estados: string[] = candidato.respostas_detalhadas?.regiao_atuacao?.estados || [];
+  const nome = escapeHtml(candidato.nome);
+  const empresa = candidato.empresa ? escapeHtml(candidato.empresa) : null;
+  const telefone = escapeHtml(candidato.telefone);
+  const email = escapeHtml(candidato.email);
+  const cidade = candidato.cidade ? escapeHtml(candidato.cidade) : '—';
+  const estado = candidato.estado ? escapeHtml(candidato.estado) : '';
+
+  const estados: string[] = (candidato.respostas_detalhadas?.regiao_atuacao?.estados || []).map(escapeHtml);
   const apresentacao: string = candidato.respostas_detalhadas?.apresentacao_operacao || '';
-  const resumoApresentacao = apresentacao.length > 240 ? apresentacao.slice(0, 240) + '…' : apresentacao;
+  const resumoApresentacao = escapeHtml(apresentacao.length > 240 ? apresentacao.slice(0, 240) + '…' : apresentacao);
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -1389,11 +1408,11 @@ export async function enviarEmailNovaCandidaturaRepresentante(candidato: {
                 Uma nova candidatura de <strong>${PERFIL_LABEL[candidato.perfil_desejado] || candidato.perfil_desejado}</strong> foi recebida:
               </p>
               <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:20px;">
-                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Nome</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${candidato.nome}</td></tr>
-                ${candidato.empresa ? `<tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Empresa</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${candidato.empresa}</td></tr>` : ''}
-                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Telefone</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${candidato.telefone}</td></tr>
-                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">E-mail</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${candidato.email}</td></tr>
-                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Cidade/UF sede</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${candidato.cidade || '—'}${candidato.estado ? '/' + candidato.estado : ''}</td></tr>
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Nome</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${nome}</td></tr>
+                ${empresa ? `<tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Empresa</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${empresa}</td></tr>` : ''}
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Telefone</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${telefone}</td></tr>
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">E-mail</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${email}</td></tr>
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Cidade/UF sede</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${cidade}${estado ? '/' + estado : ''}</td></tr>
                 ${estados.length ? `<tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Estados de atuação</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${estados.join(', ')}</td></tr>` : ''}
                 ${resumoApresentacao ? `<tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;vertical-align:top;">Apresentação</td><td style="padding:6px 0;font-size:14px;color:#0D2238;">${resumoApresentacao}</td></tr>` : ''}
               </table>

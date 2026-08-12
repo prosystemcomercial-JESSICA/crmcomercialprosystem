@@ -1,7 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { requireAuth } from '@/middleware/auth';
+import { requireAuth, requireRole } from '@/middleware/auth';
+
+// Mesmos cargos que enxergam o item de menu "Representantes" no frontend
+// (constante COMERCIAL em DashboardLayout.tsx) — o backend precisa aplicar a
+// mesma restrição, já que requireAuth sozinho só checa se está logado.
+const CARGOS_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'] as const;
 import { enviarEmailNovaCandidaturaRepresentante } from '@/services/email.service';
 
 const PERFIS = ['INDICADOR', 'REPRESENTANTE', 'FRANQUEADO'] as const;
@@ -56,7 +61,7 @@ export async function candidatosRepresentanteRoutes(
     return reply.status(201).send({ status: 'success', data: candidato });
   });
 
-  fastify.get('/candidatos-representante', { onRequest: requireAuth }, async (request, reply) => {
+  fastify.get('/candidatos-representante', { onRequest: [requireAuth, requireRole([...CARGOS_COMERCIAL])] }, async (request, reply) => {
     const { status } = request.query as { status?: string };
     const candidatos = await prisma.candidatoRepresentante.findMany({
       where: status ? { status } : {},
@@ -66,7 +71,7 @@ export async function candidatosRepresentanteRoutes(
     return reply.send({ status: 'success', data: candidatos });
   });
 
-  fastify.get('/candidatos-representante/:id', { onRequest: requireAuth }, async (request, reply) => {
+  fastify.get('/candidatos-representante/:id', { onRequest: [requireAuth, requireRole([...CARGOS_COMERCIAL])] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const candidato = await prisma.candidatoRepresentante.findUnique({ where: { id } });
     if (!candidato) {
@@ -75,7 +80,7 @@ export async function candidatosRepresentanteRoutes(
     return reply.send({ status: 'success', data: candidato });
   });
 
-  fastify.patch('/candidatos-representante/:id', { onRequest: requireAuth }, async (request, reply) => {
+  fastify.patch('/candidatos-representante/:id', { onRequest: [requireAuth, requireRole([...CARGOS_COMERCIAL])] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = UpdateSchema.safeParse(request.body);
     if (!body.success) {
