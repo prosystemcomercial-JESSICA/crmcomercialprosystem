@@ -741,6 +741,35 @@ model LeadObservacao {
   @@index([created_at])
 }
 
+model CandidatoRepresentante {
+  id        String   @id @default(cuid())
+
+  // Passo 1 — campos-chave
+  nome             String
+  empresa          String?
+  nome_fantasia    String?
+  cnpj             String?
+  cpf_responsavel  String?
+  telefone         String
+  email            String
+  cidade           String?
+  estado           String?
+
+  perfil_desejado  String // INDICADOR | REPRESENTANTE | FRANQUEADO
+
+  // Passos 2–10 — respostas completas do questionário (ver spec p/ formato)
+  respostas_detalhadas Json
+
+  status    String   @default("NOVO") // NOVO | EM_ANALISE | APROVADO | REPROVADO
+  observacoes_internas String? @db.Text
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([status])
+  @@index([created_at])
+}
+
 model KanbanColuna {
   id         String   @id @default(cuid())
   chave      String   @unique
