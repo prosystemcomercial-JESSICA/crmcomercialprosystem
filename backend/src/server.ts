@@ -365,6 +365,7 @@ async function loadRoutes() {
     ['ceo',                   () => import('./routes/ceo'),                   'ceoRoutes'],
     ['kb',                    () => import('./routes/kb'),                    'kbRoutes'],
     ['csat',                  () => import('./routes/csat'),                  'csatRoutes'],
+    ['candidatos-representante', () => import('./routes/candidatos-representante'), 'candidatosRepresentanteRoutes'],
   ];
 
   let ok = 0;

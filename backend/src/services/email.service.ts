@@ -1337,3 +1337,11 @@ export async function enviarEmailLembreteAgendamento(params: AgendaParams): Prom
     return { ok: false, error: err.message };
   }
 }
+
+export async function enviarEmailNovaCandidaturaRepresentante(candidato: {
+  nome: string; empresa?: string | null; telefone: string; email: string;
+  cidade?: string | null; estado?: string | null; perfil_desejado: string;
+  respostas_detalhadas: any;
+}): Promise<{ ok: boolean; error?: string }> {
+  return { ok: false, error: 'not implemented yet' };
+}
