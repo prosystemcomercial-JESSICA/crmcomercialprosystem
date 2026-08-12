@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import axios from 'axios';
-import { CheckCircle2, Loader2, Handshake, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Loader2, Handshake, ChevronLeft, ChevronRight, Globe, Camera, BookOpen } from 'lucide-react';
 import { FormState, FORM_INICIAL, paraPayload, Passo1, Passo2, Passo3, Passo4, Passo5, Passo6, Passo7, Passo8, Passo9, Passo10 } from './steps';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -79,7 +79,45 @@ export default function ParceiroPage() {
         <div style={{ background: '#fff', borderRadius: 16, padding: 48, maxWidth: 480, textAlign: 'center', boxShadow: '0 4px 24px rgba(13,34,56,0.10)' }}>
           <CheckCircle2 size={48} color="#2E6EAB" style={{ marginBottom: 16 }} />
           <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0D2238', marginBottom: 8 }}>Candidatura recebida!</h1>
-          <p style={{ fontSize: 14, color: '#4A6E8A' }}>Obrigado pelo interesse em ser parceiro Prosystem. Nossa equipe vai analisar seus dados e entrar em contato em breve.</p>
+          <p style={{ fontSize: 14, color: '#4A6E8A', marginBottom: 28 }}>Obrigado pelo interesse em ser parceiro Prosystem. Nossa equipe vai analisar seus dados e entrar em contato em breve.</p>
+
+          <div style={{ borderTop: '1px solid #E2ECF5', paddingTop: 24 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#2E6EAB', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
+              Enquanto isso, conheça nossa empresa
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+              <a
+                href="https://prosystemnet.com/home/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Site institucional"
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textDecoration: 'none', width: 88, padding: '12px 8px', borderRadius: 12, border: '1px solid #E2ECF5' }}
+              >
+                <Globe size={20} color="#2E6EAB" />
+                <span style={{ fontSize: 11, color: '#4A6E8A', textAlign: 'center' }}>Site</span>
+              </a>
+              <a
+                href="https://www.instagram.com/prosystemoficial/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Instagram"
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textDecoration: 'none', width: 88, padding: '12px 8px', borderRadius: 12, border: '1px solid #E2ECF5' }}
+              >
+                <Camera size={20} color="#2E6EAB" />
+                <span style={{ fontSize: 11, color: '#4A6E8A', textAlign: 'center' }}>Instagram</span>
+              </a>
+              <a
+                href="https://universidade-prosytem-production.up.railway.app/base-conhecimento"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Ferramentas disponíveis no sistema"
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textDecoration: 'none', width: 88, padding: '12px 8px', borderRadius: 12, border: '1px solid #E2ECF5' }}
+              >
+                <BookOpen size={20} color="#2E6EAB" />
+                <span style={{ fontSize: 11, color: '#4A6E8A', textAlign: 'center' }}>Ferramentas</span>
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     );
