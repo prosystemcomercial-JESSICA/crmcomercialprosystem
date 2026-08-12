@@ -1337,3 +1337,108 @@ export async function enviarEmailLembreteAgendamento(params: AgendaParams): Prom
     return { ok: false, error: err.message };
   }
 }
+
+// Escapa entidades HTML — o formulário público (/parceiro) não tem autenticação,
+// então qualquer campo de texto livre do candidato precisa ser tratado como
+// não-confiável antes de entrar no HTML do e-mail.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export async function enviarEmailNovaCandidaturaRepresentante(candidato: {
+  nome: string; empresa?: string | null; telefone: string; email: string;
+  cidade?: string | null; estado?: string | null; perfil_desejado: string;
+  respostas_detalhadas: any;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.SMTP_USER) {
+    console.warn('[EMAIL] SMTP_USER não configurado — e-mail não enviado');
+    return { ok: false, error: 'SMTP não configurado' };
+  }
+
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
+  const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
+  const appUrl    = process.env.FRONTEND_URL     || 'https://crmcomercialprosystem-eu96iiiml.vercel.app';
+  const destinatario = process.env.CANDIDATURA_NOTIFICACAO_EMAIL || 'jessica@prosystemnet.com.br';
+
+  const PERFIL_LABEL: Record<string, string> = {
+    INDICADOR: 'Indicador',
+    REPRESENTANTE: 'Representante',
+    FRANQUEADO: 'Franqueado',
+  };
+
+  const nome = escapeHtml(candidato.nome);
+  const empresa = candidato.empresa ? escapeHtml(candidato.empresa) : null;
+  const telefone = escapeHtml(candidato.telefone);
+  const email = escapeHtml(candidato.email);
+  const cidade = candidato.cidade ? escapeHtml(candidato.cidade) : '—';
+  const estado = candidato.estado ? escapeHtml(candidato.estado) : '';
+
+  const estados: string[] = (candidato.respostas_detalhadas?.regiao_atuacao?.estados || []).map(escapeHtml);
+  const apresentacao: string = candidato.respostas_detalhadas?.apresentacao_operacao || '';
+  const resumoApresentacao = escapeHtml(apresentacao.length > 240 ? apresentacao.slice(0, 240) + '…' : apresentacao);
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F4F7FB;font-family:'Segoe UI',Arial,sans-serif;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F4F7FB;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table cellpadding="0" cellspacing="0" border="0" width="600"
+               style="background:#ffffff;border-radius:16px;overflow:hidden;
+                       box-shadow:0 4px 24px rgba(13,34,56,0.10);max-width:600px;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#0D2238 0%,#1A4E82 60%,#2E6EAB 100%);padding:40px 40px 36px;">
+              <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">
+                Pro<span style="color:#90BEF0;">System</span>
+              </p>
+              <p style="margin:0;font-size:12px;color:#6AAAE5;letter-spacing:2px;text-transform:uppercase;">
+                Nova Candidatura de Parceiro
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px;">
+              <p style="margin:0 0 16px;font-size:16px;color:#0D2238;">
+                Uma nova candidatura de <strong>${PERFIL_LABEL[candidato.perfil_desejado] || candidato.perfil_desejado}</strong> foi recebida:
+              </p>
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:20px;">
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Nome</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${nome}</td></tr>
+                ${empresa ? `<tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Empresa</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${empresa}</td></tr>` : ''}
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Telefone</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${telefone}</td></tr>
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">E-mail</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${email}</td></tr>
+                <tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Cidade/UF sede</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${cidade}${estado ? '/' + estado : ''}</td></tr>
+                ${estados.length ? `<tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;">Estados de atuação</td><td style="padding:6px 0;font-size:14px;color:#0D2238;font-weight:600;">${estados.join(', ')}</td></tr>` : ''}
+                ${resumoApresentacao ? `<tr><td style="padding:6px 0;font-size:14px;color:#4A6E8A;vertical-align:top;">Apresentação</td><td style="padding:6px 0;font-size:14px;color:#0D2238;">${resumoApresentacao}</td></tr>` : ''}
+              </table>
+              <a href="${appUrl}/representantes" style="display:inline-block;background:#2E6EAB;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;">
+                Ver ficha completa no CRM
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: destinatario,
+      subject: `Nova candidatura de parceiro — ${candidato.nome}`,
+      html,
+    });
+    return { ok: true };
+  } catch (error: any) {
+    console.error('[EMAIL] Falha ao enviar notificação de candidatura:', error?.message || error);
+    return { ok: false, error: error?.message || 'Erro desconhecido' };
+  }
+}

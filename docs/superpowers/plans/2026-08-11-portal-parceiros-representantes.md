@@ -84,10 +84,12 @@ model CandidatoRepresentante {
 model KanbanColuna {
 ```
 
-- [ ] **Step 2: Generate the migration**
+- [ ] **Step 2: Push the schema change to the database**
 
-Run: `cd backend && npx prisma migrate dev --name add_candidato_representante`
-Expected: Output ends with `Your database is now in sync with your schema.` and a new folder appears under `backend/prisma/migrations/` containing `candidato_representante` in its name.
+This project does not use Prisma migration files (no `backend/prisma/migrations/` folder exists — schema changes are applied directly with `db push`, matching the `preDeployCommand` in `backend/railway.toml`). Do NOT run `prisma migrate dev` — it would create a migrations folder this project doesn't use and can fail requiring a shadow database.
+
+Run: `cd backend && npx prisma db push`
+Expected: Output includes `Your database is now in sync with your schema.`
 
 - [ ] **Step 3: Regenerate the Prisma client**
 
@@ -97,7 +99,7 @@ Expected: `✔ Generated Prisma Client`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/prisma/schema.prisma backend/prisma/migrations
+git add backend/prisma/schema.prisma
 git commit -m "feat: adiciona model CandidatoRepresentante"
 ```
 
