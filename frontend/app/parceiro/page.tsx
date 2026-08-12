@@ -4,6 +4,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { CheckCircle2, Loader2, Handshake, ChevronLeft, ChevronRight, Globe, Camera, BookOpen } from 'lucide-react';
 import { FormState, FORM_INICIAL, paraPayload, Passo1, Passo2, Passo3, Passo4, Passo5, Passo6, Passo7, Passo8, Passo9, Passo10 } from './steps';
+import { HeroInstitucional, SecaoSegmentos, SecaoPilares } from './institucional';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -125,24 +126,13 @@ export default function ParceiroPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#F4F7FB', fontFamily: "'Segoe UI', Arial, sans-serif" }}>
-      <div style={{ background: 'linear-gradient(135deg,#0D2238 0%,#1A4E82 60%,#2E6EAB 100%)', padding: '56px 24px' }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 4 }}>
-            Pro<span style={{ color: '#90BEF0' }}>System</span>
-          </p>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#fff', marginTop: 16, marginBottom: 12 }}>
-            Venha ser parceiro da Prosystem Desenvolvimento de Sistemas
-          </h1>
-          <p style={{ fontSize: 14, color: '#B8D4EF', lineHeight: 1.6 }}>
-            Representação Comercial &amp; Outsourcing — a Prosystem atua no mercado com fornecimento de software de
-            automação comercial para diversos segmentos: drogarias, farmácias de manipulação, lojas, oficinas e
-            comércio em geral. Estamos buscando novas parcerias para ampliar nosso grupo.
-          </p>
-        </div>
-      </div>
+      <HeroInstitucional />
 
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 32, marginBottom: 24, boxShadow: '0 1px 3px rgba(13,34,56,0.05)' }}>
+        <SecaoSegmentos />
+        <SecaoPilares />
+
+        <div style={{ background: '#fff', borderRadius: 16, padding: 32, marginBottom: 20, boxShadow: '0 1px 3px rgba(13,34,56,0.05)' }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0D2238', marginBottom: 16 }}>O que você ganha como parceiro</h2>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {BENEFICIOS.map(b => (
@@ -151,7 +141,7 @@ export default function ParceiroPage() {
           </ul>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 16, padding: 32, marginBottom: 24, boxShadow: '0 1px 3px rgba(13,34,56,0.05)' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: 32, marginBottom: 20, boxShadow: '0 1px 3px rgba(13,34,56,0.05)' }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0D2238', marginBottom: 16 }}>Perfis de parceria</h2>
           <div style={{ display: 'grid', gap: 16 }}>
             {PERFIS.map(p => (
@@ -164,10 +154,13 @@ export default function ParceiroPage() {
           </div>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 16, padding: 32, boxShadow: '0 1px 3px rgba(13,34,56,0.05)' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0D2238', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Handshake size={18} color="#2E6EAB" /> Ficha de Cadastro e Qualificação
+        <div id="formulario" style={{ background: '#fff', borderRadius: 16, padding: 32, boxShadow: '0 1px 3px rgba(13,34,56,0.05)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0D2238', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Handshake size={18} color="#2E6EAB" /> Quero fazer parte, quero representar a Prosystem
           </h2>
+          <p style={{ fontSize: 13, color: '#4A6E8A', marginBottom: 16 }}>
+            Preencha a ficha de cadastro e qualificação abaixo — leva poucos minutos.
+          </p>
           <p style={{ fontSize: 12, color: '#4A6E8A', marginBottom: 4 }}>
             Etapa {passo + 1} de {TITULOS_PASSOS.length} — {TITULOS_PASSOS[passo]}
           </p>
