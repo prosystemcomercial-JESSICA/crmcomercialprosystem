@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Loader2, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { PERFIL_LABEL } from './page';
 
 interface CandidatoCompleto {
@@ -28,16 +28,28 @@ const LISTA = (v: any) => Array.isArray(v) && v.length ? v.join(', ') : '—';
 const TXT = (v: any) => v || '—';
 
 function Secao({ titulo, aberto, onToggle, children }: { titulo: string; aberto: boolean; onToggle: () => void; children: React.ReactNode }) {
+  // O conteúdo fica SEMPRE no DOM (não condicional) — na tela normal o CSS
+  // esconde via display:none quando fechado; na impressão, @media print força
+  // display:block em tudo. Isso evita depender de qualquer timing de re-render
+  // do React antes de window.print() ser chamado (que é síncrono e bloqueante,
+  // então não há garantia de quando o browser pinta um setState anterior).
   return (
-    <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
+    <div className="secao-detalhe" style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
       <button
         onClick={onToggle}
+        className="secao-detalhe-header no-print-controls"
         style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--t-content-bg)', border: 'none', cursor: 'pointer' }}
       >
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>{titulo}</span>
         {aberto ? <ChevronUp size={16} color="var(--t-text-secondary)" /> : <ChevronDown size={16} color="var(--t-text-secondary)" />}
       </button>
-      {aberto && <div style={{ padding: '12px 14px', display: 'grid', gap: 6, fontSize: 13, color: 'var(--t-text-secondary)' }}>{children}</div>}
+      <p className="secao-detalhe-titulo-print">{titulo}</p>
+      <div
+        className="secao-detalhe-conteudo"
+        style={{ display: aberto ? 'grid' : 'none', padding: '12px 14px', gap: 6, fontSize: 13, color: 'var(--t-text-secondary)' }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -52,6 +64,10 @@ export default function DetalheCandidato({ candidatoId, onClose, onStatusChange 
   const [obsRascunho, setObsRascunho] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [secaoAberta, setSecaoAberta] = useState<string | null>('estrutura_empresa');
+
+  function imprimir() {
+    window.print();
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -78,7 +94,7 @@ export default function DetalheCandidato({ candidatoId, onClose, onStatusChange 
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,34,56,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-      <div style={{ background: 'var(--t-card-bg)', borderRadius: 16, padding: 24, width: 600, maxWidth: '92vw', maxHeight: '86vh', overflowY: 'auto' }}>
+      <div className="modal-detalhe-candidato" style={{ background: 'var(--t-card-bg)', borderRadius: 16, padding: 24, width: 600, maxWidth: '92vw', maxHeight: '86vh', overflowY: 'auto' }}>
         {loading || !candidato ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
             <Loader2 size={24} className="animate-spin" color="var(--t-primary)" />
@@ -90,9 +106,18 @@ export default function DetalheCandidato({ candidatoId, onClose, onStatusChange 
                 <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-text-primary)' }}>{candidato.nome}</h2>
                 {candidato.empresa && <p style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{candidato.empresa}</p>}
               </div>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={18} color="var(--t-text-secondary)" />
-              </button>
+              <div className="no-print-controls" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  onClick={imprimir}
+                  title="Imprimir / Salvar como PDF"
+                  style={{ background: 'none', border: '1px solid var(--t-card-border)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t-text-secondary)' }}
+                >
+                  <Printer size={15} /> Imprimir / PDF
+                </button>
+                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                  <X size={18} color="var(--t-text-secondary)" />
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gap: 4, marginBottom: 16, fontSize: 13, color: 'var(--t-text-secondary)' }}>
@@ -219,6 +244,7 @@ export default function DetalheCandidato({ candidatoId, onClose, onStatusChange 
             <button
               onClick={salvarObservacoes}
               disabled={salvando}
+              className="no-print-controls"
               style={{ background: 'var(--t-primary)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: salvando ? 'default' : 'pointer', opacity: salvando ? 0.7 : 1 }}
             >
               {salvando ? 'Salvando...' : 'Salvar observações'}
@@ -226,6 +252,36 @@ export default function DetalheCandidato({ candidatoId, onClose, onStatusChange 
           </>
         )}
       </div>
+
+      <style jsx global>{`
+        @media print {
+          /* Some só o conteúdo da ficha na impressão — o resto da página do CRM
+             (kanban, overlay escuro, sidebar) some, e os controles de interação
+             (chevrons, botão fechar, botão salvar) também não fazem sentido no papel. */
+          body * { visibility: hidden; }
+          .modal-detalhe-candidato, .modal-detalhe-candidato * { visibility: visible; }
+          .modal-detalhe-candidato {
+            position: absolute; inset: 0; background: #fff !important;
+            box-shadow: none !important; max-height: none !important; overflow: visible !important;
+            width: 100% !important; max-width: 100% !important;
+          }
+          .no-print-controls { display: none !important; }
+          .secao-detalhe-titulo-print { display: none; }
+          .secao-detalhe-header { display: none !important; }
+          .secao-detalhe {
+            border: none !important; margin-bottom: 12px !important; page-break-inside: avoid;
+          }
+          .secao-detalhe .secao-detalhe-titulo-print {
+            display: block !important; font-size: 13px; font-weight: 700; color: #0D2238;
+            padding: 6px 0; border-bottom: 1px solid #ccc; margin-bottom: 6px;
+          }
+          /* Força todas as seções abertas na impressão, independente do estado
+             de acordeão da tela — puro CSS, sem depender de nenhum timing de
+             re-render do React antes de window.print() (que é síncrono e
+             bloqueante, sem garantia de quando o browser pinta um setState). */
+          .secao-detalhe-conteudo { display: grid !important; }
+        }
+      `}</style>
     </div>
   );
 }
