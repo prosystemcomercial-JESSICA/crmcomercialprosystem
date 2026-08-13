@@ -460,7 +460,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
     const clientes = await prisma.cliente.findMany({
       select: {
-        id: true, nome: true, razao_social: true, nome_fantasia: true, segmento: true,
+        id: true, codigo: true, nome: true, razao_social: true, nome_fantasia: true, segmento: true,
         situacao: true, data_entrada: true, inativado_em: true, mensalidade_base: true,
         valor_instalacao: true,
       },
@@ -499,10 +499,13 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
 
       return {
         id: c.id,
+        codigo: c.codigo,
         nome: c.nome_fantasia || c.razao_social || c.nome,
         razao_social: c.razao_social,
         segmento: c.segmento,
         situacao: c.situacao,
+        data_entrada: c.data_entrada,
+        inativado_em: c.inativado_em,
         meses_de_casa: mesesDeCasa,
         ltv: Math.round(ltv * 100) / 100,
       };
@@ -514,6 +517,39 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const ltvTotal = ativos.reduce((s, c) => s + c.ltv, 0);
     const ltvMedio = ativos.length > 0 ? ltvTotal / ativos.length : 0;
 
+    // Exclui o código 1 (a própria Prosystem, cliente de sistema, não venda real)
+    // do tempo médio e do gráfico de ativos por ano — só desses dois cálculos,
+    // não do LTV nem da tabela principal (confirmado com o usuário).
+    const semProsystem = resultado.filter(c => c.codigo !== '1');
+
+    // Tempo médio de permanência — todos os clientes (ativos até hoje, inativos
+    // até a data de saída), excluindo o código 1.
+    const tempoMedioMeses = semProsystem.length > 0
+      ? semProsystem.reduce((s, c) => s + c.meses_de_casa, 0) / semProsystem.length
+      : 0;
+
+    // Série "ativos por ano" — para cada ano de data_entrada até o ano atual,
+    // conta quantos clientes já tinham entrado até aquele ano E ainda não
+    // tinham saído até o fim daquele ano (inativado_em > fim do ano, ou nunca saiu).
+    const anoAtual = agora.getFullYear();
+    const anosComEntrada = semProsystem
+      .map(c => c.data_entrada ? new Date(c.data_entrada).getFullYear() : null)
+      .filter((a): a is number => a !== null && a > 1900); // descarta datas de sistema tipo 1900/2000 inválidas
+    const anoInicial = anosComEntrada.length > 0 ? Math.min(...anosComEntrada) : anoAtual;
+
+    const serieAtivosPorAno: { ano: number; ativos: number }[] = [];
+    for (let ano = anoInicial; ano <= anoAtual; ano++) {
+      const fimDoAno = new Date(ano, 11, 31, 23, 59, 59);
+      const count = semProsystem.filter(c => {
+        if (!c.data_entrada) return false;
+        const entrada = new Date(c.data_entrada);
+        if (entrada > fimDoAno) return false; // ainda não tinha entrado
+        if (c.inativado_em && new Date(c.inativado_em) <= fimDoAno) return false; // já tinha saído
+        return true;
+      }).length;
+      serieAtivosPorAno.push({ ano, ativos: count });
+    }
+
     return reply.send({
       status: 'success',
       data: {
@@ -521,8 +557,10 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
           ltv_medio: Math.round(ltvMedio * 100) / 100,
           ltv_total: Math.round(ltvTotal * 100) / 100,
           total_clientes_considerados: ativos.length,
+          tempo_medio_meses: Math.round(tempoMedioMeses * 10) / 10,
         },
-        clientes: resultado,
+        serie_ativos_por_ano: serieAtivosPorAno,
+        clientes: resultado.map(({ codigo, data_entrada, inativado_em, ...rest }) => rest), // não expõe campos internos usados só pros cálculos acima
       },
     });
   });
