@@ -100,6 +100,10 @@ model Cliente {
   condicao_pagamento String? @db.Text
   data_cadastro      DateTime?
 
+  // LTV realizado (nao projetado) — cache opcional; a tela /ltv sempre calcula
+  // ao vivo, este campo fica disponivel para uso futuro por outras telas.
+  ltv_calculado Float?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
