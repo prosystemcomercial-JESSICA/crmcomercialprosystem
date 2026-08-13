@@ -5,7 +5,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
-import { TrendingUp, Users, Award, Loader2, ArrowUpDown, Search } from 'lucide-react';
+import { TrendingUp, Users, Award, Loader2, ArrowUpDown, Search, Clock } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 const PRO = '#2E6EAB';
 
@@ -20,8 +21,17 @@ interface ClienteLtv {
 }
 
 interface RespostaLtv {
-  resumo: { ltv_medio: number; ltv_total: number; total_clientes_considerados: number };
+  resumo: { ltv_medio: number; ltv_total: number; total_clientes_considerados: number; tempo_medio_meses: number };
+  serie_ativos_por_ano: { ano: number; ativos: number }[];
   clientes: ClienteLtv[];
+}
+
+function formatarTempo(meses: number): string {
+  const anos = Math.floor(meses / 12);
+  const restoMeses = Math.round(meses % 12);
+  if (anos === 0) return `${restoMeses} meses`;
+  if (restoMeses === 0) return `${anos} ano${anos > 1 ? 's' : ''}`;
+  return `${anos} ano${anos > 1 ? 's' : ''} e ${restoMeses} meses`;
 }
 
 const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -123,6 +133,15 @@ export default function LtvPage() {
                 <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginTop: 4 }}>{dados.resumo.total_clientes_considerados} clientes ativos</p>
               </div>
 
+              <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Clock size={14} color={PRO} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>Tempo Médio de Permanência</span>
+                </div>
+                <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--t-text-primary)' }}>{formatarTempo(dados.resumo.tempo_medio_meses)}</p>
+                <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginTop: 4 }}>ativos e inativos (exceto Prosystem)</p>
+              </div>
+
               <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 20, gridColumn: 'span 2', minWidth: 280 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                   <Award size={14} color={PRO} />
@@ -139,6 +158,26 @@ export default function LtvPage() {
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* Gráfico de ativos por ano */}
+            <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 20, marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <TrendingUp size={14} color={PRO} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>Clientes ativos por ano</span>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginBottom: 12 }}>
+                Quantos clientes estavam ativos em cada ano (exceto Prosystem, código 1)
+              </p>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={dados.serie_ativos_por_ano}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                  <XAxis dataKey="ano" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: any) => [`${v} clientes`, 'Ativos']} labelFormatter={(l: any) => `Ano ${l}`} />
+                  <Line type="monotone" dataKey="ativos" name="Clientes ativos" stroke={PRO} strokeWidth={3} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
 
             {/* Busca */}
