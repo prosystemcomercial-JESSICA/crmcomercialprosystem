@@ -450,6 +450,83 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { total: clientes.length, criados, atualizados, erros_total: erros.length, erros: erros.slice(0, 50) } });
   });
 
+  // LTV realizado por cliente — Supervisão Comercial e CEO.
+  // Fórmula: (mensalidade_base * meses_de_casa) + valor_instalacao
+  //        + soma(VendaAdicional.valor_venda + acrescimo_mensal * meses_desde_a_venda, status IN (CONFIRMADA, PAGA))
+  // Sempre calculado ao vivo (não lê do cache Cliente.ltv_calculado) para nunca
+  // mostrar valor desatualizado nesta tela.
+  fastify.get('/clientes/ltv', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+
+    const clientes = await prisma.cliente.findMany({
+      select: {
+        id: true, nome: true, razao_social: true, nome_fantasia: true, segmento: true,
+        situacao: true, data_entrada: true, inativado_em: true, mensalidade_base: true,
+        valor_instalacao: true,
+      },
+    });
+
+    const vendasConfirmadas = await prisma.vendaAdicional.findMany({
+      where: { status: { in: ['CONFIRMADA', 'PAGA'] } },
+      select: { cliente_id: true, valor_venda: true, acrescimo_mensal: true, data_venda: true, created_at: true },
+    });
+    const vendasPorCliente = new Map<string, typeof vendasConfirmadas>();
+    for (const v of vendasConfirmadas) {
+      if (!vendasPorCliente.has(v.cliente_id)) vendasPorCliente.set(v.cliente_id, []);
+      vendasPorCliente.get(v.cliente_id)!.push(v);
+    }
+
+    const agora = new Date();
+    const mesesEntre = (inicio: Date, fim: Date) => {
+      const meses = (fim.getFullYear() - inicio.getFullYear()) * 12 + (fim.getMonth() - inicio.getMonth());
+      return Math.max(0, meses);
+    };
+
+    const resultado = clientes.map(c => {
+      const fimContagem = c.inativado_em ? new Date(c.inativado_em) : agora;
+      const mesesDeCasa = c.data_entrada ? mesesEntre(new Date(c.data_entrada), fimContagem) : 0;
+      const baseMensalidade = (c.mensalidade_base || 0) * mesesDeCasa;
+      const instalacao = c.valor_instalacao || 0;
+
+      const vendas = vendasPorCliente.get(c.id) || [];
+      const somaVendas = vendas.reduce((soma, v) => {
+        const dataVenda = v.data_venda || v.created_at;
+        const mesesDesde = dataVenda ? mesesEntre(new Date(dataVenda), fimContagem) : 0;
+        return soma + (v.valor_venda || 0) + (v.acrescimo_mensal || 0) * mesesDesde;
+      }, 0);
+
+      const ltv = baseMensalidade + instalacao + somaVendas;
+
+      return {
+        id: c.id,
+        nome: c.nome_fantasia || c.razao_social || c.nome,
+        razao_social: c.razao_social,
+        segmento: c.segmento,
+        situacao: c.situacao,
+        meses_de_casa: mesesDeCasa,
+        ltv: Math.round(ltv * 100) / 100,
+      };
+    });
+
+    resultado.sort((a, b) => b.ltv - a.ltv);
+
+    const ativos = resultado.filter(c => c.situacao === 'ATIVA');
+    const ltvTotal = ativos.reduce((s, c) => s + c.ltv, 0);
+    const ltvMedio = ativos.length > 0 ? ltvTotal / ativos.length : 0;
+
+    return reply.send({
+      status: 'success',
+      data: {
+        resumo: {
+          ltv_medio: Math.round(ltvMedio * 100) / 100,
+          ltv_total: Math.round(ltvTotal * 100) / 100,
+          total_clientes_considerados: ativos.length,
+        },
+        clientes: resultado,
+      },
+    });
+  });
+
   // List clientes
   fastify.get('/clientes', async (request, reply) => {
     const query = ListClienteSchema.safeParse(request.query);
