@@ -191,6 +191,16 @@ const TIPOS_LOJA_PROP = ['Nova Implantação', 'Migração', 'Upgrade', 'Filial'
 const ORIGENS_PROP = ['Indicação', 'Prospecção', 'WhatsApp', 'Visita', 'Tráfego Pago', 'Cliente Antigo', 'Evento'];
 const SEGMENTOS_PROP = ['Varejo', 'Supermercado', 'Farmácia', 'Drogaria', 'Padaria', 'Restaurante', 'Posto de Combustível', 'Autopeças', 'Outro'];
 
+const MOTIVOS_PERDA = [
+  { value: 'PRECO', label: 'Preço' },
+  { value: 'JA_TEM_FORNECEDOR', label: 'Já tem fornecedor' },
+  { value: 'SEM_ORCAMENTO', label: 'Sem orçamento' },
+  { value: 'TIMING', label: 'Timing não é agora' },
+  { value: 'SEM_INTERESSE', label: 'Sem interesse' },
+  { value: 'FUNCIONALIDADE_AUSENTE', label: 'Funcionalidade ausente' },
+  { value: 'OUTRO', label: 'Outro' },
+];
+
 const MENSAGENS_PROP: Record<string, { titulo: string; hero: string; valor: string }[]> = {
   farmacia: [
     { titulo: 'Farmácia com mais controle e menos perda', hero: 'Sua farmácia merece mais controle, menos perdas e decisões mais inteligentes.', valor: 'A Prosystem é uma solução ideal para farmácias que precisam controlar vendas, estoque, caixa, compras e indicadores com mais segurança. Com o Plano Plus, o cliente ganha visão gerencial, relatórios estratégicos, suporte ativo e ferramentas que ajudam a reduzir perdas e melhorar a operação todos os dias.' },
@@ -479,6 +489,7 @@ export default function LeadsPage() {
   const [newColForm, setNewColForm]   = useState({ nome: '', cor: '#6b7280' });
   const [newEtiqForm, setNewEtiqForm] = useState({ nome: '', cor: '#4B8EC8', descricao: '' });
   const [perdaMotivo, setPerdaMotivo] = useState('');
+  const [perdaTextoOutro, setPerdaTextoOutro] = useState('');
   const [movingToPerda, setMovingToPerda] = useState<Lead | null>(null);
 
   // Modal de fechamento (lead movido para ACEITO/FECHADO)
@@ -728,11 +739,15 @@ export default function LeadsPage() {
 
   const confirmPerda = async () => {
     if (!movingToPerda || !perdaMotivo) return;
+    if (perdaMotivo === 'OUTRO' && !perdaTextoOutro.trim()) return;
+    const motivoFinal = perdaMotivo === 'OUTRO'
+      ? `OUTRO: ${perdaTextoOutro.trim()}`
+      : MOTIVOS_PERDA.find(m => m.value === perdaMotivo)?.label || perdaMotivo;
     try {
-      await apiClient.updateLead(movingToPerda.id, { etapa_comercial: 'PERDIDO', motivo_perda: perdaMotivo, status_atendimento: 'PERDIDO' });
+      await apiClient.updateLead(movingToPerda.id, { etapa_comercial: 'PERDIDO', motivo_perda: motivoFinal, status_atendimento: 'PERDIDO' });
       await loadData();
     } catch (e) { console.error(e); }
-    setShowPerda(false); setMovingToPerda(null); setPerdaMotivo('');
+    setShowPerda(false); setMovingToPerda(null); setPerdaMotivo(''); setPerdaTextoOutro('');
   };
 
   const addObs = async () => {
@@ -2406,21 +2421,26 @@ export default function LeadsPage() {
           <div className="ps-card rounded-2xl shadow-2xl p-6" style={{ width: 400 }}>
             <div className="flex justify-between mb-4">
               <h3 className="font-extrabold text-sm" style={{ color: '#dc2626' }}>⚠️ Motivo da Perda</h3>
-              <button onClick={() => { setShowPerda(false); setMovingToPerda(null); }}><X size={16} style={{ color: 'var(--t-text-secondary)' }} /></button>
+              <button onClick={() => { setShowPerda(false); setMovingToPerda(null); setPerdaMotivo(''); setPerdaTextoOutro(''); }}><X size={16} style={{ color: 'var(--t-text-secondary)' }} /></button>
             </div>
             <p className="text-xs mb-4" style={{ color: 'var(--t-text-secondary)' }}>Informe o motivo da perda para melhorar a estratégia comercial.</p>
-            <div className="space-y-2 mb-4">
-              {['Sem resposta','Preço','Cliente sem interesse','Fechou com concorrente','Momento inadequado','Não tem perfil','Sem orçamento','Duplicado','Contato inválido','Outro'].map(m => (
-                <button key={m} onClick={() => setPerdaMotivo(m)}
-                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all"
-                  style={{ background: perdaMotivo === m ? '#FEF2F2' : '#F8FBFF', color: perdaMotivo === m ? '#dc2626' : '#0D2238', border: `1px solid ${perdaMotivo === m ? '#FCA5A5' : '#EBF4FF'}` }}>
-                  {m}
-                </button>
-              ))}
+            <div className="mb-4">
+              <select value={perdaMotivo} onChange={e => setPerdaMotivo(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }}>
+                <option value="">Selecione...</option>
+                {MOTIVOS_PERDA.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+              {perdaMotivo === 'OUTRO' && (
+                <textarea value={perdaTextoOutro} onChange={e => setPerdaTextoOutro(e.target.value)} rows={3}
+                  placeholder="Descreva o motivo..."
+                  className="w-full px-3 py-2 mt-2 rounded-lg border text-sm outline-none resize-none"
+                  style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }} />
+              )}
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => { setShowPerda(false); setMovingToPerda(null); }} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Cancelar</button>
-              <button onClick={confirmPerda} disabled={!perdaMotivo}
+              <button onClick={() => { setShowPerda(false); setMovingToPerda(null); setPerdaMotivo(''); setPerdaTextoOutro(''); }} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Cancelar</button>
+              <button onClick={confirmPerda} disabled={!perdaMotivo || (perdaMotivo === 'OUTRO' && !perdaTextoOutro.trim())}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#dc2626' }}>
                 Confirmar Perda
               </button>
