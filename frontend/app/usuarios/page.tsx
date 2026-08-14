@@ -28,6 +28,7 @@ const CARGOS = [
   { value: 'TECNICO_SUPORTE', label: 'Técnico Suporte', color: '#d97706' },
   { value: 'TECNICO_IMPLANTACAO', label: 'Técnico de Implantação', color: '#0d9488' },
   { value: 'VENDEDOR', label: 'Vendedor', color: '#16a34a' },
+  { value: 'SDR', label: 'SDR (Pré-vendas)', color: '#ea580c' },
 ];
 
 const CARGO_COLORS: Record<string, string> = Object.fromEntries(CARGOS.map(c => [c.value, c.color]));
