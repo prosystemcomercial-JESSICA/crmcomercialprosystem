@@ -459,6 +459,36 @@ Logo após, no mesmo arquivo:
   });
 ```
 
+- [ ] **Step 2.5: Criar a coluna real `QUALIFICADO` no kanban (decisão confirmada com a usuária em 14/08/2026)**
+
+Investigação em produção confirmou que a coluna `QUALIFICADO` **não existe** hoje em `KanbanColuna` — as colunas reais são `NOVO_LEAD, PRIMEIRO_CONTATO, EM_ATENDIMENTO, AGUARDANDO_RETORNO, PROPOSTA_A_GERAR, PROPOSTA_ENVIADA, EM_NEGOCIACAO, FECHADO, PERDIDO` (mais algumas de follow-up: `FUP_A_RETOMAR, FUP_TENT_1/2/3, FUP_NUTRICAO, FUP_RECUPERADO, FUP_DESCARTADO`). A usuária confirmou: criar a coluna de verdade, fixa (não pode ser excluída), entre `EM_ATENDIMENTO` (ordem 2) e `AGUARDANDO_RETORNO` (ordem 3) — os SDRs vão arrastar o lead pra essa coluna quando terminarem de qualificar, e ela fica visível a todos no Pipeline Comercial, não só na tela de distribuição.
+
+A tabela `KanbanColuna` já tem linhas reais em produção (16), então o seed default (`DEFAULT_COLUMNS` em `backend/src/routes/kanban-colunas.ts`, que só roda via `onReady` quando a tabela está vazia) não vai inserir nada — é preciso inserir a coluna diretamente. A rota HTTP existente `POST /kanban-colunas` não aceita `chave` nem `fixa` no body (deriva `chave` do `nome` via slugify, e `fixa` sempre nasce `false` pelo default do schema) — não dá para criar já fixa por ela sozinha.
+
+Abordagem: escrever e rodar (uma única vez, manualmente, contra o banco de produção, com cuidado — sem framework de teste automatizado aqui) um script ad-hoc usando o Prisma Client (mesmo padrão dos scripts `check_*.cjs`/`fix_*.cjs` já usados neste projeto para correções pontuais em produção) que faça diretamente:
+
+```javascript
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+(async () => {
+  const existente = await prisma.kanbanColuna.findUnique({ where: { chave: 'QUALIFICADO' } });
+  if (existente) { console.log('Coluna QUALIFICADO já existe, nada a fazer.'); await prisma.$disconnect(); return; }
+
+  // Reordena as colunas de ordem >= 3 para abrir espaço (ordem 3 vira 4, 4 vira 5, etc.)
+  await prisma.$executeRawUnsafe(`UPDATE KanbanColuna SET ordem = ordem + 1 WHERE ordem >= 3`);
+
+  const nova = await prisma.kanbanColuna.create({
+    data: { chave: 'QUALIFICADO', nome: 'Qualificado', cor: '#0d9488', ordem: 3, fixa: true, created_by: 'system' },
+  });
+  console.log('Coluna criada:', JSON.stringify(nova));
+  await prisma.$disconnect();
+})().catch(e => { console.error('ERRO:', e.message); process.exit(1); });
+```
+
+Antes de rodar: confirmar via `SELECT chave, ordem FROM KanbanColuna ORDER BY ordem` que as ordens atuais realmente batem com o que foi levantado na investigação (podem ter mudado). Depois de rodar: confirmar via `SELECT * FROM KanbanColuna WHERE chave='QUALIFICADO'` que a linha foi criada com `fixa=1`, e via `SELECT chave, ordem FROM KanbanColuna ORDER BY ordem` que a nova ordem geral está correta e sem colisão/duplicata de `ordem`.
+
+Isso é uma mudança de dado em produção (nova linha numa tabela de configuração, não uma alteração destrutiva) — aceitável dentro do padrão já usado neste projeto para esse tipo de ajuste, mas deve ser feita com a mesma cautela dos scripts `check_*`/`fix_*` anteriores: ler antes de escrever, confirmar depois.
+
 - [ ] **Step 3: Criar a rota de leads prontos para distribuir**
 
 ```typescript
