@@ -120,47 +120,24 @@ Expor esse valor em `GET /leads` e `GET /leads/:id` (campo derivado `completude_
 
 ## Bloco 3 — Distribuição de leads (supervisão → vendedor)
 
-### Schema — nova tabela
+### Schema — reaproveitar `LeadHistorico` (correção pós-investigação de código)
 
-```prisma
-model LeadAtribuicaoHistorico {
-  id              String   @id @default(cuid())
-  lead_id         String
-  lead            Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+A investigação de implementação encontrou que já existe `LeadHistorico` (`id, lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes: Json, created_at`), já usado para toda a trilha de auditoria do lead (mudança de dados, exclusão, etc — ver `backend/src/lib/lead-audit.ts`). **Não é necessária uma tabela nova.** Distribuição e devolução gravam ali com `acao='DISTRIBUICAO_SDR'`/`'DEVOLUCAO_SDR'`, guardando `de_usuario_id`/`para_usuario_id`/`motivo` dentro do campo `detalhes` (JSON livre).
 
-  de_usuario_id   String?  // responsavel_id anterior (null se primeira atribuição)
-  para_usuario_id String   // responsavel_id novo
-  atribuido_por_id String  // quem executou a ação (supervisão)
-
-  tipo            String   @default("DISTRIBUICAO") // DISTRIBUICAO|DEVOLUCAO
-  motivo          String?  @db.Text // obrigatório quando tipo=DEVOLUCAO
-
-  created_at      DateTime @default(now())
-
-  @@index([lead_id])
-  @@index([para_usuario_id])
-  @@index([created_at])
-}
-```
-
-Adicionar a relação inversa em `Lead`:
-
-```prisma
-  atribuicoes_historico LeadAtribuicaoHistorico[]
-```
+Ressalva: `LeadHistorico` é expurgado automaticamente após 60 dias (`backend/src/services/automation.service.ts`). Métricas de "leads distribuídos" no Bloco 5 que dependam desse histórico ficam subestimadas para períodos além de 60 dias — aceito como limitação conhecida, não resolvida nesta spec.
 
 ### Backend — novas rotas em `backend/src/routes/leads.ts`
 
-**`POST /leads/:id/distribuir`** — `requireGestor` obrigatório.
+**`POST /leads/:id/distribuir-sdr`** — `requireGestor` obrigatório. (Nome com sufixo `-sdr` para não colidir com `POST /leads/atribuir` e `POST /leads/distribuir`, que já existem hoje para atribuição em massa/round-robin de leads sem responsável — fluxo diferente deste.)
 Body: `{ para_usuario_id: string }`.
-Ação: atualiza `Lead.responsavel_id = para_usuario_id`, `Lead.atribuido_em = now()`, `Lead.atribuicao_vista = false` (dispara o sininho do vendedor, comportamento já existente); cria registro em `LeadAtribuicaoHistorico` com `tipo=DISTRIBUICAO`, `de_usuario_id` = responsavel_id anterior, `atribuido_por_id` = usuário logado.
+Ação: atualiza `Lead.responsavel_id = para_usuario_id`, `Lead.atribuido_em = now()`, `Lead.atribuicao_vista = false` (dispara o sininho do vendedor, comportamento já existente); grava em `LeadHistorico` com `acao='DISTRIBUICAO_SDR'`, `detalhes` (JSON) contendo `de_usuario_id`/`para_usuario_id`.
 
-**`POST /leads/:id/devolver`** — `requireGestor` obrigatório.
+**`POST /leads/:id/devolver-sdr`** — `requireGestor` obrigatório.
 Body: `{ motivo: string }` (obrigatório, mín. 5 caracteres via Zod).
-Ação: atualiza `Lead.responsavel_id` de volta para `Lead.created_by` (o SDR original), `atribuido_em = now()`, `atribuicao_vista = false`; cria registro em `LeadAtribuicaoHistorico` com `tipo=DEVOLUCAO`, `motivo` preenchido.
+Ação: atualiza `Lead.responsavel_id` de volta para `Lead.created_by` (o SDR original), `atribuido_em = now()`, `atribuicao_vista = false`; grava em `LeadHistorico` com `acao='DEVOLUCAO_SDR'`, `motivo` dentro de `detalhes`.
 
 **`GET /leads/prontos-para-distribuir`** — `requireGestor` obrigatório.
-Retorna leads com `etapa_comercial = 'QUALIFICADO'` (ou `status_atendimento = 'QUALIFICADO'`, confirmar qual campo é o usado operacionalmente no kanban atual antes de implementar) e sem exclusão lógica, ordenados por `created_at`, incluindo `completude_pct` (Bloco 2) e o nome do `created_by` (SDR responsável pelo cadastro).
+Retorna leads com `etapa_comercial = 'QUALIFICADO'` (confirmado — é o campo real do kanban usado pela tela de Pipeline Comercial, não `status_atendimento`/`etapa_funil`; ver "Pontos a confirmar" no fim desta spec para a ressalva sobre o valor exato da coluna, que é configurável via `KanbanColuna`) e sem exclusão lógica, ordenados por `created_at`, incluindo `completude_pct` (Bloco 2) e o nome do `created_by` (SDR responsável pelo cadastro).
 
 ### Frontend — nova página `frontend/app/sdr/leads-para-distribuir/page.tsx`
 
@@ -229,7 +206,7 @@ Calcula, sobre um período (`data_inicio`/`data_fim`, default mês corrente):
 | Leads qualificados | `COUNT(Lead) WHERE created_by = sdr_id AND etapa_comercial = 'QUALIFICADO'` (contagem por ter atingido essa etapa, não só o estado atual — se o campo não guardar histórico de etapas, usar o estado atual como aproximação e documentar a limitação) |
 | Reuniões agendadas | `COUNT(Atividade) WHERE created_by = sdr_id AND tipo = 'REUNIAO'` |
 | Reuniões realizadas | idem, `AND status = 'REALIZADA'` |
-| Leads distribuídos | `COUNT(LeadAtribuicaoHistorico) WHERE tipo='DISTRIBUICAO' AND lead.created_by = sdr_id` |
+| Leads distribuídos | `COUNT(LeadHistorico) WHERE acao='DISTRIBUICAO_SDR' AND lead.created_by = sdr_id` (sujeito ao expurgo de 60 dias do `LeadHistorico`) |
 | Vendas originadas | leads com `created_by = sdr_id` que hoje têm `etapa_comercial = 'FECHADO'` |
 
 Taxas derivadas (calculadas no backend, retornadas prontas): taxa de contato (contatos efetivos / tentativas), taxa de qualificação (qualificados / leads cadastrados), taxa de comparecimento (reuniões realizadas / agendadas), conversão qualificado→venda (vendas originadas / leads distribuídos).
@@ -244,12 +221,15 @@ Taxas derivadas (calculadas no backend, retornadas prontas): taxa de contato (co
 ## Resumo de arquivos afetados
 
 **Schema:**
-- `backend/prisma/schema.prisma`: novo model `LeadAtribuicaoHistorico`; novo campo `Lead.funcionalidade_solicitada`.
+- Nenhuma migration necessária. Distribuição/devolução reaproveitam `LeadHistorico` existente (ver Bloco 3). `concorrente_atual`/`funcionalidade_solicitada` do Bloco 4 foram descartados em favor de reaproveitar `sistema_atual` já existente (ver Bloco 4).
 
 **Backend:**
 - `backend/src/lib/scope.ts`: nenhuma mudança estrutural (SDR usa o comportamento de VENDEDOR já existente via `OWNER_COLUMNS`).
 - `backend/src/lib/lead-completude.ts`: novo arquivo.
-- `backend/src/routes/leads.ts`: trava de fechamento para SDR; novas rotas `POST /leads/:id/distribuir`, `POST /leads/:id/devolver`, `GET /leads/prontos-para-distribuir`; expor `completude_pct` em `GET /leads` e `GET /leads/:id`.
+- `backend/src/lib/sdr-restricoes.ts`: novo arquivo (trava de fechamento).
+- `backend/src/lib/sdr-desempenho.ts`: novo arquivo (função compartilhada de cálculo de KPIs).
+- `backend/src/routes/leads.ts`: trava de fechamento para SDR (`PATCH /leads/:id` e `POST /leads/:id/fechar`); novas rotas `POST /leads/:id/distribuir-sdr`, `POST /leads/:id/devolver-sdr`, `GET /leads/prontos-para-distribuir`; expor `completude_pct` em `GET /leads`, `GET /leads/kanban` e `GET /leads/:id`.
+- `backend/src/routes/sdr.ts`: novo arquivo, rota `GET /sdr/desempenho`.
 - `backend/src/routes/relatorio-comercial.ts`: nova rota/seção `sensor-mercado`.
 - `backend/src/routes/sdr.ts` (novo arquivo): rota `GET /sdr/desempenho`.
 
