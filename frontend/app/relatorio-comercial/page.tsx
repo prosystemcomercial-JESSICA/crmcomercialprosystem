@@ -57,6 +57,8 @@ export default function RelatorioComercialPage() {
   const [d, setD] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [serie, setSerie] = useState<any[]>([]); // evolução mês a mês do ano
+  const [sensor, setSensor] = useState<any>(null); // Sensor de Mercado (Task 8)
+  const [sdrs, setSdrs] = useState<any[]>([]); // Desempenho comparativo por SDR (Task 8)
 
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading]);
 
@@ -73,6 +75,16 @@ export default function RelatorioComercialPage() {
     if (!isAuthenticated) return;
     apiClient.getRelatorioSerieAnual(ano).then(r => setSerie(r.data?.data?.serie || [])).catch(() => setSerie([]));
   }, [isAuthenticated, ano]);
+  // Sensor de Mercado + comparativo de SDRs (Task 8) — mesmo período selecionado
+  // (ano inteiro quando mes=0, senão o mês específico).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const dataInicio = mes === 0 ? new Date(ano, 0, 1) : new Date(ano, mes - 1, 1);
+    const dataFim = mes === 0 ? new Date(ano, 11, 31, 23, 59, 59) : new Date(ano, mes, 0, 23, 59, 59);
+    const iso = (dt: Date) => dt.toISOString();
+    apiClient.getRelatorioSensorMercado(iso(dataInicio), iso(dataFim)).then(r => setSensor(r.data?.data || null)).catch(() => setSensor(null));
+    apiClient.getRelatorioSdrs(iso(dataInicio), iso(dataFim)).then(r => setSdrs(r.data?.data || [])).catch(() => setSdrs([]));
+  }, [isAuthenticated, ano, mes]);
 
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
@@ -542,6 +554,74 @@ export default function RelatorioComercialPage() {
                 <ul className="space-y-1 text-sm">
                   {d.resumo_executivo.map((r: string, i: number) => <li key={i} className="text-gray-700">{r}</li>)}
                 </ul>
+              </Bloco>
+            )}
+
+            {/* 9. Sensor de Mercado (Task 8): objeções de perda + concorrentes mencionados */}
+            {sensor && (sensor.objecoes?.length > 0 || sensor.concorrentes?.length > 0) && (
+              <Bloco titulo="9. Sensor de Mercado">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-semibold mb-1">Motivos de perda de leads</p>
+                    {sensor.objecoes?.length > 0 ? (
+                      <>
+                        <div className="print:hidden">
+                          <ResponsiveContainer width="100%" height={Math.max(140, sensor.objecoes.length * 40)}>
+                            <BarChart layout="vertical" data={sensor.objecoes} margin={{ top: 6, right: 20, left: 10, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" horizontal={false} />
+                              <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                              <YAxis type="category" dataKey="motivo" width={140} tick={{ fontSize: 11 }} />
+                              <Tooltip />
+                              <Bar dataKey="total" name="Leads perdidos" fill="#dc2626" radius={[0, 5, 5, 0]} animationDuration={900} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <table className="w-full text-sm mt-2">
+                          <thead><tr className="text-left text-xs border-b"><th className="py-1.5">Motivo</th><th className="text-right">Leads</th></tr></thead>
+                          <tbody>{sensor.objecoes.map((o: any, i: number) => (
+                            <tr key={i} className="border-b border-gray-50"><td className="py-1.5">{o.motivo}</td><td className="text-right font-semibold text-red-600">{o.total}</td></tr>
+                          ))}</tbody>
+                        </table>
+                      </>
+                    ) : <p className="text-sm text-gray-500">Sem leads perdidos no período.</p>}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold mb-1">Concorrentes mais mencionados</p>
+                    {sensor.concorrentes?.length > 0 ? (
+                      <table className="w-full text-sm">
+                        <thead><tr className="text-left text-xs border-b"><th className="py-1.5">Sistema atual</th><th className="text-right">Menções</th></tr></thead>
+                        <tbody>{sensor.concorrentes.map((c: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-50"><td className="py-1.5">{c.nome}</td><td className="text-right font-semibold">{c.total}</td></tr>
+                        ))}</tbody>
+                      </table>
+                    ) : <p className="text-sm text-gray-500">Nenhum concorrente informado no período.</p>}
+                  </div>
+                </div>
+              </Bloco>
+            )}
+
+            {/* 10. Desempenho por SDR (Task 8): comparativo entre todos os SDRs ativos */}
+            {sdrs.length > 0 && (
+              <Bloco titulo="10. Desempenho por SDR">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs border-b border-gray-100">
+                    <th className="py-2">SDR</th><th>Leads cadastrados</th><th>Taxa qualificação</th><th>Leads distribuídos</th><th>Vendas originadas</th>
+                  </tr></thead>
+                  <tbody>
+                    {sdrs.map((s: any, i: number) => (
+                      <tr key={i} className="border-b border-gray-50">
+                        <td className="py-2 font-medium">{s.sdr_nome}</td>
+                        <td>{s.funil?.leads_cadastrados ?? 0}</td>
+                        <td>{s.taxas?.taxa_qualificacao ?? 0}%</td>
+                        <td>{s.funil?.leads_distribuidos ?? 0}</td>
+                        <td className="text-green-700 font-semibold">{s.funil?.vendas_originadas ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-xs text-gray-500 mt-2">
+                  "Leads distribuídos" reflete o histórico de auditoria dos últimos 60 dias — pode subestimar períodos mais longos.
+                </p>
               </Bloco>
             )}
 

@@ -1233,6 +1233,14 @@ class ApiClient {
       params: { periodoDe, periodoAte },
     });
   }
+  // Sensor de Mercado (Task 8): objeções/motivos de perda + concorrentes mencionados.
+  async getRelatorioSensorMercado(dataInicio?: string, dataFim?: string) {
+    return this.client.get('/relatorio-comercial/sensor-mercado', { params: { data_inicio: dataInicio, data_fim: dataFim } });
+  }
+  // Desempenho comparativo por SDR (Task 8).
+  async getRelatorioSdrs(dataInicio?: string, dataFim?: string) {
+    return this.client.get('/relatorio-comercial/sdrs', { params: { data_inicio: dataInicio, data_fim: dataFim } });
+  }
   // ── Painel Executivo do CEO ──
   async getPainelCEO(params: { periodo: string; ano: number; mes: number }) {
     return this.client.get('/ceo/painel', { params });
