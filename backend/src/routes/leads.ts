@@ -6,6 +6,7 @@ import { ownerWhere, scopeUserId, requireGestor, podeVerTudo } from '@/lib/scope
 import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 import { CONTAS_SISTEMA } from '@/lib/usuarios';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
+import { bloqueadoParaFecharSeSDR } from '@/lib/sdr-restricoes';
 
 const LeadSchema = z.object({
   nome:               z.string().min(1),
@@ -549,6 +550,9 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     }
 
     const user = (request as any).user;
+    if (bloqueadoParaFecharSeSDR(user?.role, body.data.etapa_comercial)) {
+      return reply.status(403).send({ status: 'error', message: 'SDR não pode fechar leads — encaminhe para um vendedor.' });
+    }
     try {
       const data: any = { ...body.data };
       if (data.email === '') delete data.email;
@@ -894,6 +898,9 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   fastify.post('/leads/:id/fechar', async (request, reply) => {
     const { id } = request.params as { id: string };
     const user = (request as any).user;
+    if ((user?.role || '').toUpperCase() === 'SDR') {
+      return reply.status(403).send({ status: 'error', message: 'SDR não pode fechar leads — encaminhe para um vendedor.' });
+    }
     const body = FechamentoSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
 
