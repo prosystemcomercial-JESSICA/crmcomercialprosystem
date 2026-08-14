@@ -958,6 +958,17 @@ class ApiClient {
     return this.client.post('/leads/distribuir', payload || {});
   }
 
+  // ── Distribuição/devolução de leads qualificados (SDR ↔ supervisão) ──
+  async getLeadsProntosParaDistribuir() {
+    return this.client.get('/leads/prontos-para-distribuir');
+  }
+  async distribuirLeadSdr(id: string, vendedorId: string) {
+    return this.client.post(`/leads/${id}/distribuir-sdr`, { para_usuario_id: vendedorId });
+  }
+  async devolverLeadSdr(id: string, motivo: string) {
+    return this.client.post(`/leads/${id}/devolver-sdr`, { motivo });
+  }
+
   // Auditoria / trilha do lead + ciclo de vendas agregado
   async getLeadAuditoria(leadId: string) {
     return this.client.get(`/leads/${leadId}/auditoria`);
