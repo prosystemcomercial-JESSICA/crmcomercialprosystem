@@ -297,6 +297,84 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     return reply.send({ status: 'success', data: { distribuidos: leads.length, por_vendedor: porVendedor } });
   });
 
+  // ── Distribuição SDR → Vendedor (com trilha em LeadHistorico) ─────────────
+  fastify.post('/leads/:id/distribuir-sdr', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({ para_usuario_id: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe para_usuario_id' });
+    const ator = (request as any).user;
+
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, responsavel_id: true } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+
+    const vend: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome FROM UsuarioCRM WHERE id = ? AND status = 'ATIVO' LIMIT 1`, body.data.para_usuario_id
+    ).catch(() => []);
+    if (!vend.length) return reply.status(404).send({ status: 'error', message: 'Vendedor não encontrado ou inativo' });
+
+    await prisma.lead.update({
+      where: { id },
+      data: { responsavel_id: vend[0].id, vendedor_nome: vend[0].nome, atribuido_em: new Date(), atribuicao_vista: false },
+    });
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO LeadHistorico (id, lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      randomUUID(), id, lead.nome, 'DISTRIBUICAO_SDR', null, null,
+      ator?.id || null, ator?.nome || 'Sistema',
+      JSON.stringify({ de_usuario_id: lead.responsavel_id || null, para_usuario_id: vend[0].id, para_usuario_nome: vend[0].nome }),
+    ).catch(() => {});
+
+    return reply.send({ status: 'success', data: { lead_id: id, vendedor: vend[0].nome } });
+  });
+
+  // ── Devolução SDR ← Supervisão (com motivo + observação de sistema) ───────
+  fastify.post('/leads/:id/devolver-sdr', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({ motivo: z.string().min(5, 'Descreva o motivo (mínimo 5 caracteres)') }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Motivo obrigatório' });
+    const ator = (request as any).user;
+
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, created_by: true, responsavel_id: true } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+
+    await prisma.lead.update({
+      where: { id },
+      data: { responsavel_id: lead.created_by, atribuido_em: new Date(), atribuicao_vista: false },
+    });
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO LeadHistorico (id, lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      randomUUID(), id, lead.nome, 'DEVOLUCAO_SDR', null, null,
+      ator?.id || null, ator?.nome || 'Sistema',
+      JSON.stringify({ de_usuario_id: lead.responsavel_id || null, para_usuario_id: lead.created_by, motivo: body.data.motivo }),
+    ).catch(() => {});
+
+    await prisma.leadObservacao.create({
+      data: {
+        lead_id: id, tipo: 'SISTEMA',
+        descricao: `Lead devolvido pela supervisão: ${body.data.motivo}`,
+        created_by: ator?.id || 'system', created_by_name: ator?.nome || 'Sistema',
+      },
+    });
+
+    return reply.send({ status: 'success', data: { lead_id: id, devolvido_para: lead.created_by } });
+  });
+
+  // ── Leads qualificados prontos para distribuir (SDR → supervisão → vendedor) ──
+  fastify.get('/leads/prontos-para-distribuir', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const leads = await prisma.lead.findMany({
+      where: { etapa_comercial: 'QUALIFICADO', deleted_at: null },
+      orderBy: { created_at: 'asc' },
+    });
+    const data = leads.map(l => ({ ...l, completude_pct: calcularCompletude(l) }));
+    return reply.send({ status: 'success', data });
+  });
+
   // ── AUDITORIA / TRILHA do lead (entrada → assinatura, tempo por etapa) ─────
   fastify.get('/leads/:id/auditoria', async (request, reply) => {
     const { id } = request.params as { id: string };
