@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
 import { sincronizarLancamentosDeComissao } from '@/lib/comissao-fluxo';
+import { calcularDesempenhoSdr } from '@/lib/sdr-desempenho';
 
 // Relatório Comercial mensal (o que vai para o CEO).
 // GET calcula o pipeline automaticamente das PropostasComerciais e mescla com o
@@ -437,6 +438,60 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       update: resto as any,
     });
     return reply.send({ status: 'success', data: rel });
+  });
+
+  // Sensor de Mercado (Task 8): motivos de perda de leads + concorrentes mencionados,
+  // agregados no período. Lead.motivo_perda vem de uma taxonomia fixa (Task 5) — valores
+  // são o texto do rótulo OU "OUTRO: <detalhe>"; agrupamos pela parte antes de ":" para
+  // que todo "OUTRO: ..." caia no mesmo bucket "OUTRO", em vez de virar texto único cada vez.
+  fastify.get('/relatorio-comercial/sensor-mercado', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = request.query as { data_inicio?: string; data_fim?: string };
+    const dataInicio = q.data_inicio ? new Date(q.data_inicio) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const dataFim = q.data_fim ? new Date(q.data_fim) : new Date();
+
+    const perdidos = await prisma.lead.findMany({
+      where: { etapa_comercial: 'PERDIDO', updated_at: { gte: dataInicio, lte: dataFim }, deleted_at: null },
+      select: { motivo_perda: true, sistema_atual: true },
+    });
+
+    const objecoes: Record<string, number> = {};
+    const concorrentes: Record<string, number> = {};
+    for (const l of perdidos) {
+      const motivo = (l.motivo_perda || 'Não informado').split(':')[0].trim();
+      objecoes[motivo] = (objecoes[motivo] || 0) + 1;
+      if (l.sistema_atual) concorrentes[l.sistema_atual] = (concorrentes[l.sistema_atual] || 0) + 1;
+    }
+
+    return reply.send({
+      status: 'success',
+      data: {
+        periodo: { data_inicio: dataInicio.toISOString(), data_fim: dataFim.toISOString() },
+        objecoes: Object.entries(objecoes).sort((a, b) => b[1] - a[1]).map(([motivo, total]) => ({ motivo, total })),
+        concorrentes: Object.entries(concorrentes).sort((a, b) => b[1] - a[1]).map(([nome, total]) => ({ nome, total })),
+      },
+    });
+  });
+
+  // Desempenho comparativo por SDR (Task 8): todos os SDRs ativos, reaproveitando o
+  // mesmo cálculo de funil da Task 7 (GET /sdr/desempenho), sem duplicar a lógica.
+  fastify.get('/relatorio-comercial/sdrs', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = request.query as { data_inicio?: string; data_fim?: string };
+    const dataInicio = q.data_inicio ? new Date(q.data_inicio) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const dataFim = q.data_fim ? new Date(q.data_fim) : new Date();
+
+    const sdrs: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, nome FROM UsuarioCRM WHERE cargo = 'SDR' AND status = 'ATIVO' ORDER BY nome ASC`
+    ).catch(() => []);
+
+    const resultado = [];
+    for (const s of sdrs) {
+      const desempenho = await calcularDesempenhoSdr(prisma, s.id, dataInicio, dataFim);
+      resultado.push({ sdr_id: s.id, sdr_nome: s.nome, ...desempenho });
+    }
+
+    return reply.send({ status: 'success', data: resultado });
   });
 
   // Sincroniza manualmente as comissões → despesas do Centro de Custos.
