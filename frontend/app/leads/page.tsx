@@ -37,6 +37,7 @@ interface Lead {
   vendedor_nome?: string; supervisor_nome?: string; responsavel_id?: string;
   temperatura: string; origem: string; etapa_comercial: string;
   status_atendimento?: string; motivo_perda?: string;
+  completude_pct?: number;
   valor_estimado?: number; proximo_contato?: string; ultima_obs_at?: string;
   observacoes?: string;
   // UTM
@@ -282,6 +283,8 @@ function iniciaisDono(nome?: string): string {
   const p = nome.trim().split(/\s+/);
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
 }
+// Cor do badge de completude de cadastro do lead — verde ≥80%, amarelo 50-79%, vermelho <50%.
+const corCompletude = (pct: number) => pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
 
 function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
   lead: Lead; onClick: () => void; onDragStart: (e: React.DragEvent) => void;
@@ -341,6 +344,13 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
           {tel && (
             <span className="flex items-center gap-0.5 text-[9px]" style={{ color: 'var(--t-text-muted)' }}>
               <Phone size={8} />{tel}
+            </span>
+          )}
+          {typeof lead.completude_pct === 'number' && (
+            <span className="text-white font-semibold text-[9px]"
+              style={{ background: corCompletude(lead.completude_pct), borderRadius: 999, padding: '2px 8px' }}
+              title="Completude do cadastro">
+              {lead.completude_pct}%
             </span>
           )}
         </div>
@@ -1381,6 +1391,13 @@ export default function LeadsPage() {
                       const t = TEMP_CONFIG[selectedLead.temperatura as keyof typeof TEMP_CONFIG] || TEMP_CONFIG.FRIO;
                       return <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: t.bg, color: t.color }}>{t.label}</span>;
                     })()}
+                    {typeof selectedLead.completude_pct === 'number' && (
+                      <span className="text-white font-bold text-[11px]"
+                        style={{ background: corCompletude(selectedLead.completude_pct), borderRadius: 999, padding: '3px 10px' }}
+                        title="Completude do cadastro">
+                        {selectedLead.completude_pct}% completo
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">

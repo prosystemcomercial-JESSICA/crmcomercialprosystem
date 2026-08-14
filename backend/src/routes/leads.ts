@@ -7,6 +7,7 @@ import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 import { CONTAS_SISTEMA } from '@/lib/usuarios';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import { bloqueadoParaFecharSeSDR } from '@/lib/sdr-restricoes';
+import { calcularCompletude } from '@/lib/lead-completude';
 
 const LeadSchema = z.object({
   nome:               z.string().min(1),
@@ -408,7 +409,9 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       prisma.lead.count({ where }),
     ]);
 
-    return reply.send({ status: 'success', data: { leads, total, page, limit } });
+    const leadsComCompletude = leads.map(lead => ({ ...lead, completude_pct: calcularCompletude(lead) }));
+
+    return reply.send({ status: 'success', data: { leads: leadsComCompletude, total, page, limit } });
   });
 
   // ── Kanban — all leads grouped by etapa_comercial ─────────────────────────
@@ -474,7 +477,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     for (const lead of leads) {
       const col = mapEtapa(lead.etapa_comercial, (lead as any).status);
       if (!grouped[col]) grouped[col] = [];
-      grouped[col].push(lead);
+      grouped[col].push({ ...lead, completude_pct: calcularCompletude(lead) });
     }
 
     return reply.send({ status: 'success', data: { leads: grouped, colunas } });
@@ -504,7 +507,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       prisma.$executeRawUnsafe(`UPDATE \`Lead\` SET atribuicao_vista = 1 WHERE id = ? AND atribuicao_vista = 0`, id).catch(() => {});
     }
 
-    return reply.send({ status: 'success', data: lead });
+    return reply.send({ status: 'success', data: { ...lead, completude_pct: calcularCompletude(lead) } });
   });
 
   // ── Create lead ───────────────────────────────────────────────────────────
