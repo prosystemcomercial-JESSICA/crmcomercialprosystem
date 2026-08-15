@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
-const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR', 'SDR'];
+const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
 const TECNICO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE'];
 const GESTORES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'];
 const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
@@ -37,15 +37,15 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',            roles: GESTORES },
       { href: '/comercial', icon: BarChart2,       label: 'Radar Comercial',       roles: ['VENDEDOR'] },
-      { href: '/leads',     icon: GitMerge,        label: 'Pipeline Comercial',     roles: COMERCIAL },
-      { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: COMERCIAL, destaque: 'whatsapp' },
+      { href: '/leads',     icon: GitMerge,        label: 'Pipeline Comercial',     roles: [...COMERCIAL, 'SDR'] },
+      { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
     ],
   },
   {
     label: 'Comercial',
     items: [
-      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',           roles: ALL },
-      { href: '/agenda',                icon: CalendarIcon,  label: 'Agenda Google',        roles: ALL },
+      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',           roles: [...ALL, 'SDR'] },
+      { href: '/agenda',                icon: CalendarIcon,  label: 'Agenda Google',        roles: [...ALL, 'SDR'] },
       { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
       { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
       { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
@@ -54,7 +54,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Clientes & Base',
     items: [
-      { href: '/clientes',       icon: Building2, label: 'Clientes',       roles: ALL },
+      { href: '/clientes',       icon: Building2, label: 'Clientes',       roles: [...ALL, 'SDR'] },
       { href: '/indicacoes',     icon: Handshake, label: 'Cross-sell',     roles: COMERCIAL },
       { href: '/representantes', icon: Handshake, label: 'Representantes', roles: COMERCIAL },
     ],
@@ -110,7 +110,7 @@ const navGroups: NavGroup[] = [
       { href: '/usuarios',      icon: Users,    label: 'Usuários',       roles: GESTORES },
       { href: '/importacao',    icon: Upload,   label: 'Importar Leads', roles: GESTAO_COMERCIAL },
       { href: '/auditoria',     icon: Shield,   label: 'Auditoria',      roles: GESTAO_COMERCIAL },
-      { href: '/manual',        icon: BookOpen, label: 'Manual do CRM',  roles: ALL },
+      { href: '/manual',        icon: BookOpen, label: 'Manual do CRM',  roles: [...ALL, 'SDR'] },
       { href: '/configuracoes', icon: Settings, label: 'Configurações',  roles: SO_CEO },
     ],
   },
