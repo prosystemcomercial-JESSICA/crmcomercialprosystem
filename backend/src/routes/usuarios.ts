@@ -7,10 +7,7 @@ import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/e
 import { hashSenha } from '@/lib/seguranca';
 import { CONTAS_SISTEMA } from '@/lib/usuarios';
 
-// Apenas CEO pode criar/remover usuários
-// Gestão máxima que pode criar/remover/resetar usuários: CEO + Administração (ADMIN/Diretora).
-const APENAS_CEO = ['CEO', 'ADMIN', 'DIRETOR'];
-// Supervisores e CEO podem ver e editar usuários
+// CEO e Supervisores podem ver, criar, editar, resetar senha e remover usuários
 const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN'];
 
 // ─── Módulos disponíveis ──────────────────────────────────────
@@ -258,15 +255,6 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return true;
   };
 
-  const checkCeo = (request: any, reply: any): boolean => {
-    const user = (request as any).user;
-    if (!user || !APENAS_CEO.some(r => user.role?.includes(r))) {
-      reply.status(403).send({ status: 'error', message: 'Apenas o CEO pode criar ou remover usuários' });
-      return false;
-    }
-    return true;
-  };
-
   // ─── GET /usuarios/presets ────────────────────────────────────
   fastify.get('/usuarios/presets', { onRequest: requireAuth }, async (_request, reply) => {
     return reply.send({ status: 'success', data: { presets: PRESETS, modulos: MODULOS, modulos_criticos: MODULOS_CRITICOS } });
@@ -352,9 +340,9 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: todosUsuarios });
   });
 
-  // ─── POST /usuarios (apenas CEO) ────────────────────────────
+  // ─── POST /usuarios (CEO e Supervisão Comercial) ────────────
   fastify.post('/usuarios', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkCeo(request, reply)) return;
+    if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
 
     const body = CriarUsuarioSchema.safeParse(request.body);
@@ -443,9 +431,9 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', message: 'Usuário desativado' });
   });
 
-  // ─── POST /usuarios/:id/redefinir-senha (apenas CEO) ────────
+  // ─── POST /usuarios/:id/redefinir-senha (CEO e Supervisão Comercial) ──
   fastify.post('/usuarios/:id/redefinir-senha', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkCeo(request, reply)) return;
+    if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
 
@@ -488,16 +476,16 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
 
   // ─── GET /usuarios/:id/vinculos (checagem antes de excluir) ─
   fastify.get('/usuarios/:id/vinculos', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkCeo(request, reply)) return;
+    if (!checkGestor(request, reply)) return;
     const { id } = request.params as { id: string };
     const vinculos = await contarVinculosUsuario(id);
     const total = Object.values(vinculos).reduce((a, b) => a + b, 0);
     return reply.send({ status: 'success', data: { vinculos, total } });
   });
 
-  // ─── DELETE /usuarios/:id (apenas CEO) ──────────────────────
+  // ─── DELETE /usuarios/:id (CEO e Supervisão Comercial) ──────
   fastify.delete('/usuarios/:id', { onRequest: requireAuth }, async (request, reply) => {
-    if (!checkCeo(request, reply)) return;
+    if (!checkGestor(request, reply)) return;
     const ator = (request as any).user;
     const { id } = request.params as { id: string };
     const { confirmar_nome } = (request.query as { confirmar_nome?: string }) || {};
