@@ -489,6 +489,7 @@ export default function UsuariosPage() {
                       { key: 'TECNICO_N2', label: 'Técnico N2' },
                       { key: 'TECNICO_N3', label: 'Técnico N3' },
                       { key: 'VENDEDOR', label: 'Vendedor' },
+                      { key: 'SDR', label: 'SDR' },
                     ].map(p => (
                       <button key={p.key} type="button" onClick={() => applyPresetBtn(p.key)}
                         className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
