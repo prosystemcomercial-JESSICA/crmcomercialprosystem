@@ -211,6 +211,9 @@ export default function UsuariosPage() {
       }
     } catch (e: any) {
       console.error('Erro ao salvar', e);
+      const msg = e?.response?.data?.message || 'Erro ao salvar usuário';
+      const detalhes = e?.response?.data?.errors?.map((er: any) => er.message).join('; ');
+      alert(detalhes ? `${msg}: ${detalhes}` : msg);
     } finally { setSaving(false); }
   };
 
