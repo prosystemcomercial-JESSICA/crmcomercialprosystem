@@ -140,6 +140,19 @@ export const PRESETS: Record<string, ModulosPermissao> = {
     'Aplicativos & Ferramentas': permVer('todos'),
     'Comissões / Bônus': permVer('proprio'),
   },
+
+  // SDR = prospecção/qualificação, não fecha venda. Cadastra e trabalha os próprios
+  // leads (criar/editar), mas sem Propostas/Contratos/Comissões — isso é do vendedor
+  // depois que a supervisão distribui o lead qualificado (ver rota /leads/:id/distribuir-sdr).
+  SDR: {
+    'Dashboard Geral': permVer('todos'),
+    'Empresas / Clientes': { ...permVazia(), ver: true, criar: true, alcance: 'proprio' },
+    'Contatos': permVCE('proprio'),
+    'Leads': permVCE('proprio'),
+    'Comercial / Funil': permVer('proprio'),
+    'Histórico de Solicitações': permVer('proprio'),
+    'Aplicativos & Ferramentas': permVer('todos'),
+  },
 };
 
 // ─── Senha aleatória segura (10 chars: maiúscula + minúscula + número + especial) ─
@@ -171,7 +184,7 @@ const CriarUsuarioSchema = z.object({
   nome: z.string().min(2),
   telefone: z.string().min(8),
   email: z.string().email(),
-  cargo: z.enum(['CEO','SUPERVISAO_COMERCIAL','SUPERVISAO_TECNICA','TECNICO_SUPORTE','TECNICO_IMPLANTACAO','VENDEDOR']),
+  cargo: z.enum(['CEO','SUPERVISAO_COMERCIAL','SUPERVISAO_TECNICA','TECNICO_SUPORTE','TECNICO_IMPLANTACAO','VENDEDOR','SDR']),
   classificacao: z.enum(['N1','N2','N3']).optional().nullable(),
   status: z.enum(['ATIVO','INATIVO','SUSPENSO']).default('ATIVO'),
   observacoes: z.string().optional().nullable(),
