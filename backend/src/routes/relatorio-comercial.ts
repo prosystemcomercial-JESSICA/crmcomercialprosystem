@@ -442,8 +442,20 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
 
   // Sensor de Mercado (Task 8): motivos de perda de leads + concorrentes mencionados,
   // agregados no período. Lead.motivo_perda vem de uma taxonomia fixa (Task 5) — valores
-  // são o texto do rótulo OU "OUTRO: <detalhe>"; agrupamos pela parte antes de ":" para
-  // que todo "OUTRO: ..." caia no mesmo bucket "OUTRO", em vez de virar texto único cada vez.
+  // são a CHAVE da taxonomia (ex.: "JA_TEM_FORNECEDOR") OU "OUTRO: <detalhe>"; agrupamos
+  // pela parte antes de ":" para que todo "OUTRO: ..." caia no mesmo bucket "OUTRO", em
+  // vez de virar texto único cada vez. MOTIVOS_LABEL traduz a chave para o rótulo em
+  // português exibido no relatório (espelha MOTIVOS_PERDA do frontend/app/leads/page.tsx).
+  const MOTIVOS_LABEL: Record<string, string> = {
+    PRECO: 'Preço',
+    JA_TEM_FORNECEDOR: 'Já tem fornecedor',
+    SEM_ORCAMENTO: 'Sem orçamento',
+    TIMING: 'Timing não é agora',
+    SEM_INTERESSE: 'Sem interesse',
+    FUNCIONALIDADE_AUSENTE: 'Funcionalidade ausente',
+    OUTRO: 'Outro',
+  };
+
   fastify.get('/relatorio-comercial/sensor-mercado', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const q = request.query as { data_inicio?: string; data_fim?: string };
@@ -458,9 +470,16 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     const objecoes: Record<string, number> = {};
     const concorrentes: Record<string, number> = {};
     for (const l of perdidos) {
-      const motivo = (l.motivo_perda || 'Não informado').split(':')[0].trim();
+      const chave = (l.motivo_perda || 'NAO_INFORMADO').split(':')[0].trim();
+      const motivo = MOTIVOS_LABEL[chave] || (l.motivo_perda ? chave : 'Não informado');
       objecoes[motivo] = (objecoes[motivo] || 0) + 1;
-      if (l.sistema_atual) concorrentes[l.sistema_atual] = (concorrentes[l.sistema_atual] || 0) + 1;
+      // Concorrentes mencionados só fazem sentido quando o motivo da perda foi
+      // especificamente "já tem fornecedor" — sistema_atual pode estar preenchido
+      // em leads perdidos por outros motivos (preço, timing etc.) e contá-los aqui
+      // infla o sensor de concorrência com ruído que não reflete concorrência real.
+      if (chave === 'JA_TEM_FORNECEDOR' && l.sistema_atual) {
+        concorrentes[l.sistema_atual] = (concorrentes[l.sistema_atual] || 0) + 1;
+      }
     }
 
     return reply.send({

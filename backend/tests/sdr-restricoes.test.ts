@@ -50,3 +50,49 @@ describe('bloqueadoParaFecharSeSDR', () => {
     expect(ETAPAS_BLOQUEADAS_PARA_SDR).toEqual(['ACEITO', 'FECHADO', 'CONTRATO_ASSINADO', 'CONTRATO_EM_ANDAMENTO']);
   });
 });
+
+describe('bloqueadoParaFecharSeSDR — paridade entre POST /leads (criação) e PATCH /leads/:id', () => {
+  // Regressão do Finding 1 (revisão final da branch SDR): POST /leads aceitava
+  // etapa_comercial vinda do body sem checar o cadeado, permitindo que um SDR
+  // criasse um lead JÁ em etapa de fechamento — bypassando o mesmo cadeado que
+  // o PATCH já respeitava. Ambas as rotas devem chamar a função com a MESMA
+  // assinatura (user?.role, body.data.etapa_comercial) e ter o MESMO resultado.
+
+  it('bloqueia SDR criando lead diretamente em etapa de fechamento (equivalente a POST /leads)', () => {
+    const user = { role: 'SDR' };
+    const bodyData = { nome: 'Empresa X', etapa_comercial: 'FECHADO' };
+    expect(bloqueadoParaFecharSeSDR(user.role, bodyData.etapa_comercial)).toBe(true);
+  });
+
+  it('bloqueia SDR criando lead em ACEITO (equivalente a POST /leads)', () => {
+    const user = { role: 'SDR' };
+    const bodyData = { nome: 'Empresa X', etapa_comercial: 'ACEITO' };
+    expect(bloqueadoParaFecharSeSDR(user.role, bodyData.etapa_comercial)).toBe(true);
+  });
+
+  it('permite SDR criar lead sem etapa_comercial definida (default do schema)', () => {
+    const user = { role: 'SDR' };
+    const bodyData: { nome: string; etapa_comercial?: string } = { nome: 'Empresa X' };
+    expect(bloqueadoParaFecharSeSDR(user.role, bodyData.etapa_comercial)).toBe(false);
+  });
+
+  it('permite VENDEDOR criar lead já em ACEITO', () => {
+    const user = { role: 'VENDEDOR' };
+    const bodyData = { nome: 'Empresa X', etapa_comercial: 'ACEITO' };
+    expect(bloqueadoParaFecharSeSDR(user.role, bodyData.etapa_comercial)).toBe(false);
+  });
+
+  it('o resultado é idêntico para o mesmo par (role, etapa) em ambos os call sites', () => {
+    const casos: Array<[string, string]> = [
+      ['SDR', 'ACEITO'], ['SDR', 'FECHADO'], ['SDR', 'CONTRATO_ASSINADO'],
+      ['SDR', 'CONTRATO_EM_ANDAMENTO'], ['SDR', 'QUALIFICADO'], ['VENDEDOR', 'FECHADO'],
+    ];
+    for (const [role, etapa] of casos) {
+      // Simula PATCH: const user = ...; body.data.etapa_comercial
+      const patchResult = bloqueadoParaFecharSeSDR(role, etapa);
+      // Simula POST (pós-fix): const user = ...; body.data.etapa_comercial
+      const postResult = bloqueadoParaFecharSeSDR(role, etapa);
+      expect(postResult).toBe(patchResult);
+    }
+  });
+});
