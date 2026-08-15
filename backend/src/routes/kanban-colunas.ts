@@ -2,16 +2,21 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
+// NOTA: a coluna QUALIFICADO (ordem 3) foi criada manualmente em produção
+// (escrita única direta no banco) e este array precisa espelhar exatamente
+// a ordem que já existe lá, para que um seed em ambiente novo (dev/DR/prisma
+// db push) fique idêntico — ver Finding 2 da revisão final da branch SDR.
 const DEFAULT_COLUMNS = [
   { chave: 'NOVO_LEAD',          nome: 'Novo Lead',           cor: '#6b7280', ordem: 0,  fixa: true },
   { chave: 'PRIMEIRO_CONTATO',   nome: 'Primeiro Contato',    cor: '#2563eb', ordem: 1,  fixa: true },
   { chave: 'EM_ATENDIMENTO',     nome: 'Em Atendimento',      cor: '#7c3aed', ordem: 2,  fixa: false },
-  { chave: 'AGUARDANDO_RETORNO', nome: 'Aguardando Retorno',  cor: '#d97706', ordem: 3,  fixa: false },
-  { chave: 'PROPOSTA_A_GERAR',   nome: 'Proposta a Gerar',    cor: '#0891b2', ordem: 4,  fixa: false },
-  { chave: 'PROPOSTA_ENVIADA',   nome: 'Proposta Enviada',    cor: '#4B8EC8', ordem: 5,  fixa: false },
-  { chave: 'EM_NEGOCIACAO',      nome: 'Em Negociação',       cor: '#dc2626', ordem: 6,  fixa: false },
-  { chave: 'FECHADO',            nome: 'Fechado',             cor: '#15803d', ordem: 7,  fixa: true },
-  { chave: 'PERDIDO',            nome: 'Perdido',             cor: '#9ca3af', ordem: 8,  fixa: true },
+  { chave: 'QUALIFICADO',        nome: 'Qualificado',         cor: '#0d9488', ordem: 3,  fixa: true },
+  { chave: 'AGUARDANDO_RETORNO', nome: 'Aguardando Retorno',  cor: '#d97706', ordem: 4,  fixa: false },
+  { chave: 'PROPOSTA_A_GERAR',   nome: 'Proposta a Gerar',    cor: '#0891b2', ordem: 5,  fixa: false },
+  { chave: 'PROPOSTA_ENVIADA',   nome: 'Proposta Enviada',    cor: '#4B8EC8', ordem: 6,  fixa: false },
+  { chave: 'EM_NEGOCIACAO',      nome: 'Em Negociação',       cor: '#dc2626', ordem: 7,  fixa: false },
+  { chave: 'FECHADO',            nome: 'Fechado',             cor: '#15803d', ordem: 8,  fixa: true },
+  { chave: 'PERDIDO',            nome: 'Perdido',             cor: '#9ca3af', ordem: 9,  fixa: true },
 ];
 
 export async function kanbanColunasRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {

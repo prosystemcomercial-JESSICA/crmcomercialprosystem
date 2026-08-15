@@ -742,7 +742,7 @@ export default function LeadsPage() {
     if (perdaMotivo === 'OUTRO' && !perdaTextoOutro.trim()) return;
     const motivoFinal = perdaMotivo === 'OUTRO'
       ? `OUTRO: ${perdaTextoOutro.trim()}`
-      : MOTIVOS_PERDA.find(m => m.value === perdaMotivo)?.label || perdaMotivo;
+      : MOTIVOS_PERDA.find(m => m.value === perdaMotivo)?.value || perdaMotivo;
     try {
       await apiClient.updateLead(movingToPerda.id, { etapa_comercial: 'PERDIDO', motivo_perda: motivoFinal, status_atendimento: 'PERDIDO' });
       await loadData();

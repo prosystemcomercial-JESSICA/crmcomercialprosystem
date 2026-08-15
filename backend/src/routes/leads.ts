@@ -594,6 +594,9 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
 
     const user = (request as any).user;
+    if (bloqueadoParaFecharSeSDR(user?.role, body.data.etapa_comercial)) {
+      return reply.status(403).send({ status: 'error', message: 'SDR não pode fechar leads — encaminhe para um vendedor.' });
+    }
     const data: any = { ...body.data, created_by: user?.id || 'system' };
     if (data.email === '') delete data.email;
     if (data.responsavel_email === '') delete data.responsavel_email;
