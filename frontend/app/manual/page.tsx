@@ -10,11 +10,11 @@ import {
   CheckCircle2, AlertCircle, ArrowRight, Play, Sparkles,
   Target, TrendingUp, Headphones, Activity, Flame, Megaphone,
   LayoutDashboard, Trophy as Medal, ClipboardList, FileCheck2, Rocket,
-  KeyRound, RefreshCw, Building2
+  KeyRound, RefreshCw, Building2, Send, PercentCircle
 } from 'lucide-react';
 
 // ───────── Tipos ─────────────────────────────────────────────
-type Cargo = 'CEO' | 'ADMIN' | 'DIRETOR' | 'SUPERVISAO_COMERCIAL' | 'SUPERVISAO_TECNICA' | 'TECNICO_SUPORTE' | 'VENDEDOR';
+type Cargo = 'CEO' | 'ADMIN' | 'DIRETOR' | 'SUPERVISAO_COMERCIAL' | 'SUPERVISAO_TECNICA' | 'TECNICO_SUPORTE' | 'VENDEDOR' | 'SDR';
 
 type Secao = {
   id: string;
@@ -228,11 +228,11 @@ const VENDEDOR_SECOES: Secao[] = [
     blocos: [
       {
         titulo: 'Papéis da equipe',
-        conteudo: 'Jessica Cardoso (Supervisora/Diretora Comercial): gestão da operação, planejamento estratégico, acompanhamento de metas e indicadores, desenvolvimento da equipe, negociações estratégicas, aprovação de condições especiais, fechamento de contratos estratégicos, expansão da carteira e treinamento. Meta: garantir o atingimento das metas gerais da equipe. Sarah (SDR e Closer): prospecção ativa, captação, ligações, WhatsApp, qualificação, agendamento, demonstrações, follow-up, negociação e fechamento. Vende upgrades, Comunicação entre Lojas, PAC, TEF e Auditoria Tributária. Atualização diária do CRM. Meta: 3 a 7 contratos fechados por mês.',
+        conteudo: 'Jessica Cardoso (Supervisora/Diretora Comercial): gestão da operação, planejamento estratégico, acompanhamento de metas e indicadores, desenvolvimento da equipe, distribuição dos leads qualificados pelos SDRs para os vendedores, negociações estratégicas, aprovação de condições especiais, fechamento de contratos estratégicos, expansão da carteira e treinamento. Meta: garantir o atingimento das metas gerais da equipe. SDR (pré-vendas): prospecção ativa, captação, ligações, WhatsApp, qualificação do lead (dor, decisor, urgência, sistema atual) e atualização diária do CRM. Não gera proposta nem fecha venda — entrega o lead qualificado para a supervisão distribuir a um vendedor/Closer. Vendedor (Closer): recebe o lead já qualificado, conduz demonstração, negociação, tratamento de objeções e fechamento. Vende upgrades, Comunicação entre Lojas, PAC, TEF e Auditoria Tributária.',
       },
       {
         titulo: 'Processo comercial (5 etapas)',
-        conteudo: '1) Prospecção (Sarah): pesquisa de mercado, captação de leads, 1º contato, qualificação. 2) Apresentação (Sarah): demonstração, levantamento de necessidades, oportunidades. 3) Negociação (Sarah): proposta, negociação, tratamento de objeções. 4) Fechamento (Sarah): assinatura, confirmação da venda, encaminhar para implantação. 5) Gestão (Jessica): indicadores, oportunidades, revisão de metas, estratégia.',
+        conteudo: '1) Prospecção (SDR): pesquisa de mercado, captação de leads, 1º contato, qualificação até a etapa "Qualificado". 2) Distribuição (Supervisão): revisa o lead qualificado em "Leads para Distribuir" e encaminha para um vendedor. 3) Apresentação e Negociação (Vendedor/Closer): demonstração, levantamento de necessidades, proposta, tratamento de objeções. 4) Fechamento (Vendedor/Closer): assinatura, confirmação da venda, encaminhar para implantação. 5) Gestão (Jessica): indicadores, oportunidades, revisão de metas, estratégia.',
       },
       {
         titulo: 'Regras operacionais',
@@ -240,11 +240,11 @@ const VENDEDOR_SECOES: Secao[] = [
       },
       {
         titulo: 'Reunião comercial semanal',
-        conteudo: '30 minutos, com Jessica e Sarah. Pauta: leads, apresentações, propostas, contratos, negociações em andamento, upgrades, Comunicação, PAC, TEF, Auditoria e indicadores.',
+        conteudo: '30 minutos, com Jessica, SDRs e vendedores. Pauta: leads em prospecção, leads qualificados para distribuir, apresentações, propostas, contratos, negociações em andamento, upgrades, Comunicação, PAC, TEF, Auditoria e indicadores.',
       },
       {
         titulo: 'Comissionamento',
-        conteudo: 'Novos contratos (setup): 15% para Sarah/vendedor, 5% para Jessica (override de todos os setups da equipe). Upgrade de plano (setup): 15% / 5%. Comunicação entre Lojas (setup): 15% / 5%. PAC: R$ 50,00 por venda (só vendedor). TEF: R$ 50,00 por ativação (só vendedor). Auditoria Tributária (Avant/Imendes): R$ 50,00 por ativação (só vendedor). Quando a Jessica atua direto na venda, recebe 15% como vendedora em vez do override de 5%.',
+        conteudo: 'A comissão de fechamento é sempre do vendedor/Closer que assina o contrato — o SDR não recebe comissão por qualificar/distribuir o lead. Novos contratos (setup): 15% para o vendedor, 5% para Jessica (override de todos os setups da equipe). Upgrade de plano (setup): 15% / 5%. Comunicação entre Lojas (setup): 15% / 5%. PAC: R$ 50,00 por venda (só vendedor). TEF: R$ 50,00 por ativação (só vendedor). Auditoria Tributária (Avant/Imendes): R$ 50,00 por ativação (só vendedor). Quando a Jessica atua direto na venda, recebe 15% como vendedora em vez do override de 5%.',
       },
       {
         titulo: 'Bônus trimestral — Programa Acelerador',
@@ -263,13 +263,69 @@ const VENDEDOR_SECOES: Secao[] = [
   },
 ];
 
+const SDR_SECOES: Secao[] = [
+  {
+    id: 'sdr-papel',
+    titulo: 'Seu papel como SDR',
+    icone: Target,
+    cor: '#ea580c',
+    resumo: 'Prospectar e qualificar — não fechar',
+    blocos: [
+      {
+        titulo: 'O que você faz',
+        conteudo: 'Você prospecta ativamente (WhatsApp, ligação, redes) e atende leads que chegam pelo site/anúncio. Seu trabalho é qualificar: entender a dor do cliente, quem decide a compra, se há urgência e orçamento, qual sistema ele usa hoje. Quanto mais completo o cadastro, mais fácil é para o vendedor fechar depois.',
+      },
+      {
+        titulo: 'O que você NÃO faz',
+        conteudo: 'Você não gera proposta, não negocia valores, não fecha contrato e não recebe comissão de venda. O sistema bloqueia isso de propósito — se você tentar mover um lead para "Aceito" ou "Fechado", vai dar erro. Isso é intencional: fechamento é sempre do vendedor/Closer.',
+      },
+      {
+        titulo: 'Para onde vai o lead depois',
+        conteudo: 'Quando terminar de qualificar, mova o card para a coluna "Qualificado" no Pipeline. A partir daí, a supervisão revisa e distribui o lead para um vendedor — você não escolhe o vendedor nem faz esse encaminhamento diretamente.',
+      },
+    ],
+  },
+  {
+    id: 'sdr-completude',
+    titulo: 'Completude do cadastro',
+    icone: PercentCircle,
+    cor: '#16a34a',
+    resumo: 'Quanto mais completo, mais fácil pro vendedor fechar',
+    blocos: [
+      {
+        titulo: 'O badge de %',
+        conteudo: 'Cada lead mostra um selo colorido com a % de completude, calculado automaticamente a partir de campos como telefone, email, segmento, cidade, número de lojas, sistema atual, nome do decisor e observações. Verde (80%+) está pronto para distribuir. Amarelo (50-79%) está ok, mas pode melhorar. Vermelho (abaixo de 50%) precisa de mais informação antes de qualificar.',
+        dica: 'A supervisão pode devolver um lead pedindo mais dados se a completude estiver baixa — capriche no cadastro para não ir e voltar.',
+      },
+      {
+        titulo: 'Taxonomia de motivo de perda',
+        conteudo: 'Se um lead não vingar, ao mover para "Perdido" escolha o motivo numa lista fixa (Preço, Já tem fornecedor, Sem orçamento, Timing, Sem interesse, Funcionalidade ausente, Outro). Isso alimenta o relatório de inteligência de mercado da supervisão — não é burocracia, é dado real sobre o que o mercado está dizendo.',
+      },
+    ],
+  },
+  {
+    id: 'sdr-desempenho',
+    titulo: 'Meu Desempenho',
+    icone: TrendingUp,
+    cor: '#4B8EC8',
+    resumo: 'Acompanhe seu próprio funil de prospecção',
+    blocos: [
+      {
+        titulo: 'O funil completo',
+        conteudo: 'Em "Meu Desempenho" você vê seu funil: tentativas de contato → contatos efetivos → leads qualificados → reuniões agendadas → reuniões realizadas → leads distribuídos → vendas originadas por você. Também vê as taxas de conversão entre cada etapa.',
+        dica: 'Leads "distribuídos" e "vendas originadas" contam mesmo depois que o vendedor assume o lead — o crédito da prospecção continua sendo seu.',
+      },
+    ],
+  },
+];
+
 const SUP_COMERCIAL_SECOES: Secao[] = [
   {
     id: 'gestao-equipe',
     titulo: 'Gestão da equipe comercial',
     icone: Users,
     cor: '#4B8EC8',
-    resumo: 'Acompanhe e oriente seus vendedores',
+    resumo: 'Acompanhe e oriente vendedores e SDRs',
     blocos: [
       {
         titulo: 'Filtro por colaborador na Agenda',
@@ -283,6 +339,28 @@ const SUP_COMERCIAL_SECOES: Secao[] = [
       {
         titulo: 'Etiquetas de responsável',
         conteudo: 'Em cada atividade aparece a etiqueta colorida do responsável (Primeiro nome · Cargo). Cada vendedor tem cor própria. Identifica rapidamente quem cuida do quê.',
+      },
+    ],
+  },
+  {
+    id: 'distribuir-leads-sdr',
+    titulo: 'Distribuir leads qualificados pelos SDRs',
+    icone: Send,
+    cor: '#ea580c',
+    resumo: 'Encaminhe leads prontos para um vendedor, ou devolva pedindo mais dados',
+    blocos: [
+      {
+        titulo: 'Onde ficam os leads prontos',
+        conteudo: 'Em "Leads para Distribuir" você vê todos os leads que o SDR moveu para a coluna "Qualificado" no Pipeline. Cada card mostra o nome da empresa, qual SDR cadastrou, o % de completude do cadastro e a temperatura do lead.',
+      },
+      {
+        titulo: 'Distribuir para um vendedor',
+        conteudo: 'Clique em "Distribuir" no card do lead, escolha o vendedor responsável. O lead passa a ser dele (aparece no sininho de atribuição) e o vendedor conduz demonstração, proposta e fechamento a partir daí.',
+      },
+      {
+        titulo: 'Devolver para o SDR',
+        conteudo: 'Se o cadastro estiver incompleto (poucas informações, decisor não identificado, etc), clique em "Devolver" e escreva o motivo — é obrigatório. O lead volta para o SDR original com uma observação explicando o que falta, e o SDR é notificado.',
+        dica: 'Use o % de completude como guia rápido: abaixo de 50% normalmente vale a pena devolver pedindo mais informação antes de passar ao vendedor.',
       },
     ],
   },
@@ -459,7 +537,7 @@ const CEO_SECOES: Secao[] = [
     blocos: [
       {
         titulo: 'Cadastrar usuário',
-        conteudo: 'Em "Usuários" → "Novo Usuário". Informe nome, email, telefone, cargo (CEO, Sup. Comercial, Sup. Técnica, Técnico Suporte, Vendedor) e classificação (N1/N2/N3 para técnicos). Sistema gera senha aleatória e envia por email.',
+        conteudo: 'Em "Usuários" → "Novo Usuário". Informe nome, email, telefone, cargo (CEO, Sup. Comercial, Sup. Técnica, Técnico Suporte, Vendedor ou SDR) e classificação (N1/N2/N3 para técnicos). Sistema gera senha aleatória e envia por email.',
         passos: [
           'Usuários → "+ Novo Usuário"',
           'Preencher nome, email, telefone',
@@ -467,6 +545,7 @@ const CEO_SECOES: Secao[] = [
           'Ajustar módulos liberados (se necessário)',
           'Salvar — senha vai para o email automaticamente',
         ],
+        dica: 'Supervisão Comercial tem a mesma permissão do CEO neste módulo — pode criar, editar, redefinir senha e excluir usuários, não só o CEO.',
       },
       {
         titulo: 'Inativar / Reativar',
@@ -532,10 +611,11 @@ const SECOES_POR_CARGO: Record<string, Secao[]> = {
   CEO:                     [...COMUM_TODOS, ...CEO_SECOES, ...SUP_COMERCIAL_SECOES, ...SUP_TECNICA_SECOES],
   ADMIN:                   [...COMUM_TODOS, ...CEO_SECOES, ...SUP_COMERCIAL_SECOES, ...SUP_TECNICA_SECOES],
   DIRETOR:                 [...COMUM_TODOS, ...CEO_SECOES, ...SUP_COMERCIAL_SECOES, ...SUP_TECNICA_SECOES],
-  SUPERVISAO_COMERCIAL:    [...COMUM_TODOS, ...SUP_COMERCIAL_SECOES, ...VENDEDOR_SECOES],
+  SUPERVISAO_COMERCIAL:    [...COMUM_TODOS, ...SUP_COMERCIAL_SECOES, ...VENDEDOR_SECOES, ...SDR_SECOES],
   SUPERVISAO_TECNICA:      [...COMUM_TODOS, ...SUP_TECNICA_SECOES, ...TECNICO_SECOES],
   TECNICO_SUPORTE:         [...COMUM_TODOS, ...TECNICO_SECOES],
   VENDEDOR:                [...COMUM_TODOS, ...VENDEDOR_SECOES],
+  SDR:                     [...COMUM_TODOS, ...SDR_SECOES],
 };
 
 const CARGO_LABEL: Record<string, string> = {
@@ -543,12 +623,14 @@ const CARGO_LABEL: Record<string, string> = {
   SUPERVISAO_COMERCIAL: 'Supervisão Comercial',
   SUPERVISAO_TECNICA: 'Supervisão Técnica',
   TECNICO_SUPORTE: 'Técnico de Suporte', VENDEDOR: 'Vendedor',
+  SDR: 'SDR (Pré-vendas)',
 };
 
 const CARGO_COR: Record<string, string> = {
   CEO: '#7c3aed', ADMIN: '#dc2626', DIRETOR: '#7c3aed',
   SUPERVISAO_COMERCIAL: '#4B8EC8', SUPERVISAO_TECNICA: '#0891b2',
   TECNICO_SUPORTE: '#0891b2', VENDEDOR: '#16a34a',
+  SDR: '#ea580c',
 };
 
 // ─── Componente Principal ─────────────────────────────────────
