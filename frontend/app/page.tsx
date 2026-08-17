@@ -12,14 +12,14 @@ export default function Home() {
     return (
       <div
         className="flex items-center justify-center min-h-screen"
-        style={{ background: '#0D2238' }}
+        style={{ background: 'var(--ps-navy)' }}
       >
         <div className="flex flex-col items-center gap-4">
           <div
             className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: '#4B8EC8', borderTopColor: 'transparent' }}
+            style={{ borderColor: 'var(--t-primary)', borderTopColor: 'transparent' }}
           />
-          <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>
+          <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>
             Carregando...
           </p>
         </div>
@@ -40,20 +40,20 @@ export default function Home() {
       {/* ── Painel esquerdo — brand ProSystem ─────────────── */}
       <div
         className="hidden lg:flex flex-col justify-between w-[46%] p-12 relative overflow-hidden"
-        style={{ background: '#0D2238' }}
+        style={{ background: 'var(--ps-navy)' }}
       >
         {/* Decorative circles */}
         <div
           className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-5"
-          style={{ background: '#4B8EC8' }}
+          style={{ background: 'var(--t-primary)' }}
         />
         <div
           className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full opacity-5"
-          style={{ background: '#4B8EC8' }}
+          style={{ background: 'var(--t-primary)' }}
         />
         <div
           className="absolute top-1/2 right-12 w-px h-48 -translate-y-1/2 opacity-10"
-          style={{ background: 'linear-gradient(to bottom, transparent, #4B8EC8, transparent)' }}
+          style={{ background: 'linear-gradient(to bottom, transparent, var(--t-primary), transparent)' }}
         />
 
         {/* Logo */}
@@ -73,14 +73,14 @@ export default function Home() {
           <div>
             <h1
               className="text-3xl font-bold leading-tight mb-3"
-              style={{ color: '#ffffff' }}
+              style={{ color: 'var(--t-text-inverse)' }}
             >
               Inteligência comercial
               <br />
               <span style={{ color: 'var(--t-primary)' }}>para crescer mais.</span>
             </h1>
-            <p className="text-base leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>
-              Gerencie leads, funil de vendas, retenção e performance da sua equipe em um único lugar.
+            <p className="text-base leading-relaxed" style={{ color: 'var(--t-text-muted)' }}>
+              O sistema de gestão feito para farmácias, manipulação, padarias e varejo — leads, funil de vendas, retenção e performance da sua equipe em um único lugar.
             </p>
           </div>
 
@@ -94,12 +94,12 @@ export default function Home() {
               <div
                 key={stat.label}
                 className="rounded-xl p-4"
-                style={{ background: 'rgba(75,142,200,0.08)', border: '1px solid rgba(75,142,200,0.15)' }}
+                style={{ background: 'color-mix(in srgb, var(--t-primary) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--t-primary) 15%, transparent)' }}
               >
                 <p className="text-xl font-bold" style={{ color: 'var(--t-primary)' }}>
                   {stat.num}
                 </p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
                   {stat.label}
                 </p>
               </div>
@@ -109,7 +109,7 @@ export default function Home() {
 
         {/* Footer */}
         <div className="relative z-10">
-          <p className="text-xs" style={{ color: '#2D5A7A' }}>
+          <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>
             © {new Date().getFullYear()} ProSystem Sistemas · Vitória, ES
           </p>
         </div>

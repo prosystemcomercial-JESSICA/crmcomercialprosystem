@@ -73,6 +73,15 @@
   --ps-nav-text:    #A8C8E8;
   --ps-nav-muted:   #4A6E8A;
 
+  /* Semânticas — fixas em todos os temas de marca (erro/sucesso não mudam
+     com Azul/Laranja/Verde, são estado universal). */
+  --t-error:        #BE123C;
+  --t-error-bg:     #FFF1F2;
+  --t-error-border: #FECDD3;
+  --t-error-strong: #F43F5E;
+  --t-success:        #16A34A;
+  --t-success-bg:     #F0FDF4;
+
   --radius: 0.5rem;
 }
 
