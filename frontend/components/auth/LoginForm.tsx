@@ -40,12 +40,17 @@ export default function LoginForm() {
       setError('');
       setLoading(true);
       const u = await login(data.email, data.password);
-      await new Promise(r => setTimeout(r, 400));
       // Primeiro acesso ou após reset: obriga a definir uma nova senha.
       if (u?.precisa_trocar_senha) router.push('/alterar-senha?trocar=1');
       else router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Credenciais inválidas. Tente novamente.');
+      if (!err.response) {
+        setError('Erro de conexão. Verifique sua internet e tente novamente.');
+      } else if (err.response.status === 401) {
+        setError('E-mail ou senha incorretos. Verifique e tente novamente.');
+      } else {
+        setError(err.response?.data?.message || 'Não foi possível entrar. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }
@@ -91,11 +96,11 @@ export default function LoginForm() {
   const inputBase: React.CSSProperties = {
     width: '100%',
     padding: '10px 12px 10px 40px',
-    border: '1px solid #C3DCFC',
+    border: '1px solid var(--t-primary-border)',
     borderRadius: '10px',
     fontSize: '14px',
-    color: '#0D2238',
-    background: '#ffffff',
+    color: 'var(--t-text-primary)',
+    background: 'var(--t-card-bg)',
     outline: 'none',
     transition: 'border-color 0.15s, box-shadow 0.15s',
   };
@@ -107,7 +112,9 @@ export default function LoginForm() {
         {error && (
           <div
             className="flex items-center gap-2.5 p-3 rounded-xl text-sm"
-            style={{ background: '#FFF1F2', border: '1px solid #FECDD3', color: '#BE123C' }}
+            role="alert"
+            aria-live="assertive"
+            style={{ background: 'var(--t-error-bg)', border: '1px solid var(--t-error-border)', color: 'var(--t-error)' }}
           >
             <AlertCircle size={15} className="flex-shrink-0" />
             {error}
@@ -116,57 +123,61 @@ export default function LoginForm() {
 
         {/* Email */}
         <div>
-          <label className="block text-sm font-semibold mb-1.5" style={{ color: '#0D2238' }}>
+          <label htmlFor="login-email" className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--t-text-primary)' }}>
             E-mail
           </label>
           <div className="relative">
-            <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#7AAACB' }} />
+            <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--t-text-muted)' }} />
             <input
               {...register('email')}
+              id="login-email"
               type="email"
+              autoComplete="email"
               placeholder="seu@email.com"
               style={inputBase}
               onFocus={e => {
-                e.target.style.borderColor = '#4B8EC8';
-                e.target.style.boxShadow = '0 0 0 3px rgba(75,142,200,0.15)';
+                e.target.style.borderColor = 'var(--t-primary)';
+                e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--t-primary) 15%, transparent)';
               }}
               onBlur={e => {
-                e.target.style.borderColor = errors.email ? '#F43F5E' : '#C3DCFC';
+                e.target.style.borderColor = errors.email ? 'var(--t-error-strong)' : 'var(--t-primary-border)';
                 e.target.style.boxShadow = 'none';
               }}
             />
           </div>
-          {errors.email && <p className="text-xs mt-1" style={{ color: '#BE123C' }}>{errors.email.message}</p>}
+          {errors.email && <p className="text-xs mt-1" style={{ color: 'var(--t-error)' }}>{errors.email.message}</p>}
         </div>
 
         {/* Senha */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-semibold" style={{ color: '#0D2238' }}>Senha</label>
+            <label htmlFor="login-password" className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>Senha</label>
             <button
               type="button"
               onClick={() => setShowForgot(true)}
               className="text-xs font-medium transition-colors"
-              style={{ color: '#4B8EC8' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#1A4E82')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#4B8EC8')}
+              style={{ color: 'var(--t-primary)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--t-primary-deep)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-primary)')}
             >
               Esqueci a senha
             </button>
           </div>
           <div className="relative">
-            <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#7AAACB' }} />
+            <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--t-text-muted)' }} />
             <input
               {...register('password')}
+              id="login-password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
               placeholder="••••••••"
               style={{ ...inputBase, paddingRight: '40px' }}
               onFocus={e => {
-                e.target.style.borderColor = '#4B8EC8';
-                e.target.style.boxShadow = '0 0 0 3px rgba(75,142,200,0.15)';
+                e.target.style.borderColor = 'var(--t-primary)';
+                e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--t-primary) 15%, transparent)';
               }}
               onBlur={e => {
-                e.target.style.borderColor = errors.password ? '#F43F5E' : '#C3DCFC';
+                e.target.style.borderColor = errors.password ? 'var(--t-error-strong)' : 'var(--t-primary-border)';
                 e.target.style.boxShadow = 'none';
               }}
             />
@@ -174,13 +185,14 @@ export default function LoginForm() {
               type="button"
               onClick={() => setShowPassword(v => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2"
-              style={{ color: '#7AAACB' }}
+              style={{ color: 'var(--t-text-muted)' }}
               tabIndex={-1}
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
             >
               {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
-          {errors.password && <p className="text-xs mt-1" style={{ color: '#BE123C' }}>{errors.password.message}</p>}
+          {errors.password && <p className="text-xs mt-1" style={{ color: 'var(--t-error)' }}>{errors.password.message}</p>}
         </div>
 
         {/* Submit */}
@@ -189,8 +201,8 @@ export default function LoginForm() {
           disabled={loading}
           className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
           style={{
-            background: 'linear-gradient(135deg, #4B8EC8 0%, #2E6EAB 100%)',
-            boxShadow: '0 4px 12px rgba(75,142,200,0.30)',
+            background: 'linear-gradient(135deg, var(--t-primary-dark) 0%, var(--t-primary-deep) 100%)',
+            boxShadow: '0 4px 12px color-mix(in srgb, var(--t-primary) 30%, transparent)',
           }}
           onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'none'; }}
@@ -213,25 +225,29 @@ export default function LoginForm() {
       {showForgot && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(13,34,56,0.60)', backdropFilter: 'blur(4px)' }}
+          style={{ background: 'color-mix(in srgb, var(--ps-navy) 60%, transparent)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) closeForgot(); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="forgot-password-title"
         >
           <div
             className="w-full max-w-sm rounded-2xl shadow-2xl"
-            style={{ background: '#ffffff' }}
+            style={{ background: 'var(--t-card-bg)' }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 pt-6 pb-4" style={{ borderBottom: '1px solid #EBF4FF' }}>
+            <div className="flex items-center justify-between px-6 pt-6 pb-4" style={{ borderBottom: '1px solid var(--t-primary-light)' }}>
               <div>
-                <h3 className="text-base font-bold" style={{ color: '#0D2238' }}>Recuperar senha</h3>
-                <p className="text-xs mt-0.5" style={{ color: '#7AAACB' }}>Enviaremos uma nova senha para seu e-mail</p>
+                <h3 id="forgot-password-title" className="text-base font-bold" style={{ color: 'var(--t-text-primary)' }}>Recuperar senha</h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Enviaremos uma nova senha para seu e-mail</p>
               </div>
               <button
                 onClick={closeForgot}
                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                style={{ background: '#F4F7FB', color: '#7AAACB' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#EBF4FF')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#F4F7FB')}
+                aria-label="Fechar"
+                style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-muted)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--t-content-bg)')}
               >
                 <X size={14} />
               </button>
@@ -241,14 +257,14 @@ export default function LoginForm() {
             <div className="px-6 py-5">
               {forgotStatus === 'success' ? (
                 <div className="flex flex-col items-center text-center gap-3 py-2">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#F0FDF4' }}>
-                    <CheckCircle size={24} style={{ color: '#16A34A' }} />
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'var(--t-success-bg)' }}>
+                    <CheckCircle size={24} style={{ color: 'var(--t-success)' }} />
                   </div>
-                  <p className="text-sm leading-relaxed" style={{ color: '#4A6E8A' }}>{forgotMsg}</p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{forgotMsg}</p>
                   <button
                     onClick={closeForgot}
                     className="mt-2 w-full py-2.5 rounded-xl text-sm font-semibold text-white"
-                    style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}
+                    style={{ background: 'linear-gradient(135deg, var(--t-primary-dark), var(--t-primary-deep))' }}
                   >
                     Entendido
                   </button>
@@ -257,30 +273,32 @@ export default function LoginForm() {
                 <>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold mb-1.5" style={{ color: '#0D2238' }}>
+                      <label htmlFor="forgot-email" className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--t-text-primary)' }}>
                         Seu e-mail de acesso
                       </label>
                       <div className="relative">
-                        <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#7AAACB' }} />
+                        <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--t-text-muted)' }} />
                         <input
+                          id="forgot-email"
                           type="email"
+                          autoComplete="email"
                           value={forgotEmail}
                           onChange={e => setForgotEmail(e.target.value)}
                           placeholder="seu@email.com"
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleForgot(); } }}
                           style={{
                             width: '100%', padding: '10px 12px 10px 40px',
-                            border: `1px solid ${forgotStatus === 'error' ? '#FECDD3' : '#C3DCFC'}`,
-                            borderRadius: '10px', fontSize: '14px', color: '#0D2238',
-                            background: '#fff', outline: 'none',
+                            border: `1px solid ${forgotStatus === 'error' ? 'var(--t-error-border)' : 'var(--t-primary-border)'}`,
+                            borderRadius: '10px', fontSize: '14px', color: 'var(--t-text-primary)',
+                            background: 'var(--t-card-bg)', outline: 'none',
                           }}
-                          onFocus={e => { e.target.style.borderColor = '#4B8EC8'; e.target.style.boxShadow = '0 0 0 3px rgba(75,142,200,0.15)'; }}
-                          onBlur={e => { e.target.style.borderColor = '#C3DCFC'; e.target.style.boxShadow = 'none'; }}
+                          onFocus={e => { e.target.style.borderColor = 'var(--t-primary)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--t-primary) 15%, transparent)'; }}
+                          onBlur={e => { e.target.style.borderColor = 'var(--t-primary-border)'; e.target.style.boxShadow = 'none'; }}
                           autoFocus
                         />
                       </div>
                       {forgotStatus === 'error' && (
-                        <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: '#BE123C' }}>
+                        <p className="text-xs mt-1.5 flex items-center gap-1" role="alert" style={{ color: 'var(--t-error)' }}>
                           <AlertCircle size={12} /> {forgotMsg}
                         </p>
                       )}
@@ -290,7 +308,7 @@ export default function LoginForm() {
                       onClick={handleForgot}
                       disabled={forgotLoading}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-                      style={{ background: 'linear-gradient(135deg, #4B8EC8, #2E6EAB)', boxShadow: '0 4px 12px rgba(75,142,200,0.25)' }}
+                      style={{ background: 'linear-gradient(135deg, var(--t-primary-dark), var(--t-primary-deep))', boxShadow: '0 4px 12px color-mix(in srgb, var(--t-primary) 25%, transparent)' }}
                     >
                       {forgotLoading ? (
                         <span className="flex items-center justify-center gap-2">
@@ -304,7 +322,7 @@ export default function LoginForm() {
                     <button
                       onClick={closeForgot}
                       className="w-full py-2 text-sm font-medium"
-                      style={{ color: '#7AAACB' }}
+                      style={{ color: 'var(--t-text-muted)' }}
                     >
                       Cancelar
                     </button>
