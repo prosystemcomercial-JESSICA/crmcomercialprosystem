@@ -28,6 +28,13 @@ export class CasoChurnService {
       throw new NotFoundError(`Cliente ${data.clienteId} não encontrado`);
     }
 
+    // Cliente já inativo: churn é sobre reter um cliente ativo em risco, não faz
+    // sentido abrir caso para quem já saiu. Bloqueia a criação (o front mostra um
+    // alerta explicando) em vez de criar um caso que nunca deveria ter existido.
+    if (cliente.situacao === 'INATIVA') {
+      throw new BadRequestError(`O cliente "${cliente.nome}" já está inativo — não é possível abrir um novo caso de churn para ele.`);
+    }
+
     // ANTI-DUPLICAÇÃO: se o cliente já tem um caso ABERTO (não perdido/recuperado),
     // não cria outro — devolve o existente. Evita múltiplos casos por duplo clique.
     const casoAberto = await this.prisma.casoChurn.findFirst({
@@ -131,14 +138,32 @@ export class CasoChurnService {
         where,
         skip: page * limit,
         take: limit,
-        include: { cliente: true },
+        include: {
+          cliente: true,
+          // Só a atualização mais recente — o front usa isso pra calcular
+          // "sem contato há X dias" em casos financeiros (EM_ATRASO/INADIMPLENTE),
+          // sem precisar trazer a timeline inteira na listagem.
+          atualizacoes: { orderBy: { created_at: 'desc' }, take: 1 } as any,
+        },
         orderBy: { created_at: 'desc' }
       }),
       this.prisma.casoChurn.count({ where })
     ]);
 
+    // dias_sem_contato: diferença entre agora e (última atualização OU abertura do
+    // caso, se nunca houve atualização). Só calculado para casos financeiros em
+    // atraso/inadimplência — é o dado que embasa o alerta visual no front.
+    const agora = Date.now();
+    const casosComAlerta = casos.map((c: any) => {
+      const financeiroEmRisco = c.fin_situacao === 'EM_ATRASO' || c.fin_situacao === 'INADIMPLENTE';
+      if (!financeiroEmRisco) return { ...c, dias_sem_contato: null };
+      const ultimaAtualizacao = c.atualizacoes?.[0]?.created_at || c.created_at;
+      const diasSemContato = Math.floor((agora - new Date(ultimaAtualizacao).getTime()) / 86400000);
+      return { ...c, dias_sem_contato: diasSemContato };
+    });
+
     return {
-      data: casos,
+      data: casosComAlerta,
       pagination: {
         page,
         limit,

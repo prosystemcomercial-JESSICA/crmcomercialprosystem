@@ -17,6 +17,7 @@ interface Caso {
   fin_valor_atraso?: number;
   fin_dias_atraso?: number;
   fin_observacao?: string;
+  dias_sem_contato?: number | null;
   updated_at?: string;
   created_at: string;
   reneg_ativa?: boolean;
@@ -492,6 +493,14 @@ export default function CasosPage() {
                         {caso.sistema_removido_em && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-200 text-gray-700 border border-gray-300" title={`Sistema removido em ${new Date(caso.sistema_removido_em).toLocaleDateString('pt-BR')}`}>
                             🗑️ Removido
+                          </span>
+                        )}
+                        {typeof caso.dias_sem_contato === 'number' && caso.dias_sem_contato >= 3 && (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${caso.dias_sem_contato >= 7 ? 'bg-red-100 text-red-700 border-red-300' : 'bg-amber-100 text-amber-700 border-amber-300'}`}
+                            title="Cliente em atraso/inadimplência sem nenhum registro de contato na linha do tempo do caso — considere entrar em contato ou renegociar."
+                          >
+                            ⏰ {caso.dias_sem_contato} {caso.dias_sem_contato === 1 ? 'dia' : 'dias'} sem contato
                           </span>
                         )}
                       </div>
