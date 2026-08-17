@@ -14,6 +14,9 @@ export interface User {
   nome: string;
   role: string;
   precisa_trocar_senha?: boolean;
+  // Liberação manual de módulos além do que o cargo já dá por padrão (tela
+  // Usuários → "Liberação de Módulos"). Vem só de /usuarios/me, não do JWT.
+  modulos_permissao?: Record<string, { ver: boolean; criar: boolean; editar: boolean; excluir: boolean; exportar: boolean; administrar: boolean; alcance: string }> | null;
 }
 
 class ApiClient {

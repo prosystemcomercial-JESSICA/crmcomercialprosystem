@@ -266,10 +266,14 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const user = (request as any).user;
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
     const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id, nome, email, telefone, cargo FROM UsuarioCRM WHERE id = ? LIMIT 1`, user.id
+      `SELECT id, nome, email, telefone, cargo, modulos_permissao FROM UsuarioCRM WHERE id = ? LIMIT 1`, user.id
     ).catch(() => []);
-    // fallback: dados do token (admin mock fora do banco)
-    const me = rows[0] || { id: user.id, nome: user.nome, email: user.email, telefone: null, cargo: user.role };
+    // fallback: dados do token (admin mock fora do banco, sem liberação manual de módulos)
+    const me = rows[0] || { id: user.id, nome: user.nome, email: user.email, telefone: null, cargo: user.role, modulos_permissao: null };
+    // MySQL via $queryRawUnsafe devolve a coluna JSON como string — o front espera objeto.
+    if (typeof me.modulos_permissao === 'string') {
+      try { me.modulos_permissao = JSON.parse(me.modulos_permissao); } catch { me.modulos_permissao = null; }
+    }
     return reply.send({ status: 'success', data: me });
   });
 

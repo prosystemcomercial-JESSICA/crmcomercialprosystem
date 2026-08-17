@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             nome: decoded.nome,
             role: decoded.role
           });
+          carregarModulosPermissao();
         } catch (error) {
           console.error('Failed to decode token', error);
           localStorage.removeItem('accessToken');
@@ -50,11 +51,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
+  // Busca a liberação manual de módulos (não vem no JWT — só via /usuarios/me).
+  // Falha silenciosa: se der erro, o usuário fica só com o que o cargo já libera.
+  const carregarModulosPermissao = async () => {
+    try {
+      const res = await apiClient.client.get('/usuarios/me');
+      const modulosPermissao = res.data?.data?.modulos_permissao;
+      if (modulosPermissao) {
+        setUser(prev => prev ? { ...prev, modulos_permissao: modulosPermissao } : prev);
+      }
+    } catch (error) {
+      console.error('Falha ao carregar liberação de módulos:', error);
+    }
+  };
+
   const login = async (email: string, password: string): Promise<User> => {
     try {
       const response = await apiClient.login(email, password);
       try { localStorage.setItem('lastActivity', String(Date.now())); } catch {}
       setUser(response.user);
+      carregarModulosPermissao();
       return response.user as User;
     } catch (error) {
       console.error('Login failed:', error);
