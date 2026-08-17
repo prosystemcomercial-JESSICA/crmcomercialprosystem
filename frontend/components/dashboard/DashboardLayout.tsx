@@ -28,16 +28,20 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/vendas-adicionais', '/churn-ceo', '/analise-comercial', '/ltv'];
 
-type NavItem = { href: string; icon: any; label: string; roles?: string[]; destaque?: 'whatsapp'; externoComToken?: boolean };
+// `modulo` liga o item ao nome usado em MODULOS (backend/src/routes/usuarios.ts,
+// tela Usuários → "Liberação de Módulos"). Quando presente, um usuário SEM o cargo
+// que já libera o item por `roles` ainda vê o item se tiver `ver: true` nesse
+// módulo em modulos_permissao — é o que faz a liberação manual funcionar de verdade.
+type NavItem = { href: string; icon: any; label: string; roles?: string[]; modulo?: string; destaque?: 'whatsapp'; externoComToken?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
 const navGroups: NavGroup[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',            roles: GESTORES },
+      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',            roles: GESTORES, modulo: 'Dashboard Geral' },
       { href: '/comercial', icon: BarChart2,       label: 'Radar Comercial',       roles: ['VENDEDOR'] },
-      { href: '/leads',     icon: GitMerge,        label: 'Pipeline Comercial',     roles: [...COMERCIAL, 'SDR'] },
+      { href: '/leads',     icon: GitMerge,        label: 'Pipeline Comercial',     roles: [...COMERCIAL, 'SDR'], modulo: 'Leads' },
       { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
     ],
   },
@@ -46,15 +50,15 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',           roles: [...ALL, 'SDR'] },
       { href: '/agenda',                icon: CalendarIcon,  label: 'Agenda Google',        roles: [...ALL, 'SDR'] },
-      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL },
-      { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL },
+      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL, modulo: 'Propostas' },
+      { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL, modulo: 'Contratos' },
       { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
     ],
   },
   {
     label: 'Clientes & Base',
     items: [
-      { href: '/clientes',       icon: Building2, label: 'Clientes',       roles: [...ALL, 'SDR'] },
+      { href: '/clientes',       icon: Building2, label: 'Clientes',       roles: [...ALL, 'SDR'], modulo: 'Empresas / Clientes' },
       { href: '/indicacoes',     icon: Handshake, label: 'Cross-sell',     roles: COMERCIAL },
       { href: '/representantes', icon: Handshake, label: 'Representantes', roles: COMERCIAL },
     ],
@@ -69,15 +73,15 @@ const navGroups: NavGroup[] = [
     label: 'Performance',
     items: [
       { href: '/comercial',               icon: BarChart2,    label: 'Radar Comercial',    roles: GESTAO_COMERCIAL },
-      { href: '/metas',                   icon: Trophy,       label: 'Metas Comerciais',   roles: COMERCIAL },
+      { href: '/metas',                   icon: Trophy,       label: 'Metas Comerciais',   roles: COMERCIAL, modulo: 'Metas' },
       { href: '/ranking',                 icon: Medal,        label: 'Ranking',            roles: GESTAO_COMERCIAL },
-      { href: '/comissoes',               icon: DollarSign,   label: 'Comissões',          roles: COMERCIAL },
+      { href: '/comissoes',               icon: DollarSign,   label: 'Comissões',          roles: COMERCIAL, modulo: 'Comissões / Bônus' },
       { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
       { href: '/painel-ceo',              icon: TrendingUp,   label: 'Painel do CEO',      roles: GESTAO_COMERCIAL },
       { href: '/ltv',                     icon: TrendingUp,   label: 'LTV dos Clientes',   roles: GESTAO_COMERCIAL },
       { href: '/indicadores-ceo',         icon: DollarSign,   label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
       { href: '/vendas-adicionais',       icon: Handshake,    label: 'Vendas Adicionais',  roles: GESTAO_COMERCIAL },
-      { href: '/relatorio-comercial',     icon: LineChart,    label: 'Relatório (CEO)',     roles: GESTAO_COMERCIAL },
+      { href: '/relatorio-comercial',     icon: LineChart,    label: 'Relatório (CEO)',     roles: GESTAO_COMERCIAL, modulo: 'Relatórios Comerciais' },
       { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
       { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },
       { href: '/sdr/leads-para-distribuir', icon: Send,       label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
@@ -87,8 +91,8 @@ const navGroups: NavGroup[] = [
     label: 'Retenção',
     items: [
       { href: '/ativos',       icon: Sprout,        label: 'Ativos (CS)',       roles: COMERCIAL },
-      { href: '/churn-ceo',    icon: Flame,         label: 'Churn — Visão CEO', roles: SO_CEO },
-      { href: '/casos',        icon: Flame,         label: 'Churn & Retenção',  roles: TECNICO },
+      { href: '/churn-ceo',    icon: Flame,         label: 'Churn — Visão CEO', roles: SO_CEO, modulo: 'Cancelamentos / Churn' },
+      { href: '/casos',        icon: Flame,         label: 'Churn & Retenção',  roles: TECNICO, modulo: 'Cancelamentos / Churn' },
       { href: '/health-score', icon: Activity,      label: 'Health Score',      roles: TECNICO },
       { href: '/nps',          icon: Star,          label: 'NPS',               roles: TECNICO },
       { href: '/pesquisas',    icon: MessageSquare, label: 'Pesquisas',         roles: TECNICO },
@@ -107,11 +111,11 @@ const navGroups: NavGroup[] = [
   {
     label: 'Administração',
     items: [
-      { href: '/usuarios',      icon: Users,    label: 'Usuários',       roles: GESTORES },
+      { href: '/usuarios',      icon: Users,    label: 'Usuários',       roles: GESTORES, modulo: 'Usuários e Permissões' },
       { href: '/importacao',    icon: Upload,   label: 'Importar Leads', roles: GESTAO_COMERCIAL },
       { href: '/auditoria',     icon: Shield,   label: 'Auditoria',      roles: GESTAO_COMERCIAL },
       { href: '/manual',        icon: BookOpen, label: 'Manual do CRM',  roles: [...ALL, 'SDR'] },
-      { href: '/configuracoes', icon: Settings, label: 'Configurações',  roles: SO_CEO },
+      { href: '/configuracoes', icon: Settings, label: 'Configurações',  roles: SO_CEO, modulo: 'Configurações do Sistema' },
     ],
   },
 ];
@@ -657,10 +661,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               return navGroups
                 .map(group => ({
                   ...group,
-                  items: group.items.filter(item =>
-                    (!item.roles || item.roles.includes(userRole)) &&
-                    (!ehCEO || CEO_VISIVEL.includes(item.href))
-                  )
+                  items: group.items.filter(item => {
+                    // Cargo já libera o item (comportamento de sempre).
+                    const liberadoPeloCargo = !item.roles || item.roles.includes(userRole);
+                    // OU a supervisão liberou esse módulo manualmente pra esse usuário
+                    // específico (tela Usuários → "Liberação de Módulos"), mesmo que o
+                    // cargo dele não inclua o item por padrão.
+                    const liberadoManualmente = !!(item.modulo && user?.modulos_permissao?.[item.modulo]?.ver);
+                    return (liberadoPeloCargo || liberadoManualmente) &&
+                      (!ehCEO || CEO_VISIVEL.includes(item.href));
+                  })
                 }))
                 .filter(group => group.items.length > 0);
             })().map((group) => (
