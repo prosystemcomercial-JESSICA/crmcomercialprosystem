@@ -22,7 +22,11 @@ export async function sdrRoutes(fastify: FastifyInstance, options: { prisma: Pri
     }
 
     const dataInicio = q.data_inicio ? new Date(q.data_inicio) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const dataFim = q.data_fim ? new Date(q.data_fim) : new Date();
+    // data_fim vem como "YYYY-MM-DD" e o construtor Date a interpreta como
+    // meia-noite UTC — sem isso, tudo criado depois da meia-noite no último
+    // dia do período (ex.: um lead cadastrado às 12h) fica fora do filtro
+    // `created_at <= dataFim` e some dos KPIs.
+    const dataFim = q.data_fim ? new Date(`${q.data_fim}T23:59:59.999Z`) : new Date();
 
     const desempenho = await calcularDesempenhoSdr(prisma, sdrId, dataInicio, dataFim);
 
