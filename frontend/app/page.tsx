@@ -1,14 +1,28 @@
 'use client';
 
-import { redirect } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import LoginForm from '@/components/auth/LoginForm';
 import Image from 'next/image';
 
 export default function Home() {
   const { isAuthenticated, loading, user } = useAuth();
+  const router = useRouter();
 
-  if (loading) {
+  // CEO cai direto no RELATÓRIO (CEO) — a 1ª coisa que ele vê (resultado/direção).
+  // Diretora/Supervisão veem tudo (dashboard); vendedor vai ao Radar Comercial.
+  // Navegação em useEffect (não `redirect()` em render) — este é um Client
+  // Component, e chamar `redirect()` no corpo do componente interrompe a
+  // renderização de forma que pode deixar hooks de componentes filhos
+  // (ex.: <Bloco> no Relatório Comercial) fora de sincronia entre passes.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const role = (user?.role || '').toUpperCase();
+    router.replace(role === 'CEO' ? '/relatorio-comercial' : podeVerTudo(user?.role) ? '/dashboard' : '/comercial');
+  }, [isAuthenticated, user, router]);
+
+  if (loading || isAuthenticated) {
     return (
       <div
         className="flex items-center justify-center min-h-screen"
@@ -25,13 +39,6 @@ export default function Home() {
         </div>
       </div>
     );
-  }
-
-  if (isAuthenticated) {
-    // CEO cai direto no RELATÓRIO (CEO) — a 1ª coisa que ele vê (resultado/direção).
-    // Diretora/Supervisão veem tudo (dashboard); vendedor vai ao Radar Comercial.
-    const role = (user?.role || '').toUpperCase();
-    redirect(role === 'CEO' ? '/relatorio-comercial' : podeVerTudo(user?.role) ? '/dashboard' : '/comercial');
   }
 
   return (
