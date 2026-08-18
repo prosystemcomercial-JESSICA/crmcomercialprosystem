@@ -305,7 +305,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe para_usuario_id' });
     const ator = (request as any).user;
 
-    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, responsavel_id: true } });
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, responsavel_id: true, created_by: true, etapa_comercial: true } });
     if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
 
     const vend: any[] = await prisma.$queryRawUnsafe(
@@ -313,15 +313,49 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     ).catch(() => []);
     if (!vend.length) return reply.status(404).send({ status: 'error', message: 'Vendedor não encontrado ou inativo' });
 
+    const etapaAnterior = lead.etapa_comercial;
+
     await prisma.lead.update({
       where: { id },
-      data: { responsavel_id: vend[0].id, vendedor_nome: vend[0].nome, atribuido_em: new Date(), atribuicao_vista: false },
+      data: {
+        responsavel_id: vend[0].id,
+        vendedor_nome: vend[0].nome,
+        atribuido_em: new Date(),
+        atribuicao_vista: false,
+        // Distribuído pela supervisão entra no funil do vendedor como se fosse
+        // um lead novo — ele trabalha a partir do primeiro contato, com a
+        // qualificação do SDR já registrada na trilha/observações.
+        etapa_comercial: 'NOVO_LEAD',
+      },
     });
+
+    // ETIQUETA "SDR: <nome>" — identifica de onde o lead veio no quadro do
+    // vendedor. Uma etiqueta por SDR, criada na primeira distribuição e
+    // reaproveitada depois (mesmo padrão da etiqueta automática "Cliente Convertido").
+    const sdr: any[] = lead.created_by
+      ? await prisma.$queryRawUnsafe(`SELECT id, nome FROM UsuarioCRM WHERE id = ? LIMIT 1`, lead.created_by).catch(() => [])
+      : [];
+    if (sdr.length) {
+      try {
+        const nomeEtiqueta = `SDR: ${sdr[0].nome}`;
+        let etq = await prisma.etiqueta.findFirst({ where: { nome: nomeEtiqueta, sistema: true } });
+        if (!etq) {
+          etq = await prisma.etiqueta.create({
+            data: { nome: nomeEtiqueta, cor: '#7c3aed', tipo: 'LEAD', sistema: true, descricao: `Lead prospectado pelo SDR ${sdr[0].nome}.`, created_by: 'system' },
+          });
+        }
+        await prisma.leadEtiquetaAplicada.upsert({
+          where: { lead_id_etiqueta_id: { lead_id: id, etiqueta_id: etq.id } },
+          create: { lead_id: id, etiqueta_id: etq.id },
+          update: {},
+        });
+      } catch (e: any) { console.error('[ETIQUETA-SDR]', e?.message); }
+    }
 
     await prisma.$executeRawUnsafe(
       `INSERT INTO LeadHistorico (id, lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes)
        VALUES (?,?,?,?,?,?,?,?,?)`,
-      randomUUID(), id, lead.nome, 'DISTRIBUICAO_SDR', null, null,
+      randomUUID(), id, lead.nome, 'DISTRIBUICAO_SDR', etapaAnterior, 'NOVO_LEAD',
       ator?.id || null, ator?.nome || 'Sistema',
       JSON.stringify({ de_usuario_id: lead.responsavel_id || null, para_usuario_id: vend[0].id, para_usuario_nome: vend[0].nome }),
     ).catch(() => {});
