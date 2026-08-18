@@ -42,18 +42,32 @@ export default function Home() {
         className="hidden lg:flex flex-col justify-between w-[46%] p-12 relative overflow-hidden"
         style={{ background: 'var(--ps-navy)' }}
       >
-        {/* Decorative circles */}
+        {/* Grid de pontos — referência visual ao próprio produto (linhas/células de
+            dashboard), não um blob genérico de SaaS. Mais presente que os círculos
+            de 5% de opacidade anteriores, mas ainda um plano de fundo, não ruído. */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          aria-hidden="true"
+        >
+          <defs>
+            <pattern id="ps-grid-dots" width="28" height="28" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.4" fill="var(--t-primary)" opacity="0.35" />
+            </pattern>
+            <linearGradient id="ps-grid-fade" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="var(--ps-navy)" stopOpacity="0" />
+              <stop offset="75%" stopColor="var(--ps-navy)" stopOpacity="0.9" />
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#ps-grid-dots)" />
+          <rect width="100%" height="100%" fill="url(#ps-grid-fade)" />
+        </svg>
+
+        {/* Barra de destaque diagonal — assinatura visual, não decoração solta */}
         <div
-          className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-5"
-          style={{ background: 'var(--t-primary)' }}
-        />
-        <div
-          className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full opacity-5"
-          style={{ background: 'var(--t-primary)' }}
-        />
-        <div
-          className="absolute top-1/2 right-12 w-px h-48 -translate-y-1/2 opacity-10"
-          style={{ background: 'linear-gradient(to bottom, transparent, var(--t-primary), transparent)' }}
+          className="absolute -top-40 -right-40 w-[520px] h-[520px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, color-mix(in srgb, var(--t-primary) 22%, transparent) 0%, transparent 70%)',
+          }}
         />
 
         {/* Logo */}
@@ -69,18 +83,24 @@ export default function Home() {
         </div>
 
         {/* Central message */}
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-7">
           <div>
+            <p
+              className="text-xs font-bold uppercase tracking-[0.2em] mb-3"
+              style={{ color: 'var(--t-primary)' }}
+            >
+              Tecnologia para farmácia, manipulação, padaria e varejo
+            </p>
             <h1
-              className="text-3xl font-bold leading-tight mb-3"
+              className="text-4xl font-extrabold leading-[1.08] mb-4"
               style={{ color: 'var(--t-text-inverse)' }}
             >
               Inteligência comercial
               <br />
               <span style={{ color: 'var(--t-primary)' }}>para crescer mais.</span>
             </h1>
-            <p className="text-base leading-relaxed" style={{ color: 'var(--t-text-muted)' }}>
-              O sistema de gestão feito para farmácias, manipulação, padarias e varejo — leads, funil de vendas, retenção e performance da sua equipe em um único lugar.
+            <p className="text-base leading-relaxed max-w-md" style={{ color: 'var(--t-text-muted)' }}>
+              Leads, funil de vendas, retenção e performance da sua equipe em um único lugar — construído com 16 anos de conhecimento real do seu setor.
             </p>
           </div>
 
@@ -94,9 +114,9 @@ export default function Home() {
               <div
                 key={stat.label}
                 className="rounded-xl p-4"
-                style={{ background: 'color-mix(in srgb, var(--t-primary) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--t-primary) 15%, transparent)' }}
+                style={{ background: 'color-mix(in srgb, var(--t-primary) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--t-primary) 22%, transparent)' }}
               >
-                <p className="text-xl font-bold" style={{ color: 'var(--t-primary)' }}>
+                <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--t-primary)' }}>
                   {stat.num}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
@@ -146,6 +166,10 @@ export default function Home() {
           </div>
 
           <LoginForm />
+
+          <p className="text-xs text-center mt-8" style={{ color: 'var(--t-text-muted)' }}>
+            Acesso restrito à equipe ProSystem. Problemas para entrar? Fale com a supervisão.
+          </p>
         </div>
       </div>
     </div>
