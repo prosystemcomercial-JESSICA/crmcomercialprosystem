@@ -15,7 +15,7 @@ import {
   Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
-  Maximize2, Minimize2, ChevronDown, User, Target, Send,
+  Maximize2, Minimize2, ChevronDown, User, Target, Send, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
@@ -137,6 +137,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [alertasOpen, setAlertasOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  // Colapso da sidebar em desktop (largura cheia ↔ só ícones) — libera espaço
+  // horizontal para telas densas como o kanban da Central de Leads. Persistido
+  // por usuário para não voltar ao padrão a cada navegação/refresh.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('ps_sidebar_collapsed') : null;
+    if (saved === '1') setSidebarCollapsed(true);
+  }, []);
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('ps_sidebar_collapsed', next ? '1' : '0');
+      return next;
+    });
+  };
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
@@ -639,9 +654,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Sidebar */}
         <aside
-          className={`ps-sidebar w-56 flex-shrink-0 flex flex-col overflow-y-auto
+          className={`ps-sidebar flex-shrink-0 flex flex-col overflow-y-auto
             fixed md:static inset-y-0 left-0 z-[70] md:z-auto
-            transform transition-transform duration-200 md:transform-none
+            transform transition-[transform,width] duration-200 md:transform-none
+            ${sidebarCollapsed ? 'md:w-14' : 'md:w-56'} w-56
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         >
           {/* Close (mobile) */}
@@ -654,7 +670,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <XIcon size={18} />
           </button>
 
-          <nav className="flex-1 py-3 px-2 space-y-3 overflow-y-auto">
+          {/* Collapse toggle (desktop only) */}
+          <button
+            onClick={toggleSidebarCollapsed}
+            className="hidden md:flex items-center justify-center flex-shrink-0 mx-2 mt-2 mb-1 p-1.5 rounded-md transition-colors"
+            style={{ color: 'var(--t-sidebar-muted)', alignSelf: sidebarCollapsed ? 'center' : 'flex-end' }}
+            title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+            aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+          </button>
+
+          <nav className="flex-1 py-1 px-2 space-y-3 overflow-y-auto overflow-x-hidden">
             {(() => {
               const userRole = (user?.role || '').toUpperCase();
               const ehCEO = userRole === 'CEO';
@@ -675,12 +702,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 .filter(group => group.items.length > 0);
             })().map((group) => (
               <div key={group.label}>
-                <p
-                  className="px-2.5 mb-0.5 text-[9px] font-bold uppercase tracking-widest"
-                  style={{ color: 'var(--t-sidebar-muted)' }}
-                >
-                  {group.label}
-                </p>
+                {!sidebarCollapsed && (
+                  <p
+                    className="px-2.5 mb-0.5 text-[9px] font-bold uppercase tracking-widest"
+                    style={{ color: 'var(--t-sidebar-muted)' }}
+                  >
+                    {group.label}
+                  </p>
+                )}
                 <div>
                   {group.items.map((item) => {
                     const isActive =
@@ -703,19 +732,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     const conteudoItem = (
                       <>
                         <Icon size={13} className="flex-shrink-0" style={{ opacity: isWpp || isActive ? 1 : 0.7 }} />
-                        <span className="truncate">{item.label}</span>
-                        {item.externoComToken && <span style={{ marginLeft: 'auto', fontSize: 9, opacity: 0.5 }}>↗</span>}
-                        {isWpp && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#25D366', flexShrink: 0 }} />}
+                        {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                        {!sidebarCollapsed && item.externoComToken && <span style={{ marginLeft: 'auto', fontSize: 9, opacity: 0.5 }}>↗</span>}
+                        {!sidebarCollapsed && isWpp && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#25D366', flexShrink: 0 }} />}
                       </>
                     );
 
-                    const classeItem = `ps-sidebar-item flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] font-medium select-none ${isActive ? 'active' : ''}`;
+                    const classeItem = `ps-sidebar-item flex items-center gap-2 py-1.5 rounded-md text-[12px] font-medium select-none ${isActive ? 'active' : ''} ${sidebarCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'}`;
 
                     if (item.externoComToken) {
                       return (
                         <a
                           key={item.label}
                           href="#"
+                          title={sidebarCollapsed ? item.label : undefined}
                           onClick={(e) => {
                             e.preventDefault();
                             const base = process.env.NEXT_PUBLIC_PORTAL_URL || item.href;
@@ -733,7 +763,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     }
 
                     return (
-                      <Link key={item.href} href={item.href} className={classeItem} style={estilo}>
+                      <Link key={item.href} href={item.href} className={classeItem} style={estilo} title={sidebarCollapsed ? item.label : undefined}>
                         {conteudoItem}
                       </Link>
                     );
@@ -744,20 +774,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
 
           {/* Sidebar footer */}
-          <div
-            className="px-2 py-2 mx-2 mb-2 rounded-lg"
-            style={{
-              background: 'var(--t-sidebar-footer-bg)',
-              border: '1px solid var(--t-sidebar-footer-border)',
-            }}
-          >
-            <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--t-sidebar-muted)' }}>
-              ProSystem Sistemas
-            </p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-sidebar-text)', opacity: 0.5 }}>
-              Vitória · ES · Desde 2008
-            </p>
-          </div>
+          {!sidebarCollapsed && (
+            <div
+              className="px-2 py-2 mx-2 mb-2 rounded-lg"
+              style={{
+                background: 'var(--t-sidebar-footer-bg)',
+                border: '1px solid var(--t-sidebar-footer-border)',
+              }}
+            >
+              <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--t-sidebar-muted)' }}>
+                ProSystem Sistemas
+              </p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-sidebar-text)', opacity: 0.5 }}>
+                Vitória · ES · Desde 2008
+              </p>
+            </div>
+          )}
         </aside>
 
         {/* Main content */}

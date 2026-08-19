@@ -1302,9 +1302,14 @@ export default function LeadsPage() {
           celulas.push({ label: 'Perdidos mês', value: metricas.perdidos_mes.toString(), color: metricas.perdidos_mes > 0 ? '#dc2626' : '#16a34a' });
 
           return (
-            <div className="flex flex-wrap ps-card rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
-              {celulas.map((c, i) => (
-                <KpiCell key={c.label} {...c} borderRight={i < celulas.length - 1} />
+            <div
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px ps-card rounded-xl overflow-hidden"
+              style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-border)' }}
+            >
+              {celulas.map(c => (
+                <div key={c.label} style={{ background: 'var(--t-card-bg)' }}>
+                  <KpiCell {...c} />
+                </div>
               ))}
             </div>
           );
@@ -2615,11 +2620,11 @@ export default function LeadsPage() {
 // caixinha colorida por card não distingue nada — só repete o mesmo template.
 // Célula de métrica dentro de uma faixa única (não um card isolado) — evita
 // "caixa dentro de caixa" quando várias métricas ficam lado a lado.
-function KpiCell({ label, value, color, destaque, borderRight = true }: {
-  label: string; value: string; color?: string; destaque?: boolean; borderRight?: boolean;
+function KpiCell({ label, value, color, destaque }: {
+  label: string; value: string; color?: string; destaque?: boolean;
 }) {
   return (
-    <div className="flex-1 min-w-[120px] px-4 py-2.5 flex flex-col justify-center gap-0.5" style={{ borderRight: borderRight ? '1px solid var(--t-card-border)' : 'none' }}>
+    <div className="px-4 py-2.5 flex flex-col justify-center gap-0.5 min-w-0">
       <p className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--t-text-muted)' }}>{label}</p>
       <p
         className={`font-bold leading-tight truncate ${destaque ? 'text-[19px]' : 'text-[15px]'}`}
