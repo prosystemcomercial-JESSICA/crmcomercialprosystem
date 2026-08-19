@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { effectiveScopeId, podeVerTudo, getUser } from '@/lib/scope';
 import { calcularRealizadoMeta } from '@/lib/meta-progress';
+import { PROB_ETAPA } from '@/lib/forecast';
 
 // Análise Comercial: métricas avançadas (taxas, não só somas) que não cabem no
 // Dashboard Executivo nem no Relatório Comercial. Escopo por papel: vendedor vê
@@ -167,11 +168,6 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     }
 
     // ── 4. Forecast comparativo (receita ponderada por etapa, por vendedor) ──
-    const PROB_ETAPA: Record<string, number> = {
-      NOVO_LEAD: 0.05, PRIMEIRO_CONTATO: 0.10, EM_ATENDIMENTO: 0.20, AGUARDANDO_RETORNO: 0.25,
-      PROPOSTA_A_GERAR: 0.35, PROPOSTA_ENVIADA: 0.50, EM_NEGOCIACAO: 0.65, ACEITO: 0.85,
-      CONTRATO_EM_ANDAMENTO: 0.95, CONTRATO_ASSINADO: 1.00,
-    };
     const valorOportunidade = (l: { valor_setup: number | null; valor_estimado: number | null; mensalidade_estimada: number | null }) => {
       const setup = l.valor_setup ?? 0;
       const anual = (l.mensalidade_estimada ?? 0) * 12;
@@ -282,12 +278,11 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     const taxaExpansao = (mrrNovo + mrrExpansao) > 0 ? Math.round((mrrExpansao / (mrrNovo + mrrExpansao)) * 1000) / 10 : null;
 
     // ── 8b. Projeção de MRR futuro (M+1, M+2, M+3) ──
-    // MRR atual: mesma fonte do dashboard (ContratoComercial é a fonte real; Contrato é legado vazio).
-    const mrrAtualResult = await prisma.contratoComercial.aggregate({
-      where: { status: 'ASSINADO' },
-      _sum: { mensalidade: true },
-    }).catch(() => ({ _sum: { mensalidade: 0 } }) as any);
-    const mrrAtual = mrrAtualResult._sum.mensalidade || 0;
+    // MRR atual: Cliente.mensalidade_base é a fonte real (548 clientes ativos, ~R$177mil/mês) —
+    // mesma fonte usada em dashboard-power.ts e ceo.ts. ContratoComercial é um módulo novo
+    // (jun/2026 em diante) que ainda cobre só uma fração da base (~2% do MRR real) e não tem
+    // vínculo confiável com Cliente hoje; usá-lo aqui subestimava a projeção em ~98%.
+    const mrrAtual = mrrBase;
 
     // Pipeline ponderado mensal: total ponderado do forecast dividido em 3 baldes iguais
     // (simplificação — não há data prevista de fechamento por lead ainda).

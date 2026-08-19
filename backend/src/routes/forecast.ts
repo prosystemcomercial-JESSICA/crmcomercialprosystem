@@ -1,25 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { ownerWhere } from '@/lib/scope';
+import { PROB_ETAPA } from '@/lib/forecast';
 
 // Forecast de receita ponderado (EVO-5).
 // Receita esperada = Σ (valor anualizado da oportunidade × probabilidade da etapa).
 // Escopado por papel: vendedor vê o próprio funil; gestão vê tudo.
-
-// Probabilidade de fechamento por etapa comercial (0..1).
-const PROB_ETAPA: Record<string, number> = {
-  NOVO_LEAD:             0.05,
-  PRIMEIRO_CONTATO:      0.10,
-  EM_ATENDIMENTO:        0.20,
-  AGUARDANDO_RETORNO:    0.25,
-  PROPOSTA_A_GERAR:      0.35,
-  PROPOSTA_ENVIADA:      0.50,
-  EM_NEGOCIACAO:         0.65,
-  ACEITO:                0.85,
-  CONTRATO_EM_ANDAMENTO: 0.95,
-  CONTRATO_ASSINADO:     1.00,
-  // ONBOARDING/EXECUCAO_TECNICA já são pós-venda; PERDIDO = 0.
-};
 
 const ETAPA_LABEL: Record<string, string> = {
   NOVO_LEAD: 'Novo Lead', PRIMEIRO_CONTATO: 'Primeiro Contato', EM_ATENDIMENTO: 'Em Atendimento',
