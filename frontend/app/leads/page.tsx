@@ -99,6 +99,10 @@ const ORIGENS_MANUAL = [
   'Google','Visita comercial','Cliente antigo','Site','Telefone','Evento','Outro',
 ];
 
+// Origens de tráfego pago — prioridade máxima de atendimento (a empresa paga por esses leads).
+const ORIGENS_PAGAS = ['Instagram', 'Facebook', 'Google'];
+const ehOrigemPaga = (origem?: string) => !!origem && ORIGENS_PAGAS.includes(origem);
+
 const SEGMENTOS = [
   'Farmácia','Drogaria','Farmácia de Manipulação','Padaria',
   'Varejo em Geral','Supermercado','Restaurante','Autopeças','Posto de Combustível','Outro',
@@ -306,6 +310,7 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
   const tags    = lead.etiquetas_lead || [];
   const corDono = corDoLead(lead);
   const donoNome = lead.vendedor_nome || lead.responsavel_nome || '';
+  const origemPaga = ehOrigemPaga(lead.origem);
 
   const wppLink = tel
     ? `/whatsapp?numero=${tel.replace(/\D/g, '')}&nome=${encodeURIComponent(lead.razao_social || lead.nome || '')}${lead.id ? `&lead=${lead.id}` : ''}`
@@ -318,9 +323,9 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
       onDragStart={onDragStart}
       className="group relative rounded-xl cursor-grab active:cursor-grabbing transition-all duration-150 hover:shadow-lg overflow-hidden"
       style={{
-        background: 'var(--t-card-bg)',
-        border: '1px solid var(--t-card-border)',
-        borderLeft: `3px solid ${temp.color}`,
+        background: origemPaga ? 'rgba(22,163,74,0.10)' : 'var(--t-card-bg)',
+        border: origemPaga ? '1px solid rgba(22,163,74,0.35)' : '1px solid var(--t-card-border)',
+        borderLeft: `3px solid ${origemPaga ? '#16a34a' : temp.color}`,
       }}
     >
       <div className="p-3">
@@ -331,6 +336,16 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
             <temp.icon size={10} />
           </span>
         </div>
+
+        {/* Selo de origem paga — prioridade máxima de atendimento */}
+        {origemPaga && (
+          <div className="flex items-center gap-1 mb-2">
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#16a34a', color: '#fff' }}>
+              <Zap size={9} /> {lead.origem} · Prioridade
+            </span>
+          </div>
+        )}
 
         {/* Dono */}
         <div className="flex items-center gap-1.5 mb-2">
