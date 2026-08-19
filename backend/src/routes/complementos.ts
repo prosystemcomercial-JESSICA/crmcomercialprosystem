@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { ownerWhere, getUser, podeVerTudo } from '@/lib/scope';
+import { probabilidadeEtapa } from '@/lib/forecast';
 
 export async function complementosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -408,8 +409,15 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         // Previsão é sobre a meta/pipeline do PRÓPRIO vendedor; gestor vê tudo.
         ...ownerWhere(request, 'Lead')
       },
-      orderBy: { probabilidade: 'desc' }
     });
+
+    // Probabilidade por etapa do funil comercial (PROB_ETAPA) — não pelo campo
+    // Lead.probabilidade, que está sempre vazio na prática (ninguém o preenche
+    // manualmente) e antes caía num fallback fixo de 50% para todo lead, igualando
+    // um "Novo Lead" a um "Em Negociação".
+    const leadsOrdenados = [...leads].sort(
+      (a, b) => probabilidadeEtapa(b.etapa_comercial) - probabilidadeEtapa(a.etapa_comercial)
+    );
 
     const previsao = {
       otimista: 0,   // 100% das oportunidades
@@ -421,7 +429,7 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
 
     leads.forEach(l => {
       const valor = l.valor_estimado || 0;
-      const prob = (l.probabilidade || 50) / 100;
+      const prob = probabilidadeEtapa(l.etapa_comercial);
       previsao.valor_total_pipeline += valor;
       previsao.otimista += valor;
       previsao.realista += valor * prob;
@@ -429,11 +437,11 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     });
 
     // Top oportunidades
-    const top = leads
+    const top = leadsOrdenados
       .filter(l => (l.valor_estimado || 0) > 0)
       .sort((a, b) => {
-        const scoreA = (a.valor_estimado || 0) * ((a.probabilidade || 50) / 100);
-        const scoreB = (b.valor_estimado || 0) * ((b.probabilidade || 50) / 100);
+        const scoreA = (a.valor_estimado || 0) * probabilidadeEtapa(a.etapa_comercial);
+        const scoreB = (b.valor_estimado || 0) * probabilidadeEtapa(b.etapa_comercial);
         return scoreB - scoreA;
       })
       .slice(0, 10)
@@ -442,8 +450,8 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
         nome: l.nome,
         empresa: l.empresa,
         valor_estimado: l.valor_estimado,
-        probabilidade: l.probabilidade || 50,
-        valor_ponderado: (l.valor_estimado || 0) * ((l.probabilidade || 50) / 100),
+        probabilidade: Math.round(probabilidadeEtapa(l.etapa_comercial) * 100),
+        valor_ponderado: (l.valor_estimado || 0) * probabilidadeEtapa(l.etapa_comercial),
         etapa: l.etapa_funil,
         status: l.status
       }));
