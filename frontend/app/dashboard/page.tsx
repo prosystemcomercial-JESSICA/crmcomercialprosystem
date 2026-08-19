@@ -7,10 +7,8 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import {
   RefreshCw, TrendingUp, TrendingDown,
-  DollarSign, FileCheck2, BarChart3, Star, Target,
-  Percent, FileText, XCircle,
-  Flame, Thermometer, Snowflake, CheckCircle2, ClipboardList,
-  AlertTriangle, Zap, Heart, ChevronDown,
+  Flame, Thermometer, Snowflake,
+  AlertTriangle, Heart, ChevronDown,
   Phone, Mail, Users, Car, Bell, FileOutput, Pin, ArrowRight,
 } from 'lucide-react';
 import { MrrTrendCard } from './components/MrrTrendCard';
@@ -125,45 +123,38 @@ function PulseDot({ color }: { color: string }) {
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
+// Sem ícone decorativo nem pulse-dot: em uma fileira de 5 métricas, uma caixinha
+// colorida por card não distingue nada — só repete o mesmo template. A hierarquia
+// vem do tamanho do número e da posição (a métrica mais acionável primeiro).
 function KpiCard({
-  label, value, sub, icon: Icon, accent = 'var(--t-primary)', delta, pulse, animate: doAnimate, rawValue,
+  label, value, sub, accent = 'var(--t-text-primary)', delta, destaque, animate: doAnimate, rawValue,
 }: {
-  label: string; value: string; sub?: string; icon: React.ElementType;
-  accent?: string; delta?: number; pulse?: boolean; animate?: boolean; rawValue?: number;
+  label: string; value: string; sub?: string;
+  accent?: string; delta?: number; destaque?: boolean; animate?: boolean; rawValue?: number;
 }) {
   return (
-    <div className="ps-card rounded-xl p-5 group transition-all duration-200 hover:shadow-md relative overflow-hidden">
-      <div
-        className="absolute top-0 right-0 w-20 h-20 opacity-[0.04] pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${accent} 0%, transparent 70%)` }}
-      />
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: `${accent}14` }}
-        >
-          <Icon size={16} style={{ color: accent }} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          {pulse && <PulseDot color={accent} />}
-          {delta !== undefined && (
-            <span
-              className="flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
-              style={{
-                background: delta >= 0 ? 'rgba(22,163,74,0.10)' : 'rgba(220,38,38,0.10)',
-                color: delta >= 0 ? '#16a34a' : '#dc2626',
-              }}
-            >
-              {delta >= 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-              {Math.abs(delta)}%
-            </span>
-          )}
-        </div>
+    <div className="ps-card rounded-xl p-5 transition-shadow duration-200 hover:shadow-md">
+      <div className="flex items-start justify-between mb-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>
+          {label}
+        </p>
+        {delta !== undefined && (
+          <span
+            className="flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0"
+            style={{
+              background: delta >= 0 ? 'rgba(22,163,74,0.10)' : 'rgba(220,38,38,0.10)',
+              color: delta >= 0 ? '#16a34a' : '#dc2626',
+            }}
+          >
+            {delta >= 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+            {Math.abs(delta)}%
+          </span>
+        )}
       </div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>
-        {label}
-      </p>
-      <p className="text-[22px] font-bold tracking-tight leading-none" style={{ color: 'var(--t-text-primary)' }}>
+      <p
+        className={`font-bold tracking-tight leading-none ${destaque ? 'text-[28px]' : 'text-[22px]'}`}
+        style={{ color: accent }}
+      >
         {doAnimate && rawValue !== undefined
           ? <AnimatedNumber value={rawValue} />
           : value}
@@ -393,30 +384,33 @@ export default function DashboardPage() {
             {/* ── KPIs Comercial ───────────────────────────────── */}
             <div className="du-fade-2">
               <SectionLabel>Comercial — Este Mês</SectionLabel>
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <KpiCard
-                  label="Leads Captados" value={fmtNum(data.kpis.leads_mes)}
-                  sub={`${data.kpis.leads_ganhos_mes} convertidos`} icon={Target} accent="#4B8EC8"
-                />
+              {/* Taxa de conversão e pipeline aberto são as duas métricas que orientam
+                  decisão da supervisão — ganham destaque. As demais são contexto de apoio. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <KpiCard
                   label="Taxa de Conversão" value={`${data.kpis.taxa_conversao}%`}
                   sub={`mês anterior: ${data.kpis.leads_ganhos_mes_anterior} ganhos`}
-                  icon={Percent}
                   accent={data.kpis.taxa_conversao >= 20 ? '#16a34a' : '#d97706'}
-                  pulse={data.kpis.taxa_conversao < 10}
+                  destaque
                 />
                 <KpiCard
                   label="Pipeline Total" value={fmt(data.kpis.pipeline_valor)}
-                  sub="valor estimado em aberto" icon={BarChart3} accent="#6366F1"
+                  sub="valor estimado em aberto"
+                  destaque
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <KpiCard
+                  label="Leads Captados" value={fmtNum(data.kpis.leads_mes)}
+                  sub={`${data.kpis.leads_ganhos_mes} convertidos`}
                 />
                 <KpiCard
                   label="Propostas Abertas" value={fmtNum(data.kpis.propostas_abertas)}
-                  sub={`${data.kpis.propostas_aceitas_mes} aceitas este mês`} icon={FileText} accent="#8B5CF6"
+                  sub={`${data.kpis.propostas_aceitas_mes} aceitas este mês`}
                 />
                 <KpiCard
                   label="Perdidos no Mês" value={fmtNum(data.kpis.leads_perdidos_mes)}
                   sub={`mês anterior: ${data.kpis.leads_perdidos_mes_anterior}`}
-                  icon={XCircle}
                   accent={data.kpis.leads_perdidos_mes > 0 ? '#dc2626' : '#16a34a'}
                 />
               </div>
@@ -427,28 +421,29 @@ export default function DashboardPage() {
               <div className="du-fade-3">
                 <SectionLabel>Pipeline de Propostas</SectionLabel>
 
-                {/* KPIs row */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-                  <KpiCard
-                    label="Total de Propostas" value={fmtNum(data.pipeline_propostas.total)}
-                    sub={`${data.pipeline_propostas.perdido.count} perdida${data.pipeline_propostas.perdido.count !== 1 ? 's' : ''}`}
-                    icon={ClipboardList} accent="#4B8EC8"
-                  />
-                  <KpiCard
-                    label="MRR em Negociação"
-                    value={fmt(data.pipeline_propostas.quente.mrr + data.pipeline_propostas.morno.mrr + data.pipeline_propostas.frio.mrr)}
-                    sub="mensalidades em aberto" icon={DollarSign} accent="#16a34a"
-                  />
-                  <KpiCard
-                    label="Setup em Negociação"
-                    value={fmt(data.pipeline_propostas.quente.setup + data.pipeline_propostas.morno.setup + data.pipeline_propostas.frio.setup)}
-                    sub="implantações em aberto" icon={BarChart3} accent="#7c3aed"
-                  />
+                {/* KPIs row — o que já fechou é o resultado; o resto é o que ainda pode virar resultado. */}
+                <div className="mb-3">
                   <KpiCard
                     label="Já Fechado (Setup)"
                     value={fmt(data.pipeline_propostas.fechado.setup)}
                     sub={`MRR +${fmt(data.pipeline_propostas.fechado.mrr)}/mês · ${data.pipeline_propostas.fechado.count} prop.`}
-                    icon={CheckCircle2} accent="#15803d" pulse
+                    accent="#15803d" destaque
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <KpiCard
+                    label="MRR em Negociação"
+                    value={fmt(data.pipeline_propostas.quente.mrr + data.pipeline_propostas.morno.mrr + data.pipeline_propostas.frio.mrr)}
+                    sub="mensalidades em aberto" accent="#16a34a"
+                  />
+                  <KpiCard
+                    label="Setup em Negociação"
+                    value={fmt(data.pipeline_propostas.quente.setup + data.pipeline_propostas.morno.setup + data.pipeline_propostas.frio.setup)}
+                    sub="implantações em aberto"
+                  />
+                  <KpiCard
+                    label="Total de Propostas" value={fmtNum(data.pipeline_propostas.total)}
+                    sub={`${data.pipeline_propostas.perdido.count} perdida${data.pipeline_propostas.perdido.count !== 1 ? 's' : ''}`}
                   />
                 </div>
 
@@ -575,14 +570,14 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                   <KpiCard
                     label="Valor Perdido no Mês" value={fmt(data.kpis.valor_perdido_mes)}
-                    sub="oportunidades não convertidas" icon={TrendingDown} accent="#dc2626"
+                    sub="oportunidades não convertidas" accent="#dc2626" destaque
                   />
                   <KpiCard
                     label="Taxa de Perda"
                     value={`${data.kpis.leads_mes > 0 ? Math.round((data.kpis.leads_perdidos_mes / data.kpis.leads_mes) * 100) : 0}%`}
                     sub={`${data.kpis.leads_ganhos_mes} ganhos vs ${data.kpis.leads_perdidos_mes} perdidos`}
-                    icon={Percent}
                     accent={data.kpis.leads_perdidos_mes > data.kpis.leads_ganhos_mes ? '#dc2626' : '#d97706'}
+                    destaque
                   />
                 </div>
               </div>
@@ -731,10 +726,10 @@ export default function DashboardPage() {
                           sub={temNps
                             ? (data.kpis.nps_score! >= 50 ? 'Excelente' : data.kpis.nps_score! >= 0 ? 'Bom' : 'Crítico')
                             : 'sem respostas ainda'}
-                          icon={Star}
                           accent={temNps
                             ? (data.kpis.nps_score! >= 50 ? '#16a34a' : data.kpis.nps_score! >= 0 ? '#d97706' : '#dc2626')
                             : '#9CA3AF'}
+                          destaque
                         />
                       </div>
 
