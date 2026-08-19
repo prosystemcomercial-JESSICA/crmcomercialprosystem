@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -498,6 +498,10 @@ export default function LeadsPage() {
   const [newLeadForm, setNewLeadForm] = useState<any>({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [] });
   const [newLeadSection, setNewLeadSection] = useState(0);
   const [savingNewLead, setSavingNewLead] = useState(false);
+  // Trava síncrona (não depende de re-render, ao contrário de savingNewLead):
+  // cliques muito rápidos no botão "Criar Lead" podem disparar antes do React
+  // re-renderizar o disabled do botão. Um useRef muda no mesmo tick do clique.
+  const criandoLeadRef = useRef(false);
 
   const [newColForm, setNewColForm]   = useState({ nome: '', cor: '#6b7280' });
   const [newEtiqForm, setNewEtiqForm] = useState({ nome: '', cor: '#4B8EC8', descricao: '' });
@@ -1054,6 +1058,8 @@ export default function LeadsPage() {
   };
 
   const createNewLead = async () => {
+    if (criandoLeadRef.current) return;
+    criandoLeadRef.current = true;
     setSavingNewLead(true);
     try {
       const payload: any = { ...newLeadForm };
@@ -1095,6 +1101,7 @@ export default function LeadsPage() {
       console.error('Erro ao salvar lead:', msg);
       console.error('createLead falhou:', e?.response?.data || e);
     } finally {
+      criandoLeadRef.current = false;
       setSavingNewLead(false);
     }
   };

@@ -647,6 +647,24 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       if (!data.atribuido_em) data.atribuido_em = new Date();
     }
 
+    // ANTI-DUPLICAÇÃO: guarda contra clique duplo/múltiplo no "Salvar" e retry de
+    // rede. Se o MESMO usuário criou um lead com o MESMO nome nos últimos 10s,
+    // é quase certamente o mesmo clique processado mais de uma vez — devolve o
+    // lead já existente em vez de criar outro. Janela curta o bastante para não
+    // barrar um cadastro legítimo de dois leads homônimos no mesmo dia.
+    const duplicado = await prisma.lead.findFirst({
+      where: {
+        created_by: data.created_by,
+        nome: data.nome,
+        deleted_at: null,
+        created_at: { gte: new Date(Date.now() - 10_000) },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    if (duplicado) {
+      return reply.status(201).send({ status: 'success', data: duplicado });
+    }
+
     const lead = await prisma.lead.create({ data });
 
     await registrarObsSistema(prisma, lead.id, 'SISTEMA', 'Lead cadastrado no CRM.', user?.id);
