@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip, YAxis, Legend } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, FileCheck2 } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { ChartTooltip } from './ChartTooltip';
 
@@ -46,20 +46,15 @@ export function MrrTrendCard({ mrr, mrrDelta, contratosAtivos, contratosMes, Ani
 
   return (
     <div className="du-fade-2 grid grid-cols-1 lg:grid-cols-3 gap-3">
-      <div className="ps-card rounded-xl p-5 lg:col-span-2 relative overflow-hidden group transition-all duration-200 hover:shadow-md">
+      <div className="ps-card rounded-xl p-5 lg:col-span-2 transition-shadow duration-200 hover:shadow-md">
         <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(22,163,74,0.10)' }}>
-              <DollarSign size={16} style={{ color: '#16a34a' }} />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>
-                MRR Recorrente
-              </p>
-              <p className="text-4xl font-extrabold tracking-tight leading-none mt-1.5" style={{ color: 'var(--t-text-primary)' }}>
-                <AnimatedNumber value={mrr} prefix="R$ " />
-              </p>
-            </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>
+              MRR Recorrente
+            </p>
+            <p className="text-4xl font-extrabold tracking-tight leading-none mt-1.5" style={{ color: 'var(--t-text-primary)' }}>
+              <AnimatedNumber value={mrr} prefix="R$ " />
+            </p>
           </div>
           {mrrDelta !== undefined && (
             <span
@@ -115,10 +110,7 @@ export function MrrTrendCard({ mrr, mrrDelta, contratosAtivos, contratosMes, Ani
         )}
       </div>
 
-      <div className="ps-card rounded-xl p-5 flex flex-col justify-center transition-all duration-200 hover:shadow-md">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mb-3" style={{ background: 'rgba(75,142,200,0.10)' }}>
-          <FileCheck2 size={16} style={{ color: '#4B8EC8' }} />
-        </div>
+      <div className="ps-card rounded-xl p-5 flex flex-col justify-center transition-shadow duration-200 hover:shadow-md">
         <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>
           Contratos Ativos
         </p>
