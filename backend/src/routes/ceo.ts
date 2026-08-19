@@ -131,11 +131,18 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
     const npsDetratores = nps_scores.filter(s => s <= 6).length;
     const npsAutomatico = nps_scores.length > 0 ? Math.round(((npsPromotores - npsDetratores) / nps_scores.length) * 100) : null;
 
-    // Crescimento do MRR: compara com o mês anterior (snapshot via fechamentos-perdidos é aproximado).
+    // Crescimento do MRR vs período anterior: mrrAtual já inclui o net_new_mrr
+    // deste período (é a base ativa agora), então "mrrAtual - netNewMrr" é
+    // exatamente o MRR no início do período — sem precisar de um snapshot
+    // histórico separado.
+    const mrrBaseAnterior = mrrAtual - netNewMrr;
+    const mrrCrescimentoPct = mrrBaseAnterior > 0 ? Math.round((netNewMrr / mrrBaseAnterior) * 1000) / 10 : null;
+
     const data = {
       periodo, ano, mes,
       indicadores: {
         mrr_atual: Math.round(mrrAtual),
+        mrr_crescimento_pct: mrrCrescimentoPct,
         mrr_novo: Math.round(mrrNovo),
         net_new_mrr: Math.round(netNewMrr),
         novos_clientes: novosClientes,
