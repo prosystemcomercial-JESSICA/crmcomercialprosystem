@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// Funil e Leads foram unificados em /leads (Pipeline Comercial).
+// Funil e Leads foram unificados em /leads (Central de Leads).
 // Esta rota é mantida apenas como redirecionamento para não quebrar links/bookmarks.
 export default function FunilPage() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function FunilPage() {
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
           style={{ borderColor: '#4B8EC8', borderTopColor: 'transparent' }} />
-        <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>Redirecionando para Pipeline Comercial...</p>
+        <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>Redirecionando para Central de Leads...</p>
       </div>
     </div>
   );

@@ -13,8 +13,8 @@ import {
   Flame, Thermometer, Snowflake, Zap, Tag, Clock,
   ChevronDown, Settings, Paperclip, Save, CheckCircle2,
   BarChart3, Users as UsersIcon,
-  ListChecks, Wrench, Trash2,
-  Bell, Lock, Star, Pin,
+  Wrench, Trash2,
+  Bell, Lock, Star, Pin, MoreHorizontal, ChevronLeft, ChevronRight, Download,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -283,21 +283,13 @@ function FormField({ label, children, col }: { label: string; children: React.Re
 
 // ── Kanban Card ───────────────────────────────────────────────────────────────
 
-// Cor estável por dono do lead (mesma paleta da agenda) — identifica de quem é o
-// lead só de olhar o card. Usa responsavel_id; cai p/ created_by se não houver.
-const CORES_DONO = ['#4B8EC8', '#16a34a', '#ea580c', '#7c3aed', '#0891b2', '#ca8a04', '#dc2626', '#0f766e'];
-function corDoLead(lead: Lead): string {
-  const id = lead.responsavel_id || (lead as any).created_by;
-  if (!id) return '#cbd5e1'; // cinza = sem dono
-  const hash = String(id).split('').reduce((s, c) => s + c.charCodeAt(0), 0);
-  return CORES_DONO[hash % CORES_DONO.length];
-}
 function iniciaisDono(nome?: string): string {
   if (!nome) return '?';
   const p = nome.trim().split(/\s+/);
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
 }
-// Cor do badge de completude de cadastro do lead — verde ≥80%, amarelo 50-79%, vermelho <50%.
+// Cor do badge de completude de cadastro — usado no painel de detalhe do lead
+// (não no card do kanban, que mostra completude como texto neutro discreto).
 const corCompletude = (pct: number) => pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
 
 function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
@@ -308,64 +300,69 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
   const empresa = lead.razao_social || lead.nome_fantasia || lead.nome;
   const tel     = lead.responsavel_telefone;
   const tags    = lead.etiquetas_lead || [];
-  const corDono = corDoLead(lead);
   const donoNome = lead.vendedor_nome || lead.responsavel_nome || '';
   const origemPaga = ehOrigemPaga(lead.origem);
+  const atrasado = !!(lead.proximo_contato && new Date(lead.proximo_contato) <= new Date());
+  // Etiqueta SDR já é redundante com a origem/etapa do funil — extraída à parte
+  // pra não competir por cor no corpo do card; vira só texto junto do dono.
+  const etiquetaSdr = tags.find(t => t.etiqueta.nome.startsWith('SDR:'));
+  const outrasTags = tags.filter(t => t !== etiquetaSdr);
 
   const wppLink = tel
     ? `/whatsapp?numero=${tel.replace(/\D/g, '')}&nome=${encodeURIComponent(lead.razao_social || lead.nome || '')}${lead.id ? `&lead=${lead.id}` : ''}`
     : null;
+
+  // UMA cor de destaque por card, nunca mais de uma: prioridade paga (verde)
+  // vence atraso (vermelho), que vence o estado neutro. Cor volta a significar
+  // "preste atenção aqui", não decoração por SDR/temperatura/completude.
+  const destaqueCor = origemPaga ? '#16a34a' : atrasado ? '#dc2626' : null;
 
   return (
     <div
       onClick={onClick}
       draggable
       onDragStart={onDragStart}
-      className="group relative rounded-xl cursor-grab active:cursor-grabbing transition-all duration-150 hover:shadow-lg overflow-hidden"
+      className="group relative rounded-xl cursor-grab active:cursor-grabbing transition-shadow duration-150 hover:shadow-md overflow-hidden"
       style={{
-        background: origemPaga ? 'rgba(22,163,74,0.10)' : 'var(--t-card-bg)',
-        border: origemPaga ? '1px solid rgba(22,163,74,0.35)' : '1px solid var(--t-card-border)',
-        borderLeft: `3px solid ${origemPaga ? '#16a34a' : temp.color}`,
+        background: 'var(--t-card-bg)',
+        border: destaqueCor ? `1px solid color-mix(in srgb, ${destaqueCor} 40%, var(--t-card-border))` : '1px solid var(--t-card-border)',
+        boxShadow: destaqueCor ? `0 0 0 1px color-mix(in srgb, ${destaqueCor} 18%, transparent)` : undefined,
       }}
     >
-      <div className="p-3">
+      <div className="p-2.5">
         {/* Nome da empresa */}
-        <div className="flex items-start justify-between gap-1.5 mb-2">
-          <p className="text-[12px] font-semibold leading-snug" style={{ color: 'var(--t-text-primary)' }}>{empresa}</p>
-          <span className="flex-shrink-0 opacity-60 mt-0.5" style={{ color: temp.color }}>
-            <temp.icon size={10} />
-          </span>
-        </div>
+        <p className="text-[12px] font-semibold leading-snug" style={{ color: 'var(--t-text-primary)' }}>{empresa}</p>
 
-        {/* Selo de origem paga — prioridade máxima de atendimento */}
+        {/* Sinal de prioridade — único destaque de cor do card */}
         {origemPaga && (
-          <div className="flex items-center gap-1 mb-2">
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
-              style={{ background: '#16a34a', color: '#fff' }}>
-              <Zap size={9} /> {lead.origem} · Prioridade
-            </span>
-          </div>
+          <p className="flex items-center gap-1 text-[10px] font-semibold mt-1" style={{ color: '#16a34a' }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#16a34a' }} />
+            {lead.origem} · prioridade
+          </p>
+        )}
+        {!origemPaga && atrasado && (
+          <p className="flex items-center gap-1 text-[10px] font-semibold mt-1" style={{ color: '#dc2626' }}>
+            <Clock size={9} /> Retorno atrasado
+          </p>
         )}
 
-        {/* Dono */}
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="inline-flex items-center justify-center rounded-full text-white font-bold flex-shrink-0 text-[8px]"
-            style={{ background: corDono, width: 17, height: 17 }}>
+        {/* Dono + SDR de origem (texto neutro, sem cor competindo) */}
+        <div className="flex items-center gap-1.5 mt-2">
+          <span className="inline-flex items-center justify-center rounded-full flex-shrink-0 text-[8px] font-bold" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)', width: 17, height: 17 }}>
             {iniciaisDono(donoNome)}
           </span>
-          <span className="text-[10px] truncate font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+          <span className="text-[10px] truncate" style={{ color: 'var(--t-text-secondary)' }}>
             {donoNome || 'Sem responsável'}
+            {etiquetaSdr && <span style={{ color: 'var(--t-text-muted)' }}> · {etiquetaSdr.etiqueta.nome}</span>}
           </span>
         </div>
 
-        {/* Detalhes linha única */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {lead.segmento && (
-            <span className="text-[9px] font-semibold px-1.5 py-px rounded"
-              style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>
-              {lead.segmento}
-            </span>
-          )}
+        {/* Detalhes — texto neutro, sem badges coloridos */}
+        <div className="flex items-center gap-2 flex-wrap mt-1.5">
+          <span className="flex items-center gap-1 text-[9px]" style={{ color: 'var(--t-text-muted)' }}>
+            <temp.icon size={9} style={{ color: temp.color, opacity: 0.7 }} />
+            {lead.segmento || temp.label}
+          </span>
           {tel && (
             <span className="flex items-center gap-0.5 text-[9px]" style={{ color: 'var(--t-text-muted)' }}>
               <Phone size={8} />{tel}
@@ -373,23 +370,23 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
           )}
         </div>
         {typeof lead.completude_pct === 'number' && lead.completude_pct < 80 && (
-          <p className="text-[9px] font-medium mt-1.5" style={{ color: corCompletude(lead.completude_pct) }} title="Completude do cadastro">
+          <p className="text-[9px] mt-1" style={{ color: 'var(--t-text-muted)' }} title="Completude do cadastro">
             Cadastro {lead.completude_pct}% completo
           </p>
         )}
 
-        {/* Tags */}
-        {tags.length > 0 && (
+        {/* Tags (exceto SDR, já mostrada junto ao dono) */}
+        {outrasTags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
-            {tags.slice(0, 2).map(t => (
+            {outrasTags.slice(0, 2).map(t => (
               <span key={t.etiqueta.id} className="text-[8px] font-semibold px-1.5 py-px rounded-full"
                 style={{ background: `${t.etiqueta.cor}18`, color: t.etiqueta.cor, border: `1px solid ${t.etiqueta.cor}30` }}>
                 {t.etiqueta.nome}
               </span>
             ))}
-            {tags.length > 2 && (
+            {outrasTags.length > 2 && (
               <span className="text-[8px] font-semibold px-1.5 py-px rounded-full" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>
-                +{tags.length - 2}
+                +{outrasTags.length - 2}
               </span>
             )}
           </div>
@@ -399,17 +396,9 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
       {/* Footer */}
       <div className="flex items-center justify-between px-3 py-2" style={{ borderTop: '1px solid var(--t-card-border)' }}>
         <div className="flex items-center gap-2">
-          {lead.proximo_contato && new Date(lead.proximo_contato) <= new Date() && (
-            <Clock size={9} style={{ color: '#dc2626' }} />
-          )}
           {(lead._count?.observacoes_lead || 0) > 0 && (
             <span className="text-[9px] font-medium" style={{ color: 'var(--t-text-muted)' }}>
               {lead._count?.observacoes_lead} obs.
-            </span>
-          )}
-          {lead.origem && (
-            <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>
-              {lead.origem.toLowerCase().replace(/_/g, ' ')}
             </span>
           )}
         </div>
@@ -494,6 +483,8 @@ export default function LeadsPage() {
   const [showNewCol, setShowNewCol]       = useState(false);
   const [showNewEtiq, setShowNewEtiq]     = useState(false);
   const [showPerda, setShowPerda]         = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+  const moreActionsRef = useRef<HTMLDivElement>(null);
 
   const [newLeadForm, setNewLeadForm] = useState<any>({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [] });
   const [newLeadSection, setNewLeadSection] = useState(0);
@@ -516,6 +507,27 @@ export default function LeadsPage() {
   // Drag-and-drop
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null);
   const [dragOverCol, setDragOverCol]   = useState<string | null>(null);
+
+  // Navegação entre colunas do kanban (setas, dots, teclado) — um funil de 9
+  // etapas fica invisível só com scroll horizontal manual, sem indicação de
+  // quantas colunas existem nem onde o usuário está.
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const [colunaAtiva, setColunaAtiva] = useState(0);
+  const colWidth = 236; // largura da coluna (224) + gap (12)
+
+  const irParaColuna = useCallback((idx: number, total: number) => {
+    const alvo = Math.max(0, Math.min(total - 1, idx));
+    setColunaAtiva(alvo);
+    boardScrollRef.current?.scrollTo({ left: alvo * colWidth, behavior: 'smooth' });
+  }, []);
+
+  // Mantém colunaAtiva sincronizada quando o usuário rola manualmente (trackpad/arrastar a barra).
+  const onBoardScroll = useCallback(() => {
+    const el = boardScrollRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollLeft / colWidth);
+    setColunaAtiva(prev => (prev === idx ? prev : idx));
+  }, []);
 
   // Exclusão de lead (com motivo obrigatório)
   const [excluindoLead, setExcluindoLead] = useState<Lead | null>(null);
@@ -948,6 +960,35 @@ export default function LeadsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailTab, selectedLead?.id]);
 
+  // Fecha o menu "Mais ações" ao clicar fora dele.
+  useEffect(() => {
+    if (!showMoreActions) return;
+    const onClick = (e: MouseEvent) => {
+      if (moreActionsRef.current && !moreActionsRef.current.contains(e.target as Node)) setShowMoreActions(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [showMoreActions]);
+
+  // Atalhos de teclado do quadro: ← → navega uma coluna, 1–9 pula direto pra
+  // ela (como abas de navegador). Ignora quando o foco está em um campo de
+  // texto/formulário (inclui qualquer modal aberto) para não interceptar digitação.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      const editing = tag === 'input' || tag === 'textarea' || tag === 'select' || (document.activeElement as HTMLElement)?.isContentEditable;
+      if (editing || selectedLead) return;
+      if (e.key === 'ArrowRight') { irParaColuna(colunaAtiva + 1, colunas.length); }
+      else if (e.key === 'ArrowLeft') { irParaColuna(colunaAtiva - 1, colunas.length); }
+      else if (/^[1-9]$/.test(e.key)) { irParaColuna(Number(e.key) - 1, colunas.length); }
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colunaAtiva, colunas.length, selectedLead]);
+
   const setPF = (k: string, v: any) => setPropostaForm((p: any) => ({ ...p, [k]: v }));
   const togglePF = (k: 'modulos_inclusos' | 'servicos_adicionais', val: string) =>
     setPropostaForm((p: any) => {
@@ -1126,7 +1167,7 @@ export default function LeadsPage() {
         {/* ═══ 1. HEADER ═══════════════════════════════════════════════════ */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Pipeline Comercial</h1>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Central de Leads</h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
               {isVendedor ? 'Seus leads, metas e bônus' : 'Performance da equipe comercial'}
               {' · '}<span style={{ color: 'var(--t-primary)' }}>{totalLeads} leads</span> no funil
@@ -1135,7 +1176,7 @@ export default function LeadsPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--t-text-muted)' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 190, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead ou empresa..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 210, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
             </div>
             {/* Filtro vendedor */}
             {isGestor && (
@@ -1146,57 +1187,66 @@ export default function LeadsPage() {
                 {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
               </select>
             )}
-            {/* Grupo de ações secundárias */}
-            <div className="flex items-center rounded-lg overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
-              <button onClick={loadData} title="Atualizar" className="h-8 w-8 flex items-center justify-center transition-colors" style={{ borderRight: '1px solid var(--t-card-border)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
+            <button onClick={loadData} title="Atualizar" className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0" style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--t-card-bg)')}>
+              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
+            </button>
+
+            {/* Ações secundárias — agrupadas num único menu para não competir com "Novo Lead" */}
+            <div className="relative" ref={moreActionsRef}>
+              <button onClick={() => setShowMoreActions(v => !v)} title="Mais ações"
+                className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+                style={{ border: '1px solid var(--t-card-border)', background: showMoreActions ? 'var(--t-primary-light)' : 'var(--t-card-bg)' }}>
+                <MoreHorizontal size={14} style={{ color: 'var(--t-text-secondary)' }} />
               </button>
-              <ExportButton nome="leads" titulo="Pipeline Comercial — Leads" small
-                linhas={Object.values(kanban).flat()}
-                colunas={[
-                  { header: 'Lead', value: (l: Lead) => l.razao_social || l.nome_fantasia || l.nome },
-                  { header: 'CNPJ', value: (l: Lead) => (l as any).cnpj || '' },
-                  { header: 'Segmento', value: (l: Lead) => l.segmento || '' },
-                  { header: 'Etapa', value: (l: Lead) => l.etapa_comercial },
-                  { header: 'Temperatura', value: (l: Lead) => l.temperatura },
-                  { header: 'Vendedor', value: (l: Lead) => l.vendedor_nome || '' },
-                  { header: 'Valor estimado (R$)', value: (l: Lead) => (l as any).valor_estimado ?? '' },
-                  { header: 'Origem', value: (l: Lead) => l.origem || '' },
-                ]}
-              />
-              <button onClick={() => setShowNewEtiq(true)} title="Etiquetas"
-                className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <Tag size={11} /> Etiqueta
-              </button>
-              {!quadroAtivo && (
-                <button onClick={() => setShowNewCol(true)} title="Nova coluna"
-                  className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <Plus size={11} /> Coluna
-                </button>
-              )}
-              {isGestor && !quadroAtivo && (
-                <>
-                  <button onClick={() => setShowConfigFunil(true)} title="Configurar Funil"
-                    className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
+              {showMoreActions && (
+                <div className="absolute right-0 top-full mt-1.5 rounded-xl overflow-hidden z-50" style={{ minWidth: 220, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', boxShadow: '0 14px 36px rgba(13,34,56,0.16)' }}>
+                  <div className="px-1 py-1" onClick={() => setShowMoreActions(false)}>
+                    <ExportButton nome="leads" titulo="Central de Leads" small
+                      linhas={Object.values(kanban).flat()}
+                      colunas={[
+                        { header: 'Lead', value: (l: Lead) => l.razao_social || l.nome_fantasia || l.nome },
+                        { header: 'CNPJ', value: (l: Lead) => (l as any).cnpj || '' },
+                        { header: 'Segmento', value: (l: Lead) => l.segmento || '' },
+                        { header: 'Etapa', value: (l: Lead) => l.etapa_comercial },
+                        { header: 'Temperatura', value: (l: Lead) => l.temperatura },
+                        { header: 'Vendedor', value: (l: Lead) => l.vendedor_nome || '' },
+                        { header: 'Valor estimado (R$)', value: (l: Lead) => (l as any).valor_estimado ?? '' },
+                        { header: 'Origem', value: (l: Lead) => l.origem || '' },
+                      ]}
+                    />
+                  </div>
+                  <button onClick={() => { setShowNewEtiq(true); setShowMoreActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-left transition-colors" style={{ color: 'var(--t-text-primary)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <Wrench size={11} /> Configurar Funil
+                    <Tag size={13} style={{ color: 'var(--t-text-secondary)' }} /> Gerenciar etiquetas
                   </button>
-                  <button onClick={abrirControle} title="Controle Total"
-                    className="h-8 px-3 flex items-center gap-1 text-xs transition-colors" style={{ borderLeft: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <BarChart3 size={11} /> Controle Total
-                  </button>
-                </>
+                  {!quadroAtivo && (
+                    <button onClick={() => { setShowNewCol(true); setShowMoreActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-left transition-colors" style={{ color: 'var(--t-text-primary)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <Plus size={13} style={{ color: 'var(--t-text-secondary)' }} /> Nova coluna
+                    </button>
+                  )}
+                  {isGestor && !quadroAtivo && (
+                    <>
+                      <button onClick={() => { setShowConfigFunil(true); setShowMoreActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-left transition-colors" style={{ color: 'var(--t-text-primary)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <Wrench size={13} style={{ color: 'var(--t-text-secondary)' }} /> Configurar funil
+                      </button>
+                      <button onClick={() => { abrirControle(); setShowMoreActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-left transition-colors" style={{ color: 'var(--t-text-primary)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <BarChart3 size={13} style={{ color: 'var(--t-text-secondary)' }} /> Controle total
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
+
             <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [], vendedor_nome: (user as any)?.nome || '' }); setShowNewLead(true); }}
               className="ps-btn-primary h-8 flex items-center gap-1.5 px-4 rounded-lg text-xs font-semibold text-white">
               <Plus size={13} /> Novo Lead
@@ -1235,31 +1285,30 @@ export default function LeadsPage() {
           <p className="text-xs px-1" style={{ color: 'var(--t-text-secondary)' }}>{quadroAtivo.descricao}</p>
         )}
 
-        {/* ═══ 2. KPI CARDS ═══════════════════════════════════════════════ */}
-        {metricas && (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-              <KpiCard label="Pipeline"       value={fmtBRL2(metricas.pipeline_total)} destaque />
-              <KpiCard label="Vendido no mês" value={fmtBRL2(metricas.vendido_mes)}    color="#16a34a" destaque />
-              <KpiCard label="Conversão"      value={`${metricas.taxa_conversao.toFixed(1)}%`} />
-              <KpiCard label="Leads ativos"   value={metricas.leads_ativos.toString()} />
+        {/* ═══ 2. FAIXA DE MÉTRICAS ═══════════════════════════════════════ */}
+        {/* Uma única barra dividida por linhas finas, não cards separados —
+            menos "caixa dentro de caixa"; Pipeline em destaque por ser a
+            métrica que mais orienta a decisão do dia a dia. */}
+        {metricas && (() => {
+          const celulas: { label: string; value: string; color?: string; destaque?: boolean }[] = [
+            { label: 'Pipeline', value: fmtBRL2(metricas.pipeline_total), destaque: true },
+            { label: 'Vendido no mês', value: fmtBRL2(metricas.vendido_mes), color: '#16a34a', destaque: true },
+            { label: 'Conversão', value: `${metricas.taxa_conversao.toFixed(1)}%` },
+            { label: 'Leads ativos', value: metricas.leads_ativos.toString() },
+          ];
+          if (isVendedor && metricas.meta_valor > 0) celulas.push({ label: 'Meta do mês', value: fmtBRL2(metricas.meta_valor) });
+          if (isVendedor && metricas.meta_valor > 0) celulas.push({ label: '% Meta', value: `${metricas.meta_pct.toFixed(1)}%`, color: metricas.meta_pct >= 100 ? '#16a34a' : metricas.meta_pct >= 60 ? '#eab308' : '#ef4444' });
+          if (isVendedor && metricas.meta_trim_valor > 0) celulas.push({ label: 'Bônus trim.', value: `${metricas.bonus_pct.toFixed(0)}%`, color: '#7c3aed' });
+          celulas.push({ label: 'Perdidos mês', value: metricas.perdidos_mes.toString(), color: metricas.perdidos_mes > 0 ? '#dc2626' : '#16a34a' });
+
+          return (
+            <div className="flex flex-wrap ps-card rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
+              {celulas.map((c, i) => (
+                <KpiCell key={c.label} {...c} borderRight={i < celulas.length - 1} />
+              ))}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {isVendedor && metricas.meta_valor > 0 && (
-                <KpiCard label="Meta do mês"    value={fmtBRL2(metricas.meta_valor)} />
-              )}
-              {isVendedor && metricas.meta_valor > 0 && (
-                <KpiCard label="% Meta"
-                  value={`${metricas.meta_pct.toFixed(1)}%`}
-                  color={metricas.meta_pct >= 100 ? '#16a34a' : metricas.meta_pct >= 60 ? '#eab308' : '#ef4444'} />
-              )}
-              {isVendedor && metricas.meta_trim_valor > 0 && (
-                <KpiCard label="Bônus trim."    value={`${metricas.bonus_pct.toFixed(0)}%`} color="#7c3aed" />
-              )}
-              <KpiCard label="Perdidos mês"   value={metricas.perdidos_mes.toString()} color={metricas.perdidos_mes > 0 ? '#dc2626' : '#16a34a'} />
-            </div>
-          </>
-        )}
+          );
+        })()}
 
         {/* ═══ 3. BLOCO MOTIVACIONAL (vendedor com meta) ══════════════════ */}
         {isVendedor && metricas && metricas.meta_valor > 0 && regua && (
@@ -1319,15 +1368,45 @@ export default function LeadsPage() {
         {/* ═══ 4. KANBAN PRINCIPAL ════════════════════════════════════════ */}
         <div className="rounded-2xl ps-card overflow-hidden"
           style={{ border: '1px solid var(--t-card-border)', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
-          <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
-            <div className="flex items-center gap-2">
-              <ListChecks size={14} style={{ color: 'var(--t-primary)' }} />
-              <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>Quadro de Leads</p>
+          {/* Toolbar de navegação: setas + posição atual + dots clicáveis */}
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 flex-wrap" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => irParaColuna(colunaAtiva - 1, colunas.length)} disabled={colunaAtiva === 0}
+                  title="Coluna anterior (←)"
+                  className="w-[26px] h-[26px] flex items-center justify-center rounded-md transition-colors disabled:opacity-35"
+                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary-dark)' }}>
+                  <ChevronLeft size={13} />
+                </button>
+                <button onClick={() => irParaColuna(colunaAtiva + 1, colunas.length)} disabled={colunaAtiva >= colunas.length - 1}
+                  title="Próxima coluna (→)"
+                  className="w-[26px] h-[26px] flex items-center justify-center rounded-md transition-colors disabled:opacity-35"
+                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary-dark)' }}>
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+              <span className="text-xs font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>
+                {colunas[colunaAtiva]?.nome || 'Quadro de Leads'}
+                <span className="font-semibold ml-1.5" style={{ color: 'var(--t-text-muted)' }}>{colunaAtiva + 1} de {colunas.length}</span>
+              </span>
             </div>
-            <p className="text-[10px]" style={{ color: 'var(--t-text-secondary)' }}>Arraste os cards para mover entre etapas · Mover para "Perdido" exige justificativa</p>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {colunas.map((col, i) => (
+                <button key={col.chave} onClick={() => irParaColuna(i, colunas.length)} title={col.nome}
+                  className="rounded-full transition-all"
+                  style={{ width: i === colunaAtiva ? 16 : 6, height: 6, background: i === colunaAtiva ? 'var(--t-primary-dark)' : 'var(--t-card-border)' }} />
+              ))}
+            </div>
+            <p className="text-[10px] hidden lg:block flex-shrink-0" style={{ color: 'var(--t-text-secondary)' }}>
+              <kbd className="px-1 py-0.5 rounded" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)' }}>←→</kbd>
+              {' '}navega ·{' '}
+              <kbd className="px-1 py-0.5 rounded" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)' }}>1–9</kbd>
+              {' '}pula etapa
+            </p>
           </div>
-          <div className="overflow-x-auto overflow-y-hidden"
-            style={{ height: 'min(72vh, 720px)' }}
+          <div ref={boardScrollRef} onScroll={onBoardScroll}
+            className="overflow-x-auto overflow-y-hidden"
+            style={{ height: 'min(72vh, 720px)', scrollSnapType: 'x mandatory' }}
             onDragEnd={() => { setDraggingLead(null); setDragOverCol(null); }}>
           <div className="flex h-full gap-3 p-4" style={{ minWidth: `${colunas.length * 230}px` }}>
             {colunas.map(col => {
@@ -1339,6 +1418,7 @@ export default function LeadsPage() {
                   className="flex flex-col rounded-xl flex-shrink-0 transition-colors"
                   style={{
                     width: 224,
+                    scrollSnapAlign: 'start',
                     background: isOver && !isDraggingToSame ? `${col.cor}08` : 'var(--t-card-bg)',
                     border: `1px solid ${isOver && !isDraggingToSame ? col.cor : `${col.cor}22`}`,
                     outline: isOver && !isDraggingToSame ? `3px solid ${col.cor}18` : 'none',
@@ -1358,7 +1438,8 @@ export default function LeadsPage() {
                     setDraggingLead(null);
                   }}
                 >
-                  <div className="px-3 py-2.5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: `1px solid var(--t-card-border)` }}>
+                  <div className="px-3 py-2.5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: `1px solid var(--t-card-border)` }}
+                    title='Arraste os cards para mover entre etapas · mover para "Perdido" exige justificativa'>
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.cor }} />
                       <span className="text-[11px] font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>{col.nome}</span>
@@ -2532,15 +2613,17 @@ export default function LeadsPage() {
 // ─── Componentes auxiliares (KPI Card) ────────────────────────────────────────
 // Sem ícone/gradiente decorativo: em uma fileira de várias métricas, uma
 // caixinha colorida por card não distingue nada — só repete o mesmo template.
-function KpiCard({ label, value, color, destaque }: {
-  label: string; value: string; color?: string; destaque?: boolean;
+// Célula de métrica dentro de uma faixa única (não um card isolado) — evita
+// "caixa dentro de caixa" quando várias métricas ficam lado a lado.
+function KpiCell({ label, value, color, destaque, borderRight = true }: {
+  label: string; value: string; color?: string; destaque?: boolean; borderRight?: boolean;
 }) {
   return (
-    <div className="ps-card rounded-xl p-4 transition-shadow hover:shadow-md">
+    <div className="flex-1 min-w-[120px] px-4 py-2.5 flex flex-col justify-center gap-0.5" style={{ borderRight: borderRight ? '1px solid var(--t-card-border)' : 'none' }}>
       <p className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--t-text-muted)' }}>{label}</p>
       <p
-        className={`font-bold leading-tight truncate mt-1 ${destaque ? 'text-xl' : 'text-[15px]'}`}
-        style={{ color: color || 'var(--t-text-primary)' }}
+        className={`font-bold leading-tight truncate ${destaque ? 'text-[19px]' : 'text-[15px]'}`}
+        style={{ color: color || (destaque ? 'var(--t-primary-dark)' : 'var(--t-text-primary)') }}
       >
         {value}
       </p>

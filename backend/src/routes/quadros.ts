@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { ownerWhere, requireGestor } from '@/lib/scope';
 
 /**
- * Quadros comerciais (kanban). O "Pipeline Comercial" é o quadro fixo padrão
+ * Quadros comerciais (kanban). A "Central de Leads" é o quadro fixo padrão
  * (colunas com quadro_id = id do pipeline). Outros quadros (ex.: Follow-up) são
  * independentes, com colunas próprias e regra de entrada automática de leads.
  *
@@ -49,7 +49,7 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
       let pipeline = await prisma.quadroComercial.findFirst({ where: { tipo: 'PIPELINE' } });
       if (!pipeline) {
         pipeline = await prisma.quadroComercial.create({
-          data: { nome: 'Pipeline Comercial', tipo: 'PIPELINE', cor: '#417ABC', ordem: 0, fixo: true, regra_tipo: 'NENHUMA' },
+          data: { nome: 'Central de Leads', tipo: 'PIPELINE', cor: '#417ABC', ordem: 0, fixo: true, regra_tipo: 'NENHUMA' },
         });
       }
       // Vincula colunas sem quadro ao pipeline; cria as default se não houver nenhuma.
@@ -151,7 +151,7 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
     const { id } = request.params as { id: string };
     const q = await prisma.quadroComercial.findUnique({ where: { id } });
     if (!q) return reply.status(404).send({ status: 'error', message: 'Quadro não encontrado' });
-    if (q.fixo) return reply.status(400).send({ status: 'error', message: 'O Pipeline Comercial não pode ser excluído' });
+    if (q.fixo) return reply.status(400).send({ status: 'error', message: 'A Central de Leads não pode ser excluída' });
     await prisma.kanbanColuna.deleteMany({ where: { quadro_id: id } }).catch(() => {});
     await prisma.leadQuadroPosicao.deleteMany({ where: { quadro_id: id } }).catch(() => {});
     await prisma.quadroComercial.delete({ where: { id } });

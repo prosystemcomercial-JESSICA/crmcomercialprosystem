@@ -94,7 +94,7 @@ const COMUM_TODOS: Secao[] = [
 const VENDEDOR_SECOES: Secao[] = [
   {
     id: 'pipeline',
-    titulo: 'Pipeline Comercial — seu funil de vendas',
+    titulo: 'Central de Leads — seu funil de vendas',
     icone: GitMerge,
     cor: '#16a34a',
     resumo: 'Como movimentar leads do primeiro contato ao fechamento',
@@ -105,9 +105,9 @@ const VENDEDOR_SECOES: Secao[] = [
       },
       {
         titulo: 'Cadastrar um lead novo',
-        conteudo: 'No Pipeline, clique no botão "+ Novo Lead" e preencha os dados em 3 etapas: dados da empresa, responsável e oportunidade. Quanto mais completo, melhor para a proposta.',
+        conteudo: 'Na Central de Leads, clique no botão "+ Novo Lead" e preencha os dados em 3 etapas: dados da empresa, responsável e oportunidade. Quanto mais completo, melhor para a proposta.',
         passos: [
-          'Pipeline Comercial → "+ Novo Lead"',
+          'Central de Leads → "+ Novo Lead"',
           'Razão social, CNPJ, segmento, cidade',
           'Nome do responsável, telefone, email',
           'Origem (Indicação, Instagram, Site...) e temperatura',

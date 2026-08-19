@@ -53,7 +53,7 @@ const THEMES: Array<{
 const SECOES = [
   {
     id: 'pipeline',
-    label: 'Pipeline Comercial',
+    label: 'Central de Leads',
     icon: GitMerge,
     campos: [
       { key: 'etapas_funil', label: 'Etapas do Funil', tipo: 'info', valor: 'Prospecção → Qualificação → Apresentação → Proposta → Negociação → Fechamento' },
