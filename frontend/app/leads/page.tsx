@@ -12,8 +12,8 @@ import {
   Building2, FileText, MessageSquare, Loader2, Send,
   Flame, Thermometer, Snowflake, Zap, Tag, Clock,
   ChevronDown, Settings, Paperclip, Save, CheckCircle2,
-  TrendingUp, Trophy, Target as TargetIcon, BarChart3, Users as UsersIcon,
-  DollarSign, Sparkles, ListChecks, Wrench, Trash2,
+  BarChart3, Users as UsersIcon,
+  ListChecks, Wrench, Trash2,
   Bell, Lock, Star, Pin,
 } from 'lucide-react';
 
@@ -371,14 +371,12 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
               <Phone size={8} />{tel}
             </span>
           )}
-          {typeof lead.completude_pct === 'number' && (
-            <span className="text-white font-semibold text-[9px]"
-              style={{ background: corCompletude(lead.completude_pct), borderRadius: 999, padding: '2px 8px' }}
-              title="Completude do cadastro">
-              {lead.completude_pct}%
-            </span>
-          )}
         </div>
+        {typeof lead.completude_pct === 'number' && lead.completude_pct < 80 && (
+          <p className="text-[9px] font-medium mt-1.5" style={{ color: corCompletude(lead.completude_pct) }} title="Completude do cadastro">
+            Cadastro {lead.completude_pct}% completo
+          </p>
+        )}
 
         {/* Tags */}
         {tags.length > 0 && (
@@ -1129,13 +1127,8 @@ export default function LeadsPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--t-text-secondary)' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 py-2 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 190, color: 'var(--t-text-primary)' }} />
-            </div>
-            {/* Busca */}
-            <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--t-text-muted)' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 180, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 190, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
             </div>
             {/* Filtro vendedor */}
             {isGestor && (
@@ -1237,24 +1230,28 @@ export default function LeadsPage() {
 
         {/* ═══ 2. KPI CARDS ═══════════════════════════════════════════════ */}
         {metricas && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-            <KpiCard icon={UsersIcon}     label="Leads ativos"   value={metricas.leads_ativos.toString()} color="#3b82f6" />
-            <KpiCard icon={TrendingUp}    label="Pipeline"       value={fmtBRL2(metricas.pipeline_total)} color="#8b5cf6" />
-            <KpiCard icon={DollarSign}    label="Vendido no mês" value={fmtBRL2(metricas.vendido_mes)}    color="#22c55e" />
-            {isVendedor && metricas.meta_valor > 0 && (
-              <KpiCard icon={TargetIcon}  label="Meta do mês"    value={fmtBRL2(metricas.meta_valor)}     color="#f97316" />
-            )}
-            {isVendedor && metricas.meta_valor > 0 && (
-              <KpiCard icon={Trophy}      label="% Meta"
-                value={`${metricas.meta_pct.toFixed(1)}%`}
-                color={metricas.meta_pct >= 100 ? '#16a34a' : metricas.meta_pct >= 60 ? '#eab308' : '#ef4444'} />
-            )}
-            {isVendedor && metricas.meta_trim_valor > 0 && (
-              <KpiCard icon={Sparkles}    label="Bônus trim."    value={`${metricas.bonus_pct.toFixed(0)}%`} color="#7c3aed" />
-            )}
-            <KpiCard icon={BarChart3}     label="Conversão"      value={`${metricas.taxa_conversao.toFixed(1)}%`} color="#0ea5e9" />
-            <KpiCard icon={X}             label="Perdidos mês"   value={metricas.perdidos_mes.toString()} color="#ef4444" />
-          </div>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+              <KpiCard label="Pipeline"       value={fmtBRL2(metricas.pipeline_total)} destaque />
+              <KpiCard label="Vendido no mês" value={fmtBRL2(metricas.vendido_mes)}    color="#16a34a" destaque />
+              <KpiCard label="Conversão"      value={`${metricas.taxa_conversao.toFixed(1)}%`} />
+              <KpiCard label="Leads ativos"   value={metricas.leads_ativos.toString()} />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {isVendedor && metricas.meta_valor > 0 && (
+                <KpiCard label="Meta do mês"    value={fmtBRL2(metricas.meta_valor)} />
+              )}
+              {isVendedor && metricas.meta_valor > 0 && (
+                <KpiCard label="% Meta"
+                  value={`${metricas.meta_pct.toFixed(1)}%`}
+                  color={metricas.meta_pct >= 100 ? '#16a34a' : metricas.meta_pct >= 60 ? '#eab308' : '#ef4444'} />
+              )}
+              {isVendedor && metricas.meta_trim_valor > 0 && (
+                <KpiCard label="Bônus trim."    value={`${metricas.bonus_pct.toFixed(0)}%`} color="#7c3aed" />
+              )}
+              <KpiCard label="Perdidos mês"   value={metricas.perdidos_mes.toString()} color={metricas.perdidos_mes > 0 ? '#dc2626' : '#16a34a'} />
+            </div>
+          </>
         )}
 
         {/* ═══ 3. BLOCO MOTIVACIONAL (vendedor com meta) ══════════════════ */}
@@ -2526,19 +2523,20 @@ export default function LeadsPage() {
 }
 
 // ─── Componentes auxiliares (KPI Card) ────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, color }: {
-  icon: React.ComponentType<any>; label: string; value: string; color: string;
+// Sem ícone/gradiente decorativo: em uma fileira de várias métricas, uma
+// caixinha colorida por card não distingue nada — só repete o mesmo template.
+function KpiCard({ label, value, color, destaque }: {
+  label: string; value: string; color?: string; destaque?: boolean;
 }) {
   return (
-    <div className="ps-card rounded-xl p-4 flex items-start gap-3 transition-all hover:shadow-md relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none" style={{ background: `radial-gradient(circle, ${color}08 0%, transparent 70%)` }} />
-      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}12`, color }}>
-        <Icon size={14} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--t-text-muted)' }}>{label}</p>
-        <p className="text-[15px] font-bold leading-tight truncate mt-0.5" style={{ color: 'var(--t-text-primary)' }}>{value}</p>
-      </div>
+    <div className="ps-card rounded-xl p-4 transition-shadow hover:shadow-md">
+      <p className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--t-text-muted)' }}>{label}</p>
+      <p
+        className={`font-bold leading-tight truncate mt-1 ${destaque ? 'text-xl' : 'text-[15px]'}`}
+        style={{ color: color || 'var(--t-text-primary)' }}
+      >
+        {value}
+      </p>
     </div>
   );
 }
