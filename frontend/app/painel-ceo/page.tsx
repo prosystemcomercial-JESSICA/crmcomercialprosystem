@@ -65,7 +65,7 @@ export default function PainelCEOPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto p-3 md:p-5">
+      <div className="p-3 md:p-5 xl:p-6">
         {/* ── Capa com hero: os 3 números que definem o mês, sem precisar rolar ── */}
         <div className="rounded-2xl mb-4 overflow-hidden relative" style={{ background: `linear-gradient(135deg, var(--ps-navy), var(--t-primary-deep))` }}>
           <div
@@ -91,7 +91,7 @@ export default function PainelCEOPage() {
             </div>
 
             {d && (
-              <div className="flex flex-wrap gap-8 mt-4 relative z-10">
+              <div className="flex flex-wrap gap-8 xl:gap-16 mt-4 relative z-10">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,.55)' }}>MRR Atual</p>
                   <p className="text-3xl font-extrabold tracking-tight mt-0.5">{fmt(d.mrr_atual)}</p>
@@ -142,7 +142,7 @@ export default function PainelCEOPage() {
             {/* KPIs secundários — faixa única dividida por linhas finas, sparkline
                 onde há série mensal real por trás. */}
             <div
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden mb-5"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-px rounded-2xl overflow-hidden mb-5"
               style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-border)' }}
             >
               {kpisSecundarios.map(k => (
@@ -166,7 +166,7 @@ export default function PainelCEOPage() {
                   <h2 className="text-sm font-extrabold" style={{ color: 'var(--t-text-primary)' }}>Evolução do MRR — {ano}</h2>
                   <span className="text-[11px]" style={{ color: 'var(--t-text-muted)' }}>ganho · perdido · saldo acumulado</span>
                 </div>
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={320}>
                   <ComposedChart data={serie} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
                     <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
@@ -180,25 +180,28 @@ export default function PainelCEOPage() {
               </div>
             )}
 
-            {/* Marketing: gasto × retorno */}
-            <div className="ps-card rounded-2xl p-4 mb-5" style={{ border: '1px solid var(--t-card-border)' }}>
-              <h2 className="text-sm font-extrabold uppercase mb-3" style={{ color: 'var(--t-primary-dark)' }}>Marketing — gasto × retorno</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Mini l="Investido" v={d.marketing_investido != null ? fmt(d.marketing_investido) : '— preencher'} />
-                <Mini l="Leads de campanha" v={num(d.leads_campanha)} />
-                <Mini l="CPL" v={d.cpl != null ? fmt(d.cpl) : '—'} />
-                <Mini l="Retorno (MRR novo / investido)" v={d.roi_marketing != null ? `${d.roi_marketing}x` : '—'} cor={d.roi_marketing >= 1 ? 'var(--t-success)' : 'var(--t-error)'} />
+            {/* Marketing + Financeiro lado a lado em telas largas — cada bloco só
+                tem 4 métricas, esticar para 8 colunas ficaria esparso; melhor
+                usar o espaço extra colocando os dois blocos na mesma linha. */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
+              <div className="ps-card rounded-2xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
+                <h2 className="text-sm font-extrabold uppercase mb-3" style={{ color: 'var(--t-primary-dark)' }}>Marketing — gasto × retorno</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <Mini l="Investido" v={d.marketing_investido != null ? fmt(d.marketing_investido) : '— preencher'} />
+                  <Mini l="Leads de campanha" v={num(d.leads_campanha)} />
+                  <Mini l="CPL" v={d.cpl != null ? fmt(d.cpl) : '—'} />
+                  <Mini l="Retorno (MRR novo / investido)" v={d.roi_marketing != null ? `${d.roi_marketing}x` : '—'} cor={d.roi_marketing >= 1 ? 'var(--t-success)' : 'var(--t-error)'} />
+                </div>
               </div>
-            </div>
 
-            {/* Financeiro do setor */}
-            <div className="ps-card rounded-2xl p-4 mb-5" style={{ border: '1px solid var(--t-card-border)' }}>
-              <h2 className="text-sm font-extrabold uppercase mb-3" style={{ color: 'var(--t-primary-dark)' }}>Financeiro</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Mini l="Faturamento" v={d.faturamento != null ? fmt(d.faturamento) : '— preencher'} />
-                <Mini l="Contas a receber" v={d.contas_a_receber != null ? fmt(d.contas_a_receber) : '—'} />
-                <Mini l="Inadimplência" v={d.inadimplencia != null ? fmt(d.inadimplencia) : '—'} cor="var(--t-error)" />
-                <Mini l="Despesas do setor" v={d.despesas_setor != null ? fmt(d.despesas_setor) : '— preencher'} cor="var(--t-error)" />
+              <div className="ps-card rounded-2xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
+                <h2 className="text-sm font-extrabold uppercase mb-3" style={{ color: 'var(--t-primary-dark)' }}>Financeiro</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <Mini l="Faturamento" v={d.faturamento != null ? fmt(d.faturamento) : '— preencher'} />
+                  <Mini l="Contas a receber" v={d.contas_a_receber != null ? fmt(d.contas_a_receber) : '—'} />
+                  <Mini l="Inadimplência" v={d.inadimplencia != null ? fmt(d.inadimplencia) : '—'} cor="var(--t-error)" />
+                  <Mini l="Despesas do setor" v={d.despesas_setor != null ? fmt(d.despesas_setor) : '— preencher'} cor="var(--t-error)" />
+                </div>
               </div>
             </div>
 
