@@ -41,7 +41,8 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',            roles: GESTORES, modulo: 'Dashboard Geral' },
       { href: '/comercial', icon: BarChart2,       label: 'Radar Comercial',       roles: ['VENDEDOR'] },
-      { href: '/leads',     icon: GitMerge,        label: 'Central de Leads',     roles: [...COMERCIAL, 'SDR'], modulo: 'Leads' },
+      { href: '/leads',     icon: GitMerge,        label: 'Central de Leads',     roles: COMERCIAL, modulo: 'Leads' },
+      { href: '/leads-sdr', icon: GitMerge,        label: 'Funil do SDR',          roles: ['SDR', 'CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'], modulo: 'Leads' },
       { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
     ],
   },
