@@ -630,11 +630,21 @@ model Lead {
   modulos_inclusos    Json    @default("[]")
   servicos_adicionais Json    @default("[]")
 
-  // Pipeline / Kanban comercial
+  // Pipeline / Kanban comercial (funil do VENDEDOR — só é trabalhado a partir
+  // da distribuição; enquanto o lead está com o SDR, etapa_sdr é quem manda).
   etapa_comercial    String @default("NOVO_LEAD")
   status_atendimento String @default("NOVO")
   // NOVO|SEM_CONTATO|CONTATO_TENTADO|EM_CONVERSA|QUALIFICADO|AGUARDANDO_RETORNO
   // |PROPOSTA_NECESSARIA|PROPOSTA_ENVIADA|EM_NEGOCIACAO|ACEITO|FECHADO|PERDIDO
+
+  // Kanban PRÓPRIO do SDR — funil de prospecção/qualificação, separado do
+  // funil comercial do vendedor (etapa_comercial). Null = lead nunca passou
+  // por um SDR (cadastro direto por vendedor/gestor). Valores:
+  // NOVO_LEAD → PRIMEIRO_CONTATO → EM_QUALIFICACAO → QUALIFICADO.
+  // Preenchido pelo SDR ao trabalhar o lead; preservado (não apagado) quando
+  // o lead é distribuído para o vendedor — devolver-sdr usa esse histórico
+  // para o lead reaparecer no kanban do SDR de onde ele parou.
+  etapa_sdr String?
 
   origem         String  @default("MANUAL")
   status         String  @default("NOVO")

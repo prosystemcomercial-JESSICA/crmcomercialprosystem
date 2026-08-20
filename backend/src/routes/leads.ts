@@ -6,7 +6,7 @@ import { ownerWhere, scopeUserId, requireGestor, podeVerTudo } from '@/lib/scope
 import { auditarAlteracoesLead, calcularCicloLead } from '@/lib/lead-audit';
 import { CONTAS_SISTEMA } from '@/lib/usuarios';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
-import { bloqueadoParaFecharSeSDR } from '@/lib/sdr-restricoes';
+import { bloqueadoParaFecharSeSDR, ehSDR } from '@/lib/sdr-restricoes';
 import { calcularCompletude } from '@/lib/lead-completude';
 
 const LeadSchema = z.object({
@@ -297,6 +297,59 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     return reply.send({ status: 'success', data: { distribuidos: leads.length, por_vendedor: porVendedor } });
   });
 
+  // ── Kanban PRÓPRIO do SDR (etapa_sdr) — separado do funil comercial do
+  // vendedor (etapa_comercial). Cada SDR só vê os leads que ele mesmo criou
+  // e que ainda não foram distribuídos (etapa_sdr preenchida = passou por um SDR).
+  fastify.get('/leads/meu-funil-sdr', async (request, reply) => {
+    const user = (request as any).user;
+    if (!ehSDR(user?.role) && !podeVerTudo(user)) {
+      return reply.status(403).send({ status: 'error', message: 'Restrito a SDR ou supervisão.' });
+    }
+    const filtroSdrId = podeVerTudo(user) ? (request.query as any)?.sdr_id : user?.id;
+    const leads = await prisma.lead.findMany({
+      where: {
+        deleted_at: null,
+        etapa_sdr: { not: null },
+        ...(filtroSdrId ? { created_by: filtroSdrId } : {}),
+      },
+      orderBy: { updated_at: 'desc' },
+      include: {
+        _count: { select: { atividades: true, propostas: true, observacoes_lead: true } },
+        etiquetas_lead: { include: { etiqueta: { select: { id: true, nome: true, cor: true } } } },
+      },
+    });
+    // Some do kanban do SDR assim que distribuído (responsavel_id != created_by);
+    // reaparece só via devolver-sdr.
+    const visiveis = leads.filter(l => !l.responsavel_id || l.responsavel_id === l.created_by);
+    const grouped: Record<string, any[]> = { NOVO_LEAD: [], PRIMEIRO_CONTATO: [], EM_QUALIFICACAO: [], QUALIFICADO: [] };
+    for (const lead of visiveis) {
+      const etapa = grouped[lead.etapa_sdr || ''] ? lead.etapa_sdr! : 'NOVO_LEAD';
+      grouped[etapa].push({ ...lead, completude_pct: calcularCompletude(lead) });
+    }
+    return reply.send({ status: 'success', data: { leads: grouped } });
+  });
+
+  // ── Mover lead dentro do kanban do SDR (drag-and-drop) ────────────────────
+  fastify.patch('/leads/:id/etapa-sdr', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ etapa_sdr: z.enum(['NOVO_LEAD', 'PRIMEIRO_CONTATO', 'EM_QUALIFICACAO', 'QUALIFICADO']) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Etapa inválida' });
+    const user = (request as any).user;
+
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, created_by: true, responsavel_id: true, etapa_sdr: true } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+    // Só o próprio SDR que criou o lead (ou gestão) pode mover — e só enquanto
+    // não tiver sido distribuído (responsavel_id ainda é o próprio SDR ou vazio).
+    const podeMover = podeVerTudo(user) || (ehSDR(user?.role) && lead.created_by === user?.id);
+    if (!podeMover) return reply.status(403).send({ status: 'error', message: 'Sem permissão para mover este lead.' });
+    if (lead.responsavel_id && lead.responsavel_id !== lead.created_by) {
+      return reply.status(409).send({ status: 'error', message: 'Lead já distribuído para um vendedor — não pode mais ser movido no funil do SDR.' });
+    }
+
+    const updated = await prisma.lead.update({ where: { id }, data: { etapa_sdr: body.data.etapa_sdr } });
+    return reply.send({ status: 'success', data: updated });
+  });
+
   // ── Distribuição SDR → Vendedor (com trilha em LeadHistorico) ─────────────
   fastify.post('/leads/:id/distribuir-sdr', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
@@ -305,7 +358,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe para_usuario_id' });
     const ator = (request as any).user;
 
-    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, responsavel_id: true, created_by: true, etapa_comercial: true } });
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { id: true, nome: true, responsavel_id: true, created_by: true, etapa_comercial: true, etapa_sdr: true } });
     if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
 
     const vend: any[] = await prisma.$queryRawUnsafe(
@@ -314,6 +367,12 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     if (!vend.length) return reply.status(404).send({ status: 'error', message: 'Vendedor não encontrado ou inativo' });
 
     const etapaAnterior = lead.etapa_comercial;
+    // Entra no funil do vendedor em QUALIFICADO (não reseta para NOVO_LEAD —
+    // isso fazia o card parecer que "voltou pro início", confundindo com o
+    // kanban do SDR). etapa_sdr NÃO é tocada aqui: fica como histórico de onde
+    // o SDR parou, usado por /devolver-sdr para o lead reaparecer no kanban
+    // dele exatamente de onde saiu, caso precise voltar.
+    const etapaDestino = 'QUALIFICADO';
 
     await prisma.lead.update({
       where: { id },
@@ -322,10 +381,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
         vendedor_nome: vend[0].nome,
         atribuido_em: new Date(),
         atribuicao_vista: false,
-        // Distribuído pela supervisão entra no funil do vendedor como se fosse
-        // um lead novo — ele trabalha a partir do primeiro contato, com a
-        // qualificação do SDR já registrada na trilha/observações.
-        etapa_comercial: 'NOVO_LEAD',
+        etapa_comercial: etapaDestino,
       },
     });
 
@@ -355,7 +411,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     await prisma.$executeRawUnsafe(
       `INSERT INTO LeadHistorico (id, lead_id, lead_nome, acao, etapa_anterior, etapa_destino, ator_id, ator_nome, detalhes)
        VALUES (?,?,?,?,?,?,?,?,?)`,
-      randomUUID(), id, lead.nome, 'DISTRIBUICAO_SDR', etapaAnterior, 'NOVO_LEAD',
+      randomUUID(), id, lead.nome, 'DISTRIBUICAO_SDR', etapaAnterior, etapaDestino,
       ator?.id || null, ator?.nome || 'Sistema',
       JSON.stringify({ de_usuario_id: lead.responsavel_id || null, para_usuario_id: vend[0].id, para_usuario_nome: vend[0].nome }),
     ).catch(() => {});
@@ -399,12 +455,20 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   });
 
   // ── Leads qualificados prontos para distribuir (SDR → supervisão → vendedor) ──
+  // Filtra por etapa_sdr (kanban próprio do SDR), não etapa_comercial — desde
+  // que distribuir-sdr passou a setar etapa_comercial=QUALIFICADO também no
+  // vendedor, usar esse campo aqui pegaria leads já distribuídos de novo.
+  // A condição extra (responsavel_id == created_by, ou seja, ainda com o
+  // próprio SDR) garante que um lead já distribuído não volte pra fila.
   fastify.get('/leads/prontos-para-distribuir', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const leads = await prisma.lead.findMany({
-      where: { etapa_comercial: 'QUALIFICADO', deleted_at: null },
+    const candidatos = await prisma.lead.findMany({
+      where: { etapa_sdr: 'QUALIFICADO', deleted_at: null },
       orderBy: { created_at: 'asc' },
     });
+    // Prisma não compara duas colunas da mesma linha diretamente — filtra em
+    // memória (volume é baixo: fila de distribuição, não a base toda).
+    const leads = candidatos.filter(l => !l.responsavel_id || l.responsavel_id === l.created_by);
     const data = leads.map(l => ({ ...l, completude_pct: calcularCompletude(l) }));
     return reply.send({ status: 'success', data });
   });
@@ -645,6 +709,13 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       data.responsavel_id = user.id;
       if (!data.vendedor_nome && user?.nome) data.vendedor_nome = user.nome;
       if (!data.atribuido_em) data.atribuido_em = new Date();
+    }
+
+    // Lead cadastrado por um SDR nasce no kanban PRÓPRIO dele (etapa_sdr), não
+    // no funil comercial do vendedor — etapa_comercial fica no default do
+    // schema e só passa a valer quando a supervisão distribui o lead.
+    if (ehSDR(user?.role) && !data.etapa_sdr) {
+      data.etapa_sdr = 'NOVO_LEAD';
     }
 
     // ANTI-DUPLICAÇÃO: guarda contra clique duplo/múltiplo no "Salvar" e retry de

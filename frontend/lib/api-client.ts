@@ -972,6 +972,14 @@ class ApiClient {
     return this.client.post(`/leads/${id}/devolver-sdr`, { motivo });
   }
 
+  // ── Kanban próprio do SDR (funil de prospecção/qualificação) ──
+  async getMeuFunilSdr(sdrId?: string) {
+    return this.client.get('/leads/meu-funil-sdr', { params: sdrId ? { sdr_id: sdrId } : {} });
+  }
+  async moverEtapaSdr(id: string, etapa_sdr: string) {
+    return this.client.patch(`/leads/${id}/etapa-sdr`, { etapa_sdr });
+  }
+
   // Auditoria / trilha do lead + ciclo de vendas agregado
   async getLeadAuditoria(leadId: string) {
     return this.client.get(`/leads/${leadId}/auditoria`);
