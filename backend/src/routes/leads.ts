@@ -718,12 +718,10 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       data.etapa_sdr = 'NOVO_LEAD';
     }
 
-    // ANTI-DUPLICAÇÃO: guarda contra clique duplo/múltiplo no "Salvar" e retry de
-    // rede. Se o MESMO usuário criou um lead com o MESMO nome nos últimos 10s,
-    // é quase certamente o mesmo clique processado mais de uma vez — devolve o
-    // lead já existente em vez de criar outro. Janela curta o bastante para não
-    // barrar um cadastro legítimo de dois leads homônimos no mesmo dia.
-    const duplicado = await prisma.lead.findFirst({
+    // ANTI-DUPLICAÇÃO (clique duplo/retry): MESMO usuário + MESMO nome nos
+    // últimos 10s é quase certamente o mesmo clique processado 2x — devolve o
+    // lead já existente. Janela curta pra não barrar homônimos legítimos.
+    const duplicadoRapido = await prisma.lead.findFirst({
       where: {
         created_by: data.created_by,
         nome: data.nome,
@@ -732,8 +730,31 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       },
       orderBy: { created_at: 'desc' },
     });
-    if (duplicado) {
-      return reply.status(201).send({ status: 'success', data: duplicado });
+    if (duplicadoRapido) {
+      return reply.status(201).send({ status: 'success', data: duplicadoRapido });
+    }
+
+    // ANTI-DUPLICAÇÃO (mesmo CNPJ já cadastrado): sem limite de tempo — CNPJ é
+    // identificador único de empresa, então reenviar o mesmo lead minutos/horas
+    // depois (ex.: SDR não percebendo que já salvou) também é bloqueado.
+    if (data.cnpj) {
+      const cnpjLimpo = String(data.cnpj).replace(/\D/g, '');
+      if (cnpjLimpo) {
+        const rows = await prisma.$queryRaw<Array<{ id: string; nome: string }>>`
+          SELECT id, nome FROM Lead
+          WHERE deleted_at IS NULL
+            AND REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', '') = ${cnpjLimpo}
+          LIMIT 1
+        `;
+        const duplicadoCnpj = rows[0];
+        if (duplicadoCnpj) {
+          return reply.status(409).send({
+            status: 'error',
+            message: `Já existe um lead cadastrado para este CNPJ: "${duplicadoCnpj.nome}".`,
+            data: duplicadoCnpj,
+          });
+        }
+      }
     }
 
     const lead = await prisma.lead.create({ data });
