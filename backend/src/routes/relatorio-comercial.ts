@@ -80,10 +80,54 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     } catch (e: any) { console.error('[RELATORIO] sincronizarLancamentosDeComissao:', e?.message); }
   });
 
-  // Calcula o pipeline do mês a partir das propostas comerciais.
-  async function calcularPipeline(ano: number, mes: number) {
-    const inicio = new Date(ano, mes - 1, 1);
-    const fim = new Date(ano, mes, 1);
+  // true se [inicio,fimExclusiva) corresponde EXATAMENTE a um mês-calendário
+  // (dia 1 ao 1º do mês seguinte) — usado para decidir se o "fechado" manual
+  // da supervisão (RelatorioComercial) se aplica ao período selecionado.
+  function ehMesCalendarioExato(inicio: Date, fimExclusiva: Date): { ano: number; mes: number } | null {
+    const y = inicio.getFullYear(), m = inicio.getMonth();
+    const inicioEsperado = new Date(y, m, 1);
+    const fimEsperado = new Date(y, m + 1, 1);
+    if (inicio.getTime() === inicioEsperado.getTime() && fimExclusiva.getTime() === fimEsperado.getTime()) {
+      return { ano: y, mes: m + 1 };
+    }
+    return null;
+  }
+
+  // true se [inicio,fimExclusiva) corresponde EXATAMENTE a um ano-calendário.
+  function ehAnoCalendarioExato(inicio: Date, fimExclusiva: Date): { ano: number } | null {
+    const y = inicio.getFullYear();
+    const inicioEsperado = new Date(y, 0, 1);
+    const fimEsperado = new Date(y + 1, 0, 1);
+    if (inicio.getTime() === inicioEsperado.getTime() && fimExclusiva.getTime() === fimEsperado.getTime()) {
+      return { ano: y };
+    }
+    return null;
+  }
+
+  // Parseia "YYYY-MM-DD" como data LOCAL (meia-noite no fuso do servidor),
+  // não UTC — `new Date("YYYY-MM-DD")` interpreta como UTC e desloca o dia
+  // em fusos negativos (ex.: 2026-08-01 UTC vira 31/07 21h em GMT-03:00).
+  function parseDataLocal(iso: string): Date {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  }
+
+  // Lista de "YYYY-MM" tocados pelo intervalo [inicio, fimExclusiva) — usada
+  // pelas consultas de comissão, que só têm granularidade mensal (ver
+  // metricasReaisPeriodo, seção 4b/4c: aproximação documentada).
+  function mesesEntre(inicio: Date, fimExclusiva: Date): string[] {
+    const out: string[] = [];
+    const cursor = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+    const fimInclusivo = new Date(fimExclusiva.getTime() - 1);
+    while (cursor <= fimInclusivo) {
+      out.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return out;
+  }
+
+  // Calcula o pipeline de um PERÍODO (range de datas) a partir das propostas comerciais.
+  async function calcularPipelinePeriodo(inicio: Date, fim: Date) {
     const props = await prisma.propostaComercial.findMany({
       // Excluídos NÃO contam nos resultados (deduzidos do cálculo).
       where: { created_at: { gte: inicio, lt: fim }, deleted_at: null as any },
@@ -126,10 +170,10 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     };
   }
 
-  // Métricas REAIS do mês com LISTAS DE NOMES (p/ o relatório completo do comercial).
-  async function metricasReaisDoMes(ano: number, mes: number) {
-    const inicio = new Date(ano, mes - 1, 1);
-    const fim = new Date(ano, mes, 1);
+  // Métricas REAIS de um PERÍODO com LISTAS DE NOMES (p/ o relatório completo do comercial).
+  // Todas as sub-consultas usam campos de data reais, EXCETO comissões
+  // (mes_pagamento/periodo são strings "YYYY-MM" — ver mesesEntre acima).
+  async function metricasReaisPeriodo(inicio: Date, fim: Date) {
     const noMes = { gte: inicio, lt: fim };
 
     // 1) Leads gerados no mês (criados no período).
@@ -243,10 +287,13 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       vendedor: v.vendedor, status: v.status, acrescimo: v.acrescimo,
     }));
 
-    // 4b) Comissões cujo MÊS DE PAGAMENTO é este mês (pagas + a pagar) — com nomes.
-    const mesPagamento = `${ano}-${String(mes).padStart(2, '0')}`;
+    // 4b) Comissões cujo MÊS DE PAGAMENTO cai no período (pagas + a pagar) — com nomes.
+    // SEM granularidade diária: expande o range para os meses "YYYY-MM" tocados e
+    // soma os meses INTEIROS (aproximação — pode incluir comissões pagas em dias
+    // fora do range exato quando o período não é um mês/ano-calendário completo).
+    const mesesTocados = mesesEntre(inicio, fim);
     const comissoesMes = await prisma.comissao.findMany({
-      where: { mes_pagamento: mesPagamento, status: { not: 'CANCELADA' } },
+      where: { mes_pagamento: { in: mesesTocados }, status: { not: 'CANCELADA' } },
       select: { responsavel_id: true, descricao: true, valor_comissao: true, estagio: true, status: true, papel: true, tipo: true },
       orderBy: { valor_comissao: 'desc' },
     }).catch(() => [] as any[]);
@@ -267,12 +314,12 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       lista: comissoes_lista,
     };
 
-    // 4c) Comissão GERADA no mês (competência = mês da venda, campo `periodo`),
+    // 4c) Comissão GERADA no período (competência = mês da venda, campo `periodo`),
     // independente do mês em que o financeiro vai pagar. Isso alimenta o card
     // "Comissão gerada a pagar" do relatório — soma contratos novos + vendas adicionais.
-    const mesCompetencia = `${ano}-${String(mes).padStart(2, '0')}`;
+    // Mesma aproximação por mês-calendário tocado descrita acima.
     const comissoesGeradasMes = await prisma.comissao.findMany({
-      where: { periodo: mesCompetencia, status: { not: 'CANCELADA' } },
+      where: { periodo: { in: mesesTocados }, status: { not: 'CANCELADA' } },
       select: { papel: true, tipo: true, valor_comissao: true },
     }).catch(() => [] as any[]);
     const vendasAdicionaisTipos = ['VENDA_ADICIONAL', 'SUPERVISAO_VENDA_ADICIONAL'];
@@ -303,82 +350,71 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       comissoes,
       comissao_gerada,
       entrada_x_saida,
+      _comissoes_aproximadas: !ehMesCalendarioExato(inicio, fim) && !ehAnoCalendarioExato(inicio, fim),
     };
   }
 
-  // Consolidado do ANO: soma os 12 meses no MESMO formato de metricasReaisDoMes,
-  // concatenando as listas (fechamentos/perdidos/indicações) p/ o relatório anual.
-  async function metricasDoAno(ano: number) {
-    const meses = [] as any[];
-    for (let m = 1; m <= 12; m++) meses.push(await metricasReaisDoMes(ano, m).catch(() => null));
-    const validos = meses.filter(Boolean);
-    const somaL = (sel: (x: any) => number) => validos.reduce((s, x) => s + (sel(x) || 0), 0);
-    const concat = (sel: (x: any) => any[]) => validos.flatMap(x => sel(x) || []);
-
-    const totalFechamentos = somaL(x => x.fechamentos.total);
-    const setupTotal = somaL(x => x.fechamentos.setup_total);
-    const mrrGanhoTotal = somaL(x => x.fechamentos.mrr_total);
-    const totalPerdidos = somaL(x => x.perdidos.total);
-    const mrrPerdidoTotal = somaL(x => x.perdidos.mrr_perdido_total);
-    const vaSetup = somaL(x => x.vendas_adicionais?.setup_total || 0);
-    const vaAcr = somaL(x => x.vendas_adicionais?.acrescimo_mrr_total || 0);
-    const vaTotal = somaL(x => x.vendas_adicionais?.total || 0);
-    const comissaoGeradaTotal = somaL(x => x.comissao_gerada?.total_geral || 0);
-    const comissaoGeradaVendedor = somaL(x => x.comissao_gerada?.total_vendedor || 0);
-    const comissaoGeradaSupervisao = somaL(x => x.comissao_gerada?.total_supervisao || 0);
-    const comissaoGeradaContratos = somaL(x => x.comissao_gerada?.total_contratos_novos || 0);
-    const comissaoGeradaVendasAdicionais = somaL(x => x.comissao_gerada?.total_vendas_adicionais || 0);
-
-    return {
-      total_leads: somaL(x => x.total_leads),
-      fechamentos: {
-        total: totalFechamentos, setup_total: setupTotal,
-        setup_medio: totalFechamentos ? Math.round(setupTotal / totalFechamentos) : 0,
-        mrr_total: mrrGanhoTotal, mrr_medio: totalFechamentos ? Math.round(mrrGanhoTotal / totalFechamentos) : 0,
-        lista: concat(x => x.fechamentos.lista),
-      },
-      perdidos: { total: totalPerdidos, mrr_perdido_total: mrrPerdidoTotal, lista: concat(x => x.perdidos.lista) },
-      indicacoes: { total: somaL(x => x.indicacoes.total), lista: concat(x => x.indicacoes.lista) },
-      vendas_adicionais: {
-        total: vaTotal, setup_total: vaSetup,
-        setup_medio: 0, acrescimo_mrr_total: vaAcr, acrescimo_medio: 0,
-        por_tipo: [], lista: concat(x => x.vendas_adicionais?.lista || []),
-      },
-      comissoes: { total: 0, total_valor: 0, pagas_valor: 0, a_pagar_valor: 0, lista: [] },
-      comissao_gerada: {
-        total_geral: comissaoGeradaTotal, total_vendedor: comissaoGeradaVendedor,
-        total_supervisao: comissaoGeradaSupervisao, total_contratos_novos: comissaoGeradaContratos,
-        total_vendas_adicionais: comissaoGeradaVendasAdicionais,
-      },
-      entrada_x_saida: {
-        mrr_entrada: mrrGanhoTotal, mrr_saida: mrrPerdidoTotal, saldo_mrr: mrrGanhoTotal - mrrPerdidoTotal,
-        clientes_entrada: totalFechamentos, clientes_saida: totalPerdidos, saldo_clientes: totalFechamentos - totalPerdidos,
-      },
-    };
+  // Wrapper fino por mês-calendário — mantido porque /serie-anual (e os
+  // consumidores dela: painel-ceo e o card MRR do dashboard) dependem desse
+  // contrato mês a mês e não devem mudar de comportamento.
+  async function metricasReaisDoMes(ano: number, mes: number) {
+    const inicio = new Date(ano, mes - 1, 1);
+    const fim = new Date(ano, mes, 1);
+    return metricasReaisPeriodo(inicio, fim);
   }
 
-  // GET — relatório do mês (auto-pipeline mesclado com o salvo).
+  // GET — relatório do período (auto-pipeline mesclado com o salvo, quando aplicável).
   fastify.get('/relatorio-comercial', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    // mes = 0 → ANO INTEIRO (consolidado dos 12 meses). 1..12 → mês específico.
-    const q = z.object({ ano: z.coerce.number().default(new Date().getFullYear()), mes: z.coerce.number().min(0).max(12).default(new Date().getMonth() + 1) }).safeParse(request.query);
-    if (!q.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
-    const { ano, mes } = q.data;
 
-    // ── ANO INTEIRO: soma os 12 meses (mesma fonte real), no mesmo formato. ──
-    if (mes === 0) {
-      const metricas = await metricasDoAno(ano);
-      const pipeline = await calcularPipeline(ano, new Date().getMonth() + 1).catch(() => null);
-      return reply.send({ status: 'success', data: { ano, mes: 0, anual: true, _pipeline_auto: pipeline, metricas } });
+    const q = z.object({
+      data_inicio: z.string().optional(),
+      data_fim: z.string().optional(),
+      // Compat: se data_inicio/data_fim não vierem, cai no comportamento antigo por ano/mês.
+      ano: z.coerce.number().default(new Date().getFullYear()),
+      mes: z.coerce.number().min(0).max(12).default(new Date().getMonth() + 1),
+    }).safeParse(request.query);
+    if (!q.success) return reply.status(400).send({ status: 'error', message: 'Query inválida' });
+    const { data_inicio, data_fim, ano, mes } = q.data;
+
+    let inicio: Date, fimExclusiva: Date;
+    if (data_inicio && data_fim) {
+      inicio = parseDataLocal(data_inicio);
+      // data_fim vem como "dia final incluído" (ex.: 2026-08-20) — fim exclusivo é o dia seguinte 00:00.
+      const df = parseDataLocal(data_fim);
+      fimExclusiva = new Date(df.getFullYear(), df.getMonth(), df.getDate() + 1);
+    } else if (mes === 0) {
+      inicio = new Date(ano, 0, 1);
+      fimExclusiva = new Date(ano + 1, 0, 1);
+    } else {
+      inicio = new Date(ano, mes - 1, 1);
+      fimExclusiva = new Date(ano, mes, 1);
     }
 
-    const salvo = await prisma.relatorioComercial.findUnique({ where: { uq_relatorio_mes: { ano, mes } } });
-    const pipeline = await calcularPipeline(ano, mes);
-    const metricas = await metricasReaisDoMes(ano, mes); // leads, fechamentos, perdidos, indicações, entrada×saída
+    const metricas = await metricasReaisPeriodo(inicio, fimExclusiva);
+    const pipeline = await calcularPipelinePeriodo(inicio, fimExclusiva).catch(() => null);
 
-    // Se o mês está "fechado", usa o salvo; senão, sobrepõe o pipeline calculado.
-    const data = salvo?.fechado ? salvo : { ...(salvo || {}), ...pipeline, ano, mes };
-    return reply.send({ status: 'success', data: { ...data, _pipeline_auto: pipeline, metricas } });
+    // Só respeita o "fechado" manual quando o range bate EXATAMENTE com um mês-calendário.
+    const mesExato = ehMesCalendarioExato(inicio, fimExclusiva);
+    const anoExato = !mesExato ? ehAnoCalendarioExato(inicio, fimExclusiva) : null;
+
+    let base: any = { ...(pipeline || {}) };
+    if (mesExato) {
+      const salvo = await prisma.relatorioComercial.findUnique({ where: { uq_relatorio_mes: { ano: mesExato.ano, mes: mesExato.mes } } });
+      base = salvo?.fechado ? salvo : { ...(salvo || {}), ...pipeline, ano: mesExato.ano, mes: mesExato.mes };
+    }
+
+    return reply.send({
+      status: 'success',
+      data: {
+        ...base,
+        periodo: { data_inicio: inicio.toISOString(), data_fim: fimExclusiva.toISOString() },
+        periodo_mes_exato: mesExato,
+        periodo_ano_exato: anoExato,
+        _pipeline_auto: pipeline,
+        metricas,
+      },
+    });
   });
 
   // Série ANUAL (evolução mês a mês) — p/ os gráficos de tendência do relatório.
