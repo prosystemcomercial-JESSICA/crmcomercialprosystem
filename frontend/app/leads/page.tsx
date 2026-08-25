@@ -489,6 +489,7 @@ export default function LeadsPage() {
   const [newLeadForm, setNewLeadForm] = useState<any>({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [] });
   const [newLeadSection, setNewLeadSection] = useState(0);
   const [savingNewLead, setSavingNewLead] = useState(false);
+  const [newLeadError, setNewLeadError] = useState<string | null>(null);
   // Trava síncrona (não depende de re-render, ao contrário de savingNewLead):
   // cliques muito rápidos no botão "Criar Lead" podem disparar antes do React
   // re-renderizar o disabled do botão. Um useRef muda no mesmo tick do clique.
@@ -1102,6 +1103,7 @@ export default function LeadsPage() {
     if (criandoLeadRef.current) return;
     criandoLeadRef.current = true;
     setSavingNewLead(true);
+    setNewLeadError(null);
     try {
       const payload: any = { ...newLeadForm };
       if (!payload.nome) payload.nome = payload.razao_social || payload.responsavel_nome || payload.empresa || 'Lead';
@@ -1139,7 +1141,7 @@ export default function LeadsPage() {
       const msg = e?.response?.data?.message
         || e?.response?.data?.errors?.[0]?.message
         || 'Não foi possível salvar o lead. Verifique os campos e tente novamente.';
-      console.error('Erro ao salvar lead:', msg);
+      setNewLeadError(msg);
       console.error('createLead falhou:', e?.response?.data || e);
     } finally {
       criandoLeadRef.current = false;
@@ -1247,7 +1249,7 @@ export default function LeadsPage() {
               )}
             </div>
 
-            <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [], vendedor_nome: (user as any)?.nome || '' }); setShowNewLead(true); }}
+            <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [], vendedor_nome: (user as any)?.nome || '' }); setNewLeadError(null); setNewLeadSection(0); setShowNewLead(true); }}
               className="ps-btn-primary h-8 flex items-center gap-1.5 px-4 rounded-lg text-xs font-semibold text-white">
               <Plus size={13} /> Novo Lead
             </button>
@@ -2203,8 +2205,13 @@ export default function LeadsPage() {
           <div className="ps-card rounded-2xl shadow-2xl flex flex-col" style={{ width: 620, maxHeight: '88vh' }}>
             <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
               <h2 className="text-sm font-extrabold" style={{ color: 'var(--t-text-primary)' }}>Novo Lead</h2>
-              <button onClick={() => setShowNewLead(false)}><X size={16} style={{ color: 'var(--t-text-secondary)' }} /></button>
+              <button onClick={() => { setShowNewLead(false); setNewLeadError(null); }}><X size={16} style={{ color: 'var(--t-text-secondary)' }} /></button>
             </div>
+            {newLeadError && (
+              <div role="alert" className="mx-6 mt-3 rounded-lg px-3 py-2 text-xs font-medium flex-shrink-0" style={{ background: 'var(--t-danger-bg, #FEF2F2)', color: 'var(--t-danger, #B91C1C)', border: '1px solid var(--t-danger, #B91C1C)' }}>
+                {newLeadError}
+              </div>
+            )}
             <div className="flex gap-0 px-6 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
               {['Empresa','Responsável','Comercial'].map((s, i) => (
                 <button key={s} onClick={() => setNewLeadSection(i)}
