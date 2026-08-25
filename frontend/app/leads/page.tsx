@@ -530,6 +530,21 @@ export default function LeadsPage() {
     setColunaAtiva(prev => (prev === idx ? prev : idx));
   }, []);
 
+  // Busca só filtra dentro de cada coluna já renderizada — com várias etapas
+  // (ex.: 17 no funil comercial), o resultado pode estar numa coluna fora da
+  // área visível e parecer que o lead "sumiu". Ao digitar uma busca, pula
+  // automaticamente pra primeira coluna (a partir da atual) que tem match.
+  useEffect(() => {
+    if (!search.trim() || colunas.length === 0) return;
+    const termo = search.toLowerCase();
+    const temMatch = (chave: string) => (kanban[chave] || []).some(
+      l => [l.nome, l.razao_social, l.responsavel_nome, l.segmento].some(v => v?.toLowerCase().includes(termo))
+    );
+    if (temMatch(colunas[colunaAtiva]?.chave)) return; // já está numa coluna com resultado
+    const idx = colunas.findIndex(c => temMatch(c.chave));
+    if (idx >= 0) irParaColuna(idx, colunas.length);
+  }, [search, kanban, colunas]);
+
   // Exclusão de lead (com motivo obrigatório)
   const [excluindoLead, setExcluindoLead] = useState<Lead | null>(null);
   const [motivoExclusao, setMotivoExclusao] = useState('');
@@ -1179,6 +1194,11 @@ export default function LeadsPage() {
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--t-text-muted)' }} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead ou empresa..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 210, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+              {search.trim() && Object.values(filtered).every(l => l.length === 0) && (
+                <span className="absolute left-0 top-full mt-1 text-[11px] whitespace-nowrap" style={{ color: 'var(--t-error, #dc2626)' }}>
+                  Nenhum lead encontrado para "{search}"
+                </span>
+              )}
             </div>
             {/* Filtro vendedor */}
             {isGestor && (
