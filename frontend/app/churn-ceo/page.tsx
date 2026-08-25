@@ -285,7 +285,7 @@ export default function ChurnCEOPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto p-3 md:p-5">
+      <div className="w-full max-w-[1680px] mx-auto p-3 md:p-5 lg:px-8">
 
         {/* Cabeçalho */}
         <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: `linear-gradient(135deg, ${PRO_DARK}, ${PRO})` }}>
