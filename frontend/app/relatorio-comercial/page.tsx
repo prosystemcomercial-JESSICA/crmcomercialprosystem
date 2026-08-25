@@ -17,6 +17,46 @@ import {
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const fmt = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
+// ── Filtro de período livre (atalhos + range custom) ──────────────────────
+type Atalho = 'este_mes' | 'mes_passado' | 'este_ano' | 'personalizado';
+
+function iso(dt: Date) { return dt.toISOString(); }
+function isoDia(dt: Date) { // "YYYY-MM-DD" para <input type="date"> e para a API
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function rangeDoAtalho(a: Atalho, hoje: Date): { inicio: Date; fim: Date } {
+  if (a === 'mes_passado') {
+    return { inicio: new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1), fim: new Date(hoje.getFullYear(), hoje.getMonth(), 0) };
+  }
+  if (a === 'este_ano') {
+    return { inicio: new Date(hoje.getFullYear(), 0, 1), fim: new Date(hoje.getFullYear(), 11, 31) };
+  }
+  // 'este_mes' (default) e 'personalizado' (ponto de partida antes de editar)
+  return { inicio: new Date(hoje.getFullYear(), hoje.getMonth(), 1), fim: new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0) };
+}
+
+function ehMesmoDia(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+// Decide o rótulo do período: mês-calendário exato -> "Agosto/2026"; ano-calendário
+// exato -> "2026 (ano inteiro)"; senão -> "15/07/2026 a 20/08/2026".
+function rotuloPeriodo(inicio: Date, fim: Date): { curto: string; longo: string; ehMes: boolean; ehAno: boolean } {
+  const inicioMes = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  const fimMes = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 0);
+  if (ehMesmoDia(inicio, inicioMes) && ehMesmoDia(fim, fimMes)) {
+    const nome = MESES[inicio.getMonth() + 1];
+    return { curto: `${nome}/${inicio.getFullYear()}`, longo: `${nome} / ${inicio.getFullYear()}`, ehMes: true, ehAno: false };
+  }
+  const inicioAno = new Date(inicio.getFullYear(), 0, 1);
+  const fimAno = new Date(inicio.getFullYear(), 11, 31);
+  if (ehMesmoDia(inicio, inicioAno) && ehMesmoDia(fim, fimAno) && inicio.getFullYear() === fim.getFullYear()) {
+    return { curto: `${inicio.getFullYear()}`, longo: `${inicio.getFullYear()} (ano inteiro)`, ehMes: false, ehAno: true };
+  }
+  const fmtCurto = (dt: Date) => dt.toLocaleDateString('pt-BR');
+  const txt = `${fmtCurto(inicio)} a ${fmtCurto(fim)}`;
+  return { curto: txt, longo: txt, ehMes: false, ehAno: false };
+}
+
 // Paleta semântica do relatório — todas via tokens do design system (ver DESIGN.md),
 // nunca hex solto. Verde/vermelho/âmbar aqui são estado real (ganho/perda/atenção),
 // não decoração — ver "The Status Color Reserve Rule".
@@ -80,9 +120,10 @@ function KPI({ label, valor, tom = 'neutro' }: { label: string; valor: any; tom?
 export default function RelatorioComercialPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const hoje = new Date();
-  const [ano, setAno] = useState(hoje.getFullYear());
-  const [mes, setMes] = useState(hoje.getMonth() + 1);
+  const [atalho, setAtalho] = useState<Atalho>('este_mes');
+  const rInicial = rangeDoAtalho('este_mes', new Date());
+  const [dataInicio, setDataInicio] = useState<Date>(rInicial.inicio);
+  const [dataFim, setDataFim] = useState<Date>(rInicial.fim);
   const [d, setD] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -90,13 +131,21 @@ export default function RelatorioComercialPage() {
   const [sensor, setSensor] = useState<any>(null); // Sensor de Mercado (Task 8)
   const [sdrs, setSdrs] = useState<any[]>([]); // Desempenho comparativo por SDR (Task 8)
 
+  function aplicarAtalho(a: Atalho) {
+    setAtalho(a);
+    if (a === 'personalizado') return; // mantém as datas atuais, deixa o usuário editar
+    const r = rangeDoAtalho(a, new Date());
+    setDataInicio(r.inicio);
+    setDataFim(r.fim);
+  }
+
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading]);
 
   const load = useCallback(async () => {
     setDataLoading(true);
     setLoadError(false);
     try {
-      const r = await apiClient.getRelatorioComercial(ano, mes);
+      const r = await apiClient.getRelatorioComercial(isoDia(dataInicio), isoDia(dataFim));
       setD(r.data.data);
     } catch (e) {
       console.error(e);
@@ -105,23 +154,20 @@ export default function RelatorioComercialPage() {
     } finally {
       setDataLoading(false);
     }
-  }, [ano, mes]);
+  }, [dataInicio, dataFim]);
   useEffect(() => { if (isAuthenticated) load(); }, [isAuthenticated, load]);
-  // Série anual (evolução) — recarrega ao trocar o ano.
+  // Série anual (evolução) — ancorada no ano do fim do período escolhido.
   useEffect(() => {
     if (!isAuthenticated) return;
-    apiClient.getRelatorioSerieAnual(ano).then(r => setSerie(r.data?.data?.serie || [])).catch(() => setSerie([]));
-  }, [isAuthenticated, ano]);
-  // Sensor de Mercado + comparativo de SDRs (Task 8) — mesmo período selecionado
-  // (ano inteiro quando mes=0, senão o mês específico).
+    apiClient.getRelatorioSerieAnual(dataFim.getFullYear()).then(r => setSerie(r.data?.data?.serie || [])).catch(() => setSerie([]));
+  }, [isAuthenticated, dataFim]);
+  // Sensor de Mercado + comparativo de SDRs (Task 8) — mesmo período livre escolhido.
   useEffect(() => {
     if (!isAuthenticated) return;
-    const dataInicio = mes === 0 ? new Date(ano, 0, 1) : new Date(ano, mes - 1, 1);
-    const dataFim = mes === 0 ? new Date(ano, 11, 31, 23, 59, 59) : new Date(ano, mes, 0, 23, 59, 59);
-    const iso = (dt: Date) => dt.toISOString();
-    apiClient.getRelatorioSensorMercado(iso(dataInicio), iso(dataFim)).then(r => setSensor(r.data?.data || null)).catch(() => setSensor(null));
-    apiClient.getRelatorioSdrs(iso(dataInicio), iso(dataFim)).then(r => setSdrs(r.data?.data || [])).catch(() => setSdrs([]));
-  }, [isAuthenticated, ano, mes]);
+    const fimFinalDoDia = new Date(dataFim.getFullYear(), dataFim.getMonth(), dataFim.getDate(), 23, 59, 59);
+    apiClient.getRelatorioSensorMercado(iso(dataInicio), iso(fimFinalDoDia)).then(r => setSensor(r.data?.data || null)).catch(() => setSensor(null));
+    apiClient.getRelatorioSdrs(iso(dataInicio), iso(fimFinalDoDia)).then(r => setSdrs(r.data?.data || [])).catch(() => setSdrs([]));
+  }, [isAuthenticated, dataInicio, dataFim]);
 
   if (loading || !isAuthenticated) {
     return (
@@ -131,22 +177,24 @@ export default function RelatorioComercialPage() {
     );
   }
 
-  // Tudo vem dos dados REAIS (metricas): capa e números do mês usam a MESMA fonte
-  // (fechamentos por data_aceite no mês), então sempre batem entre si.
+  // Tudo vem dos dados REAIS (metricas): capa e números do período usam a MESMA
+  // fonte (fechamentos por data_aceite no período), então sempre batem entre si.
   const mt = d?.metricas;
   const rContratos = mt ? mt.fechamentos.total : (d?.contratos_fechados || 0);
   const rMrr = mt ? mt.fechamentos.mrr_total : (d?.mrr_total || 0);
   const rPerdidos = mt ? mt.perdidos.total : (d?.cancelamentos || 0);
   const rMrrPerdido = mt ? mt.perdidos.mrr_perdido_total : (d?.mrr_perdido || 0);
+  const periodo = rotuloPeriodo(dataInicio, dataFim);
   // Meta de contratos: mensal vem de d.meta_contratos (fallback 10 = equipe).
-  // No relatório ANUAL (mes=0), a meta é a mensal × 12.
+  // Ano inteiro -> meta mensal × 12. Range livre -> prorateada pelos dias corridos.
+  const diasNoPeriodo = Math.round((dataFim.getTime() - dataInicio.getTime()) / 86400000) + 1;
   const metaMensal = d?.meta_contratos || 10;
-  const metaContratos = mes === 0 ? metaMensal * 12 : metaMensal;
+  const metaContratos = periodo.ehAno ? metaMensal * 12 : Math.round(metaMensal * diasNoPeriodo / 30);
   const metaPct = metaContratos ? Math.round((rContratos / metaContratos) * 100) : 0;
   const mrrLiquido = Number(rMrr) - Number(rMrrPerdido);
-  // Sufixo dos títulos: "do ano" no anual, "do mês" no mensal.
-  const sufPeriodo = mes === 0 ? 'do ano' : 'do mês';
-  const SufPeriodo = mes === 0 ? 'do Ano' : 'do Mês';
+  // Sufixo dos títulos: "do ano" no anual, "do mês" no mensal, "do período" no range livre.
+  const sufPeriodo = periodo.ehAno ? 'do ano' : periodo.ehMes ? 'do mês' : 'do período';
+  const SufPeriodo = periodo.ehAno ? 'do Ano' : periodo.ehMes ? 'do Mês' : 'do Período';
 
   return (
     <DashboardLayout>
@@ -162,32 +210,44 @@ export default function RelatorioComercialPage() {
           aside, nav, header { display: none !important; }
         }
       `}</style>
-      <div className="space-y-3 max-w-4xl mx-auto">
+      <div className="space-y-3 w-full max-w-[1680px] mx-auto px-4 lg:px-8">
         {/* Cabeçalho + seletor + imprimir */}
         <div className="flex items-start justify-between gap-3 flex-wrap print:hidden">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Relatório Comercial</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Resultados {sufPeriodo} — visão executiva para a diretoria</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--t-text-muted)' }} />
-              <select
-                value={mes} onChange={e => setMes(Number(e.target.value))}
-                className="pl-8 pr-3 py-2 rounded-lg text-sm"
-                style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }}
-              >
-                <option value={0}>Ano inteiro</option>
-                {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-              </select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Calendar size={14} style={{ color: 'var(--t-text-muted)' }} className="hidden sm:block" />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(['este_mes', 'mes_passado', 'este_ano', 'personalizado'] as Atalho[]).map(a => (
+                <button
+                  key={a}
+                  onClick={() => aplicarAtalho(a)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{
+                    background: atalho === a ? 'var(--t-primary)' : 'var(--t-card-bg)',
+                    color: atalho === a ? 'var(--t-text-inverse)' : 'var(--t-text-primary)',
+                    border: '1px solid var(--t-card-border)',
+                  }}
+                >
+                  {{ este_mes: 'Este mês', mes_passado: 'Mês passado', este_ano: 'Este ano', personalizado: 'Personalizado' }[a]}
+                </button>
+              ))}
+              {atalho === 'personalizado' && (
+                <span className="flex items-center gap-1.5">
+                  <input type="date" value={isoDia(dataInicio)}
+                    onChange={e => e.target.value && setDataInicio(new Date(e.target.value + 'T00:00:00'))}
+                    className="px-2.5 py-1.5 rounded-lg text-sm"
+                    style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+                  <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>até</span>
+                  <input type="date" value={isoDia(dataFim)}
+                    onChange={e => e.target.value && setDataFim(new Date(e.target.value + 'T00:00:00'))}
+                    className="px-2.5 py-1.5 rounded-lg text-sm"
+                    style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+                </span>
+              )}
             </div>
-            <select
-              value={ano} onChange={e => setAno(Number(e.target.value))}
-              className="px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }}
-            >
-              {[2025, 2026, 2027].map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white"
@@ -207,18 +267,18 @@ export default function RelatorioComercialPage() {
             <button onClick={load} className="mt-3 text-sm font-semibold underline" style={{ color: 'var(--t-error)' }}>Tentar novamente</button>
           </div>
         ) : !d ? (
-          <div className="text-center p-12" style={{ color: 'var(--t-text-muted)' }}>Sem dados para {mes === 0 ? `${ano}` : `${MESES[mes]}/${ano}`}.</div>
+          <div className="text-center p-12" style={{ color: 'var(--t-text-muted)' }}>Sem dados para {periodo.curto}.</div>
         ) : (
           <div id="relatorio">
             {/* Capa executiva — única fonte dos KPIs de topo (sem duplicar "Visão Geral" abaixo) */}
             <div className="rounded-2xl mb-4 overflow-hidden" style={{ background: 'linear-gradient(135deg, var(--t-primary-dark) 0%, var(--t-primary-deep) 100%)' }}>
               <div className="px-7 py-6" style={{ color: 'var(--t-text-inverse)' }}>
                 <p className="text-[11px] font-bold tracking-[.2em] uppercase" style={{ color: 'color-mix(in srgb, var(--t-text-inverse) 70%, transparent)' }}>Relatório Comercial · Prosystem</p>
-                <h2 className="text-2xl font-extrabold mt-1">Resultados de {mes === 0 ? `${ano} (ano inteiro)` : `${MESES[mes]} / ${ano}`}</h2>
+                <h2 className="text-2xl font-extrabold mt-1">Resultados de {periodo.longo}</h2>
                 <p className="text-sm mt-1" style={{ color: 'color-mix(in srgb, var(--t-text-inverse) 85%, transparent)' }}>Visão executiva para a diretoria{d.supervisor ? ` · Supervisora: ${d.supervisor}` : ''}</p>
 
                 {mt && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mt-5">
                     <div className="rounded-xl px-3.5 py-3" style={{ background: 'color-mix(in srgb, var(--t-text-inverse) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--t-text-inverse) 18%, transparent)' }}>
                       <p className="text-[10px] uppercase tracking-wide" style={{ color: 'color-mix(in srgb, var(--t-text-inverse) 75%, transparent)' }}>Contratos fechados</p>
                       <p className="text-xl font-extrabold mt-0.5">{rContratos}</p>
@@ -275,7 +335,7 @@ export default function RelatorioComercialPage() {
                       { name: 'Saída', MRR: e.mrr_saida, fill: '#dc2626' },
                     ];
                     return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 print:hidden">
                         <div>
                           <p className="text-xs font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>Clientes (entrada × saída)</p>
                           <ResponsiveContainer width="100%" height={200}>
@@ -310,7 +370,7 @@ export default function RelatorioComercialPage() {
 
                 {/* Números do período — grid único, sem duplicar a capa */}
                 <Bloco titulo={`Números ${SufPeriodo}`} icone={TrendingUp} aberto>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
                     <KPI label="Leads captados" valor={mt.total_leads} />
                     <KPI label="Ticket médio (setup)" valor={fmt(mt.fechamentos.setup_medio)} />
                     <KPI label="MRR médio" valor={`${fmt(mt.fechamentos.mrr_medio)}/mês`} />
@@ -328,35 +388,39 @@ export default function RelatorioComercialPage() {
 
                 {/* Evolução anual — colapsada por padrão, é contexto histórico, não o número do dia */}
                 {serie.length > 0 && (
-                  <Bloco titulo={`Evolução do Ano (${ano})`} icone={TrendingUp} aberto={false}>
-                    <div className="print:hidden rel-bloco-conteudo">
-                      <p className="text-xs font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>MRR ganho × perdido e saldo por mês</p>
-                      <ResponsiveContainer width="100%" height={240}>
-                        <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
-                          <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(v: any) => fmt(v)} />
-                          <Legend />
-                          <Bar dataKey="mrr_ganho" name="MRR ganho" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="mrr_perdido" name="MRR perdido" fill="#dc2626" radius={[4, 4, 0, 0]} />
-                          <Line type="monotone" dataKey="saldo_mrr" name="Saldo MRR" stroke="#4B8EC8" strokeWidth={3} dot={{ r: 3 }} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                      <p className="text-xs font-semibold mb-1 mt-4" style={{ color: 'var(--t-text-muted)' }}>Fechamentos × Perdidos por mês</p>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
-                          <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                          <Tooltip />
-                          <Legend />
-                          <Area type="monotone" dataKey="leads" name="Leads" fill="#e0e7ff" stroke="#6366f1" />
-                          <Bar dataKey="fechamentos" name="Fechamentos" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="perdidos" name="Perdidos" fill="#dc2626" radius={[4, 4, 0, 0]} />
-                          <Line type="monotone" dataKey="indicacoes" name="Indicações" stroke="#0d9488" strokeWidth={2} dot={{ r: 2 }} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                  <Bloco titulo={`Evolução do Ano (${dataFim.getFullYear()})`} icone={TrendingUp} aberto={false}>
+                    <div className="print:hidden rel-bloco-conteudo grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>MRR ganho × perdido e saldo por mês</p>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
+                            <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                            <Tooltip formatter={(v: any) => fmt(v)} />
+                            <Legend />
+                            <Bar dataKey="mrr_ganho" name="MRR ganho" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="mrr_perdido" name="MRR perdido" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                            <Line type="monotone" dataKey="saldo_mrr" name="Saldo MRR" stroke="#4B8EC8" strokeWidth={3} dot={{ r: 3 }} />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>Fechamentos × Perdidos por mês</p>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <ComposedChart data={serie} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--t-card-border)" />
+                            <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Area type="monotone" dataKey="leads" name="Leads" fill="#e0e7ff" stroke="#6366f1" />
+                            <Bar dataKey="fechamentos" name="Fechamentos" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="perdidos" name="Perdidos" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                            <Line type="monotone" dataKey="indicacoes" name="Indicações" stroke="#0d9488" strokeWidth={2} dot={{ r: 2 }} />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </Bloco>
                 )}
@@ -478,6 +542,11 @@ export default function RelatorioComercialPage() {
                         <p className="text-xs mt-3" style={{ color: 'var(--t-text-muted)' }}>
                           Esses valores entram automaticamente como despesa (categoria "Comissão") no Centro de Custos, na competência {sufPeriodo}.
                         </p>
+                        {mt._comissoes_aproximadas && (
+                          <p className="text-xs mt-2" style={{ color: SEM.atencao }}>
+                            Aviso: comissões calculadas por competência mensal — como o período escolhido não corresponde a um mês/ano completo, este valor pode incluir dias fora do intervalo exato selecionado.
+                          </p>
+                        )}
                       </div>
                     </Bloco>
                   );

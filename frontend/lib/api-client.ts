@@ -1227,9 +1227,9 @@ class ApiClient {
     return this.client.get('/pesquisa/nao-casadas');
   }
 
-  // Relatório Comercial (CEO)
-  async getRelatorioComercial(ano: number, mes: number) {
-    return this.client.get('/relatorio-comercial', { params: { ano, mes } });
+  // Relatório Comercial (CEO) — período livre por data (ISO "YYYY-MM-DD").
+  async getRelatorioComercial(dataInicio: string, dataFim: string) {
+    return this.client.get('/relatorio-comercial', { params: { data_inicio: dataInicio, data_fim: dataFim } });
   }
   async getRelatorioMeses() {
     return this.client.get('/relatorio-comercial/meses');
