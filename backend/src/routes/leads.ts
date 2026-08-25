@@ -741,7 +741,7 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
       const cnpjLimpo = String(data.cnpj).replace(/\D/g, '');
       if (cnpjLimpo) {
         const rows = await prisma.$queryRaw<Array<{ id: string; nome: string }>>`
-          SELECT id, nome FROM Lead
+          SELECT id, nome FROM \`Lead\`
           WHERE deleted_at IS NULL
             AND REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', '') = ${cnpjLimpo}
           LIMIT 1
