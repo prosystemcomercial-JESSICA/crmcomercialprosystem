@@ -5,6 +5,7 @@ import { useAuth, podeVerTudo } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import { cadastrarLeadSdr } from '@/lib/cadastrar-lead-sdr';
 import {
   Plus, Search, Phone, Loader2, ChevronLeft, ChevronRight, RefreshCw,
   Flame, Thermometer, Snowflake, Zap, Clock, X,
@@ -138,6 +139,7 @@ export default function LeadsSdrPage() {
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [showNewLead, setShowNewLead] = useState(false);
   const [savingNewLead, setSavingNewLead] = useState(false);
+  const [newLeadError, setNewLeadError] = useState('');
   const criandoLeadRef = useRef(false);
   const [newLeadForm, setNewLeadForm] = useState<any>({ temperatura: 'FRIO', origem: '' });
   const [selectedLead, setSelectedLead] = useState<LeadSdr | null>(null);
@@ -207,16 +209,26 @@ export default function LeadsSdrPage() {
     if (criandoLeadRef.current) return;
     criandoLeadRef.current = true;
     setSavingNewLead(true);
+    setNewLeadError('');
     try {
-      const payload: any = { ...newLeadForm };
-      if (!payload.nome) payload.nome = payload.razao_social || 'Lead';
-      if (!payload.origem) payload.origem = 'MANUAL';
-      await apiClient.createLead(payload);
-      await loadData();
+      const lead = await cadastrarLeadSdr({
+        formulario: newLeadForm,
+        criar: payload => apiClient.createLead(payload),
+        recarregar: loadData,
+      });
+      setKanban(prev => ({
+        ...prev,
+        NOVO_LEAD: [lead as LeadSdr, ...(prev.NOVO_LEAD || []).filter(item => item.id !== lead.id)],
+      }));
       setShowNewLead(false);
       setNewLeadForm({ temperatura: 'FRIO', origem: '' });
     } catch (e: any) {
       console.error('Erro ao salvar lead:', e?.response?.data || e);
+      setNewLeadError(
+        e?.response?.data?.message
+        || e?.message
+        || 'Não foi possível salvar o lead. Tente novamente.',
+      );
     } finally {
       criandoLeadRef.current = false;
       setSavingNewLead(false);
@@ -252,7 +264,7 @@ export default function LeadsSdrPage() {
             <button onClick={loadData} title="Atualizar" className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0" style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
               <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
             </button>
-            <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '' }); setShowNewLead(true); }}
+            <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '' }); setNewLeadError(''); setShowNewLead(true); }}
               className="ps-btn-primary h-8 flex items-center gap-1.5 px-4 rounded-lg text-xs font-semibold text-white">
               <Plus size={13} /> Novo Lead
             </button>
@@ -416,6 +428,11 @@ export default function LeadsSdrPage() {
               <button onClick={() => setShowNewLead(false)}><X size={16} style={{ color: 'var(--t-text-secondary)' }} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 gap-3">
+              {newLeadError && (
+                <div role="alert" className="rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--t-danger-bg, #FEF2F2)', color: 'var(--t-danger, #B91C1C)' }}>
+                  {newLeadError}
+                </div>
+              )}
               <div>
                 <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Razão Social *</label>
                 <input value={newLeadForm.razao_social || ''} onChange={e => setNewLeadForm((p: any) => ({ ...p, razao_social: e.target.value, nome: e.target.value }))}
