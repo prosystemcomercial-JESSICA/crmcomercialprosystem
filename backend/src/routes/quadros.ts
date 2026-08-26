@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import { ownerWhere, requireGestor } from '@/lib/scope';
+import { ownerWhere, requireGestor, getUser, podeVerQuadro, podeVerTudo } from '@/lib/scope';
 
 /**
  * Quadros comerciais (kanban). A "Central de Leads" é o quadro fixo padrão
@@ -87,9 +87,21 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
     }
   });
 
-  // ── LISTA de quadros ──
-  fastify.get('/quadros', async (_req, reply) => {
-    const quadros = await prisma.quadroComercial.findMany({ where: { ativo: true }, orderBy: { ordem: 'asc' } });
+  // ── LISTA de quadros (só os que o usuário pode ver) ──
+  fastify.get('/quadros', async (request, reply) => {
+    const user = getUser(request);
+    const todos = await prisma.quadroComercial.findMany({ where: { ativo: true }, orderBy: { ordem: 'asc' } });
+    if (podeVerTudo(user)) return reply.send({ status: 'success', data: todos });
+
+    const privados = todos.filter(q => (q.visibilidade || 'PRIVADO') === 'PRIVADO' && q.dono_id !== user?.id);
+    const compartilhamentos = privados.length
+      ? await prisma.quadroCompartilhamento.findMany({
+          where: { quadro_id: { in: privados.map(q => q.id) }, usuario_id: user?.id || '__no_user__' },
+          select: { quadro_id: true },
+        })
+      : [];
+    const liberados = new Set(compartilhamentos.map(c => c.quadro_id));
+    const quadros = todos.filter(q => (q.visibilidade || 'PRIVADO') === 'PUBLICO' || q.dono_id === user?.id || liberados.has(q.id));
     return reply.send({ status: 'success', data: quadros });
   });
 
@@ -103,6 +115,7 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
       regra_tipo: z.enum(['NENHUMA', 'PARADOS_DIAS']).default('NENHUMA'),
       regra_dias: z.number().int().optional(),
       colunas: z.array(z.object({ nome: z.string(), cor: z.string().optional() })).optional(),
+      visibilidade: z.enum(['PRIVADO', 'PUBLICO']).default('PRIVADO'),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     const user = (request as any).user;
@@ -113,6 +126,7 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
       data: {
         nome: d.nome, descricao: d.descricao, cor: d.cor, tipo: 'CUSTOM', ordem,
         regra_tipo: d.regra_tipo, regra_dias: d.regra_dias,
+        visibilidade: d.visibilidade, dono_id: user?.id || null,
         created_by: user?.id || 'system',
       },
     });
@@ -132,17 +146,72 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
     return reply.status(201).send({ status: 'success', data: quadro });
   });
 
-  // ── EDITAR quadro (gestor) ──
+  // ── EDITAR quadro (gestor OU dono do quadro) ──
   fastify.patch('/quadros/:id', async (request, reply) => {
-    if (!requireGestor(request, reply)) return;
     const { id } = request.params as { id: string };
+    const user = getUser(request);
+    const existente = await prisma.quadroComercial.findUnique({ where: { id } });
+    if (!existente) return reply.status(404).send({ status: 'error', message: 'Quadro não encontrado' });
+    const ehDono = existente.dono_id && existente.dono_id === user?.id;
+    if (!podeVerTudo(user) && !ehDono) {
+      return reply.status(403).send({ status: 'error', message: 'Ação restrita ao dono do quadro ou à Supervisão Comercial' });
+    }
     const body = z.object({
       nome: z.string().optional(), descricao: z.string().optional(), cor: z.string().optional(),
       ativo: z.boolean().optional(), regra_dias: z.number().int().optional(),
+      visibilidade: z.enum(['PRIVADO', 'PUBLICO']).optional(),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     const q = await prisma.quadroComercial.update({ where: { id }, data: body.data });
     return reply.send({ status: 'success', data: q });
+  });
+
+  // ── COMPARTILHAR quadro com um usuário específico (gestor ou dono) ──
+  fastify.post('/quadros/:id/compartilhar', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = getUser(request);
+    const quadro = await prisma.quadroComercial.findUnique({ where: { id } });
+    if (!quadro) return reply.status(404).send({ status: 'error', message: 'Quadro não encontrado' });
+    const ehDono = quadro.dono_id && quadro.dono_id === user?.id;
+    if (!podeVerTudo(user) && !ehDono) {
+      return reply.status(403).send({ status: 'error', message: 'Ação restrita ao dono do quadro ou à Supervisão Comercial' });
+    }
+    const body = z.object({ usuario_id: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe usuario_id' });
+    await prisma.quadroCompartilhamento.upsert({
+      where: { quadro_id_usuario_id: { quadro_id: id, usuario_id: body.data.usuario_id } },
+      create: { quadro_id: id, usuario_id: body.data.usuario_id },
+      update: {},
+    });
+    return reply.status(201).send({ status: 'success' });
+  });
+
+  // ── LISTAR quem tem acesso a um quadro (gestor ou dono) ──
+  fastify.get('/quadros/:id/compartilhamentos', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = getUser(request);
+    const quadro = await prisma.quadroComercial.findUnique({ where: { id } });
+    if (!quadro) return reply.status(404).send({ status: 'error', message: 'Quadro não encontrado' });
+    const ehDono = quadro.dono_id && quadro.dono_id === user?.id;
+    if (!podeVerTudo(user) && !ehDono) {
+      return reply.status(403).send({ status: 'error', message: 'Ação restrita ao dono do quadro ou à Supervisão Comercial' });
+    }
+    const lista = await prisma.quadroCompartilhamento.findMany({ where: { quadro_id: id } });
+    return reply.send({ status: 'success', data: lista });
+  });
+
+  // ── REMOVER acesso de um usuário ao quadro (gestor ou dono) ──
+  fastify.delete('/quadros/:id/compartilhar/:usuarioId', async (request, reply) => {
+    const { id, usuarioId } = request.params as { id: string; usuarioId: string };
+    const user = getUser(request);
+    const quadro = await prisma.quadroComercial.findUnique({ where: { id } });
+    if (!quadro) return reply.status(404).send({ status: 'error', message: 'Quadro não encontrado' });
+    const ehDono = quadro.dono_id && quadro.dono_id === user?.id;
+    if (!podeVerTudo(user) && !ehDono) {
+      return reply.status(403).send({ status: 'error', message: 'Ação restrita ao dono do quadro ou à Supervisão Comercial' });
+    }
+    await prisma.quadroCompartilhamento.deleteMany({ where: { quadro_id: id, usuario_id: usuarioId } });
+    return reply.send({ status: 'success' });
   });
 
   // ── EXCLUIR quadro (gestor) — pipeline fixo não pode ──
@@ -164,6 +233,16 @@ export async function quadrosRoutes(fastify: FastifyInstance, options: { prisma:
     const { id } = request.params as { id: string };
     const quadro = await prisma.quadroComercial.findUnique({ where: { id } });
     if (!quadro) return reply.status(404).send({ status: 'error', message: 'Quadro não encontrado' });
+
+    const user = getUser(request);
+    if (!podeVerTudo(user)) {
+      const compartilhado = user
+        ? await prisma.quadroCompartilhamento.findUnique({ where: { quadro_id_usuario_id: { quadro_id: id, usuario_id: user.id } } })
+        : null;
+      if (!podeVerQuadro(user, quadro, compartilhado ? [user!.id] : [])) {
+        return reply.status(403).send({ status: 'error', message: 'Você não tem acesso a este quadro' });
+      }
+    }
 
     const colunas = await prisma.kanbanColuna.findMany({ where: { quadro_id: id, ativa: true }, orderBy: { ordem: 'asc' } });
     const grouped: Record<string, any[]> = {};

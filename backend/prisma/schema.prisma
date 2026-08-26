@@ -814,6 +814,12 @@ model QuadroComercial {
   ativo     Boolean @default(true)
   fixo      Boolean @default(false) // Pipeline Comercial não pode ser excluído
 
+  // Visibilidade: quadros custom nascem PRIVADO (só o dono vê); o dono decide
+  // depois se libera para pessoas específicas (QuadroCompartilhamento) ou torna
+  // PUBLICO (todo mundo vê). Pipeline/Follow-up (fixos) são sempre PUBLICO.
+  visibilidade String @default("PRIVADO") // PRIVADO | PUBLICO
+  dono_id      String? // usuário que criou/controla o compartilhamento
+
   // Regra de entrada automática de leads no quadro
   regra_tipo     String  @default("NENHUMA") // NENHUMA | PARADOS_DIAS
   regra_dias     Int? // ex.: 40 (parado há +N dias sem mudar de etapa)
@@ -828,6 +834,19 @@ model QuadroComercial {
 
   @@index([ordem])
   @@index([ativo])
+}
+
+// Quem, além do dono, pode ver um quadro PRIVADO (tudo-ou-nada: vendo o
+// quadro, a pessoa vê todos os leads dele — distribuição de lead individual
+// continua sendo responsavel_id, fora deste controle).
+model QuadroCompartilhamento {
+  id         String   @id @default(cuid())
+  quadro_id  String
+  usuario_id String
+  created_at DateTime @default(now())
+
+  @@unique([quadro_id, usuario_id])
+  @@index([usuario_id])
 }
 
 // Posição de um lead em um quadro NÃO-pipeline (no Pipeline a posição é o etapa_comercial).

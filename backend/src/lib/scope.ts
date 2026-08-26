@@ -154,3 +154,22 @@ export function ownerSql(
   const conds = cols.map(c => `${prefix}${c} = ?`).join(' OR ');
   return { clause: ` AND (${conds})`, params: cols.map(() => id) };
 }
+
+/**
+ * Visibilidade de QuadroComercial (feature separada do escopo de leads acima).
+ * Um quadro PRIVADO só é visível para: quem tem visão total (gestor), o dono
+ * (dono_id) e quem está em QuadroCompartilhamento. PUBLICO é visível a todos
+ * os autenticados. Tudo-ou-nada: ver o quadro dá acesso a todos os leads nele
+ * (a restrição por dono do LEAD em si continua via ownerWhere).
+ */
+export function podeVerQuadro(
+  user: AuthUserLike | undefined,
+  quadro: { visibilidade?: string | null; dono_id?: string | null },
+  compartilhadoIds: string[]
+): boolean {
+  if (podeVerTudo(user)) return true;
+  if ((quadro.visibilidade || 'PRIVADO') === 'PUBLICO') return true;
+  if (!user) return false;
+  if (quadro.dono_id && quadro.dono_id === user.id) return true;
+  return compartilhadoIds.includes(user.id);
+}
