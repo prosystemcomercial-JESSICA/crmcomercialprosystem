@@ -455,7 +455,10 @@ export default function LeadsPage() {
   const [quadros, setQuadros]       = useState<any[]>([]);
   const [quadroAtivo, setQuadroAtivo] = useState<any | null>(null); // null = Pipeline (kanban legado)
   const [showNewQuadro, setShowNewQuadro] = useState(false);
-  const [newQuadro, setNewQuadro] = useState<{ nome: string; cor: string; colunas: string }>({ nome: '', cor: 'var(--t-primary)', colunas: 'A fazer, Em andamento, Concluído' });
+  const [newQuadro, setNewQuadro] = useState<{ nome: string; cor: string; colunas: string; visibilidade: 'PRIVADO' | 'PUBLICO' }>({ nome: '', cor: 'var(--t-primary)', colunas: 'A fazer, Em andamento, Concluído', visibilidade: 'PRIVADO' });
+  const [showCompartilhar, setShowCompartilhar] = useState(false);
+  const [compartilhamentos, setCompartilhamentos] = useState<any[]>([]);
+  const [novoCompartilhadoId, setNovoCompartilhadoId] = useState('');
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [search, setSearch]       = useState('');
@@ -618,15 +621,61 @@ export default function LeadsPage() {
     if (!newQuadro.nome.trim()) { console.warn('Informe o nome do quadro'); return; }
     const colunas = newQuadro.colunas.split(',').map(s => s.trim()).filter(Boolean).map(nome => ({ nome }));
     try {
-      const r = await apiClient.criarQuadro({ nome: newQuadro.nome.trim(), cor: newQuadro.cor, colunas });
+      const r = await apiClient.criarQuadro({ nome: newQuadro.nome.trim(), cor: newQuadro.cor, colunas, visibilidade: newQuadro.visibilidade });
       setShowNewQuadro(false);
-      setNewQuadro({ nome: '', cor: 'var(--t-primary)', colunas: 'A fazer, Em andamento, Concluído' });
+      setNewQuadro({ nome: '', cor: 'var(--t-primary)', colunas: 'A fazer, Em andamento, Concluído', visibilidade: 'PRIVADO' });
       const lista = await apiClient.getQuadros();
       setQuadros(lista.data?.data || []);
       const criado = (lista.data?.data || []).find((q: any) => q.id === r.data?.data?.id);
       if (criado) setQuadroAtivo(criado);
     } catch (e: any) {
       console.error('Erro ao criar quadro.', e);
+    }
+  };
+
+  // Abre o modal de compartilhamento do quadro ativo, carregando quem já tem acesso.
+  const abrirCompartilhar = async () => {
+    if (!quadroAtivo) return;
+    try {
+      const r = await apiClient.getCompartilhamentosQuadro(quadroAtivo.id);
+      setCompartilhamentos(r.data?.data || []);
+    } catch (e) {
+      setCompartilhamentos([]);
+    }
+    setShowCompartilhar(true);
+  };
+
+  const alternarVisibilidadeQuadro = async (visibilidade: 'PRIVADO' | 'PUBLICO') => {
+    if (!quadroAtivo) return;
+    try {
+      const r = await apiClient.editarQuadro(quadroAtivo.id, { visibilidade });
+      setQuadroAtivo(r.data?.data || { ...quadroAtivo, visibilidade });
+      const lista = await apiClient.getQuadros();
+      setQuadros(lista.data?.data || []);
+    } catch (e) {
+      console.error('Erro ao alterar visibilidade do quadro.', e);
+    }
+  };
+
+  const adicionarCompartilhado = async () => {
+    if (!quadroAtivo || !novoCompartilhadoId) return;
+    try {
+      await apiClient.compartilharQuadro(quadroAtivo.id, novoCompartilhadoId);
+      setNovoCompartilhadoId('');
+      const r = await apiClient.getCompartilhamentosQuadro(quadroAtivo.id);
+      setCompartilhamentos(r.data?.data || []);
+    } catch (e) {
+      console.error('Erro ao compartilhar quadro.', e);
+    }
+  };
+
+  const removerCompartilhado = async (usuarioId: string) => {
+    if (!quadroAtivo) return;
+    try {
+      await apiClient.removerCompartilhamentoQuadro(quadroAtivo.id, usuarioId);
+      setCompartilhamentos(prev => prev.filter((c: any) => c.usuario_id !== usuarioId));
+    } catch (e) {
+      console.error('Erro ao remover compartilhamento.', e);
     }
   };
 
@@ -1303,7 +1352,19 @@ export default function LeadsPage() {
             )}
           </div>
         )}
-        {quadroAtivo?.descricao && (
+        {quadroAtivo?.tipo === 'CUSTOM' && (
+          <div className="flex items-center gap-2 px-1">
+            {quadroAtivo?.descricao && (
+              <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{quadroAtivo.descricao}</p>
+            )}
+            <button onClick={abrirCompartilhar}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
+              {quadroAtivo.visibilidade === 'PUBLICO' ? '🌐 Público — todos veem' : '🔒 Privado — só quem você liberar'}
+            </button>
+          </div>
+        )}
+        {quadroAtivo?.tipo !== 'CUSTOM' && quadroAtivo?.descricao && (
           <p className="text-xs px-1" style={{ color: 'var(--t-text-secondary)' }}>{quadroAtivo.descricao}</p>
         )}
 
@@ -2348,12 +2409,98 @@ export default function LeadsPage() {
                   ))}
                 </div>
               </div>
+              <div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Quem pode ver este quadro</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setNewQuadro(p => ({ ...p, visibilidade: 'PRIVADO' }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold"
+                    style={{ border: `1.5px solid ${newQuadro.visibilidade === 'PRIVADO' ? 'var(--t-primary)' : 'var(--t-card-border)'}`, color: newQuadro.visibilidade === 'PRIVADO' ? 'var(--t-primary)' : 'var(--t-text-secondary)' }}>
+                    🔒 Só eu (e quem eu liberar)
+                  </button>
+                  <button onClick={() => setNewQuadro(p => ({ ...p, visibilidade: 'PUBLICO' }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold"
+                    style={{ border: `1.5px solid ${newQuadro.visibilidade === 'PUBLICO' ? 'var(--t-primary)' : 'var(--t-card-border)'}`, color: newQuadro.visibilidade === 'PUBLICO' ? 'var(--t-primary)' : 'var(--t-text-secondary)' }}>
+                    🌐 Todo mundo
+                  </button>
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#9ca3af' }}>Você sempre pode mudar isso depois, no botão de visibilidade do quadro.</p>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={() => setShowNewQuadro(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Cancelar</button>
                 <button onClick={criarQuadro} disabled={!newQuadro.nome.trim()}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#4B8EC8' }}>
                   Criar Quadro
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Compartilhar Quadro Modal ────────────────────────────────────── */}
+      {showCompartilhar && quadroAtivo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.6)' }}>
+          <div className="ps-card rounded-2xl shadow-2xl p-6" style={{ width: 460 }}>
+            <div className="flex justify-between mb-4">
+              <h3 className="font-extrabold text-sm" style={{ color: 'var(--t-text-primary)' }}>Quem pode ver "{quadroAtivo.nome}"</h3>
+              <button onClick={() => setShowCompartilhar(false)}><X size={16} style={{ color: 'var(--t-text-secondary)' }} /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <button onClick={() => alternarVisibilidadeQuadro('PRIVADO')}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold"
+                  style={{ border: `1.5px solid ${quadroAtivo.visibilidade === 'PRIVADO' ? 'var(--t-primary)' : 'var(--t-card-border)'}`, color: quadroAtivo.visibilidade === 'PRIVADO' ? 'var(--t-primary)' : 'var(--t-text-secondary)' }}>
+                  🔒 Privado
+                </button>
+                <button onClick={() => alternarVisibilidadeQuadro('PUBLICO')}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold"
+                  style={{ border: `1.5px solid ${quadroAtivo.visibilidade === 'PUBLICO' ? 'var(--t-primary)' : 'var(--t-card-border)'}`, color: quadroAtivo.visibilidade === 'PUBLICO' ? 'var(--t-primary)' : 'var(--t-text-secondary)' }}>
+                  🌐 Público (todos veem)
+                </button>
+              </div>
+
+              {quadroAtivo.visibilidade === 'PRIVADO' && (
+                <>
+                  <div>
+                    <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Liberar para</label>
+                    <div className="flex gap-2">
+                      <select value={novoCompartilhadoId} onChange={e => setNovoCompartilhadoId(e.target.value)}
+                        className="flex-1 px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }}>
+                        <option value="">Selecione uma pessoa…</option>
+                        {vendedores
+                          .filter(v => !compartilhamentos.some((c: any) => c.usuario_id === v.id))
+                          .map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                      </select>
+                      <button onClick={adicionarCompartilhado} disabled={!novoCompartilhadoId}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-40" style={{ background: '#4B8EC8' }}>
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Já têm acesso</label>
+                    {compartilhamentos.length === 0 ? (
+                      <p className="text-xs" style={{ color: '#9ca3af' }}>Ninguém além de você ainda.</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                        {compartilhamentos.map((c: any) => {
+                          const v = vendedores.find(x => x.id === c.usuario_id);
+                          return (
+                            <div key={c.usuario_id} className="flex items-center justify-between px-3 py-1.5 rounded-lg" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)' }}>
+                              <span className="text-xs">{v?.nome || c.usuario_id}</span>
+                              <button onClick={() => removerCompartilhado(c.usuario_id)} className="text-[11px] font-semibold" style={{ color: '#dc2626' }}>Remover</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button onClick={() => setShowCompartilhar(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Fechar</button>
               </div>
             </div>
           </div>

@@ -388,6 +388,15 @@ class ApiClient {
   async moverLeadNoQuadro(quadroId: string, lead_id: string, coluna_chave: string) {
     return this.client.post(`/quadros/${quadroId}/mover`, { lead_id, coluna_chave });
   }
+  async getCompartilhamentosQuadro(quadroId: string) {
+    return this.client.get(`/quadros/${quadroId}/compartilhamentos`);
+  }
+  async compartilharQuadro(quadroId: string, usuario_id: string) {
+    return this.client.post(`/quadros/${quadroId}/compartilhar`, { usuario_id });
+  }
+  async removerCompartilhamentoQuadro(quadroId: string, usuarioId: string) {
+    return this.client.delete(`/quadros/${quadroId}/compartilhar/${usuarioId}`);
+  }
 
   async getLeadObservacoes(id: string) {
     return this.client.get(`/leads/${id}/observacoes`);
