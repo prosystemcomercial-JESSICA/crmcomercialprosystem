@@ -129,4 +129,41 @@ export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { 
     }).catch(() => {});
     return reply.type('text/html').send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><h2>Você foi removido desta campanha.</h2><p>Não enviaremos mais e-mails desta sequência.</p></body></html>');
   });
+
+  // Webhook do Resend — evento "email.clicked" pausa a sequência automaticamente.
+  // TODO(hardening): validar assinatura svix (RESEND_WEBHOOK_SECRET) antes de confiar no payload.
+  //
+  // Ação manual pendente (não é código): após o deploy desta rota em produção, configurar
+  // no painel do Resend (resend.com/webhooks) um endpoint apontando para
+  // https://crmcomercialprosystem-production-945e.up.railway.app/webhooks/resend,
+  // escutando o evento "email.clicked".
+  fastify.post('/webhooks/resend', async (request, reply) => {
+    const body = request.body as any;
+    if (body?.type !== 'email.clicked') return reply.send({ status: 'ignored' });
+
+    const messageId = body?.data?.email_id;
+    const clickedUrl = body?.data?.click?.link;
+    if (!messageId) return reply.send({ status: 'ignored' });
+
+    const disparo = await prisma.leadSequenciaEmailDisparo.findFirst({
+      where: { message_id: messageId },
+      include: { lead_sequencia: true, etapa: true },
+    });
+    if (!disparo) return reply.send({ status: 'ignored' }); // não é um e-mail desta sequência
+
+    await prisma.leadSequenciaEmailDisparo.update({
+      where: { id: disparo.id },
+      data: { link_clicado: true, clicked_at: new Date(), clicked_url: clickedUrl },
+    });
+
+    if (!disparo.lead_sequencia.pausada) {
+      await pausarSequencia(prisma, disparo.lead_sequencia.id, 'Clique no CTA');
+      await prisma.leadSequenciaEmail.update({
+        where: { id: disparo.lead_sequencia.id },
+        data: { tema_interesse: disparo.etapa.tema },
+      });
+    }
+
+    return reply.send({ status: 'ok' });
+  });
 }
