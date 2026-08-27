@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { FecharLeadModal } from '@/components/ui/FecharLeadModal';
+import { showToast } from '@/components/ui/Toast';
 import {
   Plus, Search, X, RefreshCw, Phone, Mail, MapPin, User,
   Building2, FileText, MessageSquare, Loader2, Send,
@@ -508,6 +509,10 @@ export default function LeadsPage() {
   const [showFechamento, setShowFechamento] = useState(false);
   const [movingToFechamento, setMovingToFechamento] = useState<Lead | null>(null);
 
+  // Pop-up de opt-in na campanha de e-mail marketing p/ leads de Padaria
+  const [popupPadaria, setPopupPadaria] = useState<{ leadId: string; nome: string } | null>(null);
+  const SEQUENCIA_PADARIAS_ID = 'seq-padarias-2026';
+
   // Drag-and-drop
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null);
   const [dragOverCol, setDragOverCol]   = useState<string | null>(null);
@@ -788,11 +793,18 @@ export default function LeadsPage() {
       if (payload.valor_estimado !== undefined && payload.valor_estimado !== '') payload.valor_estimado = parseFloat(payload.valor_estimado);
       else delete payload.valor_estimado;
       if (!payload.responsavel_email) delete payload.responsavel_email;
+      const segmentoAnterior = selectedLead.segmento;
       await apiClient.updateLead(selectedLead.id, payload);
       await loadData();
       setSelectedLead(p => p ? { ...p, ...payload } : p);
       setSavedLeadOk(true);
       setTimeout(() => setSavedLeadOk(false), 2000);
+      // Lead mudou para o segmento Padaria: oferece incluir na sequência de e-mail
+      // marketing. Só dispara na TRANSIÇÃO, senão reabriria a cada salvamento de
+      // um lead que já era Padaria antes.
+      if (editForm.segmento === 'Padaria' && segmentoAnterior !== 'Padaria') {
+        setPopupPadaria({ leadId: selectedLead.id, nome: editForm.razao_social || editForm.nome });
+      }
     } catch (e: any) {
       const msg = e?.response?.data?.detalhes?.join('\n') || e?.response?.data?.message || e?.message || 'Erro desconhecido';
       console.error('Não foi possível salvar a ficha:', msg);
@@ -1200,6 +1212,10 @@ export default function LeadsPage() {
       setNewLeadSection(0);
       // Abre o lead recém-criado (feedback claro de que entrou no funil).
       if (novo?.id) setSelectedLead(novo);
+      // Lead de Padaria: oferece incluir na sequência de e-mail marketing.
+      if (novo?.id && payload.segmento === 'Padaria') {
+        setPopupPadaria({ leadId: novo.id, nome: novo.razao_social || novo.nome });
+      }
     } catch (e: any) {
       // NÃO engole o erro: mostra o motivo para o usuário e mantém o form aberto.
       const msg = e?.response?.data?.message
@@ -2780,6 +2796,35 @@ export default function LeadsPage() {
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
                 {excluindoSaving ? 'Excluindo…' : 'Confirmar exclusão'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {popupPadaria && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.6)' }}>
+          <div className="ps-card rounded-2xl shadow-2xl p-6" style={{ width: 420 }}>
+            <h2 className="text-sm font-extrabold mb-2" style={{ color: 'var(--t-text-primary)' }}>Incluir na campanha de padarias?</h2>
+            <p className="text-xs mb-4" style={{ color: 'var(--t-text-secondary)' }}>
+              <b>{popupPadaria.nome}</b> foi classificado como Padaria. Deseja incluir este lead na sequência de e-mail marketing (12 e-mails, D+0 a D+45)?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setPopupPadaria(null)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
+                Agora não
+              </button>
+              <button
+                onClick={async () => {
+                  await apiClient.entrarNaSequenciaEmail(SEQUENCIA_PADARIAS_ID, popupPadaria.leadId).catch((e: any) => {
+                    console.error('Erro ao incluir lead na sequência de e-mail.', e);
+                    showToast.error('Não foi possível incluir o lead na campanha', 'Tente novamente em instantes.');
+                  });
+                  setPopupPadaria(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white"
+                style={{ background: '#16a34a' }}
+              >
+                Sim, incluir
               </button>
             </div>
           </div>
