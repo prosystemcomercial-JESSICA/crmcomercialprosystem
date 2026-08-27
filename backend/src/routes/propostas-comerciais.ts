@@ -7,25 +7,13 @@ import * as evo from '@/services/evolution.service';
 import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarIdPropostaUnico } from '@/lib/ids';
 import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
+import { segmentoDe, SEGMENTOS_ORDEM } from '@/lib/segmento';
 
 // ── Métricas do gerador ────────────────────────────────────────────────────
 // "Fechada" inclui os estados de contrato: o aceite do cliente já move a proposta
 // para CONTRATO_EM_GERACAO automaticamente, então parar em ACEITA subestimaria.
 const FECHADAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
 const PERDIDAS = ['RECUSADA', 'PERDIDA'];
-
-/**
- * O campo `segmento` é texto livre ("Farmácia / Drogaria", "Padaria", "Outro"…),
- * então agrupamos por palavra-chave. Sem match → VAREJO (balde padrão).
- */
-function segmentoDe(s?: string | null): 'FARMACIA' | 'PADARIA' | 'VAREJO' {
-  const t = (s || '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '') // tira acentos
-    .toLowerCase();
-  if (/farm|drog/.test(t)) return 'FARMACIA';
-  if (/padar|confeit|pao|paes/.test(t)) return 'PADARIA';
-  return 'VAREJO';
-}
 
 const soma  = (ns: number[]) => ns.reduce((a, b) => a + b, 0);
 const media = (ns: number[]) => (ns.length ? Math.round((soma(ns) / ns.length) * 10) / 10 : 0);
@@ -203,7 +191,7 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       de:       z.string().optional(),  // alternativa: intervalo livre
       ate:      z.string().optional(),
       status:   z.string().optional(),
-      segmento: z.string().optional(),  // FARMACIA | PADARIA | VAREJO
+      segmento: z.string().optional(),  // FARMACIA | MANIPULACAO | PADARIA | VAREJO | OUTROS
       vendedor: z.string().optional(),
     }).safeParse(request.query);
     if (!q.success) return reply.status(400).send({ status: 'error', message: 'Filtros inválidos' });
@@ -248,8 +236,8 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     const perdidas = lista.filter(p => PERDIDAS.includes(p.status));
     const abertas  = total - fechadas.length - perdidas.length;
 
-    // Quebra por segmento (Farmácia | Padaria | Varejo)
-    const porSegmento = ['FARMACIA', 'PADARIA', 'VAREJO'].map(seg => {
+    // Quebra por segmento (Farmácia | Manipulação | Padaria | Varejo | Outros)
+    const porSegmento = SEGMENTOS_ORDEM.map(seg => {
       const doSeg = lista.filter(p => segmentoDe(p.segmento) === seg);
       const fech  = doSeg.filter(p => FECHADAS.includes(p.status));
       return {

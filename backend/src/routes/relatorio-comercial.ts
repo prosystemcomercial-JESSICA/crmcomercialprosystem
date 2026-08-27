@@ -5,6 +5,7 @@ import { requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
 import { sincronizarLancamentosDeComissao } from '@/lib/comissao-fluxo';
 import { calcularDesempenhoSdr } from '@/lib/sdr-desempenho';
+import { segmentoDe, LABEL_SEGMENTO, SEGMENTOS_ORDEM } from '@/lib/segmento';
 
 // Relatório Comercial mensal (o que vai para o CEO).
 // GET calcula o pipeline automaticamente das PropostasComerciais e mescla com o
@@ -154,14 +155,21 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
       vend[vn].propostas++; vend[vn].setup_potencial += setupDe(p); vend[vn].mrr_potencial += mrrDe(p);
       if (STATUS_FECHADA.includes(st)) vend[vn].fechadas++; else if (!STATUS_DECLINADA.includes(st)) vend[vn].em_negociacao++;
 
-      const sg = p.segmento || 'Outros';
-      seg[sg] = seg[sg] || { segmento: sg, propostas: 0, setup_total: 0, mrr_total: 0 };
-      seg[sg].propostas++; seg[sg].setup_total += setupDe(p); seg[sg].mrr_total += mrrDe(p);
+      // `segmento` é texto livre ("Farmacia", "Farmácia / Drogaria", "Padaria"...) —
+      // agrupa nos 5 baldes fixos (segmentoDe) em vez de contar cada variação de
+      // texto como um segmento separado.
+      const grupo = segmentoDe(p.segmento);
+      seg[grupo] = seg[grupo] || { segmento: LABEL_SEGMENTO[grupo], propostas: 0, setup_total: 0, mrr_total: 0 };
+      seg[grupo].propostas++; seg[grupo].setup_total += setupDe(p); seg[grupo].mrr_total += mrrDe(p);
     }
 
     const totalMrr = mrrPot || 1;
     const por_vendedor = Object.values(vend).map((v: any) => ({ ...v, participacao: Math.round((v.mrr_potencial / totalMrr) * 100) }));
-    const por_segmento = Object.values(seg).map((s: any) => ({ ...s, ticket_mrr: s.propostas ? Math.round(s.mrr_total / s.propostas) : 0, participacao: Math.round((s.mrr_total / totalMrr) * 100) }));
+    // Ordenado na ordem fixa dos 5 segmentos, incluindo os com 0 propostas
+    // (mantém o menu suspenso sempre com as mesmas 5 linhas).
+    const por_segmento = SEGMENTOS_ORDEM
+      .map(grupo => seg[grupo] || { segmento: LABEL_SEGMENTO[grupo], propostas: 0, setup_total: 0, mrr_total: 0 })
+      .map((s: any) => ({ ...s, ticket_mrr: s.propostas ? Math.round(s.mrr_total / s.propostas) : 0, participacao: Math.round((s.mrr_total / totalMrr) * 100) }));
 
     return {
       propostas_total: props.length, propostas_negociacao: negociacao, propostas_fechadas: fechadas,
