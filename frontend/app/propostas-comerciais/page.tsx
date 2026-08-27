@@ -173,16 +173,25 @@ const ST_FECHADAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTR
 const ST_PERDIDAS = ['RECUSADA', 'PERDIDA', 'EXPIRADA', 'DECLINADA'];
 
 // O campo `segmento` é texto livre ("Farmácia / Drogaria", "Padaria", "Outro"…),
-// então agrupamos por palavra-chave. Mesma regra do backend (segmentoDe).
-const grupoSegmento = (s?: string | null): 'FARMACIA' | 'PADARIA' | 'VAREJO' => {
+// então agrupamos por palavra-chave em 5 baldes fixos. Mesma regra do backend
+// (segmentoDe) — manipulação é reconhecida ANTES do farmácia genérico, senão
+// "farm" já capturaria "Farmácia de Manipulação".
+const grupoSegmento = (s?: string | null): 'FARMACIA' | 'MANIPULACAO' | 'PADARIA' | 'VAREJO' | 'OUTROS' => {
   const t = (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  if (/manipula/.test(t)) return 'MANIPULACAO';
   if (/farm|drog/.test(t)) return 'FARMACIA';
   if (/padar|confeit|pao|paes/.test(t)) return 'PADARIA';
-  return 'VAREJO';
+  if (/varejo|loja|mercado|mercearia|comercio/.test(t)) return 'VAREJO';
+  return 'OUTROS';
 };
 
-const LABEL_SEGMENTO: Record<string, string> = { FARMACIA: 'Farmácia', PADARIA: 'Padaria', VAREJO: 'Varejo' };
-const COR_SEGMENTO: Record<string, string> = { FARMACIA: '#0891b2', PADARIA: '#d97706', VAREJO: '#7c3aed' };
+const LABEL_SEGMENTO: Record<string, string> = {
+  FARMACIA: 'Farmácia / Drogaria', MANIPULACAO: 'Farmácia de Manipulação',
+  PADARIA: 'Padaria', VAREJO: 'Varejo', OUTROS: 'Outros',
+};
+const COR_SEGMENTO: Record<string, string> = {
+  FARMACIA: '#0891b2', MANIPULACAO: '#0d9488', PADARIA: '#d97706', VAREJO: '#7c3aed', OUTROS: '#64748b',
+};
 
 const fmtDias = (d?: number | null) => (d == null || d === 0 ? '—' : `${Number(d).toFixed(1)}d`);
 
