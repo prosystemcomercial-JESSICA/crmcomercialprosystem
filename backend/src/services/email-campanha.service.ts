@@ -1,19 +1,5 @@
-import { Resend } from 'resend';
 import { PrismaClient } from '@prisma/client';
-
-// Endereço de envio: hoje é o sandbox do Resend (só entrega pro e-mail
-// cadastrado na conta Resend). Quando um domínio for verificado no painel
-// do Resend, troca só essa env var — nenhum código muda.
-const EMAIL_FROM = process.env.EMAIL_FROM || 'Prosystem <onboarding@resend.dev>';
-
-let _resend: Resend | null = null;
-function getResend(): Resend {
-  if (!_resend) {
-    if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY não configurada');
-    _resend = new Resend(process.env.RESEND_API_KEY);
-  }
-  return _resend;
-}
+import { getResend, EMAIL_FROM } from '@/lib/resend-client';
 
 export interface EnviarEmailCampanhaParams {
   campanhaId: string;
