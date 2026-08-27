@@ -29,29 +29,29 @@ model Usuario {
 model Cliente {
   id       String  @id @default(cuid())
   nome     String
-  email    String?  // opcional: a base importada nem sempre tem e-mail (unique removido p/ migracao nao-destrutiva)
+  email    String? // opcional: a base importada nem sempre tem e-mail (unique removido p/ migracao nao-destrutiva)
   telefone String?
   empresa  String?
   cidade   String?
   estado   String?
 
   // ── Identificação / base de clientes (importação + gestão) ──
-  codigo        String?  // código do cliente no sistema legado (chave de upsert; unicidade garantida na lógica de importação)
-  razao_social  String?
-  nome_fantasia String?
-  cnpj          String?
-  situacao      String?  @default("ATIVA")  // ATIVA|INATIVA
-  motivo_inativacao String? @db.Text         // motivo detalhado da desativação
-  inativado_em      DateTime?                 // quando foi desativado
-  mrr_perdido       Float?                    // mensalidade perdida na desativação (churn)
-  valor_devido_inativacao Float?              // valor que o cliente ficou devendo ao sair
-  sistema_removido_em     DateTime?           // quando o sistema foi de fato desligado (evento técnico, pós-PERDIDO)
-  segmento      String?                       // Farmácia|Padaria|Varejo|...
-  grupo_tecnico String?                       // grupo de atendimento técnico
-  plano         String?                       // BASIC|MEI|PRO|PLUS|...
-  contato       String?                       // nome do contato principal
-  data_entrada  DateTime?                     // desde quando é cliente (tempo de casa)
-  observacoes   String?  @db.Text             // atualizações / anotações manuais
+  codigo                  String? // código do cliente no sistema legado (chave de upsert; unicidade garantida na lógica de importação)
+  razao_social            String?
+  nome_fantasia           String?
+  cnpj                    String?
+  situacao                String?   @default("ATIVA") // ATIVA|INATIVA
+  motivo_inativacao       String?   @db.Text // motivo detalhado da desativação
+  inativado_em            DateTime? // quando foi desativado
+  mrr_perdido             Float? // mensalidade perdida na desativação (churn)
+  valor_devido_inativacao Float? // valor que o cliente ficou devendo ao sair
+  sistema_removido_em     DateTime? // quando o sistema foi de fato desligado (evento técnico, pós-PERDIDO)
+  segmento                String? // Farmácia|Padaria|Varejo|...
+  grupo_tecnico           String? // grupo de atendimento técnico
+  plano                   String? // BASIC|MEI|PRO|PLUS|...
+  contato                 String? // nome do contato principal
+  data_entrada            DateTime? // desde quando é cliente (tempo de casa)
+  observacoes             String?   @db.Text // atualizações / anotações manuais
 
   // ── Campanha de ativos (upsell na base) — perguntas respondíveis ──
   apresentou_plus       Boolean? @default(false) // Plus + novas ferramentas apresentado?
@@ -60,7 +60,7 @@ model Cliente {
   conhece_gerencial     Boolean? @default(false)
   conhece_atencao_farma Boolean? @default(false)
   risco_atencao         Boolean? @default(false) // cliente em risco / precisa de atenção
-  ativo_observacoes     String?  @db.Text        // notas da campanha de ativos
+  ativo_observacoes     String?  @db.Text // notas da campanha de ativos
 
   // Mensalidade base (importada do cadastro original). A mensalidade TOTAL =
   // base + soma dos acréscimos de vendas adicionais CONFIRMADAS (ex.: Arquivo Fiscal).
@@ -69,35 +69,35 @@ model Cliente {
 
   // ── Dados cadastrais complementares (planilha legada) ───────────────────────
   // Endereço completo
-  cep            String?
-  endereco       String?
-  numero_end     String?  // número (pode ser "SN", "S/N")
-  complemento    String?
-  bairro         String?
-  codigo_ibge    String?  // código IBGE do município
+  cep                String?
+  endereco           String?
+  numero_end         String? // número (pode ser "SN", "S/N")
+  complemento        String?
+  bairro             String?
+  codigo_ibge        String? // código IBGE do município
   // Contato / telefones
-  ddd            String?
-  telefone1      String?
-  telefone2      String?
-  tel_contato    String?
-  contato2       String?
-  tel_contato2   String?
-  contato_pesquisa String?
+  ddd                String?
+  telefone1          String?
+  telefone2          String?
+  tel_contato        String?
+  contato2           String?
+  tel_contato2       String?
+  contato_pesquisa   String?
   // Fiscais / responsável
   inscricao_estadual String?
   cpf_responsavel    String?
   rg_responsavel     String?
-  responsavel_nome   String?  // responsável legal do cadastro
-  regime_tributario  String?  // Simples | Presumido | Real
+  responsavel_nome   String? // responsável legal do cadastro
+  regime_tributario  String? // Simples | Presumido | Real
   // Comerciais / financeiros
-  dia_vencimento     Int?     // dia do vencimento da mensalidade
+  dia_vencimento     Int? // dia do vencimento da mensalidade
   vencimento_licenca DateTime?
   reajuste_em        DateTime?
   ultimo_pagamento   DateTime?
-  previsao_pagamento String?  // texto livre (pode vir "- -")
+  previsao_pagamento String? // texto livre (pode vir "- -")
   regiao             String?
   valor_instalacao   Float?
-  condicao_pagamento String? @db.Text
+  condicao_pagamento String?   @db.Text
   data_cadastro      DateTime?
 
   // LTV realizado (nao projetado) — cache opcional; a tela /ltv sempre calcula
@@ -113,7 +113,7 @@ model Cliente {
   campanhas_disparo CampanhaDisparo[]
   licencas          Licenca[]
   tickets           TicketSuporte[]
-  indicacoes_feitas Indicacao[]       @relation("IndicacoesFeitas")
+  indicacoes_feitas Indicacao[]            @relation("IndicacoesFeitas")
   health_score      HealthScore?
   vendas_adicionais VendaAdicional[]
   historico_cnpj    HistoricoCnpjCliente[]
@@ -137,12 +137,12 @@ model ClienteDocumento {
   cliente_id String
   cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  nome       String      @db.VarChar(255)   // nome original do arquivo
-  tipo       String      @default("OUTRO")  // CONTRATO | COMPROVANTE | IDENTIDADE | NOTA_FISCAL | OUTRO
-  mime_type  String      @db.VarChar(100)   // application/pdf | image/jpeg | image/png | etc.
-  tamanho    Int                            // tamanho em bytes
-  conteudo   Bytes       @db.MediumBlob     // conteúdo binário do arquivo (até ~16MB)
-  descricao  String?     @db.Text
+  nome      String  @db.VarChar(255) // nome original do arquivo
+  tipo      String  @default("OUTRO") // CONTRATO | COMPROVANTE | IDENTIDADE | NOTA_FISCAL | OUTRO
+  mime_type String  @db.VarChar(100) // application/pdf | image/jpeg | image/png | etc.
+  tamanho   Int // tamanho em bytes
+  conteudo  Bytes   @db.MediumBlob // conteúdo binário do arquivo (até ~16MB)
+  descricao String? @db.Text
 
   enviado_por      String?
   enviado_por_nome String?
@@ -156,24 +156,24 @@ model ClienteDocumento {
 // mantém o mesmo código no nosso sistema, registramos um snapshot dos dados
 // ANTIGOS aqui e atualizamos o cadastro com os novos. Nada se perde.
 model HistoricoCnpjCliente {
-  id        String  @id @default(cuid())
+  id         String  @id @default(cuid())
   cliente_id String
-  cliente   Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
   // Snapshot dos dados ANTIGOS (antes da troca)
   cnpj_anterior          String?
   razao_social_anterior  String?
-  nome_fantasia_anterior  String?
+  nome_fantasia_anterior String?
   inscricao_anterior     String?
   // Novos dados (para conferência rápida)
-  cnpj_novo          String?
-  razao_social_nova  String?
-  nome_fantasia_nova String?
+  cnpj_novo              String?
+  razao_social_nova      String?
+  nome_fantasia_nova     String?
 
-  motivo     String?  @db.Text
+  motivo           String?  @db.Text
   trocado_por      String?
   trocado_por_nome String?
-  created_at DateTime @default(now())
+  created_at       DateTime @default(now())
 
   @@index([cliente_id])
 }
@@ -185,12 +185,12 @@ model ContatoCliente {
   cliente_id String
   cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  nome       String
-  telefone   String?
-  cargo      String?  // ex.: Proprietário, Gerente, Financeiro, Comprador
-  email      String?
-  origem     String?  // MANUAL | WHATSAPP (de onde veio o contato)
-  principal  Boolean  @default(false)
+  nome      String
+  telefone  String?
+  cargo     String? // ex.: Proprietário, Gerente, Financeiro, Comprador
+  email     String?
+  origem    String? // MANUAL | WHATSAPP (de onde veio o contato)
+  principal Boolean @default(false)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -202,19 +202,19 @@ model ContatoCliente {
 // (solicitação de serviço, registro de churn, renegociação, troca de CNPJ,
 // desativação/reativação, ajuste de mensalidade...) num feed único e auditável.
 model EventoCliente {
-  id        String  @id @default(cuid())
+  id         String  @id @default(cuid())
   cliente_id String
-  cliente   Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  cliente    Cliente @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 
-  tipo        String   // SERVICO | CHURN | RENEGOCIACAO | TROCA_CNPJ | DESATIVACAO | REATIVACAO | MENSALIDADE | OBSERVACAO | OUTRO
-  titulo      String
-  descricao   String?  @db.Text
-  referencia_id String?  // id do registro relacionado (caso, solicitação, etc.)
-  metadados   Json?     // dados extras (valores, antes/depois)
+  tipo          String // SERVICO | CHURN | RENEGOCIACAO | TROCA_CNPJ | DESATIVACAO | REATIVACAO | MENSALIDADE | OBSERVACAO | OUTRO
+  titulo        String
+  descricao     String? @db.Text
+  referencia_id String? // id do registro relacionado (caso, solicitação, etc.)
+  metadados     Json? // dados extras (valores, antes/depois)
 
   feito_por      String?
   feito_por_nome String?
-  created_at DateTime @default(now())
+  created_at     DateTime @default(now())
 
   @@index([cliente_id])
   @@index([tipo])
@@ -240,39 +240,39 @@ model CasoChurn {
   data_abertura_real DateTime?
 
   // ── Situação financeira do cliente (aditivo) ────────────────────────────────
-  fin_situacao     String?  // EM_DIA | EM_ATRASO | NEGOCIANDO | INADIMPLENTE
-  fin_valor_atraso Float?   // quanto está em atraso (quando EM_ATRASO/INADIMPLENTE)
-  fin_dias_atraso  Int?     // há quantos dias em atraso
-  fin_observacao   String?  @db.Text // detalhes financeiros (boletos, parcelas, etc.)
+  fin_situacao     String? // EM_DIA | EM_ATRASO | NEGOCIANDO | INADIMPLENTE
+  fin_valor_atraso Float? // quanto está em atraso (quando EM_ATRASO/INADIMPLENTE)
+  fin_dias_atraso  Int? // há quantos dias em atraso
+  fin_observacao   String? @db.Text // detalhes financeiros (boletos, parcelas, etc.)
 
   // ── Renegociação por dificuldade financeira (aditivo) ───────────────────────
   // Preenchido quando o caso vira uma renegociação de débito. Os campos de
   // parcelamento só são exigidos/mostrados no front quando reneg_ativa = true.
-  reneg_ativa           Boolean   @default(false)
-  reneg_como_mantido    String?   @db.Text // o que foi feito p/ manter o cliente
-  reneg_resultado       String?   @db.Text // como ficou após a renegociação
-  reneg_valor_devido    Float?    // total devido antes do acordo
-  reneg_valor_entrada   Float?    // entrada paga no ato do acordo
-  reneg_parcelas        Int?      // nº de parcelas restantes (1 a 6)
-  reneg_responsavel     String?   // nome completo do responsável que assina
-  reneg_responsavel_cpf String?   // CPF do responsável
-  reneg_data            DateTime? // data do acordo
+  reneg_ativa              Boolean   @default(false)
+  reneg_como_mantido       String?   @db.Text // o que foi feito p/ manter o cliente
+  reneg_resultado          String?   @db.Text // como ficou após a renegociação
+  reneg_valor_devido       Float? // total devido antes do acordo
+  reneg_valor_entrada      Float? // entrada paga no ato do acordo
+  reneg_parcelas           Int? // nº de parcelas restantes (1 a 6)
+  reneg_responsavel        String? // nome completo do responsável que assina
+  reneg_responsavel_cpf    String? // CPF do responsável
+  reneg_data               DateTime? // data do acordo
   reneg_proximo_vencimento DateTime? // data do próximo vencimento acordado
 
   // ── Resolução e reabertura (aditivo) ────────────────────────────────────────
   // resolvido_em = 1ª vez que o caso virou RECUPERADO ou PERDIDO (idempotente).
   // Reabertura é permitida SÓ UMA VEZ, e só a partir de RECUPERADO — trava o
   // motivo original (reaberto_motivo_travado) pra garantir que é o mesmo problema.
-  resolvido_em             DateTime? // 1ª resolução (RECUPERADO ou PERDIDO)
-  reaberto                 Boolean   @default(false) // liga permanentemente, nunca desliga
-  reaberto_em              DateTime? // quando a reabertura aconteceu
-  reaberto_motivo_travado  String?   // snapshot do motivo_principal original
-  resolvido_em_2           DateTime? // 2ª resolução (pós-reabertura)
+  resolvido_em            DateTime? // 1ª resolução (RECUPERADO ou PERDIDO)
+  reaberto                Boolean   @default(false) // liga permanentemente, nunca desliga
+  reaberto_em             DateTime? // quando a reabertura aconteceu
+  reaberto_motivo_travado String? // snapshot do motivo_principal original
+  resolvido_em_2          DateTime? // 2ª resolução (pós-reabertura)
 
   // Evento técnico posterior a PERDIDO: quando o sistema foi de fato desligado
   // (pode levar dias/semanas após a perda comercial). Só permitido a partir de
   // PERDIDO; idempotente (não sobrescreve).
-  sistema_removido_em      DateTime?
+  sistema_removido_em DateTime?
 
   created_by String
   created_at DateTime @default(now())
@@ -298,7 +298,7 @@ model AtualizacaoCaso {
   caso_churn_id String
   caso_churn    CasoChurn @relation(fields: [caso_churn_id], references: [id], onDelete: Cascade)
 
-  tipo      String  // OBSERVACAO | CONTATO | TENTATIVA | FINANCEIRO | STATUS | SISTEMA
+  tipo      String // OBSERVACAO | CONTATO | TENTATIVA | FINANCEIRO | STATUS | SISTEMA
   texto     String  @db.Text
   // Para CONTATO/TENTATIVA: como foi o contato e o resultado.
   canal     String? // TELEFONE | WHATSAPP | EMAIL | PRESENCIAL | OUTRO
@@ -306,7 +306,7 @@ model AtualizacaoCaso {
 
   feito_por      String?
   feito_por_nome String?
-  created_at DateTime @default(now())
+  created_at     DateTime @default(now())
 
   @@index([caso_churn_id])
   @@index([created_at])
@@ -353,7 +353,7 @@ model AcaoRetencao {
   plano    PlanoRetencao? @relation(fields: [plano_id], references: [id], onDelete: SetNull)
 
   titulo          String
-  descricao       String? @db.Text
+  descricao       String?   @db.Text
   tipo            String // CONTATO|EMAIL|DESCONTO|PRODUTO|OUTRO
   status          String    @default("NOVA") // NOVA|EM_PROGRESSO|CONCLUIDA|CANCELADA
   responsavel_id  String?
@@ -369,7 +369,7 @@ model AcaoRetencao {
 model HistoricoLead {
   id             String  @id @default(cuid())
   tipo           String // caso_criado|status_alterado|acao_criada|survey_respondido|etc
-  descricao      String @db.Text
+  descricao      String  @db.Text
   relacionado_id String? // ID do caso/survey/acao relacionada
 
   created_by String
@@ -574,6 +574,113 @@ model AuditoriaCompanha {
   @@index([usuario_id])
 }
 
+// ── Campanha de e-mail marketing por segmento (ex.: Padarias) ──────────────
+// Modelos DEDICADOS a lead (não reaproveita Campanha/CampanhaDisparo, que
+// exigem cliente_id obrigatório — a maioria dos leads ainda não é Cliente).
+model SequenciaEmail {
+  id        String  @id @default(cuid())
+  nome      String  @db.VarChar(150) // "Padarias 2026"
+  segmento  String // "Padaria" — valor exato do campo Lead.segmento
+  ativa     Boolean @default(true)
+  descricao String? @db.Text
+
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  etapas SequenciaEmailEtapa[]
+  leads  LeadSequenciaEmail[]
+
+  @@index([segmento])
+  @@index([ativa])
+}
+
+model SequenciaEmailEtapa {
+  id           String         @id @default(cuid())
+  sequencia_id String
+  sequencia    SequenciaEmail @relation(fields: [sequencia_id], references: [id], onDelete: Cascade)
+
+  numero        Int // 1 a 12
+  dia_envio     Int // dias corridos desde a entrada (0, 3, 6, 9, 12, 15, 20, 25, 30, 35, 40, 45)
+  assunto       String  @db.VarChar(200)
+  template_path String  @db.VarChar(200) // ex.: "padarias-sequencia/email-01.html"
+  tema          String? @db.VarChar(100) // "Produção / Estoque" — vira etiqueta no lead ao engajar
+  fase_kanban   String // "NUTRICAO_1" | "NUTRICAO_2" | "NUTRICAO_3" | "NUTRICAO_4"
+
+  created_at DateTime @default(now())
+
+  disparos LeadSequenciaEmailDisparo[]
+
+  @@unique([sequencia_id, numero])
+  @@index([sequencia_id])
+}
+
+// Vínculo lead ↔ sequência: 1 lead só pode estar 1x ativo na mesma sequência
+// (não impede reentrada após LONGO_PRAZO, ver Task 4).
+model LeadSequenciaEmail {
+  id           String         @id @default(cuid())
+  sequencia_id String
+  sequencia    SequenciaEmail @relation(fields: [sequencia_id], references: [id], onDelete: Cascade)
+
+  lead_id String
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  // Fases do Kanban dedicado (ver planilha do usuário):
+  // BASE_VALIDADA | NUTRICAO_1 | NUTRICAO_2 | NUTRICAO_3 | NUTRICAO_4 |
+  // ENGAJOU_QUALIFICAR | APRESENTACAO_AGENDADA | APRESENTACAO_REALIZADA |
+  // PROPOSTA_NEGOCIACAO | CONTRATO_ASSINADO | LONGO_PRAZO | DESCADASTRADO
+  fase_kanban String @default("BASE_VALIDADA")
+
+  ultima_etapa_enviada Int? // número do último e-mail enviado (1-12)
+  proximo_envio_em     DateTime? // data calculada do próximo disparo
+  pausada              Boolean   @default(false)
+  motivo_pausa         String?   @db.VarChar(200) // "Clique no CTA" | "Resposta manual" | "WhatsApp manual" | "Descadastro"
+
+  tema_interesse String? @db.VarChar(100) // preenchido quando engaja (tema do e-mail clicado)
+
+  entrou_em       DateTime  @default(now())
+  pausada_em      DateTime?
+  descadastrou_em DateTime?
+
+  created_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  disparos LeadSequenciaEmailDisparo[]
+
+  @@unique([sequencia_id, lead_id])
+  @@index([sequencia_id, fase_kanban])
+  @@index([proximo_envio_em])
+  @@index([lead_id])
+}
+
+model LeadSequenciaEmailDisparo {
+  id String @id @default(cuid())
+
+  lead_sequencia_id String
+  lead_sequencia    LeadSequenciaEmail @relation(fields: [lead_sequencia_id], references: [id], onDelete: Cascade)
+
+  etapa_id String
+  etapa    SequenciaEmailEtapa @relation(fields: [etapa_id], references: [id], onDelete: Cascade)
+
+  status     String // ENVIADO | ERRO
+  message_id String?
+  erro       String? @db.Text
+
+  sent_at      DateTime?
+  email_aberto Boolean   @default(false)
+  opened_at    DateTime?
+  link_clicado Boolean   @default(false)
+  clicked_at   DateTime?
+  clicked_url  String?   @db.Text
+
+  created_at DateTime @default(now())
+
+  @@index([lead_sequencia_id])
+  @@index([etapa_id])
+  @@index([message_id])
+}
+
 // ===== MODULO COMERCIAL =====
 
 model Lead {
@@ -620,7 +727,7 @@ model Lead {
   parcelamento           Int?
   validade_proposta      DateTime?
   observacoes_comerciais String?   @db.Text
-  condicao_especial      String? @db.Text
+  condicao_especial      String?   @db.Text
 
   // Dados para proposta (pré-preenchimento)
   frase_hero          String? @db.Text
@@ -712,6 +819,7 @@ model Lead {
   etiquetas_lead   LeadEtiquetaAplicada[]
   onboarding       LeadOnboarding?
   execucao         ExecucaoTecnica?
+  sequencias_email LeadSequenciaEmail[]
 
   // Exclusão lógica: lead sai de TODOS os resultados, fica só na auditoria/trilha.
   deleted_at      DateTime?
@@ -756,25 +864,25 @@ model LeadObservacao {
 }
 
 model CandidatoRepresentante {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Passo 1 — campos-chave
-  nome             String
-  empresa          String?
-  nome_fantasia    String?
-  cnpj             String?
-  cpf_responsavel  String?
-  telefone         String
-  email            String
-  cidade           String?
-  estado           String?
+  nome            String
+  empresa         String?
+  nome_fantasia   String?
+  cnpj            String?
+  cpf_responsavel String?
+  telefone        String
+  email           String
+  cidade          String?
+  estado          String?
 
-  perfil_desejado  String // INDICADOR | REPRESENTANTE | FRANQUEADO
+  perfil_desejado String // INDICADOR | REPRESENTANTE | FRANQUEADO
 
   // Passos 2–10 — respostas completas do questionário (ver spec p/ formato)
   respostas_detalhadas Json
 
-  status    String   @default("NOVO") // NOVO | EM_ANALISE | APROVADO | REPROVADO
+  status               String  @default("NOVO") // NOVO | EM_ANALISE | APROVADO | REPROVADO
   observacoes_internas String? @db.Text
 
   created_at DateTime @default(now())
@@ -817,7 +925,7 @@ model QuadroComercial {
   // Visibilidade: quadros custom nascem PRIVADO (só o dono vê); o dono decide
   // depois se libera para pessoas específicas (QuadroCompartilhamento) ou torna
   // PUBLICO (todo mundo vê). Pipeline/Follow-up (fixos) são sempre PUBLICO.
-  visibilidade String @default("PRIVADO") // PRIVADO | PUBLICO
+  visibilidade String  @default("PRIVADO") // PRIVADO | PUBLICO
   dono_id      String? // usuário que criou/controla o compartilhamento
 
   // Regra de entrada automática de leads no quadro
@@ -875,9 +983,9 @@ model Etiqueta {
   id         String   @id @default(cuid())
   nome       String
   cor        String   @default("#4B8EC8")
-  descricao  String? @db.Text
+  descricao  String?  @db.Text
   tipo       String   @default("LEAD") // LEAD|CLIENTE|PARCEIRO — categoria da etiqueta
-  sistema    Boolean  @default(false)  // true = criada/gerida pelo sistema (ex.: Cliente Convertido)
+  sistema    Boolean  @default(false) // true = criada/gerida pelo sistema (ex.: Cliente Convertido)
   ativa      Boolean  @default(true)
   created_by String
   created_at DateTime @default(now())
@@ -1082,7 +1190,7 @@ model Contrato {
   // Soft-delete: registro mantido para auditoria
   deleted_at      DateTime?
   deleted_by      String?
-  motivo_exclusao String? @db.Text
+  motivo_exclusao String?   @db.Text
 
   created_by String
   created_at DateTime @default(now())
@@ -1407,7 +1515,7 @@ model ImplantacaoArquivo {
   nome           String
   tipo           String      @default("LINK") // LINK | ANEXO
   url            String      @db.Text // URL do link ou caminho/base64 do anexo
-  descricao      String? @db.Text
+  descricao      String?     @db.Text
   enviado_por    String?
   created_at     DateTime    @default(now())
 
@@ -1491,7 +1599,7 @@ model PropostaComercial {
   // Plano e produtos
   plano_selecionado   String? // BASIC | PRO | PLUS | PERSONALIZADO
   plano_recomendado   String?
-  mensalidade_basic   Float?  // Loja/Farma Basic (nível de entrada)
+  mensalidade_basic   Float? // Loja/Farma Basic (nível de entrada)
   mensalidade_pro     Float?
   mensalidade_plus    Float?
   modulos_inclusos    Json
@@ -1620,23 +1728,23 @@ model VendaAdicional {
   vendedor_nome String? // nome do vendedor que fez a venda (exibição)
   supervisao_id String? // quem registrou (supervisor que faz o cadastro)
 
-  tipo_negocio     String  @default("INDICACAO") // INDICACAO | REVENDA
-  valor_venda      Float?
+  tipo_negocio         String    @default("INDICACAO") // INDICACAO | REVENDA
+  valor_venda          Float?
   // Acréscimo mensal negociado com o cliente (ex.: Arquivo Fiscal). Soma na
   // mensalidade total do cliente quando a venda é CONFIRMADA.
-  acrescimo_mensal Float?
-  plano_anterior   String?
-  plano_novo       String?
+  acrescimo_mensal     Float?
+  plano_anterior       String?
+  plano_novo           String?
   // Mensalidade do cliente ANTES do upgrade (snapshot no momento da venda) e
   // a NOVA mensalidade (anterior + acréscimo). Expostas no fluxo de upgrade.
   mensalidade_anterior Float?
   mensalidade_nova     Float?
   // Forma de pagamento do setup/valor único do upgrade (aditivo):
   // setup_forma: ENTRADA_PARCELAS (entrada + parcelas) | PARCELADO (parcelas direto)
-  setup_forma        String?  @default("PARCELADO")
-  setup_entrada      Float?   // valor da entrada (quando ENTRADA_PARCELAS)
-  setup_parcelas     Int?     // nº de parcelas do saldo
-  setup_primeiro_venc DateTime? // vencimento da 1ª parcela (demais = mensais sucessivas)
+  setup_forma          String?   @default("PARCELADO")
+  setup_entrada        Float? // valor da entrada (quando ENTRADA_PARCELAS)
+  setup_parcelas       Int? // nº de parcelas do saldo
+  setup_primeiro_venc  DateTime? // vencimento da 1ª parcela (demais = mensais sucessivas)
 
   comissao_valor            Float     @default(50)
   comissao_paga             Boolean   @default(false)
@@ -1647,19 +1755,19 @@ model VendaAdicional {
   // Vendas de COMUNICAÇÃO envolvem várias lojas (cada uma é um Cliente da base).
   // O acréscimo_mensal é POR LOJA (total = acrescimo_mensal * nº lojas). O setup
   // é cobrado de UMA loja específica. A venda fica salva na ficha de todas.
-  lojas_ids        Json?     // string[] de cliente_id das lojas que vão se comunicar
-  lojas_nomes      Json?     // string[] (snapshot dos nomes p/ exibição)
+  lojas_ids               Json? // string[] de cliente_id das lojas que vão se comunicar
+  lojas_nomes             Json? // string[] (snapshot dos nomes p/ exibição)
   // Detalhe por loja: [{ cliente_id, nome, codigo, acrescimo }]. Cada loja tem o
   // SEU acréscimo individual (pode ser 0 se já comunica e está sendo só associada).
-  lojas_detalhe    Json?
-  setup_loja_id    String?   // cliente_id da loja onde o setup será cobrado
+  lojas_detalhe           Json?
+  setup_loja_id           String? // cliente_id da loja onde o setup será cobrado
   // ── Datas do ciclo (aditivo) ────────────────────────────────────────────────
-  data_venda             DateTime? // data inicial da venda
+  data_venda              DateTime? // data inicial da venda
   data_inicio_comunicacao DateTime? // quando a comunicação começa a funcionar
-  primeiro_vencimento    DateTime? // 1º vencimento (base p/ comissão: mês seguinte)
-  data_indicacao         DateTime? // (demais parceiros) data da indicação
-  data_confirmacao       DateTime? // (demais parceiros) data da confirmação
-  data_fechamento        DateTime? // data em que o negócio foi efetivamente fechado
+  primeiro_vencimento     DateTime? // 1º vencimento (base p/ comissão: mês seguinte)
+  data_indicacao          DateTime? // (demais parceiros) data da indicação
+  data_confirmacao        DateTime? // (demais parceiros) data da confirmação
+  data_fechamento         DateTime? // data em que o negócio foi efetivamente fechado
 
   status String @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
 
@@ -1718,16 +1826,16 @@ model HealthScoreSnapshot {
 // registra oportunidades de venda. Tudo reflete na ficha (EventoCliente) e no
 // HealthScore. Campanha CONTÍNUA (sem mês fixo).
 model CampanhaAtivo {
-  id            String  @id @default(cuid())
-  grupo_tecnico String  // ex.: "Grupo 1 - João Victor"
-  vendedor_id   String  // vendedor designado (responsável pela fila)
-  vendedor_nome String?
-  criada_por    String  // supervisão que designou
+  id                 String  @id @default(cuid())
+  grupo_tecnico      String // ex.: "Grupo 1 - João Victor"
+  vendedor_id        String // vendedor designado (responsável pela fila)
+  vendedor_nome      String?
+  criada_por         String // supervisão que designou
   meta_cobertura_pct Int     @default(100) // meta de % da fila a contatar
-  status        String  @default("ATIVA")  // ATIVA | CONCLUIDA | CANCELADA
-  observacoes   String? @db.Text
+  status             String  @default("ATIVA") // ATIVA | CONCLUIDA | CANCELADA
+  observacoes        String? @db.Text
 
-  total_fila    Int     @default(0) // nº de clientes puxados p/ a fila na criação
+  total_fila Int @default(0) // nº de clientes puxados p/ a fila na criação
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -1744,42 +1852,42 @@ model ContatoAtivo {
   campanha_id String
   campanha    CampanhaAtivo @relation(fields: [campanha_id], references: [id], onDelete: Cascade)
 
-  cliente_id   String  // vínculo à base (sem relação reversa p/ não tocar no model Cliente)
-  cliente_nome String?
+  cliente_id     String // vínculo à base (sem relação reversa p/ não tocar no model Cliente)
+  cliente_nome   String?
   cliente_codigo String?
-  vendedor_id  String
+  vendedor_id    String
 
   // Kanban: A_CONTATAR → EM_CONTATO → CONCLUIDO | SEM_SUCESSO
-  etapa       String  @default("A_CONTATAR")
-  tentativas  Int     @default(0)
+  etapa        String    @default("A_CONTATAR")
+  tentativas   Int       @default(0)
   contatado_em DateTime?
 
   // ── Controle da supervisão ──
-  oculto       Boolean @default(false) // supervisão oculta da fila do vendedor (não tratar)
+  oculto        Boolean @default(false) // supervisão oculta da fila do vendedor (não tratar)
   oculto_motivo String? @db.Text
-  etiqueta     String?                 // ex.: "Cliente crítico", "Não contatar"
-  etiqueta_cor String?  @default("#dc2626")
+  etiqueta      String? // ex.: "Cliente crítico", "Não contatar"
+  etiqueta_cor  String? @default("#dc2626")
 
   // ── Questionário (sim/não por item + nota geral + texto) ──
-  usa_sistema_ok       Boolean? // usa bem o sistema/ferramentas?
-  suporte_ok           Boolean? // satisfeito com o atendimento do suporte?
-  tecnico_ok           Boolean? // satisfeito com o técnico que atende?
-  conhece_novas_ferr   Boolean? // conhece as novas ferramentas?
-  plus_apresentado     Boolean? // o plano Plus foi apresentado?
-  nota_prosystem       Int?     // nota geral 1-5 p/ o sistema Prosystem
-  sugestoes            String?  @db.Text
+  usa_sistema_ok     Boolean? // usa bem o sistema/ferramentas?
+  suporte_ok         Boolean? // satisfeito com o atendimento do suporte?
+  tecnico_ok         Boolean? // satisfeito com o técnico que atende?
+  conhece_novas_ferr Boolean? // conhece as novas ferramentas?
+  plus_apresentado   Boolean? // o plano Plus foi apresentado?
+  nota_prosystem     Int? // nota geral 1-5 p/ o sistema Prosystem
+  sugestoes          String?  @db.Text
 
   // ── Saúde percebida neste contato (alimenta o HealthScore) ──
-  saude               String?  // EXCELENTE | SAUDAVEL | ATENCAO | RISCO | CRITICO
-  tem_problema        Boolean  @default(false)
-  problema_descricao  String?  @db.Text
-  caso_churn_id       String?  // caso aberto a partir deste contato (se houver)
+  saude              String? // EXCELENTE | SAUDAVEL | ATENCAO | RISCO | CRITICO
+  tem_problema       Boolean @default(false)
+  problema_descricao String? @db.Text
+  caso_churn_id      String? // caso aberto a partir deste contato (se houver)
 
   // ── Oportunidade de venda gerada a partir do contato ──
-  gerou_venda    Boolean @default(false)
-  tipo_venda     String? // UPGRADE | INDICACAO | FISCAL | PAC | TEF | COMUNICACAO | OUTRO
-  venda_ref_id   String? // id da VendaAdicional/Proposta gerada (rastreio)
-  venda_obs      String? @db.Text
+  gerou_venda  Boolean @default(false)
+  tipo_venda   String? // UPGRADE | INDICACAO | FISCAL | PAC | TEF | COMUNICACAO | OUTRO
+  venda_ref_id String? // id da VendaAdicional/Proposta gerada (rastreio)
+  venda_obs    String? @db.Text
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -1796,24 +1904,24 @@ model ContatoAtivo {
 // Fica em NEGOCIACAO até o vendedor confirmar o fechamento.
 // Ao confirmar, cria a VendaAdicional real e muda para CONFIRMADA.
 model OportunidadeAtivo {
-  id           String  @id @default(cuid())
-  contato_id   String  // ContatoAtivo (card kanban)
-  cliente_id   String
-  vendedor_id  String
-  parceiro_id  String?
+  id            String  @id @default(cuid())
+  contato_id    String // ContatoAtivo (card kanban)
+  cliente_id    String
+  vendedor_id   String
+  parceiro_id   String?
   parceiro_nome String?
-  categoria    String? // FISCAL | TEF | TRIBUTARIO | COMUNICACAO | UPGRADE | OUTRO
+  categoria     String? // FISCAL | TEF | TRIBUTARIO | COMUNICACAO | UPGRADE | OUTRO
 
-  status       String  @default("NEGOCIACAO") // NEGOCIACAO | CONFIRMADA | CANCELADA
-  valor_venda  Float?
+  status           String  @default("NEGOCIACAO") // NEGOCIACAO | CONFIRMADA | CANCELADA
+  valor_venda      Float?
   acrescimo_mensal Float?
-  observacao   String? @db.Text
+  observacao       String? @db.Text
 
   venda_adicional_id String? // VendaAdicional criada ao confirmar
 
-  criado_por   String?
+  criado_por     String?
   confirmado_por String?
-  confirmado_em DateTime?
+  confirmado_em  DateTime?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -1833,7 +1941,7 @@ model Credito {
 
   valor    Float
   validade DateTime
-  motivo   String? @db.Text
+  motivo   String?  @db.Text
 
   criado_em    DateTime  @default(now())
   utilizado_em DateTime?
@@ -1891,14 +1999,14 @@ model ContratoComercial {
   setup_condicao_especial String? @db.Text
 
   // Tipo do contrato p/ não confundir TROCA DE CNPJ (serviço) com cliente NOVO.
-  tipo_servico      String? @default("NOVO") // NOVO | TROCA_CNPJ
+  tipo_servico String? @default("NOVO") // NOVO | TROCA_CNPJ
 
   // Equipe comercial
   vendedor_id       String? // p/ vincular comissão e meta ao vendedor
   vendedor_nome     String?
   supervisor_nome   String?
   campanha          String?
-  condicao_especial String? @db.Text
+  condicao_especial String?  @db.Text
   data_contrato     DateTime @default(now())
 
   // Comissão do vendedor (15% sobre o setup/instalação, calculada na assinatura)
@@ -1907,7 +2015,7 @@ model ContratoComercial {
 
   // Recuo / distrato (cliente assinou e desistiu) — sai da meta e estorna comissão
   recuado_at   DateTime?
-  recuo_motivo String? @db.Text
+  recuo_motivo String?   @db.Text
 
   // Modelo ZapSign usado
   modelo_contrato        String? // "Pro" | "Plus" | "Farma Pro" | etc
@@ -1920,8 +2028,8 @@ model ContratoComercial {
   // ZapSign campos de rastreamento
   zapsign_doc_token       String?
   zapsign_signer_token    String?
-  zapsign_signing_url     String? @db.Text
-  zapsign_signed_file_url String? @db.Text
+  zapsign_signing_url     String?   @db.Text
+  zapsign_signed_file_url String?   @db.Text
   zapsign_status          String?
   gerado_at               DateTime?
   sent_to_sign_at         DateTime?
@@ -1948,7 +2056,7 @@ model ConfiguracaoIntegracao {
   id         String   @id @default(cuid())
   chave      String   @unique
   valor      String   @db.Text
-  descricao  String? @db.Text
+  descricao  String?  @db.Text
   updated_at DateTime @updatedAt
   updated_by String?  @default("system")
 }
@@ -2051,26 +2159,26 @@ model MetaVendedor {
 // não calcula sozinho): CAC, caixa, NPS, marketing (custo/canais) e despesas do
 // setor. 1 registro por ano-mês. A Diretora preenche; o painel do CEO consome.
 model IndicadorMensalCEO {
-  id   String @id @default(cuid())
-  ano  Int
-  mes  Int    // 1-12
+  id  String @id @default(cuid())
+  ano Int
+  mes Int // 1-12
 
   // Financeiro / direção
-  caixa_disponivel    Float?   // saldo em caixa no fechamento do mês
-  contas_a_receber    Float?   // a receber no mês
-  inadimplencia       Float?   // valor inadimplente
-  faturamento         Float?   // faturamento do mês
-  lucro_liquido       Float?
-  despesas_setor      Float?   // despesas do setor comercial no mês
+  caixa_disponivel Float? // saldo em caixa no fechamento do mês
+  contas_a_receber Float? // a receber no mês
+  inadimplencia    Float? // valor inadimplente
+  faturamento      Float? // faturamento do mês
+  lucro_liquido    Float?
+  despesas_setor   Float? // despesas do setor comercial no mês
 
   // Marketing (lançado no último dia do mês)
-  marketing_investido Float?   // total investido em marketing/tráfego
-  marketing_leads     Int?     // leads atribuídos a campanha (manual, complementa o auto)
-  cac                 Float?   // custo de aquisição de cliente
-  cpl                 Float?   // custo por lead
+  marketing_investido Float? // total investido em marketing/tráfego
+  marketing_leads     Int? // leads atribuídos a campanha (manual, complementa o auto)
+  cac                 Float? // custo de aquisição de cliente
+  cpl                 Float? // custo por lead
 
   // Satisfação
-  nps                 Float?   // NPS consolidado do mês
+  nps Float? // NPS consolidado do mês
 
   observacoes String? @db.Text
 
@@ -2082,41 +2190,41 @@ model IndicadorMensalCEO {
 }
 
 model RelatorioComercial {
-  id            String   @id @default(cuid())
-  ano           Int
-  mes           Int      // 1-12
-  supervisor    String?  @default("Jessica Cardoso")
+  id         String  @id @default(cuid())
+  ano        Int
+  mes        Int // 1-12
+  supervisor String? @default("Jessica Cardoso")
 
   // Resumo do mês (auto + editável)
-  contratos_fechados   Int     @default(0)
-  meta_contratos       Int     @default(15)
-  instalacao_total     Float   @default(0)
-  mrr_total            Float   @default(0)
-  cancelamentos        Int     @default(0)
-  mrr_perdido          Float   @default(0)
+  contratos_fechados Int   @default(0)
+  meta_contratos     Int   @default(15)
+  instalacao_total   Float @default(0)
+  mrr_total          Float @default(0)
+  cancelamentos      Int   @default(0)
+  mrr_perdido        Float @default(0)
 
   // Pipeline geral
-  propostas_total      Int     @default(0)
-  propostas_negociacao Int     @default(0)
-  propostas_fechadas   Int     @default(0)
-  propostas_declinadas Int     @default(0)
-  setup_potencial      Float   @default(0)
-  mrr_potencial        Float   @default(0)
+  propostas_total      Int   @default(0)
+  propostas_negociacao Int   @default(0)
+  propostas_fechadas   Int   @default(0)
+  propostas_declinadas Int   @default(0)
+  setup_potencial      Float @default(0)
+  mrr_potencial        Float @default(0)
 
   // Blocos detalhados (listas) — JSON livre p/ não engessar
-  por_vendedor   Json?    // [{nome, propostas, setup_potencial, mrr_potencial, em_negociacao, fechadas, participacao}]
-  por_segmento   Json?    // [{segmento, propostas, setup_total, mrr_total, ticket_mrr, participacao}]
-  contratos_lista Json?   // [{empresa, segmento, instalacao, mrr, origem}]
-  atividade      Json?    // [{vendedor, ligacoes, qualificadas, tempo, conversao, insights}]
-  marketing      Json?    // {investido, resultados, impressoes, campanhas:[], roi}
+  por_vendedor        Json? // [{nome, propostas, setup_potencial, mrr_potencial, em_negociacao, fechadas, participacao}]
+  por_segmento        Json? // [{segmento, propostas, setup_total, mrr_total, ticket_mrr, participacao}]
+  contratos_lista     Json? // [{empresa, segmento, instalacao, mrr, origem}]
+  atividade           Json? // [{vendedor, ligacoes, qualificadas, tempo, conversao, insights}]
+  marketing           Json? // {investido, resultados, impressoes, campanhas:[], roi}
   cancelamentos_lista Json? // [{motivo, qtd}]
-  resumo_executivo Json?  // [string]
+  resumo_executivo    Json? // [string]
 
-  fechado       Boolean  @default(false) // mês consolidado (não recalcula mais)
-  observacoes   String?  @db.Text
+  fechado     Boolean @default(false) // mês consolidado (não recalcula mais)
+  observacoes String? @db.Text
 
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@unique([ano, mes], name: "uq_relatorio_mes")
   @@index([ano])
@@ -2127,21 +2235,21 @@ model RelatorioComercial {
 // O sistema casa com o Cliente da base, anexa à ficha e marca crítico
 // (nota < 3 ou não conhece os diferenciais) → abre caso de churn + risco.
 model PesquisaSatisfacao {
-  id                String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Identificação digitada pelo cliente na LP
-  identificacao     String   // razão social ou nome fantasia que o cliente digitou
-  respondente_nome  String?  // quem respondeu (opcional)
+  identificacao    String // razão social ou nome fantasia que o cliente digitou
+  respondente_nome String? // quem respondeu (opcional)
 
   // Vínculo automático ao Cliente da base (quando casa razão/fantasia)
-  cliente_id        String?
-  cliente_casado    Boolean  @default(false)
+  cliente_id     String?
+  cliente_casado Boolean @default(false)
 
   // Avaliações (1-5 estrelas)
   // Legados (mantidos p/ dados antigos; novas respostas usam os campos abaixo):
-  nota_suporte      Int      @default(0)
-  nota_sistema      Int      @default(0)
-  conhece_plano     Boolean  @default(false) // conhece os diferenciais do plano? (genérico)
+  nota_suporte  Int     @default(0)
+  nota_sistema  Int     @default(0)
+  conhece_plano Boolean @default(false) // conhece os diferenciais do plano? (genérico)
 
   // Conhece os diferenciais/produtos (radar de upsell — reflete na ficha do cliente):
   conhece_plus       Boolean @default(false) // plano Plus
@@ -2150,37 +2258,37 @@ model PesquisaSatisfacao {
   conhece_gerencial  Boolean @default(false) // Gerencial (monitoramento de notas fiscais)
 
   // Avaliação do atendimento técnico (formulário oficial):
-  nota_atendimento  Int      @default(0) // nota para esse atendimento
-  nota_eficiencia   Int      @default(0) // eficiência e rapidez na resolução
-  nota_conhecimento Int      @default(0) // conhecimento do técnico
-  nota_geral        Int      @default(0) // nota geral para a ProSystem (NPS)
-  email             String?              // e-mail do respondente
+  nota_atendimento  Int     @default(0) // nota para esse atendimento
+  nota_eficiencia   Int     @default(0) // eficiência e rapidez na resolução
+  nota_conhecimento Int     @default(0) // conhecimento do técnico
+  nota_geral        Int     @default(0) // nota geral para a ProSystem (NPS)
+  email             String? // e-mail do respondente
 
   // Texto livre
-  recado            String?  @db.Text     // recado/sugestão/elogio (técnico ou Prosystem)
-  observacao        String?  @db.Text
-  sugestoes         String?  @db.Text
+  recado     String? @db.Text // recado/sugestão/elogio (técnico ou Prosystem)
+  observacao String? @db.Text
+  sugestoes  String? @db.Text
 
   // Novos campos (formulário v2 — score 0-100)
-  cargo_respondente String?  // dono|gerente|balconista|financeiro|outro
-  resolucao         String?  // totalmente|parcialmente|nao_resolveu|nao_sei
-  rapidez           String?  // muito_rapido|esperado|demorou_pouco|demorou_muito
+  cargo_respondente   String? // dono|gerente|balconista|financeiro|outro
+  resolucao           String? // totalmente|parcialmente|nao_resolveu|nao_sei
+  rapidez             String? // muito_rapido|esperado|demorou_pouco|demorou_muito
   interesse_comercial String? // sim|talvez|nao  — quer conhecer ferramentas?
-  whatsapp          String?  // contato WhatsApp do respondente
+  whatsapp            String? // contato WhatsApp do respondente
 
   // Score 0-100 calculado pelo backend conforme fórmula ponderada
-  score             Int      @default(0)
+  score           Int     @default(0)
   // Alertas especiais (palavras críticas no comentário, problema não resolvido etc.)
-  alerta_especial   Boolean  @default(false)
-  alerta_motivo     String?  // descrição resumida do alerta
+  alerta_especial Boolean @default(false)
+  alerta_motivo   String? // descrição resumida do alerta
 
   // Classificação automática
-  critico           Boolean  @default(false) // nota < 3 OU não conhece o plano
-  media             Float    @default(0)      // média das duas notas
-  caso_churn_id     String?  // caso de churn aberto automaticamente (se crítico)
+  critico       Boolean @default(false) // nota < 3 OU não conhece o plano
+  media         Float   @default(0) // média das duas notas
+  caso_churn_id String? // caso de churn aberto automaticamente (se crítico)
 
-  ip_address        String?
-  created_at        DateTime @default(now())
+  ip_address String?
+  created_at DateTime @default(now())
 
   @@index([cliente_id])
   @@index([critico])
@@ -2192,28 +2300,28 @@ model PesquisaSatisfacao {
 // Lançamentos financeiros do setor comercial: entradas (vendas, instalações,
 // serviços, MRR) e saídas (salários, benefícios, marketing, comissões).
 model LancamentoFinanceiro {
-  id           String   @id @default(cuid())
-  tipo         String   // ENTRADA | SAIDA
-  categoria    String   // SALARIO|BENEFICIO|AJUDA_CUSTO|MARKETING|COMISSAO|OUTRO_CUSTO
-                        // | MENSALIDADE|INSTALACAO|SERVICO|VENDA|OUTRA_ENTRADA
-  descricao    String? @db.Text
-  valor        Decimal  @db.Decimal(12, 2)
-  recorrencia  String   @default("MENSAL") // MENSAL|ANUAL|PONTUAL|EXTRAORDINARIO
+  id              String   @id @default(cuid())
+  tipo            String // ENTRADA | SAIDA
+  categoria       String // SALARIO|BENEFICIO|AJUDA_CUSTO|MARKETING|COMISSAO|OUTRO_CUSTO
+  // | MENSALIDADE|INSTALACAO|SERVICO|VENDA|OUTRA_ENTRADA
+  descricao       String?  @db.Text
+  valor           Decimal  @db.Decimal(12, 2)
+  recorrencia     String   @default("MENSAL") // MENSAL|ANUAL|PONTUAL|EXTRAORDINARIO
   // Competência (a que mês/ano o lançamento pertence — base dos filtros).
-  competencia_ano  Int
-  competencia_mes  Int     // 1-12
-  data         DateTime @default(now())  // data do efetivo lançamento
-  observacoes  String?  @db.Text
+  competencia_ano Int
+  competencia_mes Int // 1-12
+  data            DateTime @default(now()) // data do efetivo lançamento
+  observacoes     String?  @db.Text
   // Vínculos opcionais (rastreabilidade)
-  vendedor_id  String?
-  cliente_id   String?
+  vendedor_id     String?
+  cliente_id      String?
   // Origem automática (ex.: COMISSAO → Comissao.id). Null para lançamentos manuais.
-  origem_tipo  String?
-  origem_id    String?
+  origem_tipo     String?
+  origem_id       String?
 
-  created_by   String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_by String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([tipo])
   @@index([categoria])
@@ -2262,12 +2370,12 @@ model WhatsappConversa {
   nao_lidas       Int       @default(0)
 
   // Chatbot de qualificação (fluxo guiado p/ número novo)
-  bot_estado      String?   // null|SAUDACAO|AGUARDA_CLIENTE|AGUARDA_SEGMENTO|AGUARDA_NOME|CONCLUIDO
-  bot_ativo       Boolean   @default(false) // o bot está conduzindo esta conversa?
+  bot_estado String? // null|SAUDACAO|AGUARDA_CLIENTE|AGUARDA_SEGMENTO|AGUARDA_NOME|CONCLUIDO
+  bot_ativo  Boolean @default(false) // o bot está conduzindo esta conversa?
 
   // Etiqueta de organização (ex.: Padaria, Farmácia, Varejo, Cliente, Lead, Parceiro)
-  etiqueta        String?
-  etiqueta_cor    String?   @default("#6b7280")
+  etiqueta     String?
+  etiqueta_cor String? @default("#6b7280")
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -2303,38 +2411,38 @@ model WhatsappMensagem {
 // ─── BASE DE CONHECIMENTO TÉCNICA ─────────────────────────────────────────────
 
 model KbCategoria {
-  id          String   @id @default(cuid())
-  nome        String
-  descricao   String? @db.Text
-  icone       String?  // nome do ícone lucide-react
-  ordem       Int      @default(0)
-  parent_id   String?
-  parent      KbCategoria?  @relation("KbCatFilhas", fields: [parent_id], references: [id])
-  filhas      KbCategoria[] @relation("KbCatFilhas")
-  artigos     KbArtigo[]
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String        @id @default(cuid())
+  nome       String
+  descricao  String?       @db.Text
+  icone      String? // nome do ícone lucide-react
+  ordem      Int           @default(0)
+  parent_id  String?
+  parent     KbCategoria?  @relation("KbCatFilhas", fields: [parent_id], references: [id])
+  filhas     KbCategoria[] @relation("KbCatFilhas")
+  artigos    KbArtigo[]
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
 
   @@index([parent_id])
 }
 
 model KbArtigo {
-  id           String      @id @default(cuid())
+  id           String       @id @default(cuid())
   titulo       String
-  conteudo     String      @db.LongText
-  resumo       String?     @db.Text
+  conteudo     String       @db.LongText
+  resumo       String?      @db.Text
   categoria_id String?
   categoria    KbCategoria? @relation(fields: [categoria_id], references: [id])
-  autor_id     String?     // UsuarioCRM.id
+  autor_id     String? // UsuarioCRM.id
   autor_nome   String?
-  status       String      @default("RASCUNHO") // RASCUNHO | PUBLICADO | ARQUIVADO
-  visibilidade String      @default("INTERNO")  // INTERNO | PUBLICO (portal cliente)
-  tags         String?     // JSON array de strings
-  views        Int         @default(0)
-  util_sim     Int         @default(0) // feedback positivo
-  util_nao     Int         @default(0) // feedback negativo
-  created_at   DateTime    @default(now())
-  updated_at   DateTime    @updatedAt
+  status       String       @default("RASCUNHO") // RASCUNHO | PUBLICADO | ARQUIVADO
+  visibilidade String       @default("INTERNO") // INTERNO | PUBLICO (portal cliente)
+  tags         String? // JSON array de strings
+  views        Int          @default(0)
+  util_sim     Int          @default(0) // feedback positivo
+  util_nao     Int          @default(0) // feedback negativo
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
 
   @@index([categoria_id])
   @@index([status])
@@ -2344,20 +2452,20 @@ model KbArtigo {
 // ─── CSAT — PESQUISA DE SATISFAÇÃO PÓS-TICKET / PÓS-IMPLANTAÇÃO ───────────────
 
 model CsatSurvey {
-  id              String      @id @default(cuid())
-  tipo            String      // TICKET | IMPLANTACAO
-  referencia_id   String      // id do ticket ou implantação
-  cliente_id      String?
-  cliente_nome    String?
-  token           String      @unique @default(cuid()) // magic link token
-  status          String      @default("PENDENTE") // PENDENTE | RESPONDIDO | EXPIRADO
-  nota            Int?        // 1-5
-  comentario      String?     @db.Text
-  respondido_at   DateTime?
-  expira_at       DateTime    // geralmente 7 dias após criação
-  criado_por      String?     // UsuarioCRM.id que fechou o ticket
-  created_at      DateTime    @default(now())
-  updated_at      DateTime    @updatedAt
+  id            String    @id @default(cuid())
+  tipo          String // TICKET | IMPLANTACAO
+  referencia_id String // id do ticket ou implantação
+  cliente_id    String?
+  cliente_nome  String?
+  token         String    @unique @default(cuid()) // magic link token
+  status        String    @default("PENDENTE") // PENDENTE | RESPONDIDO | EXPIRADO
+  nota          Int? // 1-5
+  comentario    String?   @db.Text
+  respondido_at DateTime?
+  expira_at     DateTime // geralmente 7 dias após criação
+  criado_por    String? // UsuarioCRM.id que fechou o ticket
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
   @@index([referencia_id])
   @@index([token])
