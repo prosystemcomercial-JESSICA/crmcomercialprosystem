@@ -1312,6 +1312,26 @@ class ApiClient {
   async getCsatSurveys(params?: { status?: string; tipo?: string; page?: number; limit?: number }) {
     return this.client.get('/csat/surveys', { params });
   }
+
+  // ─── Sequências de e-mail marketing ───────────────────────────────────────
+  async getSequenciasEmail() {
+    return this.client.get('/sequencias-email');
+  }
+  async entrarNaSequenciaEmail(sequenciaId: string, leadId: string) {
+    return this.client.post(`/sequencias-email/${sequenciaId}/leads/${leadId}/entrar`);
+  }
+  async getCandidatosSequenciaEmail(sequenciaId: string) {
+    return this.client.get(`/sequencias-email/${sequenciaId}/candidatos`);
+  }
+  async entrarLoteSequenciaEmail(sequenciaId: string, leadIds: string[]) {
+    return this.client.post(`/sequencias-email/${sequenciaId}/entrar-lote`, { leadIds });
+  }
+  async getKanbanSequenciaEmail(sequenciaId: string) {
+    return this.client.get(`/sequencias-email/${sequenciaId}/kanban`);
+  }
+  async moverFaseSequenciaEmail(leadSequenciaId: string, faseKanban: string, motivo?: string) {
+    return this.client.patch(`/sequencias-email/leads/${leadSequenciaId}/fase`, { fase_kanban: faseKanban, motivo });
+  }
 }
 
 export const apiClient = new ApiClient();
