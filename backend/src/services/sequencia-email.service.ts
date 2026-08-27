@@ -46,7 +46,10 @@ function carregarTemplate(templatePath: string, unsubscribeUrl: string): string 
  * `ultima_etapa_enviada + 1` ainda não foi enviado) e agenda o próximo envio.
  * Se já enviou a etapa 12, marca fase_kanban = LONGO_PRAZO e não agenda mais nada.
  * Nunca lança: falha de envio grava um LeadSequenciaEmailDisparo com status ERRO
- * e ainda assim agenda o reenvio pro dia seguinte (não trava a sequência por 1 falha).
+ * e agenda um REENVIO da MESMA etapa pro dia seguinte, sem avançar
+ * ultima_etapa_enviada/fase_kanban (a etapa não pode ser considerada "enviada").
+ * Após 3 falhas consecutivas na mesma etapa, pausa a sequência em vez de
+ * tentar reenviar pra sempre (ex.: e-mail do lead permanentemente inválido).
  */
 export async function dispararProximoEmail(prisma: PrismaClient, leadSequenciaId: string) {
   const ls = await prisma.leadSequenciaEmail.findUnique({
@@ -79,7 +82,7 @@ export async function dispararProximoEmail(prisma: PrismaClient, leadSequenciaId
     return null;
   }
 
-  const unsubscribeUrl = `${process.env.FRONTEND_URL || 'https://efficient-ambition-production-5f99.up.railway.app'}/descadastro-email?ls=${ls.id}`;
+  const unsubscribeUrl = `${process.env.BACKEND_URL || 'https://crmcomercialprosystem-production-945e.up.railway.app'}/sequencias-email/descadastro/${ls.id}`;
   const html = carregarTemplate(etapa.template_path, unsubscribeUrl);
 
   let resultado: { status: 'ENVIADO' | 'ERRO'; messageId?: string; erro?: string };
@@ -105,6 +108,33 @@ export async function dispararProximoEmail(prisma: PrismaClient, leadSequenciaId
       sent_at: resultado.status === 'ENVIADO' ? new Date() : null,
     },
   });
+
+  // Falha no envio: NÃO avança a etapa nem a fase — reagenda a MESMA etapa
+  // pro dia seguinte, pra o scheduler tentar de novo. Corta o loop de retry
+  // depois de 3 falhas consecutivas nesta etapa, pausando a sequência.
+  if (resultado.status === 'ERRO') {
+    const falhasAnteriores = await prisma.leadSequenciaEmailDisparo.count({
+      where: { lead_sequencia_id: ls.id, etapa_id: etapa.id, status: 'ERRO' },
+    });
+
+    if (falhasAnteriores >= 3) {
+      await prisma.leadSequenciaEmail.update({
+        where: { id: ls.id },
+        data: {
+          pausada: true,
+          motivo_pausa: 'Falha de envio repetida (3+ tentativas)',
+          pausada_em: new Date(),
+        },
+      });
+    } else {
+      await prisma.leadSequenciaEmail.update({
+        where: { id: ls.id },
+        data: { proximo_envio_em: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+      });
+    }
+
+    return resultado;
+  }
 
   // Calcula a data do PRÓXIMO e-mail (etapa+1) a partir de entrou_em — não do
   // envio atual, pra não acumular atraso se o scheduler rodar um dia depois.

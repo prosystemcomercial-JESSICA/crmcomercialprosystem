@@ -8,7 +8,8 @@ export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { 
   const { prisma } = options;
 
   // Lista as sequências disponíveis (hoje só Padarias, mas já preparado p/ mais).
-  fastify.get('/sequencias-email', async (_request, reply) => {
+  fastify.get('/sequencias-email', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const sequencias = await prisma.sequenciaEmail.findMany({
       include: { _count: { select: { leads: true } } },
     });
@@ -16,8 +17,9 @@ export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { 
   });
 
   // Insere 1 lead na sequência — usado pelo pop-up de opt-in (criar/editar lead).
+  // Sem requireGestor de propósito: qualquer usuário autenticado que cria/edita
+  // um lead pode optar por incluí-lo na campanha (decisão de produto), não só gestor.
   fastify.post('/sequencias-email/:sequenciaId/leads/:leadId/entrar', async (request, reply) => {
-    if (!requireGestor(request, reply)) return;
     const { sequenciaId, leadId } = request.params as { sequenciaId: string; leadId: string };
     const user = (request as any).user;
 
@@ -156,7 +158,17 @@ export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { 
       data: { link_clicado: true, clicked_at: new Date(), clicked_url: clickedUrl },
     });
 
-    if (!disparo.lead_sequencia.pausada) {
+    // Clique no link de descadastro não é engajamento comercial — a rota
+    // /sequencias-email/descadastro/:id já cuida de marcar DESCADASTRADO
+    // quando o link é de fato visitado. Aqui só registramos o clique acima
+    // (analytics) e não tocamos em fase_kanban/pausada.
+    const isCliqueDescadastro = typeof clickedUrl === 'string' && clickedUrl.includes('/sequencias-email/descadastro/');
+
+    // Nunca re-engajar um lead que já se descadastrou (evita clique fora de
+    // ordem reabrindo um lead já marcado DESCADASTRADO).
+    const jaDescadastrado = disparo.lead_sequencia.fase_kanban === 'DESCADASTRADO';
+
+    if (!isCliqueDescadastro && !jaDescadastrado && !disparo.lead_sequencia.pausada) {
       await pausarSequencia(prisma, disparo.lead_sequencia.id, 'Clique no CTA');
       await prisma.leadSequenciaEmail.update({
         where: { id: disparo.lead_sequencia.id },

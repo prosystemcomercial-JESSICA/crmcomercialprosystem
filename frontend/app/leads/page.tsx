@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { FecharLeadModal } from '@/components/ui/FecharLeadModal';
+import { showToast } from '@/components/ui/Toast';
 import {
   Plus, Search, X, RefreshCw, Phone, Mail, MapPin, User,
   Building2, FileText, MessageSquare, Loader2, Send,
@@ -2814,7 +2815,10 @@ export default function LeadsPage() {
               </button>
               <button
                 onClick={async () => {
-                  await apiClient.entrarNaSequenciaEmail(SEQUENCIA_PADARIAS_ID, popupPadaria.leadId).catch(() => {});
+                  await apiClient.entrarNaSequenciaEmail(SEQUENCIA_PADARIAS_ID, popupPadaria.leadId).catch((e: any) => {
+                    console.error('Erro ao incluir lead na sequência de e-mail.', e);
+                    showToast.error('Não foi possível incluir o lead na campanha', 'Tente novamente em instantes.');
+                  });
                   setPopupPadaria(null);
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-white"
