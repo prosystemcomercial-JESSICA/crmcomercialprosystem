@@ -1,6 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+import { enviarEmailCampanha } from '@/services/email-campanha.service';
 
 const CampanhaFieldsSchema = {
   nome: z.string().min(1),
@@ -131,6 +134,48 @@ export async function campanhasRoutes(fastify: FastifyInstance, options: { prism
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Campanha não encontrada' });
       throw err;
     }
+  });
+
+  // ── Teste de envio de e-mail (Resend) ──────────────────────────────────
+  // Valida a cadeia CRM → Resend → CampanhaDisparo antes de existir qualquer
+  // campanha/sequência real. Enquanto não houver domínio verificado no
+  // Resend, só entrega para o e-mail cadastrado na própria conta Resend
+  // (limitação do modo sandbox, não da nossa integração).
+  fastify.post('/campanhas/:id/testar-envio', async (request, reply) => {
+    if (!checkGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      to: z.string().email(),
+      clienteId: z.string().min(1),
+      subject: z.string().min(1).default('Sua padaria vende. Mas o lucro aparece?'),
+      template: z.string().default('padaria/email-1'),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe to, clienteId (um cliente real, p/ vincular o disparo)', errors: body.error.errors });
+
+    const campanha = await prisma.campanha.findUnique({ where: { id } });
+    if (!campanha) return reply.status(404).send({ status: 'error', message: 'Campanha não encontrada' });
+
+    const cliente = await prisma.cliente.findUnique({ where: { id: body.data.clienteId }, select: { id: true } });
+    if (!cliente) return reply.status(404).send({ status: 'error', message: 'clienteId não encontrado' });
+
+    const templatePath = path.join(process.cwd(), 'src', 'email-templates', `${body.data.template}.html`);
+    if (!fs.existsSync(templatePath)) {
+      return reply.status(404).send({ status: 'error', message: `Template não encontrado: ${body.data.template}` });
+    }
+    const html = fs.readFileSync(templatePath, 'utf-8').replace('{{unsubscribe_url}}', '#');
+
+    const resultado = await enviarEmailCampanha(prisma, {
+      campanhaId: campanha.id,
+      clienteId: cliente.id,
+      to: body.data.to,
+      subject: body.data.subject,
+      html,
+    });
+
+    if (resultado.status === 'ERRO') {
+      return reply.status(502).send({ status: 'error', message: 'Falha ao enviar e-mail de teste', erro: resultado.erro, disparoId: resultado.disparoId });
+    }
+    return reply.send({ status: 'success', data: resultado });
   });
 
   // Stats
