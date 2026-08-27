@@ -319,6 +319,34 @@ async function iniciarSchedulerAutomacao() {
   console.log('[BOOT] Scheduler de automação iniciado (motor de regras 1x/dia)');
 }
 
+// 8d) Scheduler: sequência de e-mail das padarias — roda 1x/dia (~10h BRT = 13h UTC).
+//     Processa LeadSequenciaEmail pendentes e dispara o próximo e-mail de cada um.
+async function iniciarSchedulerSequenciaEmail() {
+  if (!prismaClient) return;
+  const HORA_UTC_SEQUENCIA = 13; // ~10h no horário de Brasília
+  let ultimoDiaSequenciaEmail = '';
+
+  const rodarSequenciaEmail = async () => {
+    try {
+      const agora = new Date();
+      if (agora.getUTCHours() !== HORA_UTC_SEQUENCIA) return;
+      const dia = agora.toISOString().slice(0, 10);
+      if (dia === ultimoDiaSequenciaEmail) return; // já rodou hoje
+      ultimoDiaSequenciaEmail = dia;
+
+      const { rodarSchedulerSequenciaEmail } = await import('./services/sequencia-email.service.js');
+      const resultado = await rodarSchedulerSequenciaEmail(prismaClient!);
+      console.log(`[SEQUENCIA-EMAIL] ${resultado.processados} processados, ${resultado.enviados} enviados, ${resultado.erros} erros`);
+    } catch (err: any) {
+      console.error('[SEQUENCIA-EMAIL] Erro no scheduler:', err?.message);
+    }
+  };
+
+  setInterval(rodarSequenciaEmail, 15 * 60 * 1000); // verifica a cada 15 min; age 1x/dia na janela
+  setTimeout(rodarSequenciaEmail, 150 * 1000);
+  console.log('[BOOT] Scheduler da sequência de e-mail (padarias) iniciado');
+}
+
 // 8) Carrega rotas dinamicamente — cada uma isolada em try/catch.
 //    Se UMA rota falhar ao importar/registrar, as outras continuam funcionando
 //    e o /health permanece respondendo.
@@ -412,6 +440,7 @@ const start = async () => {
     iniciarSchedulerLembretes();
     iniciarSchedulerDigest();
     iniciarSchedulerAutomacao();
+    iniciarSchedulerSequenciaEmail();
 
     // Keepalive: MySQL do Railway fecha conexões idle após ~8 min.
     // Um SELECT 1 a cada 4 min mantém a conexão viva sem custo.
