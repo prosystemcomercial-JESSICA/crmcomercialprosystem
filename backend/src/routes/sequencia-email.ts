@@ -4,8 +4,6 @@ import { z } from 'zod';
 import { entrarNaSequencia, pausarSequencia } from '@/services/sequencia-email.service';
 import { requireGestor } from '@/lib/scope';
 
-const ID_SEQUENCIA_PADARIAS = 'seq-padarias-2026';
-
 export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -19,6 +17,7 @@ export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { 
 
   // Insere 1 lead na sequência — usado pelo pop-up de opt-in (criar/editar lead).
   fastify.post('/sequencias-email/:sequenciaId/leads/:leadId/entrar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const { sequenciaId, leadId } = request.params as { sequenciaId: string; leadId: string };
     const user = (request as any).user;
 
@@ -70,14 +69,16 @@ export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { 
     const user = (request as any).user;
     let inseridos = 0;
     for (const leadId of body.data.leadIds) {
-      await entrarNaSequencia(prisma, { sequenciaId, leadId, userId: user?.id || 'system' }).catch(() => {});
-      inseridos++;
+      await entrarNaSequencia(prisma, { sequenciaId, leadId, userId: user?.id || 'system' })
+        .then(() => { inseridos++; })
+        .catch(() => {});
     }
     return reply.send({ status: 'success', data: { inseridos } });
   });
 
   // Kanban dedicado — leads agrupados por fase.
   fastify.get('/sequencias-email/:sequenciaId/kanban', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const { sequenciaId } = request.params as { sequenciaId: string };
     const leads = await prisma.leadSequenciaEmail.findMany({
       where: { sequencia_id: sequenciaId },
