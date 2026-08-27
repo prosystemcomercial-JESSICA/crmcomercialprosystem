@@ -98,23 +98,26 @@ export async function dispararProximoEmail(prisma: PrismaClient, leadSequenciaId
     resultado = { status: 'ERRO', erro: e?.message || 'Erro desconhecido' };
   }
 
-  await prisma.leadSequenciaEmailDisparo.create({
-    data: {
-      lead_sequencia_id: ls.id,
-      etapa_id: etapa.id,
-      status: resultado.status,
-      message_id: resultado.messageId,
-      erro: resultado.erro,
-      sent_at: resultado.status === 'ENVIADO' ? new Date() : null,
-    },
-  });
-
   // Falha no envio: NÃO avança a etapa nem a fase — reagenda a MESMA etapa
   // pro dia seguinte, pra o scheduler tentar de novo. Corta o loop de retry
   // depois de 3 falhas consecutivas nesta etapa, pausando a sequência.
+  // A contagem de falhas ANTERIORES precisa rodar antes de criar o registro
+  // de disparo desta tentativa, senão a própria tentativa atual entraria na
+  // contagem que decide o destino dela (off-by-one).
   if (resultado.status === 'ERRO') {
     const falhasAnteriores = await prisma.leadSequenciaEmailDisparo.count({
       where: { lead_sequencia_id: ls.id, etapa_id: etapa.id, status: 'ERRO' },
+    });
+
+    await prisma.leadSequenciaEmailDisparo.create({
+      data: {
+        lead_sequencia_id: ls.id,
+        etapa_id: etapa.id,
+        status: resultado.status,
+        message_id: resultado.messageId,
+        erro: resultado.erro,
+        sent_at: null,
+      },
     });
 
     if (falhasAnteriores >= 3) {
@@ -135,6 +138,17 @@ export async function dispararProximoEmail(prisma: PrismaClient, leadSequenciaId
 
     return resultado;
   }
+
+  await prisma.leadSequenciaEmailDisparo.create({
+    data: {
+      lead_sequencia_id: ls.id,
+      etapa_id: etapa.id,
+      status: resultado.status,
+      message_id: resultado.messageId,
+      erro: resultado.erro,
+      sent_at: new Date(),
+    },
+  });
 
   // Calcula a data do PRÓXIMO e-mail (etapa+1) a partir de entrou_em — não do
   // envio atual, pra não acumular atraso se o scheduler rodar um dia depois.
