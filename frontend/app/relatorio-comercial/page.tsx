@@ -626,23 +626,36 @@ export default function RelatorioComercialPage() {
             {Array.isArray(d.por_segmento) && d.por_segmento.length > 0 && (
               <Bloco titulo="Pipeline por Segmento" num={4} aberto={false}>
                 <div className="rel-bloco-conteudo">
-                  <div className="print:hidden mb-3">
-                    <ResponsiveContainer width="100%" height={280}>
-                      <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
-                        <Pie data={d.por_segmento.map((s: any) => ({ name: s.segmento, value: Number(s.mrr_total || 0), pct: s.participacao }))}
-                          dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80}
-                          paddingAngle={2}
-                          labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
-                          label={(p: any) => `${p.name} ${p.pct}%`}>
-                          {d.por_segmento.map((_: any, i: number) => {
-                            const cores = ['#4B8EC8', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
-                            return <Cell key={i} fill={cores[i % cores.length]} />;
-                          })}
-                        </Pie>
-                        <Tooltip formatter={(v: any) => `${fmt(v)}/mês`} /><Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
+                  {(() => {
+                    // Fatias com MRR zero não têm ângulo real no donut — o Recharts ainda
+                    // tenta desenhar o rótulo delas, e todas colidem empilhadas no mesmo
+                    // ponto (ilegível). Só entram no gráfico os segmentos com valor > 0;
+                    // a tabela abaixo continua mostrando todos, incluindo os zerados.
+                    const cores = ['#4B8EC8', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
+                    const comCor = d.por_segmento.map((s: any, i: number) => ({ ...s, cor: cores[i % cores.length] }));
+                    const comValor = comCor.filter((s: any) => Number(s.mrr_total || 0) > 0);
+                    if (comValor.length === 0) return (
+                      <p className="text-sm py-8 text-center print:hidden" style={{ color: 'var(--t-text-muted)' }}>
+                        Nenhum segmento com MRR no período.
+                      </p>
+                    );
+                    return (
+                      <div className="print:hidden mb-3">
+                        <ResponsiveContainer width="100%" height={280}>
+                          <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
+                            <Pie data={comValor.map((s: any) => ({ name: s.segmento, value: Number(s.mrr_total || 0), pct: s.participacao }))}
+                              dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80}
+                              paddingAngle={2}
+                              labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
+                              label={(p: any) => `${p.name} ${p.pct}%`}>
+                              {comValor.map((s: any, i: number) => <Cell key={i} fill={s.cor} />)}
+                            </Pie>
+                            <Tooltip formatter={(v: any) => `${fmt(v)}/mês`} /><Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    );
+                  })()}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="text-left text-xs border-b" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-muted)' }}>
