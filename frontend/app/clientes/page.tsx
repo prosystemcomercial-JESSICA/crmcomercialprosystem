@@ -165,33 +165,38 @@ export default function ClientesPage() {
   const router = useRouter();
   // Vendedor só consulta clientes; não cadastra/importa/edita/remove.
   const isGestor = podeVerTudo(user?.role);
-  const isCEO = ['CEO', 'ADMIN', 'DIRETOR'].includes((user?.role || '').toUpperCase());
 
   // Limpa registros inválidos (lixo de import: código não-numérico). Mostra
-  // quantos antes de apagar e pede confirmação.
-  const limparInvalidos = async () => {
+  // quantos antes de apagar e exige digitar a frase de confirmação num modal
+  // (não um window.confirm — fácil de clicar "OK" sem ler o que apaga).
+  const FRASE_LIMPAR_INVALIDOS = 'APAGAR CLIENTES INVALIDOS';
+  const [limparPreview, setLimparPreview] = useState<{ qtd: number; amostra: any[] } | null>(null);
+  const [limparFrase, setLimparFrase] = useState('');
+  const [limparExecutando, setLimparExecutando] = useState(false);
+
+  const abrirLimparInvalidos = async () => {
     try {
       const prev = await apiClient.client.post('/clientes/limpar-invalidos');
       const qtd = prev.data?.data?.invalidos ?? 0;
-      if (qtd === 0) { return; }
-      const ex = (prev.data?.data?.amostra || []).slice(0, 5).map((a: any) => `• ${a.codigo || '(sem código)'} — ${a.nome}`).join('\n');
-      if (!window.confirm(`Encontrei ${qtd} cliente(s) com código inválido (lixo de importação):\n\n${ex}${qtd > 5 ? '\n…' : ''}\n\nApagar TODOS esses ${qtd}? (não há desfazer)`)) return;
-      await apiClient.client.post('/clientes/limpar-invalidos?confirmar=1');
-      setPage(0); fetchClientes();
+      setLimparPreview({ qtd, amostra: prev.data?.data?.amostra || [] });
+      setLimparFrase('');
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Erro ao limpar registros inválidos');
+      setError(e?.response?.data?.message || e?.message || 'Erro ao verificar registros inválidos');
     }
   };
 
-  // Zera a base de clientes (só CEO) — pede confirmação inline.
-  const zerarBase = () => { setZerarConfirmando(true); };
-  const zerarBaseConfirmar = async () => {
-    setZerarConfirmando(false);
+  const confirmarLimparInvalidos = async () => {
+    if (limparFrase !== FRASE_LIMPAR_INVALIDOS) return;
+    setLimparExecutando(true);
     try {
-      await apiClient.client.post('/clientes/zerar-base', { confirmacao: 'ZERAR' });
+      await apiClient.client.post('/clientes/limpar-invalidos', { confirmacao: FRASE_LIMPAR_INVALIDOS });
+      setLimparPreview(null);
+      setLimparFrase('');
       setPage(0); fetchClientes();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Erro ao zerar base');
+      setError(e?.response?.data?.message || e?.message || 'Erro ao limpar registros inválidos');
+    } finally {
+      setLimparExecutando(false);
     }
   };
 
@@ -211,7 +216,6 @@ export default function ClientesPage() {
   const [form, setForm] = useState<ClienteForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [zerarConfirmando, setZerarConfirmando] = useState(false);
   const limit = 20;
 
   // Import state
@@ -462,30 +466,13 @@ export default function ClientesPage() {
                   + Novo Cliente
                 </button>
                 <button
-                  onClick={limparInvalidos}
+                  onClick={abrirLimparInvalidos}
                   title="Apaga clientes com código inválido (lixo de importação)"
                   className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
                   style={{ borderColor: '#d97706', color: '#d97706', background: 'transparent' }}
                 >
                   🧹 Limpar inválidos
                 </button>
-                {isCEO && !zerarConfirmando && (
-                  <button
-                    onClick={zerarBase}
-                    title="Apaga TODOS os clientes para reimportar do zero (só CEO)"
-                    className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
-                    style={{ borderColor: '#dc2626', color: '#dc2626', background: 'transparent' }}
-                  >
-                    🗑️ Zerar base
-                  </button>
-                )}
-                {isCEO && zerarConfirmando && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border" style={{ borderColor: '#dc2626', background: '#fef2f2' }}>
-                    <span className="text-xs font-medium" style={{ color: '#b91c1c' }}>Apagar TODOS os clientes?</span>
-                    <button onClick={zerarBaseConfirmar} className="px-2 py-0.5 text-xs rounded font-semibold text-white" style={{ background: '#dc2626' }}>Confirmar</button>
-                    <button onClick={() => setZerarConfirmando(false)} className="px-2 py-0.5 text-xs rounded border" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-secondary)' }}>Cancelar</button>
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -946,6 +933,56 @@ export default function ClientesPage() {
                     </button>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {limparPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,34,56,.6)' }}>
+          <div className="rounded-2xl shadow-2xl p-6" style={{ width: 480, background: 'var(--t-card-bg)', border: '1px solid #dc2626' }}>
+            <h2 className="text-sm font-extrabold mb-2" style={{ color: '#b91c1c' }}>Apagar clientes com código inválido?</h2>
+            {limparPreview.qtd === 0 ? (
+              <p className="text-xs mb-4" style={{ color: 'var(--t-text-secondary)' }}>Nenhum cliente com código inválido encontrado.</p>
+            ) : (
+              <>
+                <p className="text-xs mb-2" style={{ color: 'var(--t-text-secondary)' }}>
+                  Encontrei <b>{limparPreview.qtd}</b> cliente(s) com código inválido/vazio. Isso inclui lixo de importação, mas
+                  também pode incluir clientes reimportados de planilhas legadas que legitimamente não têm código de sistema —
+                  confira a amostra abaixo com atenção antes de apagar. <b>Não há como desfazer.</b>
+                </p>
+                <div className="max-h-40 overflow-y-auto rounded-lg p-2 mb-3 text-xs" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' }}>
+                  {limparPreview.amostra.map((a: any) => (
+                    <div key={a.id}>• {a.codigo || '(sem código)'} — {a.nome} {a.situacao ? `(${a.situacao})` : ''}</div>
+                  ))}
+                  {limparPreview.qtd > limparPreview.amostra.length && <div>… e mais {limparPreview.qtd - limparPreview.amostra.length}</div>}
+                </div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>
+                  Digite <code>{FRASE_LIMPAR_INVALIDOS}</code> para confirmar:
+                </label>
+                <input
+                  value={limparFrase}
+                  onChange={e => setLimparFrase(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm mb-4 outline-none"
+                  style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-content-bg)' }}
+                  autoFocus
+                />
+              </>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setLimparPreview(null); setLimparFrase(''); }} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
+                Cancelar
+              </button>
+              {limparPreview.qtd > 0 && (
+                <button
+                  onClick={confirmarLimparInvalidos}
+                  disabled={limparFrase !== FRASE_LIMPAR_INVALIDOS || limparExecutando}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40"
+                  style={{ background: '#dc2626' }}
+                >
+                  {limparExecutando ? 'Apagando…' : `Apagar ${limparPreview.qtd} cliente(s)`}
+                </button>
               )}
             </div>
           </div>

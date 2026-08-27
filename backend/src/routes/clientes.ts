@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { requireGestor } from '@/lib/scope';
+import { registrarAuditoriaAcao } from '@/lib/auditoria';
 
 const FERRAMENTAS_LISTA = [
   'API Domínios','Backup Mega - Externo - Terminal','CoteFácil','D-Pharma',
@@ -926,7 +927,9 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     if (!requireGestor(request, reply)) return;  // vendedor não exclui cliente
     const { id } = request.params as { id: string };
     try {
+      const alvo = await prisma.cliente.findUnique({ where: { id }, select: { razao_social: true, nome_fantasia: true, nome: true } });
       await prisma.cliente.delete({ where: { id } });
+      await registrarAuditoriaAcao(prisma, (request as any).user, 'EXCLUIU_CLIENTE', id, alvo?.razao_social || alvo?.nome_fantasia || alvo?.nome || id);
       return reply.send({ status: 'success', message: 'Cliente removido' });
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
@@ -935,50 +938,35 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ===== ZERAR BASE DE CLIENTES (apaga só os dados; estrutura/campos ficam) =====
-  // Só CEO. Exige confirmação "ZERAR" no body. Apaga clientes + dependências
-  // ligadas a eles, em ordem segura (FK), pra não dar erro de chave estrangeira.
-  fastify.post('/clientes/zerar-base', async (request, reply) => {
-    const user = (request as any).user;
-    const role = (user?.role || '').toUpperCase();
-    if (!user || !(role === 'CEO' || role === 'ADMIN' || role === 'DIRETOR')) {
-      return reply.status(403).send({ status: 'error', message: 'Apenas o CEO pode zerar a base de clientes.' });
-    }
-    const body = z.object({ confirmacao: z.string() }).safeParse(request.body);
-    if (!body.success || body.data.confirmacao !== 'ZERAR') {
-      return reply.status(400).send({ status: 'error', message: 'Digite ZERAR para confirmar.' });
-    }
-    try {
-      const total = await prisma.cliente.count();
-      // Apaga dependências que referenciam Cliente, na ordem certa. Cada uma em
-      // try próprio (tabela pode não existir em algum ambiente) p/ nunca travar.
-      const limpar = async (fn: () => Promise<any>) => { try { await fn(); } catch { /* ignora */ } };
-      await limpar(() => prisma.$executeRawUnsafe(`DELETE FROM ContatoCliente`));
-      await limpar(() => prisma.$executeRawUnsafe(`DELETE FROM SolicitacaoServico`));
-      await limpar(() => (prisma as any).healthScore?.deleteMany?.({}));
-      await limpar(() => (prisma as any).ticketSuporte?.deleteMany?.({}));
-      await limpar(() => (prisma as any).licenca?.deleteMany?.({}));
-      await limpar(() => (prisma as any).credito?.deleteMany?.({}));
-      await limpar(() => (prisma as any).campanhaDisparo?.deleteMany?.({}));
-      await limpar(() => (prisma as any).vendaAdicional?.deleteMany?.({}));
-      await limpar(() => (prisma as any).surveyChurn?.deleteMany?.({}));
-      await limpar(() => (prisma as any).casoChurn?.deleteMany?.({}));
-      // Por fim, os clientes (o restante cai por onDelete: Cascade).
-      const r = await prisma.cliente.deleteMany({});
-      return reply.send({ status: 'success', data: { apagados: r.count, antes: total }, message: `Base zerada: ${r.count} clientes removidos.` });
-    } catch (err: any) {
-      console.error('[POST /clientes/zerar-base]', err?.message);
-      return reply.status(500).send({ status: 'error', message: 'Erro ao zerar a base: ' + (err?.message || 'desconhecido') });
-    }
+  // DESABILITADA (27/08/2026) — causou perda total da base de Clientes/CasoChurn
+  // DUAS vezes (a confirmação de 1 palavra "ZERAR" no mesmo lugar do botão não
+  // protegia contra clique acidental/duplo, e não havia log de quem chamou).
+  // Reative só se um caso de negócio real exigir apagar a base inteira, e nesse
+  // caso mantenha a auditoria (registrarAuditoriaAcao) e a confirmação por frase
+  // completa abaixo — nunca volte a aceitar uma palavra curta como confirmação.
+  fastify.post('/clientes/zerar-base', async (_request, reply) => {
+    return reply.status(410).send({
+      status: 'error',
+      message: 'Esta ação foi desabilitada após causar perda de dados em produção. Se realmente precisar apagar toda a base de clientes, peça para um desenvolvedor fazer isso manualmente, com backup prévio confirmado.',
+    });
   });
 
   // ===== LIMPAR CLIENTES INVÁLIDOS (lixo de importação) =====
   // Apaga os clientes cujo código NÃO é puramente numérico — ex.: códigos que
   // viraram texto de observação ("* CONTADORA...", "INSTALACAO R$ 450",
   // "MENSALIDADE: R$ 150"). Códigos válidos são só dígitos (1, 41, 381…).
-  // Sem ?confirmar=1 só CONTA (pré-visualização); com confirmar=1 apaga. Só gestão.
+  //
+  // CUIDADO: clientes reimportados de planilhas legadas (ex.: histórico de
+  // inativos sem código de sistema) também caem nessa condição e SERIAM
+  // apagados por engano — por isso a confirmação (27/08/2026) passou a exigir
+  // uma frase digitada no corpo, em vez de "?confirmar=1" na URL (fácil de
+  // disparar sem querer, inclusive por retry automático de rede).
+  // Sem "confirmacao" no body só CONTA (pré-visualização); com a frase exata
+  // apaga. Auditado em AuditoriaUsuario antes de qualquer exclusão. Só gestão.
   fastify.post('/clientes/limpar-invalidos', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const confirmar = (request.query as any)?.confirmar === '1';
+    const body = z.object({ confirmacao: z.string().optional() }).safeParse(request.body);
+    const confirmar = body.success && body.data.confirmacao === 'APAGAR CLIENTES INVALIDOS';
     try {
       // Inválido = código nulo/vazio OU contém algo que não seja dígito.
       const cond = `codigo IS NULL OR codigo = '' OR codigo REGEXP '[^0-9]'`;
@@ -991,12 +979,15 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
       ).catch(() => []);
 
       if (!confirmar) {
-        return reply.send({ status: 'success', data: { invalidos: qtd, amostra }, message: `${qtd} cliente(s) com código inválido encontrados.` });
+        return reply.send({ status: 'success', data: { invalidos: qtd, amostra }, message: `${qtd} cliente(s) com código inválido encontrados. Digite a frase de confirmação para apagar.` });
       }
 
       // Apaga via Prisma (cascade) os ids inválidos, em lotes.
       const ids: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM Cliente WHERE ${cond}`).catch(() => []);
       const lista = ids.map(r => r.id);
+      // Auditoria ANTES de apagar (registra a tentativa mesmo se o loop falhar no meio).
+      const user = (request as any).user;
+      await registrarAuditoriaAcao(prisma, user, 'LIMPOU_CLIENTES_INVALIDOS', 'Cliente', `${lista.length} cliente(s) com código inválido`, { ids: lista });
       let apagados = 0;
       for (let i = 0; i < lista.length; i += 200) {
         const lote = lista.slice(i, i + 200);
