@@ -7,13 +7,14 @@
 
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth } from '@/middleware/auth';
 import { executarBackup, listarBackups } from '../lib/backup';
 
 export async function backupsRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
   const volumePath = process.env.BACKUP_VOLUME_PATH || './backups-local';
 
-  fastify.post('/backups', async (request, reply) => {
+  fastify.post('/backups', { onRequest: [requireAuth] }, async (request, reply) => {
     try {
       const resumo = await executarBackup(prisma, volumePath);
       return reply.send(resumo);
@@ -23,7 +24,7 @@ export async function backupsRoutes(fastify: FastifyInstance, options: { prisma:
     }
   });
 
-  fastify.get('/backups', async (request, reply) => {
+  fastify.get('/backups', { onRequest: [requireAuth] }, async (request, reply) => {
     try {
       const backups = await listarBackups(volumePath);
       return reply.send(backups);
