@@ -11,3 +11,4 @@ squads/*/output/
 .env.backup
 backend/backup-diario.bat
 backend/backup-diario.log
+backend/backups-local/

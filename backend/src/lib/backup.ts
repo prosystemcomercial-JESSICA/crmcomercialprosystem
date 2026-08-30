@@ -85,7 +85,12 @@ export async function listarBackups(volumePath: string): Promise<ResumoBackup[]>
   for (const nome of pastas) {
     const caminhoResumo = path.join(raiz, nome, '_resumo.json');
     if (fs.existsSync(caminhoResumo)) {
-      resumos.push(JSON.parse(fs.readFileSync(caminhoResumo, 'utf8')));
+      try {
+        resumos.push(JSON.parse(fs.readFileSync(caminhoResumo, 'utf8')));
+      } catch {
+        // _resumo.json corrompido (ex.: escrita interrompida) — pula essa pasta,
+        // não deve impedir a listagem dos outros backups saudáveis.
+      }
     }
   }
   return resumos;
