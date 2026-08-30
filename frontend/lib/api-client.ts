@@ -19,6 +19,13 @@ export interface User {
   modulos_permissao?: Record<string, { ver: boolean; criar: boolean; editar: boolean; excluir: boolean; exportar: boolean; administrar: boolean; alcance: string }> | null;
 }
 
+export interface ResumoBackup {
+  timestamp: string;
+  data: string;
+  tabelas: Record<string, number>;
+  erros: Array<{ tabela: string; erro: string }>;
+}
+
 class ApiClient {
   public client: AxiosInstance;
   private accessToken: string | null = null;
@@ -719,6 +726,14 @@ class ApiClient {
 
   async saveConfiguracoesIntegracoes(data: Record<string, string>) {
     return this.client.put('/configuracoes/integracoes', data);
+  }
+
+  async executarBackup() {
+    return this.client.post<ResumoBackup>('/backups');
+  }
+
+  async listarBackups() {
+    return this.client.get<ResumoBackup[]>('/backups');
   }
 
   // Metas endpoints
