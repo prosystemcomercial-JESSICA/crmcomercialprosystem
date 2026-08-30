@@ -5,8 +5,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme, ThemeColor, ThemeMode } from '@/lib/theme-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle } from 'lucide-react';
+import { apiClient, ResumoBackup } from '@/lib/api-client';
 
 // ─── Theme Definitions ────────────────────────────────────
 
@@ -116,6 +116,12 @@ export default function ConfiguracoesPage() {
   const [zapSaved, setZapSaved] = useState(false);
   const [zapLoading, setZapLoading] = useState(false);
 
+  // Backup manual
+  const [backups, setBackups] = useState<ResumoBackup[]>([]);
+  const [backupsLoading, setBackupsLoading] = useState(false);
+  const [backupRodando, setBackupRodando] = useState(false);
+  const [backupErro, setBackupErro] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
   }, [isAuthenticated, loading]);
@@ -148,6 +154,32 @@ export default function ConfiguracoesPage() {
       .catch(() => {})
       .finally(() => setZapLoading(false));
   }, [isAuthenticated]);
+
+  const carregarBackups = () => {
+    setBackupsLoading(true);
+    apiClient.listarBackups()
+      .then(res => setBackups(res.data))
+      .catch(() => {})
+      .finally(() => setBackupsLoading(false));
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    carregarBackups();
+  }, [isAuthenticated]);
+
+  const handleBackupAgora = async () => {
+    setBackupRodando(true);
+    setBackupErro(null);
+    try {
+      await apiClient.executarBackup();
+      carregarBackups();
+    } catch (err: any) {
+      setBackupErro(err?.response?.data?.error || 'Falha ao executar backup');
+    } finally {
+      setBackupRodando(false);
+    }
+  };
 
   const handleSaveZap = async () => {
     setZapSaving(true);
@@ -368,6 +400,86 @@ export default function ConfiguracoesPage() {
                   })}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ══ BACKUP ══════════════════════════════════════ */}
+          <div style={cardStyle}>
+            <div style={sectionHeader}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'var(--t-primary-light)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <DatabaseBackup size={16} color="var(--t-primary)" />
+              </div>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Backup</h2>
+            </div>
+
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                <p style={{ fontSize: 12, color: 'var(--t-text-muted)', maxWidth: 480 }}>
+                  Exporta todas as tabelas do banco agora mesmo. Mantém os 5 backups mais recentes.
+                </p>
+                <button
+                  onClick={handleBackupAgora}
+                  disabled={backupRodando}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '8px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    color: '#fff', cursor: backupRodando ? 'default' : 'pointer', border: 'none',
+                    opacity: backupRodando ? 0.7 : 1,
+                    background: 'linear-gradient(135deg, var(--t-primary) 0%, var(--t-primary-dark) 100%)',
+                    boxShadow: '0 2px 8px color-mix(in srgb, var(--t-primary) 25%, transparent)',
+                    transition: 'all 0.2s'
+                  }}>
+                  <DatabaseBackup size={14} />
+                  {backupRodando ? 'Fazendo backup...' : 'Fazer backup agora'}
+                </button>
+              </div>
+
+              {backupErro && (
+                <div style={{
+                  marginBottom: 16, padding: '10px 14px', borderRadius: 8,
+                  background: '#fef2f2', border: '1px solid #fecaca',
+                  fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8
+                }}>
+                  <AlertTriangle size={13} /> {backupErro}
+                </div>
+              )}
+
+              {backupsLoading ? (
+                <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Carregando...</p>
+              ) : backups.length === 0 ? (
+                <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Nenhum backup manual ainda.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {backups.map(b => {
+                    const totalLinhas = Object.values(b.tabelas).reduce((a, c) => a + c, 0);
+                    const totalTabelas = Object.keys(b.tabelas).length;
+                    return (
+                      <div key={b.timestamp} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 14px', borderRadius: 8,
+                        background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)',
+                        fontSize: 12
+                      }}>
+                        <span style={{ color: 'var(--t-text-primary)', fontWeight: 600 }}>
+                          {new Date(b.data).toLocaleString('pt-BR')}
+                        </span>
+                        <span style={{ color: 'var(--t-text-muted)' }}>
+                          {totalTabelas} tabelas · {totalLinhas} linhas
+                        </span>
+                        {b.erros.length > 0 && (
+                          <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <AlertTriangle size={12} /> {b.erros.length} erro(s)
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
