@@ -441,8 +441,8 @@ export default function ConfiguracoesPage() {
               {backupErro && (
                 <div style={{
                   marginBottom: 16, padding: '10px 14px', borderRadius: 8,
-                  background: '#fef2f2', border: '1px solid #fecaca',
-                  fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8
+                  background: 'var(--t-error-bg)', border: '1px solid var(--t-error-border)',
+                  fontSize: 12, color: 'var(--t-error)', display: 'flex', alignItems: 'center', gap: 8
                 }}>
                   <AlertTriangle size={13} /> {backupErro}
                 </div>
@@ -471,7 +471,7 @@ export default function ConfiguracoesPage() {
                           {totalTabelas} tabelas · {totalLinhas} linhas
                         </span>
                         {b.erros.length > 0 && (
-                          <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ color: 'var(--t-error)', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <AlertTriangle size={12} /> {b.erros.length} erro(s)
                           </span>
                         )}
