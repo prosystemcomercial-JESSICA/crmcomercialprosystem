@@ -19,9 +19,15 @@ interface TopOportunidade {
   status: string;
 }
 
+// Mesmas chaves de PROB_ETAPA (backend/src/lib/forecast.ts) — até esta correção,
+// /leads/previsao retornava `etapa_funil` (valores tipo PROSPECCAO/PROPOSTA) e
+// esta tabela batia; agora que a rota foi unificada para usar a mesma fórmula/
+// campo que /dashboard/forecast, `op.etapa` vem de `etapa_comercial`.
 const ETAPA_LABELS: Record<string, string> = {
-  PROSPECCAO: 'Prospecção', QUALIFICACAO: 'Qualificação', APRESENTACAO: 'Apresentação',
-  PROPOSTA: 'Proposta', NEGOCIACAO: 'Negociação', FECHAMENTO: 'Fechamento',
+  NOVO_LEAD: 'Novo Lead', PRIMEIRO_CONTATO: 'Primeiro Contato', EM_ATENDIMENTO: 'Em Atendimento',
+  AGUARDANDO_RETORNO: 'Aguardando Retorno', PROPOSTA_A_GERAR: 'Proposta a Gerar',
+  PROPOSTA_ENVIADA: 'Proposta Enviada', EM_NEGOCIACAO: 'Em Negociação', ACEITO: 'Aceito',
+  CONTRATO_EM_ANDAMENTO: 'Contrato em Andamento', CONTRATO_ASSINADO: 'Contrato Assinado',
 };
 
 export default function PrevisaoPage() {
