@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { StatusBadge, type BadgeColor } from '@/components/ui/StatusBadge';
 import { apiClient } from '@/lib/api-client';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend,
+} from 'recharts';
 
 interface Parceiro {
   id: string;
@@ -82,6 +85,21 @@ const STATUS_LABEL: Record<string, string> = {
 
 const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIRETOR'];
 
+// Cores e labels usados só na aba "Resultado Anual" (gráficos vindos de /vendas-adicionais).
+const PRO = '#417ABC', PRO_DARK = '#2E5A8F';
+const CORES_RESULTADO = ['#417ABC', '#16a34a', '#d97706', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
+const fmtResultado = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+const fmtResultado0 = (v: any) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+const CATEGORIA_LABEL_RESULTADO: Record<string, string> = {
+  FISCAL:      'Pacote Fiscal',
+  TEF:         'TEF',
+  TRIBUTARIO:  'Tributário',
+  COMUNICACAO: 'Comunicação',
+  UPGRADE:     'Upgrade de Plano',
+  TROCA_CNPJ:  'Troca de CNPJ',
+  OUTRO:       'Outro',
+};
+
 // Tempo entre o LANÇAMENTO da venda e a sua CONFIRMAÇÃO (onde o serviço finaliza).
 // Retorna { dias, label } ou null quando ainda não confirmada / sem datas.
 function prazoFinalizacao(v: VendaAdicional): { dias: number; label: string } | null {
@@ -106,7 +124,10 @@ export default function IndicacoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
-  const [tab, setTab] = useState<'vendas' | 'negociacao' | 'parceiros'>('vendas');
+  const [tab, setTab] = useState<'vendas' | 'negociacao' | 'parceiros' | 'resultado'>('vendas');
+  const [resultadoAnual, setResultadoAnual] = useState<any>(null);
+  const [resultadoLoading, setResultadoLoading] = useState(false);
+  const [anoResultado, setAnoResultado] = useState(new Date().getFullYear());
   const [vendas, setVendas] = useState<VendaAdicional[]>([]);
   const [negociacoes, setNegociacoes] = useState<any[]>([]);
   const [negociacaoLoading, setNegociacaoLoading] = useState(false);
@@ -254,6 +275,16 @@ export default function IndicacoesPage() {
     loadParceiros();
     loadNegociacoes();
   }, [isAuthenticated, loadVendas, loadParceiros, loadNegociacoes]);
+
+  // Aba "Resultado Anual" — gráficos que antes eram exclusivos de /vendas-adicionais.
+  useEffect(() => {
+    if (tab !== 'resultado') return;
+    setResultadoLoading(true);
+    apiClient.getVendasAdicionaisCEO(anoResultado)
+      .then(r => setResultadoAnual(r.data?.data || null))
+      .catch(() => setResultadoAnual(null))
+      .finally(() => setResultadoLoading(false));
+  }, [tab, anoResultado]);
 
   const openNovaVenda = async () => {
     setClienteBusca('');
@@ -542,6 +573,7 @@ export default function IndicacoesPage() {
             ['vendas', 'Vendas'],
             ['negociacao', `Em negociação${negociacoes.length ? ` (${negociacoes.length})` : ''}`],
             ['parceiros', 'Parceiros & Produtos'],
+            ['resultado', 'Resultado Anual'],
           ] as const).map(([key, label]) => (
             <button key={key} onClick={() => { setTab(key); if (key === 'negociacao') loadNegociacoes(); }}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === key ? (key === 'negociacao' ? 'border-amber-500 text-amber-600' : 'border-blue-600 text-blue-600') : 'border-transparent  hover:text-gray-700'}`}>
@@ -951,6 +983,104 @@ export default function IndicacoesPage() {
             </div>
           </div>
         )}
+
+        {/* Tab: Resultado Anual (gráficos que antes eram exclusivos de /vendas-adicionais) */}
+        {tab === 'resultado' && (() => {
+          const rd = resultadoAnual;
+          const meta = rd?.meta_anual || 30000;
+          const sup = rd?.super_meta || 50000;
+          const fat = rd?.faturamento || 0;
+          const pctMeta = Math.min(100, Math.round((fat / meta) * 100));
+          const pctSuper = Math.min(100, Math.round((fat / sup) * 100));
+          const markMeta = Math.round((meta / sup) * 100);
+          return (
+            <div className="space-y-4">
+              {resultadoLoading ? (
+                <div className="text-center py-16 ">Carregando…</div>
+              ) : !rd ? (
+                <div className="text-center py-16 ">Sem dados.</div>
+              ) : (
+                <>
+                  {/* Barra de acompanhamento da meta anual / supermeta */}
+                  <div className="ps-card rounded-2xl border border-gray-200 p-5">
+                    <div className="flex items-end justify-between flex-wrap gap-2 mb-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: PRO_DARK }}>Meta anual de vendas adicionais</p>
+                        <p className="text-3xl font-extrabold mt-1" style={{ color: PRO }}>{fmtResultado0(fat)}</p>
+                        <p className="text-sm ">de {fmtResultado0(meta)} (meta) · super {fmtResultado0(sup)}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: fat >= sup ? '#dcfce7' : fat >= meta ? '#fef9c3' : '#eef5fc', color: fat >= sup ? '#15803d' : fat >= meta ? '#a16207' : PRO_DARK }}>
+                          {fat >= sup ? '🏆 Supermeta batida!' : fat >= meta ? '✅ Meta batida!' : `${pctMeta}% da meta`}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Barra única que vai até a SUPER meta, com marca da meta */}
+                    <div className="relative w-full rounded-full h-5" style={{ background: '#eef2f7' }}>
+                      <div className="absolute left-0 top-0 h-5 rounded-full transition-all" style={{
+                        width: `${pctSuper}%`,
+                        background: fat >= meta ? 'linear-gradient(90deg,#417ABC,#16a34a)' : PRO,
+                      }} />
+                      <span className="absolute top-[-3px] h-[26px] w-0.5 bg-opacity-00" style={{ left: `${markMeta}%` }} title={`Meta ${fmtResultado0(meta)}`} />
+                    </div>
+                    <div className="flex justify-between text-[11px]  mt-1">
+                      <span>R$ 0</span>
+                      <span style={{ position: 'relative', left: `${markMeta - 50}%` }}>Meta {fmtResultado0(meta)}</span>
+                      <span>Super {fmtResultado0(sup)}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 mt-4">
+                      <div className="bg-opacity-0 rounded-lg p-3 border border-gray-100"><p className="text-xs ">Vendas confirmadas</p><p className="text-lg font-bold ">{rd.total}</p></div>
+                      <div className="bg-opacity-0 rounded-lg p-3 border border-gray-100"><p className="text-xs ">↑ Mensalidade gerada</p><p className="text-lg font-bold text-blue-700">+{fmtResultado0(rd.acrescimo_mrr_total)}/mês</p></div>
+                      <div className="bg-opacity-0 rounded-lg p-3 border border-gray-100"><p className="text-xs ">% da supermeta</p><p className="text-lg font-bold" style={{ color: PRO }}>{pctSuper}%</p></div>
+                    </div>
+                  </div>
+
+                  {/* Evolução mensal */}
+                  <div className="ps-card rounded-2xl border border-gray-200 p-4">
+                    <h2 className="text-sm font-bold uppercase mb-3" style={{ color: PRO_DARK }}>📈 Faturamento por mês ({rd.ano})</h2>
+                    <ResponsiveContainer width="100%" height={230}>
+                      <BarChart data={rd.serie} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(v: any) => fmtResultado(v)} />
+                        <Bar dataKey="valor" name="Faturamento" fill={PRO} radius={[4, 4, 0, 0]} animationDuration={900} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Por vendedor */}
+                    <div className="ps-card rounded-2xl border border-gray-200 p-4">
+                      <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por vendedor (faturamento)</h2>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={rd.por_vendedor.map((v: any) => ({ nome: (v.vendedor || '').split(' ')[0], Faturamento: v.valor }))} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eef3f9" />
+                          <XAxis dataKey="nome" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip formatter={(v: any) => fmtResultado(v)} />
+                          <Bar dataKey="Faturamento" fill={PRO} radius={[4, 4, 0, 0]} animationDuration={900} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {/* Por categoria */}
+                    <div className="ps-card rounded-2xl border border-gray-200 p-4">
+                      <h2 className="text-sm font-bold uppercase mb-2" style={{ color: PRO_DARK }}>Por categoria (valor)</h2>
+                      {rd.por_categoria.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={220}>
+                          <PieChart>
+                            <Pie data={rd.por_categoria.map((c: any) => ({ ...c, nome: CATEGORIA_LABEL_RESULTADO[c.categoria] || c.categoria }))} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={48} outerRadius={82} paddingAngle={2} animationDuration={900} label={(p: any) => p.nome}>
+                              {rd.por_categoria.map((_: any, i: number) => <Cell key={i} fill={CORES_RESULTADO[i % CORES_RESULTADO.length]} />)}
+                            </Pie>
+                            <Tooltip formatter={(v: any) => fmtResultado(v)} /><Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : <p className="text-center  py-12 text-sm">Sem dados.</p>}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Modal: Nova Venda */}

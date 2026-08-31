@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/api-client';
 import VersionWatcher from '@/components/VersionWatcher';
 import {
   LayoutDashboard, GitMerge, CalendarCheck, Calendar as CalendarIcon, FileCheck2,
-  Megaphone, Trophy, Medal, Building2, Users, DollarSign,
+  Megaphone, Trophy, Building2, Users, DollarSign,
   Handshake, Flame, Activity, Star, KeyRound, RefreshCw,
   Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
@@ -26,7 +26,7 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // Supervisão Comercial tem acesso total ao menu (mesmo nível de CEO/ADMIN),
 // mantendo o cargo/permissões de dados como Supervisão Comercial.
 const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
-const CEO_VISIVEL = ['/painel-ceo', '/relatorio-comercial', '/ranking', '/centro-custos', '/vendas-adicionais', '/churn-ceo', '/analise-comercial', '/ltv'];
+const CEO_VISIVEL = ['/centro-custos', '/casos', '/analise-comercial', '/ltv'];
 
 // `modulo` liga o item ao nome usado em MODULOS (backend/src/routes/usuarios.ts,
 // tela Usuários → "Liberação de Módulos"). Quando presente, um usuário SEM o cargo
@@ -75,14 +75,10 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/comercial',               icon: BarChart2,    label: 'Radar Comercial',    roles: GESTAO_COMERCIAL },
       { href: '/metas',                   icon: Trophy,       label: 'Metas Comerciais',   roles: COMERCIAL, modulo: 'Metas' },
-      { href: '/ranking',                 icon: Medal,        label: 'Ranking',            roles: GESTAO_COMERCIAL },
       { href: '/comissoes',               icon: DollarSign,   label: 'Comissões',          roles: COMERCIAL, modulo: 'Comissões / Bônus' },
       { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
-      { href: '/painel-ceo',              icon: TrendingUp,   label: 'Painel do CEO',      roles: GESTAO_COMERCIAL },
       { href: '/ltv',                     icon: TrendingUp,   label: 'LTV dos Clientes',   roles: GESTAO_COMERCIAL },
       { href: '/indicadores-ceo',         icon: DollarSign,   label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
-      { href: '/vendas-adicionais',       icon: Handshake,    label: 'Vendas Adicionais',  roles: GESTAO_COMERCIAL },
-      { href: '/relatorio-comercial',     icon: LineChart,    label: 'Relatório (CEO)',     roles: GESTAO_COMERCIAL, modulo: 'Relatórios Comerciais' },
       { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
       { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },
       { href: '/sdr/leads-para-distribuir', icon: Send,       label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
@@ -92,7 +88,6 @@ const navGroups: NavGroup[] = [
     label: 'Retenção',
     items: [
       { href: '/ativos',       icon: Sprout,        label: 'Ativos (CS)',       roles: COMERCIAL },
-      { href: '/churn-ceo',    icon: Flame,         label: 'Churn — Visão CEO', roles: SO_CEO, modulo: 'Cancelamentos / Churn' },
       { href: '/casos',        icon: Flame,         label: 'Churn & Retenção',  roles: TECNICO, modulo: 'Cancelamentos / Churn' },
       { href: '/health-score', icon: Activity,      label: 'Health Score',      roles: TECNICO },
       { href: '/nps',          icon: Star,          label: 'NPS',               roles: TECNICO },

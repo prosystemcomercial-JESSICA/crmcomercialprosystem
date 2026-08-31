@@ -14,6 +14,7 @@ import {
 import { MrrTrendCard } from './components/MrrTrendCard';
 import { PipelineFunnelChart } from './components/PipelineFunnelChart';
 import { TemperaturaGauge } from './components/TemperaturaGauge';
+import AbaTabs from './components/AbaTabs';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DashboardPower {
@@ -224,7 +225,11 @@ export default function DashboardPage() {
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [filtroVendedorId, setFiltroVendedorId] = useState('');
   const [mounted, setMounted] = useState(false);
-  const [showFinanceiro, setShowFinanceiro] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState<'comercial' | 'retencao' | 'equipe' | 'funis' | 'manuais'>('comercial');
+  const [painelCeo, setPainelCeo] = useState<any>(null);
+  const [relatorioComercial, setRelatorioComercial] = useState<any>(null);
+  const [rankingEquipe, setRankingEquipe] = useState<any[]>([]);
+  const [forecastComparativo, setForecastComparativo] = useState<any[]>([]);
 
   const isGestor = podeVerTudo(user?.role);
 
@@ -237,9 +242,28 @@ export default function DashboardPage() {
   }, [isAuthenticated, loading]);
   useEffect(() => {
     if (loading || !isAuthenticated || !user) return;
-    if ((user.role || '').toUpperCase() === 'CEO') { router.replace('/relatorio-comercial'); return; }
     if (!isGestor) router.replace('/comercial');
   }, [loading, isAuthenticated, user, isGestor, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isGestor) return;
+    const hoje = new Date();
+    apiClient.getPainelCEO({ periodo: 'mes', ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 })
+      .then(r => setPainelCeo(r.data?.data?.indicadores || null))
+      .catch(() => setPainelCeo(null));
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const isoDia = (d: Date) => d.toISOString().slice(0, 10);
+    apiClient.getRelatorioComercial(isoDia(inicioMes), isoDia(fimMes))
+      .then(r => setRelatorioComercial(r.data?.data || null))
+      .catch(() => setRelatorioComercial(null));
+    apiClient.getRanking()
+      .then(r => setRankingEquipe(r.data?.data || []))
+      .catch(() => setRankingEquipe([]));
+    apiClient.getAnaliseComercial({})
+      .then(r => setForecastComparativo(r.data?.data?.forecast_comparativo || []))
+      .catch(() => setForecastComparativo([]));
+  }, [isAuthenticated, isGestor]);
 
   const loadData = () => {
     if (!isAuthenticated || !isGestor) return;
@@ -264,11 +288,18 @@ export default function DashboardPage() {
     );
   }
 
-  const maxPipelineVal = data ? Math.max(...data.pipeline_funil.map(p => p.valor), 1) : 1;
   const totalAlertas = data
     ? data.alertas.atividades_atrasadas + data.alertas.tickets_criticos +
       data.alertas.renovacoes_criticas + data.alertas.hs_em_risco
     : 0;
+
+  const nrr = painelCeo && data
+    ? (() => {
+        const mrrInicial = data.kpis.mrr - (painelCeo.net_new_mrr || 0);
+        if (mrrInicial <= 0) return null;
+        return Math.round(((mrrInicial + (painelCeo.mrr_novo || 0) - (painelCeo.mrr_perdido || 0)) / mrrInicial) * 100);
+      })()
+    : null;
 
   return (
     <DashboardLayout>
@@ -293,6 +324,21 @@ export default function DashboardPage() {
           animation: shimmer 1.4s infinite;
           border-radius: 10px;
         }
+        .waterfall { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 10px; }
+        .wf-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+        .wf-bar { width: 100%; max-width: 64px; border-radius: 4px 4px 0 0; }
+        .wf-val { font-size: 11px; font-weight: 800; margin-bottom: 4px; }
+        .wf-label { font-size: 10px; font-weight: 700; color: var(--t-text-muted); margin-top: 7px; text-align: center; }
+        .rank-row { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 10px; }
+        .rank-row:nth-child(odd) { background: var(--t-content-bg); }
+        .rank-name { font-size: 13px; font-weight: 700; }
+        .rank-sub { font-size: 10.5px; color: var(--t-text-muted); margin-top: 1px; }
+        .rank-val { font-size: 13px; font-weight: 800; color: var(--t-primary-dark); margin-left: auto; text-align: right; }
+        .hbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .hbar-label { font-size: 11px; font-weight: 700; color: var(--t-text-secondary); width: 130px; flex-shrink: 0; text-align: right; }
+        .hbar-track { flex: 1; position: relative; height: 22px; }
+        .hbar-fill { height: 22px; border-radius: 0 4px 4px 0; }
+        .hbar-value { font-size: 11px; font-weight: 800; color: var(--t-text-primary); margin-left: 10px; white-space: nowrap; min-width: 64px; }
       `}</style>
 
       <div className="space-y-5 pb-10">
@@ -304,12 +350,8 @@ export default function DashboardPage() {
               Dashboard Executivo
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
-              Visão 360° do negócio
-              {lastUpdate && (
-                <span className="ml-2">
-                  · atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
+              Visão do Negócio
+              {lastUpdate && <span className="ml-2">· atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -371,131 +413,322 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ── Hero MRR ─────────────────────────────────────── */}
-            <MrrTrendCard
-              mrr={data.kpis.mrr}
-              mrrDelta={data.kpis.mrr_delta}
-              contratosAtivos={data.kpis.contratos_ativos}
-              contratosMes={data.kpis.contratos_mes}
-              AnimatedNumber={AnimatedNumber}
-              fmt={fmt}
-            />
-
-            {/* ── KPIs Comercial ───────────────────────────────── */}
-            <div className="du-fade-2">
-              <SectionLabel>Comercial — Este Mês</SectionLabel>
-              {/* Taxa de conversão e pipeline aberto são as duas métricas que orientam
-                  decisão da supervisão — ganham destaque. As demais são contexto de apoio. */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <KpiCard
-                  label="Taxa de Conversão" value={`${data.kpis.taxa_conversao}%`}
-                  sub={`mês anterior: ${data.kpis.leads_ganhos_mes_anterior} ganhos`}
-                  accent={data.kpis.taxa_conversao >= 20 ? '#16a34a' : '#d97706'}
-                  destaque
-                />
-                <KpiCard
-                  label="Pipeline Total" value={fmt(data.kpis.pipeline_valor)}
-                  sub="valor estimado em aberto"
-                  destaque
-                />
+            {/* ── KPIs-âncora ──────────────────────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 du-fade-2">
+              <div className="ps-card rounded-xl p-4 lg:col-span-1" style={{ background: 'linear-gradient(135deg, var(--t-primary-deep), var(--t-primary-dark))' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,.7)' }}>MRR Recorrente</p>
+                <p className="text-2xl font-extrabold" style={{ color: '#fff' }}><AnimatedNumber value={data.kpis.mrr} prefix="R$ " /></p>
+                {data.kpis.mrr_delta !== undefined && (
+                  <p className="text-[11px] mt-1" style={{ color: data.kpis.mrr_delta >= 0 ? '#86EFAC' : '#FCA5A5' }}>
+                    {data.kpis.mrr_delta >= 0 ? '↑' : '↓'} {Math.abs(data.kpis.mrr_delta)}% vs. mês anterior
+                  </p>
+                )}
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <KpiCard
-                  label="Leads Captados" value={fmtNum(data.kpis.leads_mes)}
-                  sub={`${data.kpis.leads_ganhos_mes} convertidos`}
-                />
-                <KpiCard
-                  label="Propostas Abertas" value={fmtNum(data.kpis.propostas_abertas)}
-                  sub={`${data.kpis.propostas_aceitas_mes} aceitas este mês`}
-                />
-                <KpiCard
-                  label="Perdidos no Mês" value={fmtNum(data.kpis.leads_perdidos_mes)}
-                  sub={`mês anterior: ${data.kpis.leads_perdidos_mes_anterior}`}
-                  accent={data.kpis.leads_perdidos_mes > 0 ? '#dc2626' : '#16a34a'}
-                />
-              </div>
+              <KpiCard label="NRR (Retenção Líquida)" value={nrr !== null ? `${nrr}%` : '—'} accent={nrr !== null && nrr >= 100 ? '#16a34a' : '#d97706'} />
+              <KpiCard label="Contratos Ativos" value={String(data.kpis.contratos_ativos)} sub={`+${data.kpis.contratos_mes} este mês`} />
+              <KpiCard label="Pipeline Total" value={fmt(data.kpis.pipeline_valor)} sub="valor estimado em aberto" />
+              <KpiCard label="NPS" value={data.kpis.nps_score !== null ? String(data.kpis.nps_score) : '—'} accent={data.kpis.nps_score !== null && data.kpis.nps_score >= 50 ? '#16a34a' : '#d97706'} />
             </div>
 
-            {/* ── Pipeline de Propostas ───────────────────────── */}
-            {data.pipeline_propostas && (
-              <div className="du-fade-3">
-                <SectionLabel>Pipeline de Propostas</SectionLabel>
+            {/* ── Abas ─────────────────────────────────────────── */}
+            <AbaTabs
+              abas={[
+                { id: 'comercial', label: 'Comercial & Pipeline' },
+                { id: 'retencao', label: 'Retenção & Financeiro' },
+                { id: 'equipe', label: 'Equipe' },
+                { id: 'funis', label: 'Funis' },
+                { id: 'manuais', label: 'Indicadores Manuais' },
+              ]}
+              abaAtiva={abaAtiva}
+              onChange={(id) => setAbaAtiva(id as typeof abaAtiva)}
+            />
 
-                {/* KPIs row — o que já fechou é o resultado; o resto é o que ainda pode virar resultado. */}
-                <div className="mb-3">
-                  <KpiCard
-                    label="Já Fechado (Setup)"
-                    value={fmt(data.pipeline_propostas.fechado.setup)}
-                    sub={`MRR +${fmt(data.pipeline_propostas.fechado.mrr)}/mês · ${data.pipeline_propostas.fechado.count} prop.`}
-                    accent="#15803d" destaque
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <KpiCard
-                    label="MRR em Negociação"
-                    value={fmt(data.pipeline_propostas.quente.mrr + data.pipeline_propostas.morno.mrr + data.pipeline_propostas.frio.mrr)}
-                    sub="mensalidades em aberto" accent="#16a34a"
-                  />
-                  <KpiCard
-                    label="Setup em Negociação"
-                    value={fmt(data.pipeline_propostas.quente.setup + data.pipeline_propostas.morno.setup + data.pipeline_propostas.frio.setup)}
-                    sub="implantações em aberto"
-                  />
-                  <KpiCard
-                    label="Total de Propostas" value={fmtNum(data.pipeline_propostas.total)}
-                    sub={`${data.pipeline_propostas.perdido.count} perdida${data.pipeline_propostas.perdido.count !== 1 ? 's' : ''}`}
-                  />
-                </div>
-
-                {/* Temperatura breakdown */}
-                <div className="ps-card rounded-xl p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Propostas por Temperatura</span>
+            {abaAtiva === 'comercial' && (
+              <div className="space-y-4">
+                <div>
+                  <SectionLabel>Este Mês</SectionLabel>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <KpiCard label="Taxa de Conversão (mês)" value={`${data.kpis.taxa_conversao}%`} accent={data.kpis.taxa_conversao >= 20 ? '#16a34a' : '#d97706'} sub="ganhos ÷ captados no mês" />
+                    <KpiCard label="Win Rate (propostas)" value={relatorioComercial ? `${Math.round((relatorioComercial.metricas.fechamentos.total / Math.max(relatorioComercial.metricas.fechamentos.total + (relatorioComercial.metricas.perdidos?.total || 0), 1)) * 100)}%` : '—'} accent="#16a34a" sub="ganhas ÷ decididas" />
+                    <KpiCard label="Leads Captados" value={fmtNum(data.kpis.leads_mes)} sub={`${data.kpis.leads_ganhos_mes} convertidos`} />
+                    <KpiCard label="Propostas Abertas" value={fmtNum(data.kpis.propostas_abertas)} />
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                    {[
-                      { label: 'Quente', sub: 'Em negociação ativa', icon: Flame, d: data.pipeline_propostas.quente, accent: '#dc2626', bg: 'rgba(220,38,38,0.06)' },
-                      { label: 'Morno', sub: 'Retorno pendente', icon: Thermometer, d: data.pipeline_propostas.morno, accent: '#d97706', bg: 'rgba(217,119,6,0.06)' },
-                      { label: 'Frio', sub: 'Ainda não enviada', icon: Snowflake, d: data.pipeline_propostas.frio, accent: '#2563eb', bg: 'rgba(37,99,235,0.06)' },
-                    ].map(({ label, sub, icon: Icon, d, accent, bg }) => (
-                      <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${accent}18` }}>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${accent}18` }}>
-                              <Icon size={14} style={{ color: accent }} />
+                </div>
+
+                <MrrTrendCard
+                  mrr={data.kpis.mrr}
+                  mrrDelta={data.kpis.mrr_delta}
+                  contratosAtivos={data.kpis.contratos_ativos}
+                  contratosMes={data.kpis.contratos_mes}
+                  AnimatedNumber={AnimatedNumber}
+                  fmt={fmt}
+                />
+
+                {relatorioComercial && (
+                  <div className="ps-card rounded-xl p-5">
+                    <SectionLabel>Entrada × Saída (este mês)</SectionLabel>
+                    <div className="grid grid-cols-3 gap-3">
+                      <KpiCard label="Clientes Entrada" value={String(relatorioComercial.metricas.entrada_x_saida.clientes_entrada)} accent="#16a34a" />
+                      <KpiCard label="Clientes Saída" value={String(relatorioComercial.metricas.entrada_x_saida.clientes_saida)} accent={relatorioComercial.metricas.entrada_x_saida.clientes_saida > 0 ? '#dc2626' : '#16a34a'} />
+                      <KpiCard label="Saldo MRR" value={fmt(relatorioComercial.metricas.entrada_x_saida.saldo_mrr)} accent={relatorioComercial.metricas.entrada_x_saida.saldo_mrr >= 0 ? '#16a34a' : '#dc2626'} />
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Top 5 Leads ──────────────────────────────────── */}
+                <div className="du-fade-4">
+                  <div className="ps-card rounded-xl p-5">
+                    <p className="text-xs font-semibold mb-4" style={{ color: 'var(--t-text-primary)' }}>Top 5 Leads — Maior Potencial</p>
+                    {data.top_leads.length === 0 ? (
+                      <p className="text-xs text-center py-8" style={{ color: 'var(--t-text-secondary)' }}>Nenhum lead com valor estimado</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {data.top_leads.map((l, i) => {
+                          const tempColors: Record<string, { bg: string; color: string; label: string }> = {
+                            MUITO_QUENTE: { bg: 'rgba(220,38,38,0.10)', color: '#dc2626', label: 'Muito Quente' },
+                            QUENTE:       { bg: 'rgba(239,68,68,0.10)', color: '#ef4444', label: 'Quente' },
+                            MORNO:        { bg: 'rgba(217,119,6,0.10)',  color: '#d97706', label: 'Morno' },
+                            FRIO:         { bg: 'rgba(37,99,235,0.10)',  color: '#2563eb', label: 'Frio' },
+                          };
+                          const tc = tempColors[l.temperatura] || tempColors.FRIO;
+                          const rankColors = ['#f59e0b', '#9ca3af', '#d97706', 'var(--t-primary)', '#94a3b8'];
+                          return (
+                            <div
+                              key={l.id}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer"
+                              style={{
+                                background: i === 0 ? 'var(--t-primary-light)' : 'transparent',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = i === 0 ? 'var(--t-primary-light)' : 'transparent')}
+                            >
+                              <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white"
+                                style={{ background: rankColors[i] }}>
+                                {i + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-primary)' }}>{l.nome}</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="text-[9px] font-semibold px-1.5 py-px rounded" style={{ background: tc.bg, color: tc.color }}>
+                                    {tc.label}
+                                  </span>
+                                  <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>{l.probabilidade}% prob.</span>
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-xs font-bold" style={{ color: '#16a34a' }}>{fmt(l.valor_ponderado)}</p>
+                                <p className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>ponderado</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs font-semibold" style={{ color: accent }}>{label}</p>
-                              <p className="text-[10px]" style={{ color: `${accent}99` }}>{sub}</p>
-                            </div>
-                          </div>
-                          <span className="text-xl font-bold" style={{ color: accent }}>{d.count}</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>MRR</span>
-                            <span className="text-xs font-bold" style={{ color: accent }}>{fmt(d.mrr)}</span>
-                          </div>
-                          <div className="h-px" style={{ background: `${accent}20` }} />
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Setup</span>
-                            <span className="text-xs font-bold" style={{ color: accent }}>{fmt(d.setup)}</span>
-                          </div>
-                        </div>
+                          );
+                        })}
                       </div>
-                    ))}
+                    )}
                   </div>
-
-                  {/* Distribuição por temperatura */}
-                  <TemperaturaGauge
-                    quente={data.pipeline_propostas.quente.count}
-                    morno={data.pipeline_propostas.morno.count}
-                    frio={data.pipeline_propostas.frio.count}
-                  />
                 </div>
+
+                {/* ── Análise de Perdas ────────────────────────────── */}
+                {data.kpis.leads_perdidos_mes > 0 && (
+                  <div className="du-fade-5">
+                    <SectionLabel>Análise de Negócios Perdidos</SectionLabel>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+                      <KpiCard
+                        label="Valor Perdido no Mês" value={fmt(data.kpis.valor_perdido_mes)}
+                        sub="oportunidades não convertidas" accent="#dc2626" destaque
+                      />
+                      <KpiCard
+                        label="Taxa de Perda"
+                        value={`${data.kpis.leads_mes > 0 ? Math.round((data.kpis.leads_perdidos_mes / data.kpis.leads_mes) * 100) : 0}%`}
+                        sub={`${data.kpis.leads_ganhos_mes} ganhos vs ${data.kpis.leads_perdidos_mes} perdidos`}
+                        accent={data.kpis.leads_perdidos_mes > data.kpis.leads_ganhos_mes ? '#dc2626' : '#d97706'}
+                        destaque
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Atividades em Aberto ─────────────────────────── */}
+                {(() => {
+                  type Item = {
+                    id: string; tipo: string; titulo: string; data_prevista: string;
+                    lead?: { nome: string; empresa?: string };
+                    _atrasada: boolean;
+                  };
+                  const seen = new Set<string>();
+                  const merged: Item[] = [];
+                  data.atividades_atrasadas.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: true }); seen.add(a.id); } });
+                  data.agenda_hoje.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: false }); seen.add(a.id); } });
+
+                  const prioCfg = (it: Item) => {
+                    if (it._atrasada) return { label: 'Atrasada', cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
+                    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                    const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
+                    if (dias < 0)  return { label: 'Atrasada',         cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
+                    if (dias <= 3) return { label: 'Prioridade máx.',  cor: '#ea580c', bg: 'rgba(234,88,12,0.10)',  ordem: 1 };
+                    if (dias <= 7) return { label: 'Próxima',          cor: '#d97706', bg: 'rgba(217,119,6,0.10)',  ordem: 2 };
+                    return                  { label: 'Dentro do prazo', cor: '#16a34a', bg: 'rgba(22,163,74,0.10)', ordem: 3 };
+                  };
+
+                  const ordered = merged
+                    .map(it => ({ it, cfg: prioCfg(it) }))
+                    .sort((a, b) => a.cfg.ordem - b.cfg.ordem || new Date(a.it.data_prevista).getTime() - new Date(b.it.data_prevista).getTime());
+
+                  const atrasadas = ordered.filter(o => o.cfg.label === 'Atrasada').length;
+                  const maxima = ordered.filter(o => o.cfg.label === 'Prioridade máx.').length;
+
+                  return (
+                    <div className="ps-card rounded-xl overflow-hidden">
+                      <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                        <div className="flex items-center gap-3">
+                          <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Atividades em Aberto</p>
+                          <div className="flex items-center gap-1.5">
+                            {atrasadas > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}>
+                                <PulseDot color="#dc2626" />{atrasadas} atrasada{atrasadas !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {maxima > 0 && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(234,88,12,0.10)', color: '#ea580c' }}>
+                                {maxima} expirando
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <a href="/atividades" className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)' }}>
+                          Ver todas <ArrowRight size={11} />
+                        </a>
+                      </div>
+                      {ordered.length === 0 ? (
+                        <p className="p-8 text-center text-xs font-medium" style={{ color: '#16a34a' }}>Tudo em dia — sem atividades urgentes.</p>
+                      ) : (
+                        <div>
+                          {ordered.slice(0, 10).map(({ it, cfg }) => {
+                            const t = TIPO_LABEL[it.tipo] || { Icon: Pin, label: 'Outro' };
+                            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                            const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
+                            const diasLabel = dias < 0 ? `${Math.abs(dias)}d atrasada` : dias === 0 ? 'hoje' : `em ${dias}d`;
+                            return (
+                              <a key={it.id} href="/atividades"
+                                className="px-5 py-3 flex items-center gap-3 transition-colors"
+                                style={{
+                                  borderBottom: '1px solid var(--t-card-border)',
+                                  borderLeft: `2px solid ${cfg.cor}`,
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                              >
+                                <span className="flex-shrink-0 rounded-md flex items-center justify-center" style={{ width: 26, height: 26, background: `${cfg.cor}12`, color: cfg.cor }}>
+                                  <t.Icon size={13} />
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-xs font-medium truncate" style={{ color: 'var(--t-text-primary)' }}>{it.titulo}</p>
+                                    <span className="text-[9px] font-semibold px-1.5 py-px rounded" style={{ background: cfg.bg, color: cfg.cor }}>
+                                      {cfg.label}
+                                    </span>
+                                  </div>
+                                  {it.lead && (
+                                    <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
+                                      {it.lead.nome}{(it.lead as any).empresa ? ` · ${(it.lead as any).empresa}` : ''}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: cfg.cor }}>{diasLabel}</span>
+                              </a>
+                            );
+                          })}
+                          {ordered.length > 10 && (
+                            <a href="/atividades" className="flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)', borderTop: '1px solid var(--t-card-border)' }}>
+                              + {ordered.length - 10} atividades
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
+            {abaAtiva === 'retencao' && painelCeo && (
+              <div className="space-y-4">
+                <div className="ps-card rounded-xl p-5">
+                  <SectionLabel>Como o NRR foi calculado</SectionLabel>
+                  <div className="waterfall">
+                    <div className="wf-col">
+                      <span className="wf-val">{fmt(data.kpis.mrr - (painelCeo.net_new_mrr || 0))}</span>
+                      <div className="wf-bar" style={{ height: '100%', background: 'var(--t-primary)' }} />
+                      <span className="wf-label">MRR Inicial</span>
+                    </div>
+                    <div className="wf-col">
+                      <span className="wf-val">+{fmt(painelCeo.mrr_novo || 0)}</span>
+                      <div className="wf-bar" style={{ height: `${Math.max(4, Math.min(100, ((painelCeo.mrr_novo || 0) / Math.max(data.kpis.mrr, 1)) * 100))}%`, background: '#16a34a' }} />
+                      <span className="wf-label">Expansão</span>
+                    </div>
+                    <div className="wf-col">
+                      <span className="wf-val">−{fmt(painelCeo.mrr_perdido || 0)}</span>
+                      <div className="wf-bar" style={{ height: `${Math.max(4, Math.min(100, ((painelCeo.mrr_perdido || 0) / Math.max(data.kpis.mrr, 1)) * 100))}%`, background: '#dc2626' }} />
+                      <span className="wf-label">Churn</span>
+                    </div>
+                    <div className="wf-col">
+                      <span className="wf-val">{fmt(data.kpis.mrr)}</span>
+                      <div className="wf-bar" style={{ height: '100%', background: 'var(--t-primary)' }} />
+                      <span className="wf-label">MRR Final</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <KpiCard label="CAC" value={painelCeo.cac !== null ? fmt(painelCeo.cac) : '— sem dado'} sub={painelCeo.cac === null ? 'nunca lançado' : undefined} />
+                  <KpiCard label="LTV Médio" value="— sem dado" sub="base zerada (ver /ltv)" />
+                  <KpiCard label="LTV : CAC" value="—" />
+                  <KpiCard label="Ticket Médio" value={data.kpis.contratos_ativos > 0 ? fmt(data.kpis.mrr / data.kpis.contratos_ativos) + '/mês' : '—'} />
+                </div>
+              </div>
+            )}
+            {abaAtiva === 'equipe' && (
+              <div className="space-y-4">
+                <div className="ps-card rounded-xl p-5">
+                  <SectionLabel>Ranking do Período</SectionLabel>
+                  {rankingEquipe.length === 0 ? (
+                    <p className="text-xs text-center py-8" style={{ color: 'var(--t-text-secondary)' }}>Nenhum dado de ranking neste período.</p>
+                  ) : (
+                    rankingEquipe.map((v: any, i: number) => {
+                      const cores = ['#F59E0B', '#9CA3AF', '#D97706'];
+                      return (
+                        <div key={v.responsavel_id} className="rank-row">
+                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: cores[i] || 'var(--t-primary)' }}>
+                            {v.posicao}
+                          </span>
+                          <div className="flex-1">
+                            <p className="rank-name">{v.responsavel_nome}</p>
+                            <p className="rank-sub">{v.leads_ganhos} leads ganhos · {v.propostas_aceitas} propostas aceitas</p>
+                          </div>
+                          <span className="rank-val">{fmt(v.valor_total)}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {forecastComparativo.length > 0 && (
+                  <div className="ps-card rounded-xl p-5">
+                    <SectionLabel>Forecast Ponderado por Vendedor</SectionLabel>
+                    {forecastComparativo.map((f: any) => (
+                      <div key={f.vendedor_id} className="hbar-row">
+                        <span className="hbar-label">{f.vendedor_nome}</span>
+                        <div className="hbar-track">
+                          <div className="hbar-fill" style={{ width: `${Math.min(100, (f.valor_ponderado / Math.max(...forecastComparativo.map((x: any) => x.valor_ponderado), 1)) * 100)}%`, background: 'var(--t-primary)' }} />
+                        </div>
+                        <span className="hbar-value">{fmt(f.valor_ponderado)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {abaAtiva === 'funis' && (
+            <>
             {/* ── Funis: Leads e Propostas ──────────────────────── */}
             <div className="du-fade-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <PipelineFunnelChart
@@ -510,258 +743,26 @@ export default function DashboardPage() {
                 titulo="Funil de Propostas Comerciais"
               />
             </div>
-
-            {/* ── Top 5 Leads ──────────────────────────────────── */}
-            <div className="du-fade-4">
-              <div className="ps-card rounded-xl p-5">
-                <p className="text-xs font-semibold mb-4" style={{ color: 'var(--t-text-primary)' }}>Top 5 Leads — Maior Potencial</p>
-                {data.top_leads.length === 0 ? (
-                  <p className="text-xs text-center py-8" style={{ color: 'var(--t-text-secondary)' }}>Nenhum lead com valor estimado</p>
-                ) : (
-                  <div className="space-y-2">
-                    {data.top_leads.map((l, i) => {
-                      const tempColors: Record<string, { bg: string; color: string; label: string }> = {
-                        MUITO_QUENTE: { bg: 'rgba(220,38,38,0.10)', color: '#dc2626', label: 'Muito Quente' },
-                        QUENTE:       { bg: 'rgba(239,68,68,0.10)', color: '#ef4444', label: 'Quente' },
-                        MORNO:        { bg: 'rgba(217,119,6,0.10)',  color: '#d97706', label: 'Morno' },
-                        FRIO:         { bg: 'rgba(37,99,235,0.10)',  color: '#2563eb', label: 'Frio' },
-                      };
-                      const tc = tempColors[l.temperatura] || tempColors.FRIO;
-                      const rankColors = ['#f59e0b', '#9ca3af', '#d97706', 'var(--t-primary)', '#94a3b8'];
-                      return (
-                        <div
-                          key={l.id}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer"
-                          style={{
-                            background: i === 0 ? 'var(--t-primary-light)' : 'transparent',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = i === 0 ? 'var(--t-primary-light)' : 'transparent')}
-                        >
-                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white"
-                            style={{ background: rankColors[i] }}>
-                            {i + 1}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-primary)' }}>{l.nome}</p>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-[9px] font-semibold px-1.5 py-px rounded" style={{ background: tc.bg, color: tc.color }}>
-                                {tc.label}
-                              </span>
-                              <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>{l.probabilidade}% prob.</span>
-                            </div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-xs font-bold" style={{ color: '#16a34a' }}>{fmt(l.valor_ponderado)}</p>
-                            <p className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>ponderado</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Análise de Perdas ────────────────────────────── */}
-            {data.kpis.leads_perdidos_mes > 0 && (
-              <div className="du-fade-5">
-                <SectionLabel>Análise de Negócios Perdidos</SectionLabel>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
-                  <KpiCard
-                    label="Valor Perdido no Mês" value={fmt(data.kpis.valor_perdido_mes)}
-                    sub="oportunidades não convertidas" accent="#dc2626" destaque
-                  />
-                  <KpiCard
-                    label="Taxa de Perda"
-                    value={`${data.kpis.leads_mes > 0 ? Math.round((data.kpis.leads_perdidos_mes / data.kpis.leads_mes) * 100) : 0}%`}
-                    sub={`${data.kpis.leads_ganhos_mes} ganhos vs ${data.kpis.leads_perdidos_mes} perdidos`}
-                    accent={data.kpis.leads_perdidos_mes > data.kpis.leads_ganhos_mes ? '#dc2626' : '#d97706'}
-                    destaque
-                  />
-                </div>
-              </div>
+            </>
             )}
 
-            {/* ── Atividades em Aberto ─────────────────────────── */}
-            {(() => {
-              type Item = {
-                id: string; tipo: string; titulo: string; data_prevista: string;
-                lead?: { nome: string; empresa?: string };
-                _atrasada: boolean;
-              };
-              const seen = new Set<string>();
-              const merged: Item[] = [];
-              data.atividades_atrasadas.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: true }); seen.add(a.id); } });
-              data.agenda_hoje.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: false }); seen.add(a.id); } });
-
-              const prioCfg = (it: Item) => {
-                if (it._atrasada) return { label: 'Atrasada', cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
-                const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-                const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
-                if (dias < 0)  return { label: 'Atrasada',         cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
-                if (dias <= 3) return { label: 'Prioridade máx.',  cor: '#ea580c', bg: 'rgba(234,88,12,0.10)',  ordem: 1 };
-                if (dias <= 7) return { label: 'Próxima',          cor: '#d97706', bg: 'rgba(217,119,6,0.10)',  ordem: 2 };
-                return                  { label: 'Dentro do prazo', cor: '#16a34a', bg: 'rgba(22,163,74,0.10)', ordem: 3 };
-              };
-
-              const ordered = merged
-                .map(it => ({ it, cfg: prioCfg(it) }))
-                .sort((a, b) => a.cfg.ordem - b.cfg.ordem || new Date(a.it.data_prevista).getTime() - new Date(b.it.data_prevista).getTime());
-
-              const atrasadas = ordered.filter(o => o.cfg.label === 'Atrasada').length;
-              const maxima = ordered.filter(o => o.cfg.label === 'Prioridade máx.').length;
-
-              return (
-                <div className="ps-card rounded-xl overflow-hidden">
-                  <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
-                    <div className="flex items-center gap-3">
-                      <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Atividades em Aberto</p>
-                      <div className="flex items-center gap-1.5">
-                        {atrasadas > 0 && (
-                          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}>
-                            <PulseDot color="#dc2626" />{atrasadas} atrasada{atrasadas !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                        {maxima > 0 && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(234,88,12,0.10)', color: '#ea580c' }}>
-                            {maxima} expirando
-                          </span>
-                        )}
-                      </div>
+            {abaAtiva === 'manuais' && (
+              <div>
+                {!isGestor ? null : (
+                  <>
+                    <p className="text-[11px] mb-3 p-3 rounded-lg" style={{ background: 'var(--t-primary-light)', color: 'var(--t-text-secondary)' }}>
+                      Esta aba só aparece para quem tem permissão de editar Indicadores do CEO.
+                    </p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <KpiCard label="Caixa Disponível" value={painelCeo?.caixa_disponivel !== null && painelCeo?.caixa_disponivel !== undefined ? fmt(painelCeo.caixa_disponivel) : '— não lançado'} />
+                      <KpiCard label="Faturamento" value={painelCeo?.faturamento !== null && painelCeo?.faturamento !== undefined ? fmt(painelCeo.faturamento) : '— não lançado'} />
+                      <KpiCard label="Despesas do Setor" value={painelCeo?.despesas_setor !== null && painelCeo?.despesas_setor !== undefined ? fmt(painelCeo.despesas_setor) : '— não lançado'} />
+                      <KpiCard label="Marketing Investido" value={painelCeo?.marketing_investido !== null && painelCeo?.marketing_investido !== undefined ? fmt(painelCeo.marketing_investido) : '— não lançado'} />
                     </div>
-                    <a href="/atividades" className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)' }}>
-                      Ver todas <ArrowRight size={11} />
-                    </a>
-                  </div>
-                  {ordered.length === 0 ? (
-                    <p className="p-8 text-center text-xs font-medium" style={{ color: '#16a34a' }}>Tudo em dia — sem atividades urgentes.</p>
-                  ) : (
-                    <div>
-                      {ordered.slice(0, 10).map(({ it, cfg }) => {
-                        const t = TIPO_LABEL[it.tipo] || { Icon: Pin, label: 'Outro' };
-                        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-                        const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
-                        const diasLabel = dias < 0 ? `${Math.abs(dias)}d atrasada` : dias === 0 ? 'hoje' : `em ${dias}d`;
-                        return (
-                          <a key={it.id} href="/atividades"
-                            className="px-5 py-3 flex items-center gap-3 transition-colors"
-                            style={{
-                              borderBottom: '1px solid var(--t-card-border)',
-                              borderLeft: `2px solid ${cfg.cor}`,
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                          >
-                            <span className="flex-shrink-0 rounded-md flex items-center justify-center" style={{ width: 26, height: 26, background: `${cfg.cor}12`, color: cfg.cor }}>
-                              <t.Icon size={13} />
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-xs font-medium truncate" style={{ color: 'var(--t-text-primary)' }}>{it.titulo}</p>
-                                <span className="text-[9px] font-semibold px-1.5 py-px rounded" style={{ background: cfg.bg, color: cfg.cor }}>
-                                  {cfg.label}
-                                </span>
-                              </div>
-                              {it.lead && (
-                                <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
-                                  {it.lead.nome}{(it.lead as any).empresa ? ` · ${(it.lead as any).empresa}` : ''}
-                                </p>
-                              )}
-                            </div>
-                            <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: cfg.cor }}>{diasLabel}</span>
-                          </a>
-                        );
-                      })}
-                      {ordered.length > 10 && (
-                        <a href="/atividades" className="flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)', borderTop: '1px solid var(--t-card-border)' }}>
-                          + {ordered.length - 10} atividades
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* ── Financeiro & Base ────────────────────────────── */}
-            {(() => {
-              const temMrr = data.kpis.mrr > 0;
-              const temContratos = data.kpis.contratos_ativos > 0;
-              const temNps = data.kpis.nps_score !== null;
-              const temSaude = data.alertas.hs_em_risco > 0 || data.kpis.hs_criticos > 0 || data.kpis.renovacoes_criticas > 0;
-              const temDados = temMrr || temContratos || temNps || temSaude;
-              const aberto = showFinanceiro || temDados;
-              return (
-                <div className="ps-card rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setShowFinanceiro(p => !p)}
-                    className="w-full px-5 py-4 flex items-center justify-between text-left transition-colors"
-                    style={{ borderBottom: aberto ? '1px solid var(--t-card-border)' : 'none' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>
-                        Financeiro, Contratos & Base de Clientes
-                      </span>
-                      {!temDados && (
-                        <span className="text-[10px] px-2 py-px rounded" style={{ background: 'var(--t-card-border)', color: 'var(--t-text-muted)' }}>
-                          Sem dados ainda
-                        </span>
-                      )}
-                    </div>
-                    <ChevronDown
-                      size={14}
-                      style={{ color: 'var(--t-text-muted)', transform: aberto ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}
-                    />
-                  </button>
-
-                  {aberto && (
-                    <div className="px-5 pb-5 pt-4 space-y-3">
-                      <div className="grid grid-cols-1 gap-3">
-                        <KpiCard
-                          label="NPS Score"
-                          value={temNps ? String(data.kpis.nps_score) : '—'}
-                          sub={temNps
-                            ? (data.kpis.nps_score! >= 50 ? 'Excelente' : data.kpis.nps_score! >= 0 ? 'Bom' : 'Crítico')
-                            : 'sem respostas ainda'}
-                          accent={temNps
-                            ? (data.kpis.nps_score! >= 50 ? '#16a34a' : data.kpis.nps_score! >= 0 ? '#d97706' : '#dc2626')
-                            : '#9CA3AF'}
-                          destaque
-                        />
-                      </div>
-
-                      {temSaude && (
-                        <div className="grid grid-cols-2 gap-3">
-                          {[
-                            { label: 'Críticos',           value: data.kpis.hs_criticos, icon: AlertTriangle, bg: 'rgba(220,38,38,0.06)', color: '#b91c1c', accent: '#dc2626', href: '/health-score' },
-                            { label: 'Em Risco',            value: Math.max(0, data.alertas.hs_em_risco - data.kpis.hs_criticos), icon: Heart, bg: 'rgba(217,119,6,0.06)', color: '#92400e', accent: '#d97706', href: '/health-score' },
-                          ].map(stat => (
-                            <a key={stat.label} href={stat.href}
-                              className="text-center p-4 rounded-xl transition-all duration-150 hover:scale-[1.02]"
-                              style={{ background: stat.bg }}>
-                              <div className="flex justify-center mb-2"><stat.icon size={18} style={{ color: stat.accent }} /></div>
-                              <p className="text-3xl font-bold leading-none mb-1.5" style={{ color: stat.accent }}>
-                                <AnimatedNumber value={stat.value} />
-                              </p>
-                              <p className="text-[10px] font-semibold" style={{ color: stat.color }}>{stat.label}</p>
-                            </a>
-                          ))}
-                        </div>
-                      )}
-
-                      {!temDados && (
-                        <p className="text-center text-xs py-3" style={{ color: 'var(--t-text-muted)' }}>
-                          Estes dados aparecem quando os módulos de Contratos, NPS e Health Score forem utilizados.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+                  </>
+                )}
+              </div>
+            )}
 
           </>
         )}
