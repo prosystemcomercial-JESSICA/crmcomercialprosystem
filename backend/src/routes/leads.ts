@@ -764,6 +764,105 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     return reply.status(201).send({ status: 'success', data: lead });
   });
 
+  // ── Webhook externo (gerador de leads automatizado, ex.: ChatGPT/Zapier) ───
+  // Rota de sistema-para-sistema: sem sessão de usuário, autenticada por chave
+  // secreta própria (LEADS_WEBHOOK_SECRET), já que as demais rotas de lead
+  // dependem de JWT opcional e não servem pra uma automação externa confiável.
+  // Aceita qualquer JSON: os campos conhecidos do Lead são mapeados direto;
+  // tudo que sobra (não bate com nenhuma coluna) é anexado em `observacoes`
+  // como texto formatado, pra nada que o gerador retornar se perca.
+  fastify.post('/leads/webhook-externo', async (request, reply) => {
+    const chaveEsperada = process.env.LEADS_WEBHOOK_SECRET;
+    if (!chaveEsperada) {
+      fastify.log.error('LEADS_WEBHOOK_SECRET não configurado — recusando POST /leads/webhook-externo');
+      return reply.status(500).send({ status: 'error', message: 'Webhook não configurado' });
+    }
+    const chaveRecebida = request.headers['x-api-key'];
+    if (typeof chaveRecebida !== 'string' || chaveRecebida !== chaveEsperada) {
+      return reply.status(401).send({ status: 'error', message: 'Chave de acesso inválida' });
+    }
+
+    const bodyBruto = request.body as Record<string, any> | null;
+    if (!bodyBruto || typeof bodyBruto !== 'object') {
+      return reply.status(400).send({ status: 'error', message: 'Corpo da requisição deve ser um objeto JSON' });
+    }
+
+    const body = LeadSchema.partial({ origem: true }).safeParse(bodyBruto);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
+    if (!body.data.nome) {
+      return reply.status(400).send({ status: 'error', message: 'Campo "nome" é obrigatório' });
+    }
+
+    // Campos reconhecidos pelo schema (já mapeados em body.data) não entram de
+    // novo no "sobra" — só o que o gerador mandou e o Lead não tem coluna pra.
+    const camposReconhecidos = new Set(Object.keys(LeadSchema.shape));
+    const camposExtras = Object.fromEntries(
+      Object.entries(bodyBruto).filter(([chave]) => !camposReconhecidos.has(chave))
+    );
+
+    const data: any = { ...body.data, created_by: 'system', origem: body.data.origem || 'CHATGPT' };
+    if (data.email === '') delete data.email;
+    if (data.responsavel_email === '') delete data.responsavel_email;
+    if (data.modulos_inclusos === undefined) data.modulos_inclusos = {};
+    if (data.servicos_adicionais === undefined) data.servicos_adicionais = {};
+
+    if (Object.keys(camposExtras).length > 0) {
+      const extrasFormatados = Object.entries(camposExtras)
+        .map(([chave, valor]) => `${chave}: ${typeof valor === 'object' ? JSON.stringify(valor) : valor}`)
+        .join('\n');
+      data.observacoes = [data.observacoes, `[Dados adicionais do gerador de leads]\n${extrasFormatados}`]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+
+    // ANTI-DUPLICAÇÃO: mesmo CNPJ (se veio) já cadastrado.
+    if (data.cnpj) {
+      const cnpjLimpo = String(data.cnpj).replace(/\D/g, '');
+      if (cnpjLimpo) {
+        const rows = await prisma.$queryRaw<Array<{ id: string; nome: string }>>`
+          SELECT id, nome FROM \`Lead\`
+          WHERE deleted_at IS NULL
+            AND REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', '') = ${cnpjLimpo}
+          LIMIT 1
+        `;
+        if (rows[0]) {
+          return reply.status(409).send({
+            status: 'error',
+            message: `Já existe um lead cadastrado para este CNPJ: "${rows[0].nome}".`,
+            data: rows[0],
+          });
+        }
+      }
+    }
+
+    // ANTI-DUPLICAÇÃO: mesmo telefone ou email já cadastrado (o gerador externo
+    // não garante CNPJ, então telefone/email são o identificador mais confiável).
+    if (data.telefone || data.email) {
+      const duplicadoContato = await prisma.lead.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            data.telefone ? { telefone: data.telefone } : undefined,
+            data.email ? { email: data.email } : undefined,
+          ].filter(Boolean) as any,
+        },
+        select: { id: true, nome: true },
+      });
+      if (duplicadoContato) {
+        return reply.status(409).send({
+          status: 'error',
+          message: `Já existe um lead cadastrado com este contato: "${duplicadoContato.nome}".`,
+          data: duplicadoContato,
+        });
+      }
+    }
+
+    const lead = await prisma.lead.create({ data });
+    await registrarObsSistema(prisma, lead.id, 'SISTEMA', 'Lead recebido via webhook externo (gerador automático).');
+
+    return reply.status(201).send({ status: 'success', data: lead });
+  });
+
   // ── Update lead ───────────────────────────────────────────────────────────
   fastify.patch('/leads/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
