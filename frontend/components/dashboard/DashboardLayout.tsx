@@ -26,7 +26,7 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // Supervisão Comercial tem acesso total ao menu (mesmo nível de CEO/ADMIN),
 // mantendo o cargo/permissões de dados como Supervisão Comercial.
 const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
-const CEO_VISIVEL = ['/centro-custos', '/vendas-adicionais', '/casos', '/analise-comercial', '/ltv'];
+const CEO_VISIVEL = ['/centro-custos', '/casos', '/analise-comercial', '/ltv'];
 
 // `modulo` liga o item ao nome usado em MODULOS (backend/src/routes/usuarios.ts,
 // tela Usuários → "Liberação de Módulos"). Quando presente, um usuário SEM o cargo
@@ -79,7 +79,6 @@ const navGroups: NavGroup[] = [
       { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
       { href: '/ltv',                     icon: TrendingUp,   label: 'LTV dos Clientes',   roles: GESTAO_COMERCIAL },
       { href: '/indicadores-ceo',         icon: DollarSign,   label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
-      { href: '/vendas-adicionais',       icon: Handshake,    label: 'Vendas Adicionais',  roles: GESTAO_COMERCIAL },
       { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
       { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },
       { href: '/sdr/leads-para-distribuir', icon: Send,       label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
