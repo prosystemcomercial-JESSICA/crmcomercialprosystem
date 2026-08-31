@@ -10,8 +10,10 @@ import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle, X } from 'lucide-rea
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+const DOMINIO_EMAIL = '@prosystemnet.com.br';
+
 const loginSchema = z.object({
-  email: z.string().email('E-mail inválido'),
+  usuario: z.string().min(1, 'Informe seu usuário'),
   password: z.string().min(1, 'Informe a senha'),
 });
 
@@ -39,7 +41,8 @@ export default function LoginForm() {
     try {
       setError('');
       setLoading(true);
-      const u = await login(data.email, data.password);
+      const email = `${data.usuario.trim()}${DOMINIO_EMAIL}`;
+      const u = await login(email, data.password);
       // Primeiro acesso ou após reset: obriga a definir uma nova senha.
       if (u?.precisa_trocar_senha) router.push('/alterar-senha?trocar=1');
       else router.push('/dashboard');
@@ -121,31 +124,44 @@ export default function LoginForm() {
           </div>
         )}
 
-        {/* Email */}
+        {/* Usuário */}
         <div>
-          <label htmlFor="login-email" className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--t-text-primary)' }}>
-            E-mail
+          <label htmlFor="login-usuario" className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--t-text-primary)' }}>
+            Usuário
           </label>
-          <div className="relative">
-            <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--t-text-muted)' }} />
+          <div
+            className={`flex items-stretch rounded-[10px] overflow-hidden border transition-[border-color,box-shadow] focus-within:border-[var(--t-primary)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--t-primary)_15%,transparent)] ${errors.usuario ? 'border-[var(--t-error-strong)]' : 'border-[var(--t-primary-border)]'}`}
+          >
             <input
-              {...register('email')}
-              id="login-email"
-              type="email"
-              autoComplete="email"
-              placeholder="seu@email.com"
-              style={inputBase}
-              onFocus={e => {
-                e.target.style.borderColor = 'var(--t-primary)';
-                e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--t-primary) 15%, transparent)';
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = errors.email ? 'var(--t-error-strong)' : 'var(--t-primary-border)';
-                e.target.style.boxShadow = 'none';
+              {...register('usuario')}
+              id="login-usuario"
+              type="text"
+              autoComplete="username"
+              placeholder="seu.usuario"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: '10px 6px 10px 12px',
+                fontSize: '14px',
+                color: 'var(--t-text-primary)',
+                background: 'var(--t-card-bg)',
+                border: 'none',
+                outline: 'none',
               }}
             />
+            <span
+              className="flex items-center whitespace-nowrap text-sm font-semibold"
+              style={{
+                padding: '0 14px',
+                color: 'var(--t-text-secondary)',
+                background: 'var(--t-primary-light)',
+                borderLeft: '1px solid var(--t-primary-border)',
+              }}
+            >
+              @prosystemnet.com.br
+            </span>
           </div>
-          {errors.email && <p className="text-xs mt-1" style={{ color: 'var(--t-error)' }}>{errors.email.message}</p>}
+          {errors.usuario && <p className="text-xs mt-1" style={{ color: 'var(--t-error)' }}>{errors.usuario.message}</p>}
         </div>
 
         {/* Senha */}
