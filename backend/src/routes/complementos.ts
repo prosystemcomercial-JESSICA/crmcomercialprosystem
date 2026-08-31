@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { ownerWhere, getUser, podeVerTudo } from '@/lib/scope';
-import { probabilidadeEtapa } from '@/lib/forecast';
+import { calcularPrevisao } from '@/lib/previsao';
 
 export async function complementosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -402,59 +402,17 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     }).safeParse(request.query);
     const { dias } = query.data || { dias: 30 };
 
-    const leads = await prisma.lead.findMany({
-      where: {
-        status: { notIn: ['GANHO', 'PERDIDO', 'NUTRICAO'] },
-        valor_estimado: { gt: 0 },
-        // Previsão é sobre a meta/pipeline do PRÓPRIO vendedor; gestor vê tudo.
-        ...ownerWhere(request, 'Lead')
-      },
+    // Previsão é sobre a meta/pipeline do PRÓPRIO vendedor; gestor vê tudo.
+    // Fórmula unificada com /dashboard/forecast e /analise-comercial: valor
+    // anualizado (setup + mensalidade×12, fallback valor_estimado) ponderado
+    // por probabilidade de etapa (PROB_ETAPA) — ver backend/src/lib/previsao.ts.
+    const resultado = await calcularPrevisao(prisma, {
+      dias,
+      ownerFilter: ownerWhere(request, 'Lead'),
     });
 
-    // Probabilidade por etapa do funil comercial (PROB_ETAPA) — não pelo campo
-    // Lead.probabilidade, que está sempre vazio na prática (ninguém o preenche
-    // manualmente) e antes caía num fallback fixo de 50% para todo lead, igualando
-    // um "Novo Lead" a um "Em Negociação".
-    const leadsOrdenados = [...leads].sort(
-      (a, b) => probabilidadeEtapa(b.etapa_comercial) - probabilidadeEtapa(a.etapa_comercial)
-    );
-
-    const previsao = {
-      otimista: 0,   // 100% das oportunidades
-      realista: 0,   // ponderado pela probabilidade
-      pessimista: 0, // apenas alta probabilidade (>= 70%)
-      total_oportunidades: leads.length,
-      valor_total_pipeline: 0
-    };
-
-    leads.forEach(l => {
-      const valor = l.valor_estimado || 0;
-      const prob = probabilidadeEtapa(l.etapa_comercial);
-      previsao.valor_total_pipeline += valor;
-      previsao.otimista += valor;
-      previsao.realista += valor * prob;
-      if (prob >= 0.7) previsao.pessimista += valor * prob;
-    });
-
-    // Top oportunidades
-    const top = leadsOrdenados
-      .filter(l => (l.valor_estimado || 0) > 0)
-      .sort((a, b) => {
-        const scoreA = (a.valor_estimado || 0) * probabilidadeEtapa(a.etapa_comercial);
-        const scoreB = (b.valor_estimado || 0) * probabilidadeEtapa(b.etapa_comercial);
-        return scoreB - scoreA;
-      })
-      .slice(0, 10)
-      .map(l => ({
-        id: l.id,
-        nome: l.nome,
-        empresa: l.empresa,
-        valor_estimado: l.valor_estimado,
-        probabilidade: Math.round(probabilidadeEtapa(l.etapa_comercial) * 100),
-        valor_ponderado: (l.valor_estimado || 0) * probabilidadeEtapa(l.etapa_comercial),
-        etapa: l.etapa_funil,
-        status: l.status
-      }));
+    const previsao = resultado.previsao;
+    const top = resultado.top_oportunidades;
 
     // Meta do próprio vendedor (definida pela supervisão) — período atual
     const agora = new Date();
