@@ -1,57 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
 // Motor de regras (EVO-3) — roda 1x/dia pelo scheduler.
-// Cria automaticamente tarefas/alertas para que nada esfrie por esquecimento.
-// Idempotente: usa um prefixo de título + janela do dia para não duplicar.
-
-const MARCADOR = '[auto]';
-
-/**
- * Regra 1 — Lead parado: sem atividade PENDENTE e sem atualização há 7+ dias
- * (e ainda ativo) → cria uma TAREFA de follow-up para o responsável.
- */
-async function regraLeadParado(prisma: PrismaClient): Promise<number> {
-  const seteAtras = new Date();
-  seteAtras.setDate(seteAtras.getDate() - 7);
-
-  const leads = await prisma.lead.findMany({
-    where: {
-      deleted_at: null,
-      status: { notIn: ['GANHO', 'PERDIDO'] },
-      updated_at: { lt: seteAtras },
-      // sem nenhuma atividade pendente em aberto
-      atividades: { none: { status: 'PENDENTE' } },
-    },
-    select: { id: true, nome: true, responsavel_id: true, created_by: true },
-    take: 200,
-  });
-
-  let criadas = 0;
-  for (const lead of leads) {
-    // Evita duplicar: já existe tarefa automática de follow-up aberta?
-    const jaTem = await prisma.atividade.findFirst({
-      where: { lead_id: lead.id, status: 'PENDENTE', titulo: { startsWith: `${MARCADOR} Follow-up` } },
-      select: { id: true },
-    });
-    if (jaTem) continue;
-
-    const dono = lead.responsavel_id || lead.created_by;
-    await prisma.atividade.create({
-      data: {
-        lead_id: lead.id,
-        tipo: 'TAREFA',
-        titulo: `${MARCADOR} Follow-up: retomar contato com ${lead.nome}`,
-        descricao: 'Lead sem atividade há 7+ dias. Tarefa criada automaticamente pelo motor de regras.',
-        status: 'PENDENTE',
-        responsavel_id: dono,
-        data_prevista: new Date(),
-        created_by: 'system',
-      },
-    });
-    criadas++;
-  }
-  return criadas;
-}
+// Criação automática de Atividade (regraLeadParado) foi desativada a pedido:
+// nenhuma tarefa/atividade deve surgir sem ação manual do usuário. O motor
+// continua rodando só para expurgo de auditoria e snapshot mensal de relatório.
 
 /**
  * Regra 2 — Renovação próxima: renovações PENDENTES/EM_NEGOCIACAO vencendo nos
@@ -88,11 +40,14 @@ export interface ResultadoAutomacao {
 }
 
 export async function rodarMotorDeRegras(prisma: PrismaClient): Promise<ResultadoAutomacao> {
+  // regraLeadParado desativada a pedido: nenhuma Atividade deve ser criada
+  // automaticamente — apenas lançamentos manuais. Mantém o resto do motor
+  // (expurgo de auditoria, snapshot mensal) rodando normalmente.
   const [leads_followup, renovacoes_proximas] = await Promise.all([
-    regraLeadParado(prisma).catch((e) => { console.error('[AUTO] regraLeadParado:', e?.message); return 0; }),
+    Promise.resolve(0),
     regraRenovacaoProxima(prisma).catch((e) => { console.error('[AUTO] regraRenovacaoProxima:', e?.message); return 0; }),
   ]);
-  console.log(`[AUTO] Motor de regras: ${leads_followup} follow-up(s) criados, ${renovacoes_proximas} renovação(ões) próxima(s).`);
+  console.log(`[AUTO] Motor de regras: criação automática de follow-up desativada, ${renovacoes_proximas} renovação(ões) próxima(s).`);
 
   // D2: snapshot diário do Relatório Comercial do mês corrente (progressivo).
   await snapshotRelatorioMes(prisma).catch((e) => console.error('[AUTO] snapshot relatorio:', e?.message));
