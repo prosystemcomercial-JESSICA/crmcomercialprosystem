@@ -322,6 +322,11 @@ export default function DashboardPage() {
           animation: shimmer 1.4s infinite;
           border-radius: 10px;
         }
+        .waterfall { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 10px; }
+        .wf-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+        .wf-bar { width: 100%; max-width: 64px; border-radius: 4px 4px 0 0; }
+        .wf-val { font-size: 11px; font-weight: 800; margin-bottom: 4px; }
+        .wf-label { font-size: 10px; font-weight: 700; color: var(--t-text-muted); margin-top: 7px; text-align: center; }
       `}</style>
 
       <div className="space-y-5 pb-10">
@@ -460,8 +465,41 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {abaAtiva === 'retencao' && (
-              <div>{/* Task 5 preenche isto */}</div>
+            {abaAtiva === 'retencao' && painelCeo && (
+              <div className="space-y-4">
+                <div className="ps-card rounded-xl p-5">
+                  <SectionLabel>Como o NRR foi calculado</SectionLabel>
+                  <div className="waterfall">
+                    <div className="wf-col">
+                      <span className="wf-val">{fmt(data.kpis.mrr - (painelCeo.net_new_mrr || 0))}</span>
+                      <div className="wf-bar" style={{ height: '100%', background: 'var(--t-primary)' }} />
+                      <span className="wf-label">MRR Inicial</span>
+                    </div>
+                    <div className="wf-col">
+                      <span className="wf-val">+{fmt(painelCeo.mrr_novo || 0)}</span>
+                      <div className="wf-bar" style={{ height: `${Math.max(4, Math.min(100, ((painelCeo.mrr_novo || 0) / Math.max(data.kpis.mrr, 1)) * 100))}%`, background: '#16a34a' }} />
+                      <span className="wf-label">Expansão</span>
+                    </div>
+                    <div className="wf-col">
+                      <span className="wf-val">−{fmt(painelCeo.mrr_perdido || 0)}</span>
+                      <div className="wf-bar" style={{ height: `${Math.max(4, Math.min(100, ((painelCeo.mrr_perdido || 0) / Math.max(data.kpis.mrr, 1)) * 100))}%`, background: '#dc2626' }} />
+                      <span className="wf-label">Churn</span>
+                    </div>
+                    <div className="wf-col">
+                      <span className="wf-val">{fmt(data.kpis.mrr)}</span>
+                      <div className="wf-bar" style={{ height: '100%', background: 'var(--t-primary)' }} />
+                      <span className="wf-label">MRR Final</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <KpiCard label="CAC" value={painelCeo.cac !== null ? fmt(painelCeo.cac) : '— sem dado'} sub={painelCeo.cac === null ? 'nunca lançado' : undefined} />
+                  <KpiCard label="LTV Médio" value="— sem dado" sub="base zerada (ver /ltv)" />
+                  <KpiCard label="LTV : CAC" value="—" />
+                  <KpiCard label="Ticket Médio" value={data.kpis.contratos_ativos > 0 ? fmt(data.kpis.mrr / data.kpis.contratos_ativos) + '/mês' : '—'} />
+                </div>
+              </div>
             )}
             {abaAtiva === 'equipe' && (
               <div>{/* Task 6 preenche isto */}</div>
@@ -486,7 +524,21 @@ export default function DashboardPage() {
             )}
 
             {abaAtiva === 'manuais' && (
-              <div>{/* Task 5 também preenche isto — indicadores manuais do CEO */}</div>
+              <div>
+                {!isGestor ? null : (
+                  <>
+                    <p className="text-[11px] mb-3 p-3 rounded-lg" style={{ background: 'var(--t-primary-light)', color: 'var(--t-text-secondary)' }}>
+                      Esta aba só aparece para quem tem permissão de editar Indicadores do CEO.
+                    </p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <KpiCard label="Caixa Disponível" value={painelCeo?.caixa_disponivel !== null && painelCeo?.caixa_disponivel !== undefined ? fmt(painelCeo.caixa_disponivel) : '— não lançado'} />
+                      <KpiCard label="Faturamento" value={painelCeo?.faturamento !== null && painelCeo?.faturamento !== undefined ? fmt(painelCeo.faturamento) : '— não lançado'} />
+                      <KpiCard label="Despesas do Setor" value={painelCeo?.despesas_setor !== null && painelCeo?.despesas_setor !== undefined ? fmt(painelCeo.despesas_setor) : '— não lançado'} />
+                      <KpiCard label="Marketing Investido" value={painelCeo?.marketing_investido !== null && painelCeo?.marketing_investido !== undefined ? fmt(painelCeo.marketing_investido) : '— não lançado'} />
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
           </>
