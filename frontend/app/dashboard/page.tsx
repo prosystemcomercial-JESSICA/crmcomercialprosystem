@@ -327,6 +327,16 @@ export default function DashboardPage() {
         .wf-bar { width: 100%; max-width: 64px; border-radius: 4px 4px 0 0; }
         .wf-val { font-size: 11px; font-weight: 800; margin-bottom: 4px; }
         .wf-label { font-size: 10px; font-weight: 700; color: var(--t-text-muted); margin-top: 7px; text-align: center; }
+        .rank-row { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 10px; }
+        .rank-row:nth-child(odd) { background: var(--t-content-bg); }
+        .rank-name { font-size: 13px; font-weight: 700; }
+        .rank-sub { font-size: 10.5px; color: var(--t-text-muted); margin-top: 1px; }
+        .rank-val { font-size: 13px; font-weight: 800; color: var(--t-primary-dark); margin-left: auto; text-align: right; }
+        .hbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .hbar-label { font-size: 11px; font-weight: 700; color: var(--t-text-secondary); width: 130px; flex-shrink: 0; text-align: right; }
+        .hbar-track { flex: 1; position: relative; height: 22px; }
+        .hbar-fill { height: 22px; border-radius: 0 4px 4px 0; }
+        .hbar-value { font-size: 11px; font-weight: 800; color: var(--t-text-primary); margin-left: 10px; white-space: nowrap; min-width: 64px; }
       `}</style>
 
       <div className="space-y-5 pb-10">
@@ -502,7 +512,30 @@ export default function DashboardPage() {
               </div>
             )}
             {abaAtiva === 'equipe' && (
-              <div>{/* Task 6 preenche isto */}</div>
+              <div className="space-y-4">
+                <div className="ps-card rounded-xl p-5">
+                  <SectionLabel>Ranking do Período</SectionLabel>
+                  {rankingEquipe.length === 0 ? (
+                    <p className="text-xs text-center py-8" style={{ color: 'var(--t-text-secondary)' }}>Nenhum dado de ranking neste período.</p>
+                  ) : (
+                    rankingEquipe.map((v: any, i: number) => {
+                      const cores = ['#F59E0B', '#9CA3AF', '#D97706'];
+                      return (
+                        <div key={v.responsavel_id} className="rank-row">
+                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: cores[i] || 'var(--t-primary)' }}>
+                            {v.posicao}
+                          </span>
+                          <div className="flex-1">
+                            <p className="rank-name">{v.responsavel_nome}</p>
+                            <p className="rank-sub">{v.leads_ganhos} leads ganhos · {v.propostas_aceitas} propostas aceitas</p>
+                          </div>
+                          <span className="rank-val">{fmt(v.valor_total)}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             )}
             {abaAtiva === 'funis' && (
             <>
