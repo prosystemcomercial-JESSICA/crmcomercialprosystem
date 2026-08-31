@@ -552,40 +552,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-            </>
-            )}
 
-            {abaAtiva === 'retencao' && (
-              <div>{/* Task 5 preenche isto */}</div>
-            )}
-            {abaAtiva === 'equipe' && (
-              <div>{/* Task 6 preenche isto */}</div>
-            )}
-            {abaAtiva === 'funis' && (
-            <>
-            {/* ── Funis: Leads e Propostas ──────────────────────── */}
-            <div className="du-fade-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <PipelineFunnelChart
-                pipelineFunil={data.pipeline_funil}
-                etapaLabel={ETAPA_LABEL}
-                fmt={fmt}
-              />
-              <PipelineFunnelChart
-                pipelineFunil={data.pipeline_funil_propostas}
-                etapaLabel={ETAPA_PROPOSTA_LABEL}
-                fmt={fmt}
-                titulo="Funil de Propostas Comerciais"
-              />
-            </div>
-            </>
-            )}
-
-            {abaAtiva === 'manuais' && (
-              <div>{/* Task 5 também preenche isto — indicadores manuais do CEO */}</div>
-            )}
-
-            {abaAtiva === 'comercial' && (
-            <>
             {/* ── Top 5 Leads ──────────────────────────────────── */}
             <div className="du-fade-4">
               <div className="ps-card rounded-xl p-5">
@@ -838,6 +805,35 @@ export default function DashboardPage() {
               );
             })()}
             </>
+            )}
+
+            {abaAtiva === 'retencao' && (
+              <div>{/* Task 5 preenche isto */}</div>
+            )}
+            {abaAtiva === 'equipe' && (
+              <div>{/* Task 6 preenche isto */}</div>
+            )}
+            {abaAtiva === 'funis' && (
+            <>
+            {/* ── Funis: Leads e Propostas ──────────────────────── */}
+            <div className="du-fade-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <PipelineFunnelChart
+                pipelineFunil={data.pipeline_funil}
+                etapaLabel={ETAPA_LABEL}
+                fmt={fmt}
+              />
+              <PipelineFunnelChart
+                pipelineFunil={data.pipeline_funil_propostas}
+                etapaLabel={ETAPA_PROPOSTA_LABEL}
+                fmt={fmt}
+                titulo="Funil de Propostas Comerciais"
+              />
+            </div>
+            </>
+            )}
+
+            {abaAtiva === 'manuais' && (
+              <div>{/* Task 5 também preenche isto — indicadores manuais do CEO */}</div>
             )}
 
           </>
