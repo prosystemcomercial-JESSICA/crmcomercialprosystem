@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -113,7 +114,6 @@ export default function CasosPage() {
   const [busca, setBusca] = useState('');
   const [mesFiltro, setMesFiltro] = useState(''); // 'YYYY-MM' = filtra do 1º ao último dia do mês
   const [dataLoading, setDataLoading] = useState(true);
-  const [rankingTec, setRankingTec] = useState<any[]>([]);
   // Dossiê do caso (ficha completa: financeiro + linha do tempo)
   const [dossie, setDossie] = useState<Caso | null>(null);
   const [atualizacoes, setAtualizacoes] = useState<any[]>([]);
@@ -216,12 +216,6 @@ export default function CasosPage() {
   useEffect(() => {
     if (isAuthenticated) fetchCasos();
   }, [isAuthenticated, page, statusFilter, mesFiltro]);
-
-  // Ranking de saúde da carteira por técnico (mesma fonte do Health Score).
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    apiClient.getRankingTecnicos().then(r => setRankingTec(r.data.data || [])).catch(() => setRankingTec([]));
-  }, [isAuthenticated]);
 
   // Busca por cliente (debounce 350ms).
   useEffect(() => {
@@ -403,39 +397,16 @@ export default function CasosPage() {
           ))}
         </div>
 
-        {/* Ranking de saúde da carteira por técnico (quem tem mais clientes saindo) */}
-        {rankingTec.length > 0 && (
-          <div className="ps-card rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-bold text-sm font-semibold">🩺 Saúde da carteira por técnico</h2>
-              <span className="text-xs ">só ativos · ordenado por mais risco/churn</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-xs  border-b border-gray-100">
-                  <th className="py-1.5 pr-3">Técnico</th><th className="py-1.5 px-2 text-center">Ativos</th>
-                  <th className="py-1.5 px-2 text-center">Em risco</th><th className="py-1.5 px-2 text-center">Em churn</th>
-                  <th className="py-1.5 px-2 text-center">Saíram</th><th className="py-1.5 px-2 text-center">Saúde</th>
-                </tr></thead>
-                <tbody>
-                  {[...rankingTec].sort((a, b) => (b.em_churn + b.em_risco) - (a.em_churn + a.em_risco)).map((t: any) => {
-                    const cor = t.indice_saude >= 90 ? '#16a34a' : t.indice_saude >= 75 ? '#d97706' : '#dc2626';
-                    return (
-                      <tr key={t.tecnico} className="border-b border-gray-50">
-                        <td className="py-1.5 pr-3 font-medium ">{t.tecnico}</td>
-                        <td className="py-1.5 px-2 text-center ">{t.ativos}</td>
-                        <td className="py-1.5 px-2 text-center text-amber-600 font-semibold">{t.em_risco}</td>
-                        <td className="py-1.5 px-2 text-center text-red-600 font-bold">{t.em_churn}</td>
-                        <td className="py-1.5 px-2 text-center ">{t.inativos}</td>
-                        <td className="py-1.5 px-2 text-center font-bold" style={{ color: cor }}>{t.indice_saude}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        {/* Saúde da carteira por técnico — link para tela dedicada */}
+        <div className="ps-card rounded-xl p-4 flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Saúde da carteira por técnico</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Ranking completo disponível na tela de Health Score.</p>
           </div>
-        )}
+          <Link href="/health-score" className="text-[11px] font-semibold" style={{ color: 'var(--t-primary)' }}>
+            Ver ranking completo →
+          </Link>
+        </div>
 
         {/* Table */}
         <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
