@@ -276,6 +276,10 @@ export default function CasosPage() {
   const podeVerVisaoExecutiva = SO_CEO_ROLES.includes((user?.role || '').toUpperCase());
   const [abaAtiva, setAbaAtiva] = useState<'lista' | 'executiva'>('lista');
 
+  // Dados da aba executiva (Radar): busca própria (getCasos(0,200) sem filtro),
+  // guardada em state SEPARADO de `casos` (que alimenta a Lista paginada) para
+  // não contaminar a contagem/paginação exibida na aba Lista.
+  const [casosRadar, setCasosRadar] = useState<Caso[]>([]);
   // Dados da aba executiva (Radar): atualizações de cada caso ativo, carregadas
   // sob demanda — só dispara se a aba estiver ativa E o usuário tiver o role certo.
   const [atualizacoesPorCaso, setAtualizacoesPorCaso] = useState<Record<string, Atualizacao[]>>({});
@@ -403,13 +407,10 @@ export default function CasosPage() {
         }
       }));
       setAtualizacoesPorCaso(Object.fromEntries(resultados));
-      // Garante que os casos ativos apareçam no radar mesmo que a listagem
-      // paginada principal (state `casos`) esteja filtrada/paginada de outro jeito.
-      setCasos(prev => {
-        const idsAtuais = new Set(prev.map(c => c.id));
-        const faltantes = todosCasos.filter(c => !idsAtuais.has(c.id));
-        return faltantes.length > 0 ? [...prev, ...faltantes] : prev;
-      });
+      // Popula o state dedicado do Radar — nunca mescla em `casos`, que é o
+      // state paginado usado pela aba Lista (evita alterar a contagem/paginação
+      // exibida lá com casos que o backend não retornou para aquela página/filtro).
+      setCasosRadar(todosCasos);
     } catch { /* silencioso */ }
     finally { setCarregandoRadar(false); }
   }, [podeVerVisaoExecutiva]);
@@ -586,8 +587,8 @@ export default function CasosPage() {
         {/* ===== ABA VISÃO EXECUTIVA (Radar) — gate de role duplicado aqui,
             não depende apenas do botão acima não ter sido renderizado ===== */}
         {abaAtiva === 'executiva' && podeVerVisaoExecutiva && (() => {
-          const emAndamento = casos.filter(c => !ENCERRADOS.includes(c.status));
-          const encerradosLista = casos.filter(c => ENCERRADOS.includes(c.status));
+          const emAndamento = casosRadar.filter(c => !ENCERRADOS.includes(c.status));
+          const encerradosLista = casosRadar.filter(c => ENCERRADOS.includes(c.status));
           const kpis = [
             { l: 'Em andamento', v: emAndamento.length, cor: '#7C3AED' },
             { l: 'Crítico / Alto risco', v: emAndamento.filter(c => c.risk_score >= 70).length, cor: '#DC2626' },
