@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -104,19 +105,8 @@ export default function CentroCustosPage() {
 
   const catsDisponiveis = form.tipo === 'ENTRADA' ? cats.entrada : cats.saida;
 
-  // Comissões separadas do restante dos lançamentos (Salário, Marketing etc.) e
-  // agrupadas por mês de competência — mês de GERAÇÃO da comissão (competencia_mes),
-  // não o mês de pagamento. Ordenado do mês mais recente para o mais antigo.
-  const comissoes = lancamentos.filter(l => l.categoria === 'COMISSAO');
+  // Lançamentos sem comissões (Salário, Marketing etc.)
   const outrosLancamentos = lancamentos.filter(l => l.categoria !== 'COMISSAO');
-  const comissoesPorMes = comissoes
-    .reduce((grupos: { ano: number; mes: number; itens: Lancamento[] }[], l) => {
-      let grupo = grupos.find(g => g.ano === l.competencia_ano && g.mes === l.competencia_mes);
-      if (!grupo) { grupo = { ano: l.competencia_ano, mes: l.competencia_mes, itens: [] }; grupos.push(grupo); }
-      grupo.itens.push(l);
-      return grupos;
-    }, [])
-    .sort((a, b) => (b.ano - a.ano) || (b.mes - a.mes));
 
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
@@ -433,49 +423,16 @@ export default function CentroCustosPage() {
               </div>
             )}
 
-            {/* Comissões do mês — separadas, agrupadas por mês de GERAÇÃO (não pagamento) */}
-            {comissoes.length > 0 && (
-              <div className="ps-card border border-amber-200 rounded-xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-amber-100 bg-amber-50 flex items-center justify-between gap-3 flex-wrap">
-                  <span className="font-semibold text-sm text-amber-900">💰 Comissões do mês ({comissoes.length})</span>
-                  <span className="text-xs text-amber-700">
-                    Total: <span className="font-bold">{fmt(comissoes.reduce((s, l) => s + Number(l.valor), 0))}</span>
-                  </span>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {comissoesPorMes.map(grupo => {
-                    const subtotal = grupo.itens.reduce((s, l) => s + Number(l.valor), 0);
-                    return (
-                      <div key={`${grupo.ano}-${grupo.mes}`} className="px-5 py-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold text-gray-700">{MESES[grupo.mes]}/{grupo.ano}</span>
-                          <span className="text-xs font-bold text-red-700">− {fmt(subtotal)}</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          {grupo.itens.map(l => {
-                            const nome = nomeVendedor(l.vendedor_id);
-                            return (
-                              <div key={l.id} className="flex items-center justify-between gap-3 pl-3 border-l-2 border-amber-200">
-                                <div className="min-w-0">
-                                  <p className="text-sm truncate">
-                                    {l.descricao || 'Comissão'}
-                                    {nome && <span className="text-gray-400"> · {nome}</span>}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-3 flex-shrink-0">
-                                  <span className="text-sm font-medium text-red-700">− {fmt(l.valor)}</span>
-                                  <button onClick={() => remover(l.id)} className="text-xs hover:text-red-600">remover</button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            {/* Link para gestão de comissões */}
+            <div className="ps-card rounded-xl p-4 flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Comissões</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Gestão completa de comissões (com status de pagamento) fica em Comissões.</p>
               </div>
-            )}
+              <Link href="/comissoes" className="text-[11px] font-semibold" style={{ color: 'var(--t-primary)' }}>
+                Ver comissões →
+              </Link>
+            </div>
 
             {/* Lista de lançamentos (demais categorias — comissão fica na seção acima) */}
             <div className="ps-card border border-gray-200 rounded-xl overflow-hidden">

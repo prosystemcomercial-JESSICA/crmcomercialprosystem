@@ -10,18 +10,17 @@ export default function Home() {
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
-  // CEO cai direto no RELATÓRIO (CEO) — a 1ª coisa que ele vê (resultado/direção).
-  // Diretora/Supervisão veem tudo (dashboard); SDR vai pro funil próprio dela
-  // (não tem Central de Leads/Radar Comercial); vendedor vai ao Radar Comercial.
+  // CEO/Diretora/Supervisão veem tudo (Dashboard Executivo unificado);
+  // SDR vai pro funil próprio dela (não tem Central de Leads/Radar Comercial);
+  // vendedor vai ao Radar Comercial.
   // Navegação em useEffect (não `redirect()` em render) — este é um Client
   // Component, e chamar `redirect()` no corpo do componente interrompe a
   // renderização de forma que pode deixar hooks de componentes filhos
-  // (ex.: <Bloco> no Relatório Comercial) fora de sincronia entre passes.
+  // fora de sincronia entre passes.
   useEffect(() => {
     if (!isAuthenticated) return;
     const role = (user?.role || '').toUpperCase();
-    const destino = role === 'CEO' ? '/relatorio-comercial'
-      : podeVerTudo(user?.role) ? '/dashboard'
+    const destino = podeVerTudo(user?.role) ? '/dashboard'
       : role === 'SDR' ? '/leads-sdr'
       : '/comercial';
     router.replace(destino);

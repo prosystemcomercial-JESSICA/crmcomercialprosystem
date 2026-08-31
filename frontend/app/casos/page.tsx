@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import ExportButton from '@/components/ui/ExportButton';
 import { apiClient } from '@/lib/api-client';
+
+// Somente estes papéis podem ver a aba "Visão Executiva" (Radar) — gate interno
+// ao componente, independente do gate de rota de /casos (que é visível também
+// para SUPERVISAO_TECNICA e TECNICO_SUPORTE, que NÃO devem ver dados executivos).
+const SO_CEO_ROLES = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 
 interface Caso {
   id: string;
@@ -103,8 +109,149 @@ const RISK_NIVEIS = [
   { label: 'CRÍTICO', valor: 95 },
 ];
 
+// ── Aba "Visão Executiva" (Radar) — adaptado de app/churn-ceo/page.tsx ──────
+
+interface Atualizacao {
+  id: string;
+  tipo: string;
+  texto: string;
+  canal?: string;
+  resultado?: string;
+  feito_por_nome?: string;
+  created_at: string;
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  NOVO: 'Novo',
+  DIAGNOSTICADO: 'Diagnosticado',
+  PLANEJADO: 'Planejado',
+  EXECUTANDO: 'Em andamento',
+  RECUPERADO: 'Recuperado',
+  PERDIDO: 'Perdido',
+  SISTEMA_REMOVIDO: 'Sistema removido',
+};
+
+const STATUS_COR: Record<string, { bg: string; text: string; dot: string }> = {
+  NOVO:             { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
+  DIAGNOSTICADO:    { bg: '#DBEAFE', text: '#1D4ED8', dot: '#3B82F6' },
+  PLANEJADO:        { bg: '#FEF9C3', text: '#92400E', dot: '#F59E0B' },
+  EXECUTANDO:       { bg: '#EDE9FE', text: '#6D28D9', dot: '#8B5CF6' },
+  RECUPERADO:       { bg: '#DCFCE7', text: '#166534', dot: '#22C55E' },
+  PERDIDO:          { bg: '#FEE2E2', text: '#991B1B', dot: '#EF4444' },
+  SISTEMA_REMOVIDO: { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
+};
+
+const RADAR_RISK_COR = (s: number) => s >= 85 ? '#B91C1C' : s >= 70 ? '#DC2626' : s >= 40 ? '#D97706' : '#16A34A';
+const RADAR_RISK_LABEL = (s: number) => s >= 85 ? 'CRÍTICO' : s >= 70 ? 'ALTO' : s >= 40 ? 'MÉDIO' : 'BAIXO';
+
+const URGENCIA_COR = (dias: number) =>
+  dias >= 30 ? { bg: '#FEE2E2', text: '#991B1B', borda: '#FECACA' } :
+  dias >= 14 ? { bg: '#FEF9C3', text: '#92400E', borda: '#FDE68A' } :
+               { bg: '#F0FDF4', text: '#166534', borda: '#BBF7D0' };
+
+const RADAR_ICON: Record<string, string> = {
+  OBSERVACAO: '📝', CONTATO: '📞', TENTATIVA: '📲', FINANCEIRO: '💵', STATUS: '🔄', SISTEMA: '⚙️',
+};
+
+function RadarCard({ caso, atualizacoes, onClick }: { caso: Caso; atualizacoes: Atualizacao[]; onClick: () => void }) {
+  const encerrado = ENCERRADOS.includes(caso.status);
+  const dias = diasEmAberto(caso);
+  const urg = encerrado ? { bg: '#F3F4F6', text: '#374151', borda: '#E5E7EB' } : URGENCIA_COR(dias);
+  const cor = STATUS_COR[caso.status] || STATUS_COR.NOVO;
+  const atts = atualizacoes || [];
+  const ultimaAtt = atts[0];
+  const responsavel = caso.cliente?.grupo_tecnico || '—';
+
+  // Contagem por tipo de ação
+  const contatos = atts.filter(a => ['CONTATO', 'TENTATIVA'].includes(a.tipo)).length;
+  const observacoes = atts.filter(a => a.tipo === 'OBSERVACAO').length;
+  const financeiro = atts.filter(a => a.tipo === 'FINANCEIRO').length;
+
+  const nomeCliente = caso.cliente?.razao_social || caso.cliente?.nome_fantasia || caso.cliente?.nome || '—';
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-2xl p-4 transition-all hover:shadow-md"
+      style={{ background: '#fff', border: `1.5px solid ${urg.borda}`, boxShadow: '0 1px 4px rgba(13,34,56,.06)' }}
+    >
+      {/* Topo: nome + status */}
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-white text-xs"
+            style={{ background: cor.dot }}>
+            {nomeCliente.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-sm text-sm font-semibold truncate max-w-[180px]">{nomeCliente}</p>
+            <span style={{ background: cor.bg, color: cor.text, borderRadius: 5, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>
+              {STATUS_LABEL[caso.status] || caso.status}
+            </span>
+          </div>
+        </div>
+        {/* Risco score */}
+        {!encerrado && (
+          <span className="text-xs font-black flex-shrink-0" style={{ color: RADAR_RISK_COR(caso.risk_score) }}>
+            {caso.risk_score}% {RADAR_RISK_LABEL(caso.risk_score)}
+          </span>
+        )}
+      </div>
+
+      {/* 3 métricas do radar */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {/* Tempo */}
+        <div className="rounded-xl p-2 text-center" style={{ background: urg.bg, border: `1px solid ${urg.borda}` }}>
+          <p className="text-[18px] font-black leading-tight" style={{ color: urg.text }}>{dias}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: urg.text, opacity: 0.75 }}>
+            {encerrado ? 'dias (total)' : 'dias aberto'}
+          </p>
+        </div>
+        {/* Ações */}
+        <div className="rounded-xl p-2 text-center" style={{ background: '#F0F4FF', border: '1px solid #C7D7F5' }}>
+          <p className="text-[18px] font-black text-blue-700 leading-tight">{atts.length}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wide text-blue-500">ações feitas</p>
+        </div>
+        {/* Em quem está */}
+        <div className="rounded-xl p-2 text-center" style={{ background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
+          <p className="text-[11px] font-bold text-purple-800 leading-tight truncate" title={responsavel}>
+            {responsavel.length > 10 ? responsavel.slice(0, 10) + '…' : responsavel}
+          </p>
+          <p className="text-[9px] font-bold uppercase tracking-wide text-purple-500">responsável</p>
+        </div>
+      </div>
+
+      {/* Breakdown de ações */}
+      {atts.length > 0 && (
+        <div className="flex gap-2 mb-2 flex-wrap">
+          {contatos > 0 && <span className="text-[10px] font-semibold rounded-full px-2 py-0.5">📞 {contatos} contato{contatos > 1 ? 's' : ''}</span>}
+          {observacoes > 0 && <span className="text-[10px] font-semibold rounded-full px-2 py-0.5">📝 {observacoes} obs.</span>}
+          {financeiro > 0 && <span className="text-[10px] font-semibold rounded-full px-2 py-0.5">💵 {financeiro} fin.</span>}
+        </div>
+      )}
+
+      {/* Última ação */}
+      <div className="border-t pt-2" style={{ borderColor: '#F0F4F8' }}>
+        {ultimaAtt ? (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5">Última ação</p>
+            <p className="text-[11px] leading-snug line-clamp-2">
+              {RADAR_ICON[ultimaAtt.tipo] || '•'} {ultimaAtt.texto}
+            </p>
+            <p className="text-[10px] mt-0.5">
+              {ultimaAtt.feito_por_nome ? `${ultimaAtt.feito_por_nome} · ` : ''}
+              {new Date(ultimaAtt.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+            </p>
+          </div>
+        ) : (
+          <p className="text-[11px] italic">Nenhuma ação registrada ainda.</p>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export default function CasosPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
   const [casos, setCasos] = useState<Caso[]>([]);
   const [total, setTotal] = useState(0);
@@ -113,7 +260,6 @@ export default function CasosPage() {
   const [busca, setBusca] = useState('');
   const [mesFiltro, setMesFiltro] = useState(''); // 'YYYY-MM' = filtra do 1º ao último dia do mês
   const [dataLoading, setDataLoading] = useState(true);
-  const [rankingTec, setRankingTec] = useState<any[]>([]);
   // Dossiê do caso (ficha completa: financeiro + linha do tempo)
   const [dossie, setDossie] = useState<Caso | null>(null);
   const [atualizacoes, setAtualizacoes] = useState<any[]>([]);
@@ -124,6 +270,21 @@ export default function CasosPage() {
   const [reabrirRelato, setReabrirRelato] = useState('');
   const [reabrindo, setReabrindo] = useState(false);
   const limit = 20;
+
+  // Gate de role interno: mesmo dentro de /casos (visível a papéis técnicos),
+  // só CEO/ADMIN/SUPERVISAO_COMERCIAL podem ver a aba "Visão Executiva".
+  const podeVerVisaoExecutiva = SO_CEO_ROLES.includes((user?.role || '').toUpperCase());
+  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'executiva'>('lista');
+
+  // Dados da aba executiva (Radar): busca própria (getCasos(0,200) sem filtro),
+  // guardada em state SEPARADO de `casos` (que alimenta a Lista paginada) para
+  // não contaminar a contagem/paginação exibida na aba Lista.
+  const [casosRadar, setCasosRadar] = useState<Caso[]>([]);
+  // Dados da aba executiva (Radar): atualizações de cada caso ativo, carregadas
+  // sob demanda — só dispara se a aba estiver ativa E o usuário tiver o role certo.
+  const [atualizacoesPorCaso, setAtualizacoesPorCaso] = useState<Record<string, Atualizacao[]>>({});
+  const [carregandoRadar, setCarregandoRadar] = useState(false);
+  const radarCarregadoRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -217,12 +378,6 @@ export default function CasosPage() {
     if (isAuthenticated) fetchCasos();
   }, [isAuthenticated, page, statusFilter, mesFiltro]);
 
-  // Ranking de saúde da carteira por técnico (mesma fonte do Health Score).
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    apiClient.getRankingTecnicos().then(r => setRankingTec(r.data.data || [])).catch(() => setRankingTec([]));
-  }, [isAuthenticated]);
-
   // Busca por cliente (debounce 350ms).
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -230,6 +385,43 @@ export default function CasosPage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busca]);
+
+  // Carrega as atualizações de cada caso ativo para os cards do Radar (aba
+  // "Visão Executiva"). Busca dedicada porque a listagem paginada de /casos
+  // não cobre necessariamente todos os casos ativos (paginação/filtros distintos
+  // do que o Radar precisa mostrar), e porque nunca deve disparar para quem
+  // não tem o role executivo.
+  const carregarRadar = useCallback(async () => {
+    if (!podeVerVisaoExecutiva) return;
+    setCarregandoRadar(true);
+    try {
+      const res = await apiClient.getCasos(0, 200);
+      const todosCasos: Caso[] = res.data?.data?.casos || [];
+      const ativos = todosCasos.filter(c => !ENCERRADOS.includes(c.status));
+      const resultados = await Promise.all(ativos.map(async (c) => {
+        try {
+          const r = await apiClient.getAtualizacoesCaso(c.id);
+          return [c.id, r.data?.data || []] as const;
+        } catch {
+          return [c.id, []] as const;
+        }
+      }));
+      setAtualizacoesPorCaso(Object.fromEntries(resultados));
+      // Popula o state dedicado do Radar — nunca mescla em `casos`, que é o
+      // state paginado usado pela aba Lista (evita alterar a contagem/paginação
+      // exibida lá com casos que o backend não retornou para aquela página/filtro).
+      setCasosRadar(todosCasos);
+    } catch { /* silencioso */ }
+    finally { setCarregandoRadar(false); }
+  }, [podeVerVisaoExecutiva]);
+
+  useEffect(() => {
+    if (abaAtiva === 'executiva' && podeVerVisaoExecutiva && !radarCarregadoRef.current) {
+      radarCarregadoRef.current = true;
+      carregarRadar();
+    }
+    if (abaAtiva !== 'executiva') radarCarregadoRef.current = false;
+  }, [abaAtiva, podeVerVisaoExecutiva, carregarRadar]);
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
@@ -373,6 +565,84 @@ export default function CasosPage() {
           </div>
         </div>
 
+        {/* Alternador Lista / Visão Executiva — a aba executiva só é renderizada
+            (botão e conteúdo) para quem tem o role certo; dupla checagem abaixo. */}
+        {podeVerVisaoExecutiva && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAbaAtiva('lista')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'lista' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
+            >
+              ☰ Lista
+            </button>
+            <button
+              onClick={() => setAbaAtiva('executiva')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'executiva' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
+            >
+              ◎ Visão Executiva
+            </button>
+          </div>
+        )}
+
+        {/* ===== ABA VISÃO EXECUTIVA (Radar) — gate de role duplicado aqui,
+            não depende apenas do botão acima não ter sido renderizado ===== */}
+        {abaAtiva === 'executiva' && podeVerVisaoExecutiva && (() => {
+          const emAndamento = casosRadar.filter(c => !ENCERRADOS.includes(c.status));
+          const encerradosLista = casosRadar.filter(c => ENCERRADOS.includes(c.status));
+          const kpis = [
+            { l: 'Em andamento', v: emAndamento.length, cor: '#7C3AED' },
+            { l: 'Crítico / Alto risco', v: emAndamento.filter(c => c.risk_score >= 70).length, cor: '#DC2626' },
+            { l: 'Recuperados', v: encerradosLista.filter(c => c.status === 'RECUPERADO').length, cor: '#16A34A' },
+            { l: 'Perdidos', v: encerradosLista.filter(c => c.status === 'PERDIDO').length, cor: '#B91C1C' },
+          ];
+          return (
+            <div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                {kpis.map((k, i) => (
+                  <div key={i} className="ps-card rounded-2xl p-4 relative overflow-hidden" style={{ border: '1px solid #E3ECF5', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
+                    <span className="absolute left-0 top-0 bottom-0" style={{ width: 4, background: k.cor }} />
+                    <p className="text-[11px] font-medium pl-1.5">{k.l}</p>
+                    <p className="text-3xl font-extrabold pl-1.5 mt-1" style={{ color: k.cor }}>{k.v}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-bold">Radar de Casos em Aberto</p>
+                  <p className="text-xs">Tempo registrado · ações tomadas · responsável atual — apenas casos ativos</p>
+                </div>
+                <button onClick={() => { radarCarregadoRef.current = false; carregarRadar(); }}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors bg-blue-50 text-blue-700 border border-blue-200">
+                  ↻ Atualizar
+                </button>
+              </div>
+
+              {carregandoRadar && emAndamento.length === 0 ? (
+                <div className="text-center py-16">Carregando…</div>
+              ) : emAndamento.length === 0 ? (
+                <div className="text-center py-16">Nenhum caso ativo no momento.</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {emAndamento
+                    .slice()
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map(c => (
+                      <RadarCard
+                        key={c.id}
+                        caso={c}
+                        atualizacoes={atualizacoesPorCaso[c.id] || []}
+                        onClick={() => { setAbaAtiva('lista'); abrirDossie(c); }}
+                      />
+                    ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ===== ABA LISTA ===== */}
+        {abaAtiva === 'lista' && <>
         {/* Busca por cliente + filtro mensal */}
         <div className="mb-2 flex gap-2 flex-wrap items-center">
           <input
@@ -403,39 +673,16 @@ export default function CasosPage() {
           ))}
         </div>
 
-        {/* Ranking de saúde da carteira por técnico (quem tem mais clientes saindo) */}
-        {rankingTec.length > 0 && (
-          <div className="ps-card rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-bold text-sm font-semibold">🩺 Saúde da carteira por técnico</h2>
-              <span className="text-xs ">só ativos · ordenado por mais risco/churn</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-xs  border-b border-gray-100">
-                  <th className="py-1.5 pr-3">Técnico</th><th className="py-1.5 px-2 text-center">Ativos</th>
-                  <th className="py-1.5 px-2 text-center">Em risco</th><th className="py-1.5 px-2 text-center">Em churn</th>
-                  <th className="py-1.5 px-2 text-center">Saíram</th><th className="py-1.5 px-2 text-center">Saúde</th>
-                </tr></thead>
-                <tbody>
-                  {[...rankingTec].sort((a, b) => (b.em_churn + b.em_risco) - (a.em_churn + a.em_risco)).map((t: any) => {
-                    const cor = t.indice_saude >= 90 ? '#16a34a' : t.indice_saude >= 75 ? '#d97706' : '#dc2626';
-                    return (
-                      <tr key={t.tecnico} className="border-b border-gray-50">
-                        <td className="py-1.5 pr-3 font-medium ">{t.tecnico}</td>
-                        <td className="py-1.5 px-2 text-center ">{t.ativos}</td>
-                        <td className="py-1.5 px-2 text-center text-amber-600 font-semibold">{t.em_risco}</td>
-                        <td className="py-1.5 px-2 text-center text-red-600 font-bold">{t.em_churn}</td>
-                        <td className="py-1.5 px-2 text-center ">{t.inativos}</td>
-                        <td className="py-1.5 px-2 text-center font-bold" style={{ color: cor }}>{t.indice_saude}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        {/* Saúde da carteira por técnico — link para tela dedicada */}
+        <div className="ps-card rounded-xl p-4 flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Saúde da carteira por técnico</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Ranking completo disponível na tela de Health Score.</p>
           </div>
-        )}
+          <Link href="/health-score" className="text-[11px] font-semibold" style={{ color: 'var(--t-primary)' }}>
+            Ver ranking completo →
+          </Link>
+        </div>
 
         {/* Table */}
         <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
@@ -585,6 +832,7 @@ export default function CasosPage() {
             </div>
           </div>
         )}
+        </>}
       </div>
 
       {/* ── Modal DOSSIÊ do caso (como está sendo tratado) ───────────────────── */}
