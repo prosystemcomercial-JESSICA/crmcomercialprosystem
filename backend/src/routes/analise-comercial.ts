@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { effectiveScopeId, podeVerTudo, getUser } from '@/lib/scope';
+import { effectiveScopeId, podeVerTudo, getUser, ownerWhereId } from '@/lib/scope';
 import { calcularRealizadoMeta } from '@/lib/meta-progress';
 import { PROB_ETAPA } from '@/lib/forecast';
 
@@ -176,10 +176,9 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     };
     const leadsForecast = await prisma.lead.findMany({
       where: {
-        deleted_at: null,
         etapa_comercial: { in: Object.keys(PROB_ETAPA) },
         status: { notIn: ['PERDIDO'] },
-        ...(scopeId ? { OR: [{ responsavel_id: scopeId }, { created_by: scopeId }] } : {}),
+        ...ownerWhereId('Lead', scopeId),
       },
       select: { etapa_comercial: true, valor_setup: true, valor_estimado: true, mensalidade_estimada: true, responsavel_id: true, responsavel_nome: true },
       take: 5000,
