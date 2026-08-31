@@ -765,23 +765,12 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   });
 
   // ── Webhook externo (gerador de leads automatizado, ex.: ChatGPT/Zapier) ───
-  // Rota de sistema-para-sistema: sem sessão de usuário, autenticada por chave
-  // secreta própria (LEADS_WEBHOOK_SECRET), já que as demais rotas de lead
-  // dependem de JWT opcional e não servem pra uma automação externa confiável.
+  // Rota de sistema-para-sistema, sem sessão de usuário e SEM chave de acesso
+  // (decisão explícita do usuário — qualquer chamada externa é aceita).
   // Aceita qualquer JSON: os campos conhecidos do Lead são mapeados direto;
   // tudo que sobra (não bate com nenhuma coluna) é anexado em `observacoes`
   // como texto formatado, pra nada que o gerador retornar se perca.
   fastify.post('/leads/webhook-externo', async (request, reply) => {
-    const chaveEsperada = process.env.LEADS_WEBHOOK_SECRET;
-    if (!chaveEsperada) {
-      fastify.log.error('LEADS_WEBHOOK_SECRET não configurado — recusando POST /leads/webhook-externo');
-      return reply.status(500).send({ status: 'error', message: 'Webhook não configurado' });
-    }
-    const chaveRecebida = request.headers['x-api-key'];
-    if (typeof chaveRecebida !== 'string' || chaveRecebida !== chaveEsperada) {
-      return reply.status(401).send({ status: 'error', message: 'Chave de acesso inválida' });
-    }
-
     const bodyBruto = request.body as Record<string, any> | null;
     if (!bodyBruto || typeof bodyBruto !== 'object') {
       return reply.status(400).send({ status: 'error', message: 'Corpo da requisição deve ser um objeto JSON' });
