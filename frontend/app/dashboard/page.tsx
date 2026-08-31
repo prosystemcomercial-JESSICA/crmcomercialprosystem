@@ -225,7 +225,6 @@ export default function DashboardPage() {
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [filtroVendedorId, setFiltroVendedorId] = useState('');
   const [mounted, setMounted] = useState(false);
-  const [showFinanceiro, setShowFinanceiro] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState<'comercial' | 'retencao' | 'equipe' | 'funis' | 'manuais'>('comercial');
   const [painelCeo, setPainelCeo] = useState<any>(null);
   const [relatorioComercial, setRelatorioComercial] = useState<any>(null);
@@ -289,7 +288,6 @@ export default function DashboardPage() {
     );
   }
 
-  const maxPipelineVal = data ? Math.max(...data.pipeline_funil.map(p => p.valor), 1) : 1;
   const totalAlertas = data
     ? data.alertas.atividades_atrasadas + data.alertas.tickets_criticos +
       data.alertas.renovacoes_criticas + data.alertas.hs_em_risco
