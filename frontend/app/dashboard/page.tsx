@@ -14,6 +14,7 @@ import {
 import { MrrTrendCard } from './components/MrrTrendCard';
 import { PipelineFunnelChart } from './components/PipelineFunnelChart';
 import { TemperaturaGauge } from './components/TemperaturaGauge';
+import AbaTabs from './components/AbaTabs';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DashboardPower {
@@ -225,6 +226,10 @@ export default function DashboardPage() {
   const [filtroVendedorId, setFiltroVendedorId] = useState('');
   const [mounted, setMounted] = useState(false);
   const [showFinanceiro, setShowFinanceiro] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState<'comercial' | 'retencao' | 'equipe' | 'funis' | 'manuais'>('comercial');
+  const [painelCeo, setPainelCeo] = useState<any>(null);
+  const [relatorioComercial, setRelatorioComercial] = useState<any>(null);
+  const [rankingEquipe, setRankingEquipe] = useState<any[]>([]);
 
   const isGestor = podeVerTudo(user?.role);
 
@@ -237,9 +242,25 @@ export default function DashboardPage() {
   }, [isAuthenticated, loading]);
   useEffect(() => {
     if (loading || !isAuthenticated || !user) return;
-    if ((user.role || '').toUpperCase() === 'CEO') { router.replace('/relatorio-comercial'); return; }
     if (!isGestor) router.replace('/comercial');
   }, [loading, isAuthenticated, user, isGestor, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isGestor) return;
+    const hoje = new Date();
+    apiClient.getPainelCEO({ periodo: 'mes', ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 })
+      .then(r => setPainelCeo(r.data?.data?.indicadores || null))
+      .catch(() => setPainelCeo(null));
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const isoDia = (d: Date) => d.toISOString().slice(0, 10);
+    apiClient.getRelatorioComercial(isoDia(inicioMes), isoDia(fimMes))
+      .then(r => setRelatorioComercial(r.data?.data || null))
+      .catch(() => setRelatorioComercial(null));
+    apiClient.getRanking()
+      .then(r => setRankingEquipe(r.data?.data || []))
+      .catch(() => setRankingEquipe([]));
+  }, [isAuthenticated, isGestor]);
 
   const loadData = () => {
     if (!isAuthenticated || !isGestor) return;
@@ -269,6 +290,14 @@ export default function DashboardPage() {
     ? data.alertas.atividades_atrasadas + data.alertas.tickets_criticos +
       data.alertas.renovacoes_criticas + data.alertas.hs_em_risco
     : 0;
+
+  const nrr = painelCeo && data
+    ? (() => {
+        const mrrInicial = data.kpis.mrr - (painelCeo.net_new_mrr || 0);
+        if (mrrInicial <= 0) return null;
+        return Math.round(((mrrInicial + (painelCeo.mrr_novo || 0) - (painelCeo.mrr_perdido || 0)) / mrrInicial) * 100);
+      })()
+    : null;
 
   return (
     <DashboardLayout>
@@ -304,12 +333,8 @@ export default function DashboardPage() {
               Dashboard Executivo
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
-              Visão 360° do negócio
-              {lastUpdate && (
-                <span className="ml-2">
-                  · atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
+              Visão do Negócio
+              {lastUpdate && <span className="ml-2">· atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -371,6 +396,38 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* ── KPIs-âncora ──────────────────────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 du-fade-2">
+              <div className="ps-card rounded-xl p-4 lg:col-span-1" style={{ background: 'linear-gradient(135deg, var(--t-primary-deep), var(--t-primary-dark))' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,.7)' }}>MRR Recorrente</p>
+                <p className="text-2xl font-extrabold" style={{ color: '#fff' }}><AnimatedNumber value={data.kpis.mrr} prefix="R$ " /></p>
+                {data.kpis.mrr_delta !== undefined && (
+                  <p className="text-[11px] mt-1" style={{ color: data.kpis.mrr_delta >= 0 ? '#86EFAC' : '#FCA5A5' }}>
+                    {data.kpis.mrr_delta >= 0 ? '↑' : '↓'} {Math.abs(data.kpis.mrr_delta)}% vs. mês anterior
+                  </p>
+                )}
+              </div>
+              <KpiCard label="NRR (Retenção Líquida)" value={nrr !== null ? `${nrr}%` : '—'} accent={nrr !== null && nrr >= 100 ? '#16a34a' : '#d97706'} />
+              <KpiCard label="Contratos Ativos" value={String(data.kpis.contratos_ativos)} sub={`+${data.kpis.contratos_mes} este mês`} />
+              <KpiCard label="Pipeline Total" value={fmt(data.kpis.pipeline_valor)} sub="valor estimado em aberto" />
+              <KpiCard label="NPS" value={data.kpis.nps_score !== null ? String(data.kpis.nps_score) : '—'} accent={data.kpis.nps_score !== null && data.kpis.nps_score >= 50 ? '#16a34a' : '#d97706'} />
+            </div>
+
+            {/* ── Abas ─────────────────────────────────────────── */}
+            <AbaTabs
+              abas={[
+                { id: 'comercial', label: 'Comercial & Pipeline' },
+                { id: 'retencao', label: 'Retenção & Financeiro' },
+                { id: 'equipe', label: 'Equipe' },
+                { id: 'funis', label: 'Funis' },
+                { id: 'manuais', label: 'Indicadores Manuais' },
+              ]}
+              abaAtiva={abaAtiva}
+              onChange={(id) => setAbaAtiva(id as typeof abaAtiva)}
+            />
+
+            {abaAtiva === 'comercial' && (
+            <>
             {/* ── Hero MRR ─────────────────────────────────────── */}
             <MrrTrendCard
               mrr={data.kpis.mrr}
@@ -495,7 +552,17 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+            </>
+            )}
 
+            {abaAtiva === 'retencao' && (
+              <div>{/* Task 5 preenche isto */}</div>
+            )}
+            {abaAtiva === 'equipe' && (
+              <div>{/* Task 6 preenche isto */}</div>
+            )}
+            {abaAtiva === 'funis' && (
+            <>
             {/* ── Funis: Leads e Propostas ──────────────────────── */}
             <div className="du-fade-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <PipelineFunnelChart
@@ -510,7 +577,15 @@ export default function DashboardPage() {
                 titulo="Funil de Propostas Comerciais"
               />
             </div>
+            </>
+            )}
 
+            {abaAtiva === 'manuais' && (
+              <div>{/* Task 5 também preenche isto — indicadores manuais do CEO */}</div>
+            )}
+
+            {abaAtiva === 'comercial' && (
+            <>
             {/* ── Top 5 Leads ──────────────────────────────────── */}
             <div className="du-fade-4">
               <div className="ps-card rounded-xl p-5">
@@ -762,6 +837,8 @@ export default function DashboardPage() {
                 </div>
               );
             })()}
+            </>
+            )}
 
           </>
         )}
