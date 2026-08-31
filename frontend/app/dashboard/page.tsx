@@ -230,6 +230,7 @@ export default function DashboardPage() {
   const [painelCeo, setPainelCeo] = useState<any>(null);
   const [relatorioComercial, setRelatorioComercial] = useState<any>(null);
   const [rankingEquipe, setRankingEquipe] = useState<any[]>([]);
+  const [forecastComparativo, setForecastComparativo] = useState<any[]>([]);
 
   const isGestor = podeVerTudo(user?.role);
 
@@ -260,6 +261,9 @@ export default function DashboardPage() {
     apiClient.getRanking()
       .then(r => setRankingEquipe(r.data?.data || []))
       .catch(() => setRankingEquipe([]));
+    apiClient.getAnaliseComercial({})
+      .then(r => setForecastComparativo(r.data?.data?.forecast_comparativo || []))
+      .catch(() => setForecastComparativo([]));
   }, [isAuthenticated, isGestor]);
 
   const loadData = () => {
@@ -708,6 +712,21 @@ export default function DashboardPage() {
                     })
                   )}
                 </div>
+
+                {forecastComparativo.length > 0 && (
+                  <div className="ps-card rounded-xl p-5">
+                    <SectionLabel>Forecast Ponderado por Vendedor</SectionLabel>
+                    {forecastComparativo.map((f: any) => (
+                      <div key={f.vendedor_id} className="hbar-row">
+                        <span className="hbar-label">{f.vendedor_nome}</span>
+                        <div className="hbar-track">
+                          <div className="hbar-fill" style={{ width: `${Math.min(100, (f.valor_ponderado / Math.max(...forecastComparativo.map((x: any) => x.valor_ponderado), 1)) * 100)}%`, background: 'var(--t-primary)' }} />
+                        </div>
+                        <span className="hbar-value">{fmt(f.valor_ponderado)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {abaAtiva === 'funis' && (
