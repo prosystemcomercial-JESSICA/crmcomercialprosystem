@@ -87,7 +87,7 @@ export default function Home() {
             desaparece ao virar branco sobre o círculo, que também é branco) */}
         <div className="relative z-10">
           <Image
-            src="/logo-prosystem-white.png"
+            src="/logo-prosystem-white-v2.png"
             alt="ProSystem"
             width={321}
             height={50}
