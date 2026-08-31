@@ -49,12 +49,14 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
     const { inicio, fim } = intervalo(periodo, ano, mes);
     const noPeriodo = { gte: inicio, lt: fim };
 
-    // ── Base de clientes ATIVOS: MRR recorrente atual + ticket médio ──
-    const ativos = await prisma.cliente.findMany({
-      where: { OR: [{ situacao: 'ATIVA' }, { situacao: null }] },
-      select: { mensalidade_base: true },
+    // ── Base de contratos ATIVOS: MRR recorrente atual + ticket médio ──
+    // ContratoComercial é a fonte real — Cliente é modelo legado e está sempre
+    // vazio em produção (mesmo motivo já corrigido em dashboard-power.ts).
+    const ativos = await prisma.contratoComercial.findMany({
+      where: { status: 'ASSINADO' },
+      select: { mensalidade: true },
     }).catch(() => [] as any[]);
-    const mrrAtual = ativos.reduce((s, c) => s + Number(c.mensalidade_base || 0), 0);
+    const mrrAtual = ativos.reduce((s, c) => s + Number(c.mensalidade || 0), 0);
     const baseAtiva = ativos.length;
     const ticketMedio = baseAtiva ? mrrAtual / baseAtiva : 0;
 
@@ -68,12 +70,14 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
     const setupVendido = fechamentos.reduce((s, p) => s + Number(p.valor_implantacao ?? p.valor_final ?? 0), 0);
 
     // ── Cancelamentos / churn no período ──
-    const perdidos = await prisma.cliente.findMany({
-      where: { situacao: 'INATIVA', inativado_em: noPeriodo },
-      select: { mrr_perdido: true, mensalidade_base: true },
+    // Contrato "RECUADO" = cliente assinou e desistiu (ver comentário no schema).
+    // Cliente é modelo legado e está sempre vazio (mesmo motivo do MRR acima).
+    const perdidos = await prisma.contratoComercial.findMany({
+      where: { status: 'RECUADO', recuado_at: noPeriodo },
+      select: { mensalidade: true },
     }).catch(() => [] as any[]);
     const cancelamentos = perdidos.length;
-    const mrrPerdido = perdidos.reduce((s, c) => s + Number(c.mrr_perdido ?? c.mensalidade_base ?? 0), 0);
+    const mrrPerdido = perdidos.reduce((s, c) => s + Number(c.mensalidade || 0), 0);
     // Churn % = clientes perdidos / base ativa (no início aproximado)
     const churnPct = (baseAtiva + cancelamentos) ? (cancelamentos / (baseAtiva + cancelamentos)) * 100 : 0;
     const netNewMrr = mrrNovo - mrrPerdido;

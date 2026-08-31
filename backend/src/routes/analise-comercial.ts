@@ -252,16 +252,18 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     });
 
     // ── 7. Churn de MRR (% perdido no período, não só R$) ──
-    const clientesInativados = await prisma.cliente.findMany({
-      where: { situacao: 'INATIVA', inativado_em: { gte: desde } },
-      select: { mrr_perdido: true, inativado_em: true },
+    // Cliente é modelo legado e está sempre vazio (incidente de perda de dados de
+    // 12/08 — ver memória do projeto). ContratoComercial é a fonte real hoje.
+    const clientesInativados = await prisma.contratoComercial.findMany({
+      where: { status: 'RECUADO', recuado_at: { gte: desde } },
+      select: { mensalidade: true, recuado_at: true },
     }).catch(() => [] as any[]);
-    const mrrBaseAtivo = await prisma.cliente.aggregate({
-      where: { situacao: 'ATIVA' },
-      _sum: { mensalidade_base: true },
-    }).catch(() => ({ _sum: { mensalidade_base: 0 } }) as any);
-    const mrrPerdidoPeriodo = clientesInativados.reduce((s, c) => s + (c.mrr_perdido || 0), 0);
-    const mrrBase = mrrBaseAtivo._sum.mensalidade_base || 0;
+    const mrrBaseAtivo = await prisma.contratoComercial.aggregate({
+      where: { status: 'ASSINADO' },
+      _sum: { mensalidade: true },
+    }).catch(() => ({ _sum: { mensalidade: 0 } }) as any);
+    const mrrPerdidoPeriodo = clientesInativados.reduce((s, c) => s + (c.mensalidade || 0), 0);
+    const mrrBase = mrrBaseAtivo._sum.mensalidade || 0;
     const churnRateMrr = mrrBase > 0 ? Math.round((mrrPerdidoPeriodo / (mrrBase + mrrPerdidoPeriodo)) * 1000) / 10 : null;
 
     // ── 8. Taxa de expansão (upsell/cross-sell vs. MRR novo) ──
@@ -278,10 +280,10 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     const taxaExpansao = (mrrNovo + mrrExpansao) > 0 ? Math.round((mrrExpansao / (mrrNovo + mrrExpansao)) * 1000) / 10 : null;
 
     // ── 8b. Projeção de MRR futuro (M+1, M+2, M+3) ──
-    // MRR atual: Cliente.mensalidade_base é a fonte real (548 clientes ativos, ~R$177mil/mês) —
-    // mesma fonte usada em dashboard-power.ts e ceo.ts. ContratoComercial é um módulo novo
-    // (jun/2026 em diante) que ainda cobre só uma fração da base (~2% do MRR real) e não tem
-    // vínculo confiável com Cliente hoje; usá-lo aqui subestimava a projeção em ~98%.
+    // MRR atual: ContratoComercial.mensalidade é a fonte real desde que Cliente ficou
+    // vazia no incidente de 12/08 (ver memória do projeto) — mesma fonte usada agora
+    // em dashboard-power.ts e ceo.ts. Antes do incidente, Cliente tinha mais cobertura
+    // que ContratoComercial; hoje é o contrário (Cliente = 0, ContratoComercial = fonte viva).
     const mrrAtual = mrrBase;
 
     // Pipeline ponderado mensal: total ponderado do forecast dividido em 3 baldes iguais
