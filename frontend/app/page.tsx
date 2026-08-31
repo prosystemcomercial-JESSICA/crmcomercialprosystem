@@ -82,14 +82,16 @@ export default function Home() {
           }}
         />
 
-        {/* Logo */}
+        {/* Logo — versão branca (arquivo já recortado sem a margem morta do PNG
+            original e com contorno interno no ícone, senão o triângulo "play"
+            desaparece ao virar branco sobre o círculo, que também é branco) */}
         <div className="relative z-10">
           <Image
-            src="/logo-prosystem.png"
+            src="/logo-prosystem-white.png"
             alt="ProSystem"
-            width={200}
-            height={52}
-            className="h-12 w-auto object-contain brightness-0 invert"
+            width={321}
+            height={50}
+            className="h-12 w-auto object-contain"
             priority
           />
         </div>
@@ -152,12 +154,13 @@ export default function Home() {
         className="flex-1 flex flex-col items-center justify-center px-8 sm:px-16 lg:px-20"
         style={{ background: 'var(--t-content-bg)' }}
       >
-        {/* Logo mobile */}
+        {/* Logo mobile — versão colorida (fundo claro), arquivo recortado sem
+            a margem morta do PNG original */}
         <div className="mb-8 lg:hidden">
           <Image
-            src="/logo-prosystem.png"
+            src="/logo-prosystem-cropped.png"
             alt="ProSystem"
-            width={160}
+            width={267}
             height={42}
             className="h-10 w-auto object-contain"
             priority
