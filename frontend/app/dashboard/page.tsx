@@ -472,6 +472,179 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
+
+                {/* ── Top 5 Leads ──────────────────────────────────── */}
+                <div className="du-fade-4">
+                  <div className="ps-card rounded-xl p-5">
+                    <p className="text-xs font-semibold mb-4" style={{ color: 'var(--t-text-primary)' }}>Top 5 Leads — Maior Potencial</p>
+                    {data.top_leads.length === 0 ? (
+                      <p className="text-xs text-center py-8" style={{ color: 'var(--t-text-secondary)' }}>Nenhum lead com valor estimado</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {data.top_leads.map((l, i) => {
+                          const tempColors: Record<string, { bg: string; color: string; label: string }> = {
+                            MUITO_QUENTE: { bg: 'rgba(220,38,38,0.10)', color: '#dc2626', label: 'Muito Quente' },
+                            QUENTE:       { bg: 'rgba(239,68,68,0.10)', color: '#ef4444', label: 'Quente' },
+                            MORNO:        { bg: 'rgba(217,119,6,0.10)',  color: '#d97706', label: 'Morno' },
+                            FRIO:         { bg: 'rgba(37,99,235,0.10)',  color: '#2563eb', label: 'Frio' },
+                          };
+                          const tc = tempColors[l.temperatura] || tempColors.FRIO;
+                          const rankColors = ['#f59e0b', '#9ca3af', '#d97706', 'var(--t-primary)', '#94a3b8'];
+                          return (
+                            <div
+                              key={l.id}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer"
+                              style={{
+                                background: i === 0 ? 'var(--t-primary-light)' : 'transparent',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = i === 0 ? 'var(--t-primary-light)' : 'transparent')}
+                            >
+                              <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white"
+                                style={{ background: rankColors[i] }}>
+                                {i + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-primary)' }}>{l.nome}</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="text-[9px] font-semibold px-1.5 py-px rounded" style={{ background: tc.bg, color: tc.color }}>
+                                    {tc.label}
+                                  </span>
+                                  <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>{l.probabilidade}% prob.</span>
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-xs font-bold" style={{ color: '#16a34a' }}>{fmt(l.valor_ponderado)}</p>
+                                <p className="text-[9px]" style={{ color: 'var(--t-text-muted)' }}>ponderado</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Análise de Perdas ────────────────────────────── */}
+                {data.kpis.leads_perdidos_mes > 0 && (
+                  <div className="du-fade-5">
+                    <SectionLabel>Análise de Negócios Perdidos</SectionLabel>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+                      <KpiCard
+                        label="Valor Perdido no Mês" value={fmt(data.kpis.valor_perdido_mes)}
+                        sub="oportunidades não convertidas" accent="#dc2626" destaque
+                      />
+                      <KpiCard
+                        label="Taxa de Perda"
+                        value={`${data.kpis.leads_mes > 0 ? Math.round((data.kpis.leads_perdidos_mes / data.kpis.leads_mes) * 100) : 0}%`}
+                        sub={`${data.kpis.leads_ganhos_mes} ganhos vs ${data.kpis.leads_perdidos_mes} perdidos`}
+                        accent={data.kpis.leads_perdidos_mes > data.kpis.leads_ganhos_mes ? '#dc2626' : '#d97706'}
+                        destaque
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Atividades em Aberto ─────────────────────────── */}
+                {(() => {
+                  type Item = {
+                    id: string; tipo: string; titulo: string; data_prevista: string;
+                    lead?: { nome: string; empresa?: string };
+                    _atrasada: boolean;
+                  };
+                  const seen = new Set<string>();
+                  const merged: Item[] = [];
+                  data.atividades_atrasadas.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: true }); seen.add(a.id); } });
+                  data.agenda_hoje.forEach(a => { if (!seen.has(a.id)) { merged.push({ ...a, _atrasada: false }); seen.add(a.id); } });
+
+                  const prioCfg = (it: Item) => {
+                    if (it._atrasada) return { label: 'Atrasada', cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
+                    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                    const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
+                    if (dias < 0)  return { label: 'Atrasada',         cor: '#dc2626', bg: 'rgba(220,38,38,0.10)', ordem: 0 };
+                    if (dias <= 3) return { label: 'Prioridade máx.',  cor: '#ea580c', bg: 'rgba(234,88,12,0.10)',  ordem: 1 };
+                    if (dias <= 7) return { label: 'Próxima',          cor: '#d97706', bg: 'rgba(217,119,6,0.10)',  ordem: 2 };
+                    return                  { label: 'Dentro do prazo', cor: '#16a34a', bg: 'rgba(22,163,74,0.10)', ordem: 3 };
+                  };
+
+                  const ordered = merged
+                    .map(it => ({ it, cfg: prioCfg(it) }))
+                    .sort((a, b) => a.cfg.ordem - b.cfg.ordem || new Date(a.it.data_prevista).getTime() - new Date(b.it.data_prevista).getTime());
+
+                  const atrasadas = ordered.filter(o => o.cfg.label === 'Atrasada').length;
+                  const maxima = ordered.filter(o => o.cfg.label === 'Prioridade máx.').length;
+
+                  return (
+                    <div className="ps-card rounded-xl overflow-hidden">
+                      <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                        <div className="flex items-center gap-3">
+                          <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Atividades em Aberto</p>
+                          <div className="flex items-center gap-1.5">
+                            {atrasadas > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}>
+                                <PulseDot color="#dc2626" />{atrasadas} atrasada{atrasadas !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {maxima > 0 && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(234,88,12,0.10)', color: '#ea580c' }}>
+                                {maxima} expirando
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <a href="/atividades" className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)' }}>
+                          Ver todas <ArrowRight size={11} />
+                        </a>
+                      </div>
+                      {ordered.length === 0 ? (
+                        <p className="p-8 text-center text-xs font-medium" style={{ color: '#16a34a' }}>Tudo em dia — sem atividades urgentes.</p>
+                      ) : (
+                        <div>
+                          {ordered.slice(0, 10).map(({ it, cfg }) => {
+                            const t = TIPO_LABEL[it.tipo] || { Icon: Pin, label: 'Outro' };
+                            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                            const dias = Math.floor((new Date(it.data_prevista).getTime() - hoje.getTime()) / 86400000);
+                            const diasLabel = dias < 0 ? `${Math.abs(dias)}d atrasada` : dias === 0 ? 'hoje' : `em ${dias}d`;
+                            return (
+                              <a key={it.id} href="/atividades"
+                                className="px-5 py-3 flex items-center gap-3 transition-colors"
+                                style={{
+                                  borderBottom: '1px solid var(--t-card-border)',
+                                  borderLeft: `2px solid ${cfg.cor}`,
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                              >
+                                <span className="flex-shrink-0 rounded-md flex items-center justify-center" style={{ width: 26, height: 26, background: `${cfg.cor}12`, color: cfg.cor }}>
+                                  <t.Icon size={13} />
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-xs font-medium truncate" style={{ color: 'var(--t-text-primary)' }}>{it.titulo}</p>
+                                    <span className="text-[9px] font-semibold px-1.5 py-px rounded" style={{ background: cfg.bg, color: cfg.cor }}>
+                                      {cfg.label}
+                                    </span>
+                                  </div>
+                                  {it.lead && (
+                                    <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
+                                      {it.lead.nome}{(it.lead as any).empresa ? ` · ${(it.lead as any).empresa}` : ''}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: cfg.cor }}>{diasLabel}</span>
+                              </a>
+                            );
+                          })}
+                          {ordered.length > 10 && (
+                            <a href="/atividades" className="flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)', borderTop: '1px solid var(--t-card-border)' }}>
+                              + {ordered.length - 10} atividades
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
