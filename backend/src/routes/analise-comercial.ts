@@ -518,32 +518,36 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     const inicioAno = new Date(anoAtual, 0, 1);
     const fimAno = new Date(anoAtual + 1, 0, 1);
 
-    const [historicos, contratosAno, contratosEncerradosAno, vendasServicosAno, mrrAtivoAno] = await Promise.all([
+    // Cliente é a fonte real de novos contratos/receita/churn (data_entrada e
+    // inativado_em cobrem a base inteira, importada + gerada pelo CRM).
+    // ContratoComercial só cobre uma fatia recente do fluxo (geração via ZapSign,
+    // ~18 registros no total) e subestimaria fortemente o ano — não usar sozinho.
+    const [historicos, clientesEntradaAno, clientesInativadosAno, vendasServicosAno, mrrBaseHoje] = await Promise.all([
       prisma.resultadoAnualHistorico.findMany({ orderBy: { ano: 'asc' } }),
-      prisma.contratoComercial.findMany({
-        where: { status: 'ASSINADO', signed_at: { gte: inicioAno, lt: fimAno } },
-        select: { valor_setup_total: true, mensalidade: true },
+      prisma.cliente.findMany({
+        where: { data_entrada: { gte: inicioAno, lt: fimAno } },
+        select: { valor_instalacao: true, mensalidade_base: true },
       }).catch(() => [] as any[]),
-      prisma.contratoComercial.findMany({
-        where: { status: 'RECUADO', recuado_at: { gte: inicioAno, lt: fimAno } },
-        select: { mensalidade: true },
+      prisma.cliente.findMany({
+        where: { inativado_em: { gte: inicioAno, lt: fimAno } },
+        select: { mrr_perdido: true, mensalidade_base: true },
       }).catch(() => [] as any[]),
       prisma.vendaAdicional.findMany({
         where: { status: { in: ['CONFIRMADA', 'PAGA'] }, created_at: { gte: inicioAno, lt: fimAno } },
         select: { valor_venda: true },
       }).catch(() => [] as any[]),
-      prisma.contratoComercial.aggregate({
-        where: { status: 'ASSINADO' },
-        _sum: { mensalidade: true },
-      }).catch(() => ({ _sum: { mensalidade: 0 } }) as any),
+      prisma.cliente.aggregate({
+        where: { situacao: 'ATIVA' },
+        _sum: { mensalidade_base: true },
+      }).catch(() => ({ _sum: { mensalidade_base: 0 } }) as any),
     ]);
 
-    const novosContratosAno = contratosAno.length;
-    const receitaInstalacaoAno = contratosAno.reduce((s, c) => s + (c.valor_setup_total || 0), 0);
-    const receitaRecorrenteAnualAno = contratosAno.reduce((s, c) => s + (c.mensalidade || 0), 0) * 12;
+    const novosContratosAno = clientesEntradaAno.length;
+    const receitaInstalacaoAno = clientesEntradaAno.reduce((s, c) => s + (c.valor_instalacao || 0), 0);
+    const receitaRecorrenteAnualAno = clientesEntradaAno.reduce((s, c) => s + (c.mensalidade_base || 0), 0) * 12;
     const receitaServicosAno = vendasServicosAno.reduce((s, v) => s + (v.valor_venda || 0), 0);
-    const contratosEncerradosCountAno = contratosEncerradosAno.length;
-    const churnValorMensalAno = contratosEncerradosAno.reduce((s, c) => s + (c.mensalidade || 0), 0);
+    const contratosEncerradosCountAno = clientesInativadosAno.length;
+    const churnValorMensalAno = clientesInativadosAno.reduce((s, c) => s + (c.mrr_perdido ?? c.mensalidade_base ?? 0), 0);
 
     const anoCorrenteResumo = {
       ano: anoAtual,
@@ -557,7 +561,7 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
       contratos_encerrados: contratosEncerradosCountAno,
       churn_valor_mensal: Math.round(churnValorMensalAno),
       churn_valor_anualizado: Math.round(churnValorMensalAno * 12),
-      mrr_base_ativo_hoje: Math.round(mrrAtivoAno._sum.mensalidade || 0),
+      mrr_base_ativo_hoje: Math.round(mrrBaseHoje._sum.mensalidade_base || 0),
     };
 
     const historicosFormatados = historicos.map(h => ({
