@@ -1209,6 +1209,11 @@ class ApiClient {
     return this.client.get('/analise-comercial', { params: params || {} });
   }
 
+  // Comparativo anual: ano corrente (ao vivo) vs. anos anteriores (snapshot histórico)
+  async getComparativoAnual(params?: { ano?: number }) {
+    return this.client.get('/analise-comercial/comparativo-anual', { params: params || {} });
+  }
+
   // Centro de custos comercial
   async getFinanceiroCategorias() {
     return this.client.get('/financeiro/categorias');

@@ -2472,3 +2472,47 @@ model CsatSurvey {
   @@index([status])
   @@index([tipo])
 }
+
+// ─── RESULTADO ANUAL HISTÓRICO — snapshot agregado por ano ────────────────────
+// Guarda o fechamento comercial de anos anteriores (ex.: 2025), extraído de
+// relatórios/apresentações externas ao CRM, para comparação com o ano corrente
+// (que é calculado ao vivo a partir de Lead/ContratoComercial/VendaAdicional).
+// Não é ligado a Cliente/Contrato reais — é só um retrato numérico do ano.
+model ResultadoAnualHistorico {
+  id   String @id @default(cuid())
+  ano  Int    @unique
+
+  meta_contratos     Int?   // meta de novos contratos no ano
+  meta_receita_setup Float? // meta de receita de instalação/setup
+  meta_receita_servicos Float? // meta de receita em serviços
+
+  novos_contratos       Int    @default(0)
+  receita_instalacao    Float  @default(0) // total de setup fechado no ano
+  ticket_medio_instalacao Float @default(0)
+  receita_servicos      Float  @default(0) // total em serviços (ex.: fiscal)
+  ticket_medio_servicos Float  @default(0)
+  receita_recorrente_anual Float @default(0) // MRR contratado * 12 (valor total recorrente)
+  ticket_medio_mensalidade Float @default(0)
+  faturamento_direto_total Float @default(0) // caixa gerado no ano (setup + serviços)
+
+  contratos_encerrados Int   @default(0) // churn em nº de contratos
+  churn_valor_mensal   Float @default(0) // mensalidade total perdida (R$/mês)
+  churn_valor_anualizado Float @default(0) // perda anualizada estimada
+
+  // Breakdowns em JSON: [{ "chave": "...", "quantidade": N }, ...]
+  entradas_por_estado   Json?
+  entradas_por_cidade   Json?
+  entradas_por_segmento Json?
+  planos_mais_contratados Json?
+  saida_por_segmento    Json?
+  motivos_saida         Json? // [{ motivo, quantidade }]
+  saida_por_mes         Json? // [{ mes: "JANEIRO", quantidade }]
+
+  observacoes String? @db.Text
+
+  created_by String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([ano])
+}
