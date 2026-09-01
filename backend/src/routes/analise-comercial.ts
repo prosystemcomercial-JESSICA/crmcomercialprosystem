@@ -506,4 +506,106 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
       },
     });
   });
+
+  // ── Comparativo Anual ──────────────────────────────────────────────────────
+  // Compara o ano corrente (calculado ao vivo a partir de ContratoComercial/
+  // VendaAdicional) com anos anteriores guardados em ResultadoAnualHistorico
+  // (snapshot importado de relatórios externos, ex.: 2025). Não tem escopo por
+  // vendedor — é uma visão de gestão (resultado da empresa como um todo).
+  fastify.get('/analise-comercial/comparativo-anual', async (request, reply) => {
+    const q = z.object({ ano: z.coerce.number().int().optional() }).safeParse(request.query);
+    const anoAtual = q.success && q.data.ano ? q.data.ano : new Date().getFullYear();
+    const inicioAno = new Date(anoAtual, 0, 1);
+    const fimAno = new Date(anoAtual + 1, 0, 1);
+
+    const [historicos, contratosAno, contratosEncerradosAno, vendasServicosAno, mrrAtivoAno] = await Promise.all([
+      prisma.resultadoAnualHistorico.findMany({ orderBy: { ano: 'asc' } }),
+      prisma.contratoComercial.findMany({
+        where: { status: 'ASSINADO', signed_at: { gte: inicioAno, lt: fimAno } },
+        select: { valor_setup_total: true, mensalidade: true },
+      }).catch(() => [] as any[]),
+      prisma.contratoComercial.findMany({
+        where: { status: 'RECUADO', recuado_at: { gte: inicioAno, lt: fimAno } },
+        select: { mensalidade: true },
+      }).catch(() => [] as any[]),
+      prisma.vendaAdicional.findMany({
+        where: { status: { in: ['CONFIRMADA', 'PAGA'] }, created_at: { gte: inicioAno, lt: fimAno } },
+        select: { valor_venda: true },
+      }).catch(() => [] as any[]),
+      prisma.contratoComercial.aggregate({
+        where: { status: 'ASSINADO' },
+        _sum: { mensalidade: true },
+      }).catch(() => ({ _sum: { mensalidade: 0 } }) as any),
+    ]);
+
+    const novosContratosAno = contratosAno.length;
+    const receitaInstalacaoAno = contratosAno.reduce((s, c) => s + (c.valor_setup_total || 0), 0);
+    const receitaRecorrenteAnualAno = contratosAno.reduce((s, c) => s + (c.mensalidade || 0), 0) * 12;
+    const receitaServicosAno = vendasServicosAno.reduce((s, v) => s + (v.valor_venda || 0), 0);
+    const contratosEncerradosCountAno = contratosEncerradosAno.length;
+    const churnValorMensalAno = contratosEncerradosAno.reduce((s, c) => s + (c.mensalidade || 0), 0);
+
+    const anoCorrenteResumo = {
+      ano: anoAtual,
+      fonte: 'AO_VIVO' as const,
+      novos_contratos: novosContratosAno,
+      receita_instalacao: Math.round(receitaInstalacaoAno),
+      ticket_medio_instalacao: novosContratosAno > 0 ? Math.round((receitaInstalacaoAno / novosContratosAno) * 100) / 100 : 0,
+      receita_servicos: Math.round(receitaServicosAno),
+      receita_recorrente_anual: Math.round(receitaRecorrenteAnualAno),
+      faturamento_direto_total: Math.round(receitaInstalacaoAno + receitaServicosAno),
+      contratos_encerrados: contratosEncerradosCountAno,
+      churn_valor_mensal: Math.round(churnValorMensalAno),
+      churn_valor_anualizado: Math.round(churnValorMensalAno * 12),
+      mrr_base_ativo_hoje: Math.round(mrrAtivoAno._sum.mensalidade || 0),
+    };
+
+    const historicosFormatados = historicos.map(h => ({
+      ano: h.ano,
+      fonte: 'HISTORICO' as const,
+      meta_contratos: h.meta_contratos,
+      meta_receita_setup: h.meta_receita_setup,
+      meta_receita_servicos: h.meta_receita_servicos,
+      novos_contratos: h.novos_contratos,
+      receita_instalacao: h.receita_instalacao,
+      ticket_medio_instalacao: h.ticket_medio_instalacao,
+      receita_servicos: h.receita_servicos,
+      ticket_medio_servicos: h.ticket_medio_servicos,
+      receita_recorrente_anual: h.receita_recorrente_anual,
+      ticket_medio_mensalidade: h.ticket_medio_mensalidade,
+      faturamento_direto_total: h.faturamento_direto_total,
+      contratos_encerrados: h.contratos_encerrados,
+      churn_valor_mensal: h.churn_valor_mensal,
+      churn_valor_anualizado: h.churn_valor_anualizado,
+      entradas_por_estado: h.entradas_por_estado,
+      entradas_por_cidade: h.entradas_por_cidade,
+      entradas_por_segmento: h.entradas_por_segmento,
+      planos_mais_contratados: h.planos_mais_contratados,
+      saida_por_segmento: h.saida_por_segmento,
+      motivos_saida: h.motivos_saida,
+      saida_por_mes: h.saida_por_mes,
+      observacoes: h.observacoes,
+    }));
+
+    // Diffs simples ano atual vs. o histórico imediatamente anterior (ex.: 2026 vs 2025)
+    const anoAnteriorHist = historicosFormatados.filter(h => h.ano < anoAtual).sort((a, b) => b.ano - a.ano)[0] || null;
+    const pct = (atual: number, anterior: number | null | undefined) =>
+      anterior && anterior > 0 ? Math.round(((atual - anterior) / anterior) * 1000) / 10 : null;
+    const comparativo = anoAnteriorHist ? {
+      ano_base: anoAnteriorHist.ano,
+      novos_contratos_pct: pct(anoCorrenteResumo.novos_contratos, anoAnteriorHist.novos_contratos),
+      receita_instalacao_pct: pct(anoCorrenteResumo.receita_instalacao, anoAnteriorHist.receita_instalacao),
+      receita_recorrente_anual_pct: pct(anoCorrenteResumo.receita_recorrente_anual, anoAnteriorHist.receita_recorrente_anual),
+      churn_contratos_pct: pct(anoCorrenteResumo.contratos_encerrados, anoAnteriorHist.contratos_encerrados),
+    } : null;
+
+    return reply.send({
+      status: 'success',
+      data: {
+        ano_atual: anoCorrenteResumo,
+        historicos: historicosFormatados,
+        comparativo,
+      },
+    });
+  });
 }

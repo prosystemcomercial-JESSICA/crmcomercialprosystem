@@ -44,6 +44,39 @@ interface AnaliseComercial {
   sla_resposta_lead: { media_horas: number | null; mediana_horas: number | null; amostra: number };
 }
 
+// ── Types (espelha a resposta de GET /analise-comercial/comparativo-anual) ──
+interface AnoResumo {
+  ano: number;
+  fonte: 'AO_VIVO' | 'HISTORICO';
+  meta_contratos?: number | null;
+  novos_contratos: number;
+  receita_instalacao: number;
+  ticket_medio_instalacao: number;
+  receita_servicos: number;
+  receita_recorrente_anual: number;
+  faturamento_direto_total: number;
+  contratos_encerrados: number;
+  churn_valor_mensal: number;
+  churn_valor_anualizado: number;
+  mrr_base_ativo_hoje?: number;
+  entradas_por_estado?: { estado: string; quantidade: number }[];
+  entradas_por_segmento?: { segmento: string; quantidade: number }[];
+  planos_mais_contratados?: { plano: string; quantidade: number }[];
+  motivos_saida?: { motivo: string; quantidade: number }[];
+  observacoes?: string | null;
+}
+interface ComparativoAnual {
+  ano_atual: AnoResumo;
+  historicos: AnoResumo[];
+  comparativo: {
+    ano_base: number;
+    novos_contratos_pct: number | null;
+    receita_instalacao_pct: number | null;
+    receita_recorrente_anual_pct: number | null;
+    churn_contratos_pct: number | null;
+  } | null;
+}
+
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
 const pct = (v: number | null) => (v === null || v === undefined ? '—' : `${v.toFixed(1)}%`);
@@ -102,6 +135,7 @@ export default function AnaliseComercialPage() {
   const [periodoMeses, setPeriodoMeses] = useState(12);
   const [vendedorId, setVendedorId] = useState('');
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
+  const [comparativoAnual, setComparativoAnual] = useState<ComparativoAnual | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -123,6 +157,12 @@ export default function AnaliseComercialPage() {
   }, [vendedorId, periodoMeses]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    apiClient.getComparativoAnual().then(res => {
+      setComparativoAnual(res.data?.data || null);
+    }).catch(e => console.error('[ANALISE-COMERCIAL] erro ao carregar comparativo anual:', e));
+  }, []);
 
   useEffect(() => {
     if (!gestor) return;
@@ -233,6 +273,68 @@ export default function AnaliseComercialPage() {
                 </div>
               </div>
             </div>
+
+            {/* ─── Comparativo Anual (ano corrente vs. anos anteriores) ── */}
+            {comparativoAnual && comparativoAnual.historicos.length > 0 && (
+              <Card>
+                <SectionTitle icon={Calendar} title={`Comparativo Anual — ${comparativoAnual.ano_atual.ano} vs. anos anteriores`}
+                  subtitle="Ano corrente calculado ao vivo a partir dos contratos do CRM; anos anteriores importados de relatórios de fechamento" />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                        <th className="text-left py-2 px-2 font-semibold" style={{ color: 'var(--t-text-muted)' }}>Indicador</th>
+                        {[...comparativoAnual.historicos, comparativoAnual.ano_atual].map(a => (
+                          <th key={a.ano} className="text-right py-2 px-2 font-semibold" style={{ color: a.fonte === 'AO_VIVO' ? 'var(--t-primary)' : 'var(--t-text-muted)' }}>
+                            {a.ano}{a.fonte === 'AO_VIVO' ? ' (ao vivo)' : ''}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: 'Novos contratos', key: 'novos_contratos' as const, isMoney: false },
+                        { label: 'Receita de instalação (setup)', key: 'receita_instalacao' as const, isMoney: true },
+                        { label: 'Receita de serviços', key: 'receita_servicos' as const, isMoney: true },
+                        { label: 'Receita recorrente anual contratada', key: 'receita_recorrente_anual' as const, isMoney: true },
+                        { label: 'Faturamento direto total', key: 'faturamento_direto_total' as const, isMoney: true },
+                        { label: 'Contratos encerrados (churn)', key: 'contratos_encerrados' as const, isMoney: false },
+                        { label: 'Perda mensal por churn', key: 'churn_valor_mensal' as const, isMoney: true },
+                      ].map(row => (
+                        <tr key={row.key} style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                          <td className="py-2 px-2" style={{ color: 'var(--t-text-secondary)' }}>{row.label}</td>
+                          {[...comparativoAnual.historicos, comparativoAnual.ano_atual].map(a => (
+                            <td key={a.ano} className="text-right py-2 px-2 font-semibold" style={{ color: 'var(--t-text-primary)' }}>
+                              {row.isMoney ? fmt(a[row.key] as number) : (a[row.key] as number).toLocaleString('pt-BR')}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {comparativoAnual.comparativo && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                    {[
+                      { label: 'Novos contratos', v: comparativoAnual.comparativo.novos_contratos_pct },
+                      { label: 'Receita de instalação', v: comparativoAnual.comparativo.receita_instalacao_pct },
+                      { label: 'Receita recorrente anual', v: comparativoAnual.comparativo.receita_recorrente_anual_pct },
+                      { label: 'Contratos encerrados (churn)', v: comparativoAnual.comparativo.churn_contratos_pct, invertido: true },
+                    ].map(item => {
+                      const positivo = item.v !== null && (item.invertido ? item.v < 0 : item.v >= 0);
+                      return (
+                        <div key={item.label} className="rounded-xl p-3" style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                          <p className="text-[11px] mb-1" style={{ color: 'var(--t-text-muted)' }}>{item.label} vs. {comparativoAnual.comparativo!.ano_base}</p>
+                          <p className="text-lg font-bold" style={{ color: item.v === null ? 'var(--t-text-muted)' : positivo ? '#16a34a' : '#dc2626' }}>
+                            {item.v === null ? '—' : `${item.v > 0 ? '+' : ''}${item.v.toFixed(1)}%`}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+            )}
 
             {/* ─── KPIs de resumo ─────────────────── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
