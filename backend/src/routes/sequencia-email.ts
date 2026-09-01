@@ -1,11 +1,58 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { entrarNaSequencia, pausarSequencia } from '@/services/sequencia-email.service';
 import { requireGestor } from '@/lib/scope';
 
+// Tolerância de relógio recomendada pela Svix (biblioteca usada pelo Resend) — evita replay de payloads antigos.
+const SVIX_TIMESTAMP_TOLERANCE_SECONDS = 5 * 60;
+
+/** Valida a assinatura HMAC (formato Svix) que o Resend envia em todo webhook. */
+function verificarAssinaturaResend(rawBody: Buffer, headers: FastifyRequest['headers'], secret: string): boolean {
+  const svixId = headers['svix-id'];
+  const svixTimestamp = headers['svix-timestamp'];
+  const svixSignature = headers['svix-signature'];
+  if (typeof svixId !== 'string' || typeof svixTimestamp !== 'string' || typeof svixSignature !== 'string') {
+    return false;
+  }
+
+  const timestampSeconds = Number(svixTimestamp);
+  if (!Number.isFinite(timestampSeconds) || Math.abs(Date.now() / 1000 - timestampSeconds) > SVIX_TIMESTAMP_TOLERANCE_SECONDS) {
+    return false;
+  }
+
+  const secretBytes = Buffer.from(secret.startsWith('whsec_') ? secret.slice(6) : secret, 'base64');
+  const signedContent = `${svixId}.${svixTimestamp}.${rawBody.toString('utf8')}`;
+  const expectedSignature = crypto.createHmac('sha256', secretBytes).update(signedContent).digest('base64');
+  const expectedBuffer = Buffer.from(expectedSignature, 'base64');
+
+  return svixSignature.split(' ').some((entry) => {
+    const [version, value] = entry.split(',');
+    if (version !== 'v1' || !value) return false;
+    const candidate = Buffer.from(value, 'base64');
+    return candidate.length === expectedBuffer.length && crypto.timingSafeEqual(candidate, expectedBuffer);
+  });
+}
+
 export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
+
+  // Escopo deste plugin apenas (encapsulamento do Fastify): preserva o corpo cru
+  // em bytes para permitir a validação de assinatura do webhook do Resend abaixo,
+  // sem afetar o parser JSON global usado pelas outras rotas do sistema.
+  fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (request, body, done) => {
+    (request as any).rawBody = body;
+    if (!body || (body as Buffer).length === 0) {
+      done(null, {});
+      return;
+    }
+    try {
+      done(null, JSON.parse((body as Buffer).toString('utf8')));
+    } catch (err) {
+      done(err as Error, undefined);
+    }
+  });
 
   // Lista as sequências disponíveis (hoje só Padarias, mas já preparado p/ mais).
   fastify.get('/sequencias-email', async (request, reply) => {
@@ -133,13 +180,24 @@ export async function sequenciaEmailRoutes(fastify: FastifyInstance, options: { 
   });
 
   // Webhook do Resend — evento "email.clicked" pausa a sequência automaticamente.
-  // TODO(hardening): validar assinatura svix (RESEND_WEBHOOK_SECRET) antes de confiar no payload.
   //
   // Ação manual pendente (não é código): após o deploy desta rota em produção, configurar
   // no painel do Resend (resend.com/webhooks) um endpoint apontando para
   // https://crmcomercialprosystem-production-945e.up.railway.app/webhooks/resend,
-  // escutando o evento "email.clicked".
+  // escutando o evento "email.clicked", e definir RESEND_WEBHOOK_SECRET (valor "Signing Secret"
+  // mostrado pelo Resend ao criar o endpoint) nas variáveis de ambiente do backend.
   fastify.post('/webhooks/resend', async (request, reply) => {
+    const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      fastify.log.error('RESEND_WEBHOOK_SECRET não configurado — recusando webhook do Resend');
+      return reply.status(500).send({ status: 'error', message: 'Webhook não configurado' });
+    }
+
+    const rawBody = (request as any).rawBody as Buffer | undefined;
+    if (!rawBody || !verificarAssinaturaResend(rawBody, request.headers, webhookSecret)) {
+      return reply.status(400).send({ status: 'error', message: 'Assinatura inválida' });
+    }
+
     const body = request.body as any;
     if (body?.type !== 'email.clicked') return reply.send({ status: 'ignored' });
 

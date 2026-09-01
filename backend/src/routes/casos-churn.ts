@@ -48,6 +48,13 @@ export async function casosChurnRoutes(
           });
         }
 
+        if (error.name === 'BadRequestError') {
+          return reply.status(400).send({
+            status: 'error',
+            message: error.message
+          });
+        }
+
         return reply.status(500).send({
           status: 'error',
           message: 'Erro ao criar caso'
