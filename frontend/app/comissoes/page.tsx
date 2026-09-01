@@ -441,6 +441,26 @@ export default function ComissoesPage() {
               })}
             </div>
 
+            {/* Bônus da supervisão comercial — só gestor vê (bonus_supervisao vem null p/ vendedor) */}
+            {bonus.bonus_supervisao && (
+              <div className="mt-3 border-t pt-3" style={{ borderColor: '#fde68a' }}>
+                <div className="rounded-lg border border-gray-100 p-3" style={{ background: '#fffbeb' }}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="font-medium text-xs">👤 Supervisão comercial</span>
+                    <span className="text-sm">
+                      <b className="text-sm font-semibold">{bonus.bonus_supervisao.total_setor}</b> <span className="text-gray-400">contratos do setor</span>
+                      {bonus.bonus_supervisao.premio > 0
+                        ? <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">🏆 {bonus.bonus_supervisao.faixa_atingida} · R$ {bonus.bonus_supervisao.premio.toLocaleString('pt-BR')}</span>
+                        : <span className="ml-2 text-xs">nenhuma faixa atingida ainda</span>}
+                    </span>
+                  </div>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--t-text-muted)' }}>
+                    Critério alternativo — {bonus.bonus_supervisao.vendedor_referencia}: {bonus.bonus_supervisao.contratos_vendedor_referencia} contratos no trimestre.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Botão + tabela de contratos do trimestre */}
             <div className="mt-3 border-t pt-3" style={{ borderColor: '#fde68a' }}>
               <button onClick={carregarBonusContratos}
