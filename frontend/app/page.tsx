@@ -86,7 +86,7 @@ export default function Home() {
           className="absolute inset-0"
           style={{
             backgroundImage: "url('/login-bg-crescimento.jpg')",
-            backgroundPosition: 'center',
+            backgroundPosition: 'center 30%',
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
           }}
@@ -102,10 +102,10 @@ export default function Home() {
           style={{ height: 220, background: 'linear-gradient(to top, rgba(5,14,30,0.9) 0%, transparent 100%)' }}
         />
 
-        <div className="relative z-10 flex flex-col items-center text-center h-full px-14">
-          {/* Título com divisores — pt-[12%] alinha ao mesmo padrão da
-              Universidade Prosystem. */}
-          <div style={{ paddingTop: '12%' }}>
+        <div className="relative z-10 flex flex-col items-center text-center h-full px-14 py-8 overflow-hidden">
+          {/* Título com divisores — padding fluido (clamp) em vez de % fixo,
+              para nao espremer o conteudo do meio em telas de altura curta. */}
+          <div style={{ paddingTop: 'clamp(12px, 6vh, 64px)' }}>
             <h1 className="text-3xl font-extrabold uppercase tracking-wide whitespace-nowrap mb-3" style={{ color: '#fff' }}>
               CRM <span style={{ color: '#8FC4F0' }}>Comercial</span>
             </h1>
@@ -129,8 +129,8 @@ export default function Home() {
           </div>
 
           {/* Rodapé: carrossel de benefícios + dots + copyright */}
-          <div className="w-full pb-11">
-            <div className="w-full max-w-[460px] mx-auto" style={{ marginTop: 44 }}>
+          <div className="w-full" style={{ paddingBottom: 'clamp(12px, 4vh, 44px)' }}>
+            <div className="w-full max-w-[460px] mx-auto" style={{ marginTop: 'clamp(12px, 4vh, 44px)' }}>
               {BENEFICIOS.map((b, i) => {
                 const Icon = b.icon;
                 if (i !== beneficioAtivo) return null;
@@ -158,7 +158,7 @@ export default function Home() {
                 );
               })}
             </div>
-            <div className="flex items-center justify-center gap-2 mt-3.5 mb-7">
+            <div className="flex items-center justify-center gap-2" style={{ marginTop: 14, marginBottom: 'clamp(8px, 3vh, 28px)' }}>
               {BENEFICIOS.map((b, i) => (
                 <button
                   key={b.titulo}
