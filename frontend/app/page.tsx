@@ -106,24 +106,24 @@ export default function Home() {
           {/* Título com divisores — padding fluido (clamp) em vez de % fixo,
               para nao espremer o conteudo do meio em telas de altura curta. */}
           <div style={{ paddingTop: 'clamp(12px, 6vh, 64px)' }}>
-            <h1 className="text-3xl font-extrabold uppercase tracking-wide whitespace-nowrap mb-3" style={{ color: '#fff' }}>
+            <h1 className="font-extrabold uppercase tracking-wide whitespace-nowrap mb-4" style={{ color: '#fff', fontSize: 'clamp(28px, 3.2vw, 44px)' }}>
               CRM <span style={{ color: '#8FC4F0' }}>Comercial</span>
             </h1>
-            <div className="flex items-center justify-center gap-2.5">
-              <div className="w-7 h-0.5 rounded-full" style={{ background: 'linear-gradient(90deg, var(--t-primary-deep), var(--t-primary))' }} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(125,179,234,0.9)' }}>
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-9 h-[3px] rounded-full" style={{ background: 'linear-gradient(90deg, var(--t-primary-deep), var(--t-primary))' }} />
+              <span className="font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(125,179,234,0.9)', fontSize: 'clamp(12px, 1vw, 14px)' }}>
                 Gestão comercial e retenção de clientes
               </span>
-              <div className="w-7 h-0.5 rounded-full" style={{ background: 'linear-gradient(90deg, var(--t-primary-deep), var(--t-primary))' }} />
+              <div className="w-9 h-[3px] rounded-full" style={{ background: 'linear-gradient(90deg, var(--t-primary-deep), var(--t-primary))' }} />
             </div>
           </div>
 
           {/* Frase de destaque, centralizada no espaço restante */}
-          <div className="flex-1 flex flex-col items-center justify-center max-w-[560px]">
-            <h2 className="text-2xl font-medium leading-relaxed mb-2.5" style={{ color: 'rgba(255,255,255,0.9)' }}>
+          <div className="flex-1 flex flex-col items-center justify-center max-w-[640px]">
+            <h2 className="font-medium leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'clamp(22px, 2.6vw, 34px)' }}>
               Quanto mais você <span className="font-extrabold" style={{ color: '#8FC4F0' }}>organiza</span> suas vendas, mais sua empresa <span className="font-extrabold" style={{ color: '#8FC4F0' }}>cresce</span>.
             </h2>
-            <p className="text-sm leading-relaxed" style={{ color: '#fff' }}>
+            <p className="leading-relaxed" style={{ color: '#fff', fontSize: 'clamp(14px, 1.2vw, 17px)' }}>
               Leads, funil de vendas, retenção e performance da sua equipe em um único lugar, construído com 16 anos de conhecimento real do seu setor.
             </p>
           </div>
