@@ -2377,6 +2377,17 @@ model WhatsappConversa {
   etiqueta     String?
   etiqueta_cor String? @default("#6b7280")
 
+  // ── Kanban comercial (fila de atendimento) ──────────────────────────────
+  // Etapa do funil: NOVO_CONTATO|EM_NEGOCIACAO|PROPOSTA_ENVIADA|AGUARDANDO_RETORNO|FECHADO
+  estagio_funil String @default("NOVO_CONTATO")
+  // Prioridade manual, definida pelo vendedor/gestão ao abrir a conversa.
+  prioridade    String @default("NORMAL") // BAIXA|NORMAL|CRITICA
+
+  // SLA de resposta: contado a partir da última mensagem ENTRADA sem resposta
+  // do CRM. sla_prazo_em é recalculado a cada mensagem de entrada/saída e a
+  // cada troca de prioridade (ver services/sla.ts para as horas por nível).
+  sla_prazo_em DateTime?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -2386,6 +2397,8 @@ model WhatsappConversa {
   @@index([dono_id])
   @@index([lead_id])
   @@index([ultima_em])
+  @@index([estagio_funil])
+  @@index([prioridade])
 }
 
 model WhatsappMensagem {
@@ -2479,34 +2492,34 @@ model CsatSurvey {
 // (que é calculado ao vivo a partir de Lead/ContratoComercial/VendaAdicional).
 // Não é ligado a Cliente/Contrato reais — é só um retrato numérico do ano.
 model ResultadoAnualHistorico {
-  id   String @id @default(cuid())
-  ano  Int    @unique
+  id  String @id @default(cuid())
+  ano Int    @unique
 
-  meta_contratos     Int?   // meta de novos contratos no ano
-  meta_receita_setup Float? // meta de receita de instalação/setup
+  meta_contratos        Int? // meta de novos contratos no ano
+  meta_receita_setup    Float? // meta de receita de instalação/setup
   meta_receita_servicos Float? // meta de receita em serviços
 
-  novos_contratos       Int    @default(0)
-  receita_instalacao    Float  @default(0) // total de setup fechado no ano
-  ticket_medio_instalacao Float @default(0)
-  receita_servicos      Float  @default(0) // total em serviços (ex.: fiscal)
-  ticket_medio_servicos Float  @default(0)
+  novos_contratos          Int   @default(0)
+  receita_instalacao       Float @default(0) // total de setup fechado no ano
+  ticket_medio_instalacao  Float @default(0)
+  receita_servicos         Float @default(0) // total em serviços (ex.: fiscal)
+  ticket_medio_servicos    Float @default(0)
   receita_recorrente_anual Float @default(0) // MRR contratado * 12 (valor total recorrente)
   ticket_medio_mensalidade Float @default(0)
   faturamento_direto_total Float @default(0) // caixa gerado no ano (setup + serviços)
 
-  contratos_encerrados Int   @default(0) // churn em nº de contratos
-  churn_valor_mensal   Float @default(0) // mensalidade total perdida (R$/mês)
+  contratos_encerrados   Int   @default(0) // churn em nº de contratos
+  churn_valor_mensal     Float @default(0) // mensalidade total perdida (R$/mês)
   churn_valor_anualizado Float @default(0) // perda anualizada estimada
 
   // Breakdowns em JSON: [{ "chave": "...", "quantidade": N }, ...]
-  entradas_por_estado   Json?
-  entradas_por_cidade   Json?
-  entradas_por_segmento Json?
+  entradas_por_estado     Json?
+  entradas_por_cidade     Json?
+  entradas_por_segmento   Json?
   planos_mais_contratados Json?
-  saida_por_segmento    Json?
-  motivos_saida         Json? // [{ motivo, quantidade }]
-  saida_por_mes         Json? // [{ mes: "JANEIRO", quantidade }]
+  saida_por_segmento      Json?
+  motivos_saida           Json? // [{ motivo, quantidade }]
+  saida_por_mes           Json? // [{ mes: "JANEIRO", quantidade }]
 
   observacoes String? @db.Text
 
