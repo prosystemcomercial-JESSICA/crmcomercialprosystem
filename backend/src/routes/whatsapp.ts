@@ -3,6 +3,11 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
+import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
+
+// Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
+export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
+export const PRIORIDADES = ['BAIXA', 'NORMAL', 'CRITICA'] as const;
 
 // WhatsApp Inbox multi-instância.
 //   - Cada usuário conecta a SUA instância (instancia_nome = `crm-<userId>`).
@@ -419,6 +424,33 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: upd });
   });
 
+  // Move a conversa entre as colunas do Kanban comercial (drag-and-drop).
+  fastify.patch('/whatsapp/conversas/:id/estagio', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ estagio_funil: z.enum(ESTAGIOS_FUNIL) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Etapa inválida' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const upd = await prisma.whatsappConversa.update({ where: { id }, data: { estagio_funil: body.data.estagio_funil } });
+    return reply.send({ status: 'success', data: upd });
+  });
+
+  // Define a prioridade manual da conversa (recalcula o prazo de SLA).
+  fastify.patch('/whatsapp/conversas/:id/prioridade', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ prioridade: z.enum(PRIORIDADES) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Prioridade inválida' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    // Só recalcula o prazo se o SLA já estava contando (última msg era de entrada).
+    const novoPrazo = conversa.sla_prazo_em ? calcularSlaPrazo(body.data.prioridade) : null;
+    const upd = await prisma.whatsappConversa.update({
+      where: { id },
+      data: { prioridade: body.data.prioridade, sla_prazo_em: novoPrazo },
+    });
+    return reply.send({ status: 'success', data: upd });
+  });
+
   // Transferir a conversa (e o lead) para outro vendedor — SÓ GESTÃO.
   fastify.post('/whatsapp/conversas/:id/transferir', async (request, reply) => {
     if (!requireGestor(request, reply)) return; // só gestora/diretora transfere
@@ -454,6 +486,59 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       });
     } catch { /* ignora se o módulo não existir */ }
     return reply.send({ status: 'success', data: rows });
+  });
+
+  // Painel lateral da conversa: resumo comercial (cliente vinculado, proposta em
+  // aberto, tempo de casa) para a tela de atendimento — não pesa a listagem.
+  fastify.get('/whatsapp/conversas/:id/painel', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const filtro = podeVerTudo(getUser(request)) ? {} : escopoDono(request);
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...filtro } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    let cliente: any = null;
+    if (conversa.cliente_id) {
+      cliente = await prisma.cliente.findUnique({
+        where: { id: conversa.cliente_id },
+        select: {
+          id: true, codigo: true, razao_social: true, nome_fantasia: true, nome: true,
+          plano: true, segmento: true, situacao: true, mensalidade_base: true,
+          data_entrada: true, cnpj: true,
+        },
+      }).catch(() => null);
+    }
+
+    // Proposta em aberto: casa por CNPJ do cliente vinculado ou pelo telefone do
+    // contato (sem FK estruturada entre Proposta e Cliente, é o que dá pra usar).
+    const sufTel = conversa.contato_numero.slice(-8);
+    const proposta = await prisma.propostaComercial.findFirst({
+      where: {
+        deleted_at: null,
+        status: { in: ['RASCUNHO', 'ENVIADA', 'EM_NEGOCIACAO'] },
+        OR: [
+          ...(cliente?.cnpj ? [{ cnpj: cliente.cnpj }] : []),
+          { responsavel_telefone: { contains: sufTel } },
+        ],
+      },
+      orderBy: { created_at: 'desc' },
+      select: { id: true, status: true, valor_final: true, titulo_proposta: true, validade: true, created_at: true },
+    }).catch(() => null);
+
+    const responsavel = conversa.dono_id
+      ? await prisma.usuarioCRM.findUnique({ where: { id: conversa.dono_id }, select: { nome: true, cargo: true } }).catch(() => null)
+      : null;
+
+    return reply.send({
+      status: 'success',
+      data: {
+        cliente,
+        proposta,
+        responsavel: responsavel ? { nome: responsavel.nome, cargo: responsavel.cargo } : null,
+        prioridade: conversa.prioridade,
+        estagio_funil: conversa.estagio_funil,
+        sla_prazo_em: conversa.sla_prazo_em,
+      },
+    });
   });
 
   // Mensagens de uma conversa (valida escopo) + marca como lidas.
@@ -512,7 +597,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     });
     await prisma.whatsappConversa.update({
       where: { id },
-      data: { ultima_mensagem: body.data.texto.slice(0, 200), ultima_em: new Date() },
+      data: { ultima_mensagem: body.data.texto.slice(0, 200), ultima_em: new Date(), sla_prazo_em: null },
     });
 
     return reply.send({ status: 'success', data: msg });
@@ -560,7 +645,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     });
     await prisma.whatsappConversa.update({
       where: { id },
-      data: { ultima_mensagem: '🎤 Áudio', ultima_em: new Date() },
+      data: { ultima_mensagem: '🎤 Áudio', ultima_em: new Date(), sla_prazo_em: null },
     });
 
     return reply.send({ status: 'success', data: msg });
@@ -711,7 +796,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         // Conversa nova? (antes do upsert) — define se o bot deve iniciar.
         const ehNova = !conversaExistente;
 
-        // Upsert da conversa (1 por instância+contato).
+        // Upsert da conversa (1 por instância+contato). Mensagem de entrada
+        // (re)inicia a contagem do SLA de resposta na prioridade vigente.
+        const prioridadeAtual = conversaExistente
+          ? ((await prisma.whatsappConversa.findUnique({ where: { id: conversaExistente.id }, select: { prioridade: true } }))?.prioridade || 'NORMAL')
+          : 'NORMAL';
         const conversa = await prisma.whatsappConversa.upsert({
           where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
           create: {
@@ -725,6 +814,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
             nao_lidas: 1,
             bot_ativo: true,           // número novo → bot conduz a qualificação
             bot_estado: 'SAUDACAO',
+            sla_prazo_em: calcularSlaPrazo('NORMAL'),
           },
           update: {
             contato_nome: contato_nome || undefined,
@@ -732,6 +822,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
             ultima_mensagem: texto.slice(0, 200),
             ultima_em: new Date(),
             nao_lidas: { increment: 1 },
+            sla_prazo_em: calcularSlaPrazo(prioridadeAtual),
           },
         });
 
