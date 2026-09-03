@@ -562,6 +562,7 @@ export default function LeadsPage() {
   const [metricas, setMetricas]     = useState<Metricas | null>(null);
   const [etapasFunil, setEtapasFunil] = useState<EtapaFunil[]>([]);
   const [showConfigFunil, setShowConfigFunil] = useState(false);
+  const [dragEtapaId, setDragEtapaId] = useState<string | null>(null);
   const [showControle, setShowControle] = useState(false);
   const [controleData, setControleData] = useState<any[]>([]);
   const [showNovaEtapa, setShowNovaEtapa] = useState(false);
@@ -718,6 +719,30 @@ export default function LeadsPage() {
       await loadData();
     } catch (e: any) { console.error('Erro', e); }
   };
+  // Arrastar para reordenar: solta a etapa arrastada na posição da etapa-alvo,
+  // renumera `ordem` sequencialmente (0,1,2...) e persiste só as que mudaram.
+  const moverEtapaFunil = async (idArrastada: string, idAlvo: string) => {
+    if (idArrastada === idAlvo) return;
+    const atual = [...etapasFunil].sort((a, b) => a.ordem - b.ordem);
+    const idxOrigem = atual.findIndex(e => e.id === idArrastada);
+    const idxDestino = atual.findIndex(e => e.id === idAlvo);
+    if (idxOrigem === -1 || idxDestino === -1) return;
+    const [movida] = atual.splice(idxOrigem, 1);
+    atual.splice(idxDestino, 0, movida);
+
+    const comNovaOrdem = atual.map((e, i) => ({ ...e, ordem: i }));
+    setEtapasFunil(comNovaOrdem);
+
+    // A troca de posição pode deslocar a ordem de todas as etapas entre a
+    // origem e o destino — mais simples e seguro persistir todas de uma vez.
+    try {
+      await Promise.all(comNovaOrdem.map(e => apiClient.client.patch(`/funil/etapas/${e.id}`, { ordem: e.ordem })));
+    } catch (err: any) {
+      console.error('Erro ao reordenar etapas', err);
+      await loadData(); // desfaz visualmente se a persistência falhar
+    }
+  };
+
   const removerEtapaFunil = async (etapa: EtapaFunil) => {
     if (etapa.fixo) { return; }
     if (!confirm(`Remover a etapa "${etapa.nome}"?`)) return;
@@ -2566,24 +2591,30 @@ export default function LeadsPage() {
             <div className="p-6 space-y-2 max-h-[70vh] overflow-y-auto">
               {etapasFunil.length === 0 ? (
                 <p className="text-center py-8 text-sm" style={{ color: 'var(--t-text-secondary)' }}>Nenhuma etapa de funil configurada ainda.</p>
-              ) : etapasFunil.map(et => (
-                <div key={et.id} className="grid grid-cols-12 gap-2 items-center p-3 rounded-lg"
-                  style={{ border: `1px solid ${et.fixo ? 'var(--t-primary)' : 'var(--t-card-border)'}`, background: et.fixo ? 'var(--t-primary-light)' : 'var(--t-card-bg)' }}>
+              ) : [...etapasFunil].sort((a, b) => a.ordem - b.ordem).map(et => (
+                <div key={et.id}
+                  draggable
+                  onDragStart={() => setDragEtapaId(et.id)}
+                  onDragEnd={() => setDragEtapaId(null)}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => { if (dragEtapaId) { moverEtapaFunil(dragEtapaId, et.id); setDragEtapaId(null); } }}
+                  className="grid grid-cols-12 gap-2 items-center p-3 rounded-lg transition-opacity"
+                  style={{
+                    border: `1px solid ${et.fixo ? 'var(--t-primary)' : 'var(--t-card-border)'}`,
+                    background: et.fixo ? 'var(--t-primary-light)' : 'var(--t-card-bg)',
+                    opacity: dragEtapaId === et.id ? 0.4 : 1,
+                  }}>
                   {et.fixo && <span className="col-span-12 text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--t-primary)' }}>🔒 Coluna fixa do sistema</span>}
+                  <span className="col-span-1 flex items-center justify-center cursor-grab active:cursor-grabbing text-lg select-none" title="Arraste para reordenar" style={{ color: 'var(--t-text-secondary)' }}>⠿</span>
                   <input value={et.nome}
                     onChange={e => setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, nome: e.target.value } : p))}
                     onBlur={() => editarEtapaFunil(et, { nome: et.nome })}
-                    className="col-span-4 px-2 py-1.5 border rounded text-sm"
+                    className="col-span-3 px-2 py-1.5 border rounded text-sm"
                     style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }} />
                   <input type="color" value={et.cor}
                     onChange={e => setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, cor: e.target.value } : p))}
                     onBlur={() => editarEtapaFunil(et, { cor: et.cor })}
                     className="col-span-1 w-full h-8 border rounded" style={{ borderColor: 'var(--t-card-border)' }} />
-                  <input type="number" value={et.ordem}
-                    onChange={e => setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, ordem: Number(e.target.value) } : p))}
-                    onBlur={() => editarEtapaFunil(et, { ordem: et.ordem })}
-                    className="col-span-1 px-2 py-1.5 border rounded text-sm text-center"
-                    style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }} />
                   {et.fixo ? (
                     <span className="col-span-3 px-2 py-1.5 rounded text-xs font-medium" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)' }}>
                       {et.tipo === 'ANDAMENTO' ? 'Andamento' : et.tipo === 'FECHAMENTO' ? 'Fechamento' : et.tipo === 'PERDIDA' ? 'Perdida' : et.tipo === 'SEM_PERFIL' ? 'Sem perfil' : 'Reativação'}
@@ -2599,7 +2630,7 @@ export default function LeadsPage() {
                       <option value="REATIVACAO">Reativação</option>
                     </select>
                   )}
-                  <span className="col-span-2 text-xs truncate" style={{ color: 'var(--t-text-secondary)' }}>{et.codigo}</span>
+                  <span className="col-span-3 text-xs truncate" style={{ color: 'var(--t-text-secondary)' }}>{et.codigo}</span>
                   {et.fixo ? (
                     <span className="col-span-1 text-center text-sm" title="Coluna fixa — não pode ser removida">🔒</span>
                   ) : (
