@@ -5,6 +5,7 @@ import { getUser, podeVerTudo } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
 import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
 import { entrarNaCadencia, pausarCadencia } from '@/services/whatsapp-cadencia.service';
+import { registrarClienteSSE, emitirEventoConversa } from '@/services/whatsapp-eventos.service';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
 export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
@@ -33,6 +34,26 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const user = getUser(request);
     return { dono_id: user?.id || '__no_user__' };
   }
+
+  // ===== TEMPO REAL (SSE) =====
+  // Substitui o polling do frontend: o navegador abre esta conexão e recebe
+  // "data: {...}" a cada mensagem nova/mudança de conversa, sem precisar
+  // perguntar "tem novidade?" a cada poucos segundos.
+  fastify.get('/whatsapp/eventos', async (request, reply) => {
+    const user = getUser(request);
+    if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no', // desliga buffering de proxy (nginx), essencial p/ SSE
+    });
+    reply.raw.write(': conectado\n\n');
+
+    const remover = registrarClienteSSE(reply, user.id, podeVerTudo(user));
+    request.raw.on('close', remover);
+  });
 
   // ===== STATUS / CONEXÃO =====
 
@@ -726,6 +747,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
             qr_code: state === 'open' ? null : inst.qr_code,
           },
         });
+        emitirEventoConversa(inst.dono_id, 'conversa_atualizada', { instanciaId: inst.id });
         return;
       }
 
@@ -872,7 +894,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           },
         });
 
-        await prisma.whatsappMensagem.create({
+        const mensagemCriada = await prisma.whatsappMensagem.create({
           data: {
             conversaId: conversa.id,
             externo_id,
@@ -884,6 +906,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           },
         });
         console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${instanciaNome})`);
+        emitirEventoConversa(conversa.dono_id, 'mensagem', { conversaId: conversa.id, mensagem: mensagemCriada });
 
         // Lead respondeu: para a cadência automática (não incomodar mais).
         if (conversa.cadencia_proxima_etapa) {
@@ -1116,14 +1139,15 @@ async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
     return;
   }
 
-  await prisma.whatsappMensagem.create({
+  const mensagemPropria = await prisma.whatsappMensagem.create({
     data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo, conteudo: texto, midia_url: midiaUrl, status: 'ENVIADA' },
-  }).catch(() => {});
+  }).catch(() => null);
   await prisma.whatsappConversa.update({
     where: { id: conversa.id },
     data: { ultima_mensagem: texto.slice(0, 200), ultima_em: new Date() },
   }).catch(() => {});
   console.log(`[WPP] Mensagem própria (WhatsApp Web) registrada p/ ${contato_numero}`);
+  if (mensagemPropria) emitirEventoConversa(conversa.dono_id, 'mensagem', { conversaId: conversa.id, mensagem: mensagemPropria });
 }
 
 // Acha um Lead existente pelo telefone do contato, IGNORANDO máscara/DDI.

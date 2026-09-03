@@ -101,8 +101,12 @@ try {
   const _authService = new AuthService();
   fastify.addHook('onRequest', async (request) => {
     const auth = request.headers.authorization;
-    if (!auth) return;
-    const token = auth.replace(/^Bearer\s+/i, '').trim();
+    // EventSource nativo do navegador não manda headers customizados — a
+    // rota de SSE (/whatsapp/eventos) recebe o token via query string em vez
+    // de Authorization. Só essa rota aceita esse fallback (menor superfície).
+    const tokenQuery = request.url.startsWith('/whatsapp/eventos') ? (request.query as any)?.token : undefined;
+    if (!auth && !tokenQuery) return;
+    const token = auth ? auth.replace(/^Bearer\s+/i, '').trim() : tokenQuery;
     if (!token) return;
     try {
       const decoded: any = _authService.verifyAccessToken(token);
@@ -465,6 +469,10 @@ const start = async () => {
     iniciarSchedulerAutomacao();
     iniciarSchedulerSequenciaEmail();
     iniciarSchedulerCadenciaWhatsapp();
+
+    import('./services/whatsapp-eventos.service.js')
+      .then(({ iniciarHeartbeatSSE }) => { iniciarHeartbeatSSE(); console.log('[BOOT] Heartbeat SSE do WhatsApp iniciado'); })
+      .catch((e) => console.error('[BOOT] Falha ao iniciar heartbeat SSE:', e?.message));
 
     // Keepalive: MySQL do Railway fecha conexões idle após ~8 min.
     // Um SELECT 1 a cada 4 min mantém a conexão viva sem custo.
