@@ -8,6 +8,7 @@ import { CONTAS_SISTEMA } from '@/lib/usuarios';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import { bloqueadoParaFecharSeSDR, ehSDR } from '@/lib/sdr-restricoes';
 import { calcularCompletude } from '@/lib/lead-completude';
+import { acharPossiveisDuplicatas } from '@/lib/lead-dedupe';
 
 const LeadSchema = z.object({
   nome:               z.string().min(1),
@@ -754,6 +755,22 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
             data: duplicadoCnpj,
           });
         }
+      }
+    }
+
+    // AVISO (não bloqueio) por telefone/e-mail já cadastrado em outro lead —
+    // diferente do CNPJ, pode ser contato legítimo repetido (ex.: mesmo
+    // celular usado por dois responsáveis). `?confirmar_duplicata=true` pula
+    // essa checagem, para o vendedor confirmar "é intencional, criar mesmo assim".
+    const confirmarDuplicata = (request.query as any)?.confirmar_duplicata === 'true';
+    if (!confirmarDuplicata) {
+      const duplicatas = await acharPossiveisDuplicatas(prisma, data);
+      if (duplicatas.length > 0) {
+        return reply.status(200).send({
+          status: 'aviso_duplicata',
+          message: duplicatas.map(d => `Já existe um lead com o mesmo ${d.campo}: "${d.lead.nome}".`).join(' '),
+          duplicatas,
+        });
       }
     }
 

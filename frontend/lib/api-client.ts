@@ -327,8 +327,8 @@ class ApiClient {
     return this.client.get(`/leads/${id}`);
   }
 
-  async createLead(data: any) {
-    return this.client.post('/leads', data);
+  async createLead(data: any, confirmarDuplicata?: boolean) {
+    return this.client.post('/leads', data, confirmarDuplicata ? { params: { confirmar_duplicata: 'true' } } : undefined);
   }
 
   async fecharLead(id: string, data: {
