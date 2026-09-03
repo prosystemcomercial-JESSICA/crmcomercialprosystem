@@ -293,6 +293,15 @@ function iniciaisDono(nome?: string): string {
 // (não no card do kanban, que mostra completude como texto neutro discreto).
 const corCompletude = (pct: number) => pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
 
+// "há X dias" a partir da última interação — só exibido quando não há
+// próxima ação agendada (senão o card mostraria dois textos concorrentes).
+function diasDesde(dataIso: string): string {
+  const dias = Math.floor((Date.now() - new Date(dataIso).getTime()) / 86_400_000);
+  if (dias <= 0) return 'Interação hoje';
+  if (dias === 1) return 'Última interação: ontem';
+  return `Última interação: há ${dias}d`;
+}
+
 function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
   lead: Lead; onClick: () => void; onDragStart: (e: React.DragEvent) => void;
   onExcluir: () => void; podeExcluir: boolean;
@@ -376,6 +385,33 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
           </p>
         )}
 
+        {/* Valor estimado + próxima ação/última interação — mesma linguagem
+            visual neutra do resto do card, sem badge colorido novo. */}
+        {(lead.valor_estimado || lead.proximo_contato || lead.ultima_obs_at) && (
+          <div className="flex items-center gap-2 flex-wrap mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--t-card-border)' }}>
+            {!!lead.valor_estimado && (
+              <span className="text-[9px] font-semibold" style={{ color: 'var(--t-text-secondary)' }} title="Valor estimado da oportunidade">
+                {lead.valor_estimado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+              </span>
+            )}
+            {lead.proximo_contato && !atrasado && (
+              <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }} title="Próxima ação agendada">
+                Próx.: {new Date(lead.proximo_contato).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+              </span>
+            )}
+            {!lead.proximo_contato && lead.ultima_obs_at && (
+              <span className="text-[9px]" style={{ color: 'var(--t-text-muted)' }} title="Última interação registrada">
+                {diasDesde(lead.ultima_obs_at)}
+              </span>
+            )}
+          </div>
+        )}
+        {!lead.proximo_contato && (
+          <p className="text-[9px] mt-1" style={{ color: 'var(--t-text-muted)' }} title="Defina a próxima ação para este lead">
+            Sem próxima ação definida
+          </p>
+        )}
+
         {/* Tags (exceto SDR, já mostrada junto ao dono) */}
         {outrasTags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
@@ -449,6 +485,14 @@ export default function LeadsPage() {
   // Filtro do quadro: '' = Total (todos), ou id de um vendedor (só gestor).
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [atribuindo, setAtribuindo] = useState(false);
+
+  // Filtros estruturados adicionais (aplicados no front, sobre o kanban já
+  // carregado — não pedem nada novo ao backend).
+  const [filtroOrigem, setFiltroOrigem] = useState('');
+  const [filtroSegmento, setFiltroSegmento] = useState('');
+  const [filtroTemperatura, setFiltroTemperatura] = useState('');
+  const [filtroPeriodo, setFiltroPeriodo] = useState(''); // '7' | '30' | '90' dias, criado nos últimos N
+  const [filtroRisco, setFiltroRisco] = useState(false); // parado 15+ dias sem interação
 
   const [colunas, setColunas]     = useState<KanbanColuna[]>([]);
   const [kanban, setKanban]       = useState<Record<string, Lead[]>>({});
@@ -1262,9 +1306,34 @@ export default function LeadsPage() {
     }
   };
 
-  // Filtered kanban
+  // Opções de origem/segmento derivadas dos leads carregados — evita lista
+  // hardcoded que desatualiza quando surge um valor novo.
+  const origensDisponiveis = Array.from(new Set(Object.values(kanban).flat().map(l => l.origem).filter(Boolean))) as string[];
+  const segmentosDisponiveis = Array.from(new Set(Object.values(kanban).flat().map(l => l.segmento).filter(Boolean))) as string[];
+
+  const RISCO_DIAS = 15;
+  const leadEmRisco = (l: Lead) => {
+    const referencia = l.ultima_obs_at || l.created_at;
+    if (!referencia) return false;
+    const dias = (Date.now() - new Date(referencia).getTime()) / 86_400_000;
+    return dias >= RISCO_DIAS;
+  };
+
+  // Filtered kanban — busca de texto + filtros estruturados, todos aplicados
+  // sobre o kanban já carregado (sem round-trip novo ao backend).
   const filtered = Object.fromEntries(Object.entries(kanban).map(([col, leads]) => [
-    col, search ? leads.filter(l => [l.nome, l.razao_social, l.responsavel_nome, l.segmento].some(v => v?.toLowerCase().includes(search.toLowerCase()))) : leads,
+    col, leads.filter(l => {
+      if (search && ![l.nome, l.razao_social, l.responsavel_nome, l.segmento].some(v => v?.toLowerCase().includes(search.toLowerCase()))) return false;
+      if (filtroOrigem && l.origem !== filtroOrigem) return false;
+      if (filtroSegmento && l.segmento !== filtroSegmento) return false;
+      if (filtroTemperatura && l.temperatura !== filtroTemperatura) return false;
+      if (filtroPeriodo && l.created_at) {
+        const dias = (Date.now() - new Date(l.created_at).getTime()) / 86_400_000;
+        if (dias > Number(filtroPeriodo)) return false;
+      }
+      if (filtroRisco && !leadEmRisco(l)) return false;
+      return true;
+    }),
   ]));
 
   const colConfig = (chave: string) => colunas.find(c => c.chave === chave) || { nome: chave, cor: '#6b7280' };
@@ -1307,6 +1376,41 @@ export default function LeadsPage() {
                 {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
               </select>
             )}
+            {/* Filtros estruturados: origem, segmento, temperatura, período, risco */}
+            <select value={filtroOrigem} onChange={e => setFiltroOrigem(e.target.value)}
+              className="h-8 px-2.5 text-xs rounded-lg outline-none"
+              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: filtroOrigem ? 'var(--t-primary-light)' : 'var(--t-card-bg)', maxWidth: 130 }}>
+              <option value="">Origem (todas)</option>
+              {origensDisponiveis.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <select value={filtroSegmento} onChange={e => setFiltroSegmento(e.target.value)}
+              className="h-8 px-2.5 text-xs rounded-lg outline-none"
+              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: filtroSegmento ? 'var(--t-primary-light)' : 'var(--t-card-bg)', maxWidth: 130 }}>
+              <option value="">Segmento (todos)</option>
+              {segmentosDisponiveis.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={filtroTemperatura} onChange={e => setFiltroTemperatura(e.target.value)}
+              className="h-8 px-2.5 text-xs rounded-lg outline-none"
+              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: filtroTemperatura ? 'var(--t-primary-light)' : 'var(--t-card-bg)', maxWidth: 120 }}>
+              <option value="">Temperatura</option>
+              <option value="QUENTE">Quente</option>
+              <option value="MORNO">Morno</option>
+              <option value="FRIO">Frio</option>
+            </select>
+            <select value={filtroPeriodo} onChange={e => setFiltroPeriodo(e.target.value)}
+              className="h-8 px-2.5 text-xs rounded-lg outline-none"
+              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: filtroPeriodo ? 'var(--t-primary-light)' : 'var(--t-card-bg)', maxWidth: 130 }}>
+              <option value="">Período (todos)</option>
+              <option value="7">Últimos 7 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+            </select>
+            <button onClick={() => setFiltroRisco(v => !v)}
+              title={`Leads parados há ${RISCO_DIAS}+ dias sem interação`}
+              className="h-8 px-2.5 text-xs rounded-lg outline-none font-medium"
+              style={{ border: '1px solid var(--t-card-border)', color: filtroRisco ? '#dc2626' : 'var(--t-text-secondary)', background: filtroRisco ? 'rgba(220,38,38,0.08)' : 'var(--t-card-bg)' }}>
+              Em risco
+            </button>
             <button onClick={loadData} title="Atualizar" className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0" style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--t-card-bg)')}>
