@@ -51,6 +51,9 @@ export async function criarInstancia(instanciaNome: string): Promise<{ qr?: stri
     proxy_managed_country: 'br',
   });
   const qr = data?.qrcode?.base64 || data?.qr || data?.base64 || data?.qrCode;
+  // Diagnóstico temporário: log do payload bruto quando o QR não vem, para
+  // descobrir o formato real de resposta da UazAPI sem expor o token.
+  if (!qr) console.log('[UAZAPI][DIAG] /instance/connect sem qr no payload:', JSON.stringify(data).slice(0, 1000));
   return { qr, status: 'CONECTANDO' };
 }
 
