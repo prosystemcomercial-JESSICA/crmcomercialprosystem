@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
 import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
-import { entrarNaCadencia, pausarCadencia } from '@/services/whatsapp-cadencia.service';
+import { entrarNaCadencia, pausarCadencia, criarTarefaInteresseCadencia } from '@/services/whatsapp-cadencia.service';
 import { registrarClienteSSE, emitirEventoConversa } from '@/services/whatsapp-eventos.service';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
@@ -908,8 +908,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${instanciaNome})`);
         emitirEventoConversa(conversa.dono_id, 'mensagem', { conversaId: conversa.id, mensagem: mensagemCriada });
 
-        // Lead respondeu: para a cadência automática (não incomodar mais).
+        // Lead respondeu: para a cadência automática (não incomodar mais) e
+        // cria uma tarefa urgente para o vendedor retomar o contato — a
+        // resposta durante a cadência é o sinal mais claro de interesse.
         if (conversa.cadencia_proxima_etapa) {
+          await criarTarefaInteresseCadencia(prisma, conversa.id).catch(() => {});
           await pausarCadencia(prisma, conversa.id).catch(() => {});
         }
 
