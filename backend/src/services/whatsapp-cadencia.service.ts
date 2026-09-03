@@ -76,6 +76,31 @@ export async function pausarCadencia(prisma: PrismaClient, conversaId: string) {
   }).catch(() => {});
 }
 
+/**
+ * Lead respondeu durante a cadência automática — sinal de interesse. Cria uma
+ * Atividade do tipo TAREFA com data_prevista = hoje, para o vendedor retomar
+ * o contato manualmente. A tela de Atividades já deriva prioridade visual do
+ * prazo (data_prevista = hoje cai em "Prioridade máxima" automaticamente),
+ * então não precisa de um campo de prioridade dedicado.
+ */
+export async function criarTarefaInteresseCadencia(prisma: PrismaClient, conversaId: string) {
+  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId } }).catch(() => null);
+  if (!conversa || !conversa.lead_id) return; // sem lead vinculado, não há onde registrar a tarefa
+
+  await prisma.atividade.create({
+    data: {
+      lead_id: conversa.lead_id,
+      tipo: 'TAREFA',
+      titulo: `Retomar contato: ${conversa.contato_nome || conversa.contato_numero} respondeu`,
+      descricao: `Lead respondeu durante a cadência automática de WhatsApp (estava em Aguardando Retorno). Retomar o contato manualmente o quanto antes.`,
+      status: 'PENDENTE',
+      data_prevista: new Date(),
+      responsavel_id: conversa.dono_id,
+      created_by: 'cadencia_automatica',
+    },
+  }).catch(() => {});
+}
+
 /** Dispara a próxima etapa pendente de uma conversa (chamado pelo scheduler). */
 export async function dispararProximaEtapaCadencia(prisma: PrismaClient, conversaId: string) {
   const conversa = await prisma.whatsappConversa.findUnique({
