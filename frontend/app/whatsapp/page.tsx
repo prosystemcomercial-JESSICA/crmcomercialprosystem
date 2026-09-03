@@ -164,13 +164,15 @@ export default function WhatsappPage() {
     checarStatus();
   }, [isAuthenticated, checarStatus]);
 
-  // Polling: status enquanto conecta; conversas quando conectado.
+  // Polling: status enquanto conecta. Conversas/mensagens têm SSE (tempo real,
+  // ver useEffect abaixo) — este intervalo aqui fica bem mais longo, só como
+  // rede de segurança caso a conexão SSE caia sem o navegador notar.
   useEffect(() => {
     if (!isAuthenticated) return;
     const t = setInterval(() => {
       if (status === 'CONECTANDO') checarStatus();
       if (status === 'CONECTADO') carregarConversas();
-    }, 5000);
+    }, status === 'CONECTANDO' ? 5000 : 30000);
     return () => clearInterval(t);
   }, [isAuthenticated, status, checarStatus]);
 
@@ -380,7 +382,8 @@ export default function WhatsappPage() {
     } catch (e: any) { console.error('Falha ao definir prioridade', e); }
   };
 
-  // Polling de mensagens da conversa aberta.
+  // Polling de mensagens da conversa aberta — rede de segurança (ver SSE
+  // abaixo), bem mais espaçado agora que o tempo real cobre o caso comum.
   useEffect(() => {
     if (!ativa) return;
     const t = setInterval(async () => {
@@ -388,9 +391,44 @@ export default function WhatsappPage() {
         const res = await apiClient.getWhatsappMensagens(ativa.id);
         setMensagens(res.data.data.mensagens);
       } catch {}
-    }, 4000);
+    }, 20000);
     return () => clearInterval(t);
   }, [ativa]);
+
+  // Tempo real (SSE): substitui o polling curto por push do servidor. Refs
+  // guardam o estado mais recente pra evitar closures obsoletas dentro do
+  // listener (o EventSource é aberto uma única vez por sessão autenticada).
+  const ativaRef = useRef(ativa);
+  useEffect(() => { ativaRef.current = ativa; }, [ativa]);
+
+  useEffect(() => {
+    if (!isAuthenticated || status !== 'CONECTADO') return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (!token) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const es = new EventSource(`${apiUrl}/whatsapp/eventos?token=${encodeURIComponent(token)}`);
+
+    es.onmessage = (ev) => {
+      try {
+        const evento = JSON.parse(ev.data);
+        if (evento.tipo === 'mensagem') {
+          // Mensagem nova de uma conversa: se é a conversa aberta, injeta na
+          // lista de mensagens; sempre recarrega a lista de conversas (última
+          // mensagem/não lidas mudam mesmo se a conversa não estiver aberta).
+          if (ativaRef.current?.id === evento.conversaId) {
+            setMensagens(prev => prev.some(m => m.id === evento.mensagem.id) ? prev : [...prev, evento.mensagem]);
+            setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+          }
+          carregarConversas();
+        } else if (evento.tipo === 'conversa_atualizada') {
+          carregarConversas();
+        }
+      } catch { /* evento malformado — ignora */ }
+    };
+    es.onerror = () => { /* o EventSource reconecta sozinho; o polling de rede de segurança cobre o intervalo */ };
+
+    return () => es.close();
+  }, [isAuthenticated, status, carregarConversas]);
 
   const enviar = async () => {
     if (!texto.trim() || !ativa) return;
