@@ -96,6 +96,22 @@ export async function obterStatus(instanceToken: string): Promise<{ status: 'CON
   }
 }
 
+/**
+ * Configura o webhook da instância (POST /webhook, com o TOKEN DA INSTÂNCIA).
+ * Necessário para toda instância nova — sem isso, mensagens recebidas e ecos
+ * de mensagens enviadas pelo celular nunca chegam ao CRM (só se souber, via
+ * painel da UazAPI ou aqui, configurar isso explicitamente por instância).
+ */
+export async function configurarWebhook(instanceToken: string): Promise<void> {
+  const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  await call('/webhook', 'POST', instanceToken, {
+    url: webhookUrl,
+    enabled: true,
+    events: ['messages', 'connection'],
+  }).catch((e) => console.error('[UAZAPI] Falha ao configurar webhook:', e?.message));
+}
+
 /** Desconecta a instância (com o TOKEN DA INSTÂNCIA). */
 export async function desconectarInstancia(instanceToken: string): Promise<void> {
   await call('/instance/disconnect', 'POST', instanceToken).catch(() => {});
