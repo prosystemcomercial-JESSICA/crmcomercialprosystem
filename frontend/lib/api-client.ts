@@ -1179,6 +1179,15 @@ class ApiClient {
   async etiquetarConversa(id: string, etiqueta: string | null, etiqueta_cor?: string) {
     return this.client.patch(`/whatsapp/conversas/${id}/etiqueta`, { etiqueta, etiqueta_cor });
   }
+  async moverEstagioConversa(id: string, estagio_funil: string) {
+    return this.client.patch(`/whatsapp/conversas/${id}/estagio`, { estagio_funil });
+  }
+  async definirPrioridadeConversa(id: string, prioridade: string) {
+    return this.client.patch(`/whatsapp/conversas/${id}/prioridade`, { prioridade });
+  }
+  async getPainelConversaWhatsapp(id: string) {
+    return this.client.get(`/whatsapp/conversas/${id}/painel`);
+  }
   async transferirConversa(id: string, vendedor_id: string) {
     return this.client.post(`/whatsapp/conversas/${id}/transferir`, { vendedor_id });
   }
