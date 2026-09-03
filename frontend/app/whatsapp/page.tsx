@@ -199,7 +199,7 @@ export default function WhatsappPage() {
 
   // Criar nova instância nomeada (novo número).
   const criarInstancia = async () => {
-    if (!novaInstNome.trim()) { console.warn('Dê um nome para a instância (ex.: Comercial).'); return; }
+    if (!novaInstNome.trim()) { alert('Dê um nome para a instância (ex.: Comercial).'); return; }
     setCriandoInst(true);
     try {
       const res = await apiClient.criarInstanciaWhatsapp(novaInstNome.trim());
@@ -208,7 +208,11 @@ export default function WhatsappPage() {
       setInstAtivaId(res.data.data.instancia.id);
       setStatus('CONECTANDO');
       setQr(res.data.data.qr || null);
-    } catch (e: any) { console.error('Falha ao criar instância', e); }
+      if (!res.data.data.qr) alert('A instância foi criada, mas o QR Code não veio da UazAPI. Tente clicar em "Reconectar" na barra de instâncias.');
+    } catch (e: any) {
+      console.error('Falha ao criar instância', e);
+      alert(`Falha ao conectar o WhatsApp: ${e?.response?.data?.message || e?.message || 'erro desconhecido'}`);
+    }
     finally { setCriandoInst(false); }
   };
 
