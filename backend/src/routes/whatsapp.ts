@@ -10,11 +10,13 @@ import { entrarNaCadencia, pausarCadencia } from '@/services/whatsapp-cadencia.s
 export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
 export const PRIORIDADES = ['BAIXA', 'NORMAL', 'CRITICA'] as const;
 
-// WhatsApp Inbox multi-instância.
-//   - Cada usuário conecta a SUA instância (instancia_nome = `crm-<userId>`).
+// WhatsApp Inbox multi-instância (via UazAPI).
+//   - Cada usuário conecta a SUA instância (instancia_nome = `crm-<userId>`,
+//     um identificador só do CRM — quem autentica na UazAPI é o
+//     instance_token retornado na criação, ver evolution.service.ts).
 //   - Escopo: vendedor vê só as conversas das próprias instâncias (dono_id);
 //     gestão (podeVerTudo) vê todas.
-//   - O webhook de recebimento é público (a Evolution chama sem auth do CRM),
+//   - O webhook de recebimento é público (a UazAPI chama sem auth do CRM),
 //     então ele resolve a instância pelo nome e nunca confia em quem chamou.
 
 export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
@@ -45,12 +47,18 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const nome = instanciaNomeDe(user.id);
     let inst = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: nome } });
 
-    // Sincroniza status real com a Evolution.
-    const statusReal = await evo.obterStatus(nome);
-    if (inst) {
+    // Sincroniza status real com a UazAPI (precisa do token DESSA instância).
+    let statusReal: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO' = 'DESCONECTADO';
+    if (inst?.instance_token) {
+      const r = await evo.obterStatus(inst.instance_token);
+      statusReal = r.status;
       inst = await prisma.whatsappInstancia.update({
         where: { id: inst.id },
-        data: { status: statusReal, conectado_em: statusReal === 'CONECTADO' ? (inst.conectado_em ?? new Date()) : inst.conectado_em },
+        data: {
+          status: statusReal,
+          numero: r.numero || inst.numero,
+          conectado_em: statusReal === 'CONECTADO' ? (inst.conectado_em ?? new Date()) : inst.conectado_em,
+        },
       });
     }
 
@@ -60,7 +68,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     });
   });
 
-  // Inicia conexão: cria a instância na Evolution e devolve o QR Code.
+  // Inicia conexão: cria a instância na UazAPI e devolve o QR Code.
   fastify.post('/whatsapp/conectar', async (request, reply) => {
     const user = getUser(request);
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
@@ -69,20 +77,24 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     }
 
     const nome = instanciaNomeDe(user.id);
+    const existente = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: nome } });
     let qr: string | undefined;
-    try {
+    let instanceToken: string | undefined = existente?.instance_token || undefined;
+    if (!instanceToken) {
+      // Instância nova → cria e guarda o token retornado.
       const r = await evo.criarInstancia(nome);
       qr = r.qr;
-    } catch {
-      // Instância provavelmente já existe → só pega o QR atual.
-      const r = await evo.obterQrCode(nome);
+      instanceToken = r.instanceToken;
+    } else {
+      // Já existe: só reobtém o QR com o token salvo.
+      const r = await evo.obterQrCode(instanceToken);
       qr = r.qr;
     }
 
     await prisma.whatsappInstancia.upsert({
       where: { instancia_nome: nome },
-      create: { instancia_nome: nome, dono_id: user.id, dono_nome: user.nome, status: 'CONECTANDO', qr_code: qr },
-      update: { status: 'CONECTANDO', qr_code: qr },
+      create: { instancia_nome: nome, dono_id: user.id, dono_nome: user.nome, status: 'CONECTANDO', qr_code: qr, instance_token: instanceToken },
+      update: { status: 'CONECTANDO', qr_code: qr, ...(instanceToken ? { instance_token: instanceToken } : {}) },
     });
 
     return reply.send({ status: 'success', data: { qr, status: 'CONECTANDO' } });
@@ -93,7 +105,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const user = getUser(request);
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
     const nome = instanciaNomeDe(user.id);
-    await evo.desconectarInstancia(nome);
+    const inst = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: nome } });
+    if (inst?.instance_token) await evo.desconectarInstancia(inst.instance_token);
     await prisma.whatsappInstancia.updateMany({
       where: { instancia_nome: nome },
       data: { status: 'DESCONECTADO', qr_code: null },
@@ -102,18 +115,25 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ===== MULTI-INSTÂNCIA =====
-  // Lista todas as instâncias do usuário (sincroniza status com a Evolution).
+  // Lista todas as instâncias do usuário (sincroniza status com a UazAPI).
   fastify.get('/whatsapp/instancias', async (request, reply) => {
     const user = getUser(request);
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
     if (!evo.evolutionConfigurada()) return reply.send({ status: 'success', data: { configurado: false, instancias: [] } });
 
     const lista = await prisma.whatsappInstancia.findMany({ where: { dono_id: user.id }, orderBy: { created_at: 'asc' } });
-    // Atualiza status real de cada uma.
+    // Atualiza status real de cada uma (precisa do token DA instância).
     for (const i of lista) {
-      const st = await evo.obterStatus(i.instancia_nome).catch(() => i.status as any);
-      if (st !== i.status) await prisma.whatsappInstancia.update({ where: { id: i.id }, data: { status: st, conectado_em: st === 'CONECTADO' ? (i.conectado_em ?? new Date()) : i.conectado_em } }).catch(() => {});
-      (i as any).status = st;
+      if (!i.instance_token) continue; // instância antiga sem token salvo — precisa reconectar
+      const r = await evo.obterStatus(i.instance_token).catch(() => ({ status: i.status as any }));
+      if (r.status !== i.status || (r.numero && r.numero !== i.numero)) {
+        await prisma.whatsappInstancia.update({
+          where: { id: i.id },
+          data: { status: r.status, numero: r.numero || i.numero, conectado_em: r.status === 'CONECTADO' ? (i.conectado_em ?? new Date()) : i.conectado_em },
+        }).catch(() => {});
+      }
+      (i as any).status = r.status;
+      if (r.numero) (i as any).numero = r.numero;
     }
     return reply.send({ status: 'success', data: { configurado: true, instancias: lista } });
   });
@@ -129,12 +149,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // Nome técnico único: crm-<userId>-<slug>-<rand>.
     const slug = body.data.apelido.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20);
     const nome = `crm-${user.id}-${slug}-${Math.random().toString(36).slice(2, 6)}`;
-    let qr: string | undefined;
-    try { qr = (await evo.criarInstancia(nome)).qr; } catch { qr = (await evo.obterQrCode(nome)).qr; }
+    const r = await evo.criarInstancia(nome);
     const inst = await prisma.whatsappInstancia.create({
-      data: { instancia_nome: nome, apelido: body.data.apelido, dono_id: user.id, dono_nome: user.nome, status: 'CONECTANDO', qr_code: qr },
+      data: { instancia_nome: nome, apelido: body.data.apelido, dono_id: user.id, dono_nome: user.nome, status: 'CONECTANDO', qr_code: r.qr, instance_token: r.instanceToken },
     });
-    return reply.send({ status: 'success', data: { instancia: inst, qr } });
+    return reply.send({ status: 'success', data: { instancia: inst, qr: r.qr } });
   });
 
   // Reobtém QR de uma instância (reconectar).
@@ -144,8 +163,17 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
     if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
     let qr: string | undefined;
-    try { qr = (await evo.criarInstancia(inst.instancia_nome)).qr; } catch { qr = (await evo.obterQrCode(inst.instancia_nome)).qr; }
-    await prisma.whatsappInstancia.update({ where: { id }, data: { status: 'CONECTANDO', qr_code: qr } });
+    let instanceToken = inst.instance_token || undefined;
+    if (!instanceToken) {
+      // Instância antiga (criada antes do token ser salvo) — recria do zero.
+      const r = await evo.criarInstancia(inst.instancia_nome);
+      qr = r.qr;
+      instanceToken = r.instanceToken;
+    } else {
+      const r = await evo.obterQrCode(instanceToken);
+      qr = r.qr;
+    }
+    await prisma.whatsappInstancia.update({ where: { id }, data: { status: 'CONECTANDO', qr_code: qr, ...(instanceToken ? { instance_token: instanceToken } : {}) } });
     return reply.send({ status: 'success', data: { qr } });
   });
 
@@ -155,19 +183,19 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const { id } = request.params as { id: string };
     const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
     if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
-    await evo.desconectarInstancia(inst.instancia_nome);
+    if (inst.instance_token) await evo.desconectarInstancia(inst.instance_token);
     await prisma.whatsappInstancia.update({ where: { id }, data: { status: 'DESCONECTADO', qr_code: null } });
     return reply.send({ status: 'success' });
   });
 
-  // Apaga a instância de vez (logout + delete na Evolution + remove do banco).
+  // Apaga a instância de vez (logout + delete na UazAPI + remove do banco).
   // Usar quando "desconectar" não basta (instância travada/órfã).
   fastify.delete('/whatsapp/instancias/:id', async (request, reply) => {
     const user = getUser(request);
     const { id } = request.params as { id: string };
     const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
     if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
-    await evo.deletarInstancia(inst.instancia_nome).catch(() => {});
+    if (inst.instance_token) await evo.deletarInstancia(inst.instance_token).catch(() => {});
     await prisma.whatsappInstancia.delete({ where: { id } }).catch(() => {});
     return reply.send({ status: 'success' });
   });
@@ -356,7 +384,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     let externo_id: string | undefined;
     try {
-      const r = await evo.enviarTexto(conversa.instancia.instancia_nome, conversa.contato_numero, msg);
+      const r = await evo.enviarTexto(conversa.instancia.instance_token || '', conversa.contato_numero, msg);
       externo_id = r.externo_id;
     } catch (e: any) {
       return reply.status(502).send({ status: 'error', message: `Reunião criada, mas falha ao enviar no WhatsApp: ${e.message}` });
@@ -587,7 +615,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     let externo_id: string | undefined;
     try {
-      const r = await evo.enviarTexto(conversa.instancia.instancia_nome, conversa.contato_numero, body.data.texto);
+      const r = await evo.enviarTexto(conversa.instancia.instance_token || '', conversa.contato_numero, body.data.texto);
       externo_id = r.externo_id;
     } catch (err: any) {
       return reply.status(502).send({ status: 'error', message: `Falha ao enviar: ${err.message}` });
@@ -635,7 +663,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     let externo_id: string | undefined;
     try {
-      const r = await evo.enviarAudio(conversa.instancia.instancia_nome, conversa.contato_numero, dataUrl);
+      const r = await evo.enviarAudio(conversa.instancia.instance_token || '', conversa.contato_numero, dataUrl);
       externo_id = r.externo_id;
     } catch (err: any) {
       return reply.status(502).send({ status: 'error', message: `Falha ao enviar áudio: ${err.message}` });
@@ -746,7 +774,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           let mime: string | undefined =
             msg.imageMessage?.mimetype || (msg.audioMessage || msg.pttMessage)?.mimetype || msg.documentMessage?.mimetype;
           if (!b64) {
-            const baixada = await evo.baixarMidiaBase64(inst.instancia_nome, data.key).catch(() => ({} as any));
+            const baixada = await evo.baixarMidiaBase64(inst.instance_token || '', data.key).catch(() => ({} as any));
             b64 = baixada.base64; mime = baixada.mimetype || mime;
           }
           if (b64) {
@@ -867,7 +895,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
               where: { telefone: { contains: sufTel } },
               select: { id: true, nome: true, razao_social: true, nome_fantasia: true },
             }).catch(() => null);
-            await processarBot(prisma, inst.instancia_nome, conversa, ehNova, texto, lead?.id, clienteBase);
+            await processarBot(prisma, inst.instance_token || '', conversa, ehNova, texto, lead?.id, clienteBase);
           } catch (e: any) { console.error('[BOT] erro:', e?.message); }
         }
       }
@@ -882,7 +910,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 // Estados: SAUDACAO → AGUARDA_CLIENTE → AGUARDA_SEGMENTO → AGUARDA_NOME → CONCLUIDO.
 async function processarBot(
   prisma: PrismaClient,
-  instanciaNome: string,
+  instanceToken: string,
   conversa: any,
   ehNova: boolean,
   texto: string,
@@ -891,7 +919,7 @@ async function processarBot(
 ) {
   const responder = async (msg: string, proximoEstado: string | null) => {
     let externo_id: string | undefined;
-    try { const r = await evo.enviarTexto(instanciaNome, conversa.contato_numero, msg); externo_id = r.externo_id; } catch {}
+    try { const r = await evo.enviarTexto(instanceToken, conversa.contato_numero, msg); externo_id = r.externo_id; } catch {}
     await prisma.whatsappMensagem.create({
       data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: msg, status: 'ENVIADA', enviada_por: 'bot' },
     }).catch(() => {});
@@ -1043,12 +1071,12 @@ async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
 
   // Áudio/imagem/doc enviados pelo celular precisam do base64 p/ tocar/abrir no CRM
   // (a url crua do WhatsApp é criptografada). Baixa via Evolution, igual ao webhook normal.
-  if (ehMidia && (conversa as any).instancia?.instancia_nome) {
+  if (ehMidia && (conversa as any).instancia?.instance_token) {
     let b64: string | undefined = data?.message?.base64;
     let mime: string | undefined =
       msg.imageMessage?.mimetype || (msg.audioMessage || msg.pttMessage)?.mimetype || msg.documentMessage?.mimetype;
     if (!b64) {
-      const baixada = await evo.baixarMidiaBase64((conversa as any).instancia.instancia_nome, data.key).catch(() => ({} as any));
+      const baixada = await evo.baixarMidiaBase64((conversa as any).instancia.instance_token || '', data.key).catch(() => ({} as any));
       b64 = baixada.base64; mime = baixada.mimetype || mime;
     }
     if (b64) {
