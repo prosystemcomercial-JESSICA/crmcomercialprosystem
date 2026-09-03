@@ -2388,6 +2388,14 @@ model WhatsappConversa {
   // cada troca de prioridade (ver services/sla.ts para as horas por nível).
   sla_prazo_em DateTime?
 
+  // ── Cadência automática de WhatsApp (nutrição de leads farmácia/manipulação) ──
+  // Só roda para conversas com segmento FARMACIA/MANIPULACAO em AGUARDANDO_RETORNO.
+  // cadencia_proxima_etapa: 1..4 = próxima mensagem a disparar; null = fora da
+  // cadência (nunca entrou, foi pausada por resposta, ou já terminou).
+  cadencia_proxima_etapa Int?
+  cadencia_proximo_envio DateTime?
+  cadencia_pausada       Boolean   @default(false)
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -2399,6 +2407,7 @@ model WhatsappConversa {
   @@index([ultima_em])
   @@index([estagio_funil])
   @@index([prioridade])
+  @@index([cadencia_proximo_envio])
 }
 
 model WhatsappMensagem {
