@@ -16,7 +16,26 @@ interface Conversa {
   nao_lidas: number;
   etiqueta?: string | null;
   etiqueta_cor?: string | null;
+  estagio_funil?: string;
+  prioridade?: string;
+  sla_prazo_em?: string | null;
   instancia?: { apelido?: string | null; dono_nome?: string | null; numero?: string | null };
+}
+
+interface PainelConversa {
+  cliente: {
+    id: string; codigo?: string | null; razao_social?: string | null; nome_fantasia?: string | null;
+    nome?: string | null; plano?: string | null; segmento?: string | null; situacao?: string | null;
+    mensalidade_base?: number | null; data_entrada?: string | null;
+  } | null;
+  proposta: {
+    id: string; status: string; valor_final?: number | null; titulo_proposta?: string | null;
+    validade?: string | null; created_at: string;
+  } | null;
+  responsavel: { nome: string; cargo?: string | null } | null;
+  prioridade: string;
+  estagio_funil: string;
+  sla_prazo_em?: string | null;
 }
 
 interface Mensagem {
@@ -48,6 +67,21 @@ const ETIQUETAS_TIPO = [
   { nome: 'Pessoal', cor: '#9333ea' },
 ];
 
+// Kanban comercial (funil de atendimento) — substitui o Kanban por etiqueta.
+const ESTAGIOS_FUNIL = [
+  { valor: 'NOVO_CONTATO', nome: 'Novo Contato', cor: '#7c3aed' },
+  { valor: 'EM_NEGOCIACAO', nome: 'Em Negociação', cor: '#2563eb' },
+  { valor: 'PROPOSTA_ENVIADA', nome: 'Proposta Enviada', cor: '#d97706' },
+  { valor: 'AGUARDANDO_RETORNO', nome: 'Aguardando Retorno', cor: '#64748b' },
+  { valor: 'FECHADO', nome: 'Fechado', cor: '#16a34a' },
+];
+
+const PRIORIDADES = [
+  { valor: 'BAIXA', nome: 'Baixa', cor: '#64748b' },
+  { valor: 'NORMAL', nome: 'Normal', cor: '#2563eb' },
+  { valor: 'CRITICA', nome: 'Crítica', cor: '#dc2626' },
+];
+
 type StatusConexao = 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO';
 
 export default function WhatsappPage() {
@@ -74,7 +108,9 @@ export default function WhatsappPage() {
   const [buscaConv, setBuscaConv] = useState('');
   const [novoNumero, setNovoNumero] = useState('');
   const [menuEtiqueta, setMenuEtiqueta] = useState(false);
+  const [menuPrioridade, setMenuPrioridade] = useState(false);
   const [menuTransferir, setMenuTransferir] = useState(false);
+  const [painel, setPainel] = useState<PainelConversa | null>(null);
   const [viewMode, setViewMode] = useState<'inbox' | 'kanban'>('inbox');
   const [verSupervisao, setVerSupervisao] = useState(false); // gestão: ver conversas de todos
   const [dragConvId, setDragConvId] = useState<string | null>(null);
@@ -305,12 +341,39 @@ export default function WhatsappPage() {
 
   const abrir = async (c: Conversa) => {
     setAtiva(c);
+    setPainel(null);
     try {
       const res = await apiClient.getWhatsappMensagens(c.id);
       setMensagens(res.data.data.mensagens);
       setConversas(prev => prev.map(x => x.id === c.id ? { ...x, nao_lidas: 0 } : x));
       setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch (e) { console.error(e); }
+    try {
+      const resPainel = await apiClient.getPainelConversaWhatsapp(c.id);
+      setPainel(resPainel.data.data);
+    } catch (e) { console.error('Falha ao carregar painel', e); }
+  };
+
+  // Move a conversa entre as colunas do funil comercial.
+  const moverEstagio = async (convId: string, estagio_funil: string) => {
+    try {
+      await apiClient.moverEstagioConversa(convId, estagio_funil);
+      setConversas(prev => prev.map(c => c.id === convId ? { ...c, estagio_funil } : c));
+      if (ativa?.id === convId) setAtiva({ ...ativa, estagio_funil });
+    } catch (e: any) { console.error('Falha ao mover etapa', e); }
+  };
+
+  // Define a prioridade da conversa ativa.
+  const definirPrioridade = async (prioridade: string) => {
+    if (!ativa) return;
+    try {
+      const res = await apiClient.definirPrioridadeConversa(ativa.id, prioridade);
+      const upd = res.data.data;
+      setAtiva({ ...ativa, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em });
+      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em } : c));
+      setPainel(p => p ? { ...p, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em } : p);
+      setMenuPrioridade(false);
+    } catch (e: any) { console.error('Falha ao definir prioridade', e); }
   };
 
   // Polling de mensagens da conversa aberta.
@@ -433,9 +496,6 @@ export default function WhatsappPage() {
     } catch (e: any) { console.error('Falha ao etiquetar', e); }
   };
 
-  // Colunas do Kanban: "Sem classificação" + uma por etiqueta (segmento + tipo).
-  const COLUNAS_KANBAN = [{ nome: 'Sem classificação', cor: '#94a3b8' }, ...ETIQUETAS, ...ETIQUETAS_TIPO];
-
   // Transferir conversa para outro vendedor (só gestora).
   const abrirTransferir = async () => {
     setMenuTransferir(true);
@@ -469,6 +529,27 @@ export default function WhatsappPage() {
   const conversasFiltradas = buscaConv.trim()
     ? conversas.filter(c => nomeContato(c).toLowerCase().includes(buscaConv.toLowerCase()) || c.contato_numero.includes(buscaConv))
     : conversas;
+
+  // Formata o prazo de SLA: "Violado há 3h" (vermelho) ou "Prazo em 5h" (neutro).
+  const fmtSla = (sla_prazo_em?: string | null): { texto: string; violado: boolean } | null => {
+    if (!sla_prazo_em) return null;
+    const diffMs = new Date(sla_prazo_em).getTime() - Date.now();
+    const violado = diffMs < 0;
+    const horas = Math.abs(diffMs) / 3600000;
+    const txtHoras = horas < 1 ? `${Math.round(horas * 60)}min` : `${Math.round(horas)}h`;
+    return { texto: violado ? `Violado há ${txtHoras}` : `Prazo em ${txtHoras}`, violado };
+  };
+
+  const fmtDataCurta = (d?: string | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+  const fmtMoeda = (v?: number | null) => v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const tempoDeCasa = (d?: string | null) => {
+    if (!d) return '—';
+    const meses = Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24 * 30));
+    if (meses < 1) return 'menos de 1 mês';
+    if (meses < 12) return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+    const anos = Math.floor(meses / 12);
+    return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
+  };
 
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500" /></div>;
@@ -587,7 +668,7 @@ export default function WhatsappPage() {
 
         {/* Inbox — estilo WhatsApp Web */}
         {configurado && status === 'CONECTADO' && viewMode === 'inbox' && (
-          <div className="flex md:grid md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm flex-1 min-h-0">
+          <div className={`flex md:grid gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm flex-1 min-h-0 ${ativa ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
             {/* Lista de conversas */}
             <div className={`bg-white flex-col border-r border-gray-200 min-h-0 w-full md:w-auto ${ativa ? 'hidden md:flex' : 'flex'}`}>
               <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
@@ -666,11 +747,23 @@ export default function WhatsappPage() {
                       </div>
                       <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}</p>
                     </div>
+                    {/* Prioridade da conversa */}
+                    {(() => {
+                      const prioAtiva = PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'));
+                      const slaAtiva = fmtSla(ativa.sla_prazo_em);
+                      return (
+                        <button onClick={() => { setMenuPrioridade(v => !v); setMenuEtiqueta(false); setMenuTransferir(false); }}
+                          title="Prioridade" className="text-white text-[11px] font-bold rounded-lg px-2.5 py-1.5"
+                          style={{ background: prioAtiva?.cor || '#64748b' }}>
+                          {prioAtiva?.nome || 'Normal'}{slaAtiva?.violado ? ' ⏰' : ''}
+                        </button>
+                      );
+                    })()}
                     {/* Vincular a cliente da base */}
                     <button onClick={abrirVincCliente} title="Vincular a um cliente da base" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">👤</button>
                     {/* Agendar reunião */}
                     <button onClick={() => setShowReuniao(true)} title="Agendar reunião" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">📅</button>
-                    <button onClick={() => { setMenuEtiqueta(v => !v); setMenuTransferir(false); }} title="Etiquetar" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🏷️</button>
+                    <button onClick={() => { setMenuEtiqueta(v => !v); setMenuTransferir(false); setMenuPrioridade(false); }} title="Etiquetar" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🏷️</button>
                     {/* Transferir (só gestora) */}
                     {podeTransferir && (
                       <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); }} title="Transferir vendedor" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">↗️</button>
@@ -698,6 +791,16 @@ export default function WhatsappPage() {
                           </button>
                         ))}
                         <button onClick={() => aplicarEtiqueta(null)} className="w-full text-left px-2 py-1.5 rounded hover:opacity-80 text-sm  mt-1 border-t border-gray-100">Remover etiqueta</button>
+                      </div>
+                    )}
+                    {/* Menu prioridade */}
+                    {menuPrioridade && (
+                      <div className="absolute right-3 top-14 ps-card rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-44">
+                        {PRIORIDADES.map(p => (
+                          <button key={p.valor} onClick={() => definirPrioridade(p.valor)} className="w-full text-left px-2 py-1.5 rounded hover:opacity-80 flex items-center gap-2 text-sm">
+                            <span className="w-3 h-3 rounded-full" style={{ background: p.cor }} />{p.nome}
+                          </button>
+                        ))}
                       </div>
                     )}
                     {/* Menu transferir */}
@@ -778,20 +881,81 @@ export default function WhatsappPage() {
                 </>
               )}
             </div>
+
+            {/* Painel lateral — resumo comercial da conversa ativa */}
+            {ativa && (
+              <div className="hidden md:flex md:flex-col bg-white border-l border-gray-200 min-h-0 overflow-y-auto p-4 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Contato</p>
+                  <p className="font-semibold text-sm">{nomeContato(ativa)}</p>
+                  <p className="text-xs text-gray-500">{ativa.contato_numero}</p>
+                </div>
+
+                {painel?.cliente && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Cliente</p>
+                    <p className="text-sm font-medium">
+                      {painel.cliente.codigo ? `#${painel.cliente.codigo} · ` : ''}
+                      {painel.cliente.razao_social || painel.cliente.nome_fantasia || painel.cliente.nome}
+                    </p>
+                    <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                      {painel.cliente.plano && <p>Plano: <span className="font-medium text-gray-700">{painel.cliente.plano}</span></p>}
+                      {painel.cliente.mensalidade_base != null && <p>Mensalidade: <span className="font-medium text-gray-700">{fmtMoeda(painel.cliente.mensalidade_base)}</span></p>}
+                      <p>Cliente há: <span className="font-medium text-gray-700">{tempoDeCasa(painel.cliente.data_entrada)}</span></p>
+                      {painel.cliente.situacao && (
+                        <p>Situação: <span className={`font-medium ${painel.cliente.situacao === 'ATIVA' ? 'text-green-600' : 'text-red-600'}`}>{painel.cliente.situacao === 'ATIVA' ? 'Ativa' : 'Inativa'}</span></p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {painel?.proposta && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+                    <p className="text-xs font-semibold text-amber-700 uppercase mb-1">Proposta em aberto</p>
+                    <p className="text-sm font-medium text-amber-900">{painel.proposta.titulo_proposta || 'Proposta comercial'}</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      {painel.proposta.valor_final != null ? fmtMoeda(painel.proposta.valor_final) : ''} · {painel.proposta.status}
+                    </p>
+                    {painel.proposta.validade && <p className="text-[11px] text-amber-600 mt-0.5">Validade: {fmtDataCurta(painel.proposta.validade)}</p>}
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Atendimento</p>
+                  <div className="text-xs text-gray-500 space-y-0.5">
+                    <p>Responsável: <span className="font-medium text-gray-700">{painel?.responsavel?.nome || '—'}</span></p>
+                    <p>Etapa: <span className="font-medium text-gray-700">{ESTAGIOS_FUNIL.find(e => e.valor === ativa.estagio_funil)?.nome || 'Novo Contato'}</span></p>
+                    <p>Prioridade: <span className="font-medium text-gray-700">{PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'))?.nome}</span></p>
+                    {(() => {
+                      const sla = fmtSla(ativa.sla_prazo_em);
+                      if (!sla) return null;
+                      return <p className={sla.violado ? 'font-semibold text-red-600' : ''}>SLA: {sla.texto}</p>;
+                    })()}
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-2 border-t border-gray-100">
+                  <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1">Mover no funil</label>
+                  <select value={ativa.estagio_funil || 'NOVO_CONTATO'} onChange={e => moverEstagio(ativa.id, e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5">
+                    {ESTAGIOS_FUNIL.map(e => <option key={e.valor} value={e.valor}>{e.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Kanban por etiqueta — colunas: Sem classificação + cada etiqueta */}
+        {/* Kanban comercial — colunas: etapas do funil de atendimento */}
         {configurado && status === 'CONECTADO' && viewMode === 'kanban' && (
           <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
             <div className="flex gap-3 h-full pb-2" style={{ minWidth: 'min-content' }}>
-              {COLUNAS_KANBAN.map(col => {
-                const semClass = col.nome === 'Sem classificação';
-                const cards = conversasFiltradas.filter(c => semClass ? !c.etiqueta : c.etiqueta === col.nome);
+              {ESTAGIOS_FUNIL.map(col => {
+                const cards = conversasFiltradas.filter(c => (c.estagio_funil || 'NOVO_CONTATO') === col.valor);
                 return (
-                  <div key={col.nome}
+                  <div key={col.valor}
                     onDragOver={e => e.preventDefault()}
-                    onDrop={() => { if (dragConvId) { etiquetarPorId(dragConvId, semClass ? null : col.nome, semClass ? undefined : col.cor); setDragConvId(null); } }}
+                    onDrop={() => { if (dragConvId) { moverEstagio(dragConvId, col.valor); setDragConvId(null); } }}
                     className="flex flex-col bg-opacity-0 rounded-xl border border-gray-200 flex-shrink-0 w-72 min-h-0">
                     <div className="px-3 py-2.5 flex items-center gap-2 border-b border-gray-200 rounded-t-xl" style={{ background: `${col.cor}15` }}>
                       <span className="w-3 h-3 rounded-full" style={{ background: col.cor }} />
@@ -800,32 +964,47 @@ export default function WhatsappPage() {
                     </div>
                     <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
                       {cards.length === 0 && <p className="text-center  text-xs py-6">—</p>}
-                      {cards.map(c => (
-                        <div key={c.id}
-                          draggable onDragStart={() => setDragConvId(c.id)} onDragEnd={() => setDragConvId(null)}
-                          onClick={() => { setViewMode('inbox'); abrir(c); }}
-                          className="ps-card rounded-lg border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ background: corAvatar(nomeContato(c)) }}>
-                              {nomeContato(c).charAt(0).toUpperCase()}
+                      {cards.map(c => {
+                        const sla = fmtSla(c.sla_prazo_em);
+                        const prio = PRIORIDADES.find(p => p.valor === (c.prioridade || 'NORMAL'));
+                        return (
+                          <div key={c.id}
+                            draggable onDragStart={() => setDragConvId(c.id)} onDragEnd={() => setDragConvId(null)}
+                            onClick={() => { setViewMode('inbox'); abrir(c); }}
+                            className="ps-card rounded-lg border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm">
+                            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                              {prio && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: prio.cor }}>{prio.nome}</span>
+                              )}
+                              {sla && (
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${sla.violado ? 'text-white' : ''}`}
+                                  style={sla.violado ? { background: '#dc2626' } : { background: '#f1f5f9', color: '#475569' }}>
+                                  {sla.violado ? '⏰ ' : ''}{sla.texto}
+                                </span>
+                              )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-sm font-semibold truncate">{nomeContato(c)}</p>
-                              <p className="text-xs  truncate">{c.ultima_mensagem || '—'}</p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ background: corAvatar(nomeContato(c)) }}>
+                                {nomeContato(c).charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-sm font-semibold truncate">{nomeContato(c)}</p>
+                                <p className="text-xs  truncate">{c.ultima_mensagem || '—'}</p>
+                              </div>
+                              {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
                             </div>
-                            {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
+                            <div className="flex items-center gap-1 flex-wrap mt-1">
+                              {c.lead_id && <span className="inline-block text-[10px] text-blue-600">🔗 funil</span>}
+                              {(c as any).cliente_id && (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: '#16a34a' }}
+                                  title="Cliente da base vinculado">
+                                  👤 {(c as any).cliente_codigo ? `${(c as any).cliente_codigo} · ` : ''}{(c as any).cliente_razao || 'Cliente'}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 flex-wrap mt-1">
-                            {c.lead_id && <span className="inline-block text-[10px] text-blue-600">🔗 funil</span>}
-                            {(c as any).cliente_id && (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: '#16a34a' }}
-                                title="Cliente da base vinculado">
-                                👤 {(c as any).cliente_codigo ? `${(c as any).cliente_codigo} · ` : ''}{(c as any).cliente_razao || 'Cliente'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );
