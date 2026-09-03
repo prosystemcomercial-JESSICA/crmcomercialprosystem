@@ -82,7 +82,9 @@ export async function obterQrCode(instanceToken: string): Promise<{ qr?: string 
 export async function obterStatus(instanceToken: string): Promise<{ status: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'; numero?: string }> {
   try {
     const data = await call('/instance/status', 'GET', instanceToken);
-    const state = data?.state || data?.status || data?.instance?.state || data?.instance?.status;
+    // A UazAPI aninha o estado real em instance.status ("connected"/"connecting"/
+    // "disconnected") — o campo status no nível raiz (se existir) não é isso.
+    const state = data?.instance?.status || data?.instance?.state || data?.state;
     const numero = data?.instance?.owner || data?.instance?.number || data?.owner || data?.number;
     console.log(`[UAZAPI][DIAG] /instance/status state="${state}":`, JSON.stringify(data).slice(0, 800));
     if (state === 'connected' || state === 'open') return { status: 'CONECTADO', numero };
