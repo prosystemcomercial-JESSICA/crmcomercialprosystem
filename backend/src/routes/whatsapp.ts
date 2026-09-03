@@ -52,6 +52,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (inst?.instance_token) {
       const r = await evo.obterStatus(inst.instance_token);
       statusReal = r.status;
+      if (statusReal === 'CONECTADO' && inst.status !== 'CONECTADO') {
+        await evo.configurarWebhook(inst.instance_token).catch(() => {});
+      }
       inst = await prisma.whatsappInstancia.update({
         where: { id: inst.id },
         data: {
@@ -126,6 +129,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     for (const i of lista) {
       if (!i.instance_token) continue; // instância antiga sem token salvo — precisa reconectar
       const r = await evo.obterStatus(i.instance_token).catch(() => ({ status: i.status as any }));
+      // Acabou de ficar conectada: garante que o webhook está configurado
+      // nessa instância (sem isso, mensagens recebidas nunca chegam ao CRM).
+      if (r.status === 'CONECTADO' && i.status !== 'CONECTADO') {
+        await evo.configurarWebhook(i.instance_token).catch(() => {});
+      }
       if (r.status !== i.status || (r.numero && r.numero !== i.numero)) {
         await prisma.whatsappInstancia.update({
           where: { id: i.id },
