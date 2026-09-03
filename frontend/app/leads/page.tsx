@@ -1229,7 +1229,15 @@ export default function LeadsPage() {
       // Lead novo entra sempre na 1ª etapa do funil, garantindo card visível.
       if (!payload.etapa_comercial) payload.etapa_comercial = 'NOVO_LEAD';
 
-      const res = await apiClient.createLead(payload);
+      let res = await apiClient.createLead(payload);
+      // Aviso de possível duplicata (telefone/e-mail já cadastrados em outro
+      // lead) — não bloqueia como o CNPJ, o vendedor confirma se quer mesmo
+      // criar (ex.: contato legítimo diferente na mesma empresa).
+      if (res?.data?.status === 'aviso_duplicata') {
+        const confirmou = confirm(`${res.data.message}\n\nDeseja criar este lead mesmo assim?`);
+        if (!confirmou) { criandoLeadRef.current = false; setSavingNewLead(false); return; }
+        res = await apiClient.createLead(payload, true);
+      }
       const novo = res?.data?.data;
       await loadData();
       setShowNewLead(false);
