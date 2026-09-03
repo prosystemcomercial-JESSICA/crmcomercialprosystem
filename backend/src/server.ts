@@ -347,6 +347,28 @@ async function iniciarSchedulerSequenciaEmail() {
   console.log('[BOOT] Scheduler da sequência de e-mail (padarias) iniciado');
 }
 
+// 8e) Scheduler: cadência automática de WhatsApp (farmácia/manipulação em
+//     AGUARDANDO_RETORNO) — verifica a cada 15 min e dispara o que venceu.
+async function iniciarSchedulerCadenciaWhatsapp() {
+  if (!prismaClient) return;
+
+  const rodar = async () => {
+    try {
+      const { rodarSchedulerCadenciaWhatsapp } = await import('./services/whatsapp-cadencia.service.js');
+      const resultado = await rodarSchedulerCadenciaWhatsapp(prismaClient!);
+      if (resultado.processados > 0) {
+        console.log(`[CADENCIA-WPP] ${resultado.processados} processados, ${resultado.enviados} enviados, ${resultado.erros} erros`);
+      }
+    } catch (err: any) {
+      console.error('[CADENCIA-WPP] Erro no scheduler:', err?.message);
+    }
+  };
+
+  setInterval(rodar, 15 * 60 * 1000);
+  setTimeout(rodar, 180 * 1000);
+  console.log('[BOOT] Scheduler da cadência de WhatsApp (farmácia/manipulação) iniciado');
+}
+
 // 8) Carrega rotas dinamicamente — cada uma isolada em try/catch.
 //    Se UMA rota falhar ao importar/registrar, as outras continuam funcionando
 //    e o /health permanece respondendo.
@@ -442,6 +464,7 @@ const start = async () => {
     iniciarSchedulerDigest();
     iniciarSchedulerAutomacao();
     iniciarSchedulerSequenciaEmail();
+    iniciarSchedulerCadenciaWhatsapp();
 
     // Keepalive: MySQL do Railway fecha conexões idle após ~8 min.
     // Um SELECT 1 a cada 4 min mantém a conexão viva sem custo.

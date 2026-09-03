@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
 import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
+import { entrarNaCadencia, pausarCadencia } from '@/services/whatsapp-cadencia.service';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
 export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
@@ -432,6 +433,14 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
     const upd = await prisma.whatsappConversa.update({ where: { id }, data: { estagio_funil: body.data.estagio_funil } });
+
+    // Entra/sai da cadência automática de WhatsApp (só farmácia/manipulação).
+    if (body.data.estagio_funil === 'AGUARDANDO_RETORNO' && conversa.estagio_funil !== 'AGUARDANDO_RETORNO') {
+      await entrarNaCadencia(prisma, id).catch(() => {});
+    } else if (body.data.estagio_funil !== 'AGUARDANDO_RETORNO' && conversa.cadencia_proxima_etapa) {
+      await pausarCadencia(prisma, id).catch(() => {});
+    }
+
     return reply.send({ status: 'success', data: upd });
   });
 
@@ -599,6 +608,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       where: { id },
       data: { ultima_mensagem: body.data.texto.slice(0, 200), ultima_em: new Date(), sla_prazo_em: null },
     });
+    if (conversa.cadencia_proxima_etapa) await pausarCadencia(prisma, id).catch(() => {});
 
     return reply.send({ status: 'success', data: msg });
   });
@@ -838,6 +848,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           },
         });
         console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${instanciaNome})`);
+
+        // Lead respondeu: para a cadência automática (não incomodar mais).
+        if (conversa.cadencia_proxima_etapa) {
+          await pausarCadencia(prisma, conversa.id).catch(() => {});
+        }
 
         // ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado, sem custo) =====
         // Kill switch global: o bot só roda se WHATSAPP_BOT_ATIVO === 'true'.
