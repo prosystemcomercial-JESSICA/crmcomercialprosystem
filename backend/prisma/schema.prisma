@@ -2342,6 +2342,12 @@ model WhatsappInstancia {
   dono_id        String // UsuarioCRM.id que conectou (escopo por dono)
   dono_nome      String?
   numero         String? // número conectado (preenchido após parear)
+  // Token de INSTÂNCIA retornado pela UazAPI na criação (/instance/init).
+  // Diferente do admin token (EVOLUTION_API_KEY, usado só p/ criar/listar) —
+  // este é o token usado em TODAS as operações desta instância específica
+  // (status, QR, enviar mensagem). Sem ele, essas chamadas falham/retornam
+  // dado errado, mesmo respondendo 200.
+  instance_token String?
   status         String    @default("DESCONECTADO") // DESCONECTADO|CONECTANDO|CONECTADO
   qr_code        String?   @db.Text // último QR (base64) enquanto conecta
   conectado_em   DateTime?

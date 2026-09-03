@@ -114,7 +114,7 @@ export async function dispararProximaEtapaCadencia(prisma: PrismaClient, convers
 
   let externo_id: string | undefined;
   try {
-    const r = await evo.enviarTexto(conversa.instancia.instancia_nome, conversa.contato_numero, texto);
+    const r = await evo.enviarTexto(conversa.instancia.instance_token || '', conversa.contato_numero, texto);
     externo_id = r.externo_id;
   } catch (e: any) {
     // Falha de envio: tenta de novo em 1h, sem avançar a etapa.
