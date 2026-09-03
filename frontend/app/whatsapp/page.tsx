@@ -569,8 +569,8 @@ export default function WhatsappPage() {
             {/* Toggle de visão: Inbox (lista) | Kanban (por etiqueta) */}
             {status === 'CONECTADO' && (
               <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-                <button onClick={() => setViewMode('inbox')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'inbox' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'inbox' ? { background: '#128C7E' } : {}}>💬 Lista</button>
-                <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'kanban' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'kanban' ? { background: '#128C7E' } : {}}>🗂️ Kanban</button>
+                <button onClick={() => setViewMode('inbox')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'inbox' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'inbox' ? { background: '#2563eb' } : {}}>Conversas</button>
+                <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'kanban' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'kanban' ? { background: '#2563eb' } : {}}>Fila de Chamados</button>
               </div>
             )}
             {/* Visão de supervisão (só gestão): alterna entre "minhas" e "todas". */}
@@ -601,7 +601,7 @@ export default function WhatsappPage() {
             {instancias.map(i => (
               <button key={i.id} onClick={() => trocarInstancia(i.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${instAtivaId === i.id ? 'text-white' : 'text-gray-600 hover:bg-opacity-0'}`}
-                style={instAtivaId === i.id ? { background: 'linear-gradient(135deg,#128C7E,#075E54)', borderColor: '#128C7E' } : { borderColor: '#e5e7eb' }}>
+                style={instAtivaId === i.id ? { background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', borderColor: '#2563eb' } : { borderColor: '#e5e7eb' }}>
                 <span className={`w-2 h-2 rounded-full ${i.status === 'CONECTADO' ? 'bg-green-400' : i.status === 'CONECTANDO' ? 'bg-yellow-400' : 'bg-gray-400'}`} />
                 {i.apelido || i.numero || 'WhatsApp'}
               </button>
@@ -613,7 +613,7 @@ export default function WhatsappPage() {
                 placeholder="Nome do novo WhatsApp"
                 className="bg-opacity-0 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none w-40" />
               <button onClick={criarInstancia} disabled={criandoInst}
-                className="text-white rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-50" style={{ background: '#128C7E' }}>+ Conectar</button>
+                className="text-white rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-50" style={{ background: '#2563eb' }}>+ Conectar</button>
             </div>
             {/* Ações da instância ativa */}
             {instAtivaId && (
@@ -671,9 +671,9 @@ export default function WhatsappPage() {
           <div className={`flex md:grid gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm flex-1 min-h-0 ${ativa ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
             {/* Lista de conversas */}
             <div className={`bg-white flex-col border-r border-gray-200 min-h-0 w-full md:w-auto ${ativa ? 'hidden md:flex' : 'flex'}`}>
-              <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
-                <span className="text-white font-semibold">Conversas</span>
-                <span className="ml-auto text-xs text-green-100">{conversas.length}</span>
+              <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-200 bg-white">
+                <span className="text-gray-800 font-semibold text-sm">Conversas</span>
+                <span className="ml-auto text-xs text-gray-400">{conversas.length}</span>
               </div>
               <div className="p-2 border-b border-gray-100 space-y-2">
                 <input value={buscaConv} onChange={e => setBuscaConv(e.target.value)}
@@ -685,14 +685,14 @@ export default function WhatsappPage() {
                     placeholder="Novo: nº com DDD (27999998888)"
                     className="flex-1 bg-opacity-0 rounded-lg px-3 py-2 text-sm focus:outline-none" />
                   <button onClick={iniciarConversa} title="Iniciar conversa"
-                    className="text-white rounded-lg px-3 text-sm font-bold" style={{ background: '#128C7E' }}>+</button>
+                    className="text-white rounded-lg px-3 text-sm font-bold" style={{ background: '#2563eb' }}>+</button>
                 </div>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {conversasFiltradas.length === 0 && <p className="text-center  text-sm p-6">Nenhuma conversa</p>}
                 {conversasFiltradas.map(c => (
                   <button key={c.id} onClick={() => abrir(c)}
-                    className={`w-full text-left px-3 py-3 flex items-center gap-3 border-b border-gray-50 transition-colors ${ativa?.id === c.id ? 'bg-green-50' : 'hover:bg-opacity-0'}`}>
+                    className={`w-full text-left px-3 py-3 flex items-center gap-3 border-b border-gray-50 transition-colors ${ativa?.id === c.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                     <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-lg" style={{ background: corAvatar(nomeContato(c)) }}>
                       {nomeContato(c).charAt(0).toUpperCase()}
                     </div>
@@ -703,7 +703,7 @@ export default function WhatsappPage() {
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
                         <p className="text-[13px]  truncate">{c.ultima_mensagem || '—'}</p>
-                        {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[11px] font-bold rounded-full px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0">{c.nao_lidas}</span>}
+                        {c.nao_lidas > 0 && <span className="bg-blue-600 text-white text-[11px] font-bold rounded-full px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0">{c.nao_lidas}</span>}
                       </div>
                       {c.etiqueta && (
                         <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
@@ -721,22 +721,22 @@ export default function WhatsappPage() {
 
             {/* Janela de chat */}
             <div className={`md:col-span-2 flex-col min-h-0 w-full flex-1 ${ativa ? 'flex' : 'hidden md:flex'}`}
-              style={{ background: '#ECE5DD' }}>
+              style={{ background: '#F7F8FA' }}>
               {!ativa ? (
-                <div className="flex-1 flex flex-col items-center justify-center " style={{ background: '#F0F2F5' }}>
+                <div className="flex-1 flex flex-col items-center justify-center " style={{ background: '#F7F8FA' }}>
                   <div className="text-6xl mb-3">💬</div>
                   <p className="text-sm">Selecione uma conversa para começar a atender</p>
                 </div>
               ) : (
                 <>
-                  <div className="px-4 py-2.5 flex items-center gap-3 shadow-sm relative" style={{ background: 'linear-gradient(135deg,#128C7E,#075E54)' }}>
-                    <button onClick={() => setAtiva(null)} className="md:hidden text-white text-lg">←</button>
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0" style={{ background: corAvatar(nomeContato(ativa)) }}>
+                  <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-200 bg-white relative">
+                    <button onClick={() => setAtiva(null)} className="md:hidden text-gray-500 text-lg">←</button>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-sm" style={{ background: corAvatar(nomeContato(ativa)) }}>
                       {nomeContato(ativa).charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-white text-sm truncate">{nomeContato(ativa)}</p>
+                        <p className="font-semibold text-gray-800 text-sm truncate">{nomeContato(ativa)}</p>
                         {ativa.etiqueta && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: ativa.etiqueta_cor || '#6b7280' }}>{ativa.etiqueta}</span>}
                         {(ativa as any).cliente_id && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white inline-flex items-center gap-1" style={{ background: '#16a34a' }}
@@ -745,7 +745,7 @@ export default function WhatsappPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-green-100 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}</p>
                     </div>
                     {/* Prioridade da conversa */}
                     {(() => {
@@ -760,20 +760,20 @@ export default function WhatsappPage() {
                       );
                     })()}
                     {/* Vincular a cliente da base */}
-                    <button onClick={abrirVincCliente} title="Vincular a um cliente da base" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">👤</button>
+                    <button onClick={abrirVincCliente} title="Vincular a um cliente da base" className="text-gray-500 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">👤</button>
                     {/* Agendar reunião */}
-                    <button onClick={() => setShowReuniao(true)} title="Agendar reunião" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">📅</button>
-                    <button onClick={() => { setMenuEtiqueta(v => !v); setMenuTransferir(false); setMenuPrioridade(false); }} title="Etiquetar" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🏷️</button>
+                    <button onClick={() => setShowReuniao(true)} title="Agendar reunião" className="text-gray-500 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">📅</button>
+                    <button onClick={() => { setMenuEtiqueta(v => !v); setMenuTransferir(false); setMenuPrioridade(false); }} title="Etiquetar" className="text-gray-500 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">🏷️</button>
                     {/* Transferir (só gestora) */}
                     {podeTransferir && (
-                      <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); }} title="Transferir vendedor" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">↗️</button>
+                      <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); }} title="Transferir vendedor" className="text-gray-500 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">↗️</button>
                     )}
                     {/* Desvincular do funil (só se vinculado) */}
                     {ativa.lead_id && (
-                      <button onClick={desvincularFunil} title="Desvincular do funil (não conta como lead)" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🔗✖</button>
+                      <button onClick={desvincularFunil} title="Desvincular do funil (não conta como lead)" className="text-gray-500 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">🔗✖</button>
                     )}
                     {/* Excluir conversa */}
-                    <button onClick={() => excluirConversa(ativa.id)} title="Excluir conversa" className="text-white text-sm bg-white/15 rounded-lg px-2.5 py-1.5">🗑️</button>
+                    <button onClick={() => excluirConversa(ativa.id)} title="Excluir conversa" className="text-gray-500 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">🗑️</button>
                     {/* Menu etiqueta */}
                     {menuEtiqueta && (
                       <div className="absolute right-3 top-14 ps-card rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-80 overflow-y-auto">
@@ -814,13 +814,13 @@ export default function WhatsappPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5"
-                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M0 0h40v40H0z%22 fill=%22%23ECE5DD%22/%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%221%22 fill=%22%23D9D2C9%22/%3E%3C/svg%3E")' }}>
+                  <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5" style={{ background: '#F7F8FA' }}>
                     {mensagens.map(m => (
                       <div key={m.id} className={`flex ${m.direcao === 'SAIDA' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm ${m.direcao === 'SAIDA' ? 'rounded-br-none' : 'bg-white  rounded-bl-none'}`}
-                          style={m.direcao === 'SAIDA' ? { background: '#DCF8C6', color: '#111' } : {}}>
-                          {m.enviada_por === 'bot' && <p className="text-[10px] font-semibold text-green-700 mb-0.5">🤖 Atendimento automático</p>}
+                        <div className={`max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm border ${m.direcao === 'SAIDA' ? 'rounded-br-none text-white border-transparent' : 'bg-white text-gray-800 rounded-bl-none border-gray-100'}`}
+                          style={m.direcao === 'SAIDA' ? { background: '#2563eb' } : {}}>
+                          {m.enviada_por === 'bot' && <p className="text-[10px] font-semibold mb-0.5 opacity-80">🤖 Atendimento automático</p>}
+                          {m.enviada_por === 'cadencia_automatica' && <p className="text-[10px] font-semibold mb-0.5 opacity-80">🔁 Cadência automática</p>}
                           {m.tipo === 'IMAGEM' && m.midia_url && (
                             <img src={m.midia_url} alt="imagem" className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />
                           )}
@@ -833,13 +833,13 @@ export default function WhatsappPage() {
                           {!(m.tipo === 'IMAGEM' && m.midia_url) && (
                             <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
                           )}
-                          <p className="text-[10px] mt-0.5 text-right ">{fmtHora(m.created_at)}</p>
+                          <p className={`text-[10px] mt-0.5 text-right ${m.direcao === 'SAIDA' ? 'text-white/70' : 'text-gray-400'}`}>{fmtHora(m.created_at)}</p>
                         </div>
                       </div>
                     ))}
                     <div ref={fimRef} />
                   </div>
-                  <div className="p-3 flex items-center gap-2" style={{ background: '#F0F2F5' }}>
+                  <div className="p-3 flex items-center gap-2" style={{ background: '#F7F8FA' }}>
                     {gravando ? (
                       <>
                         <div className="flex-1 flex items-center gap-2 ps-card rounded-full px-4 py-2.5 text-sm shadow-sm">
@@ -851,7 +851,7 @@ export default function WhatsappPage() {
                           🗑️
                         </button>
                         <button onClick={() => pararGravacao(false)} title="Enviar áudio"
-                          className="text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
+                          className="text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#2563eb' }}>
                           ➤
                         </button>
                       </>
@@ -866,12 +866,12 @@ export default function WhatsappPage() {
                         />
                         {texto.trim() ? (
                           <button onClick={enviar} disabled={enviando}
-                            className="disabled:opacity-50 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
+                            className="disabled:opacity-50 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#2563eb' }}>
                             ➤
                           </button>
                         ) : (
                           <button onClick={iniciarGravacao} title="Gravar áudio"
-                            className="text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#128C7E' }}>
+                            className="text-white rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg" style={{ background: '#2563eb' }}>
                             🎤
                           </button>
                         )}
@@ -884,21 +884,60 @@ export default function WhatsappPage() {
 
             {/* Painel lateral — resumo comercial da conversa ativa */}
             {ativa && (
-              <div className="hidden md:flex md:flex-col bg-white border-l border-gray-200 min-h-0 overflow-y-auto p-4 gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Contato</p>
-                  <p className="font-semibold text-sm">{nomeContato(ativa)}</p>
-                  <p className="text-xs text-gray-500">{ativa.contato_numero}</p>
+              <div className="hidden md:flex md:flex-col bg-white border-l border-gray-200 min-h-0 overflow-y-auto">
+                <div className="px-4 py-3.5 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-gray-800">{painel?.cliente ? (painel.cliente.razao_social || painel.cliente.nome_fantasia || painel.cliente.nome) : 'Atendimento'}</p>
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    {(() => {
+                      const prio = PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'));
+                      return prio && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: prio.cor }}>{prio.nome}</span>
+                      );
+                    })()}
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: '#eef2ff', color: '#4338ca' }}>
+                      {ESTAGIOS_FUNIL.find(e => e.valor === ativa.estagio_funil)?.nome || 'Novo Contato'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="px-4 py-3.5 border-b border-gray-100">
+                  {(() => {
+                    const sla = fmtSla(ativa.sla_prazo_em);
+                    return (
+                      <>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">SLA</p>
+                        {sla ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${sla.violado ? 'text-white' : ''}`}
+                            style={sla.violado ? { background: '#dc2626' } : { background: '#f1f5f9', color: '#334155' }}>
+                            {sla.violado ? '⏰ ' : '🕐 '}{sla.texto}
+                          </span>
+                        ) : <p className="text-xs text-gray-400">Sem SLA em contagem</p>}
+                        {ativa.sla_prazo_em && (
+                          <p className="text-[11px] text-gray-400 mt-1">Prazo: {new Date(ativa.sla_prazo_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                <div className="px-4 py-3.5 border-b border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase">Contato</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-0.5">Nome</p>
+                  <p className="text-sm font-medium text-gray-800 mb-2">{nomeContato(ativa)}</p>
+                  <p className="text-xs text-gray-400 mb-0.5">WhatsApp</p>
+                  <p className="text-sm font-medium text-gray-800">{ativa.contato_numero}</p>
                 </div>
 
                 {painel?.cliente && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Cliente</p>
-                    <p className="text-sm font-medium">
+                  <div className="px-4 py-3.5 border-b border-gray-100">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase mb-2">Cliente</p>
+                    <p className="text-sm font-medium text-gray-800">
                       {painel.cliente.codigo ? `#${painel.cliente.codigo} · ` : ''}
                       {painel.cliente.razao_social || painel.cliente.nome_fantasia || painel.cliente.nome}
                     </p>
-                    <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                    <div className="text-xs text-gray-500 mt-1.5 space-y-1">
                       {painel.cliente.plano && <p>Plano: <span className="font-medium text-gray-700">{painel.cliente.plano}</span></p>}
                       {painel.cliente.mensalidade_base != null && <p>Mensalidade: <span className="font-medium text-gray-700">{fmtMoeda(painel.cliente.mensalidade_base)}</span></p>}
                       <p>Cliente há: <span className="font-medium text-gray-700">{tempoDeCasa(painel.cliente.data_entrada)}</span></p>
@@ -910,36 +949,50 @@ export default function WhatsappPage() {
                 )}
 
                 {painel?.proposta && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
-                    <p className="text-xs font-semibold text-amber-700 uppercase mb-1">Proposta em aberto</p>
-                    <p className="text-sm font-medium text-amber-900">{painel.proposta.titulo_proposta || 'Proposta comercial'}</p>
-                    <p className="text-xs text-amber-700 mt-0.5">
-                      {painel.proposta.valor_final != null ? fmtMoeda(painel.proposta.valor_final) : ''} · {painel.proposta.status}
-                    </p>
-                    {painel.proposta.validade && <p className="text-[11px] text-amber-600 mt-0.5">Validade: {fmtDataCurta(painel.proposta.validade)}</p>}
+                  <div className="px-4 py-3.5 border-b border-gray-100">
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+                      <p className="text-xs font-semibold text-amber-700 uppercase mb-1">Proposta em aberto</p>
+                      <p className="text-sm font-medium text-amber-900">{painel.proposta.titulo_proposta || 'Proposta comercial'}</p>
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        {painel.proposta.valor_final != null ? fmtMoeda(painel.proposta.valor_final) : ''} · {painel.proposta.status}
+                      </p>
+                      {painel.proposta.validade && <p className="text-[11px] text-amber-600 mt-0.5">Validade: {fmtDataCurta(painel.proposta.validade)}</p>}
+                    </div>
                   </div>
                 )}
 
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Atendimento</p>
-                  <div className="text-xs text-gray-500 space-y-0.5">
-                    <p>Responsável: <span className="font-medium text-gray-700">{painel?.responsavel?.nome || '—'}</span></p>
-                    <p>Etapa: <span className="font-medium text-gray-700">{ESTAGIOS_FUNIL.find(e => e.valor === ativa.estagio_funil)?.nome || 'Novo Contato'}</span></p>
-                    <p>Prioridade: <span className="font-medium text-gray-700">{PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'))?.nome}</span></p>
-                    {(() => {
-                      const sla = fmtSla(ativa.sla_prazo_em);
-                      if (!sla) return null;
-                      return <p className={sla.violado ? 'font-semibold text-red-600' : ''}>SLA: {sla.texto}</p>;
-                    })()}
-                  </div>
+                <div className="px-4 py-3.5 border-b border-gray-100">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Responsável</p>
+                  <p className="text-sm font-medium text-gray-800">{painel?.responsavel?.nome || '—'}</p>
                 </div>
 
-                <div className="mt-auto pt-2 border-t border-gray-100">
-                  <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1">Mover no funil</label>
+                <div className="px-4 py-3.5">
+                  <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Mover no funil</label>
                   <select value={ativa.estagio_funil || 'NOVO_CONTATO'} onChange={e => moverEstagio(ativa.id, e.target.value)}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5">
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-2">
                     {ESTAGIOS_FUNIL.map(e => <option key={e.valor} value={e.valor}>{e.nome}</option>)}
                   </select>
+                </div>
+
+                <div className="mt-auto px-4 py-3.5 border-t border-gray-100 grid grid-cols-2 gap-2">
+                  {podeTransferir && (
+                    <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); setMenuPrioridade(false); }}
+                      className="flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg py-2 hover:bg-gray-50">
+                      ↗️ Transferir
+                    </button>
+                  )}
+                  <button onClick={abrirVincCliente}
+                    className="flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg py-2 hover:bg-gray-50">
+                    👤 Identificar
+                  </button>
+                  <button onClick={() => excluirConversa(ativa.id)}
+                    className="flex items-center justify-center gap-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg py-2 hover:bg-red-50">
+                    🗑️ Excluir
+                  </button>
+                  <button onClick={() => moverEstagio(ativa.id, 'FECHADO')}
+                    className="flex items-center justify-center gap-1.5 text-xs font-semibold text-white rounded-lg py-2" style={{ background: '#16a34a' }}>
+                    ✓ Finalizar
+                  </button>
                 </div>
               </div>
             )}
@@ -991,7 +1044,7 @@ export default function WhatsappPage() {
                                 <p className="text-sm font-medium text-sm font-semibold truncate">{nomeContato(c)}</p>
                                 <p className="text-xs  truncate">{c.ultima_mensagem || '—'}</p>
                               </div>
-                              {c.nao_lidas > 0 && <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
+                              {c.nao_lidas > 0 && <span className="bg-blue-600 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
                             </div>
                             <div className="flex items-center gap-1 flex-wrap mt-1">
                               {c.lead_id && <span className="inline-block text-[10px] text-blue-600">🔗 funil</span>}
@@ -1062,7 +1115,7 @@ export default function WhatsappPage() {
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowVincCliente(false)} className="px-4 py-2 text-sm ">Cancelar</button>
               <button onClick={salvarVincCliente} disabled={vincSalvando || !vincSel}
-                className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#128C7E' }}>
+                className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#2563eb' }}>
                 {vincSalvando ? 'Vinculando…' : 'Vincular e salvar contato'}
               </button>
             </div>
@@ -1096,7 +1149,7 @@ export default function WhatsappPage() {
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowReuniao(false)} className="px-4 py-2 text-sm ">Cancelar</button>
-              <button onClick={agendarReuniao} disabled={salvandoReuniao} className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#128C7E' }}>
+              <button onClick={agendarReuniao} disabled={salvandoReuniao} className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#2563eb' }}>
                 {salvandoReuniao ? 'Agendando…' : 'Agendar e enviar'}
               </button>
             </div>
