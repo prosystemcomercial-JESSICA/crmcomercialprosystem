@@ -453,6 +453,17 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     const npsPorPlano = Object.entries(porPlano).map(([plano, notas]) => ({ plano, nps: npsDe(notas), respostas: notas.length }));
     const npsPorTempoCasa = Object.entries(porTempoCasa).map(([faixa, notas]) => ({ faixa, nps: npsDe(notas), respostas: notas.length }));
 
+    // ── 10a. Oportunidades paradas (30+ dias sem atualização) — alimenta alerta de exceção ──
+    const d30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const oportunidadesParadas = await prisma.lead.count({
+      where: {
+        deleted_at: null,
+        etapa_comercial: { in: ETAPAS_FUNIL.filter(e => e !== 'CONTRATO_ASSINADO') },
+        updated_at: { lt: d30 },
+        ...(scopeId ? { OR: [{ responsavel_id: scopeId }, { created_by: scopeId }] } : {}),
+      },
+    }).catch(() => 0);
+
     // ── 10b. Pipeline Coverage (pipeline bruto ÷ meta restante do mês) ──
     // Pipeline bruto: mesma regra de dashboard-power.ts (propostas ENVIADA/EM_NEGOCIACAO,
     // setup + mensalidade, sem ponderação por probabilidade — é "quanto pode entrar", não
@@ -549,6 +560,7 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
         forecast_comparativo: forecastComparativo,
         ticket_medio_historico: ticketMedioHistorico,
         sazonalidade,
+        oportunidades_paradas: oportunidadesParadas,
         pipeline_coverage: {
           pipeline_valor_bruto: Math.round(pipelineValorBruto),
           meta_restante_mes: Math.round(metaRestanteMes),

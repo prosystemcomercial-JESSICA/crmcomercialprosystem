@@ -32,6 +32,7 @@ interface AnaliseComercial {
   forecast_comparativo: { vendedor_id: string; vendedor_nome: string; valor_ponderado: number; oportunidades: number }[];
   ticket_medio_historico: { mes: string; ticket_medio_setup: number; ticket_medio_mrr: number; qtd: number }[];
   sazonalidade: { mes: number; ano_atual: number; ano_anterior: number }[];
+  oportunidades_paradas: number;
   pipeline_coverage: { pipeline_valor_bruto: number; meta_restante_mes: number; cobertura: number | null };
   crescimento_yoy: { receita_mes_atual: number; receita_mesmo_mes_ano_anterior: number; percentual: number | null };
   churn_mrr: { taxa_percentual: number | null; mrr_perdido_periodo: number; mrr_base_ativo: number };
@@ -138,6 +139,7 @@ export default function AnaliseComercialPage() {
   const [vendedorId, setVendedorId] = useState('');
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [comparativoAnual, setComparativoAnual] = useState<ComparativoAnual | null>(null);
+  const [indicadoresCeo, setIndicadoresCeo] = useState<{ cac: number | null; cpl: number | null; marketing_investido: number | null; marketing_leads: number | null } | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -168,6 +170,14 @@ export default function AnaliseComercialPage() {
 
   useEffect(() => {
     if (!gestor) return;
+    const hoje = new Date();
+    apiClient.getIndicadoresCEO(hoje.getFullYear(), hoje.getMonth() + 1).then(res => {
+      setIndicadoresCeo(res.data?.data || null);
+    }).catch(() => setIndicadoresCeo(null));
+  }, [gestor]);
+
+  useEffect(() => {
+    if (!gestor) return;
     apiClient.client.get('/usuarios').then(res => {
       const arr = res.data?.data;
       if (Array.isArray(arr)) {
@@ -182,6 +192,28 @@ export default function AnaliseComercialPage() {
         <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--t-primary)', borderTopColor: 'transparent' }} />
       </div>
     );
+  }
+
+  // Alertas de exceção — limiares de ponto de partida, ajustáveis depois de ver o
+  // comportamento real dos dados (ver documento "Cockpit Executivo do CEO").
+  const alertas: { nivel: 'critico' | 'atencao' | 'positivo'; texto: string }[] = [];
+  if (data) {
+    const metaTotal = data.atingimento_meta.reduce((s, m) => s + m.meta_valor, 0);
+    const realizadoTotal = data.atingimento_meta.reduce((s, m) => s + m.realizado_valor, 0);
+    const percentualMetaAgregado = metaTotal > 0 ? (realizadoTotal / metaTotal) * 100 : null;
+    const hoje = new Date();
+    if (percentualMetaAgregado !== null && hoje.getDate() >= 20 && percentualMetaAgregado < 70) {
+      alertas.push({ nivel: 'critico', texto: `Atingimento de meta em ${percentualMetaAgregado.toFixed(0)}% — abaixo de 70% já no dia ${hoje.getDate()} do mês` });
+    }
+    if (data.pipeline_coverage.cobertura !== null && data.pipeline_coverage.cobertura < 2) {
+      alertas.push({ nivel: 'atencao', texto: `Pipeline Coverage em ${data.pipeline_coverage.cobertura.toFixed(1)}x — abaixo de 2x da meta restante do mês` });
+    }
+    if (data.oportunidades_paradas > 10) {
+      alertas.push({ nivel: 'critico', texto: `${data.oportunidades_paradas} oportunidades paradas há 30+ dias sem avanço` });
+    }
+    if (data.crescimento_yoy.percentual !== null && data.crescimento_yoy.percentual > 10) {
+      alertas.push({ nivel: 'positivo', texto: `Receita do mês subiu ${data.crescimento_yoy.percentual.toFixed(0)}% vs. mesmo mês do ano anterior` });
+    }
   }
 
   const sazonalidadeChart = data?.sazonalidade.map(s => ({
@@ -249,6 +281,22 @@ export default function AnaliseComercialPage() {
           <Card><EmptyState label="Não foi possível carregar os dados" /></Card>
         ) : (
           <>
+            {/* ─── Alertas de exceção ─────────────────── */}
+            {alertas.length > 0 && (
+              <div className="space-y-2">
+                {alertas.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium"
+                    style={{
+                      background: a.nivel === 'critico' ? 'var(--t-danger-bg, #FDECEA)' : a.nivel === 'atencao' ? 'var(--t-warning-bg, #FEF6E7)' : 'var(--t-success-bg, #E9F7EF)',
+                      color: a.nivel === 'critico' ? 'var(--t-danger, #B3432F)' : a.nivel === 'atencao' ? 'var(--t-warning, #B8791A)' : 'var(--t-success, #1F7A4D)',
+                    }}>
+                    <AlertTriangle size={15} />
+                    {a.texto}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* ─── Resumo executivo (leitura rápida para a diretoria) ── */}
             <div className="rounded-2xl p-5 text-white" style={{ background: 'linear-gradient(135deg, #1A4E82, #2E6EAB)' }}>
               <p className="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Resumo executivo</p>
@@ -289,6 +337,36 @@ export default function AnaliseComercialPage() {
                 </div>
               </div>
             </div>
+
+            {/* ─── Aquisição e Marketing (dado lançado em /indicadores-ceo) ── */}
+            {gestor && (
+              <Card>
+                <SectionTitle icon={Users} title="Aquisição e Marketing (mês atual)"
+                  subtitle="Lançado manualmente em Indicadores do CEO — financeiro e marketing não são calculados automaticamente pelo CRM" />
+                {indicadoresCeo ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>CAC (custo de aquisição)</p>
+                      <p className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>{indicadoresCeo.cac != null ? fmt(indicadoresCeo.cac) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>CPL (custo por lead)</p>
+                      <p className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>{indicadoresCeo.cpl != null ? fmt(indicadoresCeo.cpl) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Marketing investido</p>
+                      <p className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>{indicadoresCeo.marketing_investido != null ? fmt(indicadoresCeo.marketing_investido) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Leads de campanha</p>
+                      <p className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>{indicadoresCeo.marketing_leads ?? '—'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState label="Nenhum indicador lançado para este mês ainda — lance em Indicadores do CEO" />
+                )}
+              </Card>
+            )}
 
             {/* ─── Comparativo Anual (ano corrente vs. anos anteriores) ── */}
             {comparativoAnual && comparativoAnual.historicos.length > 0 && (
