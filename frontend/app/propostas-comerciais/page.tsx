@@ -151,6 +151,7 @@ const COMUNICACAO_BLANK: ComunicacaoProjeto = {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   RASCUNHO:      { label: 'Rascunho',       color: 'var(--t-text-muted)', bg: '#f3f4f6' },
   ENVIADA:       { label: 'Enviada',         color: '#2563eb', bg: '#dbeafe' },
+  VISUALIZADA:   { label: 'Visualizada',     color: '#7c3aed', bg: '#ede9fe' },
   EM_NEGOCIACAO: { label: 'Em Negociação',   color: '#d97706', bg: '#fef3c7' },
   ACEITA:        { label: 'Aceita',          color: '#16a34a', bg: '#dcfce7' },
   RECUSADA:      { label: 'Recusada',        color: '#dc2626', bg: '#fee2e2' },
@@ -871,6 +872,29 @@ export default function PropostasComerciais() {
               <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* Receita em negociação + ticket médio + follow-up — vêm do backend
+            (metricas.producao), que já cruza CNPJ×Atividade p/ o follow-up. */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div className="ps-card p-3 rounded-xl">
+            <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Receita em negociação</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#d97706', marginTop: 2 }}>
+              {fmtBRL(metricas?.producao?.receita_em_negociacao || 0)}
+            </div>
+          </div>
+          <div className="ps-card p-3 rounded-xl">
+            <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Ticket médio (fechadas)</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', marginTop: 2 }}>
+              {fmtBRL(metricas?.producao?.ticket_medio || 0)}
+            </div>
+          </div>
+          <div className="ps-card p-3 rounded-xl">
+            <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Follow-up realizado</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#2563eb', marginTop: 2 }}>
+              {metricas?.producao?.taxa_follow_up_pct != null ? `${metricas.producao.taxa_follow_up_pct}%` : '—'}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">

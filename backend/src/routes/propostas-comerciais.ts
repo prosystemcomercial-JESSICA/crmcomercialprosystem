@@ -216,7 +216,7 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
     const propostas = await prisma.propostaComercial.findMany({
       where,
       select: {
-        id: true, razao_social: true, segmento: true, status: true, valor_final: true,
+        id: true, razao_social: true, segmento: true, status: true, valor_final: true, cnpj: true,
         created_at: true, data_aceite: true, data_fechamento: true,
         historico: {
           where: { tipo: 'STATUS' },
@@ -295,6 +295,38 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       qtd: ds.length,
     })).sort((a, b) => b.media_dias - a.media_dias);
 
+    // Receita em negociação: soma do valor_final de tudo que ainda está aberto
+    // (nem fechado nem perdido) — é a receita "na mesa", ainda não decidida.
+    const propostasAbertas = lista.filter(p => !FECHADAS.includes(p.status) && !PERDIDAS.includes(p.status));
+    const receitaEmNegociacao = soma(propostasAbertas.map(p => p.valor_final || 0));
+
+    // Taxa de follow-up realizado: % de propostas com pelo menos 1 Atividade
+    // depois do envio, casada pelo CNPJ do Lead (PropostaComercial não tem
+    // lead_id — é desacoplada). Limitação conhecida: só encontra o vínculo
+    // quando o CNPJ bate exatamente e está preenchido nos dois lados.
+    const cnpjsValidos = Array.from(new Set(lista.map(p => (p.cnpj || '').replace(/\D/g, '')).filter(c => c.length >= 11)));
+    let taxaFollowUpPct = 0;
+    if (cnpjsValidos.length > 0) {
+      const leadsComCnpj = await prisma.lead.findMany({
+        where: { deleted_at: null, cnpj: { not: null } },
+        select: { id: true, cnpj: true },
+      });
+      const leadIdPorCnpj = new Map(leadsComCnpj.map(l => [(l.cnpj || '').replace(/\D/g, ''), l.id]));
+      const leadIdsRelevantes = cnpjsValidos.map(c => leadIdPorCnpj.get(c)).filter((id): id is string => !!id);
+
+      if (leadIdsRelevantes.length > 0) {
+        const atividadesPorLead = await prisma.atividade.groupBy({
+          by: ['lead_id'],
+          where: { lead_id: { in: leadIdsRelevantes } },
+          _count: true,
+        });
+        const leadsComAtividade = new Set(atividadesPorLead.map(a => a.lead_id));
+        const propostasComLead = lista.filter(p => leadIdPorCnpj.has((p.cnpj || '').replace(/\D/g, '')));
+        const propostasComFollowUp = propostasComLead.filter(p => leadsComAtividade.has(leadIdPorCnpj.get((p.cnpj || '').replace(/\D/g, ''))!));
+        taxaFollowUpPct = pct(propostasComFollowUp.length, propostasComLead.length);
+      }
+    }
+
     return reply.send({
       status: 'success',
       data: {
@@ -305,9 +337,14 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
           perdidas: perdidas.length,
           em_aberto: abertas,
           valor_fechado: soma(fechadas.map(p => p.valor_final || 0)),
+          receita_em_negociacao: receitaEmNegociacao,
           ticket_medio: fechadas.length ? Math.round(soma(fechadas.map(p => p.valor_final || 0)) / fechadas.length) : 0,
           // % de fechamento sobre o total produzido no período.
           taxa_fechamento_pct: pct(fechadas.length, total),
+          // % de propostas com follow-up (Atividade) registrado — casado por
+          // CNPJ com o Lead; null quando não há CNPJ suficiente na amostra
+          // para calcular (evita mostrar 0% enganoso por falta de dado).
+          taxa_follow_up_pct: cnpjsValidos.length > 0 ? taxaFollowUpPct : null,
         },
         por_segmento: porSegmento,
         tempos: {
@@ -334,10 +371,20 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
   });
 
   // ===== ACESSO PÚBLICO (por token) — sem auth =====
+  // Primeira abertura do link pelo cliente marca VISUALIZADA — só quando ainda
+  // está em RASCUNHO/ENVIADA (nunca regride um status mais avançado, ex.: se o
+  // vendedor já negociou por telefone e moveu para EM_NEGOCIACAO/ACEITA).
   fastify.get('/p/:token', { config: { skipAuth: true } }, async (request, reply) => {
     const { token } = request.params as { token: string };
-    const proposta = await prisma.propostaComercial.findUnique({ where: { public_token: token } });
+    let proposta = await prisma.propostaComercial.findUnique({ where: { public_token: token } });
     if (!proposta) return reply.status(404).send({ status: 'error', message: 'Proposta não encontrada ou expirada' });
+    if (['RASCUNHO', 'ENVIADA'].includes(proposta.status)) {
+      const statusAnterior = proposta.status;
+      proposta = await prisma.propostaComercial.update({ where: { id: proposta.id }, data: { status: 'VISUALIZADA' } });
+      await prisma.propostaHistorico.create({
+        data: { proposta_id: proposta.id, tipo: 'STATUS', valor_anterior: statusAnterior, valor_novo: 'VISUALIZADA', feito_por_nome: 'Cliente (link público)' },
+      }).catch(() => {});
+    }
     return reply.send({ status: 'success', data: proposta });
   });
 

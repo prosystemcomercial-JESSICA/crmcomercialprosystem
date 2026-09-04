@@ -1649,8 +1649,10 @@ model PropostaComercial {
 
   // Metadados
   status String @default("RASCUNHO")
-  // RASCUNHO | ENVIADA | EM_NEGOCIACAO | ACEITA | RECUSADA | PERDIDA
+  // RASCUNHO | ENVIADA | VISUALIZADA | EM_NEGOCIACAO | ACEITA | RECUSADA | PERDIDA | EXPIRADA
   // CONTRATO_EM_GERACAO | CONTRATO_ENVIADO | CONTRATO_ASSINADO
+  // VISUALIZADA: cliente abriu o link público pela 1ª vez (marcado em GET /p/:token).
+  // EXPIRADA: passou da `validade` sem decisão (marcado pelo scheduler de propostas).
 
   public_token String? @unique
 
