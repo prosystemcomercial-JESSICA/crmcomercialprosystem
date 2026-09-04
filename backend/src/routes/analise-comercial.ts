@@ -453,6 +453,59 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     const npsPorPlano = Object.entries(porPlano).map(([plano, notas]) => ({ plano, nps: npsDe(notas), respostas: notas.length }));
     const npsPorTempoCasa = Object.entries(porTempoCasa).map(([faixa, notas]) => ({ faixa, nps: npsDe(notas), respostas: notas.length }));
 
+    // ── 10b. Pipeline Coverage (pipeline bruto ÷ meta restante do mês) ──
+    // Pipeline bruto: mesma regra de dashboard-power.ts (propostas ENVIADA/EM_NEGOCIACAO,
+    // setup + mensalidade, sem ponderação por probabilidade — é "quanto pode entrar", não
+    // "quanto deve entrar" como o forecast ponderado acima).
+    const propostasEmAberto = await prisma.propostaComercial.findMany({
+      where: ownerPropostaWhere({ status: { in: ['ENVIADA', 'EM_NEGOCIACAO'] } }),
+      select: { valor_final: true, mensalidade_plus: true, mensalidade_pro: true },
+    }).catch(() => [] as any[]);
+    const pipelineValorBruto = propostasEmAberto.reduce((s, p) => {
+      const setup = p.valor_final ?? 0;
+      const mrr = p.mensalidade_plus ?? p.mensalidade_pro ?? 0;
+      return s + setup + mrr;
+    }, 0);
+
+    const metaValorTotalMes = atingimentoMeta.reduce((s, m) => s + m.meta_valor, 0);
+    const realizadoValorTotalMes = atingimentoMeta.reduce((s, m) => s + m.realizado_valor, 0);
+    const metaRestanteMes = Math.max(metaValorTotalMes - realizadoValorTotalMes, 0);
+    const pipelineCoverage = metaRestanteMes > 0 ? Math.round((pipelineValorBruto / metaRestanteMes) * 100) / 100 : null;
+
+    // ── 10c. Crescimento YoY (receita do mês atual vs. mesmo mês do ano anterior) ──
+    // Reaproveita STATUS_FECHADA já usado no restante do arquivo; soma setup + MRR de
+    // PropostaComercial fechada com data_aceite (fallback created_at) no mês-alvo.
+    const receitaFechadaNoMes = async (refDate: Date) => {
+      const inicio = new Date(refDate.getFullYear(), refDate.getMonth(), 1);
+      const fim = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0, 23, 59, 59);
+      const fechamentos = await prisma.propostaComercial.findMany({
+        where: ownerPropostaWhere({
+          status: { in: STATUS_FECHADA },
+          AND: [{
+            OR: [
+              { data_aceite: { gte: inicio, lte: fim } },
+              { AND: [{ data_aceite: null }, { created_at: { gte: inicio, lte: fim } }] },
+            ],
+          }],
+        }),
+        select: { valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true },
+      }).catch(() => [] as any[]);
+      return fechamentos.reduce((s, f) => {
+        const inst = Number(f.valor_implantacao ?? f.valor_final ?? 0);
+        const mrr = Number(f.mensalidade_plus ?? f.mensalidade_pro ?? 0);
+        return s + inst + mrr;
+      }, 0);
+    };
+    const hojeRef = new Date();
+    const mesAnteriorAno = new Date(hojeRef.getFullYear() - 1, hojeRef.getMonth(), 1);
+    const [receitaMesAtual, receitaMesmoMesAnoAnterior] = await Promise.all([
+      receitaFechadaNoMes(hojeRef),
+      receitaFechadaNoMes(mesAnteriorAno),
+    ]);
+    const crescimentoYoyPct = receitaMesmoMesAnoAnterior > 0
+      ? Math.round(((receitaMesAtual - receitaMesmoMesAnoAnterior) / receitaMesmoMesAnoAnterior) * 1000) / 10
+      : null;
+
     // ── 10. SLA de resposta ao lead (tempo até 1ª observação) ──
     const leadsComData = await prisma.lead.findMany({
       where: {
@@ -496,6 +549,16 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
         forecast_comparativo: forecastComparativo,
         ticket_medio_historico: ticketMedioHistorico,
         sazonalidade,
+        pipeline_coverage: {
+          pipeline_valor_bruto: Math.round(pipelineValorBruto),
+          meta_restante_mes: Math.round(metaRestanteMes),
+          cobertura: pipelineCoverage,
+        },
+        crescimento_yoy: {
+          receita_mes_atual: Math.round(receitaMesAtual),
+          receita_mesmo_mes_ano_anterior: Math.round(receitaMesmoMesAnoAnterior),
+          percentual: crescimentoYoyPct,
+        },
         churn_mrr: { taxa_percentual: churnRateMrr, mrr_perdido_periodo: Math.round(mrrPerdidoPeriodo), mrr_base_ativo: Math.round(mrrBase) },
         expansao_mrr: { taxa_percentual: taxaExpansao, mrr_expansao: Math.round(mrrExpansao), mrr_novo: Math.round(mrrNovo) },
         projecao_mrr: { mrr_atual: Math.round(mrrAtual), pontos: projecaoMrr },

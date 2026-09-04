@@ -32,6 +32,8 @@ interface AnaliseComercial {
   forecast_comparativo: { vendedor_id: string; vendedor_nome: string; valor_ponderado: number; oportunidades: number }[];
   ticket_medio_historico: { mes: string; ticket_medio_setup: number; ticket_medio_mrr: number; qtd: number }[];
   sazonalidade: { mes: number; ano_atual: number; ano_anterior: number }[];
+  pipeline_coverage: { pipeline_valor_bruto: number; meta_restante_mes: number; cobertura: number | null };
+  crescimento_yoy: { receita_mes_atual: number; receita_mesmo_mes_ano_anterior: number; percentual: number | null };
   churn_mrr: { taxa_percentual: number | null; mrr_perdido_periodo: number; mrr_base_ativo: number };
   expansao_mrr: { taxa_percentual: number | null; mrr_expansao: number; mrr_novo: number };
   projecao_mrr: { mrr_atual: number; pontos: { mes: string; mrr_projetado: number }[] };
@@ -250,16 +252,30 @@ export default function AnaliseComercialPage() {
             {/* ─── Resumo executivo (leitura rápida para a diretoria) ── */}
             <div className="rounded-2xl p-5 text-white" style={{ background: 'linear-gradient(135deg, #1A4E82, #2E6EAB)' }}>
               <p className="text-xs font-semibold uppercase tracking-wide opacity-80 mb-3">Resumo executivo</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
                   <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><DollarSign size={13} /> Receita Recorrente Mensal atual</div>
                   <p className="text-2xl font-extrabold">{fmt(data.projecao_mrr.mrr_atual)}</p>
                   <p className="text-[11px] opacity-70 mt-0.5">projeção em 3 meses: {fmt(data.projecao_mrr.pontos[2]?.mrr_projetado ?? data.projecao_mrr.mrr_atual)}</p>
                 </div>
                 <div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><TrendingUp size={13} /> Crescimento vs. ano anterior</div>
+                  <p className="text-2xl font-extrabold">
+                    {data.crescimento_yoy.percentual === null ? '—' : `${data.crescimento_yoy.percentual > 0 ? '+' : ''}${pct(data.crescimento_yoy.percentual)}`}
+                  </p>
+                  <p className="text-[11px] opacity-70 mt-0.5">{fmt(data.crescimento_yoy.receita_mes_atual)} vs. {fmt(data.crescimento_yoy.receita_mesmo_mes_ano_anterior)} (mesmo mês, ano passado)</p>
+                </div>
+                <div>
                   <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><Target size={13} /> Win rate geral</div>
                   <p className="text-2xl font-extrabold">{pct(data.win_rate.geral)}</p>
                   <p className="text-[11px] opacity-70 mt-0.5">{data.win_rate.ganhas} fechadas de {data.win_rate.ganhas + data.win_rate.perdidas} propostas</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><Percent size={13} /> Pipeline Coverage</div>
+                  <p className="text-2xl font-extrabold">
+                    {data.pipeline_coverage.cobertura === null ? '—' : `${data.pipeline_coverage.cobertura.toFixed(1)}x`}
+                  </p>
+                  <p className="text-[11px] opacity-70 mt-0.5">{fmt(data.pipeline_coverage.pipeline_valor_bruto)} em pipeline / {fmt(data.pipeline_coverage.meta_restante_mes)} restante de meta</p>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 opacity-80 text-xs mb-1"><TrendingDown size={13} /> Churn (Receita Recorrente)</div>
