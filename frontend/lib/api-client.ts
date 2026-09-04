@@ -1217,6 +1217,9 @@ class ApiClient {
   async getAnaliseComercial(params?: { vendedor_id?: string; periodo_meses?: number }) {
     return this.client.get('/analise-comercial', { params: params || {} });
   }
+  async getPipelineComercial() {
+    return this.client.get('/pipeline-comercial');
+  }
 
   // Comparativo anual: ano corrente (ao vivo) vs. anos anteriores (snapshot histórico)
   async getComparativoAnual(params?: { ano?: number }) {

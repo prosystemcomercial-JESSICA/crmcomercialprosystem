@@ -26,7 +26,7 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // Supervisão Comercial tem acesso total ao menu (mesmo nível de CEO/ADMIN),
 // mantendo o cargo/permissões de dados como Supervisão Comercial.
 const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
-const CEO_VISIVEL = ['/centro-custos', '/casos', '/analise-comercial', '/ltv', '/indicadores-ceo', '/leads'];
+const CEO_VISIVEL = ['/centro-custos', '/casos', '/analise-comercial', '/ltv', '/indicadores-ceo', '/leads', '/pipeline-comercial'];
 
 // `modulo` liga o item ao nome usado em MODULOS (backend/src/routes/usuarios.ts,
 // tela Usuários → "Liberação de Módulos"). Quando presente, um usuário SEM o cargo
@@ -102,6 +102,7 @@ const navGroups: NavGroup[] = [
       { href: '/nutricao',              icon: Sprout,    label: 'Nutrição',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas',  roles: GESTAO_COMERCIAL },
       { href: '/analise-comercial',     icon: BarChart2, label: 'Análise Comercial', roles: COMERCIAL },
+      { href: '/pipeline-comercial',    icon: GitMerge,  label: 'Pipeline Comercial', roles: GESTAO_COMERCIAL },
       { href: '/campanha-padarias',     icon: Megaphone, label: 'Campanha Padarias', roles: GESTAO_COMERCIAL },
     ],
   },
