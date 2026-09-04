@@ -373,6 +373,28 @@ async function iniciarSchedulerCadenciaWhatsapp() {
   console.log('[BOOT] Scheduler da cadência de WhatsApp (farmácia/manipulação) iniciado');
 }
 
+// 8f) Scheduler: expiração de propostas comerciais — marca EXPIRADA toda
+//     proposta sem decisão do cliente após a data de validade.
+async function iniciarSchedulerExpiracaoPropostas() {
+  if (!prismaClient) return;
+
+  const rodar = async () => {
+    try {
+      const { rodarSchedulerExpiracaoPropostas } = await import('./services/proposta-expiracao.service.js');
+      const resultado = await rodarSchedulerExpiracaoPropostas(prismaClient!);
+      if (resultado.expiradas > 0) {
+        console.log(`[PROPOSTA-EXPIRACAO] ${resultado.expiradas} proposta(s) marcada(s) como EXPIRADA`);
+      }
+    } catch (err: any) {
+      console.error('[PROPOSTA-EXPIRACAO] Erro no scheduler:', err?.message);
+    }
+  };
+
+  setInterval(rodar, 60 * 60 * 1000); // 1x/hora — expiração não precisa de granularidade fina
+  setTimeout(rodar, 210 * 1000);
+  console.log('[BOOT] Scheduler de expiração de propostas iniciado');
+}
+
 // 8) Carrega rotas dinamicamente — cada uma isolada em try/catch.
 //    Se UMA rota falhar ao importar/registrar, as outras continuam funcionando
 //    e o /health permanece respondendo.
@@ -469,6 +491,7 @@ const start = async () => {
     iniciarSchedulerAutomacao();
     iniciarSchedulerSequenciaEmail();
     iniciarSchedulerCadenciaWhatsapp();
+    iniciarSchedulerExpiracaoPropostas();
 
     import('./services/whatsapp-eventos.service.js')
       .then(({ iniciarHeartbeatSSE }) => { iniciarHeartbeatSSE(); console.log('[BOOT] Heartbeat SSE do WhatsApp iniciado'); })
