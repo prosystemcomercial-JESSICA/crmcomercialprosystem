@@ -1,6 +1,7 @@
 // Backup diário do banco de produção — exporta todas as tabelas como JSON.
-// Rodado via Task Scheduler do Windows (logon + 17h todo dia), salva em uma
-// pasta local sincronizada pelo MEGAsync (backup externo automático).
+// Rodado via cron na VPS (0 6,17 * * * /usr/local/bin/backup-comercial.sh),
+// salva em /var/backups-comercial. Retenção de RETENCAO_DIAS abaixo apaga
+// pastas mais antigas a cada execução — não depende de sync externo.
 //
 // Não depende de mysqldump (não instalado nesta máquina) — usa o próprio
 // Prisma Client + SQL bruto pra descobrir e exportar todas as tabelas.
