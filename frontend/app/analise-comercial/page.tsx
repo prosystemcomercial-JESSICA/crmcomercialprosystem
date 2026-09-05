@@ -35,6 +35,11 @@ interface AnaliseComercial {
   oportunidades_paradas: number;
   pipeline_coverage: { pipeline_valor_bruto: number; meta_restante_mes: number; cobertura: number | null };
   crescimento_yoy: { receita_mes_atual: number; receita_mesmo_mes_ano_anterior: number; percentual: number | null };
+  aquisicao: {
+    receita_por_origem: { origem: string; receita: number; qtd: number }[];
+    marketing_investido_mes: number | null;
+    roi_marketing_pct: number | null;
+  };
   churn_mrr: { taxa_percentual: number | null; mrr_perdido_periodo: number; mrr_base_ativo: number };
   expansao_mrr: { taxa_percentual: number | null; mrr_expansao: number; mrr_novo: number };
   projecao_mrr: { mrr_atual: number; pontos: { mes: string; mrr_projetado: number }[] };
@@ -361,12 +366,65 @@ export default function AnaliseComercialPage() {
                       <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Leads de campanha</p>
                       <p className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>{indicadoresCeo.marketing_leads ?? '—'}</p>
                     </div>
+                    <div>
+                      <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>ROI de marketing (mês)</p>
+                      <p className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>
+                        {data.aquisicao.roi_marketing_pct === null ? '—' : `${data.aquisicao.roi_marketing_pct > 0 ? '+' : ''}${pct(data.aquisicao.roi_marketing_pct)}`}
+                      </p>
+                      <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>(receita do mês − marketing investido) / marketing investido</p>
+                    </div>
                   </div>
                 ) : (
                   <EmptyState label="Nenhum indicador lançado para este mês ainda — lance em Indicadores do CEO" />
                 )}
               </Card>
             )}
+
+            {/* ─── Receita por origem ─────────────── */}
+            {gestor && data.aquisicao.receita_por_origem.length > 0 && (
+              <Card>
+                <SectionTitle icon={DollarSign} title="Receita por origem" subtitle="De onde vieram os fechamentos no período — RETROATIVO é lançamento histórico sem canal rastreado, não um canal em si" />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                        <th className="text-left py-2 px-2 font-semibold" style={{ color: 'var(--t-text-muted)' }}>Origem</th>
+                        <th className="text-right py-2 px-2 font-semibold" style={{ color: 'var(--t-text-muted)' }}>Fechamentos</th>
+                        <th className="text-right py-2 px-2 font-semibold" style={{ color: 'var(--t-text-muted)' }}>Receita</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.aquisicao.receita_por_origem.map(o => (
+                        <tr key={o.origem} style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+                          <td className="py-2 px-2" style={{ color: 'var(--t-text-primary)' }}>{o.origem}</td>
+                          <td className="text-right py-2 px-2" style={{ color: 'var(--t-text-primary)' }}>{o.qtd}</td>
+                          <td className="text-right py-2 px-2" style={{ color: 'var(--t-text-primary)' }}>{fmt(o.receita)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {/* ─── Retenção e expansão — link cruzado entre telas já existentes ── */}
+            <Card>
+              <SectionTitle icon={ShieldAlert} title="Clientes, Retenção e Expansão" subtitle="Cada indicador vive na sua própria tela — atalhos diretos abaixo" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <a href="/centro-custos" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                  💰 Financeiro / MRR / DRE
+                </a>
+                <a href="/ltv" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                  📈 LTV dos Clientes
+                </a>
+                <a href="/casos" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                  🔥 Churn &amp; Retenção
+                </a>
+                <a href="/pipeline-comercial" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                  🔀 Pipeline Comercial
+                </a>
+              </div>
+            </Card>
 
             {/* ─── Comparativo Anual (ano corrente vs. anos anteriores) ── */}
             {comparativoAnual && comparativoAnual.historicos.length > 0 && (

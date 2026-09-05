@@ -205,7 +205,7 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
     // ── 5. Ticket médio histórico (setup e MRR, por mês, fechamentos) ──
     const fechamentosHist = await prisma.propostaComercial.findMany({
       where: ownerPropostaWhere({ status: { in: STATUS_FECHADA }, created_at: { gte: desde } }),
-      select: { valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true, data_aceite: true, created_at: true, segmento: true },
+      select: { valor_implantacao: true, valor_final: true, mensalidade_plus: true, mensalidade_pro: true, data_aceite: true, created_at: true, segmento: true, origem: true },
     }).catch(() => [] as any[]);
 
     const ticketPorMes: Record<string, { setup: number[]; mrr: number[] }> = {};
@@ -517,6 +517,34 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
       ? Math.round(((receitaMesAtual - receitaMesmoMesAnoAnterior) / receitaMesmoMesAnoAnterior) * 1000) / 10
       : null;
 
+    // ── 10d. Receita por origem + ROI (módulo Aquisição do Cockpit CEO) ──
+    // Usa PropostaComercial.origem (texto livre digitado no formulário — não um enum
+    // fechado, por isso agrupa pelo valor bruto em vez de normalizar). "RETROATIVO" é
+    // lançamento histórico sem canal de aquisição real rastreado, não um canal em si.
+    const porOrigemMap: Record<string, { receita: number; qtd: number }> = {};
+    for (const f of fechamentosHist) {
+      const origem = f.origem || 'Sem origem registrada';
+      if (!porOrigemMap[origem]) porOrigemMap[origem] = { receita: 0, qtd: 0 };
+      const inst = Number(f.valor_implantacao ?? f.valor_final ?? 0);
+      const mrr = Number(f.mensalidade_plus ?? f.mensalidade_pro ?? 0);
+      porOrigemMap[origem].receita += inst + mrr;
+      porOrigemMap[origem].qtd += 1;
+    }
+    const receitaPorOrigem = Object.entries(porOrigemMap)
+      .map(([origem, v]) => ({ origem, receita: Math.round(v.receita), qtd: v.qtd }))
+      .sort((a, b) => b.receita - a.receita);
+
+    // ROI: usa o CAC lançado manualmente em /indicadores-ceo (módulo 6) para o mês
+    // corrente — não há registro de investimento por canal individual no CRM, só o
+    // agregado mensal. roi = (receita do mês - custo total estimado) / custo total.
+    const indicadorMesAtual = await prisma.indicadorMensalCEO.findFirst({
+      where: { ano: hojeRef.getFullYear(), mes: hojeRef.getMonth() + 1 },
+    }).catch(() => null);
+    const marketingInvestidoMes = indicadorMesAtual?.marketing_investido ?? null;
+    const roiMarketing = (marketingInvestidoMes && marketingInvestidoMes > 0)
+      ? Math.round(((receitaMesAtual - marketingInvestidoMes) / marketingInvestidoMes) * 1000) / 10
+      : null;
+
     // ── 10. SLA de resposta ao lead (tempo até 1ª observação) ──
     const leadsComData = await prisma.lead.findMany({
       where: {
@@ -570,6 +598,11 @@ export async function analiseComercialRoutes(fastify: FastifyInstance, options: 
           receita_mes_atual: Math.round(receitaMesAtual),
           receita_mesmo_mes_ano_anterior: Math.round(receitaMesmoMesAnoAnterior),
           percentual: crescimentoYoyPct,
+        },
+        aquisicao: {
+          receita_por_origem: receitaPorOrigem,
+          marketing_investido_mes: marketingInvestidoMes,
+          roi_marketing_pct: roiMarketing,
         },
         churn_mrr: { taxa_percentual: churnRateMrr, mrr_perdido_periodo: Math.round(mrrPerdidoPeriodo), mrr_base_ativo: Math.round(mrrBase) },
         expansao_mrr: { taxa_percentual: taxaExpansao, mrr_expansao: Math.round(mrrExpansao), mrr_novo: Math.round(mrrNovo) },
