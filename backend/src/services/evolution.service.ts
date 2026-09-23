@@ -179,6 +179,34 @@ export async function enviarAudio(
 }
 
 /**
+ * Envia um arquivo escolhido no Inbox (imagem, vídeo ou documento) via POST
+ * /send/media, em base64. O tipo da UAZAPI sai do mime do data URL; documento
+ * leva docName para o cliente ver o nome do arquivo.
+ */
+export async function enviarArquivo(
+  instanceToken: string,
+  numero: string,
+  dataUrl: string,
+  nomeArquivo: string,
+  legenda?: string,
+): Promise<{ externo_id?: string; tipo: 'IMAGEM' | 'VIDEO' | 'DOCUMENTO' }> {
+  const m = dataUrl.match(/^data:([^;,]+)[^,]*;base64,(.*)$/s);
+  if (!m) throw new Error('Arquivo inválido');
+  const mimetype = m[1].toLowerCase();
+  const tipo = mimetype.startsWith('image/') ? 'IMAGEM' : mimetype.startsWith('video/') ? 'VIDEO' : 'DOCUMENTO';
+
+  const data = await call('/send/media', 'POST', instanceToken, {
+    number: normalizarNumero(numero),
+    type: tipo === 'IMAGEM' ? 'image' : tipo === 'VIDEO' ? 'video' : 'document',
+    file: m[2].replace(/\s/g, ''),
+    mimetype,
+    ...(tipo === 'DOCUMENTO' ? { docName: nomeArquivo } : {}),
+    ...(legenda ? { text: legenda } : {}),
+  });
+  return { externo_id: idDaMensagemEnviada(data), tipo };
+}
+
+/**
  * Id da mensagem devolvido pelo envio. A resposta segue o schema Message da
  * UAZAPI: `messageid` é o id do WhatsApp (o mesmo que chega no webhook e em
  * /message/download); `id` é interno da UAZAPI. Mantém os fallbacks antigos.

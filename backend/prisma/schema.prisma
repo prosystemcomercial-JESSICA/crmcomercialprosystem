@@ -2427,7 +2427,7 @@ model WhatsappMensagem {
   direcao     String // ENTRADA|SAIDA
   tipo        String  @default("TEXTO") // TEXTO|IMAGEM|AUDIO|DOCUMENTO|OUTRO
   conteudo    String  @db.Text
-  midia_url   String? @db.Text
+  midia_url   String? @db.LongText // data URL base64 da mídia (fotos/PDFs passam de 64 KB)
   status      String  @default("ENVIADA") // ENVIADA|ENTREGUE|LIDA|FALHA (saída)
   enviada_por String? // UsuarioCRM.id (quando SAIDA pelo CRM)
 

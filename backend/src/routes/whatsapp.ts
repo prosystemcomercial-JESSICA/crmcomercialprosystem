@@ -869,6 +869,62 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: msg });
   });
 
+  // Envia um arquivo escolhido no Inbox (imagem, vídeo ou documento).
+  // Recebe data URL; guarda o próprio data URL para exibir no Inbox.
+  const LIMITE_ARQUIVO_BYTES = 16 * 1024 * 1024;
+  fastify.post('/whatsapp/conversas/:id/arquivo', async (request, reply) => {
+    const user = getUser(request);
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      arquivo_base64: z.string().min(20),
+      nome: z.string().min(1).max(200),
+      legenda: z.string().max(1000).optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Arquivo obrigatório' });
+
+    const dataUrl = body.data.arquivo_base64.trim();
+    const base64 = dataUrl.split(',')[1] || '';
+    if (Math.floor(base64.length * 3 / 4) > LIMITE_ARQUIVO_BYTES) {
+      return reply.status(413).send({ status: 'error', message: 'Arquivo maior que 16 MB' });
+    }
+
+    const conversa = await prisma.whatsappConversa.findFirst({
+      where: { id, ...escopoDono(request) },
+      include: { instancia: true },
+    });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    const legenda = body.data.legenda?.trim() || undefined;
+    let r: { externo_id?: string; tipo: 'IMAGEM' | 'VIDEO' | 'DOCUMENTO' };
+    try {
+      r = await evo.enviarArquivo(conversa.instancia.instance_token || '', conversa.contato_numero, dataUrl, body.data.nome, legenda);
+    } catch (err: any) {
+      return reply.status(502).send({ status: 'error', message: `Falha ao enviar arquivo: ${err.message}` });
+    }
+
+    const rotulo = r.tipo === 'IMAGEM' ? '🖼️ Imagem' : r.tipo === 'VIDEO' ? '🎬 Vídeo' : `📎 ${body.data.nome}`;
+    const msg = await prisma.whatsappMensagem.create({
+      data: {
+        conversaId: id,
+        externo_id: r.externo_id,
+        direcao: 'SAIDA',
+        tipo: r.tipo,
+        conteudo: legenda || (r.tipo === 'DOCUMENTO' ? body.data.nome : rotulo),
+        midia_url: dataUrl,
+        status: 'ENVIADA',
+        enviada_por: user?.id,
+      },
+    });
+    await prisma.whatsappConversa.update({
+      where: { id },
+      data: { ultima_mensagem: legenda ? `${rotulo}: ${legenda}`.slice(0, 200) : rotulo, ultima_em: new Date(), sla_prazo_em: null },
+    });
+    if (conversa.cadencia_proxima_etapa) await pausarCadencia(prisma, id).catch(() => {});
+    await assumirSeSemDono(conversa, user);
+
+    return reply.send({ status: 'success', data: msg });
+  });
+
   // ===== WEBHOOK (público — chamado pela UAZAPI/Evolution) =====
   // Dois formatos:
   //   - UAZAPI nativo (EventType/token/message): só da instância da EMPRESA,
@@ -1019,12 +1075,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     }
 
     const obterMidia = async (): Promise<string | undefined> => {
-      if (ev.tipo_msg !== 'IMAGEM' && ev.tipo_msg !== 'AUDIO' && ev.tipo_msg !== 'DOCUMENTO') return undefined;
+      if (!['IMAGEM', 'VIDEO', 'AUDIO', 'DOCUMENTO'].includes(ev.tipo_msg)) return undefined;
       if (!ev.externo_id) return undefined;
       try {
         const m = await evo.baixarMidia(token, ev.externo_id);
         if (!m) { console.warn(`[WPP] Mídia ${ev.externo_id} sem conteúdo no /message/download.`); return undefined; }
-        const padrao = ev.tipo_msg === 'IMAGEM' ? 'image/jpeg' : ev.tipo_msg === 'AUDIO' ? 'audio/mpeg' : 'application/octet-stream';
+        const padrao = ev.tipo_msg === 'IMAGEM' ? 'image/jpeg' : ev.tipo_msg === 'VIDEO' ? 'video/mp4' : ev.tipo_msg === 'AUDIO' ? 'audio/mpeg' : 'application/octet-stream';
         return `data:${m.mimetype || padrao};base64,${m.base64}`;
       } catch (e: any) {
         console.error(`[WPP] Falha ao baixar mídia ${ev.externo_id}:`, e?.message);
@@ -1363,7 +1419,7 @@ async function registrarMensagemPropriaNormalizada(
     instanciaId?: string;
     contato_numero: string;
     externo_id?: string;
-    tipo: 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO';
+    tipo: 'TEXTO' | 'IMAGEM' | 'VIDEO' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO';
     texto: string;
     obterMidia: (conversa: any) => Promise<string | undefined>;
   },

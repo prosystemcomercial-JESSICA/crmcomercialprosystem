@@ -67,6 +67,50 @@ describe('enviarAudio', () => {
   });
 });
 
+describe('enviarArquivo', () => {
+  it('envia PDF como document com docName, legenda e mime do data URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respostaOk({ messageid: 'doc-1' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const r = await evo.enviarArquivo('tok-inst', '27999998888', 'data:application/pdf;base64,JVBERi0=', 'Proposta.pdf', 'Segue a proposta');
+
+    expect(r).toEqual({ externo_id: 'doc-1', tipo: 'DOCUMENTO' });
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://exemplo.uazapi.test/send/media');
+    expect(opts.headers.token).toBe('tok-inst');
+    expect(JSON.parse(opts.body)).toEqual({
+      number: '5527999998888',
+      type: 'document',
+      file: 'JVBERi0=',
+      mimetype: 'application/pdf',
+      docName: 'Proposta.pdf',
+      text: 'Segue a proposta',
+    });
+  });
+
+  it('envia imagem como image, sem docName', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respostaOk({ messageid: 'img-1' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await evo.enviarArquivo('t', '5527999998888', 'data:image/png;base64,iVBORw==', 'foto.png');
+    expect(r.tipo).toBe('IMAGEM');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      number: '5527999998888', type: 'image', file: 'iVBORw==', mimetype: 'image/png',
+    });
+  });
+
+  it('envia vídeo como video', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respostaOk({ messageid: 'vid-1' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await evo.enviarArquivo('t', '5527999998888', 'data:video/mp4;base64,AAAA', 'video.mp4');
+    expect(r.tipo).toBe('VIDEO');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).type).toBe('video');
+  });
+
+  it('recusa conteúdo que não é data URL base64', async () => {
+    await expect(evo.enviarArquivo('t', '5527999998888', 'nao-e-arquivo', 'x.pdf')).rejects.toThrow('Arquivo inválido');
+  });
+});
+
 describe('configurarWebhook', () => {
   it('registra url, eventos messages+connection e exclui o eco wasSentByApi', async () => {
     const fetchMock = vi.fn().mockResolvedValue(respostaOk([{ id: 'w1' }]));
