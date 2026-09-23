@@ -232,9 +232,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     let ativo = true;
     const checar = async () => {
       try {
-        const res = await apiClient.getWhatsappConversas();
+        // Minhas + Sem dono (pool do WhatsApp da empresa; vazio sem ela).
+        const [res, resPool] = await Promise.all([
+          apiClient.getWhatsappConversas(),
+          apiClient.getWhatsappConversas(undefined, 'pool').catch(() => null),
+        ]);
         if (!ativo) return;
-        const convs = res.data?.data || [];
+        const convs = [...(res.data?.data || []), ...(resPool?.data?.data || [])]
+          .sort((a: any, b: any) => new Date(b.ultima_em || 0).getTime() - new Date(a.ultima_em || 0).getTime());
         const total = convs.reduce((s: number, c: any) => s + (c.nao_lidas || 0), 0);
         if (total > wppTotalRef.current && wppTotalRef.current >= 0) {
           tocarSom();
