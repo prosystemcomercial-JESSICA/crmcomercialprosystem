@@ -264,13 +264,15 @@ export default function WhatsappPage() {
   // reflete isso na tela sem esperar o recarregamento.
   const marcarComoMinha = (convId: string) => {
     const meuId = (user as any)?.id;
-    if (!meuId) return;
     const donoNome = (user as any)?.nome || null;
-    setAtiva(prev => prev && prev.id === convId && !prev.dono_id ? { ...prev, dono_id: meuId, dono_nome: donoNome } : prev);
-    setConversas(prev => prev.map(x => x.id === convId && !x.dono_id ? { ...x, dono_id: meuId, dono_nome: donoNome } : x));
     // Responder também interrompe o robô de triagem (o backend já para; refletimos aqui pra sumir o selo).
-    setAtiva(a => a && a.id === convId ? { ...a, bot_ativo: false } : a);
-    setConversas(prev => prev.map(x => x.id === convId ? { ...x, bot_ativo: false } : x));
+    // Isso vale mesmo se o id do usuário ainda não carregou — só a atribuição de dono depende de meuId.
+    setAtiva(prev => prev && prev.id === convId
+      ? { ...prev, bot_ativo: false, ...(meuId && !prev.dono_id ? { dono_id: meuId, dono_nome: donoNome } : {}) }
+      : prev);
+    setConversas(prev => prev.map(x => x.id === convId
+      ? { ...x, bot_ativo: false, ...(meuId && !x.dono_id ? { dono_id: meuId, dono_nome: donoNome } : {}) }
+      : x));
   };
 
   // Ao trocar de instância no seletor, atualiza status/qr e recarrega.
