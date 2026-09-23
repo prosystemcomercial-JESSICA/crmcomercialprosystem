@@ -23,7 +23,7 @@ export function registrarClienteSSE(reply: FastifyReply, userId: string, podeVer
  * `null` = conversa do pool (WhatsApp da empresa, sem dono): todo usuário
  * conectado pode vê-la/assumi-la, então todos recebem.
  */
-export function emitirEventoConversa(donoId: string | null, tipo: 'mensagem' | 'conversa_atualizada', payload: any) {
+export function emitirEventoConversa(donoId: string | null, tipo: 'mensagem' | 'conversa_atualizada' | 'lead_qualificado', payload: any) {
   const data = JSON.stringify({ tipo, ...payload });
   for (const c of clientes) {
     if (donoId === null || c.userId === donoId || c.podeVerTudo) {
