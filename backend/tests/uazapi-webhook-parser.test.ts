@@ -180,4 +180,19 @@ describe('parseUazapiEvento', () => {
       midia_url: undefined,
     });
   });
+
+  it('lê o id do botão clicado em buttonOrListid', () => {
+    const payload = { EventType: 'messages', message: { chatid: '5527999998888@s.whatsapp.net', messageType: 'ButtonsResponseMessage', text: 'Farmácia', buttonOrListid: 'farmacia', messageid: 'b-1' } };
+    expect(parseUazapiEvento(payload)).toMatchObject({ tipo: 'mensagem_recebida', texto: 'Farmácia', botao_id: 'farmacia' });
+  });
+
+  it('lê o id do item de lista quando só vem no content', () => {
+    const payload = { EventType: 'messages', message: { chatid: '5527999998888@s.whatsapp.net', messageType: 'ListResponseMessage', text: 'Suporte', content: { singleSelectReply: { selectedRowID: 'suporte' } } } };
+    expect(parseUazapiEvento(payload)).toMatchObject({ botao_id: 'suporte' });
+  });
+
+  it('mensagem comum não tem botao_id', () => {
+    const payload = { EventType: 'messages', message: { chatid: '5527999998888@s.whatsapp.net', text: 'oi' } };
+    expect((parseUazapiEvento(payload) as any).botao_id).toBeUndefined();
+  });
 });

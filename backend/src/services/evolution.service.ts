@@ -206,6 +206,25 @@ export async function enviarArquivo(
   return { externo_id: idDaMensagemEnviada(data), tipo };
 }
 
+export type OpcaoMenu = { id: string; texto: string; descricao?: string };
+export type MenuWhatsapp =
+  | { modo: 'button'; texto: string; opcoes: OpcaoMenu[]; rodape?: string }
+  | { modo: 'list'; texto: string; opcoes: OpcaoMenu[]; botaoLista: string; secao: string; rodape?: string };
+
+/** Menu interativo via POST /send/menu: botões (até 3) ou lista (4+ opções). */
+export async function enviarMenu(instanceToken: string, numero: string, menu: MenuWhatsapp): Promise<{ externo_id?: string }> {
+  const corpo: any = { number: normalizarNumero(numero), type: menu.modo, text: menu.texto };
+  if (menu.modo === 'button') {
+    corpo.choices = menu.opcoes.map(o => `${o.texto}|${o.id}`);
+  } else {
+    corpo.listButton = menu.botaoLista;
+    corpo.choices = [`[${menu.secao}]`, ...menu.opcoes.map(o => (o.descricao ? `${o.texto}|${o.id}|${o.descricao}` : `${o.texto}|${o.id}`))];
+  }
+  if (menu.rodape) corpo.footerText = menu.rodape;
+  const data = await call('/send/menu', 'POST', instanceToken, corpo);
+  return { externo_id: idDaMensagemEnviada(data) };
+}
+
 /**
  * Id da mensagem devolvido pelo envio. A resposta segue o schema Message da
  * UAZAPI: `messageid` é o id do WhatsApp (o mesmo que chega no webhook e em

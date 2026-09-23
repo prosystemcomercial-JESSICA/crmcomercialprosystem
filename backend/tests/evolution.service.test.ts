@@ -111,6 +111,37 @@ describe('enviarArquivo', () => {
   });
 });
 
+describe('enviarMenu', () => {
+  it('botões: choices "Texto|id" e footerText', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respostaOk({ messageid: 'm-1' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await evo.enviarMenu('tok', '27999998888', {
+      modo: 'button', texto: 'Qual o segmento?', rodape: 'Prosystem',
+      opcoes: [{ id: 'padaria', texto: 'Padaria' }, { id: 'farmacia', texto: 'Farmácia' }],
+    });
+    expect(r.externo_id).toBe('m-1');
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://exemplo.uazapi.test/send/menu');
+    expect(JSON.parse(opts.body)).toEqual({
+      number: '5527999998888', type: 'button', text: 'Qual o segmento?',
+      choices: ['Padaria|padaria', 'Farmácia|farmacia'], footerText: 'Prosystem',
+    });
+  });
+
+  it('lista: seção, "texto|id|descrição" e listButton', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respostaOk({ messageid: 'm-2' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await evo.enviarMenu('tok', '5527999998888', {
+      modo: 'list', texto: 'Como podemos ajudar?', botaoLista: 'Ver opções', secao: 'Atendimento',
+      opcoes: [{ id: 'conhecer', texto: 'Quero conhecer', descricao: 'Conheça nossos sistemas' }, { id: 'suporte', texto: 'Suporte' }],
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      number: '5527999998888', type: 'list', text: 'Como podemos ajudar?', listButton: 'Ver opções',
+      choices: ['[Atendimento]', 'Quero conhecer|conhecer|Conheça nossos sistemas', 'Suporte|suporte'],
+    });
+  });
+});
+
 describe('configurarWebhook', () => {
   it('registra url, eventos messages+connection e exclui o eco wasSentByApi', async () => {
     const fetchMock = vi.fn().mockResolvedValue(respostaOk([{ id: 'w1' }]));
