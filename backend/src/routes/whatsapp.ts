@@ -1,11 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { getUser, podeVerTudo } from '@/lib/scope';
+import { getUser, podeVerTudo, requireGestor } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
 import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
 import { entrarNaCadencia, pausarCadencia, criarTarefaInteresseCadencia } from '@/services/whatsapp-cadencia.service';
 import { registrarClienteSSE, emitirEventoConversa } from '@/services/whatsapp-eventos.service';
+import {
+  INSTANCIA_EMPRESA, APELIDO_EMPRESA, obterInstanciaEmpresa, tokenWebhookConfere,
+  whereListaConversas, whereAcaoConversa, whereLeituraConversa,
+} from '@/lib/whatsapp-empresa';
+import { ehPayloadUazapi, parseUazapiEvento, EventoMensagemUazapi } from '@/lib/uazapi-webhook-parser';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
 export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
@@ -19,21 +24,122 @@ export const PRIORIDADES = ['BAIXA', 'NORMAL', 'CRITICA'] as const;
 //     gestão (podeVerTudo) vê todas.
 //   - O webhook de recebimento é público (a UazAPI chama sem auth do CRM),
 //     então ele resolve a instância pelo nome e nunca confia em quem chamou.
+//   - WhatsApp da empresa (instancia_nome = 'empresa', ver lib/whatsapp-empresa):
+//     uma instância para o CRM todo. Conversa de número novo nasce sem dono
+//     (pool, dono_id = null) e o vendedor assume. O webhook dela vem no formato
+//     nativo da UAZAPI e é autenticado pelo token da instância no payload.
 
 export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
   const instanciaNomeDe = (userId: string) => `crm-${userId}`;
 
-  // Filtro de escopo por dono para conversas/instâncias.
-  // CADA usuário (inclusive gestão) vê SOMENTE as conversas das próprias
-  // instâncias (dono_id). Conversas transferidas para a pessoa passam a ter o
-  // dono_id dela, então aparecem aqui naturalmente — atende ao pedido:
-  // "só a minha instância, a não ser que alguém transfira para mim".
+  // O hook global de auth (server.ts) só popula request.user, nunca bloqueia.
+  // Aqui (escopo deste plugin) toda rota exige usuário, exceto o webhook, que é
+  // chamado pela UAZAPI e se autentica pelo token no próprio payload.
+  fastify.addHook('onRequest', async (request, reply) => {
+    const rota = (request as any).routeOptions?.url ?? (request as any).routerPath;
+    if (rota === '/whatsapp/webhook') return;
+    if (!getUser(request)?.id) {
+      return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    }
+  });
+
+  // Ações numa conversa: dono ou conversa do pool (sem dono).
   function escopoDono(request: any): Record<string, any> {
-    const user = getUser(request);
-    return { dono_id: user?.id || '__no_user__' };
+    return whereAcaoConversa(getUser(request));
   }
+
+  const MSG_USA_EMPRESA = 'Este CRM usa o WhatsApp da empresa';
+
+  // Conversa do pool respondida/usada por alguém → essa pessoa vira dona
+  // (atômico: só assume se ainda estiver sem dono). Lead sem responsável
+  // passa a ser da pessoa também.
+  async function assumirSeSemDono(conversa: { id: string; dono_id: string | null; lead_id: string | null }, user: any): Promise<boolean> {
+    if (conversa.dono_id || !user?.id) return false;
+    const r = await prisma.whatsappConversa.updateMany({ where: { id: conversa.id, dono_id: null }, data: { dono_id: user.id } });
+    if (r.count === 0) return false;
+    if (conversa.lead_id) {
+      await prisma.lead.updateMany({
+        where: { id: conversa.lead_id, responsavel_id: null },
+        data: { responsavel_id: user.id, vendedor_nome: user.nome || undefined, atribuido_em: new Date() },
+      }).catch(() => {});
+    }
+    // Some do pool de todo mundo → avisa todos os conectados.
+    emitirEventoConversa(null, 'conversa_atualizada', { conversaId: conversa.id });
+    return true;
+  }
+
+  // Status ao vivo da instância da empresa (sincroniza status/número no banco).
+  // Nunca inclui o token.
+  async function resumoEmpresa(inst: { id: string; instance_token: string | null; status: string; numero: string | null; conectado_em: Date | null }) {
+    const r = await evo.obterStatus(inst.instance_token || '');
+    const numero = r.numero || inst.numero || null;
+    if (r.status !== inst.status || numero !== inst.numero) {
+      await prisma.whatsappInstancia.update({
+        where: { id: inst.id },
+        data: { status: r.status, numero, conectado_em: r.status === 'CONECTADO' ? (inst.conectado_em ?? new Date()) : inst.conectado_em },
+      }).catch(() => {});
+    }
+    return {
+      configurado: true,
+      conectado: r.status === 'CONECTADO',
+      status: r.status,
+      numero,
+      instanciaId: inst.id,
+      webhook_url: process.env.EVOLUTION_WEBHOOK_URL || null,
+    };
+  }
+
+  // ===== WHATSAPP DA EMPRESA (configuração — só gestão) =====
+  fastify.get('/whatsapp/empresa', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const inst = await obterInstanciaEmpresa(prisma);
+    if (!inst) {
+      return reply.send({ status: 'success', data: { configurado: false, conectado: false, numero: null, status: 'DESCONECTADO', webhook_url: process.env.EVOLUTION_WEBHOOK_URL || null } });
+    }
+    return reply.send({ status: 'success', data: await resumoEmpresa(inst) });
+  });
+
+  // Salva o token da instância da empresa: valida na UAZAPI antes de gravar,
+  // registra o webhook e devolve o status (sem o token).
+  fastify.put('/whatsapp/empresa', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const user = getUser(request)!;
+    const body = z.object({ instance_token: z.string().trim().min(8) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe o token da instância.' });
+    if (!process.env.EVOLUTION_API_URL) {
+      return reply.status(400).send({ status: 'error', message: 'EVOLUTION_API_URL não configurada no servidor.' });
+    }
+    const token = body.data.instance_token;
+
+    // obterStatus devolve DESCONECTADO tanto para token inválido quanto para
+    // instância sem celular pareado — nos dois casos não dá para usar.
+    const st = await evo.obterStatus(token);
+    if (st.status === 'DESCONECTADO') {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'Não foi possível validar o token: a UAZAPI não reconheceu a instância ou ela está desconectada. Confira o token e se o número está pareado.',
+      });
+    }
+
+    const agora = new Date();
+    const inst = await prisma.whatsappInstancia.upsert({
+      where: { instancia_nome: INSTANCIA_EMPRESA },
+      create: {
+        instancia_nome: INSTANCIA_EMPRESA, apelido: APELIDO_EMPRESA, dono_id: user.id, dono_nome: user.nome,
+        instance_token: token, status: st.status, numero: st.numero || null,
+        conectado_em: st.status === 'CONECTADO' ? agora : null,
+      },
+      update: {
+        apelido: APELIDO_EMPRESA, instance_token: token, status: st.status, numero: st.numero || undefined, qr_code: null,
+        ...(st.status === 'CONECTADO' ? { conectado_em: agora } : {}),
+      },
+    });
+    const webhookOk = await evo.configurarWebhook(token);
+    console.log(`[WPP] WhatsApp da empresa configurado por ${user.id} (status ${st.status}, webhook ${webhookOk ? 'OK' : 'FALHOU'})`);
+    return reply.send({ status: 'success', data: { ...(await resumoEmpresa(inst)), webhook_configurado: webhookOk } });
+  });
 
   // ===== TEMPO REAL (SSE) =====
   // Substitui o polling do frontend: o navegador abre esta conexão e recebe
@@ -96,6 +202,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   fastify.post('/whatsapp/conectar', async (request, reply) => {
     const user = getUser(request);
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    if (await obterInstanciaEmpresa(prisma)) return reply.status(409).send({ status: 'error', message: MSG_USA_EMPRESA });
     if (!evo.evolutionConfigurada()) {
       return reply.status(400).send({ status: 'error', message: 'Evolution API não configurada (EVOLUTION_API_URL / EVOLUTION_API_KEY)' });
     }
@@ -143,9 +250,18 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   fastify.get('/whatsapp/instancias', async (request, reply) => {
     const user = getUser(request);
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+
+    // WhatsApp da empresa configurado: a tela não mostra instâncias por
+    // vendedor, só o status da instância única (o token nunca sai daqui).
+    const empresa = await obterInstanciaEmpresa(prisma);
+    if (empresa) {
+      const resumo = await resumoEmpresa(empresa);
+      return reply.send({ status: 'success', data: { configurado: true, empresa: resumo, instancias: [] } });
+    }
+
     if (!evo.evolutionConfigurada()) return reply.send({ status: 'success', data: { configurado: false, instancias: [] } });
 
-    const lista = await prisma.whatsappInstancia.findMany({ where: { dono_id: user.id }, orderBy: { created_at: 'asc' } });
+    const lista = await prisma.whatsappInstancia.findMany({ where: { dono_id: user.id, instancia_nome: { not: INSTANCIA_EMPRESA } }, orderBy: { created_at: 'asc' } });
     // Atualiza status real de cada uma (precisa do token DA instância).
     for (const i of lista) {
       if (!i.instance_token) continue; // instância antiga sem token salvo — precisa reconectar
@@ -171,6 +287,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   fastify.post('/whatsapp/instancias', async (request, reply) => {
     const user = getUser(request);
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    if (await obterInstanciaEmpresa(prisma)) return reply.status(409).send({ status: 'error', message: MSG_USA_EMPRESA });
     if (!evo.evolutionConfigurada()) return reply.status(400).send({ status: 'error', message: 'Evolution API não configurada' });
     const body = z.object({ apelido: z.string().min(1) }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe um nome para a instância' });
@@ -189,7 +306,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   fastify.post('/whatsapp/instancias/:id/conectar', async (request, reply) => {
     const user = getUser(request);
     const { id } = request.params as { id: string };
-    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
+    if (await obterInstanciaEmpresa(prisma)) return reply.status(409).send({ status: 'error', message: MSG_USA_EMPRESA });
+    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id, instancia_nome: { not: INSTANCIA_EMPRESA } } });
     if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
     let qr: string | undefined;
     let instanceToken = inst.instance_token || undefined;
@@ -210,7 +328,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   fastify.post('/whatsapp/instancias/:id/desconectar', async (request, reply) => {
     const user = getUser(request);
     const { id } = request.params as { id: string };
-    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
+    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id, instancia_nome: { not: INSTANCIA_EMPRESA } } });
     if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
     if (inst.instance_token) await evo.desconectarInstancia(inst.instance_token);
     await prisma.whatsappInstancia.update({ where: { id }, data: { status: 'DESCONECTADO', qr_code: null } });
@@ -222,7 +340,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   fastify.delete('/whatsapp/instancias/:id', async (request, reply) => {
     const user = getUser(request);
     const { id } = request.params as { id: string };
-    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
+    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id, instancia_nome: { not: INSTANCIA_EMPRESA } } });
     if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
     if (inst.instance_token) await evo.deletarInstancia(inst.instance_token).catch(() => {});
     await prisma.whatsappInstancia.delete({ where: { id } }).catch(() => {});
@@ -244,7 +362,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const { id } = request.params as { id: string };
     const body = z.object({ apelido: z.string().min(1) }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Nome inválido' });
-    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id } });
+    const inst = await prisma.whatsappInstancia.findFirst({ where: { id, dono_id: user?.id, instancia_nome: { not: INSTANCIA_EMPRESA } } });
     if (!inst) return reply.status(404).send({ status: 'error', message: 'Instância não encontrada' });
     const upd = await prisma.whatsappInstancia.update({ where: { id }, data: { apelido: body.data.apelido } });
     return reply.send({ status: 'success', data: upd });
@@ -257,9 +375,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   fastify.get('/whatsapp/conversas', async (request, reply) => {
     const { instanciaId, escopo } = request.query as { instanciaId?: string; escopo?: string };
     // Visão de supervisão: gestão pode pedir escopo=todos p/ ver as conversas de
-    // TODOS os vendedores num só lugar (sem assumir). Padrão = só as próprias.
-    const verTudo = escopo === 'todos' && podeVerTudo(getUser(request));
-    const filtroEscopo = verTudo ? {} : escopoDono(request);
+    // TODOS os vendedores num só lugar (sem assumir). escopo=pool = conversas do
+    // WhatsApp da empresa sem dono (qualquer usuário). Padrão = só as próprias.
+    const filtroEscopo = whereListaConversas(escopo, getUser(request));
     const conversas = await prisma.whatsappConversa.findMany({
       where: { ...filtroEscopo, ...(instanciaId ? { instanciaId } : {}) },
       orderBy: { ultima_em: 'desc' },
@@ -283,7 +401,35 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         }
       }
     }
+
+    // Nome do dono da conversa (a instância da empresa é de todos, então o
+    // dono_nome da instância não diz quem atende).
+    const donoIds = Array.from(new Set(conversas.map(c => c.dono_id).filter(Boolean))) as string[];
+    if (donoIds.length) {
+      try {
+        const { resolverNomesUsuarios } = await import('@/lib/usuarios');
+        const nomes = await resolverNomesUsuarios(prisma, donoIds);
+        for (const conv of conversas as any[]) conv.dono_nome = conv.dono_id ? (nomes[conv.dono_id] || null) : null;
+      } catch { /* sem nomes — segue */ }
+    }
+    for (const conv of conversas as any[]) if (conv.dono_nome === undefined) conv.dono_nome = null;
     return reply.send({ status: 'success', data: conversas });
+  });
+
+  // Assume uma conversa do pool (sem dono). Atômico: se dois vendedores
+  // clicarem juntos, só um ganha; o outro recebe 409.
+  fastify.post('/whatsapp/conversas/:id/assumir', async (request, reply) => {
+    const user = getUser(request)!;
+    const { id } = request.params as { id: string };
+    const antes = await prisma.whatsappConversa.findUnique({ where: { id } });
+    if (!antes) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    if (!antes.dono_id) await assumirSeSemDono(antes, user);
+    const conversa = await prisma.whatsappConversa.findUnique({ where: { id } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    if (conversa.dono_id !== user.id) {
+      return reply.status(409).send({ status: 'error', message: 'Esta conversa já foi assumida por outra pessoa.' });
+    }
+    return reply.send({ status: 'success', data: conversa });
   });
 
   // Desvincula a conversa do funil: tira o lead_id e, se o lead foi criado
@@ -396,7 +542,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           lead_id: conversa.lead_id, tipo: 'REUNIAO', titulo,
           descricao: `Agendada via WhatsApp com ${conversa.contato_nome || conversa.contato_numero}`,
           status: 'PENDENTE', data_prevista: dt, duracao_minutos: body.data.duracao_minutos || 60,
-          google_meet_link: body.data.link || null, responsavel_id: conversa.dono_id, created_by: user?.id || 'system',
+          google_meet_link: body.data.link || null, responsavel_id: conversa.dono_id ?? user?.id ?? null, created_by: user?.id || 'system',
         },
       }).catch(() => null);
       atividadeId = at?.id;
@@ -424,6 +570,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       data: { conversaId: id, externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: msg, status: 'ENVIADA', enviada_por: user?.id },
     }).catch(() => {});
     await prisma.whatsappConversa.update({ where: { id }, data: { ultima_mensagem: '📅 Reunião agendada', ultima_em: new Date() } }).catch(() => {});
+    await assumirSeSemDono(conversa, user);
 
     return reply.send({ status: 'success', data: { atividadeId } });
   });
@@ -437,14 +584,16 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Número inválido' });
 
     const numero = evo.normalizarNumero(body.data.numero);
-    const nome = instanciaNomeDe(user.id);
-    const inst = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: nome } });
+    // WhatsApp da empresa tem prioridade; senão, a instância do próprio usuário.
+    const empresa = await obterInstanciaEmpresa(prisma);
+    const inst = empresa || await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: instanciaNomeDe(user.id) } });
     if (!inst) return reply.status(400).send({ status: 'error', message: 'Conecte seu WhatsApp primeiro' });
 
     const conversa = await prisma.whatsappConversa.upsert({
       where: { uq_conversa: { instanciaId: inst.id, contato_numero: numero } },
       create: {
-        instanciaId: inst.id, dono_id: inst.dono_id, contato_numero: numero,
+        // Na instância da empresa quem abre a conversa é o dono dela.
+        instanciaId: inst.id, dono_id: empresa ? user.id : inst.dono_id, contato_numero: numero,
         contato_nome: body.data.nome, lead_id: body.data.lead_id, ultima_em: new Date(),
       },
       update: { contato_nome: body.data.nome || undefined, lead_id: body.data.lead_id || undefined },
@@ -558,7 +707,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // aberto, tempo de casa) para a tela de atendimento — não pesa a listagem.
   fastify.get('/whatsapp/conversas/:id/painel', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const filtro = podeVerTudo(getUser(request)) ? {} : escopoDono(request);
+    const filtro = whereLeituraConversa(getUser(request));
     const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...filtro } });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
@@ -612,7 +761,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // só as próprias.
   fastify.get('/whatsapp/conversas/:id/mensagens', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const filtro = podeVerTudo(getUser(request)) ? {} : escopoDono(request);
+    const filtro = whereLeituraConversa(getUser(request));
     const conversa = await prisma.whatsappConversa.findFirst({
       where: { id, ...filtro },
     });
@@ -666,6 +815,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       data: { ultima_mensagem: body.data.texto.slice(0, 200), ultima_em: new Date(), sla_prazo_em: null },
     });
     if (conversa.cadencia_proxima_etapa) await pausarCadencia(prisma, id).catch(() => {});
+    await assumirSeSemDono(conversa, user);
 
     return reply.send({ status: 'success', data: msg });
   });
@@ -714,25 +864,37 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       where: { id },
       data: { ultima_mensagem: '🎤 Áudio', ultima_em: new Date(), sla_prazo_em: null },
     });
+    await assumirSeSemDono(conversa, user);
 
     return reply.send({ status: 'success', data: msg });
   });
 
-  // ===== WEBHOOK (público — chamado pela Evolution) =====
-  // Recebe MESSAGES_UPSERT / CONNECTION_UPDATE. Resolve a instância pelo nome,
-  // cria/vincula conversa e grava a mensagem. Idempotente por externo_id.
+  // ===== WEBHOOK (público — chamado pela UAZAPI/Evolution) =====
+  // Dois formatos:
+  //   - UAZAPI nativo (EventType/token/message): só da instância da EMPRESA,
+  //     autenticado pelo token da instância no payload.
+  //   - Evolution (event/instance/data): instâncias antigas por vendedor,
+  //     resolvidas pelo nome — comportamento de sempre.
+  // Idempotente por externo_id.
   fastify.post('/whatsapp/webhook', async (request, reply) => {
-    // Responde rápido — processa em try/catch para nunca falhar p/ a Evolution.
+    // Responde rápido — processa em try/catch para nunca falhar p/ o provedor.
     reply.send({ status: 'success' });
 
     try {
       const payload = request.body as any;
+
+      if (ehPayloadUazapi(payload)) {
+        await processarWebhookUazapi(payload);
+        return;
+      }
+
       const evento = payload?.event || payload?.type;
       const instanciaNome = payload?.instance || payload?.instanceName;
       if (!instanciaNome) return;
 
       const inst = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: instanciaNome } });
-      if (!inst) return;
+      // A instância da empresa só é aceita pelo caminho autenticado por token.
+      if (!inst || inst.instancia_nome === INSTANCIA_EMPRESA) return;
 
       // Atualização de conexão → reflete status/numero.
       if (evento === 'CONNECTION_UPDATE' || evento === 'connection.update') {
@@ -788,7 +950,6 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         // Detecta o tipo de mensagem (texto, imagem, áudio, documento).
         const msg = data?.message || {};
         let tipoMsg: 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO' = 'TEXTO';
-        let midiaUrl: string | undefined;
         let texto = msg.conversation || msg.extendedTextMessage?.text || '';
 
         const ehMidia = !!(msg.imageMessage || msg.audioMessage || msg.pttMessage || msg.documentMessage);
@@ -799,7 +960,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
         // Conteúdo da mídia: usa o base64 do webhook se vier; senão baixa via
         // Evolution (a url crua do WhatsApp é criptografada e não abre no browser).
-        if (ehMidia) {
+        const obterMidia = async (): Promise<string | undefined> => {
+          if (!ehMidia) return undefined;
           let b64: string | undefined = data?.message?.base64;
           let mime: string | undefined =
             msg.imageMessage?.mimetype || (msg.audioMessage || msg.pttMessage)?.mimetype || msg.documentMessage?.mimetype;
@@ -807,136 +969,220 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
             const baixada = await evo.baixarMidiaBase64(inst.instance_token || '', data.key).catch(() => ({} as any));
             b64 = baixada.base64; mime = baixada.mimetype || mime;
           }
-          if (b64) {
-            const tipoMime = mime || (tipoMsg === 'IMAGEM' ? 'image/jpeg' : tipoMsg === 'AUDIO' ? 'audio/ogg' : 'application/octet-stream');
-            midiaUrl = `data:${tipoMime};base64,${b64}`;
-          }
-        }
+          if (!b64) return undefined;
+          const tipoMime = mime || (tipoMsg === 'IMAGEM' ? 'image/jpeg' : tipoMsg === 'AUDIO' ? 'audio/ogg' : 'application/octet-stream');
+          return `data:${tipoMime};base64,${b64}`;
+        };
 
-        // Idempotência: se já gravamos essa mensagem, sai.
-        if (externo_id) {
-          const existe = await prisma.whatsappMensagem.findUnique({ where: { externo_id } }).catch(() => null);
-          if (existe) return;
-        }
-
-        // Tenta vincular a um Lead existente pelo telefone — IGNORANDO máscara.
-        // O telefone do lead pode estar salvo como "(27) 99999-8888"; comparar só
-        // os dígitos evita não casar com o número cru do WhatsApp (5527999998888).
-        let lead = await acharLeadPorTelefone(prisma, contato_numero);
-
-        // EVO-4 — Captação automática: número desconhecido + conversa nova
-        // vira um Lead novo no funil, atribuído ao dono da instância (o vendedor).
-        const conversaExistente = await prisma.whatsappConversa.findUnique({
-          where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
-          select: { id: true },
-        }).catch(() => null);
-
-        if (!lead && !conversaExistente) {
-          // Nome do vendedor dono da instância p/ a etiqueta do card (cor + nome).
-          // Usa dono_nome da instância; se faltar, resolve do cadastro/contas de sistema.
-          let vendedorNome: string | undefined = (inst as any).dono_nome || undefined;
-          if (!vendedorNome && inst.dono_id) {
-            try {
-              const { resolverNomesUsuarios } = await import('@/lib/usuarios');
-              const nomes = await resolverNomesUsuarios(prisma, [inst.dono_id]);
-              vendedorNome = nomes[inst.dono_id];
-            } catch { /* ignora */ }
-          }
-          lead = await prisma.lead.create({
-            data: {
-              nome: contato_nome || `WhatsApp ${contato_numero}`,
-              telefone: contato_numero,
-              responsavel_telefone: contato_numero,
-              origem: 'WHATSAPP',
-              responsavel_id: inst.dono_id,
-              vendedor_nome: vendedorNome,           // → etiqueta do responsável no card
-              atribuido_em: new Date(),
-              created_by: inst.dono_id,
-              observacoes_comerciais: `Lead captado automaticamente via WhatsApp. Primeira mensagem: "${texto.slice(0, 180)}"`,
-            },
-            select: { id: true, nome: true },
-          }).then(l => {
-            console.log(`[WPP] Lead captado automaticamente: ${l.id} (${contato_numero})`);
-            return l;
-          }).catch(() => null);
-        }
-
-        // Conversa nova? (antes do upsert) — define se o bot deve iniciar.
-        const ehNova = !conversaExistente;
-
-        // Upsert da conversa (1 por instância+contato). Mensagem de entrada
-        // (re)inicia a contagem do SLA de resposta na prioridade vigente.
-        const prioridadeAtual = conversaExistente
-          ? ((await prisma.whatsappConversa.findUnique({ where: { id: conversaExistente.id }, select: { prioridade: true } }))?.prioridade || 'NORMAL')
-          : 'NORMAL';
-        const conversa = await prisma.whatsappConversa.upsert({
-          where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
-          create: {
-            instanciaId: inst.id,
-            dono_id: inst.dono_id,
-            contato_numero,
-            contato_nome,
-            lead_id: lead?.id,
-            ultima_mensagem: texto.slice(0, 200),
-            ultima_em: new Date(),
-            nao_lidas: 1,
-            bot_ativo: true,           // número novo → bot conduz a qualificação
-            bot_estado: 'SAUDACAO',
-            sla_prazo_em: calcularSlaPrazo('NORMAL'),
-          },
-          update: {
-            contato_nome: contato_nome || undefined,
-            lead_id: lead?.id,
-            ultima_mensagem: texto.slice(0, 200),
-            ultima_em: new Date(),
-            nao_lidas: { increment: 1 },
-            sla_prazo_em: calcularSlaPrazo(prioridadeAtual),
-          },
-        });
-
-        const mensagemCriada = await prisma.whatsappMensagem.create({
-          data: {
-            conversaId: conversa.id,
-            externo_id,
-            direcao: 'ENTRADA',
-            tipo: tipoMsg,
-            conteudo: texto,
-            midia_url: midiaUrl,
-            status: 'ENTREGUE',
-          },
-        });
-        console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${instanciaNome})`);
-        emitirEventoConversa(conversa.dono_id, 'mensagem', { conversaId: conversa.id, mensagem: mensagemCriada });
-
-        // Lead respondeu: para a cadência automática (não incomodar mais) e
-        // cria uma tarefa urgente para o vendedor retomar o contato — a
-        // resposta durante a cadência é o sinal mais claro de interesse.
-        if (conversa.cadencia_proxima_etapa) {
-          await criarTarefaInteresseCadencia(prisma, conversa.id).catch(() => {});
-          await pausarCadencia(prisma, conversa.id).catch(() => {});
-        }
-
-        // ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado, sem custo) =====
-        // Kill switch global: o bot só roda se WHATSAPP_BOT_ATIVO === 'true'.
-        // Desligado por padrão (Jessica pediu para parar o bot). Para religar,
-        // basta setar WHATSAPP_BOT_ATIVO=true nas variáveis do backend no Railway.
-        const botLigado = process.env.WHATSAPP_BOT_ATIVO === 'true';
-        if (botLigado && conversa.bot_ativo && conversa.bot_estado) {
-          try {
-            // C5: reconhece se o número é de um CLIENTE da base (pelos últimos 8 dígitos).
-            const sufTel = contato_numero.slice(-8);
-            const clienteBase = await prisma.cliente.findFirst({
-              where: { telefone: { contains: sufTel } },
-              select: { id: true, nome: true, razao_social: true, nome_fantasia: true },
-            }).catch(() => null);
-            await processarBot(prisma, inst.instance_token || '', conversa, ehNova, texto, lead?.id, clienteBase);
-          } catch (e: any) { console.error('[BOT] erro:', e?.message); }
-        }
+        await processarMensagemRecebida(inst, { contato_numero, contato_nome, externo_id, tipo_msg: tipoMsg, texto }, obterMidia, false);
       }
     } catch (err: any) {
       console.error('[WPP] Erro no webhook:', err?.message);
     }
   });
+
+  // Webhook no formato nativo da UAZAPI — só para a instância da empresa.
+  async function processarWebhookUazapi(payload: any) {
+    const empresa = await obterInstanciaEmpresa(prisma);
+    if (!empresa || !tokenWebhookConfere(payload?.token, empresa.instance_token)) {
+      console.warn(`[WPP] Webhook UAZAPI ignorado: token ${payload?.token ? 'não confere' : 'ausente'} (evento ${payload?.EventType || payload?.event || '?'}).`);
+      return;
+    }
+    const token = empresa.instance_token || '';
+    const ev = parseUazapiEvento(payload);
+
+    if (ev.tipo === 'ignorar') return;
+
+    if (ev.tipo === 'conexao') {
+      // O formato do evento de conexão varia; o status real vem da própria API.
+      const r = await evo.obterStatus(token);
+      await prisma.whatsappInstancia.update({
+        where: { id: empresa.id },
+        data: {
+          status: r.status,
+          numero: r.numero || empresa.numero,
+          conectado_em: r.status === 'CONECTADO' ? (empresa.conectado_em ?? new Date()) : empresa.conectado_em,
+        },
+      }).catch(() => {});
+      emitirEventoConversa(null, 'conversa_atualizada', { instanciaId: empresa.id });
+      return;
+    }
+
+    if (ev.tipo === 'status') {
+      // Só avança (ENVIADA → ENTREGUE → LIDA), nunca volta.
+      const permitidos = ev.status === 'LIDA' ? ['ENVIADA', 'ENTREGUE'] : ['ENVIADA'];
+      const msg = await prisma.whatsappMensagem.findUnique({ where: { externo_id: ev.externo_id }, include: { conversa: { select: { dono_id: true } } } }).catch(() => null);
+      if (!msg || !permitidos.includes(msg.status)) return;
+      await prisma.whatsappMensagem.update({ where: { id: msg.id }, data: { status: ev.status } }).catch(() => {});
+      emitirEventoConversa(msg.conversa.dono_id, 'conversa_atualizada', { conversaId: msg.conversaId });
+      return;
+    }
+
+    const obterMidia = async (): Promise<string | undefined> => {
+      if (ev.tipo_msg !== 'IMAGEM' && ev.tipo_msg !== 'AUDIO' && ev.tipo_msg !== 'DOCUMENTO') return undefined;
+      if (!ev.externo_id) return undefined;
+      try {
+        const m = await evo.baixarMidia(token, ev.externo_id);
+        if (!m) { console.warn(`[WPP] Mídia ${ev.externo_id} sem conteúdo no /message/download.`); return undefined; }
+        const padrao = ev.tipo_msg === 'IMAGEM' ? 'image/jpeg' : ev.tipo_msg === 'AUDIO' ? 'audio/mpeg' : 'application/octet-stream';
+        return `data:${m.mimetype || padrao};base64,${m.base64}`;
+      } catch (e: any) {
+        console.error(`[WPP] Falha ao baixar mídia ${ev.externo_id}:`, e?.message);
+        return undefined;
+      }
+    };
+
+    if (ev.tipo === 'mensagem_propria') {
+      await registrarMensagemPropriaNormalizada(prisma, {
+        instanciaId: empresa.id, contato_numero: ev.contato_numero, externo_id: ev.externo_id,
+        tipo: ev.tipo_msg, texto: ev.texto, obterMidia,
+      }).catch((e) => console.error('[WPP fromMe]', e?.message));
+      return;
+    }
+
+    await processarMensagemRecebida(empresa, ev, obterMidia, true);
+  }
+
+  // Mensagem de contato recebida (comum aos dois formatos): idempotência,
+  // vínculo/captação de lead, conversa, SLA, cadência, SSE e bot.
+  // Na instância da empresa, conversa nova nasce com o responsável do lead (ou
+  // sem dono → pool) e o lead captado nasce sem responsável.
+  async function processarMensagemRecebida(
+    inst: { id: string; instancia_nome: string; dono_id: string; dono_nome: string | null; instance_token: string | null },
+    dados: Pick<EventoMensagemUazapi, 'contato_numero' | 'contato_nome' | 'externo_id' | 'tipo_msg' | 'texto'>,
+    obterMidia: () => Promise<string | undefined>,
+    ehEmpresa: boolean,
+  ) {
+    const { contato_numero, contato_nome, externo_id, tipo_msg: tipoMsg, texto } = dados;
+
+    // Idempotência: se já gravamos essa mensagem, sai.
+    if (externo_id) {
+      const existe = await prisma.whatsappMensagem.findUnique({ where: { externo_id } }).catch(() => null);
+      if (existe) return;
+    }
+
+    const midiaUrl = await obterMidia();
+
+    // Tenta vincular a um Lead existente pelo telefone — IGNORANDO máscara.
+    // O telefone do lead pode estar salvo como "(27) 99999-8888"; comparar só
+    // os dígitos evita não casar com o número cru do WhatsApp (5527999998888).
+    let lead: { id: string; nome: string; responsavel_id?: string | null } | null = await acharLeadPorTelefone(prisma, contato_numero);
+
+    // EVO-4 — Captação automática: número desconhecido + conversa nova
+    // vira um Lead novo no funil, atribuído ao dono da instância (o vendedor).
+    // Na instância da empresa o lead nasce sem responsável (quem assumir a conversa vira o responsável).
+    const conversaExistente = await prisma.whatsappConversa.findUnique({
+      where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
+      select: { id: true },
+    }).catch(() => null);
+
+    if (!lead && !conversaExistente) {
+      // Nome do vendedor dono da instância p/ a etiqueta do card (cor + nome).
+      // Usa dono_nome da instância; se faltar, resolve do cadastro/contas de sistema.
+      let vendedorNome: string | undefined = ehEmpresa ? undefined : (inst.dono_nome || undefined);
+      if (!ehEmpresa && !vendedorNome && inst.dono_id) {
+        try {
+          const { resolverNomesUsuarios } = await import('@/lib/usuarios');
+          const nomes = await resolverNomesUsuarios(prisma, [inst.dono_id]);
+          vendedorNome = nomes[inst.dono_id];
+        } catch { /* ignora */ }
+      }
+      lead = await prisma.lead.create({
+        data: {
+          nome: contato_nome || `WhatsApp ${contato_numero}`,
+          telefone: contato_numero,
+          responsavel_telefone: contato_numero,
+          origem: 'WHATSAPP',
+          ...(ehEmpresa
+            ? { created_by: 'whatsapp_empresa' }
+            : {
+              responsavel_id: inst.dono_id,
+              vendedor_nome: vendedorNome,           // → etiqueta do responsável no card
+              atribuido_em: new Date(),
+              created_by: inst.dono_id,
+            }),
+          observacoes_comerciais: `Lead captado automaticamente via WhatsApp. Primeira mensagem: "${texto.slice(0, 180)}"`,
+        },
+        select: { id: true, nome: true, responsavel_id: true },
+      }).then(l => {
+        console.log(`[WPP] Lead captado automaticamente: ${l.id} (${contato_numero})`);
+        return l;
+      }).catch(() => null);
+    }
+
+    // Conversa nova? (antes do upsert) — define se o bot deve iniciar.
+    const ehNova = !conversaExistente;
+    const donoNovaConversa = ehEmpresa ? (lead?.responsavel_id ?? null) : inst.dono_id;
+
+    // Upsert da conversa (1 por instância+contato). Mensagem de entrada
+    // (re)inicia a contagem do SLA de resposta na prioridade vigente.
+    const prioridadeAtual = conversaExistente
+      ? ((await prisma.whatsappConversa.findUnique({ where: { id: conversaExistente.id }, select: { prioridade: true } }))?.prioridade || 'NORMAL')
+      : 'NORMAL';
+    const conversa = await prisma.whatsappConversa.upsert({
+      where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
+      create: {
+        instanciaId: inst.id,
+        dono_id: donoNovaConversa,
+        contato_numero,
+        contato_nome,
+        lead_id: lead?.id,
+        ultima_mensagem: texto.slice(0, 200),
+        ultima_em: new Date(),
+        nao_lidas: 1,
+        bot_ativo: true,           // número novo → bot conduz a qualificação
+        bot_estado: 'SAUDACAO',
+        sla_prazo_em: calcularSlaPrazo('NORMAL'),
+      },
+      update: {
+        contato_nome: contato_nome || undefined,
+        lead_id: lead?.id,
+        ultima_mensagem: texto.slice(0, 200),
+        ultima_em: new Date(),
+        nao_lidas: { increment: 1 },
+        sla_prazo_em: calcularSlaPrazo(prioridadeAtual),
+      },
+    });
+
+    const mensagemCriada = await prisma.whatsappMensagem.create({
+      data: {
+        conversaId: conversa.id,
+        externo_id,
+        direcao: 'ENTRADA',
+        tipo: tipoMsg,
+        conteudo: texto,
+        midia_url: midiaUrl,
+        status: 'ENTREGUE',
+      },
+    });
+    console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${inst.instancia_nome})`);
+    emitirEventoConversa(conversa.dono_id, 'mensagem', { conversaId: conversa.id, mensagem: mensagemCriada });
+
+    // Lead respondeu: para a cadência automática (não incomodar mais) e
+    // cria uma tarefa urgente para o vendedor retomar o contato — a
+    // resposta durante a cadência é o sinal mais claro de interesse.
+    if (conversa.cadencia_proxima_etapa) {
+      await criarTarefaInteresseCadencia(prisma, conversa.id).catch(() => {});
+      await pausarCadencia(prisma, conversa.id).catch(() => {});
+    }
+
+    // ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado, sem custo) =====
+    // Kill switch global: o bot só roda se WHATSAPP_BOT_ATIVO === 'true'.
+    // Desligado por padrão (Jessica pediu para parar o bot). Para religar,
+    // basta setar WHATSAPP_BOT_ATIVO=true nas variáveis do backend no Railway.
+    const botLigado = process.env.WHATSAPP_BOT_ATIVO === 'true';
+    if (botLigado && conversa.bot_ativo && conversa.bot_estado) {
+      try {
+        // C5: reconhece se o número é de um CLIENTE da base (pelos últimos 8 dígitos).
+        const sufTel = contato_numero.slice(-8);
+        const clienteBase = await prisma.cliente.findFirst({
+          where: { telefone: { contains: sufTel } },
+          select: { id: true, nome: true, razao_social: true, nome_fantasia: true },
+        }).catch(() => null);
+        await processarBot(prisma, inst.instance_token || '', conversa, ehNova, texto, lead?.id, clienteBase);
+      } catch (e: any) { console.error('[BOT] erro:', e?.message); }
+    }
+  }
 }
 
 // ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado) =====
@@ -1072,6 +1318,7 @@ async function processarBot(
 // (WhatsApp Web/celular), para a conversa ficar completa. Idempotente por
 // externo_id (não duplica o eco das que o próprio CRM enviou). Não cria
 // conversa nova nem lead — só anexa se a conversa já existir.
+// Formato Evolution (instâncias antigas por vendedor).
 async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
   const remoteJid: string = data?.key?.remoteJid || '';
   // Ignora grupos/broadcast/status.
@@ -1080,23 +1327,9 @@ async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
   if (!contato_numero) return;
   const externo_id = data?.key?.id;
 
-  // Já gravada? (eco da mensagem enviada pelo CRM) → não duplica.
-  if (externo_id) {
-    const existe = await prisma.whatsappMensagem.findUnique({ where: { externo_id } }).catch(() => null);
-    if (existe) return;
-  }
-
-  // Acha a conversa pelo número (qualquer instância). Não cria nova.
-  const conversa = await prisma.whatsappConversa.findFirst({
-    where: { contato_numero },
-    include: { instancia: true },
-  }).catch(() => null);
-  if (!conversa) return;
-
   const msg = data?.message || {};
   let tipo: 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO' = 'TEXTO';
   let texto = msg.conversation || msg.extendedTextMessage?.text || '';
-  let midiaUrl: string | undefined;
   const ehMidia = !!(msg.imageMessage || msg.audioMessage || msg.pttMessage || msg.documentMessage);
   if (msg.imageMessage) { tipo = 'IMAGEM'; texto = msg.imageMessage.caption || '[imagem]'; }
   else if (msg.audioMessage || msg.pttMessage) { tipo = 'AUDIO'; texto = '[áudio]'; }
@@ -1105,19 +1338,54 @@ async function registrarMensagemPropria(prisma: PrismaClient, data: any) {
 
   // Áudio/imagem/doc enviados pelo celular precisam do base64 p/ tocar/abrir no CRM
   // (a url crua do WhatsApp é criptografada). Baixa via Evolution, igual ao webhook normal.
-  if (ehMidia && (conversa as any).instancia?.instance_token) {
+  const obterMidia = async (conversa: any): Promise<string | undefined> => {
+    if (!ehMidia || !conversa?.instancia?.instance_token) return undefined;
     let b64: string | undefined = data?.message?.base64;
     let mime: string | undefined =
       msg.imageMessage?.mimetype || (msg.audioMessage || msg.pttMessage)?.mimetype || msg.documentMessage?.mimetype;
     if (!b64) {
-      const baixada = await evo.baixarMidiaBase64((conversa as any).instancia.instance_token || '', data.key).catch(() => ({} as any));
+      const baixada = await evo.baixarMidiaBase64(conversa.instancia.instance_token || '', data.key).catch(() => ({} as any));
       b64 = baixada.base64; mime = baixada.mimetype || mime;
     }
-    if (b64) {
-      const tipoMime = mime || (tipo === 'IMAGEM' ? 'image/jpeg' : tipo === 'AUDIO' ? 'audio/ogg' : 'application/octet-stream');
-      midiaUrl = `data:${tipoMime};base64,${b64}`;
-    }
+    if (!b64) return undefined;
+    const tipoMime = mime || (tipo === 'IMAGEM' ? 'image/jpeg' : tipo === 'AUDIO' ? 'audio/ogg' : 'application/octet-stream');
+    return `data:${tipoMime};base64,${b64}`;
+  };
+
+  await registrarMensagemPropriaNormalizada(prisma, { contato_numero, externo_id, tipo, texto, obterMidia });
+}
+
+// Núcleo comum (Evolution e UAZAPI). Sem instanciaId, procura a conversa em
+// qualquer instância antiga (comportamento de sempre); com instanciaId, só nela.
+async function registrarMensagemPropriaNormalizada(
+  prisma: PrismaClient,
+  p: {
+    instanciaId?: string;
+    contato_numero: string;
+    externo_id?: string;
+    tipo: 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO';
+    texto: string;
+    obterMidia: (conversa: any) => Promise<string | undefined>;
+  },
+) {
+  const { contato_numero, externo_id, tipo, texto } = p;
+
+  // Já gravada? (eco da mensagem enviada pelo CRM) → não duplica.
+  if (externo_id) {
+    const existe = await prisma.whatsappMensagem.findUnique({ where: { externo_id } }).catch(() => null);
+    if (existe) return;
   }
+
+  // Acha a conversa pelo número. Não cria nova.
+  const conversa = await prisma.whatsappConversa.findFirst({
+    where: p.instanciaId
+      ? { contato_numero, instanciaId: p.instanciaId }
+      : { contato_numero, instancia: { instancia_nome: { not: INSTANCIA_EMPRESA } } },
+    include: { instancia: true },
+  }).catch(() => null);
+  if (!conversa) return;
+
+  const midiaUrl = await p.obterMidia(conversa);
 
   // Anti-duplicação extra: se o CRM acabou de enviar essa mídia/texto mas a
   // Evolution não devolveu externo_id no envio, o eco do webhook chegaria como
@@ -1172,12 +1440,12 @@ async function acharLeadPorTelefone(prisma: any, contato_numero: string) {
         { responsavel_telefone: { contains: ult4 } },
       ],
     },
-    select: { id: true, nome: true, telefone: true, responsavel_telefone: true },
+    select: { id: true, nome: true, telefone: true, responsavel_telefone: true, responsavel_id: true },
     take: 50,
   }).catch(() => []);
 
   const hit = candidatos.find(
     (l: any) => so(l.telefone).slice(-8) === alvo8 || so(l.responsavel_telefone).slice(-8) === alvo8,
   );
-  return hit ? { id: hit.id, nome: hit.nome } : null;
+  return hit ? { id: hit.id, nome: hit.nome, responsavel_id: hit.responsavel_id ?? null } : null;
 }
