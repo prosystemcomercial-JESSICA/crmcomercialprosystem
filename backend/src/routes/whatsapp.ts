@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { getUser, podeVerTudo, requireGestor } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
@@ -1163,7 +1163,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // Na instância da empresa o lead nasce sem responsável (quem assumir a conversa vira o responsável).
     const conversaExistente = await prisma.whatsappConversa.findUnique({
       where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
-      select: { id: true },
+      // ultima_em/bot_* lidos ANTES do upsert (que atualiza ultima_em) — usados p/ detectar triagem abandonada.
+      select: { id: true, ultima_em: true, bot_ativo: true, bot_estado: true },
     }).catch(() => null);
 
     if (!lead && !conversaExistente) {
@@ -1259,7 +1260,19 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // ===== TRIAGEM AUTOMÁTICA (só WhatsApp da empresa) =====
     if (ehEmpresa) {
       try {
-        if (ehNova) {
+        // Triagem abandonada: parou no meio há mais de 24h e o cliente voltou ("oi, bom dia").
+        // Não trata essa mensagem como resposta (seria salva como nome/cidade): zera o
+        // estado e recomeça do início, pelo mesmo caminho de conversa nova.
+        const TRIAGEM_EXPIRA_MS = 24 * 60 * 60 * 1000;
+        const triagemVencida = !!conversaExistente && emTriagem(conversaExistente)
+          && !!conversaExistente.ultima_em && Date.now() - new Date(conversaExistente.ultima_em).getTime() > TRIAGEM_EXPIRA_MS;
+        if (triagemVencida) {
+          await prisma.whatsappConversa.updateMany({
+            where: { id: conversa.id, bot_ativo: true },
+            data: { bot_estado: null, bot_dados: Prisma.DbNull },
+          });
+        }
+        if (ehNova || triagemVencida) {
           const sufTel = contato_numero.slice(-8);
           const clienteBase = await prisma.cliente.findFirst({
             where: { telefone: { contains: sufTel } },
