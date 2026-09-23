@@ -190,3 +190,19 @@ describe('regra do controller: MENU_CLIENTE não repete saudação de cliente', 
     expect(r.acoes.every(a => !(a.tipo === 'texto' && a.texto.includes('*cliente*')) && !(a.tipo === 'menu' && a.menu.texto.includes('*cliente*')))).toBe(true);
   });
 });
+
+describe('CNPJ_CONFIRMA: negação vence apelido "certo"', () => {
+  const dados = { fluxo: 'conhecer' as const, segmento: 'Padaria' as const, nome: 'João', cnpj: '11222333000181', receita: RECEITA };
+  it("'não está certo' volta para CNPJ", async () => {
+    expect((await avancarTriagem('CNPJ_CONFIRMA', dados, { texto: 'não está certo' }, deps())).estado).toBe('CNPJ');
+  });
+  it("'não, não é essa' volta para CNPJ", async () => {
+    expect((await avancarTriagem('CNPJ_CONFIRMA', dados, { texto: 'não, não é essa' }, deps())).estado).toBe('CNPJ');
+  });
+  it("'sim, está certo' finaliza", async () => {
+    expect((await avancarTriagem('CNPJ_CONFIRMA', dados, { texto: 'sim, está certo' }, deps())).estado).toBe('FIM');
+  });
+  it('clique em cnpj_sim vence texto "não"', async () => {
+    expect((await avancarTriagem('CNPJ_CONFIRMA', dados, { texto: 'não', botaoId: 'cnpj_sim' }, deps())).estado).toBe('FIM');
+  });
+});

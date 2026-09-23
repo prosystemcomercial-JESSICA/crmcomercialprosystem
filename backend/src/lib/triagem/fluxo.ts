@@ -189,7 +189,10 @@ export async function avancarTriagem(
       };
     }
     case 'CNPJ_CONFIRMA': {
-      const e = escolher(entrada, OPC_CONFIRMA);
+      // Negação como palavra isolada ("não está certo") vence o apelido "certo"; clique em botão vence o texto.
+      const temBotaoValidoC = !!(entrada.botaoId && OPC_CONFIRMA.some(o => o.id === entrada.botaoId));
+      const temNegacaoC = !temBotaoValidoC && /\b(nao|errad[oa]?)\b/.test(norm(entrada.texto));
+      const e = temNegacaoC ? 'cnpj_nao' : escolher(entrada, OPC_CONFIRMA);
       if (e === 'cnpj_sim') return finalQualificado(dados, deps);
       if (e === 'cnpj_nao') {
         const { cnpj: _c, receita: _r, receita_fonte: _f, ...resto } = dados;
