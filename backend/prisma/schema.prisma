@@ -2367,7 +2367,7 @@ model WhatsappConversa {
   instanciaId String
   instancia   WhatsappInstancia @relation(fields: [instanciaId], references: [id], onDelete: Cascade)
 
-  dono_id        String // herdado da instância — facilita o escopo nas queries
+  dono_id        String? // herdado da instância (escopo nas queries); null = pool do WhatsApp da empresa (sem dono)
   contato_numero String // E.164 sem máscara (ex.: 5527999999999)
   contato_nome   String?
   lead_id        String? // vínculo opcional ao Lead do funil

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { enviarEmailProposta } from '@/services/email.service';
 import * as evo from '@/services/evolution.service';
+import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarIdPropostaUnico } from '@/lib/ids';
 import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
@@ -1015,13 +1016,16 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
 }
 
 // ── D1: envia o resumo + link da proposta no WhatsApp do cliente ──────────────
-// Usa a instância do vendedor dono. Registra a mensagem no Inbox do CRM.
+// Usa o WhatsApp da empresa quando configurado; senão, a instância do vendedor
+// dono. Registra a mensagem no Inbox do CRM.
 async function enviarResumoWhatsApp(prisma: PrismaClient, p: any) {
-  if (!evo.evolutionConfigurada() || !p.responsavel_telefone) return;
-  // Instância do vendedor (cada usuário conecta a sua: crm-<userId>).
+  if (!p.responsavel_telefone) return;
   const donoId = p.vendedor_id;
   if (!donoId) return;
-  const inst = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: `crm-${donoId}` } });
+  const empresa = await obterInstanciaEmpresa(prisma);
+  if (!empresa && !evo.evolutionConfigurada()) return;
+  // Instância do vendedor (cada usuário conecta a sua: crm-<userId>).
+  const inst = empresa || await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: `crm-${donoId}` } });
   if (!inst || inst.status !== 'CONECTADO') return; // sem WhatsApp conectado, sai
 
   const brl = (v?: number | null) => v != null ? `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null;
@@ -1051,14 +1055,18 @@ async function enviarResumoWhatsApp(prisma: PrismaClient, p: any) {
   ].filter(l => l !== null).join('\n');
 
   try {
-    const r = await evo.enviarTexto(inst.instancia_nome, p.responsavel_telefone, linhas);
+    const r = await evo.enviarTexto(inst.instance_token || '', p.responsavel_telefone, linhas);
     // Registra no Inbox (cria/abre a conversa do cliente).
     const numero = evo.normalizarNumero(p.responsavel_telefone);
     const conversa = await prisma.whatsappConversa.upsert({
       where: { uq_conversa: { instanciaId: inst.id, contato_numero: numero } },
-      create: { instanciaId: inst.id, dono_id: inst.dono_id, contato_numero: numero, contato_nome: p.razao_social, lead_id: p.lead_id || undefined, ultima_mensagem: 'Proposta enviada', ultima_em: new Date() },
+      create: { instanciaId: inst.id, dono_id: empresa ? donoId : inst.dono_id, contato_numero: numero, contato_nome: p.razao_social, lead_id: p.lead_id || undefined, ultima_mensagem: 'Proposta enviada', ultima_em: new Date() },
       update: { ultima_mensagem: 'Proposta enviada', ultima_em: new Date() },
     });
+    // Conversa do pool da empresa: quem enviou a proposta vira o dono.
+    if (empresa && !conversa.dono_id) {
+      await prisma.whatsappConversa.updateMany({ where: { id: conversa.id, dono_id: null }, data: { dono_id: donoId } }).catch(() => {});
+    }
     await prisma.whatsappMensagem.create({
       data: { conversaId: conversa.id, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: linhas, status: 'ENVIADA', enviada_por: donoId },
     }).catch(() => {});

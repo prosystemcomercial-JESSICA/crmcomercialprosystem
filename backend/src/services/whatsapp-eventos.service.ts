@@ -20,11 +20,13 @@ export function registrarClienteSSE(reply: FastifyReply, userId: string, podeVer
  * Notifica clientes conectados sobre uma mudança na conversa (nova mensagem,
  * mudança de status/instância). `donoId` é o dono_id da conversa — só quem
  * pode ver essa conversa (o próprio dono, ou gestão) recebe o evento.
+ * `null` = conversa do pool (WhatsApp da empresa, sem dono): todo usuário
+ * conectado pode vê-la/assumi-la, então todos recebem.
  */
-export function emitirEventoConversa(donoId: string, tipo: 'mensagem' | 'conversa_atualizada', payload: any) {
+export function emitirEventoConversa(donoId: string | null, tipo: 'mensagem' | 'conversa_atualizada', payload: any) {
   const data = JSON.stringify({ tipo, ...payload });
   for (const c of clientes) {
-    if (c.userId === donoId || c.podeVerTudo) {
+    if (donoId === null || c.userId === donoId || c.podeVerTudo) {
       try {
         c.reply.raw.write(`data: ${data}\n\n`);
       } catch { /* conexão morta — será limpa no 'close' do request */ }

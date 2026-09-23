@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as evo from '@/services/evolution.service';
 import { segmentoDe } from '@/lib/segmento';
+import { obterInstanciaEmpresa, INSTANCIA_EMPRESA } from '@/lib/whatsapp-empresa';
 
 // Cadência automática de WhatsApp para leads de farmácia/drogaria/manipulação
 // parados em AGUARDANDO_RETORNO. Baseada no material de nutrição comercial da
@@ -125,8 +126,12 @@ export async function dispararProximaEtapaCadencia(prisma: PrismaClient, convers
   const farmacia = cliente?.razao_social || cliente?.nome_fantasia
     || lead?.razao_social || lead?.nome_fantasia || lead?.nome || 'sua farmácia';
 
-  let vendedorNome = conversa.instancia?.dono_nome || 'Equipe ProSystem';
-  if (!conversa.instancia?.dono_nome && conversa.dono_id) {
+  // Na instância da empresa o dono da instância é só quem a configurou — quem
+  // atende é o dono da CONVERSA (ou ninguém ainda, no pool).
+  const instanciaEhEmpresa = conversa.instancia?.instancia_nome === INSTANCIA_EMPRESA;
+  const donoNomeInstancia = instanciaEhEmpresa ? null : conversa.instancia?.dono_nome;
+  let vendedorNome = donoNomeInstancia || 'Equipe ProSystem';
+  if (!donoNomeInstancia && conversa.dono_id) {
     try {
       const { resolverNomesUsuarios } = await import('@/lib/usuarios');
       const nomes = await resolverNomesUsuarios(prisma, [conversa.dono_id]);
@@ -137,9 +142,14 @@ export async function dispararProximaEtapaCadencia(prisma: PrismaClient, convers
   const texto = template(etapa, { primeiro_nome, farmacia, vendedor: vendedorNome });
   if (!texto) return null;
 
+  // WhatsApp da empresa configurado: envia por ele (as instâncias antigas por
+  // vendedor deixam de ser usadas); senão, pela instância da própria conversa.
+  const empresa = instanciaEhEmpresa ? null : await obterInstanciaEmpresa(prisma);
+  const tokenEnvio = empresa?.instance_token || conversa.instancia?.instance_token || '';
+
   let externo_id: string | undefined;
   try {
-    const r = await evo.enviarTexto(conversa.instancia.instance_token || '', conversa.contato_numero, texto);
+    const r = await evo.enviarTexto(tokenEnvio, conversa.contato_numero, texto);
     externo_id = r.externo_id;
   } catch (e: any) {
     // Falha de envio: tenta de novo em 1h, sem avançar a etapa.
