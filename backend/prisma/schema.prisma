@@ -2057,7 +2057,7 @@ model ContratoSequencia {
 model ConfiguracaoIntegracao {
   id         String   @id @default(cuid())
   chave      String   @unique
-  valor      String   @db.Text
+  valor      String   @db.LongText
   descricao  String?  @db.Text
   updated_at DateTime @updatedAt
   updated_by String?  @default("system")
@@ -2380,6 +2380,8 @@ model WhatsappConversa {
   // Chatbot de qualificação (fluxo guiado p/ número novo)
   bot_estado String? // null|SAUDACAO|AGUARDA_CLIENTE|AGUARDA_SEGMENTO|AGUARDA_NOME|CONCLUIDO
   bot_ativo  Boolean @default(false) // o bot está conduzindo esta conversa?
+  // Respostas coletadas pela triagem automática (segmento, nome, cidade, CNPJ, dados da Receita).
+  bot_dados  Json?
 
   // Etiqueta de organização (ex.: Padaria, Farmácia, Varejo, Cliente, Lead, Parceiro)
   etiqueta     String?

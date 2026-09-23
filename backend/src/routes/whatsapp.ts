@@ -6,6 +6,8 @@ import * as evo from '@/services/evolution.service';
 import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
 import { entrarNaCadencia, pausarCadencia, criarTarefaInteresseCadencia } from '@/services/whatsapp-cadencia.service';
 import { registrarClienteSSE, emitirEventoConversa } from '@/services/whatsapp-eventos.service';
+import { obterConfigTriagem, salvarConfigTriagem } from '@/services/triagem-config.service';
+import { executarTriagem, emTriagem } from '@/services/triagem-executor.service';
 import {
   INSTANCIA_EMPRESA, APELIDO_EMPRESA, obterInstanciaEmpresa, tokenWebhookConfere,
   whereListaConversas, whereAcaoConversa, whereLeituraConversa,
@@ -68,6 +70,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // Some do pool de todo mundo → avisa todos os conectados.
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: conversa.id });
     return true;
+  }
+
+  // Vendedor falou na conversa: o robô para ali mesmo.
+  async function pararRobo(conversaId: string) {
+    await prisma.whatsappConversa.updateMany({ where: { id: conversaId, bot_ativo: true }, data: { bot_ativo: false } }).catch(() => {});
   }
 
   // Status ao vivo da instância da empresa (sincroniza status/número no banco).
@@ -139,6 +146,27 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const webhookOk = await evo.configurarWebhook(token);
     console.log(`[WPP] WhatsApp da empresa configurado por ${user.id} (status ${st.status}, webhook ${webhookOk ? 'OK' : 'FALHOU'})`);
     return reply.send({ status: 'success', data: { ...(await resumoEmpresa(inst)), webhook_configurado: webhookOk } });
+  });
+
+  // ===== TRIAGEM AUTOMÁTICA (configuração — só gestão) =====
+  const materialSchema = z.object({
+    texto: z.string().max(4000),
+    imagem: z.string().startsWith('data:image/').nullable(),
+    pdf: z.string().startsWith('data:application/pdf').nullable(),
+    pdf_nome: z.string().max(200).nullable(),
+  });
+
+  fastify.get('/whatsapp/triagem', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    return reply.send({ status: 'success', data: await obterConfigTriagem(prisma) });
+  });
+
+  fastify.put('/whatsapp/triagem', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const body = z.object({ ativa: z.boolean(), material: z.object({ farmacia: materialSchema, padaria: materialSchema }) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.errors[0]?.message || 'Dados inválidos' });
+    await salvarConfigTriagem(prisma, body.data, getUser(request)?.id);
+    return reply.send({ status: 'success' });
   });
 
   // ===== TEMPO REAL (SSE) =====
@@ -570,6 +598,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       data: { conversaId: id, externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: msg, status: 'ENVIADA', enviada_por: user?.id },
     }).catch(() => {});
     await prisma.whatsappConversa.update({ where: { id }, data: { ultima_mensagem: '📅 Reunião agendada', ultima_em: new Date() } }).catch(() => {});
+    await pararRobo(id);
     await assumirSeSemDono(conversa, user);
 
     return reply.send({ status: 'success', data: { atividadeId } });
@@ -815,6 +844,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       data: { ultima_mensagem: body.data.texto.slice(0, 200), ultima_em: new Date(), sla_prazo_em: null },
     });
     if (conversa.cadencia_proxima_etapa) await pausarCadencia(prisma, id).catch(() => {});
+    await pararRobo(id);
     await assumirSeSemDono(conversa, user);
 
     return reply.send({ status: 'success', data: msg });
@@ -864,6 +894,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       where: { id },
       data: { ultima_mensagem: '🎤 Áudio', ultima_em: new Date(), sla_prazo_em: null },
     });
+    await pararRobo(id);
     await assumirSeSemDono(conversa, user);
 
     return reply.send({ status: 'success', data: msg });
@@ -920,6 +951,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       data: { ultima_mensagem: legenda ? `${rotulo}: ${legenda}`.slice(0, 200) : rotulo, ultima_em: new Date(), sla_prazo_em: null },
     });
     if (conversa.cadencia_proxima_etapa) await pausarCadencia(prisma, id).catch(() => {});
+    await pararRobo(id);
     await assumirSeSemDono(conversa, user);
 
     return reply.send({ status: 'success', data: msg });
@@ -1105,7 +1137,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // sem dono → pool) e o lead captado nasce sem responsável.
   async function processarMensagemRecebida(
     inst: { id: string; instancia_nome: string; dono_id: string; dono_nome: string | null; instance_token: string | null },
-    dados: Pick<EventoMensagemUazapi, 'contato_numero' | 'contato_nome' | 'externo_id' | 'tipo_msg' | 'texto'>,
+    dados: Pick<EventoMensagemUazapi, 'contato_numero' | 'contato_nome' | 'externo_id' | 'tipo_msg' | 'texto'> & Partial<Pick<EventoMensagemUazapi, 'botao_id'>>,
     obterMidia: () => Promise<string | undefined>,
     ehEmpresa: boolean,
   ) {
@@ -1186,8 +1218,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         ultima_mensagem: texto.slice(0, 200),
         ultima_em: new Date(),
         nao_lidas: 1,
-        bot_ativo: true,           // número novo → bot conduz a qualificação
-        bot_estado: 'SAUDACAO',
+        bot_ativo: false,          // quem liga o robô é a triagem (se ativa)
+        bot_estado: null,
         sla_prazo_em: calcularSlaPrazo('NORMAL'),
       },
       update: {
@@ -1222,151 +1254,22 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       await pausarCadencia(prisma, conversa.id).catch(() => {});
     }
 
-    // ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado, sem custo) =====
-    // Kill switch global: o bot só roda se WHATSAPP_BOT_ATIVO === 'true'.
-    // Desligado por padrão (Jessica pediu para parar o bot). Para religar,
-    // basta setar WHATSAPP_BOT_ATIVO=true nas variáveis do backend no Railway.
-    const botLigado = process.env.WHATSAPP_BOT_ATIVO === 'true';
-    if (botLigado && conversa.bot_ativo && conversa.bot_estado) {
+    // ===== TRIAGEM AUTOMÁTICA (só WhatsApp da empresa) =====
+    if (ehEmpresa) {
       try {
-        // C5: reconhece se o número é de um CLIENTE da base (pelos últimos 8 dígitos).
-        const sufTel = contato_numero.slice(-8);
-        const clienteBase = await prisma.cliente.findFirst({
-          where: { telefone: { contains: sufTel } },
-          select: { id: true, nome: true, razao_social: true, nome_fantasia: true },
-        }).catch(() => null);
-        await processarBot(prisma, inst.instance_token || '', conversa, ehNova, texto, lead?.id, clienteBase);
-      } catch (e: any) { console.error('[BOT] erro:', e?.message); }
+        if (ehNova) {
+          const sufTel = contato_numero.slice(-8);
+          const clienteBase = await prisma.cliente.findFirst({
+            where: { telefone: { contains: sufTel } },
+            select: { nome: true, razao_social: true, nome_fantasia: true },
+          }).catch(() => null);
+          const clienteNome = clienteBase ? (clienteBase.nome_fantasia || clienteBase.razao_social || clienteBase.nome) : null;
+          await executarTriagem(prisma, inst.instance_token || '', conversa as any, { inicio: true, clienteNome });
+        } else if (emTriagem(conversa as any)) {
+          await executarTriagem(prisma, inst.instance_token || '', conversa as any, { texto, botaoId: dados.botao_id });
+        }
+      } catch (e: any) { console.error('[TRIAGEM] erro:', e?.message); }
     }
-  }
-}
-
-// ===== CHATBOT DE QUALIFICAÇÃO (fluxo guiado) =====
-// Máquina de estados simples. Reaproveita a instância do dono para responder.
-// Estados: SAUDACAO → AGUARDA_CLIENTE → AGUARDA_SEGMENTO → AGUARDA_NOME → CONCLUIDO.
-async function processarBot(
-  prisma: PrismaClient,
-  instanceToken: string,
-  conversa: any,
-  ehNova: boolean,
-  texto: string,
-  leadId?: string,
-  clienteBase?: { id: string; nome: string; razao_social?: string | null; nome_fantasia?: string | null } | null,
-) {
-  const responder = async (msg: string, proximoEstado: string | null) => {
-    let externo_id: string | undefined;
-    try { const r = await evo.enviarTexto(instanceToken, conversa.contato_numero, msg); externo_id = r.externo_id; } catch {}
-    await prisma.whatsappMensagem.create({
-      data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: msg, status: 'ENVIADA', enviada_por: 'bot' },
-    }).catch(() => {});
-    await prisma.whatsappConversa.update({
-      where: { id: conversa.id },
-      data: {
-        ultima_mensagem: msg.slice(0, 200), ultima_em: new Date(),
-        bot_estado: proximoEstado, bot_ativo: proximoEstado !== null,
-      },
-    }).catch(() => {});
-  };
-
-  const t = (texto || '').trim();
-  const tl = t.toLowerCase();
-
-  // 1) Primeira mensagem do contato novo → saudação.
-  if (ehNova || conversa.bot_estado === 'SAUDACAO') {
-    // C5: número reconhecido como CLIENTE da base → saudação personalizada e
-    // deixa o cliente falar (encerra o bot; um consultor assume p/ upsell/filial).
-    if (clienteBase) {
-      const nomeCli = clienteBase.nome_fantasia || clienteBase.razao_social || clienteBase.nome;
-      await responder(
-        `Olá! 👋 Que bom falar com você novamente. Identificamos seu cadastro aqui na *ProSystem* — *${nomeCli}*. ✅\n\n` +
-        'Como podemos ajudar hoje? Pode falar à vontade sobre o que precisa (suporte, dúvida, nova unidade/filial, upgrade de plano…) que um consultor já te atende. 💙',
-        null, // encerra o bot → consultor assume
-      );
-      return;
-    }
-    // Contato novo desconhecido → fluxo de qualificação.
-    await responder(
-      'Olá! 👋 Aqui é o atendimento virtual da *ProSystem Sistemas* (sistemas para varejo).\n\n' +
-      'Posso adiantar seu atendimento? Para começar, me responda:\n\n' +
-      'Você *já é cliente* ProSystem?\n*1* - Sim, já sou cliente\n*2* - Não, quero conhecer',
-      'AGUARDA_CLIENTE',
-    );
-    return;
-  }
-
-  // 2) Já é cliente? Valida a resposta (1/2/sim/não); senão re-pergunta.
-  if (conversa.bot_estado === 'AGUARDA_CLIENTE') {
-    const disseSim = tl.startsWith('1') || /\b(sim|sou|já sou|ja sou|cliente)\b/.test(tl);
-    const disseNao = tl.startsWith('2') || /\b(n[aã]o|ainda n|quero conhecer|conhecer)\b/.test(tl);
-    if (!disseSim && !disseNao) {
-      // Resposta não reconhecida → re-pergunta de forma objetiva (não avança).
-      await responder(
-        'Só para eu entender melhor 🙂 — você *já é cliente* da ProSystem?\n' +
-        'Responda com *1* (já sou cliente) ou *2* (quero conhecer).',
-        'AGUARDA_CLIENTE',
-      );
-      return;
-    }
-    if (leadId) {
-      await prisma.lead.update({
-        where: { id: leadId },
-        data: { observacoes_comerciais: disseSim ? 'WhatsApp: já é cliente ProSystem.' : 'WhatsApp: lead novo (ainda não é cliente).' },
-      }).catch(() => {});
-    }
-    await responder(
-      'Perfeito, obrigado! 🙌\n\nQual o *segmento* do seu negócio?\n' +
-      '_Ex.: Farmácia, Padaria, Supermercado, Loja de varejo, Outro…_',
-      'AGUARDA_SEGMENTO',
-    );
-    return;
-  }
-
-  // 3) Segmento → valida (texto com pelo menos 2 letras); senão re-pergunta.
-  if (conversa.bot_estado === 'AGUARDA_SEGMENTO') {
-    const valido = t.replace(/[^a-zA-ZÀ-ÿ]/g, '').length >= 2; // tem palavra de verdade
-    if (!valido) {
-      await responder(
-        'Pode me dizer o *segmento* do seu negócio? Ex.: Farmácia, Padaria, Supermercado, Varejo…',
-        'AGUARDA_SEGMENTO',
-      );
-      return;
-    }
-    if (leadId) {
-      await prisma.lead.update({ where: { id: leadId }, data: { segmento: t.slice(0, 80) } }).catch(() => {});
-    }
-    await responder(
-      'Anotado! E qual o *nome da sua empresa* (razão social ou nome fantasia)?',
-      'AGUARDA_NOME',
-    );
-    return;
-  }
-
-  // 4) Nome da empresa → valida (>=2 letras); senão re-pergunta. Depois encerra.
-  if (conversa.bot_estado === 'AGUARDA_NOME') {
-    const valido = t.replace(/[^a-zA-ZÀ-ÿ0-9]/g, '').length >= 2;
-    if (!valido) {
-      await responder(
-        'Quase lá! Qual é o *nome da sua empresa* (razão social ou nome fantasia)?',
-        'AGUARDA_NOME',
-      );
-      return;
-    }
-    if (leadId && t) {
-      await prisma.lead.update({
-        where: { id: leadId },
-        data: { nome: t.slice(0, 120), razao_social: t.slice(0, 120), empresa: t.slice(0, 120) },
-      }).catch(() => {});
-    }
-    if (conversa.contato_nome === null && t) {
-      await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { contato_nome: t.slice(0, 80) } }).catch(() => {});
-    }
-    await responder(
-      'Muito obrigado! ✅ Suas informações foram registradas.\n\n' +
-      'Um de nossos *consultores* dará continuidade ao seu atendimento em instantes. ' +
-      'Enquanto isso, fique à vontade para enviar suas dúvidas por aqui. 💙',
-      null, // encerra o bot (CONCLUIDO) → vendedor assume
-    );
-    return;
   }
 }
 
@@ -1440,6 +1343,9 @@ async function registrarMensagemPropriaNormalizada(
     include: { instancia: true },
   }).catch(() => null);
   if (!conversa) return;
+
+  // Alguém digitou no celular da empresa: o robô para nessa conversa.
+  await prisma.whatsappConversa.updateMany({ where: { id: conversa.id, bot_ativo: true }, data: { bot_ativo: false } }).catch(() => {});
 
   const midiaUrl = await p.obterMidia(conversa);
 
