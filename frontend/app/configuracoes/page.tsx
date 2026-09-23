@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme, ThemeColor, ThemeMode } from '@/lib/theme-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle } from 'lucide-react';
+import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle, MessageSquare } from 'lucide-react';
 import { apiClient, ResumoBackup } from '@/lib/api-client';
 
 // ─── Theme Definitions ────────────────────────────────────
@@ -93,6 +93,17 @@ const SECOES = [
 
 // ─── Component ────────────────────────────────────────────
 
+// Mesma lista de gestão do backend (podeVerTudo em backend/src/lib/scope.ts).
+const ROLES_GESTAO_WPP = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO'];
+
+type WhatsappEmpresaStatus = {
+  configurado: boolean;
+  conectado: boolean;
+  status: string;
+  numero: string | null;
+  webhook_url?: string | null;
+};
+
 export default function ConfiguracoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const { color: themeColor, mode: themeMode, setColor, setMode } = useTheme();
@@ -115,6 +126,15 @@ export default function ConfiguracoesPage() {
   const [zapSaving, setZapSaving] = useState(false);
   const [zapSaved, setZapSaved] = useState(false);
   const [zapLoading, setZapLoading] = useState(false);
+
+  // WhatsApp da empresa (instância única UAZAPI — só gestão)
+  const gestaoWpp = ROLES_GESTAO_WPP.includes(((user as any)?.role || '').toUpperCase());
+  const [wppEmpresa, setWppEmpresa] = useState<WhatsappEmpresaStatus | null>(null);
+  const [wppToken, setWppToken] = useState('');
+  const [wppLoading, setWppLoading] = useState(false);
+  const [wppSalvando, setWppSalvando] = useState(false);
+  const [wppErro, setWppErro] = useState<string | null>(null);
+  const [wppOk, setWppOk] = useState(false);
 
   // Backup manual
   const [backups, setBackups] = useState<ResumoBackup[]>([]);
@@ -154,6 +174,32 @@ export default function ConfiguracoesPage() {
       .catch(() => {})
       .finally(() => setZapLoading(false));
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !gestaoWpp) return;
+    setWppLoading(true);
+    apiClient.getWhatsappEmpresa()
+      .then(res => setWppEmpresa(res.data.data))
+      .catch(() => setWppEmpresa(null))
+      .finally(() => setWppLoading(false));
+  }, [isAuthenticated, gestaoWpp]);
+
+  const handleSalvarWppEmpresa = async () => {
+    if (!wppToken.trim()) { setWppErro('Cole o token da instância.'); return; }
+    setWppSalvando(true);
+    setWppErro(null);
+    try {
+      const res = await apiClient.salvarWhatsappEmpresa(wppToken.trim());
+      setWppEmpresa(res.data.data);
+      setWppToken(''); // o token não volta do servidor e não fica na tela
+      setWppOk(true);
+      setTimeout(() => setWppOk(false), 2500);
+    } catch (err: any) {
+      setWppErro(err?.response?.data?.message || 'Falha ao salvar o token.');
+    } finally {
+      setWppSalvando(false);
+    }
+  };
 
   const carregarBackups = () => {
     setBackupsLoading(true);
@@ -482,6 +528,94 @@ export default function ConfiguracoesPage() {
               )}
             </div>
           </div>
+
+          {/* ══ WHATSAPP DA EMPRESA (só gestão) ═══════════════ */}
+          {gestaoWpp && (
+            <div style={cardStyle}>
+              <div style={sectionHeader}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MessageSquare size={16} color="#16a34a" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>WhatsApp da empresa</h2>
+                  <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Um número para o CRM todo. Conversas novas entram em &quot;Sem dono&quot; e o vendedor assume.</p>
+                </div>
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {wppLoading ? (
+                  <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Carregando...</p>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 13 }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, fontWeight: 600, fontSize: 12,
+                      background: wppEmpresa?.conectado ? '#dcfce7' : wppEmpresa?.configurado ? '#fef9c3' : 'var(--t-content-bg)',
+                      color: wppEmpresa?.conectado ? '#15803d' : wppEmpresa?.configurado ? '#a16207' : 'var(--t-text-muted)',
+                      border: '1px solid var(--t-card-border)',
+                    }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: wppEmpresa?.conectado ? '#16a34a' : wppEmpresa?.configurado ? '#eab308' : '#9ca3af' }} />
+                      {wppEmpresa?.conectado ? 'Conectado' : wppEmpresa?.configurado ? (wppEmpresa.status === 'CONECTANDO' ? 'Conectando' : 'Desconectado') : 'Não configurado'}
+                    </span>
+                    {wppEmpresa?.numero && (
+                      <span style={{ color: 'var(--t-text-primary)', fontWeight: 600 }}>Número: {wppEmpresa.numero}</span>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>
+                    Token da instância (UAZAPI)
+                    <span style={{ fontSize: 10, color: '#16a34a', marginLeft: 6 }}>→ painel da UAZAPI &gt; instância &gt; token</span>
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={wppToken}
+                    onChange={e => setWppToken(e.target.value)}
+                    placeholder={wppEmpresa?.configurado ? 'Token já salvo — cole um novo para trocar' : 'Cole aqui o token da instância'}
+                    className="ps-input w-full"
+                    style={{ fontFamily: 'monospace', fontSize: 12 }}
+                  />
+                </div>
+
+                {wppErro && (
+                  <div style={{
+                    padding: '10px 14px', borderRadius: 8,
+                    background: 'var(--t-error-bg)', border: '1px solid var(--t-error-border)',
+                    fontSize: 12, color: 'var(--t-error)', display: 'flex', alignItems: 'center', gap: 8
+                  }}>
+                    <AlertTriangle size={13} /> {wppErro}
+                  </div>
+                )}
+
+                <div style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)', borderRadius: 8, padding: '10px 14px', fontSize: 11 }}>
+                  <p style={{ fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 4 }}>Endereço do webhook</p>
+                  {wppEmpresa?.webhook_url ? (
+                    <p style={{ fontFamily: 'monospace', color: 'var(--t-text-primary)', wordBreak: 'break-all' }}>{wppEmpresa.webhook_url}</p>
+                  ) : (
+                    <p style={{ color: 'var(--t-error)' }}>EVOLUTION_WEBHOOK_URL não está configurada no servidor.</p>
+                  )}
+                  <p style={{ color: 'var(--t-text-muted)', marginTop: 4 }}>
+                    Ao salvar, o CRM registra este endereço na instância automaticamente (mensagens e conexão).
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleSalvarWppEmpresa}
+                  disabled={wppSalvando}
+                  className="flex items-center gap-2"
+                  style={{
+                    alignSelf: 'flex-start',
+                    padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                    background: wppOk ? '#15803d' : '#16a34a',
+                    color: '#fff', border: 'none', cursor: wppSalvando ? 'not-allowed' : 'pointer',
+                    opacity: wppSalvando ? 0.7 : 1, transition: 'background 0.2s',
+                  }}>
+                  {wppOk ? <><Check size={13} /> Token salvo!</> : <><Save size={13} /> {wppSalvando ? 'Validando...' : 'Salvar token'}</>}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ══ CONFIG SECTIONS ════════════════════════════════ */}
           {SECOES.map(secao => {

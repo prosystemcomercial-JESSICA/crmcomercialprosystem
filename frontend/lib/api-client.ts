@@ -1135,11 +1135,21 @@ class ApiClient {
     return this.client.post('/whatsapp/desconectar');
   }
 
-  async getWhatsappConversas(instanciaId?: string, escopo?: 'todos') {
+  async getWhatsappConversas(instanciaId?: string, escopo?: 'todos' | 'pool') {
     const params: any = {};
     if (instanciaId) params.instanciaId = instanciaId;
     if (escopo) params.escopo = escopo;
     return this.client.get('/whatsapp/conversas', { params });
+  }
+  // WhatsApp da empresa (instância única — gestão configura o token)
+  async getWhatsappEmpresa() {
+    return this.client.get('/whatsapp/empresa');
+  }
+  async salvarWhatsappEmpresa(instance_token: string) {
+    return this.client.put('/whatsapp/empresa', { instance_token });
+  }
+  async assumirConversaWhatsapp(id: string) {
+    return this.client.post(`/whatsapp/conversas/${id}/assumir`);
   }
   // Multi-instância
   async getWhatsappInstancias() {

@@ -19,8 +19,21 @@ interface Conversa {
   estagio_funil?: string;
   prioridade?: string;
   sla_prazo_em?: string | null;
+  dono_id?: string | null;   // null = sem dono (pool do WhatsApp da empresa)
+  dono_nome?: string | null; // quem atende a conversa
   instancia?: { apelido?: string | null; dono_nome?: string | null; numero?: string | null };
 }
+
+// Status do WhatsApp da empresa (instância única) — vem de GET /whatsapp/instancias.
+interface EmpresaResumo {
+  configurado: boolean;
+  conectado: boolean;
+  status: StatusConexao;
+  numero?: string | null;
+}
+
+// Abas da lista: Minhas / Sem dono (pool da empresa) / Todas (gestão).
+type AbaConversas = 'minhas' | 'pool' | 'todas';
 
 interface PainelConversa {
   cliente: {
@@ -112,7 +125,12 @@ export default function WhatsappPage() {
   const [menuTransferir, setMenuTransferir] = useState(false);
   const [painel, setPainel] = useState<PainelConversa | null>(null);
   const [viewMode, setViewMode] = useState<'inbox' | 'kanban'>('inbox');
-  const [verSupervisao, setVerSupervisao] = useState(false); // gestão: ver conversas de todos
+  // Aba da lista. 'todas' = visão de supervisão (gestão); 'pool' = sem dono
+  // (só existe com o WhatsApp da empresa configurado).
+  const [aba, setAba] = useState<AbaConversas>('minhas');
+  const verSupervisao = aba === 'todas';
+  const [empresa, setEmpresa] = useState<EmpresaResumo | null>(null);
+  const [assumindo, setAssumindo] = useState(false);
   const [dragConvId, setDragConvId] = useState<string | null>(null);
   const [showReuniao, setShowReuniao] = useState(false);
   const [reuniao, setReuniao] = useState({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
@@ -140,6 +158,17 @@ export default function WhatsappPage() {
       const res = await apiClient.getWhatsappInstancias();
       const d = res.data.data;
       setConfigurado(d.configurado !== false);
+      // WhatsApp da empresa configurado: uma instância só, sem barra de
+      // instâncias nem QR (a gestão configura o token em Configurações).
+      if (d.empresa) {
+        setEmpresa(d.empresa);
+        setInstancias([]);
+        setInstAtivaId(null);
+        setStatus((d.empresa.status as StatusConexao) || 'DESCONECTADO');
+        setQr(null);
+        return;
+      }
+      setEmpresa(null);
       const lista = d.instancias || [];
       setInstancias(lista);
       // Define a ativa: mantém a atual se ainda existe; senão 1ª conectada; senão 1ª.
@@ -179,16 +208,54 @@ export default function WhatsappPage() {
   const carregarConversas = useCallback(async () => {
     try {
       // No modo supervisão (gestão), ignora a instância e traz as conversas de todos.
-      const res = verSupervisao
+      // Aba "Sem dono": conversas do pool do WhatsApp da empresa.
+      const res = aba === 'todas'
         ? await apiClient.getWhatsappConversas(undefined, 'todos')
-        : await apiClient.getWhatsappConversas(instAtivaId || undefined);
+        : aba === 'pool'
+          ? await apiClient.getWhatsappConversas(undefined, 'pool')
+          : await apiClient.getWhatsappConversas(instAtivaId || undefined);
       setConversas(res.data.data);
     } catch (e) { console.error(e); }
-  }, [instAtivaId, verSupervisao]);
+  }, [instAtivaId, aba]);
 
   useEffect(() => {
     if (status === 'CONECTADO') carregarConversas();
-  }, [status, instAtivaId, verSupervisao, carregarConversas]);
+  }, [status, instAtivaId, aba, carregarConversas]);
+
+  // Sem a instância da empresa não existe pool: volta para "Minhas".
+  useEffect(() => {
+    if (!empresa && aba === 'pool') setAba('minhas');
+  }, [empresa, aba]);
+
+  // Assume a conversa sem dono aberta (atômico no backend: 409 se alguém
+  // assumiu antes).
+  const assumirConversa = async (c: Conversa) => {
+    setAssumindo(true);
+    try {
+      const res = await apiClient.assumirConversaWhatsapp(c.id);
+      const upd = res.data.data;
+      const donoNome = (user as any)?.nome || null;
+      setAtiva(prev => prev && prev.id === c.id ? { ...prev, dono_id: upd.dono_id, dono_nome: donoNome } : prev);
+      setConversas(prev => aba === 'pool'
+        ? prev.filter(x => x.id !== c.id)
+        : prev.map(x => x.id === c.id ? { ...x, dono_id: upd.dono_id, dono_nome: donoNome } : x));
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Não foi possível assumir a conversa.');
+      await carregarConversas();
+    } finally {
+      setAssumindo(false);
+    }
+  };
+
+  // Responder/enviar numa conversa sem dono torna o remetente dono (backend);
+  // reflete isso na tela sem esperar o recarregamento.
+  const marcarComoMinha = (convId: string) => {
+    const meuId = (user as any)?.id;
+    if (!meuId) return;
+    const donoNome = (user as any)?.nome || null;
+    setAtiva(prev => prev && prev.id === convId && !prev.dono_id ? { ...prev, dono_id: meuId, dono_nome: donoNome } : prev);
+    setConversas(prev => prev.map(x => x.id === convId && !x.dono_id ? { ...x, dono_id: meuId, dono_nome: donoNome } : x));
+  };
 
   // Ao trocar de instância no seletor, atualiza status/qr e recarrega.
   const trocarInstancia = (id: string) => {
@@ -303,6 +370,7 @@ export default function WhatsappPage() {
       });
       setShowReuniao(false);
       setReuniao({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
+      marcarComoMinha(ativa.id);
       // Recarrega as mensagens p/ mostrar a confirmação enviada.
       const res = await apiClient.getWhatsappMensagens(ativa.id);
       setMensagens(res.data.data.mensagens);
@@ -438,6 +506,7 @@ export default function WhatsappPage() {
     try {
       const res = await apiClient.enviarWhatsappMensagem(ativa.id, txt);
       setMensagens(prev => [...prev, res.data.data]);
+      marcarComoMinha(ativa.id);
       setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch (e: any) {
       console.error('Falha ao enviar', e);
@@ -475,6 +544,7 @@ export default function WhatsappPage() {
             const dataUrl = await blobParaBase64(blob);
             const res = await apiClient.enviarWhatsappAudio(ativa.id, dataUrl);
             setMensagens(prev => [...prev, res.data.data]);
+            marcarComoMinha(ativa.id);
             setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
           } catch (e: any) {
             console.error('Falha ao enviar o áudio', e);
@@ -615,10 +685,26 @@ export default function WhatsappPage() {
                 <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm font-medium ${viewMode === 'kanban' ? 'text-white' : 'text-gray-600 bg-white'}`} style={viewMode === 'kanban' ? { background: '#2563eb' } : {}}>Fila de Chamados</button>
               </div>
             )}
+            {/* WhatsApp da empresa: abas Minhas / Sem dono / Todas (gestão). */}
+            {status === 'CONECTADO' && empresa && (
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                {([
+                  { id: 'minhas' as AbaConversas, nome: '👤 Minhas' },
+                  { id: 'pool' as AbaConversas, nome: '📥 Sem dono' },
+                  ...(podeTransferir ? [{ id: 'todas' as AbaConversas, nome: '👁️ Todas' }] : []),
+                ]).map(t => (
+                  <button key={t.id} onClick={() => { setAba(t.id); setAtiva(null); }}
+                    className={`px-3 py-1.5 text-sm font-medium ${aba === t.id ? 'text-white' : 'text-gray-600 bg-white'}`}
+                    style={aba === t.id ? { background: '#2E6EAB' } : {}}>
+                    {t.nome}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Visão de supervisão (só gestão): alterna entre "minhas" e "todas". */}
-            {status === 'CONECTADO' && podeTransferir && (
+            {status === 'CONECTADO' && podeTransferir && !empresa && (
               <button
-                onClick={() => setVerSupervisao(v => !v)}
+                onClick={() => setAba(a => a === 'todas' ? 'minhas' : 'todas')}
                 title="Ver as conversas de todos os vendedores (supervisão)"
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg border ${
                   verSupervisao ? 'text-white border-transparent' : 'text-gray-600 bg-white border-gray-200'
@@ -637,8 +723,17 @@ export default function WhatsappPage() {
           </div>
         </div>
 
+        {/* WhatsApp da empresa: sem barra de instâncias, só a identificação do número. */}
+        {empresa && (
+          <div className="flex items-center gap-2 flex-wrap ps-card border border-gray-200 rounded-xl px-3 py-2 flex-shrink-0 text-sm">
+            <span className={`w-2 h-2 rounded-full ${empresa.status === 'CONECTADO' ? 'bg-green-500' : empresa.status === 'CONECTANDO' ? 'bg-yellow-500' : 'bg-gray-400'}`} />
+            <span className="font-semibold">WhatsApp da empresa</span>
+            {empresa.numero && <span className="text-gray-500">· {empresa.numero}</span>}
+          </div>
+        )}
+
         {/* Barra de instâncias (multi-WhatsApp) — abas p/ trocar + ações */}
-        {configurado && (
+        {configurado && !empresa && (
           <div className="flex items-center gap-2 flex-wrap ps-card border border-gray-200 rounded-xl p-2 flex-shrink-0 overflow-x-auto">
             {instancias.map(i => (
               <button key={i.id} onClick={() => trocarInstancia(i.id)}
@@ -679,8 +774,21 @@ export default function WhatsappPage() {
           </div>
         )}
 
+        {/* WhatsApp da empresa desconectado: quem resolve é a gestão (Configurações). */}
+        {empresa && status !== 'CONECTADO' && (
+          <div className="ps-card border border-gray-200 rounded-xl p-8 text-center max-w-md mx-auto">
+            <div className="text-5xl mb-3">📵</div>
+            <p className="font-medium text-sm font-semibold mb-1">O WhatsApp da empresa está {status === 'CONECTANDO' ? 'conectando' : 'desconectado'}</p>
+            <p className="text-sm">
+              {podeTransferir
+                ? 'Confira o número no painel da UAZAPI e o token em Configurações → WhatsApp da empresa.'
+                : 'Avise a gestão para verificar a conexão em Configurações.'}
+            </p>
+          </div>
+        )}
+
         {/* Conexão via QR Code */}
-        {configurado && status !== 'CONECTADO' && (
+        {configurado && !empresa && status !== 'CONECTADO' && (
           <div className="ps-card border border-gray-200 rounded-xl p-8 text-center max-w-md mx-auto">
             {qr ? (
               <>
@@ -750,9 +858,14 @@ export default function WhatsappPage() {
                       {c.etiqueta && (
                         <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
                       )}
-                      {verSupervisao && c.instancia?.dono_nome && (
+                      {!c.dono_id && (
+                        <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#FEF3C7', color: '#92400E' }}>
+                          📥 Sem dono
+                        </span>
+                      )}
+                      {verSupervisao && c.dono_id && (c.dono_nome || c.instancia?.dono_nome) && (
                         <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#E5EEF7', color: 'var(--t-primary-dark)' }}>
-                          👤 {c.instancia.dono_nome}
+                          👤 {c.dono_nome || c.instancia?.dono_nome}
                         </span>
                       )}
                     </div>
@@ -787,8 +900,17 @@ export default function WhatsappPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-gray-400 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}{!ativa.dono_id ? ' · 📥 sem dono' : ''}</p>
                     </div>
+                    {/* Conversa sem dono (pool da empresa): assumir o atendimento. */}
+                    {!ativa.dono_id && (
+                      <button onClick={() => assumirConversa(ativa)} disabled={assumindo}
+                        title="Assumir esta conversa (vira sua)"
+                        className="text-white text-[11px] font-bold rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+                        style={{ background: '#16a34a' }}>
+                        {assumindo ? 'Assumindo…' : '✋ Assumir'}
+                      </button>
+                    )}
                     {/* Prioridade da conversa */}
                     {(() => {
                       const prioAtiva = PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'));
@@ -1005,7 +1127,7 @@ export default function WhatsappPage() {
 
                 <div className="px-4 py-3.5 border-b border-gray-100">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Responsável</p>
-                  <p className="text-sm font-medium text-gray-800">{painel?.responsavel?.nome || '—'}</p>
+                  <p className="text-sm font-medium text-gray-800">{!ativa.dono_id ? 'Sem dono' : (painel?.responsavel?.nome || ativa.dono_nome || '—')}</p>
                 </div>
 
                 <div className="px-4 py-3.5">
@@ -1089,6 +1211,9 @@ export default function WhatsappPage() {
                               {c.nao_lidas > 0 && <span className="bg-blue-600 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
                             </div>
                             <div className="flex items-center gap-1 flex-wrap mt-1">
+                              {!c.dono_id && (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#FEF3C7', color: '#92400E' }}>📥 Sem dono</span>
+                              )}
                               {c.lead_id && <span className="inline-block text-[10px] text-blue-600">🔗 funil</span>}
                               {(c as any).cliente_id && (
                                 <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: '#16a34a' }}
