@@ -147,6 +147,16 @@ describe('parseUazapiEvento', () => {
     });
   });
 
+  it('classifica vídeo como VIDEO, com a legenda como texto', () => {
+    const payload = { event: 'messages', data: { chatid: '5527999998888@s.whatsapp.net', messageType: 'VideoMessage', text: 'olha', fileURL: 'https://x/v.mp4' } };
+    expect(parseUazapiEvento(payload)).toMatchObject({ tipo_msg: 'VIDEO', texto: 'olha', midia_url: 'https://x/v.mp4' });
+  });
+
+  it('vídeo sem legenda vira [vídeo]', () => {
+    const payload = { event: 'messages', data: { chatid: '5527999998888@s.whatsapp.net', mediaType: 'video' } };
+    expect(parseUazapiEvento(payload)).toMatchObject({ tipo_msg: 'VIDEO', texto: '[vídeo]' });
+  });
+
   it('classifica ptt como áudio', () => {
     const payload = { event: 'messages', data: { chatid: '5527999998888@s.whatsapp.net', messageType: 'ptt', fileURL: 'https://x/a.ogg' } };
     const ev = parseUazapiEvento(payload);

@@ -1218,6 +1218,10 @@ class ApiClient {
     return this.client.post(`/whatsapp/conversas/${conversaId}/audio`, { audio_base64 });
   }
 
+  async enviarWhatsappArquivo(conversaId: string, arquivo_base64: string, nome: string, legenda?: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/arquivo`, { arquivo_base64, nome, legenda });
+  }
+
   // Forecast de receita ponderado
   async getForecast() {
     return this.client.get('/dashboard/forecast');

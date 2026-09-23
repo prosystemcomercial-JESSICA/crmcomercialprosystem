@@ -6,7 +6,7 @@
 // O formato varia um pouco por versão (nativo x espelho do Baileys), por isso cada
 // campo tem uma cascata de fallbacks.
 
-export type TipoMensagem = 'TEXTO' | 'IMAGEM' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO';
+export type TipoMensagem = 'TEXTO' | 'IMAGEM' | 'VIDEO' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO';
 
 export type EventoMensagemUazapi = {
   tipo: 'mensagem_propria' | 'mensagem_recebida';
@@ -80,6 +80,7 @@ function conteudoDaMensagem(msg: any): { tipo_msg: TipoMensagem; texto: string; 
     null;
 
   if (tipoCru.includes('image')) return { tipo_msg: 'IMAGEM', texto: legenda || '[imagem]', midia_url };
+  if (tipoCru.includes('video') || tipoCru === 'ptv') return { tipo_msg: 'VIDEO', texto: legenda || '[vídeo]', midia_url };
   if (tipoCru.includes('audio') || tipoCru === 'ptt') return { tipo_msg: 'AUDIO', texto: '[áudio]', midia_url };
   if (tipoCru.includes('document')) {
     const nomeArquivo = msg?.fileName || msg?.filename || content?.fileName || content?.filename;

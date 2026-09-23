@@ -527,6 +527,29 @@ export default function WhatsappPage() {
       r.readAsDataURL(blob);
     });
 
+  // ── Enviar arquivo (imagem, vídeo ou documento) ────────────────────────────
+  // O texto digitado no campo, se houver, vai como legenda.
+  const arquivoInputRef = useRef<HTMLInputElement>(null);
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const enviarArquivo = async (arquivo: File) => {
+    if (!ativa) return;
+    if (arquivo.size > 16 * 1024 * 1024) { alert('O arquivo passa de 16 MB. Escolha um arquivo menor.'); return; }
+    setEnviandoArquivo(true);
+    const legenda = texto.trim();
+    try {
+      const dataUrl = await blobParaBase64(arquivo);
+      const res = await apiClient.enviarWhatsappArquivo(ativa.id, dataUrl, arquivo.name, legenda || undefined);
+      setMensagens(prev => [...prev, res.data.data]);
+      if (legenda) setTexto('');
+      marcarComoMinha(ativa.id);
+      setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Não foi possível enviar o arquivo.');
+    } finally {
+      setEnviandoArquivo(false);
+    }
+  };
+
   const iniciarGravacao = async () => {
     if (!ativa) return;
     try {
@@ -1009,13 +1032,17 @@ export default function WhatsappPage() {
                           {m.tipo === 'IMAGEM' && m.midia_url && (
                             <img src={m.midia_url} alt="imagem" className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />
                           )}
+                          {m.tipo === 'VIDEO' && m.midia_url && (
+                            <video controls src={m.midia_url} className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />
+                          )}
                           {m.tipo === 'AUDIO' && m.midia_url && (
                             <audio controls src={m.midia_url} className="mb-1" style={{ maxWidth: 220 }} />
                           )}
                           {m.tipo === 'DOCUMENTO' && m.midia_url && (
-                            <a href={m.midia_url} download className="text-blue-600 underline text-xs block mb-1">📎 Baixar documento</a>
+                            <a href={m.midia_url} download={m.conteudo || true}
+                              className={`underline text-xs block mb-1 ${m.direcao === 'SAIDA' ? 'text-white' : 'text-blue-600'}`}>📎 Baixar documento</a>
                           )}
-                          {!(m.tipo === 'IMAGEM' && m.midia_url) && (
+                          {!((m.tipo === 'IMAGEM' || m.tipo === 'VIDEO') && m.midia_url && ['[imagem]', '[vídeo]', '🖼️ Imagem', '🎬 Vídeo'].includes(m.conteudo)) && (
                             <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
                           )}
                           <p className={`text-[10px] mt-0.5 text-right ${m.direcao === 'SAIDA' ? 'text-white/70' : 'text-gray-400'}`}>{fmtHora(m.created_at)}</p>
@@ -1042,6 +1069,18 @@ export default function WhatsappPage() {
                       </>
                     ) : (
                       <>
+                        <input
+                          ref={arquivoInputRef}
+                          type="file"
+                          className="hidden"
+                          accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"
+                          onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) enviarArquivo(f); }}
+                        />
+                        <button onClick={() => arquivoInputRef.current?.click()} disabled={enviandoArquivo}
+                          title={texto.trim() ? 'Enviar arquivo (o texto vai como legenda)' : 'Enviar arquivo'}
+                          className="text-gray-500 rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg ps-card hover:opacity-80 disabled:opacity-50">
+                          {enviandoArquivo ? '⏳' : '📎'}
+                        </button>
                         <input
                           value={texto}
                           onChange={e => setTexto(e.target.value)}
