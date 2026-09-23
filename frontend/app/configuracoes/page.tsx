@@ -96,6 +96,9 @@ const SECOES = [
 // Mesma lista de gestão do backend (podeVerTudo em backend/src/lib/scope.ts).
 const ROLES_GESTAO_WPP = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO'];
 
+type MaterialTriagem = { texto: string; imagem: string | null; pdf: string | null; pdf_nome: string | null };
+const MATERIAL_VAZIO: MaterialTriagem = { texto: '', imagem: null, pdf: null, pdf_nome: null };
+
 type WhatsappEmpresaStatus = {
   configurado: boolean;
   conectado: boolean;
@@ -135,6 +138,11 @@ export default function ConfiguracoesPage() {
   const [wppSalvando, setWppSalvando] = useState(false);
   const [wppErro, setWppErro] = useState<string | null>(null);
   const [wppOk, setWppOk] = useState(false);
+
+  // Triagem automática do WhatsApp (só gestão)
+  const [triagem, setTriagem] = useState<{ ativa: boolean; material: { farmacia: MaterialTriagem; padaria: MaterialTriagem } }>({ ativa: false, material: { farmacia: MATERIAL_VAZIO, padaria: MATERIAL_VAZIO } });
+  const [triagemSalvando, setTriagemSalvando] = useState(false);
+  const [triagemMsg, setTriagemMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   // Backup manual
   const [backups, setBackups] = useState<ResumoBackup[]>([]);
@@ -182,7 +190,65 @@ export default function ConfiguracoesPage() {
       .then(res => setWppEmpresa(res.data.data))
       .catch(() => setWppEmpresa(null))
       .finally(() => setWppLoading(false));
+    apiClient.getWhatsappTriagem()
+      .then(res => {
+        const d = res.data.data;
+        if (d) setTriagem({
+          ativa: !!d.ativa,
+          material: {
+            farmacia: { ...MATERIAL_VAZIO, ...(d.material?.farmacia || {}) },
+            padaria: { ...MATERIAL_VAZIO, ...(d.material?.padaria || {}) },
+          },
+        });
+      })
+      .catch(() => {});
   }, [isAuthenticated, gestaoWpp]);
+
+  const lerArquivoComoDataUrl = (file: File, limiteMb: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (file.size > limiteMb * 1024 * 1024) {
+        reject(new Error(`Arquivo grande demais (máx. 5 MB imagem / 10 MB PDF).`));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Falha ao ler o arquivo.'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleTriagemImagem = async (segmento: 'farmacia' | 'padaria', file: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await lerArquivoComoDataUrl(file, 5);
+      setTriagem(t => ({ ...t, material: { ...t.material, [segmento]: { ...t.material[segmento], imagem: dataUrl } } }));
+    } catch (err: any) {
+      setTriagemMsg({ ok: false, texto: err?.message || 'Arquivo grande demais (máx. 5 MB imagem / 10 MB PDF).' });
+    }
+  };
+
+  const handleTriagemPdf = async (segmento: 'farmacia' | 'padaria', file: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await lerArquivoComoDataUrl(file, 10);
+      setTriagem(t => ({ ...t, material: { ...t.material, [segmento]: { ...t.material[segmento], pdf: dataUrl, pdf_nome: file.name } } }));
+    } catch (err: any) {
+      setTriagemMsg({ ok: false, texto: err?.message || 'Arquivo grande demais (máx. 5 MB imagem / 10 MB PDF).' });
+    }
+  };
+
+  const handleSalvarTriagem = async () => {
+    setTriagemSalvando(true);
+    setTriagemMsg(null);
+    try {
+      await apiClient.salvarWhatsappTriagem(triagem);
+      setTriagemMsg({ ok: true, texto: 'Triagem salva.' });
+    } catch (err: any) {
+      setTriagemMsg({ ok: false, texto: err?.response?.data?.message || 'Falha ao salvar a triagem.' });
+    } finally {
+      setTriagemSalvando(false);
+    }
+  };
 
   const handleSalvarWppEmpresa = async () => {
     if (!wppToken.trim()) { setWppErro('Cole o token da instância.'); return; }
@@ -612,6 +678,142 @@ export default function ConfiguracoesPage() {
                     opacity: wppSalvando ? 0.7 : 1, transition: 'background 0.2s',
                   }}>
                   {wppOk ? <><Check size={13} /> Token salvo!</> : <><Save size={13} /> {wppSalvando ? 'Validando...' : 'Salvar token'}</>}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ══ TRIAGEM AUTOMÁTICA (só gestão) ════════════════ */}
+          {gestaoWpp && (
+            <div style={cardStyle}>
+              <div style={sectionHeader}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MessageSquare size={16} color="#7c3aed" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Triagem automática</h2>
+                  <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Todo número novo que escrever para o WhatsApp da empresa recebe o menu (Quero conhecer, Serviços, Suporte, Financeiro).</p>
+                </div>
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--t-text-primary)' }}>
+                    Triagem automática ligada
+                  </label>
+                  <button
+                    onClick={() => setTriagem(t => ({ ...t, ativa: !t.ativa }))}
+                    style={{
+                      position: 'relative', width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+                      border: 'none', cursor: 'pointer',
+                      background: triagem.ativa ? 'var(--t-primary)' : 'var(--t-card-border)',
+                      transition: 'background 0.2s'
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 3,
+                      width: 18, height: 18, background: '#fff', borderRadius: '50%',
+                      left: triagem.ativa ? 23 : 3, transition: 'left 0.2s'
+                    }} />
+                  </button>
+                </div>
+
+                {(['farmacia', 'padaria'] as const).map(segmento => {
+                  const m = triagem.material[segmento];
+                  return (
+                    <div key={segmento} style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {segmento === 'farmacia' ? 'Farmácia' : 'Padaria'}
+                      </p>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>
+                          Texto (pode ter links)
+                        </label>
+                        <textarea
+                          value={m.texto}
+                          onChange={e => setTriagem(t => ({ ...t, material: { ...t.material, [segmento]: { ...t.material[segmento], texto: e.target.value } } }))}
+                          rows={4}
+                          className="ps-input w-full"
+                          style={{ fontSize: 13, resize: 'vertical' as const }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>
+                          Imagem
+                        </label>
+                        {m.imagem ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <img src={m.imagem} alt="Miniatura" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--t-card-border)' }} />
+                            <button
+                              onClick={() => setTriagem(t => ({ ...t, material: { ...t.material, [segmento]: { ...t.material[segmento], imagem: null } } }))}
+                              style={{ fontSize: 12, color: 'var(--t-error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        ) : (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={e => handleTriagemImagem(segmento, e.target.files?.[0] || null)}
+                            style={{ fontSize: 12 }}
+                          />
+                        )}
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>
+                          PDF
+                        </label>
+                        {m.pdf ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 12, color: 'var(--t-text-primary)' }}>{m.pdf_nome || 'arquivo.pdf'}</span>
+                            <button
+                              onClick={() => setTriagem(t => ({ ...t, material: { ...t.material, [segmento]: { ...t.material[segmento], pdf: null, pdf_nome: null } } }))}
+                              style={{ fontSize: 12, color: 'var(--t-error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        ) : (
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={e => handleTriagemPdf(segmento, e.target.files?.[0] || null)}
+                            style={{ fontSize: 12 }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {triagemMsg && (
+                  <div style={{
+                    padding: '10px 14px', borderRadius: 8,
+                    background: triagemMsg.ok ? '#dcfce7' : 'var(--t-error-bg)',
+                    border: `1px solid ${triagemMsg.ok ? '#16a34a' : 'var(--t-error-border)'}`,
+                    fontSize: 12, color: triagemMsg.ok ? '#15803d' : 'var(--t-error)',
+                    display: 'flex', alignItems: 'center', gap: 8
+                  }}>
+                    {triagemMsg.ok ? <Check size={13} /> : <AlertTriangle size={13} />} {triagemMsg.texto}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSalvarTriagem}
+                  disabled={triagemSalvando}
+                  className="flex items-center gap-2"
+                  style={{
+                    alignSelf: 'flex-start',
+                    padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                    background: '#7c3aed',
+                    color: '#fff', border: 'none', cursor: triagemSalvando ? 'not-allowed' : 'pointer',
+                    opacity: triagemSalvando ? 0.7 : 1, transition: 'background 0.2s',
+                  }}>
+                  <Save size={13} /> {triagemSalvando ? 'Salvando...' : 'Salvar triagem'}
                 </button>
               </div>
             </div>
