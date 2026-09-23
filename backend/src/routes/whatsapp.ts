@@ -1011,7 +1011,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (ev.tipo === 'status') {
       // Só avança (ENVIADA → ENTREGUE → LIDA), nunca volta.
       const permitidos = ev.status === 'LIDA' ? ['ENVIADA', 'ENTREGUE'] : ['ENVIADA'];
-      const msg = await prisma.whatsappMensagem.findUnique({ where: { externo_id: ev.externo_id }, include: { conversa: { select: { dono_id: true } } } }).catch(() => null);
+      const msg = await prisma.whatsappMensagem.findFirst({ where: { externo_id: ev.externo_id }, include: { conversa: { select: { dono_id: true } } } }).catch(() => null);
       if (!msg || !permitidos.includes(msg.status)) return;
       await prisma.whatsappMensagem.update({ where: { id: msg.id }, data: { status: ev.status } }).catch(() => {});
       emitirEventoConversa(msg.conversa.dono_id, 'conversa_atualizada', { conversaId: msg.conversaId });
@@ -1057,7 +1057,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     // Idempotência: se já gravamos essa mensagem, sai.
     if (externo_id) {
-      const existe = await prisma.whatsappMensagem.findUnique({ where: { externo_id } }).catch(() => null);
+      const existe = await prisma.whatsappMensagem.findFirst({ where: { externo_id } }).catch(() => null);
       if (existe) return;
     }
 
@@ -1372,7 +1372,7 @@ async function registrarMensagemPropriaNormalizada(
 
   // Já gravada? (eco da mensagem enviada pelo CRM) → não duplica.
   if (externo_id) {
-    const existe = await prisma.whatsappMensagem.findUnique({ where: { externo_id } }).catch(() => null);
+    const existe = await prisma.whatsappMensagem.findFirst({ where: { externo_id } }).catch(() => null);
     if (existe) return;
   }
 
