@@ -16,6 +16,7 @@ export type EventoMensagemUazapi = {
   texto: string;
   tipo_msg: TipoMensagem;
   midia_url?: string;
+  botao_id?: string;
 };
 
 export type EventoUazapi =
@@ -119,6 +120,12 @@ export function parseUazapiEvento(payload: any): EventoUazapi {
   }
 
   const { tipo_msg, texto, midia_url } = conteudoDaMensagem(msg);
+  const content = msg.content && typeof msg.content === 'object' ? msg.content : null;
+  const botao_id: string | undefined =
+    (typeof msg.buttonOrListid === 'string' && msg.buttonOrListid) ||
+    content?.selectedButtonID || content?.selectedButtonId ||
+    content?.singleSelectReply?.selectedRowID || content?.singleSelectReply?.selectedRowId ||
+    undefined;
   return {
     tipo: fromMe ? 'mensagem_propria' : 'mensagem_recebida',
     contato_numero,
@@ -127,5 +134,6 @@ export function parseUazapiEvento(payload: any): EventoUazapi {
     texto,
     tipo_msg,
     midia_url,
+    ...(botao_id ? { botao_id } : {}),
   };
 }
