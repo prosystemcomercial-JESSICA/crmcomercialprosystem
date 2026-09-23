@@ -22,7 +22,18 @@ interface Conversa {
   dono_id?: string | null;   // null = sem dono (pool do WhatsApp da empresa)
   dono_nome?: string | null; // quem atende a conversa
   instancia?: { apelido?: string | null; dono_nome?: string | null; numero?: string | null };
+  bot_ativo?: boolean;
+  bot_estado?: string | null;
+  bot_dados?: any;
 }
+
+const ESTADOS_TRIAGEM = ['MENU', 'MENU_CLIENTE', 'SERVICO', 'SEGMENTO', 'RELACAO', 'NOME', 'CIDADE', 'CNPJ', 'CNPJ_CONFIRMA'];
+const emTriagem = (c?: Conversa | null) => !!c?.bot_ativo && ESTADOS_TRIAGEM.includes(c?.bot_estado || '');
+const avisoCnpj = (c?: Conversa | null): string | null => {
+  const r = c?.bot_dados?.receita;
+  if (!r || String(r.situacao || '').toUpperCase() === 'ATIVA') return null;
+  return `CNPJ ${r.situacao || 'SEM SITUAÇÃO'} na Receita`;
+};
 
 // Status do WhatsApp da empresa (instância única) — vem de GET /whatsapp/instancias.
 interface EmpresaResumo {
@@ -257,6 +268,9 @@ export default function WhatsappPage() {
     const donoNome = (user as any)?.nome || null;
     setAtiva(prev => prev && prev.id === convId && !prev.dono_id ? { ...prev, dono_id: meuId, dono_nome: donoNome } : prev);
     setConversas(prev => prev.map(x => x.id === convId && !x.dono_id ? { ...x, dono_id: meuId, dono_nome: donoNome } : x));
+    // Responder também interrompe o robô de triagem (o backend já para; refletimos aqui pra sumir o selo).
+    setAtiva(a => a && a.id === convId ? { ...a, bot_ativo: false } : a);
+    setConversas(prev => prev.map(x => x.id === convId ? { ...x, bot_ativo: false } : x));
   };
 
   // Ao trocar de instância no seletor, atualiza status/qr e recarrega.
@@ -904,6 +918,8 @@ export default function WhatsappPage() {
                           📥 Sem dono
                         </span>
                       )}
+                      {emTriagem(c) && <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800">🤖 Em triagem</span>}
+                      {avisoCnpj(c) && <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">⚠️ {avisoCnpj(c)}</span>}
                       {verSupervisao && c.dono_id && (c.dono_nome || c.instancia?.dono_nome) && (
                         <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#E5EEF7', color: 'var(--t-primary-dark)' }}>
                           👤 {c.dono_nome || c.instancia?.dono_nome}
@@ -942,6 +958,10 @@ export default function WhatsappPage() {
                         )}
                       </div>
                       <p className="text-[11px] text-gray-400 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}{!ativa.dono_id ? ' · 📥 sem dono' : ''}</p>
+                      <div className="flex items-center gap-1 flex-wrap mt-1">
+                        {emTriagem(ativa) && <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800">🤖 Em triagem — responder para o robô parar</span>}
+                        {avisoCnpj(ativa) && <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">⚠️ {avisoCnpj(ativa)}</span>}
+                      </div>
                     </div>
                     {/* Conversa sem dono (pool da empresa): assumir o atendimento. */}
                     {!ativa.dono_id && (
@@ -1188,6 +1208,7 @@ export default function WhatsappPage() {
                 <div className="px-4 py-3.5 border-b border-gray-100">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Responsável</p>
                   <p className="text-sm font-medium text-gray-800">{!ativa.dono_id ? 'Sem dono' : (painel?.responsavel?.nome || ativa.dono_nome || '—')}</p>
+                  {avisoCnpj(ativa) && <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">⚠️ {avisoCnpj(ativa)}</span>}
                 </div>
 
                 <div className="px-4 py-3.5">

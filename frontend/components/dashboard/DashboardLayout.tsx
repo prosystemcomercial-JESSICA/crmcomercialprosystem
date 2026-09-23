@@ -240,7 +240,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!ativo) return;
         const convs = [...(res.data?.data || []), ...(resPool?.data?.data || [])]
           .sort((a: any, b: any) => new Date(b.ultima_em || 0).getTime() - new Date(a.ultima_em || 0).getTime());
-        const total = convs.reduce((s: number, c: any) => s + (c.nao_lidas || 0), 0);
+        const ESTADOS_TRIAGEM = ['MENU', 'MENU_CLIENTE', 'SERVICO', 'SEGMENTO', 'RELACAO', 'NOME', 'CIDADE', 'CNPJ', 'CNPJ_CONFIRMA'];
+        const contaParaSino = (c: any) => !(c.bot_ativo && ESTADOS_TRIAGEM.includes(c.bot_estado || ''));
+        const total = convs.filter(contaParaSino).reduce((s: number, c: any) => s + (c.nao_lidas || 0), 0);
         if (total > wppTotalRef.current && wppTotalRef.current >= 0) {
           tocarSom();
           wppVistoRef.current = false;
@@ -255,6 +257,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checar();
     const t = setInterval(checar, 15000);
     return () => { ativo = false; clearInterval(t); };
+  }, [user]);
+
+  // ── Alarme global: lead qualificado pela triagem automática ────────────────
+  const [avisoLead, setAvisoLead] = useState<{ titulo: string; detalhe: string; alerta: string | null } | null>(null);
+  const tocarAlarmeLead = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      [0, 0.9].forEach(atraso => {
+        [659, 784, 988].forEach((freq, i) => {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sine'; o.frequency.value = freq;
+          const t0 = ctx.currentTime + atraso + i * 0.18;
+          g.gain.setValueAtTime(0, t0);
+          g.gain.linearRampToValueAtTime(0.22, t0 + 0.04);
+          g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+          o.start(t0); o.stop(t0 + 0.35);
+        });
+      });
+    } catch {}
+  };
+  useEffect(() => {
+    if (!user) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (!token) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const es = new EventSource(`${apiUrl}/whatsapp/eventos?token=${encodeURIComponent(token)}`);
+    es.onmessage = (ev) => {
+      try {
+        const e = JSON.parse(ev.data);
+        if (e.tipo !== 'lead_qualificado') return;
+        tocarAlarmeLead();
+        setAvisoLead({ titulo: e.titulo, detalhe: e.detalhe, alerta: e.alerta || null });
+      } catch {}
+    };
+    return () => es.close();
   }, [user]);
 
   const naoVistos = alertas.filter(a => !seen.has(a.id)).length;
@@ -802,6 +840,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+
+      {avisoLead && (
+        <div className="fixed bottom-5 right-5 z-[60] w-80 rounded-xl shadow-2xl border border-emerald-200 bg-white p-4">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-bold text-emerald-700">🔔 {avisoLead.titulo}</p>
+            <button onClick={() => setAvisoLead(null)} className="text-gray-400 hover:text-gray-600" title="Fechar">✕</button>
+          </div>
+          <p className="text-sm text-gray-800 mt-1">{avisoLead.detalhe}</p>
+          {avisoLead.alerta && <p className="text-xs font-bold text-white bg-red-600 rounded px-2 py-1 mt-2">⚠️ {avisoLead.alerta}</p>}
+          <button onClick={() => { setAvisoLead(null); router.push('/whatsapp'); }}
+            className="mt-3 w-full text-sm font-semibold text-white rounded-lg py-2" style={{ background: '#128C7E' }}>
+            Abrir conversas sem dono
+          </button>
+        </div>
+      )}
     </div>
   );
 }

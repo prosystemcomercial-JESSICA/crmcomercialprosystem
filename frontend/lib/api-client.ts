@@ -1148,6 +1148,16 @@ class ApiClient {
   async salvarWhatsappEmpresa(instance_token: string) {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
+  async getWhatsappTriagem() {
+    return this.client.get('/whatsapp/triagem');
+  }
+
+  async salvarWhatsappTriagem(data: {
+    ativa: boolean;
+    material: Record<'farmacia' | 'padaria', { texto: string; imagem: string | null; pdf: string | null; pdf_nome: string | null }>;
+  }) {
+    return this.client.put('/whatsapp/triagem', data);
+  }
   async assumirConversaWhatsapp(id: string) {
     return this.client.post(`/whatsapp/conversas/${id}/assumir`);
   }
