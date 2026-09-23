@@ -151,7 +151,13 @@ export async function avancarTriagem(
       return { estado: 'RELACAO', dados: { ...dados, segmento: e === 'padaria' ? 'Padaria' : 'Farmácia' }, acoes: [menuRelacao()] };
     }
     case 'RELACAO': {
-      const e = escolher(entrada, OPC_RELACAO) as DadosTriagem['relacao'] | null;
+      // Se não veio um clique de botão válido e o texto tem uma negação como
+      // palavra isolada ("não", "nunca"), trata como "não conhece" mesmo que
+      // a frase também contenha um apelido de outra opção (ex.: "não, nunca
+      // fui cliente, mas quero conhecer" não deve virar "ex_cliente").
+      const temBotaoValido = !!(entrada.botaoId && OPC_RELACAO.some(o => o.id === entrada.botaoId));
+      const temNegacao = !temBotaoValido && /\b(nao|nunca)\b/.test(norm(entrada.texto));
+      const e = (temNegacao ? 'nao_conhece' : escolher(entrada, OPC_RELACAO)) as DadosTriagem['relacao'] | null;
       if (!e) return { estado, dados, acoes: repetir(menuRelacao()) };
       return { estado: 'NOME', dados: { ...dados, relacao: e }, acoes: [texto('Qual é o seu nome?')] };
     }
