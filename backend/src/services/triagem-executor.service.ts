@@ -10,6 +10,7 @@ import { obterConfigTriagem, materialVazio, type ConfigTriagem } from './triagem
 import { consultarCnpj } from '../lib/cnpj';
 import { iniciarTriagem, avancarTriagem, ESTADOS_TRIAGEM, type Acao, type DadosTriagem, type EstadoTriagem, type ResultadoPasso } from '../lib/triagem/fluxo';
 import { efeitosDesfecho } from '../lib/triagem/desfecho';
+import { serializarPorChave } from '../lib/serializar';
 
 type ConversaTriagem = { id: string; contato_numero: string; lead_id: string | null; dono_id: string | null; bot_ativo: boolean; bot_estado: string | null; bot_dados: any };
 
@@ -95,6 +96,26 @@ async function aplicarDesfecho(prisma: PrismaClient, conversa: ConversaTriagem, 
 
 /** Executa um passo e persiste. `inicio` = primeira mensagem de número novo. */
 export async function executarTriagem(
+  prisma: PrismaClient,
+  token: string,
+  conversaInicial: ConversaTriagem,
+  entrada: { texto: string; botaoId?: string | null } | { inicio: true; clienteNome?: string | null },
+) {
+  // Uma triagem por conversa de cada vez: a consulta de CNPJ demora e uma segunda
+  // mensagem rápida não pode ler o mesmo estado e passar na frente.
+  return serializarPorChave(`triagem:${conversaInicial.id}`, async () => {
+    // Relê a conversa dentro da fila: a chamada anterior pode ter avançado o estado.
+    const conversa = await prisma.whatsappConversa.findUnique({
+      where: { id: conversaInicial.id },
+      select: { id: true, contato_numero: true, lead_id: true, dono_id: true, bot_ativo: true, bot_estado: true, bot_dados: true },
+    }) as ConversaTriagem | null;
+    if (!conversa) return;
+    if ('inicio' in entrada ? conversa.bot_estado !== null : !emTriagem(conversa)) return;
+    await executarPasso(prisma, token, conversa, entrada);
+  });
+}
+
+async function executarPasso(
   prisma: PrismaClient,
   token: string,
   conversa: ConversaTriagem,
