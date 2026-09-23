@@ -80,6 +80,10 @@ function conteudoDaMensagem(msg: any): { tipo_msg: TipoMensagem; texto: string; 
     msg?.caption ||
     content?.caption ||
     content?.extendedTextMessage?.text ||
+    // Clique em botão/lista: mostra o rótulo da opção em vez de "[mensagem]".
+    content?.selectedDisplayText ||
+    content?.singleSelectReply?.title ||
+    (typeof msg?.vote === 'string' ? msg.vote : null) ||
     null;
 
   if (tipoCru.includes('image')) return { tipo_msg: 'IMAGEM', texto: legenda || '[imagem]', midia_url };

@@ -198,6 +198,16 @@ describe('parseUazapiEvento', () => {
     expect((parseUazapiEvento(digitada) as any).enviada_pela_api).toBeUndefined();
   });
 
+  it('clique sem text mostra o rótulo da opção (selectedDisplayText / singleSelectReply.title / vote)', () => {
+    const base = { chatid: '5527999998888@s.whatsapp.net' };
+    expect(parseUazapiEvento({ EventType: 'messages', message: { ...base, messageType: 'ButtonsResponseMessage', content: { selectedButtonID: 'cnpj_sim', selectedDisplayText: 'Sim' } } }))
+      .toMatchObject({ texto: 'Sim', botao_id: 'cnpj_sim' });
+    expect(parseUazapiEvento({ EventType: 'messages', message: { ...base, messageType: 'ListResponseMessage', content: { singleSelectReply: { selectedRowID: 'suporte', title: 'Suporte' } } } }))
+      .toMatchObject({ texto: 'Suporte', botao_id: 'suporte' });
+    expect(parseUazapiEvento({ EventType: 'messages', message: { ...base, messageType: 'ButtonsResponseMessage', vote: 'Farmácia', buttonOrListid: 'farmacia' } }))
+      .toMatchObject({ texto: 'Farmácia' });
+  });
+
   it('mensagem comum não tem botao_id', () => {
     const payload = { EventType: 'messages', message: { chatid: '5527999998888@s.whatsapp.net', text: 'oi' } };
     expect((parseUazapiEvento(payload) as any).botao_id).toBeUndefined();
