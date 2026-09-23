@@ -193,18 +193,6 @@ export default function WhatsappPage() {
     checarStatus();
   }, [isAuthenticated, checarStatus]);
 
-  // Polling: status enquanto conecta. Conversas/mensagens têm SSE (tempo real,
-  // ver useEffect abaixo) — este intervalo aqui fica bem mais longo, só como
-  // rede de segurança caso a conexão SSE caia sem o navegador notar.
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const t = setInterval(() => {
-      if (status === 'CONECTANDO') checarStatus();
-      if (status === 'CONECTADO') carregarConversas();
-    }, status === 'CONECTANDO' ? 5000 : 30000);
-    return () => clearInterval(t);
-  }, [isAuthenticated, status, checarStatus]);
-
   const carregarConversas = useCallback(async () => {
     try {
       // No modo supervisão (gestão), ignora a instância e traz as conversas de todos.
@@ -221,6 +209,20 @@ export default function WhatsappPage() {
   useEffect(() => {
     if (status === 'CONECTADO') carregarConversas();
   }, [status, instAtivaId, aba, carregarConversas]);
+
+  // Polling: status enquanto conecta. Conversas/mensagens têm SSE (tempo real,
+  // ver useEffect abaixo) — este intervalo aqui fica bem mais longo, só como
+  // rede de segurança caso a conexão SSE caia sem o navegador notar.
+  // carregarConversas nas dependências: sem isso o intervalo guardava a aba
+  // inicial e sobrescrevia a lista de "Sem dono"/"Todas" com a de "Minhas".
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const t = setInterval(() => {
+      if (status === 'CONECTANDO') checarStatus();
+      if (status === 'CONECTADO') carregarConversas();
+    }, status === 'CONECTANDO' ? 5000 : 30000);
+    return () => clearInterval(t);
+  }, [isAuthenticated, status, checarStatus, carregarConversas]);
 
   // Sem a instância da empresa não existe pool: volta para "Minhas".
   useEffect(() => {
@@ -615,6 +617,22 @@ export default function WhatsappPage() {
       try { const r = await apiClient.getWhatsappVendedores(); setVendedores(r.data.data); } catch {}
     }
   };
+  // Fecha o menu de transferência ao clicar fora dele ou apertar Esc.
+  const menuTransferirRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuTransferir) return;
+    const clicouFora = (e: MouseEvent) => {
+      if (!menuTransferirRef.current?.contains(e.target as Node)) setMenuTransferir(false);
+    };
+    const apertouEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuTransferir(false); };
+    document.addEventListener('mousedown', clicouFora);
+    document.addEventListener('keydown', apertouEsc);
+    return () => {
+      document.removeEventListener('mousedown', clicouFora);
+      document.removeEventListener('keydown', apertouEsc);
+    };
+  }, [menuTransferir]);
+
   const transferir = async (vendedorId: string) => {
     if (!ativa) return;
     try {
@@ -969,8 +987,11 @@ export default function WhatsappPage() {
                     )}
                     {/* Menu transferir */}
                     {menuTransferir && (
-                      <div className="absolute right-3 top-14 ps-card rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-72 overflow-y-auto">
-                        <p className="text-xs  px-1 mb-1">Transferir para</p>
+                      <div ref={menuTransferirRef} className="absolute right-3 top-14 ps-card rounded-lg shadow-lg border border-gray-200 z-20 p-2 w-52 max-h-72 overflow-y-auto">
+                        <div className="flex items-center justify-between px-1 mb-1">
+                          <p className="text-xs">Transferir para</p>
+                          <button onClick={() => setMenuTransferir(false)} title="Fechar" className="text-xs text-gray-400 hover:text-gray-600 px-1">✕</button>
+                        </div>
                         {vendedores.length === 0 ? <p className="text-xs  px-2 py-2">Carregando…</p> :
                           vendedores.map(v => (
                             <button key={v.id} onClick={() => transferir(v.id)} className="w-full text-left px-2 py-1.5 rounded hover:opacity-80 text-sm">{v.nome}</button>
