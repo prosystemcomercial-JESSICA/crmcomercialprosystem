@@ -164,6 +164,25 @@ describe('texto em vez de clique e entradas inválidas', () => {
   });
 });
 
+describe('RELACAO: negação como palavra isolada vence apelido de outra opção', () => {
+  it('"não, nunca fui cliente, mas quero conhecer" → nao_conhece', async () => {
+    const r = await avancarTriagem('RELACAO', { fluxo: 'conhecer' }, { texto: 'não, nunca fui cliente, mas quero conhecer' }, deps());
+    expect(r.dados.relacao).toBe('nao_conhece');
+  });
+  it('"já fui cliente" → ex_cliente', async () => {
+    const r = await avancarTriagem('RELACAO', { fluxo: 'conhecer' }, { texto: 'já fui cliente' }, deps());
+    expect(r.dados.relacao).toBe('ex_cliente');
+  });
+  it('"sou cliente sim" → cliente', async () => {
+    const r = await avancarTriagem('RELACAO', { fluxo: 'conhecer' }, { texto: 'sou cliente sim' }, deps());
+    expect(r.dados.relacao).toBe('cliente');
+  });
+  it('clique real de botão vence o texto: botaoId cliente com texto "Não conheço" → cliente', async () => {
+    const r = await avancarTriagem('RELACAO', { fluxo: 'conhecer' }, { texto: 'Não conheço', botaoId: 'cliente' }, deps());
+    expect(r.dados.relacao).toBe('cliente');
+  });
+});
+
 describe('regra do controller: MENU_CLIENTE não repete saudação de cliente', () => {
   it('resposta que não casa em MENU_CLIENTE repete com pergunta neutra, sem "*cliente*"', async () => {
     const r = await avancarTriagem('MENU_CLIENTE', {}, { texto: 'xyz' }, deps());
