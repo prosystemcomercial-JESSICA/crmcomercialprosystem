@@ -191,6 +191,13 @@ describe('parseUazapiEvento', () => {
     expect(parseUazapiEvento(payload)).toMatchObject({ botao_id: 'suporte' });
   });
 
+  it('marca enviada_pela_api quando wasSentByApi', () => {
+    const payload = { EventType: 'messages', message: { chatid: '5527999998888@s.whatsapp.net', text: 'oi', fromMe: true, wasSentByApi: true, messageid: 'api-1' } };
+    expect(parseUazapiEvento(payload)).toMatchObject({ tipo: 'mensagem_propria', enviada_pela_api: true });
+    const digitada = { EventType: 'messages', message: { chatid: '5527999998888@s.whatsapp.net', text: 'oi', fromMe: true, messageid: 'cel-1' } };
+    expect((parseUazapiEvento(digitada) as any).enviada_pela_api).toBeUndefined();
+  });
+
   it('mensagem comum não tem botao_id', () => {
     const payload = { EventType: 'messages', message: { chatid: '5527999998888@s.whatsapp.net', text: 'oi' } };
     expect((parseUazapiEvento(payload) as any).botao_id).toBeUndefined();

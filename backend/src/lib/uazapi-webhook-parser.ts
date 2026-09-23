@@ -17,6 +17,8 @@ export type EventoMensagemUazapi = {
   tipo_msg: TipoMensagem;
   midia_url?: string;
   botao_id?: string;
+  // true quando a UAZAPI marca a mensagem como enviada pela API (eco do robô/CRM).
+  enviada_pela_api?: boolean;
 };
 
 export type EventoUazapi =
@@ -135,5 +137,6 @@ export function parseUazapiEvento(payload: any): EventoUazapi {
     tipo_msg,
     midia_url,
     ...(botao_id ? { botao_id } : {}),
+    ...(msg.wasSentByApi === true ? { enviada_pela_api: true } : {}),
   };
 }

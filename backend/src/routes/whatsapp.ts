@@ -149,10 +149,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // ===== TRIAGEM AUTOMÁTICA (configuração — só gestão) =====
+  // ~16 MB decodificados ≈ 22 milhões de caracteres em base64.
+  const LIMITE_DATA_URL = 22_000_000;
   const materialSchema = z.object({
     texto: z.string().max(4000),
-    imagem: z.string().startsWith('data:image/').nullable(),
-    pdf: z.string().startsWith('data:application/pdf').nullable(),
+    imagem: z.string().startsWith('data:image/').max(LIMITE_DATA_URL, 'Imagem maior que 16 MB').nullable(),
+    pdf: z.string().startsWith('data:application/pdf').max(LIMITE_DATA_URL, 'PDF maior que 16 MB').nullable(),
     pdf_nome: z.string().max(200).nullable(),
   });
 
@@ -1123,7 +1125,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (ev.tipo === 'mensagem_propria') {
       await registrarMensagemPropriaNormalizada(prisma, {
         instanciaId: empresa.id, contato_numero: ev.contato_numero, externo_id: ev.externo_id,
-        tipo: ev.tipo_msg, texto: ev.texto, obterMidia,
+        tipo: ev.tipo_msg, texto: ev.texto, obterMidia, enviada_pela_api: ev.enviada_pela_api,
       }).catch((e) => console.error('[WPP fromMe]', e?.message));
       return;
     }
@@ -1325,6 +1327,7 @@ async function registrarMensagemPropriaNormalizada(
     tipo: 'TEXTO' | 'IMAGEM' | 'VIDEO' | 'AUDIO' | 'DOCUMENTO' | 'OUTRO';
     texto: string;
     obterMidia: (conversa: any) => Promise<string | undefined>;
+    enviada_pela_api?: boolean;
   },
 ) {
   const { contato_numero, externo_id, tipo, texto } = p;
@@ -1343,9 +1346,6 @@ async function registrarMensagemPropriaNormalizada(
     include: { instancia: true },
   }).catch(() => null);
   if (!conversa) return;
-
-  // Alguém digitou no celular da empresa: o robô para nessa conversa.
-  await prisma.whatsappConversa.updateMany({ where: { id: conversa.id, bot_ativo: true }, data: { bot_ativo: false } }).catch(() => {});
 
   const midiaUrl = await p.obterMidia(conversa);
 
@@ -1375,6 +1375,10 @@ async function registrarMensagemPropriaNormalizada(
   const mensagemPropria = await prisma.whatsappMensagem.create({
     data: { conversaId: conversa.id, externo_id, direcao: 'SAIDA', tipo, conteudo: texto, midia_url: midiaUrl, status: 'ENVIADA' },
   }).catch(() => null);
+  // Alguém digitou no celular da empresa (não é eco da API): o robô para nessa conversa.
+  if (!p.enviada_pela_api) {
+    await prisma.whatsappConversa.updateMany({ where: { id: conversa.id, bot_ativo: true }, data: { bot_ativo: false } }).catch(() => {});
+  }
   await prisma.whatsappConversa.update({
     where: { id: conversa.id },
     data: { ultima_mensagem: texto.slice(0, 200), ultima_em: new Date() },

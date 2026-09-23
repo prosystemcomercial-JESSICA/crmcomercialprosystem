@@ -106,16 +106,20 @@ export async function executarTriagem(
     consultarCnpj: (c: string) => consultarCnpj(c),
     temMaterial: (s: 'Padaria' | 'Farmácia') => !materialVazio(s === 'Farmácia' ? cfg.material.farmacia : cfg.material.padaria),
   };
+  const inicio = 'inicio' in entrada;
   const passo = 'inicio' in entrada
     ? iniciarTriagem({ clienteNome: entrada.clienteNome })
     : await avancarTriagem((conversa.bot_estado || 'MENU') as EstadoTriagem, (conversa.bot_dados || {}) as DadosTriagem, entrada, deps);
 
   // Grava o estado antes de enviar: se o cliente responder rápido, o próximo webhook já vê o estado novo.
   const fim = passo.estado === 'FIM';
-  await prisma.whatsappConversa.update({
-    where: { id: conversa.id },
+  // Compare-and-set: só grava se o estado ainda é o que lemos. Se outro webhook já
+  // avançou (ou um humano parou o robô), não envia nada.
+  const r = await prisma.whatsappConversa.updateMany({
+    where: { id: conversa.id, ...(inicio ? { bot_estado: null } : { bot_ativo: true, bot_estado: conversa.bot_estado }) },
     data: { bot_ativo: !fim, bot_estado: passo.estado, bot_dados: passo.dados as any },
   });
+  if (r.count === 0) return;
 
   await enviarAcoes(prisma, token, conversa, passo.acoes, cfg);
   if (passo.desfecho) await aplicarDesfecho(prisma, conversa, passo);
