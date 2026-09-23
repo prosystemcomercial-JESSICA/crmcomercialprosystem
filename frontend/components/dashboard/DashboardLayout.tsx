@@ -851,7 +851,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {avisoLead.alerta && <p className="text-xs font-bold text-white bg-red-600 rounded px-2 py-1 mt-2">⚠️ {avisoLead.alerta}</p>}
           <button onClick={() => { setAvisoLead(null); router.push('/whatsapp'); }}
             className="mt-3 w-full text-sm font-semibold text-white rounded-lg py-2" style={{ background: '#128C7E' }}>
-            Abrir conversas sem dono
+            Abrir WhatsApp
           </button>
         </div>
       )}
