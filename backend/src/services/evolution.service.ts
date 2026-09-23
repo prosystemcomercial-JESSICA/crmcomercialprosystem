@@ -102,14 +102,27 @@ export async function obterStatus(instanceToken: string): Promise<{ status: 'CON
  * de mensagens enviadas pelo celular nunca chegam ao CRM (só se souber, via
  * painel da UazAPI ou aqui, configurar isso explicitamente por instância).
  */
-export async function configurarWebhook(instanceToken: string): Promise<void> {
+export async function configurarWebhook(instanceToken: string): Promise<boolean> {
   const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL;
-  if (!webhookUrl) return;
-  await call('/webhook', 'POST', instanceToken, {
-    url: webhookUrl,
-    enabled: true,
-    events: ['messages', 'connection'],
-  }).catch((e) => console.error('[UAZAPI] Falha ao configurar webhook:', e?.message));
+  if (!webhookUrl) {
+    console.warn('[UAZAPI] EVOLUTION_WEBHOOK_URL não configurada — webhook da instância não foi registrado.');
+    return false;
+  }
+  // Corpo no "modo simples" da OpenAPI (POST /webhook): sem action/id, um webhook
+  // por instância. excludeMessages wasSentByApi evita receber de volta o eco do
+  // que o próprio CRM enviou (recomendação da própria documentação).
+  try {
+    await call('/webhook', 'POST', instanceToken, {
+      url: webhookUrl,
+      enabled: true,
+      events: ['messages', 'connection'],
+      excludeMessages: ['wasSentByApi'],
+    });
+    return true;
+  } catch (e: any) {
+    console.error('[UAZAPI] Falha ao configurar webhook:', e?.message);
+    return false;
+  }
 }
 
 /** Desconecta a instância (com o TOKEN DA INSTÂNCIA). */
@@ -139,29 +152,71 @@ export async function enviarTexto(
     number: normalizarNumero(numero),
     text: texto,
   });
-  const externo_id = data?.id || data?.key?.id || data?.messageId;
-  return { externo_id };
+  return { externo_id: idDaMensagemEnviada(data) };
 }
 
 /**
- * Envia áudio como mensagem de voz via POST /send/audio (com o TOKEN DA INSTÂNCIA).
- * Recebe base64 puro ou data URL.
+ * Envia áudio como mensagem de voz via POST /send/media (com o TOKEN DA INSTÂNCIA).
+ * A OpenAPI da UAZAPI não tem /send/audio: voz é /send/media com type "ptt" e
+ * `file` aceitando URL ou base64. Recebe base64 puro ou data URL.
  */
 export async function enviarAudio(
   instanceToken: string,
   numero: string,
   audioDataUrlOuBase64: string,
 ): Promise<{ externo_id?: string }> {
-  const m = audioDataUrlOuBase64.match(/^data:([^;]+);base64,(.*)$/s);
+  // Aceita "data:audio/webm;codecs=opus;base64,..." (parâmetros extras no mime).
+  const m = audioDataUrlOuBase64.match(/^data:([^;,]+)[^,]*;base64,(.*)$/s);
   const base64Puro = (m ? m[2] : audioDataUrlOuBase64).replace(/\s/g, '');
 
-  const data = await call('/send/audio', 'POST', instanceToken, {
+  const data = await call('/send/media', 'POST', instanceToken, {
     number: normalizarNumero(numero),
-    audio: base64Puro,
-    encoding: true,
+    type: 'ptt',
+    file: base64Puro,
+    ...(m ? { mimetype: m[1] } : {}),
   });
-  const externo_id = data?.id || data?.key?.id || data?.messageId;
-  return { externo_id };
+  return { externo_id: idDaMensagemEnviada(data) };
+}
+
+/**
+ * Id da mensagem devolvido pelo envio. A resposta segue o schema Message da
+ * UAZAPI: `messageid` é o id do WhatsApp (o mesmo que chega no webhook e em
+ * /message/download); `id` é interno da UAZAPI. Mantém os fallbacks antigos.
+ */
+function idDaMensagemEnviada(data: any): string | undefined {
+  return data?.messageid || data?.id || data?.key?.id || data?.messageId || undefined;
+}
+
+/**
+ * Baixa a mídia de uma mensagem via POST /message/download (TOKEN DA INSTÂNCIA),
+ * pedindo o conteúdo em base64 (return_base64) sem gerar link. Se a resposta
+ * vier só com o link público (fileURL), baixa o arquivo e converte. Devolve
+ * null quando a UAZAPI não entrega nem base64 nem link. Lança em erro HTTP.
+ */
+export async function baixarMidia(
+  instanceToken: string,
+  messageId: string,
+): Promise<{ base64: string; mimetype: string | null } | null> {
+  const data = await call('/message/download', 'POST', instanceToken, {
+    id: messageId,
+    return_base64: true,
+    return_link: false,
+  });
+  const mimetype: string | null = data?.mimetype || null;
+  if (data?.base64Data) return { base64: String(data.base64Data), mimetype };
+
+  const link: string | undefined = data?.fileURL || data?.url;
+  if (!link) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const res = await fetch(link, { method: 'GET', signal: controller.signal });
+    if (!res.ok) throw new Error(`Download da mídia → ${res.status}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    return { base64: buffer.toString('base64'), mimetype: mimetype || res.headers?.get?.('content-type') || null };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
