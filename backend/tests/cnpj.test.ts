@@ -42,6 +42,18 @@ describe('extrairCnpj / cnpjValido / formatarCnpj', () => {
     expect(extrairCnpj('123')).toBeNull();
     expect(extrairCnpj('')).toBeNull();
   });
+  it('não gruda outro número colado antes do cnpj', () => {
+    expect(extrairCnpj('meu telefone é 27999998888 e meu cnpj é 11.222.333/0001-81')).toBe('11222333000181');
+  });
+  it('não gruda outro número colado depois do cnpj', () => {
+    expect(extrairCnpj('cnpj 11222333000181 tel 27 99999-8888')).toBe('11222333000181');
+  });
+  it('aceita separador por espaço entre os grupos', () => {
+    expect(extrairCnpj('11 222 333 0001 81')).toBe('11222333000181');
+  });
+  it('devolve null quando os 14 dígitos fazem parte de uma sequência maior colada', () => {
+    expect(extrairCnpj('pedido 123456789012345')).toBeNull();
+  });
   it('valida dígitos verificadores', () => {
     expect(cnpjValido('11222333000181')).toBe(true);
     expect(cnpjValido('11222333000182')).toBe(false);

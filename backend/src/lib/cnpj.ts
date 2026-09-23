@@ -20,9 +20,24 @@ export type ConsultaCnpj =
 const TIMEOUT_MS = 8000;
 
 export function extrairCnpj(texto: string): string | null {
-  const digitos = (texto || '').replace(/\D/g, '');
-  const m = digitos.match(/\d{14}/);
-  return m ? m[0] : null;
+  const t = texto || '';
+  // Aceita pontuação opcional entre os grupos (11.222.333/0001-81, 11 222 333 0001 81,
+  // ou colado 11222333000181), mas rejeita um candidato colado a mais dígitos antes/depois
+  // (ex.: telefone colado no texto), para não juntar dois números diferentes num só CNPJ.
+  const regex = /\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2}/g;
+  const candidatos: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(t)) !== null) {
+    const antes = m.index > 0 ? t[m.index - 1] : '';
+    const depois = m.index + m[0].length < t.length ? t[m.index + m[0].length] : '';
+    if (/\d/.test(antes) || /\d/.test(depois)) continue;
+    candidatos.push(m[0].replace(/\D/g, ''));
+  }
+  if (candidatos.length > 0) {
+    return candidatos.find(c => cnpjValido(c)) || candidatos[0];
+  }
+  const todosDigitos = t.replace(/\D/g, '');
+  return todosDigitos.length === 14 ? todosDigitos : null;
 }
 
 export function cnpjValido(cnpj: string): boolean {
