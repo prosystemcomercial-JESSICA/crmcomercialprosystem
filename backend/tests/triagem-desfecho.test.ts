@@ -20,7 +20,7 @@ describe('efeitosDesfecho — qualificado', () => {
     expect(e.lead).toEqual({
       cnpj: '11.222.333/0001-81', razao_social: 'PADARIA PAO QUENTE LTDA', empresa: 'PADARIA PAO QUENTE LTDA',
       nome_fantasia: 'PAO QUENTE', nome: 'PAO QUENTE', segmento: 'Padaria', cidade: 'VILA VELHA', estado: 'ES',
-      endereco: 'RUA DAS FLORES, 100 - CENTRO - VILA VELHA/ES - CEP 29100-000', responsavel_nome: 'Maria',
+      endereco: 'RUA DAS FLORES, 100 - CENTRO - VILA VELHA/ES - CEP 29100-000', responsavel_nome: 'Maria', etapa_sdr: 'QUALIFICADO',
     });
   });
 
@@ -47,7 +47,7 @@ describe('efeitosDesfecho — qualificado', () => {
 
   it('Receita indisponível: usa cidade digitada e marca como não consultado', () => {
     const e = efeitosDesfecho('qualificado', { fluxo: 'conhecer', segmento: 'Farmácia', nome: 'Ana', cidade: 'Serra', cnpj: '11222333000181', receita: null, receita_fonte: null }, null);
-    expect(e.lead).toMatchObject({ cnpj: '11.222.333/0001-81', segmento: 'Farmácia', cidade: 'Serra', responsavel_nome: 'Ana' });
+    expect(e.lead).toMatchObject({ cnpj: '11.222.333/0001-81', segmento: 'Farmácia', cidade: 'Serra', responsavel_nome: 'Ana', etapa_sdr: 'QUALIFICADO' });
     expect(e.conversa.etiqueta).toBe('Farmácia');
     expect(e.conversa.prioridade).toBe('NORMAL');
     expect(e.observacao).toContain('não consultado na Receita');
@@ -60,7 +60,7 @@ describe('efeitosDesfecho — outros', () => {
     expect(e.conversa).toMatchObject({ etiqueta: 'Serviços', desvincularLead: false });
     expect(e.observacao).toContain('Treinamento');
     expect(e.notificacao?.titulo).toBe('Pedido de serviço');
-    expect(e.lead).toBeNull();
+    expect(e.lead).toEqual({ etapa_sdr: 'QUALIFICADO' });
   });
   it('suporte e financeiro: desvinculam o lead e não notificam', () => {
     for (const d of ['suporte', 'financeiro'] as const) {

@@ -84,8 +84,12 @@ function leadQualificado(d: DadosTriagem, atual: LeadAtual | null): Record<strin
   } else {
     por('cidade', d.cidade);
   }
+  // Qualificado → aparece em "Leads para Distribuir" para a Supervisão encaminhar.
+  out.etapa_sdr = ETAPA_QUALIFICADO;
   return out;
 }
+
+const ETAPA_QUALIFICADO = 'QUALIFICADO';
 
 export function efeitosDesfecho(desfecho: Desfecho, dados: DadosTriagem, leadAtual: LeadAtual | null): EfeitosDesfecho {
   if (desfecho === 'suporte' || desfecho === 'financeiro') {
@@ -95,7 +99,7 @@ export function efeitosDesfecho(desfecho: Desfecho, dados: DadosTriagem, leadAtu
   if (desfecho === 'servicos') {
     return {
       conversa: { etiqueta: 'Serviços', etiqueta_cor: COR['Serviços'], desvincularLead: false },
-      lead: null,
+      lead: { etapa_sdr: ETAPA_QUALIFICADO },
       observacao: `🤖 Triagem automática do WhatsApp — Pedido de serviço:\n${dados.servico || '—'}`,
       notificacao: { titulo: 'Pedido de serviço', detalhe: (dados.servico || '').slice(0, 80), alerta: null },
     };
