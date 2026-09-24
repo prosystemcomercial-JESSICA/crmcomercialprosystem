@@ -313,7 +313,7 @@ function Tela2({ d }: { d: any }) {
 
 const CSS = `
 html,body{background:#0b1220}
-.tv{min-height:100vh;background:#0b1220;color:#e5e7eb;font-family:var(--font-sans),Inter,Segoe UI,Arial,sans-serif;font-size:clamp(12px,0.9vw,18px);overflow:hidden}
+.tv{min-height:100vh;background:#0b1220;color:#e5e7eb;font-family:var(--font-sans),Inter,Segoe UI,Arial,sans-serif;font-size:clamp(10px,min(0.9vw,1.55vh),18px);overflow:hidden}
 .wrap{padding:1.2vw 1.5vw;height:100vh;box-sizing:border-box;display:flex;flex-direction:column}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8vw}
 .top h1{font-size:1.6em;margin:0;letter-spacing:.3px;font-weight:700}
@@ -361,6 +361,7 @@ td.r{text-align:right}
 .aviso{max-width:640px;text-align:center;background:#111a2e;border:1px solid #1f2a44;border-radius:16px;padding:2em}
 .aviso h1{font-size:2em;margin:0 0 .5em}
 .aviso p{color:#94a3b8;font-size:1.2em}
-@media (max-width:1400px){.tv{font-size:12px}.n{font-size:2.5em}}
+@media (max-width:1400px){.tv{font-size:clamp(10px,1.55vh,12px)}}
+@media (max-width:1400px),(max-height:900px){.n{font-size:2.5em}}
 @media (max-width:900px){.tv{overflow:auto}.wrap{height:auto}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.span2,.span3,.span6{grid-column:span 2}}
 `;
