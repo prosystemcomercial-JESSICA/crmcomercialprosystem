@@ -25,7 +25,33 @@ interface Conversa {
   bot_ativo?: boolean;
   bot_estado?: string | null;
   bot_dados?: any;
+  tipo_contato?: string | null;
+  contato_cargo?: string | null;
+  contato_empresa?: string | null;
 }
+
+// Tipos do botão "Identificar" (só Lead fica no funil).
+const TIPOS_CONTATO: { valor: string; nome: string; cor: string; desc: string }[] = [
+  { valor: 'CLIENTE', nome: 'Cliente', cor: '#0891b2', desc: 'Já é cliente Prosystem — vincula à ficha do cliente' },
+  { valor: 'LEAD', nome: 'Lead', cor: '#7c3aed', desc: 'Possível cliente — fica no funil de vendas' },
+  { valor: 'PARCEIRO', nome: 'Parceiro', cor: '#db2777', desc: 'Parceiro comercial ou indicador' },
+  { valor: 'EQUIPE', nome: 'Equipe Prosystem', cor: '#475569', desc: 'Alguém do nosso time' },
+  { valor: 'TERCEIRO_CLIENTE', nome: 'Terceiro de cliente', cor: '#0d9488', desc: 'Contador ou outra pessoa que fala por um cliente' },
+  { valor: 'FORNECEDOR', nome: 'Fornecedor', cor: '#ca8a04', desc: 'Fornecedor ou prestador de serviço' },
+  { valor: 'OUTRO', nome: 'Outro', cor: '#6b7280', desc: 'Não se encaixa nos anteriores' },
+];
+const tipoInfo = (t?: string | null) => TIPOS_CONTATO.find(x => x.valor === t) || null;
+const RELACAO_TXT: Record<string, string> = { cliente: 'É cliente Prosystem', ex_cliente: 'Já foi cliente', nao_conhece: 'Não conhece a Prosystem' };
+const fmtCnpj = (c?: string | null) => {
+  const d = String(c || '').replace(/\D/g, '');
+  return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || '');
+};
+const enderecoReceita = (r: any) => {
+  if (!r) return '';
+  const rua = [r.logradouro, r.numero].filter(Boolean).join(', ');
+  const cidade = [r.municipio, r.uf].filter(Boolean).join('/');
+  return [rua, r.complemento, r.bairro, cidade, r.cep ? `CEP ${r.cep}` : null].filter(Boolean).join(' — ');
+};
 
 const ESTADOS_TRIAGEM = ['MENU', 'MENU_CLIENTE', 'SERVICO', 'SEGMENTO', 'RELACAO', 'NOME', 'CIDADE', 'CNPJ', 'CNPJ_CONFIRMA'];
 const emTriagem = (c?: Conversa | null) => !!c?.bot_ativo && ESTADOS_TRIAGEM.includes(c?.bot_estado || '');
@@ -154,6 +180,9 @@ export default function WhatsappPage() {
   const [vincNome, setVincNome] = useState('');
   const [vincCargo, setVincCargo] = useState('');
   const [vincSalvando, setVincSalvando] = useState(false);
+  const [vincTipo, setVincTipo] = useState<string | null>(null);
+  const [vincEmpresa, setVincEmpresa] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [carregandoConn, setCarregandoConn] = useState(true);
@@ -214,6 +243,12 @@ export default function WhatsappPage() {
           ? await apiClient.getWhatsappConversas(undefined, 'pool')
           : await apiClient.getWhatsappConversas(instAtivaId || undefined);
       setConversas(res.data.data);
+      // Mantém a conversa aberta em dia (ex.: CNPJ detectado atualiza o painel).
+      setAtiva(prev => {
+        if (!prev) return prev;
+        const nova = (res.data.data as Conversa[]).find(c => c.id === prev.id);
+        return nova ? { ...prev, ...nova } : prev;
+      });
     } catch (e) { console.error(e); }
   }, [instAtivaId, aba]);
 
@@ -341,7 +376,8 @@ export default function WhatsappPage() {
   // Abrir modal de vincular cliente: pré-preenche o nome com o do contato.
   const abrirVincCliente = () => {
     setVincSel(null); setVincBusca(''); setVincResultados([]);
-    setVincNome(ativa?.contato_nome || ''); setVincCargo('');
+    setVincNome(ativa?.contato_nome || ''); setVincCargo(ativa?.contato_cargo || '');
+    setVincEmpresa(ativa?.contato_empresa || ''); setVincTipo(null);
     setShowVincCliente(true);
   };
   // Busca de cliente na base (server-side, debounce).
@@ -357,21 +393,37 @@ export default function WhatsappPage() {
     return () => clearTimeout(t);
   }, [vincBusca, showVincCliente, vincSel]);
 
+  const tipoPedeCliente = vincTipo === 'CLIENTE' || vincTipo === 'TERCEIRO_CLIENTE';
+  const tipoPedeEmpresa = vincTipo === 'PARCEIRO' || vincTipo === 'FORNECEDOR' || vincTipo === 'EQUIPE' || vincTipo === 'OUTRO';
+  // Identificar: grava o tipo do contato. Só Lead fica no funil; a conversa continua no Inbox.
   const salvarVincCliente = async () => {
-    if (!ativa || !vincSel) { console.warn('Selecione o cliente.'); return; }
+    if (!ativa || !vincTipo) return;
+    if (tipoPedeCliente && !vincSel) { console.warn('Selecione o cliente.'); return; }
     setVincSalvando(true);
     try {
-      await apiClient.vincularConversaCliente(ativa.id, {
-        cliente_id: vincSel.id, nome: vincNome || undefined, cargo: vincCargo || undefined,
+      const res = await apiClient.identificarConversa(ativa.id, {
+        tipo: vincTipo,
+        nome: vincNome.trim() || undefined,
+        cargo: vincCargo.trim() || undefined,
+        empresa: tipoPedeEmpresa ? (vincEmpresa.trim() || undefined) : undefined,
+        cliente_id: tipoPedeCliente ? vincSel?.id : undefined,
       });
-      // Atualiza a etiqueta verde na hora (sem precisar recarregar): código + razão.
-      const cod = vincSel.codigo || null;
-      const razao = vincSel.razao_social || vincSel.nome_fantasia || vincSel.nome || null;
-      setAtiva(prev => prev ? ({ ...prev, cliente_id: vincSel.id, cliente_codigo: cod, cliente_razao: razao } as any) : prev);
-      setConversas(prev => prev.map(c => c.id === ativa.id ? ({ ...c, cliente_id: vincSel.id, cliente_codigo: cod, cliente_razao: razao } as any) : c));
+      const upd = res.data.data || {};
+      const extra: any = {
+        tipo_contato: upd.tipo_contato, contato_nome: upd.contato_nome, contato_cargo: upd.contato_cargo,
+        contato_empresa: upd.contato_empresa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor,
+        lead_id: upd.lead_id, bot_ativo: upd.bot_ativo, bot_estado: upd.bot_estado,
+      };
+      if (tipoPedeCliente && vincSel) {
+        // Etiqueta verde do cliente na hora (sem precisar recarregar): código + razão.
+        extra.cliente_id = vincSel.id;
+        extra.cliente_codigo = vincSel.codigo || null;
+        extra.cliente_razao = vincSel.razao_social || vincSel.nome_fantasia || vincSel.nome || null;
+      }
+      setAtiva(prev => prev && prev.id === ativa.id ? ({ ...prev, ...extra }) : prev);
+      setConversas(prev => prev.map(c => c.id === ativa.id ? ({ ...c, ...extra }) : c));
       setShowVincCliente(false);
-      console.warn('Conversa vinculada ao cliente e contato registrado na ficha! ✅');
-    } catch (e: any) { console.error('Falha ao vincular ao cliente', e); }
+    } catch (e: any) { console.error('Falha ao identificar o contato', e); }
     finally { setVincSalvando(false); }
   };
 
@@ -695,8 +747,9 @@ export default function WhatsappPage() {
     return cores[Math.abs(h) % cores.length];
   };
 
+  const conversasPorTipo = filtroTipo ? conversas.filter(c => c.tipo_contato === filtroTipo) : conversas;
   const conversasFiltradas = buscaConv.trim()
-    ? conversas.filter(c => nomeContato(c).toLowerCase().includes(buscaConv.toLowerCase()) || c.contato_numero.includes(buscaConv))
+    ? conversasPorTipo.filter(c => nomeContato(c).toLowerCase().includes(buscaConv.toLowerCase()) || c.contato_numero.includes(buscaConv))
     : conversas;
 
   // Formata o prazo de SLA: "Violado há 3h" (vermelho) ou "Prazo em 5h" (neutro).
@@ -880,7 +933,12 @@ export default function WhatsappPage() {
             <div className={`bg-white flex-col border-r border-gray-200 min-h-0 w-full md:w-auto ${ativa ? 'hidden md:flex' : 'flex'}`}>
               <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-200 bg-white">
                 <span className="text-gray-800 font-semibold text-sm">Conversas</span>
-                <span className="ml-auto text-xs text-gray-400">{conversas.length}</span>
+                <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} title="Filtrar por tipo de contato"
+                  className="ml-auto text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white text-gray-600">
+                  <option value="">Todos</option>
+                  {TIPOS_CONTATO.map(t => <option key={t.valor} value={t.valor}>{t.nome}</option>)}
+                </select>
+                <span className="text-xs text-gray-400">{conversasPorTipo.length}</span>
               </div>
               <div className="p-2 border-b border-gray-100 space-y-2">
                 <input value={buscaConv} onChange={e => setBuscaConv(e.target.value)}
@@ -912,6 +970,9 @@ export default function WhatsappPage() {
                         <p className="text-[13px]  truncate">{c.ultima_mensagem || '—'}</p>
                         {c.nao_lidas > 0 && <span className="bg-blue-600 text-white text-[11px] font-bold rounded-full px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0">{c.nao_lidas}</span>}
                       </div>
+                      {tipoInfo(c.tipo_contato) && tipoInfo(c.tipo_contato)!.nome !== c.etiqueta && (
+                        <span className="inline-block mt-1 mr-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: tipoInfo(c.tipo_contato)!.cor }}>{tipoInfo(c.tipo_contato)!.nome}</span>
+                      )}
                       {c.etiqueta && (
                         <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
                       )}
@@ -1169,12 +1230,76 @@ export default function WhatsappPage() {
                 <div className="px-4 py-3.5 border-b border-gray-100">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-[11px] font-semibold text-gray-400 uppercase">Contato</p>
+                    {tipoInfo(ativa.tipo_contato) && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: tipoInfo(ativa.tipo_contato)!.cor }}>{tipoInfo(ativa.tipo_contato)!.nome}</span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 mb-0.5">Nome</p>
                   <p className="text-sm font-medium text-gray-800 mb-2">{nomeContato(ativa)}</p>
+                  {ativa.contato_cargo && (<><p className="text-xs text-gray-400 mb-0.5">Cargo</p><p className="text-sm font-medium text-gray-800 mb-2">{ativa.contato_cargo}</p></>)}
+                  {ativa.contato_empresa && (<><p className="text-xs text-gray-400 mb-0.5">Empresa</p><p className="text-sm font-medium text-gray-800 mb-2">{ativa.contato_empresa}</p></>)}
                   <p className="text-xs text-gray-400 mb-0.5">WhatsApp</p>
                   <p className="text-sm font-medium text-gray-800">{ativa.contato_numero}</p>
                 </div>
+
+                {(() => {
+                  const d = ativa.bot_dados || {};
+                  const r = d.receita;
+                  if (!d.cnpj && !r) return null;
+                  const ativaRf = String(r?.situacao || '').toUpperCase() === 'ATIVA';
+                  const campo = (rotulo: string, valor?: string | null) => valor ? (
+                    <div><p className="text-xs text-gray-400">{rotulo}</p><p className="text-sm text-gray-800 break-words">{valor}</p></div>
+                  ) : null;
+                  return (
+                    <div className="px-4 py-3.5 border-b border-gray-100">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-2">Empresa</p>
+                      <div className="space-y-1.5">
+                        {campo('Razão social', r?.razao_social)}
+                        {campo('Nome fantasia', r?.nome_fantasia)}
+                        {campo('CNPJ', fmtCnpj(d.cnpj || r?.cnpj))}
+                        {r?.situacao && (
+                          <div><p className="text-xs text-gray-400">Situação</p>
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${ativaRf ? 'bg-green-100 text-green-800' : 'bg-red-600 text-white'}`}>{r.situacao}</span>
+                          </div>
+                        )}
+                        {campo('Atividade principal', r?.cnae_principal ? `${r.cnae_principal.codigo} — ${r.cnae_principal.descricao}` : null)}
+                        {campo('Porte', r?.porte)}
+                        {campo('Abertura', r?.data_abertura)}
+                        {campo('Endereço', enderecoReceita(r))}
+                        {campo('Telefones', r?.telefones?.length ? r.telefones.join(', ') : null)}
+                        {campo('E-mail', r?.email)}
+                        {r?.socios?.length > 0 && (
+                          <div><p className="text-xs text-gray-400">Sócios</p>
+                            {r.socios.map((s: any, i: number) => (
+                              <p key={i} className="text-sm text-gray-800">{s.nome}{s.qualificacao ? <span className="text-xs text-gray-500"> · {s.qualificacao}</span> : null}</p>
+                            ))}
+                          </div>
+                        )}
+                        {!r && <p className="text-xs text-gray-500">Não consultado na Receita (serviço indisponível).</p>}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const d = ativa.bot_dados || {};
+                  const linhas: [string, string | undefined][] = [
+                    ['Segmento', d.segmento], ['Relação', d.relacao ? RELACAO_TXT[d.relacao] : undefined],
+                    ['Nome informado', d.nome], ['Cidade informada', d.cidade], ['Serviço pedido', d.servico],
+                  ];
+                  const visiveis = linhas.filter(([, v]) => !!v);
+                  if (!visiveis.length) return null;
+                  return (
+                    <div className="px-4 py-3.5 border-b border-gray-100">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-2">Triagem</p>
+                      <div className="space-y-1.5">
+                        {visiveis.map(([k, v]) => (
+                          <div key={k}><p className="text-xs text-gray-400">{k}</p><p className="text-sm text-gray-800 break-words">{v}</p></div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {painel?.cliente && (
                   <div className="px-4 py-3.5 border-b border-gray-100">
@@ -1322,13 +1447,39 @@ export default function WhatsappPage() {
       {showVincCliente && ativa && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="ps-card rounded-xl p-5 w-full max-w-md">
-            <h3 className="text-lg font-bold text-sm font-semibold mb-1">👤 Vincular a um cliente</h3>
-            <p className="text-sm  mb-4">
-              Este contato ({ativa.contato_numero}) será registrado na ficha do cliente com nome, telefone e cargo.
+            <h3 className="text-lg font-bold text-sm font-semibold mb-1">👤 Identificar contato</h3>
+            {!vincTipo ? (
+              <>
+                <p className="text-sm mb-3">Quem é {ativa.contato_nome || ativa.contato_numero}? Só <b>Lead</b> fica no funil de vendas.</p>
+                <div className="space-y-1.5 mb-4">
+                  {TIPOS_CONTATO.map(t => (
+                    <button key={t.valor} type="button" onClick={() => setVincTipo(t.valor)}
+                      className="w-full text-left flex items-start gap-2.5 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                      <span className="mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.cor }} />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-gray-800">{t.nome}</span>
+                        <span className="block text-xs text-gray-500">{t.desc}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setShowVincCliente(false)} className="px-4 py-2 text-sm ">Cancelar</button>
+                </div>
+              </>
+            ) : (
+            <>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="px-2 py-0.5 rounded text-xs font-semibold text-white" style={{ background: tipoInfo(vincTipo)?.cor }}>{tipoInfo(vincTipo)?.nome}</span>
+              <button type="button" onClick={() => setVincTipo(null)} className="text-xs text-blue-700">Trocar tipo</button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              {vincTipo === 'LEAD' ? 'O contato fica no funil de vendas.' : 'O contato sai do funil de vendas; a conversa continua no Inbox.'}
+              {tipoPedeCliente ? ' O contato é registrado na ficha do cliente.' : ''}
             </p>
 
             {/* Busca / seleção do cliente */}
-            {vincSel ? (
+            {!tipoPedeCliente ? null : vincSel ? (
               <div className="flex items-center justify-between gap-3 px-3 py-2.5 border border-emerald-300 bg-emerald-50 rounded-lg mb-3">
                 <div className="min-w-0">
                   <div className="font-medium text-sm font-semibold truncate">{vincSel.nome_fantasia || vincSel.razao_social || vincSel.nome}</div>
@@ -1360,15 +1511,24 @@ export default function WhatsappPage() {
               placeholder="Nome de quem fala no WhatsApp" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
             <label className="block text-xs font-medium  mb-1">Cargo</label>
             <input value={vincCargo} onChange={e => setVincCargo(e.target.value)}
-              placeholder="Ex.: Proprietário, Gerente, Financeiro, Comprador" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-4" />
+              placeholder={vincTipo === 'TERCEIRO_CLIENTE' ? 'Ex.: Contador' : 'Ex.: Proprietário, Gerente, Financeiro, Comprador'} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
+            {tipoPedeEmpresa && (
+              <>
+                <label className="block text-xs font-medium  mb-1">Empresa</label>
+                <input value={vincEmpresa} onChange={e => setVincEmpresa(e.target.value)}
+                  placeholder="Empresa do contato" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" />
+              </>
+            )}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 mt-1">
               <button onClick={() => setShowVincCliente(false)} className="px-4 py-2 text-sm ">Cancelar</button>
-              <button onClick={salvarVincCliente} disabled={vincSalvando || !vincSel}
+              <button onClick={salvarVincCliente} disabled={vincSalvando || (tipoPedeCliente && !vincSel)}
                 className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#2563eb' }}>
-                {vincSalvando ? 'Vinculando…' : 'Vincular e salvar contato'}
+                {vincSalvando ? 'Salvando…' : 'Salvar'}
               </button>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}
