@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cnpjNovoNaMensagem, dadosComCnpj, efeitosCnpjNoLead } from '../src/lib/triagem/cnpj-conversa';
+import { fluxoCuidaDoCnpj, cnpjNovoNaMensagem, dadosComCnpj, efeitosCnpjNoLead } from '../src/lib/triagem/cnpj-conversa';
 import type { DadosReceita } from '../src/lib/cnpj';
 
 const RECEITA: DadosReceita = {
@@ -23,6 +23,18 @@ describe('cnpjNovoNaMensagem', () => {
   });
   it('aceita CNPJ diferente do salvo', () => {
     expect(cnpjNovoNaMensagem({ cnpj: '11444777000161' }, '11222333000181')).toBe('11222333000181');
+  });
+});
+
+describe('fluxoCuidaDoCnpj', () => {
+  it('triagem nos estados de CNPJ: o fluxo cuida', () => {
+    expect(fluxoCuidaDoCnpj({ bot_ativo: true, bot_estado: 'CNPJ' })).toBe(true);
+    expect(fluxoCuidaDoCnpj({ bot_ativo: true, bot_estado: 'CNPJ_CONFIRMA' })).toBe(true);
+  });
+  it('outros estados, robô parado ou sem triagem: a detecção cuida', () => {
+    expect(fluxoCuidaDoCnpj({ bot_ativo: true, bot_estado: 'MENU' })).toBe(false);
+    expect(fluxoCuidaDoCnpj({ bot_ativo: false, bot_estado: 'CNPJ' })).toBe(false);
+    expect(fluxoCuidaDoCnpj({ bot_ativo: false, bot_estado: null })).toBe(false);
   });
 });
 

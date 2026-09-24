@@ -1190,9 +1190,6 @@ class ApiClient {
   async agendarReuniaoWhatsapp(id: string, data: { data: string; duracao_minutos?: number; link?: string; titulo?: string; mensagem?: string }) {
     return this.client.post(`/whatsapp/conversas/${id}/reuniao`, data);
   }
-  async vincularConversaCliente(id: string, data: { cliente_id: string; nome?: string; cargo?: string }) {
-    return this.client.post(`/whatsapp/conversas/${id}/vincular-cliente`, data);
-  }
   // Identifica o contato por tipo (CLIENTE, LEAD, PARCEIRO, EQUIPE, TERCEIRO_CLIENTE, FORNECEDOR, OUTRO).
   async identificarConversa(id: string, data: { tipo: string; nome?: string; cargo?: string; empresa?: string; cliente_id?: string }) {
     return this.client.post(`/whatsapp/conversas/${id}/identificar`, data);

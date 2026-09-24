@@ -10,7 +10,7 @@ import { obterConfigTriagem, materialVazio, type ConfigTriagem } from './triagem
 import { consultarCnpj } from '../lib/cnpj';
 import { iniciarTriagem, avancarTriagem, ESTADOS_TRIAGEM, type Acao, type DadosTriagem, type EstadoTriagem, type ResultadoPasso } from '../lib/triagem/fluxo';
 import { efeitosDesfecho } from '../lib/triagem/desfecho';
-import { cnpjNovoNaMensagem, dadosComCnpj, efeitosCnpjNoLead } from '../lib/triagem/cnpj-conversa';
+import { fluxoCuidaDoCnpj, cnpjNovoNaMensagem, dadosComCnpj, efeitosCnpjNoLead } from '../lib/triagem/cnpj-conversa';
 import { serializarPorChave } from '../lib/serializar';
 
 type ConversaTriagem = { id: string; contato_numero: string; lead_id: string | null; dono_id: string | null; bot_ativo: boolean; bot_estado: string | null; bot_dados: any };
@@ -40,8 +40,8 @@ export async function detectarCnpjNaConversa(
   consultar: typeof consultarCnpj = consultarCnpj,
 ) {
   return serializarPorChave(chaveConversa(conversaId), async () => {
-    const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, lead_id: true, dono_id: true, bot_dados: true } });
-    if (!conversa) return;
+    const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, lead_id: true, dono_id: true, bot_dados: true, bot_ativo: true, bot_estado: true } });
+    if (!conversa || fluxoCuidaDoCnpj(conversa)) return;
     const atuais = (conversa.bot_dados || {}) as DadosTriagem;
     const cnpj = cnpjNovoNaMensagem(atuais, texto);
     if (!cnpj) return;

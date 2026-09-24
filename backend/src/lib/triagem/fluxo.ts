@@ -152,6 +152,18 @@ function pedirCnpj(dados: DadosTriagem, deps: DepsTriagem): ResultadoPasso {
   return { estado: 'CNPJ', dados, acoes: [texto(PEDIR_CNPJ)] };
 }
 
+// Resposta com um CNPJ válido (estado CNPJ, ou CNPJ novo na confirmação).
+async function respostaCnpj(dados: DadosTriagem, cnpj: string, deps: DepsTriagem): Promise<ResultadoPasso> {
+  const consulta = await deps.consultarCnpj(cnpj);
+  if (consulta.status === 'nao_encontrado') {
+    return { estado: 'CNPJ', dados, acoes: [texto('Não encontramos esse CNPJ na Receita Federal. Confira e digite novamente, por favor.')] };
+  }
+  if (consulta.status === 'indisponivel') {
+    return finalQualificado({ ...dados, cnpj, receita: null, receita_fonte: null }, deps);
+  }
+  return confirmaEmpresa({ ...dados, cnpj, receita: consulta.dados, receita_fonte: consulta.fonte });
+}
+
 export async function avancarTriagem(
   estado: EstadoTriagem,
   dados: DadosTriagem,
@@ -203,14 +215,7 @@ export async function avancarTriagem(
       if (!cnpj || !cnpjValido(cnpj)) {
         return { estado, dados, acoes: [texto('Esse CNPJ não parece válido. 🤔 Confira e digite os 14 números do CNPJ da empresa.')] };
       }
-      const consulta = await deps.consultarCnpj(cnpj);
-      if (consulta.status === 'nao_encontrado') {
-        return { estado, dados, acoes: [texto('Não encontramos esse CNPJ na Receita Federal. Confira e digite novamente, por favor.')] };
-      }
-      if (consulta.status === 'indisponivel') {
-        return finalQualificado({ ...dados, cnpj, receita: null, receita_fonte: null }, deps);
-      }
-      return confirmaEmpresa({ ...dados, cnpj, receita: consulta.dados, receita_fonte: consulta.fonte });
+      return respostaCnpj(dados, cnpj, deps);
     }
     case 'CNPJ_CONFIRMA': {
       // Negação como palavra isolada ("não está certo") vence o apelido "certo"; clique em botão vence o texto.
@@ -218,7 +223,15 @@ export async function avancarTriagem(
       const temNegacaoC = !temBotaoValidoC && /\b(nao|errad[oa]?)\b/.test(norm(entrada.texto));
       const e = temNegacaoC ? 'cnpj_nao' : escolher(entrada, OPC_CONFIRMA);
       if (e === 'cnpj_sim') return finalQualificado(dados, deps);
-      if (!e && ehCnpj(livre)) return semResposta(estado, dados);
+      if (!e && ehCnpj(livre)) {
+        // CNPJ diferente do que estamos confirmando: consulta e pergunta pela empresa certa.
+        const outro = extrairCnpj(livre)!;
+        if (outro !== dados.cnpj) {
+          const { cnpj: _c, receita: _r, receita_fonte: _f, ...resto } = dados;
+          return respostaCnpj(resto, outro, deps);
+        }
+        return semResposta(estado, dados);
+      }
       if (e === 'cnpj_nao') {
         const { cnpj: _c, receita: _r, receita_fonte: _f, ...resto } = dados;
         return { estado: 'CNPJ', dados: resto, acoes: [texto(`Tudo bem! ${PEDIR_CNPJ}`)] };
