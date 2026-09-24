@@ -577,6 +577,7 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     // Busca: cada palavra casa com algum campo; com 8+ dígitos, também o CNPJ só por dígitos.
     const termo = normalizarBuscaCliente(search);
     if (search) {
+      // LIMIT 500: count (Prisma) e lista (SQL) só divergem numa busca patológica por dígitos de CNPJ com 500+ casamentos.
       const idsPorCnpj: string[] = termo.digitosCnpj
         ? ((await prisma.$queryRawUnsafe(`SELECT id FROM Cliente WHERE ${SQL_CNPJ_DIGITOS} LIKE ? LIMIT 500`, `%${termo.digitosCnpj}%`).catch(() => [])) as any[]).map(r => r.id)
         : [];

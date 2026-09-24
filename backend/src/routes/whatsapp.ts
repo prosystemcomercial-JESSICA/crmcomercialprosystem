@@ -14,7 +14,8 @@ import {
 } from '@/lib/whatsapp-empresa';
 import { TIPOS_CONTATO, decidirIdentificacao } from '@/lib/whatsapp-identificar';
 import { dadosSairDoFunil as dadosSairDoFunilSvc, vincularContatoCliente as vincularContatoClienteSvc } from '@/services/whatsapp-vinculo.service';
-import { responderConfirmacaoCliente } from '@/services/whatsapp-confirmacao-cliente.service';
+import { responderConfirmacaoCliente, limparConfirmacaoPendente, chaveConversa } from '@/services/whatsapp-confirmacao-cliente.service';
+import { serializarPorChave } from '@/lib/serializar';
 import { ehPayloadUazapi, parseUazapiEvento, EventoMensagemUazapi } from '@/lib/uazapi-webhook-parser';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
@@ -492,91 +493,102 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // ficam salvos e atualizados. Idempotente: se já existe contato com o mesmo
   // telefone, atualiza em vez de duplicar.
   fastify.post('/whatsapp/conversas/:id/vincular-cliente', async (request, reply) => {
-    const user = getUser(request);
-    const { id } = request.params as { id: string };
-    const body = z.object({
-      cliente_id: z.string().min(1, 'Selecione o cliente'),
-      nome: z.string().optional(),
-      cargo: z.string().optional(),
-    }).safeParse(request.body);
-    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Selecione o cliente para vincular.' });
+    const { id: idFila } = request.params as { id: string };
+    // Mesma fila da confirmação automática por CNPJ: não intercala com o robô.
+    return serializarPorChave(chaveConversa(idFila), async () => {
+      const user = getUser(request);
+      const { id } = request.params as { id: string };
+      const body = z.object({
+        cliente_id: z.string().min(1, 'Selecione o cliente'),
+        nome: z.string().optional(),
+        cargo: z.string().optional(),
+      }).safeParse(request.body);
+      if (!body.success) return reply.status(400).send({ status: 'error', message: 'Selecione o cliente para vincular.' });
 
-    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
-    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+      const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+      if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
-    const cliente = await prisma.cliente.findUnique({ where: { id: body.data.cliente_id }, select: { id: true } });
-    if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+      const cliente = await prisma.cliente.findUnique({ where: { id: body.data.cliente_id }, select: { id: true } });
+      if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
 
-    const contato = await vincularContatoCliente(conversa, body.data.cliente_id, body.data.nome, body.data.cargo, user);
-    return reply.send({ status: 'success', data: { contato }, message: 'Conversa vinculada ao cliente.' });
+      await limparConfirmacaoPendente(prisma, conversa.id);
+      const contato = await vincularContatoCliente(conversa, body.data.cliente_id, body.data.nome, body.data.cargo, user);
+      return reply.send({ status: 'success', data: { contato }, message: 'Conversa vinculada ao cliente.' });
+    });
   });
 
   // Identifica o contato por tipo. Só LEAD fica no funil; os demais tiram o lead
   // captado automaticamente do funil (Central de Leads limpa). A conversa continua no Inbox.
   fastify.post('/whatsapp/conversas/:id/identificar', async (request, reply) => {
-    const user = getUser(request);
-    const { id } = request.params as { id: string };
-    const body = z.object({
-      tipo: z.enum(TIPOS_CONTATO),
-      nome: z.string().trim().max(120).optional(),
-      cargo: z.string().trim().max(120).optional(),
-      empresa: z.string().trim().max(160).optional(),
-      cliente_id: z.string().optional(),
-    }).safeParse(request.body);
-    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
-    const { tipo, nome, cargo, empresa, cliente_id } = body.data;
+    const { id: idFila } = request.params as { id: string };
+    // Mesma fila da confirmação automática por CNPJ: não intercala com o robô.
+    return serializarPorChave(chaveConversa(idFila), async () => {
+      const user = getUser(request);
+      const { id } = request.params as { id: string };
+      const body = z.object({
+        tipo: z.enum(TIPOS_CONTATO),
+        nome: z.string().trim().max(120).optional(),
+        cargo: z.string().trim().max(120).optional(),
+        empresa: z.string().trim().max(160).optional(),
+        cliente_id: z.string().optional(),
+      }).safeParse(request.body);
+      if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
+      const { tipo, nome, cargo, empresa, cliente_id } = body.data;
 
-    const decisao = decidirIdentificacao(tipo, { cliente_id });
-    if ('erro' in decisao) return reply.status(400).send({ status: 'error', message: decisao.erro });
+      const decisao = decidirIdentificacao(tipo, { cliente_id });
+      if ('erro' in decisao) return reply.status(400).send({ status: 'error', message: decisao.erro });
 
-    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
-    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+      const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+      if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
-    if (decisao.vincularCliente) {
-      const cliente = await prisma.cliente.findUnique({ where: { id: cliente_id! }, select: { id: true } });
-      if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
-      await vincularContatoCliente(conversa, cliente_id!, nome || undefined, cargo || undefined, user);
-    }
-
-    const data: any = {
-      tipo_contato: tipo,
-      contato_cargo: cargo || null,
-      contato_empresa: decisao.salvarEmpresa ? (empresa || null) : null,
-      etiqueta: decisao.etiqueta, etiqueta_cor: decisao.etiqueta_cor,
-      ...(nome ? { contato_nome: nome } : {}),
-    };
-    if (decisao.sairDoFunil) Object.assign(data, await dadosSairDoFunil(conversa));
-
-    if (decisao.garantirLead) {
-      let leadId = conversa.lead_id;
-      if (leadId) {
-        const existe = await prisma.lead.findFirst({ where: { id: leadId, deleted_at: null }, select: { id: true } }).catch(() => null);
-        if (!existe) leadId = null;
+      if (decisao.vincularCliente) {
+        const cliente = await prisma.cliente.findUnique({ where: { id: cliente_id! }, select: { id: true } });
+        if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+        await vincularContatoCliente(conversa, cliente_id!, nome || undefined, cargo || undefined, user);
       }
-      if (!leadId) {
-        // Mesmo formato da captação automática.
-        const lead = await prisma.lead.create({
-          data: {
-            nome: nome || conversa.contato_nome || `WhatsApp ${conversa.contato_numero}`,
-            telefone: conversa.contato_numero,
-            responsavel_telefone: conversa.contato_numero,
-            origem: 'WHATSAPP',
-            created_by: user?.id || 'whatsapp_empresa',
-            ...(conversa.dono_id ? { responsavel_id: conversa.dono_id, atribuido_em: new Date() } : {}),
-            observacoes_comerciais: 'Lead identificado manualmente no Inbox do WhatsApp.',
-          },
-          select: { id: true },
-        });
-        leadId = lead.id;
-        data.lead_id = leadId;
-      }
-      const dadosBot = (conversa.bot_dados || {}) as any;
-      if (dadosBot.receita) await aplicarReceitaNoLead(prisma, leadId, dadosBot);
-    }
 
-    const upd = await prisma.whatsappConversa.update({ where: { id }, data });
-    emitirEventoConversa(upd.dono_id, 'conversa_atualizada', { conversaId: id });
-    return reply.send({ status: 'success', data: upd });
+      // Humano identificou: descarta a pergunta automática pendente.
+      await limparConfirmacaoPendente(prisma, conversa.id);
+      const data: any = {
+        tipo_contato: tipo,
+        contato_cargo: cargo || null,
+        contato_empresa: decisao.salvarEmpresa ? (empresa || null) : null,
+        etiqueta: decisao.etiqueta, etiqueta_cor: decisao.etiqueta_cor,
+        ...(nome ? { contato_nome: nome } : {}),
+      };
+      if (decisao.sairDoFunil) Object.assign(data, await dadosSairDoFunil(conversa));
+
+      if (decisao.garantirLead) {
+        let leadId = conversa.lead_id;
+        if (leadId) {
+          const existe = await prisma.lead.findFirst({ where: { id: leadId, deleted_at: null }, select: { id: true } }).catch(() => null);
+          if (!existe) leadId = null;
+        }
+        if (!leadId) {
+          // Mesmo formato da captação automática.
+          const lead = await prisma.lead.create({
+            data: {
+              nome: nome || conversa.contato_nome || `WhatsApp ${conversa.contato_numero}`,
+              telefone: conversa.contato_numero,
+              responsavel_telefone: conversa.contato_numero,
+              origem: 'WHATSAPP',
+              created_by: user?.id || 'whatsapp_empresa',
+              ...(conversa.dono_id ? { responsavel_id: conversa.dono_id, atribuido_em: new Date() } : {}),
+              observacoes_comerciais: 'Lead identificado manualmente no Inbox do WhatsApp.',
+            },
+            select: { id: true },
+          });
+          leadId = lead.id;
+          data.lead_id = leadId;
+        }
+        const dadosBot = (conversa.bot_dados || {}) as any;
+        if (dadosBot.receita) await aplicarReceitaNoLead(prisma, leadId, dadosBot);
+      }
+
+      const upd = await prisma.whatsappConversa.update({ where: { id }, data });
+      emitirEventoConversa(upd.dono_id, 'conversa_atualizada', { conversaId: id });
+      return reply.send({ status: 'success', data: upd });
+    });
   });
 
   // Agenda uma reunião a partir da conversa: cria Atividade REUNIAO (vinculada
