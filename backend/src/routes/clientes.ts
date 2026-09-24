@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { normalizarBuscaCliente, wherePrismaBusca, sqlBusca, SQL_CNPJ_DIGITOS } from '../lib/busca-clientes';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
@@ -573,18 +574,14 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     const { page, limit, search, grupo_tecnico, situacao, segmento, plano, risco } = query.data;
 
     const and: any[] = [];
+    // Busca: cada palavra casa com algum campo; com 8+ dígitos, também o CNPJ só por dígitos.
+    const termo = normalizarBuscaCliente(search);
     if (search) {
-      and.push({
-        OR: [
-          { nome: { contains: search } },
-          { nome_fantasia: { contains: search } },
-          { razao_social: { contains: search } },
-          { empresa: { contains: search } },
-          { email: { contains: search } },
-          { codigo: { contains: search } },
-          { cnpj: { contains: search } },
-        ],
-      });
+      const idsPorCnpj: string[] = termo.digitosCnpj
+        ? ((await prisma.$queryRawUnsafe(`SELECT id FROM Cliente WHERE ${SQL_CNPJ_DIGITOS} LIKE ? LIMIT 500`, `%${termo.digitosCnpj}%`).catch(() => [])) as any[]).map(r => r.id)
+        : [];
+      const w = wherePrismaBusca(termo, idsPorCnpj);
+      if (w) and.push(w);
     }
     if (grupo_tecnico) and.push({ grupo_tecnico });
     if (situacao)      and.push({ situacao });
@@ -600,10 +597,8 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     // SQL (parâmetros escapados) p/ a paginação numérica bater com o total.
     const cond: string[] = [];
     const params: any[] = [];
-    if (search) {
-      cond.push('(nome LIKE ? OR nome_fantasia LIKE ? OR razao_social LIKE ? OR empresa LIKE ? OR email LIKE ? OR codigo LIKE ? OR cnpj LIKE ?)');
-      const s = `%${search}%`; params.push(s, s, s, s, s, s, s);
-    }
+    const buscaSql = search ? sqlBusca(termo) : null;
+    if (buscaSql) { cond.push(buscaSql.sql); params.push(...buscaSql.params); }
     if (grupo_tecnico) { cond.push('grupo_tecnico = ?'); params.push(grupo_tecnico); }
     if (situacao)      { cond.push('situacao = ?');      params.push(situacao); }
     if (segmento)      { cond.push('segmento = ?');      params.push(segmento); }
