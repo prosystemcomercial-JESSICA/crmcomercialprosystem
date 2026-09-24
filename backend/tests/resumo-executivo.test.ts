@@ -1,5 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { montarHtmlResumoExecutivo, assuntoResumoExecutivo } from '../src/lib/resumo-executivo';
+import {
+  montarHtmlResumoExecutivo, assuntoResumoExecutivo, calcularEficiencia, tipoResumoDoDia, montarHtmlResumoSemanal, assuntoResumoSemanal,
+} from '../src/lib/resumo-executivo';
+
+describe('calcularEficiencia', () => {
+  const agora = new Date('2026-09-25T20:00:00Z');
+  const at = (status: string, prazo: string | null, feita: string | null = null) =>
+    ({ responsavel_id: 'u', status, titulo: 't', tipo: 'TAREFA', data_prevista: prazo ? new Date(prazo) : null, data_realizada: feita ? new Date(feita) : null });
+  it('no prazo ÷ (no prazo + concluídas com atraso + vencidas em aberto)', () => {
+    const e = calcularEficiencia([
+      at('REALIZADA', '2026-09-24T12:00:00Z', '2026-09-24T10:00:00Z'), // no prazo
+      at('REALIZADA', '2026-09-23T12:00:00Z', '2026-09-24T10:00:00Z'), // com atraso
+      at('PENDENTE', '2026-09-25T10:00:00Z'),                          // vencida em aberto
+      at('PENDENTE', '2026-09-26T10:00:00Z'),                          // ainda no prazo: não conta
+      at('CANCELADA', '2026-09-22T10:00:00Z'),                         // ignorada
+      at('REALIZADA', null, '2026-09-24T10:00:00Z'),                   // sem prazo: conta como no prazo
+    ], agora);
+    expect(e).toEqual({ no_prazo: 2, concluidas_atrasadas: 1, vencidas_abertas: 1, a_vencer: 1, eficiencia_pct: 50 });
+  });
+  it('sem atividades cobráveis → sem nota', () => {
+    expect(calcularEficiencia([], agora).eficiencia_pct).toBeNull();
+  });
+});
+
+describe('tipoResumoDoDia (fuso de São Paulo)', () => {
+  it('seg–qui diário, sexta semanal, fim de semana nada', () => {
+    expect(tipoResumoDoDia(new Date('2026-09-24T21:00:00Z'))).toBe('diario');  // quinta 18h
+    expect(tipoResumoDoDia(new Date('2026-09-25T21:00:00Z'))).toBe('semanal'); // sexta 18h
+    expect(tipoResumoDoDia(new Date('2026-09-26T21:00:00Z'))).toBeNull();      // sábado
+    expect(tipoResumoDoDia(new Date('2026-09-27T21:00:00Z'))).toBeNull();      // domingo
+    expect(tipoResumoDoDia(new Date('2026-09-26T02:00:00Z'))).toBe('semanal'); // ainda sexta 23h em SP
+  });
+});
 
 const dados = {
   tela1: {
@@ -41,5 +73,20 @@ describe('resumo executivo', () => {
     expect(h).toContain('jan 4 · fev 2 · mar 4');
     expect(h).toContain('Ana (SDR)');
     expect(h).not.toContain('Varejo'); // segmento sem contrato não aparece
+  });
+  it('semanal traz eficiência por pessoa e as atividades concluídas', () => {
+    const ef = { no_prazo: 3, concluidas_atrasadas: 1, vencidas_abertas: 0, a_vencer: 2, eficiencia_pct: 75 };
+    const s = {
+      periodo: '21/09 a 25/09', leads_novos: 9, por_origem: { WHATSAPP: 9 }, qualificados: 4, propostas_enviadas: 3,
+      contratos: 2, faturamento_instalacao: 3000, conversas_iniciadas: 12, conversas_respondidas: 10,
+      equipe: [{ nome: 'Ana', cargo: 'SDR', conversas_respondidas: 8, propostas: 0, contratos: 0, eficiencia: ef, concluidas: ['Ligar padaria X', 'Qualificar <lead>'] }],
+      eficiencia_geral: ef,
+    };
+    expect(assuntoResumoSemanal(s)).toBe('📊 Resumo da semana (21/09 a 25/09): 2 contrato(s), 9 lead(s), eficiência 75%');
+    const h = montarHtmlResumoSemanal(s, dados, 'https://crm/tv');
+    expect(h).toContain('Ana (SDR)');
+    expect(h).toContain('75%');
+    expect(h).toContain('Qualificar &lt;lead&gt;');
+    expect(h).toContain('Acumulado de 2026');
   });
 });
