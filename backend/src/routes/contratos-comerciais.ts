@@ -1397,9 +1397,12 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
   // ── CONFIGURAÇÕES INTEGRAÇÕES (ZapSign e outros)
   // Chaves reservadas: têm rota própria e NUNCA saem (nem entram) pela rota genérica.
   // painel_tv.* → routes/painel-tv.ts (o token da TV dá acesso público ao painel).
-  const CHAVE_RESERVADA = (chave: string) => chave.startsWith('painel_tv.');
+  // Chaves com rota própria (e validação própria) — fora da rota genérica.
+  const CHAVE_RESERVADA = (chave: string) => chave.startsWith('painel_tv.') || chave.startsWith('whatsapp.');
 
-  fastify.get('/configuracoes/integracoes', async (_request, reply) => {
+  // Só a gestão lê/grava integrações: os valores incluem tokens (ex.: ZapSign).
+  fastify.get('/configuracoes/integracoes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const configs = await prisma.configuracaoIntegracao.findMany();
     const map: Record<string, string> = {};
     configs.forEach(c => { if (!CHAVE_RESERVADA(c.chave)) map[c.chave] = c.valor; });
@@ -1407,6 +1410,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
   });
 
   fastify.put('/configuracoes/integracoes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
     const body = request.body as Record<string, string>;
     if (!body || typeof body !== 'object') {
       return reply.status(400).send({ status: 'error', message: 'Body inválido' });
