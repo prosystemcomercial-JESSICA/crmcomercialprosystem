@@ -446,6 +446,7 @@ async function loadRoutes() {
     ['candidatos-representante', () => import('./routes/candidatos-representante'), 'candidatosRepresentanteRoutes'],
     ['sdr',                   () => import('./routes/sdr'),                   'sdrRoutes'],
     ['backups',               () => import('./routes/backups'),               'backupsRoutes'],
+    ['painel-tv',             () => import('./routes/painel-tv'),             'painelTvRoutes'],
   ];
 
   let ok = 0;
