@@ -306,6 +306,8 @@ async function iniciarSchedulerDigest() {
       for (const u of usuarios) {
         const chave = `${dia}:${janela}:${u.id}`;
         if (enviados.has(chave)) continue;
+        // Diretoria (CEO) não recebe a lista de pendências: recebe o resumo executivo diário.
+        if ((u.cargo || '').toUpperCase() === 'CEO') continue;
 
         const verTudo = ROLES_GESTAO.includes((u.cargo || '').toUpperCase());
         try {
@@ -329,6 +331,30 @@ async function iniciarSchedulerDigest() {
   setInterval(rodar, 15 * 60 * 1000);
   setTimeout(rodar, 90 * 1000); // primeira verificação ~1,5 min após boot
   console.log('[BOOT] Scheduler de digest iniciado (2x/dia: manhã e tarde)');
+}
+
+// 8b2) Scheduler: resumo executivo diário (18h BRT = 21h UTC) para a diretoria,
+//      com cópia para a supervisão comercial. Números do painel da TV.
+async function iniciarSchedulerResumoExecutivo() {
+  if (!prismaClient) return;
+  const HORA_UTC = 21;
+  let ultimoDia = '';
+  const rodar = async () => {
+    try {
+      const agora = new Date();
+      if (agora.getUTCHours() !== HORA_UTC) return;
+      const dia = agora.toISOString().slice(0, 10);
+      if (dia === ultimoDia) return;
+      ultimoDia = dia;
+      const { enviarResumoExecutivo } = await import('./services/resumo-executivo.service.js');
+      await enviarResumoExecutivo(prismaClient!);
+    } catch (err: any) {
+      console.error('[EXECUTIVO] Erro no scheduler:', err?.message);
+    }
+  };
+  setInterval(rodar, 15 * 60 * 1000);
+  setTimeout(rodar, 100 * 1000);
+  console.log('[BOOT] Scheduler do resumo executivo iniciado (1x/dia, 18h)');
 }
 
 // 8c) Scheduler: motor de regras (EVO-3) — roda 1x/dia (~7h BRT = 10h UTC).
@@ -525,6 +551,7 @@ const start = async () => {
     console.log(`[BOOT] Health: http://0.0.0.0:${port}/health`);
     iniciarSchedulerLembretes();
     iniciarSchedulerDigest();
+    iniciarSchedulerResumoExecutivo();
     iniciarSchedulerAutomacao();
     iniciarSchedulerSequenciaEmail();
     iniciarSchedulerCadenciaWhatsapp();
