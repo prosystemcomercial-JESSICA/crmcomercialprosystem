@@ -133,7 +133,7 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
     const qualificadosTriagem = new Set(obsTriagem.map(o => o.lead_id)).size;
 
     // Funil agora: só etapas que são coluna ativa do Pipeline Comercial.
-    let colunas = await prisma.kanbanColuna.findMany({ where: { ativa: true, quadro_id: null }, orderBy: { ordem: 'asc' }, select: { chave: true, nome: true } }).catch(() => []);
+    let colunas = await prisma.kanbanColuna.findMany({ where: { ativa: true, quadro_id: null }, orderBy: { ordem: 'asc' }, select: { chave: true, nome: true } }).catch((e: any) => { console.error('[PAINEL-TV] funil/colunas:', e?.message); return []; });
     if (!colunas.length) colunas = ETAPAS_FUNIL_PADRAO;
     const porEtapa = await prisma.lead.groupBy({ by: ['etapa_comercial'], where: { deleted_at: null }, _count: { _all: true } });
     const funil = montarFunil(porEtapa.map(g => ({ etapa: g.etapa_comercial, total: g._count._all })), colunas)
@@ -159,6 +159,7 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
     const saidasHumanas = saidasHoje.filter(m => ehSaidaHumana(m as MsgResumo));
     const respondidasHoje = new Set(saidasHumanas.map(m => m.conversaId)).size;
     const respondidasPorUsuario: Record<string, Set<string>> = {};
+    // Por pessoa: a soma da equipe pode passar do total global distinto (duas pessoas podem responder a mesma conversa).
     saidasHumanas.forEach(m => { if (m.enviada_por) (respondidasPorUsuario[m.enviada_por] ||= new Set()).add(m.conversaId); });
 
     // Sem resposta: conversas comerciais recentes cuja ÚLTIMA mensagem é do cliente
@@ -174,7 +175,7 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
           AND (c.tipo_contato IS NULL OR c.tipo_contato <> 'EQUIPE')
           AND m.created_at = (SELECT MAX(m2.created_at) FROM WhatsappMensagem m2 WHERE m2.conversaId = c.id)`,
       desde, ...ETIQUETAS_NAO_COMERCIAIS,
-    ).catch(() => null as any);
+    ).catch((e: any) => { console.error('[PAINEL-TV] sem_resposta/fora_do_prazo:', e?.message); return null as any; });
     let semResposta: number | null = null, foraDoPrazo: number | null = null;
     if (Array.isArray(ultimas)) {
       const ultimaPorConversa = new Map<string, { direcao: string; sla: Date | null }>();
@@ -225,7 +226,7 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
     const equipeRows: any[] = await prisma.$queryRawUnsafe(
       `SELECT id, nome, cargo FROM UsuarioCRM WHERE status = 'ATIVO' AND cargo IN (${CARGOS_EQUIPE_TV.map(() => '?').join(',')}) ORDER BY nome`,
       ...CARGOS_EQUIPE_TV,
-    ).catch(() => []);
+    ).catch((e: any) => { console.error('[PAINEL-TV] equipe:', e?.message); return []; });
     const donoProposta = (p: { vendedor_id?: string | null; created_by?: string | null }) => p.vendedor_id || p.created_by;
     const equipe = equipeRows.map(u => {
       const minhas = atividadesHoje.filter(a => a.responsavel_id === u.id);
@@ -266,7 +267,15 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
 
     // ── Tela 2: ano ──────────────────────────────────────────────────────────
     const vendasAdicionais = await prisma.vendaAdicional.findMany({
-      where: { status: 'CONFIRMADA' },
+      // Filtra o ano no banco pela mesma data de resultado: data_confirmacao ?? data_venda ?? created_at.
+      where: {
+        status: 'CONFIRMADA',
+        OR: [
+          { data_confirmacao: { gte: inicioAno, lt: fimAno } },
+          { data_confirmacao: null, data_venda: { gte: inicioAno, lt: fimAno } },
+          { data_confirmacao: null, data_venda: null, created_at: { gte: inicioAno, lt: fimAno } },
+        ],
+      },
       select: { valor_venda: true, data_confirmacao: true, data_venda: true, created_at: true, cliente_id: true, parceiro: { select: { nome: true, categoria: true } } },
     });
     const vaAno = vendasAdicionais.filter(v => dentro(v.data_confirmacao || v.data_venda || v.created_at, inicioAno, fimAno));
