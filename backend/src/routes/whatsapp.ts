@@ -13,6 +13,8 @@ import {
   whereListaConversas, whereAcaoConversa, whereLeituraConversa,
 } from '@/lib/whatsapp-empresa';
 import { TIPOS_CONTATO, decidirIdentificacao } from '@/lib/whatsapp-identificar';
+import { dadosSairDoFunil as dadosSairDoFunilSvc, vincularContatoCliente as vincularContatoClienteSvc } from '@/services/whatsapp-vinculo.service';
+import { responderConfirmacaoCliente } from '@/services/whatsapp-confirmacao-cliente.service';
 import { ehPayloadUazapi, parseUazapiEvento, EventoMensagemUazapi } from '@/lib/uazapi-webhook-parser';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
@@ -478,55 +480,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success' });
   });
 
-  // Tira a conversa do funil: soft-delete do lead SÓ se nasceu do WhatsApp
-  // (captação automática — lead manual é preservado, só desvincula) e devolve
-  // os campos da conversa a gravar (sem lead, robô desligado).
-  async function dadosSairDoFunil(conversa: { lead_id: string | null }) {
-    if (conversa.lead_id) {
-      const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { origem: true } }).catch(() => null);
-      if (lead?.origem === 'WHATSAPP') {
-        await prisma.lead.update({ where: { id: conversa.lead_id }, data: { deleted_at: new Date() as any } }).catch(() => {});
-      }
-    }
-    return { lead_id: null, bot_ativo: false, bot_estado: null };
-  }
-
-  // Vincula a conversa a um cliente e cria/atualiza o contato na ficha dele (dedupe por telefone).
-  async function vincularContatoCliente(
+  // Tira a conversa do funil / vincula ao cliente: ver whatsapp-vinculo.service.
+  const dadosSairDoFunil = (conversa: { lead_id: string | null }) => dadosSairDoFunilSvc(prisma, conversa);
+  const vincularContatoCliente = (
     conversa: { id: string; contato_nome: string | null; contato_numero: string },
     clienteId: string, nome: string | undefined, cargo: string | undefined, user: any,
-  ) {
-    const nomeContato = nome || conversa.contato_nome || conversa.contato_numero;
-    const telefone = conversa.contato_numero;
-
-    // Marca o vínculo na conversa.
-    await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { cliente_id: clienteId } });
-
-    const existente = await (prisma as any).contatoCliente.findFirst({
-      where: { cliente_id: clienteId, telefone },
-    }).catch(() => null);
-    let contato;
-    if (existente) {
-      contato = await (prisma as any).contatoCliente.update({
-        where: { id: existente.id },
-        data: { nome: nomeContato, cargo: cargo ?? existente.cargo, origem: 'WHATSAPP' },
-      });
-    } else {
-      contato = await (prisma as any).contatoCliente.create({
-        data: { cliente_id: clienteId, nome: nomeContato, telefone, cargo: cargo || null, origem: 'WHATSAPP' },
-      });
-    }
-
-    // Evento na timeline do cliente.
-    await (prisma as any).eventoCliente.create({
-      data: {
-        cliente_id: clienteId, tipo: 'OBSERVACAO',
-        titulo: `Contato de WhatsApp vinculado: ${nomeContato}${cargo ? ' (' + cargo + ')' : ''}`,
-        descricao: `Telefone ${telefone}`, feito_por: user?.id, feito_por_nome: user?.nome,
-      },
-    }).catch(() => {});
-    return contato;
-  }
+  ) => vincularContatoClienteSvc(prisma, conversa, clienteId, nome, cargo, user);
 
   // Vincula a conversa a um CLIENTE da base e registra o contato (nome, telefone,
   // cargo) na ficha do cliente. Assim contatos de WhatsApp que já são clientes
@@ -1321,6 +1280,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     // ===== TRIAGEM AUTOMÁTICA (só WhatsApp da empresa) =====
     if (ehEmpresa) {
+      // Resposta ao "É a sua empresa?" (cadastro achado pelo CNPJ): se casar, é consumida aqui.
+      try {
+        if (await responderConfirmacaoCliente(prisma, inst.instance_token || '', conversa.id, texto, dados.botao_id)) return;
+      } catch (e: any) { console.error('[CNPJ-CLIENTE] erro:', e?.message); }
       try {
         // Triagem abandonada: parou no meio há mais de 24h e o cliente voltou ("oi, bom dia").
         // Não trata essa mensagem como resposta (seria salva como nome/cidade): zera o
@@ -1350,7 +1313,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       // a empresa no painel. Depois da triagem, na mesma fila: se a triagem acabou de
       // consultar esse CNPJ, aqui já não é novo e nada acontece.
       try {
-        await detectarCnpjNaConversa(prisma, conversa.id, texto);
+        await detectarCnpjNaConversa(prisma, conversa.id, texto, undefined, inst.instance_token || '');
       } catch (e: any) { console.error('[CNPJ] erro:', e?.message); }
     }
   }
