@@ -172,33 +172,51 @@ async function enviarDigest(params: {
   }
   if (params.pendencias.total === 0) return { ok: true }; // nunca envia vazio
 
-  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
-  const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
   const html = buildDigestHtml(params);
 
-  // Falha passageira do servidor de e-mail (ex.: "421 Unexpected failure, please
-  // try later", conexão caída): tenta de novo depois de 30 s e 2 min.
+  const r = await enviarEmailSmtp({
+    to: params.email,
+    subject: `${params.pendencias.alta > 0 ? '🔴 ' : '📋 '}${params.saudacao}: ${params.pendencias.total} pendência(s) no seu funil`,
+    html,
+    prioridadeAlta: params.pendencias.alta > 0,
+    rotulo: 'DIGEST',
+  });
+  if (r.ok) console.log(`[DIGEST] Enviado para ${params.email} (${params.pendencias.total} itens)`);
+  return r;
+}
+
+/**
+ * Envia um e-mail pelo SMTP da empresa. Falha passageira do servidor (ex.: "421
+ * Unexpected failure, please try later", conexão caída): tenta de novo depois de 30 s e 2 min.
+ */
+export async function enviarEmailSmtp(p: {
+  to: string | string[]; cc?: string[]; subject: string; html: string; prioridadeAlta?: boolean; rotulo: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.SMTP_USER) return { ok: false, error: 'SMTP não configurado' };
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER!;
+  const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
+  const para = Array.isArray(p.to) ? p.to.join(', ') : p.to;
   const ESPERAS_MS = [30_000, 120_000];
   for (let tentativa = 0; ; tentativa++) {
     try {
-      const transporter = createTransporter();
-      await transporter.sendMail({
+      await createTransporter().sendMail({
         from: `"${fromName}" <${fromEmail}>`,
-        to: params.email,
+        to: p.to,
+        ...(p.cc?.length ? { cc: p.cc } : {}),
         replyTo: fromEmail,
-        subject: `${params.pendencias.alta > 0 ? '🔴 ' : '📋 '}${params.saudacao}: ${params.pendencias.total} pendência(s) no seu funil`,
-        html,
-        headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'X-Priority': params.pendencias.alta > 0 ? '1' : '3' },
+        subject: p.subject,
+        html: p.html,
+        headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'X-Priority': p.prioridadeAlta ? '1' : '3' },
       });
-      console.log(`[DIGEST] Enviado para ${params.email} (${params.pendencias.total} itens)${tentativa ? ` na ${tentativa + 1}ª tentativa` : ''}`);
+      if (tentativa) console.log(`[${p.rotulo}] Enviado para ${para} na ${tentativa + 1}ª tentativa`);
       return { ok: true };
     } catch (err: any) {
       if (tentativa < ESPERAS_MS.length && erroSmtpPassageiro(err)) {
-        console.warn(`[DIGEST] Falha passageira para ${params.email} (${err.message}); nova tentativa em ${ESPERAS_MS[tentativa] / 1000}s`);
+        console.warn(`[${p.rotulo}] Falha passageira para ${para} (${err.message}); nova tentativa em ${ESPERAS_MS[tentativa] / 1000}s`);
         await new Promise(r => setTimeout(r, ESPERAS_MS[tentativa]));
         continue;
       }
-      console.error(`[DIGEST] Erro ao enviar para ${params.email}:`, err.message);
+      console.error(`[${p.rotulo}] Erro ao enviar para ${para}:`, err.message);
       return { ok: false, error: err.message };
     }
   }
