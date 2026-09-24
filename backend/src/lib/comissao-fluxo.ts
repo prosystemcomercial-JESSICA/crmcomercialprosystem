@@ -1,11 +1,41 @@
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import { podeReceberComissaoVendedor } from './permissoes-conta';
 
 export class ComissaoValidationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ComissaoValidationError';
   }
+}
+
+/**
+ * Regra pura de compatibilidade cargo × papel da comissão. Retorna a mensagem de
+ * erro, ou null se o usuário pode receber a comissão.
+ *   - VENDEDOR   → cargo VENDEDOR, OU qualquer cargo com flag `vende` (ex.: a
+ *                  Supervisão Comercial que também vende recebe os 15% das vendas dela).
+ *   - SUPERVISAO → só cargo SUPERVISAO_COMERCIAL.
+ * O MESMO usuário pode ter as duas comissões na mesma venda (15% + 5%): são linhas
+ * distintas, diferenciadas por `papel`.
+ */
+export function validarPapelComissao(
+  usuario: { nome?: string | null; cargo?: string | null; vende?: any } | null,
+  papel: 'VENDEDOR' | 'SUPERVISAO',
+  responsavelId: string,
+): string | null {
+  if (!usuario) {
+    return `Não é possível gerar comissão: usuário responsavel_id="${responsavelId}" não existe em UsuarioCRM.`;
+  }
+  const nome = String(usuario.nome || '').trim();
+  if (papel === 'VENDEDOR' && !podeReceberComissaoVendedor(usuario)) {
+    return `Não é possível gerar comissão de VENDEDOR para "${nome}" (cargo ${usuario.cargo}) — ` +
+      `comissão de venda precisa ser designada a um usuário com cargo VENDEDOR (ou marcado como "também vende"). Escolha o vendedor real da venda.`;
+  }
+  if (papel === 'SUPERVISAO' && usuario.cargo !== 'SUPERVISAO_COMERCIAL') {
+    return `Não é possível gerar comissão de SUPERVISAO para "${nome}" (cargo ${usuario.cargo}) — ` +
+      `comissão de supervisão precisa ser designada a um usuário com cargo SUPERVISAO_COMERCIAL.`;
+  }
+  return null;
 }
 
 /**
@@ -42,30 +72,13 @@ export async function criarComissaoValidada(prisma: PrismaClient, data: {
   aprovada_em?: Date | null;
   regra_id?: string | null;
 }) {
-  const usuario = await prisma.usuarioCRM.findUnique({
-    where: { id: data.responsavel_id },
-    select: { id: true, nome: true, cargo: true, status: true },
-  });
-
-  if (!usuario) {
-    throw new ComissaoValidationError(
-      `Não é possível gerar comissão: usuário responsavel_id="${data.responsavel_id}" não existe em UsuarioCRM.`
-    );
-  }
-
-  if (data.papel === 'VENDEDOR' && usuario.cargo !== 'VENDEDOR') {
-    throw new ComissaoValidationError(
-      `Não é possível gerar comissão de VENDEDOR para "${usuario.nome}" (cargo ${usuario.cargo}) — ` +
-      `comissão de venda precisa ser designada a um usuário com cargo VENDEDOR. Escolha o vendedor real da venda.`
-    );
-  }
-
-  if (data.papel === 'SUPERVISAO' && usuario.cargo !== 'SUPERVISAO_COMERCIAL') {
-    throw new ComissaoValidationError(
-      `Não é possível gerar comissão de SUPERVISAO para "${usuario.nome}" (cargo ${usuario.cargo}) — ` +
-      `comissão de supervisão precisa ser designada a um usuário com cargo SUPERVISAO_COMERCIAL.`
-    );
-  }
+  // SELECT * (raw) p/ ler o flag `vende` mesmo antes de o Prisma Client conhecê-lo
+  // e sem quebrar caso a coluna aditiva ainda não exista (vira "não vende").
+  const rows: any[] = await prisma.$queryRawUnsafe(
+    `SELECT * FROM UsuarioCRM WHERE id = ? LIMIT 1`, data.responsavel_id
+  );
+  const erro = validarPapelComissao(rows[0] || null, data.papel, data.responsavel_id);
+  if (erro) throw new ComissaoValidationError(erro);
 
   return prisma.comissao.create({
     data: {
