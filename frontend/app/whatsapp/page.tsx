@@ -176,6 +176,9 @@ export default function WhatsappPage() {
   const [showVincCliente, setShowVincCliente] = useState(false);
   const [vincBusca, setVincBusca] = useState('');
   const [vincResultados, setVincResultados] = useState<any[]>([]);
+  const [vincBuscando, setVincBuscando] = useState(false);
+  // Termo cuja busca já voltou (para mostrar "Nenhum cliente encontrado" só depois da resposta).
+  const [vincBuscado, setVincBuscado] = useState('');
   const [vincSel, setVincSel] = useState<any>(null);
   const [vincNome, setVincNome] = useState('');
   const [vincCargo, setVincCargo] = useState('');
@@ -384,13 +387,16 @@ export default function WhatsappPage() {
   useEffect(() => {
     if (!showVincCliente || vincSel) return;
     const termo = vincBusca.trim();
-    if (termo.length < 2) { setVincResultados([]); return; }
+    if (termo.length < 2) { setVincResultados([]); setVincBuscando(false); setVincBuscado(''); return; }
+    let vivo = true;
+    setVincBuscando(true);
     const t = setTimeout(() => {
       apiClient.getClientes(0, 15, termo)
-        .then(r => setVincResultados(r.data.data.clientes || []))
-        .catch(() => setVincResultados([]));
+        .then(r => { if (vivo) setVincResultados(r.data.data.clientes || []); })
+        .catch(() => { if (vivo) setVincResultados([]); })
+        .finally(() => { if (vivo) { setVincBuscando(false); setVincBuscado(termo); } });
     }, 300);
-    return () => clearTimeout(t);
+    return () => { vivo = false; clearTimeout(t); };
   }, [vincBusca, showVincCliente, vincSel]);
 
   const tipoPedeCliente = vincTipo === 'CLIENTE' || vincTipo === 'TERCEIRO_CLIENTE';
@@ -1490,15 +1496,23 @@ export default function WhatsappPage() {
             ) : (
               <div className="relative mb-3">
                 <input value={vincBusca} onChange={e => setVincBusca(e.target.value)} autoComplete="off"
-                  placeholder="Buscar cliente por código, razão, fantasia, CNPJ…"
+                  placeholder="Código, nome ou parte do nome, ou CNPJ"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm" />
+                {vincBusca.trim().length >= 2 && vincBuscando && (
+                  <div className="absolute right-3 top-2.5 text-xs text-gray-400" aria-live="polite">Buscando…</div>
+                )}
+                {vincBusca.trim().length >= 2 && !vincBuscando && vincBuscado === vincBusca.trim() && vincResultados.length === 0 && (
+                  <div className="mt-1 px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg">Nenhum cliente encontrado</div>
+                )}
                 {vincBusca.trim().length >= 2 && vincResultados.length > 0 && (
                   <div className="absolute z-10 left-0 right-0 mt-1 ps-card border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
                     {vincResultados.map(c => (
                       <button key={c.id} type="button" onClick={() => setVincSel(c)}
                         className="w-full text-left px-3 py-2 hover:bg-emerald-50 border-b border-gray-100 last:border-0">
-                        <div className="text-sm font-medium text-sm font-semibold truncate">{c.nome_fantasia || c.razao_social || c.nome}</div>
-                        <div className="text-xs  truncate">{c.codigo ? `#${c.codigo}` : ''}{c.cidade ? ` · ${c.cidade}` : ''}</div>
+                        <div className="text-sm font-semibold truncate">
+                          {[c.codigo ? `cód. ${c.codigo}` : null, c.razao_social || c.nome, c.nome_fantasia, c.cidade].filter(Boolean).join(' · ')}
+                        </div>
+                        {c.cnpj && <div className="text-xs text-gray-500 truncate">CNPJ {c.cnpj}</div>}
                       </button>
                     ))}
                   </div>
