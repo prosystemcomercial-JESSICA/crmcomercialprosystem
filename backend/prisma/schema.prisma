@@ -2416,6 +2416,11 @@ model WhatsappConversa {
   cadencia_proximo_envio DateTime?
   cadencia_pausada       Boolean   @default(false)
 
+  // ── IA Laya (etiquetas sugeridas; a equipe confirma/corrige → IaAmostra) ──
+  // { segmento, intencao, cancelar (0..1), urgencia (0..3) } da última análise.
+  ia_sugestao    Json?
+  ia_sugerido_em DateTime?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -2448,6 +2453,21 @@ model WhatsappMensagem {
   @@unique([externo_id], name: "uq_msg_externa")
   @@index([conversaId])
   @@index([direcao])
+}
+
+// Amostra de treino da IA Laya: foto do texto da conversa + etiquetas que a
+// equipe confirmou/corrigiu (e o que o Laya tinha sugerido, p/ medir acerto).
+model IaAmostra {
+  id         String   @id @default(cuid())
+  conversaId String
+  texto      String   @db.LongText
+  rotulos    Json // { segmento, intencao, cancelar: boolean } ou { ignorar: true }
+  sugestao   Json?
+  criado_por String?
+  created_at DateTime @default(now())
+
+  @@index([conversaId])
+  @@index([created_at])
 }
 
 // ─── BASE DE CONHECIMENTO TÉCNICA ─────────────────────────────────────────────

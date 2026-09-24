@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import PainelLaya from '@/components/whatsapp/PainelLaya';
 
 interface Conversa {
   id: string;
@@ -28,6 +29,7 @@ interface Conversa {
   tipo_contato?: string | null;
   contato_cargo?: string | null;
   contato_empresa?: string | null;
+  ia_sugestao?: { segmento: string; intencao: string; cancelar: number; urgencia: number } | null;
 }
 
 // Tipos do botão "Identificar" (só Lead fica no funil).
@@ -1337,6 +1339,8 @@ export default function WhatsappPage() {
                     </div>
                   </div>
                 )}
+
+                <PainelLaya conversa={conversas.find(c => c.id === ativa.id) || ativa} />
 
                 <div className="px-4 py-3.5 border-b border-gray-100">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Responsável</p>
