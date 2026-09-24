@@ -95,6 +95,21 @@ const repetir = (menu: Acao): Acao[] => [texto('Por favor, escolha uma das opç�
 
 const PEDIR_CNPJ = 'Qual é o CNPJ da empresa? (pode mandar só os números)';
 
+// Mensagem que é um CNPJ válido (o cliente mandou o CNPJ fora de hora). Quem
+// guarda e consulta é a detecção de CNPJ da conversa; aqui só não reclamamos.
+const ehCnpj = (t: string) => { const c = extrairCnpj(t || ''); return !!c && cnpjValido(c); };
+const semResposta = (estado: EstadoTriagem, dados: DadosTriagem): ResultadoPasso => ({ estado, dados, acoes: [] });
+
+const confirmaEmpresa = (dados: DadosTriagem): ResultadoPasso => {
+  const r = dados.receita!;
+  const nomeEmpresa = r.nome_fantasia || r.razao_social || 'sua empresa';
+  const local = [r.municipio, r.uf].filter(Boolean).join('/');
+  return {
+    estado: 'CNPJ_CONFIRMA', dados,
+    acoes: [{ tipo: 'menu', menu: { modo: 'button', texto: `É a *${nomeEmpresa}*${local ? `, de *${local}*` : ''}?`, opcoes: OPC_CONFIRMA, rodape: RODAPE } }],
+  };
+};
+
 export function iniciarTriagem(ctx: { clienteNome?: string | null }): ResultadoPasso {
   if (ctx.clienteNome) return { estado: 'MENU_CLIENTE', dados: {}, acoes: [menuCliente(ctx.clienteNome)] };
   return { estado: 'MENU', dados: {}, acoes: [menuPrincipal()] };
@@ -129,6 +144,14 @@ function finalQualificado(dados: DadosTriagem, deps: DepsTriagem): ResultadoPass
   return { estado: 'FIM', dados, acoes, desfecho: 'qualificado' };
 }
 
+// Hora de pedir o CNPJ: se a conversa já recebeu um (detecção de CNPJ em qualquer
+// mensagem), não pergunta de novo — confirma a empresa ou encerra como qualificado.
+function pedirCnpj(dados: DadosTriagem, deps: DepsTriagem): ResultadoPasso {
+  if (dados.cnpj && dados.receita) return confirmaEmpresa(dados);
+  if (dados.cnpj && !dados.receita) return finalQualificado({ ...dados, receita: null, receita_fonte: null }, deps);
+  return { estado: 'CNPJ', dados, acoes: [texto(PEDIR_CNPJ)] };
+}
+
 export async function avancarTriagem(
   estado: EstadoTriagem,
   dados: DadosTriagem,
@@ -138,15 +161,22 @@ export async function avancarTriagem(
   const livre = ehPlaceholder(entrada.texto) ? '' : (entrada.texto || '').trim();
 
   switch (estado) {
-    case 'MENU':
-      return escolhaDoMenu('MENU', dados, escolher(entrada, OPC_MENU), menuPrincipal());
-    case 'MENU_CLIENTE':
-      return escolhaDoMenu('MENU_CLIENTE', dados, escolher(entrada, OPC_CLIENTE), menuClienteReask());
+    case 'MENU': {
+      const e = escolher(entrada, OPC_MENU);
+      if (!e && ehCnpj(livre)) return semResposta(estado, dados);
+      return escolhaDoMenu('MENU', dados, e, menuPrincipal());
+    }
+    case 'MENU_CLIENTE': {
+      const e = escolher(entrada, OPC_CLIENTE);
+      if (!e && ehCnpj(livre)) return semResposta(estado, dados);
+      return escolhaDoMenu('MENU_CLIENTE', dados, e, menuClienteReask());
+    }
     case 'SERVICO':
       if (livre.length < 3) return { estado, dados, acoes: [texto('Pode descrever em uma mensagem qual serviço você precisa? 📝')] };
       return { estado: 'FIM', dados: { ...dados, servico: livre.slice(0, 1000) }, acoes: [texto('Recebemos seu pedido! ✅ Um consultor vai te atender em breve.')], desfecho: 'servicos' };
     case 'SEGMENTO': {
       const e = escolher(entrada, OPC_SEGMENTO);
+      if (!e && ehCnpj(livre)) return semResposta(estado, dados);
       if (!e) return { estado, dados, acoes: repetir(menuSegmento()) };
       return { estado: 'RELACAO', dados: { ...dados, segmento: e === 'padaria' ? 'Padaria' : 'Farmácia' }, acoes: [menuRelacao()] };
     }
@@ -158,6 +188,7 @@ export async function avancarTriagem(
       const temBotaoValido = !!(entrada.botaoId && OPC_RELACAO.some(o => o.id === entrada.botaoId));
       const temNegacao = !temBotaoValido && /\b(nao|nunca)\b/.test(norm(entrada.texto));
       const e = (temNegacao ? 'nao_conhece' : escolher(entrada, OPC_RELACAO)) as DadosTriagem['relacao'] | null;
+      if (!e && ehCnpj(livre)) return semResposta(estado, dados);
       if (!e) return { estado, dados, acoes: repetir(menuRelacao()) };
       return { estado: 'NOME', dados: { ...dados, relacao: e }, acoes: [texto('Qual é o seu nome?')] };
     }
@@ -166,7 +197,7 @@ export async function avancarTriagem(
       return { estado: 'CIDADE', dados: { ...dados, nome: livre.slice(0, 80) }, acoes: [texto(`Prazer, ${livre.slice(0, 80)}! De qual cidade você está falando?`)] };
     case 'CIDADE':
       if (!temLetras(livre, 2)) return { estado, dados, acoes: [texto('De qual cidade você está falando?')] };
-      return { estado: 'CNPJ', dados: { ...dados, cidade: livre.slice(0, 80) }, acoes: [texto(PEDIR_CNPJ)] };
+      return pedirCnpj({ ...dados, cidade: livre.slice(0, 80) }, deps);
     case 'CNPJ': {
       const cnpj = extrairCnpj(livre);
       if (!cnpj || !cnpjValido(cnpj)) {
@@ -179,14 +210,7 @@ export async function avancarTriagem(
       if (consulta.status === 'indisponivel') {
         return finalQualificado({ ...dados, cnpj, receita: null, receita_fonte: null }, deps);
       }
-      const r = consulta.dados;
-      const nomeEmpresa = r.nome_fantasia || r.razao_social || 'sua empresa';
-      const local = [r.municipio, r.uf].filter(Boolean).join('/');
-      return {
-        estado: 'CNPJ_CONFIRMA',
-        dados: { ...dados, cnpj, receita: r, receita_fonte: consulta.fonte },
-        acoes: [{ tipo: 'menu', menu: { modo: 'button', texto: `É a *${nomeEmpresa}*${local ? `, de *${local}*` : ''}?`, opcoes: OPC_CONFIRMA, rodape: RODAPE } }],
-      };
+      return confirmaEmpresa({ ...dados, cnpj, receita: consulta.dados, receita_fonte: consulta.fonte });
     }
     case 'CNPJ_CONFIRMA': {
       // Negação como palavra isolada ("não está certo") vence o apelido "certo"; clique em botão vence o texto.
@@ -194,6 +218,7 @@ export async function avancarTriagem(
       const temNegacaoC = !temBotaoValidoC && /\b(nao|errad[oa]?)\b/.test(norm(entrada.texto));
       const e = temNegacaoC ? 'cnpj_nao' : escolher(entrada, OPC_CONFIRMA);
       if (e === 'cnpj_sim') return finalQualificado(dados, deps);
+      if (!e && ehCnpj(livre)) return semResposta(estado, dados);
       if (e === 'cnpj_nao') {
         const { cnpj: _c, receita: _r, receita_fonte: _f, ...resto } = dados;
         return { estado: 'CNPJ', dados: resto, acoes: [texto(`Tudo bem! ${PEDIR_CNPJ}`)] };

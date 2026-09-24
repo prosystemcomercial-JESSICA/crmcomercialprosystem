@@ -25,9 +25,10 @@ export function avisoCnpj(dados: DadosTriagem | null | undefined): string | null
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const simNao = (v: boolean | null) => (v === null ? null : v ? 'sim' : 'não');
 
-function observacaoQualificado(d: DadosTriagem): string {
+/** Observação "Dados da Receita" do lead (usada no fim da triagem e ao detectar um CNPJ na conversa). */
+export function observacaoReceita(d: DadosTriagem, titulo = '🤖 Triagem automática do WhatsApp — Dados da Receita'): string {
   const r = d.receita;
-  const linhas: (string | null)[] = ['🤖 Triagem automática do WhatsApp — Dados da Receita'];
+  const linhas: (string | null)[] = [titulo];
   const aviso = avisoCnpj(d);
   if (aviso) linhas.push(`⚠️ ${aviso}`);
   linhas.push(`Segmento informado: ${d.segmento || '—'}`, `Relação: ${RELACAO[d.relacao || ''] || '—'}`,
@@ -57,7 +58,8 @@ function observacaoQualificado(d: DadosTriagem): string {
   return linhas.filter(Boolean).join('\n');
 }
 
-function leadQualificado(d: DadosTriagem, atual: LeadAtual | null): Record<string, string> {
+/** Campos do lead vindos da triagem/Receita (sem etapa_sdr). Não sobrescreve e-mail/telefone já preenchidos. */
+export function camposLeadReceita(d: DadosTriagem, atual: LeadAtual | null): Record<string, string> {
   const r = d.receita;
   const vazio = (campo: keyof LeadAtual) => !atual?.[campo];
   const out: Record<string, string> = {};
@@ -84,9 +86,12 @@ function leadQualificado(d: DadosTriagem, atual: LeadAtual | null): Record<strin
   } else {
     por('cidade', d.cidade);
   }
-  // Qualificado → aparece em "Leads para Distribuir" para a Supervisão encaminhar.
-  out.etapa_sdr = ETAPA_QUALIFICADO;
   return out;
+}
+
+function leadQualificado(d: DadosTriagem, atual: LeadAtual | null): Record<string, string> {
+  // Qualificado → aparece em "Leads para Distribuir" para a Supervisão encaminhar.
+  return { ...camposLeadReceita(d, atual), etapa_sdr: ETAPA_QUALIFICADO };
 }
 
 const ETAPA_QUALIFICADO = 'QUALIFICADO';
@@ -116,7 +121,7 @@ export function efeitosDesfecho(desfecho: Desfecho, dados: DadosTriagem, leadAtu
       desvincularLead: false,
     },
     lead: leadQualificado(dados, leadAtual),
-    observacao: observacaoQualificado(dados),
+    observacao: observacaoReceita(dados),
     notificacao: { titulo: 'Novo lead qualificado', detalhe: local ? `${nomeEmpresa} — ${local}` : nomeEmpresa, alerta: avisoCnpj(dados) },
   };
 }

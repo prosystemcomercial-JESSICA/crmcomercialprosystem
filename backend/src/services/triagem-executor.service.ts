@@ -10,9 +10,48 @@ import { obterConfigTriagem, materialVazio, type ConfigTriagem } from './triagem
 import { consultarCnpj } from '../lib/cnpj';
 import { iniciarTriagem, avancarTriagem, ESTADOS_TRIAGEM, type Acao, type DadosTriagem, type EstadoTriagem, type ResultadoPasso } from '../lib/triagem/fluxo';
 import { efeitosDesfecho } from '../lib/triagem/desfecho';
+import { cnpjNovoNaMensagem, dadosComCnpj, efeitosCnpjNoLead } from '../lib/triagem/cnpj-conversa';
 import { serializarPorChave } from '../lib/serializar';
 
 type ConversaTriagem = { id: string; contato_numero: string; lead_id: string | null; dono_id: string | null; bot_ativo: boolean; bot_estado: string | null; bot_dados: any };
+
+// Mesma fila para a triagem e para a detecção de CNPJ: as duas leem e gravam bot_dados.
+const chaveConversa = (id: string) => `triagem:${id}`;
+
+const SELECT_LEAD_RECEITA = { cnpj: true, razao_social: true, nome_fantasia: true, empresa: true, segmento: true, cidade: true, estado: true, endereco: true, responsavel_nome: true, responsavel_email: true, telefone: true } as const;
+
+/** Preenche o lead com os dados da Receita já salvos na conversa + observação (sem etapa/prioridade/alarme). */
+export async function aplicarReceitaNoLead(prisma: PrismaClient, leadId: string, dados: DadosTriagem) {
+  const atual = await prisma.lead.findUnique({ where: { id: leadId }, select: SELECT_LEAD_RECEITA }).catch(() => null);
+  const e = efeitosCnpjNoLead(dados, atual);
+  if (Object.keys(e.lead).length) {
+    await prisma.lead.update({ where: { id: leadId }, data: e.lead }).catch((err: any) => console.error('[CNPJ] lead:', err?.message));
+  }
+  await prisma.leadObservacao.create({ data: { lead_id: leadId, tipo: 'SISTEMA', descricao: e.observacao, created_by: 'bot', created_by_name: 'Consulta de CNPJ' } })
+    .catch((err: any) => console.error('[CNPJ] observação:', err?.message));
+}
+
+/**
+ * Mensagem com um CNPJ novo (qualquer momento da conversa): consulta a Receita,
+ * guarda em bot_dados e preenche o lead. Roda na mesma fila da triagem.
+ */
+export async function detectarCnpjNaConversa(
+  prisma: PrismaClient, conversaId: string, texto: string,
+  consultar: typeof consultarCnpj = consultarCnpj,
+) {
+  return serializarPorChave(chaveConversa(conversaId), async () => {
+    const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, lead_id: true, dono_id: true, bot_dados: true } });
+    if (!conversa) return;
+    const atuais = (conversa.bot_dados || {}) as DadosTriagem;
+    const cnpj = cnpjNovoNaMensagem(atuais, texto);
+    if (!cnpj) return;
+    const novos = dadosComCnpj(atuais, cnpj, await consultar(cnpj));
+    if (!novos) return; // não encontrado na Receita
+    await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { bot_dados: novos as any } });
+    if (conversa.lead_id) await aplicarReceitaNoLead(prisma, conversa.lead_id, novos);
+    emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
+  });
+}
 
 export function emTriagem(c: { bot_ativo: boolean; bot_estado: string | null }): boolean {
   return c.bot_ativo && !!c.bot_estado && ESTADOS_TRIAGEM.includes(c.bot_estado as EstadoTriagem) && c.bot_estado !== 'FIM';
@@ -103,7 +142,7 @@ export async function executarTriagem(
 ) {
   // Uma triagem por conversa de cada vez: a consulta de CNPJ demora e uma segunda
   // mensagem rápida não pode ler o mesmo estado e passar na frente.
-  return serializarPorChave(`triagem:${conversaInicial.id}`, async () => {
+  return serializarPorChave(chaveConversa(conversaInicial.id), async () => {
     // Relê a conversa dentro da fila: a chamada anterior pode ter avançado o estado.
     const conversa = await prisma.whatsappConversa.findUnique({
       where: { id: conversaInicial.id },
