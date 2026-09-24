@@ -176,22 +176,40 @@ async function enviarDigest(params: {
   const fromName  = process.env.SMTP_FROM_NAME  || 'ProSystem Sistemas';
   const html = buildDigestHtml(params);
 
-  try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to: params.email,
-      replyTo: fromEmail,
-      subject: `${params.pendencias.alta > 0 ? '🔴 ' : '📋 '}${params.saudacao}: ${params.pendencias.total} pendência(s) no seu funil`,
-      html,
-      headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'X-Priority': params.pendencias.alta > 0 ? '1' : '3' },
-    });
-    console.log(`[DIGEST] Enviado para ${params.email} (${params.pendencias.total} itens)`);
-    return { ok: true };
-  } catch (err: any) {
-    console.error(`[DIGEST] Erro ao enviar para ${params.email}:`, err.message);
-    return { ok: false, error: err.message };
+  // Falha passageira do servidor de e-mail (ex.: "421 Unexpected failure, please
+  // try later", conexão caída): tenta de novo depois de 30 s e 2 min.
+  const ESPERAS_MS = [30_000, 120_000];
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      const transporter = createTransporter();
+      await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: params.email,
+        replyTo: fromEmail,
+        subject: `${params.pendencias.alta > 0 ? '🔴 ' : '📋 '}${params.saudacao}: ${params.pendencias.total} pendência(s) no seu funil`,
+        html,
+        headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'X-Priority': params.pendencias.alta > 0 ? '1' : '3' },
+      });
+      console.log(`[DIGEST] Enviado para ${params.email} (${params.pendencias.total} itens)${tentativa ? ` na ${tentativa + 1}ª tentativa` : ''}`);
+      return { ok: true };
+    } catch (err: any) {
+      if (tentativa < ESPERAS_MS.length && erroSmtpPassageiro(err)) {
+        console.warn(`[DIGEST] Falha passageira para ${params.email} (${err.message}); nova tentativa em ${ESPERAS_MS[tentativa] / 1000}s`);
+        await new Promise(r => setTimeout(r, ESPERAS_MS[tentativa]));
+        continue;
+      }
+      console.error(`[DIGEST] Erro ao enviar para ${params.email}:`, err.message);
+      return { ok: false, error: err.message };
+    }
   }
+}
+
+/** Erros 4xx do SMTP e de conexão são temporários; 5xx (endereço inválido, auth) não adianta repetir. */
+export function erroSmtpPassageiro(err: any): boolean {
+  const code = Number(err?.responseCode);
+  if (code >= 400 && code < 500) return true;
+  if (['ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'ECONNRESET', 'EDNS'].includes(err?.code)) return true;
+  return /\b4\d\d\b/.test(String(err?.response || ''));
 }
 
 export function enviarEmailDigestVendedor(p: { email: string; nome: string; saudacao: string; pendencias: PendenciasUsuario }) {
