@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo, requireGestor } from '@/lib/scope';
 import * as evo from '@/services/evolution.service';
 import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
-import { entrarNaCadencia, pausarCadencia, criarTarefaInteresseCadencia } from '@/services/whatsapp-cadencia.service';
+import { entrarNaCadencia, pausarCadencia } from '@/services/whatsapp-cadencia.service';
 import { registrarClienteSSE, emitirEventoConversa } from '@/services/whatsapp-eventos.service';
 import { obterConfigTriagem, salvarConfigTriagem } from '@/services/triagem-config.service';
 import { executarTriagem, emTriagem, detectarCnpjNaConversa, aplicarReceitaNoLead } from '@/services/triagem-executor.service';
@@ -1318,11 +1318,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // IA Laya: sugere segmento/intenção/risco em segundo plano (não atrasa o webhook).
     if (tipoMsg === 'TEXTO') agendarAnaliseIa(prisma, conversa.id);
 
-    // Lead respondeu: para a cadência automática (não incomodar mais) e
-    // cria uma tarefa urgente para o vendedor retomar o contato — a
-    // resposta durante a cadência é o sinal mais claro de interesse.
+    // Lead respondeu: para a cadência automática (não incomodar mais).
+    // Não cria atividade: atividades são só lançadas à mão (pedido da gestão, 24/09/2026).
     if (conversa.cadencia_proxima_etapa) {
-      await criarTarefaInteresseCadencia(prisma, conversa.id).catch(() => {});
       await pausarCadencia(prisma, conversa.id).catch(() => {});
     }
 

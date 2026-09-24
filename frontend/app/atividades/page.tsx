@@ -14,7 +14,7 @@ import {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Lead { id: string; nome: string; empresa?: string; razao_social?: string; nome_fantasia?: string; }
-interface Usuario { id: string; nome: string; email: string; role: string; }
+interface Usuario { id: string; nome: string; email: string; role: string; cargo?: string; status?: string; }
 interface Atividade {
   id: string;
   tipo: string;
@@ -120,7 +120,8 @@ const emptyForm = {
   titulo: '',
   descricao: '',
   responsavel_id: '',
-  prazo_modo: 'dias' as 'dias' | 'data',
+  prazo_modo: 'sla' as 'sla' | 'dias' | 'data',
+  sla_horas: '4',
   dias_max: '7',
   data_prevista: '',
 };
@@ -255,6 +256,7 @@ export default function AtividadesPage() {
       descricao: at.descricao || '',
       responsavel_id: at.responsavel_id || '',
       prazo_modo: 'data',
+      sla_horas: '4',
       dias_max: '7',
       data_prevista: at.data_prevista ? new Date(at.data_prevista).toISOString().slice(0, 16) : '',
     });
@@ -268,7 +270,11 @@ export default function AtividadesPage() {
     setError('');
     try {
       let dataPrevistaISO: string | undefined = undefined;
-      if (form.prazo_modo === 'dias' && !editingId) {
+      if (form.prazo_modo === 'sla' && !editingId) {
+        // SLA: vence N horas a partir de agora.
+        const horas = parseFloat(String(form.sla_horas).replace(',', '.')) || 4;
+        dataPrevistaISO = new Date(Date.now() + horas * 3_600_000).toISOString();
+      } else if (form.prazo_modo === 'dias' && !editingId) {
         const dias = parseInt(form.dias_max) || 7;
         const d = new Date();
         d.setDate(d.getDate() + dias);
@@ -691,7 +697,9 @@ export default function AtividadesPage() {
                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                     style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }}>
                     <option value="">Sem responsável</option>
-                    {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome} {u.id === meuId ? '(eu)' : ''}</option>)}
+                    {usuarios.filter(u => u.status !== 'INATIVO').map(u => (
+                      <option key={u.id} value={u.id}>{u.nome} {u.cargo === 'SDR' ? '(SDR)' : ''} {u.id === meuId ? '(eu)' : ''}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -716,6 +724,14 @@ export default function AtividadesPage() {
                 <div>
                   <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Prazo de execução</label>
                   <div className="flex p-0.5 rounded-lg mb-2" style={{ background: 'var(--t-content-bg)', width: 'fit-content' }}>
+                    <button type="button" onClick={() => setForm((p: any) => ({ ...p, prazo_modo: 'sla' }))}
+                      className="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+                      style={{
+                        background: form.prazo_modo === 'sla' ? 'var(--t-card-bg)' : 'transparent',
+                        color: form.prazo_modo === 'sla' ? 'var(--t-text-primary)' : 'var(--t-text-secondary)',
+                      }}>
+                      SLA (horas)
+                    </button>
                     <button type="button" onClick={() => setForm((p: any) => ({ ...p, prazo_modo: 'dias' }))}
                       className="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
                       style={{
@@ -733,7 +749,30 @@ export default function AtividadesPage() {
                       Data específica
                     </button>
                   </div>
-                  {form.prazo_modo === 'dias' ? (
+                  {form.prazo_modo === 'sla' ? (
+                    <div>
+                      <div className="flex gap-2 flex-wrap mb-2">
+                        {['1', '2', '4', '8', '24', '48'].map(h => (
+                          <button key={h} type="button" onClick={() => setForm((p: any) => ({ ...p, sla_horas: h }))}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                            style={{
+                              border: `1px solid ${form.sla_horas === h ? 'var(--t-primary)' : 'var(--t-card-border)'}`,
+                              background: form.sla_horas === h ? 'var(--t-primary-light)' : 'var(--t-card-bg)',
+                              color: form.sla_horas === h ? 'var(--t-primary)' : 'var(--t-text-secondary)',
+                            }}>
+                            {h}h
+                          </button>
+                        ))}
+                      </div>
+                      <input type="number" min={0.5} step={0.5} value={form.sla_horas} onChange={e => setForm((p: any) => ({ ...p, sla_horas: e.target.value }))}
+                        placeholder="Ou digite N horas..."
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--t-text-secondary)' }}>
+                        Vence {new Date(Date.now() + (parseFloat(String(form.sla_horas).replace(',', '.')) || 0) * 3_600_000).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  ) : form.prazo_modo === 'dias' ? (
                     <div>
                       <div className="flex gap-2 flex-wrap mb-2">
                         {['1', '3', '7', '14', '30'].map(d => (
