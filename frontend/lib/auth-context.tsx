@@ -38,7 +38,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: decoded.userId,
             email: decoded.email,
             nome: decoded.nome,
-            role: decoded.role
+            role: decoded.role,
+            vende: !!decoded.vende,
+            admin: !!decoded.admin,
+            somente_leitura: !!decoded.somente_leitura,
           });
           carregarModulosPermissao();
         } catch (error) {
@@ -56,10 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const carregarModulosPermissao = async () => {
     try {
       const res = await apiClient.client.get('/usuarios/me');
-      const modulosPermissao = res.data?.data?.modulos_permissao;
-      if (modulosPermissao) {
-        setUser(prev => prev ? { ...prev, modulos_permissao: modulosPermissao } : prev);
-      }
+      const me = res.data?.data || {};
+      const modulosPermissao = me.modulos_permissao;
+      // Flags da conta: o backend é a fonte (ex.: CEO sempre somente leitura).
+      setUser(prev => prev ? {
+        ...prev,
+        ...(modulosPermissao ? { modulos_permissao: modulosPermissao } : {}),
+        vende: me.vende ?? prev.vende,
+        admin: me.admin ?? prev.admin,
+        somente_leitura: me.somente_leitura ?? prev.somente_leitura,
+      } : prev);
     } catch (error) {
       console.error('Falha ao carregar liberação de módulos:', error);
     }
