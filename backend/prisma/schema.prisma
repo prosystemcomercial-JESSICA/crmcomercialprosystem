@@ -2079,6 +2079,10 @@ model UsuarioCRM {
   observacoes          String?   @db.Text
   modulos_permissao    Json?
   precisa_trocar_senha Boolean?  @default(false) // força troca no 1º acesso / após reset
+  // Flags de conta (lib/permissoes-conta.ts) — colunas aditivas criadas por ALTER em routes/usuarios.ts
+  vende                Boolean?  @default(false) // outro cargo que TAMBÉM vende (recebe comissão de vendedor)
+  admin_sistema        Boolean?  @default(false) // administração total (passa em qualquer requireRole)
+  somente_leitura      Boolean?  @default(false) // conta de consulta: escrita bloqueada (403)
   created_by           String?   @db.VarChar(255)
   created_at           DateTime? @default(now())
   updated_at           DateTime? @default(now())

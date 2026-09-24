@@ -6,6 +6,10 @@ export interface AuthPayload {
   email: string;
   role: string;
   nome: string;
+  // Flags da conta (UsuarioCRM) — ver lib/permissoes-conta.ts
+  vende?: boolean;
+  admin?: boolean;
+  somente_leitura?: boolean;
 }
 
 export interface Tokens {

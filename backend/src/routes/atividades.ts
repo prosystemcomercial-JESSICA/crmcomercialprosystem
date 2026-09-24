@@ -357,8 +357,6 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     const usuariosRaw: any[] = await prisma.$queryRawUnsafe(`SELECT id, nome, email, cargo FROM UsuarioCRM`);
     const usuariosMap: Record<string, any> = {};
     for (const u of usuariosRaw) usuariosMap[u.id] = u;
-    // Inclui Jessica (mock) também
-    usuariosMap['user-jessica'] = { id: 'user-jessica', nome: 'Jessica', email: 'jessica@prosystemnet.com.br', cargo: 'CEO' };
 
     // Agrupa em memória — confiável e sem dependência de collation
     const porUsuario: Record<string, any> = {};

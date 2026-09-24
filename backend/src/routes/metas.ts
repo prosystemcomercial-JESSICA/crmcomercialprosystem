@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { scopeUserId, requireGestor } from '@/lib/scope';
 import { calcularRealizadoMeta } from '@/lib/meta-progress';
-import { resolverNomesUsuarios, CONTAS_SISTEMA } from '@/lib/usuarios';
+import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 const CreateMetaSchema = z.object({
   titulo: z.string().min(1),
@@ -287,7 +287,7 @@ export async function metasRoutes(fastify: FastifyInstance, options: { prisma: P
     const ids = Object.keys(rankingMap).filter(Boolean);
     const nomes = await resolverNomesUsuarios(prisma, ids).catch(() => ({} as any));
     for (const id of ids) {
-      if (!rankingMap[id].responsavel_nome) rankingMap[id].responsavel_nome = nomes[id] || CONTAS_SISTEMA[id]?.nome || id;
+      if (!rankingMap[id].responsavel_nome) rankingMap[id].responsavel_nome = nomes[id] || id;
     }
 
     const ranking = Object.values(rankingMap)
