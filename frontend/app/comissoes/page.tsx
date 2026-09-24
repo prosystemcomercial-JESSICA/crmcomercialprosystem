@@ -455,7 +455,7 @@ export default function ComissoesPage() {
                     </span>
                   </div>
                   <p className="text-[11px] mt-1" style={{ color: 'var(--t-text-muted)' }}>
-                    Critério alternativo — {bonus.bonus_supervisao.vendedor_referencia}: {bonus.bonus_supervisao.contratos_vendedor_referencia} contratos no trimestre.
+                    Meta do setor: {bonus.bonus_supervisao.meta_setor ?? '—'} contratos no trimestre ({bonus.bonus_supervisao.vendedores_ativos ?? '—'} vendedor(es) ativo(s) × 5/mês × 3). Faixas: 100% R$ 600 · 150% R$ 1.100 · 200% R$ 1.500.
                   </p>
                 </div>
               </div>
