@@ -80,7 +80,9 @@ const PropostaSchema = z.object({
   comissao_supervisor_pct: z.number().optional(),
 
   status: z.enum([
-    'RASCUNHO', 'ENVIADA', 'ACEITA', 'RECUSADA', 'EM_NEGOCIACAO', 'PERDIDA',
+    // VISUALIZADA/EXPIRADA: o sistema marca sozinho (cliente abriu o link / venceu);
+    // o formulário devolve o status atual ao salvar, então precisam ser aceitos.
+    'RASCUNHO', 'ENVIADA', 'VISUALIZADA', 'EXPIRADA', 'ACEITA', 'RECUSADA', 'EM_NEGOCIACAO', 'PERDIDA',
     'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO',
   ]).optional(),
 });
