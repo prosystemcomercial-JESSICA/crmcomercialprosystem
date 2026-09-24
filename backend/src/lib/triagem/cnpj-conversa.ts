@@ -7,6 +7,11 @@ import { extrairCnpj, cnpjValido, type ConsultaCnpj } from '../cnpj';
 import { camposLeadReceita, observacaoReceita, type LeadAtual } from './desfecho';
 import type { DadosTriagem } from './fluxo';
 
+/** Nos estados CNPJ/CNPJ_CONFIRMA da triagem quem cuida do CNPJ é o fluxo; a detecção não mexe. */
+export function fluxoCuidaDoCnpj(c: { bot_ativo: boolean; bot_estado: string | null }): boolean {
+  return c.bot_ativo && (c.bot_estado === 'CNPJ' || c.bot_estado === 'CNPJ_CONFIRMA');
+}
+
 /** CNPJ válido presente no texto e diferente do já salvo na conversa; senão null. */
 export function cnpjNovoNaMensagem(botDados: DadosTriagem | null | undefined, texto: string | null | undefined): string | null {
   const cnpj = extrairCnpj(texto || '');

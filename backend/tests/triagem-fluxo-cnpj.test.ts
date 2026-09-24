@@ -37,6 +37,38 @@ describe('CNPJ mandado fora de hora', () => {
   });
 });
 
+describe('CNPJ diferente na confirmação', () => {
+  const B: DadosReceita = { ...RECEITA, cnpj: '11444777000161', nome_fantasia: 'FARMA B', municipio: 'SERRA' };
+  const dadosA = { segmento: 'Padaria' as const, cnpj: '11222333000181', receita: RECEITA, receita_fonte: 'BrasilAPI' };
+  it('consulta o novo e pergunta pela empresa certa', async () => {
+    const d: DepsTriagem = { consultarCnpj: vi.fn().mockResolvedValue({ status: 'encontrado', dados: B, fonte: 'CNPJá' }), temMaterial: () => false };
+    const r = await avancarTriagem('CNPJ_CONFIRMA', dadosA, { texto: '11.444.777/0001-61' }, d);
+    expect(d.consultarCnpj).toHaveBeenCalledWith('11444777000161');
+    expect(r.estado).toBe('CNPJ_CONFIRMA');
+    expect(textos(r.acoes)).toBe('É a *FARMA B*, de *SERRA/ES*?');
+    expect(r.dados).toMatchObject({ segmento: 'Padaria', cnpj: '11444777000161', receita: B, receita_fonte: 'CNPJá' });
+  });
+  it('não encontrado: avisa e volta a pedir o CNPJ', async () => {
+    const d: DepsTriagem = { consultarCnpj: vi.fn().mockResolvedValue({ status: 'nao_encontrado' }), temMaterial: () => false };
+    const r = await avancarTriagem('CNPJ_CONFIRMA', dadosA, { texto: '11444777000161' }, d);
+    expect(r.estado).toBe('CNPJ');
+    expect(textos(r.acoes)).toContain('Não encontramos');
+    expect(r.dados.cnpj).toBeUndefined();
+  });
+  it('indisponível: encerra como qualificado com o novo CNPJ', async () => {
+    const d: DepsTriagem = { consultarCnpj: vi.fn().mockResolvedValue({ status: 'indisponivel' }), temMaterial: () => false };
+    const r = await avancarTriagem('CNPJ_CONFIRMA', dadosA, { texto: '11444777000161' }, d);
+    expect(r.desfecho).toBe('qualificado');
+    expect(r.dados).toMatchObject({ cnpj: '11444777000161', receita: null });
+  });
+  it('mesmo CNPJ: fica em silêncio', async () => {
+    const d = deps();
+    const r = await avancarTriagem('CNPJ_CONFIRMA', dadosA, { texto: '11222333000181' }, d);
+    expect(r.acoes).toEqual([]);
+    expect(d.consultarCnpj).not.toHaveBeenCalled();
+  });
+});
+
 describe('CNPJ já recebido antes da pergunta', () => {
   const base = { fluxo: 'conhecer' as const, segmento: 'Padaria' as const, relacao: 'nao_conhece' as const, nome: 'Maria' };
   it('com dados da Receita: pula direto para a confirmação da empresa', async () => {
