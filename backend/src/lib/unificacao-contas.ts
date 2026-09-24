@@ -308,24 +308,42 @@ export function montarPlano(c: ContasResolvidas, alvos: AlvoColuna[] = ALVOS): P
     //    referência+tipo+papel, a linha NÃO é movida (evita pagar em dobro) e é
     //    listada no passo informativo abaixo para revisão manual.
     const todos = [kept, ...ids];
+    // `kb`: BÔNUS cujo referencia_id ainda termina no id antigo (o passo 2 não o
+    // renomeou porque a conta mantida já tem "…-<kept>" do mesmo trimestre) — mover
+    // essa linha pagaria o bônus em dobro, então vira conflito.
     const joinConf = `LEFT JOIN Comissao k ON k.id <> c.id AND c.referencia_id IS NOT NULL AND k.referencia_id = c.referencia_id`
-      + ` AND k.tipo = c.tipo AND k.papel <=> c.papel AND k.status <> 'CANCELADA' AND k.responsavel_id IN (${lista(todos.length)})`;
-    const semConflito = `c.responsavel_id IN (${lista(ids.length)}) AND (k.id IS NULL OR c.status = 'CANCELADA')`;
-    const comConflito = `c.responsavel_id IN (${lista(ids.length)}) AND k.id IS NOT NULL AND c.status <> 'CANCELADA'`;
+      + ` AND k.tipo = c.tipo AND k.papel <=> c.papel AND k.status <> 'CANCELADA' AND k.responsavel_id IN (${lista(todos.length)})`
+      + ` LEFT JOIN Comissao kb ON c.tipo = 'BONUS' AND kb.id <> c.id AND kb.tipo = 'BONUS' AND kb.status <> 'CANCELADA'`
+      + ` AND c.referencia_id LIKE CONCAT('%-', c.responsavel_id)`
+      + ` AND kb.referencia_id = CONCAT(LEFT(c.referencia_id, CHAR_LENGTH(c.referencia_id) - CHAR_LENGTH(c.responsavel_id)), ?)`;
+    const pJoinConf = [...todos, kept];
+    const semConflito = `c.responsavel_id IN (${lista(ids.length)}) AND ((k.id IS NULL AND kb.id IS NULL) OR c.status = 'CANCELADA')`;
+    const comConflito = `c.responsavel_id IN (${lista(ids.length)}) AND (k.id IS NOT NULL OR kb.id IS NOT NULL) AND c.status <> 'CANCELADA'`;
     passos.push({
       chave: 'Comissao.responsavel_id',
       descricao: 'Reatribui comissões (tipo/papel/percentual intactos; 15% continua comissão de venda)',
       requer: [['Comissao', 'responsavel_id'], ['Comissao', 'papel']],
-      contar: { sql: `SELECT COUNT(DISTINCT c.id) AS n FROM Comissao c ${joinConf} WHERE ${semConflito}`, params: [...todos, ...ids] },
-      amostra: { sql: `SELECT DISTINCT c.id FROM Comissao c ${joinConf} WHERE ${semConflito} LIMIT 5`, params: [...todos, ...ids] },
-      aplicar: [{ sql: `UPDATE Comissao c ${joinConf} SET c.responsavel_id = ? WHERE ${semConflito}`, params: [...todos, kept, ...ids] }],
+      contar: { sql: `SELECT COUNT(DISTINCT c.id) AS n FROM Comissao c ${joinConf} WHERE ${semConflito}`, params: [...pJoinConf, ...ids] },
+      amostra: { sql: `SELECT DISTINCT c.id FROM Comissao c ${joinConf} WHERE ${semConflito} LIMIT 5`, params: [...pJoinConf, ...ids] },
+      aplicar: [{ sql: `UPDATE Comissao c ${joinConf} SET c.responsavel_id = ? WHERE ${semConflito}`, params: [...pJoinConf, kept, ...ids] }],
     });
     passos.push({
       chave: 'Comissao.responsavel_id#conflitos',
-      descricao: 'INFORMATIVO — comissões que NÃO serão movidas (duplicariam referência+tipo+papel); revisar manualmente',
+      descricao: 'INFORMATIVO — comissões que NÃO serão movidas (duplicariam referência+tipo+papel, ou bônus do mesmo trimestre já existente na conta mantida); revisar manualmente',
       requer: [['Comissao', 'responsavel_id'], ['Comissao', 'papel']],
-      contar: { sql: `SELECT COUNT(DISTINCT c.id) AS n FROM Comissao c ${joinConf} WHERE ${comConflito}`, params: [...todos, ...ids] },
-      amostra: { sql: `SELECT DISTINCT c.id FROM Comissao c ${joinConf} WHERE ${comConflito} LIMIT 20`, params: [...todos, ...ids] },
+      contar: { sql: `SELECT COUNT(DISTINCT c.id) AS n FROM Comissao c ${joinConf} WHERE ${comConflito}`, params: [...pJoinConf, ...ids] },
+      amostra: { sql: `SELECT DISTINCT c.id FROM Comissao c ${joinConf} WHERE ${comConflito} LIMIT 20`, params: [...pJoinConf, ...ids] },
+      aplicar: [],
+    });
+
+    // 3b) WhatsappInstancia: se a conta mantida ficar com mais de uma, nada é mexido —
+    //     só informa (a Jessica escolhe qual manter).
+    passos.push({
+      chave: 'WhatsappInstancia#varias',
+      descricao: 'INFORMATIVO — instâncias de WhatsApp que a conta mantida terá após a mescla (se > 1, revisar manualmente)',
+      requer: [['WhatsappInstancia', 'dono_id']],
+      contar: { sql: `SELECT COUNT(*) AS n FROM WhatsappInstancia WHERE dono_id IN (${lista(todos.length)})`, params: [...todos] },
+      amostra: { sql: `SELECT id FROM WhatsappInstancia WHERE dono_id IN (${lista(todos.length)}) LIMIT 20`, params: [...todos] },
       aplicar: [],
     });
 

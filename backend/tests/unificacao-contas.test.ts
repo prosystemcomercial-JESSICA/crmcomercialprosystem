@@ -99,6 +99,27 @@ describe('montarPlano', () => {
     expect(plano.find(x => x.chave === 'CalendarToken.user_id')!.aplicar[0].sql).toMatch(/^UPDATE IGNORE/);
   });
 
+  it('bônus não renomeado (conta mantida já tem "…-<kept>") vira conflito e não é movido', () => {
+    const p = plano.find(x => x.chave === 'Comissao.responsavel_id')!;
+    const sql = p.aplicar[0].sql;
+    // join com o ref RENOMEADO (sufixo do dono antigo trocado pelo id mantido)
+    expect(sql).toMatch(/LEFT JOIN Comissao kb ON c\.tipo = 'BONUS'/);
+    expect(sql).toMatch(/kb\.referencia_id = CONCAT\(LEFT\(c\.referencia_id, CHAR_LENGTH\(c\.referencia_id\) - CHAR_LENGTH\(c\.responsavel_id\)\), \?\)/);
+    // a linha só se move se NÃO houver kb
+    expect(sql).toMatch(/k\.id IS NULL AND kb\.id IS NULL/);
+    // o parâmetro do sufixo novo é o id mantido (vem logo após os ids do join k)
+    const nPlaceK = 1 + contas.mesclarIds.length;
+    expect(p.aplicar[0].params[nPlaceK]).toBe('jess');
+    const conf = plano.find(x => x.chave === 'Comissao.responsavel_id#conflitos')!;
+    expect(conf.contar.sql).toMatch(/k\.id IS NOT NULL OR kb\.id IS NOT NULL/);
+  });
+
+  it('WhatsappInstancia: só informa quantas a conta mantida terá (não altera)', () => {
+    const w = plano.find(x => x.chave === 'WhatsappInstancia#varias')!;
+    expect(w.aplicar).toEqual([]);
+    expect(w.contar.params).toContain('jess');
+  });
+
   it('comissões: só troca o dono (sem mexer em tipo/papel/percentual) e reporta conflitos à parte', () => {
     const p = plano.find(x => x.chave === 'Comissao.responsavel_id')!;
     expect(p.aplicar).toHaveLength(1);

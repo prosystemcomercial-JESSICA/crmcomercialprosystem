@@ -99,7 +99,15 @@ try {
 try {
   const { AuthService } = await import('./services/auth.service.js');
   const _authService = new AuthService();
-  const { bloquearPorSomenteLeitura, ID_CONTA_MOCK_REMOVIDA } = await import('./lib/permissoes-conta.js');
+  const { decidirAcesso, criarCacheEstadoConta, ID_CONTA_MOCK_REMOVIDA } = await import('./lib/permissoes-conta.js');
+  const _estadoConta = criarCacheEstadoConta(async (id: string) => {
+    const rows: any[] = await prismaClient.$queryRawUnsafe(
+      `SELECT * FROM UsuarioCRM WHERE id = ? LIMIT 1`, id
+    );
+    const r = rows?.[0];
+    if (!r) return null;
+    return { status: r.status ?? null, role: r.cargo ?? null, vende: r.vende, admin_sistema: r.admin_sistema, somente_leitura: r.somente_leitura };
+  });
   fastify.addHook('onRequest', async (request, reply) => {
     const auth = request.headers.authorization;
     // EventSource nativo do navegador não manda headers customizados — a
@@ -127,8 +135,17 @@ try {
 
     // Conta de CONSULTA (cargo CEO ou flag somente_leitura): qualquer escrita → 403,
     // exceto as rotas da própria sessão (login/logout/refresh/alterar-senha).
+    // O BANCO é a fonte da verdade (JWT dura 7 dias): status/cargo/flags atuais vêm
+    // de UsuarioCRM com cache de ~45 s por usuário (1 consulta/usuário/45 s, inclusive
+    // em GET, para barrar conta INATIVA). Sem banco → cai nas flags do JWT.
     const u = (request as any).user;
-    if (u && bloquearPorSomenteLeitura(u, request.method, request.url)) {
+    if (!u) return;
+    const estado = prismaClient ? await _estadoConta(u.id) : undefined;
+    const decisao = decidirAcesso(u, estado, request.method, request.url);
+    if (decisao === 'inativo') {
+      return reply.status(401).send({ status: 'error', code: 'CONTA_INATIVA', message: 'Conta inativa ou inexistente. Faça login novamente.' });
+    }
+    if (decisao === 'somente_leitura') {
       return reply.status(403).send({
         status: 'error',
         code: 'SOMENTE_LEITURA',
