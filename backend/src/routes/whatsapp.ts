@@ -7,11 +7,12 @@ import { calcularSlaPrazo } from '@/services/whatsapp-sla.service';
 import { entrarNaCadencia, pausarCadencia, criarTarefaInteresseCadencia } from '@/services/whatsapp-cadencia.service';
 import { registrarClienteSSE, emitirEventoConversa } from '@/services/whatsapp-eventos.service';
 import { obterConfigTriagem, salvarConfigTriagem } from '@/services/triagem-config.service';
-import { executarTriagem, emTriagem } from '@/services/triagem-executor.service';
+import { executarTriagem, emTriagem, detectarCnpjNaConversa, aplicarReceitaNoLead } from '@/services/triagem-executor.service';
 import {
   INSTANCIA_EMPRESA, APELIDO_EMPRESA, obterInstanciaEmpresa, tokenWebhookConfere,
   whereListaConversas, whereAcaoConversa, whereLeituraConversa,
 } from '@/lib/whatsapp-empresa';
+import { TIPOS_CONTATO, decidirIdentificacao } from '@/lib/whatsapp-identificar';
 import { ehPayloadUazapi, parseUazapiEvento, EventoMensagemUazapi } from '@/lib/uazapi-webhook-parser';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
@@ -403,13 +404,16 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Lista conversas (escopadas ao dono; gestão vê todas), ordenadas por atividade.
   // Filtra por instância quando ?instanciaId= é informado (seletor multi-instância).
   fastify.get('/whatsapp/conversas', async (request, reply) => {
-    const { instanciaId, escopo } = request.query as { instanciaId?: string; escopo?: string };
+    const { instanciaId, escopo, tipo_contato } = request.query as { instanciaId?: string; escopo?: string; tipo_contato?: string };
     // Visão de supervisão: gestão pode pedir escopo=todos p/ ver as conversas de
     // TODOS os vendedores num só lugar (sem assumir). escopo=pool = conversas do
     // WhatsApp da empresa sem dono (qualquer usuário). Padrão = só as próprias.
     const filtroEscopo = whereListaConversas(escopo, getUser(request));
     const conversas = await prisma.whatsappConversa.findMany({
-      where: { ...filtroEscopo, ...(instanciaId ? { instanciaId } : {}) },
+      where: {
+        ...filtroEscopo, ...(instanciaId ? { instanciaId } : {}),
+        ...(tipo_contato && (TIPOS_CONTATO as readonly string[]).includes(tipo_contato) ? { tipo_contato } : {}),
+      },
       orderBy: { ultima_em: 'desc' },
       take: 150,
       include: { instancia: { select: { apelido: true, dono_nome: true, numero: true } } },
@@ -470,24 +474,59 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
-    if (conversa.lead_id) {
-      const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { origem: true } }).catch(() => null);
-      // Só soft-deleta leads nascidos do WhatsApp (captação automática). Lead
-      // vinculado manualmente a um cliente real é preservado, só desvincula.
-      if (lead?.origem === 'WHATSAPP') {
-        await prisma.lead.update({
-          where: { id: conversa.lead_id },
-          data: { deleted_at: new Date() as any },
-        }).catch(() => {});
-      }
-    }
-
-    await prisma.whatsappConversa.update({
-      where: { id },
-      data: { lead_id: null, bot_ativo: false, bot_estado: null },
-    });
+    await prisma.whatsappConversa.update({ where: { id }, data: await dadosSairDoFunil(conversa) });
     return reply.send({ status: 'success' });
   });
+
+  // Tira a conversa do funil: soft-delete do lead SÓ se nasceu do WhatsApp
+  // (captação automática — lead manual é preservado, só desvincula) e devolve
+  // os campos da conversa a gravar (sem lead, robô desligado).
+  async function dadosSairDoFunil(conversa: { lead_id: string | null }) {
+    if (conversa.lead_id) {
+      const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { origem: true } }).catch(() => null);
+      if (lead?.origem === 'WHATSAPP') {
+        await prisma.lead.update({ where: { id: conversa.lead_id }, data: { deleted_at: new Date() as any } }).catch(() => {});
+      }
+    }
+    return { lead_id: null, bot_ativo: false, bot_estado: null };
+  }
+
+  // Vincula a conversa a um cliente e cria/atualiza o contato na ficha dele (dedupe por telefone).
+  async function vincularContatoCliente(
+    conversa: { id: string; contato_nome: string | null; contato_numero: string },
+    clienteId: string, nome: string | undefined, cargo: string | undefined, user: any,
+  ) {
+    const nomeContato = nome || conversa.contato_nome || conversa.contato_numero;
+    const telefone = conversa.contato_numero;
+
+    // Marca o vínculo na conversa.
+    await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { cliente_id: clienteId } });
+
+    const existente = await (prisma as any).contatoCliente.findFirst({
+      where: { cliente_id: clienteId, telefone },
+    }).catch(() => null);
+    let contato;
+    if (existente) {
+      contato = await (prisma as any).contatoCliente.update({
+        where: { id: existente.id },
+        data: { nome: nomeContato, cargo: cargo ?? existente.cargo, origem: 'WHATSAPP' },
+      });
+    } else {
+      contato = await (prisma as any).contatoCliente.create({
+        data: { cliente_id: clienteId, nome: nomeContato, telefone, cargo: cargo || null, origem: 'WHATSAPP' },
+      });
+    }
+
+    // Evento na timeline do cliente.
+    await (prisma as any).eventoCliente.create({
+      data: {
+        cliente_id: clienteId, tipo: 'OBSERVACAO',
+        titulo: `Contato de WhatsApp vinculado: ${nomeContato}${cargo ? ' (' + cargo + ')' : ''}`,
+        descricao: `Telefone ${telefone}`, feito_por: user?.id, feito_por_nome: user?.nome,
+      },
+    }).catch(() => {});
+    return contato;
+  }
 
   // Vincula a conversa a um CLIENTE da base e registra o contato (nome, telefone,
   // cargo) na ficha do cliente. Assim contatos de WhatsApp que já são clientes
@@ -509,38 +548,76 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const cliente = await prisma.cliente.findUnique({ where: { id: body.data.cliente_id }, select: { id: true } });
     if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
 
-    const nomeContato = body.data.nome || conversa.contato_nome || conversa.contato_numero;
-    const telefone = conversa.contato_numero;
+    const contato = await vincularContatoCliente(conversa, body.data.cliente_id, body.data.nome, body.data.cargo, user);
+    return reply.send({ status: 'success', data: { contato }, message: 'Conversa vinculada ao cliente.' });
+  });
 
-    // Marca o vínculo na conversa.
-    await prisma.whatsappConversa.update({ where: { id }, data: { cliente_id: body.data.cliente_id } });
+  // Identifica o contato por tipo. Só LEAD fica no funil; os demais tiram o lead
+  // captado automaticamente do funil (Central de Leads limpa). A conversa continua no Inbox.
+  fastify.post('/whatsapp/conversas/:id/identificar', async (request, reply) => {
+    const user = getUser(request);
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      tipo: z.enum(TIPOS_CONTATO),
+      nome: z.string().trim().max(120).optional(),
+      cargo: z.string().trim().max(120).optional(),
+      empresa: z.string().trim().max(160).optional(),
+      cliente_id: z.string().optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
+    const { tipo, nome, cargo, empresa, cliente_id } = body.data;
 
-    // Cria/atualiza o contato na ficha do cliente (dedupe por telefone).
-    const existente = await (prisma as any).contatoCliente.findFirst({
-      where: { cliente_id: body.data.cliente_id, telefone },
-    }).catch(() => null);
-    let contato;
-    if (existente) {
-      contato = await (prisma as any).contatoCliente.update({
-        where: { id: existente.id },
-        data: { nome: nomeContato, cargo: body.data.cargo ?? existente.cargo, origem: 'WHATSAPP' },
-      });
-    } else {
-      contato = await (prisma as any).contatoCliente.create({
-        data: { cliente_id: body.data.cliente_id, nome: nomeContato, telefone, cargo: body.data.cargo || null, origem: 'WHATSAPP' },
-      });
+    const decisao = decidirIdentificacao(tipo, { cliente_id });
+    if ('erro' in decisao) return reply.status(400).send({ status: 'error', message: decisao.erro });
+
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+
+    if (decisao.vincularCliente) {
+      const cliente = await prisma.cliente.findUnique({ where: { id: cliente_id! }, select: { id: true } });
+      if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
+      await vincularContatoCliente(conversa, cliente_id!, nome || undefined, cargo || undefined, user);
     }
 
-    // Evento na timeline do cliente.
-    await (prisma as any).eventoCliente.create({
-      data: {
-        cliente_id: body.data.cliente_id, tipo: 'OBSERVACAO',
-        titulo: `Contato de WhatsApp vinculado: ${nomeContato}${body.data.cargo ? ' (' + body.data.cargo + ')' : ''}`,
-        descricao: `Telefone ${telefone}`, feito_por: user?.id, feito_por_nome: user?.nome,
-      },
-    }).catch(() => {});
+    const data: any = {
+      tipo_contato: tipo,
+      contato_cargo: cargo || null,
+      contato_empresa: decisao.salvarEmpresa ? (empresa || null) : null,
+      etiqueta: decisao.etiqueta, etiqueta_cor: decisao.etiqueta_cor,
+      ...(nome ? { contato_nome: nome } : {}),
+    };
+    if (decisao.sairDoFunil) Object.assign(data, await dadosSairDoFunil(conversa));
 
-    return reply.send({ status: 'success', data: { contato }, message: 'Conversa vinculada ao cliente.' });
+    if (decisao.garantirLead) {
+      let leadId = conversa.lead_id;
+      if (leadId) {
+        const existe = await prisma.lead.findFirst({ where: { id: leadId, deleted_at: null }, select: { id: true } }).catch(() => null);
+        if (!existe) leadId = null;
+      }
+      if (!leadId) {
+        // Mesmo formato da captação automática.
+        const lead = await prisma.lead.create({
+          data: {
+            nome: nome || conversa.contato_nome || `WhatsApp ${conversa.contato_numero}`,
+            telefone: conversa.contato_numero,
+            responsavel_telefone: conversa.contato_numero,
+            origem: 'WHATSAPP',
+            created_by: user?.id || 'whatsapp_empresa',
+            ...(conversa.dono_id ? { responsavel_id: conversa.dono_id, atribuido_em: new Date() } : {}),
+            observacoes_comerciais: 'Lead identificado manualmente no Inbox do WhatsApp.',
+          },
+          select: { id: true },
+        });
+        leadId = lead.id;
+        data.lead_id = leadId;
+      }
+      const dadosBot = (conversa.bot_dados || {}) as any;
+      if (dadosBot.receita) await aplicarReceitaNoLead(prisma, leadId, dadosBot);
+    }
+
+    const upd = await prisma.whatsappConversa.update({ where: { id }, data });
+    emitirEventoConversa(upd.dono_id, 'conversa_atualizada', { conversaId: id });
+    return reply.send({ status: 'success', data: upd });
   });
 
   // Agenda uma reunião a partir da conversa: cria Atividade REUNIAO (vinculada
@@ -648,14 +725,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     // Tipo não-comercial → desvincula do funil (não conta como lead) e desliga o bot.
     if (etiqueta && TIPOS_NAO_COMERCIAIS.includes(etiqueta)) {
-      data.bot_ativo = false; data.bot_estado = null;
-      if (conversa.lead_id) {
-        const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { origem: true } }).catch(() => null);
-        if (lead?.origem === 'WHATSAPP') {
-          await prisma.lead.update({ where: { id: conversa.lead_id }, data: { deleted_at: new Date() as any } }).catch(() => {});
-        }
-        data.lead_id = null;
-      }
+      Object.assign(data, await dadosSairDoFunil(conversa));
     }
 
     const upd = await prisma.whatsappConversa.update({ where: { id }, data });
@@ -1284,6 +1354,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           await executarTriagem(prisma, inst.instance_token || '', conversa as any, { texto, botaoId: dados.botao_id });
         }
       } catch (e: any) { console.error('[TRIAGEM] erro:', e?.message); }
+      // CNPJ em qualquer mensagem (com ou sem triagem): consulta a Receita e mostra
+      // a empresa no painel. Depois da triagem, na mesma fila: se a triagem acabou de
+      // consultar esse CNPJ, aqui já não é novo e nada acontece.
+      try {
+        await detectarCnpjNaConversa(prisma, conversa.id, texto);
+      } catch (e: any) { console.error('[CNPJ] erro:', e?.message); }
     }
   }
 }

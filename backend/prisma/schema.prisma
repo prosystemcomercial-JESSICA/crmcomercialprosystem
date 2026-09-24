@@ -2383,6 +2383,12 @@ model WhatsappConversa {
   // Respostas coletadas pela triagem automática (segmento, nome, cidade, CNPJ, dados da Receita).
   bot_dados  Json?
 
+  // Identificação do contato (botão "Identificar" do Inbox):
+  // CLIENTE | LEAD | PARCEIRO | EQUIPE | TERCEIRO_CLIENTE | FORNECEDOR | OUTRO
+  tipo_contato    String?
+  contato_cargo   String?
+  contato_empresa String?
+
   // Etiqueta de organização (ex.: Padaria, Farmácia, Varejo, Cliente, Lead, Parceiro)
   etiqueta     String?
   etiqueta_cor String? @default("#6b7280")
