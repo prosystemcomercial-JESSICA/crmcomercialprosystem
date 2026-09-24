@@ -15,8 +15,8 @@ import { serializarPorChave } from '../lib/serializar';
 
 type ConversaTriagem = { id: string; contato_numero: string; lead_id: string | null; dono_id: string | null; bot_ativo: boolean; bot_estado: string | null; bot_dados: any };
 
-// Mesma fila para a triagem e para a detecção de CNPJ: as duas leem e gravam bot_dados.
-const chaveConversa = (id: string) => `triagem:${id}`;
+// Mesma fila para a triagem, a detecção de CNPJ e a confirmação de cliente: todas leem e gravam bot_dados.
+import { chaveConversa, perguntarClienteSeCasar } from './whatsapp-confirmacao-cliente.service';
 
 const SELECT_LEAD_RECEITA = { cnpj: true, razao_social: true, nome_fantasia: true, empresa: true, segmento: true, cidade: true, estado: true, endereco: true, responsavel_nome: true, responsavel_email: true, telefone: true } as const;
 
@@ -38,6 +38,7 @@ export async function aplicarReceitaNoLead(prisma: PrismaClient, leadId: string,
 export async function detectarCnpjNaConversa(
   prisma: PrismaClient, conversaId: string, texto: string,
   consultar: typeof consultarCnpj = consultarCnpj,
+  token?: string,
 ) {
   return serializarPorChave(chaveConversa(conversaId), async () => {
     const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, lead_id: true, dono_id: true, bot_dados: true, bot_ativo: true, bot_estado: true } });
@@ -50,6 +51,10 @@ export async function detectarCnpjNaConversa(
     await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { bot_dados: novos as any } });
     if (conversa.lead_id) await aplicarReceitaNoLead(prisma, conversa.lead_id, novos);
     emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
+    // CNPJ de cliente da base: pergunta agora (ou deixa pendente até o fim da triagem).
+    if (token !== undefined) {
+      await perguntarClienteSeCasar(prisma, token, conversaId).catch((e: any) => console.error('[CNPJ-CLIENTE] erro:', e?.message));
+    }
   });
 }
 
@@ -183,4 +188,6 @@ async function executarPasso(
 
   await enviarAcoes(prisma, token, conversa, passo.acoes, cfg);
   if (passo.desfecho) await aplicarDesfecho(prisma, conversa, passo);
+  // Fim da triagem: pergunta "É a sua empresa?" se o CNPJ (da triagem ou pendente) é de um cliente da base.
+  if (fim) await perguntarClienteSeCasar(prisma, token, conversa.id).catch((e: any) => console.error('[CNPJ-CLIENTE] erro:', e?.message));
 }
