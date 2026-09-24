@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { scopeUserId, requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
 import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
+import { somarGanhoMes, mesAtual } from '@/lib/meu-ganho';
 
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -245,6 +246,25 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     }
     return mapa;
   }
+
+  // ===== MEU GANHO NO MÊS (card fixo do dashboard) =====
+  // Sempre do usuário LOGADO (nunca de outro id): comissão de venda + supervisão +
+  // bônus de cada papel, no mês de pagamento (ou competência, se ainda sem mês).
+  fastify.get('/comissoes/meu-ganho', async (request, reply) => {
+    const user = (request as any).user;
+    if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    const q = (request.query || {}) as { mes?: string };
+    const mes = q.mes && /^\d{4}-\d{2}$/.test(q.mes) ? q.mes : mesAtual();
+    const comissoes = await prisma.comissao.findMany({
+      where: {
+        responsavel_id: user.id,
+        status: { not: 'CANCELADA' },
+        OR: [{ mes_pagamento: mes }, { mes_pagamento: null, periodo: mes }],
+      },
+      select: { papel: true, tipo: true, status: true, valor_comissao: true, periodo: true, mes_pagamento: true },
+    }).catch(() => [] as any[]);
+    return reply.send({ status: 'success', data: somarGanhoMes(comissoes as any[], mes) });
+  });
 
   // ===== REGRAS DE COMISSÃO =====
   fastify.get('/comissoes/regras', async (request, reply) => {
@@ -495,7 +515,7 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     // Supervisora real = único usuário com role SUPERVISAO — garante exibição correta
     // mesmo que registros antigos tenham responsavel_id errado.
     const supervisoraReal = await (prisma as any).usuarioCRM.findFirst({
-      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+      where: { cargo: 'SUPERVISAO_COMERCIAL', status: 'ATIVO' }, // (antes: role/ativo — campos inexistentes, a query sempre falhava)
       orderBy: { nome: 'asc' },
       select: { id: true, nome: true },
     }).catch(() => null);
@@ -607,7 +627,7 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     let bonusSupervisaoCriado: any = null;
     if (faixaSupervisao) {
       const supervisoraReal = await (prisma as any).usuarioCRM.findFirst({
-        where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+        where: { cargo: 'SUPERVISAO_COMERCIAL', status: 'ATIVO' }, // (antes: role/ativo — campos inexistentes, a query sempre falhava)
         orderBy: { nome: 'asc' },
         select: { id: true, nome: true },
       }).catch(() => null);
@@ -691,7 +711,7 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     const nomeDe = await resolverNomesUsuarios(prisma, respIds);
     // Busca supervisora real para exibir nome correto nas comissões de supervisão
     const supervisoraLista = await (prisma as any).usuarioCRM.findFirst({
-      where: { role: { in: ['SUPERVISAO', 'SUPERVISAO_COMERCIAL'] }, ativo: true },
+      where: { cargo: 'SUPERVISAO_COMERCIAL', status: 'ATIVO' }, // (antes: role/ativo — campos inexistentes, a query sempre falhava)
       orderBy: { nome: 'asc' }, select: { id: true, nome: true },
     }).catch(() => null);
 
