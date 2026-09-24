@@ -5,13 +5,15 @@ import { scopeUserId, requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
 import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 import { somarGanhoMes, mesAtual } from '@/lib/meu-ganho';
+import { calcularBonusSupervisao, contarVendedoresAtivos, faixasSupervisaoSetor } from '@/lib/bonus-supervisao';
 
 export async function comissoesRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
   // ── Bônus trimestral — Programa Acelerador de Resultados ────────────────────
   // Trimestres iniciam em MAIO (regra Prosystem): mai-jul, ago-out, nov-jan,
-  // fev-abr. Faixas por contratos fechados no trimestre:
+  // fev-abr (pagos em ago, nov, fev e mai). Faixas do VENDEDOR por contratos
+  // fechados no trimestre (valores fixos, não derivados da meta mensal):
   //   15 → R$400 | 22 → R$600 | 30 → R$1.000 (pega a maior faixa atingida).
   const FAIXAS_BONUS = [
     { meta: 30, premio: 1000, rotulo: '200% da meta' },
@@ -20,36 +22,14 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
   ];
   const STATUS_FECHADA_BONUS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
 
-  // Bônus trimestral da SUPERVISÃO comercial — regra própria, diferente da do
-  // vendedor: prioriza o total do SETOR (soma de todos os vendedores) contra a
-  // meta trimestral do setor (30/22,5/15, arredondado pra cima pois contrato é
-  // inteiro: 23/15); só se o setor não bater nenhuma faixa, cai no fallback do
-  // desempenho individual de um vendedor de referência (hoje: Sarah), contra a
-  // META MENSAL dela (não a trimestral) — regra confirmada com o usuário em
-  // 01/09/2026. A ordem setor-primeiro corrige um bug da planilha original em
-  // Excel, que testava o critério do vendedor de referência antes do setor.
-  const META_MENSAL_VENDEDOR = 5;
-  const META_TRIMESTRAL_SETOR = FAIXAS_BONUS.find(f => f.premio === 1000)!.meta * 2; // 30 (2 vendedores)
-  const FAIXAS_BONUS_SUPERVISAO_SETOR = [
-    { meta: Math.ceil(2 * META_TRIMESTRAL_SETOR / 2), premio: 1500, rotulo: 'setor 200% da meta' },
-    { meta: Math.ceil(1.5 * META_TRIMESTRAL_SETOR / 2), premio: 1100, rotulo: 'setor 150% da meta' },
-    { meta: META_TRIMESTRAL_SETOR / 2, premio: 600, rotulo: 'setor 100% da meta' },
-  ];
-  const FAIXAS_BONUS_SUPERVISAO_VENDEDOR_REF = [
-    { meta: 2 * META_MENSAL_VENDEDOR, premio: 1000, rotulo: 'vendedor ref. 200% da meta mensal' },
-    { meta: Math.ceil(1.5 * META_MENSAL_VENDEDOR), premio: 600, rotulo: 'vendedor ref. 150% da meta mensal' },
-    { meta: META_MENSAL_VENDEDOR, premio: 400, rotulo: 'vendedor ref. 100% da meta mensal' },
-  ];
-  // Nome do vendedor cujo desempenho individual conta como critério alternativo
-  // pra supervisora — hoje é a Sarah, confirmado com o usuário; se a equipe mudar,
-  // ajustar aqui (não escala automaticamente por design, é intencional).
-  const VENDEDOR_REFERENCIA_SUPERVISAO_NOME = 'Sarah';
-
-  function calcularBonusSupervisao(totalContratosSetor: number, contratosVendedorRef: number) {
-    const faixaSetor = FAIXAS_BONUS_SUPERVISAO_SETOR.find(f => totalContratosSetor >= f.meta);
-    if (faixaSetor) return faixaSetor;
-    const faixaVendedorRef = FAIXAS_BONUS_SUPERVISAO_VENDEDOR_REF.find(f => contratosVendedorRef >= f.meta);
-    return faixaVendedorRef || null;
+  // Bônus trimestral da SUPERVISÃO comercial — regra própria (lib/bonus-supervisao.ts):
+  // meta do setor = 5 contratos/mês × 3 × N vendedores ATIVOS (cargo VENDEDOR ou
+  // flag `vende`, mínimo 1); faixas 100%/150%/200% → R$600/R$1.100/R$1.500 pelo
+  // TOTAL do setor no trimestre. (O antigo critério alternativo do "vendedor de
+  // referência" — Sarah — foi removido em set/2026.)
+  async function nVendedoresAtivos(): Promise<number> {
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM UsuarioCRM WHERE status = 'ATIVO'`).catch(() => []);
+    return Math.max(1, contarVendedoresAtivos(rows || []));
   }
 
   // Dado um ano-mês de referência, retorna o trimestre Prosystem que o contém.
@@ -129,18 +109,18 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
     if (scopeId !== null) linhas = todasLinhas.filter(l => l.vendedor_id === scopeId);
     else if (q.data?.vendedor_id) linhas = todasLinhas.filter(l => l.vendedor_id === q.data!.vendedor_id);
 
-    // Bônus da supervisão: total do setor primeiro, fallback no desempenho do
-    // vendedor de referência (Sarah) — só calculado/exibido pra quem pode ver
-    // tudo (gestor); um vendedor comum não vê o bônus da supervisora.
+    // Bônus da supervisão: meta do setor pelos vendedores ativos — só calculado/
+    // exibido pra quem pode ver tudo (gestor); vendedor comum não vê.
+    const nVend = await nVendedoresAtivos();
     let bonusSupervisao: any = null;
     if (scopeId === null) {
-      const linhaRef = todasLinhas.find(l => (l.vendedor_nome || '').includes(VENDEDOR_REFERENCIA_SUPERVISAO_NOME));
-      const contratosVendedorRef = linhaRef?.contratos || 0;
-      const faixa = calcularBonusSupervisao(totalSetor, contratosVendedorRef);
+      const faixa = calcularBonusSupervisao(totalSetor, nVend);
       bonusSupervisao = {
         total_setor: totalSetor,
-        vendedor_referencia: VENDEDOR_REFERENCIA_SUPERVISAO_NOME,
-        contratos_vendedor_referencia: contratosVendedorRef,
+        vendedores_ativos: nVend,
+        meta_setor: faixasSupervisaoSetor(nVend)[2].meta,
+        vendedor_referencia: null,
+        contratos_vendedor_referencia: null,
         premio: faixa ? faixa.premio : 0,
         faixa_atingida: faixa ? faixa.rotulo : null,
       };
@@ -151,7 +131,7 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       data: {
         trimestre: tri.rotulo, inicio: tri.inicio, fim: tri.fim,
         faixas: FAIXAS_BONUS, linhas,
-        faixas_supervisao: { setor: FAIXAS_BONUS_SUPERVISAO_SETOR, vendedor_referencia: FAIXAS_BONUS_SUPERVISAO_VENDEDOR_REF },
+        faixas_supervisao: { setor: faixasSupervisaoSetor(nVend), vendedor_referencia: null },
         bonus_supervisao: bonusSupervisao,
       },
     });
@@ -614,16 +594,11 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
       detalhe.push({ vendedor: nomes[vid] || v.nome || vid, contratos: v.contratos, faixa: faixa.rotulo, premio: faixa.premio });
     }
 
-    // Bônus da supervisão comercial — total do setor primeiro, fallback no
-    // desempenho do vendedor de referência (Sarah). Supervisora resolvida
-    // dinamicamente por role, nunca por id fixo (mesmo padrão de /comissoes/supervisao).
+    // Bônus da supervisão comercial — meta do setor pelos vendedores ativos.
+    // Supervisora resolvida dinamicamente por cargo, nunca por id fixo.
     const totalSetor = Object.values(porVend).reduce((s, v) => s + v.contratos, 0);
-    let contratosVendedorRef = 0;
-    for (const [vid, v] of Object.entries(porVend)) {
-      const nomeResolvido = nomes[vid] || v.nome || '';
-      if (nomeResolvido.includes(VENDEDOR_REFERENCIA_SUPERVISAO_NOME)) { contratosVendedorRef = v.contratos; break; }
-    }
-    const faixaSupervisao = calcularBonusSupervisao(totalSetor, contratosVendedorRef);
+    const nVend = await nVendedoresAtivos();
+    const faixaSupervisao = calcularBonusSupervisao(totalSetor, nVend);
     let bonusSupervisaoCriado: any = null;
     if (faixaSupervisao) {
       const supervisoraReal = await (prisma as any).usuarioCRM.findFirst({
@@ -638,7 +613,7 @@ export async function comissoesRoutes(fastify: FastifyInstance, options: { prism
           try {
             await criarComissaoValidada(prisma, {
               responsavel_id: supervisoraReal.id, tipo: 'BONUS', referencia_id: refIdSup,
-              descricao: `Bônus trimestral supervisão (${tri.rotulo}) — ${faixaSupervisao.rotulo}, setor: ${totalSetor} contratos, ${VENDEDOR_REFERENCIA_SUPERVISAO_NOME}: ${contratosVendedorRef} contratos`,
+              descricao: `Bônus trimestral supervisão (${tri.rotulo}) — ${faixaSupervisao.rotulo}, setor: ${totalSetor} contratos (meta ${faixasSupervisaoSetor(nVend)[2].meta}, ${nVend} vendedor(es) ativo(s))`,
               valor_base: faixaSupervisao.premio, percentual: 100, valor_comissao: faixaSupervisao.premio,
               periodo: mesPagamento, mes_pagamento: mesPagamento, papel: 'SUPERVISAO',
               status: 'APROVADA', estagio: 'CONFIRMADA',
