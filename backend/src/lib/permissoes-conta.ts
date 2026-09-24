@@ -86,3 +86,60 @@ export function bloquearPorSomenteLeitura(
 
 /** Id da antiga conta mock (login hardcoded removido). Tokens com ele são ignorados. */
 export const ID_CONTA_MOCK_REMOVIDA = 'user-jessica';
+
+// ─── Estado atual da conta no BANCO (fonte da verdade para escrita) ───────────
+// O JWT dura 7 dias: flags/cargo dentro dele podem estar velhos. O hook global
+// (server.ts) carrega status + cargo + flags do UsuarioCRM (cache curto por id) e
+// decide com esta função pura. Flags do JWT servem só para exibição.
+
+export interface EstadoContaDb {
+  status: string | null;
+  role: string | null;
+  vende?: any;
+  admin_sistema?: any;
+  somente_leitura?: any;
+}
+
+export type DecisaoAcesso = 'ok' | 'inativo' | 'somente_leitura';
+
+/**
+ * @param estado  linha atual do banco; `null` = conta não existe mais;
+ *                `undefined` = não foi possível consultar (usa o JWT como fallback).
+ */
+export function decidirAcesso(
+  user: UsuarioComFlags,
+  estado: EstadoContaDb | null | undefined,
+  method: string,
+  url: string
+): DecisaoAcesso {
+  const path = String(url || '').split('?')[0].replace(/\/+$/, '');
+  if (ROTAS_ESCRITA_LIBERADAS_LEITURA.includes(path)) return 'ok';
+  if (estado === null) return 'inativo';
+  let efetivo: UsuarioComFlags = user;
+  if (estado) {
+    if (String(estado.status || 'ATIVO').toUpperCase() !== 'ATIVO') return 'inativo';
+    efetivo = { id: user.id, role: estado.role || user.role, ...flagsDaLinha(estado) };
+  }
+  return bloquearPorSomenteLeitura(efetivo, method, url) ? 'somente_leitura' : 'ok';
+}
+
+/** Cache em memória simples (TTL) do estado da conta, por id de usuário. */
+export function criarCacheEstadoConta(
+  carregar: (id: string) => Promise<EstadoContaDb | null>,
+  ttlMs = 45_000,
+  agora: () => number = Date.now
+) {
+  const mapa = new Map<string, { v: EstadoContaDb | null; ate: number }>();
+  return async (id: string): Promise<EstadoContaDb | null | undefined> => {
+    const hit = mapa.get(id);
+    if (hit && hit.ate > agora()) return hit.v;
+    try {
+      const v = await carregar(id);
+      if (mapa.size > 5000) mapa.clear();
+      mapa.set(id, { v, ate: agora() + ttlMs });
+      return v;
+    } catch {
+      return undefined; // banco indisponível: não derruba a requisição, usa o JWT
+    }
+  };
+}
