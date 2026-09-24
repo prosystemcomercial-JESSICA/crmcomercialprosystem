@@ -3,6 +3,7 @@ import { AuthService } from '@/services/auth.service';
 import { LoginSchema, RefreshTokenSchema, TokenResponseDTO } from '@/types/dto';
 import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
 import { hashSenha, conferirSenha, precisaRehash, loginBloqueado, registrarFalha, limparTentativas } from '@/lib/seguranca';
+import { flagsDaLinha, FlagsConta } from '@/lib/permissoes-conta';
 
 export async function authRoutes(
   fastify: FastifyInstance,
@@ -11,16 +12,10 @@ export async function authRoutes(
   const { prisma } = options;
   const authService = new AuthService();
 
-  // Conta de administradora do sistema — acesso exclusivo
-  const mockUsers = [
-    {
-      id: 'user-jessica',
-      email: 'jessica@prosystemnet.com.br',
-      password: process.env.ADMIN_PASSWORD || 'J140215l',
-      nome: 'Jessica',
-      role: 'CEO'
-    }
-  ];
+  // Login SEMPRE pelo banco (UsuarioCRM). A antiga conta mock hardcoded
+  // ('user-jessica', senha em env/literal) foi removida em set/2026 — a Jessica
+  // usa a conta real jessica@prosystemnet.com.br (Supervisão Comercial + flags
+  // vende/admin_sistema; ver lib/permissoes-conta.ts).
 
   // POST /auth/login - Login with email and password
   fastify.post<{ Body: { email: string; password: string } }>(
@@ -40,34 +35,16 @@ export async function authRoutes(
           return reply.status(429).send({ status: 'error', message: `Muitas tentativas. Tente novamente em ${minutos} min.` });
         }
 
-        // 1) Admin — resposta imediata, sem tocar no banco
-        const systemAccount = mockUsers.find(u => u.email.toLowerCase() === data.email && u.password === data.password);
-        if (systemAccount) {
-          const tokens = authService.generateTokens({
-            userId: systemAccount.id,
-            email: systemAccount.email,
-            nome: systemAccount.nome,
-            role: systemAccount.role
-          });
-          return reply.status(200).send({
-            status: 'success',
-            data: {
-              accessToken: tokens.accessToken,
-              refreshToken: tokens.refreshToken,
-              expiresIn: tokens.expiresIn,
-              user: { id: systemAccount.id, email: systemAccount.email, nome: systemAccount.nome, role: systemAccount.role }
-            }
-          });
-        }
-
-        // 2) Usuários do banco — busca por e-mail e confere a senha com bcrypt
+        // Usuários do banco — busca por e-mail e confere a senha com bcrypt
         //    (aceita texto puro legado e re-hasheia no primeiro login bem-sucedido)
-        let user: { id: string; email: string; nome: string; role: string } | null = null;
+        let user: ({ id: string; email: string; nome: string; role: string } & FlagsConta) | null = null;
         let precisaTrocar = false;
         try {
+          // SELECT * (e não lista de colunas): as colunas de flag são aditivas e podem
+          // ainda não existir no primeiro boot — coluna ausente vira "false", nunca erro.
           const rows: any[] = await Promise.race([
             prisma.$queryRawUnsafe(
-              `SELECT id, email, nome, cargo as role, status, senha, precisa_trocar_senha FROM UsuarioCRM WHERE LOWER(email) = ? LIMIT 1`,
+              `SELECT *, cargo as role FROM UsuarioCRM WHERE LOWER(email) = ? LIMIT 1`,
               data.email
             ),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
@@ -76,7 +53,7 @@ export async function authRoutes(
           if (row && row.status !== 'INATIVO' && row.status !== 'SUSPENSO') {
             const ok = await conferirSenha(data.password, row.senha);
             if (ok) {
-              user = { id: row.id, email: row.email, nome: row.nome, role: row.role };
+              user = { id: row.id, email: row.email, nome: String(row.nome || '').trim(), role: row.role, ...flagsDaLinha(row) };
               precisaTrocar = !!row.precisa_trocar_senha;
               // Migração transparente: se a senha estava em texto puro, salva o hash agora
               if (precisaRehash(row.senha)) {
@@ -99,14 +76,20 @@ export async function authRoutes(
           userId: user.id,
           email: user.email,
           nome: user.nome,
-          role: user.role
+          role: user.role,
+          vende: !!user.vende,
+          admin: !!user.admin,
+          somente_leitura: !!user.somente_leitura,
         });
 
         const response: TokenResponseDTO = {
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           expiresIn: tokens.expiresIn,
-          user: { id: user.id, email: user.email, nome: user.nome, role: user.role, precisa_trocar_senha: precisaTrocar } as any
+          user: {
+            id: user.id, email: user.email, nome: user.nome, role: user.role, precisa_trocar_senha: precisaTrocar,
+            vende: !!user.vende, admin: !!user.admin, somente_leitura: !!user.somente_leitura,
+          } as any
         };
 
         return reply.status(200).send({ status: 'success', data: response });
@@ -137,22 +120,19 @@ export async function authRoutes(
           });
         }
 
-        // Contas de sistema têm prioridade — role sempre vem do mockUsers
-        let user: { id: string; email: string; nome: string; role: string } | null = null;
-        const systemAccount = mockUsers.find((u) => u.id === decoded.userId);
-        if (systemAccount) {
-          user = { id: systemAccount.id, email: systemAccount.email, nome: systemAccount.nome, role: systemAccount.role };
-        }
-
-        if (!user) {
-          try {
-            const rows: any[] = await prisma.$queryRawUnsafe(
-              `SELECT id, email, nome, cargo as role FROM UsuarioCRM WHERE id = ? LIMIT 1`,
-              decoded.userId
-            );
-            if (rows.length > 0) user = { id: rows[0].id, email: rows[0].email, nome: rows[0].nome, role: rows[0].role };
-          } catch { }
-        }
+        // Sempre do banco: cargo e flags atualizados a cada refresh; conta
+        // INATIVA/SUSPENSA (ex.: duplicatas desativadas na unificação) não renova.
+        let user: ({ id: string; email: string; nome: string; role: string } & FlagsConta) | null = null;
+        try {
+          const rows: any[] = await prisma.$queryRawUnsafe(
+            `SELECT *, cargo as role FROM UsuarioCRM WHERE id = ? LIMIT 1`,
+            decoded.userId
+          );
+          const row = rows[0];
+          if (row && row.status !== 'INATIVO' && row.status !== 'SUSPENSO') {
+            user = { id: row.id, email: row.email, nome: String(row.nome || '').trim(), role: row.role, ...flagsDaLinha(row) };
+          }
+        } catch { }
 
         if (!user) {
           return reply.status(401).send({ status: 'error', message: 'User not found' });
@@ -163,14 +143,17 @@ export async function authRoutes(
           userId: user.id,
           email: user.email,
           nome: user.nome,
-          role: user.role
+          role: user.role,
+          vende: !!user.vende,
+          admin: !!user.admin,
+          somente_leitura: !!user.somente_leitura,
         });
 
         const response: TokenResponseDTO = {
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           expiresIn: tokens.expiresIn,
-          user: { id: user.id, email: user.email, nome: user.nome, role: user.role }
+          user: { id: user.id, email: user.email, nome: user.nome, role: user.role, vende: !!user.vende, admin: !!user.admin, somente_leitura: !!user.somente_leitura } as any
         };
 
         return reply.status(200).send({
@@ -211,13 +194,6 @@ export async function authRoutes(
     }
 
     const emailNorm = email.trim().toLowerCase();
-
-    // Conta de administradora — não usa recuperação automática
-    const isAdmin = mockUsers.some(u => u.email.toLowerCase() === emailNorm);
-    if (isAdmin) {
-      // Retorna sucesso genérico por segurança (não revela que é conta de sistema)
-      return reply.status(200).send({ status: 'success' });
-    }
 
     try {
       // Busca usuário no banco
@@ -295,12 +271,6 @@ export async function authRoutes(
       }
 
       const userId = user?.id || user?.userId;
-
-      // Conta de administradora do sistema não pode alterar senha por aqui
-      const isAdmin = mockUsers.some(u => u.id === userId);
-      if (isAdmin) {
-        return reply.status(403).send({ status: 'error', message: 'Conta de sistema — altere a senha pela configuração do servidor' });
-      }
 
       try {
         // Busca o usuário e confere a senha atual (hash ou texto puro legado)

@@ -99,7 +99,8 @@ try {
 try {
   const { AuthService } = await import('./services/auth.service.js');
   const _authService = new AuthService();
-  fastify.addHook('onRequest', async (request) => {
+  const { bloquearPorSomenteLeitura, ID_CONTA_MOCK_REMOVIDA } = await import('./lib/permissoes-conta.js');
+  fastify.addHook('onRequest', async (request, reply) => {
     const auth = request.headers.authorization;
     // EventSource nativo do navegador não manda headers customizados — a
     // rota de SSE (/whatsapp/eventos) recebe o token via query string em vez
@@ -110,13 +111,30 @@ try {
     if (!token) return;
     try {
       const decoded: any = _authService.verifyAccessToken(token);
+      // Conta mock antiga (login hardcoded removido): token emitido antes do deploy
+      // não identifica mais ninguém — a Jessica entra pela conta do banco.
+      if (decoded.userId === ID_CONTA_MOCK_REMOVIDA) return;
       (request as any).user = {
         id: decoded.userId,
         nome: decoded.nome,
         email: decoded.email,
-        role: decoded.role
+        role: decoded.role,
+        vende: !!decoded.vende,
+        admin: !!decoded.admin,
+        somente_leitura: !!decoded.somente_leitura,
       };
     } catch { /* token inválido — segue sem user */ }
+
+    // Conta de CONSULTA (cargo CEO ou flag somente_leitura): qualquer escrita → 403,
+    // exceto as rotas da própria sessão (login/logout/refresh/alterar-senha).
+    const u = (request as any).user;
+    if (u && bloquearPorSomenteLeitura(u, request.method, request.url)) {
+      return reply.status(403).send({
+        status: 'error',
+        code: 'SOMENTE_LEITURA',
+        message: 'Modo consulta: sua conta é somente leitura e não pode criar, editar ou excluir.',
+      });
+    }
   });
   console.log('[BOOT] Hook global de auth opcional registrado');
 } catch (err: any) {

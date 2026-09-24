@@ -59,7 +59,6 @@ export async function auditoriaRoutes(fastify: FastifyInstance, options: { prism
     const usuarios: any[] = await prisma.$queryRawUnsafe(`SELECT id, nome, cargo FROM UsuarioCRM`).catch(() => []);
     const uMap: Record<string, any> = {};
     for (const u of usuarios) uMap[u.id] = u;
-    uMap['user-jessica'] = uMap['user-jessica'] || { id: 'user-jessica', nome: 'Jessica', cargo: 'CEO' };
     const nomeDe = (id?: string | null, fallback?: string | null) => (id && uMap[id]?.nome) || fallback || (id || null);
     const roleDe = (id?: string | null, fallback?: string | null) => (id && uMap[id]?.cargo) || fallback || null;
 

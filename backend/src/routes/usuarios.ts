@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { requireAuth } from '@/middleware/auth';
 import { enviarEmailBoasVindas, enviarEmailRedefinicaoSenha } from '@/services/email.service';
 import { hashSenha } from '@/lib/seguranca';
-import { CONTAS_SISTEMA } from '@/lib/usuarios';
+import { flagsDaLinha, ehSomenteLeitura, podeReceberComissaoVendedor } from '@/lib/permissoes-conta';
 
 // CEO e Supervisores podem ver, criar, editar, resetar senha e remover usuários
 const GESTORES = ['CEO', 'DIRETOR', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'ADMIN'];
@@ -231,6 +231,10 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   Promise.all([
     prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM MODIFY COLUMN senha VARCHAR(255) NOT NULL`).catch(() => {}),
     prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM ADD COLUMN precisa_trocar_senha TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {}),
+    // Flags de conta (lib/permissoes-conta.ts) — aditivas, default 0 = comportamento antigo.
+    prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM ADD COLUMN vende TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM ADD COLUMN admin_sistema TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {}),
+    prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM ADD COLUMN somente_leitura TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {}),
   ]).catch(() => {});
 
   // ─── Helper: registrar auditoria ────────────────────────────
@@ -266,10 +270,15 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const user = (request as any).user;
     if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
     const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id, nome, email, telefone, cargo, modulos_permissao FROM UsuarioCRM WHERE id = ? LIMIT 1`, user.id
+      `SELECT * FROM UsuarioCRM WHERE id = ? LIMIT 1`, user.id
     ).catch(() => []);
-    // fallback: dados do token (admin mock fora do banco, sem liberação manual de módulos)
-    const me = rows[0] || { id: user.id, nome: user.nome, email: user.email, telefone: null, cargo: user.role, modulos_permissao: null };
+    const r = rows[0];
+    // fallback: dados do token (banco indisponível)
+    const me: any = r
+      ? { id: r.id, nome: String(r.nome || '').trim(), email: r.email, telefone: r.telefone, cargo: r.cargo, modulos_permissao: r.modulos_permissao, ...flagsDaLinha(r) }
+      : { id: user.id, nome: user.nome, email: user.email, telefone: null, cargo: user.role, modulos_permissao: null,
+          vende: !!user.vende, admin: !!user.admin, somente_leitura: !!user.somente_leitura };
+    me.somente_leitura = ehSomenteLeitura({ role: me.cargo, admin: me.admin, somente_leitura: me.somente_leitura });
     // MySQL via $queryRawUnsafe devolve a coluna JSON como string — o front espera objeto.
     if (typeof me.modulos_permissao === 'string') {
       try { me.modulos_permissao = JSON.parse(me.modulos_permissao); } catch { me.modulos_permissao = null; }
@@ -280,13 +289,14 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
   // ─── GET /usuarios/vendedores — lista enxuta p/ atribuição de leads ──
   // Vendedores ATIVOS (id, nome). Usado pela supervisão no dropdown de atribuir.
   fastify.get('/usuarios/vendedores', { onRequest: requireAuth }, async (_request, reply) => {
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id, nome, email FROM UsuarioCRM WHERE cargo = 'VENDEDOR' AND status = 'ATIVO' ORDER BY nome ASC`
+    // Cargo VENDEDOR ou qualquer cargo com flag `vende` (ex.: Jessica, Supervisão
+    // Comercial que também vende). SELECT * p/ tolerar a coluna ainda não criada.
+    const todos: any[] = await prisma.$queryRawUnsafe(
+      `SELECT * FROM UsuarioCRM WHERE status = 'ATIVO' ORDER BY nome ASC`
     ).catch(() => []);
-    // Contas de sistema que também vendem (ex.: Jessica/Diretora) aparecem no topo.
-    Object.entries(CONTAS_SISTEMA).forEach(([id, info]) => {
-      if (!rows.some(r => r.id === id)) rows.unshift({ id, nome: info.nome, email: null });
-    });
+    const rows = todos
+      .filter(u => podeReceberComissaoVendedor(u))
+      .map(u => ({ id: u.id, nome: String(u.nome || '').trim(), email: u.email }));
     return reply.send({ status: 'success', data: rows });
   });
 
@@ -296,10 +306,6 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const rows: any[] = await prisma.$queryRawUnsafe(
       `SELECT id, nome, cargo FROM UsuarioCRM WHERE status = 'ATIVO' ORDER BY nome ASC`
     ).catch(() => []);
-    // inclui a conta admin do sistema (mock fora do banco), se não estiver no banco
-    if (!rows.some(r => r.id === 'user-jessica')) {
-      rows.unshift({ id: 'user-jessica', nome: 'Jessica', cargo: 'CEO' });
-    }
     return reply.send({ status: 'success', data: rows });
   });
 
@@ -309,23 +315,7 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     const isGestor = ator && GESTORES.some(r => ator.role?.includes(r));
     const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM UsuarioCRM ORDER BY created_at ASC`);
 
-    // Inclui a conta de administradora do sistema (mock fora do banco)
-    const adminProSystem = {
-      id: 'user-jessica',
-      nome: 'Jessica',
-      email: 'jessica@prosystemnet.com.br',
-      cargo: 'CEO',
-      status: 'ATIVO',
-      classificacao: null,
-      telefone: null,
-      observacoes: null,
-      modulos_permissao: null,
-      created_by: null,
-      created_at: new Date('2024-01-01'),
-      updated_at: new Date()
-    };
-    const jaExiste = rows.some(r => r.id === 'user-jessica' || r.email === 'jessica@prosystemnet.com.br');
-    const todosUsuarios = jaExiste ? rows : [adminProSystem, ...rows];
+    const todosUsuarios = rows;
 
     // Não-gestores: devolve apenas campos básicos (id, nome, email, cargo, status)
     // para que possam convidar colegas na agenda sem ver permissões/observações
