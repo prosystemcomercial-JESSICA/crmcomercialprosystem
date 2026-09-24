@@ -346,15 +346,19 @@ async function iniciarSchedulerResumoExecutivo() {
       const dia = agora.toISOString().slice(0, 10);
       if (dia === ultimoDia) return;
       ultimoDia = dia;
+      // Seg–qui: resumo do dia; sexta: resumo da semana; sábado/domingo: nada.
+      const { tipoResumoDoDia } = await import('./lib/resumo-executivo.js');
+      const tipo = tipoResumoDoDia(agora);
+      if (!tipo) return;
       const { enviarResumoExecutivo } = await import('./services/resumo-executivo.service.js');
-      await enviarResumoExecutivo(prismaClient!);
+      await enviarResumoExecutivo(prismaClient!, { tipo });
     } catch (err: any) {
       console.error('[EXECUTIVO] Erro no scheduler:', err?.message);
     }
   };
   setInterval(rodar, 15 * 60 * 1000);
   setTimeout(rodar, 100 * 1000);
-  console.log('[BOOT] Scheduler do resumo executivo iniciado (1x/dia, 18h)');
+  console.log('[BOOT] Scheduler do resumo executivo iniciado (18h: seg–qui diário, sexta semanal)');
 }
 
 // 8c) Scheduler: motor de regras (EVO-3) — roda 1x/dia (~7h BRT = 10h UTC).

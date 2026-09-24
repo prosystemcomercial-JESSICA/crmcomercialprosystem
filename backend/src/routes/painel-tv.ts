@@ -23,7 +23,7 @@ import {
  */
 
 // Mesma definição de "fechamento" de lib/meta-progress.ts (fonte única de metas/relatórios).
-const STATUS_FECHADA = ['CONTRATO_ASSINADO', 'ASSINADO', 'ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO'];
+export const STATUS_FECHADA = ['CONTRATO_ASSINADO', 'ASSINADO', 'ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO'];
 // Propostas com o cliente, aguardando decisão.
 const STATUS_PROPOSTA_ABERTA = ['ENVIADA', 'VISUALIZADA', 'EM_NEGOCIACAO'];
 // Etapas em que o lead já não está "aberto" no funil (ganho, perdido ou pós-venda).
@@ -403,10 +403,12 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
   // Envia agora o resumo executivo. ?teste=1 manda só para quem pediu.
   fastify.post('/painel-tv/resumo-executivo', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const teste = String((request.query as any)?.teste || '') === '1';
+    const q = (request.query || {}) as any;
+    const teste = String(q.teste || '') === '1';
+    const tipo = q.tipo === 'semanal' ? 'semanal' : 'diario';
     const email = getUser(request)?.email;
     const { enviarResumoExecutivo } = await import('@/services/resumo-executivo.service');
-    const r = await enviarResumoExecutivo(prisma, teste && email ? { somenteEmail: email } : {});
+    const r = await enviarResumoExecutivo(prisma, { tipo, ...(teste && email ? { somenteEmail: email } : {}) });
     if (!r.ok) return reply.status(502).send({ status: 'error', message: r.error || 'Falha ao enviar' });
     return reply.send({ status: 'ok', data: { para: (r as any).para, copia: (r as any).copia } });
   });
