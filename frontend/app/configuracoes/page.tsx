@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle, MessageSquare } from 'lucide-react';
 import { apiClient, ResumoBackup } from '@/lib/api-client';
+import PainelTvConfig from '@/components/dashboard/PainelTvConfig';
 
 // ─── Theme Definitions ────────────────────────────────────
 
@@ -594,6 +595,9 @@ export default function ConfiguracoesPage() {
               )}
             </div>
           </div>
+
+          {/* ══ PAINEL DA TV (só gestão) ══════════════════════ */}
+          {gestaoWpp && <PainelTvConfig />}
 
           {/* ══ WHATSAPP DA EMPRESA (só gestão) ═══════════════ */}
           {gestaoWpp && (

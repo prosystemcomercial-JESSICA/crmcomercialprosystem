@@ -1153,6 +1153,19 @@ class ApiClient {
     return this.client.get('/whatsapp/triagem');
   }
 
+  // Painel da TV (gestão): metas e link com token
+  async getPainelTvConfig() {
+    return this.client.get('/painel-tv/config');
+  }
+
+  async salvarPainelTvConfig(data: Partial<Record<'meta_contratos_ano' | 'meta_servicos_ano' | 'meta_crosssell_ano' | 'meta_faturamento_mes', number | null>>) {
+    return this.client.put('/painel-tv/config', data);
+  }
+
+  async gerarChavePainelTv() {
+    return this.client.post('/painel-tv/chave');
+  }
+
   async salvarWhatsappTriagem(data: {
     ativa: boolean;
     material: Record<'farmacia' | 'padaria', { texto: string; imagem: string | null; pdf: string | null; pdf_nome: string | null }>;
