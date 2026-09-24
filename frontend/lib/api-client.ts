@@ -1227,6 +1227,14 @@ class ApiClient {
     return this.client.post(`/whatsapp/conversas/${id}/identificar`, data);
   }
 
+  // IA Laya: confirma/corrige as etiquetas sugeridas (vira amostra de treino).
+  async salvarIaRotulos(id: string, data: { segmento: string; intencao: string; cancelar: boolean } | { ignorar: true }) {
+    return this.client.post(`/whatsapp/conversas/${id}/ia-rotulos`, data);
+  }
+  async getIaResumo() {
+    return this.client.get('/ia/laya/resumo');
+  }
+
   async abrirConversaWhatsapp(numero: string, nome?: string, lead_id?: string) {
     return this.client.post('/whatsapp/abrir', { numero, nome, lead_id });
   }

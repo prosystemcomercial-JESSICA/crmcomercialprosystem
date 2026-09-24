@@ -16,6 +16,8 @@ import { TIPOS_CONTATO, decidirIdentificacao } from '@/lib/whatsapp-identificar'
 import { dadosSairDoFunil as dadosSairDoFunilSvc, vincularContatoCliente as vincularContatoClienteSvc } from '@/services/whatsapp-vinculo.service';
 import { responderConfirmacaoCliente, limparConfirmacaoPendente, chaveConversa } from '@/services/whatsapp-confirmacao-cliente.service';
 import { serializarPorChave } from '@/lib/serializar';
+import { agendarAnaliseIa, textoParaIa } from '@/services/laya.service';
+import { validarRotulos, medirAcerto } from '@/lib/laya';
 import { ehPayloadUazapi, parseUazapiEvento, EventoMensagemUazapi } from '@/lib/uazapi-webhook-parser';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
@@ -684,6 +686,38 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Tipos de atendimento que NÃO são lead comercial → desvinculam do funil ao marcar.
   const TIPOS_NAO_COMERCIAIS = ['Financeiro', 'Renegociação', 'Serviço', 'Parceiro', 'Pessoal', 'Suporte'];
 
+  // ===== IA LAYA: coleta de treino =====
+  // A equipe confirma/corrige as etiquetas sugeridas; cada confirmação guarda a
+  // foto do texto da conversa naquele momento (amostra de treino).
+  fastify.post('/whatsapp/conversas/:id/ia-rotulos', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const rotulos = validarRotulos(request.body);
+    if (!rotulos) return reply.status(400).send({ status: 'error', message: 'Etiquetas inválidas.' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) }, select: { id: true, ia_sugestao: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const texto = await textoParaIa(prisma, id);
+    if (!texto) return reply.status(400).send({ status: 'error', message: 'A conversa ainda não tem texto para aprender.' });
+    await prisma.iaAmostra.create({
+      data: { conversaId: id, texto, rotulos, sugestao: conversa.ia_sugestao ?? Prisma.JsonNull, criado_por: getUser(request)?.id || null },
+    });
+    const total = await prisma.iaAmostra.count();
+    return reply.send({ status: 'success', data: { total }, message: 'Obrigado! O Laya aprendeu com esta conversa.' });
+  });
+
+  // Placar do treino: quantas amostras e quanto o Laya acertou nas confirmadas.
+  fastify.get('/ia/laya/resumo', async (_request, reply) => {
+    const amostras = await prisma.iaAmostra.findMany({ select: { rotulos: true, sugestao: true } });
+    return reply.send({ status: 'success', data: { total: amostras.length, acerto: medirAcerto(amostras) } });
+  });
+
+  // Exporta as amostras (JSONL) para o treino. Só gestão.
+  fastify.get('/ia/laya/amostras', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const amostras = await prisma.iaAmostra.findMany({ orderBy: { created_at: 'asc' } });
+    reply.header('Content-Type', 'application/x-ndjson; charset=utf-8');
+    return reply.send(amostras.map(a => JSON.stringify({ id: a.id, conversa: a.conversaId, texto: a.texto, rotulos: a.rotulos, sugestao: a.sugestao, em: a.created_at })).join('\n'));
+  });
+
   fastify.patch('/whatsapp/conversas/:id/etiqueta', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({ etiqueta: z.string().optional(), etiqueta_cor: z.string().optional() }).safeParse(request.body);
@@ -1281,6 +1315,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     });
     console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${inst.instancia_nome})`);
     emitirEventoConversa(conversa.dono_id, 'mensagem', { conversaId: conversa.id, mensagem: mensagemCriada });
+    // IA Laya: sugere segmento/intenção/risco em segundo plano (não atrasa o webhook).
+    if (tipoMsg === 'TEXTO') agendarAnaliseIa(prisma, conversa.id);
 
     // Lead respondeu: para a cadência automática (não incomodar mais) e
     // cria uma tarefa urgente para o vendedor retomar o contato — a
