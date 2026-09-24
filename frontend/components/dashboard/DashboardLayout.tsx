@@ -15,7 +15,7 @@ import {
   Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
-  Maximize2, Minimize2, ChevronDown, User, Target, Send, PanelLeftClose, PanelLeftOpen,
+  Maximize2, Minimize2, ChevronDown, User, Target, Send, PanelLeftClose, PanelLeftOpen, Monitor,
 } from 'lucide-react';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
@@ -26,7 +26,7 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // Supervisão Comercial tem acesso total ao menu (mesmo nível de CEO/ADMIN),
 // mantendo o cargo/permissões de dados como Supervisão Comercial.
 const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
-const CEO_VISIVEL = ['/centro-custos', '/casos', '/analise-comercial', '/ltv', '/indicadores-ceo', '/leads', '/pipeline-comercial'];
+const CEO_VISIVEL = ['/tv', '/centro-custos', '/casos', '/analise-comercial', '/ltv', '/indicadores-ceo', '/leads', '/pipeline-comercial'];
 
 // `modulo` liga o item ao nome usado em MODULOS (backend/src/routes/usuarios.ts,
 // tela Usuários → "Liberação de Módulos"). Quando presente, um usuário SEM o cargo
@@ -82,6 +82,7 @@ const navGroups: NavGroup[] = [
       { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
       { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },
       { href: '/sdr/leads-para-distribuir', icon: Send,       label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
+      { href: '/tv',                      icon: Monitor,      label: 'Painel TV',          roles: GESTAO_COMERCIAL },
     ],
   },
   {
