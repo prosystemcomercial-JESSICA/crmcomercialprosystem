@@ -16,7 +16,9 @@ import {
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
   Maximize2, Minimize2, ChevronDown, User, Target, Send, PanelLeftClose, PanelLeftOpen, Monitor,
+  Eye,
 } from 'lucide-react';
+import { ehSomenteLeitura } from '@/lib/visoes';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
 const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
@@ -26,7 +28,16 @@ const GESTAO_COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // Supervisão Comercial tem acesso total ao menu (mesmo nível de CEO/ADMIN),
 // mantendo o cargo/permissões de dados como Supervisão Comercial.
 const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
-const CEO_VISIVEL = ['/tv', '/centro-custos', '/casos', '/analise-comercial', '/ltv', '/indicadores-ceo', '/leads', '/pipeline-comercial'];
+// CEO = conta de CONSULTA (backend recusa qualquer escrita — ver
+// backend/src/lib/permissoes-conta.ts). O menu dele mostra só telas de leitura:
+// dashboards, análises, previsão, painel TV, comissões e metas (leitura).
+// Fora de propósito: importação, lançamento retroativo, campanhas, usuários,
+// configurações e demais telas que só servem para editar.
+const CEO_VISIVEL = [
+  '/dashboard', '/analise-comercial', '/relatorio-comercial', '/previsao', '/tv',
+  '/comissoes', '/metas', '/indicadores-ceo', '/centro-custos', '/ltv', '/casos',
+  '/pipeline-comercial', '/leads', '/manual',
+];
 
 // `modulo` liga o item ao nome usado em MODULOS (backend/src/routes/usuarios.ts,
 // tela Usuários → "Liberação de Módulos"). Quando presente, um usuário SEM o cargo
@@ -79,6 +90,7 @@ const navGroups: NavGroup[] = [
       { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
       { href: '/ltv',                     icon: TrendingUp,   label: 'LTV dos Clientes',   roles: GESTAO_COMERCIAL },
       { href: '/indicadores-ceo',         icon: DollarSign,   label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
+      { href: '/relatorio-comercial',     icon: LineChart,    label: 'Relatório Comercial', roles: GESTAO_COMERCIAL, modulo: 'Relatórios Comerciais' },
       { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
       { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },
       { href: '/sdr/leads-para-distribuir', icon: Send,       label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
@@ -622,6 +634,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="w-px h-5 mx-1" style={{ background: 'var(--t-card-border)' }} />
 
           {/* User menu */}
+          {ehSomenteLeitura(user) && (
+            <span
+              title="Sua conta é somente leitura: você vê tudo, mas não cria, edita nem exclui."
+              className="hidden sm:inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10.5px] font-bold uppercase tracking-wide"
+              style={{ background: 'rgba(217,119,6,0.12)', color: '#b45309', border: '1px solid rgba(217,119,6,0.30)' }}
+            >
+              <Eye size={11} /> Modo consulta
+            </span>
+          )}
           <div ref={userMenuRef} className="relative">
             <button
               onClick={() => setUserMenuOpen(v => !v)}

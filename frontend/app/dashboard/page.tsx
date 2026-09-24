@@ -15,6 +15,8 @@ import { MrrTrendCard } from './components/MrrTrendCard';
 import { PipelineFunnelChart } from './components/PipelineFunnelChart';
 import { TemperaturaGauge } from './components/TemperaturaGauge';
 import AbaTabs from './components/AbaTabs';
+import { VisaoSwitch, MeuGanhoCard, AtalhosVisao } from '@/components/dashboard/VisaoPainel';
+import { Visao, visoesDisponiveis, visaoInicial, ROTULO_VISAO } from '@/lib/visoes';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DashboardPower {
@@ -233,6 +235,22 @@ export default function DashboardPage() {
 
   const isGestor = podeVerTudo(user?.role);
 
+  // Visões (Jessica: vendedora / supervisora / administração). Só muda o que é
+  // exibido/filtrado — as permissões vêm do cargo + flags, validadas no backend.
+  const visoes = visoesDisponiveis(user);
+  const [visao, setVisao] = useState<Visao | null>(null);
+  useEffect(() => {
+    let lembrada: string | null = null;
+    try { lembrada = localStorage.getItem('ps_dashboard_visao'); } catch {}
+    setVisao(visaoInicial(visoesDisponiveis(user), lembrada));
+  }, [user?.id, user?.role, user?.vende, user?.admin]);
+  const trocarVisao = (v: Visao) => {
+    setVisao(v);
+    try { localStorage.setItem('ps_dashboard_visao', v); } catch {}
+  };
+  // "Como vendedora": o dashboard inteiro filtra pelos MEUS dados.
+  const vendedorEfetivo = visao === 'vendedora' ? (user?.id || '') : filtroVendedorId;
+
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     if (isGestor) apiClient.getVendedores().then(r => setVendedores(r.data?.data || [])).catch(() => {});
@@ -269,7 +287,7 @@ export default function DashboardPage() {
     if (!isAuthenticated || !isGestor) return;
     setDataLoading(true);
     setLoadError(null);
-    apiClient.getDashboardPower(filtroVendedorId || undefined)
+    apiClient.getDashboardPower(vendedorEfetivo || undefined)
       .then(res => { setData(res.data.data); setLastUpdate(new Date()); })
       .catch((err) => {
         const msg = err?.response?.data?.message || err?.message || 'Erro desconhecido';
@@ -278,7 +296,7 @@ export default function DashboardPage() {
       .finally(() => setDataLoading(false));
   };
 
-  useEffect(() => { loadData(); }, [isAuthenticated, isGestor, filtroVendedorId]);
+  useEffect(() => { loadData(); }, [isAuthenticated, isGestor, vendedorEfetivo]);
 
   if (loading || !isAuthenticated || (user && !isGestor)) {
     return (
@@ -350,12 +368,13 @@ export default function DashboardPage() {
               Dashboard Executivo
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
-              Visão do Negócio
+              {visao && visoes.length > 1 ? ROTULO_VISAO[visao] : 'Visão do Negócio'}
               {lastUpdate && <span className="ml-2">· atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {vendedores.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {visao && <VisaoSwitch visoes={visoes} atual={visao} onChange={trocarVisao} />}
+            {vendedores.length > 0 && visao !== 'vendedora' && visao !== 'admin' && (
               <select
                 value={filtroVendedorId}
                 onChange={e => setFiltroVendedorId(e.target.value)}
@@ -377,8 +396,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* ── Meu ganho no mês (fixo em todas as visões) + atalhos da visão ── */}
+        {visao && (
+          <div className="space-y-3 du-fade-1">
+            <MeuGanhoCard />
+            <AtalhosVisao visao={visao} />
+          </div>
+        )}
+
         {/* ── Skeleton ───────────────────────────────────────────── */}
-        {dataLoading && !data && (
+        {visao !== 'admin' && dataLoading && !data && (
           <div className="space-y-5 du-fade">
             <div className="du-skeleton h-11 w-full" />
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -391,7 +418,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── Error ──────────────────────────────────────────────── */}
-        {!dataLoading && !data && (
+        {visao !== 'admin' && !dataLoading && !data && (
           <div className="du-fade ps-card rounded-xl p-10 text-center max-w-md mx-auto" style={{ border: '1px solid rgba(220,38,38,0.20)' }}>
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(220,38,38,0.10)' }}>
               <AlertTriangle size={22} style={{ color: '#dc2626' }} />
@@ -404,7 +431,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {data && mounted && (
+        {visao !== 'admin' && data && mounted && (
           <>
             {/* ── Alertas ──────────────────────────────────────── */}
             {totalAlertas > 0 && (

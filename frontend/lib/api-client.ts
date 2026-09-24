@@ -17,6 +17,20 @@ export interface User {
   // Liberação manual de módulos além do que o cargo já dá por padrão (tela
   // Usuários → "Liberação de Módulos"). Vem só de /usuarios/me, não do JWT.
   modulos_permissao?: Record<string, { ver: boolean; criar: boolean; editar: boolean; excluir: boolean; exportar: boolean; administrar: boolean; alcance: string }> | null;
+  // Flags da conta (backend/src/lib/permissoes-conta.ts) — vêm no JWT e em /usuarios/me.
+  vende?: boolean;           // outro cargo que também vende (visão "Como vendedora")
+  admin?: boolean;           // administração total (visão "Administração")
+  somente_leitura?: boolean; // conta de consulta (backend recusa escrita com 403)
+}
+
+export interface GanhoMes {
+  mes: string;
+  vendedor: number;
+  supervisao: number;
+  bonus_vendedor: number;
+  bonus_supervisao: number;
+  total: number;
+  quantidade: number;
 }
 
 export interface ResumoBackup {
@@ -755,6 +769,11 @@ class ApiClient {
 
   async deleteMeta(id: string) {
     return this.client.delete(`/metas/${id}`);
+  }
+
+  // "Meu ganho no mês": comissão de venda + supervisão + bônus do usuário logado.
+  async getMeuGanho(mes?: string) {
+    return this.client.get<{ status: string; data: GanhoMes }>('/comissoes/meu-ganho', { params: mes ? { mes } : {} });
   }
 
   async getRanking(periodo?: string) {
