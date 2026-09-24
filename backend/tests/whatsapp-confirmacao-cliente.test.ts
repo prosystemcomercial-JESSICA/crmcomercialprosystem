@@ -54,27 +54,45 @@ describe('menu e observação', () => {
   });
 });
 
-describe('interpretarRespostaCliente / decidirRespostaCliente', () => {
-  it('botões e textos', () => {
+describe('interpretarRespostaCliente', () => {
+  it('botões e textos claros', () => {
     expect(interpretarRespostaCliente('', 'cli_sim')).toBe('sim');
     expect(interpretarRespostaCliente('', 'cli_nao')).toBe('nao');
-    expect(interpretarRespostaCliente('Sim')).toBe('sim');
-    expect(interpretarRespostaCliente('Isso mesmo!')).toBe('sim');
-    expect(interpretarRespostaCliente('Não')).toBe('nao');
-    expect(interpretarRespostaCliente('nao, não é')).toBe('nao');
-    expect(interpretarRespostaCliente('sim? não')).toBe('nao');
-    expect(interpretarRespostaCliente('bom dia, preciso de um boleto')).toBeNull();
-    expect(interpretarRespostaCliente('11.222.333/0001-81')).toBeNull();
+    for (const t of ['Sim', 's', 'É sim', 'sim!']) expect(interpretarRespostaCliente(t)).toBe('sim');
+    for (const t of ['Não', 'nao', 'N', 'não é']) expect(interpretarRespostaCliente(t)).toBe('nao');
   });
-  const pend: ConfirmacaoCliente = { cliente_id: 'c1', rotulo: 'X', codigo: '1', cnpj: CNPJ, enviada: true };
-  it('pendente + sim/não/botão → ação', () => {
-    expect(decidirRespostaCliente({ bot_dados: { confirmacao_cliente: pend }, emTriagem: false, texto: 'sim' })).toBe('sim');
-    expect(decidirRespostaCliente({ bot_dados: { confirmacao_cliente: pend }, emTriagem: false, texto: '', botaoId: 'cli_nao' })).toBe('nao');
+  it('ambíguos não valem', () => {
+    for (const t of ['ok', 'certo', 'isso', 'sim, mas quero um boleto', 'bom dia', '11.222.333/0001-81']) expect(interpretarRespostaCliente(t)).toBeNull();
   });
-  it('sem pendência, adiada, ou triagem ativa → não consome', () => {
-    expect(decidirRespostaCliente({ bot_dados: {}, emTriagem: false, texto: 'sim' })).toBeNull();
-    expect(decidirRespostaCliente({ bot_dados: { confirmacao_cliente: { ...pend, enviada: false } }, emTriagem: false, texto: 'sim' })).toBeNull();
-    expect(decidirRespostaCliente({ bot_dados: { confirmacao_cliente: pend }, emTriagem: true, texto: 'sim' })).toBeNull();
-    expect(decidirRespostaCliente({ bot_dados: { confirmacao_cliente: pend }, emTriagem: false, texto: 'qual o valor?' })).toBeNull();
+});
+
+describe('decidirRespostaCliente', () => {
+  const T0 = new Date('2026-09-24T12:00:00Z');
+  const pend: ConfirmacaoCliente = { cliente_id: 'c1', rotulo: 'X', codigo: '1', cnpj: CNPJ, enviada: true, perguntada_em: T0.toISOString() };
+  const min = (m: number) => new Date(T0.getTime() + m * 60000);
+  const ctx = (o: any = {}) => ({ bot_dados: { confirmacao_cliente: pend }, emTriagem: false, texto: 'sim', botaoId: null, agora: min(5), entradasAposPergunta: 1, humanoAposPergunta: false, ...o });
+
+  it('texto claro: 1ª mensagem, até 2 h, sem humano → ação', () => {
+    expect(decidirRespostaCliente(ctx())).toEqual({ acao: 'sim' });
+    expect(decidirRespostaCliente(ctx({ texto: 'não' }))).toEqual({ acao: 'nao' });
+  });
+  it('texto depois de 2 h, não é a 1ª mensagem, ou humano falou → expira', () => {
+    expect(decidirRespostaCliente(ctx({ agora: min(121) }))).toEqual({ acao: 'expirar' });
+    expect(decidirRespostaCliente(ctx({ entradasAposPergunta: 2 }))).toEqual({ acao: 'expirar' });
+    expect(decidirRespostaCliente(ctx({ humanoAposPergunta: true }))).toEqual({ acao: 'expirar' });
+  });
+  it('mensagem que não é sim/não → expira', () => {
+    expect(decidirRespostaCliente(ctx({ texto: 'ok' }))).toEqual({ acao: 'expirar' });
+    expect(decidirRespostaCliente(ctx({ texto: 'qual o valor?' }))).toEqual({ acao: 'expirar' });
+    expect(decidirRespostaCliente(ctx({ texto: '', botaoId: 'suporte' }))).toEqual({ acao: 'expirar' });
+  });
+  it('botão vale até 24 h mesmo após outras mensagens/humano', () => {
+    expect(decidirRespostaCliente(ctx({ texto: '', botaoId: 'cli_nao', agora: min(600), entradasAposPergunta: 5, humanoAposPergunta: true }))).toEqual({ acao: 'nao' });
+    expect(decidirRespostaCliente(ctx({ texto: '', botaoId: 'cli_sim', agora: min(24 * 60 + 1) }))).toEqual({ acao: 'expirar' });
+  });
+  it('sem pendência, adiada ou triagem ativa → nada', () => {
+    expect(decidirRespostaCliente(ctx({ bot_dados: {} }))).toBeNull();
+    expect(decidirRespostaCliente(ctx({ bot_dados: { confirmacao_cliente: { ...pend, enviada: false } } }))).toBeNull();
+    expect(decidirRespostaCliente(ctx({ emTriagem: true }))).toBeNull();
   });
 });

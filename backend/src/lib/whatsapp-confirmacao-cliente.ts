@@ -11,7 +11,12 @@ export type ConfirmacaoCliente = {
   cnpj: string;
   /** false = aguardando o fim da triagem para perguntar. */
   enviada: boolean;
+  /** ISO da pergunta enviada (base das janelas de 2 h / 24 h). */
+  perguntada_em?: string | null;
 };
+
+export const JANELA_BOTAO_MS = 24 * 60 * 60 * 1000;
+export const JANELA_TEXTO_MS = 2 * 60 * 60 * 1000;
 
 export type BotDadosConfirmacao = {
   cnpj?: string;
@@ -52,7 +57,7 @@ export function decidirPerguntaCliente(ctx: {
   // Já existe uma pendente para este CNPJ: só envia a adiada quando a triagem acabar.
   if (pend && pend.cnpj === cnpj) {
     if (pend.enviada || ctx.emTriagem) return { acao: 'nenhuma' };
-    return { acao: 'perguntar', confirmacao: { ...pend, enviada: true } };
+    return { acao: 'perguntar', confirmacao: { ...pend, enviada: true } }; // perguntada_em: o serviço grava ao enviar
   }
   if ((dados.confirmacao_cliente_cnpjs || []).includes(cnpj)) return { acao: 'nenhuma' };
   const confirmacao: ConfirmacaoCliente = { cliente_id: c.id, rotulo: rotuloCliente(c), codigo: c.codigo || null, cnpj, enviada: !ctx.emTriagem };
@@ -78,30 +83,51 @@ export function menuConfirmacaoCliente(conf: Pick<ConfirmacaoCliente, 'rotulo' |
 
 const norm = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
-const SIM = ['sim', 's', 'isso', 'correto', 'certo', 'exato', 'confirmo', 'ok', 'essa', 'positivo'];
+// Só respostas inequívocas valem digitadas ("ok", "certo", "isso" não: podem ser de outro assunto).
+const TEXTO_SIM = ['sim', 's', 'e sim'];
+const TEXTO_NAO = ['nao', 'n', 'nao e'];
 
-/** Sim/Não do contato: botão cli_sim/cli_nao ou texto curto. Negação vence ("não, não é" → não). */
+/** Sim/Não do contato: botão cli_sim/cli_nao ou texto curto e claro. */
 export function interpretarRespostaCliente(texto: string | null | undefined, botaoId?: string | null): 'sim' | 'nao' | null {
   if (botaoId === 'cli_sim') return 'sim';
   if (botaoId === 'cli_nao') return 'nao';
   const t = norm(texto || '');
-  if (!t || t.split(' ').length > 6) return null;
-  const palavras = t.split(' ');
-  if (palavras.some(p => p === 'nao' || p === 'n' || p === 'errado' || p === 'nenhuma')) return 'nao';
-  if (palavras.some(p => SIM.includes(p))) return 'sim';
+  if (TEXTO_SIM.includes(t)) return 'sim';
+  if (TEXTO_NAO.includes(t)) return 'nao';
   return null;
 }
 
-/** A mensagem responde a confirmação pendente? (só fora da triagem e se casar). */
+export type DecisaoResposta = { acao: 'sim' | 'nao' | 'expirar' } | null;
+
+/**
+ * Mensagem recebida com confirmação pendente. null = não há o que fazer (sem
+ * pendência, adiada ou triagem ativa). 'expirar' = limpa a pendência e a
+ * mensagem segue o fluxo normal. Regras:
+ * - botão cli_sim/cli_nao vale até 24 h da pergunta;
+ * - texto só se for a 1ª mensagem recebida após a pergunta, em até 2 h, sem
+ *   mensagem humana depois da pergunta, e for um sim/não claro;
+ * - qualquer outra mensagem (ou passadas 24 h / humano respondeu) expira.
+ */
 export function decidirRespostaCliente(ctx: {
   bot_dados: BotDadosConfirmacao | null | undefined;
   emTriagem: boolean;
   texto: string | null | undefined;
   botaoId?: string | null;
-}): 'sim' | 'nao' | null {
+  agora: Date;
+  /** Mensagens recebidas depois da pergunta, contando esta. */
+  entradasAposPergunta: number;
+  /** Houve SAIDA de humano (não bot) depois da pergunta. */
+  humanoAposPergunta: boolean;
+}): DecisaoResposta {
   const pend = ctx.bot_dados?.confirmacao_cliente;
   if (!pend || !pend.enviada || ctx.emTriagem) return null;
-  return interpretarRespostaCliente(ctx.texto, ctx.botaoId);
+  const enviadaEm = pend.perguntada_em ? new Date(pend.perguntada_em).getTime() : NaN;
+  const idade = Number.isNaN(enviadaEm) ? Infinity : ctx.agora.getTime() - enviadaEm;
+  if (idade > JANELA_BOTAO_MS) return { acao: 'expirar' };
+  if (ctx.botaoId === 'cli_sim' || ctx.botaoId === 'cli_nao') return { acao: ctx.botaoId === 'cli_sim' ? 'sim' : 'nao' };
+  if (ctx.humanoAposPergunta || ctx.entradasAposPergunta > 1 || idade > JANELA_TEXTO_MS) return { acao: 'expirar' };
+  const r = ctx.botaoId ? null : interpretarRespostaCliente(ctx.texto, null);
+  return r ? { acao: r } : { acao: 'expirar' };
 }
 
 export function observacaoRecusa(conf: Pick<ConfirmacaoCliente, 'cnpj' | 'rotulo'>): string {

@@ -52,7 +52,8 @@ export async function perguntarClienteSeCasar(prisma: PrismaClient, token: strin
     cliente_id: conversa.cliente_id, bot_dados: dados, emTriagem: emTriagem(conversa), candidatos: await clientesPorCnpj(prisma, cnpj),
   });
   if (decisao.acao === 'nenhuma') return;
-  await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { bot_dados: dadosComConfirmacao(dados, decisao.confirmacao) as any } });
+  const conf = decisao.acao === 'perguntar' ? { ...decisao.confirmacao, perguntada_em: new Date().toISOString() } : decisao.confirmacao;
+  await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { bot_dados: dadosComConfirmacao(dados, conf) as any } });
   if (decisao.acao === 'adiar') return;
   const menu = menuConfirmacaoCliente(decisao.confirmacao);
   try {
@@ -70,13 +71,35 @@ export async function responderConfirmacaoCliente(
     const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: SELECT_CONVERSA });
     if (!conversa) return false;
     const dados = (conversa.bot_dados || {}) as BotDadosConfirmacao;
-    const resposta = decidirRespostaCliente({ bot_dados: dados, emTriagem: emTriagem(conversa), texto, botaoId });
-    if (!resposta) return false;
-    const conf = dados.confirmacao_cliente!;
+    const pend = dados.confirmacao_cliente;
+    if (!pend || !pend.enviada || emTriagem(conversa)) return false;
+    const desde = pend.perguntada_em ? new Date(pend.perguntada_em) : new Date(0);
+    const [entradasAposPergunta, humanos] = await Promise.all([
+      prisma.whatsappMensagem.count({ where: { conversaId, direcao: 'ENTRADA', created_at: { gt: desde } } }).catch(() => 99),
+      prisma.whatsappMensagem.count({ where: { conversaId, direcao: 'SAIDA', created_at: { gt: desde }, OR: [{ enviada_por: null }, { enviada_por: { not: 'bot' } }] } }).catch(() => 1),
+    ]);
+    const decisao = decidirRespostaCliente({
+      bot_dados: dados, emTriagem: false, texto, botaoId, agora: new Date(), entradasAposPergunta, humanoAposPergunta: humanos > 0,
+    });
+    if (!decisao) return false;
+    const conf = pend;
     const semPendencia = { ...dados, confirmacao_cliente: null };
+    if (decisao.acao === 'expirar') {
+      // Não é resposta à pergunta: expira (o CNPJ segue em confirmacao_cliente_cnpjs) e a mensagem segue o fluxo.
+      await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { bot_dados: semPendencia as any } });
+      emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
+      return false;
+    }
+    const resposta = decisao.acao;
+    if (resposta === 'sim' && conversa.cliente_id) {
+      // Já vinculada (ex.: humano identificou): só limpa, sem réplica.
+      await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { bot_dados: semPendencia as any } });
+      emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
+      return true;
+    }
 
     let replica: string;
-    if (resposta === 'sim' && !conversa.cliente_id) {
+    if (resposta === 'sim') {
       const existe = await prisma.cliente.findUnique({ where: { id: conf.cliente_id }, select: { id: true } }).catch(() => null);
       if (existe) {
         // Igual ao "Identificar → Cliente" do Inbox.
@@ -99,7 +122,7 @@ export async function responderConfirmacaoCliente(
       } else if (resposta === 'nao') {
         console.log(`[CNPJ-CLIENTE] conversa ${conversaId}: ${observacaoRecusa(conf)}`);
       }
-      replica = resposta === 'sim' ? 'Perfeito! Seu contato foi vinculado ao cadastro ✅' : 'Tudo bem, obrigado!';
+      replica = 'Tudo bem, obrigado!';
     }
     try {
       const r = await evo.enviarTexto(token, conversa.contato_numero, replica);
@@ -108,4 +131,12 @@ export async function responderConfirmacaoCliente(
     emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
     return true;
   });
+}
+
+/** Humano identificou/vinculou o contato: descarta a pergunta pendente. Chamar dentro da fila da conversa. */
+export async function limparConfirmacaoPendente(prisma: PrismaClient, conversaId: string) {
+  const c = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { bot_dados: true } }).catch(() => null);
+  const dados = (c?.bot_dados || null) as BotDadosConfirmacao | null;
+  if (!dados?.confirmacao_cliente) return;
+  await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { bot_dados: { ...dados, confirmacao_cliente: null } as any } }).catch(() => {});
 }
