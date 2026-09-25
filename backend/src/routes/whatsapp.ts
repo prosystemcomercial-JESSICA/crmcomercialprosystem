@@ -458,6 +458,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       } catch { /* sem nomes — segue */ }
     }
     for (const conv of conversas as any[]) if (conv.dono_nome === undefined) conv.dono_nome = null;
+    // Quem atende: a Caroline (SDR) enquanto a conversa está com ela (farol rosa na tela).
+    const comCaroline = new Set((await prisma.sdrLead.findMany({
+      where: { conversaId: { in: conversas.map(c => c.id) }, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO'] } }, select: { conversaId: true },
+    }).catch(() => [])).map(s => s.conversaId));
+    for (const conv of conversas as any[]) conv.atendente_ia = !conv.dono_id && comCaroline.has(conv.id) ? 'Caroline' : null;
     return reply.send({ status: 'success', data: conversas });
   });
 
