@@ -1168,6 +1168,11 @@ class ApiClient {
   async salvarWhatsappEmpresa(instance_token: string) {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
+  // Escritório virtual (estado dos agentes do assistente).
+  async getEscritorio() {
+    return this.client.get('/assistente/escritorio');
+  }
+
   // Campanhas pelo WhatsApp (novidades para clientes / reativação de leads).
   async listarCampanhasWhatsapp() {
     return this.client.get('/assistente/campanhas');

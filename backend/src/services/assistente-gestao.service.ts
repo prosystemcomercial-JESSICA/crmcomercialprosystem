@@ -3,9 +3,10 @@ import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { normalizarBuscaCliente, wherePrismaBusca, SQL_CNPJ_DIGITOS } from '@/lib/busca-clientes';
 import {
-  acharGestor, interpretarComando, lerPreferenciasAvisos, AJUDA, textoHoje, textoSemana, textoPropostasParadas, textoClientes,
+  acharGestor, interpretarComando, lerPreferenciasAvisos, AJUDA, textoHoje, textoSemana, textoPropostasParadas, textoClientes, NOME_AVISO,
   type TipoAviso,
 } from '@/lib/assistente/gestao';
+import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import {
   interpretarTarefa, ehComandoTarefa, lerBotaoTarefa, menuConfirmarTarefa, rotuloPrazo, AJUDA_TAREFA, type RascunhoTarefa,
 } from '@/lib/assistente/tarefa-mensagem';
@@ -61,6 +62,7 @@ async function tratarTarefa(prisma: PrismaClient, token: string, numero: string,
     });
     await enviar(`✅ Atividade criada para ${pend.r.responsavel_nome.split(' ')[0]}: ${pend.r.titulo} (vence ${rotuloPrazo(pend.r.prazo)}).`);
     console.log(`[ASSISTENTE] atividade criada por ${gestor.nome} para ${pend.r.responsavel_nome}`);
+    registrarAcaoAgente('marta', `lançou tarefa para ${pend.r.responsavel_nome.split(' ')[0]}: ${pend.r.titulo}`);
     return true;
   }
 
@@ -126,6 +128,7 @@ export async function responderComandoGestao(prisma: PrismaClient, token: string
   }
   await evo.enviarTexto(token, numero, resposta).catch((e: any) => console.error('[ASSISTENTE] envio:', e?.message));
   console.log(`[ASSISTENTE] comando "${cmd.tipo}" de ${gestor.nome}`);
+  registrarAcaoAgente('marta', `respondeu "${cmd.tipo.replace('_', ' ')}" para ${gestor.nome.split(' ')[0]}`);
   return true;
 }
 
@@ -137,6 +140,7 @@ export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, t
     for (const g of await listarGestao(prisma)) {
       if (!(await lerPrefsAvisos(prisma, g.id)).includes(tipo)) continue;
       await evo.enviarTexto(inst.instance_token, g.telefone!, texto).catch((e: any) => console.error(`[AVISO] ${tipo} → ${g.nome}:`, e?.message));
+      registrarAcaoAgente('marta', `avisou ${g.nome.split(' ')[0]}: ${NOME_AVISO[tipo].toLowerCase()}`);
     }
   } catch (e: any) {
     console.error('[AVISO] falhou:', e?.message);
