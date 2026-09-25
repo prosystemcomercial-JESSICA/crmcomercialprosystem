@@ -8,7 +8,7 @@ import { REMETENTES_AUTOMATICOS } from '@/lib/painel-tv';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
-  lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX,
+  lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   type RespostaCaroline, type FaseCaroline,
 } from '@/lib/assistente/sdr';
 
@@ -211,6 +211,32 @@ async function enviarMensagens(prisma: PrismaClient, token: string, sdr: any, me
   emitirEventoConversa(conv.dono_id, 'conversa_atualizada', { conversaId: sdr.conversaId });
 }
 
+/**
+ * Chamariz para quem não respondeu: botões de resposta com um toque (responder é mais fácil
+ * que digitar) e, na última tentativa, a imagem do material do segmento.
+ */
+export const BOTOES_RETOMADA = [
+  { id: 'sdr_quero', texto: 'Quero saber mais' },
+  { id: 'sdr_depois', texto: 'Me chama depois' },
+  { id: 'sdr_nao', texto: 'Agora não' },
+];
+async function enviarChamariz(prisma: PrismaClient, token: string, sdr: any, ultima: boolean) {
+  const conv = await prisma.whatsappConversa.findUnique({ where: { id: sdr.conversaId }, select: { contato_numero: true } });
+  if (!conv) return;
+  if (ultima) {
+    const { obterConfigTriagem } = await import('./triagem-config.service');
+    const cfg = await obterConfigTriagem(prisma);
+    const m = /padar|confeit/i.test(sdr.segmento || '') ? cfg.material.padaria : cfg.material.farmacia;
+    if (m.imagem) {
+      const r: any = await evo.enviarArquivo(token, conv.contato_numero, m.imagem, 'prosystem.jpg').catch(() => ({}));
+      await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: r.tipo || 'IMAGEM', conteudo: '🖼️ Imagem', midia_url: m.imagem, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } }).catch(() => {});
+    }
+  }
+  const menu = { modo: 'button' as const, texto: 'Se preferir, é só tocar numa opção 👇', rodape: 'Caroline · Prosystem', opcoes: BOTOES_RETOMADA };
+  const r: any = await evo.enviarMenu(token, conv.contato_numero, menu).catch(() => ({}));
+  await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${menu.texto}\n\n${menu.opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } }).catch(() => {});
+}
+
 async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCaroline) {
   const temperatura = temperaturaDaNota(r.nota);
   const dados = { ...(sdr.dados || {}), ...Object.fromEntries(Object.entries(r.dados).filter(([, v]) => v)), ...(r.dor_principal ? { dor_principal: r.dor_principal } : {}) };
@@ -283,19 +309,23 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   await atualizarTermometro(prisma, sdr, r);
   const cfg = await obterConfigCaroline(prisma);
   const agora = new Date();
+  // Retomada de quem ainda não respondeu: vai com botões (e imagem na última tentativa).
+  const chamariz = fase !== 'resposta' && (fase === 'retomada' || sdr.abertura_enviada) && !sdr.ultima_lead_em;
+  const ultima = sdr.tentativas + 1 >= TENTATIVAS_MAX;
   const base = {
     ultima_caroline_em: agora,
     ...(fase === 'resposta' ? { status: 'CONVERSANDO' } : { status: 'AGUARDANDO', tentativas: { increment: 1 } as any }),
     ...(fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {}),
   };
   if (cfg.aprovar) {
-    await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase }) } });
+    await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
     registrarAcaoAgente('caroline', `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });
     return 'aprovacao';
   }
   if (r.mensagens.length) await enviarMensagens(prisma, token, sdr, r.mensagens);
+  if (chamariz && r.acao === 'continuar') await enviarChamariz(prisma, token, sdr, ultima);
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
   registrarAcaoAgente('caroline', `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
@@ -332,6 +362,7 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
   await enviarMensagens(prisma, inst.instance_token, sdr, final.split(/\n{2,}/).map(s => s.trim()).filter(Boolean).slice(0, 3));
   await prisma.sdrMensagem.update({ where: { id }, data: { status: editada ? 'EDITADA' : 'APROVADA', texto_final: final, decidido_em: new Date(), decidido_por: userId } });
   const meta = (() => { try { return JSON.parse(m.acao || '{}'); } catch { return {}; } })();
+  if (meta.chamariz && (!meta.acao || meta.acao === 'continuar')) await enviarChamariz(prisma, inst.instance_token, sdr, !!meta.ultima);
   const agora = new Date();
   await prisma.sdrLead.update({
     where: { id: sdr.id },
@@ -416,7 +447,8 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       }
       continue;
     }
-    if (deveRetomar(s.tentativas, s.ultima_caroline_em, agora)) await falar(prisma, token, s.id, 'retomada');
+    // Retomada só nos horários em que o comerciante costuma olhar o celular (9h–11h30 e 14h–17h).
+    if (deveRetomar(s.tentativas, s.ultima_caroline_em, agora) && horaBoaParaRetomar(agora)) await falar(prisma, token, s.id, 'retomada');
   }
 
   // 3) Primeiros contatos: um por vez, intervalo sorteado, dentro do limite do dia (somado às campanhas).
