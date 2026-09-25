@@ -504,8 +504,17 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       await prisma.leadObservacao.create({ data: { lead_id: conversa.lead_id, tipo: 'OBSERVACAO', descricao: `📝 Observação (WhatsApp/telefone): ${b.data.texto}`, created_by: user.id, created_by_name: autor_nome || 'Equipe' } }).catch(() => {});
       await prisma.lead.update({ where: { id: conversa.lead_id }, data: { ultima_obs_at: new Date() } }).catch(() => {});
     }
+    // CNPJ anotado (ex.: passado por telefone): mesma consulta à Receita do chat, preenchendo o lead.
+    // Sem token: não pergunta nada ao cliente, é só uma anotação interna.
+    let cnpjMsg = '';
+    if (/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(b.data.texto)) {
+      await detectarCnpjNaConversa(prisma, id, b.data.texto).catch((e: any) => console.error('[CNPJ nota]', e?.message));
+      const c = await prisma.whatsappConversa.findUnique({ where: { id }, select: { bot_dados: true } });
+      const r: any = (c?.bot_dados as any)?.receita;
+      cnpjMsg = r ? ` CNPJ consultado na Receita: ${r.nome_fantasia || r.razao_social}${r.municipio ? ` (${r.municipio}/${r.uf})` : ''}.` : ' Não achei esse CNPJ na Receita; confira os números.';
+    }
     emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: id });
-    return reply.send({ status: 'success', data: nota, message: 'Observação salva.' });
+    return reply.send({ status: 'success', data: nota, message: `Observação salva.${cnpjMsg}` });
   });
 
   // Finalizar atendimento: sai das listas, do prazo e dos robôs. Reabre sozinha
