@@ -160,7 +160,13 @@ Precisa da **chave** em Configurações. A chave é gratuita e se cria em aistud
 
 **Onde:** menu **Escritório virtual**.
 
-Uma sala em 3D com os oito agentes do assistente trabalhando. Cada um tem uma mesa, um crachá e uma luz de status: 🟢 trabalhando (agiu nos últimos 10 minutos), 🟡 parado ou ⚪ desligado. Quem está trabalhando mostra um balão com a última ação. Clique na mesa para ver o que o agente fez hoje. A tela atualiza a cada 30 segundos e é só de leitura.
+Uma sala em 3D com os nove agentes do assistente trabalhando. Cada um tem uma mesa, um crachá e uma luz de status: 🟢 trabalhando (agiu nos últimos 10 minutos), 🟡 parado ou ⚪ desligado. Quem está trabalhando mostra um balão com a última ação. Clique na mesa para ver o que o agente fez hoje. A tela atualiza a cada 30 segundos.
+
+**Você no escritório:** a Jessica aparece como supervisora. Ande com as setas do teclado ou clicando no chão. Perto de uma mesa aparece um balão com **Ver trabalho**, **Chamar à minha sala** e **Liberar**. **Reunir a equipe** leva todos para a sala de reunião.
+
+**Conversar (💬):** envie uma **instrução** (fica gravada e passa a valer nas respostas da IA daquele agente, ou de toda a equipe) ou uma **pergunta** (o agente responde com os dados dele).
+
+**Pesquisas da Sofia:** toda segunda às 8h, e quando você clicar em **Pesquisar agora**, a Sofia busca na internet os assuntos mais falados para farmácias, padarias, varejo e gestão. Cada assunto vem com resumo, por que importa, uma sugestão de mensagem para clientes (botão copiar) e as fontes. A gestão recebe um aviso no WhatsApp. Precisa da chave da IA (Gemini).
 
 | Agente | Função |
 |---|---|
@@ -172,6 +178,7 @@ Uma sala em 3D com os oito agentes do assistente trabalhando. Cada um tem uma me
 | Helena | Pós-venda: boas-vindas e pesquisa |
 | Laya | IA que analisa as conversas e aprende |
 | Marta | Assistente da gestão: comandos, avisos e aprovações |
+| Sofia | Pesquisadora: assuntos do setor e novidades, com fontes |
 
 ---
 
