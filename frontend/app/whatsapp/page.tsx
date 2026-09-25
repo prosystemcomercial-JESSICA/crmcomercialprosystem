@@ -1389,7 +1389,7 @@ export default function WhatsappPage() {
 
                 <ResumoIa key={`resumo:${ativa.id}`} conversaId={ativa.id} />
 
-                <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} />
+                <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} conversa={ativa} />
 
                 <PainelLaya conversa={conversas.find(c => c.id === ativa.id) || ativa} />
 

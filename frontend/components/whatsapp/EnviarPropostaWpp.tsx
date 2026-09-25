@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 // Painel da conversa: envia uma proposta aberta deste contato pelo WhatsApp, com
@@ -13,7 +13,34 @@ type Prop = {
 const STATUS: Record<string, string> = { RASCUNHO: 'rascunho', ENVIADA: 'enviada', VISUALIZADA: 'visualizada', EM_NEGOCIACAO: 'em negociação' };
 const brl = (n: number | null) => n == null ? '' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
-export default function EnviarPropostaWpp({ conversaId }: { conversaId: string }) {
+type ConversaProp = { lead_id?: string | null; contato_nome?: string | null; contato_numero: string; bot_dados?: any };
+
+// Dados para a tela de proposta (mesmo caminho do "Gerar proposta" do lead): lead
+// vinculado + empresa da Receita consultada na conversa + contato do WhatsApp.
+async function dadosParaProposta(c: ConversaProp) {
+  const lead: any = c.lead_id ? await apiClient.getLeadById(c.lead_id).then(r => r.data?.data || r.data).catch(() => null) : null;
+  const d: any = c.bot_dados || {};
+  const r: any = d.receita || {};
+  const tel = (c.contato_numero || '').replace(/^55/, '');
+  return {
+    razao_social: lead?.razao_social || r.razao_social || '',
+    nome_fantasia: lead?.nome_fantasia || r.nome_fantasia || lead?.empresa || '',
+    cnpj: lead?.cnpj || d.cnpj || '',
+    segmento: lead?.segmento || d.segmento || '',
+    cidade: lead?.cidade || r.municipio || d.cidade || '',
+    estado: lead?.estado || r.uf || '',
+    sistema_atual: lead?.sistema_atual || '',
+    responsavel_nome: lead?.responsavel_nome || c.contato_nome || '',
+    responsavel_telefone: lead?.responsavel_telefone || tel,
+    responsavel_email: lead?.responsavel_email || lead?.email || '',
+    campanha: lead?.campanha_nome || lead?.utm_campaign || '',
+    origem: lead?.origem || 'WHATSAPP',
+    observacoes: lead?.observacoes_comerciais || '',
+    status: 'RASCUNHO',
+  };
+}
+
+export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId: string; conversa?: ConversaProp }) {
   const [aberto, setAberto] = useState(false);
   const [lista, setLista] = useState<Prop[] | null>(null);
   const [enviando, setEnviando] = useState<string | null>(null);
@@ -49,17 +76,41 @@ export default function EnviarPropostaWpp({ conversaId }: { conversaId: string }
     } finally { setEnviando(null); }
   };
 
+  // Criar proposta: abre a tela de proposta em outra aba já preenchida com os dados deste contato.
+  // Os dados são buscados antes do clique: a aba nova abre na hora (o navegador não bloqueia).
+  const [preenchimento, setPreenchimento] = useState<any>(null);
+  useEffect(() => {
+    if (!conversa) return;
+    let vivo = true;
+    dadosParaProposta(conversa).then(d => { if (vivo) setPreenchimento(d); }).catch(() => {});
+    return () => { vivo = false; };
+  }, [conversa?.lead_id, conversa?.contato_numero]); // eslint-disable-line react-hooks/exhaustive-deps
+  const criar = () => {
+    if (!conversa) return;
+    try { sessionStorage.setItem('prefill_proposta', JSON.stringify(preenchimento || { responsavel_nome: conversa.contato_nome || '', responsavel_telefone: conversa.contato_numero.replace(/^55/, ''), status: 'RASCUNHO' })); } catch { /* segue sem preencher */ }
+    window.open('/propostas-comerciais', '_blank');
+    setAviso({ ok: true, texto: 'A proposta abriu em outra aba, já preenchida. Depois de salvar e gerar o link, volte aqui e clique em Enviar.' });
+  };
+
   return (
     <div className="px-4 py-3.5 border-b border-gray-100">
-      <button onClick={abrir}
-        className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-white rounded-lg py-2" style={{ background: '#0f766e' }}>
-        📄 Enviar proposta pelo WhatsApp
-      </button>
+      <div className="flex gap-2">
+        {conversa && (
+          <button onClick={criar}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold rounded-lg py-2 border border-teal-700 text-teal-800 hover:bg-teal-50">
+            ➕ Criar proposta
+          </button>
+        )}
+        <button onClick={abrir}
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-white rounded-lg py-2" style={{ background: '#0f766e' }}>
+          📄 Enviar / reenviar
+        </button>
+      </div>
       {aberto && (
         <div className="mt-2 space-y-1.5">
           {lista === null && <p className="text-xs text-gray-400">Buscando propostas deste contato…</p>}
           {lista?.length === 0 && (
-            <p className="text-xs text-gray-500">Nenhuma proposta aberta com o CNPJ ou o telefone deste contato. Crie a proposta e volte aqui.</p>
+            <p className="text-xs text-gray-500">Nenhuma proposta aberta com o CNPJ ou o telefone deste contato. Clique em ➕ Criar proposta.</p>
           )}
           {lista?.map(p => (
             <div key={p.id} className="border border-gray-200 rounded-lg p-2">
