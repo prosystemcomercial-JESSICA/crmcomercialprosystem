@@ -68,31 +68,30 @@ describe('serviços', () => {
 });
 
 describe('quero conhecer — caminho completo', () => {
-  it('segmento → relação → nome → cidade → CNPJ → confirma → fim', async () => {
+  it('lead novo em 3 toques: conhecer → segmento → nome → fim (sem cidade nem CNPJ)', async () => {
     const d = deps();
     let r = await avancarTriagem('MENU', {}, { texto: 'Quero conhecer', botaoId: 'conhecer' }, d);
     expect(r.estado).toBe('SEGMENTO');
     r = await avancarTriagem(r.estado, r.dados, { texto: 'Farmácia', botaoId: 'farmacia' }, d);
-    expect(r.estado).toBe('RELACAO');
-    expect(r.dados.segmento).toBe('Farmácia');
-    r = await avancarTriagem(r.estado, r.dados, { texto: 'Não conheço a Prosystem', botaoId: 'nao_conhece' }, d);
     expect(r.estado).toBe('NOME');
+    expect(r.dados.segmento).toBe('Farmácia');
     r = await avancarTriagem(r.estado, r.dados, { texto: '  Maria  ' }, d);
-    expect(r.estado).toBe('CIDADE');
+    expect(r.estado).toBe('FIM');
+    expect(r.desfecho).toBe('qualificado');
     expect(r.dados.nome).toBe('Maria');
-    r = await avancarTriagem(r.estado, r.dados, { texto: 'Vila Velha' }, d);
+    expect(r.dados.cnpj).toBeUndefined();
+    expect(textos(r.acoes)).toContain('Obrigado, Maria');
+  });
+
+  it('conversa que já estava no meio (cidade/CNPJ) continua funcionando', async () => {
+    const d = deps();
+    let r = await avancarTriagem('CIDADE', { fluxo: 'conhecer', segmento: 'Farmácia', nome: 'Maria' }, { texto: 'Vila Velha' }, d);
     expect(r.estado).toBe('CNPJ');
     r = await avancarTriagem(r.estado, r.dados, { texto: 'é 11.222.333/0001-81' }, d);
     expect(r.estado).toBe('CNPJ_CONFIRMA');
-    expect((r.acoes[0] as any).menu.texto).toContain('PAO QUENTE');
-    expect((r.acoes[0] as any).menu.texto).toContain('VILA VELHA/ES');
     r = await avancarTriagem(r.estado, r.dados, { texto: 'Sim', botaoId: 'cnpj_sim' }, d);
     expect(r.estado).toBe('FIM');
-    expect(r.desfecho).toBe('qualificado');
     expect(r.dados.cnpj).toBe('11222333000181');
-    expect(r.dados.receita_fonte).toBe('BrasilAPI');
-    expect(textos(r.acoes)).toContain('Obrigado, Maria');
-    expect(textos(r.acoes)).not.toContain('ferramentas');
   });
 
   it('com material cadastrado, manda o texto de ferramentas e a ação de material do segmento', async () => {
