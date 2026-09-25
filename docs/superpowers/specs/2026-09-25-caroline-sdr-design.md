@@ -61,6 +61,12 @@ Parser puro (`lib/assistente/sdr-entrada.ts`): aceita vários blocos colados de 
 - Escritório: novo agente `caroline` (visual próprio), mesa com contadores (na fila, conversando, responderam, demos marcadas), histórico (👀) e instruções (💬).
 - Tudo gravado na conversa como enviado pela Caroline (`enviada_por: 'caroline'`).
 
+## Treino da Laya com os atendimentos da Caroline
+
+- As mensagens dos leads já passam pela análise da Laya (sugestão de segmento/intenção/risco), como qualquer conversa.
+- No desfecho, a Caroline grava a classificação dela (segmento, intenção, temperatura, desfecho) como **sugestão** na conversa. A Jessica confirma ou corrige com um clique no escritório/Inbox; só a confirmação humana vira `IaAmostra` (rótulo de treino), com `criado_por` da Jessica e marca `fonte: 'caroline'`. Rótulo gerado só pela IA nunca entra no treino.
+- No modo "aprovar antes de enviar", cada mensagem aprovada ou **editada** pela Jessica é guardada como exemplo (original → versão final). Os exemplos editados entram no prompt da Caroline como referência de tom (poucos, os mais recentes), e ficam disponíveis para o treino de 14/10.
+
 ## Áudio
 
 Transcrição passa a usar a OpenAI (`gpt-4o-transcribe` ou `whisper-1`) quando `OPENAI_API_KEY` existe; Gemini continua como alternativa. Vale para o Inbox todo.
