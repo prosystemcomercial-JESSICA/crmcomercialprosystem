@@ -459,10 +459,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     }
     for (const conv of conversas as any[]) if (conv.dono_nome === undefined) conv.dono_nome = null;
     // Quem atende: a Caroline (SDR) enquanto a conversa está com ela (farol rosa na tela).
-    const comCaroline = new Set((await prisma.sdrLead.findMany({
-      where: { conversaId: { in: conversas.map(c => c.id) }, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO'] } }, select: { conversaId: true },
-    }).catch(() => [])).map(s => s.conversaId));
-    for (const conv of conversas as any[]) conv.atendente_ia = !conv.dono_id && comCaroline.has(conv.id) ? 'Caroline' : null;
+    const NOMES_IA: Record<string, string> = { caroline: 'Caroline', julio: 'Julio', luiz_felipe: 'Luiz Felipe' };
+    const comCaroline = new Map((await prisma.sdrLead.findMany({
+      where: { conversaId: { in: conversas.map(c => c.id) }, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO'] } }, select: { conversaId: true, agente: true },
+    }).catch(() => [])).map(s => [s.conversaId, NOMES_IA[s.agente] || 'Caroline'] as const));
+    for (const conv of conversas as any[]) conv.atendente_ia = !conv.dono_id && comCaroline.has(conv.id) ? (comCaroline.get(conv.id) || 'Caroline') : null;
     return reply.send({ status: 'success', data: conversas });
   });
 
@@ -802,8 +803,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // ===== CAROLINE (SDR) — só gestão =====
   fastify.get('/assistente/caroline', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const { painelCaroline } = await import('@/services/caroline.service');
-    return reply.send({ status: 'success', data: await painelCaroline(prisma) });
+    const { painelCaroline, AGENTES_SDR } = await import('@/services/caroline.service');
+    const ag = String((request.query as any)?.agente || 'caroline');
+    return reply.send({ status: 'success', data: await painelCaroline(prisma, (AGENTES_SDR as string[]).includes(ag) ? ag as any : 'caroline') });
   });
   fastify.post('/assistente/caroline/previa', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
@@ -826,8 +828,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (!requireGestor(request, reply)) return;
     const b = z.object({ ativa: z.boolean().optional(), aprovar: z.boolean().optional(), limite: z.number().int().min(1).max(30).optional() }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
-    const { salvarConfigCaroline } = await import('@/services/caroline.service');
-    return reply.send({ status: 'success', data: await salvarConfigCaroline(prisma, b.data, getUser(request)!.id), message: 'Salvo.' });
+    const { salvarConfigAgente, AGENTES_SDR } = await import('@/services/caroline.service');
+    const ag = String((request.query as any)?.agente || 'caroline');
+    const agente = ((AGENTES_SDR as string[]).includes(ag) ? ag : 'caroline') as any;
+    return reply.send({ status: 'success', data: await salvarConfigAgente(prisma, agente, b.data, getUser(request)!.id), message: 'Salvo.' });
   });
   fastify.post('/assistente/caroline/mensagens/:id', async (request, reply) => {
     if (!requireGestor(request, reply)) return;

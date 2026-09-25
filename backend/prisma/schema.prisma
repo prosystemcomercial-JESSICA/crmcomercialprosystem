@@ -2580,6 +2580,9 @@ model IaAmostra {
 // termômetro (nota 0-100) e desfecho. Nunca apaga o lead.
 model SdrLead {
   id                     String    @id @default(cuid())
+  // Quem conduz: caroline (leads de campanha), julio (follow-up de leads), luiz_felipe (propostas não assinadas)
+  agente                 String    @default("caroline")
+  proposta_id            String?
   lead_id                String?
   conversaId             String?
   numero                 String
