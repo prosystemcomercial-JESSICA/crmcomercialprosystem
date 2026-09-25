@@ -233,13 +233,14 @@ function andar(e: { pos: P; caminho: P[]; andando: boolean }, passo: number) {
 // ── Sala ───────────────────────────────────────────────────────────────────
 type Props = {
   agentes: AgenteSala[]; selecionado: string | null; onSelecionar: (id: string) => void;
+  zoom?: number; // a altura máxima acompanha o zoom (senão o desenho fica espremido e vai para o lado)
   chamados?: Record<string, Chamado>;                 // quem foi chamado (sala da Jessica ou reunião)
   onVerTrabalho?: (id: string) => void;
   onChamar?: (id: string) => void;
   onLiberar?: (id: string) => void;
 };
 
-export default function SalaIsometrica({ agentes, selecionado, onSelecionar, chamados = {}, onVerTrabalho, onChamar, onLiberar }: Props) {
+export default function SalaIsometrica({ agentes, selecionado, onSelecionar, chamados = {}, onVerTrabalho, onChamar, onLiberar, zoom = 1 }: Props) {
   const agora = useRelogio();
   const estados = useRef<Record<string, Estado>>({});
   const agentesRef = useRef(agentes);
@@ -556,7 +557,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
   itens.sort((a, b) => a.k - b.k);
 
   return (
-    <svg ref={svgRef} onClick={clicarChao} viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`} role="img" aria-label="Escritório virtual com os agentes em estilo LEGO" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', maxHeight: 'calc(100vh - 150px)', display: 'block' }}>
+    <svg ref={svgRef} onClick={clicarChao} viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`} role="img" aria-label="Escritório virtual com os agentes em estilo LEGO" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', maxHeight: `calc((100vh - 150px) * ${zoom})`, display: 'block' }}>
       <style>{`
         .bracos-rapidos.braco-e{animation:digita .38s ease-in-out infinite alternate}
         .bracos-rapidos.braco-d{animation:digita .38s ease-in-out infinite alternate-reverse}

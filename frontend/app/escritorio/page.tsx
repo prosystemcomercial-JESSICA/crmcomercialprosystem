@@ -211,7 +211,7 @@ export default function EscritorioPage() {
               onClickCapture={e => { if (arraste.current?.moveu) { e.stopPropagation(); e.preventDefault(); } }}
               style={{ overflow: zoom > 1 ? 'auto' : 'hidden', height: zoom > 1 && alturaBase.current ? alturaBase.current : undefined, cursor: zoom > 1 ? 'grab' : undefined }}>
               <div style={{ width: `${zoom * 100}%` }}>
-                {mostrar ? <SalaIsometrica agentes={mostrar} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
+                {mostrar ? <SalaIsometrica zoom={zoom} agentes={mostrar} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
               </div>
             </div>
           </div>
