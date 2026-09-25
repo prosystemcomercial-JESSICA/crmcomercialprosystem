@@ -205,7 +205,9 @@ export async function avancarTriagem(
       if (!e && ehCnpj(livre)) return semResposta(estado, dados);
       if (!e) e = await escolherComIa('segmento', livre, OPC_SEGMENTO, deps);
       if (!e) return { estado, dados, acoes: repetir(menuSegmento()) };
-      return { estado: 'RELACAO', dados: { ...dados, segmento: e === 'padaria' ? 'Padaria' : 'Farmácia' }, acoes: [menuRelacao()] };
+      // Lead novo: só o nome e pronto (menos perguntas = menos desistência). Cidade e CNPJ ficam
+      // para a conversa com a Caroline/equipe; CNPJ mandado a qualquer hora continua sendo detectado.
+      return { estado: 'NOME', dados: { ...dados, segmento: e === 'padaria' ? 'Padaria' : 'Farmácia' }, acoes: [texto('Perfeito! E qual é o seu nome? 😊')] };
     }
     case 'RELACAO': {
       // Se não veio um clique de botão válido e o texto tem uma negação como
@@ -221,7 +223,7 @@ export async function avancarTriagem(
     }
     case 'NOME':
       if (!temLetras(livre, 2)) return { estado, dados, acoes: [texto('Pode me dizer o seu nome?')] };
-      return { estado: 'CIDADE', dados: { ...dados, nome: livre.slice(0, 80) }, acoes: [texto(`Prazer, ${livre.slice(0, 80)}! De qual cidade você está falando?`)] };
+      return finalQualificado({ ...dados, nome: livre.slice(0, 80) }, deps);
     case 'CIDADE':
       if (!temLetras(livre, 2)) return { estado, dados, acoes: [texto('De qual cidade você está falando?')] };
       return pedirCnpj({ ...dados, cidade: livre.slice(0, 80) }, deps);

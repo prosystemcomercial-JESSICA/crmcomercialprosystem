@@ -12,7 +12,7 @@ describe('triagem com Laya (opcional)', () => {
   it('com Laya: aceita a opção que ela entendeu', async () => {
     const deps = { ...base, classificar: async () => 'padaria' };
     const r = await avancarTriagem('SEGMENTO', { fluxo: 'conhecer' }, { texto: 'vendo pão francês e bolo' }, deps);
-    expect(r.estado).toBe('RELACAO');
+    expect(r.estado).toBe('NOME');
     expect(r.dados.segmento).toBe('Padaria');
   });
   it('com Laya: resposta inválida ou falha cai no comportamento de hoje', async () => {
