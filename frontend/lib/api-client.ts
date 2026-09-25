@@ -1312,6 +1312,13 @@ class ApiClient {
   async getIaResumo() {
     return this.client.get('/ia/laya/resumo');
   }
+  // Caderno da Laya: níveis, pendências e arquivos para baixar.
+  async getCadernoLaya() {
+    return this.client.get('/ia/laya/niveis');
+  }
+  async baixarCadernoLaya(tipo: 'caderno' | 'amostras') {
+    return this.client.get(`/ia/laya/${tipo}`, { responseType: 'blob' });
+  }
 
   async abrirConversaWhatsapp(numero: string, nome?: string, lead_id?: string) {
     return this.client.post('/whatsapp/abrir', { numero, nome, lead_id });

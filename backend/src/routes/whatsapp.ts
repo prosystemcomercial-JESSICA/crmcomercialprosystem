@@ -66,8 +66,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // passa a ser da pessoa também.
   async function assumirSeSemDono(conversa: { id: string; dono_id: string | null; lead_id: string | null }, user: any): Promise<boolean> {
     if (conversa.dono_id || !user?.id) return false;
-    const r = await prisma.whatsappConversa.updateMany({ where: { id: conversa.id, dono_id: null }, data: { dono_id: user.id } });
+    // Pessoa assumiu: a partir daqui só ela responde (robô e IA param; a Laya segue só aprendendo).
+    const r = await prisma.whatsappConversa.updateMany({ where: { id: conversa.id, dono_id: null }, data: { dono_id: user.id, bot_ativo: false } });
     if (r.count === 0) return false;
+    await pausarCadencia(prisma, conversa.id).catch(() => {});
     if (conversa.lead_id) {
       await prisma.lead.updateMany({
         where: { id: conversa.lead_id, responsavel_id: null },
@@ -985,7 +987,20 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       data: { conversaId: id, texto, rotulos, sugestao: conversa.ia_sugestao ?? Prisma.JsonNull, criado_por: getUser(request)?.id || null },
     });
     const total = await prisma.iaAmostra.count();
-    return reply.send({ status: 'success', data: { total }, message: 'Obrigado! O Laya aprendeu com esta conversa.' });
+    (await import('@/services/laya.service')).esquecerCacheLaya(); // vale na próxima análise
+    return reply.send({ status: 'success', data: { total }, message: 'Obrigado! A Laya aprendeu com esta conversa.' });
+  });
+
+  // Caderno da Laya: níveis por tarefa, pendências de confirmação e o documento completo.
+  fastify.get('/ia/laya/niveis', async (_request, reply) => {
+    const { resumoCaderno } = await import('@/services/laya-caderno.service');
+    return reply.send({ status: 'success', data: await resumoCaderno(prisma) });
+  });
+  fastify.get('/ia/laya/caderno', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { documentoCaderno } = await import('@/services/laya-caderno.service');
+    reply.header('Content-Type', 'text/markdown; charset=utf-8');
+    return reply.send(await documentoCaderno(prisma));
   });
 
   // Placar do treino: quantas amostras e quanto o Laya acertou nas confirmadas.

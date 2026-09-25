@@ -100,6 +100,16 @@ export async function transcreverAudio(prisma: PrismaClient, mensagemId: string)
   return texto;
 }
 
+/** Uma pessoa assumiu a conversa: tem dono ou alguém da equipe já escreveu nela. Daí em diante só ela responde. */
+export async function humanoAssumiu(prisma: PrismaClient, c: { id: string; dono_id: string | null }): Promise<boolean> {
+  if (c.dono_id) return true;
+  const humana = await prisma.whatsappMensagem.findFirst({
+    where: { conversaId: c.id, direcao: 'SAIDA', OR: [{ enviada_por: null }, { enviada_por: { notIn: [...REMETENTES_AUTOMATICOS, REMETENTE_IA] } }] },
+    select: { id: true },
+  });
+  return !!humana;
+}
+
 /**
  * Tira-dúvidas: depois de gravar a mensagem do lead, decide se pode responder
  * sozinho e pergunta à IA. Nunca lança; na dúvida, não responde (a equipe responde).
@@ -110,6 +120,8 @@ export async function autoResponderDuvida(prisma: PrismaClient, token: string, c
     if (!cfg.tem_chave || cfg.tira_duvidas === 'desligado') return;
     const c = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, contato_numero: true, tipo_contato: true, bot_ativo: true, bot_estado: true, dono_id: true } });
     if (!c) return;
+    // Conversa assumida por uma pessoa (tem dono ou alguém da equipe já respondeu): a IA não responde mais.
+    if (await humanoAssumiu(prisma, c)) return;
     const agora = new Date();
     const inicioDia = new Date(agora.getTime() - 24 * 3600000);
     const saidas = await prisma.whatsappMensagem.findMany({
