@@ -238,6 +238,30 @@ async function enviarChamariz(prisma: PrismaClient, token: string, sdr: any, ult
   await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${menu.texto}\n\n${menu.opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } }).catch(() => {});
 }
 
+/** Sinal de interesse (clique em botão): sobe a nota até um mínimo, sem nunca baixar. */
+export async function registrarInteresse(prisma: PrismaClient, sdr: any, notaMinima: number, motivo: string) {
+  const atual = await prisma.sdrLead.findUnique({ where: { id: sdr.id }, select: { nota: true, nota_motivo: true, dados: true, lead_id: true, conversaId: true, temperatura: true } });
+  if (!atual) return;
+  if ((atual.nota ?? 0) < notaMinima) {
+    const temperatura = temperaturaDaNota(notaMinima);
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { nota: notaMinima, nota_motivo: motivo, temperatura, dados: { ...((atual.dados as any) || {}), intencao: 'comprar' } } });
+    if (atual.lead_id) {
+      const lead = await prisma.lead.findUnique({ where: { id: atual.lead_id }, select: { temperatura: true } }).catch(() => null);
+      if (lead && lead.temperatura !== temperatura && !['QUENTE', 'MUITO_QUENTE'].includes(lead.temperatura)) {
+        await prisma.lead.update({ where: { id: atual.lead_id }, data: { temperatura } }).catch(() => {});
+        await registrarMudancaTemperatura(prisma, { leadId: atual.lead_id, temperaturaAnterior: lead.temperatura, temperaturaNova: temperatura, autorNome: `Caroline (nota ${notaMinima})` }).catch(() => {});
+      }
+      await prisma.leadObservacao.create({ data: { lead_id: atual.lead_id, tipo: 'SISTEMA', descricao: `🤖 Caroline: ${motivo}. Termômetro ${notaMinima}/100.`, created_by: 'bot', created_by_name: 'Caroline (SDR)' } }).catch(() => {});
+    }
+  }
+  // Intenção na conversa (o que a Laya mostra no painel): quer comprar.
+  if (atual.conversaId) {
+    const c = await prisma.whatsappConversa.findUnique({ where: { id: atual.conversaId }, select: { ia_sugestao: true } });
+    await prisma.whatsappConversa.update({ where: { id: atual.conversaId }, data: { ia_sugestao: { ...((c?.ia_sugestao as any) || { segmento: 'nao_sei', cancelar: 0, urgencia: 0 }), intencao: 'comprar' } } }).catch(() => {});
+  }
+  registrarAcaoAgente('caroline', `registrou interesse de ${sdr.nome || 'um lead'}: ${motivo}`);
+}
+
 async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCaroline) {
   const temperatura = temperaturaDaNota(r.nota);
   const dados = { ...(sdr.dados || {}), ...Object.fromEntries(Object.entries(r.dados).filter(([, v]) => v)), ...(r.dor_principal ? { dor_principal: r.dor_principal } : {}) };
@@ -383,6 +407,12 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
   const sdr = await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS } }, orderBy: { created_at: 'desc' } });
   if (!sdr) return false;
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_lead_em: new Date(), ...(sdr.status !== 'FILA' ? { status: 'CONVERSANDO' } : {}) } });
+
+  // Tocar em "Me chama depois"/"Quero saber mais" já é sinal de interesse: registra no termômetro.
+  if (botaoId === 'sdr_depois' || botaoId === 'sdr_quero') {
+    await registrarInteresse(prisma, sdr, botaoId === 'sdr_quero' ? 45 : 35,
+      botaoId === 'sdr_quero' ? 'Tocou em "Quero saber mais" (interesse declarado)' : 'Pediu para ser chamado depois, não encerrou (interesse inicial)');
+  }
 
   // "Me chama depois": combina o próximo dia útil, de manhã ou à tarde (resposta direta, sem IA).
   const primeiro = (sdr.nome || '').trim().split(/\s+/)[0];
