@@ -30,6 +30,7 @@ const ACOES_SIMULADAS: Record<string, string[]> = {
   zequinha: ['enviou campanha para Carlos', 'enviou campanha para Fernanda', 'tirou da lista quem pediu SAIR'],
   helena: ['deu boas-vindas à Farmácia Esperança', 'enviou pesquisa para Padaria Delícia', 'recebeu nota Ótima da Drogaria Luz'],
   laya: ['analisou conversa com Padaria Sol', 'detectou intenção de compra', 'aprendeu com uma etiqueta confirmada'],
+  julio: ['retomou a Drogaria Central (lead de março)', 'Farmácia Bem Estar já fechou com outro sistema: anotado', 'passou a Padaria Trigo para a Caroline'],
   caroline: ['descobriu a dor da Farmácia Rangel: o caixa não bate', 'chamou um lead da campanha de farmácia', 'ofereceu demonstração (nota 78)'],
   sofia: ['pesquisou reforma tributária para farmácias', 'achou novidade do Farmácia Popular', 'pesquisou tendências para padarias'],
   marta: ['respondeu "hoje" para Jessica', 'avisou Thiago: proposta aceita', 'lançou tarefa para Ana: ligar para cliente'],
@@ -44,6 +45,8 @@ const haQuanto = (iso: string) => {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
+const botaoZoom = { width: 28, height: 28, borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: 800, fontSize: 16, cursor: 'pointer' } as const;
+
 export default function EscritorioPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
@@ -51,6 +54,7 @@ export default function EscritorioPage() {
   const [atualizado, setAtualizado] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [chamados, setChamados] = useState<Record<string, Chamado>>({});
+  const [zoom, setZoom] = useState(1);
   const [historico, setHistorico] = useState<{ id: string; itens: { texto: string; em: string }[] | null } | null>(null);
 
   const verTrabalho = (id: string) => {
@@ -148,8 +152,20 @@ export default function EscritorioPage() {
         {erro && <p style={{ color: '#dc2626', fontSize: 13 }}>Não foi possível carregar o escritório agora. Tentando de novo em 30 segundos.</p>}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
-          <div style={{ background: 'linear-gradient(180deg, #dbe7f3 0%, #eef3f8 100%)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: 0, overflow: 'hidden' }}>
-            {mostrar ? <SalaIsometrica agentes={mostrar} selecionado={sel} onSelecionar={setSel} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
+          {/* Sala com zoom: botões +/−, Ctrl+roda do mouse; com zoom, arraste a barra para andar pela sala. */}
+          <div style={{ position: 'relative', background: 'linear-gradient(180deg, #dbe7f3 0%, #eef3f8 100%)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: 0, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, display: 'flex', gap: 4, background: 'rgba(255,255,255,.9)', borderRadius: 8, padding: 4, boxShadow: '0 1px 4px rgba(0,0,0,.15)' }}>
+              <button aria-label="Diminuir zoom" onClick={() => setZoom(z => Math.max(1, +(z - 0.25).toFixed(2)))} style={botaoZoom}>−</button>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', minWidth: 42, textAlign: 'center', alignSelf: 'center' }}>{Math.round(zoom * 100)}%</span>
+              <button aria-label="Aumentar zoom" onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))} style={botaoZoom}>+</button>
+              {zoom > 1 && <button aria-label="Voltar ao tamanho normal" onClick={() => setZoom(1)} style={{ ...botaoZoom, width: 'auto', padding: '0 8px', fontSize: 11 }}>ajustar</button>}
+            </div>
+            <div onWheel={e => { if (!e.ctrlKey) return; e.preventDefault(); setZoom(z => Math.min(3, Math.max(1, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2)))); }}
+              style={{ overflow: zoom > 1 ? 'auto' : 'hidden', maxHeight: zoom > 1 ? '80vh' : undefined }}>
+              <div style={{ width: `${zoom * 100}%`, transition: 'width .2s ease' }}>
+                {mostrar ? <SalaIsometrica agentes={mostrar} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
+              </div>
+            </div>
           </div>
 
           {escolhido && (
@@ -166,14 +182,14 @@ export default function EscritorioPage() {
               {escolhido.observacao && <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{escolhido.observacao}</p>}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => setChat(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>💬 Conversar</button>
-                <button onClick={() => verTrabalho(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: escolhido.cor, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>👀 Ver trabalho</button>
+                <button onClick={() => verTrabalho(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: escolhido.cor, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>📅 Agenda</button>
                 {chamados[escolhido.id]
                   ? <button onClick={() => liberar(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>✅ Liberar</button>
                   : <button onClick={() => chamar(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#0f172a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>📞 Chamar à minha sala</button>}
               </div>
               {historico?.id === escolhido.id && (
                 <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 10, display: 'grid', gap: 6 }}>
-                  <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>Como {escolhido.nome} está trabalhando</b>
+                  <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>📅 Agenda de {escolhido.nome}: com quem está falando e o que vem a seguir</b>
                   {historico.itens === null && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Carregando…</span>}
                   {historico.itens?.length === 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Ainda sem ações registradas.</span>}
                   {historico.itens?.map((h, k) => (
@@ -191,12 +207,14 @@ export default function EscritorioPage() {
             const a = (mostrar || []).find(x => x.id === chat)!;
             return <ChatAgente key={a.id} agente={{ id: a.id, nome: a.nome, cor: a.cor, funcao: a.funcao }} onFechar={() => setChat(null)} />;
           })()}
-          <PainelCaroline />
+          <PainelCaroline agente="caroline" />
+          <PainelCaroline agente="luiz_felipe" />
+          <PainelCaroline agente="julio" />
           <CadernoLaya />
           <PesquisasSofia />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
             {mostrar?.map(a => (
-              <button key={a.id} onClick={() => setSel(a.id)} style={{
+              <button key={a.id} onClick={() => verTrabalho(a.id)} style={{
                 textAlign: 'left', background: 'var(--t-card-bg)', border: `1px solid ${sel === a.id ? a.cor : 'var(--t-card-border)'}`, borderRadius: 12, padding: 14,
                 display: 'grid', gap: 6, cursor: 'pointer', color: 'var(--t-text-primary)',
               }}>

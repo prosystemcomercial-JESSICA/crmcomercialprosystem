@@ -13,6 +13,7 @@ export const AGENTES = [
   { id: 'marta', nome: 'Marta', funcao: 'Assistente da gestão · comandos e avisos', cor: '#7c3aed' },
   { id: 'sofia', nome: 'Sofia', funcao: 'Pesquisadora · assuntos do setor e novidades', cor: '#ea580c' },
   { id: 'caroline', nome: 'Caroline', funcao: 'SDR · primeiro contato com leads das campanhas', cor: '#be123c' },
+  { id: 'julio', nome: 'Julio', funcao: 'Follow-up de leads · retoma a base, do mais novo ao mais antigo', cor: '#0d9488' },
 ] as const;
 export type AgenteId = typeof AGENTES[number]['id'];
 export type StatusAgente = 'trabalhando' | 'parado' | 'desligado';

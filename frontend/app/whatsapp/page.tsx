@@ -78,11 +78,11 @@ interface EmpresaResumo {
 }
 
 // Farol rosa: a Caroline (SDR) está atendendo esta conversa agora.
-function FarolCaroline({ pequeno = false }: { pequeno?: boolean }) {
+function FarolCaroline({ pequeno = false, nome = 'Caroline' }: { pequeno?: boolean; nome?: string | null }) {
   return (
     <span className={`inline-flex items-center gap-1 rounded font-bold ${pequeno ? 'px-1.5 py-0.5 text-[9px]' : 'px-1.5 py-0.5 text-[10px]'}`} style={{ background: '#FCE7F3', color: '#BE185D' }}>
       <span className="farol-caroline" style={{ width: 7, height: 7, borderRadius: 999, background: '#EC4899', display: 'inline-block' }} />
-      Caroline atendendo
+      {nome || 'Caroline'} atendendo
       <style>{`.farol-caroline{animation:farolCaroline 1.4s ease-in-out infinite}@keyframes farolCaroline{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(236,72,153,.6)}50%{opacity:.55;box-shadow:0 0 0 4px rgba(236,72,153,0)}}@media (prefers-reduced-motion: reduce){.farol-caroline{animation:none}}`}</style>
     </span>
   );
@@ -1019,7 +1019,7 @@ export default function WhatsappPage() {
                       {c.etiqueta && (
                         <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
                       )}
-                      {c.atendente_ia ? <span className="inline-block mt-1 ml-1"><FarolCaroline /></span> : !c.dono_id && (
+                      {c.atendente_ia ? <span className="inline-block mt-1 ml-1"><FarolCaroline nome={c.atendente_ia} /></span> : !c.dono_id && (
                         <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#FEF3C7', color: '#92400E' }}>
                           📥 Sem dono
                         </span>
@@ -1064,7 +1064,7 @@ export default function WhatsappPage() {
                         )}
                       </div>
                       <p className="text-[11px] text-gray-400 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · 🔗 funil' : ''}{!ativa.dono_id && !ativa.atendente_ia ? ' · 📥 sem dono' : ''}</p>
-                      {ativa.atendente_ia && <div className="mt-0.5"><FarolCaroline pequeno /></div>}
+                      {ativa.atendente_ia && <div className="mt-0.5"><FarolCaroline pequeno nome={ativa.atendente_ia} /></div>}
                       <div className="flex items-center gap-1 flex-wrap mt-1">
                         {emTriagem(ativa) && <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800">🤖 Em triagem — responder para o robô parar</span>}
                         {avisoCnpj(ativa) && <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">⚠️ {avisoCnpj(ativa)}</span>}
@@ -1395,7 +1395,7 @@ export default function WhatsappPage() {
 
                 <div className="px-4 py-3.5 border-b border-gray-100">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Responsável</p>
-                  <p className="text-sm font-medium text-gray-800">{ativa.atendente_ia ? <FarolCaroline /> : !ativa.dono_id ? 'Sem dono' : (painel?.responsavel?.nome || ativa.dono_nome || '—')}</p>
+                  <p className="text-sm font-medium text-gray-800">{ativa.atendente_ia ? <FarolCaroline nome={ativa.atendente_ia} /> : !ativa.dono_id ? 'Sem dono' : (painel?.responsavel?.nome || ativa.dono_nome || '—')}</p>
                   {avisoCnpj(ativa) && <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">⚠️ {avisoCnpj(ativa)}</span>}
                 </div>
 
@@ -1482,7 +1482,7 @@ export default function WhatsappPage() {
                               {c.nao_lidas > 0 && <span className="bg-blue-600 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center flex-shrink-0">{c.nao_lidas}</span>}
                             </div>
                             <div className="flex items-center gap-1 flex-wrap mt-1">
-                              {c.atendente_ia ? <FarolCaroline pequeno /> : !c.dono_id && (
+                              {c.atendente_ia ? <FarolCaroline pequeno nome={c.atendente_ia} /> : !c.dono_id && (
                                 <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#FEF3C7', color: '#92400E' }}>📥 Sem dono</span>
                               )}
                               {c.lead_id && <span className="inline-block text-[10px] text-blue-600">🔗 funil</span>}

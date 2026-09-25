@@ -10,8 +10,9 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia,
-  type RespostaCaroline, type FaseCaroline,
+  PERFIS_SDR, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
 } from '@/lib/assistente/sdr';
+import { numeroWhatsapp } from '@/lib/assistente/campanhas';
 
 // Caroline, a SDR: recebe os leads das campanhas (colados pela Jessica), faz o
 // primeiro contato pelo WhatsApp da empresa com ritmo seguro, conversa pela IA
@@ -19,26 +20,37 @@ import {
 // vendedora ou encerramento. Uma pessoa assumiu a conversa → ela sai na hora.
 
 export const REMETENTE_CAROLINE = 'caroline';
-const CHAVE_CFG = 'assistente.caroline';
+export const AGENTES_SDR: PerfilSdr[] = ['caroline', 'luiz_felipe', 'julio']; // ordem de prioridade no primeiro contato
+export const REMETENTES_SDR = ['caroline', 'julio', 'luiz_felipe'];
 const ATIVOS = ['FILA', 'AGUARDANDO', 'CONVERSANDO'];
+export const agenteDe = (sdr: any): PerfilSdr => (AGENTES_SDR.includes(sdr?.agente) ? sdr.agente : 'caroline');
+const nomeDe = (sdr: any) => PERFIS_SDR[agenteDe(sdr)].nome;
+const chaveCfg = (a: PerfilSdr) => (a === 'caroline' ? 'assistente.caroline' : `assistente.sdr.${a}`);
 
-export type ConfigCaroline = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null };
-const PADRAO: ConfigCaroline = { ativa: false, aprovar: true, limite: 30, ativada_em: null, pausada_motivo: null };
+// inicia_em: o agente só começa a partir desse horário (ex.: segunda 9h).
+export type ConfigCaroline = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null };
+const PADRAO: ConfigCaroline = { ativa: false, aprovar: true, limite: 30, ativada_em: null, pausada_motivo: null, inicia_em: null };
 
-export async function obterConfigCaroline(prisma: PrismaClient): Promise<ConfigCaroline> {
-  const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_CFG } }).catch(() => null);
+export async function obterConfigAgente(prisma: PrismaClient, agente: PerfilSdr): Promise<ConfigCaroline> {
+  const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: chaveCfg(agente) } }).catch(() => null);
   try { return { ...PADRAO, ...(r?.valor ? JSON.parse(r.valor) : {}) }; } catch { return { ...PADRAO }; }
 }
+export const obterConfigCaroline = (prisma: PrismaClient) => obterConfigAgente(prisma, 'caroline');
 
-export async function salvarConfigCaroline(prisma: PrismaClient, novo: Partial<ConfigCaroline>, userId: string) {
-  const atual = await obterConfigCaroline(prisma);
+export async function salvarConfigAgente(prisma: PrismaClient, agente: PerfilSdr, novo: Partial<ConfigCaroline>, userId: string) {
+  const atual = await obterConfigAgente(prisma, agente);
   const cfg: ConfigCaroline = { ...atual, ...novo };
   if (novo.ativa && !atual.ativa) { cfg.pausada_motivo = null; if (!cfg.ativada_em) cfg.ativada_em = new Date().toISOString(); }
   cfg.limite = Math.max(1, Math.min(30, Math.round(cfg.limite || 30)));
   const valor = JSON.stringify(cfg);
-  await prisma.configuracaoIntegracao.upsert({ where: { chave: CHAVE_CFG }, create: { chave: CHAVE_CFG, valor, updated_by: userId }, update: { valor, updated_by: userId } });
+  const chave = chaveCfg(agente);
+  await prisma.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor, updated_by: userId }, update: { valor, updated_by: userId } });
   return cfg;
 }
+export const salvarConfigCaroline = (prisma: PrismaClient, novo: Partial<ConfigCaroline>, userId: string) => salvarConfigAgente(prisma, 'caroline', novo, userId);
+
+/** Agente ligado e já dentro do horário de início (inicia_em). */
+const trabalhando = (cfg: ConfigCaroline, agora: Date) => cfg.ativa && (!cfg.inicia_em || agora >= new Date(cfg.inicia_em));
 
 // ── Entrada dos leads ───────────────────────────────────────────────────────
 
@@ -132,7 +144,7 @@ async function pessoaAssumiu(prisma: PrismaClient, sdr: { conversaId: string | n
   const humana = await prisma.whatsappMensagem.findFirst({
     where: {
       conversaId: sdr.conversaId, direcao: 'SAIDA', created_at: { gt: sdr.desde },
-      OR: [{ enviada_por: null }, { enviada_por: { notIn: [...REMETENTES_AUTOMATICOS, REMETENTE_CAROLINE, 'abertura_jessica', 'assistente_ia'] } }],
+      OR: [{ enviada_por: null }, { enviada_por: { notIn: [...REMETENTES_AUTOMATICOS, ...REMETENTES_SDR, 'abertura_jessica', 'assistente_ia'] } }],
     },
     select: { id: true },
   });
@@ -142,7 +154,7 @@ async function pessoaAssumiu(prisma: PrismaClient, sdr: { conversaId: string | n
 async function historico(prisma: PrismaClient, conversaId: string) {
   const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId }, orderBy: { created_at: 'desc' }, take: 14, select: { direcao: true, tipo: true, conteudo: true, transcricao: true, enviada_por: true, midia_url: true } });
   const linhas = ms.reverse().map(m => {
-    const quem = m.direcao === 'ENTRADA' ? 'Cliente' : m.enviada_por === REMETENTE_CAROLINE ? 'Caroline' : m.enviada_por === 'abertura_jessica' || !m.enviada_por ? 'Jessica' : 'Empresa';
+    const quem = m.direcao === 'ENTRADA' ? 'Cliente' : REMETENTES_SDR.includes(m.enviada_por || '') ? PERFIS_SDR[m.enviada_por as PerfilSdr].nome : m.enviada_por === 'abertura_jessica' || !m.enviada_por ? 'Jessica' : 'Empresa';
     const txt = m.tipo === 'AUDIO' ? `[áudio] ${m.transcricao || '(sem transcrição)'}` : m.tipo === 'IMAGEM' ? `[foto] ${m.conteudo || ''}` : (m.conteudo || '');
     return `${quem}: ${txt.replace(/\s+/g, ' ').trim().slice(0, 600)}`;
   });
@@ -182,8 +194,14 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
       descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
     : '';
   const p = promptCaroline({
-    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, 'caroline')) + refazer, exemplos: await exemplosEditados(prisma),
+    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer, exemplos: await exemplosEditados(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
+    perfil: agenteDe(sdr),
+    followup: {
+      cadastro_em: sdr.cadastro_em ? new Date(sdr.cadastro_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long', year: 'numeric' }) : null,
+      proposta: sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { plano_selecionado: true, wpp_enviada_em: true, created_at: true, status: true } })
+        .then(x => x && { plano: x.plano_selecionado, status: x.status, enviada_em: (x.wpp_enviada_em || x.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) }).catch(() => null) : null,
+    },
     // Assuntos da atualidade só no follow-up de quem já conversou (1ª e 2ª retomadas usam o dia a dia).
     atualidades: fase === 'retomada' && sdr.ultima_lead_em ? atualidades : [],
     lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null },
@@ -206,7 +224,7 @@ async function enviarMensagens(prisma: PrismaClient, token: string, sdr: any, me
   if (!conv) throw new Error('Conversa não encontrada.');
   for (const m of mensagens) {
     const r = await evo.enviarTexto(token, conv.contato_numero, m, tempoDigitando(m));
-    await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: m, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } });
+    await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: m, status: 'ENVIADA', enviada_por: agenteDe(sdr) } });
   }
   await prisma.whatsappConversa.update({ where: { id: sdr.conversaId }, data: { ultima_mensagem: mensagens[mensagens.length - 1].slice(0, 200), ultima_em: new Date() } });
   emitirEventoConversa(conv.dono_id, 'conversa_atualizada', { conversaId: sdr.conversaId });
@@ -230,12 +248,12 @@ async function enviarChamariz(prisma: PrismaClient, token: string, sdr: any, ult
     const m = /padar|confeit/i.test(sdr.segmento || '') ? cfg.material.padaria : cfg.material.farmacia;
     if (m.imagem) {
       const r: any = await evo.enviarArquivo(token, conv.contato_numero, m.imagem, 'prosystem.jpg').catch(() => ({}));
-      await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: r.tipo || 'IMAGEM', conteudo: '🖼️ Imagem', midia_url: m.imagem, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } }).catch(() => {});
+      await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: r.tipo || 'IMAGEM', conteudo: '🖼️ Imagem', midia_url: m.imagem, status: 'ENVIADA', enviada_por: agenteDe(sdr) } }).catch(() => {});
     }
   }
-  const menu = { modo: 'button' as const, texto: 'Se preferir, é só tocar numa opção 👇', rodape: 'Caroline · Prosystem', opcoes: BOTOES_RETOMADA };
+  const menu = { modo: 'button' as const, texto: 'Se preferir, é só tocar numa opção 👇', rodape: `${nomeDe(sdr)} · Prosystem`, opcoes: BOTOES_RETOMADA };
   const r: any = await evo.enviarMenu(token, conv.contato_numero, menu).catch(() => ({}));
-  await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${menu.texto}\n\n${menu.opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } }).catch(() => {});
+  await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${menu.texto}\n\n${menu.opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, status: 'ENVIADA', enviada_por: agenteDe(sdr) } }).catch(() => {});
 }
 
 /** Sinal de interesse (clique em botão): sobe a nota até um mínimo, sem nunca baixar. */
@@ -249,9 +267,9 @@ export async function registrarInteresse(prisma: PrismaClient, sdr: any, notaMin
       const lead = await prisma.lead.findUnique({ where: { id: atual.lead_id }, select: { temperatura: true } }).catch(() => null);
       if (lead && lead.temperatura !== temperatura && !['QUENTE', 'MUITO_QUENTE'].includes(lead.temperatura)) {
         await prisma.lead.update({ where: { id: atual.lead_id }, data: { temperatura } }).catch(() => {});
-        await registrarMudancaTemperatura(prisma, { leadId: atual.lead_id, temperaturaAnterior: lead.temperatura, temperaturaNova: temperatura, autorNome: `Caroline (nota ${notaMinima})` }).catch(() => {});
+        await registrarMudancaTemperatura(prisma, { leadId: atual.lead_id, temperaturaAnterior: lead.temperatura, temperaturaNova: temperatura, autorNome: `${nomeDe(sdr)} (nota ${notaMinima})` }).catch(() => {});
       }
-      await prisma.leadObservacao.create({ data: { lead_id: atual.lead_id, tipo: 'SISTEMA', descricao: `🤖 Caroline: ${motivo}. Termômetro ${notaMinima}/100.`, created_by: 'bot', created_by_name: 'Caroline (SDR)' } }).catch(() => {});
+      await prisma.leadObservacao.create({ data: { lead_id: atual.lead_id, tipo: 'SISTEMA', descricao: `🤖 ${nomeDe(sdr)}: ${motivo}. Termômetro ${notaMinima}/100.`, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
     }
   }
   // Intenção na conversa (o que a Laya mostra no painel): quer comprar.
@@ -259,7 +277,20 @@ export async function registrarInteresse(prisma: PrismaClient, sdr: any, notaMin
     const c = await prisma.whatsappConversa.findUnique({ where: { id: atual.conversaId }, select: { ia_sugestao: true } });
     await prisma.whatsappConversa.update({ where: { id: atual.conversaId }, data: { ia_sugestao: { ...((c?.ia_sugestao as any) || { segmento: 'nao_sei', cancelar: 0, urgencia: 0 }), intencao: 'comprar' } } }).catch(() => {});
   }
-  registrarAcaoAgente('caroline', `registrou interesse de ${sdr.nome || 'um lead'}: ${motivo}`);
+  registrarAcaoAgente(agenteDe(sdr), `registrou interesse de ${sdr.nome || 'um lead'}: ${motivo}`);
+  await passarParaCaroline(prisma, sdr, motivo);
+}
+
+/** Julio achou interesse: a conversa passa para a Caroline, que aprofunda a dor e marca a demonstração. */
+export async function passarParaCaroline(prisma: PrismaClient, sdr: any, motivo: string) {
+  if (agenteDe(sdr) !== 'julio') return;
+  const r = await prisma.sdrLead.updateMany({ where: { id: sdr.id, agente: 'julio' }, data: { agente: 'caroline' } });
+  if (!r.count) return;
+  if (sdr.lead_id) {
+    await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao: `🤖 Julio passou para a Caroline: ${motivo}`, created_by: 'bot', created_by_name: 'Julio' } }).catch(() => {});
+  }
+  registrarAcaoAgente('julio', `passou ${sdr.nome || 'um lead'} para a Caroline (${motivo})`);
+  registrarAcaoAgente('caroline', `recebeu ${sdr.nome || 'um lead'} do Julio`);
 }
 
 async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCaroline) {
@@ -270,7 +301,7 @@ async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCa
     const lead = await prisma.lead.findUnique({ where: { id: sdr.lead_id }, select: { temperatura: true } }).catch(() => null);
     if (lead && lead.temperatura !== temperatura) {
       await prisma.lead.update({ where: { id: sdr.lead_id }, data: { temperatura, ...(dados.cidade ? { cidade: String(dados.cidade).slice(0, 100) } : {}), ...(dados.sistema_atual ? { sistema_atual: String(dados.sistema_atual).slice(0, 100) } : {}) } as any }).catch(() => {});
-      await registrarMudancaTemperatura(prisma, { leadId: sdr.lead_id, temperaturaAnterior: lead.temperatura, temperaturaNova: temperatura, autorNome: `Caroline (nota ${r.nota})` }).catch(() => {});
+      await registrarMudancaTemperatura(prisma, { leadId: sdr.lead_id, temperaturaAnterior: lead.temperatura, temperaturaNova: temperatura, autorNome: `${nomeDe(sdr)} (nota ${r.nota})` }).catch(() => {});
     }
   }
   return dados;
@@ -278,7 +309,7 @@ async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCa
 
 function resumoLead(sdr: any, dados: any, r: { nota: number; nota_motivo: string }) {
   return [
-    `🤖 Caroline (SDR): ${sdr.nome || ''}${sdr.empresa ? ` · ${sdr.empresa}` : ''}`,
+    `🤖 ${nomeDe(sdr)}: ${sdr.nome || ''}${sdr.empresa ? ` · ${sdr.empresa}` : ''}`,
     `Termômetro: ${r.nota}/100 (${temperaturaDaNota(r.nota).replace('_', ' ').toLowerCase()}): ${r.nota_motivo || '—'}`,
     `Dor principal: ${dados.dor_principal || 'não identificada'}`,
     dados.cidade ? `Cidade: ${dados.cidade}` : null, dados.sistema_atual ? `Sistema atual: ${dados.sistema_atual}` : null,
@@ -292,26 +323,26 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: 
   const atual = await prisma.sdrLead.findUnique({ where: { id: sdr.id } });
   const dados: any = atual?.dados || {};
   const resumo = resumoLead(atual, dados, r);
-  const obs = (descricao: string) => atual?.lead_id && prisma.leadObservacao.create({ data: { lead_id: atual.lead_id, tipo: 'SISTEMA', descricao, created_by: 'bot', created_by_name: 'Caroline (SDR)' } }).catch(() => {});
+  const obs = (descricao: string) => atual?.lead_id && prisma.leadObservacao.create({ data: { lead_id: atual.lead_id, tipo: 'SISTEMA', descricao, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
   if (acao === 'oferecer_demo') {
     const { oferecerDemo } = await import('./assistente-demo.service');
     await oferecerDemo(prisma, token, sdr.conversaId).catch((e: any) => console.warn('[CAROLINE] demo:', e?.message));
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'DEMO', resumo } });
     await obs(`${resumo}\n\nDemonstração oferecida.`);
-    await enviarAvisoGestao(prisma, 'lead_qualificado', `🔥 *Caroline ofereceu demonstração*\n${resumo}`);
-    registrarAcaoAgente('caroline', `ofereceu demonstração para ${atual?.nome || 'um lead'}`);
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `🔥 *${nomeDe(sdr)} ofereceu demonstração*\n${resumo}`);
+    registrarAcaoAgente(agenteDe(sdr), `ofereceu demonstração para ${atual?.nome || 'um lead'}`);
   } else if (acao === 'passar_vendedora') {
     if (atual?.lead_id) await prisma.lead.update({ where: { id: atual.lead_id }, data: { etapa_sdr: 'QUALIFICADO' } }).catch(() => {});
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'VENDEDORA', resumo } });
     await obs(`${resumo}\n\nPassado para a vendedora (Leads para Distribuir).`);
-    await enviarAvisoGestao(prisma, 'lead_qualificado', `🔔 *Lead pronto para a vendedora* (Caroline)\n${resumo}`);
-    registrarAcaoAgente('caroline', `passou ${atual?.nome || 'um lead'} para a vendedora`);
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `🔔 *Lead pronto para a vendedora* (${nomeDe(sdr)})\n${resumo}`);
+    registrarAcaoAgente(agenteDe(sdr), `passou ${atual?.nome || 'um lead'} para a vendedora`);
   } else if (acao === 'sem_interesse') {
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'SEM_INTERESSE', resumo } });
-    await obs(`${resumo}\n\nSem interesse no momento (a Caroline encerrou com gentileza).`);
-    registrarAcaoAgente('caroline', `encerrou: ${atual?.nome || 'lead'} sem interesse agora`);
+    await obs(`${resumo}\n\nSem interesse no momento (encerrado com gentileza).`);
+    registrarAcaoAgente(agenteDe(sdr), `encerrou: ${atual?.nome || 'lead'} sem interesse agora`);
   } else if (acao === 'duvida_fora_material') {
-    await enviarAvisoGestao(prisma, 'lead_qualificado', `❓ *Dúvida que a Caroline não sabe responder*\n${atual?.nome || ''}${atual?.empresa ? ` · ${atual.empresa}` : ''}: "${r.duvida || 'ver conversa'}"\nResponda na conversa do WhatsApp (ao responder, você assume e ela sai).`);
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `❓ *Dúvida que ${nomeDe(sdr)} não sabe responder*\n${atual?.nome || ''}${atual?.empresa ? ` · ${atual.empresa}` : ''}: "${r.duvida || 'ver conversa'}"\nResponda na conversa do WhatsApp (ao responder, você assume e ela sai).`);
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
   }
 }
@@ -325,14 +356,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (!sdr || !sdr.conversaId || !ATIVOS.includes(sdr.status)) return 'nada';
   if (await pessoaAssumiu(prisma, sdr)) {
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO' } });
-    registrarAcaoAgente('caroline', `saiu da conversa de ${sdr.nome || 'um lead'}: uma pessoa assumiu`);
+    registrarAcaoAgente(agenteDe(sdr), `saiu da conversa de ${sdr.nome || 'um lead'}: uma pessoa assumiu`);
     return 'nada';
   }
   if (await prisma.sdrMensagem.findFirst({ where: { sdrId, status: 'PENDENTE' }, select: { id: true } })) return 'aprovacao';
   const r = await gerarResposta(prisma, sdr, fase);
   if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); return 'falha'; }
   await atualizarTermometro(prisma, sdr, r);
-  const cfg = await obterConfigCaroline(prisma);
+  const cfg = await obterConfigAgente(prisma, agenteDe(sdr));
   const agora = new Date();
   // Retomada de quem ainda não respondeu: vai com botões (e imagem na última tentativa).
   const chamariz = fase !== 'resposta' && (fase === 'retomada' || sdr.abertura_enviada) && !sdr.ultima_lead_em;
@@ -345,7 +376,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (cfg.aprovar) {
     await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
-    registrarAcaoAgente('caroline', `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
+    registrarAcaoAgente(agenteDe(sdr), `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });
     return 'aprovacao';
   }
@@ -353,8 +384,10 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (chamariz && r.acao === 'continuar') await enviarChamariz(prisma, token, sdr, ultima);
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
-  registrarAcaoAgente('caroline', `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
+  registrarAcaoAgente(agenteDe(sdr), `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
   if (r.acao !== 'continuar') await aplicarAcao(prisma, token, sdr, r.acao, r);
+  // Julio: com interesse (nota 35+, demo ou vendedora), a conversa segue com a Caroline.
+  if (r.nota >= 35 || ['oferecer_demo', 'passar_vendedora'].includes(r.acao)) await passarParaCaroline(prisma, sdr, `interesse na conversa (nota ${r.nota})`);
   return 'enviado';
 }
 
@@ -372,7 +405,7 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
     if (inst?.instance_token) {
       void falar(prisma, inst.instance_token, sdr.id, (meta.fase as FaseCaroline) || 'resposta').catch((e: any) => console.warn('[CAROLINE] refazer:', e?.message));
     }
-    registrarAcaoAgente('caroline', `está reescrevendo a mensagem para ${sdr.nome || 'um lead'}`);
+    registrarAcaoAgente(agenteDe(sdr), `está reescrevendo a mensagem para ${sdr.nome || 'um lead'}`);
     return { status: 'DESCARTADA' };
   }
   if (await pessoaAssumiu(prisma, sdr)) {
@@ -394,6 +427,7 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
     data: { ultima_caroline_em: agora, ...(meta.fase === 'resposta' ? { status: 'CONVERSANDO' } : { status: 'AGUARDANDO', tentativas: { increment: 1 } }), ...(sdr.primeiro_envio_em ? {} : { primeiro_envio_em: agora }) },
   });
   if (meta.acao && meta.acao !== 'continuar') await aplicarAcao(prisma, inst.instance_token, sdr, meta.acao, meta);
+  if ((meta.nota ?? 0) >= 35 || ['oferecer_demo', 'passar_vendedora'].includes(meta.acao)) await passarParaCaroline(prisma, sdr, `interesse na conversa (nota ${meta.nota ?? '—'})`);
   return { status: editada ? 'EDITADA' : 'APROVADA' };
 }
 
@@ -422,12 +456,12 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
     await enviarMensagens(prisma, token, sdr, [`Combinado${primeiro ? `, ${primeiro}` : ''}! 😊 Qual o melhor momento pra eu te chamar?`]).catch(() => {});
     const conv = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { contato_numero: true } });
     if (conv) {
-      const menu = { modo: 'button' as const, texto: 'É só tocar 👇', rodape: 'Caroline · Prosystem', opcoes };
+      const menu = { modo: 'button' as const, texto: 'É só tocar 👇', rodape: `${nomeDe(sdr)} · Prosystem`, opcoes };
       const r: any = await evo.enviarMenu(token, conv.contato_numero, menu).catch(() => ({}));
-      await prisma.whatsappMensagem.create({ data: { conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${menu.texto}\n\n${opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } }).catch(() => {});
+      await prisma.whatsappMensagem.create({ data: { conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${menu.texto}\n\n${opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, status: 'ENVIADA', enviada_por: agenteDe(sdr) } }).catch(() => {});
     }
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_caroline_em: new Date() } });
-    registrarAcaoAgente('caroline', `${sdr.nome || 'um lead'} pediu para chamar depois: combinando o horário`);
+    registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'um lead'} pediu para chamar depois: combinando o horário`);
     return true;
   }
   const ag = lerAgendamento(botaoId);
@@ -436,7 +470,7 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
     await enviarMensagens(prisma, token, sdr, [`Perfeito! Te chamo ${quando}, então. Até lá! 👋`]).catch(() => {});
     // Volta a esperar; a rodada chama no horário combinado (retomada, sem contar como tentativa perdida).
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date(), tentativas: 1, dados: { ...((sdr.dados as any) || {}), retomar_em: ag.quando.toISOString(), combinado: quando } } });
-    registrarAcaoAgente('caroline', `combinou chamar ${sdr.nome || 'o lead'} ${quando}`);
+    registrarAcaoAgente(agenteDe(sdr), `combinou chamar ${sdr.nome || 'o lead'} ${quando}`);
     return true;
   }
   if (tipo === 'TEXTO' && ehPedidoDeSaida(texto)) {
@@ -444,14 +478,14 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'SAIU' } });
     const resp = 'Tudo bem! Não vou mais te mandar mensagens. Se precisar, é só chamar por aqui. 💙';
     await enviarMensagens(prisma, token, sdr, [resp]).catch(() => {});
-    registrarAcaoAgente('caroline', `${sdr.nome || 'um lead'} pediu para sair`);
+    registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'um lead'} pediu para sair`);
     return true;
   }
   if (tipo === 'AUDIO') {
     const { transcreverAudio } = await import('./assistente-ia.service');
     await transcreverAudio(prisma, mensagemId).catch((e: any) => console.warn('[CAROLINE] áudio:', e?.message));
   }
-  const cfg = await obterConfigCaroline(prisma);
+  const cfg = await obterConfigAgente(prisma, agenteDe(sdr));
   if (!cfg.ativa) return true; // desligada: guarda a conversa, a equipe responde
   const anterior = espera.get(conversaId);
   if (anterior) clearTimeout(anterior);
@@ -465,14 +499,101 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
   return true;
 }
 
+/**
+ * Acabaram as 3 tentativas: não desiste. O lead vai para o ciclo longo do Julio (nova rodada de
+ * retomadas a cada 30 dias, até 3 ciclos). Depois disso, a vendedora recebe o lead com aviso.
+ */
+const CICLOS_MAX = 3;
+async function naoDesistir(prisma: PrismaClient, s: any, agora: Date) {
+  const d: any = s.dados || {};
+  const ciclos = Number(d.ciclos || 0);
+  if (ciclos >= CICLOS_MAX) {
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA' } });
+    if (s.lead_id) await prisma.lead.update({ where: { id: s.lead_id }, data: { etapa_sdr: 'QUALIFICADO' } }).catch(() => {});
+    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `📵 *${s.nome || s.numero}${s.empresa ? ` (${s.empresa})` : ''}* não respondeu depois de ${CICLOS_MAX} ciclos de retomada. Foi para "Leads para Distribuir": vale uma ligação da vendedora.`).catch(() => {});
+    return;
+  }
+  const volta = new Date(`${new Date(agora.getTime() + 30 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
+  await prisma.sdrLead.update({ where: { id: s.id }, data: { agente: 'julio', status: 'AGUARDANDO', dados: { ...d, ciclos: ciclos + 1, ciclo_em: volta.toISOString() } } });
+  if (s.lead_id) await prisma.leadObservacao.create({ data: { lead_id: s.lead_id, tipo: 'SISTEMA', descricao: `🤖 Sem resposta nas 3 tentativas. O Julio volta a chamar em ${volta.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (ciclo ${ciclos + 1} de ${CICLOS_MAX}).`, created_by: 'bot', created_by_name: 'Julio' } }).catch(() => {});
+  registrarAcaoAgente('julio', `vai voltar a chamar ${s.nome || 'um lead'} em ${volta.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+}
+
 // ── Rodada (a cada 2 min) ────────────────────────────────────────────────────
 
 let proximoPrimeiroContato = 0;
-let falhasSeguidas = 0;
+const falhasSeguidas: Record<string, number> = {};
+
+// Conversa já existente no WhatsApp da empresa (mesmo número com/sem 9) ou uma nova, ligada ao lead.
+async function conversaPara(prisma: PrismaClient, instanciaId: string, numero: string, d: { nome: string | null; lead_id: string | null }) {
+  const cs = await prisma.whatsappConversa.findMany({ where: { instanciaId, contato_numero: { endsWith: ultimos8(numero) } }, select: { id: true, contato_numero: true, optout_campanhas: true, ultima_em: true } });
+  const c = cs.find(x => ultimos8(x.contato_numero) === ultimos8(numero));
+  if (c) return c;
+  return prisma.whatsappConversa.create({
+    data: { instanciaId, contato_numero: numero, contato_nome: d.nome, tipo_contato: 'LEAD', lead_id: d.lead_id, bot_ativo: false, nao_lidas: 0 },
+    select: { id: true, contato_numero: true, optout_campanhas: true, ultima_em: true },
+  });
+}
+
+const FECHADAS_LEAD = ['FECHADO', 'PERDIDO', 'ACEITO', 'CONTRATO_ASSINADO', 'CONTRATO_EM_ANDAMENTO', 'ONBOARDING', 'EXECUCAO_TECNICA'];
+const PROPOSTA_ABERTA = ['ENVIADA', 'VISUALIZADA', 'EM_NEGOCIACAO', 'EXPIRADA', 'CONTRATO_EM_GERACAO'];
+const SETE_DIAS = 7 * 864e5;
+
+/**
+ * Abastece as filas automáticas com poucos por vez (sem criar centenas de conversas):
+ * Luiz Felipe = propostas não assinadas paradas há 7+ dias; Julio = leads abertos,
+ * do mais novo para o mais antigo, sem conversa nos últimos 7 dias.
+ */
+async function abastecerFila(prisma: PrismaClient, agente: 'julio' | 'luiz_felipe', instanciaId: string) {
+  const naFila = await prisma.sdrLead.count({ where: { agente, status: 'FILA' } });
+  if (naFila >= 2) return;
+  const jaTem = new Set((await prisma.sdrLead.findMany({ select: { lead_id: true, proposta_id: true, numero: true } })).flatMap(x => [x.lead_id, x.proposta_id, ultimos8(x.numero)]).filter(Boolean) as string[]);
+  const recente = new Date(Date.now() - SETE_DIAS);
+  const quer = 2 - naFila;
+  let postos = 0;
+  if (agente === 'luiz_felipe') {
+    const ps = await prisma.propostaComercial.findMany({
+      where: { deleted_at: null, status: { in: PROPOSTA_ABERTA }, updated_at: { lt: recente } },
+      select: { id: true, responsavel_nome: true, responsavel_telefone: true, nome_fantasia: true, razao_social: true, segmento: true, created_at: true, wpp_enviada_em: true, wpp_followup_etapa: true },
+      orderBy: { updated_at: 'desc' }, take: 50,
+    });
+    for (const x of ps) {
+      if (postos >= quer) break;
+      const numero = numeroWhatsapp(x.responsavel_telefone);
+      if (!numero || jaTem.has(x.id) || jaTem.has(ultimos8(numero))) continue;
+      if (x.wpp_enviada_em && (x.wpp_followup_etapa ?? 0) < 3) continue; // o follow-up dos dias 2/5/7 ainda está cuidando
+      const lead = await acharLead(prisma, numero);
+      const conv = await conversaPara(prisma, instanciaId, numero, { nome: x.responsavel_nome, lead_id: lead?.id || null });
+      if (conv.optout_campanhas || (conv.ultima_em && conv.ultima_em > recente)) continue;
+      await prisma.sdrLead.create({ data: { agente, proposta_id: x.id, lead_id: lead?.id || null, conversaId: conv.id, numero, nome: x.responsavel_nome, empresa: (x.nome_fantasia || x.razao_social || '').trim() || null, segmento: x.segmento, cadastro_em: x.created_at, status: 'FILA', criado_por: 'luiz_felipe' } });
+      jaTem.add(ultimos8(numero)); postos++;
+    }
+  } else {
+    const ls = await prisma.lead.findMany({
+      where: { deleted_at: null, etapa_comercial: { notIn: FECHADAS_LEAD }, status: { notIn: ['GANHO', 'PERDIDO'] } },
+      select: { id: true, nome: true, nome_fantasia: true, empresa: true, responsavel_nome: true, responsavel_telefone: true, telefone: true, segmento: true, created_at: true },
+      orderBy: { created_at: 'desc' }, take: 300,
+    });
+    const comProposta = new Set((await prisma.propostaComercial.findMany({ where: { deleted_at: null, status: { in: PROPOSTA_ABERTA } }, select: { responsavel_telefone: true } })).map(p => ultimos8((p.responsavel_telefone || '').replace(/\D/g, ''))));
+    for (const x of ls) {
+      if (postos >= quer) break;
+      const numero = numeroWhatsapp(x.responsavel_telefone || x.telefone);
+      if (!numero || jaTem.has(x.id) || jaTem.has(ultimos8(numero)) || comProposta.has(ultimos8(numero))) continue; // proposta aberta = Luiz Felipe
+      const conv = await conversaPara(prisma, instanciaId, numero, { nome: x.responsavel_nome, lead_id: x.id });
+      if (conv.optout_campanhas || (conv.ultima_em && conv.ultima_em > recente)) { jaTem.add(ultimos8(numero)); continue; }
+      // Follow-up conduzido pelo Julio: a conversa parada fica sem dono enquanto ele fala (quem responder assume).
+      await prisma.whatsappConversa.update({ where: { id: conv.id }, data: { dono_id: null, lead_id: x.id, bot_ativo: false } }).catch(() => {});
+      await prisma.sdrLead.create({ data: { agente, lead_id: x.id, conversaId: conv.id, numero, nome: x.responsavel_nome, empresa: (x.nome_fantasia || x.empresa || x.nome || '').trim() || null, segmento: x.segmento, cadastro_em: x.created_at, status: 'FILA', criado_por: 'julio' } });
+      jaTem.add(ultimos8(numero)); postos++;
+    }
+  }
+}
 
 export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): Promise<void> {
-  const cfg = await obterConfigCaroline(prisma);
-  if (!cfg.ativa) return;
+  const cfgs = Object.fromEntries(await Promise.all(AGENTES_SDR.map(async a => [a, await obterConfigAgente(prisma, a)] as const))) as Record<PerfilSdr, ConfigCaroline>;
+  const ativos = AGENTES_SDR.filter(a => trabalhando(cfgs[a], agora));
+  if (!ativos.length) return;
   const inst = await obterInstanciaEmpresa(prisma);
   if (!inst?.instance_token) return;
   const token = inst.instance_token;
@@ -488,15 +609,28 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   if (!horarioComercial(agora)) return;
 
   // 1) Respostas atrasadas (chegaram fora do horário ou a IA falhou): responde quem está esperando.
-  const esperando = await prisma.sdrLead.findMany({ where: { status: 'CONVERSANDO', ultima_lead_em: { not: null } }, take: 20 });
+  const esperando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'CONVERSANDO', ultima_lead_em: { not: null } }, take: 20 });
   for (const s of esperando) {
     if (s.ultima_caroline_em && s.ultima_lead_em! <= s.ultima_caroline_em) continue;
     if (Date.now() - s.ultima_lead_em!.getTime() < 2 * 60_000) continue; // o webhook está cuidando
     await falar(prisma, token, s.id, 'resposta');
   }
 
-  // 2) Retomadas de quem não respondeu; depois da 3ª tentativa, "sem resposta".
-  const aguardando = await prisma.sdrLead.findMany({ where: { status: 'AGUARDANDO' }, take: 50 });
+  // 1b) Parou no meio da conversa (a última mensagem é do agente, 1 dia útil sem resposta):
+  //     vira retomada de follow-up e a gestão é avisada. Nenhum lead fica esquecido.
+  const conversando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'CONVERSANDO', ultima_caroline_em: { not: null } }, take: 50 });
+  for (const s of conversando) {
+    if (s.ultima_lead_em && s.ultima_lead_em > s.ultima_caroline_em!) continue; // a vez é do agente
+    if (diasUteisEntre(s.ultima_caroline_em!, agora) < 1) continue;
+    if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: 'PENDENTE' }, select: { id: true } })) continue; // esperando aprovação
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'AGUARDANDO', tentativas: 1, dados: { ...((s.dados as any) || {}), parou_em: agora.toISOString() } } });
+    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `⏸ *${s.nome || s.numero}${s.empresa ? ` (${s.empresa})` : ''} parou de responder* ${nomeDe(s) === 'Luiz Felipe' ? 'ao' : 'à'} ${nomeDe(s)}.\nÚltima mensagem ${s.ultima_caroline_em!.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}. Termômetro ${s.nota ?? '—'}.\nA retomada já está programada (até 3 tentativas). Se quiser, assuma a conversa.`).catch(() => {});
+    registrarAcaoAgente(agenteDe(s), `${s.nome || 'um lead'} parou de responder: retomada programada`);
+  }
+
+  // 2) Retomadas de quem não respondeu; depois da 3ª tentativa, o ciclo longo (nunca desiste de cara).
+  const aguardando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'AGUARDANDO' }, take: 50 });
   for (const s of aguardando) {
     // Horário combinado com o lead ("Me chama depois"): chama nesse horário, não antes.
     const combinado = (s.dados as any)?.retomar_em ? new Date((s.dados as any).retomar_em) : null;
@@ -510,48 +644,63 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       }
       continue;
     }
-    if (s.tentativas >= TENTATIVAS_MAX) {
-      if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= 5) {
-        await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA' } });
+    // Ciclo longo (lead que não respondeu às 3 tentativas): o Julio volta a chamar na data marcada.
+    const ciclo = (s.dados as any)?.ciclo_em ? new Date((s.dados as any).ciclo_em) : null;
+    if (ciclo) {
+      if (agora >= ciclo && horaBoaParaRetomar(agora)) {
+        await prisma.sdrLead.update({ where: { id: s.id }, data: { tentativas: 0, dados: { ...((s.dados as any) || {}), ciclo_em: null } } });
+        await falar(prisma, token, s.id, 'retomada');
       }
+      continue;
+    }
+    if (s.tentativas >= TENTATIVAS_MAX) {
+      if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= 5) await naoDesistir(prisma, s, agora);
       continue;
     }
     // Retomada só nos horários em que o comerciante costuma olhar o celular (9h–11h30 e 14h–17h).
     if (deveRetomar(s.tentativas, s.ultima_caroline_em, agora) && horaBoaParaRetomar(agora)) await falar(prisma, token, s.id, 'retomada');
   }
 
-  // 3) Primeiros contatos: um por vez, intervalo sorteado, dentro do limite do dia (somado às campanhas).
+  // 3) Primeiros contatos: UM por vez para todos os agentes juntos, intervalo sorteado (4–9 min)
+  //    e um limite do dia ÚNICO (Caroline + Julio + Luiz Felipe + campanhas). Protege o número.
+  for (const a of ['julio', 'luiz_felipe'] as const) if (ativos.includes(a)) await abastecerFila(prisma, a, inst.id).catch((e: any) => console.warn(`[${a}] fila:`, e?.message));
   if (Date.now() < proximoPrimeiroContato) return;
   const desde = new Date(`${agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T00:00:00-03:00`);
-  const [feitosCaroline, feitosCampanha] = await Promise.all([
+  const [feitosAgentes, feitosCampanha] = await Promise.all([
     prisma.sdrLead.count({ where: { primeiro_envio_em: { gte: desde } } }),
     prisma.campanhaEnvio.count({ where: { status: 'ENVIADO', enviado_em: { gte: desde } } }),
   ]);
-  const limite = limiteDoDia(cfg.ativada_em ? new Date(cfg.ativada_em) : null, cfg.limite, agora);
-  if (feitosCaroline + feitosCampanha >= limite) return;
-  const proximo = await prisma.sdrLead.findFirst({ where: { status: 'FILA' }, orderBy: { created_at: 'asc' } });
+  // Limite mais conservador entre os agentes ligados (quem começou há menos de 2 semanas puxa para 15).
+  const limite = Math.min(...ativos.map(a => limiteDoDia(cfgs[a].ativada_em ? new Date(cfgs[a].ativada_em!) : null, cfgs[a].limite, agora)));
+  if (feitosAgentes + feitosCampanha >= limite) return;
+  let proximo = null as Awaited<ReturnType<typeof prisma.sdrLead.findFirst>>;
+  for (const a of ativos) { // prioridade: Caroline (campanha) → Luiz Felipe (propostas) → Julio (base)
+    proximo = await prisma.sdrLead.findFirst({ where: { agente: a, status: 'FILA' }, orderBy: a === 'caroline' ? { created_at: 'asc' } : { cadastro_em: 'desc' } });
+    if (proximo) break;
+  }
   if (!proximo) return;
   const r = await falar(prisma, token, proximo.id, 'abertura');
   proximoPrimeiroContato = Date.now() + intervaloSorteado();
+  const ag = agenteDe(proximo);
   if (r === 'falha') {
-    falhasSeguidas++;
-    if (falhasSeguidas >= 3) {
-      await salvarConfigCaroline(prisma, { ativa: false, pausada_motivo: '3 falhas seguidas no envio/IA' }, 'caroline');
+    falhasSeguidas[ag] = (falhasSeguidas[ag] || 0) + 1;
+    if (falhasSeguidas[ag] >= 3) {
+      await salvarConfigAgente(prisma, ag, { ativa: false, pausada_motivo: '3 falhas seguidas no envio/IA' }, ag);
       const { enviarAvisoGestao } = await import('./assistente-gestao.service');
-      await enviarAvisoGestao(prisma, 'lead_qualificado', '⚠️ *A Caroline pausou sozinha*: 3 falhas seguidas no primeiro contato. Confira o WhatsApp da empresa e religue no Escritório.');
-      falhasSeguidas = 0;
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *${PERFIS_SDR[ag].nome} pausou sozinho(a)*: 3 falhas seguidas no primeiro contato. Confira o WhatsApp da empresa e religue no Escritório.`);
+      falhasSeguidas[ag] = 0;
     }
-  } else falhasSeguidas = 0;
+  } else falhasSeguidas[ag] = 0;
 }
 
 // ── Painel ─────────────────────────────────────────────────────────────────
 
-export async function painelCaroline(prisma: PrismaClient) {
-  const [cfg, leads, pendentes] = await Promise.all([
-    obterConfigCaroline(prisma),
-    prisma.sdrLead.findMany({ orderBy: { updated_at: 'desc' }, take: 200 }),
-    prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE' }, orderBy: { created_at: 'asc' } }),
+export async function painelCaroline(prisma: PrismaClient, agente: PerfilSdr = 'caroline') {
+  const [cfg, leads] = await Promise.all([
+    obterConfigAgente(prisma, agente),
+    prisma.sdrLead.findMany({ where: { agente }, orderBy: { updated_at: 'desc' }, take: 200 }),
   ]);
+  const pendentes = await prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE', sdrId: { in: leads.map(l => l.id) } }, orderBy: { created_at: 'asc' } });
   const porStatus: Record<string, number> = {};
   for (const l of leads) porStatus[l.status] = (porStatus[l.status] || 0) + 1;
   const nomes = new Map(leads.map(l => [l.id, l]));

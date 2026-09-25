@@ -6,7 +6,7 @@ import { apiClient } from '@/lib/api-client';
 // Painel da Caroline (SDR): passar leads da campanha, aprovar/editar as mensagens
 // dela, acompanhar o termômetro e confirmar a temperatura (ensina a Laya).
 
-type Config = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null };
+type Config = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null };
 type Lead = { id: string; nome: string | null; empresa: string | null; numero: string; segmento: string | null; campanha: string | null; status: string; tentativas: number; nota: number | null; nota_motivo: string | null; temperatura: string | null; temperatura_confirmada: string | null; dados: any };
 type Pendente = { id: string; sdrId: string; texto: string; meta: any; lead: string | null; empresa: string | null; criado_em: string };
 type Uso = { dia: string; openai: number; grok: number; laya: number };
@@ -24,7 +24,13 @@ const ACAO: Record<string, string> = { continuar: 'segue conversando', oferecer_
 const caixa = { border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 12, display: 'grid', gap: 8 } as const;
 const botao = (cheio = true) => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${COR}`, background: cheio ? COR : 'transparent', color: cheio ? '#fff' : COR, fontWeight: 700, fontSize: 13, cursor: 'pointer' }) as const;
 
-export default function PainelCaroline() {
+const INFO: Record<string, { titulo: string; texto: string }> = {
+  caroline: { titulo: '🎧 Caroline · SDR', texto: 'Primeiro contato com os leads das campanhas pelo WhatsApp da empresa. Busca a dor principal, dá a nota de interesse e termina em demonstração ou vendedora. Uma pessoa assumiu a conversa, ela sai.' },
+  julio: { titulo: '🔁 Julio · Follow-up de leads', texto: 'Retoma a base de leads, do mais novo para o mais antigo: pergunta como está a rotina e se já fechou com outro sistema. Achou interesse, passa a conversa para a Caroline. A fila se abastece sozinha, poucos por vez.' },
+  luiz_felipe: { titulo: '📄 Luiz Felipe · Propostas não assinadas', texto: 'Retoma as propostas paradas há 7+ dias: pergunta se o cliente avaliou, se ficou dúvida ou se já fechou com outro sistema. Nunca negocia valores: quem negocia é a consultora.' },
+};
+
+export default function PainelCaroline({ agente = 'caroline' }: { agente?: 'caroline' | 'julio' | 'luiz_felipe' }) {
   const [p, setP] = useState<Painel | null>(null);
   const [texto, setTexto] = useState('');
   const [abertura, setAbertura] = useState(true);
@@ -34,7 +40,7 @@ export default function PainelCaroline() {
   const [motivo, setMotivo] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState(false);
 
-  const carregar = useCallback(() => { apiClient.getCaroline().then(r => setP(r.data.data)).catch(() => {}); }, []);
+  const carregar = useCallback(() => { apiClient.getCaroline(agente).then(r => setP(r.data.data)).catch(() => {}); }, [agente]);
   useEffect(() => { carregar(); const t = setInterval(carregar, 20_000); return () => clearInterval(t); }, [carregar]);
 
   const falhou = (e: any, padrao: string) => setMsg({ ok: false, texto: e?.response?.data?.message || padrao });
@@ -51,7 +57,7 @@ export default function PainelCaroline() {
     } catch (e) { falhou(e, 'Não consegui passar os leads.'); } finally { setOcupado(false); }
   };
   const config = async (d: Partial<Config>) => {
-    try { await apiClient.configCaroline(d); carregar(); } catch (e) { falhou(e, 'Não consegui salvar.'); }
+    try { await apiClient.configCaroline(d, agente); carregar(); } catch (e) { falhou(e, 'Não consegui salvar.'); }
   };
   const decidir = async (m: Pendente, aprovar: boolean) => {
     setOcupado(true);
@@ -72,10 +78,13 @@ export default function PainelCaroline() {
     <div style={{ background: 'var(--t-card-bg)', border: `2px solid ${COR}`, borderRadius: 14, padding: 16, display: 'grid', gap: 14 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: '1 1 300px' }}>
-          <b style={{ fontSize: 16, color: 'var(--t-text-primary)' }}>🎧 Caroline · SDR</b>
-          <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
-            Primeiro contato com os leads das campanhas pelo WhatsApp da empresa. Busca a dor principal, dá a nota de interesse e termina em demonstração ou vendedora. Uma pessoa assumiu a conversa → ela sai.
-          </div>
+          <b style={{ fontSize: 16, color: 'var(--t-text-primary)' }}>{INFO[agente].titulo}</b>
+          <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{INFO[agente].texto}</div>
+          {c.inicia_em && new Date(c.inicia_em) > new Date() && (
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#b45309', marginTop: 4 }}>
+              ⏰ Começa {new Date(c.inicia_em).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: c.ativa ? '#15803d' : 'var(--t-text-muted)' }}>
           <input type="checkbox" checked={c.ativa} onChange={e => config({ ativa: e.target.checked })} /> {c.ativa ? 'Ligada' : 'Desligada'}
@@ -141,6 +150,7 @@ export default function PainelCaroline() {
         </div>
       )}
 
+      {agente === 'caroline' && (
       <div style={caixa}>
         <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>📥 Passar leads para a Caroline</b>
         <textarea value={texto} onChange={e => { setTexto(e.target.value); setPrevia(null); }} rows={5}
@@ -163,6 +173,7 @@ export default function PainelCaroline() {
           </div>
         )}
       </div>
+      )}
 
       {p.leads.length > 0 && (
         <div style={{ overflowX: 'auto' }}>

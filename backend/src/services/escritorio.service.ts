@@ -23,7 +23,7 @@ export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promi
   switch (id) {
     case 'bia': return msgs('bot', 'Respondeu');
     case 'clarice': return msgs('assistente_ia', 'Tirou dúvida de');
-    case 'luiz_felipe': return msgs('cadencia_automatica', 'Follow-up com');
+    case 'luiz_felipe': return [...await agendaSdr(prisma, 'luiz_felipe'), ...await msgs('cadencia_automatica', 'Follow-up com')];
     case 'lurdinha': return (await prisma.atividade.findMany({ where: { created_by: 'lead_whatsapp' }, orderBy: { created_at: 'desc' }, take: 10, select: { titulo: true, data_prevista: true, created_at: true, status: true } }))
       .map(a => ({ texto: `${a.titulo.replace(/^Demonstração Prosystem · /, 'Demo com ')} para ${a.data_prevista?.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} (${a.status.toLowerCase()})`, em: a.created_at.toISOString() }));
     case 'zequinha': return (await prisma.campanhaEnvio.findMany({ where: { status: { in: ['ENVIADO', 'FALHA'] } }, orderBy: { enviado_em: 'desc' }, take: 10, select: { nome: true, numero: true, status: true, enviado_em: true, campanha: { select: { nome: true } } } }))
@@ -34,11 +34,34 @@ export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promi
       .map(c => { const s: any = c.ia_sugestao || {}; return { texto: `${nomeContato(c)}: ${s.segmento || '?'} · ${s.intencao || '?'}${Number(s.cancelar) >= 0.5 ? ' · risco de cancelar' : ''}`, em: c.ia_sugerido_em!.toISOString() }; });
     case 'sofia': return (await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' }, take: 10, select: { titulo: true, created_at: true, itens: true } }))
       .map(p => ({ texto: `Pesquisou "${p.titulo}" (${Array.isArray(p.itens) ? (p.itens as any[]).length : 0} assuntos)`, em: p.created_at.toISOString() }));
-    case 'caroline': return (await prisma.sdrMensagem.findMany({ where: { status: { not: 'DESCARTADA' } }, orderBy: { created_at: 'desc' }, take: 10, select: { texto: true, status: true, created_at: true, sdrId: true } }))
-      .map(m => ({ texto: `${m.status === 'PENDENTE' ? '⏳ esperando aprovação: ' : m.status === 'EDITADA' ? '✏️ enviada com ajuste: ' : ''}${m.texto.slice(0, 120)}`, em: m.created_at.toISOString() }));
+    case 'caroline': case 'julio': return agendaSdr(prisma, id);
     case 'marta': { const a = acaoRegistrada('marta'); return a ? [{ texto: a.texto, em: a.em.toISOString() }] : []; }
     default: return [];
   }
+}
+
+const STATUS_SDR: Record<string, string> = { FILA: 'na fila', AGUARDANDO: 'esperando resposta', CONVERSANDO: 'conversando', DEMO: 'demonstração', VENDEDORA: 'com a vendedora', SEM_INTERESSE: 'sem interesse', SEM_RESPOSTA: 'sem resposta', HUMANO: 'uma pessoa assumiu', SAIU: 'pediu para sair' };
+const dataHora = (d: Date) => d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+/** Agenda de um agente que conversa (Caroline, Julio, Luiz Felipe): com quem está falando e o próximo passo. */
+export async function agendaSdr(prisma: PrismaClient, agente: string): Promise<{ texto: string; em: string }[]> {
+  const ls = await prisma.sdrLead.findMany({ where: { agente }, orderBy: { updated_at: 'desc' }, take: 40 });
+  const pend = new Set((await prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE', sdrId: { in: ls.map(l => l.id) } }, select: { sdrId: true } })).map(m => m.sdrId));
+  const ordem = (l: any) => (pend.has(l.id) ? 0 : l.status === 'CONVERSANDO' ? 1 : (l.dados as any)?.retomar_em ? 2 : l.status === 'AGUARDANDO' ? 3 : l.status === 'FILA' ? 4 : 5);
+  return ls.sort((a, b) => ordem(a) - ordem(b)).map(l => {
+    const d: any = l.dados || {};
+    const quem = `${l.nome || l.numero}${l.empresa ? ` (${l.empresa})` : ''}`;
+    const proximo = pend.has(l.id) ? '⏳ mensagem esperando sua aprovação'
+      : d.retomar_em ? `📅 combinado: chamar ${dataHora(new Date(d.retomar_em))}`
+      : d.ciclo_em ? `🔁 sem resposta: volta a chamar ${dataHora(new Date(d.ciclo_em))} (ciclo ${d.ciclos}/3)`
+      : l.status === 'AGUARDANDO' && d.parou_em ? `⏸ parou de responder ${dataHora(new Date(d.parou_em))}: retomando (${l.tentativas}/3)`
+      : l.status === 'CONVERSANDO' ? '💬 conversando agora'
+      : l.status === 'AGUARDANDO' ? `⏱ esperando resposta (${l.tentativas}/3)`
+      : l.status === 'FILA' ? '🕐 na fila para o primeiro contato'
+      : `✔ ${STATUS_SDR[l.status] || l.status}`;
+    const nota = l.nota != null ? ` · nota ${l.nota}` : '';
+    return { texto: `${quem} · ${proximo}${nota}`, em: (d.retomar_em ? new Date(d.retomar_em) : l.updated_at).toISOString() };
+  });
 }
 
 export async function montarEscritorio(prisma: PrismaClient, agora = new Date()): Promise<EstadoAgente[]> {
@@ -123,14 +146,25 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   const sofia = maisRecente<Acao>(ultPesq ? { texto: `pesquisou "${ultPesq.titulo.slice(0, 50)}"`, em: ultPesq.created_at } : null, acaoRegistrada('sofia'));
 
   // Caroline — SDR
-  const { obterConfigCaroline } = await import('./caroline.service');
-  const carolCfg = await obterConfigCaroline(prisma);
-  const [carolFila, carolConversando, carolDemos, carolPendentes] = await Promise.all([
-    prisma.sdrLead.count({ where: { status: 'FILA' } }),
-    prisma.sdrLead.count({ where: { status: { in: ['AGUARDANDO', 'CONVERSANDO'] } } }),
-    prisma.sdrLead.count({ where: { status: 'DEMO' } }),
-    prisma.sdrMensagem.count({ where: { status: 'PENDENTE' } }),
-  ]);
+  const { obterConfigAgente } = await import('./caroline.service');
+  const carolCfg = await obterConfigAgente(prisma, 'caroline');
+  const numerosSdr = async (agente: string) => {
+    const ids = (await prisma.sdrLead.findMany({ where: { agente, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO'] } }, select: { id: true } })).map(x => x.id);
+    return Promise.all([
+      prisma.sdrLead.count({ where: { agente, status: 'FILA' } }),
+      prisma.sdrLead.count({ where: { agente, status: { in: ['AGUARDANDO', 'CONVERSANDO'] } } }),
+      prisma.sdrLead.count({ where: { agente, status: 'DEMO' } }),
+      prisma.sdrMensagem.count({ where: { status: 'PENDENTE', sdrId: { in: ids } } }),
+    ]);
+  };
+  const [carolFila, carolConversando, carolDemos, carolPendentes] = await numerosSdr('caroline');
+  const julioCfg = await obterConfigAgente(prisma, 'julio');
+  const luizCfg = await obterConfigAgente(prisma, 'luiz_felipe');
+  const [julioFila, julioConversando, , julioPendentes] = await numerosSdr('julio');
+  const [, luizConversando, , luizPendentes] = await numerosSdr('luiz_felipe');
+  const julioAtivo = await prisma.sdrLead.count({ where: { agente: 'julio' } });
+  const quando = (c: { ativa: boolean; inicia_em?: string | null }) => !c.ativa ? 'Desligado: ligue no painel dele'
+    : c.inicia_em && new Date(c.inicia_em) > agora ? `Começa ${new Date(c.inicia_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : undefined;
   const ultCarol = await prisma.sdrMensagem.findFirst({ where: { status: { not: 'DESCARTADA' } }, orderBy: { created_at: 'desc' }, select: { created_at: true, status: true } });
   const caroline = maisRecente<Acao>(ultCarol ? { texto: ultCarol.status === 'PENDENTE' ? 'escreveu e espera sua aprovação' : 'conversou com um lead', em: ultCarol.created_at } : null, acaoRegistrada('caroline'));
 
@@ -147,13 +181,14 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
     estado('lurdinha', triagemOn, lurdinha, [{ rotulo: 'demos marcadas', valor: demosHoje }, { rotulo: 'lembretes', valor: lembretes }],
       proxima ? `Próxima: ${proxima.titulo.replace(/^Demonstração Prosystem · /, '')} ${proxima.data_prevista!.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : undefined),
     estado('clarice', iaOn, clarice, [{ rotulo: 'dúvidas respondidas', valor: ia.total }], !temChave ? 'Esperando a chave da IA em Configurações' : modoIa === 'fora_do_horario' ? 'Atende fora do horário comercial' : undefined),
-    estado('luiz_felipe', true, luiz, [{ rotulo: 'follow-ups hoje', valor: fu.total }, { rotulo: 'propostas acompanhadas', valor: emAcompanhamento }]),
+    estado('luiz_felipe', true, luiz, [{ rotulo: 'follow-ups hoje', valor: fu.total }, { rotulo: 'propostas acompanhadas', valor: emAcompanhamento }, { rotulo: 'retomando propostas', valor: luizConversando }, { rotulo: 'para aprovar', valor: luizPendentes }], quando(luizCfg)),
     estado('zequinha', true, zequinha, [{ rotulo: 'enviadas hoje', valor: enviadosHoje }, { rotulo: 'na fila', valor: naFila }], naFila ? 'Campanha em andamento' : 'Sem campanha na fila'),
     estado('helena', posvendaOn, helena, [{ rotulo: 'boas-vindas', valor: boasVindas }, { rotulo: 'pesquisas', valor: pesquisas }], posvendaOn ? undefined : 'Pós-venda desligado em Configurações'),
     estado('laya', layaOn, laya, [{ rotulo: 'conversas analisadas', valor: analisadas }, { rotulo: 'ensinadas hoje', valor: ensinadasHoje }, { rotulo: 'ensinadas no total', valor: ensinadasTotal }], layaOn ? 'Aprendendo até 14/10' : 'Serviço da Laya fora do ar'),
     estado('sofia', temChave, sofia, [{ rotulo: 'pesquisas no mês', valor: pesquisasMes }], temChave ? 'Pesquisa toda segunda às 8h' : 'Esperando a chave da IA em Configurações'),
     estado('caroline', carolCfg.ativa, caroline, [{ rotulo: 'na fila', valor: carolFila }, { rotulo: 'conversando', valor: carolConversando }, { rotulo: 'demos', valor: carolDemos }, { rotulo: 'para aprovar', valor: carolPendentes }],
       carolCfg.pausada_motivo ? `Pausada: ${carolCfg.pausada_motivo}` : carolCfg.ativa ? (carolCfg.aprovar ? 'Você aprova cada mensagem antes de sair' : 'Enviando sozinha') : 'Desligada: ligue no painel dela'),
+    estado('julio', julioCfg.ativa, maisRecente<Acao>(null, acaoRegistrada('julio')), [{ rotulo: 'na fila', valor: julioFila }, { rotulo: 'conversando', valor: julioConversando }, { rotulo: 'para aprovar', valor: julioPendentes }, { rotulo: 'retomados', valor: julioAtivo }], quando(julioCfg) || 'Retoma a base do mais novo para o mais antigo'),
     estado('marta', true, marta, [{ rotulo: 'tarefas lançadas', valor: tarefasHoje }, { rotulo: 'descontos decididos', valor: aprovacoesHoje }]),
   ];
 }
