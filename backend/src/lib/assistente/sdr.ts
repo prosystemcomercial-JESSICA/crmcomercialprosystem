@@ -99,6 +99,24 @@ export function lerAgendamento(botaoId: string | null | undefined): { quando: Da
   return { quando: new Date(`${m[2]}T${m[1] === 'manha' ? '09:30' : '14:30'}:00-03:00`), periodo: m[1] === 'manha' ? 'manhã' : 'tarde', dia: m[2] };
 }
 
+// ── Horário da vendedora: seg–sex, 8h30 às 17h (Brasília) ────────────────────
+function minutosSP(d: Date) {
+  const f = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);
+  const dia = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(f.find(p => p.type === 'weekday')!.value);
+  return { dia, min: Number(f.find(p => p.type === 'hour')!.value) * 60 + Number(f.find(p => p.type === 'minute')!.value) };
+}
+export function horarioVendedora(d: Date): boolean {
+  const { dia, min } = minutosSP(d);
+  return dia >= 1 && dia <= 5 && min >= 8 * 60 + 30 && min < 17 * 60;
+}
+/** Próximo início de expediente da vendedora (8h30 de um dia útil). */
+export function proximaJanelaVendedora(d: Date): Date {
+  const { dia, min } = minutosSP(d);
+  const hoje = d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  if (dia >= 1 && dia <= 5 && min < 8 * 60 + 30) return new Date(`${hoje}T08:30:00-03:00`);
+  return new Date(`${proximoDiaUtil(d)}T08:30:00-03:00`);
+}
+
 /** Janelas em que o comerciante mais responde: 9h–11h30 e 14h–17h (Brasília). */
 export function horaBoaParaRetomar(d: Date): boolean {
   const f = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);

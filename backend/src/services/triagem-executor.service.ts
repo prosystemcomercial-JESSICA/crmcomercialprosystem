@@ -107,7 +107,7 @@ async function enviarAcoes(prisma: PrismaClient, token: string, conversa: Conver
   }
 }
 
-async function aplicarDesfecho(prisma: PrismaClient, conversa: ConversaTriagem, passo: ResultadoPasso) {
+async function aplicarDesfecho(prisma: PrismaClient, conversa: ConversaTriagem, passo: ResultadoPasso, comCaroline = false) {
   const lead = conversa.lead_id
     ? await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { cnpj: true, razao_social: true, nome_fantasia: true, empresa: true, segmento: true, cidade: true, estado: true, endereco: true, responsavel_nome: true, responsavel_email: true, telefone: true, origem: true } }).catch(() => null)
     : null;
@@ -123,6 +123,8 @@ async function aplicarDesfecho(prisma: PrismaClient, conversa: ConversaTriagem, 
   await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: dadosConversa }).catch((err: any) => console.error('[TRIAGEM] conversa:', err?.message));
 
   if (conversa.lead_id && !e.conversa.desvincularLead) {
+    // Com a Caroline, o lead só vai para "Leads para Distribuir" quando ela terminar (sem pegar em dobro).
+    if (comCaroline && passo.desfecho === 'qualificado' && e.lead) delete (e.lead as any).etapa_sdr;
     if (e.lead && Object.keys(e.lead).length) {
       await prisma.lead.update({ where: { id: conversa.lead_id }, data: e.lead }).catch((err: any) => console.error('[TRIAGEM] lead:', err?.message));
     }
@@ -205,7 +207,7 @@ async function executarPasso(
   if (r.count === 0) return;
 
   await enviarAcoes(prisma, token, conversa, passo.acoes, cfg);
-  if (passo.desfecho) await aplicarDesfecho(prisma, conversa, passo);
+  if (passo.desfecho) await aplicarDesfecho(prisma, conversa, passo, comCaroline);
   // Fim da triagem: pergunta "É a sua empresa?" se o CNPJ (da triagem ou pendente) é de um cliente da base.
   if (fim) await perguntarClienteSeCasar(prisma, token, conversa.id).catch((e: any) => console.error('[CNPJ-CLIENTE] erro:', e?.message));
   // Lead qualificado (e não é cliente da base): oferece a demonstração com horários livres.

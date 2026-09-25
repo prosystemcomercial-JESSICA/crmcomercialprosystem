@@ -99,7 +99,7 @@ const VISUAL: Record<string, Visual> = {
   marta:       { cabelo: 'chanel',   corCabelo: '#7c2d12', feminina: true,  estampa: 'blazer', extra: 'oculos', calca: '#1f2937' },
   sofia:       { cabelo: 'chanel',   corCabelo: '#facc15', feminina: true,  estampa: 'lupa', extra: 'oculos', calca: '#7c2d12' },
   caroline:    { cabelo: 'longo',    corCabelo: '#b45309', feminina: true,  estampa: 'headset', extra: 'headset', calca: '#312e81' },
-  julio:       { cabelo: 'cacheado', corCabelo: '#1c1917', feminina: false, estampa: 'agenda', extra: 'headset', calca: '#134e4a' },
+  julio:       { cabelo: 'curto',    corCabelo: '#1c1917', feminina: false, estampa: 'agenda', extra: 'headset', calca: '#134e4a' },
   jessica:     { cabelo: 'longo',    corCabelo: '#5a3825', feminina: true,  estampa: 'estrela', calca: '#1e293b' },
 };
 
@@ -118,6 +118,10 @@ function Cabelo({ tipo, cor, corAgente }: { tipo?: string; cor: string; corAgent
       <path d="M -12 -66 L 18 -66 Q 20 -63 16 -62 L -12 -62 Z" fill="#1e3a8a" />
       <text x={0} y={-70} fontSize={6} fontWeight={800} fill="#fff" textAnchor="middle">PS</text></g>);
     case 'moicano': return <path d="M -4 -70 L -6 -86 L -2 -80 L 0 -92 L 2 -80 L 6 -88 L 5 -70 Z" fill={cor} />;
+    // Curto masculino: rente à cabeça, com costeletas e um topete leve.
+    case 'curto': return (<g>
+      <path d="M -12 -66 Q -12 -81 0 -81 Q 12 -81 12 -66 L 12 -62 L 10 -62 L 10 -67 Q 0 -73 -10 -67 L -10 -62 L -12 -62 Z" fill={cor} />
+      <path d="M -6 -80 Q 2 -86 8 -79 Q 2 -81 -6 -80 Z" fill={cor} /></g>);
     case 'cacheado': return (<g>{[-14, -8, -1, 6, 13, -12, 12, -15, 15].map((dx, i) => (
       <circle key={i} cx={dx} cy={i < 5 ? -78 + Math.abs(dx) * 0.2 : i < 7 ? -64 : -52} r={i < 5 ? 7 : 6} fill={cor} />))}</g>);
     case 'ondulado': return (<g>
