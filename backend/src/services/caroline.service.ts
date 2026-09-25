@@ -9,6 +9,7 @@ import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
+  opcoesAgendamento, lerAgendamento, nomeDoDia,
   type RespostaCaroline, type FaseCaroline,
 } from '@/lib/assistente/sdr';
 
@@ -185,7 +186,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     // Assuntos da atualidade só no follow-up de quem já conversou (1ª e 2ª retomadas usam o dia a dia).
     atualidades: fase === 'retomada' && sdr.ultima_lead_em ? atualidades : [],
-    lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em },
+    lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null },
   });
   const partes: any[] = [{ text: p.usuario }];
   const dm = h.foto?.match(/^data:([^;]+);base64,(.+)$/);
@@ -378,10 +379,36 @@ const espera = new Map<string, NodeJS.Timeout>();
 const ESPERA_MS = 40_000; // junta mensagens seguidas antes de responder
 
 /** Chamado pelo webhook do WhatsApp da empresa. true = a conversa é da Caroline (os outros robôs ficam quietos). */
-export async function aoReceberDoLead(prisma: PrismaClient, token: string, conversaId: string, tipo: string, texto: string, mensagemId: string): Promise<boolean> {
+export async function aoReceberDoLead(prisma: PrismaClient, token: string, conversaId: string, tipo: string, texto: string, mensagemId: string, botaoId?: string | null): Promise<boolean> {
   const sdr = await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS } }, orderBy: { created_at: 'desc' } });
   if (!sdr) return false;
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_lead_em: new Date(), ...(sdr.status !== 'FILA' ? { status: 'CONVERSANDO' } : {}) } });
+
+  // "Me chama depois": combina o próximo dia útil, de manhã ou à tarde (resposta direta, sem IA).
+  const primeiro = (sdr.nome || '').trim().split(/\s+/)[0];
+  if (botaoId === 'sdr_depois') {
+    const { dia, opcoes } = opcoesAgendamento(new Date());
+    void dia;
+    await enviarMensagens(prisma, token, sdr, [`Combinado${primeiro ? `, ${primeiro}` : ''}! 😊 Qual o melhor momento pra eu te chamar?`]).catch(() => {});
+    const conv = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { contato_numero: true } });
+    if (conv) {
+      const menu = { modo: 'button' as const, texto: 'É só tocar 👇', rodape: 'Caroline · Prosystem', opcoes };
+      const r: any = await evo.enviarMenu(token, conv.contato_numero, menu).catch(() => ({}));
+      await prisma.whatsappMensagem.create({ data: { conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${menu.texto}\n\n${opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, status: 'ENVIADA', enviada_por: REMETENTE_CAROLINE } }).catch(() => {});
+    }
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_caroline_em: new Date() } });
+    registrarAcaoAgente('caroline', `${sdr.nome || 'um lead'} pediu para chamar depois: combinando o horário`);
+    return true;
+  }
+  const ag = lerAgendamento(botaoId);
+  if (ag && ag !== 'outro') {
+    const quando = `${nomeDoDia(ag.dia, new Date())} ${ag.periodo === 'manhã' ? 'de manhã' : 'à tarde'}`;
+    await enviarMensagens(prisma, token, sdr, [`Perfeito! Te chamo ${quando}, então. Até lá! 👋`]).catch(() => {});
+    // Volta a esperar; a rodada chama no horário combinado (retomada, sem contar como tentativa perdida).
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date(), tentativas: 1, dados: { ...((sdr.dados as any) || {}), retomar_em: ag.quando.toISOString(), combinado: quando } } });
+    registrarAcaoAgente('caroline', `combinou chamar ${sdr.nome || 'o lead'} ${quando}`);
+    return true;
+  }
   if (tipo === 'TEXTO' && ehPedidoDeSaida(texto)) {
     await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { optout_campanhas: true } });
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'SAIU' } });
@@ -441,6 +468,18 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   // 2) Retomadas de quem não respondeu; depois da 3ª tentativa, "sem resposta".
   const aguardando = await prisma.sdrLead.findMany({ where: { status: 'AGUARDANDO' }, take: 50 });
   for (const s of aguardando) {
+    // Horário combinado com o lead ("Me chama depois"): chama nesse horário, não antes.
+    const combinado = (s.dados as any)?.retomar_em ? new Date((s.dados as any).retomar_em) : null;
+    if (combinado) {
+      if (agora >= combinado) {
+        await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...((s.dados as any) || {}), retomar_em: null, chamar_combinado: (s.dados as any).combinado || true } } });
+        await falar(prisma, token, s.id, 'retomada');
+        // O "como combinamos" vale só para esta mensagem.
+        const depois = await prisma.sdrLead.findUnique({ where: { id: s.id }, select: { dados: true } });
+        await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...((depois?.dados as any) || {}), chamar_combinado: null } } });
+      }
+      continue;
+    }
     if (s.tentativas >= TENTATIVAS_MAX) {
       if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= 5) {
         await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA' } });
