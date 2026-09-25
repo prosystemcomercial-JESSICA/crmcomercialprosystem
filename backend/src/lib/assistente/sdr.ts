@@ -152,7 +152,7 @@ export function promptCaroline(p: {
     'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',
-    p.atualidades?.length ? '\n=== ASSUNTOS DA SEMANA (pesquisa da Sofia, com fonte; use no máximo UM, só se afetar a GESTÃO do negócio do lead: impostos, obrigações fiscais, regras de venda, custos. Nunca use assunto clínico, de medicamento específico ou de outro segmento. Não invente detalhes além do que está aqui) ===\n' + p.atualidades.map(a => `- [${a.segmento}] ${a.titulo}: ${a.resumo} (por que importa: ${a.por_que_importa})`).join('\n') : '',
+    p.atualidades?.length ? '\n=== ASSUNTOS DA SEMANA (pesquisa da Sofia, com fonte; use no máximo UM, só se afetar a GESTÃO do negócio do lead: impostos, obrigações fiscais, regras de venda, custos. Nunca use assunto clínico, de medicamento específico ou de outro segmento. Não invente detalhes além do que está aqui. Hoje é ' + new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ': ignore assunto cujo prazo ou data já passou) ===\n' + p.atualidades.map(a => `- [${a.segmento}] ${a.titulo}: ${a.resumo} (por que importa: ${a.por_que_importa})`).join('\n') : '',
     p.instrucoes || '',
   ].join('\n');
   const l = p.lead;

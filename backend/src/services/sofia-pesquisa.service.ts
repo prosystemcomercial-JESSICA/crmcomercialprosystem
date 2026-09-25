@@ -57,3 +57,21 @@ export async function rodarPesquisaSemanal(prisma: PrismaClient, agora = new Dat
   if (!(await chaveGemini(prisma))) return;
   await pesquisarSetor(prisma, null, null);
 }
+
+/** Caderno da Sofia: todas as pesquisas, por mês e dia, com assuntos, mensagens sugeridas e fontes. */
+export function cadernoSofia(ps: { titulo: string; tema: string | null; resumo: string; itens: any; fontes: any; created_at: Date }[]): string {
+  const l: string[] = ['# Caderno da Sofia', '', `Pesquisas do setor guardadas pela equipe Prosystem (${ps.length} no total). Gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.`, ''];
+  let mes = '';
+  for (const p of ps) {
+    const m = p.created_at.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long', year: 'numeric' });
+    if (m !== mes) { mes = m; l.push(`## ${m.charAt(0).toUpperCase()}${m.slice(1)}`, ''); }
+    l.push(`### ${p.created_at.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} · ${p.titulo}${p.tema ? ` (tema: ${p.tema})` : ''}`, '', p.resumo, '');
+    for (const i of (Array.isArray(p.itens) ? p.itens : []) as ItemPesquisa[]) {
+      l.push(`- **[${i.segmento}] ${i.titulo}**: ${i.resumo}`, `  - Por que importa: ${i.por_que_importa}`, `  - Mensagem sugerida: ${i.sugestao_mensagem_cliente}`);
+    }
+    const fontes = (Array.isArray(p.fontes) ? p.fontes : []) as { titulo: string; url: string }[];
+    if (fontes.length) l.push('', `Fontes: ${fontes.map(f => `[${f.titulo || f.url}](${f.url})`).join(' · ')}`);
+    l.push('');
+  }
+  return l.join('\n');
+}
