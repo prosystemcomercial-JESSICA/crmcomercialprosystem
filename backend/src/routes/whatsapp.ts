@@ -687,6 +687,36 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Tipos de atendimento que NÃO são lead comercial → desvinculam do funil ao marcar.
   const TIPOS_NAO_COMERCIAIS = ['Financeiro', 'Renegociação', 'Serviço', 'Parceiro', 'Pessoal', 'Suporte'];
 
+  // ===== ASSISTENTE: proposta pelo WhatsApp =====
+  fastify.get('/whatsapp/conversas/:id/propostas', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) }, select: { id: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const { propostasDaConversa } = await import('@/services/assistente-proposta.service');
+    const ps = await propostasDaConversa(prisma, id);
+    return reply.send({ status: 'success', data: ps.map(p => ({
+      id: p.id, nome: (p.nome_fantasia || p.razao_social || 'Sem nome').trim(), status: p.status, plano: p.plano_selecionado,
+      valor: p.valor_final ?? p.valor_implantacao, tem_link: !!p.public_token, enviada_wpp_em: p.wpp_enviada_em, criada_em: p.created_at,
+    })) });
+  });
+
+  fastify.post('/whatsapp/conversas/:id/enviar-proposta', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ proposta_id: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Escolha a proposta.' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const user = getUser(request)!;
+    try {
+      await assumirSeSemDono(conversa, user);
+      const { enviarPropostaWhatsapp } = await import('@/services/assistente-proposta.service');
+      await enviarPropostaWhatsapp(prisma, id, body.data.proposta_id, { id: user.id, nome: (user as any).nome });
+      return reply.send({ status: 'success', message: 'Proposta enviada pelo WhatsApp.' });
+    } catch (e: any) {
+      return reply.status(400).send({ status: 'error', message: e?.message || 'Não foi possível enviar.' });
+    }
+  });
+
   // ===== ASSISTENTE: avisos no celular da gestão + chave PIX =====
   fastify.get('/assistente/config', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
@@ -1373,6 +1403,17 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     // ===== TRIAGEM AUTOMÁTICA (só WhatsApp da empresa) =====
     if (ehEmpresa) {
+      // Botões da proposta enviada pelo WhatsApp (Aceitar / Tenho dúvidas).
+      if (dados.botao_id) {
+        try {
+          const { responderBotaoProposta } = await import('@/services/assistente-proposta.service');
+          const aceitar = async (publicToken: string) => {
+            const r = await fastify.inject({ method: 'POST', url: `/p/${encodeURIComponent(publicToken)}/aceitar`, payload: {} });
+            return r.statusCode < 300;
+          };
+          if (await responderBotaoProposta(prisma, inst.instance_token || '', conversa.id, dados.botao_id, aceitar)) return;
+        } catch (e: any) { console.error('[PROPOSTA-WPP] botão:', e?.message); }
+      }
       // Resposta ao "É a sua empresa?" (cadastro achado pelo CNPJ): se casar, é consumida aqui.
       try {
         if (await responderConfirmacaoCliente(prisma, inst.instance_token || '', conversa.id, texto, dados.botao_id)) return;

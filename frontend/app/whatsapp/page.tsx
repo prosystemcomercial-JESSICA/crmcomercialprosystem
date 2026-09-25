@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import PainelLaya from '@/components/whatsapp/PainelLaya';
+import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
 
 interface Conversa {
   id: string;
@@ -1339,6 +1340,8 @@ export default function WhatsappPage() {
                     </div>
                   </div>
                 )}
+
+                <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} />
 
                 <PainelLaya conversa={conversas.find(c => c.id === ativa.id) || ativa} />
 
