@@ -59,6 +59,13 @@ export function horarioComercial(d: Date): boolean {
   return hora >= 8 && hora < 18;
 }
 
+/** Janelas em que o comerciante mais responde: 9h–11h30 e 14h–17h (Brasília). */
+export function horaBoaParaRetomar(d: Date): boolean {
+  const f = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);
+  const min = Number(f.find(p => p.type === 'hour')!.value) * 60 + Number(f.find(p => p.type === 'minute')!.value);
+  return (min >= 9 * 60 && min < 11 * 60 + 30) || (min >= 14 * 60 && min < 17 * 60);
+}
+
 /** Limite de primeiros contatos no dia: 15 nas 2 primeiras semanas de uso, depois o configurado (máx. 30). */
 export function limiteDoDia(ativadaEm: Date | null, configurado: number, agora: Date): number {
   const teto = Math.max(1, Math.min(LIMITE_PADRAO, configurado || LIMITE_PADRAO));
@@ -146,6 +153,7 @@ export function promptCaroline(p: {
     'MISSÃO Nº 1: descobrir o PROBLEMA PRINCIPAL do cliente hoje (o que mais incomoda, desde quando, quanto custa em tempo/dinheiro, o que já tentou). Não fale de solução nem ofereça demonstração antes de entender a dor, a não ser que o cliente peça.',
     'JEITO DE CONVERSAR: fale pouco e escute muito. No máximo 2 mensagens curtas (1 a 3 frases cada), UMA pergunta por vez, perguntas abertas. Espelhe a linguagem do cliente: se ele escreve curto e informal, responda curto e informal; se formal, acompanhe. Use as palavras dele. Empática ("isso é muito comum em farmácia do seu porte") e comercial na medida, sem pressão. Pode usar exemplos do dia a dia do negócio dele, mas só com recursos que estão no MATERIAL.',
     'NÃO INVENTE NADA: sobre o produto, use SOMENTE o MATERIAL abaixo. Se o cliente perguntar algo que não está no material, diga que vai confirmar com a equipe e já retorna (acao "duvida_fora_material", com a pergunta em "duvida").',
+    'BOTÕES: se o cliente tocou "Quero saber mais", agradeça curto e siga investigando a dor; "Me chama depois", pergunte o melhor dia e horário (acao "continuar"); "Agora não", despeça-se com gentileza e porta aberta (acao "sem_interesse").',
     'NUNCA fale de preço, valores, desconto, condições ou contrato: diga que a consultora apresenta tudo na demonstração.',
     'Se o cliente perguntar sinceramente se é robô ou pessoa, não negue: diga com leveza que é a assistente virtual da equipe Prosystem e que, se preferir, alguém da equipe atende pessoalmente.',
     'Apresente-se como "Caroline, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.', 'NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
