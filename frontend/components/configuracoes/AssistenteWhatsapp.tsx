@@ -7,7 +7,9 @@ import { apiClient } from '@/lib/api-client';
 // Configurações → Assistente no WhatsApp: quais avisos a pessoa logada recebe no
 // celular (pelo WhatsApp da empresa) e a chave PIX usada após o aceite da proposta.
 
-type Cfg = { avisos: string[]; tipos: { id: string; nome: string }[]; telefone: string | null; recebe: boolean; pix_chave: string };
+type Ia = { laya_triagem: boolean; laya_confianca: number; risco_limite: number; risco_so_clientes: boolean };
+type Cfg = { avisos: string[]; tipos: { id: string; nome: string }[]; telefone: string | null; recebe: boolean; pix_chave: string; ia: Ia };
+const PCT = [0.6, 0.7, 0.8, 0.9];
 
 const card: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, overflow: 'hidden' };
 const input: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 };
@@ -27,7 +29,7 @@ export default function AssistenteWhatsapp() {
   const salvar = async () => {
     setSalvando(true); setMsg(null);
     try {
-      await apiClient.salvarAssistenteConfig({ avisos: cfg.avisos, pix_chave: cfg.pix_chave });
+      await apiClient.salvarAssistenteConfig({ avisos: cfg.avisos, pix_chave: cfg.pix_chave, ia: cfg.ia });
       setMsg({ ok: true, texto: 'Salvo.' });
     } catch (e: any) {
       setMsg({ ok: false, texto: e?.response?.data?.message || 'Não foi possível salvar.' });
@@ -70,6 +72,36 @@ export default function AssistenteWhatsapp() {
           <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 4 }}>
             Enviada ao cliente depois que ele aceita a proposta pelo WhatsApp. Sem chave, ele recebe &quot;o financeiro vai te enviar a cobrança da entrada&quot;.
           </p>
+        </div>
+        <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 14, display: 'grid', gap: 10 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>IA Laya</p>
+          <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
+            A Laya está aprendendo até 14/10 com as etiquetas que vocês confirmam nas conversas. Ligue estas opções depois do treino.
+          </p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t-text-primary)' }}>
+            <input id="ia-triagem" type="checkbox" checked={cfg.ia.laya_triagem}
+              onChange={e => setCfg(c => c && ({ ...c, ia: { ...c.ia, laya_triagem: e.target.checked } }))} />
+            Usar a Laya na triagem (entender resposta escrita livre antes de repetir a pergunta)
+          </label>
+          <label htmlFor="ia-confianca" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t-text-primary)' }}>
+            Aceitar a resposta da Laya na triagem só com confiança de
+            <select id="ia-confianca" value={cfg.ia.laya_confianca} style={{ ...input, width: 'auto' }}
+              onChange={e => setCfg(c => c && ({ ...c, ia: { ...c.ia, laya_confianca: Number(e.target.value) } }))}>
+              {PCT.map(p => <option key={p} value={p}>{Math.round(p * 100)}%</option>)}
+            </select>
+          </label>
+          <label htmlFor="ia-risco" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t-text-primary)' }}>
+            Avisar risco de cancelamento a partir de
+            <select id="ia-risco" value={cfg.ia.risco_limite} style={{ ...input, width: 'auto' }}
+              onChange={e => setCfg(c => c && ({ ...c, ia: { ...c.ia, risco_limite: Number(e.target.value) } }))}>
+              {PCT.map(p => <option key={p} value={p}>{Math.round(p * 100)}%</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t-text-primary)' }}>
+            <input id="ia-risco-clientes" type="checkbox" checked={cfg.ia.risco_so_clientes}
+              onChange={e => setCfg(c => c && ({ ...c, ia: { ...c.ia, risco_so_clientes: e.target.checked } }))} />
+            Risco de cancelamento só para clientes da base (desmarque para incluir leads)
+          </label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={salvar} disabled={salvando}

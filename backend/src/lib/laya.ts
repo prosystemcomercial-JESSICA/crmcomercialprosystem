@@ -34,7 +34,34 @@ export const PERGUNTAS_LAYA = {
   cancelar: { type: 'noul', instructions: 'O cliente ameaça cancelar, reclamar forte ou trocar de sistema?' },
 } as const;
 
-type MsgIa = { direcao: string; tipo: string; conteudo: string | null };
+// Perguntas da triagem (texto livre que não casou com nenhuma opção).
+export const PERGUNTAS_TRIAGEM = {
+  menu: {
+    type: 'choice', instructions: 'O que a pessoa quer da empresa de sistemas para comércio?',
+    criteria: {
+      conhecer: 'conhecer, contratar, pedir preço, orçamento ou demonstração de sistema',
+      servicos: 'serviço: troca de CNPJ, instalação, treinamento, upgrade',
+      suporte: 'problema, erro, sistema travado, dúvida de uso',
+      financeiro: 'boleto, pagamento, cobrança, nota fiscal',
+      nao_sei: 'cumprimento ou não dá para saber',
+    },
+  },
+  segmento: {
+    type: 'choice', instructions: 'Qual o ramo da empresa?',
+    criteria: { padaria: 'padaria, confeitaria, panificadora', farmacia: 'farmácia, drogaria, manipulação', nao_sei: 'outro ramo ou não dá para saber' },
+  },
+} as const;
+
+/** Escolha da Laya para a triagem: só vale com confiança mínima e nunca "nao_sei". */
+export function lerEscolhaTriagem(res: any, confiancaMin: number): string | null {
+  const a = res?.answers?.q;
+  const escolha = a?.choice;
+  const conf = Number(a?.confidence ?? a?.probabilities?.[escolha] ?? 0);
+  if (!escolha || escolha === 'nao_sei' || !(conf >= confiancaMin)) return null;
+  return String(escolha);
+}
+
+type MsgIa ={ direcao: string; tipo: string; conteudo: string | null };
 
 /** Texto da conversa para o Laya: só mensagens de texto, mais recentes por último, limitado em tamanho. */
 export function montarEstadoConversa(msgs: MsgIa[], maxChars = 3000): string {

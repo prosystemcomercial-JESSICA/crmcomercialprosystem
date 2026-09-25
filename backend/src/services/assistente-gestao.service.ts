@@ -6,6 +6,9 @@ import {
   acharGestor, interpretarComando, lerPreferenciasAvisos, AJUDA, textoHoje, textoSemana, textoPropostasParadas, textoClientes,
   type TipoAviso,
 } from '@/lib/assistente/gestao';
+import {
+  interpretarTarefa, ehComandoTarefa, lerBotaoTarefa, menuConfirmarTarefa, rotuloPrazo, AJUDA_TAREFA, type RascunhoTarefa,
+} from '@/lib/assistente/tarefa-mensagem';
 
 // Gestão no celular (Fase 1 do assistente): comandos da Jessica/do Thiago pelo
 // WhatsApp da empresa e avisos que o CRM manda para eles.
@@ -35,7 +38,44 @@ export async function salvarPrefsAvisos(prisma: PrismaClient, userId: string, ti
  * Mensagem de um número da gestão para o WhatsApp da empresa: responde o comando
  * e devolve true (o webhook não cria lead nem conversa). Outros números: false.
  */
-export async function responderComandoGestao(prisma: PrismaClient, token: string, numero: string, texto: string): Promise<boolean> {
+// Rascunhos de atividade esperando "Confirmar" (30 min).
+const rascunhos = new Map<string, { r: RascunhoTarefa; gestorId: string; expira: number }>();
+
+async function tratarTarefa(prisma: PrismaClient, token: string, numero: string, texto: string, botaoId?: string | null): Promise<boolean> {
+  const botao = lerBotaoTarefa(botaoId);
+  if (!botao && !ehComandoTarefa(texto)) return false;
+  const gestor = acharGestor(numero, await listarGestao(prisma));
+  if (!gestor) return false;
+  const enviar = (t: string) => evo.enviarTexto(token, numero, t).catch((e: any) => console.error('[ASSISTENTE] envio:', e?.message));
+
+  if (botao) {
+    const pend = rascunhos.get(botao.chave);
+    rascunhos.delete(botao.chave);
+    if (!pend || pend.expira < Date.now() || pend.gestorId !== gestor.id) { await enviar('Esse rascunho expirou. Mande a tarefa de novo.'); return true; }
+    if (!botao.ok) { await enviar('Ok, não criei a atividade.'); return true; }
+    await prisma.atividade.create({
+      data: {
+        tipo: pend.r.tipo, titulo: pend.r.titulo, descricao: 'Lançada pelo WhatsApp (assistente do CRM).', status: 'PENDENTE',
+        data_prevista: pend.r.prazo, responsavel_id: pend.r.responsavel_id, created_by: gestor.id, vinculo_tipo: 'NENHUM',
+      },
+    });
+    await enviar(`✅ Atividade criada para ${pend.r.responsavel_nome.split(' ')[0]}: ${pend.r.titulo} (vence ${rotuloPrazo(pend.r.prazo)}).`);
+    console.log(`[ASSISTENTE] atividade criada por ${gestor.nome} para ${pend.r.responsavel_nome}`);
+    return true;
+  }
+
+  const pessoas = await prisma.usuarioCRM.findMany({ where: { status: 'ATIVO' }, select: { id: true, nome: true } });
+  const r = interpretarTarefa(texto, new Date(), pessoas, { id: gestor.id, nome: gestor.nome });
+  if (!r) { await enviar(AJUDA_TAREFA); return true; }
+  for (const [k, v] of rascunhos) if (v.expira < Date.now()) rascunhos.delete(k);
+  const chave = Math.random().toString(36).slice(2, 10);
+  rascunhos.set(chave, { r, gestorId: gestor.id, expira: Date.now() + 30 * 60000 });
+  await evo.enviarMenu(token, numero, menuConfirmarTarefa(chave, r)).catch((e: any) => console.error('[ASSISTENTE] menu:', e?.message));
+  return true;
+}
+
+export async function responderComandoGestao(prisma: PrismaClient, token: string, numero: string, texto: string, botaoId?: string | null): Promise<boolean> {
+  if (await tratarTarefa(prisma, token, numero, texto, botaoId)) return true;
   const cmd = interpretarComando(texto);
   if (!cmd) return false; // não é comando: segue o fluxo normal do WhatsApp
   const gestor = acharGestor(numero, await listarGestao(prisma));

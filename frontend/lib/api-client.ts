@@ -1168,6 +1168,11 @@ class ApiClient {
   async salvarWhatsappEmpresa(instance_token: string) {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
+  // Próxima melhor ação (lista "o que fazer agora" no topo das conversas).
+  async getProximaAcao() {
+    return this.client.get('/assistente/proxima-acao');
+  }
+
   // Proposta pelo WhatsApp (botões Aceitar/Tenho dúvidas + follow-up).
   async getPropostasConversa(conversaId: string) {
     return this.client.get(`/whatsapp/conversas/${conversaId}/propostas`);
@@ -1180,7 +1185,7 @@ class ApiClient {
   async getAssistenteConfig() {
     return this.client.get('/assistente/config');
   }
-  async salvarAssistenteConfig(data: { avisos?: string[]; pix_chave?: string }) {
+  async salvarAssistenteConfig(data: { avisos?: string[]; pix_chave?: string; ia?: { laya_triagem?: boolean; laya_confianca?: number; risco_limite?: number; risco_so_clientes?: boolean } }) {
     return this.client.put('/assistente/config', data);
   }
 

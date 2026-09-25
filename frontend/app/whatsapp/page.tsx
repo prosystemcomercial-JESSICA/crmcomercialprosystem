@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import PainelLaya from '@/components/whatsapp/PainelLaya';
 import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
+import ProximaAcao from '@/components/whatsapp/ProximaAcao';
 
 interface Conversa {
   id: string;
@@ -962,6 +963,9 @@ export default function WhatsappPage() {
                     className="text-white rounded-lg px-3 text-sm font-bold" style={{ background: '#2563eb' }}>+</button>
                 </div>
               </div>
+              <ProximaAcao
+                versao={`${conversas.length}:${conversas[0]?.ultima_em || ''}`}
+                onAbrir={id => { const c = conversas.find(x => x.id === id); if (c) abrir(c); }} />
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {conversasFiltradas.length === 0 && <p className="text-center  text-sm p-6">Nenhuma conversa</p>}
                 {conversasFiltradas.map(c => (

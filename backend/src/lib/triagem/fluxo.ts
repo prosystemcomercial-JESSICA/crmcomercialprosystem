@@ -19,7 +19,20 @@ export type DadosTriagem = {
 export type Acao = { tipo: 'texto'; texto: string } | { tipo: 'menu'; menu: MenuWhatsapp } | { tipo: 'material'; segmento: 'Padaria' | 'Farmácia' };
 export type Desfecho = 'qualificado' | 'servicos' | 'suporte' | 'financeiro';
 export type ResultadoPasso = { estado: EstadoTriagem; dados: DadosTriagem; acoes: Acao[]; desfecho?: Desfecho };
-export type DepsTriagem = { consultarCnpj: (cnpj: string) => Promise<ConsultaCnpj>; temMaterial: (segmento: 'Padaria' | 'Farmácia') => boolean };
+export type DepsTriagem = {
+  consultarCnpj: (cnpj: string) => Promise<ConsultaCnpj>;
+  temMaterial: (segmento: 'Padaria' | 'Farmácia') => boolean;
+  // IA Laya (opcional, ligada em Configurações): tenta entender texto livre que não
+  // casou com nenhuma opção antes de repetir a pergunta. Devolve o id da opção ou null.
+  classificar?: (pergunta: 'menu' | 'segmento', texto: string) => Promise<string | null>;
+};
+
+/** Texto livre que não casou com botão/apelido: pergunta à IA (se ligada) e só aceita id válido. */
+async function escolherComIa(pergunta: 'menu' | 'segmento', livre: string, opcoes: OpcaoMenu[], deps: DepsTriagem): Promise<string | null> {
+  if (!deps.classificar || livre.length < 3) return null;
+  const id = await deps.classificar(pergunta, livre).catch(() => null);
+  return id && opcoes.some(o => o.id === id) ? id : null;
+}
 
 export const CONTATO_GERAL = '27 99779-8103';
 const RODAPE = 'Prosystem Sistemas';
@@ -174,8 +187,9 @@ export async function avancarTriagem(
 
   switch (estado) {
     case 'MENU': {
-      const e = escolher(entrada, OPC_MENU);
+      let e = escolher(entrada, OPC_MENU);
       if (!e && ehCnpj(livre)) return semResposta(estado, dados);
+      if (!e) e = await escolherComIa('menu', livre, OPC_MENU, deps);
       return escolhaDoMenu('MENU', dados, e, menuPrincipal());
     }
     case 'MENU_CLIENTE': {
@@ -187,8 +201,9 @@ export async function avancarTriagem(
       if (livre.length < 3) return { estado, dados, acoes: [texto('Pode descrever em uma mensagem qual serviço você precisa? 📝')] };
       return { estado: 'FIM', dados: { ...dados, servico: livre.slice(0, 1000) }, acoes: [texto('Recebemos seu pedido! ✅ Um consultor vai te atender em breve.')], desfecho: 'servicos' };
     case 'SEGMENTO': {
-      const e = escolher(entrada, OPC_SEGMENTO);
+      let e = escolher(entrada, OPC_SEGMENTO);
       if (!e && ehCnpj(livre)) return semResposta(estado, dados);
+      if (!e) e = await escolherComIa('segmento', livre, OPC_SEGMENTO, deps);
       if (!e) return { estado, dados, acoes: repetir(menuSegmento()) };
       return { estado: 'RELACAO', dados: { ...dados, segmento: e === 'padaria' ? 'Padaria' : 'Farmácia' }, acoes: [menuRelacao()] };
     }
