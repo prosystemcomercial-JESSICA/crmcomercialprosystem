@@ -31,7 +31,8 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
     body: JSON.stringify({
       model: p.grok ? MODELO_XAI : MODELO_OPENAI,
       instructions: p.sistema,
-      input: [{ role: 'user', content: p.conteudo }],
+      // No modo JSON a OpenAI exige a palavra "json" na mensagem (não basta nas instruções).
+      input: [{ role: 'user', content: p.json ? [...p.conteudo, { type: 'input_text', text: 'Responda em JSON.' }] : p.conteudo }],
       ...(p.busca ? { tools: [{ type: 'web_search' }] } : {}),
       ...(p.json ? { text: { format: { type: 'json_object' } } } : {}),
     }),
