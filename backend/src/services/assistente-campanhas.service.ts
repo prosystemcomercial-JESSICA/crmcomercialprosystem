@@ -17,12 +17,19 @@ export type FiltroCampanha = { publico: Publico; segmento?: string | null; dias_
 async function contatosDoPublico(prisma: PrismaClient, f: FiltroCampanha) {
   const seg = (f.segmento || '').trim();
   if (f.publico === 'CLIENTES') {
-    const cs = await prisma.cliente.findMany({
-      where: { situacao: 'ATIVA', telefone: { not: null }, ...(seg ? { segmento: { contains: seg } } : {}) },
-      select: { telefone: true, nome_fantasia: true, razao_social: true, nome: true, id: true }, take: 3000,
-    });
-    // Nome do cliente é da empresa: a saudação fica sem nome ("Olá!").
-    return cs.map(c => ({ telefone: c.telefone, nome: null as string | null, rotulo: (c.nome_fantasia || c.razao_social || c.nome || '').trim(), lead_id: null as string | null, tipo: 'CLIENTE' as const }));
+    // Clientes ativos. O telefone do cadastro costuma estar sem DDD, então as melhores
+    // fontes vêm primeiro: contatos do cliente (têm nome) e conversas de WhatsApp vinculadas.
+    const whereCli = { situacao: 'ATIVA', ...(seg ? { segmento: { contains: seg } } : {}) };
+    const cs = await prisma.cliente.findMany({ where: whereCli, select: { id: true, telefone: true, nome_fantasia: true, razao_social: true, nome: true }, take: 5000 });
+    const ids = cs.map(c => c.id);
+    const rotulo = new Map(cs.map(c => [c.id, (c.nome_fantasia || c.razao_social || c.nome || '').trim()]));
+    const contatos = await prisma.contatoCliente.findMany({ where: { cliente_id: { in: ids }, telefone: { not: null } }, select: { cliente_id: true, nome: true, telefone: true } });
+    const conversas = await prisma.whatsappConversa.findMany({ where: { cliente_id: { in: ids } }, select: { cliente_id: true, contato_nome: true, contato_numero: true } });
+    return [
+      ...contatos.map(c => ({ telefone: c.telefone, nome: c.nome as string | null, rotulo: rotulo.get(c.cliente_id) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const })),
+      ...conversas.map(c => ({ telefone: c.contato_numero, nome: c.contato_nome as string | null, rotulo: rotulo.get(c.cliente_id!) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const })),
+      ...cs.map(c => ({ telefone: c.telefone, nome: null as string | null, rotulo: rotulo.get(c.id) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const })),
+    ];
   }
   const dias = Math.max(7, Math.min(365, f.dias_parado || 30));
   const ls = await prisma.lead.findMany({
@@ -49,7 +56,6 @@ export async function previaCampanha(prisma: PrismaClient, f: FiltroCampanha) {
 
 export async function criarCampanha(prisma: PrismaClient, f: FiltroCampanha & { nome: string; texto: string }, userId: string) {
   const contatos = await contatosDoPublico(prisma, f);
-  const porNumero = new Map(contatos.map(c => [ultimos8((c.telefone || '').replace(/\D/g, '')), c]));
   const lista = montarPublico(contatos.map(c => ({ telefone: c.telefone, nome: c.nome })), await numerosQueSairam(prisma));
   if (!lista.length) throw new Error('Nenhum celular válido nesse público.');
   const camp = await prisma.campanhaWhatsapp.create({
@@ -59,7 +65,7 @@ export async function criarCampanha(prisma: PrismaClient, f: FiltroCampanha & { 
     },
   });
   await prisma.campanhaEnvio.createMany({
-    data: lista.map(x => ({ campanhaId: camp.id, numero: x.numero, nome: x.nome || porNumero.get(ultimos8(x.numero))?.rotulo || null })),
+    data: lista.map(x => ({ campanhaId: camp.id, numero: x.numero, nome: x.nome || null })),
   });
   return camp;
 }
@@ -82,7 +88,7 @@ export async function processarFilaCampanhas(prisma: PrismaClient): Promise<numb
       const lead = tipo === 'LEAD' ? await prisma.lead.findFirst({ where: { OR: [{ responsavel_telefone: { endsWith: ultimos8(e.numero).slice(-4) } }, { telefone: { endsWith: ultimos8(e.numero).slice(-4) } }], deleted_at: null }, select: { id: true, responsavel_telefone: true, telefone: true } }) : null;
       const leadId = lead && [lead.responsavel_telefone, lead.telefone].some(t => ultimos8((t || '').replace(/\D/g, '')) === ultimos8(e.numero)) ? lead.id : null;
       const conv = await garantirConversa(prisma, inst.id, e.numero, { nome: e.nome, tipo_contato: tipo, lead_id: leadId });
-      const texto = textoPersonalizado(e.campanha.texto, e.campanha.publico === 'CLIENTES' ? null : e.nome);
+      const texto = textoPersonalizado(e.campanha.texto, e.nome); // nome da PESSOA (ou saudação sem nome)
       const r = await evo.enviarTexto(inst.instance_token, e.numero, texto);
       await registrarSaida(prisma, conv.id, texto, r.externo_id, REMETENTE_CAMPANHA);
       await prisma.campanhaEnvio.update({ where: { id: e.id }, data: { status: 'ENVIADO', enviado_em: new Date() } });
