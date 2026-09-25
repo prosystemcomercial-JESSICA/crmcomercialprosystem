@@ -80,6 +80,19 @@ describe('Caroline — termômetro e resposta da IA', () => {
     const followUp = promptCaroline({ ...base, lead: { nome: 'A', empresa: null, segmento: 'Farmácia', campanha: null, abertura_jessica: true, tentativa: 1, ja_conversou: true } });
     expect(followUp.usuario).toContain('follow-up');
   });
+  it('"Me chama depois": próximo dia útil, manhã ou tarde', async () => {
+    const { proximoDiaUtil, opcoesAgendamento, lerAgendamento } = await import('../src/lib/assistente/sdr');
+    const sexta = new Date('2026-09-25T20:00:00Z'); // sexta 17h
+    expect(proximoDiaUtil(sexta)).toBe('2026-09-28');
+    const o = opcoesAgendamento(sexta);
+    expect(o.opcoes.map(x => x.texto)).toEqual(['Segunda de manhã', 'Segunda à tarde', 'Outro dia']);
+    expect(o.opcoes[0].id).toBe('sdr_ag_manha_2026-09-28');
+    const quarta = new Date('2026-09-30T15:00:00Z');
+    expect(opcoesAgendamento(quarta).opcoes[0].texto).toBe('Amanhã de manhã');
+    const ag = lerAgendamento('sdr_ag_tarde_2026-09-28');
+    expect(ag !== 'outro' && ag?.quando.toISOString()).toBe('2026-09-28T17:30:00.000Z');
+    expect(lerAgendamento('sdr_ag_outro')).toBe('outro');
+  });
   it('nunca deixa travessão nas mensagens', () => {
     const r = lerRespostaCaroline({ mensagens: ['Boa tarde, João! Aqui é a Caroline — da equipe Prosystem – tudo bem?'], acao: 'continuar', nota: 10 });
     expect(r?.mensagens[0]).toBe('Boa tarde, João! Aqui é a Caroline, da equipe Prosystem, tudo bem?');

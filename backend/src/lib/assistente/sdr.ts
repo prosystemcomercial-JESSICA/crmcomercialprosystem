@@ -59,6 +59,46 @@ export function horarioComercial(d: Date): boolean {
   return hora >= 8 && hora < 18;
 }
 
+// ── "Me chama depois": combinar o próximo dia útil, de manhã ou à tarde ─────
+const DIAS_SEMANA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+const diaSP = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }); // AAAA-MM-DD
+
+/** Próximo dia útil (seg–sex) depois de hoje, em AAAA-MM-DD (Brasília). */
+export function proximoDiaUtil(agora: Date): string {
+  const d = new Date(agora.getTime());
+  do { d.setTime(d.getTime() + 864e5); } while ([0, 6].includes(new Date(`${diaSP(d)}T12:00:00-03:00`).getDay()));
+  return diaSP(d);
+}
+
+/** "amanhã (terça-feira)" ou "segunda-feira", como a pessoa falaria. */
+export function nomeDoDia(dia: string, agora: Date): string {
+  const semana = DIAS_SEMANA[new Date(`${dia}T12:00:00-03:00`).getDay()];
+  return dia === diaSP(new Date(agora.getTime() + 864e5)) ? `amanhã (${semana})` : semana;
+}
+
+/** Botões: próximo dia útil de manhã / à tarde, ou outro dia. */
+export function opcoesAgendamento(agora: Date) {
+  const dia = proximoDiaUtil(agora);
+  const nome = nomeDoDia(dia, agora).replace(/ \(.*\)/, '').replace('-feira', ''); // botão: máx. 20 letras
+  const cap = nome.charAt(0).toUpperCase() + nome.slice(1);
+  return {
+    dia,
+    opcoes: [
+      { id: `sdr_ag_manha_${dia}`, texto: `${cap} de manhã`.slice(0, 20) },
+      { id: `sdr_ag_tarde_${dia}`, texto: `${cap} à tarde`.slice(0, 20) },
+      { id: 'sdr_ag_outro', texto: 'Outro dia' },
+    ],
+  };
+}
+
+/** Clique no agendamento → quando chamar (9h30 de manhã, 14h30 à tarde) ou 'outro'. */
+export function lerAgendamento(botaoId: string | null | undefined): { quando: Date; periodo: 'manhã' | 'tarde'; dia: string } | 'outro' | null {
+  if (botaoId === 'sdr_ag_outro') return 'outro';
+  const m = (botaoId || '').match(/^sdr_ag_(manha|tarde)_(\d{4}-\d{2}-\d{2})$/);
+  if (!m) return null;
+  return { quando: new Date(`${m[2]}T${m[1] === 'manha' ? '09:30' : '14:30'}:00-03:00`), periodo: m[1] === 'manha' ? 'manhã' : 'tarde', dia: m[2] };
+}
+
 /** Janelas em que o comerciante mais responde: 9h–11h30 e 14h–17h (Brasília). */
 export function horaBoaParaRetomar(d: Date): boolean {
   const f = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);
@@ -145,7 +185,7 @@ export type FaseCaroline = 'abertura' | 'retomada' | 'resposta';
 export function promptCaroline(p: {
   guia: string; instrucoes: string; exemplos: { antes: string; depois: string }[]; historico: string; fase: FaseCaroline;
   atualidades?: { segmento: string; titulo: string; resumo: string; por_que_importa: string }[];
-  lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number; ja_conversou?: boolean };
+  lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number; ja_conversou?: boolean; combinado?: string | null };
   saudacao: string;
 }): { sistema: string; usuario: string } {
   const sistema = [
@@ -178,7 +218,9 @@ export function promptCaroline(p: {
       ? `A Jessica já mandou a abertura (está no histórico) e o lead NÃO respondeu. Escreva uma RETOMADA, não um primeiro contato: apresente-se rapidamente como Caroline, da equipe Prosystem, mostre com leveza que percebeu que ele não conseguiu responder (ex.: "imagino que a correria do balcão não deixou"). ${chamarDeVolta} Não repita a mensagem da Jessica nem use "vou dar continuidade".`
       : 'Primeiro contato. Apresente-se como Caroline, da equipe Prosystem, diga que recebeu a inscrição na campanha e faça UMA pergunta aberta para começar (cidade e sistema que usa hoje, ou como está a rotina).')
     : p.fase === 'retomada'
-      ? (l.ja_conversou
+      ? (l.combinado
+        ? `Você combinou com o cliente de chamar ${l.combinado === 'true' ? 'agora' : l.combinado}. Cumprimente lembrando o combinado de forma leve (ex.: "como combinamos, passando aqui"), sem se apresentar de novo, e retome com UMA pergunta fácil sobre a rotina ou a dor dele. Tom de quem cumpre o que prometeu, sem pressão.`
+        : l.ja_conversou
         ? `O lead já conversou antes e parou de responder (follow-up, tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores, retomando de onde pararam, sem cobrar. Se houver em ASSUNTOS DA SEMANA uma novidade que afete o negócio dele e ainda não foi usada, pode usar como gancho, ligando à dor que ele contou.${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta.' : ''}`
         : `O lead ainda não respondeu (tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores. ${chamarDeVolta}${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta com gentileza.' : ''}`)
       : 'Responda à(s) última(s) mensagem(ns) do cliente.';

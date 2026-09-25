@@ -1844,7 +1844,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       // Conversa com a Caroline (SDR): ela responde (ou espera aprovação); os outros robôs ficam quietos.
       try {
         const { aoReceberDoLead } = await import('@/services/caroline.service');
-        if (await aoReceberDoLead(prisma, inst.instance_token || '', conversa.id, tipoMsg, texto, mensagemCriada.id)) return;
+        if (await aoReceberDoLead(prisma, inst.instance_token || '', conversa.id, tipoMsg, texto, mensagemCriada.id, dados.botao_id)) return;
       } catch (e: any) { console.error('[CAROLINE] mensagem:', e?.message); }
       // IA de texto (Fase 3), em segundo plano e depois de todo o fluxo acima:
       // tira-dúvidas (só quando as regras deixam) e transcrição de áudio.
