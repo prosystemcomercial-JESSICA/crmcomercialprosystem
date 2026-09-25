@@ -417,9 +417,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // TODOS os vendedores num só lugar (sem assumir). escopo=pool = conversas do
     // WhatsApp da empresa sem dono (qualquer usuário). Padrão = só as próprias.
     const filtroEscopo = whereListaConversas(escopo, getUser(request));
+    // Finalizadas só aparecem quando pedidas (?finalizadas=1); nas demais listas ficam de fora.
+    const finalizadas = (request.query as any).finalizadas === '1';
     const conversas = await prisma.whatsappConversa.findMany({
       where: {
         ...filtroEscopo, ...(instanciaId ? { instanciaId } : {}),
+        finalizada_em: finalizadas ? { not: null } : null,
         ...(tipo_contato && (TIPOS_CONTATO as readonly string[]).includes(tipo_contato) ? { tipo_contato } : {}),
       },
       orderBy: { ultima_em: 'desc' },
@@ -472,6 +475,29 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       return reply.status(409).send({ status: 'error', message: 'Esta conversa já foi assumida por outra pessoa.' });
     }
     return reply.send({ status: 'success', data: conversa });
+  });
+
+  // Finalizar atendimento: sai das listas, do prazo e dos robôs. Reabre sozinha
+  // quando o contato escreve de novo (ou pelo botão Reabrir).
+  fastify.post('/whatsapp/conversas/:id/finalizar', async (request, reply) => {
+    const user = getUser(request)!;
+    const { id } = request.params as { id: string };
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...(podeVerTudo(user) ? {} : whereAcaoConversa(user)) }, select: { id: true, dono_id: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    await prisma.whatsappConversa.update({ where: { id }, data: { finalizada_em: new Date(), finalizada_por: user.id, nao_lidas: 0, sla_prazo_em: null, bot_ativo: false } });
+    await pausarCadencia(prisma, id).catch(() => {});
+    await prisma.sdrLead.updateMany({ where: { conversaId: id, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO'] } }, data: { status: 'HUMANO' } }).catch(() => {});
+    emitirEventoConversa(null, 'conversa_atualizada', { conversaId: id });
+    return reply.send({ status: 'success', message: 'Atendimento finalizado.' });
+  });
+  fastify.post('/whatsapp/conversas/:id/reabrir', async (request, reply) => {
+    const user = getUser(request)!;
+    const { id } = request.params as { id: string };
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...(podeVerTudo(user) ? {} : whereAcaoConversa(user)) }, select: { id: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    await prisma.whatsappConversa.update({ where: { id }, data: { finalizada_em: null, finalizada_por: null } });
+    emitirEventoConversa(null, 'conversa_atualizada', { conversaId: id });
+    return reply.send({ status: 'success', message: 'Conversa reaberta.' });
   });
 
   // Desvincula a conversa do funil: tira o lead_id e, se o lead foi criado
@@ -1678,6 +1704,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         ultima_em: new Date(),
         nao_lidas: { increment: 1 },
         sla_prazo_em: calcularSlaPrazo(prioridadeAtual),
+        finalizada_em: null, // contato escreveu de novo: a conversa volta para a lista
+        finalizada_por: null,
       },
     });
 

@@ -2447,6 +2447,10 @@ model WhatsappConversa {
   // Contato respondeu "SAIR" a uma campanha: não recebe mais campanhas.
   optout_campanhas Boolean @default(false)
 
+  // Atendimento finalizado: sai das listas e do prazo; volta sozinha se o contato escrever de novo.
+  finalizada_em  DateTime?
+  finalizada_por String?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
