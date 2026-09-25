@@ -5,7 +5,7 @@ import { calcularSlaPrazo } from './whatsapp-sla.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { ultimos8 } from '@/lib/assistente/gestao';
 import {
-  textoResumoProposta, menuAceite, lerBotaoProposta, textoPosAceite, textoDuvida, decidirFollowup, textoFollowup, linkProposta,
+  textoResumoProposta, menuAceite, opcoesPlanos, lerBotaoProposta, textoPosAceite, textoDuvida, decidirFollowup, textoFollowup, linkProposta,
   type PropostaResumo,
 } from '@/lib/assistente/proposta';
 
@@ -67,7 +67,7 @@ export async function enviarPropostaWhatsapp(prisma: PrismaClient, conversaId: s
   const texto = textoResumoProposta(p as PropostaResumo, link);
   const r1 = await evo.enviarTexto(inst.instance_token, conversa.contato_numero, texto);
   await gravarSaida(prisma, conversa.id, texto, r1.externo_id, user.id);
-  const menu = menuAceite(p.id);
+  const menu = menuAceite(p.id, opcoesPlanos(p as PropostaResumo));
   const r2 = await evo.enviarMenu(inst.instance_token, conversa.contato_numero, menu);
   await gravarSaida(prisma, conversa.id, `${menu.texto}\n\n${menu.opcoes.map(o => `▫️ ${o.texto}`).join('\n')}`, r2.externo_id, user.id);
   // Igual a uma resposta enviada pelo CRM: a conversa sai do prazo de resposta.
@@ -92,7 +92,7 @@ export async function enviarPropostaWhatsapp(prisma: PrismaClient, conversaId: s
  */
 export async function responderBotaoProposta(
   prisma: PrismaClient, token: string, conversaId: string, botaoId: string | null | undefined,
-  aceitarPorToken: (publicToken: string) => Promise<boolean>,
+  aceitarPorToken: (publicToken: string, plano?: string) => Promise<boolean>,
 ): Promise<boolean> {
   const b = lerBotaoProposta(botaoId);
   if (!b) return false;
@@ -102,11 +102,15 @@ export async function responderBotaoProposta(
 
   let texto: string;
   if (b.acao === 'aceitar') {
-    const ok = p.public_token ? await aceitarPorToken(p.public_token) : false;
+    // Botão de um plano (Pro/Plus): o aceite grava esse plano e os valores dele.
+    const ok = p.public_token ? await aceitarPorToken(p.public_token, b.plano) : false;
     if (!ok) texto = 'Recebemos o seu aceite! Nossa equipe vai confirmar e já te chama. 🙏';
     else {
       const pix = await prisma.configuracaoIntegracao.findUnique({ where: { chave: 'assistente.pix_chave' } }).catch(() => null);
-      texto = textoPosAceite(p as PropostaResumo, pix?.valor || '');
+      const escolhido = b.plano ? opcoesPlanos(p as PropostaResumo).find(o => o.plano === b.plano) : null;
+      texto = (escolhido ? `✅ Plano escolhido: *${escolhido.nome}*.
+
+` : '') + textoPosAceite(p as PropostaResumo, pix?.valor || '');
     }
   } else {
     texto = textoDuvida(p as PropostaResumo);

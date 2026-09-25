@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  textoResumoProposta, menuAceite, lerBotaoProposta, textoPosAceite, decidirFollowup, textoFollowup, segmentoChave, linkProposta,
+  textoResumoProposta, menuAceite, lerBotaoProposta, opcoesPlanos, mensalidadeDe, textoPosAceite, decidirFollowup, textoFollowup, segmentoChave, linkProposta,
   type PropostaResumo,
 } from '../src/lib/assistente/proposta';
 
@@ -15,8 +15,9 @@ describe('proposta pelo WhatsApp', () => {
     const t = textoResumoProposta(p, 'https://x/p/tok?modo=cliente');
     expect(t).toContain('Olá, Carlos!');
     expect(t).toContain('*Pão Quente*');
-    expect(t).toContain('Plano: *PRO*');
-    expect(t).toMatch(/Mensalidade: \*R\$\s?330,00\*/);
+    // Proposta com Pro e Plus: mostra as duas opções, com o recomendado marcado.
+    expect(t).toMatch(/\*Loja Pro\*: R\$\s?330,00 ⭐ recomendado/);
+    expect(t).toMatch(/\*Loja Plus\*: R\$\s?430,00/);
     expect(t).toMatch(/Implantação: \*R\$\s?1\.200,00\*/);
     expect(t).toMatch(/Entrada: R\$\s?400,00 \+ 2x de R\$\s?400,00/);
     expect(t).toContain('Válida até 05/10/2026');
@@ -59,5 +60,28 @@ describe('decidirFollowup', () => {
     expect(segmentoChave('Farmácia de Manipulação')).toBe('farmacia');
     expect(textoFollowup(2, p, 'L')).toContain('balança integrada');
     expect(textoFollowup(3, p, 'L')).toContain('vale até 05/10/2026');
+  });
+});
+
+describe('proposta com Pro e Plus', () => {
+  const p: any = { id: 'p9', razao_social: null, nome_fantasia: 'Farmácia Exemplo', responsavel_nome: 'João Silva', plano_selecionado: 'Farma Plus',
+    mensalidade_pro: 350, mensalidade_plus: 450, valor_final: 1550, valor_implantacao: 1550, entrada: 550, parcelas: 4, valor_parcela: 250,
+    validade: null, vendedor_nome: 'Jessica', segmento: 'Farmácia' };
+  it('nome livre do plano ("Farma Plus") pega a mensalidade certa', () => {
+    expect(mensalidadeDe(p)).toBe(450);
+    expect(mensalidadeDe({ ...p, plano_selecionado: 'Farma Pro' })).toBe(350);
+  });
+  it('mensagem mostra as duas opções com o valor de cada uma', () => {
+    const t = textoResumoProposta(p, 'L');
+    expect(t).toMatch(/\*Farma Pro\*: R\$\s350,00/);
+    expect(t).toMatch(/\*Farma Plus\*: R\$\s450,00 ⭐ recomendado/);
+    expect(t).not.toContain('💳 Mensalidade');
+  });
+  it('um botão de aceite por plano, que devolve o plano no clique', () => {
+    const m = menuAceite('p9', opcoesPlanos(p));
+    expect(m.opcoes.map(o => o.id)).toEqual(['prop_ok_PRO_p9', 'prop_ok_PLUS_p9', 'prop_duv_p9']);
+    expect(m.opcoes.map(o => o.texto)).toEqual(['Aceitar Farma Pro', 'Aceitar Farma Plus', 'Tenho dúvidas']);
+    expect(lerBotaoProposta('prop_ok_PLUS_p9')).toEqual({ acao: 'aceitar', id: 'p9', plano: 'PLUS' });
+    expect(lerBotaoProposta('prop_ok_p9')).toEqual({ acao: 'aceitar', id: 'p9' });
   });
 });

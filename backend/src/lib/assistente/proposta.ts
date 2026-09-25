@@ -18,9 +18,28 @@ export function linkProposta(base: string, token: string) {
   return `${base.replace(/\/$/, '')}/p/${token}?modo=cliente`;
 }
 
+/** "Farma Plus", "plus", "PLUS" → PLUS (idem PRO e BASIC). */
+export function planoNormal(s: string | null | undefined): 'BASIC' | 'PRO' | 'PLUS' | null {
+  const t = (s || '').toUpperCase();
+  if (/PLUS/.test(t)) return 'PLUS';
+  if (/(^|[^A-Z])PRO([^A-Z]|$)/.test(t)) return 'PRO';
+  if (/BASIC/.test(t)) return 'BASIC';
+  return null;
+}
+
+/** Planos oferecidos na proposta (os que têm mensalidade), com o nome que o cliente vê. */
+export function opcoesPlanos(p: PropostaResumo): { plano: 'BASIC' | 'PRO' | 'PLUS'; nome: string; mensalidade: number }[] {
+  const prefixo = /padar|confeit|varej|loja|mercad/i.test(p.segmento || '') ? 'Loja' : 'Farma';
+  const xs: { plano: 'BASIC' | 'PRO' | 'PLUS'; nome: string; mensalidade: number }[] = [];
+  if (p.mensalidade_basic) xs.push({ plano: 'BASIC', nome: `${prefixo} Basic`, mensalidade: p.mensalidade_basic });
+  if (p.mensalidade_pro) xs.push({ plano: 'PRO', nome: `${prefixo} Pro`, mensalidade: p.mensalidade_pro });
+  if (p.mensalidade_plus) xs.push({ plano: 'PLUS', nome: `${prefixo} Plus`, mensalidade: p.mensalidade_plus });
+  return xs;
+}
+
 /** Mensalidade do plano escolhido (ou a menor oferecida). */
 export function mensalidadeDe(p: PropostaResumo): number | null {
-  const plano = (p.plano_selecionado || '').toUpperCase();
+  const plano = planoNormal(p.plano_selecionado);
   if (plano === 'BASIC' && p.mensalidade_basic) return p.mensalidade_basic;
   if (plano === 'PLUS' && p.mensalidade_plus) return p.mensalidade_plus;
   if (plano === 'PRO' && p.mensalidade_pro) return p.mensalidade_pro;
@@ -30,11 +49,17 @@ export function mensalidadeDe(p: PropostaResumo): number | null {
 export function textoResumoProposta(p: PropostaResumo, link: string): string {
   const nome = primeiroNome(p.responsavel_nome);
   const inst = p.valor_final ?? p.valor_implantacao;
+  const opcoes = opcoesPlanos(p);
   const linhas = [
     `Olá${nome ? `, ${nome}` : ''}! Segue a sua proposta da *Prosystem* para *${(p.nome_fantasia || p.razao_social || 'sua empresa').trim()}*:`,
     '',
-    p.plano_selecionado ? `📦 Plano: *${p.plano_selecionado}*` : null,
-    mensalidadeDe(p) != null ? `💳 Mensalidade: *${brl(mensalidadeDe(p))}*` : null,
+    // Dois ou mais planos: mostra as opções (o cliente escolhe no botão). Um só: plano e mensalidade.
+    ...(opcoes.length > 1
+      ? ['📦 *Opções de plano* (mensalidade):', ...opcoes.map(o => `• *${o.nome}*: ${brl(o.mensalidade)}${planoNormal(p.plano_selecionado) === o.plano ? ' ⭐ recomendado' : ''}`)]
+      : [
+        p.plano_selecionado || opcoes[0] ? `📦 Plano: *${opcoes.find(o => o.plano === planoNormal(p.plano_selecionado))?.nome || p.plano_selecionado || opcoes[0]?.nome}*` : null,
+        mensalidadeDe(p) != null ? `💳 Mensalidade: *${brl(mensalidadeDe(p))}*` : null,
+      ]),
     inst != null ? `🛠️ Implantação: *${brl(inst)}*` : null,
     p.entrada ? `➡️ Entrada: ${brl(p.entrada)}${p.parcelas && p.parcelas > 1 && p.valor_parcela ? ` + ${p.parcelas - 1}x de ${brl(p.valor_parcela)}` : ''}` : null,
     p.validade ? `📅 Válida até ${dataBR(p.validade)}` : null,
@@ -44,16 +69,21 @@ export function textoResumoProposta(p: PropostaResumo, link: string): string {
   return linhas.filter(l => l !== null).join('\n');
 }
 
-export function menuAceite(propostaId: string): MenuWhatsapp {
+/** Botões de aceite: um por plano quando há opções (máx. 2 planos + dúvidas), senão Aceitar/Dúvidas. */
+export function menuAceite(propostaId: string, opcoes: { plano: string; nome: string }[] = []): MenuWhatsapp {
+  const aceitar = opcoes.length > 1
+    ? opcoes.slice(-2).map(o => ({ id: `prop_ok_${o.plano}_${propostaId}`, texto: `Aceitar ${o.nome}`.slice(0, 20) }))
+    : [{ id: `prop_ok_${propostaId}`, texto: 'Aceitar proposta' }];
   return {
-    modo: 'button', texto: 'Podemos seguir?', rodape: 'Prosystem Sistemas',
-    opcoes: [{ id: `prop_ok_${propostaId}`, texto: 'Aceitar proposta' }, { id: `prop_duv_${propostaId}`, texto: 'Tenho dúvidas' }],
+    modo: 'button', texto: opcoes.length > 1 ? 'Qual plano faz mais sentido para você?' : 'Podemos seguir?', rodape: 'Prosystem Sistemas',
+    opcoes: [...aceitar, { id: `prop_duv_${propostaId}`, texto: 'Tenho dúvidas' }],
   };
 }
 
-export function lerBotaoProposta(botaoId: string | null | undefined): { acao: 'aceitar' | 'duvida'; id: string } | null {
-  const m = (botaoId || '').match(/^prop_(ok|duv)_(.+)$/);
-  return m ? { acao: m[1] === 'ok' ? 'aceitar' : 'duvida', id: m[2] } : null;
+export function lerBotaoProposta(botaoId: string | null | undefined): { acao: 'aceitar' | 'duvida'; id: string; plano?: 'BASIC' | 'PRO' | 'PLUS' } | null {
+  const m = (botaoId || '').match(/^prop_(ok|duv)_(?:(BASIC|PRO|PLUS)_)?(.+)$/);
+  if (!m) return null;
+  return { acao: m[1] === 'ok' ? 'aceitar' : 'duvida', id: m[3], ...(m[2] ? { plano: m[2] as 'BASIC' | 'PRO' | 'PLUS' } : {}) };
 }
 
 export const DOCUMENTOS_CONTRATO = 'Para o contrato, confirme por aqui:\n• Nome completo e CPF de quem vai assinar\n• E-mail para receber o link de assinatura';

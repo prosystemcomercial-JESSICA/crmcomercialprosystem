@@ -406,7 +406,9 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
 
     // Plano escolhido pelo cliente no aceite (quando a proposta oferece Pro e Plus).
     const planoEscolhido = String((request.body as any)?.plano_selecionado || '').toUpperCase();
-    const planoFinal = ['BASIC', 'PRO', 'PLUS'].includes(planoEscolhido) ? planoEscolhido : p.plano_selecionado;
+    // Nome livre salvo na proposta ("Farma Pro", "plus"...) vira o código do plano, para o valor sair certo.
+    const { planoNormal } = await import('@/lib/assistente/proposta');
+    const planoFinal = ['BASIC', 'PRO', 'PLUS'].includes(planoEscolhido) ? planoEscolhido : (planoNormal(p.plano_selecionado) || p.plano_selecionado);
 
     const jaAceita = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'].includes(p.status);
 
