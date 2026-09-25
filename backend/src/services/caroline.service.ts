@@ -179,8 +179,10 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
     : '';
   const p = promptCaroline({
     guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, 'caroline')) + refazer, exemplos: await exemplosEditados(prisma),
-    historico: h.texto, fase, saudacao: saudacaoAgora(new Date()), atualidades,
-    lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas },
+    historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
+    // Assuntos da atualidade só no follow-up de quem já conversou (1ª e 2ª retomadas usam o dia a dia).
+    atualidades: fase === 'retomada' && sdr.ultima_lead_em ? atualidades : [],
+    lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em },
   });
   const partes: any[] = [{ text: p.usuario }];
   const dm = h.foto?.match(/^data:([^;]+);base64,(.+)$/);

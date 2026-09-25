@@ -138,7 +138,7 @@ export type FaseCaroline = 'abertura' | 'retomada' | 'resposta';
 export function promptCaroline(p: {
   guia: string; instrucoes: string; exemplos: { antes: string; depois: string }[]; historico: string; fase: FaseCaroline;
   atualidades?: { segmento: string; titulo: string; resumo: string; por_que_importa: string }[];
-  lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number };
+  lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number; ja_conversou?: boolean };
   saudacao: string;
 }): { sistema: string; usuario: string } {
   const sistema = [
@@ -159,12 +159,19 @@ export function promptCaroline(p: {
   ].join('\n');
   const l = p.lead;
   const contexto = `Lead: ${l.nome || '—'}${l.empresa ? `, empresa ${l.empresa}` : ''}${l.segmento ? `, segmento ${l.segmento}` : ''}${l.campanha ? `, campanha ${l.campanha}` : ''}. Saudação adequada agora: "${p.saudacao}".`;
+  // Ganchos do dia a dia por segmento (só use o que o MATERIAL confirma que resolvemos).
+  const diaADia = /padar|confeit/i.test(l.segmento || '')
+    ? 'correria da produção e do balcão, balança e etiquetas, perdas e sobras do dia, fechamento de caixa, cadastro de produtos, falta de tempo do dono'
+    : 'correria do balcão, SNGPC, Farmácia Popular, cadastro de produtos, controle de estoque e validade, fechamento de caixa, falta de tempo do dono';
+  const chamarDeVolta = `Objetivo: trazer o cliente de volta para a conversa, com sutileza. Use um gancho do DIA A DIA da operação dele (${diaADia}), em forma de pergunta leve e fácil de responder, sem notícias, prazos ou impostos. Não pareça cobrança nem venda.`;
   const tarefa = p.fase === 'abertura'
     ? (l.abertura_jessica
-      ? 'A Jessica já mandou a abertura (está no histórico) e o lead NÃO respondeu. Escreva uma RETOMADA, não um primeiro contato: apresente-se rapidamente como Caroline, da equipe Prosystem, mostre que percebeu que ele não conseguiu responder (com leveza e sem cobrar, ex.: "imagino que a correria do balcão não deixou você responder"), e chame a atenção com um gancho do dia a dia do segmento dele que o MATERIAL resolve (uma dor comum, em forma de pergunta curiosa, ex.: "o fechamento do caixa aí ainda toma tempo no fim do dia?"). Se houver em ASSUNTOS DA SEMANA uma novidade que afete o negócio dele, prefira usá-la como gancho de atenção (ex.: "com a reforma tributária chegando, muita farmácia já está revendo como emite nota e calcula imposto. Aí já estão se preparando?"), sempre ligando a um problema real dele. Termine com UMA pergunta fácil de responder. Não repita a mensagem da Jessica nem use "vou dar continuidade".'
+      ? `A Jessica já mandou a abertura (está no histórico) e o lead NÃO respondeu. Escreva uma RETOMADA, não um primeiro contato: apresente-se rapidamente como Caroline, da equipe Prosystem, mostre com leveza que percebeu que ele não conseguiu responder (ex.: "imagino que a correria do balcão não deixou"). ${chamarDeVolta} Não repita a mensagem da Jessica nem use "vou dar continuidade".`
       : 'Primeiro contato. Apresente-se como Caroline, da equipe Prosystem, diga que recebeu a inscrição na campanha e faça UMA pergunta aberta para começar (cidade e sistema que usa hoje, ou como está a rotina).')
     : p.fase === 'retomada'
-      ? `O lead não respondeu (tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores, retomando sem cobrar, com uma pergunta fácil de responder. Se houver um assunto da semana que afete o negócio dele e ainda não foi usado, use como gancho de atenção.${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta.' : ''}`
+      ? (l.ja_conversou
+        ? `O lead já conversou antes e parou de responder (follow-up, tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores, retomando de onde pararam, sem cobrar. Se houver em ASSUNTOS DA SEMANA uma novidade que afete o negócio dele e ainda não foi usada, pode usar como gancho, ligando à dor que ele contou.${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta.' : ''}`
+        : `O lead ainda não respondeu (tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores. ${chamarDeVolta}${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta com gentileza.' : ''}`)
       : 'Responda à(s) última(s) mensagem(ns) do cliente.';
   return { sistema, usuario: `${contexto}\n\nHistórico (mais recente por último):\n${p.historico || '(sem mensagens ainda)'}\n\n${tarefa}` };
 }
