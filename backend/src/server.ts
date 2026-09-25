@@ -350,6 +350,9 @@ async function iniciarSchedulerResumoExecutivo() {
       const { tipoResumoDoDia } = await import('./lib/resumo-executivo.js');
       const tipo = tipoResumoDoDia(agora);
       if (!tipo) return;
+      // Trava no banco: um resumo por dia, mesmo se o servidor reiniciar no meio da hora.
+      const { podeEnviarUmaVez } = await import('./services/envio-unico.service.js');
+      if (!(await podeEnviarUmaVez(prismaClient!, `resumo_executivo.${dia}`, 20))) return;
       const { enviarResumoExecutivo } = await import('./services/resumo-executivo.service.js');
       await enviarResumoExecutivo(prismaClient!, { tipo });
     } catch (err: any) {

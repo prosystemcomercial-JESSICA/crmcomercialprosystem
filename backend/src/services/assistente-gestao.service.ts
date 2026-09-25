@@ -139,6 +139,9 @@ export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, t
     if (!inst?.instance_token) return;
     for (const g of await listarGestao(prisma)) {
       if (!(await lerPrefsAvisos(prisma, g.id)).includes(tipo)) continue;
+      // Nunca a mesma mensagem duas vezes para a mesma pessoa em 6 h (reinício, rodada repetida…).
+      const { podeEnviarUmaVez, hashTexto } = await import('./envio-unico.service');
+      if (!(await podeEnviarUmaVez(prisma, `aviso.${g.id}.${hashTexto(texto)}`, 6))) continue;
       await evo.enviarTexto(inst.instance_token, g.telefone!, texto).catch((e: any) => console.error(`[AVISO] ${tipo} → ${g.nome}:`, e?.message));
       registrarAcaoAgente('marta', `avisou ${g.nome.split(' ')[0]}: ${NOME_AVISO[tipo].toLowerCase()}`);
     }

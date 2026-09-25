@@ -79,6 +79,8 @@ export async function lembrarConfirmacoesLaya(prisma: PrismaClient, agora = new 
   const dia = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   if (ultimoLembrete === dia) return;
   ultimoLembrete = dia;
+  const { podeEnviarUmaVez } = await import('./envio-unico.service');
+  if (!(await podeEnviarUmaVez(prisma, `laya_lembrete.${dia}`, 20))) return; // trava no banco (reinícios)
   const r = await resumoCaderno(prisma);
   if (!r.pendentes && r.hoje >= 15) return;
   const niveis = r.tarefas.map(t => `${({ segmento: 'Ramo', intencao: 'Intenção', cancelar: 'Risco' } as Record<string, string>)[t.tarefa]}: ${t.nome_nivel}${t.acerto != null ? ` (${t.acerto}%)` : ''}`).join(' · ');
