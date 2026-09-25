@@ -39,6 +39,7 @@ export const PRIORIDADES = ['BAIXA', 'NORMAL', 'CRITICA'] as const;
 
 export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
+  const comandosVistos = new Set<string>(); // ids de mensagens-comando da gestão já respondidas
 
   const instanciaNomeDe = (userId: string) => `crm-${userId}`;
 
@@ -686,6 +687,38 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Tipos de atendimento que NÃO são lead comercial → desvinculam do funil ao marcar.
   const TIPOS_NAO_COMERCIAIS = ['Financeiro', 'Renegociação', 'Serviço', 'Parceiro', 'Pessoal', 'Suporte'];
 
+  // ===== ASSISTENTE: avisos no celular da gestão + chave PIX =====
+  fastify.get('/assistente/config', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { lerPrefsAvisos, listarGestao } = await import('@/services/assistente-gestao.service');
+    const { TIPOS_AVISO, NOME_AVISO, acharGestor } = await import('@/lib/assistente/gestao');
+    const u = getUser(request)!;
+    const eu = await prisma.usuarioCRM.findUnique({ where: { id: u.id }, select: { telefone: true } }).catch(() => null);
+    const recebe = !!(eu?.telefone && acharGestor(eu.telefone, await listarGestao(prisma)));
+    const pix = await prisma.configuracaoIntegracao.findUnique({ where: { chave: 'assistente.pix_chave' } }).catch(() => null);
+    return reply.send({ status: 'success', data: {
+      avisos: await lerPrefsAvisos(prisma, u.id), tipos: TIPOS_AVISO.map(t => ({ id: t, nome: NOME_AVISO[t] })),
+      telefone: eu?.telefone || null, recebe, pix_chave: pix?.valor || '',
+    } });
+  });
+
+  fastify.put('/assistente/config', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { TIPOS_AVISO } = await import('@/lib/assistente/gestao');
+    const body = z.object({ avisos: z.array(z.enum(TIPOS_AVISO)).optional(), pix_chave: z.string().max(140).optional() }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
+    const u = getUser(request)!;
+    if (body.data.avisos) {
+      const { salvarPrefsAvisos } = await import('@/services/assistente-gestao.service');
+      await salvarPrefsAvisos(prisma, u.id, body.data.avisos);
+    }
+    if (body.data.pix_chave !== undefined) {
+      const valor = body.data.pix_chave.trim();
+      await prisma.configuracaoIntegracao.upsert({ where: { chave: 'assistente.pix_chave' }, create: { chave: 'assistente.pix_chave', valor, updated_by: u.id }, update: { valor, updated_by: u.id } });
+    }
+    return reply.send({ status: 'success', message: 'Salvo.' });
+  });
+
   // ===== IA LAYA: coleta de treino =====
   // A equipe confirma/corrige as etiquetas sugeridas; cada confirmação guarda a
   // foto do texto da conversa naquele momento (amostra de treino).
@@ -1211,6 +1244,20 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     ehEmpresa: boolean,
   ) {
     const { contato_numero, contato_nome, externo_id, tipo_msg: tipoMsg, texto } = dados;
+
+    // Gestão (Jessica/Thiago) falando com o número da empresa = comando do assistente.
+    // Responde e sai: não vira lead nem conversa no Inbox.
+    if (ehEmpresa && tipoMsg === 'TEXTO') {
+      // Comando não é gravado no banco: o reenvio do mesmo webhook é barrado aqui.
+      if (externo_id && comandosVistos.has(externo_id)) return;
+      try {
+        const { responderComandoGestao } = await import('@/services/assistente-gestao.service');
+        if (await responderComandoGestao(prisma, inst.instance_token || '', contato_numero, texto)) {
+          if (externo_id) { comandosVistos.add(externo_id); if (comandosVistos.size > 2000) comandosVistos.clear(); }
+          return;
+        }
+      } catch (e: any) { console.error('[ASSISTENTE] erro:', e?.message); }
+    }
 
     // Idempotência: se já gravamos essa mensagem, sai.
     if (externo_id) {

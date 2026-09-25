@@ -134,6 +134,11 @@ async function aplicarDesfecho(prisma: PrismaClient, conversa: ConversaTriagem, 
 
   if (e.notificacao) {
     emitirEventoConversa(null, 'lead_qualificado', { conversaId: conversa.id, ...e.notificacao });
+    if (passo.desfecho === 'qualificado') {
+      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+      void enviarAvisoGestao(prisma, 'lead_qualificado',
+        `🔔 *${e.notificacao.titulo}*\n${e.notificacao.detalhe}${e.notificacao.alerta ? `\n⚠️ ${e.notificacao.alerta}` : ''}\nContato: ${conversa.contato_numero}`);
+    }
   }
   emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: conversa.id });
 }
