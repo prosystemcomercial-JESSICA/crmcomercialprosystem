@@ -1124,6 +1124,11 @@ model Atividade {
   email_confirmacao_em DateTime?
   lembrete_enviado_em  DateTime?
 
+  // Demonstração marcada pelo próprio lead no WhatsApp (assistente): conversa de
+  // origem e quando o lembrete de 2h foi enviado por lá.
+  whatsapp_conversa_id String?
+  lembrete_whatsapp_em DateTime?
+
   created_by String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

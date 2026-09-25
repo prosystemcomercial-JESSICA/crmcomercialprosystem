@@ -1414,6 +1414,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           if (await responderBotaoProposta(prisma, inst.instance_token || '', conversa.id, dados.botao_id, aceitar)) return;
         } catch (e: any) { console.error('[PROPOSTA-WPP] botão:', e?.message); }
       }
+      // Demonstração: escolha de horário na lista ou "remarcar" (só se a demo foi oferecida nesta conversa).
+      try {
+        const { responderDemo } = await import('@/services/assistente-demo.service');
+        if (await responderDemo(prisma, inst.instance_token || '', conversa.id, texto, dados.botao_id)) return;
+      } catch (e: any) { console.error('[DEMO] resposta:', e?.message); }
       // Resposta ao "É a sua empresa?" (cadastro achado pelo CNPJ): se casar, é consumida aqui.
       try {
         if (await responderConfirmacaoCliente(prisma, inst.instance_token || '', conversa.id, texto, dados.botao_id)) return;
