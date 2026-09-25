@@ -1,7 +1,16 @@
 import type { PrismaClient } from '@prisma/client';
 import { PERGUNTAS_LAYA, PERGUNTAS_TRIAGEM, TIPOS_SEM_IA, montarEstadoConversa, lerRespostaLaya, lerEscolhaTriagem } from '../lib/laya';
 import { emitirEventoConversa } from './whatsapp-eventos.service';
-import { vocabulario, casoParecido, type AmostraLaya } from '../lib/laya-caderno';
+import { vocabulario, casoParecido, historicoAcertos, nivelTarefa, type AmostraLaya, type TarefaLaya } from '../lib/laya-caderno';
+import { registrarUsoIa } from './uso-ia.service';
+import { registrarAcaoAgente } from '../lib/assistente/escritorio';
+
+/** A tarefa já subiu para Assistente ou Titular (acerto confirmado pela equipe)? Aí a Laya age sozinha. */
+function autonoma(xs: AmostraLaya[], t: TarefaLaya): boolean {
+  return nivelTarefa(historicoAcertos(xs, t)).nivel !== 'aprendiz';
+}
+const SEGMENTO_LEAD: Record<string, string> = { farmacia: 'Farmácia', manipulacao: 'Manipulação', padaria: 'Padaria', varejo: 'Varejo' };
+const ETIQUETA_INTENCAO: Record<string, { nome: string; cor: string }> = { suporte: { nome: 'Suporte', cor: '#64748b' }, financeiro: { nome: 'Financeiro', cor: '#0891b2' } };
 
 // Aprendizado imediato: as confirmações da equipe (IaAmostra) viram vocabulário nas
 // perguntas e memória de casos parecidos. Recarrega a cada 2 min ou quando chega confirmação.
@@ -47,12 +56,13 @@ export async function textoParaIa(prisma: PrismaClient, conversaId: string): Pro
 }
 
 async function analisar(prisma: PrismaClient, conversaId: string): Promise<void> {
-  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { dono_id: true, tipo_contato: true, ia_sugestao: true, contato_nome: true, contato_numero: true } });
+  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { dono_id: true, tipo_contato: true, ia_sugestao: true, contato_nome: true, contato_numero: true, lead_id: true, etiqueta: true } });
   if (!conversa || (conversa.tipo_contato && TIPOS_SEM_IA.includes(conversa.tipo_contato))) return;
   const estado = await textoParaIa(prisma, conversaId);
   if (!estado.includes('Cliente:')) return;
 
   const xs = await amostrasConfirmadas(prisma);
+  registrarUsoIa('laya');
   const res = await fetch(`${LAYA_URL}/v1/systemone`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -71,13 +81,25 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
   }
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ia_sugestao: sugestao, ia_sugerido_em: new Date() } });
   emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
+  // Laya com nível Assistente/Titular numa tarefa: age sozinha, sem esperar confirmação.
+  const nome = conversa.contato_nome || conversa.contato_numero;
+  if (autonoma(xs, 'segmento') && conversa.lead_id && SEGMENTO_LEAD[sugestao.segmento]) {
+    const r = await prisma.lead.updateMany({ where: { id: conversa.lead_id, OR: [{ segmento: null }, { segmento: '' }] }, data: { segmento: SEGMENTO_LEAD[sugestao.segmento] } }).catch(() => ({ count: 0 }));
+    if (r.count) registrarAcaoAgente('laya', `preencheu o ramo de ${nome}: ${SEGMENTO_LEAD[sugestao.segmento]}`);
+  }
+  if (autonoma(xs, 'intencao') && !conversa.etiqueta && ETIQUETA_INTENCAO[sugestao.intencao]) {
+    const e = ETIQUETA_INTENCAO[sugestao.intencao];
+    await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { etiqueta: e.nome, etiqueta_cor: e.cor } }).catch(() => {});
+    registrarAcaoAgente('laya', `etiquetou ${nome} como ${e.nome}`);
+  }
   // Passou a indicar risco de cancelamento: avisa a gestão (uma vez, na virada).
   // Limite e público vêm de Configurações; padrão 0,8 e só clientes da base enquanto
   // a Laya não é treinada (sem treino ela confunde "boleto" com cancelar).
   const { obterConfigIa } = await import('./assistente-config.service');
   const ia = await obterConfigIa(prisma);
   const antes = Number((conversa.ia_sugestao as any)?.cancelar ?? 0);
-  const publicoOk = ia.risco_so_clientes ? conversa.tipo_contato === 'CLIENTE' : true;
+  // Enquanto aprendiz, risco só para clientes (se configurado); com nível Assistente, vale para todos.
+  const publicoOk = ia.risco_so_clientes && !autonoma(xs, 'cancelar') ? conversa.tipo_contato === 'CLIENTE' : true;
   if (publicoOk && sugestao.cancelar >= ia.risco_limite && antes < ia.risco_limite) {
     const { enviarAvisoGestao } = await import('./assistente-gestao.service');
     const ultima = estado.split('\n').filter(l => l.startsWith('Cliente:')).pop()?.slice(9, 160) || '';
@@ -89,6 +111,7 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
 /** Triagem: classifica um texto livre na hora (até 20 s). null se a Laya falhar ou não tiver certeza. */
 export async function classificarTriagem(pergunta: 'menu' | 'segmento', texto: string, confiancaMin: number): Promise<string | null> {
   try {
+    registrarUsoIa('laya');
     const res = await fetch(`${LAYA_URL}/v1/systemone`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ state: `Cliente: ${texto.slice(0, 500)}`, questions: { q: PERGUNTAS_TRIAGEM[pergunta] }, model: 'multilingual' }),

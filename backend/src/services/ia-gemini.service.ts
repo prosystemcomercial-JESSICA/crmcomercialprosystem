@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { registrarUsoIa } from './uso-ia.service';
 
 // Cliente mínimo do Gemini (Google AI Studio). A chave fica em Configurações
 // (ConfiguracaoIntegracao 'assistente.gemini_chave') ou na variável GEMINI_API_KEY.
@@ -25,6 +26,7 @@ export async function chaveGemini(prisma: PrismaClient): Promise<string | null> 
 }
 
 async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean }): Promise<any> {
+  registrarUsoIa(p.grok ? 'grok' : 'openai');
   const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${p.grok ? chaveXai() : chaveOpenAI()}` },
@@ -47,6 +49,7 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
 }
 
 async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number): Promise<string> {
+  registrarUsoIa('openai');
   const ext = mime.includes('ogg') || mime.includes('opus') ? 'ogg' : mime.includes('mpeg') || mime.includes('mp3') ? 'mp3' : mime.includes('mp4') || mime.includes('m4a') ? 'm4a' : mime.includes('wav') ? 'wav' : 'ogg';
   const form = new FormData();
   form.append('file', new Blob([Buffer.from(base64, 'base64')], { type: mime }), `audio.${ext}`);

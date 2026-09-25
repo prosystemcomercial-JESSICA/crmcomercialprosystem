@@ -72,3 +72,22 @@ export async function salvarCopiaDiaria(prisma: PrismaClient, agora = new Date()
   for (const f of velhos) await unlink(path.join(PASTA, f)).catch(() => {});
   console.log(`[LAYA] Caderno salvo em ${PASTA} (${dia})`);
 }
+
+let ultimoLembrete = '';
+/** Aviso diário (17h, dias úteis) para a gestão: quantas conversas esperam confirmação da Laya. */
+export async function lembrarConfirmacoesLaya(prisma: PrismaClient, agora = new Date()): Promise<void> {
+  const dia = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  if (ultimoLembrete === dia) return;
+  ultimoLembrete = dia;
+  const r = await resumoCaderno(prisma);
+  if (!r.pendentes && r.hoje >= 15) return;
+  const niveis = r.tarefas.map(t => `${({ segmento: 'Ramo', intencao: 'Intenção', cancelar: 'Risco' } as Record<string, string>)[t.tarefa]}: ${t.nome_nivel}${t.acerto != null ? ` (${t.acerto}%)` : ''}`).join(' · ');
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'laya_confirmacoes', [
+    '📓 *Laya: hora de ensinar*',
+    `${r.pendentes} conversa(s) esperando confirmação no WhatsApp do CRM.`,
+    `Hoje: ${r.hoje} de 15 confirmações · total ${r.total}.`,
+    niveis,
+    'Abra a conversa e clique em ✓ Confirmar no painel da Laya (ou corrija).',
+  ].join('\n'));
+}

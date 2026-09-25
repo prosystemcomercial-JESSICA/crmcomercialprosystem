@@ -375,6 +375,9 @@ async function iniciarSchedulerAssistente() {
       // Pesquisa semanal da Sofia (segunda a partir das 8h; ela mesma confere o dia).
       const { rodarPesquisaSemanal } = await import('./services/sofia-pesquisa.service.js');
       await rodarPesquisaSemanal(prismaClient!, agora).catch((e: any) => console.error('[SOFIA]', e?.message));
+      // Contador de uso das IAs (OpenAI x Grok x Laya): grava o que está em memória.
+      const { gravarUsoIa } = await import('./services/uso-ia.service.js');
+      await gravarUsoIa(prismaClient!).catch(() => {});
       // Cópia diária do Caderno da Laya (uma vez por dia, no primeiro ciclo).
       // (A Caroline tem rodada própria, a cada 2 min: ver iniciarCaroline abaixo.)
       const { salvarCopiaDiaria } = await import('./services/laya-caderno.service.js');
@@ -384,6 +387,11 @@ async function iniciarSchedulerAssistente() {
       if (dia === 0 || dia === 6 || hora < 8 || hora >= 19) return;
       const { avisarSlaEstourado } = await import('./services/assistente-gestao.service.js');
       await avisarSlaEstourado(prismaClient!, agora);
+      // Lembrete das 17h (uma vez por dia útil): confirmações da Laya pendentes.
+      if (hora === 17) {
+        const { lembrarConfirmacoesLaya } = await import('./services/laya-caderno.service.js');
+        await lembrarConfirmacoesLaya(prismaClient!, agora).catch((e: any) => console.error('[LAYA] lembrete:', e?.message));
+      }
       // Follow-up de propostas enviadas pelo WhatsApp: só das 9h às 18h.
       if (hora >= 9 && hora < 18) {
         const { rodarFollowupPropostas } = await import('./services/assistente-proposta.service.js');
