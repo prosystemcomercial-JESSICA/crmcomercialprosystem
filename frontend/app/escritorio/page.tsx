@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -55,6 +55,43 @@ export default function EscritorioPage() {
   const [sel, setSel] = useState<string | null>(null);
   const [chamados, setChamados] = useState<Record<string, Chamado>>({});
   const [zoom, setZoom] = useState(1);
+  // Zoom que aproxima no ponto certo (cursor ou centro) e arrastar para andar pela sala.
+  const salaRef = useRef<HTMLDivElement>(null);
+  const alturaBase = useRef(0);
+  const foco = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
+  const zoomAtual = useRef(1);
+  const zoomEm = useCallback((novo: number, fx?: number, fy?: number) => {
+    const el = salaRef.current;
+    const atual = zoomAtual.current;
+    const z = Math.min(3, Math.max(1, +novo.toFixed(2)));
+    if (z === atual) return;
+    if (el) {
+      if (atual === 1) alturaBase.current = el.clientHeight;
+      const x = fx ?? el.clientWidth / 2, y = fy ?? el.clientHeight / 2;
+      foco.current = { x, y, cx: (el.scrollLeft + x) / atual * z, cy: (el.scrollTop + y) / atual * z };
+    }
+    zoomAtual.current = z;
+    setZoom(z);
+  }, []);
+  useLayoutEffect(() => {
+    const el = salaRef.current, f = foco.current;
+    if (!el || !f) return;
+    el.scrollLeft = f.cx - f.x; el.scrollTop = f.cy - f.y;
+    foco.current = null;
+  }, [zoom]);
+  useEffect(() => {
+    const el = salaRef.current;
+    if (!el) return;
+    const roda = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      zoomEm(zoomAtual.current * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX - r.left, e.clientY - r.top);
+    };
+    el.addEventListener('wheel', roda, { passive: false });
+    return () => el.removeEventListener('wheel', roda);
+  }, [zoomEm]);
+  const arraste = useRef<{ x: number; y: number; sl: number; st: number; moveu: boolean } | null>(null);
   const [historico, setHistorico] = useState<{ id: string; itens: { texto: string; em: string }[] | null } | null>(null);
 
   const verTrabalho = (id: string) => {
@@ -155,14 +192,25 @@ export default function EscritorioPage() {
           {/* Sala com zoom: botões +/−, Ctrl+roda do mouse; com zoom, arraste a barra para andar pela sala. */}
           <div style={{ position: 'relative', background: 'linear-gradient(180deg, #dbe7f3 0%, #eef3f8 100%)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: 0, overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, display: 'flex', gap: 4, background: 'rgba(255,255,255,.9)', borderRadius: 8, padding: 4, boxShadow: '0 1px 4px rgba(0,0,0,.15)' }}>
-              <button aria-label="Diminuir zoom" onClick={() => setZoom(z => Math.max(1, +(z - 0.25).toFixed(2)))} style={botaoZoom}>−</button>
+              <button aria-label="Diminuir zoom" onClick={() => zoomEm(zoom - 0.25)} style={botaoZoom}>−</button>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', minWidth: 42, textAlign: 'center', alignSelf: 'center' }}>{Math.round(zoom * 100)}%</span>
-              <button aria-label="Aumentar zoom" onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))} style={botaoZoom}>+</button>
-              {zoom > 1 && <button aria-label="Voltar ao tamanho normal" onClick={() => setZoom(1)} style={{ ...botaoZoom, width: 'auto', padding: '0 8px', fontSize: 11 }}>ajustar</button>}
+              <button aria-label="Aumentar zoom" onClick={() => zoomEm(zoom + 0.25)} style={botaoZoom}>+</button>
+              {zoom > 1 && <button aria-label="Voltar ao tamanho normal" onClick={() => zoomEm(1)} style={{ ...botaoZoom, width: 'auto', padding: '0 8px', fontSize: 11 }}>ajustar</button>}
             </div>
-            <div onWheel={e => { if (!e.ctrlKey) return; e.preventDefault(); setZoom(z => Math.min(3, Math.max(1, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2)))); }}
-              style={{ overflow: zoom > 1 ? 'auto' : 'hidden', maxHeight: zoom > 1 ? '80vh' : undefined }}>
-              <div style={{ width: `${zoom * 100}%`, transition: 'width .2s ease' }}>
+            <div ref={salaRef}
+              onPointerDown={e => { if (zoom > 1 && e.button === 0) arraste.current = { x: e.clientX, y: e.clientY, sl: salaRef.current!.scrollLeft, st: salaRef.current!.scrollTop, moveu: false }; }}
+              onPointerMove={e => {
+                const a = arraste.current, el = salaRef.current;
+                if (!a || !el) return;
+                const dx = e.clientX - a.x, dy = e.clientY - a.y;
+                if (!a.moveu && Math.hypot(dx, dy) < 6) return; // clique normal (mesa, agente) continua funcionando
+                a.moveu = true;
+                el.scrollLeft = a.sl - dx; el.scrollTop = a.st - dy;
+              }}
+              onPointerUp={() => { setTimeout(() => { arraste.current = null; }, 0); }}
+              onClickCapture={e => { if (arraste.current?.moveu) { e.stopPropagation(); e.preventDefault(); } }}
+              style={{ overflow: zoom > 1 ? 'auto' : 'hidden', height: zoom > 1 && alturaBase.current ? alturaBase.current : undefined, cursor: zoom > 1 ? 'grab' : undefined }}>
+              <div style={{ width: `${zoom * 100}%` }}>
                 {mostrar ? <SalaIsometrica agentes={mostrar} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
               </div>
             </div>
