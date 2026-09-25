@@ -156,6 +156,23 @@ Precisa da **chave** em Configurações. A chave é gratuita e se cria em aistud
 3. Clique em **Ver quantos vão receber**, depois **Criar campanha** e **Sim, enviar**.
 4. Saem cerca de 24 mensagens por hora, só em horário comercial. Quem responder **SAIR** não recebe mais.
 
+### 5.11 Escritório virtual
+
+**Onde:** menu **Escritório virtual**.
+
+Uma sala em 3D com os oito agentes do assistente trabalhando. Cada um tem uma mesa, um crachá e uma luz de status: 🟢 trabalhando (agiu nos últimos 10 minutos), 🟡 parado ou ⚪ desligado. Quem está trabalhando mostra um balão com a última ação. Clique na mesa para ver o que o agente fez hoje. A tela atualiza a cada 30 segundos e é só de leitura.
+
+| Agente | Função |
+|---|---|
+| Bia | Recepção: triagem de novos contatos |
+| Lurdinha | Agenda: demonstrações marcadas e lembretes |
+| Clarice | Tira-dúvidas com IA e transcrição de áudio |
+| Luiz Felipe | Follow-up de propostas |
+| Zequinha | Campanhas pelo WhatsApp |
+| Helena | Pós-venda: boas-vindas e pesquisa |
+| Laya | IA que analisa as conversas e aprende |
+| Marta | Assistente da gestão: comandos, avisos e aprovações |
+
 ---
 
 ## 6. Regras que valem para tudo
