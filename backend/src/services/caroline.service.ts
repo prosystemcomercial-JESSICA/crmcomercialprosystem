@@ -170,8 +170,15 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
       return i?.titulo && (s === seg || s.startsWith('gest'));
     })
     .slice(0, 8).map(i => ({ segmento: String(i.segmento || ''), titulo: `${String(i.titulo)} (pesquisado em ${new Date(i._em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`, resumo: String(i.resumo || '').slice(0, 300), por_que_importa: String(i.por_que_importa || '').slice(0, 200) }));
+  // Versões que a Jessica descartou desde a última mensagem enviada: refazer diferente, seguindo o pedido dela.
+  const desde = sdr.ultima_caroline_em && !sdr.abertura_enviada ? sdr.ultima_caroline_em : sdr.desde;
+  const descartadas = await prisma.sdrMensagem.findMany({ where: { sdrId: sdr.id, status: 'DESCARTADA', created_at: { gte: desde } }, orderBy: { created_at: 'desc' }, take: 4, select: { texto: true, texto_final: true } });
+  const refazer = descartadas.length
+    ? '\n=== A JESSICA DESCARTOU ESTAS VERSÕES (pense diferente: outro gancho, outra estrutura, outras palavras; nunca repita) ===\n' +
+      descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
+    : '';
   const p = promptCaroline({
-    guia: await guiaComercial(prisma), instrucoes: await instrucoesPara(prisma, 'caroline'), exemplos: await exemplosEditados(prisma),
+    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, 'caroline')) + refazer, exemplos: await exemplosEditados(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()), atualidades,
     lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas },
   });
@@ -298,7 +305,14 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
   const sdr = await prisma.sdrLead.findUnique({ where: { id: m.sdrId } });
   if (!sdr) throw new Error('Lead da Caroline não encontrado.');
   if (!decisao.aprovar) {
-    await prisma.sdrMensagem.update({ where: { id }, data: { status: 'DESCARTADA', decidido_em: new Date(), decidido_por: userId } });
+    // Descartar = refazer: guarda o pedido da Jessica ("o que mudar?") e já escreve outra versão.
+    await prisma.sdrMensagem.update({ where: { id }, data: { status: 'DESCARTADA', texto_final: (decisao.texto || '').trim().slice(0, 500) || null, decidido_em: new Date(), decidido_por: userId } });
+    const meta = (() => { try { return JSON.parse(m.acao || '{}'); } catch { return {}; } })();
+    const inst = await obterInstanciaEmpresa(prisma);
+    if (inst?.instance_token) {
+      void falar(prisma, inst.instance_token, sdr.id, (meta.fase as FaseCaroline) || 'resposta').catch((e: any) => console.warn('[CAROLINE] refazer:', e?.message));
+    }
+    registrarAcaoAgente('caroline', `está reescrevendo a mensagem para ${sdr.nome || 'um lead'}`);
     return { status: 'DESCARTADA' };
   }
   if (await pessoaAssumiu(prisma, sdr)) {

@@ -797,7 +797,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const { decidirMensagem } = await import('@/services/caroline.service');
     try {
       const r = await decidirMensagem(prisma, id, b.data, getUser(request)!.id);
-      return reply.send({ status: 'success', data: r, message: r.status === 'DESCARTADA' ? 'Descartada.' : 'Enviada.' });
+      return reply.send({ status: 'success', data: r, message: r.status === 'DESCARTADA' ? 'A Caroline está escrevendo outra versão (uns 10 segundos).' : 'Enviada.' });
     } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
   });
   fastify.post('/assistente/caroline/leads/:id/temperatura', async (request, reply) => {
