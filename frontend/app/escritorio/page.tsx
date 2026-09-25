@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
-import SalaIsometrica from '@/components/escritorio/SalaIsometrica';
+import SalaIsometrica, { type Chamado } from '@/components/escritorio/SalaIsometrica';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
 // leitura; atualiza a cada 30 s com o que cada agente fez hoje.
@@ -44,6 +44,17 @@ export default function EscritorioPage() {
   const [agentes, setAgentes] = useState<Agente[] | null>(null);
   const [atualizado, setAtualizado] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
+  const [chamados, setChamados] = useState<Record<string, Chamado>>({});
+  const [historico, setHistorico] = useState<{ id: string; itens: { texto: string; em: string }[] | null } | null>(null);
+
+  const verTrabalho = (id: string) => {
+    setSel(id); setHistorico({ id, itens: null });
+    apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
+  };
+  const chamar = (id: string) => setChamados(c => ({ ...c, [id]: 'sala' }));
+  const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
+  const reunir = () => setChamados(Object.fromEntries((agentes || []).map(a => [a.id, 'reuniao' as Chamado])));
+  const emReuniao = Object.values(chamados).some(c => c === 'reuniao');
   const [erro, setErro] = useState(false);
   const [simulando, setSimulando] = useState(false);
   const [sim, setSim] = useState<Agente[] | null>(null);
@@ -104,13 +115,17 @@ export default function EscritorioPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Escritório virtual</h1>
-            <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>A equipe de agentes do CRM trabalhando no comercial. Clique em uma mesa para ver o dia de cada um.</p>
+            <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Ande com as setas do teclado ou clicando no chão. Chegue perto de um agente para ver o trabalho dele ou chamá-lo à sua sala.</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>
               👥 {agentes?.length ?? 8} agentes · <span style={{ color: '#16a34a' }}>{trabalhando} trabalhando</span>
             </span>
             {atualizado && !simulando && <span style={{ padding: '6px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>atualizado {haQuanto(atualizado)}</span>}
+            <button onClick={() => emReuniao ? setChamados({}) : reunir()} disabled={!agentes}
+              style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: emReuniao ? '#0f766e' : '#b45309' }}>
+              {emReuniao ? '✅ Encerrar reunião' : '🤝 Reunir a equipe'}
+            </button>
             <button onClick={() => setSimulando(s => !s)} disabled={!agentes}
               style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: simulando ? '#dc2626' : '#7c3aed' }}>
               {simulando ? '■ Parar simulação' : '▶ Simular atividades'}
@@ -127,7 +142,7 @@ export default function EscritorioPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
           <div style={{ background: 'linear-gradient(180deg, #dbe7f3 0%, #eef3f8 100%)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: 0, overflow: 'hidden' }}>
-            {mostrar ? <SalaIsometrica agentes={mostrar} selecionado={sel} onSelecionar={setSel} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
+            {mostrar ? <SalaIsometrica agentes={mostrar} selecionado={sel} onSelecionar={setSel} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
           </div>
 
           {escolhido && (
@@ -142,6 +157,25 @@ export default function EscritorioPage() {
                 {escolhido.ultima ? <>Última ação: <b>{escolhido.ultima.texto}</b> <span style={{ color: 'var(--t-text-muted)' }}>({haQuanto(escolhido.ultima.em)})</span></> : 'Ainda não trabalhou.'}
               </p>
               {escolhido.observacao && <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{escolhido.observacao}</p>}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button onClick={() => verTrabalho(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: escolhido.cor, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>👀 Ver trabalho</button>
+                {chamados[escolhido.id]
+                  ? <button onClick={() => liberar(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>✅ Liberar</button>
+                  : <button onClick={() => chamar(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#0f172a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>📞 Chamar à minha sala</button>}
+              </div>
+              {historico?.id === escolhido.id && (
+                <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 10, display: 'grid', gap: 6 }}>
+                  <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>Como {escolhido.nome} está trabalhando</b>
+                  {historico.itens === null && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Carregando…</span>}
+                  {historico.itens?.length === 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Ainda sem ações registradas.</span>}
+                  {historico.itens?.map((h, k) => (
+                    <div key={k} style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'flex', gap: 8 }}>
+                      <span style={{ color: 'var(--t-text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{new Date(h.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{h.texto}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

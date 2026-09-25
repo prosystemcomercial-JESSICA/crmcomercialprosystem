@@ -15,9 +15,11 @@ export type AgenteSala = {
 
 const LARG = 62, ALT = 36;
 const COLS = 4, ESPACO = 2.3;
-const W = 16, D = 7.4;
+const W = 21, D = 7.4;
 const ESPINHA_X = 10.2;                     // corredor vertical entre as mesas e os cantos
 const CORREDOR_LINHA = [0.38, 2.45];        // corredor atrás de cada fileira de mesas
+const ALA_X = 16.3;                         // a partir daqui: sala de reunião (fundo) e sala da Jessica (frente)
+const CORREDOR_ALA_Y = 3.85;                // corredor entre as duas salas
 const VELOCIDADE = 1.5;                     // células por segundo
 const AMARELO = '#f6c90e', AMARELO_SOMBRA = '#d9ac00';
 const COR_STATUS = { trabalhando: '#22c55e', parado: '#eab308', desligado: '#94a3b8' } as const;
@@ -29,11 +31,12 @@ const up = (p: P, k: number) => ({ x: p.x, y: p.y - k });
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 // ── Lugares ────────────────────────────────────────────────────────────────
-type Atividade = 'mesa' | 'cafe' | 'biblioteca' | 'pebolim' | 'videogame';
+type Atividade = 'mesa' | 'cafe' | 'biblioteca' | 'pebolim' | 'videogame' | 'reuniao' | 'sala';
+export type Chamado = 'sala' | 'reuniao';
 type Vaga = { id: string; atividade: Atividade; p: P };
 const VAGAS: Vaga[] = [
   { id: 'cafe1', atividade: 'cafe', p: { x: 14.0, y: 3.35 } },
-  { id: 'cafe2', atividade: 'cafe', p: { x: 15.0, y: 3.9 } },
+  { id: 'cafe2', atividade: 'cafe', p: { x: 15.3, y: 3.3 } },
   { id: 'livro1', atividade: 'biblioteca', p: { x: 11.4, y: 1.15 } },
   { id: 'livro2', atividade: 'biblioteca', p: { x: 13.1, y: 1.15 } },
   { id: 'pebolim1', atividade: 'pebolim', p: { x: 11.2, y: 4.75 } },
@@ -48,18 +51,29 @@ const mesaDe = (i: number) => {
   return { bx, by, lin, assento: { x: bx + 0.62, y: by - 0.38 } };
 };
 
-/** Caminho pelos corredores: sai para o corredor da fileira, vai até a espinha e segue. */
-function rota(de: P, para: P, linDe: number | null, linPara: number | null): P[] {
-  const out: P[] = [];
-  if (linDe !== null) { out.push({ x: de.x, y: CORREDOR_LINHA[linDe] }); out.push({ x: ESPINHA_X, y: CORREDOR_LINHA[linDe] }); }
-  else out.push({ x: ESPINHA_X, y: de.y });
-  if (linPara !== null) { out.push({ x: ESPINHA_X, y: CORREDOR_LINHA[linPara] }); out.push({ x: para.x, y: CORREDOR_LINHA[linPara] }); }
-  else out.push({ x: ESPINHA_X, y: para.y });
-  out.push(para);
-  return out;
+// Salas da ala direita.
+const MESA_REUNIAO = { x: 18.6, y: 1.75 };
+const LUGARES_REUNIAO: P[] = Array.from({ length: 10 }, (_, i) => {
+  const a = (i / 10) * Math.PI * 2;
+  return { x: MESA_REUNIAO.x + Math.cos(a) * 1.75, y: MESA_REUNIAO.y + Math.sin(a) * 1.05 };
+});
+const MESA_JESSICA = { x: 18.0, y: 5.25, w: 1.6, d: 0.7 };
+const CADEIRA_JESSICA: P = { x: 18.8, y: 4.9 };
+const LUGARES_SALA: P[] = [{ x: 18.2, y: 6.55 }, { x: 19.2, y: 6.55 }, { x: 17.4, y: 6.3 }, { x: 20.0, y: 6.3 }];
+
+/** Trecho de um ponto até a espinha (corredor vertical x = ESPINHA_X). */
+function saida(p: P, lin: number | null): P[] {
+  if (lin !== null) return [{ x: p.x, y: CORREDOR_LINHA[lin] }, { x: ESPINHA_X, y: CORREDOR_LINHA[lin] }];
+  if (p.x > ALA_X) return [{ x: 16.8, y: p.y }, { x: 16.8, y: CORREDOR_ALA_Y }, { x: ESPINHA_X, y: CORREDOR_ALA_Y }];
+  return [{ x: ESPINHA_X, y: p.y }];
 }
 
-type Estado = { pos: P; caminho: P[]; atividade: Atividade; vaga: string | null; ate: number; andando: boolean };
+/** Caminho pelos corredores: sai até a espinha, anda por ela e entra no destino (nunca atravessa mesas). */
+function rota(de: P, para: P, linDe: number | null, linPara: number | null): P[] {
+  return [...saida(de, linDe), ...saida(para, linPara).reverse(), para];
+}
+
+type Estado = { pos: P; caminho: P[]; atividade: Atividade; vaga: string | null; ate: number; andando: boolean; chamado: Chamado | null };
 
 // ── Peças ──────────────────────────────────────────────────────────────────
 function Caixa({ x, y, w, d, h, topo, esq, dir, z = 0 }: { x: number; y: number; w: number; d: number; h: number; topo: string; esq: string; dir: string; z?: number }) {
@@ -83,6 +97,7 @@ const VISUAL: Record<string, Visual> = {
   helena:      { cabelo: 'cacheado', corCabelo: '#3b2314', feminina: true,  estampa: 'coracao', calca: '#f5f5f4' },
   laya:        { cabelo: 'ondulado', corCabelo: '#6b21a8', feminina: true,  estampa: 'circuito', calca: '#0f172a' },
   marta:       { cabelo: 'chanel',   corCabelo: '#7c2d12', feminina: true,  estampa: 'blazer', extra: 'oculos', calca: '#1f2937' },
+  jessica:     { cabelo: 'longo',    corCabelo: '#5a3825', feminina: true,  estampa: 'estrela', calca: '#1e293b' },
 };
 
 function Cabelo({ tipo, cor, corAgente }: { tipo?: string; cor: string; corAgente: string }) {
@@ -119,17 +134,18 @@ function Estampa({ tipo }: { tipo: string }) {
     case 'circuito': return <g stroke="#fbcfe8" strokeWidth={1.2} fill="none"><path d="M -8 -40 H -2 V -32 H 6" /><circle cx={6} cy={-32} r={1.5} fill="#fbcfe8" /></g>;
     case 'agenda': return <g><rect x={-6} y={-40} width={12} height={11} rx={1} fill="#fff" /><rect x={-6} y={-40} width={12} height={3} fill="#ef4444" /></g>;
     case 'blazer': return <g><path d="M -12 -46 L -2 -46 L -6 -28 Z" fill="rgba(0,0,0,.25)" /><path d="M 12 -46 L 2 -46 L 6 -28 Z" fill="rgba(0,0,0,.25)" /></g>;
+    case 'estrela': return <g><path d='M -12 -46 L -2 -46 L -6 -28 Z' fill='rgba(255,255,255,.2)' /><path d='M 12 -46 L 2 -46 L 6 -28 Z' fill='rgba(255,255,255,.2)' /><path d='M 0 -40 L 2.4 -35 L 7.8 -34.4 L 3.8 -30.8 L 4.9 -25.5 L 0 -28.2 L -4.9 -25.5 L -3.8 -30.8 L -7.8 -34.4 L -2.4 -35 Z' fill='#fbbf24' /></g>;
     case 'headset': return <g><rect x={-4} y={-40} width={8} height={6} rx={1} fill="#fff" /><text x={0} y={-35} fontSize={5} textAnchor="middle" fill="#e11d74" fontWeight={800}>OI</text></g>;
     default: return null;
   }
 }
 
-type Pose = 'digitando' | 'sentado' | 'dormindo' | 'andando' | 'cafe' | 'lendo' | 'pebolim' | 'jogando';
+type Pose = 'digitando' | 'sentado' | 'dormindo' | 'andando' | 'cafe' | 'lendo' | 'pebolim' | 'jogando' | 'empe';
 
 /** Minifigura. Origem: sentado = altura do tampo; em pé = pés no chão. */
 function Minifig({ id, cor, pose, atraso }: { id: string; cor: string; pose: Pose; atraso: number }) {
   const v = VISUAL[id] || { corCabelo: '#333', feminina: true, estampa: '', calca: '#333' };
-  const emPe = pose === 'andando' || pose === 'cafe' || pose === 'lendo' || pose === 'pebolim';
+  const emPe = pose === 'andando' || pose === 'cafe' || pose === 'lendo' || pose === 'pebolim' || pose === 'empe';
   const d = { animationDelay: `${atraso}s` };
   const bracos = pose === 'digitando' || pose === 'pebolim' || pose === 'jogando' ? 'bracos-rapidos' : pose === 'andando' ? 'bracos-andando' : '';
   const cabecaLonga = v.cabelo === 'longo' || v.cabelo === 'ondulado';
@@ -199,13 +215,59 @@ function useRelogio() {
   return agora;
 }
 
+/** Anda `passo` células pelo caminho. */
+function andar(e: { pos: P; caminho: P[]; andando: boolean }, passo: number) {
+  e.andando = e.caminho.length > 0;
+  let resta = passo;
+  while (resta > 0 && e.caminho.length) {
+    const alvo = e.caminho[0], dx = alvo.x - e.pos.x, dy = alvo.y - e.pos.y, dist = Math.hypot(dx, dy);
+    if (dist <= resta) { e.pos = { ...alvo }; e.caminho.shift(); resta -= dist; }
+    else { e.pos = { x: e.pos.x + (dx / dist) * resta, y: e.pos.y + (dy / dist) * resta }; resta = 0; }
+  }
+}
+
 // ── Sala ───────────────────────────────────────────────────────────────────
-export default function SalaIsometrica({ agentes, selecionado, onSelecionar }: { agentes: AgenteSala[]; selecionado: string | null; onSelecionar: (id: string) => void }) {
+type Props = {
+  agentes: AgenteSala[]; selecionado: string | null; onSelecionar: (id: string) => void;
+  chamados?: Record<string, Chamado>;                 // quem foi chamado (sala da Jessica ou reunião)
+  onVerTrabalho?: (id: string) => void;
+  onChamar?: (id: string) => void;
+  onLiberar?: (id: string) => void;
+};
+
+export default function SalaIsometrica({ agentes, selecionado, onSelecionar, chamados = {}, onVerTrabalho, onChamar, onLiberar }: Props) {
   const agora = useRelogio();
   const estados = useRef<Record<string, Estado>>({});
   const agentesRef = useRef(agentes);
   agentesRef.current = agentes;
+  const chamadosRef = useRef(chamados);
+  chamadosRef.current = chamados;
   const [, setQuadro] = useState(0);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  // Jessica: anda pelas setas ou clicando no chão.
+  const jess = useRef<{ pos: P; caminho: P[]; andando: boolean }>({ pos: { x: 17.2, y: 6.2 }, caminho: [], andando: false });
+  const teclas = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const ignora = (ev: KeyboardEvent) => { const t = ev.target as HTMLElement; return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); };
+    const baixa = (ev: KeyboardEvent) => {
+      if (ignora(ev) || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(ev.key)) return;
+      ev.preventDefault(); teclas.current.add(ev.key); jess.current.caminho = [];
+    };
+    const sobe = (ev: KeyboardEvent) => { teclas.current.delete(ev.key); };
+    window.addEventListener('keydown', baixa); window.addEventListener('keyup', sobe);
+    return () => { window.removeEventListener('keydown', baixa); window.removeEventListener('keyup', sobe); };
+  }, []);
+
+  /** Clique no chão: a Jessica caminha até lá pelos corredores. */
+  const clicarChao = (ev: React.MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current; if (!svg) return;
+    const ctm = svg.getScreenCTM(); if (!ctm) return;
+    const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
+    const gx = (pt.x / LARG + pt.y / ALT) / 2, gy = (pt.y / ALT - pt.x / LARG) / 2;
+    if (gx < 0.2 || gy < 0.2 || gx > W - 0.2 || gy > D - 0.2) return;
+    jess.current.caminho = rota(jess.current.pos, { x: gx, y: gy }, null, null);
+  };
 
   // Movimento: ~24 quadros por segundo, com decisões de rotina por agente.
   useEffect(() => {
@@ -216,38 +278,58 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar }: {
       const dt = Math.min(0.1, (agoraMs - ultimo) / 1000);
       ultimo = agoraMs;
       const lista = agentesRef.current;
+      const cham = chamadosRef.current;
       const ocupadas = new Set(Object.values(estados.current).map(e => e.vaga).filter(Boolean) as string[]);
+      const lugarReuniao = (i: number) => LUGARES_REUNIAO[i % LUGARES_REUNIAO.length];
+      let naSala = 0;
       lista.forEach((a, i) => {
         const m = mesaDe(i);
         let e = estados.current[a.id];
-        if (!e) { e = estados.current[a.id] = { pos: { ...m.assento }, caminho: [], atividade: 'mesa', vaga: null, ate: agoraMs + 3000 + Math.random() * 6000, andando: false }; }
-        const naMesa = e.atividade === 'mesa';
-        const irPara = (atividade: Atividade, vaga: Vaga | null) => {
-          const destino = vaga ? vaga.p : m.assento;
+        if (!e) { e = estados.current[a.id] = { pos: { ...m.assento }, caminho: [], atividade: 'mesa', vaga: null, ate: agoraMs + 3000 + Math.random() * 6000, andando: false, chamado: null }; }
+        const naMesa = e.atividade === 'mesa' && !e.caminho.length;
+        const irPara = (atividade: Atividade, destino: P, vaga: string | null) => {
           const linDe = naMesa ? m.lin : null, linPara = atividade === 'mesa' ? m.lin : null;
           e!.caminho = rota(e!.pos, destino, linDe, linPara);
-          e!.atividade = atividade; e!.vaga = vaga?.id || null;
+          e!.atividade = atividade; e!.vaga = vaga;
           e!.ate = agoraMs + 9000 + Math.random() * 9000;
         };
-        // Trabalhando ou desligado: sempre para a mesa.
-        if (a.status !== 'parado' && e.atividade !== 'mesa') irPara('mesa', null);
-        // Parado: de vez em quando muda de atividade.
-        else if (a.status === 'parado' && !e.caminho.length && agoraMs > e.ate) {
-          const livres = VAGAS.filter(v => !ocupadas.has(v.id));
-          const sorteio = Math.random();
-          if (!naMesa && sorteio < 0.35) irPara('mesa', null);
-          else if (livres.length) { const v = livres[Math.floor(Math.random() * livres.length)]; ocupadas.add(v.id); irPara(v.atividade, v); }
-          else e.ate = agoraMs + 4000;
+        const chamado = cham[a.id] || null;
+        if (chamado) {
+          // Chamado pela Jessica: vai para a sala dela ou para a reunião e espera.
+          if (e.chamado !== chamado) {
+            e.chamado = chamado;
+            const destino = chamado === 'reuniao' ? lugarReuniao(i) : LUGARES_SALA[naSala % LUGARES_SALA.length];
+            irPara(chamado, destino, null);
+          }
+          if (chamado === 'sala') naSala++;
+        } else {
+          if (e.chamado) { e.chamado = null; e.ate = agoraMs; }
+          // Trabalhando ou desligado: sempre para a mesa.
+          if (a.status !== 'parado' && e.atividade !== 'mesa') irPara('mesa', m.assento, null);
+          // Parado: de vez em quando muda de atividade.
+          else if (a.status === 'parado' && !e.caminho.length && agoraMs > e.ate) {
+            const livres = VAGAS.filter(v => !ocupadas.has(v.id));
+            if (!naMesa && Math.random() < 0.35) irPara('mesa', m.assento, null);
+            else if (livres.length) { const v = livres[Math.floor(Math.random() * livres.length)]; ocupadas.add(v.id); irPara(v.atividade, v.p, v.id); }
+            else e.ate = agoraMs + 4000;
+          }
         }
-        // Anda pelo caminho.
-        e.andando = e.caminho.length > 0;
-        let resta = VELOCIDADE * dt;
-        while (resta > 0 && e.caminho.length) {
-          const alvo = e.caminho[0], dx = alvo.x - e.pos.x, dy = alvo.y - e.pos.y, dist = Math.hypot(dx, dy);
-          if (dist <= resta) { e.pos = { ...alvo }; e.caminho.shift(); resta -= dist; }
-          else { e.pos = { x: e.pos.x + (dx / dist) * resta, y: e.pos.y + (dy / dist) * resta }; resta = 0; }
-        }
+        andar(e, VELOCIDADE * dt);
       });
+      // Jessica: setas movem livremente; clique segue o caminho.
+      const j = jess.current, k = teclas.current;
+      if (k.size) {
+        const v = 2.2 * dt;
+        let dx = 0, dy = 0;
+        if (k.has('ArrowUp')) { dx -= v; dy -= v; }
+        if (k.has('ArrowDown')) { dx += v; dy += v; }
+        if (k.has('ArrowLeft')) { dx -= v; dy += v; }
+        if (k.has('ArrowRight')) { dx += v; dy -= v; }
+        j.pos = { x: Math.min(W - 0.3, Math.max(0.3, j.pos.x + dx * 0.7)), y: Math.min(D - 0.3, Math.max(0.3, j.pos.y + dy * 0.7)) };
+        j.andando = true;
+      } else {
+        andar(j, 2.0 * dt);
+      }
       setQuadro(q => (q + 1) % 1_000_000);
       setTimeout(() => requestAnimationFrame(passo), 40);
     };
@@ -289,8 +371,6 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar }: {
       {[0, 0.8, 1.6].map(t => <circle key={t} className="vapor" style={{ animationDelay: `${t}s` }} cx={r1(iso(14.72, 2.57).x)} cy={r1(iso(14.72, 2.57).y - 66)} r={4} fill="#fff" opacity={0} />)}
       <text x={r1(iso(15.3, 2.6).x)} y={r1(iso(15.3, 2.6).y - 38)} fontSize={14}>🥐</text>
     </g>) });
-  itens.push({ k: 14.4 + 4.1, el: (
-    <g key="bistro"><Caixa x={14.2} y={3.9} w={0.5} d={0.5} h={30} topo="#fca5a5" esq="#f87171" dir="#ef4444" /></g>) });
   // Canto da diversão: pebolim, TV com videogame e sofá
   itens.push({ k: 11.9 + 5.6, el: (
     <g key="pebolim">
@@ -356,7 +436,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar }: {
     // Boneco fora da mesa (andando ou numa atividade).
     const p = iso(pos.x, pos.y);
     let pose: Pose = 'andando';
-    if (e && !e.andando) pose = e.atividade === 'cafe' ? 'cafe' : e.atividade === 'biblioteca' ? 'lendo' : e.atividade === 'pebolim' ? 'pebolim' : e.atividade === 'videogame' ? 'jogando' : 'andando';
+    if (e && !e.andando) pose = e.atividade === 'cafe' ? 'cafe' : e.atividade === 'biblioteca' ? 'lendo' : e.atividade === 'pebolim' ? 'pebolim' : e.atividade === 'videogame' ? 'jogando' : e.atividade === 'reuniao' || e.atividade === 'sala' ? 'empe' : 'andando';
     const sentadoSofa = pose === 'jogando';
     if (!sentado) {
       itens.push({ k: pos.x + pos.y + (sentadoSofa ? 0.2 : 0), el: (
@@ -384,10 +464,95 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar }: {
       </g>,
     );
   });
+
+  // ── Ala direita: sala de reunião (fundo) e sala da Jessica (frente) ──
+  const vidro = (a: P, b: P, alto = 44) => (<polygon points={pts(iso(a.x, a.y), iso(b.x, b.y), up(iso(b.x, b.y), alto), up(iso(a.x, a.y), alto))} fill="#bfdbfe" opacity={0.35} stroke="#93c5fd" strokeWidth={1.5} />);
+  // paredes de vidro (com porta perto do corredor)
+  itens.push({ k: ALA_X + 1.6, el: <g key="vidro-reuniao-esq">{vidro({ x: ALA_X, y: 0 }, { x: ALA_X, y: 2.9 })}</g> });
+  itens.push({ k: ALA_X + 3.6 + 2, el: <g key="vidro-reuniao-frente">{vidro({ x: 17.3, y: 3.35 }, { x: W, y: 3.35 })}</g> });
+  itens.push({ k: ALA_X + 4.6 + 1, el: <g key="vidro-sala-fundo">{vidro({ x: 17.3, y: 4.35 }, { x: W, y: 4.35 })}</g> });
+  itens.push({ k: ALA_X + 6.0, el: <g key="vidro-sala-esq">{vidro({ x: ALA_X, y: 4.8 }, { x: ALA_X, y: D })}</g> });
+  // mesa oval de reunião
+  itens.push({ k: MESA_REUNIAO.x + MESA_REUNIAO.y, el: (
+    <g key="mesa-reuniao">
+      {(() => { const c = iso(MESA_REUNIAO.x, MESA_REUNIAO.y); return (<g>
+        <ellipse cx={r1(c.x)} cy={r1(c.y - 22)} rx={96} ry={50} fill="#92400e" />
+        <ellipse cx={r1(c.x)} cy={r1(c.y - 28)} rx={96} ry={50} fill="#b45309" />
+        <ellipse cx={r1(c.x)} cy={r1(c.y - 28)} rx={70} ry={34} fill="#c2702a" opacity={0.5} />
+        <text x={r1(c.x)} y={r1(c.y - 24)} fontSize={10} fontWeight={800} fill="#fde68a" textAnchor="middle">REUNIÃO</text>
+      </g>); })()}
+    </g>) });
+  // quadro na parede do fundo da reunião
+  itens.push({ k: 0, el: (
+    <g key="quadro-reuniao">
+      <polygon points={pts(up(iso(17.3, 0), 118), up(iso(20.2, 0), 118), up(iso(20.2, 0), 60), up(iso(17.3, 0), 60))} fill="#fff" stroke="#94a3b8" strokeWidth={3} />
+      {[0, 1, 2].map(k => <polyline key={k} points={pts(up(iso(17.6, 0), 104 - k * 13), up(iso(19.2 - k * 0.3, 0), 104 - k * 13))} stroke={['#2563eb', '#16a34a', '#ef4444'][k]} strokeWidth={3} />)}
+    </g>) });
+  // sala da Jessica: poltrona (atrás de quem estiver na cadeira), mesa de chefe e placa
+  itens.push({ k: CADEIRA_JESSICA.x + CADEIRA_JESSICA.y - 0.4, el: (
+    <g key="poltrona-jessica"><Caixa x={CADEIRA_JESSICA.x - 0.35} y={CADEIRA_JESSICA.y - 0.3} w={0.7} d={0.15} h={58} topo="#111827" esq="#1f2937" dir="#0b1220" /></g>) });
+  itens.push({ k: MESA_JESSICA.x + MESA_JESSICA.y + 0.6, el: (
+    <g key="mesa-jessica">
+      <Caixa x={MESA_JESSICA.x} y={MESA_JESSICA.y} w={MESA_JESSICA.w} d={MESA_JESSICA.d} h={32} topo="#78350f" esq="#5c2a0c" dir="#4a2109" />
+      <Caixa x={MESA_JESSICA.x + 0.2} y={MESA_JESSICA.y + 0.15} w={0.45} d={0.35} h={2} z={32} topo="#94a3b8" esq="#64748b" dir="#475569" />
+      <text x={r1(iso(MESA_JESSICA.x + 1.2, MESA_JESSICA.y + 0.35).x)} y={r1(iso(MESA_JESSICA.x + 1.2, MESA_JESSICA.y + 0.35).y - 36)} fontSize={13}>🏆</text>
+    </g>) });
+  {
+    const pl = up(iso(18.9, 4.35), 58);
+    rotulos.push(
+      <g key="placa-jessica" style={{ pointerEvents: 'none' }}>
+        <rect x={r1(pl.x - 92)} y={r1(pl.y - 12)} width={184} height={22} rx={5} fill="#0f172a" />
+        <text x={r1(pl.x)} y={r1(pl.y + 3)} fontSize={10} fontWeight={800} fill="#fbbf24" textAnchor="middle">JESSICA · DEV E SUPERVISORA</text>
+      </g>,
+    );
+  }
+  // Jessica
+  {
+    const j = jess.current, pj = iso(j.pos.x, j.pos.y);
+    itens.push({ k: j.pos.x + j.pos.y + 0.05, el: (
+      <g key="fig-jessica" transform={`translate(${r1(pj.x)} ${r1(pj.y)})`}>
+        <ellipse cx={0} cy={0} rx={22} ry={8} fill="none" stroke="#fbbf24" strokeWidth={2.5} className="aura" />
+        <Minifig id="jessica" cor="#1e3a8a" pose={j.andando ? 'andando' : 'empe'} atraso={0} />
+      </g>) });
+    rotulos.push(
+      <g key="tag-jessica" style={{ pointerEvents: 'none' }}>
+        <rect x={r1(pj.x - 46)} y={r1(pj.y - 124)} width={92} height={22} rx={11} fill="#fbbf24" />
+        <text x={r1(pj.x)} y={r1(pj.y - 109)} fontSize={11} fontWeight={800} fill="#0f172a" textAnchor="middle">⭐ Jessica (você)</text>
+      </g>,
+    );
+    // Balão de proximidade: agente mais perto (até 1,5 célula).
+    let perto: { a: AgenteSala; p: P; d: number } | null = null;
+    agentes.forEach((a, i) => {
+      const e = estados.current[a.id]; const pos = e?.pos || mesaDe(i).assento;
+      const d = Math.hypot(pos.x - j.pos.x, pos.y - j.pos.y);
+      if (d < 1.5 && (!perto || d < perto.d)) perto = { a, p: pos, d };
+    });
+    if (perto && !j.andando) {
+      const { a, p } = perto as { a: AgenteSala; p: P };
+      const c = iso(p.x, p.y), bx = c.x + 34, by = c.y - 150;
+      const cham = chamados[a.id];
+      const botoes: [string, () => void][] = [
+        ['👀 Ver trabalho', () => onVerTrabalho?.(a.id)],
+        cham ? ['✅ Liberar', () => onLiberar?.(a.id)] : ['📞 Chamar à minha sala', () => onChamar?.(a.id)],
+      ];
+      rotulos.push(
+        <g key="balao-perto" className="balao">
+          <rect x={r1(bx)} y={r1(by)} width={170} height={78} rx={12} fill="#fff" stroke={a.cor} strokeWidth={2} />
+          <text x={r1(bx + 12)} y={r1(by + 20)} fontSize={12} fontWeight={800} fill="#0f172a">{a.nome}</text>
+          {botoes.map(([t, fn], k) => (
+            <g key={t} style={{ cursor: 'pointer' }} onClick={ev => { ev.stopPropagation(); fn(); }}>
+              <rect x={r1(bx + 10)} y={r1(by + 28 + k * 24)} width={150} height={20} rx={6} fill={k === 0 ? a.cor : '#0f172a'} />
+              <text x={r1(bx + 85)} y={r1(by + 42 + k * 24)} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">{t}</text>
+            </g>
+          ))}
+        </g>,
+      );
+    }
+  }
   itens.sort((a, b) => a.k - b.k);
 
   return (
-    <svg viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`} role="img" aria-label="Escritório virtual com os agentes em estilo LEGO" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', maxHeight: 'calc(100vh - 150px)', display: 'block' }}>
+    <svg ref={svgRef} onClick={clicarChao} viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`} role="img" aria-label="Escritório virtual com os agentes em estilo LEGO" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', maxHeight: 'calc(100vh - 150px)', display: 'block' }}>
       <style>{`
         .bracos-rapidos.braco-e{animation:digita .38s ease-in-out infinite alternate}
         .bracos-rapidos.braco-d{animation:digita .38s ease-in-out infinite alternate-reverse}
@@ -432,6 +597,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar }: {
         @keyframes game{33%{fill:#db2777}66%{fill:#2563eb}}
         .luz-status-trabalhando{animation:pulsa 1.4s ease-in-out infinite}
         @keyframes pulsa{50%{opacity:.35}}
+        .aura{animation:pulsa 1.4s ease-in-out infinite}
         .mesa{cursor:pointer}
         .mesa:focus-visible{outline:none}
         @media (prefers-reduced-motion:reduce){*{animation:none!important}}
@@ -455,7 +621,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar }: {
           <text x={r1(cx)} y={r1(cy)} fill="#fde047" fontSize={15} fontWeight={900} textAnchor="middle" letterSpacing={3} transform={`rotate(${r1(ang)} ${r1(cx)} ${r1(cy - 5)})`}>PROSYSTEM · COMERCIAL</text></g>);
       })()}
       {/* placas dos cantos */}
-      {[['📚 BIBLIOTECA', 12.2], ['☕ CAFÉ', 15.2]].map(([t, x]) => {
+      {[['📚 BIBLIOTECA', 12.2], ['☕ CAFÉ', 15.2], ['🤝 SALA DE REUNIÃO', 19.8]].map(([t, x]) => {
         const p = up(iso(x as number, 0), 124), ang = Math.atan2(ALT, LARG) * 180 / Math.PI;
         return <text key={t as string} x={r1(p.x)} y={r1(p.y)} fontSize={11} fontWeight={800} fill="#3730a3" textAnchor="middle" transform={`rotate(${r1(ang)} ${r1(p.x)} ${r1(p.y)})`}>{t}</text>;
       })}
