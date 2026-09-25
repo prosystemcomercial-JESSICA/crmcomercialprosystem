@@ -160,13 +160,25 @@ Precisa da **chave** em Configurações. A chave é gratuita e se cria em aistud
 
 **Onde:** menu **Escritório virtual**.
 
-Uma sala em 3D com os nove agentes do assistente trabalhando. Cada um tem uma mesa, um crachá e uma luz de status: 🟢 trabalhando (agiu nos últimos 10 minutos), 🟡 parado ou ⚪ desligado. Quem está trabalhando mostra um balão com a última ação. Clique na mesa para ver o que o agente fez hoje. A tela atualiza a cada 30 segundos.
+Uma sala em 3D com os dez agentes do assistente trabalhando. Cada um tem uma mesa, um crachá e uma luz de status: 🟢 trabalhando (agiu nos últimos 10 minutos), 🟡 parado ou ⚪ desligado. Quem está trabalhando mostra um balão com a última ação. Clique na mesa para ver o que o agente fez hoje. A tela atualiza a cada 30 segundos.
 
 **Você no escritório:** a Jessica aparece como supervisora. Ande com as setas do teclado ou clicando no chão. Perto de uma mesa aparece um balão com **Ver trabalho**, **Chamar à minha sala** e **Liberar**. **Reunir a equipe** leva todos para a sala de reunião.
 
 **Conversar (💬):** envie uma **instrução** (fica gravada e passa a valer nas respostas da IA daquele agente, ou de toda a equipe) ou uma **pergunta** (o agente responde com os dados dele).
 
-**Pesquisas da Sofia:** toda segunda às 8h, e quando você clicar em **Pesquisar agora**, a Sofia busca na internet os assuntos mais falados para farmácias, padarias, varejo e gestão. Cada assunto vem com resumo, por que importa, uma sugestão de mensagem para clientes (botão copiar) e as fontes. A gestão recebe um aviso no WhatsApp. Precisa da chave da IA (Gemini).
+**Pesquisas da Sofia:** toda segunda às 8h, e quando você clicar em **Pesquisar agora**, a Sofia busca na internet os assuntos mais falados para farmácias, padarias, varejo e gestão. Cada assunto vem com resumo, por que importa, uma sugestão de mensagem para clientes (botão copiar) e as fontes. A gestão recebe um aviso no WhatsApp. Usa a IA do ChatGPT.
+
+**Caroline, a SDR:** faz o primeiro contato com os leads das campanhas (Facebook/Instagram Ads) pelo WhatsApp da empresa.
+1. No painel dela, cole um ou vários leads como vêm da plataforma ("Lead se Cadastrou em..."). Marque "Eu já mandei a mensagem de abertura" se você já chamou pelo celular. Clique em **Conferir** e depois em **Confirmar**. O lead nasce no CRM com a origem da campanha; se já existir, é vinculado, sem duplicar.
+2. Ela conversa buscando o **problema principal** do cliente: fala pouco, uma pergunta por vez, na linguagem do cliente. Só usa o guia comercial e nunca fala de preço. Ouve áudios (transcrição) e vê fotos.
+3. **Termômetro:** nota de 0 a 100 a cada resposta (dor principal até 35, momento de compra até 25, quem decide até 15, engajamento até 15, perfil até 10). Sem dor principal não passa de 59. A nota vira a temperatura do lead (80+ muito quente, 60+ quente, 35+ morno).
+4. **Fim:** oferece a demonstração (horários da agenda), passa para a vendedora ("Leads para Distribuir") com resumo, ou encerra com gentileza. Dúvida fora do material: ela avisa você.
+5. **Segurança do número:** no máximo 15 primeiros contatos por dia nas 2 primeiras semanas (somados às campanhas), um a cada 4 a 9 minutos, só em horário comercial, com "digitando...". Sem resposta: tenta de novo em 2 e em 5 dias úteis, no máximo 3 vezes. Quem pede SAIR sai na hora. Três falhas seguidas: ela pausa e avisa.
+6. **Aprovar antes de enviar** (padrão ligado): cada mensagem dela aparece no painel para você aprovar, ajustar ou descartar. Seus ajustes ensinam o seu tom para ela.
+7. **Uma pessoa assumiu, ela sai:** se alguém assume a conversa ou responde nela, a Caroline e as outras IAs param de responder ali; a Laya continua só aprendendo.
+8. Ela começa **desligada**: ligue no painel dela.
+
+**Caderno da Laya:** tudo o que a Laya aprende com as confirmações da equipe fica escrito: regras, palavras típicas de cada cliente, casos difíceis, exemplos e acerto por tarefa. Cópia diária no servidor (`/root/laya-caderno`) e botões para baixar. Se a Laya parar, o Caderno ensina outra IA. Ela aprende na hora (cada confirmação vale na próxima conversa parecida) e sobe de nível por tarefa: Aprendiz, Assistente (30 exemplos e 80% de acerto) e Titular (50 exemplos e mais de 90%). Meta: 15 confirmações por dia. Confirmar a temperatura dos leads da Caroline também ensina a Laya.
 
 | Agente | Função |
 |---|---|
@@ -179,6 +191,7 @@ Uma sala em 3D com os nove agentes do assistente trabalhando. Cada um tem uma me
 | Laya | IA que analisa as conversas e aprende |
 | Marta | Assistente da gestão: comandos, avisos e aprovações |
 | Sofia | Pesquisadora: assuntos do setor e novidades, com fontes |
+| Caroline | SDR: primeiro contato com os leads das campanhas |
 
 ---
 
