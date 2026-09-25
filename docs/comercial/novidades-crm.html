@@ -1,0 +1,218 @@
+<title>Novidades do CRM ProSystem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --fundo:#eef2f6; --papel:#ffffff; --tinta:#0c1a2b; --suave:#50627a; --linha:#d6dee8;
+  --marca:#2f6fb0; --marca-fundo:#e3edf8; --verde:#15803d; --verde-fundo:#e5f4ea; --ambar:#b45309; --ambar-fundo:#fcf1e2;
+  --cupom:#fffdf8; --cupom-tinta:#23262b;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  color-scheme:dark; --fundo:#0b121b; --papel:#121c28; --tinta:#e6edf5; --suave:#9aabbf; --linha:#233246;
+  --marca:#7fb0e6; --marca-fundo:#16263a; --verde:#5fd08a; --verde-fundo:#12281c; --ambar:#f3b35c; --ambar-fundo:#2e2210;
+  --cupom:#f4f1ea; --cupom-tinta:#1f2227;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark; --fundo:#0b121b; --papel:#121c28; --tinta:#e6edf5; --suave:#9aabbf; --linha:#233246;
+  --marca:#7fb0e6; --marca-fundo:#16263a; --verde:#5fd08a; --verde-fundo:#12281c; --ambar:#f3b35c; --ambar-fundo:#2e2210;
+  --cupom:#f4f1ea; --cupom-tinta:#1f2227;
+}
+*{box-sizing:border-box}
+body{background:var(--fundo);color:var(--tinta);font:17px/1.6 Manrope,system-ui,sans-serif;padding-inline:16px;padding-block:0 72px;margin:0}
+.wrap{max-width:1080px;margin:0 auto}
+h1,h2,h3{font-family:Unbounded,Manrope,sans-serif;line-height:1.12;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.1rem,5.4vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(1.4rem,3vw,2rem);font-weight:700}
+h3{font-size:1.02rem;font-weight:700}
+p{margin:.4em 0;max-width:64ch}
+.rotulo{font:600 .74rem/1 "JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--marca)}
+
+/* Topo */
+.topo{display:grid;grid-template-columns:1.25fr .9fr;gap:40px;align-items:center;padding-block:56px 40px}
+.topo .lead{font-size:1.2rem;color:var(--suave);margin-top:18px}
+.topo .quando{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:.82rem;font-weight:700}
+.pill.ar{background:var(--verde-fundo);color:var(--verde)}
+.pill.cfg{background:var(--ambar-fundo);color:var(--ambar)}
+
+/* Cupom fiscal */
+.cupom{background:var(--cupom);color:var(--cupom-tinta);font:13px/1.55 "JetBrains Mono",monospace;padding:26px 24px 30px;position:relative;
+  box-shadow:0 18px 40px -18px rgba(12,26,43,.45);transform:rotate(1.2deg);max-width:380px;justify-self:center;width:100%}
+.cupom::before,.cupom::after{content:"";position:absolute;left:0;right:0;height:10px;
+  background:radial-gradient(circle at 5px 0,transparent 5px,var(--cupom) 5.5px) 0 0/10px 10px repeat-x}
+.cupom::before{top:-10px;transform:scaleY(-1)}
+.cupom::after{bottom:-10px}
+.cupom .centro{text-align:center}
+.cupom .tracos{border-top:1px dashed #9aa1aa;margin:10px 0}
+.cupom .item{display:flex;justify-content:space-between;gap:10px}
+.cupom .item span:last-child{white-space:nowrap}
+.cupom .total{font-weight:600;font-size:14px}
+.cupom small{color:#6b7078}
+
+/* Jornada */
+.jornada{padding-block:40px;border-top:1px solid var(--linha)}
+.passos{list-style:none;padding:0;margin:26px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;counter-reset:p}
+.passos li{background:var(--papel);border:1px solid var(--linha);border-radius:12px;padding:16px 16px 14px;counter-increment:p;position:relative}
+.passos li::before{content:counter(p);font:700 .8rem Unbounded,sans-serif;color:var(--marca);background:var(--marca-fundo);border-radius:999px;width:28px;height:28px;display:inline-grid;place-items:center;margin-bottom:8px}
+.passos .hora{font:600 .78rem "JetBrains Mono",monospace;color:var(--suave);float:right}
+.passos p{margin:4px 0 0;color:var(--suave);font-size:.95rem}
+
+/* Blocos de novidades */
+.bloco{padding-block:40px;border-top:1px solid var(--linha)}
+.bloco-cab{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:10px}
+.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:22px}
+.cartao{background:var(--papel);border:1px solid var(--linha);border-radius:12px;padding:18px;display:grid;gap:8px;align-content:start}
+.cartao-topo{display:flex;align-items:start;justify-content:space-between;gap:10px}
+.cartao p{margin:0;color:var(--suave);font-size:.95rem}
+.cartao .ex{font:13px/1.5 "JetBrains Mono",monospace;background:var(--fundo);border-radius:8px;padding:8px 10px;color:var(--tinta)}
+.chip{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.chip.ar{background:var(--verde-fundo);color:var(--verde)}
+.chip.cfg{background:var(--ambar-fundo);color:var(--ambar)}
+
+/* Regras */
+.regras{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:20px}
+.regra{border-top:3px solid var(--marca);padding-top:10px}
+.regra b{display:block;margin-bottom:2px}
+.regra span{color:var(--suave);font-size:.95rem}
+footer{padding-block:34px 0;color:var(--suave);font-size:.9rem;border-top:1px solid var(--linha)}
+
+@media (max-width:820px){.topo{grid-template-columns:1fr;padding-block:36px 24px}.cupom{transform:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="topo">
+  <div>
+    <span class="rotulo">ProSystem · CRM Comercial · setembro de 2026</span>
+    <h1 style="margin-top:14px">O CRM que vende junto com a equipe</h1>
+    <p class="lead">O WhatsApp da empresa virou um assistente comercial. O CRM atende o lead a qualquer hora, qualifica, marca a demonstração, envia a proposta, recebe o aceite, cuida do pós-venda e avisa a gestão só do que importa.</p>
+    <div class="quando">
+      <span class="pill ar">● No ar</span>
+      <span class="pill cfg">● Liga em Configurações</span>
+    </div>
+  </div>
+
+  <div class="cupom" aria-label="Resumo das novidades em formato de cupom">
+    <div class="centro"><b>PROSYSTEM SISTEMAS</b><br><small>CRM COMERCIAL · NOVA VERSÃO</small></div>
+    <div class="tracos"></div>
+    <div class="item"><span>001 WHATSAPP ÚNICO + FILA</span><span>OK</span></div>
+    <div class="item"><span>002 TRIAGEM + ALARME</span><span>OK</span></div>
+    <div class="item"><span>003 CNPJ NA RECEITA</span><span>OK</span></div>
+    <div class="item"><span>004 DEMO MARCADA PELO LEAD</span><span>OK</span></div>
+    <div class="item"><span>005 PROPOSTA C/ BOTÃO ACEITAR</span><span>OK</span></div>
+    <div class="item"><span>006 FOLLOW-UP DIAS 2·5·7</span><span>OK</span></div>
+    <div class="item"><span>007 APROVAÇÃO DE DESCONTO</span><span>OK</span></div>
+    <div class="item"><span>008 CRM RESPONDE NO CELULAR</span><span>OK</span></div>
+    <div class="item"><span>009 IA RESUME E SUGERE</span><span>OK</span></div>
+    <div class="item"><span>010 PAINEL DA TV + RESUMOS</span><span>OK</span></div>
+    <div class="item"><span>011 PÓS-VENDA + PESQUISA</span><span>OK</span></div>
+    <div class="item"><span>012 CAMPANHAS C/ "SAIR"</span><span>OK</span></div>
+    <div class="tracos"></div>
+    <div class="item total"><span>LEAD ESPERANDO RESPOSTA</span><span>0</span></div>
+    <div class="item total"><span>ATIVIDADE AUTOMÁTICA</span><span>0</span></div>
+    <div class="tracos"></div>
+    <div class="centro"><small>OBRIGADO PELA PREFERÊNCIA<br>comercial.prosystemnet.com</small></div>
+  </div>
+</header>
+
+<section class="jornada" aria-labelledby="t-jornada">
+  <span class="rotulo">Um lead, do "oi" ao cliente</span>
+  <h2 id="t-jornada" style="margin-top:10px">Como o CRM trabalha em cada etapa</h2>
+  <ol class="passos">
+    <li><span class="hora">21h40</span><h3>O lead chama</h3><p>Fora do horário, a IA responde a dúvida sobre o sistema na hora, usando o guia comercial.</p></li>
+    <li><span class="hora">21h42</span><h3>Triagem e CNPJ</h3><p>O bot pergunta o segmento, o nome e a cidade, consulta o CNPJ na Receita e marca o lead como Qualificado.</p></li>
+    <li><span class="hora">21h44</span><h3>Demo marcada</h3><p>O lead escolhe um horário livre na lista. A reunião entra na agenda com lembrete 2h antes.</p></li>
+    <li><span class="hora">dia 2</span><h3>Proposta com botão</h3><p>A vendedora envia a proposta pelo WhatsApp com "Aceitar" e "Tenho dúvidas".</p></li>
+    <li><span class="hora">dia 3</span><h3>Aceite e PIX</h3><p>O contrato é gerado, a entrada vai por PIX e a gestão recebe o aviso no celular.</p></li>
+    <li><span class="hora">dia 33</span><h3>Pós-venda</h3><p>Boas-vindas, instalação e pesquisa de satisfação. Resposta "Ruim" vira alerta na hora.</p></li>
+  </ol>
+</section>
+
+<section class="bloco" aria-labelledby="t-atend">
+  <div class="bloco-cab"><div><span class="rotulo">Atendimento</span><h2 id="t-atend" style="margin-top:10px">WhatsApp da empresa, organizado</h2></div></div>
+  <div class="grade">
+    <article class="cartao"><div class="cartao-topo"><h3>Um número, uma fila</h3><span class="chip ar">No ar</span></div>
+      <p>Toda conversa nova cai na fila sem dono. Quem responde assume. Texto, áudio, foto, vídeo e documento no mesmo lugar.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Triagem com alarme</h3><span class="chip ar">No ar</span></div>
+      <p>Menu de atendimento, segmento, nome, cidade e CNPJ. Lead qualificado toca o alarme e recebe o material de farmácia ou padaria.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>CNPJ direto da Receita</h3><span class="chip ar">No ar</span></div>
+      <p>Razão social, endereço e sócios no painel. Se o CNPJ é de um cliente, o bot confirma "É a sua empresa?" e vincula sozinho.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Identificar em um clique</h3><span class="chip ar">No ar</span></div>
+      <p>Cliente, lead, parceiro, equipe, fornecedor… Busca por código, nome ou parte do nome. Só lead fica no funil.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>O que fazer agora</h3><span class="chip ar">No ar</span></div>
+      <p>No topo das conversas, a lista do que é urgente: prioridade crítica, prazo estourado, demo de hoje e proposta que o cliente acabou de abrir.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Número com ou sem o 9</h3><span class="chip ar">No ar</span></div>
+      <p>A resposta sempre cai na conversa certa, mesmo quando o WhatsApp manda o número em outro formato.</p></article>
+  </div>
+</section>
+
+<section class="bloco" aria-labelledby="t-vendas">
+  <div class="bloco-cab"><div><span class="rotulo">Vendas</span><h2 id="t-vendas" style="margin-top:10px">Da demonstração ao contrato, sem esquecer ninguém</h2></div></div>
+  <div class="grade">
+    <article class="cartao"><div class="cartao-topo"><h3>Demo marcada pelo lead</h3><span class="chip ar">No ar</span></div>
+      <p>Horários livres de segunda a sexta, lembrete 2h antes e "remarcar" por mensagem.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Proposta com Aceitar</h3><span class="chip ar">No ar</span></div>
+      <p>Resumo, link e botões. O aceite gera o contrato e fecha o lead. A entrada vai por PIX.</p>
+      <div class="ex">Podemos seguir?<br>▫️ Aceitar proposta<br>▫️ Tenho dúvidas</div></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Follow-up dias 2, 5 e 7</h3><span class="chip ar">No ar</span></div>
+      <p>Lembrete, conteúdo do segmento e aviso de validade. Para assim que o cliente responde.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Aprovação de desconto</h3><span class="chip ar">No ar</span></div>
+      <p>Acima de 30% da implantação, a proposta só sai com a aprovação da gestão, dada por botão no WhatsApp.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Atividades com SLA</h3><span class="chip ar">No ar</span></div>
+      <p>Lance para a vendedora ou para a SDR com prazo em horas. Nada é criado sozinho.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Campanhas com "SAIR"</h3><span class="chip ar">No ar</span></div>
+      <p>Reative leads parados ou avise clientes de novidades. Cerca de 24 envios por hora, em horário comercial, e quem pede sai da lista.</p></article>
+  </div>
+</section>
+
+<section class="bloco" aria-labelledby="t-ia">
+  <div class="bloco-cab"><div><span class="rotulo">Inteligência</span><h2 id="t-ia" style="margin-top:10px">IA que ajuda sem tirar o controle</h2></div></div>
+  <div class="grade">
+    <article class="cartao"><div class="cartao-topo"><h3>Resumo da conversa</h3><span class="chip cfg">Com a chave da IA</span></div>
+      <p>Quem é, o que já foi falado, qual o próximo passo e uma possível venda adicional.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Sugerir resposta</h3><span class="chip cfg">Com a chave da IA</span></div>
+      <p>A IA escreve com base no guia comercial e a vendedora revisa antes de enviar. Ajuda com "já tenho sistema" e "está caro".</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Áudio vira texto</h3><span class="chip cfg">Com a chave da IA</span></div>
+      <p>Os áudios recebidos aparecem transcritos na conversa.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Tira-dúvidas 24h</h3><span class="chip cfg">Com a chave da IA</span></div>
+      <p>Responde dúvidas de recurso fora do horário. Nunca fala de preço ou desconto: isso é sempre com a especialista.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>IA Laya aprendendo</h3><span class="chip ar">Coletando até 14/10</span></div>
+      <p>Uma IA própria, rodando no nosso servidor, que aprende com a equipe a identificar segmento, intenção e risco de cancelamento.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Guia comercial</h3><span class="chip ar">No ar</span></div>
+      <p>Os 138 artigos da Universidade ProSystem resumidos por dor do cliente e por plano, como base das respostas.</p></article>
+  </div>
+</section>
+
+<section class="bloco" aria-labelledby="t-gestao">
+  <div class="bloco-cab"><div><span class="rotulo">Gestão</span><h2 id="t-gestao" style="margin-top:10px">A diretoria acompanha pelo celular</h2></div></div>
+  <div class="grade">
+    <article class="cartao"><div class="cartao-topo"><h3>Pergunte ao CRM</h3><span class="chip ar">No ar</span></div>
+      <p>Pelo WhatsApp, a gestão consulta números e clientes e lança tarefas.</p>
+      <div class="ex">› hoje<br>› semana<br>› propostas paradas<br>› cliente 381<br>› tarefa Ana ligar amanhã 10h</div></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Avisos que importam</h3><span class="chip ar">No ar</span></div>
+      <p>Lead qualificado, proposta aberta ou aceita, prazo estourado, risco de cancelamento e pesquisa respondida. Cada pessoa escolhe o que recebe.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Resumo executivo 18h</h3><span class="chip ar">No ar</span></div>
+      <p>Por e-mail e em versão curta no WhatsApp. Na sexta vem a semana, com as atividades concluídas e a eficiência de cada pessoa.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Painel da TV</h3><span class="chip ar">No ar</span></div>
+      <p>O dia e o acumulado do ano na tela do comercial, atualizados a cada minuto e ajustados a qualquer tamanho de janela.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Contas e visões</h3><span class="chip ar">No ar</span></div>
+      <p>Uma conta com as visões de Vendedora, Supervisora e Administração, e contas de consulta só leitura para a diretoria.</p></article>
+    <article class="cartao"><div class="cartao-topo"><h3>Pós-venda automático</h3><span class="chip cfg">Liga em Configurações</span></div>
+      <p>Boas-vindas no contrato assinado e pesquisa em 30 dias. Nunca vai para contratos antigos.</p></article>
+  </div>
+</section>
+
+<section class="bloco" aria-labelledby="t-regras">
+  <span class="rotulo">Compromissos</span>
+  <h2 id="t-regras" style="margin-top:10px">O que o assistente nunca faz</h2>
+  <div class="regras">
+    <div class="regra"><b>Prometer valor</b><span>Preço, desconto e contrato são decididos por pessoas.</span></div>
+    <div class="regra"><b>Encher a agenda</b><span>Atividade só existe quando alguém lança ou confirma.</span></div>
+    <div class="regra"><b>Insistir</b><span>Follow-up e campanha param quando o contato responde ou pede para sair.</span></div>
+    <div class="regra"><b>Esconder o que fez</b><span>Toda mensagem automática fica registrada e identificada na conversa.</span></div>
+  </div>
+</section>
+
+<footer>CRM Comercial ProSystem · comercial.prosystemnet.com · Manual completo em docs/comercial/manual-de-uso-assistente.md</footer>
+</div>
