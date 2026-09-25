@@ -31,6 +31,7 @@ export default function PainelCaroline() {
   const [previa, setPrevia] = useState<Previa[] | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [edicao, setEdicao] = useState<Record<string, string>>({});
+  const [motivo, setMotivo] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState(false);
 
   const carregar = useCallback(() => { apiClient.getCaroline().then(r => setP(r.data.data)).catch(() => {}); }, []);
@@ -55,8 +56,10 @@ export default function PainelCaroline() {
   const decidir = async (m: Pendente, aprovar: boolean) => {
     setOcupado(true);
     try {
-      const r = await apiClient.decidirMensagemCaroline(m.id, aprovar, edicao[m.id] ?? null);
+      // Aprovar envia o texto (com ajuste, se houver); Refazer manda o "o que mudar?" e ela reescreve na hora.
+      const r = await apiClient.decidirMensagemCaroline(m.id, aprovar, aprovar ? (edicao[m.id] ?? null) : (motivo[m.id] || null));
       setMsg({ ok: true, texto: r.data.message }); carregar();
+      if (!aprovar) { setTimeout(carregar, 8000); setTimeout(carregar, 20000); }
     } catch (e) { falhou(e, 'Não consegui enviar.'); } finally { setOcupado(false); }
   };
   const confirmarTemp = async (l: Lead, t: string) => {
@@ -126,9 +129,12 @@ export default function PainelCaroline() {
               </span>
               <textarea value={edicao[m.id] ?? m.texto} onChange={e => setEdicao(x => ({ ...x, [m.id]: e.target.value }))} rows={Math.min(8, 2 + Math.ceil(m.texto.length / 90))}
                 style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, fontFamily: 'inherit' }} />
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button disabled={ocupado} style={botao()} onClick={() => decidir(m, true)}>{edicao[m.id] !== undefined && edicao[m.id] !== m.texto ? 'Enviar com meu ajuste' : 'Aprovar e enviar'}</button>
-                <button disabled={ocupado} style={botao(false)} onClick={() => decidir(m, false)}>Descartar</button>
+                <input value={motivo[m.id] || ''} onChange={e => setMotivo(x => ({ ...x, [m.id]: e.target.value }))}
+                  placeholder="O que mudar? (opcional) ex.: mais curta, fale do Simples, menos formal"
+                  style={{ flex: '1 1 260px', padding: '7px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }} />
+                <button disabled={ocupado} style={botao(false)} onClick={() => decidir(m, false)}>🔄 Refazer</button>
               </div>
             </div>
           ))}
