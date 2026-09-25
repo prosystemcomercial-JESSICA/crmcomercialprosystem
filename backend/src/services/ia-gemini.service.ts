@@ -45,6 +45,24 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
   return res.json();
 }
 
+async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number): Promise<string> {
+  const ext = mime.includes('ogg') || mime.includes('opus') ? 'ogg' : mime.includes('mpeg') || mime.includes('mp3') ? 'mp3' : mime.includes('mp4') || mime.includes('m4a') ? 'm4a' : mime.includes('wav') ? 'wav' : 'ogg';
+  const form = new FormData();
+  form.append('file', new Blob([Buffer.from(base64, 'base64')], { type: mime }), `audio.${ext}`);
+  form.append('model', process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe');
+  form.append('language', 'pt');
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST', headers: { Authorization: `Bearer ${chaveOpenAI()}` }, body: form, signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
+    throw new Error(`Transcrição indisponível (HTTP ${res.status}).`);
+  }
+  const texto = String(((await res.json()) as any)?.text || '').trim();
+  if (!texto) throw new Error('A transcrição veio vazia.');
+  return texto;
+}
+
 function textoOpenAI(data: any): { texto: string; fontes: { titulo: string; url: string }[] } {
   const partes = ((data?.output || []) as any[]).filter(o => o.type === 'message').flatMap(o => o.content || []);
   const texto = partes.map((c: any) => c.text || '').join('').trim();
@@ -109,9 +127,12 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
       if ('text' in x) return { type: 'input_text', text: x.text };
       const { mime_type, data } = x.inline_data;
       if (mime_type.startsWith('image/')) return { type: 'input_image', image_url: `data:${mime_type};base64,${data}` };
-      if (mime_type.startsWith('audio/')) throw new Error('Transcrição de áudio precisa da chave do Gemini.');
+      if (mime_type.startsWith('audio/')) return { type: 'audio', mime_type, data };
       return { type: 'input_file', filename: 'arquivo', file_data: `data:${mime_type};base64,${data}` };
     });
+    // Áudio: transcrição da OpenAI (o único uso de áudio é transcrever).
+    const audio = conteudo.find((c: any) => c.type === 'audio') as any;
+    if (audio) return transcreverOpenAI(audio.mime_type, audio.data, p.timeoutMs ?? 90_000);
     const { texto } = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo, json: p.json, timeoutMs: p.timeoutMs ?? 90_000 }));
     if (!texto) throw new Error('A IA não devolveu resposta.');
     return texto;
