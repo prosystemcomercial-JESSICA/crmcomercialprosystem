@@ -75,6 +75,10 @@ async function tratarTarefa(prisma: PrismaClient, token: string, numero: string,
 }
 
 export async function responderComandoGestao(prisma: PrismaClient, token: string, numero: string, texto: string, botaoId?: string | null): Promise<boolean> {
+  if (botaoId && botaoId.startsWith('desc_')) {
+    const { responderAprovacaoDesconto } = await import('./assistente-desconto.service');
+    if (await responderAprovacaoDesconto(prisma, token, numero, botaoId)) return true;
+  }
   if (await tratarTarefa(prisma, token, numero, texto, botaoId)) return true;
   const cmd = interpretarComando(texto);
   if (!cmd) return false; // não é comando: segue o fluxo normal do WhatsApp

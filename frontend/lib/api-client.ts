@@ -1202,6 +1202,9 @@ class ApiClient {
   async getPropostasConversa(conversaId: string) {
     return this.client.get(`/whatsapp/conversas/${conversaId}/propostas`);
   }
+  async pedirAprovacaoDesconto(propostaId: string) {
+    return this.client.post(`/assistente/propostas/${propostaId}/pedir-aprovacao-desconto`, {});
+  }
   async enviarPropostaWhatsapp(conversaId: string, propostaId: string) {
     return this.client.post(`/whatsapp/conversas/${conversaId}/enviar-proposta`, { proposta_id: propostaId });
   }
@@ -1215,6 +1218,7 @@ class ApiClient {
     ia?: { laya_triagem?: boolean; laya_confianca?: number; risco_limite?: number; risco_so_clientes?: boolean };
     ia_texto?: { tira_duvidas?: 'desligado' | 'fora_do_horario' | 'sempre'; transcrever_auto?: boolean; gemini_chave?: string };
     posvenda?: boolean;
+    desconto_limite?: number;
   }) {
     return this.client.put('/assistente/config', data);
   }
