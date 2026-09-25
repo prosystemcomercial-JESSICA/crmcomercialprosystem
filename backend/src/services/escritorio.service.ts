@@ -77,7 +77,7 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
 
   // Clarice — IA
   const ia = await saidas('assistente_ia');
-  const temChave = !!(cfg('assistente.gemini_chave') || process.env.GEMINI_API_KEY);
+  const temChave = !!(cfg('assistente.gemini_chave') || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY);
   const modoIa = cfg('assistente.tira_duvidas') || 'fora_do_horario';
   const clarice: Acao = ia.ultima ? { texto: `tirou dúvida de ${nomeContato(ia.ultima.conversa)}`, em: ia.ultima.created_at } : null;
 
