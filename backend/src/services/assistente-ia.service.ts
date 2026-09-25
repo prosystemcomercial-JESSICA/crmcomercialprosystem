@@ -69,7 +69,7 @@ export async function resumirConversa(prisma: PrismaClient, conversaId: string) 
   const receita = (c?.bot_dados as any)?.receita;
   const contexto = [c?.contato_nome, c?.tipo_contato && `tipo: ${c.tipo_contato}`, c?.contato_empresa, receita?.razao_social, (c?.bot_dados as any)?.segmento].filter(Boolean).join(' · ');
   const p = promptResumo(conversa, contexto);
-  const r = lerJsonIa<{ quem: string; falado: string; falta: string; venda_adicional: string | null }>(await chamarGemini(prisma, { sistema: p.sistema + (await instrucoesPara(prisma, 'clarice')), partes: [{ text: p.usuario }], json: true }));
+  const r = lerJsonIa<{ quem: string; falado: string; falta: string; venda_adicional: string | null }>(await chamarGemini(prisma, { sistema: p.sistema + (await instrucoesPara(prisma, 'clarice')), partes: [{ text: p.usuario }], json: true, simples: true }));
   if (!r) throw new Error('Não consegui resumir agora. Tente de novo.');
   return r;
 }

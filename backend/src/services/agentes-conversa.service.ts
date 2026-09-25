@@ -59,7 +59,7 @@ export async function falarComAgente(
     ].join('\n');
     const historico = conversa.mensagens.slice(-12).map(m => `${m.autor === 'JESSICA' ? 'Jessica' : info.nome}: ${m.texto}`).join('\n');
     try {
-      resposta = await chamarGemini(prisma, { sistema, partes: [{ text: `${historico}\n\nResponda à última mensagem da Jessica.` }], temperatura: 0.4 });
+      resposta = await chamarGemini(prisma, { sistema, partes: [{ text: `${historico}\n\nResponda à última mensagem da Jessica.` }], temperatura: 0.4, simples: true });
     } catch (e: any) {
       resposta = `Não consegui pensar agora (${e?.message || 'IA indisponível'}). Tente de novo em instantes.`;
     }

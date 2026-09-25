@@ -10,6 +10,9 @@ const MODELO = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 // (modelo OPENAI_MODEL, padrão gpt-6-luna). Áudio continua no Gemini, se houver chave.
 const MODELO_OPENAI = process.env.OPENAI_MODEL || 'gpt-6-luna';
 const chaveOpenAI = () => (process.env.OPENAI_API_KEY || '').trim() || null;
+// Tarefas simples (simples: true) vão para o Grok, se XAI_API_KEY existir; se ele falhar, caem no ChatGPT.
+const MODELO_XAI = process.env.XAI_MODEL || 'grok-4.7';
+const chaveXai = () => (process.env.XAI_API_KEY || '').trim() || null;
 
 async function chaveSoGemini(prisma: PrismaClient): Promise<string | null> {
   const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_GEMINI } }).catch(() => null);
@@ -18,15 +21,15 @@ async function chaveSoGemini(prisma: PrismaClient): Promise<string | null> {
 
 /** Existe alguma IA configurada (ChatGPT ou Gemini)? */
 export async function chaveGemini(prisma: PrismaClient): Promise<string | null> {
-  return chaveOpenAI() || (await chaveSoGemini(prisma));
+  return chaveOpenAI() || chaveXai() || (await chaveSoGemini(prisma));
 }
 
-async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number }): Promise<any> {
-  const res = await fetch('https://api.openai.com/v1/responses', {
+async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean }): Promise<any> {
+  const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chaveOpenAI()}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${p.grok ? chaveXai() : chaveOpenAI()}` },
     body: JSON.stringify({
-      model: MODELO_OPENAI,
+      model: p.grok ? MODELO_XAI : MODELO_OPENAI,
       instructions: p.sistema,
       input: [{ role: 'user', content: p.conteudo }],
       ...(p.busca ? { tools: [{ type: 'web_search' }] } : {}),
@@ -88,7 +91,17 @@ export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: str
   return { texto, fontes: fontes.slice(0, 15) };
 }
 
-export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number }): Promise<string> {
+export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number; simples?: boolean }): Promise<string> {
+  const soTexto = p.partes.every(x => 'text' in x);
+  if (p.simples && soTexto && chaveXai()) {
+    try {
+      const conteudo = p.partes.map(x => ({ type: 'input_text', text: (x as { text: string }).text }));
+      const { texto } = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo, json: p.json, timeoutMs: p.timeoutMs ?? 60_000, grok: true }));
+      if (texto) return texto;
+    } catch (e) {
+      if (!chaveOpenAI() && !(await chaveSoGemini(prisma))) throw e;
+    }
+  }
   const temAudio = p.partes.some(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/'));
   const chaveG = await chaveSoGemini(prisma);
   if (chaveOpenAI() && !(temAudio && chaveG)) {
