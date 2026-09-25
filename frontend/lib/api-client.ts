@@ -1312,6 +1312,25 @@ class ApiClient {
   async getIaResumo() {
     return this.client.get('/ia/laya/resumo');
   }
+  // Caroline (SDR): painel, entrada de leads, aprovação e configuração.
+  async getCaroline() {
+    return this.client.get('/assistente/caroline');
+  }
+  async previaCaroline(texto: string) {
+    return this.client.post('/assistente/caroline/previa', { texto });
+  }
+  async passarLeadsCaroline(texto: string, abertura_enviada: boolean) {
+    return this.client.post('/assistente/caroline/leads', { texto, abertura_enviada });
+  }
+  async configCaroline(data: { ativa?: boolean; aprovar?: boolean; limite?: number }) {
+    return this.client.put('/assistente/caroline/config', data);
+  }
+  async decidirMensagemCaroline(id: string, aprovar: boolean, texto?: string | null) {
+    return this.client.post(`/assistente/caroline/mensagens/${id}`, { aprovar, texto });
+  }
+  async confirmarTemperaturaCaroline(id: string, temperatura: string) {
+    return this.client.post(`/assistente/caroline/leads/${id}/temperatura`, { temperatura });
+  }
   // Caderno da Laya: níveis, pendências e arquivos para baixar.
   async getCadernoLaya() {
     return this.client.get('/ia/laya/niveis');

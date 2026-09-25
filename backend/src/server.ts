@@ -376,6 +376,7 @@ async function iniciarSchedulerAssistente() {
       const { rodarPesquisaSemanal } = await import('./services/sofia-pesquisa.service.js');
       await rodarPesquisaSemanal(prismaClient!, agora).catch((e: any) => console.error('[SOFIA]', e?.message));
       // Cópia diária do Caderno da Laya (uma vez por dia, no primeiro ciclo).
+      // (A Caroline tem rodada própria, a cada 2 min: ver iniciarCaroline abaixo.)
       const { salvarCopiaDiaria } = await import('./services/laya-caderno.service.js');
       await salvarCopiaDiaria(prismaClient!, agora).catch((e: any) => console.error('[LAYA] caderno:', e?.message));
       const dia =diaDaSemanaSP(agora);
@@ -400,6 +401,17 @@ async function iniciarSchedulerAssistente() {
   setInterval(rodar, 10 * 60 * 1000);
   setTimeout(rodar, 150 * 1000);
   console.log('[BOOT] Scheduler do assistente iniciado (prazo de resposta, 10 min)');
+  // Caroline (SDR): rodada a cada 2 min (primeiro contato com intervalo sorteado de 4–9 min).
+  let carolineRodando = false;
+  const iniciarCaroline = async () => {
+    if (carolineRodando) return;
+    carolineRodando = true;
+    try {
+      const { rodarCaroline } = await import('./services/caroline.service.js');
+      await rodarCaroline(prismaClient!);
+    } catch (e: any) { console.error('[CAROLINE] rodada:', e?.message); } finally { carolineRodando = false; }
+  };
+  setInterval(iniciarCaroline, 2 * 60 * 1000);
 }
 
 // 8c) Scheduler: motor de regras (EVO-3) — roda 1x/dia (~7h BRT = 10h UTC).

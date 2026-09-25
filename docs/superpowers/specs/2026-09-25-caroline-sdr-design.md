@@ -22,10 +22,10 @@ Leads de campanhas do Facebook/Instagram Ads (que hoje chegam por outra platafor
 
 ```
 Lead se Cadastrou em 13/08/2026 21:58:33 na campanha facebook - prosystem_demonstracao_13082026 -
-Nome: John
-Empresa: Lisifarma
-Telefone: (99) 99135-2501
-E-mail: johneriik@hotmail.com
+Nome: João
+Empresa: Farmácia Exemplo
+Telefone: (27) 99999-0001
+E-mail: joao.exemplo@email.com
 Utms: Origem: facebook e Campanha: prosystem_demonstracao_13082026
 URL Farmácia: https://prosystemnet.com/prosystemlpv2/
 ```

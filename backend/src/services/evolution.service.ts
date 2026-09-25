@@ -147,10 +147,12 @@ export async function enviarTexto(
   instanceToken: string,
   numero: string,
   texto: string,
+  digitandoMs?: number, // UAZAPI: espera mostrando "digitando..." antes de enviar
 ): Promise<{ externo_id?: string }> {
   const data = await call('/send/text', 'POST', instanceToken, {
     number: normalizarNumero(numero),
     text: texto,
+    ...(digitandoMs ? { delay: Math.round(digitandoMs) } : {}),
   });
   return { externo_id: idDaMensagemEnviada(data) };
 }
