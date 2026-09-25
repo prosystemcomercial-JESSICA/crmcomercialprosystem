@@ -2515,6 +2515,32 @@ model CampanhaEnvio {
   @@index([numero])
 }
 
+// Escritório virtual: instruções que a supervisão deixa para um agente (ou para a
+// equipe toda, agente = "equipe"). As ativas entram nos prompts de IA do agente.
+model AgenteInstrucao {
+  id         String   @id @default(cuid())
+  agente     String // id do agente (bia, clarice, …) ou "equipe"
+  texto      String   @db.Text
+  ativa      Boolean  @default(true)
+  criado_por String?
+  created_at DateTime @default(now())
+
+  @@index([agente, ativa])
+}
+
+// Escritório virtual: conversa da supervisão com cada agente (instruções, perguntas e respostas).
+model AgenteMensagem {
+  id         String   @id @default(cuid())
+  agente     String
+  autor      String // JESSICA | AGENTE
+  tipo       String // INSTRUCAO | PERGUNTA | RESPOSTA
+  texto      String   @db.Text
+  criado_por String?
+  created_at DateTime @default(now())
+
+  @@index([agente, created_at])
+}
+
 // Amostra de treino da IA Laya: foto do texto da conversa + etiquetas que a
 // equipe confirmou/corrigiu (e o que o Laya tinha sugerido, p/ medir acerto).
 model IaAmostra {

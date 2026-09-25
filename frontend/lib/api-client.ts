@@ -1169,6 +1169,15 @@ class ApiClient {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
   // Escritório virtual (estado dos agentes do assistente).
+  async getConversaAgente(id: string) {
+    return this.client.get(`/assistente/escritorio/agentes/${id}/conversa`);
+  }
+  async falarComAgente(id: string, data: { tipo: 'PERGUNTA' | 'INSTRUCAO'; texto: string; equipe?: boolean }) {
+    return this.client.post(`/assistente/escritorio/agentes/${id}/mensagem`, data);
+  }
+  async removerInstrucao(id: string) {
+    return this.client.delete(`/assistente/escritorio/instrucoes/${id}`);
+  }
   async getHistoricoAgente(id: string) {
     return this.client.get(`/assistente/escritorio/agentes/${id}/historico`);
   }

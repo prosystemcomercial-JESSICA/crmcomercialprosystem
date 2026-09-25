@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import SalaIsometrica, { type Chamado } from '@/components/escritorio/SalaIsometrica';
+import ChatAgente from '@/components/escritorio/ChatAgente';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
 // leitura; atualiza a cada 30 s com o que cada agente fez hoje.
@@ -51,7 +52,8 @@ export default function EscritorioPage() {
     setSel(id); setHistorico({ id, itens: null });
     apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
   };
-  const chamar = (id: string) => setChamados(c => ({ ...c, [id]: 'sala' }));
+  const [chat, setChat] = useState<string | null>(null);
+  const chamar = (id: string) => { setChamados(c => ({ ...c, [id]: 'sala' })); setSel(id); setChat(id); };
   const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
   const reunir = () => setChamados(Object.fromEntries((agentes || []).map(a => [a.id, 'reuniao' as Chamado])));
   const emReuniao = Object.values(chamados).some(c => c === 'reuniao');
@@ -158,6 +160,7 @@ export default function EscritorioPage() {
               </p>
               {escolhido.observacao && <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{escolhido.observacao}</p>}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button onClick={() => setChat(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>💬 Conversar</button>
                 <button onClick={() => verTrabalho(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: escolhido.cor, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>👀 Ver trabalho</button>
                 {chamados[escolhido.id]
                   ? <button onClick={() => liberar(escolhido.id)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>✅ Liberar</button>
@@ -179,6 +182,10 @@ export default function EscritorioPage() {
             </div>
           )}
 
+          {chat && (mostrar || []).some(a => a.id === chat) && (() => {
+            const a = (mostrar || []).find(x => x.id === chat)!;
+            return <ChatAgente key={a.id} agente={{ id: a.id, nome: a.nome, cor: a.cor, funcao: a.funcao }} onFechar={() => setChat(null)} />;
+          })()}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
             {mostrar?.map(a => (
               <button key={a.id} onClick={() => setSel(a.id)} style={{

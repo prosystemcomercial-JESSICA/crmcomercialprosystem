@@ -10,6 +10,7 @@ import {
   MODOS_TIRA_DUVIDAS, type ModoTiraDuvidas,
 } from '@/lib/assistente/ia-texto';
 import { REMETENTES_AUTOMATICOS } from '@/lib/painel-tv';
+import { instrucoesPara } from './agentes-conversa.service';
 
 // IA de texto (Fase 3): tira-dúvidas automático, resumo da conversa, sugestão de
 // resposta e transcrição de áudio. Mensagens da IA saem com enviada_por 'assistente_ia'.
@@ -68,7 +69,7 @@ export async function resumirConversa(prisma: PrismaClient, conversaId: string) 
   const receita = (c?.bot_dados as any)?.receita;
   const contexto = [c?.contato_nome, c?.tipo_contato && `tipo: ${c.tipo_contato}`, c?.contato_empresa, receita?.razao_social, (c?.bot_dados as any)?.segmento].filter(Boolean).join(' · ');
   const p = promptResumo(conversa, contexto);
-  const r = lerJsonIa<{ quem: string; falado: string; falta: string; venda_adicional: string | null }>(await chamarGemini(prisma, { sistema: p.sistema, partes: [{ text: p.usuario }], json: true }));
+  const r = lerJsonIa<{ quem: string; falado: string; falta: string; venda_adicional: string | null }>(await chamarGemini(prisma, { sistema: p.sistema + (await instrucoesPara(prisma, 'clarice')), partes: [{ text: p.usuario }], json: true }));
   if (!r) throw new Error('Não consegui resumir agora. Tente de novo.');
   return r;
 }
@@ -77,7 +78,7 @@ export async function sugerirResposta(prisma: PrismaClient, conversaId: string, 
   const conversa = await textoDaConversa(prisma, conversaId);
   if (!conversa) throw new Error('A conversa ainda não tem texto.');
   const p = promptSugestao(await guiaComercial(prisma), conversa, vendedora);
-  return (await chamarGemini(prisma, { sistema: p.sistema, partes: [{ text: p.usuario }], temperatura: 0.5 })).replace(/^["“]|["”]$/g, '').trim();
+  return (await chamarGemini(prisma, { sistema: p.sistema + (await instrucoesPara(prisma, 'clarice')), partes: [{ text: p.usuario }], temperatura: 0.5 })).replace(/^["“]|["”]$/g, '').trim();
 }
 
 /** Transcreve um áudio já guardado (midia_url em data URL) e grava na mensagem. */
@@ -121,7 +122,7 @@ export async function autoResponderDuvida(prisma: PrismaClient, token: string, c
     });
     if (!ok) return;
     const p = promptTiraDuvidas(await guiaComercial(prisma), await textoDaConversa(prisma, conversaId, 20));
-    const resposta = respostaSegura(lerJsonIa(await chamarGemini(prisma, { sistema: p.sistema, partes: [{ text: p.usuario }], json: true, temperatura: 0.2 })));
+    const resposta = respostaSegura(lerJsonIa(await chamarGemini(prisma, { sistema: p.sistema + (await instrucoesPara(prisma, 'clarice')), partes: [{ text: p.usuario }], json: true, temperatura: 0.2 })));
     if (!resposta) return;
     const r = await evo.enviarTexto(token, c.contato_numero, resposta);
     await prisma.whatsappMensagem.create({ data: { conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: resposta, status: 'ENVIADA', enviada_por: REMETENTE_IA } });

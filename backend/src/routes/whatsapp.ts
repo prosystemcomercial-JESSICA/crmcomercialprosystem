@@ -705,6 +705,32 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: await historicoAgente(prisma, id as any) });
   });
 
+  // Escritório virtual: conversa e instruções com cada agente (só gestão).
+  fastify.get('/assistente/escritorio/agentes/:id/conversa', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const { conversaDoAgente } = await import('@/services/agentes-conversa.service');
+    return reply.send({ status: 'success', data: await conversaDoAgente(prisma, id) });
+  });
+  fastify.post('/assistente/escritorio/agentes/:id/mensagem', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const { AGENTES } = await import('@/lib/assistente/escritorio');
+    if (!AGENTES.some(a => a.id === id)) return reply.status(404).send({ status: 'error', message: 'Agente não encontrado' });
+    const body = z.object({ tipo: z.enum(['INSTRUCAO', 'PERGUNTA']), texto: z.string().min(2).max(2000), equipe: z.boolean().optional() }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Escreva a instrução ou a pergunta.' });
+    const user = getUser(request)!;
+    const { falarComAgente } = await import('@/services/agentes-conversa.service');
+    return reply.send({ status: 'success', data: await falarComAgente(prisma, id as any, body.data, { id: user.id, nome: (user as any).nome }) });
+  });
+  fastify.delete('/assistente/escritorio/instrucoes/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const { desativarInstrucao } = await import('@/services/agentes-conversa.service');
+    await desativarInstrucao(prisma, id).catch(() => {});
+    return reply.send({ status: 'success' });
+  });
+
   // ===== ASSISTENTE: campanhas pelo WhatsApp (só gestão) =====
   const FiltroCampanhaZ = z.object({
     publico: z.enum(['CLIENTES', 'LEADS_PARADOS']), segmento: z.string().max(60).optional().nullable(),
