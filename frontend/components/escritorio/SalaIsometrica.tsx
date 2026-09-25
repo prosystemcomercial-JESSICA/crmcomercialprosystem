@@ -87,14 +87,14 @@ function Caixa({ x, y, w, d, h, topo, esq, dir, z = 0 }: { x: number; y: number;
   );
 }
 
-type Visual = { cabelo?: string; corCabelo: string; feminina: boolean; estampa: string; extra?: string; calca: string };
+type Visual = { cabelo?: string; corCabelo: string; feminina: boolean; estampa: string; extra?: string; calca: string; pele?: string; peleSombra?: string };
 const VISUAL: Record<string, Visual> = {
   bia:         { cabelo: 'rabo',     corCabelo: '#5b3a1a', feminina: true,  estampa: 'headset', extra: 'headset', calca: '#1e3a8a' },
   lurdinha:    { cabelo: 'coque',    corCabelo: '#9ca3af', feminina: true,  estampa: 'agenda',  extra: 'oculos', calca: '#7c2d12' },
   clarice:     { cabelo: 'longo',    corCabelo: '#1f1a17', feminina: true,  estampa: 'brilho', calca: '#111827' },
   luiz_felipe: { cabelo: 'bone',     corCabelo: '#2b2b2b', feminina: false, estampa: 'gravata', calca: '#374151' },
   zequinha:    { cabelo: 'moicano',  corCabelo: '#ef4444', feminina: false, estampa: 'megafone', calca: '#1d4ed8' },
-  helena:      { cabelo: 'cacheado', corCabelo: '#3b2314', feminina: true,  estampa: 'coracao', calca: '#f5f5f4' },
+  helena:      { cabelo: 'blackpower', corCabelo: '#1c1410', feminina: true,  estampa: 'coracao', calca: '#f5f5f4', pele: '#7a4a2a', peleSombra: '#5a3520' },
   laya:        { cabelo: 'ondulado', corCabelo: '#6b21a8', feminina: true,  estampa: 'circuito', calca: '#0f172a' },
   marta:       { cabelo: 'chanel',   corCabelo: '#7c2d12', feminina: true,  estampa: 'blazer', extra: 'oculos', calca: '#1f2937' },
   sofia:       { cabelo: 'chanel',   corCabelo: '#facc15', feminina: true,  estampa: 'lupa', extra: 'oculos', calca: '#7c2d12' },
@@ -118,6 +118,11 @@ function Cabelo({ tipo, cor, corAgente }: { tipo?: string; cor: string; corAgent
       <path d="M -12 -66 L 18 -66 Q 20 -63 16 -62 L -12 -62 Z" fill="#1e3a8a" />
       <text x={0} y={-70} fontSize={6} fontWeight={800} fill="#fff" textAnchor="middle">PS</text></g>);
     case 'moicano': return <path d="M -4 -70 L -6 -86 L -2 -80 L 0 -92 L 2 -80 L 6 -88 L 5 -70 Z" fill={cor} />;
+    // Black power: volume redondo em volta da cabeça, com textura.
+    case 'blackpower': return (<g>
+      <circle cx={0} cy={-68} r={21} fill={cor} />
+      {[[-15, -80], [-6, -87], [5, -87], [14, -80], [-19, -67], [19, -67], [-16, -54], [16, -54]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={6} fill={cor} />)}
+      <circle cx={-7} cy={-80} r={3} fill="rgba(255,255,255,.08)" /></g>);
     // Curto masculino: rente à cabeça, com costeletas e um topete leve.
     case 'curto': return (<g>
       <path d="M -12 -66 Q -12 -81 0 -81 Q 12 -81 12 -66 L 12 -62 L 10 -62 L 10 -67 Q 0 -73 -10 -67 L -10 -62 L -12 -62 Z" fill={cor} />
@@ -156,7 +161,8 @@ function Minifig({ id, cor, pose, atraso }: { id: string; cor: string; pose: Pos
   const emPe = pose === 'andando' || pose === 'cafe' || pose === 'lendo' || pose === 'pebolim' || pose === 'empe';
   const d = { animationDelay: `${atraso}s` };
   const bracos = pose === 'digitando' || pose === 'pebolim' || pose === 'jogando' ? 'bracos-rapidos' : pose === 'andando' ? 'bracos-andando' : '';
-  const cabecaLonga = v.cabelo === 'longo' || v.cabelo === 'ondulado';
+  const cabecaLonga = v.cabelo === 'longo' || v.cabelo === 'ondulado' || v.cabelo === 'blackpower';
+  const pele = v.pele || AMARELO, peleSombra = v.peleSombra || AMARELO_SOMBRA; // cor da pele de cada agente
   return (
     <g className={`fig pose-${pose}`} style={d}>
       {emPe && (
@@ -170,11 +176,11 @@ function Minifig({ id, cor, pose, atraso }: { id: string; cor: string; pose: Pos
       <g transform={emPe ? 'translate(0 -14)' : undefined}>
         <g transform="translate(-13 -42)"><g className={`braco braco-e ${bracos}`} style={d}>
           <path d="M 0 0 Q -7 6 -6 18 L 0 20 Q -1 10 4 4 Z" fill={cor} />
-          <circle cx={-3} cy={22} r={4.2} fill={AMARELO} /><circle cx={-3} cy={24} r={1.8} fill={AMARELO_SOMBRA} />
+          <circle cx={-3} cy={22} r={4.2} fill={pele} /><circle cx={-3} cy={24} r={1.8} fill={peleSombra} />
         </g></g>
         <g transform="translate(13 -42)"><g className={`braco braco-d ${bracos} ${pose === 'cafe' || pose === 'sentado' ? 'gole' : ''}`} style={d}>
           <path d="M 0 0 Q 7 6 6 18 L 0 20 Q 1 10 -4 4 Z" fill={cor} />
-          <circle cx={3} cy={22} r={4.2} fill={AMARELO} /><circle cx={3} cy={24} r={1.8} fill={AMARELO_SOMBRA} />
+          <circle cx={3} cy={22} r={4.2} fill={pele} /><circle cx={3} cy={24} r={1.8} fill={peleSombra} />
           {(pose === 'cafe' || pose === 'sentado') && <g><rect x={-1} y={14} width={8} height={8} rx={1.5} fill="#fff" stroke="#cbd5e1" /><path d="M 7 16 q 3 2 0 4" stroke="#cbd5e1" fill="none" /></g>}
         </g></g>
         <path d="M -12 -46 L 12 -46 L 16 -14 L -16 -14 Z" fill={cor} />
@@ -182,10 +188,10 @@ function Minifig({ id, cor, pose, atraso }: { id: string; cor: string; pose: Pos
         <Estampa tipo={v.estampa} />
         {pose === 'lendo' && <g><path d="M -14 -26 L 0 -22 L 14 -26 L 14 -12 L 0 -8 L -14 -12 Z" fill="#fff" stroke="#94a3b8" /><path d="M 0 -22 V -8" stroke="#94a3b8" /><path d="M -14 -26 L 0 -22 L 14 -26" stroke={cor} strokeWidth={2} fill="none" /></g>}
         {pose === 'jogando' && <g><rect x={-10} y={-24} width={20} height={9} rx={4} fill="#111827" /><circle cx={-5} cy={-19.5} r={1.5} fill="#22c55e" /><circle cx={5} cy={-19.5} r={1.5} fill="#ef4444" /></g>}
-        <rect x={-5} y={-49} width={10} height={4} fill={AMARELO_SOMBRA} />
+        <rect x={-5} y={-49} width={10} height={4} fill={peleSombra} />
         <g className="cabeca" style={d}>
           {cabecaLonga && <Cabelo tipo={v.cabelo} cor={v.corCabelo} corAgente={cor} />}
-          <rect x={-11} y={-72} width={22} height={24} rx={6} fill={AMARELO} />
+          <rect x={-11} y={-72} width={22} height={24} rx={6} fill={pele} />
           <rect x={-11} y={-72} width={5} height={24} rx={3} fill="rgba(255,255,255,.25)" />
           <g className="olhos" style={d}>
             <ellipse cx={-4.5} cy={-61} rx={1.7} ry={2.1} fill="#111" /><ellipse cx={4.5} cy={-61} rx={1.7} ry={2.1} fill="#111" />
