@@ -520,6 +520,12 @@
   transition: background-color 0.25s ease;
 }
 
+/* Páginas usam a largura inteira da janela: o bloco principal de cada página
+   (filho direto de .ps-page) perde o limite de largura. Modais e formulários
+   internos não são afetados. */
+.ps-page > [class*="max-w-"] { max-width: none; }
+.ps-page > [style*="max-width"] { max-width: none !important; }
+
 .ps-card {
   background: var(--t-card-bg);
   border: 1px solid var(--t-card-border);
