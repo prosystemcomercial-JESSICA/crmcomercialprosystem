@@ -72,6 +72,10 @@ describe('Caroline — termômetro e resposta da IA', () => {
   it('recusa resposta com preço', () => {
     expect(lerRespostaCaroline({ mensagens: ['O plano fica R$ 199 por mês'], acao: 'continuar', nota: 50 })).toBeNull();
   });
+  it('nunca deixa travessão nas mensagens', () => {
+    const r = lerRespostaCaroline({ mensagens: ['Boa tarde, João! Aqui é a Caroline — da equipe Prosystem – tudo bem?'], acao: 'continuar', nota: 10 });
+    expect(r?.mensagens[0]).toBe('Boa tarde, João! Aqui é a Caroline, da equipe Prosystem, tudo bem?');
+  });
   it('ação desconhecida vira continuar e limita a 2 mensagens', () => {
     const r = lerRespostaCaroline({ mensagens: ['a', 'b', 'c'], acao: 'vender', nota: 40, dor_principal: 'caixa não bate' });
     expect(r).toMatchObject({ acao: 'continuar', mensagens: ['a', 'b'], nota: 40 });
