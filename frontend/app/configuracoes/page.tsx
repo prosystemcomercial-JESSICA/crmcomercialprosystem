@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle, MessageSquare } from 'lucide-react';
 import { apiClient, ResumoBackup } from '@/lib/api-client';
 import PainelTvConfig from '@/components/dashboard/PainelTvConfig';
+import AssistenteWhatsapp from '@/components/configuracoes/AssistenteWhatsapp';
 
 // ─── Theme Definitions ────────────────────────────────────
 
@@ -686,6 +687,8 @@ export default function ConfiguracoesPage() {
               </div>
             </div>
           )}
+
+          {gestaoWpp && <AssistenteWhatsapp />}
 
           {/* ══ TRIAGEM AUTOMÁTICA (só gestão) ════════════════ */}
           {gestaoWpp && (

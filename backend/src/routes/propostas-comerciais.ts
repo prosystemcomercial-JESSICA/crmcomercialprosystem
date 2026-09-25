@@ -387,6 +387,9 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       await prisma.propostaHistorico.create({
         data: { proposta_id: proposta.id, tipo: 'STATUS', valor_anterior: statusAnterior, valor_novo: 'VISUALIZADA', feito_por_nome: 'Cliente (link público)' },
       }).catch(() => {});
+      const nome = (proposta.nome_fantasia || proposta.razao_social || 'Cliente').trim();
+      import('@/services/assistente-gestao.service').then(m => m.enviarAvisoGestao(prisma, 'proposta_aberta',
+        `👀 *${nome} abriu a proposta*${proposta!.vendedor_nome ? `\nVendedora: ${proposta!.vendedor_nome}` : ''}\nÓtima hora para chamar no WhatsApp.`)).catch(() => {});
     }
     return reply.send({ status: 'success', data: proposta });
   });
@@ -558,6 +561,11 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       request.log?.warn({ err: e }, 'aceite: falha ao casar/criar lead (proposta segue aceita)');
     }
 
+    if (!jaAceita) {
+      const nome = (p.nome_fantasia || p.razao_social || 'Cliente').trim();
+      import('@/services/assistente-gestao.service').then(m => m.enviarAvisoGestao(prisma, 'proposta_aceita',
+        `🎉 *${nome} aceitou a proposta!*\nPlano ${planoFinal || '—'} · instalação ${inst.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} · mensalidade ${mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${p.vendedor_nome ? `\nVendedora: ${p.vendedor_nome}` : ''}`)).catch(() => {});
+    }
     return reply.send({ status: 'success', data: { aceita: true, ja_estava: jaAceita } });
   });
 

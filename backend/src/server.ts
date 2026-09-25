@@ -361,6 +361,28 @@ async function iniciarSchedulerResumoExecutivo() {
   console.log('[BOOT] Scheduler do resumo executivo iniciado (18h: seg–qui diário, sexta semanal)');
 }
 
+// 8b3) Scheduler: assistente no WhatsApp — a cada 10 min em horário comercial
+//      (seg–sex, 8h–19h de SP) avisa a gestão de conversas com prazo de resposta estourado.
+async function iniciarSchedulerAssistente() {
+  if (!prismaClient) return;
+  const rodar = async () => {
+    try {
+      const { diaDaSemanaSP } = await import('./lib/resumo-executivo.js');
+      const agora = new Date();
+      const dia = diaDaSemanaSP(agora);
+      const hora = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
+      if (dia === 0 || dia === 6 || hora < 8 || hora >= 19) return;
+      const { avisarSlaEstourado } = await import('./services/assistente-gestao.service.js');
+      await avisarSlaEstourado(prismaClient!, agora);
+    } catch (err: any) {
+      console.error('[ASSISTENTE] scheduler:', err?.message);
+    }
+  };
+  setInterval(rodar, 10 * 60 * 1000);
+  setTimeout(rodar, 150 * 1000);
+  console.log('[BOOT] Scheduler do assistente iniciado (prazo de resposta, 10 min)');
+}
+
 // 8c) Scheduler: motor de regras (EVO-3) — roda 1x/dia (~7h BRT = 10h UTC).
 //     Cria tarefas automáticas (lead parado, renovação próxima). Idempotente.
 async function iniciarSchedulerAutomacao() {
@@ -556,6 +578,7 @@ const start = async () => {
     iniciarSchedulerLembretes();
     iniciarSchedulerDigest();
     iniciarSchedulerResumoExecutivo();
+    iniciarSchedulerAssistente();
     iniciarSchedulerAutomacao();
     iniciarSchedulerSequenciaEmail();
     iniciarSchedulerCadenciaWhatsapp();
