@@ -163,6 +163,15 @@ async function aplicarAssinatura(prisma: PrismaClient, contratoId: string, signe
     },
   });
 
+  // Aviso à gestão só na primeira assinatura (reenvio do webhook não repete).
+  if (c.status !== 'ASSINADO') {
+    const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    import('@/services/assistente-gestao.service').then(m => m.enviarAvisoGestao(prisma, 'contrato_assinado',
+      `✍️ *Novo contrato assinado: ${(c.nome_fantasia || c.razao_social || 'Cliente').trim()}*
+Plano ${c.plano_contratado || '—'} · instalação ${brl(setup)} · mensalidade ${brl(Number(c.mensalidade || 0))}${c.vendedor_nome ? `
+Vendedora: ${c.vendedor_nome}` : ''}`)).catch(() => {});
+  }
+
   // Proposta de origem → CONTRATO_ASSINADO; lead casado por CNPJ → GANHO no fechamento.
   if (c.proposta_comercial_id) {
     const p = await prisma.propostaComercial.findUnique({ where: { id: c.proposta_comercial_id } }).catch(() => null);
