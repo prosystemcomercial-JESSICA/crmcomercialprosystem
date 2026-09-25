@@ -159,9 +159,15 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const { chamarGemini } = await import('./ia-gemini.service');
   const h = await historico(prisma, sdr.conversaId);
+  // Assuntos da semana da Sofia (últimos 14 dias) do segmento do lead e de gestão/varejo.
+  const pesquisas = await prisma.pesquisaSetor.findMany({ where: { created_at: { gte: new Date(Date.now() - 14 * 864e5) } }, orderBy: { created_at: 'desc' }, take: 3, select: { itens: true } }).catch(() => []);
+  const seg = (sdr.segmento || '').toLowerCase().slice(0, 5);
+  const atualidades = pesquisas.flatMap(x => (Array.isArray(x.itens) ? x.itens : []) as any[])
+    .filter(i => i?.titulo && (!seg || String(i.segmento || '').toLowerCase().includes(seg) || /gest|varej|manipul/i.test(String(i.segmento || ''))))
+    .slice(0, 6).map(i => ({ segmento: String(i.segmento || ''), titulo: String(i.titulo), resumo: String(i.resumo || '').slice(0, 300), por_que_importa: String(i.por_que_importa || '').slice(0, 200) }));
   const p = promptCaroline({
     guia: await guiaComercial(prisma), instrucoes: await instrucoesPara(prisma, 'caroline'), exemplos: await exemplosEditados(prisma),
-    historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
+    historico: h.texto, fase, saudacao: saudacaoAgora(new Date()), atualidades,
     lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas },
   });
   const partes: any[] = [{ text: p.usuario }];
