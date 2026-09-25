@@ -83,6 +83,12 @@ Faixas → `lead.temperatura` existente (com histórico via `registrarMudancaTem
 - No desfecho, a Caroline grava a classificação dela (segmento, intenção, temperatura, desfecho) como **sugestão** na conversa. A Jessica confirma ou corrige com um clique no escritório/Inbox; só a confirmação humana vira `IaAmostra` (rótulo de treino), com `criado_por` da Jessica e marca `fonte: 'caroline'`. Rótulo gerado só pela IA nunca entra no treino.
 - No modo "aprovar antes de enviar", cada mensagem aprovada ou **editada** pela Jessica é guardada como exemplo (original → versão final). Os exemplos editados entram no prompt da Caroline como referência de tom (poucos, os mais recentes), e ficam disponíveis para o treino de 14/10.
 
+## Economia de IA paga (Laya primeiro)
+
+- Classificação (segmento, intenção, sinais do termômetro, SAIR/sem interesse) passa primeiro pela Laya (local, grátis). Só quando a confiança dela fica abaixo do mínimo configurado é que a OpenAI classifica. À medida que a Laya é treinada (14/10 em diante), o mínimo é atingido mais vezes e a OpenAI é menos chamada.
+- A OpenAI continua escrevendo as respostas da Caroline (a Laya classifica, não redige), com contexto enxuto: últimas ~12 mensagens + resumo curto do que já se sabe do lead, em vez da conversa inteira.
+- Painel de uso: contagem de chamadas OpenAI x Laya por dia na mesa da Caroline, para acompanhar a economia.
+
 ## Áudio
 
 Transcrição passa a usar a OpenAI (`gpt-4o-transcribe` ou `whisper-1`) quando `OPENAI_API_KEY` existe; Gemini continua como alternativa. Vale para o Inbox todo.
