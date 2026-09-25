@@ -687,6 +687,39 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Tipos de atendimento que NÃO são lead comercial → desvinculam do funil ao marcar.
   const TIPOS_NAO_COMERCIAIS = ['Financeiro', 'Renegociação', 'Serviço', 'Parceiro', 'Pessoal', 'Suporte'];
 
+  // ===== ASSISTENTE: IA de texto sob demanda (resumo, sugestão, transcrição) =====
+  fastify.post('/whatsapp/conversas/:id/ia/resumo', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const c = await prisma.whatsappConversa.findFirst({ where: { id, ...whereLeituraConversa(getUser(request)) }, select: { id: true } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    try {
+      const { resumirConversa } = await import('@/services/assistente-ia.service');
+      return reply.send({ status: 'success', data: await resumirConversa(prisma, id) });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falha na IA' }); }
+  });
+
+  fastify.post('/whatsapp/conversas/:id/ia/sugestao', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = getUser(request);
+    const c = await prisma.whatsappConversa.findFirst({ where: { id, ...whereLeituraConversa(user) }, select: { id: true } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    try {
+      const { sugerirResposta } = await import('@/services/assistente-ia.service');
+      return reply.send({ status: 'success', data: { texto: await sugerirResposta(prisma, id, ((user as any)?.nome || 'a vendedora').split(' ')[0]) } });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falha na IA' }); }
+  });
+
+  fastify.post('/whatsapp/mensagens/:id/transcrever', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const m = await prisma.whatsappMensagem.findUnique({ where: { id }, select: { conversaId: true } });
+    const c = m && await prisma.whatsappConversa.findFirst({ where: { id: m.conversaId, ...whereLeituraConversa(getUser(request)) }, select: { id: true } });
+    if (!c) return reply.status(404).send({ status: 'error', message: 'Mensagem não encontrada' });
+    try {
+      const { transcreverAudio } = await import('@/services/assistente-ia.service');
+      return reply.send({ status: 'success', data: { transcricao: await transcreverAudio(prisma, id) } });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falha na IA' }); }
+  });
+
   // ===== ASSISTENTE: próxima melhor ação (lista "o que fazer agora"; só sugere) =====
   fastify.get('/assistente/proxima-acao', async (request, reply) => {
     const user = getUser(request);
@@ -769,9 +802,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const recebe = !!(eu?.telefone && acharGestor(eu.telefone, await listarGestao(prisma)));
     const pix = await prisma.configuracaoIntegracao.findUnique({ where: { chave: 'assistente.pix_chave' } }).catch(() => null);
     const { obterConfigIa } = await import('@/services/assistente-config.service');
+    const { obterConfigIaTexto } = await import('@/services/assistente-ia.service');
     return reply.send({ status: 'success', data: {
       avisos: await lerPrefsAvisos(prisma, u.id), tipos: TIPOS_AVISO.map(t => ({ id: t, nome: NOME_AVISO[t] })),
       telefone: eu?.telefone || null, recebe, pix_chave: pix?.valor || '', ia: await obterConfigIa(prisma),
+      ia_texto: await obterConfigIaTexto(prisma), // a chave em si nunca volta para a tela
     } });
   });
 
@@ -784,6 +819,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         laya_triagem: z.boolean().optional(), laya_confianca: z.number().min(0.3).max(0.99).optional(),
         risco_limite: z.number().min(0.3).max(0.99).optional(), risco_so_clientes: z.boolean().optional(),
       }).optional(),
+      ia_texto: z.object({
+        tira_duvidas: z.enum(['desligado', 'fora_do_horario', 'sempre']).optional(), transcrever_auto: z.boolean().optional(),
+        gemini_chave: z.string().max(200).optional(),
+      }).optional(),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
     const u = getUser(request)!;
@@ -794,6 +833,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (body.data.ia) {
       const { salvarConfigIa } = await import('@/services/assistente-config.service');
       await salvarConfigIa(prisma, body.data.ia, u.id);
+    }
+    if (body.data.ia_texto) {
+      const { salvarConfigIaTexto } = await import('@/services/assistente-ia.service');
+      // Chave vazia = não mexer (a tela nunca recebe a chave salva de volta).
+      const { gemini_chave, ...resto } = body.data.ia_texto;
+      await salvarConfigIaTexto(prisma, { ...resto, ...(gemini_chave && gemini_chave.trim() ? { gemini_chave } : {}) }, u.id);
     }
     if (body.data.pix_chave !== undefined) {
       const valor = body.data.pix_chave.trim();
@@ -1507,6 +1552,16 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       try {
         await detectarCnpjNaConversa(prisma, conversa.id, texto, undefined, inst.instance_token || '');
       } catch (e: any) { console.error('[CNPJ] erro:', e?.message); }
+      // IA de texto (Fase 3), em segundo plano e depois de todo o fluxo acima:
+      // tira-dúvidas (só quando as regras deixam) e transcrição de áudio.
+      if (tipoMsg === 'TEXTO') {
+        import('@/services/assistente-ia.service').then(m => m.autoResponderDuvida(prisma, inst.instance_token || '', conversa.id, texto)).catch(() => {});
+      } else if (tipoMsg === 'AUDIO' && midiaUrl) {
+        import('@/services/assistente-ia.service').then(async m => {
+          const cfg = await m.obterConfigIaTexto(prisma);
+          if (cfg.tem_chave && cfg.transcrever_auto) await m.transcreverAudio(prisma, mensagemCriada.id);
+        }).catch((e: any) => console.warn('[IA] transcrição:', e?.message));
+      }
     }
   }
 }

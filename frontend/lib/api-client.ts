@@ -1168,6 +1168,17 @@ class ApiClient {
   async salvarWhatsappEmpresa(instance_token: string) {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
+  // IA de texto na conversa (resumo, sugestão de resposta, transcrição de áudio).
+  async resumirConversaIa(conversaId: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/ia/resumo`, {});
+  }
+  async sugerirRespostaIa(conversaId: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/ia/sugestao`, {});
+  }
+  async transcreverAudioIa(mensagemId: string) {
+    return this.client.post(`/whatsapp/mensagens/${mensagemId}/transcrever`, {});
+  }
+
   // Próxima melhor ação (lista "o que fazer agora" no topo das conversas).
   async getProximaAcao() {
     return this.client.get('/assistente/proxima-acao');
@@ -1185,7 +1196,11 @@ class ApiClient {
   async getAssistenteConfig() {
     return this.client.get('/assistente/config');
   }
-  async salvarAssistenteConfig(data: { avisos?: string[]; pix_chave?: string; ia?: { laya_triagem?: boolean; laya_confianca?: number; risco_limite?: number; risco_so_clientes?: boolean } }) {
+  async salvarAssistenteConfig(data: {
+    avisos?: string[]; pix_chave?: string;
+    ia?: { laya_triagem?: boolean; laya_confianca?: number; risco_limite?: number; risco_so_clientes?: boolean };
+    ia_texto?: { tira_duvidas?: 'desligado' | 'fora_do_horario' | 'sempre'; transcrever_auto?: boolean; gemini_chave?: string };
+  }) {
     return this.client.put('/assistente/config', data);
   }
 

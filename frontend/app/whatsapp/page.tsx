@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import PainelLaya from '@/components/whatsapp/PainelLaya';
 import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
 import ProximaAcao from '@/components/whatsapp/ProximaAcao';
+import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/whatsapp/IaConversa';
 
 interface Conversa {
   id: string;
@@ -100,6 +101,7 @@ interface Mensagem {
   midia_url?: string | null;
   status?: string;
   enviada_por?: string | null;
+  transcricao?: string | null;
   created_at: string;
 }
 
@@ -1132,7 +1134,10 @@ export default function WhatsappPage() {
                             <video controls src={m.midia_url} className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />
                           )}
                           {m.tipo === 'AUDIO' && m.midia_url && (
-                            <audio controls src={m.midia_url} className="mb-1" style={{ maxWidth: 220 }} />
+                            <>
+                              <audio controls src={m.midia_url} className="mb-1" style={{ maxWidth: 220 }} />
+                              <TranscricaoAudio key={`${m.id}:${m.transcricao || ''}`} mensagemId={m.id} inicial={m.transcricao} />
+                            </>
                           )}
                           {m.tipo === 'DOCUMENTO' && m.midia_url && (
                             <a href={m.midia_url} download={m.conteudo || true}
@@ -1177,6 +1182,7 @@ export default function WhatsappPage() {
                           className="text-gray-500 rounded-full w-11 h-11 flex items-center justify-center shadow-md text-lg ps-card hover:opacity-80 disabled:opacity-50">
                           {enviandoArquivo ? '⏳' : '📎'}
                         </button>
+                        <SugerirRespostaBtn conversaId={ativa.id} onTexto={setTexto} />
                         <input
                           value={texto}
                           onChange={e => setTexto(e.target.value)}
@@ -1344,6 +1350,8 @@ export default function WhatsappPage() {
                     </div>
                   </div>
                 )}
+
+                <ResumoIa key={`resumo:${ativa.id}`} conversaId={ativa.id} />
 
                 <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} />
 
