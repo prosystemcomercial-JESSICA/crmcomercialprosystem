@@ -369,6 +369,9 @@ async function iniciarSchedulerAssistente() {
     try {
       const { diaDaSemanaSP } = await import('./lib/resumo-executivo.js');
       const agora = new Date();
+      // Lembrete de demo 2h antes: roda sempre (a demo das 9h tem o lembrete às 7h).
+      const { enviarLembretesDemo } = await import('./services/assistente-demo.service.js');
+      await enviarLembretesDemo(prismaClient!, agora).catch((e: any) => console.error('[DEMO] lembretes:', e?.message));
       const dia = diaDaSemanaSP(agora);
       const hora = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
       if (dia === 0 || dia === 6 || hora < 8 || hora >= 19) return;

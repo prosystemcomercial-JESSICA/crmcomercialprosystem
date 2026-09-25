@@ -195,4 +195,9 @@ async function executarPasso(
   if (passo.desfecho) await aplicarDesfecho(prisma, conversa, passo);
   // Fim da triagem: pergunta "É a sua empresa?" se o CNPJ (da triagem ou pendente) é de um cliente da base.
   if (fim) await perguntarClienteSeCasar(prisma, token, conversa.id).catch((e: any) => console.error('[CNPJ-CLIENTE] erro:', e?.message));
+  // Lead qualificado (e não é cliente da base): oferece a demonstração com horários livres.
+  if (fim && passo.desfecho === 'qualificado') {
+    const { oferecerDemo } = await import('./assistente-demo.service');
+    await oferecerDemo(prisma, token, conversa.id).catch((e: any) => console.error('[DEMO] oferta:', e?.message));
+  }
 }
