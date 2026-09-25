@@ -687,6 +687,40 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Tipos de atendimento que NÃO são lead comercial → desvinculam do funil ao marcar.
   const TIPOS_NAO_COMERCIAIS = ['Financeiro', 'Renegociação', 'Serviço', 'Parceiro', 'Pessoal', 'Suporte'];
 
+  // ===== ASSISTENTE: campanhas pelo WhatsApp (só gestão) =====
+  const FiltroCampanhaZ = z.object({
+    publico: z.enum(['CLIENTES', 'LEADS_PARADOS']), segmento: z.string().max(60).optional().nullable(),
+    dias_parado: z.number().int().min(7).max(365).optional().nullable(),
+  });
+  fastify.get('/assistente/campanhas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { listarCampanhas } = await import('@/services/assistente-campanhas.service');
+    return reply.send({ status: 'success', data: await listarCampanhas(prisma) });
+  });
+  fastify.post('/assistente/campanhas/previa', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const f = FiltroCampanhaZ.safeParse(request.body);
+    if (!f.success) return reply.status(400).send({ status: 'error', message: 'Filtro inválido.' });
+    const { previaCampanha } = await import('@/services/assistente-campanhas.service');
+    return reply.send({ status: 'success', data: await previaCampanha(prisma, f.data) });
+  });
+  fastify.post('/assistente/campanhas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const f = FiltroCampanhaZ.extend({ nome: z.string().min(3).max(120), texto: z.string().min(10).max(1500) }).safeParse(request.body);
+    if (!f.success) return reply.status(400).send({ status: 'error', message: 'Preencha nome e texto (mínimo 10 letras).' });
+    try {
+      const { criarCampanha } = await import('@/services/assistente-campanhas.service');
+      const c = await criarCampanha(prisma, f.data, getUser(request)!.id);
+      return reply.send({ status: 'success', data: c, message: `Campanha criada: ${c.total} contatos. Envio de ~24 por hora em horário comercial.` });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Não foi possível criar.' }); }
+  });
+  fastify.post('/assistente/campanhas/:id/cancelar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    await prisma.campanhaWhatsapp.updateMany({ where: { id, status: 'ENVIANDO' }, data: { status: 'CANCELADA' } });
+    return reply.send({ status: 'success', message: 'Campanha cancelada. O que já saiu não volta.' });
+  });
+
   // ===== ASSISTENTE: IA de texto sob demanda (resumo, sugestão, transcrição) =====
   fastify.post('/whatsapp/conversas/:id/ia/resumo', async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -807,6 +841,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       avisos: await lerPrefsAvisos(prisma, u.id), tipos: TIPOS_AVISO.map(t => ({ id: t, nome: NOME_AVISO[t] })),
       telefone: eu?.telefone || null, recebe, pix_chave: pix?.valor || '', ia: await obterConfigIa(prisma),
       ia_texto: await obterConfigIaTexto(prisma), // a chave em si nunca volta para a tela
+      posvenda: (await (await import('@/services/assistente-posvenda.service')).obterConfigPosVenda(prisma)).ativo,
     } });
   });
 
@@ -823,6 +858,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         tira_duvidas: z.enum(['desligado', 'fora_do_horario', 'sempre']).optional(), transcrever_auto: z.boolean().optional(),
         gemini_chave: z.string().max(200).optional(),
       }).optional(),
+      posvenda: z.boolean().optional(),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
     const u = getUser(request)!;
@@ -833,6 +869,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (body.data.ia) {
       const { salvarConfigIa } = await import('@/services/assistente-config.service');
       await salvarConfigIa(prisma, body.data.ia, u.id);
+    }
+    if (body.data.posvenda !== undefined) {
+      const { salvarPosVenda } = await import('@/services/assistente-posvenda.service');
+      await salvarPosVenda(prisma, body.data.posvenda, u.id);
     }
     if (body.data.ia_texto) {
       const { salvarConfigIaTexto } = await import('@/services/assistente-ia.service');
@@ -1371,7 +1411,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     obterMidia: () => Promise<string | undefined>,
     ehEmpresa: boolean,
   ) {
-    const { contato_numero, contato_nome, externo_id, tipo_msg: tipoMsg, texto } = dados;
+    const { contato_nome, externo_id, tipo_msg: tipoMsg, texto } = dados;
+    let contato_numero = dados.contato_numero;
 
     // Gestão (Jessica/Thiago) falando com o número da empresa = comando do assistente.
     // Responde e sai: não vira lead nem conversa no Inbox.
@@ -1394,6 +1435,18 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     }
 
     const midiaUrl = await obterMidia();
+
+    // O WhatsApp às vezes manda o número sem o 9 (ou com): se não há conversa com o
+    // número exato mas há UMA desta instância com os mesmos 8 últimos dígitos (ex.:
+    // aberta pelo CRM, campanha, pós-venda), usa ela em vez de abrir conversa nova.
+    const exata = await prisma.whatsappConversa.findUnique({ where: { uq_conversa: { instanciaId: inst.id, contato_numero } }, select: { id: true } }).catch(() => null);
+    if (!exata) {
+      const fim8 = contato_numero.replace(/\D/g, '').slice(-8);
+      const parecidas = fim8.length === 8
+        ? (await prisma.whatsappConversa.findMany({ where: { instanciaId: inst.id, contato_numero: { endsWith: fim8 } }, select: { contato_numero: true } }).catch(() => []))
+        : [];
+      if (parecidas.length === 1) contato_numero = parecidas[0].contato_numero;
+    }
 
     // Tenta vincular a um Lead existente pelo telefone — IGNORANDO máscara.
     // O telefone do lead pode estar salvo como "(27) 99999-8888"; comparar só
@@ -1501,6 +1554,15 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
     // ===== TRIAGEM AUTOMÁTICA (só WhatsApp da empresa) =====
     if (ehEmpresa) {
+      // "SAIR" de quem recebeu campanha, e botões da pesquisa de satisfação (pós-venda).
+      try {
+        const { responderSaida } = await import('@/services/assistente-campanhas.service');
+        if (tipoMsg === 'TEXTO' && await responderSaida(prisma, inst.instance_token || '', conversa.id, contato_numero, texto)) return;
+        if (dados.botao_id) {
+          const { responderPesquisa } = await import('@/services/assistente-posvenda.service');
+          if (await responderPesquisa(prisma, inst.instance_token || '', conversa.id, contato_numero, dados.botao_id)) return;
+        }
+      } catch (e: any) { console.error('[POSVENDA/CAMPANHA] resposta:', e?.message); }
       // Botões da proposta enviada pelo WhatsApp (Aceitar / Tenho dúvidas).
       if (dados.botao_id) {
         try {

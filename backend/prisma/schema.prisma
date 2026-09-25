@@ -1672,6 +1672,10 @@ model PropostaComercial {
   wpp_conversa_id    String?
   wpp_enviada_em     DateTime?
   wpp_followup_etapa Int       @default(0)
+  // Pós-venda pelo WhatsApp (assistente, fase 4): boas-vindas, pesquisa de 30 dias e nota (1 ruim, 2 regular, 3 ótimo).
+  wpp_boasvindas_em  DateTime?
+  wpp_pesquisa_em    DateTime?
+  wpp_pesquisa_nota  Int?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -2433,6 +2437,9 @@ model WhatsappConversa {
   ia_sugestao    Json?
   ia_sugerido_em DateTime?
 
+  // Contato respondeu "SAIR" a uma campanha: não recebe mais campanhas.
+  optout_campanhas Boolean @default(false)
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -2466,6 +2473,39 @@ model WhatsappMensagem {
   @@unique([externo_id], name: "uq_msg_externa")
   @@index([conversaId])
   @@index([direcao])
+}
+
+// Campanha pelo WhatsApp da empresa (assistente, fase 4): novidades para clientes
+// ou reativação de leads parados. Disparada por alguém da gestão; os envios saem
+// devagar (fila) em horário comercial, e quem responde "SAIR" não recebe mais.
+model CampanhaWhatsapp {
+  id         String   @id @default(cuid())
+  nome       String
+  publico    String // CLIENTES | LEADS_PARADOS
+  filtros    Json?
+  texto      String   @db.Text
+  status     String   @default("ENVIANDO") // ENVIANDO | CONCLUIDA | CANCELADA
+  total      Int      @default(0)
+  criado_por String?
+  created_at DateTime @default(now())
+
+  envios CampanhaEnvio[]
+
+  @@index([status])
+}
+
+model CampanhaEnvio {
+  id         String           @id @default(cuid())
+  campanhaId String
+  campanha   CampanhaWhatsapp @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  numero     String
+  nome       String?
+  status     String           @default("PENDENTE") // PENDENTE | ENVIADO | FALHA | IGNORADO
+  erro       String?          @db.Text
+  enviado_em DateTime?
+
+  @@index([campanhaId, status])
+  @@index([numero])
 }
 
 // Amostra de treino da IA Laya: foto do texto da conversa + etiquetas que a
