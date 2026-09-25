@@ -387,8 +387,9 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       await prisma.propostaHistorico.create({
         data: { proposta_id: proposta.id, tipo: 'STATUS', valor_anterior: statusAnterior, valor_novo: 'VISUALIZADA', feito_por_nome: 'Cliente (link público)' },
       }).catch(() => {});
+      // Aviso só quando já tinha sido enviada: a vendedora conferindo o rascunho não conta.
       const nome = (proposta.nome_fantasia || proposta.razao_social || 'Cliente').trim();
-      import('@/services/assistente-gestao.service').then(m => m.enviarAvisoGestao(prisma, 'proposta_aberta',
+      if (statusAnterior === 'ENVIADA') import('@/services/assistente-gestao.service').then(m => m.enviarAvisoGestao(prisma, 'proposta_aberta',
         `👀 *${nome} abriu a proposta*${proposta!.vendedor_nome ? `\nVendedora: ${proposta!.vendedor_nome}` : ''}\nÓtima hora para chamar no WhatsApp.`)).catch(() => {});
     }
     return reply.send({ status: 'success', data: proposta });

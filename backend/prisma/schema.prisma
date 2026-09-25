@@ -1661,6 +1661,13 @@ model PropostaComercial {
   deleted_by      String?
   motivo_exclusao String?   @db.Text
 
+  // Proposta enviada pelo WhatsApp (assistente): conversa, quando foi e etapa do
+  // follow-up já enviada (0 = nenhuma; 1..3 = dias 2, 5 e 7). Gravar a etapa por SQL
+  // cru para não mexer em updated_at (usado em "propostas paradas").
+  wpp_conversa_id    String?
+  wpp_enviada_em     DateTime?
+  wpp_followup_etapa Int       @default(0)
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

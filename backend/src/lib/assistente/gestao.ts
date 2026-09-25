@@ -34,14 +34,19 @@ export type Comando = { tipo: 'hoje' } | { tipo: 'semana' } | { tipo: 'propostas
 
 const norm = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[?!.]/g, '').trim();
 
-export function interpretarComando(texto: string): Comando {
+/**
+ * Só frases curtas que são claramente comando. Qualquer outra mensagem da gestão
+ * devolve null e segue o caminho normal do WhatsApp (Inbox, como sempre foi).
+ */
+export function interpretarComando(texto: string): Comando | null {
   const t = norm(texto);
-  const cli = t.match(/^(cliente|clientes|buscar|busca)\s+(.+)$/);
-  if (cli) return { tipo: 'cliente', termo: (texto.trim().split(/\s+/).slice(1).join(' ')).trim() };
-  if (/propostas?\s+paradas?|paradas/.test(t)) return { tipo: 'propostas_paradas' };
-  if (/\bsemana\b/.test(t)) return { tipo: 'semana' };
-  if (/\bhoje\b|\bdia\b|resumo|como (esta|estamos|ta)/.test(t)) return { tipo: 'hoje' };
-  return { tipo: 'ajuda' };
+  const cli = t.match(/^(cliente|buscar cliente)\s+(.+)$/);
+  if (cli) return { tipo: 'cliente', termo: texto.trim().replace(/^\s*(buscar\s+)?cliente\s+/i, '').trim() };
+  if (/^propostas? paradas?$/.test(t)) return { tipo: 'propostas_paradas' };
+  if (/^(semana|resumo da semana)$/.test(t)) return { tipo: 'semana' };
+  if (/^(hoje|como esta hoje|como estamos hoje|resumo de hoje|resumo)$/.test(t)) return { tipo: 'hoje' };
+  if (/^(ajuda|comandos|menu crm|crm)$/.test(t)) return { tipo: 'ajuda' };
+  return null;
 }
 
 export const AJUDA = [

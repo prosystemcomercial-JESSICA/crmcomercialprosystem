@@ -36,9 +36,10 @@ export async function salvarPrefsAvisos(prisma: PrismaClient, userId: string, ti
  * e devolve true (o webhook não cria lead nem conversa). Outros números: false.
  */
 export async function responderComandoGestao(prisma: PrismaClient, token: string, numero: string, texto: string): Promise<boolean> {
+  const cmd = interpretarComando(texto);
+  if (!cmd) return false; // não é comando: segue o fluxo normal do WhatsApp
   const gestor = acharGestor(numero, await listarGestao(prisma));
   if (!gestor) return false;
-  const cmd = interpretarComando(texto);
   let resposta = AJUDA;
   try {
     if (cmd.tipo === 'hoje') {
@@ -99,7 +100,9 @@ export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, t
 }
 
 // Conversas que já receberam aviso de prazo estourado (conversa + prazo), para avisar uma vez só.
+// A primeira varredura depois de ligar o servidor só anota (não despeja avisos antigos de uma vez).
 const slaAvisados = new Set<string>();
+let slaAquecido = false;
 
 /** Conversas comerciais cuja última mensagem é do cliente e o prazo de resposta passou. */
 export async function avisarSlaEstourado(prisma: PrismaClient, agora = new Date()): Promise<number> {
@@ -118,10 +121,12 @@ export async function avisarSlaEstourado(prisma: PrismaClient, agora = new Date(
     const chave = `${c.id}:${c.sla_prazo_em!.getTime()}`;
     if (slaAvisados.has(chave)) continue;
     slaAvisados.add(chave);
+    if (!slaAquecido) continue;
     n++;
     await enviarAvisoGestao(prisma, 'sla_estourado',
       `⏰ *Conversa sem resposta além do prazo*\n${c.contato_nome || c.contato_numero}: "${(ultima.conteudo || '').slice(0, 120)}"`);
   }
+  slaAquecido = true;
   if (slaAvisados.size > 5000) slaAvisados.clear();
   return n;
 }

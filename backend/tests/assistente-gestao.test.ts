@@ -16,11 +16,17 @@ describe('acharGestor', () => {
 describe('interpretarComando', () => {
   it('entende os comandos', () => {
     expect(interpretarComando('Como está hoje?')).toEqual({ tipo: 'hoje' });
+    expect(interpretarComando('hoje')).toEqual({ tipo: 'hoje' });
     expect(interpretarComando('semana')).toEqual({ tipo: 'semana' });
     expect(interpretarComando('propostas paradas')).toEqual({ tipo: 'propostas_paradas' });
     expect(interpretarComando('cliente 381')).toEqual({ tipo: 'cliente', termo: '381' });
     expect(interpretarComando('Cliente Padaria Pão')).toEqual({ tipo: 'cliente', termo: 'Padaria Pão' });
-    expect(interpretarComando('oi')).toEqual({ tipo: 'ajuda' });
+    expect(interpretarComando('ajuda')).toEqual({ tipo: 'ajuda' });
+  });
+  it('conversa normal não vira comando (segue para o Inbox)', () => {
+    expect(interpretarComando('oi')).toBeNull();
+    expect(interpretarComando('bom dia, o cliente da padaria ligou hoje?')).toBeNull();
+    expect(interpretarComando('vou passar a semana fora')).toBeNull();
   });
 });
 

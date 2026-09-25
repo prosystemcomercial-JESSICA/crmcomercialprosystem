@@ -374,6 +374,11 @@ async function iniciarSchedulerAssistente() {
       if (dia === 0 || dia === 6 || hora < 8 || hora >= 19) return;
       const { avisarSlaEstourado } = await import('./services/assistente-gestao.service.js');
       await avisarSlaEstourado(prismaClient!, agora);
+      // Follow-up de propostas enviadas pelo WhatsApp: só das 9h às 18h.
+      if (hora >= 9 && hora < 18) {
+        const { rodarFollowupPropostas } = await import('./services/assistente-proposta.service.js');
+        await rodarFollowupPropostas(prismaClient!, agora);
+      }
     } catch (err: any) {
       console.error('[ASSISTENTE] scheduler:', err?.message);
     }

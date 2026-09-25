@@ -1168,6 +1168,14 @@ class ApiClient {
   async salvarWhatsappEmpresa(instance_token: string) {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
+  // Proposta pelo WhatsApp (botões Aceitar/Tenho dúvidas + follow-up).
+  async getPropostasConversa(conversaId: string) {
+    return this.client.get(`/whatsapp/conversas/${conversaId}/propostas`);
+  }
+  async enviarPropostaWhatsapp(conversaId: string, propostaId: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/enviar-proposta`, { proposta_id: propostaId });
+  }
+
   // Assistente no WhatsApp: avisos da pessoa logada + chave PIX.
   async getAssistenteConfig() {
     return this.client.get('/assistente/config');
