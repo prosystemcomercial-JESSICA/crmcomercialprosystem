@@ -11,6 +11,7 @@ export const AGENTES = [
   { id: 'helena', nome: 'Helena', funcao: 'Pós-venda · boas-vindas e pesquisa', cor: '#0891b2' },
   { id: 'laya', nome: 'Laya', funcao: 'IA que analisa conversas e aprende', cor: '#db2777' },
   { id: 'marta', nome: 'Marta', funcao: 'Assistente da gestão · comandos e avisos', cor: '#7c3aed' },
+  { id: 'sofia', nome: 'Sofia', funcao: 'Pesquisadora · assuntos do setor e novidades', cor: '#ea580c' },
 ] as const;
 export type AgenteId = typeof AGENTES[number]['id'];
 export type StatusAgente = 'trabalhando' | 'parado' | 'desligado';

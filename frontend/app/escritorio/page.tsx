@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import SalaIsometrica, { type Chamado } from '@/components/escritorio/SalaIsometrica';
 import ChatAgente from '@/components/escritorio/ChatAgente';
+import PesquisasSofia from '@/components/escritorio/PesquisasSofia';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
 // leitura; atualiza a cada 30 s com o que cada agente fez hoje.
@@ -27,6 +28,7 @@ const ACOES_SIMULADAS: Record<string, string[]> = {
   zequinha: ['enviou campanha para Carlos', 'enviou campanha para Fernanda', 'tirou da lista quem pediu SAIR'],
   helena: ['deu boas-vindas à Farmácia Esperança', 'enviou pesquisa para Padaria Delícia', 'recebeu nota Ótima da Drogaria Luz'],
   laya: ['analisou conversa com Padaria Sol', 'detectou intenção de compra', 'aprendeu com uma etiqueta confirmada'],
+  sofia: ['pesquisou reforma tributária para farmácias', 'achou novidade do Farmácia Popular', 'pesquisou tendências para padarias'],
   marta: ['respondeu "hoje" para Jessica', 'avisou Thiago: proposta aceita', 'lançou tarefa para Ana: ligar para cliente'],
 };
 
@@ -186,6 +188,7 @@ export default function EscritorioPage() {
             const a = (mostrar || []).find(x => x.id === chat)!;
             return <ChatAgente key={a.id} agente={{ id: a.id, nome: a.nome, cor: a.cor, funcao: a.funcao }} onFechar={() => setChat(null)} />;
           })()}
+          <PesquisasSofia />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
             {mostrar?.map(a => (
               <button key={a.id} onClick={() => setSel(a.id)} style={{

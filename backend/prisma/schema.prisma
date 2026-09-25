@@ -2528,6 +2528,21 @@ model AgenteInstrucao {
   @@index([agente, ativa])
 }
 
+// Pesquisa da Sofia (agente pesquisadora): assuntos mais falados do setor, com
+// fontes da internet e sugestões de mensagem para os clientes.
+model PesquisaSetor {
+  id         String   @id @default(cuid())
+  tema       String? // pedido específico; vazio = pesquisa semanal geral
+  titulo     String
+  resumo     String   @db.Text
+  itens      Json
+  fontes     Json?
+  criado_por String?
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+}
+
 // Escritório virtual: conversa da supervisão com cada agente (instruções, perguntas e respostas).
 model AgenteMensagem {
   id         String   @id @default(cuid())

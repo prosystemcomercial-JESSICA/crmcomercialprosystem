@@ -14,6 +14,35 @@ export async function chaveGemini(prisma: PrismaClient): Promise<string | null> 
 type Parte = { text: string } | { inline_data: { mime_type: string; data: string } };
 
 /** Uma chamada ao Gemini. Devolve o texto da resposta ou lança erro com mensagem clara. */
+/** Chamada com busca no Google (grounding): devolve o texto e as fontes consultadas. */
+export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: string; pergunta: string; timeoutMs?: number }): Promise<{ texto: string; fontes: { titulo: string; url: string }[] }> {
+  const chave = await chaveGemini(prisma);
+  if (!chave) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: p.sistema }] },
+      contents: [{ role: 'user', parts: [{ text: p.pergunta }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.3 },
+    }),
+    signal: AbortSignal.timeout(p.timeoutMs ?? 120_000),
+  });
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
+    throw new Error(`IA indisponível (HTTP ${res.status}).`);
+  }
+  const data: any = await res.json();
+  const cand = data?.candidates?.[0];
+  const texto = (cand?.content?.parts || []).map((x: any) => x.text || '').join('').trim();
+  const fontes = ((cand?.groundingMetadata?.groundingChunks || []) as any[])
+    .map(c => ({ titulo: String(c?.web?.title || c?.web?.uri || ''), url: String(c?.web?.uri || '') }))
+    .filter(f => f.url);
+  if (!texto) throw new Error('A pesquisa não devolveu resultado.');
+  return { texto, fontes: fontes.slice(0, 15) };
+}
+
 export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number }): Promise<string> {
   const chave = await chaveGemini(prisma);
   if (!chave) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');

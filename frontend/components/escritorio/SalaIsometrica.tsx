@@ -17,7 +17,7 @@ const LARG = 62, ALT = 36;
 const COLS = 4, ESPACO = 2.3;
 const W = 21, D = 7.4;
 const ESPINHA_X = 10.2;                     // corredor vertical entre as mesas e os cantos
-const CORREDOR_LINHA = [0.38, 2.45];        // corredor atrás de cada fileira de mesas
+const CORREDOR_LINHA = [0.38, 2.45, 4.75];  // corredor atrás de cada fileira de mesas
 const ALA_X = 16.3;                         // a partir daqui: sala de reunião (fundo) e sala da Jessica (frente)
 const CORREDOR_ALA_Y = 3.85;                // corredor entre as duas salas
 const VELOCIDADE = 1.5;                     // células por segundo
@@ -97,6 +97,7 @@ const VISUAL: Record<string, Visual> = {
   helena:      { cabelo: 'cacheado', corCabelo: '#3b2314', feminina: true,  estampa: 'coracao', calca: '#f5f5f4' },
   laya:        { cabelo: 'ondulado', corCabelo: '#6b21a8', feminina: true,  estampa: 'circuito', calca: '#0f172a' },
   marta:       { cabelo: 'chanel',   corCabelo: '#7c2d12', feminina: true,  estampa: 'blazer', extra: 'oculos', calca: '#1f2937' },
+  sofia:       { cabelo: 'chanel',   corCabelo: '#facc15', feminina: true,  estampa: 'lupa', extra: 'oculos', calca: '#7c2d12' },
   jessica:     { cabelo: 'longo',    corCabelo: '#5a3825', feminina: true,  estampa: 'estrela', calca: '#1e293b' },
 };
 
@@ -134,6 +135,7 @@ function Estampa({ tipo }: { tipo: string }) {
     case 'circuito': return <g stroke="#fbcfe8" strokeWidth={1.2} fill="none"><path d="M -8 -40 H -2 V -32 H 6" /><circle cx={6} cy={-32} r={1.5} fill="#fbcfe8" /></g>;
     case 'agenda': return <g><rect x={-6} y={-40} width={12} height={11} rx={1} fill="#fff" /><rect x={-6} y={-40} width={12} height={3} fill="#ef4444" /></g>;
     case 'blazer': return <g><path d="M -12 -46 L -2 -46 L -6 -28 Z" fill="rgba(0,0,0,.25)" /><path d="M 12 -46 L 2 -46 L 6 -28 Z" fill="rgba(0,0,0,.25)" /></g>;
+    case 'lupa': return <g><circle cx={-2} cy={-36} r={6} fill='none' stroke='#fff' strokeWidth={2.4} /><path d='M 2 -32 L 8 -26' stroke='#fff' strokeWidth={3} strokeLinecap='round' /></g>;
     case 'estrela': return <g><path d='M -12 -46 L -2 -46 L -6 -28 Z' fill='rgba(255,255,255,.2)' /><path d='M 12 -46 L 2 -46 L 6 -28 Z' fill='rgba(255,255,255,.2)' /><path d='M 0 -40 L 2.4 -35 L 7.8 -34.4 L 3.8 -30.8 L 4.9 -25.5 L 0 -28.2 L -4.9 -25.5 L -3.8 -30.8 L -7.8 -34.4 L -2.4 -35 Z' fill='#fbbf24' /></g>;
     case 'headset': return <g><rect x={-4} y={-40} width={8} height={6} rx={1} fill="#fff" /><text x={0} y={-35} fontSize={5} textAnchor="middle" fill="#e11d74" fontWeight={800}>OI</text></g>;
     default: return null;

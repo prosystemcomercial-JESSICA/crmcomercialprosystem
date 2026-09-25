@@ -32,6 +32,8 @@ export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promi
       .map(p => ({ texto: `${(p.nome_fantasia || p.razao_social || 'Cliente').trim()}: ${p.wpp_pesquisa_em ? `pesquisa enviada${p.wpp_pesquisa_nota ? ` (nota ${p.wpp_pesquisa_nota === 3 ? 'ótima' : p.wpp_pesquisa_nota === 2 ? 'regular' : 'ruim'})` : ''}` : 'boas-vindas enviadas'}`, em: (p.wpp_pesquisa_em || p.wpp_boasvindas_em)!.toISOString() }));
     case 'laya': return (await prisma.whatsappConversa.findMany({ where: { ia_sugerido_em: { not: null } }, orderBy: { ia_sugerido_em: 'desc' }, take: 10, select: { contato_nome: true, contato_numero: true, ia_sugestao: true, ia_sugerido_em: true } }))
       .map(c => { const s: any = c.ia_sugestao || {}; return { texto: `${nomeContato(c)}: ${s.segmento || '?'} · ${s.intencao || '?'}${Number(s.cancelar) >= 0.5 ? ' · risco de cancelar' : ''}`, em: c.ia_sugerido_em!.toISOString() }; });
+    case 'sofia': return (await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' }, take: 10, select: { titulo: true, created_at: true, itens: true } }))
+      .map(p => ({ texto: `Pesquisou "${p.titulo}" (${Array.isArray(p.itens) ? (p.itens as any[]).length : 0} assuntos)`, em: p.created_at.toISOString() }));
     case 'marta': { const a = acaoRegistrada('marta'); return a ? [{ texto: a.texto, em: a.em.toISOString() }] : []; }
     default: return [];
   }
@@ -113,6 +115,11 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   const aprovacoesHoje = await prisma.propostaComercial.count({ where: { desconto_aprov_em: hoje } });
   const marta = acaoRegistrada('marta');
 
+  // Sofia — pesquisas do setor
+  const pesquisasMes = await prisma.pesquisaSetor.count({ where: { created_at: { gte: new Date(agora.getTime() - 30 * 86400000) } } });
+  const ultPesq = await prisma.pesquisaSetor.findFirst({ orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } });
+  const sofia = maisRecente<Acao>(ultPesq ? { texto: `pesquisou "${ultPesq.titulo.slice(0, 50)}"`, em: ultPesq.created_at } : null, acaoRegistrada('sofia'));
+
   const estado = (id: AgenteId, ligado: boolean, ultima: Acao, numeros: EstadoAgente['numeros'], observacao?: string): EstadoAgente => {
     const a = AGENTES.find(x => x.id === id)!;
     return { id, nome: a.nome, funcao: a.funcao, cor: a.cor, status: statusAgente(ligado, ultima?.em || null, agora), ultima: ultima ? { texto: ultima.texto, em: ultima.em.toISOString() } : null, numeros, observacao };
@@ -130,6 +137,7 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
     estado('zequinha', true, zequinha, [{ rotulo: 'enviadas hoje', valor: enviadosHoje }, { rotulo: 'na fila', valor: naFila }], naFila ? 'Campanha em andamento' : 'Sem campanha na fila'),
     estado('helena', posvendaOn, helena, [{ rotulo: 'boas-vindas', valor: boasVindas }, { rotulo: 'pesquisas', valor: pesquisas }], posvendaOn ? undefined : 'Pós-venda desligado em Configurações'),
     estado('laya', layaOn, laya, [{ rotulo: 'conversas analisadas', valor: analisadas }, { rotulo: 'ensinadas hoje', valor: ensinadasHoje }, { rotulo: 'ensinadas no total', valor: ensinadasTotal }], layaOn ? 'Aprendendo até 14/10' : 'Serviço da Laya fora do ar'),
+    estado('sofia', temChave, sofia, [{ rotulo: 'pesquisas no mês', valor: pesquisasMes }], temChave ? 'Pesquisa toda segunda às 8h' : 'Esperando a chave da IA em Configurações'),
     estado('marta', true, marta, [{ rotulo: 'tarefas lançadas', valor: tarefasHoje }, { rotulo: 'descontos decididos', valor: aprovacoesHoje }]),
   ];
 }
