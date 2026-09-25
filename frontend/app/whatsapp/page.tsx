@@ -12,6 +12,7 @@ import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/wha
 
 interface Conversa {
   id: string;
+  finalizada_em?: string | null;
   contato_numero: string;
   contato_nome?: string | null;
   lead_id?: string | null;
@@ -75,7 +76,7 @@ interface EmpresaResumo {
 }
 
 // Abas da lista: Minhas / Sem dono (pool da empresa) / Todas (gestão).
-type AbaConversas = 'minhas' | 'pool' | 'todas';
+type AbaConversas = 'minhas' | 'pool' | 'todas' | 'finalizadas';
 
 interface PainelConversa {
   cliente: {
@@ -246,7 +247,9 @@ export default function WhatsappPage() {
     try {
       // No modo supervisão (gestão), ignora a instância e traz as conversas de todos.
       // Aba "Sem dono": conversas do pool do WhatsApp da empresa.
-      const res = aba === 'todas'
+      const res = aba === 'finalizadas'
+        ? await apiClient.getWhatsappConversas(undefined, ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'DIRETOR'].includes(((user as any)?.role || '').toUpperCase()) ? 'todos' : undefined, undefined, true)
+        : aba === 'todas'
         ? await apiClient.getWhatsappConversas(undefined, 'todos')
         : aba === 'pool'
           ? await apiClient.getWhatsappConversas(undefined, 'pool')
@@ -259,7 +262,7 @@ export default function WhatsappPage() {
         return nova ? { ...prev, ...nova } : prev;
       });
     } catch (e) { console.error(e); }
-  }, [instAtivaId, aba]);
+  }, [instAtivaId, aba, user]);
 
   useEffect(() => {
     if (status === 'CONECTADO') carregarConversas();
@@ -286,6 +289,17 @@ export default function WhatsappPage() {
 
   // Assume a conversa sem dono aberta (atômico no backend: 409 se alguém
   // assumiu antes).
+  const finalizarOuReabrir = async (c: Conversa) => {
+    try {
+      if (c.finalizada_em) await apiClient.reabrirConversaWhatsapp(c.id);
+      else await apiClient.finalizarConversaWhatsapp(c.id);
+      setConversas(prev => prev.filter(x => x.id !== c.id));
+      setAtiva(null);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Não foi possível atualizar a conversa.');
+    }
+  };
+
   const assumirConversa = async (c: Conversa) => {
     setAssumindo(true);
     try {
@@ -814,6 +828,7 @@ export default function WhatsappPage() {
                   { id: 'minhas' as AbaConversas, nome: '👤 Minhas' },
                   { id: 'pool' as AbaConversas, nome: '📥 Sem dono' },
                   ...(podeTransferir ? [{ id: 'todas' as AbaConversas, nome: '👁️ Todas' }] : []),
+                  { id: 'finalizadas' as AbaConversas, nome: '✅ Finalizadas' },
                 ]).map(t => (
                   <button key={t.id} onClick={() => { setAba(t.id); setAtiva(null); }}
                     className={`px-3 py-1.5 text-sm font-medium ${aba === t.id ? 'text-white' : 'text-gray-600 bg-white'}`}
@@ -1050,6 +1065,13 @@ export default function WhatsappPage() {
                         {assumindo ? 'Assumindo…' : '✋ Assumir'}
                       </button>
                     )}
+                    {/* Finalizar atendimento (sai das listas; volta se o contato escrever) / Reabrir. */}
+                    <button onClick={() => finalizarOuReabrir(ativa)}
+                      title={ativa.finalizada_em ? 'Voltar a conversa para a lista' : 'Atendimento resolvido: tira a conversa da lista. Se o contato escrever de novo, ela volta sozinha.'}
+                      className="text-[11px] font-bold rounded-lg px-2.5 py-1.5 border"
+                      style={ativa.finalizada_em ? { color: '#2E6EAB', borderColor: '#2E6EAB', background: '#fff' } : { color: '#fff', borderColor: '#475569', background: '#475569' }}>
+                      {ativa.finalizada_em ? '↩ Reabrir' : '✅ Finalizar'}
+                    </button>
                     {/* Prioridade da conversa */}
                     {(() => {
                       const prioAtiva = PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'));
