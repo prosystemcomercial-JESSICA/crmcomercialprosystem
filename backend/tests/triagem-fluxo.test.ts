@@ -83,6 +83,12 @@ describe('quero conhecer — caminho completo', () => {
     expect(textos(r.acoes)).toContain('Obrigado, Maria');
   });
 
+  it('com a Caroline ligada, a Bia avisa que a Caroline continua o atendimento', async () => {
+    const r = await avancarTriagem('NOME', { fluxo: 'conhecer', segmento: 'Farmácia' }, { texto: 'Maria' }, deps({ comCaroline: true }));
+    expect(r.desfecho).toBe('qualificado');
+    expect(textos(r.acoes)).toContain('A Caroline, da nossa equipe, já vai continuar');
+  });
+
   it('conversa que já estava no meio (cidade/CNPJ) continua funcionando', async () => {
     const d = deps();
     let r = await avancarTriagem('CIDADE', { fluxo: 'conhecer', segmento: 'Farmácia', nome: 'Maria' }, { texto: 'Vila Velha' }, d);

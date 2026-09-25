@@ -134,6 +134,27 @@ export async function importarLeads(prisma: PrismaClient, texto: string, abertur
   return { criados, ignorados: prev.length - criados };
 }
 
+/**
+ * Fim da triagem da Bia (lead qualificado): a conversa passa para a Caroline, que responde
+ * na próxima rodada (1 a 3 min). É contato que chegou sozinho: não conta no limite de primeiros contatos.
+ */
+export async function receberDaTriagem(prisma: PrismaClient, conversaId: string) {
+  if (await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS } }, select: { id: true } })) return;
+  const c = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { contato_numero: true, contato_nome: true, lead_id: true, bot_dados: true, dono_id: true } });
+  if (!c || c.dono_id) return;
+  const d: any = c.bot_dados || {};
+  const agora = new Date();
+  await prisma.sdrLead.create({
+    data: {
+      agente: 'caroline', conversaId, lead_id: c.lead_id, numero: c.contato_numero, nome: d.nome || c.contato_nome, segmento: d.segmento || null,
+      empresa: d.receita?.nome_fantasia || d.receita?.razao_social || null, campanha: 'WhatsApp (triagem da Bia)', status: 'CONVERSANDO',
+      ultima_lead_em: agora, primeiro_envio_em: null, criado_por: 'bia',
+    },
+  });
+  registrarAcaoAgente('bia', `passou ${d.nome || c.contato_nome || 'um lead'} para a Caroline`);
+  registrarAcaoAgente('caroline', `recebeu ${d.nome || c.contato_nome || 'um lead'} da Bia`);
+}
+
 // ── Regras da conversa ──────────────────────────────────────────────────────
 
 /** Uma pessoa assumiu depois que a Caroline pegou a conversa? (dono ou mensagem humana). */

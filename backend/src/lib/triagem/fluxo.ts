@@ -22,6 +22,8 @@ export type ResultadoPasso = { estado: EstadoTriagem; dados: DadosTriagem; acoes
 export type DepsTriagem = {
   consultarCnpj: (cnpj: string) => Promise<ConsultaCnpj>;
   temMaterial: (segmento: 'Padaria' | 'Farmácia') => boolean;
+  /** Caroline (SDR) ligada: ela continua a conversa depois da triagem (senão, a especialista retorna). */
+  comCaroline?: boolean;
   // IA Laya (opcional, ligada em Configurações): tenta entender texto livre que não
   // casou com nenhuma opção antes de repetir a pergunta. Devolve o id da opção ou null.
   classificar?: (pergunta: 'menu' | 'segmento', texto: string) => Promise<string | null>;
@@ -148,7 +150,9 @@ function escolhaDoMenu(estado: 'MENU' | 'MENU_CLIENTE', dados: DadosTriagem, esc
 
 function finalQualificado(dados: DadosTriagem, deps: DepsTriagem): ResultadoPasso {
   const nome = dados.nome ? `, ${dados.nome}` : '';
-  const acoes: Acao[] = [texto(`Obrigado${nome}! 🙌 Nossa especialista recebeu seu contato e vai retornar o mais breve possível.`)];
+  const acoes: Acao[] = [texto(deps.comCaroline
+    ? `Obrigado${nome}! 🙌 A Caroline, da nossa equipe, já vai continuar o seu atendimento por aqui.`
+    : `Obrigado${nome}! 🙌 Nossa especialista recebeu seu contato e vai retornar o mais breve possível.`)];
   if (dados.segmento && deps.temMaterial(dados.segmento)) {
     const onde = dados.segmento === 'Farmácia' ? 'farmácia' : 'padaria';
     acoes.push(texto(`Enquanto isso, aqui estão algumas ferramentas que temos para evoluir com você na sua ${onde}:`));

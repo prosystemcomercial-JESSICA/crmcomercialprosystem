@@ -174,7 +174,11 @@ async function executarPasso(
   if (!cfg.ativa) return;
   const { obterConfigIa } = await import('./assistente-config.service');
   const ia = await obterConfigIa(prisma);
+  const { obterConfigCaroline } = await import('./caroline.service');
+  const carol = await obterConfigCaroline(prisma);
+  const comCaroline = carol.ativa && (!carol.inicia_em || new Date() >= new Date(carol.inicia_em));
   const deps = {
+    comCaroline,
     consultarCnpj: (c: string) => consultarCnpj(c),
     temMaterial: (s: 'Padaria' | 'Farmácia') => !materialVazio(s === 'Farmácia' ? cfg.material.farmacia : cfg.material.padaria),
     // Laya na triagem: só quando ligada em Configurações (desligada por padrão até o treino).
@@ -205,8 +209,15 @@ async function executarPasso(
   // Fim da triagem: pergunta "É a sua empresa?" se o CNPJ (da triagem ou pendente) é de um cliente da base.
   if (fim) await perguntarClienteSeCasar(prisma, token, conversa.id).catch((e: any) => console.error('[CNPJ-CLIENTE] erro:', e?.message));
   // Lead qualificado (e não é cliente da base): oferece a demonstração com horários livres.
+  // Lead qualificado: com a Caroline ligada, ela continua (busca a dor e marca a demonstração);
+  // senão, a Bia oferece a demonstração com horários livres, como antes.
   if (fim && passo.desfecho === 'qualificado') {
-    const { oferecerDemo } = await import('./assistente-demo.service');
-    await oferecerDemo(prisma, token, conversa.id).catch((e: any) => console.error('[DEMO] oferta:', e?.message));
+    if (comCaroline) {
+      const { receberDaTriagem } = await import('./caroline.service');
+      await receberDaTriagem(prisma, conversa.id).catch((e: any) => console.error('[CAROLINE] triagem:', e?.message));
+    } else {
+      const { oferecerDemo } = await import('./assistente-demo.service');
+      await oferecerDemo(prisma, token, conversa.id).catch((e: any) => console.error('[DEMO] oferta:', e?.message));
+    }
   }
 }
