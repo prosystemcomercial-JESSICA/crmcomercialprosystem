@@ -1,0 +1,334 @@
+<title>CRM Assistente ProSystem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#f5f7f6; --papel:#ffffff; --tinta:#14211f; --suave:#4d5f5b; --linha:#d9e2df;
+  --acento:#0f766e; --acento-fundo:#e3f3f0; --ok:#15803d; --ok-fundo:#e6f4ea;
+  --novo:#1d4ed8; --novo-fundo:#e8eefc; --ia:#7c3aed; --ia-fundo:#f1ebfd; --alerta:#b45309; --alerta-fundo:#fdf2e3;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  color-scheme:dark; --bg:#0f1615; --papel:#16201e; --tinta:#e6efec; --suave:#9fb2ad; --linha:#26332f;
+  --acento:#2dd4bf; --acento-fundo:#12302b; --ok:#4ade80; --ok-fundo:#132b1c; --novo:#93b4ff; --novo-fundo:#17223d;
+  --ia:#c4a5ff; --ia-fundo:#261c3d; --alerta:#fbbf5a; --alerta-fundo:#33260f;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark; --bg:#0f1615; --papel:#16201e; --tinta:#e6efec; --suave:#9fb2ad; --linha:#26332f;
+  --acento:#2dd4bf; --acento-fundo:#12302b; --ok:#4ade80; --ok-fundo:#132b1c; --novo:#93b4ff; --novo-fundo:#17223d;
+  --ia:#c4a5ff; --ia-fundo:#261c3d; --alerta:#fbbf5a; --alerta-fundo:#33260f;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--tinta);font:17px/1.6 "Source Sans 3",system-ui,sans-serif;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:980px;margin:0 auto}
+h1,h2,h3{font-family:"Bricolage Grotesque","Source Sans 3",sans-serif;text-wrap:balance;line-height:1.15}
+h1{font-size:clamp(2rem,5vw,3.1rem);font-weight:800;margin:0}
+h2{font-size:1.65rem;font-weight:800;margin:0 0 .4em}
+h3{font-size:1.15rem;font-weight:600;margin:0}
+p{margin:.5em 0;max-width:68ch}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase}
+header.capa{padding-block:44px 28px;border-bottom:1px solid var(--linha);display:grid;gap:14px}
+.capa .mono{color:var(--acento)}
+.lead{font-size:1.2rem;color:var(--suave);max-width:62ch}
+.legenda{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:700;white-space:nowrap}
+.chip.ja{background:var(--ok-fundo);color:var(--ok)}
+.chip.novo{background:var(--novo-fundo);color:var(--novo)}
+.chip.ia{background:var(--ia-fundo);color:var(--ia)}
+.chip.cuidado{background:var(--alerta-fundo);color:var(--alerta)}
+nav.indice{margin-block:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+nav.indice a{display:block;padding:10px 12px;border:1px solid var(--linha);border-radius:8px;background:var(--papel);color:var(--tinta);text-decoration:none;font-weight:600}
+nav.indice a:hover,nav.indice a:focus-visible{border-color:var(--acento);outline:none}
+nav.indice small{display:block;color:var(--suave);font-weight:400}
+section{padding-block:34px;border-bottom:1px solid var(--linha)}
+section>.mono{color:var(--acento);display:block;margin-bottom:6px}
+.ideias{display:grid;gap:12px;margin-top:18px}
+.ideia{background:var(--papel);border:1px solid var(--linha);border-radius:10px;padding:16px 18px;display:grid;gap:6px}
+.ideia-topo{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}
+.ideia-topo h3{flex:1 1 260px}
+.ideia p{margin:0;color:var(--suave)}
+.ideia .ex{font-size:.93rem;background:var(--bg);border-radius:6px;padding:8px 10px;color:var(--tinta)}
+.ideia .ex b{color:var(--acento)}
+.fluxo{background:var(--papel);border:1px solid var(--linha);border-radius:10px;padding:14px;margin:16px 0 0;overflow-x:auto}
+.fluxo figcaption{font-weight:700;margin-bottom:8px}
+pre.mermaid{margin:0;background:transparent;min-width:560px}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+.tabela{overflow-x:auto;margin-top:14px;background:var(--papel);border:1px solid var(--linha);border-radius:10px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--linha);vertical-align:top}
+th{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--suave)}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.regras{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}
+.regra{border-left:3px solid var(--alerta);padding:4px 0 4px 12px}
+.regra b{display:block}
+.chat{display:grid;gap:6px;max-width:420px;margin-top:10px;font-size:.93rem}
+.msg{padding:8px 12px;border-radius:12px;max-width:85%}
+.msg.eu{justify-self:end;background:var(--acento-fundo)}
+.msg.crm{justify-self:start;background:var(--bg);border:1px solid var(--linha)}
+footer{padding-block:28px;color:var(--suave);font-size:.9rem}
+@media (max-width:520px){body{font-size:16px}}
+</style>
+
+<div class="wrap">
+<header class="capa">
+  <span class="mono">ProSystem · CRM Comercial · documento de ideias · 25/09/2026</span>
+  <h1>O CRM como assistente, dentro do WhatsApp</h1>
+  <p class="lead">Todas as ideias para o CRM trabalhar junto com a equipe: responder dúvidas de clientes, levar o lead até o contrato, avisar a gestão do que importa e deixar o WhatsApp da empresa rendendo 24 horas. Cada ideia mostra o que já existe, o que é novo e como funciona o fluxo.</p>
+  <div class="legenda">
+    <span class="chip ja">✓ Já existe no CRM</span>
+    <span class="chip novo">＋ Novo</span>
+    <span class="chip ia">◆ Usa IA</span>
+    <span class="chip cuidado">! Exige cuidado</span>
+  </div>
+</header>
+
+<nav class="indice" aria-label="Índice">
+  <a href="#base">Onde estamos hoje<small>o que o CRM já faz</small></a>
+  <a href="#mapa">Mapa geral<small>quem fala com quem</small></a>
+  <a href="#lead">Para o lead<small>do "oi" ao contrato</small></a>
+  <a href="#cliente">Para o cliente da base<small>pós-venda e vendas adicionais</small></a>
+  <a href="#equipe">Para a equipe<small>copiloto da vendedora e da SDR</small></a>
+  <a href="#gestao">Para a gestão<small>comandos e alertas no celular</small></a>
+  <a href="#regras">Regras e limites<small>o que o assistente nunca faz</small></a>
+  <a href="#fases">Fases de entrega<small>ordem sugerida e esforço</small></a>
+</nav>
+
+<section id="base">
+  <span class="mono">Ponto de partida</span>
+  <h2>Onde estamos hoje</h2>
+  <p>Boa parte da estrutura já está no ar. As ideias abaixo aproveitam essas peças em vez de começar do zero.</p>
+  <div class="tabela"><table>
+    <thead><tr><th>Peça</th><th>O que faz hoje</th><th>Como vira assistente</th></tr></thead>
+    <tbody>
+      <tr><td>WhatsApp da empresa</td><td>Um número só; conversas sem dono vão para a fila; envia texto, botões, arquivos e vídeo</td><td>Canal de tudo: lead, cliente e equipe</td></tr>
+      <tr><td>Triagem automática</td><td>Pergunta se já é cliente, segmento, nome e CNPJ; marca o lead como Qualificado e toca o alarme</td><td>Porta de entrada do assistente do lead</td></tr>
+      <tr><td>Consulta de CNPJ</td><td>Traz razão social, endereço e sócios da Receita; confirma com o contato antes de vincular ao cliente</td><td>Preenche proposta e contrato sozinho</td></tr>
+      <tr><td>Material de farmácia e padaria</td><td>Texto comercial enviado ao fim da triagem</td><td>Base para respostas por segmento</td></tr>
+      <tr><td>Guia comercial (138 artigos da Universidade)</td><td>Planos e recursos organizados por dor do cliente</td><td>Conhecimento que o assistente usa para responder</td></tr>
+      <tr><td>IA Laya (aprendendo até 14/10)</td><td>Sugere segmento, intenção e risco de cancelamento em cada conversa</td><td>Decide para onde levar cada conversa</td></tr>
+      <tr><td>Painel da TV e resumos por e-mail</td><td>Números do dia e do ano; resumo executivo diário e semanal</td><td>Os mesmos números viram respostas no WhatsApp da gestão</td></tr>
+      <tr><td>Cadência de follow-up</td><td>Mensagens automáticas para leads aguardando retorno; pausa quando o lead responde</td><td>Base para o follow-up de proposta</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="mapa">
+  <span class="mono">Visão geral</span>
+  <h2>Mapa geral do assistente</h2>
+  <p>O assistente atende quatro públicos pelo mesmo número de WhatsApp da empresa. O CRM decide o que fazer pelo tipo de contato já identificado (lead, cliente, equipe, gestão) e pelo que a mensagem pede.</p>
+  <figure class="fluxo"><figcaption>Quem fala com quem</figcaption>
+<pre class="mermaid">
+flowchart LR
+  L[Lead novo] -->|mensagem| W((WhatsApp<br/>da empresa))
+  C[Cliente da base] -->|mensagem| W
+  E[Equipe: vendedora e SDR] -->|comando| W
+  G[Gestão: Jessica e Thiago] -->|comando| W
+  W --> R{CRM identifica<br/>quem é e o que quer}
+  R -->|lead| A1[Triagem, dúvidas,<br/>demo, proposta]
+  R -->|cliente| A2[Pós-venda, suporte,<br/>vendas adicionais]
+  R -->|equipe| A3[Buscar cliente, anotar,<br/>lembrar, sugerir resposta]
+  R -->|gestão| A4[Números do dia,<br/>alertas, aprovações]
+  A1 --> H[Pessoa da equipe<br/>assume quando precisa]
+  A2 --> H
+  K[(Guia comercial<br/>+ Laya + dados do CRM)] -.-> R
+</pre></figure>
+</section>
+
+<section id="lead">
+  <span class="mono">Público 1 · lead</span>
+  <h2>Para o lead: do primeiro "oi" ao contrato assinado</h2>
+  <p>Objetivo: nenhum lead esperando resposta, e a vendedora entrando quando a conversa já está madura.</p>
+
+  <div class="ideias">
+    <article class="ideia"><div class="ideia-topo"><h3>1. Triagem inteligente</h3><span class="chip ja">✓ Já existe</span><span class="chip ia">◆ Laya</span></div>
+      <p>Hoje a triagem segue botões. Com a Laya treinada, quando o lead escreve livre ("tenho uma padaria e quero trocar de sistema"), o bot entende segmento e intenção e pula as perguntas que o lead já respondeu.</p></article>
+
+    <article class="ideia"><div class="ideia-topo"><h3>2. Tira-dúvidas comercial 24 horas</h3><span class="chip novo">＋ Novo</span><span class="chip ia">◆ IA</span></div>
+      <p>Perguntas como "tem SNGPC?", "funciona com balança Toledo?" e "integra com iFood?" são respondidas na hora com o guia comercial, em tom de venda e respeitando o plano de cada recurso. Preço e desconto ficam sempre com a vendedora.</p>
+      <div class="ex"><b>Lead:</b> vocês têm controle de validade? <b>Assistente:</b> Temos sim! O Prosystem avisa no caixa quando o lote está perto de vencer e prioriza a venda dele, assim você perde menos produto. Quer agendar uma demonstração de 15 minutos com a nossa especialista?</div></article>
+
+    <article class="ideia"><div class="ideia-topo"><h3>3. Atendimento fora do horário</h3><span class="chip novo">＋ Novo</span></div>
+      <p>À noite e no fim de semana, o assistente atende, qualifica, tira dúvidas e deixa a demonstração marcada. De manhã, a fila mostra os leads prontos, cada um com resumo.</p></article>
+
+    <article class="ideia"><div class="ideia-topo"><h3>4. Demonstração marcada pelo próprio lead</h3><span class="chip novo">＋ Novo</span></div>
+      <p>Botões com os próximos horários livres da agenda. O lead escolhe, recebe a confirmação e um lembrete 2 horas antes com o link da reunião. Se faltar, o assistente oferece outro horário.</p></article>
+
+    <article class="ideia"><div class="ideia-topo"><h3>5. Proposta pelo WhatsApp com aceite por botão</h3><span class="chip ja">✓ Proposta com link</span><span class="chip novo">＋ Botões e PIX</span></div>
+      <p>A proposta chega como link com resumo. O CRM avisa a vendedora quando o lead abre. O lead aceita por botão e recebe a cobrança da entrada com o botão de PIX nativo do WhatsApp.</p></article>
+
+    <article class="ideia"><div class="ideia-topo"><h3>6. Follow-up de proposta</h3><span class="chip ja">✓ Cadência existe</span><span class="chip novo">＋ Ligada à proposta</span></div>
+      <p>Proposta enviada e sem resposta: lembrete no dia 2, um conteúdo útil do segmento no dia 5 e aviso de validade no dia 7. Se o lead continuar sem responder, a conversa aparece em "propostas paradas" para a vendedora. Nenhuma atividade é criada sozinha.</p></article>
+
+    <article class="ideia"><div class="ideia-topo"><h3>7. Documentos e contrato</h3><span class="chip novo">＋ Novo</span></div>
+      <p>Depois do aceite, o assistente pede os documentos que faltam, confirma e-mail e CPF do responsável e envia o link de assinatura. Cada item recebido marca um check no CRM.</p></article>
+
+    <article class="ideia"><div class="ideia-topo"><h3>8. Reativar leads antigos</h3><span class="chip novo">＋ Novo</span><span class="chip cuidado">! Volume controlado</span></div>
+      <p>Campanhas curtas para leads parados ou do quadro INATIVOS, por segmento ("Novidade para padarias: balança integrada no caixa"). Quem responde volta para a fila. Os leads antigos nunca são apagados.</p></article>
+  </div>
+
+  <figure class="fluxo"><figcaption>Jornada completa do lead</figcaption>
+<pre class="mermaid">
+flowchart TD
+  A[Lead manda mensagem] --> C[Triagem: cliente? segmento?<br/>nome? CNPJ?]
+  C --> D[CNPJ consultado na Receita]
+  D --> E[Material do segmento<br/>+ lead Qualificado + alarme]
+  E --> F{O lead pergunta<br/>alguma coisa?}
+  F -->|dúvida de recurso| G[Assistente responde<br/>com o guia comercial]
+  F -->|preço ou desconto| H[Vendedora assume]
+  F -->|não| I
+  G --> I[Assistente oferece demonstração]
+  I --> J[Lead escolhe horário<br/>nos botões]
+  J --> K[Lembrete 2h antes]
+  K --> L[Demonstração com a vendedora]
+  H --> L
+  L --> M[Proposta enviada<br/>pelo WhatsApp]
+  M --> N{Aceitou?}
+  N -->|sem resposta| O[Follow-up dia 2, 5 e 7]
+  O -->|ainda sem resposta| P2[Aparece em propostas paradas]
+  O --> N
+  N -->|sim, pelo botão| P[PIX da entrada<br/>+ pedido de documentos]
+  P --> Q[Link de assinatura]
+  Q --> R[Contrato assinado:<br/>segue para implantação]
+</pre></figure>
+
+  <figure class="fluxo"><figcaption>Como o tira-dúvidas decide o que responder</figcaption>
+<pre class="mermaid">
+flowchart TD
+  A[Pergunta do lead] --> B[Laya: intenção e segmento]
+  B --> C{Sobre o que é?}
+  C -->|recurso do sistema| D[Busca no guia comercial]
+  D --> E{Achou resposta<br/>com segurança?}
+  E -->|sim| F[Responde em tom comercial<br/>+ convite para demo]
+  E -->|não| G[Avisa que a especialista<br/>vai responder e chama a vendedora]
+  C -->|preço, desconto,<br/>contrato, reclamação| G
+  C -->|suporte ou financeiro| I[Encaminha ao setor<br/>e tira do funil]
+  F --> J[Grava pergunta e resposta<br/>para revisão da gestão]
+</pre></figure>
+</section>
+
+<section id="cliente">
+  <span class="mono">Público 2 · cliente da base</span>
+  <h2>Para o cliente da base: pós-venda e vendas adicionais</h2>
+  <p>Objetivo: o cliente se sentir acompanhado depois da venda e comprar mais, sem a equipe precisar lembrar de cada um.</p>
+  <div class="ideias">
+    <article class="ideia"><div class="ideia-topo"><h3>9. Boas-vindas e implantação</h3><span class="chip novo">＋ Novo</span></div>
+      <p>O contrato assinado dispara as boas-vindas, o agendamento da instalação com botões de data e o aviso do técnico no dia. Ao terminar, o cliente recebe os links de treinamento da Universidade.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>10. Pesquisa de satisfação em um toque</h3><span class="chip novo">＋ Novo</span></div>
+      <p>30 dias depois da implantação, o cliente dá uma nota de 0 a 10 por botão. Nota baixa vira alerta para a gestão na hora. Nota alta pede uma indicação.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>11. Vendas adicionais pelo que o cliente pede</h3><span class="chip novo">＋ Novo</span><span class="chip ia">◆ IA</span></div>
+      <p>O CRM cruza o plano do cliente com o que ele pede na conversa. Uma farmácia no Farma Basic que pergunta sobre PBM recebe a oferta do Farma Pro. Uma padaria sem balança integrada recebe o material da balança. Tudo alimenta o card de vendas adicionais da TV.</p>
+      <div class="ex"><b>Gatilho:</b> cliente Loja Basic comenta que quer contar o estoque pelo celular. <b>Ação:</b> sugestão para a vendedora "Oferecer ContEstoque + upgrade para o Loja Pro", com o texto pronto para enviar.</div></article>
+    <article class="ideia"><div class="ideia-topo"><h3>12. Alerta de risco de cancelamento</h3><span class="chip ja">✓ Laya detecta</span><span class="chip novo">＋ Aviso na hora</span></div>
+      <p>Quando a Laya vê algo como "vou trocar de sistema" ou "está caro", a gestão recebe no WhatsApp o nome do cliente, a frase e o link da conversa. A conversa ganha prioridade crítica.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>13. Novidades da versão</h3><span class="chip novo">＋ Novo</span><span class="chip cuidado">! Só para quem aceitou</span></div>
+      <p>Quando sai versão nova, os clientes que aceitaram receber recebem as novidades do seu segmento em linguagem simples, como "e-Pharma agora integrado por API".</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>14. Suporte e financeiro no lugar certo</h3><span class="chip ja">✓ Triagem já separa</span></div>
+      <p>O cliente que pede segunda via de boleto ou relata erro no sistema vai para o setor certo, com resumo, e não entra no funil de vendas.</p></article>
+  </div>
+  <figure class="fluxo"><figcaption>Venda adicional e risco de cancelamento</figcaption>
+<pre class="mermaid">
+flowchart TD
+  A[Cliente manda mensagem] --> B[Laya analisa a conversa]
+  B --> C{Risco de<br/>cancelar?}
+  C -->|sim| D[Alerta no WhatsApp da gestão<br/>+ prioridade crítica]
+  C -->|não| E{Pediu algo que outro<br/>plano ou produto resolve?}
+  E -->|sim| F[Sugestão de venda adicional<br/>com texto pronto para a vendedora]
+  F --> G{Vendedora envia?}
+  G -->|sim| H[Registro em vendas adicionais<br/>e no painel da TV]
+  E -->|não| I[Atendimento normal]
+  D --> J[Gestão liga ou assume a conversa]
+</pre></figure>
+</section>
+
+<section id="equipe">
+  <span class="mono">Público 3 · equipe</span>
+  <h2>Para a equipe: copiloto da vendedora e da SDR</h2>
+  <p>Objetivo: menos digitação, respostas melhores e nada esquecido.</p>
+  <div class="ideias">
+    <article class="ideia"><div class="ideia-topo"><h3>15. Resumo da conversa ao abrir</h3><span class="chip novo">＋ Novo</span><span class="chip ia">◆ IA</span></div>
+      <p>Três linhas no topo: quem é, o que já foi falado e o que falta. Ajuda quando a conversa volta depois de dias ou é transferida.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>16. Sugerir resposta</h3><span class="chip novo">＋ Novo</span><span class="chip ia">◆ IA</span></div>
+      <p>Um botão ao lado do campo de texto escreve a resposta usando o guia comercial e a conversa. A vendedora edita e envia; nada sai sozinho. Funciona bem para objeções como "já tenho sistema" e "está caro".</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>17. Áudio vira texto e anotação</h3><span class="chip novo">＋ Novo</span><span class="chip ia">◆ IA</span></div>
+      <p>Áudios de clientes aparecem transcritos na conversa. A vendedora também grava um áudio para o CRM ("liguei para a padaria Pão Quente, pediram proposta para 2 caixas") e ele vira nota no lead.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>18. Próxima melhor ação</h3><span class="chip novo">＋ Novo</span></div>
+      <p>No topo da fila, uma lista do que fazer agora: leads quentes sem resposta, propostas que o cliente abriu ontem, SLA perto de estourar. É uma sugestão na tela e não cria atividade.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>19. Atividade lançada por mensagem</h3><span class="chip novo">＋ Novo</span></div>
+      <p>A gestora escreve no WhatsApp "Ana, ligar para Farmácia Rangel até amanhã 10h" e o CRM monta a atividade com responsável e SLA, esperando o "Confirmar". O lançamento continua manual, só fica mais rápido.</p></article>
+  </div>
+</section>
+
+<section id="gestao">
+  <span class="mono">Público 4 · gestão</span>
+  <h2>Para a gestão: o CRM respondendo no celular</h2>
+  <p>Objetivo: Jessica e Thiago perguntarem ao CRM pelo WhatsApp e receberem só os avisos que importam.</p>
+  <div class="ideias">
+    <article class="ideia"><div class="ideia-topo"><h3>20. Perguntas ao CRM pelo WhatsApp</h3><span class="chip novo">＋ Novo</span></div>
+      <p>Só os números cadastrados da gestão podem usar. As respostas trazem os mesmos dados do painel da TV. Exemplo de conversa (números ilustrativos):</p>
+      <div class="chat" aria-label="Exemplo de conversa com números ilustrativos">
+        <div class="msg eu">como está hoje?</div>
+        <div class="msg crm">Hoje: 6 leads novos (5 pelo WhatsApp), 2 qualificados, 1 contrato. 1 conversa sem resposta há 3h.</div>
+        <div class="msg eu">cliente 381</div>
+        <div class="msg crm">#381 Padaria Pão Quente · Loja Pro · R$ 330/mês · cliente há 2 anos · última conversa ontem.</div>
+        <div class="msg eu">propostas paradas</div>
+        <div class="msg crm">2 propostas sem resposta há 7+ dias: Farmácia Vida (R$ 1.500) e Mercado Bom Preço (R$ 900).</div>
+      </div></article>
+    <article class="ideia"><div class="ideia-topo"><h3>21. Avisos que importam</h3><span class="chip ja">✓ Alarme de qualificado</span><span class="chip novo">＋ No celular</span></div>
+      <p>Lead qualificado, cliente com risco de cancelar, SLA de conversa estourado, proposta aceita e nota baixa na pesquisa. Cada pessoa escolhe quais avisos quer receber.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>22. Resumos também no WhatsApp</h3><span class="chip ja">✓ Por e-mail</span><span class="chip novo">＋ Versão curta</span></div>
+      <p>O resumo executivo das 18h chega em versão curta no WhatsApp do Thiago, com o e-mail completo como referência. Na sexta, vem a eficiência da equipe na semana.</p></article>
+    <article class="ideia"><div class="ideia-topo"><h3>23. Aprovar desconto pelo celular</h3><span class="chip novo">＋ Novo</span></div>
+      <p>A vendedora pede um desconto acima do limite e a gestão recebe os botões "Aprovar" e "Recusar" com o resumo da proposta. A resposta volta direto para a proposta.</p></article>
+  </div>
+  <figure class="fluxo"><figcaption>Comando da gestão pelo WhatsApp</figcaption>
+<pre class="mermaid">
+sequenceDiagram
+  participant G as Jessica (celular)
+  participant W as WhatsApp da empresa
+  participant C as CRM
+  G->>W: "propostas paradas"
+  W->>C: mensagem de número da gestão
+  C->>C: confere se o número é autorizado
+  C->>C: busca propostas sem resposta há 7+ dias
+  C-->>W: lista curta com valores
+  W-->>G: resposta em segundos
+  G->>W: "lembrar Ana de ligar pra Farmácia Vida amanhã 10h"
+  C-->>G: atividade montada · [Confirmar] [Cancelar]
+  G->>W: Confirmar
+  C->>C: cria a atividade com SLA para a Ana
+</pre></figure>
+</section>
+
+<section id="regras">
+  <span class="mono">Limites</span>
+  <h2>Regras e limites do assistente</h2>
+  <p>Valem para todas as ideias e protegem o número da empresa, os clientes e a equipe.</p>
+  <div class="regras">
+    <div class="regra"><b>Pessoas decidem preço e contrato</b>O assistente nunca dá desconto, valor final ou prazo de contrato. Chama a vendedora.</div>
+    <div class="regra"><b>Nenhuma atividade automática</b>O CRM sugere e mostra. A atividade só existe quando alguém confirma.</div>
+    <div class="regra"><b>Proteger o número</b>Campanhas com poucos contatos por hora, só para quem já conversou com a empresa, e sempre com a opção de parar de receber.</div>
+    <div class="regra"><b>Conversa pessoal fica de fora</b>Contatos marcados como Equipe, Parceiro, Fornecedor ou pessoais não recebem nada automático.</div>
+    <div class="regra"><b>LGPD</b>Dados de cliente só vão para a própria pessoa ou para números autorizados da gestão.</div>
+    <div class="regra"><b>Sempre dá para falar com alguém</b>Em qualquer ponto, "falar com atendente" passa a conversa para a fila na hora.</div>
+    <div class="regra"><b>Registro de tudo</b>Toda resposta automática fica na conversa, marcada como do assistente, para revisão.</div>
+    <div class="regra"><b>IA de texto precisa de aprovação</b>As ideias com ◆ que escrevem texto (resumo, sugestão, tira-dúvidas) usam uma IA externa, como Gemini ou Groq. O custo mensal é baixo, mas o texto das conversas vai para esse serviço.</div>
+  </div>
+</section>
+
+<section id="fases">
+  <span class="mono">Plano</span>
+  <h2>Fases de entrega</h2>
+  <p>Ordem sugerida: primeiro o que traz venda mais rápido e não depende de IA externa. O esforço é uma estimativa em dias de trabalho.</p>
+  <div class="tabela"><table>
+    <thead><tr><th>Fase</th><th>Ideias</th><th>Por que nessa ordem</th><th>Esforço</th></tr></thead>
+    <tbody>
+      <tr><td><b>1 · Agora</b></td><td>4 Demo marcada pelo lead · 5 Proposta com botão e PIX · 6 Follow-up de proposta · 21 Avisos no celular · 20 Perguntas ao CRM</td><td>Encurta o caminho até o contrato usando peças que já existem</td><td class="num">5 a 7 dias</td></tr>
+      <tr><td><b>2 · Depois do treino da Laya (14/10)</b></td><td>1 Triagem inteligente · 12 Risco de cancelamento · 18 Próxima melhor ação · 19 Atividade por mensagem</td><td>Depende das etiquetas treinadas</td><td class="num">4 a 6 dias</td></tr>
+      <tr><td><b>3 · Com IA de texto aprovada</b></td><td>2 Tira-dúvidas 24h · 3 Fora do horário · 15 Resumo · 16 Sugerir resposta · 17 Áudio para texto · 11 Vendas adicionais</td><td>Maior ganho de tempo, mas precisa da decisão sobre a IA externa</td><td class="num">7 a 10 dias</td></tr>
+      <tr><td><b>4 · Pós-venda</b></td><td>9 Boas-vindas · 10 Pesquisa · 7 Documentos e contrato · 13 Novidades · 22 Resumo no WhatsApp · 23 Aprovar desconto · 8 Reativar leads</td><td>Retenção e base, com a operação de vendas já rodando</td><td class="num">6 a 8 dias</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:16px"><b>Decisões pendentes:</b> aprovar a Fase 1, e dizer se a IA de texto da Fase 3 pode receber o texto das conversas.</p>
+</section>
+
+<footer>Documento de ideias do CRM Comercial ProSystem. Os itens marcados "Já existe" estão em produção em comercial.prosystemnet.com.</footer>
+</div>
