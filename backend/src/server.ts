@@ -375,7 +375,10 @@ async function iniciarSchedulerAssistente() {
       // Pesquisa semanal da Sofia (segunda a partir das 8h; ela mesma confere o dia).
       const { rodarPesquisaSemanal } = await import('./services/sofia-pesquisa.service.js');
       await rodarPesquisaSemanal(prismaClient!, agora).catch((e: any) => console.error('[SOFIA]', e?.message));
-      const dia = diaDaSemanaSP(agora);
+      // Cópia diária do Caderno da Laya (uma vez por dia, no primeiro ciclo).
+      const { salvarCopiaDiaria } = await import('./services/laya-caderno.service.js');
+      await salvarCopiaDiaria(prismaClient!, agora).catch((e: any) => console.error('[LAYA] caderno:', e?.message));
+      const dia =diaDaSemanaSP(agora);
       const hora = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
       if (dia === 0 || dia === 6 || hora < 8 || hora >= 19) return;
       const { avisarSlaEstourado } = await import('./services/assistente-gestao.service.js');
