@@ -1169,6 +1169,9 @@ class ApiClient {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
   // Escritório virtual (estado dos agentes do assistente).
+  async getHistoricoAgente(id: string) {
+    return this.client.get(`/assistente/escritorio/agentes/${id}/historico`);
+  }
   async getEscritorio() {
     return this.client.get('/assistente/escritorio');
   }

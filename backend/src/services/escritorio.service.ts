@@ -14,6 +14,29 @@ export type EstadoAgente = {
 
 const nomeContato = (c: { contato_nome: string | null; contato_numero: string } | null | undefined) => (c?.contato_nome || c?.contato_numero || 'contato');
 
+/** Últimas ações de um agente (para o painel "Ver trabalho"). Somente leitura. */
+export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promise<{ texto: string; em: string }[]> {
+  const msgs = async (remetente: string, verbo: string) => (await prisma.whatsappMensagem.findMany({
+    where: { direcao: 'SAIDA', enviada_por: remetente }, orderBy: { created_at: 'desc' }, take: 10,
+    select: { created_at: true, conteudo: true, conversa: { select: { contato_nome: true, contato_numero: true } } },
+  })).map(m => ({ texto: `${verbo} ${nomeContato(m.conversa)}: "${(m.conteudo || '').replace(/\s+/g, ' ').slice(0, 90)}"`, em: m.created_at.toISOString() }));
+  switch (id) {
+    case 'bia': return msgs('bot', 'Respondeu');
+    case 'clarice': return msgs('assistente_ia', 'Tirou dúvida de');
+    case 'luiz_felipe': return msgs('cadencia_automatica', 'Follow-up com');
+    case 'lurdinha': return (await prisma.atividade.findMany({ where: { created_by: 'lead_whatsapp' }, orderBy: { created_at: 'desc' }, take: 10, select: { titulo: true, data_prevista: true, created_at: true, status: true } }))
+      .map(a => ({ texto: `${a.titulo.replace(/^Demonstração Prosystem · /, 'Demo com ')} para ${a.data_prevista?.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} (${a.status.toLowerCase()})`, em: a.created_at.toISOString() }));
+    case 'zequinha': return (await prisma.campanhaEnvio.findMany({ where: { status: { in: ['ENVIADO', 'FALHA'] } }, orderBy: { enviado_em: 'desc' }, take: 10, select: { nome: true, numero: true, status: true, enviado_em: true, campanha: { select: { nome: true } } } }))
+      .map(e => ({ texto: `${e.status === 'ENVIADO' ? 'Enviou' : 'Falhou'} "${e.campanha.nome}" para ${e.nome || e.numero}`, em: (e.enviado_em || new Date()).toISOString() }));
+    case 'helena': return (await prisma.propostaComercial.findMany({ where: { OR: [{ wpp_boasvindas_em: { not: null } }, { wpp_pesquisa_em: { not: null } }] }, orderBy: { updated_at: 'desc' }, take: 10, select: { nome_fantasia: true, razao_social: true, wpp_boasvindas_em: true, wpp_pesquisa_em: true, wpp_pesquisa_nota: true } }))
+      .map(p => ({ texto: `${(p.nome_fantasia || p.razao_social || 'Cliente').trim()}: ${p.wpp_pesquisa_em ? `pesquisa enviada${p.wpp_pesquisa_nota ? ` (nota ${p.wpp_pesquisa_nota === 3 ? 'ótima' : p.wpp_pesquisa_nota === 2 ? 'regular' : 'ruim'})` : ''}` : 'boas-vindas enviadas'}`, em: (p.wpp_pesquisa_em || p.wpp_boasvindas_em)!.toISOString() }));
+    case 'laya': return (await prisma.whatsappConversa.findMany({ where: { ia_sugerido_em: { not: null } }, orderBy: { ia_sugerido_em: 'desc' }, take: 10, select: { contato_nome: true, contato_numero: true, ia_sugestao: true, ia_sugerido_em: true } }))
+      .map(c => { const s: any = c.ia_sugestao || {}; return { texto: `${nomeContato(c)}: ${s.segmento || '?'} · ${s.intencao || '?'}${Number(s.cancelar) >= 0.5 ? ' · risco de cancelar' : ''}`, em: c.ia_sugerido_em!.toISOString() }; });
+    case 'marta': { const a = acaoRegistrada('marta'); return a ? [{ texto: a.texto, em: a.em.toISOString() }] : []; }
+    default: return [];
+  }
+}
+
 export async function montarEscritorio(prisma: PrismaClient, agora = new Date()): Promise<EstadoAgente[]> {
   const { inicioHoje, fimHoje } = limitesPeriodo(agora);
   const hoje = { gte: inicioHoje, lt: fimHoje };

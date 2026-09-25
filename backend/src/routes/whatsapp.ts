@@ -697,6 +697,14 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { agentes: cacheEscritorio.dados, gerado_em: new Date(cacheEscritorio.em).toISOString() } });
   });
 
+  fastify.get('/assistente/escritorio/agentes/:id/historico', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { AGENTES } = await import('@/lib/assistente/escritorio');
+    if (!AGENTES.some(a => a.id === id)) return reply.status(404).send({ status: 'error', message: 'Agente não encontrado' });
+    const { historicoAgente } = await import('@/services/escritorio.service');
+    return reply.send({ status: 'success', data: await historicoAgente(prisma, id as any) });
+  });
+
   // ===== ASSISTENTE: campanhas pelo WhatsApp (só gestão) =====
   const FiltroCampanhaZ = z.object({
     publico: z.enum(['CLIENTES', 'LEADS_PARADOS']), segmento: z.string().max(60).optional().nullable(),
