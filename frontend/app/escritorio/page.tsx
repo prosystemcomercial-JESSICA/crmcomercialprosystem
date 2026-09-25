@@ -100,7 +100,7 @@ export default function EscritorioPage() {
 
   return (
     <DashboardLayout>
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '4px 0 40px', display: 'grid', gap: 16 }}>
+      <div style={{ padding: '0 0 24px', display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Escritório virtual</h1>
@@ -126,7 +126,7 @@ export default function EscritorioPage() {
         {erro && <p style={{ color: '#dc2626', fontSize: 13 }}>Não foi possível carregar o escritório agora. Tentando de novo em 30 segundos.</p>}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
-          <div style={{ background: 'linear-gradient(180deg, #dbe7f3 0%, #eef3f8 100%)', borderRadius: 16, border: '1px solid var(--t-card-border)', padding: '8px 8px 0', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(180deg, #dbe7f3 0%, #eef3f8 100%)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: 0, overflow: 'hidden' }}>
             {mostrar ? <SalaIsometrica agentes={mostrar} selecionado={sel} onSelecionar={setSel} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
           </div>
 
