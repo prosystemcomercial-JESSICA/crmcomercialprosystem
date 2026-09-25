@@ -55,6 +55,7 @@ export const AJUDA = [
   '• *semana*: resumo da semana',
   '• *propostas paradas*: propostas sem resposta há 7+ dias',
   '• *cliente 381* ou *cliente padaria pão*: dados do cliente',
+  '• *tarefa Ana ligar para Farmácia Rangel amanhã 10h*: lança uma atividade (você confirma antes)',
 ].join('\n');
 
 const brl = (n: number | null | undefined) => n == null ? '—' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });

@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { PERGUNTAS_LAYA, TIPOS_SEM_IA, montarEstadoConversa, lerRespostaLaya } from '../lib/laya';
+import { PERGUNTAS_LAYA, PERGUNTAS_TRIAGEM, TIPOS_SEM_IA, montarEstadoConversa, lerRespostaLaya, lerEscolhaTriagem } from '../lib/laya';
 import { emitirEventoConversa } from './whatsapp-eventos.service';
 
 // Serviço Laya local (pm2 "laya", só escuta em 127.0.0.1). Se estiver fora do ar,
@@ -36,14 +36,34 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
   const sugestao = lerRespostaLaya(await res.json());
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ia_sugestao: sugestao, ia_sugerido_em: new Date() } });
   emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
-  // Cliente da base passou a indicar risco de cancelamento: avisa a gestão (uma vez, na virada).
-  // Limite alto (0,8) enquanto a Laya não é treinada: sem treino ela confunde "boleto" com cancelar.
+  // Passou a indicar risco de cancelamento: avisa a gestão (uma vez, na virada).
+  // Limite e público vêm de Configurações; padrão 0,8 e só clientes da base enquanto
+  // a Laya não é treinada (sem treino ela confunde "boleto" com cancelar).
+  const { obterConfigIa } = await import('./assistente-config.service');
+  const ia = await obterConfigIa(prisma);
   const antes = Number((conversa.ia_sugestao as any)?.cancelar ?? 0);
-  if (conversa.tipo_contato === 'CLIENTE' && sugestao.cancelar >= 0.8 && antes < 0.8) {
+  const publicoOk = ia.risco_so_clientes ? conversa.tipo_contato === 'CLIENTE' : true;
+  if (publicoOk && sugestao.cancelar >= ia.risco_limite && antes < ia.risco_limite) {
     const { enviarAvisoGestao } = await import('./assistente-gestao.service');
     const ultima = estado.split('\n').filter(l => l.startsWith('Cliente:')).pop()?.slice(9, 160) || '';
     await enviarAvisoGestao(prisma, 'risco_cancelar',
       `🚨 *Risco de cancelamento* (IA Laya)\n${conversa.contato_nome || conversa.contato_numero}: "${ultima}"`);
+  }
+}
+
+/** Triagem: classifica um texto livre na hora (até 20 s). null se a Laya falhar ou não tiver certeza. */
+export async function classificarTriagem(pergunta: 'menu' | 'segmento', texto: string, confiancaMin: number): Promise<string | null> {
+  try {
+    const res = await fetch(`${LAYA_URL}/v1/systemone`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: `Cliente: ${texto.slice(0, 500)}`, questions: { q: PERGUNTAS_TRIAGEM[pergunta] }, model: 'multilingual' }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return null;
+    return lerEscolhaTriagem(await res.json(), confiancaMin);
+  } catch (e: any) {
+    console.warn(`[LAYA] triagem (${pergunta}) falhou: ${e?.message || e}`);
+    return null;
   }
 }
 

@@ -172,9 +172,18 @@ async function executarPasso(
 ) {
   const cfg = await obterConfigTriagem(prisma);
   if (!cfg.ativa) return;
+  const { obterConfigIa } = await import('./assistente-config.service');
+  const ia = await obterConfigIa(prisma);
   const deps = {
     consultarCnpj: (c: string) => consultarCnpj(c),
     temMaterial: (s: 'Padaria' | 'Farmácia') => !materialVazio(s === 'Farmácia' ? cfg.material.farmacia : cfg.material.padaria),
+    // Laya na triagem: só quando ligada em Configurações (desligada por padrão até o treino).
+    ...(ia.laya_triagem ? {
+      classificar: async (pergunta: 'menu' | 'segmento', texto: string) => {
+        const { classificarTriagem } = await import('./laya.service');
+        return classificarTriagem(pergunta, texto, ia.laya_confianca);
+      },
+    } : {}),
   };
   const inicio = 'inicio' in entrada;
   const passo = 'inicio' in entrada
