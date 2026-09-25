@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { elegivelBoasVindas, elegivelPesquisa, lerBotaoPesquisa, menuPesquisa, textoBoasVindas } from '../src/lib/assistente/posvenda';
-import { numeroWhatsapp, montarPublico, textoPersonalizado, ehPedidoDeSaida, RODAPE_SAIR } from '../src/lib/assistente/campanhas';
+import { numeroWhatsapp, telefonesDoCliente, montarPublico, textoPersonalizado, ehPedidoDeSaida, RODAPE_SAIR } from '../src/lib/assistente/campanhas';
 
 const agora = new Date('2026-09-25T12:00:00Z');
 const desde = new Date('2026-09-20T00:00:00Z');
@@ -60,5 +60,16 @@ describe('campanhas', () => {
     expect(ehPedidoDeSaida('SAIR')).toBe(true);
     expect(ehPedidoDeSaida('não quero mais')).toBe(true);
     expect(ehPedidoDeSaida('vou sair mais cedo hoje')).toBe(false);
+  });
+});
+
+describe('telefonesDoCliente', () => {
+  it('junta o DDD do campo separado e põe celulares primeiro', () => {
+    const t = telefonesDoCliente({ ddd: '27', telefone: '35372064', tel_contato: '999969578', tel_contato2: '(28) 99919-8819' });
+    expect(t).toEqual(['27999969578', '28999198819', '2735372064']);
+    expect(t.map(numeroWhatsapp).filter(Boolean)).toEqual(['5527999969578', '5528999198819']);
+  });
+  it('sem DDD mantém como está', () => {
+    expect(telefonesDoCliente({ telefone: '991764161' })).toEqual(['991764161']);
   });
 });

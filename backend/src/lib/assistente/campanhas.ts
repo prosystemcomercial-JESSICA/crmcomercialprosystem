@@ -16,6 +16,15 @@ export function numeroWhatsapp(tel: string | null | undefined): string | null {
   return null;
 }
 
+/** Telefones do cadastro do cliente com o DDD do campo separado (celulares primeiro). */
+export function telefonesDoCliente(c: { ddd?: string | null; telefone?: string | null; telefone1?: string | null; telefone2?: string | null; tel_contato?: string | null; tel_contato2?: string | null }): string[] {
+  const ddd = (c.ddd || '').replace(/\D/g, '').slice(-2);
+  return [c.tel_contato, c.tel_contato2, c.telefone2, c.telefone1, c.telefone]
+    .map(t => (t || '').replace(/\D/g, ''))
+    .filter(Boolean)
+    .map(d => (ddd.length === 2 && (d.length === 8 || d.length === 9) ? ddd + d : d));
+}
+
 export const ultimos8 = (n: string) => n.replace(/\D/g, '').slice(-8);
 
 /** Lista final: só celulares, sem repetidos e sem quem pediu para sair. */

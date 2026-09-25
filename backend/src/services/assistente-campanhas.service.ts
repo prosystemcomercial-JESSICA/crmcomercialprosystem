@@ -3,7 +3,7 @@ import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { garantirConversa, registrarSaida } from './assistente-posvenda.service';
 import {
-  montarPublico, textoPersonalizado, ehPedidoDeSaida, ultimos8, ENVIOS_POR_RODADA, type Publico,
+  montarPublico, telefonesDoCliente, textoPersonalizado, ehPedidoDeSaida, ultimos8, ENVIOS_POR_RODADA, type Publico,
 } from '@/lib/assistente/campanhas';
 
 // Campanhas pelo WhatsApp (Fase 4): a gestão escolhe o público e o texto; a fila
@@ -17,10 +17,10 @@ export type FiltroCampanha = { publico: Publico; segmento?: string | null; dias_
 async function contatosDoPublico(prisma: PrismaClient, f: FiltroCampanha) {
   const seg = (f.segmento || '').trim();
   if (f.publico === 'CLIENTES') {
-    // Clientes ativos. O telefone do cadastro costuma estar sem DDD, então as melhores
-    // fontes vêm primeiro: contatos do cliente (têm nome) e conversas de WhatsApp vinculadas.
+    // Clientes ativos: contatos do cliente (têm nome), conversas vinculadas e os telefones
+    // do cadastro com o DDD, que fica num campo separado (ddd + tel_contato/telefone...).
     const whereCli = { situacao: 'ATIVA', ...(seg ? { segmento: { contains: seg } } : {}) };
-    const cs = await prisma.cliente.findMany({ where: whereCli, select: { id: true, telefone: true, nome_fantasia: true, razao_social: true, nome: true }, take: 5000 });
+    const cs = await prisma.cliente.findMany({ where: whereCli, select: { id: true, ddd: true, telefone: true, telefone1: true, telefone2: true, tel_contato: true, tel_contato2: true, nome_fantasia: true, razao_social: true, nome: true }, take: 5000 });
     const ids = cs.map(c => c.id);
     const rotulo = new Map(cs.map(c => [c.id, (c.nome_fantasia || c.razao_social || c.nome || '').trim()]));
     const contatos = await prisma.contatoCliente.findMany({ where: { cliente_id: { in: ids }, telefone: { not: null } }, select: { cliente_id: true, nome: true, telefone: true } });
@@ -28,7 +28,7 @@ async function contatosDoPublico(prisma: PrismaClient, f: FiltroCampanha) {
     return [
       ...contatos.map(c => ({ telefone: c.telefone, nome: c.nome as string | null, rotulo: rotulo.get(c.cliente_id) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const })),
       ...conversas.map(c => ({ telefone: c.contato_numero, nome: c.contato_nome as string | null, rotulo: rotulo.get(c.cliente_id!) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const })),
-      ...cs.map(c => ({ telefone: c.telefone, nome: null as string | null, rotulo: rotulo.get(c.id) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const })),
+      ...cs.flatMap(c => telefonesDoCliente(c).map(t => ({ telefone: t, nome: null as string | null, rotulo: rotulo.get(c.id) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const }))),
     ];
   }
   const dias = Math.max(7, Math.min(365, f.dias_parado || 30));

@@ -1774,13 +1774,41 @@ async function registrarMensagemPropriaNormalizada(
     if (existe) return;
   }
 
-  // Acha a conversa pelo número. Não cria nova.
-  const conversa = await prisma.whatsappConversa.findFirst({
+  // Acha a conversa pelo número.
+  let conversa = await prisma.whatsappConversa.findFirst({
     where: p.instanciaId
       ? { contato_numero, instanciaId: p.instanciaId }
       : { contato_numero, instancia: { instancia_nome: { not: INSTANCIA_EMPRESA } } },
     include: { instancia: true },
   }).catch(() => null);
+  // WhatsApp da empresa: alguém da equipe escreveu primeiro pelo celular para um número
+  // novo (ex.: lead de campanha). Cria a conversa, com o histórico, para o CRM não tratar
+  // a resposta como contato novo (a triagem só começa em conversa nova). Números da
+  // gestão ficam de fora (são comandos do assistente, não atendimento).
+  if (!conversa && p.instanciaId) {
+    const fim8 = contato_numero.replace(/\D/g, '').slice(-8);
+    if (fim8.length === 8) {
+      const parecidas = await prisma.whatsappConversa.findMany({
+        where: { instanciaId: p.instanciaId, contato_numero: { endsWith: fim8 } }, include: { instancia: true },
+      }).catch(() => []);
+      conversa = parecidas.find(c => c.contato_numero.replace(/\D/g, '').slice(-8) === fim8) || null;
+      if (!conversa && !p.enviada_pela_api) {
+        const { listarGestao } = await import('@/services/assistente-gestao.service');
+        const { acharGestor } = await import('@/lib/assistente/gestao');
+        if (!acharGestor(contato_numero, await listarGestao(prisma))) {
+          const lead = await acharLeadPorTelefone(prisma, contato_numero).catch(() => null);
+          conversa = await prisma.whatsappConversa.create({
+            data: {
+              instanciaId: p.instanciaId, contato_numero, lead_id: lead?.id || null, tipo_contato: lead ? 'LEAD' : null,
+              dono_id: lead?.responsavel_id || null, bot_ativo: false, bot_estado: null, nao_lidas: 0,
+            },
+            include: { instancia: true },
+          }).catch(() => null);
+          if (conversa) console.log(`[WPP] Conversa criada pela mensagem enviada do celular p/ ${contato_numero}`);
+        }
+      }
+    }
+  }
   if (!conversa) return;
 
   const midiaUrl = await p.obterMidia(conversa);
