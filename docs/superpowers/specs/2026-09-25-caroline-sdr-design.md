@@ -61,6 +61,22 @@ Parser puro (`lib/assistente/sdr-entrada.ts`): aceita vários blocos colados de 
 - Escritório: novo agente `caroline` (visual próprio), mesa com contadores (na fila, conversando, responderam, demos marcadas), histórico (👀) e instruções (💬).
 - Tudo gravado na conversa como enviado pela Caroline (`enviada_por: 'caroline'`).
 
+## Grau de interesse (termômetro)
+
+**Missão número 1 da Caroline: descobrir o problema principal do cliente.** Antes de falar de solução ou oferecer demonstração, ela investiga a dor principal (o que mais incomoda hoje, desde quando, quanto custa em tempo/dinheiro, o que já tentou). Só oferece a demonstração antes disso se o próprio lead pedir. Ao encontrar a dor, conecta com o que o material diz que resolve.
+
+Nota 0–100, recalculada a cada resposta, gravada com o motivo ("72 · dono, caixa não bate, quer trocar este mês"):
+
+| Sinal | Pontos |
+|---|---|
+| Dor principal identificada e aprofundada (clara 20; com impacto/custo 35) | até 35 |
+| Momento (agora/este mês 25; próximos meses 12; sem pressa 0) | até 25 |
+| Fala com quem decide (dono/sócio 15; indica quem decide 8) | até 15 |
+| Engajamento (responde, áudio, perguntas, pergunta preço/implantação) | até 15 |
+| Encaixe no perfil (segmento, porte, cidade atendida) | até 10 |
+
+Faixas → `lead.temperatura` existente (com histórico via `registrarMudancaTemperatura`): 80–100 MUITO_QUENTE (demo na hora + aviso prioritário), 60–79 QUENTE (oferece demo), 35–59 MORNO (segue conversando; se não marcar, vendedora com resumo), 0–34 FRIO (encerra com gentileza e motivo). Sem dor principal identificada a nota não passa de 59.
+
 ## Treino da Laya com os atendimentos da Caroline
 
 - As mensagens dos leads já passam pela análise da Laya (sugestão de segmento/intenção/risco), como qualquer conversa.
