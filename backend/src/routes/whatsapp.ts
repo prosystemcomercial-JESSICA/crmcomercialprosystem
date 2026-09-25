@@ -75,7 +75,15 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         where: { id: conversa.lead_id, responsavel_id: null },
         data: { responsavel_id: user.id, vendedor_nome: user.nome || undefined, atribuido_em: new Date() },
       }).catch(() => {});
+      // Quem assumiu passa a atender: o lead sai de "Leads para Distribuir" (fila de qualificados sem vendedora).
+      const l = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { etapa_sdr: true, responsavel_id: true, created_by: true } }).catch(() => null);
+      if (l?.etapa_sdr === 'QUALIFICADO' && (!l.responsavel_id || l.responsavel_id === l.created_by)) {
+        await prisma.lead.update({ where: { id: conversa.lead_id }, data: { etapa_sdr: null, responsavel_id: user.id, vendedor_nome: user.nome || undefined, atribuido_em: new Date(), etapa_comercial: 'QUALIFICADO' } as any }).catch(() => {});
+      }
     }
+    // Agentes (Caroline/Julio/Luiz Felipe) param e a pessoa recebe o resumo do atendimento só para ela.
+    await prisma.sdrLead.updateMany({ where: { conversaId: conversa.id, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO', 'VENDEDORA'] } }, data: { status: 'HUMANO' } }).catch(() => {});
+    import('@/services/assistente-ia.service').then(m => m.enviarResumoAoAssumir(prisma, conversa.id, user.id)).catch(() => {});
     // Some do pool de todo mundo → avisa todos os conectados.
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: conversa.id });
     return true;

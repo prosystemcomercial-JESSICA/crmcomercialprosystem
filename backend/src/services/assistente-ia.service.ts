@@ -145,3 +145,46 @@ export async function autoResponderDuvida(prisma: PrismaClient, token: string, c
     console.warn('[IA] tira-dúvidas:', e?.message);
   }
 }
+
+/**
+ * Pessoa assumiu a conversa: manda SÓ para ela, no WhatsApp, o resumo do atendimento
+ * (quem é, o que foi falado, o que falta, dor, termômetro, marcações e observações).
+ * Nunca lança: sem IA ou sem telefone, só não envia.
+ */
+export async function enviarResumoAoAssumir(prisma: PrismaClient, conversaId: string, userId: string): Promise<void> {
+  try {
+    const [u, c, sdr, notas] = await Promise.all([
+      prisma.usuarioCRM.findUnique({ where: { id: userId }, select: { nome: true, telefone: true } }),
+      prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { contato_nome: true, contato_numero: true, etiqueta: true, ia_sugestao: true, lead_id: true } }),
+      prisma.sdrLead.findFirst({ where: { conversaId }, orderBy: { updated_at: 'desc' }, select: { agente: true, nota: true, nota_motivo: true, temperatura: true, dados: true, empresa: true } }),
+      prisma.whatsappNota.findMany({ where: { conversaId }, orderBy: { created_at: 'desc' }, take: 3, select: { texto: true } }),
+    ]);
+    if (!u?.telefone || !c) return;
+    const lead = c.lead_id ? await prisma.lead.findUnique({ where: { id: c.lead_id }, select: { temperatura: true, segmento: true, cidade: true, sistema_atual: true, nome: true } }) : null;
+    let r: { quem: string; falado: string; falta: string } | null = null;
+    try { r = await resumirConversa(prisma, conversaId); } catch { /* sem IA: segue só com os dados */ }
+    const ia: any = c.ia_sugestao || {};
+    const d: any = sdr?.dados || {};
+    const TEMP: Record<string, string> = { MUITO_QUENTE: '🔥 Muito quente', QUENTE: '🟠 Quente', MORNO: '🟡 Morno', FRIO: '🔵 Frio' };
+    const AGENTE: Record<string, string> = { caroline: 'Caroline', julio: 'Julio', luiz_felipe: 'Luiz Felipe' };
+    const temp = sdr?.temperatura || lead?.temperatura;
+    const perfil = [lead?.segmento, d.cidade || lead?.cidade, d.sistema_atual || lead?.sistema_atual ? `usa ${d.sistema_atual || lead?.sistema_atual}` : null].filter(Boolean).join(' · ');
+    const marcas = [c.etiqueta, ia.intencao ? `intenção: ${ia.intencao}` : null, Number(ia.cancelar) >= 0.5 ? 'risco de cancelar' : null, sdr?.agente ? `atendido por ${AGENTE[sdr.agente] || sdr.agente}` : null].filter(Boolean).join(' · ');
+    const texto = [
+      `📋 *Você assumiu: ${c.contato_nome || c.contato_numero}*${sdr?.empresa || lead?.nome ? ` · ${sdr?.empresa || lead?.nome}` : ''}`,
+      `🌡️ Termômetro: ${sdr?.nota != null ? `${sdr.nota}/100 · ` : ''}${temp ? TEMP[temp] || temp : '—'}${sdr?.nota_motivo ? ` (${sdr.nota_motivo})` : ''}`,
+      d.dor_principal ? `🎯 Dor principal: ${d.dor_principal}` : null,
+      perfil || null,
+      r ? `\n👤 ${r.quem}\n💬 ${r.falado}\n⏭️ Falta: ${r.falta}` : null,
+      `\n🏷️ Marcações: ${marcas || '—'}`,
+      notas.length ? `📝 Observações: ${notas.map(n => n.texto.slice(0, 160)).join(' | ')}` : null,
+      '\nA conversa agora é sua: os agentes não respondem mais nela.',
+    ].filter(Boolean).join('\n');
+    const { obterInstanciaEmpresa } = await import('@/lib/whatsapp-empresa');
+    const inst = await obterInstanciaEmpresa(prisma);
+    if (!inst?.instance_token) return;
+    await evo.enviarTexto(inst.instance_token, u.telefone, texto);
+  } catch (e: any) {
+    console.warn('[ASSUMIR] resumo:', e?.message);
+  }
+}

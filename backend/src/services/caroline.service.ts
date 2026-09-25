@@ -9,7 +9,7 @@ import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
-  opcoesAgendamento, lerAgendamento, nomeDoDia,
+  opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
   PERFIS_SDR, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
@@ -339,6 +339,22 @@ function resumoLead(sdr: any, dados: any, r: { nota: number; nota_motivo: string
   ].filter(Boolean).join('\n');
 }
 
+/** Entrega o lead à vendedora: entra em "Leads para Distribuir" e a gestão é avisada (só no expediente). */
+export async function entregarParaVendedora(prisma: PrismaClient, sdrId: string) {
+  const s = await prisma.sdrLead.findUnique({ where: { id: sdrId } });
+  if (!s) return;
+  const d: any = s.dados || {};
+  // Alguém já assumiu a conversa: o lead é dessa pessoa, não volta para a distribuição.
+  const conv = s.conversaId ? await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId }, select: { dono_id: true } }) : null;
+  if (conv?.dono_id) { await prisma.sdrLead.update({ where: { id: sdrId }, data: { dados: { ...d, entregar_em: null } } }); return; }
+  if (s.lead_id) await prisma.lead.update({ where: { id: s.lead_id }, data: { etapa_sdr: 'QUALIFICADO' } }).catch(() => {});
+  await prisma.sdrLead.update({ where: { id: sdrId }, data: { dados: { ...d, entregar_em: null, entregue_em: new Date().toISOString() } } });
+  if (s.lead_id) await prisma.leadObservacao.create({ data: { lead_id: s.lead_id, tipo: 'SISTEMA', descricao: `${s.resumo || ''}\n\nPassado para a vendedora (Leads para Distribuir).`.trim(), created_by: 'bot', created_by_name: nomeDe(s) } }).catch(() => {});
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'lead_qualificado', `🔔 *Lead pronto para a vendedora* (${nomeDe(s)})\n${s.resumo || s.nome || s.numero}`);
+  registrarAcaoAgente(agenteDe(s), `passou ${s.nome || 'um lead'} para a vendedora`);
+}
+
 async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: string, r: { nota: number; nota_motivo: string; duvida?: string | null }) {
   const { enviarAvisoGestao } = await import('./assistente-gestao.service');
   const atual = await prisma.sdrLead.findUnique({ where: { id: sdr.id } });
@@ -353,11 +369,20 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: 
     await enviarAvisoGestao(prisma, 'lead_qualificado', `🔥 *${nomeDe(sdr)} ofereceu demonstração*\n${resumo}`);
     registrarAcaoAgente(agenteDe(sdr), `ofereceu demonstração para ${atual?.nome || 'um lead'}`);
   } else if (acao === 'passar_vendedora') {
-    if (atual?.lead_id) await prisma.lead.update({ where: { id: atual.lead_id }, data: { etapa_sdr: 'QUALIFICADO' } }).catch(() => {});
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'VENDEDORA', resumo } });
-    await obs(`${resumo}\n\nPassado para a vendedora (Leads para Distribuir).`);
-    await enviarAvisoGestao(prisma, 'lead_qualificado', `🔔 *Lead pronto para a vendedora* (${nomeDe(sdr)})\n${resumo}`);
-    registrarAcaoAgente(agenteDe(sdr), `passou ${atual?.nome || 'um lead'} para a vendedora`);
+    const agora = new Date();
+    if (horarioVendedora(agora)) {
+      await entregarParaVendedora(prisma, sdr.id);
+    } else {
+      // Fora do expediente (seg–sex 8h30–17h): o lead fica guardado e entra às 8h30 do próximo dia útil.
+      const quando = proximaJanelaVendedora(agora);
+      const diaQ = quando.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      const dia = diaQ === agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }) ? 'hoje' : nomeDoDia(diaQ, agora).replace(/ \(.*\)/, '');
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...dados, entregar_em: quando.toISOString() } } });
+      await enviarMensagens(prisma, token, atual, [`A nossa consultora fala com você ${dia} a partir das 8h30. 😊`]).catch(() => {});
+      await obs(`${resumo}\n\nFora do horário da vendedora: entra em Leads para Distribuir ${quando.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.`);
+      registrarAcaoAgente(agenteDe(sdr), `guardou ${atual?.nome || 'um lead'} para a vendedora (${dia} 8h30)`);
+    }
   } else if (acao === 'sem_interesse') {
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'SEM_INTERESSE', resumo } });
     await obs(`${resumo}\n\nSem interesse no momento (encerrado com gentileza).`);
@@ -529,10 +554,10 @@ async function naoDesistir(prisma: PrismaClient, s: any, agora: Date) {
   const d: any = s.dados || {};
   const ciclos = Number(d.ciclos || 0);
   if (ciclos >= CICLOS_MAX) {
-    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA' } });
-    if (s.lead_id) await prisma.lead.update({ where: { id: s.lead_id }, data: { etapa_sdr: 'QUALIFICADO' } }).catch(() => {});
-    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
-    await enviarAvisoGestao(prisma, 'lead_qualificado', `📵 *${s.nome || s.numero}${s.empresa ? ` (${s.empresa})` : ''}* não respondeu depois de ${CICLOS_MAX} ciclos de retomada. Foi para "Leads para Distribuir": vale uma ligação da vendedora.`).catch(() => {});
+    // Vai para a vendedora (ligação), respeitando o expediente dela (seg–sex 8h30–17h).
+    const resumo = `📵 ${s.nome || s.numero}${s.empresa ? ` (${s.empresa})` : ''} não respondeu depois de ${CICLOS_MAX} ciclos de retomada: vale uma ligação da vendedora.`;
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'VENDEDORA', resumo, dados: { ...d, entregar_em: horarioVendedora(agora) ? null : proximaJanelaVendedora(agora).toISOString() } } });
+    if (horarioVendedora(agora)) await entregarParaVendedora(prisma, s.id);
     return;
   }
   const volta = new Date(`${new Date(agora.getTime() + 30 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
@@ -625,6 +650,15 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     const marcadas = await prisma.atividade.findMany({ where: { whatsapp_conversa_id: { in: emDemo.map(s => s.conversaId!) }, status: { not: 'CANCELADA' } }, select: { whatsapp_conversa_id: true } });
     const conv = new Set(marcadas.map(a => a.whatsapp_conversa_id));
     for (const s of emDemo) if (conv.has(s.conversaId) && s.status !== 'DEMO') await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'DEMO' } });
+  }
+
+  // Leads guardados fora do expediente: entram para a vendedora às 8h30 do dia útil.
+  if (horarioVendedora(agora)) {
+    const guardados = await prisma.sdrLead.findMany({ where: { status: 'VENDEDORA' }, select: { id: true, dados: true }, take: 100 });
+    for (const g of guardados) {
+      const em = (g.dados as any)?.entregar_em;
+      if (em && new Date(em) <= agora) await entregarParaVendedora(prisma, g.id);
+    }
   }
 
   if (!horarioComercial(agora)) return;
