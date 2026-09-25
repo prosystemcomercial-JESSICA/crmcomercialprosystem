@@ -1794,8 +1794,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       if (dados.botao_id) {
         try {
           const { responderBotaoProposta } = await import('@/services/assistente-proposta.service');
-          const aceitar = async (publicToken: string) => {
-            const r = await fastify.inject({ method: 'POST', url: `/p/${encodeURIComponent(publicToken)}/aceitar`, payload: {} });
+          const aceitar = async (publicToken: string, plano?: string) => {
+            const r = await fastify.inject({ method: 'POST', url: `/p/${encodeURIComponent(publicToken)}/aceitar`, payload: plano ? { plano_selecionado: plano } : {} });
             return r.statusCode < 300;
           };
           if (await responderBotaoProposta(prisma, inst.instance_token || '', conversa.id, dados.botao_id, aceitar)) return;
