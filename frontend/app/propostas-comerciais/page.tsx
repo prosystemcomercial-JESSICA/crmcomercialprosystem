@@ -64,6 +64,11 @@ interface PropostaComercial {
   created_at: string;
 }
 
+// Telefone comercial fixo por vendedora (vai na proposta no lugar do telefone do cadastro).
+// Jessica (vendedora e supervisora comercial): número do WhatsApp da empresa.
+const TELEFONE_FIXO_VENDEDOR: Record<string, string> = { 'bd3cbf3c-8773-4377-b767-7125c9966bab': '27 99752-1370' };
+const telefoneVendedor = (id: string | null | undefined, padrao: string) => (id && TELEFONE_FIXO_VENDEDOR[id]) || padrao;
+
 const BLANK_FORM = {
   razao_social: '',
   nome_fantasia: '',
@@ -372,7 +377,7 @@ export default function PropostasComerciais() {
       ...BLANK_FORM,
       vendedor_id: isGestor ? '' : (user?.id || ''),
       vendedor_nome: meuPerfil?.nome || user?.nome || '',
-      vendedor_telefone: meuPerfil?.telefone || '',
+      vendedor_telefone: telefoneVendedor(user?.id, meuPerfil?.telefone || ''),
     });
     setModoMultiLoja(false);
     setLojasProjeto([]);
@@ -401,7 +406,7 @@ export default function PropostasComerciais() {
         ...BLANK_FORM,
         ...dados,
         vendedor_nome: dados.vendedor_nome || meuPerfil?.nome || user?.nome || '',
-        vendedor_telefone: dados.vendedor_telefone || meuPerfil?.telefone || '',
+        vendedor_telefone: telefoneVendedor(dados.vendedor_id || user?.id, dados.vendedor_telefone || meuPerfil?.telefone || ''),
         titulo_proposta: dados.titulo_proposta || (tpl ? tpl.titulo : ''),
         frase_hero:      dados.frase_hero      || (tpl ? tpl.hero  : ''),
         texto_valor:     dados.texto_valor     || (tpl ? tpl.valor : ''),
@@ -1401,6 +1406,7 @@ export default function PropostasComerciais() {
                               const v = vendedores.find(x => x.id === id);
                               setField('vendedor_id', id);
                               setField('vendedor_nome', v?.nome || '');
+                              if (TELEFONE_FIXO_VENDEDOR[id]) setField('vendedor_telefone', TELEFONE_FIXO_VENDEDOR[id]);
                             }}
                             className="ps-input w-full"
                           >
