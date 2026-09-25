@@ -687,6 +687,16 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Tipos de atendimento que NÃO são lead comercial → desvinculam do funil ao marcar.
   const TIPOS_NAO_COMERCIAIS = ['Financeiro', 'Renegociação', 'Serviço', 'Parceiro', 'Pessoal', 'Suporte'];
 
+  // ===== ESCRITÓRIO VIRTUAL (somente leitura): estado de cada agente do assistente =====
+  let cacheEscritorio: { em: number; dados: any } | null = null;
+  fastify.get('/assistente/escritorio', async (_request, reply) => {
+    if (!cacheEscritorio || Date.now() - cacheEscritorio.em > 15_000) {
+      const { montarEscritorio } = await import('@/services/escritorio.service');
+      cacheEscritorio = { em: Date.now(), dados: await montarEscritorio(prisma) };
+    }
+    return reply.send({ status: 'success', data: { agentes: cacheEscritorio.dados, gerado_em: new Date(cacheEscritorio.em).toISOString() } });
+  });
+
   // ===== ASSISTENTE: campanhas pelo WhatsApp (só gestão) =====
   const FiltroCampanhaZ = z.object({
     publico: z.enum(['CLIENTES', 'LEADS_PARADOS']), segmento: z.string().max(60).optional().nullable(),
