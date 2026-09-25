@@ -2571,6 +2571,60 @@ model IaAmostra {
   @@index([created_at])
 }
 
+// ─── CAROLINE (SDR com IA no WhatsApp da empresa) ─────────────────────────────
+// Um registro por lead passado para a Caroline: fila do primeiro contato, conversa,
+// termômetro (nota 0-100) e desfecho. Nunca apaga o lead.
+model SdrLead {
+  id                     String    @id @default(cuid())
+  lead_id                String?
+  conversaId             String?
+  numero                 String
+  nome                   String?
+  empresa                String?
+  email                  String?
+  segmento               String?
+  campanha               String?
+  cadastro_em            DateTime?
+  abertura_enviada       Boolean   @default(false) // a Jessica já mandou a abertura pelo celular
+  status                 String    @default("FILA") // FILA|AGUARDANDO|CONVERSANDO|DEMO|VENDEDORA|SEM_INTERESSE|SEM_RESPOSTA|HUMANO|SAIU
+  tentativas             Int       @default(0)
+  primeiro_envio_em      DateTime?
+  ultima_caroline_em     DateTime?
+  ultima_lead_em         DateTime?
+  nota                   Int?
+  nota_motivo            String?   @db.Text
+  temperatura            String?
+  dados                  Json?
+  resumo                 String?   @db.Text
+  temperatura_confirmada String?
+  desde                  DateTime  @default(now()) // a Caroline assumiu a conversa neste momento
+  criado_por             String?
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+
+  @@index([status])
+  @@index([conversaId])
+  @@index([numero])
+}
+
+// Mensagens da Caroline esperando aprovação (modo "aprovar antes de enviar").
+// As aprovadas/editadas viram exemplos de tom para ela e para o treino.
+model SdrMensagem {
+  id           String    @id @default(cuid())
+  sdrId        String
+  conversaId   String
+  texto        String    @db.Text
+  texto_final  String?   @db.Text
+  status       String    @default("PENDENTE") // PENDENTE|APROVADA|EDITADA|DESCARTADA|ENVIADA_AUTO
+  acao         String?
+  created_at   DateTime  @default(now())
+  decidido_em  DateTime?
+  decidido_por String?
+
+  @@index([status])
+  @@index([sdrId])
+}
+
 // ─── BASE DE CONHECIMENTO TÉCNICA ─────────────────────────────────────────────
 
 model KbCategoria {

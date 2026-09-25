@@ -137,7 +137,7 @@ export function progresso(valor: number | null, meta: number | null): Progresso 
 export interface MsgResumo { direcao: string; enviada_por?: string | null; created_at: Date; }
 
 /** Remetentes automáticos gravados em WhatsappMensagem.enviada_por (triagem e cadência). */
-export const REMETENTES_AUTOMATICOS = ['bot', 'cadencia_automatica', 'assistente_ia', 'campanha'];
+export const REMETENTES_AUTOMATICOS = ['bot', 'cadencia_automatica', 'assistente_ia', 'campanha', 'caroline'];
 
 /**
  * SAÍDA feita por pessoa: enviada pelo CRM (enviada_por = id do usuário) ou digitada

@@ -733,6 +733,59 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success' });
   });
 
+  // ===== CAROLINE (SDR) — só gestão =====
+  fastify.get('/assistente/caroline', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { painelCaroline } = await import('@/services/caroline.service');
+    return reply.send({ status: 'success', data: await painelCaroline(prisma) });
+  });
+  fastify.post('/assistente/caroline/previa', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const b = z.object({ texto: z.string().min(10).max(200_000) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Cole o texto dos leads.' });
+    const { previaLeads } = await import('@/services/caroline.service');
+    return reply.send({ status: 'success', data: await previaLeads(prisma, b.data.texto) });
+  });
+  fastify.post('/assistente/caroline/leads', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const b = z.object({ texto: z.string().min(10).max(200_000), abertura_enviada: z.boolean() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
+    const { importarLeads } = await import('@/services/caroline.service');
+    try {
+      const r = await importarLeads(prisma, b.data.texto, b.data.abertura_enviada, getUser(request)!);
+      return reply.send({ status: 'success', data: r, message: `${r.criados} lead(s) com a Caroline${r.ignorados ? ` · ${r.ignorados} ignorado(s)` : ''}.` });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
+  });
+  fastify.put('/assistente/caroline/config', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const b = z.object({ ativa: z.boolean().optional(), aprovar: z.boolean().optional(), limite: z.number().int().min(1).max(30).optional() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
+    const { salvarConfigCaroline } = await import('@/services/caroline.service');
+    return reply.send({ status: 'success', data: await salvarConfigCaroline(prisma, b.data, getUser(request)!.id), message: 'Salvo.' });
+  });
+  fastify.post('/assistente/caroline/mensagens/:id', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({ aprovar: z.boolean(), texto: z.string().max(3000).nullable().optional() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
+    const { decidirMensagem } = await import('@/services/caroline.service');
+    try {
+      const r = await decidirMensagem(prisma, id, b.data, getUser(request)!.id);
+      return reply.send({ status: 'success', data: r, message: r.status === 'DESCARTADA' ? 'Descartada.' : 'Enviada.' });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
+  });
+  fastify.post('/assistente/caroline/leads/:id/temperatura', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({ temperatura: z.enum(['FRIO', 'MORNO', 'QUENTE', 'MUITO_QUENTE']) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Temperatura inválida.' });
+    const { confirmarTemperatura } = await import('@/services/caroline.service');
+    try {
+      await confirmarTemperatura(prisma, id, b.data.temperatura, getUser(request)!.id);
+      return reply.send({ status: 'success', message: 'Confirmado. A Laya aprendeu com este atendimento.' });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
+  });
+
   // Pesquisas da Sofia (assuntos do setor).
   fastify.get('/assistente/pesquisas', async (_request, reply) => {
     const ps = await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' }, take: 12 });
@@ -1712,6 +1765,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       try {
         await detectarCnpjNaConversa(prisma, conversa.id, texto, undefined, inst.instance_token || '');
       } catch (e: any) { console.error('[CNPJ] erro:', e?.message); }
+      // Conversa com a Caroline (SDR): ela responde (ou espera aprovação); os outros robôs ficam quietos.
+      try {
+        const { aoReceberDoLead } = await import('@/services/caroline.service');
+        if (await aoReceberDoLead(prisma, inst.instance_token || '', conversa.id, tipoMsg, texto, mensagemCriada.id)) return;
+      } catch (e: any) { console.error('[CAROLINE] mensagem:', e?.message); }
       // IA de texto (Fase 3), em segundo plano e depois de todo o fluxo acima:
       // tira-dúvidas (só quando as regras deixam) e transcrição de áudio.
       if (tipoMsg === 'TEXTO') {

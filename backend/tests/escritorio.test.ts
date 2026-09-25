@@ -5,7 +5,7 @@ const agora = new Date('2026-09-25T15:00:00Z');
 
 describe('escritório virtual', () => {
   it('equipe: 9 agentes, só Luiz Felipe e Zequinha homens', () => {
-    expect(AGENTES).toHaveLength(9);
+    expect(AGENTES).toHaveLength(10);
     expect(AGENTES.map(a => a.nome)).toContain('Luiz Felipe');
     expect(AGENTES.map(a => a.nome)).toContain('Zequinha');
   });

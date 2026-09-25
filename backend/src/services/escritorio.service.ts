@@ -34,6 +34,8 @@ export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promi
       .map(c => { const s: any = c.ia_sugestao || {}; return { texto: `${nomeContato(c)}: ${s.segmento || '?'} · ${s.intencao || '?'}${Number(s.cancelar) >= 0.5 ? ' · risco de cancelar' : ''}`, em: c.ia_sugerido_em!.toISOString() }; });
     case 'sofia': return (await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' }, take: 10, select: { titulo: true, created_at: true, itens: true } }))
       .map(p => ({ texto: `Pesquisou "${p.titulo}" (${Array.isArray(p.itens) ? (p.itens as any[]).length : 0} assuntos)`, em: p.created_at.toISOString() }));
+    case 'caroline': return (await prisma.sdrMensagem.findMany({ where: { status: { not: 'DESCARTADA' } }, orderBy: { created_at: 'desc' }, take: 10, select: { texto: true, status: true, created_at: true, sdrId: true } }))
+      .map(m => ({ texto: `${m.status === 'PENDENTE' ? '⏳ esperando aprovação: ' : m.status === 'EDITADA' ? '✏️ enviada com ajuste: ' : ''}${m.texto.slice(0, 120)}`, em: m.created_at.toISOString() }));
     case 'marta': { const a = acaoRegistrada('marta'); return a ? [{ texto: a.texto, em: a.em.toISOString() }] : []; }
     default: return [];
   }
@@ -120,6 +122,18 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   const ultPesq = await prisma.pesquisaSetor.findFirst({ orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } });
   const sofia = maisRecente<Acao>(ultPesq ? { texto: `pesquisou "${ultPesq.titulo.slice(0, 50)}"`, em: ultPesq.created_at } : null, acaoRegistrada('sofia'));
 
+  // Caroline — SDR
+  const { obterConfigCaroline } = await import('./caroline.service');
+  const carolCfg = await obterConfigCaroline(prisma);
+  const [carolFila, carolConversando, carolDemos, carolPendentes] = await Promise.all([
+    prisma.sdrLead.count({ where: { status: 'FILA' } }),
+    prisma.sdrLead.count({ where: { status: { in: ['AGUARDANDO', 'CONVERSANDO'] } } }),
+    prisma.sdrLead.count({ where: { status: 'DEMO' } }),
+    prisma.sdrMensagem.count({ where: { status: 'PENDENTE' } }),
+  ]);
+  const ultCarol = await prisma.sdrMensagem.findFirst({ where: { status: { not: 'DESCARTADA' } }, orderBy: { created_at: 'desc' }, select: { created_at: true, status: true } });
+  const caroline = maisRecente<Acao>(ultCarol ? { texto: ultCarol.status === 'PENDENTE' ? 'escreveu e espera sua aprovação' : 'conversou com um lead', em: ultCarol.created_at } : null, acaoRegistrada('caroline'));
+
   const estado = (id: AgenteId, ligado: boolean, ultima: Acao, numeros: EstadoAgente['numeros'], observacao?: string): EstadoAgente => {
     const a = AGENTES.find(x => x.id === id)!;
     return { id, nome: a.nome, funcao: a.funcao, cor: a.cor, status: statusAgente(ligado, ultima?.em || null, agora), ultima: ultima ? { texto: ultima.texto, em: ultima.em.toISOString() } : null, numeros, observacao };
@@ -138,6 +152,8 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
     estado('helena', posvendaOn, helena, [{ rotulo: 'boas-vindas', valor: boasVindas }, { rotulo: 'pesquisas', valor: pesquisas }], posvendaOn ? undefined : 'Pós-venda desligado em Configurações'),
     estado('laya', layaOn, laya, [{ rotulo: 'conversas analisadas', valor: analisadas }, { rotulo: 'ensinadas hoje', valor: ensinadasHoje }, { rotulo: 'ensinadas no total', valor: ensinadasTotal }], layaOn ? 'Aprendendo até 14/10' : 'Serviço da Laya fora do ar'),
     estado('sofia', temChave, sofia, [{ rotulo: 'pesquisas no mês', valor: pesquisasMes }], temChave ? 'Pesquisa toda segunda às 8h' : 'Esperando a chave da IA em Configurações'),
+    estado('caroline', carolCfg.ativa, caroline, [{ rotulo: 'na fila', valor: carolFila }, { rotulo: 'conversando', valor: carolConversando }, { rotulo: 'demos', valor: carolDemos }, { rotulo: 'para aprovar', valor: carolPendentes }],
+      carolCfg.pausada_motivo ? `Pausada: ${carolCfg.pausada_motivo}` : carolCfg.ativa ? (carolCfg.aprovar ? 'Você aprova cada mensagem antes de sair' : 'Enviando sozinha') : 'Desligada: ligue no painel dela'),
     estado('marta', true, marta, [{ rotulo: 'tarefas lançadas', valor: tarefasHoje }, { rotulo: 'descontos decididos', valor: aprovacoesHoje }]),
   ];
 }
