@@ -731,6 +731,25 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success' });
   });
 
+  // Pesquisas da Sofia (assuntos do setor).
+  fastify.get('/assistente/pesquisas', async (_request, reply) => {
+    const ps = await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' }, take: 12 });
+    return reply.send({ status: 'success', data: ps });
+  });
+  fastify.post('/assistente/pesquisas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const body = z.object({ tema: z.string().max(200).optional().nullable() }).safeParse(request.body || {});
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Tema inválido.' });
+    const { chaveGemini } = await import('@/services/ia-gemini.service');
+    if (!(await chaveGemini(prisma))) return reply.status(400).send({ status: 'error', message: 'A Sofia precisa da chave da IA (Configurações → Assistente no WhatsApp).' });
+    // Em segundo plano: a pesquisa pode levar até 2 min (mais que o limite do proxy).
+    const { pesquisarSetor } = await import('@/services/sofia-pesquisa.service');
+    const { registrarAcaoAgente } = await import('@/lib/assistente/escritorio');
+    registrarAcaoAgente('sofia', `começou a pesquisar${body.data.tema ? ` "${body.data.tema.slice(0, 50)}"` : ' os assuntos da semana'}`);
+    void pesquisarSetor(prisma, body.data.tema?.trim() || null, getUser(request)!.id).catch((e: any) => console.error('[SOFIA]', e?.message));
+    return reply.send({ status: 'success', message: 'A Sofia começou a pesquisar. O resultado aparece em até 2 minutos.' });
+  });
+
   // ===== ASSISTENTE: campanhas pelo WhatsApp (só gestão) =====
   const FiltroCampanhaZ = z.object({
     publico: z.enum(['CLIENTES', 'LEADS_PARADOS']), segmento: z.string().max(60).optional().nullable(),
