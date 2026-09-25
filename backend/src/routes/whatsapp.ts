@@ -482,6 +482,32 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: conversa });
   });
 
+  // Observações da equipe sobre o contato (ex.: ligação por telefone). Quem lê a conversa vê;
+  // com lead vinculado, a nota também entra no histórico do lead.
+  fastify.get('/whatsapp/conversas/:id/notas', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...whereLeituraConversa(getUser(request)) }, select: { id: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const notas = await prisma.whatsappNota.findMany({ where: { conversaId: id }, orderBy: { created_at: 'desc' }, take: 100 });
+    return reply.send({ status: 'success', data: notas });
+  });
+  fastify.post('/whatsapp/conversas/:id/notas', async (request, reply) => {
+    const user = getUser(request)!;
+    const { id } = request.params as { id: string };
+    const b = z.object({ texto: z.string().trim().min(1).max(5000) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escreva a observação.' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...whereLeituraConversa(user) }, select: { id: true, lead_id: true, dono_id: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const autor_nome = (user as any).nome || null;
+    const nota = await prisma.whatsappNota.create({ data: { conversaId: id, lead_id: conversa.lead_id, texto: b.data.texto, autor_id: user.id, autor_nome } });
+    if (conversa.lead_id) {
+      await prisma.leadObservacao.create({ data: { lead_id: conversa.lead_id, tipo: 'OBSERVACAO', descricao: `📝 Observação (WhatsApp/telefone): ${b.data.texto}`, created_by: user.id, created_by_name: autor_nome || 'Equipe' } }).catch(() => {});
+      await prisma.lead.update({ where: { id: conversa.lead_id }, data: { ultima_obs_at: new Date() } }).catch(() => {});
+    }
+    emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: id });
+    return reply.send({ status: 'success', data: nota, message: 'Observação salva.' });
+  });
+
   // Finalizar atendimento: sai das listas, do prazo e dos robôs. Reabre sozinha
   // quando o contato escreve de novo (ou pelo botão Reabrir).
   fastify.post('/whatsapp/conversas/:id/finalizar', async (request, reply) => {

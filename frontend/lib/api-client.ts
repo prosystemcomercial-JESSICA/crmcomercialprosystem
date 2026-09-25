@@ -1280,6 +1280,13 @@ class ApiClient {
   }) {
     return this.client.put('/whatsapp/triagem', data);
   }
+  // Observações da equipe sobre o contato (ligação por telefone etc.).
+  async getNotasConversa(id: string) {
+    return this.client.get(`/whatsapp/conversas/${id}/notas`);
+  }
+  async salvarNotaConversa(id: string, texto: string) {
+    return this.client.post(`/whatsapp/conversas/${id}/notas`, { texto });
+  }
   async assumirConversaWhatsapp(id: string) {
     return this.client.post(`/whatsapp/conversas/${id}/assumir`);
   }

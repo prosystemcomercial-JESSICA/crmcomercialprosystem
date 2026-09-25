@@ -2629,6 +2629,20 @@ model SdrMensagem {
   @@index([sdrId])
 }
 
+// Observações da equipe sobre o contato de uma conversa (ex.: ligação por telefone,
+// que não fica registrada no WhatsApp). Com lead vinculado, vai também para o histórico do lead.
+model WhatsappNota {
+  id         String   @id @default(cuid())
+  conversaId String
+  lead_id    String?
+  texto      String   @db.Text
+  autor_id   String?
+  autor_nome String?
+  created_at DateTime @default(now())
+
+  @@index([conversaId, created_at])
+}
+
 // ─── BASE DE CONHECIMENTO TÉCNICA ─────────────────────────────────────────────
 
 model KbCategoria {

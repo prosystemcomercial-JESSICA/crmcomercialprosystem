@@ -1,5 +1,6 @@
 'use client';
 
+import ObservacoesConversa from '@/components/whatsapp/ObservacoesConversa';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
@@ -1397,6 +1398,8 @@ export default function WhatsappPage() {
                   <p className="text-sm font-medium text-gray-800">{ativa.atendente_ia ? <FarolCaroline /> : !ativa.dono_id ? 'Sem dono' : (painel?.responsavel?.nome || ativa.dono_nome || '—')}</p>
                   {avisoCnpj(ativa) && <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">⚠️ {avisoCnpj(ativa)}</span>}
                 </div>
+
+                <ObservacoesConversa conversaId={ativa.id} />
 
                 <div className="px-4 py-3.5">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Mover no funil</label>
