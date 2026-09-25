@@ -159,6 +159,9 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const { chamarGemini } = await import('./ia-gemini.service');
   const h = await historico(prisma, sdr.conversaId);
+  // Observações da equipe (ex.: ligação por telefone): contexto que não está no WhatsApp.
+  const notas = await prisma.whatsappNota.findMany({ where: { conversaId: sdr.conversaId }, orderBy: { created_at: 'desc' }, take: 5, select: { texto: true, created_at: true } }).catch(() => []);
+  if (notas.length) h.texto = `[Observações da equipe sobre este cliente, use como contexto e não repita literalmente:\n${notas.reverse().map(n => `- ${n.created_at.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}: ${n.texto.slice(0, 400)}`).join('\n')}]\n\n${h.texto}`;
   // Assuntos da semana da Sofia (últimos 14 dias): só do segmento exato do lead e de gestão
   // (farmácia não recebe assunto de manipulação; assunto clínico/de produto fica de fora).
   const pesquisas = await prisma.pesquisaSetor.findMany({ where: { created_at: { gte: new Date(Date.now() - 60 * 864e5) } }, orderBy: { created_at: 'desc' }, take: 10, select: { itens: true, created_at: true } }).catch(() => []);
