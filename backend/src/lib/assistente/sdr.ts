@@ -157,7 +157,7 @@ export function promptCaroline(p: {
   const contexto = `Lead: ${l.nome || '—'}${l.empresa ? `, empresa ${l.empresa}` : ''}${l.segmento ? `, segmento ${l.segmento}` : ''}${l.campanha ? `, campanha ${l.campanha}` : ''}. Saudação adequada agora: "${p.saudacao}".`;
   const tarefa = p.fase === 'abertura'
     ? (l.abertura_jessica
-      ? 'A Jessica já mandou a abertura (está no histórico) e o lead ainda não respondeu. Escreva a sua primeira mensagem: apresente-se como Caroline, da equipe da Jessica, retome com leveza a inscrição e repita de forma natural a pergunta sobre cidade e sistema atual.'
+      ? 'A Jessica já mandou a abertura (está no histórico) e o lead NÃO respondeu. Escreva uma RETOMADA, não um primeiro contato: apresente-se rapidamente como Caroline, da equipe da Jessica, mostre que percebeu que ele não conseguiu responder (com leveza e sem cobrar, ex.: "imagino que a correria do balcão não deixou você responder"), e chame a atenção com um gancho do dia a dia do segmento dele que o MATERIAL resolve (uma dor comum, em forma de pergunta curiosa, ex.: "o fechamento do caixa aí ainda toma tempo no fim do dia?"). Termine com UMA pergunta fácil de responder. Não repita a mensagem da Jessica nem use "vou dar continuidade".'
       : 'Primeiro contato. Apresente-se como Caroline, da equipe da Jessica na Prosystem, diga que recebeu a inscrição na campanha e faça UMA pergunta aberta para começar (cidade e sistema que usa hoje, ou como está a rotina).')
     : p.fase === 'retomada'
       ? `O lead não respondeu (tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores, retomando sem cobrar, com uma pergunta fácil de responder.${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta.' : ''}`
