@@ -56,8 +56,10 @@ export function lerBotaoProposta(botaoId: string | null | undefined): { acao: 'a
   return m ? { acao: m[1] === 'ok' ? 'aceitar' : 'duvida', id: m[2] } : null;
 }
 
+export const DOCUMENTOS_CONTRATO = 'Para o contrato, confirme por aqui:\n• Nome completo e CPF de quem vai assinar\n• E-mail para receber o link de assinatura';
+
 export function textoPosAceite(p: PropostaResumo, pixChave: string): string {
-  const base = '🎉 Proposta aceita! Muito obrigado pela confiança.\n\nJá estamos preparando o seu contrato.';
+  const base = `🎉 Proposta aceita! Muito obrigado pela confiança.\n\nJá estamos preparando o seu contrato. ${DOCUMENTOS_CONTRATO}`;
   if (!p.entrada) return `${base} Nossa equipe vai te chamar para os próximos passos.`;
   if (!pixChave.trim()) return `${base} Nosso financeiro vai te enviar a cobrança da entrada de ${brl(p.entrada)}.`;
   return `${base}\n\nPara garantir a sua data de implantação, a entrada é de *${brl(p.entrada)}* por PIX.\nChave PIX: *${pixChave.trim()}*\nDepois é só mandar o comprovante aqui. 🙏`;

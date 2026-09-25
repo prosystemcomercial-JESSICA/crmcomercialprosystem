@@ -96,6 +96,17 @@ export async function enviarResumoExecutivo(prisma: PrismaClient, opts: { soment
     html = montarHtmlResumoExecutivo(painel, dataTxt, link);
   }
   const r = await enviarEmailSmtp({ to: para, cc: copia, subject, html, rotulo: 'EXECUTIVO' });
+  // Versão curta no WhatsApp da gestão (aviso "resumo_diario"; cada um pode desligar). Não no envio de teste.
+  if (!opts.somenteEmail) {
+    try {
+      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+      const { textoHoje, textoSemana } = await import('@/lib/assistente/gestao');
+      const curto = opts.tipo === 'semanal'
+        ? textoSemana(await montarDadosSemana(prisma))
+        : textoHoje(painel.tela1);
+      await enviarAvisoGestao(prisma, 'resumo_diario', `${curto}\n\n📧 O resumo completo foi para o seu e-mail.`);
+    } catch (e: any) { console.error('[EXECUTIVO] resumo curto no WhatsApp:', e?.message); }
+  }
   if (r.ok) console.log(`[EXECUTIVO] Resumo ${opts.tipo || 'diario'} enviado para ${para.join(', ')}${copia.length ? ` (cópia: ${copia.join(', ')})` : ''}`);
   return { ...r, para, copia };
 }

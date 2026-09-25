@@ -1168,6 +1168,20 @@ class ApiClient {
   async salvarWhatsappEmpresa(instance_token: string) {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
+  // Campanhas pelo WhatsApp (novidades para clientes / reativação de leads).
+  async listarCampanhasWhatsapp() {
+    return this.client.get('/assistente/campanhas');
+  }
+  async previaCampanhaWhatsapp(f: { publico: string; segmento?: string | null; dias_parado?: number | null }) {
+    return this.client.post('/assistente/campanhas/previa', f);
+  }
+  async criarCampanhaWhatsapp(f: { publico: string; segmento?: string | null; dias_parado?: number | null; nome: string; texto: string }) {
+    return this.client.post('/assistente/campanhas', f);
+  }
+  async cancelarCampanhaWhatsapp(id: string) {
+    return this.client.post(`/assistente/campanhas/${id}/cancelar`, {});
+  }
+
   // IA de texto na conversa (resumo, sugestão de resposta, transcrição de áudio).
   async resumirConversaIa(conversaId: string) {
     return this.client.post(`/whatsapp/conversas/${conversaId}/ia/resumo`, {});
@@ -1200,6 +1214,7 @@ class ApiClient {
     avisos?: string[]; pix_chave?: string;
     ia?: { laya_triagem?: boolean; laya_confianca?: number; risco_limite?: number; risco_so_clientes?: boolean };
     ia_texto?: { tira_duvidas?: 'desligado' | 'fora_do_horario' | 'sempre'; transcrever_auto?: boolean; gemini_chave?: string };
+    posvenda?: boolean;
   }) {
     return this.client.put('/assistente/config', data);
   }

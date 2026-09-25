@@ -381,6 +381,11 @@ async function iniciarSchedulerAssistente() {
       if (hora >= 9 && hora < 18) {
         const { rodarFollowupPropostas } = await import('./services/assistente-proposta.service.js');
         await rodarFollowupPropostas(prismaClient!, agora);
+        // Fase 4: pós-venda (se ligado) e fila de campanhas (~24/h).
+        const { rodarPosVenda } = await import('./services/assistente-posvenda.service.js');
+        await rodarPosVenda(prismaClient!, agora).catch((e: any) => console.error('[POSVENDA]', e?.message));
+        const { processarFilaCampanhas } = await import('./services/assistente-campanhas.service.js');
+        await processarFilaCampanhas(prismaClient!).catch((e: any) => console.error('[CAMPANHA]', e?.message));
       }
     } catch (err: any) {
       console.error('[ASSISTENTE] scheduler:', err?.message);
