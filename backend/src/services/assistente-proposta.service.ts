@@ -52,6 +52,16 @@ export async function enviarPropostaWhatsapp(prisma: PrismaClient, conversaId: s
   if (!conversa || !p) throw new Error('Conversa ou proposta não encontrada.');
   if (!p.public_token) throw new Error('A proposta ainda não tem link público. Abra a proposta e gere o link antes de enviar.');
   if (!ABERTAS.includes(p.status)) throw new Error('Esta proposta não está mais aberta.');
+  // Desconto acima do limite: só sai depois da aprovação da gestão (ideia 23).
+  const { situacaoDesconto } = await import('./assistente-desconto.service');
+  const sd = await situacaoDesconto(prisma, p.id);
+  if (sd?.precisa) {
+    const e: any = new Error(sd.status === 'PENDENTE'
+      ? `O desconto de ${sd.pct}% está aguardando aprovação da gestão.`
+      : `O desconto de ${sd.pct}% passa do limite de ${sd.limite}%. Peça aprovação antes de enviar.`);
+    e.codigo = sd.status === 'PENDENTE' ? 'APROVACAO_PENDENTE' : 'APROVACAO_NECESSARIA';
+    throw e;
+  }
 
   const link = linkProposta(baseFrontend(), p.public_token);
   const texto = textoResumoProposta(p as PropostaResumo, link);

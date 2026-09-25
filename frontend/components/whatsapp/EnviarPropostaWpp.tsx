@@ -6,7 +6,10 @@ import { apiClient } from '@/lib/api-client';
 // Painel da conversa: envia uma proposta aberta deste contato pelo WhatsApp, com
 // os botões Aceitar / Tenho dúvidas e o follow-up automático (dias 2, 5 e 7).
 
-type Prop = { id: string; nome: string; status: string; plano: string | null; valor: number | null; tem_link: boolean; enviada_wpp_em: string | null };
+type Prop = {
+  id: string; nome: string; status: string; plano: string | null; valor: number | null; tem_link: boolean; enviada_wpp_em: string | null;
+  desconto_pct: number; desconto_precisa: boolean; desconto_status: string | null; desconto_limite: number | null;
+};
 const STATUS: Record<string, string> = { RASCUNHO: 'rascunho', ENVIADA: 'enviada', VISUALIZADA: 'visualizada', EM_NEGOCIACAO: 'em negociação' };
 const brl = (n: number | null) => n == null ? '' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
@@ -22,6 +25,17 @@ export default function EnviarPropostaWpp({ conversaId }: { conversaId: string }
     setLista(null);
     try { setLista((await apiClient.getPropostasConversa(conversaId)).data.data); }
     catch { setLista([]); setAviso({ ok: false, texto: 'Não foi possível buscar as propostas.' }); }
+  };
+
+  const pedirAprovacao = async (p: Prop) => {
+    setEnviando(p.id); setAviso(null);
+    try {
+      const r = await apiClient.pedirAprovacaoDesconto(p.id);
+      setAviso({ ok: true, texto: r.data.message });
+      setLista(l => l && l.map(x => x.id === p.id ? { ...x, desconto_status: 'PENDENTE' } : x));
+    } catch (e: any) {
+      setAviso({ ok: false, texto: e?.response?.data?.message || 'Não foi possível pedir a aprovação.' });
+    } finally { setEnviando(null); }
   };
 
   const enviar = async (p: Prop) => {
@@ -54,7 +68,19 @@ export default function EnviarPropostaWpp({ conversaId }: { conversaId: string }
                 {[p.plano, brl(p.valor), STATUS[p.status] || p.status].filter(Boolean).join(' · ')}
                 {p.enviada_wpp_em ? ' · já enviada pelo WhatsApp' : ''}
               </p>
-              <button disabled={!p.tem_link || enviando === p.id} onClick={() => enviar(p)}
+              {p.desconto_precisa && (
+                <p className="text-[11px] mt-1 text-amber-700">
+                  Desconto de {p.desconto_pct.toLocaleString('pt-BR')}% passa do limite de {p.desconto_limite}%.
+                  {p.desconto_status === 'PENDENTE' ? ' Aguardando aprovação da gestão.' : p.desconto_status === 'RECUSADO' ? ' A gestão recusou: ajuste o desconto ou peça de novo.' : ''}
+                </p>
+              )}
+              {p.desconto_precisa && p.desconto_status !== 'PENDENTE' && (
+                <button disabled={enviando === p.id} onClick={() => pedirAprovacao(p)}
+                  className="mt-1.5 w-full text-[11px] font-semibold rounded-md py-1.5 border border-amber-600 text-amber-800 hover:bg-amber-50 disabled:opacity-40">
+                  💸 Pedir aprovação do desconto
+                </button>
+              )}
+              <button disabled={!p.tem_link || enviando === p.id || p.desconto_precisa} onClick={() => enviar(p)}
                 title={p.tem_link ? '' : 'Gere o link público da proposta antes de enviar'}
                 className="mt-1.5 w-full text-[11px] font-semibold rounded-md py-1.5 border border-teal-700 text-teal-800 hover:bg-teal-50 disabled:opacity-40">
                 {enviando === p.id ? 'Enviando…' : p.enviada_wpp_em ? 'Reenviar' : 'Enviar'}

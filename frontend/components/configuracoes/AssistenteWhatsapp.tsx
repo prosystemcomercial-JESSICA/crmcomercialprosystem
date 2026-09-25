@@ -9,7 +9,7 @@ import { apiClient } from '@/lib/api-client';
 
 type Ia = { laya_triagem: boolean; laya_confianca: number; risco_limite: number; risco_so_clientes: boolean };
 type IaTexto = { tira_duvidas: 'desligado' | 'fora_do_horario' | 'sempre'; transcrever_auto: boolean; tem_chave: boolean };
-type Cfg = { avisos: string[]; tipos: { id: string; nome: string }[]; telefone: string | null; recebe: boolean; pix_chave: string; ia: Ia; ia_texto: IaTexto; posvenda: boolean };
+type Cfg = { avisos: string[]; tipos: { id: string; nome: string }[]; telefone: string | null; recebe: boolean; pix_chave: string; ia: Ia; ia_texto: IaTexto; posvenda: boolean; desconto_limite: number };
 const PCT = [0.6, 0.7, 0.8, 0.9];
 
 const card: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, overflow: 'hidden' };
@@ -32,7 +32,7 @@ export default function AssistenteWhatsapp() {
     setSalvando(true); setMsg(null);
     try {
       await apiClient.salvarAssistenteConfig({
-        avisos: cfg.avisos, pix_chave: cfg.pix_chave, ia: cfg.ia, posvenda: cfg.posvenda,
+        avisos: cfg.avisos, pix_chave: cfg.pix_chave, ia: cfg.ia, posvenda: cfg.posvenda, desconto_limite: cfg.desconto_limite,
         ia_texto: { tira_duvidas: cfg.ia_texto.tira_duvidas, transcrever_auto: cfg.ia_texto.transcrever_auto, ...(novaChave.trim() ? { gemini_chave: novaChave.trim() } : {}) },
       });
       if (novaChave.trim()) { setCfg(c => c && ({ ...c, ia_texto: { ...c.ia_texto, tem_chave: true } })); setNovaChave(''); }
@@ -88,6 +88,12 @@ export default function AssistenteWhatsapp() {
           <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
             Vale só para contratos assinados depois de ligar (nunca para lançamentos retroativos). Resposta &quot;Ruim&quot; na pesquisa vira aviso e prioridade crítica.
           </p>
+          <label htmlFor="desconto-limite" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13, color: 'var(--t-text-primary)' }}>
+            Desconto acima de
+            <input id="desconto-limite" type="number" min={0} max={100} style={{ ...input, width: 80 }} value={cfg.desconto_limite}
+              onChange={e => setCfg(c => c && ({ ...c, desconto_limite: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))} />
+            % da implantação precisa de aprovação da gestão pelo WhatsApp (0 = sem aprovação)
+          </label>
           <a href="/whatsapp/campanhas" style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-primary)' }}>📣 Abrir Campanhas pelo WhatsApp →</a>
         </div>
         <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 14, display: 'grid', gap: 10 }}>

@@ -1676,6 +1676,13 @@ model PropostaComercial {
   wpp_boasvindas_em  DateTime?
   wpp_pesquisa_em    DateTime?
   wpp_pesquisa_nota  Int?
+  // Aprovação de desconto pelo celular (assistente): PENDENTE | APROVADO | RECUSADO,
+  // o % aprovado (se o desconto subir depois, precisa de nova aprovação), quem pediu e quem decidiu.
+  desconto_aprov_status     String?
+  desconto_aprov_pct        Float?
+  desconto_aprov_pedido_por String?
+  desconto_aprov_por        String?
+  desconto_aprov_em         DateTime?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

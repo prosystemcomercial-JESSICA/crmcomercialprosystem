@@ -803,7 +803,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
     const { propostasDaConversa } = await import('@/services/assistente-proposta.service');
     const ps = await propostasDaConversa(prisma, id);
-    return reply.send({ status: 'success', data: ps.map(p => ({
+    const { situacaoDesconto } = await import('@/services/assistente-desconto.service');
+    const desc = await Promise.all(ps.map(p => situacaoDesconto(prisma, p.id)));
+    return reply.send({ status: 'success', data: ps.map((p, i) => ({
+      desconto_pct: desc[i]?.pct ?? 0, desconto_precisa: !!desc[i]?.precisa, desconto_status: desc[i]?.status || null, desconto_limite: desc[i]?.limite ?? null,
       id: p.id, nome: (p.nome_fantasia || p.razao_social || 'Sem nome').trim(), status: p.status, plano: p.plano_selecionado,
       valor: p.valor_final ?? p.valor_implantacao, tem_link: !!p.public_token, enviada_wpp_em: p.wpp_enviada_em, criada_em: p.created_at,
     })) });
@@ -822,8 +825,19 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       await enviarPropostaWhatsapp(prisma, id, body.data.proposta_id, { id: user.id, nome: (user as any).nome });
       return reply.send({ status: 'success', message: 'Proposta enviada pelo WhatsApp.' });
     } catch (e: any) {
-      return reply.status(400).send({ status: 'error', message: e?.message || 'Não foi possível enviar.' });
+      return reply.status(e?.codigo ? 409 : 400).send({ status: 'error', message: e?.message || 'Não foi possível enviar.', codigo: e?.codigo || null });
     }
+  });
+
+  // Aprovação de desconto pelo celular (ideia 23): pede à gestão pelo WhatsApp.
+  fastify.post('/assistente/propostas/:id/pedir-aprovacao-desconto', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const user = getUser(request)!;
+    try {
+      const { pedirAprovacaoDesconto } = await import('@/services/assistente-desconto.service');
+      const r = await pedirAprovacaoDesconto(prisma, id, { id: user.id, nome: (user as any).nome });
+      return reply.send({ status: 'success', data: r, message: `Pedido enviado para ${r.enviado_para.join(' e ')} no WhatsApp.` });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Não foi possível pedir.' }); }
   });
 
   // ===== ASSISTENTE: avisos no celular da gestão + chave PIX =====
@@ -842,6 +856,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       telefone: eu?.telefone || null, recebe, pix_chave: pix?.valor || '', ia: await obterConfigIa(prisma),
       ia_texto: await obterConfigIaTexto(prisma), // a chave em si nunca volta para a tela
       posvenda: (await (await import('@/services/assistente-posvenda.service')).obterConfigPosVenda(prisma)).ativo,
+      desconto_limite: await (await import('@/services/assistente-desconto.service')).obterLimiteDesconto(prisma),
     } });
   });
 
@@ -859,6 +874,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         gemini_chave: z.string().max(200).optional(),
       }).optional(),
       posvenda: z.boolean().optional(),
+      desconto_limite: z.number().min(0).max(100).optional(),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
     const u = getUser(request)!;
@@ -869,6 +885,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (body.data.ia) {
       const { salvarConfigIa } = await import('@/services/assistente-config.service');
       await salvarConfigIa(prisma, body.data.ia, u.id);
+    }
+    if (body.data.desconto_limite !== undefined) {
+      const { salvarLimiteDesconto } = await import('@/services/assistente-desconto.service');
+      await salvarLimiteDesconto(prisma, body.data.desconto_limite, u.id);
     }
     if (body.data.posvenda !== undefined) {
       const { salvarPosVenda } = await import('@/services/assistente-posvenda.service');
