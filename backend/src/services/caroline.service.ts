@@ -435,7 +435,9 @@ export async function painelCaroline(prisma: PrismaClient) {
   const porStatus: Record<string, number> = {};
   for (const l of leads) porStatus[l.status] = (porStatus[l.status] || 0) + 1;
   const nomes = new Map(leads.map(l => [l.id, l]));
+  const { usoIaUltimosDias } = await import('./uso-ia.service');
   return {
+    uso_ia: await usoIaUltimosDias(prisma, 7),
     config: cfg, por_status: porStatus,
     leads: leads.map(l => ({ id: l.id, nome: l.nome, empresa: l.empresa, numero: l.numero, segmento: l.segmento, campanha: l.campanha, status: l.status, tentativas: l.tentativas, nota: l.nota, nota_motivo: l.nota_motivo, temperatura: l.temperatura, temperatura_confirmada: l.temperatura_confirmada, dados: l.dados, conversaId: l.conversaId, lead_id: l.lead_id, atualizado_em: l.updated_at })),
     pendentes: pendentes.map(m => ({ id: m.id, sdrId: m.sdrId, texto: m.texto, meta: (() => { try { return JSON.parse(m.acao || '{}'); } catch { return {}; } })(), criado_em: m.created_at, lead: nomes.get(m.sdrId)?.nome || null, empresa: nomes.get(m.sdrId)?.empresa || null })),

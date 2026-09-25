@@ -162,8 +162,13 @@ export async function avisarSlaEstourado(prisma: PrismaClient, agora = new Date(
     select: { id: true, contato_nome: true, contato_numero: true, sla_prazo_em: true, mensagens: { orderBy: { created_at: 'desc' }, take: 1, select: { direcao: true, conteudo: true } } },
     take: 50,
   });
+  // Conversas com a Caroline (conversando, esperando aprovação ou resposta) não geram aviso de atraso.
+  const comCaroline = new Set((await prisma.sdrLead.findMany({
+    where: { conversaId: { in: conversas.map(c => c.id) }, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO'] } }, select: { conversaId: true },
+  }).catch(() => [])).map(s => s.conversaId));
   let n = 0;
   for (const c of conversas) {
+    if (comCaroline.has(c.id)) continue;
     const ultima = c.mensagens[0];
     if (!ultima || ultima.direcao !== 'ENTRADA') continue;
     const chave = `${c.id}:${c.sla_prazo_em!.getTime()}`;

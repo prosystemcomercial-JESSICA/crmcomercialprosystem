@@ -9,7 +9,8 @@ import { apiClient } from '@/lib/api-client';
 type Config = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null };
 type Lead = { id: string; nome: string | null; empresa: string | null; numero: string; segmento: string | null; campanha: string | null; status: string; tentativas: number; nota: number | null; nota_motivo: string | null; temperatura: string | null; temperatura_confirmada: string | null; dados: any };
 type Pendente = { id: string; sdrId: string; texto: string; meta: any; lead: string | null; empresa: string | null; criado_em: string };
-type Painel = { config: Config; por_status: Record<string, number>; leads: Lead[]; pendentes: Pendente[] };
+type Uso = { dia: string; openai: number; grok: number; laya: number };
+type Painel = { uso_ia?: Uso[]; config: Config; por_status: Record<string, number>; leads: Lead[]; pendentes: Pendente[] };
 type Previa = { nome: string | null; empresa: string | null; numero: string | null; telefone: string | null; segmento: string | null; campanha: string | null; avisos: string[]; pode: boolean };
 
 const COR = '#be123c';
@@ -91,6 +92,21 @@ export default function PainelCaroline() {
         Segurança do número: nas 2 primeiras semanas no máximo 15 primeiros contatos por dia (somados às campanhas), um a cada 4 a 9 minutos, só em horário comercial, com "digitando…". Responder quem já conversa não entra no limite.
       </div>
       {msg && <span style={{ fontSize: 13, color: msg.ok ? '#15803d' : '#dc2626' }}>{msg.texto}</span>}
+
+      {p.uso_ia && p.uso_ia.length > 0 && (() => {
+        const hoje = p.uso_ia[0];
+        const semana = p.uso_ia.reduce((a, d) => ({ openai: a.openai + d.openai, grok: a.grok + d.grok, laya: a.laya + d.laya }), { openai: 0, grok: 0, laya: 0 });
+        const total = semana.openai + semana.grok + semana.laya;
+        const pctGratis = total ? Math.round(((semana.laya) / total) * 100) : 0;
+        return (
+          <div style={{ ...caixa, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+            <div><div style={{ fontSize: 11, color: 'var(--t-text-muted)', textTransform: 'uppercase' }}>OpenAI (paga) hoje</div><b style={{ fontSize: 18, color: 'var(--t-text-primary)' }}>{hoje.openai}</b> <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>· 7 dias: {semana.openai}</span></div>
+            <div><div style={{ fontSize: 11, color: 'var(--t-text-muted)', textTransform: 'uppercase' }}>Grok hoje</div><b style={{ fontSize: 18, color: 'var(--t-text-primary)' }}>{hoje.grok}</b> <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>· 7 dias: {semana.grok}</span></div>
+            <div><div style={{ fontSize: 11, color: 'var(--t-text-muted)', textTransform: 'uppercase' }}>Laya (grátis) hoje</div><b style={{ fontSize: 18, color: '#15803d' }}>{hoje.laya}</b> <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>· 7 dias: {semana.laya}</span></div>
+            <div><div style={{ fontSize: 11, color: 'var(--t-text-muted)', textTransform: 'uppercase' }}>Feito sem custo (7 dias)</div><b style={{ fontSize: 18, color: '#15803d' }}>{pctGratis}%</b> <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>das chamadas de IA</span></div>
+          </div>
+        );
+      })()}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {Object.entries(p.por_status).map(([s, n]) => (
