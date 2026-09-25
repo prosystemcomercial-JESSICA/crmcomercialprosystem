@@ -1180,6 +1180,9 @@ class ApiClient {
   async getPesquisasSofia() {
     return this.client.get('/assistente/pesquisas');
   }
+  async baixarCadernoSofia() {
+    return this.client.get('/assistente/pesquisas/caderno', { responseType: 'blob' });
+  }
   async pesquisarSofia(tema: string | null) {
     return this.client.post('/assistente/pesquisas', { tema });
   }

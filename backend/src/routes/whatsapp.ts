@@ -813,9 +813,17 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   });
 
   // Pesquisas da Sofia (assuntos do setor).
+  // Caderno da Sofia: todas as pesquisas guardadas (nada é apagado), da mais nova para a mais antiga.
   fastify.get('/assistente/pesquisas', async (_request, reply) => {
-    const ps = await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' }, take: 12 });
+    const ps = await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' }, take: 1000 });
     return reply.send({ status: 'success', data: ps });
+  });
+  // Caderno da Sofia em Markdown (para guardar/usar fora do CRM).
+  fastify.get('/assistente/pesquisas/caderno', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { cadernoSofia } = await import('@/services/sofia-pesquisa.service');
+    reply.header('Content-Type', 'text/markdown; charset=utf-8');
+    return reply.send(cadernoSofia(await prisma.pesquisaSetor.findMany({ orderBy: { created_at: 'desc' } })));
   });
   fastify.post('/assistente/pesquisas', async (request, reply) => {
     if (!requireGestor(request, reply)) return;

@@ -161,15 +161,15 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
   const h = await historico(prisma, sdr.conversaId);
   // Assuntos da semana da Sofia (últimos 14 dias): só do segmento exato do lead e de gestão
   // (farmácia não recebe assunto de manipulação; assunto clínico/de produto fica de fora).
-  const pesquisas = await prisma.pesquisaSetor.findMany({ where: { created_at: { gte: new Date(Date.now() - 14 * 864e5) } }, orderBy: { created_at: 'desc' }, take: 3, select: { itens: true } }).catch(() => []);
+  const pesquisas = await prisma.pesquisaSetor.findMany({ where: { created_at: { gte: new Date(Date.now() - 60 * 864e5) } }, orderBy: { created_at: 'desc' }, take: 10, select: { itens: true, created_at: true } }).catch(() => []);
   const norm = (x: string) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
   const seg = norm(sdr.segmento || '');
-  const atualidades = pesquisas.flatMap(x => (Array.isArray(x.itens) ? x.itens : []) as any[])
+  const atualidades = pesquisas.flatMap(x => ((Array.isArray(x.itens) ? x.itens : []) as any[]).map(i => ({ ...i, _em: x.created_at })))
     .filter(i => {
       const s = norm(String(i?.segmento || ''));
       return i?.titulo && (s === seg || s.startsWith('gest'));
     })
-    .slice(0, 6).map(i => ({ segmento: String(i.segmento || ''), titulo: String(i.titulo), resumo: String(i.resumo || '').slice(0, 300), por_que_importa: String(i.por_que_importa || '').slice(0, 200) }));
+    .slice(0, 8).map(i => ({ segmento: String(i.segmento || ''), titulo: `${String(i.titulo)} (pesquisado em ${new Date(i._em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`, resumo: String(i.resumo || '').slice(0, 300), por_que_importa: String(i.por_que_importa || '').slice(0, 200) }));
   const p = promptCaroline({
     guia: await guiaComercial(prisma), instrucoes: await instrucoesPara(prisma, 'caroline'), exemplos: await exemplosEditados(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()), atualidades,
