@@ -72,6 +72,14 @@ describe('Caroline — termômetro e resposta da IA', () => {
   it('recusa resposta com preço', () => {
     expect(lerRespostaCaroline({ mensagens: ['O plano fica R$ 199 por mês'], acao: 'continuar', nota: 50 })).toBeNull();
   });
+  it('1ª e 2ª retomadas chamam de volta pelo dia a dia; atualidade só em follow-up', () => {
+    const base = { guia: 'G', instrucoes: '', exemplos: [], historico: 'Caroline: oi', fase: 'retomada' as const, saudacao: 'Bom dia' };
+    const semResposta = promptCaroline({ ...base, lead: { nome: 'A', empresa: null, segmento: 'Farmácia', campanha: null, abertura_jessica: true, tentativa: 1 } });
+    expect(semResposta.usuario).toContain('SNGPC');
+    expect(semResposta.usuario).toContain('sem notícias, prazos ou impostos');
+    const followUp = promptCaroline({ ...base, lead: { nome: 'A', empresa: null, segmento: 'Farmácia', campanha: null, abertura_jessica: true, tentativa: 1, ja_conversou: true } });
+    expect(followUp.usuario).toContain('follow-up');
+  });
   it('nunca deixa travessão nas mensagens', () => {
     const r = lerRespostaCaroline({ mensagens: ['Boa tarde, João! Aqui é a Caroline — da equipe Prosystem – tudo bem?'], acao: 'continuar', nota: 10 });
     expect(r?.mensagens[0]).toBe('Boa tarde, João! Aqui é a Caroline, da equipe Prosystem, tudo bem?');
