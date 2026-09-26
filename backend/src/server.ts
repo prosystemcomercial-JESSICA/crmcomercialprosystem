@@ -420,6 +420,11 @@ async function iniciarSchedulerAssistente() {
     try {
       const { rodarCaroline } = await import('./services/caroline.service.js');
       await rodarCaroline(prismaClient!);
+      // Cutucão da triagem da Bia parada há 30 min (8h–20h).
+      const { cutucarTriagensParadas } = await import('./services/triagem-executor.service.js');
+      const { obterInstanciaEmpresa } = await import('./lib/whatsapp-empresa.js');
+      const inst = await obterInstanciaEmpresa(prismaClient!);
+      if (inst?.instance_token) await cutucarTriagensParadas(prismaClient!, inst.instance_token);
     } catch (e: any) { console.error('[CAROLINE] rodada:', e?.message); } finally { carolineRodando = false; }
   };
   setInterval(iniciarCaroline, 2 * 60 * 1000);
