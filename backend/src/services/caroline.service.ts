@@ -421,7 +421,9 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   };
   // Fora do horário comercial a conversa não para: respostas a quem está conversando saem sem aprovação
   // (a Jessica confere depois na agenda). Primeiro contato e retomada continuam passando por ela.
-  const semAprovacao = fase === 'resposta' && !horarioComercial(agora);
+  // Aprovação só de segunda a sexta, 8h–18h; sábado e domingo ela responde direto.
+  const sabado = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(agora) === 'Sat';
+  const semAprovacao = fase === 'resposta' && (!horarioComercial(agora) || sabado);
   if (cfg.aprovar && !semAprovacao) {
     await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
