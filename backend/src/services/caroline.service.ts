@@ -419,7 +419,10 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     ...(fase === 'resposta' ? { status: 'CONVERSANDO' } : { status: 'AGUARDANDO', tentativas: { increment: 1 } as any }),
     ...(fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {}),
   };
-  if (cfg.aprovar) {
+  // Fora do horário comercial a conversa não para: respostas a quem está conversando saem sem aprovação
+  // (a Jessica confere depois na agenda). Primeiro contato e retomada continuam passando por ela.
+  const semAprovacao = fase === 'resposta' && !horarioComercial(agora);
+  if (cfg.aprovar && !semAprovacao) {
     await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
     registrarAcaoAgente(agenteDe(sdr), `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
