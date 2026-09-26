@@ -569,6 +569,7 @@ async function naoDesistir(prisma: PrismaClient, s: any, agora: Date) {
 // ── Rodada (a cada 2 min) ────────────────────────────────────────────────────
 
 let proximoPrimeiroContato = 0;
+const falhouEm = new Map<string, number>();
 const falhasSeguidas: Record<string, number> = {};
 
 // Conversa já existente no WhatsApp da empresa (mesmo número com/sem 9) ou uma nova, ligada ao lead.
@@ -661,15 +662,21 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     }
   }
 
-  if (!horarioComercial(agora)) return;
-
-  // 1) Respostas atrasadas (chegaram fora do horário ou a IA falhou): responde quem está esperando.
-  const esperando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'CONVERSANDO', ultima_lead_em: { not: null } }, take: 20 });
-  for (const s of esperando) {
-    if (s.ultima_caroline_em && s.ultima_lead_em! <= s.ultima_caroline_em) continue;
-    if (Date.now() - s.ultima_lead_em!.getTime() < 2 * 60_000) continue; // o webhook está cuidando
-    await falar(prisma, token, s.id, 'resposta');
+  // 1) Respostas atrasadas (a IA falhou, o servidor reiniciou ou chegou fora de hora): responde quem
+  //    está esperando. É conversa que o cliente puxou, então vale das 7h às 21h, todos os dias.
+  const horaSP = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
+  if (horaSP >= 7 && horaSP < 21) {
+    const esperando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'CONVERSANDO', ultima_lead_em: { not: null } }, take: 20 });
+    for (const s of esperando) {
+      if (s.ultima_caroline_em && s.ultima_lead_em! <= s.ultima_caroline_em) continue;
+      if (Date.now() - s.ultima_lead_em!.getTime() < 2 * 60_000) continue; // o webhook está cuidando
+      if ((falhouEm.get(s.id) || 0) > Date.now() - 10 * 60_000) continue; // falhou há pouco: tenta de novo em 10 min
+      const r = await falar(prisma, token, s.id, 'resposta').catch(() => 'falha' as const);
+      if (r === 'falha') falhouEm.set(s.id, Date.now()); else falhouEm.delete(s.id);
+    }
   }
+
+  if (!horarioComercial(agora)) return;
 
   // 1b) Parou no meio da conversa (a última mensagem é do agente, 1 dia útil sem resposta):
   //     vira retomada de follow-up e a gestão é avisada. Nenhum lead fica esquecido.
