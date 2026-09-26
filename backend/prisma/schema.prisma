@@ -2623,7 +2623,7 @@ model SdrMensagem {
   texto        String    @db.Text
   texto_final  String?   @db.Text
   status       String    @default("PENDENTE") // PENDENTE|APROVADA|EDITADA|DESCARTADA|ENVIADA_AUTO
-  acao         String?
+  acao         String?   @db.Text
   created_at   DateTime  @default(now())
   decidido_em  DateTime?
   decidido_por String?
