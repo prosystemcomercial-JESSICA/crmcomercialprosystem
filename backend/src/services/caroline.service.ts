@@ -443,10 +443,10 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
 }
 
 /** Faz o agente responder agora uma conversa que está esperando (ex.: recuperação manual). */
-export async function responderAgora(prisma: PrismaClient, sdrId: string) {
+export async function responderAgora(prisma: PrismaClient, sdrId: string, fase: FaseCaroline = 'resposta') {
   const inst = await obterInstanciaEmpresa(prisma);
   if (!inst?.instance_token) throw new Error('O WhatsApp da empresa não está conectado.');
-  return falar(prisma, inst.instance_token, sdrId, 'resposta');
+  return falar(prisma, inst.instance_token, sdrId, fase);
 }
 
 /** Aprovar (com ou sem edição) ou descartar uma mensagem da Caroline. */
