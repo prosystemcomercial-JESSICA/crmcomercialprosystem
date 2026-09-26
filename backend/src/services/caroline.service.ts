@@ -437,6 +437,13 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   return 'enviado';
 }
 
+/** Faz o agente responder agora uma conversa que está esperando (ex.: recuperação manual). */
+export async function responderAgora(prisma: PrismaClient, sdrId: string) {
+  const inst = await obterInstanciaEmpresa(prisma);
+  if (!inst?.instance_token) throw new Error('O WhatsApp da empresa não está conectado.');
+  return falar(prisma, inst.instance_token, sdrId, 'resposta');
+}
+
 /** Aprovar (com ou sem edição) ou descartar uma mensagem da Caroline. */
 export async function decidirMensagem(prisma: PrismaClient, id: string, decisao: { aprovar: boolean; texto?: string | null }, userId: string) {
   const m = await prisma.sdrMensagem.findUnique({ where: { id } });
