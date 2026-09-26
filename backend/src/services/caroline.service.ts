@@ -423,7 +423,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   // (a Jessica confere depois na agenda). Primeiro contato e retomada continuam passando por ela.
   // Aprovação só de segunda a sexta, 8h–18h; sábado e domingo ela responde direto.
   const sabado = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(agora) === 'Sat';
-  const semAprovacao = fase === 'resposta' && (!horarioComercial(agora) || sabado);
+  const semAprovacao = (fase === 'resposta' || (fase === 'retomada' && !!sdr.ultima_lead_em)) && (!horarioComercial(agora) || sabado);
   if (cfg.aprovar && !semAprovacao) {
     await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
@@ -688,20 +688,24 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     }
   }
 
-  if (!horarioComercial(agora)) return;
-
-  // 1b) Parou no meio da conversa (a última mensagem é do agente, 1 dia útil sem resposta):
+  // 1b) Parou no meio da conversa (a última mensagem é do agente, 2 h sem resposta, entre 8h e 20h):
   //     vira retomada de follow-up e a gestão é avisada. Nenhum lead fica esquecido.
   const conversando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'CONVERSANDO', ultima_caroline_em: { not: null } }, take: 50 });
   for (const s of conversando) {
     if (s.ultima_lead_em && s.ultima_lead_em > s.ultima_caroline_em!) continue; // a vez é do agente
-    if (diasUteisEntre(s.ultima_caroline_em!, agora) < 1) continue;
+    if (agora.getTime() - s.ultima_caroline_em!.getTime() < 2 * 3600_000) continue; // 2 h sem resposta
+    const horaAgora = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
+    if (horaAgora < 8 || horaAgora >= 20) continue; // cutuca de dia (a mensagem das 22h vira "bom dia")
     if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: 'PENDENTE' }, select: { id: true } })) continue; // esperando aprovação
     await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'AGUARDANDO', tentativas: 1, dados: { ...((s.dados as any) || {}), parou_em: agora.toISOString() } } });
     const { enviarAvisoGestao } = await import('./assistente-gestao.service');
     await enviarAvisoGestao(prisma, 'lead_qualificado', `⏸ *${s.nome || s.numero}${s.empresa ? ` (${s.empresa})` : ''} parou de responder* ${nomeDe(s) === 'Luiz Felipe' ? 'ao' : 'à'} ${nomeDe(s)}.\nÚltima mensagem ${s.ultima_caroline_em!.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}. Termômetro ${s.nota ?? '—'}.\nA retomada já está programada (até 3 tentativas). Se quiser, assuma a conversa.`).catch(() => {});
     registrarAcaoAgente(agenteDe(s), `${s.nome || 'um lead'} parou de responder: retomada programada`);
+    // Já cutuca agora, retomando o assunto ("oi, ainda estou por aqui").
+    await falar(prisma, token, s.id, 'retomada').catch(() => {});
   }
+
+  if (!horarioComercial(agora)) return;
 
   // 2) Retomadas de quem não respondeu; depois da 3ª tentativa, o ciclo longo (nunca desiste de cara).
   const aguardando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'AGUARDANDO' }, take: 50 });

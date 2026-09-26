@@ -58,6 +58,41 @@ export async function detectarCnpjNaConversa(
   });
 }
 
+// Cutucão para quem parou no meio da triagem: 30 min sem resposta, entre 8h e 20h, no máximo 2 vezes
+// (a 2ª só no dia seguinte). Frase natural conforme a etapa em que o cliente parou.
+const CUTUCAO: Record<string, string[]> = {
+  MENU: ['Oi! Ainda estou por aqui 😊 Me conta o que você precisa: conhecer nossos sistemas, um serviço, suporte ou financeiro? Pode tocar numa opção acima ou me escrever.', 'Oi, tudo bem? Passando pra saber se posso te ajudar 😊 É só me dizer o que você precisa.'],
+  MENU_CLIENTE: ['Oi! Ainda estou por aqui 😊 Como posso te ajudar? É só tocar numa opção acima ou me escrever.', 'Oi, tudo bem? Se precisar de algo, é só me chamar por aqui 😊'],
+  SEGMENTO: ['Oi! Ainda estou te esperando 😊 Só falta me dizer: a sua loja é farmácia ou padaria?', 'Oi! Pra eu te mostrar o sistema certo, é farmácia ou padaria? 😊'],
+  NOME: ['Oi! Ainda estou por aqui 😊 Qual é o seu nome, pra eu continuar o seu atendimento?', 'Oi! Só preciso do seu nome pra seguir com você 😊'],
+  SERVICO: ['Oi! Ainda estou por aqui 😊 Me conta em uma mensagem qual serviço você precisa?', 'Oi! Se ainda precisar do serviço, é só me descrever por aqui 😊'],
+};
+export async function cutucarTriagensParadas(prisma: PrismaClient, token: string, agora = new Date()): Promise<number> {
+  const hora = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
+  if (hora < 8 || hora >= 20) return 0;
+  const cs = await prisma.whatsappConversa.findMany({
+    where: { bot_ativo: true, bot_estado: { in: Object.keys(CUTUCAO) }, dono_id: null, ultima_em: { lt: new Date(agora.getTime() - 30 * 60_000), gt: new Date(agora.getTime() - 3 * 864e5) } },
+    select: { id: true, contato_numero: true, bot_estado: true, bot_dados: true, mensagens: { orderBy: { created_at: 'desc' }, take: 1, select: { direcao: true } } },
+    take: 30,
+  });
+  const hoje = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  let n = 0;
+  for (const c of cs) {
+    if (c.mensagens[0]?.direcao !== 'SAIDA') continue; // a vez é da Bia, não do cliente
+    const d: any = c.bot_dados || {};
+    const vezes = Number(d.cutucadas || 0);
+    if (vezes >= 2 || d.cutucado_dia === hoje) continue;
+    const texto = CUTUCAO[c.bot_estado!][vezes] || CUTUCAO[c.bot_estado!][0];
+    const r = await evo.enviarTexto(token, c.contato_numero, texto).catch(() => null);
+    if (!r) continue;
+    await registrarSaida(prisma, c.id, texto, r.externo_id);
+    await prisma.whatsappConversa.update({ where: { id: c.id }, data: { bot_dados: { ...d, cutucadas: vezes + 1, cutucado_dia: hoje }, ultima_mensagem: texto.slice(0, 200), ultima_em: new Date() } });
+    n++;
+  }
+  if (n) console.log(`[TRIAGEM] ${n} cutucão(ões) em triagem parada`);
+  return n;
+}
+
 export function emTriagem(c: { bot_ativo: boolean; bot_estado: string | null }): boolean {
   return c.bot_ativo && !!c.bot_estado && ESTADOS_TRIAGEM.includes(c.bot_estado as EstadoTriagem) && c.bot_estado !== 'FIM';
 }
