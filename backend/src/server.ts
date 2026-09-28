@@ -390,6 +390,9 @@ async function iniciarSchedulerAssistente() {
       if (dia === 0 || dia === 6 || hora < 8 || hora >= 19) return;
       const { avisarSlaEstourado } = await import('./services/assistente-gestao.service.js');
       await avisarSlaEstourado(prismaClient!, agora);
+      // Contratos na ZapSign: lembrete ao cliente em 24 h e aviso à gestão em 48 h.
+      const { rodarLembretesAssinatura } = await import('./services/contrato-assinatura.service.js');
+      await rodarLembretesAssinatura(prismaClient!, agora).catch((e: any) => console.error('[CONTRATO] lembretes:', e?.message));
       // Lembrete das 17h (uma vez por dia útil): confirmações da Laya pendentes.
       if (hora === 17) {
         const { lembrarConfirmacoesLaya } = await import('./services/laya-caderno.service.js');

@@ -1853,6 +1853,13 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       try {
         await detectarCnpjNaConversa(prisma, conversa.id, texto, undefined, inst.instance_token || '');
       } catch (e: any) { console.error('[CNPJ] erro:', e?.message); }
+      // Depois do aceite: cliente mandou nome/CPF/e-mail de quem assina → preenche o contrato.
+      try {
+        if (tipoMsg === 'TEXTO') {
+          const { captarDadosAssinante } = await import('@/services/contrato-assinatura.service');
+          if (await captarDadosAssinante(prisma, conversa.id, contato_numero, texto)) return;
+        }
+      } catch (e: any) { console.error('[CONTRATO] dados:', e?.message); }
       // Conversa com a Caroline (SDR): ela responde (ou espera aprovação); os outros robôs ficam quietos.
       try {
         const { aoReceberDoLead } = await import('@/services/caroline.service');

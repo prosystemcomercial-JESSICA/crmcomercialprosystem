@@ -2,7 +2,7 @@
 // número da empresa e o CRM responde com números. Puro: casamento de telefone,
 // leitura do comando e textos das respostas/avisos.
 
-export const TIPOS_AVISO = ['lead_qualificado', 'proposta_aberta', 'proposta_aceita', 'sla_estourado', 'risco_cancelar', 'resumo_diario', 'pesquisa_satisfacao', 'pesquisa_setor', 'contrato_assinado', 'laya_confirmacoes'] as const;
+export const TIPOS_AVISO = ['lead_qualificado', 'proposta_aberta', 'proposta_aceita', 'sla_estourado', 'risco_cancelar', 'resumo_diario', 'pesquisa_satisfacao', 'pesquisa_setor', 'contrato_assinado', 'laya_confirmacoes', 'contrato_pronto'] as const;
 export type TipoAviso = typeof TIPOS_AVISO[number];
 export const NOME_AVISO: Record<TipoAviso, string> = {
   lead_qualificado: 'Lead qualificado pela triagem',
@@ -15,6 +15,7 @@ export const NOME_AVISO: Record<TipoAviso, string> = {
   pesquisa_setor: 'Pesquisa semanal da Sofia (assuntos do setor)',
   contrato_assinado: 'Novo contrato assinado',
   laya_confirmacoes: 'Lembrete das 17h: conversas esperando confirmação da Laya',
+  contrato_pronto: 'Contrato pronto para conferir e contrato sem assinatura',
 };
 
 /** Últimos 8 dígitos: casa "(27) 99752-1370" com "5527997521370". */

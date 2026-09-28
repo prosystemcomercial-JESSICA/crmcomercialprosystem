@@ -1230,10 +1230,11 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const c = await prisma.contratoComercial.findUnique({ where: { id } });
     if (!c) return reply.status(404).send({ status: 'error', message: 'Não encontrado' });
 
-    if (!c.representante_nome) {
+    if (!c.representante_nome || !c.representante_cpf || !c.representante_email) {
+      const falta = [!c.representante_nome && 'nome', !c.representante_cpf && 'CPF', !c.representante_email && 'e-mail'].filter(Boolean).join(', ');
       return reply.status(400).send({
         status: 'error',
-        message: 'Contrato sem representante (nome) para assinar. Preencha o representante legal antes de enviar.',
+        message: `Falta ${falta} de quem vai assinar. Preencha no contrato (ou peça ao cliente no WhatsApp) antes de enviar.`,
       });
     }
 
@@ -1267,7 +1268,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       phone_number: (c.representante_telefone || '').replace(/\D/g, ''),
       auth_mode: 'assinaturaTela',
       send_automatic_email: !!c.representante_email,
-      send_automatic_whatsapp: !!c.representante_telefone,
+      send_automatic_whatsapp: false, // o link vai pelo WhatsApp da empresa (CRM), sem custo na ZapSign
     }];
     const docName = `Contrato ${c.numero_contrato} – ${c.razao_social}`;
 
@@ -1301,7 +1302,12 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       },
     });
 
-    return reply.send({ status: 'ok', data: updated, zapsign: zapRes });
+    // Link de assinatura no WhatsApp do cliente (mesma conversa da proposta).
+    const { enviarLinkAssinatura } = await import('@/services/contrato-assinatura.service');
+    const noWhatsapp = await enviarLinkAssinatura(prisma, id).catch(() => false);
+
+    return reply.send({ status: 'ok', data: updated, zapsign: zapRes, whatsapp: noWhatsapp,
+      message: noWhatsapp ? 'Contrato enviado para assinatura. O link foi para o WhatsApp e o e-mail do cliente.' : 'Contrato enviado para assinatura por e-mail (não achei a conversa de WhatsApp do cliente).' });
   });
 
   // ── WEBHOOK ZAPSIGN
@@ -1315,15 +1321,23 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     });
     if (!c) return reply.send({ ok: true });
 
-    const eventStatus = body?.event_action || body?.document?.status || '';
-    if (eventStatus === 'doc_signed' || eventStatus === 'signed') {
-      // Assinatura confirmada → calcula comissão, move proposta/lead (entra na meta).
-      await aplicarAssinatura(prisma, c.id, body?.document?.signed_file_url || null);
-    } else if (eventStatus === 'doc_refused' || eventStatus === 'refused') {
+    // Não confia só no aviso: confere o status direto na ZapSign (ninguém "assina" por um POST falso).
+    let doc: any = null;
+    try { const { obterDoc } = await import('@/services/zapsign.service'); doc = await obterDoc(String(docToken)); } catch { /* sem conferência: não age */ }
+    const status = String(doc?.status || '');
+    if (status === 'signed' && c.status !== 'ASSINADO') {
+      // Assinatura confirmada → calcula comissão, move proposta/lead (entra na meta), cria a implantação.
+      await aplicarAssinatura(prisma, c.id, doc?.signed_file || body?.document?.signed_file_url || null);
+      const { agradecerAssinatura } = await import('@/services/contrato-assinatura.service');
+      await agradecerAssinatura(prisma, c.id).catch(() => {});
+    } else if (status === 'refused' && c.zapsign_status !== 'refused') {
       await prisma.contratoComercial.update({
         where: { id: c.id },
         data: { status: 'PENDENTE_CORRECAO', zapsign_status: 'refused' },
       });
+      const { enviarAvisoGestao } = await import('@/services/assistente-gestao.service');
+      await enviarAvisoGestao(prisma, 'contrato_pronto', `⚠️ *Contrato recusado na ZapSign: ${(c.nome_fantasia || c.razao_social || '').trim()}*
+Nº ${c.numero_contrato}. Fale com o cliente e corrija antes de reenviar.`).catch(() => {});
     }
 
     return reply.send({ ok: true });

@@ -313,6 +313,23 @@ export default function ContratosPage() {
     finally { setMarcando(false); }
   };
 
+  // Envio automático: gera o PDF (o mesmo modelo de sempre), manda para a ZapSign e o link vai
+  // para o WhatsApp e o e-mail do cliente. Pede confirmação (2º clique) antes de enviar.
+  const [confirmarEnvio, setConfirmarEnvio] = useState(false);
+  const handleEnviarAssinatura = async () => {
+    if (!selected) return;
+    if (editDirty) { setZapMsg('Salve as alterações do contrato antes de enviar para assinatura.'); return; }
+    if (!confirmarEnvio) { setConfirmarEnvio(true); setZapMsg(''); return; }
+    setMarcando(true); setZapMsg(''); setConfirmarEnvio(false);
+    try {
+      const r = await apiClient.gerarEEnviarContrato(selected.id);
+      setZapMsg(r.data?.message || 'Contrato enviado para assinatura.');
+      setSelected({ ...selected, ...(r.data?.data || {}), status: 'ENVIADO_ASSINATURA' });
+      load();
+    } catch (e: any) { setZapMsg(e?.response?.data?.message || 'Não foi possível enviar para assinatura.'); }
+    finally { setMarcando(false); }
+  };
+
   const handleMarcarEnviado = async () => {
     if (!selected) return;
     setMarcando(true); setZapMsg('');
@@ -794,8 +811,30 @@ export default function ContratosPage() {
               <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
                 <p className="text-xs font-bold" style={{ color: 'var(--t-text-primary)' }}>Contrato & Assinatura</p>
                 <p className="text-[11px]" style={{ color: 'var(--t-text-muted)' }}>
-                  Modelo: <strong>{selected.plano_contratado || '—'}</strong> · Baixe o PDF, suba no painel da ZapSign e cole o link assinado abaixo.
+                  Modelo: <strong>{selected.plano_contratado || '—'}</strong> · Confira os dados e clique em <strong>Enviar para assinatura</strong>: o link vai para o WhatsApp e o e-mail do cliente, e o CRM marca como assinado sozinho. O caminho manual (baixar o PDF e marcar assinado) continua disponível.
                 </p>
+                {!['ENVIADO_ASSINATURA', 'ASSINADO', 'CANCELADO', 'RECUADO'].includes(selected.status) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={handleEnviarAssinatura} disabled={marcando}
+                      className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-xs font-bold text-white disabled:opacity-60"
+                      style={{ background: confirmarEnvio ? '#b45309' : '#7c3aed' }}>
+                      <Send size={12} /> {marcando ? 'Enviando…' : confirmarEnvio ? 'Confirmar: enviar agora' : '✍️ Enviar para assinatura'}
+                    </button>
+                    {confirmarEnvio && (
+                      <>
+                        <span className="text-[11px]" style={{ color: 'var(--t-text-muted)' }}>
+                          Vai para {selected.representante_nome || '—'} · {selected.representante_email || 'sem e-mail'}
+                        </span>
+                        <button onClick={() => setConfirmarEnvio(false)} className="text-[11px] underline" style={{ color: 'var(--t-text-muted)' }}>cancelar</button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {selected.status === 'ENVIADO_ASSINATURA' && selected.zapsign_signing_url && (
+                  <p className="text-[11px]" style={{ color: '#15803d' }}>
+                    Enviado para assinatura. Link do cliente: <a href={selected.zapsign_signing_url} target="_blank" rel="noopener noreferrer" className="underline">abrir</a>. Lembrete automático em 24 h.
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => window.open(apiClient.contratoPdfUrl(selected.id), '_blank')}
                     className="flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-bold text-white"
