@@ -106,6 +106,40 @@ export async function responderDemo(prisma: PrismaClient, token: string, convers
   });
 }
 
+/**
+ * Lembrete para a PESSOA responsável pela demonstração (WhatsApp dela), pelo menos 1h antes.
+ * Roda na mesma rodada dos lembretes; a trava de envio único garante uma vez só por reunião.
+ */
+export async function lembrarResponsavelDemo(prisma: PrismaClient, agora = new Date()): Promise<number> {
+  const inst = await obterInstanciaEmpresa(prisma);
+  if (!inst?.instance_token) return 0;
+  const ats = await prisma.atividade.findMany({
+    where: {
+      tipo: 'REUNIAO', status: { in: STATUS_ATIVOS }, whatsapp_conversa_id: { not: null }, responsavel_id: { not: null },
+      data_prevista: { gt: agora, lte: new Date(agora.getTime() + 75 * 60000) },
+    },
+    select: { id: true, titulo: true, data_prevista: true, responsavel_id: true, whatsapp_conversa_id: true, google_meet_link: true, link_externo: true },
+  });
+  const { podeEnviarUmaVez } = await import('./envio-unico.service');
+  let n = 0;
+  for (const a of ats) {
+    const u = await prisma.usuarioCRM.findUnique({ where: { id: a.responsavel_id! }, select: { nome: true, telefone: true } });
+    if (!u?.telefone || (u.telefone.replace(/\D/g, '').length < 10)) continue;
+    if (!(await podeEnviarUmaVez(prisma, `lembrete_demo_resp.${a.id}`, 24))) continue;
+    const c = await prisma.whatsappConversa.findUnique({ where: { id: a.whatsapp_conversa_id! }, select: { contato_numero: true, contato_nome: true } });
+    const hora = a.data_prevista!.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    const link = a.google_meet_link || a.link_externo;
+    const texto = [
+      `⏰ *Lembrete: demonstração às ${hora}*`,
+      a.titulo,
+      c ? `📱 Cliente: ${c.contato_nome || ''} ${c.contato_numero}`.trim() : null,
+      link ? `🔗 ${link}` : '🔗 Ainda sem link da reunião: envie ao cliente antes do horário.',
+    ].filter(Boolean).join('\n');
+    try { await evo.enviarTexto(inst.instance_token, u.telefone, texto); n++; } catch (e: any) { console.error(`[DEMO] lembrete responsável ${a.id}:`, e?.message); }
+  }
+  return n;
+}
+
 /** Lembrete pelo WhatsApp 2h antes das demos marcadas pelo lead. */
 export async function enviarLembretesDemo(prisma: PrismaClient, agora = new Date()): Promise<number> {
   const inst = await obterInstanciaEmpresa(prisma);
