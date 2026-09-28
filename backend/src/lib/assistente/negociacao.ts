@@ -7,6 +7,14 @@ import type { MenuWhatsapp } from '../../services/evolution.service';
 export const MENSALIDADE_PCT = 10;
 export const MENSALIDADE_MESES = 12;
 export const OPCOES_IMPLANTACAO_PCT = [30, 20] as const;
+export const VALIDADE_CAMPANHA_DIAS = 5; // campanha vale 5 dias corridos a partir da autorização
+
+/** Data-limite da campanha (autorização + 5 dias corridos). */
+export function validadeCampanha(c: { em?: string }): Date {
+  return new Date(new Date(c.em || Date.now()).getTime() + VALIDADE_CAMPANHA_DIAS * 86400000);
+}
+export const campanhaVigente = (c: { em?: string } | null | undefined, agora = new Date()) => !!c && validadeCampanha(c) > agora;
+const ateData = (c: { em?: string }) => validadeCampanha(c).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
 
 const brl = (n: number | null | undefined) => (n ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -48,7 +56,7 @@ export function textoPedidoNegociacao(p: PreviaNegociacao): string {
     '',
     `💬 *Mensagem que vai para o cliente:*\n"${p.mensagem.slice(0, 500)}"`,
     '',
-    '*Desconto que o Luiz poderá negociar:*',
+    `*Desconto que o Luiz poderá negociar* (campanha de ${VALIDADE_CAMPANHA_DIAS} dias corridos):`,
     ...opcoes,
     `• *${MENSALIDADE_PCT}%* na mensalidade por ${MENSALIDADE_MESES} meses: ${brl(m.mens_de)} → *${brl(m.mens_de != null ? r2(m.mens_de * 0.9) : null)}*`,
     '',
@@ -75,7 +83,7 @@ export function lerBotaoNegociacao(botaoId: string | null | undefined): { pct: n
 /** Instrução para o agente quando há desconto autorizado (só percentuais na conversa, sem R$). */
 export function instrucaoDescontoAutorizado(c: CondicaoAutorizada): string {
   return `DESCONTO AUTORIZADO PELA GESTÃO para este cliente: ${c.impl_pct}% de desconto na implantação e ${c.mens_pct}% na mensalidade durante ${c.meses} meses. ` +
-    'Seja comercial e conduza para o fechamento: quando o cliente mostrar interesse em revisar, negociar ou hesitar pelo preço, apresente essa condição (fale em porcentagem, sem valores em R$) como condição da campanha deste mês, válida até o fim do mês, e pergunte se pode atualizar a proposta com ela. ' +
+    `Seja comercial e conduza para o fechamento: quando o cliente mostrar interesse em revisar, negociar ou hesitar pelo preço, apresente essa condição (fale em porcentagem, sem valores em R$) como condição da campanha, válida por ${VALIDADE_CAMPANHA_DIAS} dias (até ${ateData(c)}), e pergunte se pode atualizar a proposta com ela. ` +
     'Se ele disser que sim / quer fechar / quer ver a proposta nova, use acao "aceitar_condicao" (o sistema atualiza a proposta e manda com os botões de aceite). Não ofereça mais do que isso.';
 }
 
@@ -85,6 +93,6 @@ export function textoCondicaoAplicada(c: CondicaoAutorizada): string {
     '🎉 *Condição da campanha aplicada na sua proposta:*',
     c.impl_de != null ? `🛠️ Implantação: de ${brl(c.impl_de)} por *${brl(c.impl_por)}* (${c.impl_pct}% off)` : `🛠️ ${c.impl_pct}% de desconto na implantação`,
     c.mens_de != null ? `💳 Mensalidade: *${brl(c.mens_por)}* nos primeiros ${c.meses} meses (${c.mens_pct}% off), depois ${brl(c.mens_de)}` : `💳 ${c.mens_pct}% de desconto na mensalidade por ${c.meses} meses`,
-    'Condição válida até o fim deste mês.',
+    `Condição válida por ${VALIDADE_CAMPANHA_DIAS} dias, até ${ateData(c)}.`,
   ].join('\n');
 }
