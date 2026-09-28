@@ -99,6 +99,7 @@ Lead toca **Me chama depois** → nota mínima 35 (morno) → agente oferece **p
 - **Finalizar:** ✅ Finalizar → volta sozinha se o contato escrever.
 - **Anotar ligação:** 📝 Observações (CNPJ é consultado na Receita).
 - **Acompanhar agentes:** clicar no agente → 📅 Agenda.
+- **Notificação de conversas (💬 no topo):** só mensagens de hoje; clicar abre a conversa (`/whatsapp?c=<id>`), marca como lida e tira da lista.
 
 ## 9. Fluxo da gestão (diretoria)
 

@@ -16,6 +16,7 @@ Este manual explica, passo a passo, como usar as funções novas do CRM Comercia
 - **Identificar** (painel lateral) marca o contato como Cliente, Lead, Parceiro, Equipe, Terceiro de cliente, Fornecedor ou Outro. Só **Lead** fica no funil.
 - **Mensagem enviada pelo celular** para um número novo cria a conversa no CRM, com o histórico, e a triagem não entra nela.
 - **Abas:** Minhas, Sem dono, Todas (gestão) e **Finalizadas**.
+- **Notificação de conversas (ícone 💬 no topo):** mostra só as conversas com mensagens **de hoje**. Clicar numa delas **abre a conversa direto**, que vira lida, e a notificação some.
 
 ### 1.1 Vincular a conversa a um cliente
 
