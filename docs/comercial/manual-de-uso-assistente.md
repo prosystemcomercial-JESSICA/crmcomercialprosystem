@@ -258,7 +258,8 @@ Os três conversam pela IA no WhatsApp da empresa, cada um com o próprio painel
 
 **Nenhum lead fica esquecido**
 - **Parou no meio da conversa:** depois de 1 dia útil, você recebe "⏸ Fulano parou de responder" e a retomada é programada (até 3 tentativas).
-- **Sem resposta às 3 tentativas:** o Julio volta a chamar **a cada 30 dias**, até 3 ciclos. Depois disso, o lead vai para a vendedora ligar.
+- **Mensagem de encerramento:** 2 dias úteis depois da 3ª tentativa sem resposta, sai uma última mensagem: viu a inscrição e não teve retorno, "quanto antes começar a mudança, antes você resolve as pendências", pergunta se ainda tem interesse e lista 2 ou 3 soluções do material do segmento, com os botões.
+- **Sem resposta ao encerramento (5 dias úteis):** o Julio volta a chamar **a cada 30 dias**, até 3 ciclos. Depois disso, o lead vai para a vendedora ligar.
 
 **Lead para a vendedora só no expediente (seg a sex, 8h30 às 17h)**
 - Dentro do horário, entra em "Leads para Distribuir" na hora, com aviso.

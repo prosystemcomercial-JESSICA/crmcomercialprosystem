@@ -48,7 +48,8 @@ flowchart TD
   G -- Sem interesse --> L[Encerra com porta aberta]
   E -- Não, 2 h --> M[Parou de responder: aviso à gestão + retomada na hora]
   M --> N[Retomadas: 2 e 5 dias úteis, com botões]
-  N -- Sem resposta --> O[Julio: ciclos de 30 dias, até 3]
+  N -- Sem resposta --> N2[Encerramento: ainda tem interesse? + soluções do material]
+  N2 -- Sem resposta, 5 dias úteis --> O[Julio: ciclos de 30 dias, até 3]
   O -- Sem resposta --> P[Vendedora liga, no expediente]
 ```
 
