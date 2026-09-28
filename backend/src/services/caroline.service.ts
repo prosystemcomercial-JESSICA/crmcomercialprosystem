@@ -10,7 +10,7 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
-  PERFIS_SDR, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  PERFIS_SDR, CONVITE_INSTAGRAM, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
 
@@ -372,7 +372,43 @@ export async function entregarParaVendedora(prisma: PrismaClient, sdrId: string)
   registrarAcaoAgente(agenteDe(s), `passou ${s.nome || 'um lead'} para a vendedora`);
 }
 
-async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: string, r: { nota: number; nota_motivo: string; duvida?: string | null }) {
+export const ETIQUETA_NEWS = 'News';
+
+/** Etiqueta do sistema que marca quem só recebe informativos da Prosystem (público "News" das campanhas). */
+export async function etiquetaNews(prisma: PrismaClient) {
+  const ja = await prisma.etiqueta.findFirst({ where: { nome: ETIQUETA_NEWS, tipo: 'LEAD' } });
+  if (ja) return ja;
+  return prisma.etiqueta.create({ data: { nome: ETIQUETA_NEWS, cor: '#7c3aed', tipo: 'LEAD', sistema: true, descricao: 'Só recebe informativos da Prosystem (perdidos com a porta aberta).', created_by: 'sistema' } });
+}
+
+/** Negócio perdido com o motivo do cliente (lead no funil + proposta) e contato na lista News. */
+export async function marcarPerdidoNews(prisma: PrismaClient, sdr: any, motivo: string, texto: string, agente: string) {
+  const descricao = texto.trim().slice(0, 300);
+  const motivoCompleto = descricao ? `${motivo}: ${descricao}` : motivo;
+  if (sdr.lead_id) {
+    const lead = await prisma.lead.findUnique({ where: { id: sdr.lead_id } });
+    if (lead && lead.status !== 'PERDIDO') {
+      await prisma.lead.update({ where: { id: lead.id }, data: { etapa_funil: 'PERDIDO', etapa_comercial: 'PERDIDO', status: 'PERDIDO' as any, motivo_perda: motivoCompleto } });
+      const { randomUUID } = await import('crypto');
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO LeadPerda (id, lead_id, lead_nome, etapa_anterior, etapa_destino, motivo, motivo_outro, observacoes, valor_oportunidade, vendedor_id, vendedor_nome) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        randomUUID(), lead.id, lead.nome, lead.etapa_funil, 'PERDIDO', motivo, descricao || null, `Registrado por ${agente} pela conversa do WhatsApp.`, lead.valor_estimado || 0, lead.responsavel_id || null, agente,
+      );
+    }
+    const et = await etiquetaNews(prisma);
+    await prisma.leadEtiquetaAplicada.upsert({ where: { lead_id_etiqueta_id: { lead_id: sdr.lead_id, etiqueta_id: et.id } }, create: { lead_id: sdr.lead_id, etiqueta_id: et.id }, update: {} });
+  }
+  if (sdr.proposta_id) {
+    const p = await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { id: true, status: true } });
+    if (p && !['PERDIDA', 'ACEITA', 'CONTRATO_ASSINADO'].includes(p.status)) {
+      await prisma.propostaComercial.update({ where: { id: p.id }, data: { status: 'PERDIDA' } });
+      await prisma.propostaHistorico.create({ data: { proposta_id: p.id, tipo: 'STATUS', campo_alterado: 'status', valor_anterior: p.status, valor_novo: 'PERDIDA', motivo: motivoCompleto, observacao: 'Cliente informou pelo WhatsApp. Contato passou para a lista News.', feito_por_nome: agente } });
+    }
+  }
+  registrarAcaoAgente(agenteDe(sdr), `marcou ${sdr.nome || 'um lead'} como perdido (${motivo}) e passou para a lista News`);
+}
+
+async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: string, r: { nota: number; nota_motivo: string; duvida?: string | null; motivo_perda?: string | null }) {
   const { enviarAvisoGestao } = await import('./assistente-gestao.service');
   const atual = await prisma.sdrLead.findUnique({ where: { id: sdr.id } });
   const dados: any = atual?.dados || {};
@@ -404,6 +440,13 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: 
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'SEM_INTERESSE', resumo } });
     await obs(`${resumo}\n\nSem interesse no momento (encerrado com gentileza).`);
     registrarAcaoAgente(agenteDe(sdr), `encerrou: ${atual?.nome || 'lead'} sem interesse agora`);
+    // Proposta recusada (Luiz Felipe) ou já fechou com outro sistema: negócio perdido com o motivo
+    // que o cliente deu, e o contato passa para a lista News (só informativos) com o nosso Instagram.
+    const motivo = r.motivo_perda || 'SEM_INTERESSE';
+    if (atual && (atual.proposta_id || motivo === 'JA_TEM_FORNECEDOR')) {
+      await marcarPerdidoNews(prisma, atual, motivo, r.nota_motivo || '', nomeDe(sdr)).catch((e: any) => console.warn('[CAROLINE] perda/news:', e?.message));
+      await enviarMensagens(prisma, token, atual, [CONVITE_INSTAGRAM]).catch(() => {});
+    }
   } else if (acao === 'duvida_fora_material') {
     await enviarAvisoGestao(prisma, 'lead_qualificado', `❓ *Dúvida que ${nomeDe(sdr)} não sabe responder*\n${atual?.nome || ''}${atual?.empresa ? ` · ${atual.empresa}` : ''}: "${r.duvida || 'ver conversa'}"\nResponda na conversa do WhatsApp (ao responder, você assume e ela sai).`);
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
@@ -445,7 +488,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   void sabado;
   const semAprovacao = fase === 'resposta' || (fase === 'retomada' && !!sdr.ultima_lead_em && (!horarioComercial(agora) || sabado));
   if (cfg.aprovar && !semAprovacao) {
-    await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase, chamariz, ultima }) } });
+    await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
     registrarAcaoAgente(agenteDe(sdr), `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });

@@ -893,7 +893,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
   // ===== ASSISTENTE: campanhas pelo WhatsApp (só gestão) =====
   const FiltroCampanhaZ = z.object({
-    publico: z.enum(['CLIENTES', 'LEADS_PARADOS']), segmento: z.string().max(60).optional().nullable(),
+    publico: z.enum(['CLIENTES', 'LEADS_PARADOS', 'NEWS']), segmento: z.string().max(60).optional().nullable(),
     dias_parado: z.number().int().min(7).max(365).optional().nullable(),
   });
   fastify.get('/assistente/campanhas', async (request, reply) => {
