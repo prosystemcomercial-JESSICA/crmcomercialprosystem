@@ -59,7 +59,7 @@ Todo número novo recebe o menu: **Quero conhecer**, **Serviços**, **Suporte** 
 - **Quero conhecer (3 toques):** segmento (Padaria ou Farmácia) e nome. Cidade e CNPJ ficam para depois, na conversa com a Caroline ou com a equipe. Um CNPJ enviado a qualquer momento continua sendo consultado na Receita.
 - **Com a Caroline ligada:** a Bia diz "A Caroline, da nossa equipe, já vai continuar o seu atendimento" e a Caroline assume em 1 a 3 minutos. O lead só entra em "Leads para Distribuir" quando a Caroline terminar.
 - **Com a Caroline desligada:** o lead vira **Qualificado**, toca o **alarme**, recebe o material do segmento e a oferta de demonstração (seção 5.4).
-- **Suporte** e **Financeiro** recebem o contato do atendimento geral, *27 99779-8103*, e saem do funil.
+- **Suporte** e **Financeiro** recebem o contato do atendimento geral, *27 99779-8103*, com o botão **💬 Falar com o suporte** (ou financeiro), que abre o chat direto, e saem do funil.
 
 **Configurar:** Configurações → Triagem automática. Ali se liga ou desliga a triagem e se editam os textos de farmácia e padaria.
 

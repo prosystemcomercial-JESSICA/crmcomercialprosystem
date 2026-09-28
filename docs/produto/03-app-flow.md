@@ -20,7 +20,7 @@ flowchart TD
   A[Cliente manda mensagem] --> B{Número conhecido?}
   B -- Cliente da base --> C[Menu de cliente: Serviços / Suporte / Financeiro]
   B -- Novo --> D[Bia: menu Quero conhecer / Serviços / Suporte / Financeiro]
-  D -- Suporte ou Financeiro --> E[Contato do atendimento geral 27 99779-8103]
+  D -- Suporte ou Financeiro --> E[Contato do atendimento geral 27 99779-8103 + botão que abre o chat]
   D -- Quero conhecer --> F[Segmento: Farmácia ou Padaria]
   F --> G[Nome]
   G --> H{Caroline ligada?}
