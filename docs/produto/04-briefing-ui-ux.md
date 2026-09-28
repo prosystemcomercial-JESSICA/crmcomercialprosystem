@@ -37,6 +37,9 @@ Versão 1.0 · 27/09/2026
 - **Centro:** cabeçalho com nome, número, farol, e ações (Assumir, Finalizar, prioridade, etiqueta, transferir); mensagens com balão "Atendimento automático" para robôs.
 - **Direita (painel):** Atendimento/SLA, Contato, Triagem, Resumir conversa, **➕ Criar proposta | 📄 Enviar/reenviar**, IA Laya (confirmar/corrigir), Responsável, **📝 Observações**, Mover no funil.
 
+### 4.1b Notificação de conversas
+- Ícone 💬 verde no topo com contador; lista só as conversas de hoje; clique abre a conversa e remove o item.
+
 ### 4.2 Escritório virtual
 - Sala isométrica em estilo LEGO: mesas, café, biblioteca, pebolim, videogame, sala de reunião e sala da Jessica.
 - Minifigs com cabelo, acessórios e **tom de pele por agente** (ex.: Helena negra com black power).
