@@ -75,7 +75,7 @@ Documento de requisitos técnicos · versão 1.0 · 27/09/2026
 
 - JWT com papéis (`CEO`, `ADMIN`, `DIRETOR`, `SUPERVISAO_COMERCIAL`, `SUPERVISAO`, `VENDEDOR`, `SDR`, `TECNICO_IMPLANTACAO`); rotas de gestão com `requireGestor`; conversas com `whereLeituraConversa` e `whereAcaoConversa`.
 - 2FA, auditoria de usuários, contas de consulta só leitura.
-- Pendente: troca das senhas da VPS e do MySQL (atividade de 28/09).
+- Senhas da VPS e do MySQL: mantidas (decisão da Jessica em 28/09). O deploy usa só a chave SSH `~/.ssh/crm_comercial_vps`.
 
 ## 8. Testes
 
