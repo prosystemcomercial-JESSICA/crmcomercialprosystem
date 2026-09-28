@@ -127,3 +127,9 @@ Versão 1.0 · 27/09/2026 · o que já está no ar e o que vem a seguir
   - aviso 🔥 para a gestão.
 - **Sem desconto autorizado,** o Luiz continua proibido de oferecer valores ou condições.
 - Não há mudança de schema. Teste: tests/negociacao.test.ts.
+
+### Atualização 28/09/2026: campanha negociada vale 5 dias corridos
+- A condição autorizada vale `VALIDADE_CAMPANHA_DIAS = 5` dias corridos, contados a partir do momento da autorização (`desconto_autorizado.em`). As funções `validadeCampanha` e `campanhaVigente` ficam em lib/assistente/negociacao.ts.
+- O Luiz apresenta a condição como "válida por 5 dias (até DD/MM)". O texto "Condição da campanha aplicada" mostra a mesma data, e a confirmação enviada à gestora também.
+- Passados os 5 dias, a condição deixa de ir para o prompt e `aplicarCondicaoNaProposta` recusa a aplicação.
+- A oferta ao cliente passou a dizer "campanha ativa por poucos dias", no lugar de "campanhas ativas este mês".
