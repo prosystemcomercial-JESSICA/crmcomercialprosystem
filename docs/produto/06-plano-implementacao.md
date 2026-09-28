@@ -29,7 +29,6 @@ Versão 1.0 · 27/09/2026 · o que já está no ar e o que vem a seguir
 |---|---|---|
 | Acompanhar o 1º dia do Julio e do Luiz Felipe (9h de 28/09) | Claude | Sem erro no log, limite respeitado, mensagens aprovadas |
 | Ajustar o tom com base nos seus ajustes e refazer | Claude + Jessica | Menos de 30% das mensagens precisando de ajuste |
-| Trocar as senhas da VPS e do MySQL | Jessica | Atividade de 28/09 concluída e `.env` atualizado |
 
 ### Fase B: fechar pendências de configuração
 | Item | Depende de |
