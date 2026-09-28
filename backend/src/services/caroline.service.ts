@@ -76,7 +76,7 @@ export async function previaLeads(prisma: PrismaClient, texto: string) {
         if (conversa?._count.mensagens) avisos.push(`Já há conversa com ${conversa._count.mensagens} mensagem(ns) no WhatsApp da empresa: a Caroline continua de onde parou.`);
       }
       jaNaCaroline = !!(await prisma.sdrLead.findFirst({ where: { numero: { endsWith: ultimos8(l.numero) }, status: { in: ATIVOS } }, select: { id: true } }));
-      if (jaNaCaroline) avisos.push('Este número já está com a Caroline.');
+      if (jaNaCaroline) avisos.push('Este número já está com a Caroline: ao confirmar, só completo o cadastro dele com a empresa, o e-mail e a campanha (sem duplicar e sem mensagem nova).');
     }
     return { ...l, avisos, pode: !!l.numero && !jaNaCaroline };
   }));
@@ -131,7 +131,24 @@ export async function importarLeads(prisma: PrismaClient, texto: string, abertur
     criados++;
   }
   registrarAcaoAgente('caroline', `recebeu ${criados} lead(s) para o primeiro contato`);
-  return { criados, ignorados: prev.length - criados };
+  // Já está com um agente: não duplica nem manda mensagem, mas completa o cadastro com os dados
+  // da plataforma (empresa, e-mail, campanha), para o agente saber de onde o lead veio.
+  let atualizados = 0;
+  for (const l of prev.filter(x => !x.pode && x.numero)) {
+    const s = await prisma.sdrLead.findFirst({ where: { numero: { endsWith: ultimos8(l.numero!) }, status: { in: ATIVOS } }, orderBy: { created_at: 'desc' } });
+    if (!s) continue;
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { empresa: s.empresa || l.empresa, email: s.email || l.email, segmento: s.segmento || l.segmento, campanha: l.campanha || s.campanha, cadastro_em: s.cadastro_em || l.cadastro_em } });
+    if (s.lead_id) {
+      const lead = await prisma.lead.findUnique({ where: { id: s.lead_id }, select: { empresa: true, responsavel_email: true, segmento: true, campanha_nome: true } });
+      await prisma.lead.update({ where: { id: s.lead_id }, data: {
+        ...(!lead?.empresa && l.empresa ? { empresa: l.empresa } : {}), ...(!lead?.responsavel_email && l.email ? { responsavel_email: l.email } : {}),
+        ...(!lead?.segmento && l.segmento ? { segmento: l.segmento } : {}), ...(l.campanha ? { campanha_nome: l.campanha, utm_campaign: l.campanha, utm_source: l.origem || 'facebook' } : {}),
+      } as any }).catch(() => {});
+      await prisma.leadObservacao.create({ data: { lead_id: s.lead_id, tipo: 'SISTEMA', descricao: `Também se inscreveu na campanha ${l.campanha || '—'}${l.empresa ? ` (empresa: ${l.empresa})` : ''}. Cadastro completado, sem duplicar.`, created_by: user.id, created_by_name: user.nome || 'Equipe' } }).catch(() => {});
+    }
+    atualizados++;
+  }
+  return { criados, atualizados, ignorados: prev.length - criados - atualizados };
 }
 
 /**

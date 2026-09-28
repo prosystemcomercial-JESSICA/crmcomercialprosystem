@@ -829,7 +829,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const { importarLeads } = await import('@/services/caroline.service');
     try {
       const r = await importarLeads(prisma, b.data.texto, b.data.abertura_enviada, getUser(request)!);
-      return reply.send({ status: 'success', data: r, message: `${r.criados} lead(s) com a Caroline${r.ignorados ? ` · ${r.ignorados} ignorado(s)` : ''}.` });
+      return reply.send({ status: 'success', data: r, message: `${r.criados} lead(s) com a Caroline${r.atualizados ? ` · ${r.atualizados} já com ela, cadastro completado` : ''}${r.ignorados ? ` · ${r.ignorados} ignorado(s)` : ''}.` });
     } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
   });
   fastify.put('/assistente/caroline/config', async (request, reply) => {
