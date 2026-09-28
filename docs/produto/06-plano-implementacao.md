@@ -64,3 +64,10 @@ Versão 1.0 · 27/09/2026 · o que já está no ar e o que vem a seguir
 3. **Atualizar os seis documentos de `docs/produto/` nos mínimos detalhes** (PRD, TRD, App flow, Briefing de UI/UX, Esquema do backend e este plano), além do manual e da página de Novidades.
 4. Nunca apagar leads antigos; nunca criar atividades automáticas (exceto demo do lead).
 5. Proteger o número do WhatsApp acima de qualquer velocidade.
+
+
+### Atualização 28/09/2026: resposta em até 1 minuto e dúvidas
+- Quando o lead ou cliente escreve, a resposta do agente (Caroline, Julio, Luiz Felipe) sai **na hora, sem aprovação, em qualquer horário**: o agente espera 20 s para juntar mensagens seguidas e responde em cerca de 30 a 50 s (máximo ~1 min).
+- A aprovação ("Aprovar antes de enviar") vale só para o que o agente puxa sozinho: primeiro contato e retomadas. Retomadas de quem já conversou, fora do horário comercial ou no sábado, também saem direto.
+- Dúvida do cliente: (1) o agente procura no material e responde; (2) se não entendeu a pergunta, pergunta mais ao cliente; (3) só se o material não cobrir, avisa que confirma com a equipe (acao `duvida_fora_material`).
+- Técnico: `caroline.service.ts` (`semAprovacao` inclui toda `fase === "resposta"`, `ESPERA_MS = 20_000`); `lib/assistente/sdr.ts` (regra NÃO INVENTE NADA reescrita). Sem mudança de schema. Regra também gravada como instrução da equipe no Escritório virtual.

@@ -114,3 +114,10 @@ O CRM Comercial Prosystem é o sistema de vendas da Prosystem Sistemas (ERP e PD
 ## 10. Documentos relacionados
 
 TRD (`02-TRD.md`), App flow (`03-app-flow.md`), Briefing de UI/UX (`04-briefing-ui-ux.md`), Esquema do backend (`05-esquema-backend.md`), Plano de implementação (`06-plano-implementacao.md`), Manual de uso (`../comercial/manual-de-uso-assistente.md`).
+
+
+### Atualização 28/09/2026: resposta em até 1 minuto e dúvidas
+- Quando o lead ou cliente escreve, a resposta do agente (Caroline, Julio, Luiz Felipe) sai **na hora, sem aprovação, em qualquer horário**: o agente espera 20 s para juntar mensagens seguidas e responde em cerca de 30 a 50 s (máximo ~1 min).
+- A aprovação ("Aprovar antes de enviar") vale só para o que o agente puxa sozinho: primeiro contato e retomadas. Retomadas de quem já conversou, fora do horário comercial ou no sábado, também saem direto.
+- Dúvida do cliente: (1) o agente procura no material e responde; (2) se não entendeu a pergunta, pergunta mais ao cliente; (3) só se o material não cobrir, avisa que confirma com a equipe (acao `duvida_fora_material`).
+- Técnico: `caroline.service.ts` (`semAprovacao` inclui toda `fase === "resposta"`, `ESPERA_MS = 20_000`); `lib/assistente/sdr.ts` (regra NÃO INVENTE NADA reescrita). Sem mudança de schema. Regra também gravada como instrução da equipe no Escritório virtual.
