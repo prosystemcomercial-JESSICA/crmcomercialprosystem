@@ -440,7 +440,10 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   // (a Jessica confere depois na agenda). Primeiro contato e retomada continuam passando por ela.
   // Aprovação só de segunda a sexta, 8h–18h; sábado e domingo ela responde direto.
   const sabado = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(agora) === 'Sat';
-  const semAprovacao = (fase === 'resposta' || (fase === 'retomada' && !!sdr.ultima_lead_em)) && (!horarioComercial(agora) || sabado);
+  // Resposta a quem escreveu sai SEMPRE na hora (prioridade: até 1 minuto). Aprovação só no que o agente
+  // puxa sozinho (primeiro contato e retomadas), e nas retomadas de quem já conversou fora do comercial.
+  void sabado;
+  const semAprovacao = fase === 'resposta' || (fase === 'retomada' && !!sdr.ultima_lead_em && (!horarioComercial(agora) || sabado));
   if (cfg.aprovar && !semAprovacao) {
     await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
@@ -509,7 +512,7 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
 // ── Mensagem do lead (webhook) ───────────────────────────────────────────────
 
 const espera = new Map<string, NodeJS.Timeout>();
-const ESPERA_MS = 40_000; // junta mensagens seguidas antes de responder
+const ESPERA_MS = 20_000; // junta mensagens seguidas antes de responder (resposta em até ~1 min)
 
 /** Chamado pelo webhook do WhatsApp da empresa. true = a conversa é da Caroline (os outros robôs ficam quietos). */
 export async function aoReceberDoLead(prisma: PrismaClient, token: string, conversaId: string, tipo: string, texto: string, mensagemId: string, botaoId?: string | null): Promise<boolean> {
