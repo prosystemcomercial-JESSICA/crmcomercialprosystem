@@ -255,7 +255,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const convs = [...(res.data?.data || []), ...(resPool?.data?.data || [])]
           .sort((a: any, b: any) => new Date(b.ultima_em || 0).getTime() - new Date(a.ultima_em || 0).getTime());
         const ESTADOS_TRIAGEM = ['MENU', 'MENU_CLIENTE', 'SERVICO', 'SEGMENTO', 'RELACAO', 'NOME', 'CIDADE', 'CNPJ', 'CNPJ_CONFIRMA'];
-        const contaParaSino = (c: any) => !(c.bot_ativo && ESTADOS_TRIAGEM.includes(c.bot_estado || ''));
+        // Só conta o que chegou hoje (o que ficou de dias anteriores não vira notificação).
+        const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
+        const deHoje = (c: any) => c.ultima_em && new Date(c.ultima_em) >= inicioHoje;
+        const contaParaSino = (c: any) => deHoje(c) && !(c.bot_ativo && ESTADOS_TRIAGEM.includes(c.bot_estado || ''));
         const total = convs.filter(contaParaSino).reduce((s: number, c: any) => s + (c.nao_lidas || 0), 0);
         if (total > wppTotalRef.current && wppTotalRef.current >= 0) {
           tocarSom();
@@ -263,7 +266,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
         wppTotalRef.current = total;
         setWppNaoLidas(wppVistoRef.current ? 0 : total);
-        setWppConversas(convs.filter((c: any) => c.nao_lidas > 0).slice(0, 6).map((c: any) => ({
+        setWppConversas(convs.filter((c: any) => c.nao_lidas > 0 && deHoje(c)).slice(0, 6).map((c: any) => ({
           id: c.id, nome: c.contato_nome || c.contato_numero, ultima: c.ultima_mensagem,
         })));
       } catch {}
@@ -563,7 +566,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {wppConversas.length === 0 ? (
                   <p style={{ padding: 14, fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center' }}>Nenhuma nova mensagem</p>
                 ) : wppConversas.map(c => (
-                  <button key={c.id} onClick={() => { setWppOpen(false); router.push('/whatsapp'); }}
+                  <button key={c.id} onClick={() => {
+                    // Abre direto a conversa (ela vira lida) e tira a notificação da lista.
+                    setWppOpen(false);
+                    setWppConversas(prev => prev.filter(x => x.id !== c.id));
+                    setWppNaoLidas(n => Math.max(0, n - 1));
+                    router.push(`/whatsapp?c=${encodeURIComponent(c.id)}`);
+                  }}
                     style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', borderBottom: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer' }}>
                     <p style={{ fontWeight: 600, fontSize: 12, color: 'var(--t-text-primary)' }}>{c.nome}</p>
                     <p style={{ fontSize: 11, color: 'var(--t-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.ultima}</p>

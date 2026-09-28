@@ -522,6 +522,18 @@ export default function WhatsappPage() {
   }, [status]);
 
 
+  // Atalho vindo da notificação: /whatsapp?c=<id> abre essa conversa direto (e ela vira lida).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('c');
+    if (!id) return;
+    window.history.replaceState(null, '', '/whatsapp');
+    apiClient.getWhatsappMensagens(id).then(res => {
+      const conv = res.data?.data?.conversa;
+      if (conv) abrir({ ...conv, nao_lidas: 0 }); // mesmo caminho do clique na lista (painel, lead, Laya)
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const abrir = async (c: Conversa) => {
     setAtiva(c);
     setPainel(null);
