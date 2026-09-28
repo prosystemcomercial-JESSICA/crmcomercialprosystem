@@ -10,11 +10,12 @@ import { apiClient } from '@/lib/api-client';
 // leads parados. A fila manda ~24 por hora em horário comercial e respeita "SAIR".
 
 type Campanha = { id: string; nome: string; publico: string; status: string; total: number; enviados: number; pendentes: number; falhas: number; ignorados: number; created_at: string };
-const PUBLICO: Record<string, string> = { CLIENTES: 'Clientes da base', LEADS_PARADOS: 'Leads parados' };
+const PUBLICO: Record<string, string> = { CLIENTES: 'Clientes da base', LEADS_PARADOS: 'Leads parados', NEWS: 'Lista News' };
 const STATUS: Record<string, string> = { ENVIANDO: 'Enviando', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' };
 const MODELOS: Record<string, string> = {
   CLIENTES: 'Olá! Temos novidade no Prosystem: agora o sistema avisa quando o remédio de uso contínuo do seu cliente está acabando. Quer que a gente ative para você?',
   LEADS_PARADOS: 'Oi, {nome}! Aqui é a Jessica, da Prosystem. Falamos um tempo atrás sobre o sistema para a sua empresa. Temos condições novas este mês: posso te mostrar em 15 minutos?',
+  NEWS: 'Oi, {nome}! Aqui é a Jessica, da Prosystem. Passando para contar uma novidade: [escreva aqui o informativo]. Acompanhe mais no nosso Instagram: https://instagram.com/prosystemoficial',
 };
 const campo: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 };
 
@@ -22,7 +23,7 @@ export default function CampanhasWhatsappPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [lista, setLista] = useState<Campanha[]>([]);
-  const [publico, setPublico] = useState<'CLIENTES' | 'LEADS_PARADOS'>('LEADS_PARADOS');
+  const [publico, setPublico] = useState<'CLIENTES' | 'LEADS_PARADOS' | 'NEWS'>('LEADS_PARADOS');
   const [segmento, setSegmento] = useState('');
   const [dias, setDias] = useState(30);
   const [nome, setNome] = useState('');
@@ -78,6 +79,7 @@ export default function CampanhasWhatsappPage() {
               <select id="publico" style={campo} value={publico} onChange={e => { const v = e.target.value as typeof publico; setPublico(v); setTexto(MODELOS[v]); setPrevia(null); }}>
                 <option value="LEADS_PARADOS">Leads parados (sem movimento)</option>
                 <option value="CLIENTES">Clientes da base (ativos)</option>
+                <option value="NEWS">Lista News (perdidos, só informativos)</option>
               </select>
             </label>
             <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Segmento (opcional)

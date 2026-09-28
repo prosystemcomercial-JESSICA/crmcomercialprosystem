@@ -162,7 +162,14 @@ export type RespostaCaroline = {
   mensagens: string[]; acao: AcaoSdr; nota: number; nota_motivo: string; dor_principal: string | null;
   dados: { cidade?: string | null; sistema_atual?: string | null; lojas?: string | null; momento?: string | null; decisor?: string | null };
   duvida?: string | null;
+  motivo_perda?: MotivoPerda | null;
 };
+
+// Mesmas chaves do motivo da perda no funil (MOTIVOS_PERDA do frontend / relatório comercial).
+export const MOTIVOS_PERDA = ['PRECO', 'JA_TEM_FORNECEDOR', 'SEM_ORCAMENTO', 'TIMING', 'SEM_INTERESSE', 'FUNCIONALIDADE_AUSENTE', 'OUTRO'] as const;
+export type MotivoPerda = typeof MOTIVOS_PERDA[number];
+export const INSTAGRAM_PROSYSTEM = 'https://instagram.com/prosystemoficial';
+export const CONVITE_INSTAGRAM = `Para ficar por dentro das novidades da Prosystem, acompanhe a gente no Instagram: ${INSTAGRAM_PROSYSTEM} 😊`;
 
 /** Faixa do termômetro → temperatura do lead. Sem dor principal a nota fica em no máx. 59. */
 export function temperaturaDaNota(nota: number): 'MUITO_QUENTE' | 'QUENTE' | 'MORNO' | 'FRIO' {
@@ -191,6 +198,7 @@ export function lerRespostaCaroline(j: any): RespostaCaroline | null {
     mensagens: mensagens.map((m: string) => semTravessao(m).slice(0, 700)), acao, nota, nota_motivo: String(j.nota_motivo || '').slice(0, 300), dor_principal: dor,
     dados: { cidade: s(d.cidade), sistema_atual: s(d.sistema_atual), lojas: s(d.lojas), momento: s(d.momento), decisor: s(d.decisor) },
     duvida: s(j.duvida),
+    motivo_perda: acao === 'sem_interesse' ? ((MOTIVOS_PERDA as readonly string[]).includes(j.motivo_perda) ? j.motivo_perda : 'SEM_INTERESSE') : null,
   };
 }
 
@@ -221,7 +229,7 @@ export function promptCaroline(p: {
   const followUp = perfil !== 'caroline';
   const sistema = [
     `Você é ${perfil === 'caroline' ? 'a' : 'o'} ${eu.nome}, ${eu.papel} da Prosystem Sistemas (sistemas de gestão para farmácias, padarias e varejo). Você fala só em seu nome: ${eu.nome}, da equipe Prosystem. Conversa pelo WhatsApp com ${eu.publico}.`,
-    followUp ? 'MISSÃO Nº 0 (follow-up): descobrir em que pé o cliente está. Se ainda procura sistema, siga buscando a dor. Se já fechou com outro sistema, pergunte com leveza qual e o que pesou na decisão, agradeça e encerre com a porta aberta (acao "sem_interesse", com o sistema e o motivo em "nota_motivo"). Nunca insista nem critique o concorrente.' : '',
+    followUp ? 'MISSÃO Nº 0 (follow-up): descobrir em que pé o cliente está. Se ainda procura sistema, siga buscando a dor. Se já fechou com outro sistema ou desistiu, agradeça e encerre NESSA mensagem com a porta aberta (acao "sem_interesse", motivo em "motivo_perda" e o que ele disse em "nota_motivo"; se ele citou o sistema, ponha em dados.sistema_atual). Não faça pergunta nessa despedida. Não mande link do Instagram: o sistema manda depois. Nunca insista nem critique o concorrente.' : '',
     perfil === 'luiz_felipe' ? 'PROPOSTA: pode lembrar que a proposta foi enviada (plano e link já mandados), perguntar se conseguiu avaliar e se ficou alguma dúvida. NUNCA ofereça novos valores, desconto ou condições: se ele quiser negociar ou fechar, acao "passar_vendedora" (a consultora dele retoma).' : '',
     'MISSÃO Nº 1: descobrir o PROBLEMA PRINCIPAL do cliente hoje (o que mais incomoda, desde quando, quanto custa em tempo/dinheiro, o que já tentou). Não fale de solução nem ofereça demonstração antes de entender a dor, a não ser que o cliente peça.',
     'JEITO DE CONVERSAR: fale pouco e escute muito. No máximo 2 mensagens curtas (1 a 3 frases cada), UMA pergunta por vez, perguntas abertas. Espelhe a linguagem do cliente: se ele escreve curto e informal, responda curto e informal; se formal, acompanhe. Use as palavras dele. Empática ("isso é muito comum em farmácia do seu porte") e comercial na medida, sem pressão. Pode usar exemplos do dia a dia do negócio dele, mas só com recursos que estão no MATERIAL.',
@@ -234,7 +242,7 @@ export function promptCaroline(p: {
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
     'AÇÃO: "continuar" (seguir investigando); "oferecer_demo" quando a nota ≥ 60 e a dor está clara, ou o cliente pedir (escreva uma mensagem curta ligando a dor ao que a demonstração vai mostrar; os horários são enviados depois automaticamente); "passar_vendedora" quando ele tem interesse mas não quer marcar agora (despeça-se dizendo que a consultora vai falar com ele); "sem_interesse" quando ele disser que não quer ou não é o momento (despeça-se com gentileza, porta aberta).',
-    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null}',
+    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',
     p.atualidades?.length ? '\n=== ASSUNTOS DA SEMANA (pesquisa da Sofia, com fonte; use no máximo UM, só se afetar a GESTÃO do negócio do lead: impostos, obrigações fiscais, regras de venda, custos. Nunca use assunto clínico, de medicamento específico ou de outro segmento. Não invente detalhes além do que está aqui. Hoje é ' + new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ': ignore assunto cujo prazo ou data já passou) ===\n' + p.atualidades.map(a => `- [${a.segmento}] ${a.titulo}: ${a.resumo} (por que importa: ${a.por_que_importa})`).join('\n') : '',

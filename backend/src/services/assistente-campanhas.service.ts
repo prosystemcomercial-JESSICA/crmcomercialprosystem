@@ -31,6 +31,15 @@ async function contatosDoPublico(prisma: PrismaClient, f: FiltroCampanha) {
       ...cs.flatMap(c => telefonesDoCliente(c).map(t => ({ telefone: t, nome: null as string | null, rotulo: rotulo.get(c.id) || '', lead_id: null as string | null, tipo: 'CLIENTE' as const }))),
     ];
   }
+  if (f.publico === 'NEWS') {
+    // Lista News: leads com a etiqueta "News" (perdidos com a porta aberta, só recebem informativos).
+    const ls = await prisma.lead.findMany({
+      where: { deleted_at: null, etiquetas_lead: { some: { etiqueta: { nome: 'News', tipo: 'LEAD' } } }, ...(seg ? { segmento: { contains: seg } } : {}) },
+      select: { id: true, responsavel_nome: true, nome: true, nome_fantasia: true, razao_social: true, responsavel_telefone: true, telefone: true },
+      take: 5000,
+    });
+    return ls.map(l => ({ telefone: l.responsavel_telefone || l.telefone, nome: l.responsavel_nome || null, rotulo: (l.nome_fantasia || l.razao_social || l.nome || '').trim(), lead_id: l.id, tipo: 'LEAD' as const }));
+  }
   const dias = Math.max(7, Math.min(365, f.dias_parado || 30));
   const ls = await prisma.lead.findMany({
     where: {

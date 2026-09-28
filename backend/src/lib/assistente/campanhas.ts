@@ -1,7 +1,7 @@
 // Campanhas pelo WhatsApp (Fase 4 do assistente): montagem do público, texto
 // personalizado e opção de sair. Puro.
 
-export const PUBLICOS = ['CLIENTES', 'LEADS_PARADOS'] as const;
+export const PUBLICOS = ['CLIENTES', 'LEADS_PARADOS', 'NEWS'] as const;
 export type Publico = typeof PUBLICOS[number];
 export const MAX_POR_CAMPANHA = 300;
 export const ENVIOS_POR_RODADA = 4; // rodada a cada 10 min ≈ 24 por hora
