@@ -385,6 +385,21 @@ export async function etiquetaNews(prisma: PrismaClient) {
 export async function marcarPerdidoNews(prisma: PrismaClient, sdr: any, motivo: string, texto: string, agente: string) {
   const descricao = texto.trim().slice(0, 300);
   const motivoCompleto = descricao ? `${motivo}: ${descricao}` : motivo;
+  // Proposta sem lead vinculado (Luiz Felipe): acha o lead pelo celular; se não houver, cria um já
+  // perdido, para o contato ficar no funil com o motivo e entrar na lista News.
+  if (!sdr.lead_id && sdr.proposta_id) {
+    const u8 = ultimos8(sdr.numero || '');
+    const achado = u8 ? await prisma.lead.findFirst({ where: { deleted_at: null, OR: [{ responsavel_telefone: { endsWith: u8 } }, { telefone: { endsWith: u8 } }] }, select: { id: true } }) : null;
+    let leadId = achado?.id;
+    if (!leadId) {
+      const pr = await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { razao_social: true, nome_fantasia: true, responsavel_nome: true, responsavel_email: true, segmento: true, cidade: true, estado: true, cnpj: true } });
+      const nome = pr?.nome_fantasia || pr?.razao_social || sdr.empresa || sdr.nome || sdr.numero;
+      const novo = await prisma.lead.create({ data: { nome, empresa: nome, razao_social: pr?.razao_social, nome_fantasia: pr?.nome_fantasia, cnpj: pr?.cnpj, responsavel_nome: pr?.responsavel_nome || sdr.nome, responsavel_email: pr?.responsavel_email, email: pr?.responsavel_email, responsavel_telefone: sdr.numero, telefone: sdr.numero, segmento: pr?.segmento, cidade: pr?.cidade, estado: pr?.estado, origem: 'PROPOSTA', temperatura: 'FRIO' } as any, select: { id: true } });
+      leadId = novo.id;
+    }
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { lead_id: leadId } });
+    sdr = { ...sdr, lead_id: leadId };
+  }
   if (sdr.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: sdr.lead_id } });
     if (lead && lead.status !== 'PERDIDO') {
