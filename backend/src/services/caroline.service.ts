@@ -180,9 +180,12 @@ async function pessoaAssumiu(prisma: PrismaClient, sdr: { conversaId: string | n
   if (!sdr.conversaId) return false;
   const c = await prisma.whatsappConversa.findUnique({ where: { id: sdr.conversaId }, select: { dono_id: true } });
   if (c?.dono_id) return true;
+  // Mensagem de uma pessoa (ex.: mandada do celular) sem assumir no CRM só conta como "conversando"
+  // nos últimos 10 minutos; depois disso o agente segue, para o cliente nunca ficar sem resposta.
+  const recente = new Date(Math.max(new Date(sdr.desde).getTime(), Date.now() - 10 * 60_000));
   const humana = await prisma.whatsappMensagem.findFirst({
     where: {
-      conversaId: sdr.conversaId, direcao: 'SAIDA', created_at: { gt: sdr.desde },
+      conversaId: sdr.conversaId, direcao: 'SAIDA', created_at: { gt: recente },
       OR: [{ enviada_por: null }, { enviada_por: { notIn: [...REMETENTES_AUTOMATICOS, ...REMETENTES_SDR, 'abertura_jessica', 'assistente_ia'] } }],
     },
     select: { id: true },
@@ -610,8 +613,16 @@ const ESPERA_MS = 20_000; // junta mensagens seguidas antes de responder (respos
 
 /** Chamado pelo webhook do WhatsApp da empresa. true = a conversa é da Caroline (os outros robôs ficam quietos). */
 export async function aoReceberDoLead(prisma: PrismaClient, token: string, conversaId: string, tipo: string, texto: string, mensagemId: string, botaoId?: string | null): Promise<boolean> {
-  const sdr = await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS } }, orderBy: { created_at: 'desc' } });
-  if (!sdr) return false;
+  let sdr = await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS } }, orderBy: { created_at: 'desc' } });
+  if (!sdr) {
+    // Saiu por uma mensagem mandada do celular, mas ninguém assumiu no CRM: o cliente não pode ficar sem resposta.
+    // Sem dono, sem finalizar e sem pessoa conversando agora → o agente volta para a conversa.
+    const orfao = await prisma.sdrLead.findFirst({ where: { conversaId, status: 'HUMANO' }, orderBy: { created_at: 'desc' } });
+    const conv = orfao ? await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { dono_id: true, finalizada_em: true } }) : null;
+    if (!orfao || !conv || conv.dono_id || conv.finalizada_em || await pessoaAssumiu(prisma, orfao)) return false;
+    sdr = await prisma.sdrLead.update({ where: { id: orfao.id }, data: { status: 'CONVERSANDO' } });
+    registrarAcaoAgente(agenteDe(sdr), `voltou para a conversa de ${sdr.nome || 'um lead'}: ninguém tinha assumido`);
+  }
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_lead_em: new Date(), ...(sdr.status !== 'FILA' ? { status: 'CONVERSANDO' } : {}) } });
 
   // Tocar em "Me chama depois"/"Quero saber mais" já é sinal de interesse: registra no termômetro.
