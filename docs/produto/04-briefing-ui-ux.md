@@ -90,3 +90,20 @@ Versão 1.0 · 27/09/2026
 - Se o cliente pede vídeos (tutoriais, treinamento, "como usar"), ajuda técnica ou suporte, o agente (Caroline, Julio ou Luiz Felipe) usa a nova ação `encaminhar_suporte`, com `mensagens: []`, e não promete enviar vídeos.
 - Em seguida o sistema envia o texto padrão `mensagemSuporte(agente)` (lib/assistente/sdr.ts): "O envio de vídeos, treinamentos e o suporte técnico são feitos pelo nosso setor de suporte. Eu sou o Luiz Felipe, do setor comercial…". A mensagem vai com o botão de link "💬 Falar com o suporte" (`LINK_CONTATO_GERAL`, o mesmo usado na triagem) e fica registrada na conversa.
 - A função `encaminharSuporte` fica em caroline.service.ts. O lead continua em CONVERSANDO. Não há mudança de schema.
+
+### Atualização 28/09/2026: conversa mais simples, direta e com os desafios da farmácia
+- **Menos perguntas:** no máximo 2 perguntas de investigação na conversa inteira, e nunca repetir uma pergunta já respondida. Assim que o cliente diz qual é o problema, mesmo numa palavra ("demora"), o agente mostra em 1 ou 2 frases como o MATERIAL resolve e já oferece a demonstração (`oferecer_demo`, sem esperar a nota 60).
+- **Resposta curta** ("nada", "isso") é tratada como sinal de pouca paciência: nada de mais perguntas abertas, o agente vai direto para a solução e a demonstração.
+- **Pergunta direta:** "Qual é o maior problema que você quer resolver hoje na farmácia?", com o convite para explicar por áudio (os áudios são transcritos).
+- **Dia a dia da farmácia (conhecimento geral)**, usado de forma natural, um exemplo por vez:
+  - fila e demora no caixa;
+  - estoque furado e remédio vencendo;
+  - controlados e receitas (SNGPC);
+  - convênios, PBM e Farmácia Popular;
+  - fiado e crediário;
+  - margem e preço;
+  - cliente de uso contínuo que não volta;
+  - fechamento de caixa;
+  - nota fiscal e impostos.
+- A solução para cada um desses problemas só vem do MATERIAL.
+- Onde está no código: `promptCaroline` em lib/assistente/sdr.ts. Não há mudança de schema.
