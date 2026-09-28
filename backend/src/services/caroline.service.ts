@@ -3,6 +3,7 @@ import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
+import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
 import { REMETENTES_AUTOMATICOS } from '@/lib/painel-tv';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
@@ -237,7 +238,8 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
     perfil: agenteDe(sdr),
     // Campanha: só dias 20+, e uma vez por mês por cliente (depois de autorizada ou recusada não pede de novo).
     janelaCampanha: janelaCampanhaAtiva(new Date()) && (sdr.dados as any)?.campanha_mes !== new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 7),
-    descontoAutorizado: (sdr.dados as any)?.campanha_mes === new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 7) ? (sdr.dados as any)?.desconto_autorizado || null : null,
+    // Condição autorizada vale 5 dias corridos a partir da autorização; depois some da conversa.
+    descontoAutorizado: campanhaVigente((sdr.dados as any)?.desconto_autorizado) ? (sdr.dados as any).desconto_autorizado : null,
     followup: {
       cadastro_em: sdr.cadastro_em ? new Date(sdr.cadastro_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long', year: 'numeric' }) : null,
       proposta: sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { plano_selecionado: true, wpp_enviada_em: true, created_at: true, status: true } })

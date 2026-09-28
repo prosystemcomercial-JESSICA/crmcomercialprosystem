@@ -6,7 +6,7 @@ import { listarGestao, lerPrefsAvisos } from './assistente-gestao.service';
 import { opcoesPlanos, mensalidadeDe, linkProposta, planoNormal, type PropostaResumo } from '@/lib/assistente/proposta';
 import { pctDesconto } from '@/lib/assistente/desconto';
 import {
-  textoPedidoNegociacao, menuNegociacao, lerBotaoNegociacao, calcularCondicao, textoCondicaoAplicada, type CondicaoAutorizada,
+  textoPedidoNegociacao, menuNegociacao, campanhaVigente, validadeCampanha, lerBotaoNegociacao, calcularCondicao, textoCondicaoAplicada, type CondicaoAutorizada,
 } from '@/lib/assistente/negociacao';
 
 // Máquina de negociação do Luiz Felipe: pede autorização da gestão pelo WhatsApp (prévia + botões),
@@ -67,7 +67,7 @@ export async function responderAutorizacaoNegociacao(prisma: PrismaClient, token
       const c: CondicaoAutorizada = { ...calcularCondicao(b.pct, p?.valor_implantacao ?? null, p ? mensalidadeDe(p as PropostaResumo) : null), por: gestor.nome, em: new Date().toISOString() };
       await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...dados, desconto_autorizado: c, campanha_mes: mesAtual() } } });
       await decidirMensagem(prisma, m.id, { aprovar: true }, gestor.id);
-      await enviar(`✅ Autorizado! A mensagem saiu para *${sdr.nome || sdr.empresa || 'o cliente'}* e o Luiz pode negociar até *${b.pct}%* na implantação e *10%* na mensalidade por 12 meses.`);
+      await enviar(`✅ Autorizado! A mensagem saiu para *${sdr.nome || sdr.empresa || 'o cliente'}* e o Luiz pode negociar até *${b.pct}%* na implantação e *10%* na mensalidade por 12 meses. Campanha válida por 5 dias, até ${validadeCampanha(c).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })}.`);
     } else {
       await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...dados, campanha_mes: mesAtual(), campanha_recusada: true } } });
       const semCampanha = `Sem problema${primeiro ? `, ${primeiro}` : ''}! Pra quando você acha que consegue decidir? Assim já te chamo nesse dia. 😊`;
@@ -82,7 +82,7 @@ export async function responderAutorizacaoNegociacao(prisma: PrismaClient, token
 export async function aplicarCondicaoNaProposta(prisma: PrismaClient, sdr: any, agente: string): Promise<boolean> {
   const c: CondicaoAutorizada | undefined = (sdr.dados || {}).desconto_autorizado;
   const p = await propostaDo(prisma, sdr);
-  if (!c || !p || !sdr.conversaId) return false;
+  if (!c || !p || !sdr.conversaId || !campanhaVigente(c)) return false;
   const base = (p.valor_implantacao || 0) + (p.valor_conversao || 0);
   const desconto = Math.round((p.valor_implantacao || 0) * c.impl_pct) / 100;
   const condicao = `Campanha: ${c.impl_pct}% de desconto na implantação e ${c.mens_pct}% na mensalidade por ${c.meses} meses${c.mens_por != null ? ` (R$ ${c.mens_por.toFixed(2).replace('.', ',')} nos primeiros ${c.meses} meses)` : ''}. Autorizado por ${c.por || 'gestão'}.`;
