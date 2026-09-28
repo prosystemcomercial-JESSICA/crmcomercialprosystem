@@ -77,6 +77,10 @@ async function tratarTarefa(prisma: PrismaClient, token: string, numero: string,
 }
 
 export async function responderComandoGestao(prisma: PrismaClient, token: string, numero: string, texto: string, botaoId?: string | null): Promise<boolean> {
+  if (botaoId && botaoId.startsWith('neg_')) {
+    const { responderAutorizacaoNegociacao } = await import('./assistente-negociacao.service');
+    if (await responderAutorizacaoNegociacao(prisma, token, numero, botaoId)) return true;
+  }
   if (botaoId && botaoId.startsWith('desc_')) {
     const { responderAprovacaoDesconto } = await import('./assistente-desconto.service');
     if (await responderAprovacaoDesconto(prisma, token, numero, botaoId)) return true;

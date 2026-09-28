@@ -235,7 +235,9 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
     guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer, exemplos: await exemplosEditados(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     perfil: agenteDe(sdr),
-    janelaCampanha: janelaCampanhaAtiva(new Date()),
+    // Campanha: só dias 20+, e uma vez por mês por cliente (depois de autorizada ou recusada não pede de novo).
+    janelaCampanha: janelaCampanhaAtiva(new Date()) && (sdr.dados as any)?.campanha_mes !== new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 7),
+    descontoAutorizado: (sdr.dados as any)?.campanha_mes === new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 7) ? (sdr.dados as any)?.desconto_autorizado || null : null,
     followup: {
       cadastro_em: sdr.cadastro_em ? new Date(sdr.cadastro_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long', year: 'numeric' }) : null,
       proposta: sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { plano_selecionado: true, wpp_enviada_em: true, created_at: true, status: true } })
@@ -476,6 +478,13 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: 
       await marcarPerdidoNews(prisma, atual, motivo, r.nota_motivo || '', nomeDe(sdr)).catch((e: any) => console.warn('[CAROLINE] perda/news:', e?.message));
       await enviarMensagens(prisma, token, atual, [CONVITE_INSTAGRAM]).catch(() => {});
     }
+  } else if (acao === 'aceitar_condicao') {
+    // Cliente topou a condição autorizada: proposta atualizada e reenviada com os botões de aceite.
+    const { aplicarCondicaoNaProposta } = await import('./assistente-negociacao.service');
+    const ok = await aplicarCondicaoNaProposta(prisma, atual || sdr, nomeDe(sdr)).catch((e: any) => { console.warn('[CAROLINE] condição:', e?.message); return false; });
+    await obs(`${resumo}\n\n${ok ? 'Cliente aceitou a condição da campanha: proposta atualizada e reenviada com os botões de aceite.' : 'Cliente quer a condição, mas não deu para atualizar a proposta sozinho.'}`);
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `🔥 *${atual?.nome || 'Cliente'} topou a condição da campanha* (${nomeDe(sdr)})\n${ok ? 'Proposta atualizada e reenviada com os botões de aceite.' : '⚠️ Não consegui atualizar a proposta: finalize manualmente.'}`);
+    registrarAcaoAgente(agenteDe(sdr), `mandou a proposta com a condição da campanha para ${atual?.nome || 'um cliente'}`);
   } else if (acao === 'encaminhar_suporte') {
     await encaminharSuporte(prisma, token, atual || sdr).catch((e: any) => console.warn('[CAROLINE] suporte:', e?.message));
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
@@ -522,13 +531,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   // Oferta de campanha / revisão de proposta: sempre passa pela autorização da Jessica, com aviso no WhatsApp dela.
   const pedeAutorizacao = !!r.revisar_proposta && janelaCampanhaAtiva(agora);
   if (r.revisar_proposta && !pedeAutorizacao) return 'falha'; // fora da janela (dias 20 ao fim do mês) nunca sai
-  if (pedeAutorizacao) {
-    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
-    await enviarAvisoGestao(prisma, 'lead_qualificado', `🙋 *Autorização: ${nomeDe(sdr)} quer oferecer revisão da proposta*\n${sdr.nome || ''}${sdr.empresa ? ` · ${sdr.empresa}` : ''}\n\n"${r.mensagens.join(' ').slice(0, 500)}"\n\nPara autorizar, aprove em Escritório virtual › ✋ Para você aprovar (pode editar antes).`);
-  }
   if ((cfg.aprovar && !semAprovacao) || pedeAutorizacao) {
-    await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, fase, chamariz, ultima }) } });
+    const pendente = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
+    // Campanha/revisão: a gestão recebe no WhatsApp a prévia da proposta + a mensagem, e responde nos botões.
+    if (pedeAutorizacao) {
+      const { pedirAutorizacaoNegociacao } = await import('./assistente-negociacao.service');
+      await pedirAutorizacaoNegociacao(prisma, sdr, { id: pendente.id, texto: pendente.texto }, nomeDe(sdr)).catch((e: any) => console.warn('[CAROLINE] autorização:', e?.message));
+    }
     registrarAcaoAgente(agenteDe(sdr), `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });
     return 'aprovacao';
