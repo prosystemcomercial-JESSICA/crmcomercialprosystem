@@ -21,6 +21,7 @@ Versão 1.0 · 27/09/2026 · o que já está no ar e o que vem a seguir
 | Assumir com resumo no WhatsApp, finalizar, observações, farol, criar proposta, opções Pro/Plus | 25/09 |
 | Triagem em 3 toques, passagem para a Caroline, cutucão da triagem | 25–26/09 |
 | Trava contra mensagens repetidas | 25/09 |
+| Contratos automáticos na ZapSign (dados pelo WhatsApp, conferência, link, lembretes, webhook conferido) | 28/09 |
 
 ## 2. Próximas fases
 

@@ -48,7 +48,7 @@ Documento de requisitos técnicos · versão 1.0 · 27/09/2026
 | xAI Grok | Tarefas simples (resumo, conversa com agentes) com volta para a OpenAI | `XAI_API_KEY`, `XAI_MODEL` (padrão `grok-4.7`) |
 | Gemini | Legado; usado se não houver OpenAI | `GEMINI_API_KEY` ou Configurações |
 | Laya | Classificação (segmento, intenção, risco) | `LAYA_URL` |
-| ZapSign | Assinatura de contratos | Configurações |
+| ZapSign | Contrato em PDF (mesmo modelo) enviado por `POST /docs` (base64), link pelo WhatsApp, e-mail pela ZapSign; webhook `https://comercial.prosystemnet.com/api/webhook/zapsign` (id 283740) com conferência do status via `GET /docs/{token}` | `ZAPSIGN_API_TOKEN` (produção, só no `.env`), `ZAPSIGN_ENVIRONMENT=production` |
 | BrasilAPI / CNPJá | Consulta de CNPJ | — |
 | Resend / SMTP | E-mails | `RESEND_API_KEY`, `SMTP_*` |
 
@@ -62,7 +62,8 @@ Documento de requisitos técnicos · versão 1.0 · 27/09/2026
 4. **IA em JSON:** a OpenAI exige a palavra "json" na mensagem no modo `json_object` (tratado em `chamarOpenAI`).
 5. **Sem travessão e sem preço:** `lerRespostaCaroline` remove travessões e recusa respostas com valores em reais.
 6. **Horários:** comercial = seg–sex 8h–18h e sáb 8h–12h; vendedora = seg–sex 8h30–17h; retomadas = 9h–11h30 e 14h–17h; respostas a quem conversa = 7h–21h; cutucões = 8h–20h.
-7. **Dados pessoais:** exemplos e testes usam dados fictícios.
+7. **Contrato:** `captarDadosAssinante` (webhook do WhatsApp) preenche `representante_*`; `gerar-e-enviar` exige nome, CPF e e-mail; lembretes em `rodarLembretesAssinatura` (rotina de 10 min, trava `envio.contrato_*`); o webhook só marca assinado depois de conferir na ZapSign.
+8. **Dados pessoais:** exemplos e testes usam dados fictícios.
 
 ## 6. Deploy
 

@@ -85,6 +85,7 @@ O CRM Comercial Prosystem é o sistema de vendas da Prosystem Sistemas (ERP e PD
 | RF-11 | Pesquisas da Sofia ficam guardadas para sempre (Caderno da Sofia) | Média |
 | RF-12 | O CRM não cria atividades sozinho (exceção: demonstração marcada pelo lead) | Alta |
 | RF-13 | Leads antigos nunca são apagados | Crítica |
+| RF-14 | Contrato: dados de quem assina lidos do WhatsApp, conferência humana, envio à ZapSign com link no WhatsApp, lembrete 24 h, assinatura confirmada na ZapSign | Alta |
 
 ## 7. Requisitos não funcionais
 
