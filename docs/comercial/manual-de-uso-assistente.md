@@ -384,3 +384,13 @@ Os três conversam pela IA no WhatsApp da empresa, cada um com o próprio painel
   - ninguém conversou nos últimos 10 minutos.
 - A regra "uma pessoa assumiu, nenhum agente responde" continua valendo para quem assume pelo CRM (fica como dono) e para a conversa finalizada.
 - Não há mudança de schema.
+
+### Atualização 28/09/2026: lembrete da demonstração para a responsável
+- As demonstrações marcadas pelo lead já eram gravadas como Atividade (tipo REUNIAO, `created_by = lead_whatsapp`) e aparecem na Agenda da responsável: o dono da conversa ou, sem dono, a Supervisão Comercial.
+- **Novo:** `lembrarResponsavelDemo` (assistente-demo.service.ts) roda no agendador do assistente a cada 10 minutos. Quando uma reunião ativa começa em até 75 minutos, a responsável recebe no WhatsApp dela um aviso com:
+  - "⏰ Lembrete: demonstração às HH:MM";
+  - o título da reunião;
+  - o nome e o número do cliente;
+  - o link da reunião ou, se não houver, um alerta para enviá-lo.
+- O aviso chega entre 65 e 75 minutos antes, portanto sempre com pelo menos 1 hora de antecedência. É uma vez só por reunião (trava `lembrete_demo_resp.<id>`).
+- O lembrete do cliente, 2 horas antes, continua como estava. Não há mudança de schema.
