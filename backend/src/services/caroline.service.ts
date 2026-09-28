@@ -10,7 +10,7 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
-  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, janelaCampanhaAtiva, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
 
@@ -235,6 +235,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
     guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer, exemplos: await exemplosEditados(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     perfil: agenteDe(sdr),
+    janelaCampanha: janelaCampanhaAtiva(new Date()),
     followup: {
       cadastro_em: sdr.cadastro_em ? new Date(sdr.cadastro_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long', year: 'numeric' }) : null,
       proposta: sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { plano_selecionado: true, wpp_enviada_em: true, created_at: true, status: true } })
@@ -518,7 +519,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   // puxa sozinho (primeiro contato e retomadas), e nas retomadas de quem já conversou fora do comercial.
   void sabado;
   const semAprovacao = fase === 'resposta' || (fase === 'retomada' && !!sdr.ultima_lead_em && (!horarioComercial(agora) || sabado));
-  if (cfg.aprovar && !semAprovacao) {
+  // Oferta de campanha / revisão de proposta: sempre passa pela autorização da Jessica, com aviso no WhatsApp dela.
+  const pedeAutorizacao = !!r.revisar_proposta && janelaCampanhaAtiva(agora);
+  if (r.revisar_proposta && !pedeAutorizacao) return 'falha'; // fora da janela (dias 20 ao fim do mês) nunca sai
+  if (pedeAutorizacao) {
+    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `🙋 *Autorização: ${nomeDe(sdr)} quer oferecer revisão da proposta*\n${sdr.nome || ''}${sdr.empresa ? ` · ${sdr.empresa}` : ''}\n\n"${r.mensagens.join(' ').slice(0, 500)}"\n\nPara autorizar, aprove em Escritório virtual › ✋ Para você aprovar (pode editar antes).`);
+  }
+  if ((cfg.aprovar && !semAprovacao) || pedeAutorizacao) {
     await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
     registrarAcaoAgente(agenteDe(sdr), `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
