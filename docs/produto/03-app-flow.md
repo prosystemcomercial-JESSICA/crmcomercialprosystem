@@ -78,7 +78,11 @@ flowchart LR
   E -- Sim --> F[Pedir aprovação: gestão aprova no celular]
   F --> D
   E -- Não --> G[Cliente recebe opções Pro/Plus + botões Aceitar Farma Pro / Plus / Dúvidas]
-  G -- Aceitar plano --> H[Aceite grava o plano e o valor, contrato, PIX da entrada]
+  G -- Aceitar plano --> H[Aceite grava o plano e o valor, cria o contrato, pede nome/CPF/e-mail]
+  H --> H2[Cliente responde: CRM preenche o contrato e avisa 'pronto para conferir']
+  H2 --> H3[Jessica confere: ✍️ Enviar para assinatura]
+  H3 --> H4[Link no WhatsApp e e-mail · lembrete 24 h · aviso 48 h]
+  H4 --> H5[ZapSign avisa assinado → conferido → comissão, implantação, aviso, agradecimento]
   G -- Dúvidas --> I[Prioridade crítica para a vendedora]
 ```
 

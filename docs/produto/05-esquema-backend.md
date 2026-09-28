@@ -41,6 +41,8 @@ Cliente, `plano_selecionado` (BASIC|PRO|PLUS ou nome livre, normalizado por `pla
 ### ContratoComercial (56 campos)
 Número, representante, plano, mensalidade, setup, ZapSign (`zapsign_*`, `signed_at`), `status` (…ASSINADO), comissão do vendedor.
 
+- Fluxo de assinatura: `A_GERAR` (esperando dados) → `GERADO` → `ENVIADO_ASSINATURA` (com `zapsign_doc_token`, `zapsign_signing_url`, `sent_to_sign_at`) → `ASSINADO` (via webhook conferido) ou `PENDENTE_CORRECAO` (recusado). Dados de quem assina: `representante_nome`, `representante_cpf`, `representante_email`, `representante_telefone`.
+
 ### Implantacao, Comissao, MetaVendedor, Atividade
 - `Implantacao`: técnico, etapas, datas, checklist, testes, arquivos.
 - `Comissao`: papel (vendedor 15%, supervisão 5%), estágio, mês de pagamento.

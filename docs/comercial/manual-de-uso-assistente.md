@@ -113,6 +113,7 @@ Cada pessoa da gestão escolhe o que recebe:
 - proposta aberta pelo cliente;
 - proposta aceita;
 - **novo contrato assinado**;
+- **contrato pronto para conferir**, sem assinatura há 2 dias ou recusado;
 - conversa passou do prazo;
 - risco de cancelamento;
 - resumo curto às 18h;
@@ -134,6 +135,14 @@ O **Thiago** recebe só o resumo das 18h e os novos contratos assinados.
 - Quando a proposta tem **mais de um plano** (Pro e Plus), a mensagem mostra **as opções com a mensalidade de cada uma** e marca o recomendado. Os botões são **Aceitar Farma Pro**, **Aceitar Farma Plus** e **Tenho dúvidas**. Com um plano só, o botão é **Aceitar proposta**.
 - **Aceitar:** grava o plano escolhido com o valor certo, gera o contrato, fecha o lead e manda a entrada por **PIX** (ou o aviso do financeiro, se a chave PIX não estiver configurada). Também pede o nome, o CPF e o e-mail de quem vai assinar.
 - **Tenho dúvidas:** a conversa vira prioridade crítica.
+
+**Contrato e assinatura (ZapSign):**
+1. Depois do aceite, o cliente manda **nome completo, CPF e e-mail** de quem vai assinar no WhatsApp. O CRM lê a resposta, preenche o contrato e, se faltar algo, pede só o que falta.
+2. Com os dados completos, você recebe **"📄 Contrato pronto para conferir"**.
+3. Em **Contratos**, confira e clique em **✍️ Enviar para assinatura** (e em **Confirmar: enviar agora**). O contrato é o **mesmo PDF de sempre**; o link vai para o **WhatsApp** e o **e-mail** do cliente.
+4. Sem assinatura em **24 h**, o cliente recebe um lembrete; em **48 h**, você é avisada.
+5. **Assinou:** a ZapSign avisa o CRM, que confere o status direto na ZapSign, marca como assinado, calcula a comissão, cria a implantação, avisa "novo contrato assinado" e agradece o cliente.
+6. **Recusou:** você é avisada para corrigir. O caminho manual (Baixar PDF, Painel ZapSign, Marcar assinado) continua disponível.
 
 **Follow-up automático (Luiz Felipe):** nos dias 2, 5 e 7, das 9h às 18h. Para assim que o cliente responder.
 
