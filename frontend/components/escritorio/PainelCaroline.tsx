@@ -165,11 +165,16 @@ export default function PainelCaroline({ agente = 'caroline' }: { agente?: 'caro
             {previa.length === 0 && <span style={{ fontSize: 13, color: '#dc2626' }}>Não achei nenhum lead nesse texto. Ele precisa ter a linha "Telefone:".</span>}
             {previa.map((l, i) => (
               <div key={i} style={{ fontSize: 13, color: 'var(--t-text-secondary)', opacity: l.pode ? 1 : 0.6 }}>
-                {l.pode ? '✅' : '⛔'} <b>{l.nome || '—'}</b>{l.empresa ? ` · ${l.empresa}` : ''} · {l.telefone || 'sem telefone'}{l.segmento ? ` · ${l.segmento}` : ''}{l.campanha ? ` · ${l.campanha}` : ''}
+                {l.pode ? '✅' : l.numero ? '🔗' : '⛔'} <b>{l.nome || '—'}</b>{l.empresa ? ` · ${l.empresa}` : ''} · {l.telefone || 'sem telefone'}{l.segmento ? ` · ${l.segmento}` : ''}{l.campanha ? ` · ${l.campanha}` : ''}
                 {l.avisos.map((a, k) => <div key={k} style={{ fontSize: 12, color: 'var(--t-text-muted)', marginLeft: 22 }}>{a}</div>)}
               </div>
             ))}
-            {previa.some(l => l.pode) && <div><button disabled={ocupado} style={botao()} onClick={confirmar}>Confirmar {previa.filter(l => l.pode).length} lead(s)</button></div>}
+            {previa.some(l => l.pode || l.numero) && (() => {
+              const novos = previa.filter(l => l.pode).length, completar = previa.filter(l => !l.pode && l.numero).length;
+              return <div><button disabled={ocupado} style={botao()} onClick={confirmar}>
+                {[novos && `Confirmar ${novos} lead(s)`, completar && `completar ${completar} cadastro(s)`].filter(Boolean).join(' e ').replace(/^c/, 'C')}
+              </button></div>;
+            })()}
           </div>
         )}
       </div>

@@ -235,7 +235,7 @@ Uma sala em 3D com os onze agentes trabalhando. Cada um tem uma mesa, um crachá
 Os três conversam pela IA no WhatsApp da empresa, cada um com o próprio painel no Escritório virtual (liga/desliga, aprovar antes de enviar, fila e mensagens para aprovar).
 
 **Caroline (SDR)**
-1. **Leads de campanha:** no painel dela, cole um ou vários leads como vêm da plataforma ("Lead se Cadastrou em..."). Marque "Eu já mandei a mensagem de abertura" se você já chamou pelo celular. Clique em **Conferir** e depois em **Confirmar**. O lead nasce no CRM com a origem da campanha; se já existir, é vinculado, sem duplicar.
+1. **Leads de campanha:** no painel dela, cole um ou vários leads como vêm da plataforma ("Lead se Cadastrou em..."). Marque "Eu já mandei a mensagem de abertura" se você já chamou pelo celular. Clique em **Conferir** e depois em **Confirmar**. O lead nasce no CRM com a origem da campanha; se já existir, é vinculado, sem duplicar. Se o número (com ou sem o 9) **já está com a Caroline**, aparece 🔗 e o botão **completar cadastro**: ela ganha a empresa, o e-mail e a campanha, sem duplicar e sem mensagem nova.
 2. **Leads da triagem:** recebe da Bia quem escolheu "Quero conhecer".
 3. **Missão nº 1: o problema principal do cliente.** Fala pouco, uma pergunta por vez, na linguagem do cliente, sem travessão, e se apresenta como "Caroline, da equipe Prosystem". Só usa o guia comercial e nunca fala de preço. Pede o CNPJ só com a conversa avançada. Ouve áudios e vê fotos.
 4. **Termômetro:** nota de 0 a 100 (dor principal até 35, momento de compra até 25, quem decide até 15, engajamento até 15, perfil até 10). Sem dor principal não passa de 59. A nota vira a temperatura do lead (80+ muito quente, 60+ quente, 35+ morno).
