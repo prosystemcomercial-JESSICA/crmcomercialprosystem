@@ -429,7 +429,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   const cfg = await obterConfigAgente(prisma, agenteDe(sdr));
   const agora = new Date();
   // Retomada de quem ainda não respondeu: vai com botões (e imagem na última tentativa).
-  const chamariz = fase !== 'resposta' && (fase === 'retomada' || sdr.abertura_enviada) && !sdr.ultima_lead_em;
+  const chamariz = fase !== 'resposta' && (fase === 'retomada' || fase === 'encerramento' || sdr.abertura_enviada) && !sdr.ultima_lead_em;
   const ultima = sdr.tentativas + 1 >= TENTATIVAS_MAX;
   const base = {
     ultima_caroline_em: agora,
@@ -590,7 +590,7 @@ async function naoDesistir(prisma: PrismaClient, s: any, agora: Date) {
     return;
   }
   const volta = new Date(`${new Date(agora.getTime() + 30 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
-  await prisma.sdrLead.update({ where: { id: s.id }, data: { agente: 'julio', status: 'AGUARDANDO', dados: { ...d, ciclos: ciclos + 1, ciclo_em: volta.toISOString() } } });
+  await prisma.sdrLead.update({ where: { id: s.id }, data: { agente: 'julio', status: 'AGUARDANDO', dados: { ...d, ciclos: ciclos + 1, ciclo_em: volta.toISOString(), encerramento_em: null } } });
   if (s.lead_id) await prisma.leadObservacao.create({ data: { lead_id: s.lead_id, tipo: 'SISTEMA', descricao: `🤖 Sem resposta nas 3 tentativas. O Julio volta a chamar em ${volta.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (ciclo ${ciclos + 1} de ${CICLOS_MAX}).`, created_by: 'bot', created_by_name: 'Julio' } }).catch(() => {});
   registrarAcaoAgente('julio', `vai voltar a chamar ${s.nome || 'um lead'} em ${volta.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
 }
@@ -749,6 +749,16 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       continue;
     }
     if (s.tentativas >= TENTATIVAS_MAX) {
+      const d: any = s.dados || {};
+      // Antes do ciclo longo: mensagem de encerramento ("ainda tem interesse?") com soluções do material,
+      // 2 dias úteis depois da 3ª tentativa. Sem resposta em 5 dias úteis, vai para o ciclo do Julio.
+      if (!d.encerramento_em) {
+        if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= 2 && horaBoaParaRetomar(agora)) {
+          await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, encerramento_em: agora.toISOString() } } });
+          await falar(prisma, token, s.id, 'encerramento');
+        }
+        continue;
+      }
       if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= 5) await naoDesistir(prisma, s, agora);
       continue;
     }
