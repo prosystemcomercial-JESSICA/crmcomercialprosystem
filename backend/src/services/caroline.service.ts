@@ -392,9 +392,9 @@ export async function marcarPerdidoNews(prisma: PrismaClient, sdr: any, motivo: 
     const achado = u8 ? await prisma.lead.findFirst({ where: { deleted_at: null, OR: [{ responsavel_telefone: { endsWith: u8 } }, { telefone: { endsWith: u8 } }] }, select: { id: true } }) : null;
     let leadId = achado?.id;
     if (!leadId) {
-      const pr = await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { razao_social: true, nome_fantasia: true, responsavel_nome: true, responsavel_email: true, segmento: true, cidade: true, estado: true, cnpj: true } });
+      const pr = await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { created_by: true, vendedor_id: true, razao_social: true, nome_fantasia: true, responsavel_nome: true, responsavel_email: true, segmento: true, cidade: true, estado: true, cnpj: true } });
       const nome = pr?.nome_fantasia || pr?.razao_social || sdr.empresa || sdr.nome || sdr.numero;
-      const novo = await prisma.lead.create({ data: { nome, empresa: nome, razao_social: pr?.razao_social, nome_fantasia: pr?.nome_fantasia, cnpj: pr?.cnpj, responsavel_nome: pr?.responsavel_nome || sdr.nome, responsavel_email: pr?.responsavel_email, email: pr?.responsavel_email, responsavel_telefone: sdr.numero, telefone: sdr.numero, segmento: pr?.segmento, cidade: pr?.cidade, estado: pr?.estado, origem: 'PROPOSTA', temperatura: 'FRIO' } as any, select: { id: true } });
+      const novo = await prisma.lead.create({ data: { nome, empresa: nome, razao_social: pr?.razao_social, nome_fantasia: pr?.nome_fantasia, cnpj: pr?.cnpj, responsavel_nome: pr?.responsavel_nome || sdr.nome, responsavel_email: pr?.responsavel_email, email: pr?.responsavel_email, responsavel_telefone: sdr.numero, telefone: sdr.numero, segmento: pr?.segmento, cidade: pr?.cidade, estado: pr?.estado, origem: 'PROPOSTA', temperatura: 'FRIO', created_by: pr?.vendedor_id || pr?.created_by || 'sistema' } as any, select: { id: true } });
       leadId = novo.id;
     }
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { lead_id: leadId } });
