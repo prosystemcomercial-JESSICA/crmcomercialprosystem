@@ -134,8 +134,11 @@ function desfechoAtendimentoGeral(dados: DadosTriagem, fluxo: 'suporte' | 'finan
   const msg = fluxo === 'suporte'
     ? `Para suporte, fale com nosso atendimento geral pelo WhatsApp *${CONTATO_GERAL}*. Eles vão te ajudar! 💙`
     : `Para assuntos financeiros, o contato correto é o nosso atendimento geral: *${CONTATO_GERAL}*. 💙`;
-  return { estado: 'FIM', dados: { ...dados, fluxo }, acoes: [texto(msg)], desfecho: fluxo };
+  // Botão que abre o chat do atendimento geral direto (a UAZAPI transforma id com link em botão de link).
+  const botao = { id: LINK_CONTATO_GERAL, texto: fluxo === 'suporte' ? '💬 Falar com o suporte' : '💬 Falar com o financeiro' };
+  return { estado: 'FIM', dados: { ...dados, fluxo }, acoes: [{ tipo: 'menu', menu: { modo: 'button', texto: msg, opcoes: [botao], rodape: RODAPE } }], desfecho: fluxo };
 }
+export const LINK_CONTATO_GERAL = `https://wa.me/55${CONTATO_GERAL.replace(/\D/g, '')}`;
 
 function escolhaDoMenu(estado: 'MENU' | 'MENU_CLIENTE', dados: DadosTriagem, escolha: string | null, menuReask: Acao): ResultadoPasso {
   if (escolha === 'suporte' || escolha === 'financeiro') return desfechoAtendimentoGeral(dados, escolha);
