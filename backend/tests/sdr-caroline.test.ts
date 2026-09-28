@@ -93,6 +93,13 @@ describe('Caroline — termômetro e resposta da IA', () => {
     expect(ag !== 'outro' && ag?.quando.toISOString()).toBe('2026-09-28T17:30:00.000Z');
     expect(lerAgendamento('sdr_ag_outro')).toBe('outro');
   });
+  it('encerramento pede retorno e lista soluções do material', () => {
+    const r = promptCaroline({ guia: 'G', instrucoes: '', exemplos: [], historico: 'Caroline: oi', fase: 'encerramento', saudacao: 'Bom dia',
+      lead: { nome: 'João Silva', empresa: null, segmento: 'Farmácia', campanha: null, abertura_jessica: true, tentativa: 3 } });
+    expect(r.usuario).toContain('MENSAGEM DE ENCERRAMENTO');
+    expect(r.usuario).toContain('João, vi que você se inscreveu');
+    expect(r.usuario).toContain('farmácia');
+  });
   it('nunca deixa travessão nas mensagens', () => {
     const r = lerRespostaCaroline({ mensagens: ['Boa tarde, João! Aqui é a Caroline — da equipe Prosystem – tudo bem?'], acao: 'continuar', nota: 10 });
     expect(r?.mensagens[0]).toBe('Boa tarde, João! Aqui é a Caroline, da equipe Prosystem, tudo bem?');

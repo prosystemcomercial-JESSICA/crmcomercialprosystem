@@ -197,7 +197,7 @@ export function lerRespostaCaroline(j: any): RespostaCaroline | null {
 export const ABERTURA_JESSICA = (nome: string | null, segmento: string | null) =>
   `Bom dia, ${nome || ''}! Eu sou a Jessica, da Prosystem Sistemas. Recebemos sua inscrição em nossa campanha sobre sistema para ${segmento === 'Padaria' ? 'padarias' : 'farmácias'} e vou iniciar seu atendimento.\n\nPara começar, por favor, me informe de qual cidade você é e qual sistema utiliza atualmente. Pode responder por áudio, mensagem ou foto, como preferir.`.replace(' ,', ',');
 
-export type FaseCaroline = 'abertura' | 'retomada' | 'resposta';
+export type FaseCaroline = 'abertura' | 'retomada' | 'resposta' | 'encerramento';
 
 /** Prompt da Caroline. O guia comercial é a ÚNICA fonte sobre o produto. */
 // Agentes que conversam pela mesma base: Caroline (SDR), Julio (follow-up de leads) e Luiz Felipe (propostas).
@@ -263,6 +263,8 @@ export function promptCaroline(p: {
         : l.ja_conversou
         ? `O lead já conversou antes e parou de responder (follow-up, tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores, retomando de onde pararam, sem cobrar. Se houver em ASSUNTOS DA SEMANA uma novidade que afete o negócio dele e ainda não foi usada, pode usar como gancho, ligando à dor que ele contou.${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta.' : ''}`
         : `O lead ainda não respondeu (tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores. ${chamarDeVolta}${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta com gentileza.' : ''}`)
+      : p.fase === 'encerramento'
+      ? `MENSAGEM DE ENCERRAMENTO: o lead não respondeu às 3 tentativas. Escreva UMA mensagem (pode ter até 3 linhas curtas com ✅, só aqui) no espírito de: "${l.nome ? l.nome.split(' ')[0] : 'Oi'}, vi que você se inscreveu mas não conseguiu me retornar. Quanto antes começar a mudança, antes você resolve as pendências do dia a dia. Ainda tem interesse em continuar falando com a gente? Temos muito a agregar:" e liste 2 ou 3 soluções do MATERIAL que mais combinam com o segmento dele (${/padar|confeit/i.test(l.segmento || '') ? 'padaria' : 'farmácia'}), cada uma em uma linha curta começando com ✅. Termine com a pergunta se ele quer continuar. Tom respeitoso, sem cobrança, sem preço, sem travessão.`
       : 'Responda à(s) última(s) mensagem(ns) do cliente.';
   return { sistema, usuario: `${contexto}\n\nHistórico (mais recente por último):\n${p.historico || '(sem mensagens ainda)'}\n\n${tarefa}` };
 }
