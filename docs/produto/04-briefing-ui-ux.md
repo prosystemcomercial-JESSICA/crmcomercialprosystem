@@ -107,3 +107,11 @@ Versão 1.0 · 27/09/2026
   - nota fiscal e impostos.
 - A solução para cada um desses problemas só vem do MATERIAL.
 - Onde está no código: `promptCaroline` em lib/assistente/sdr.ts. Não há mudança de schema.
+
+### Atualização 28/09/2026: pedido de prazo sempre com previsão + campanha/revisão com autorização
+- **Luiz Felipe:** quando o cliente pede mais prazo, o agente nunca sai só agradecendo. Ele pede uma previsão ("pra quando você acha que consegue decidir? assim já te chamo nesse dia"), confirma a data e deixa a porta aberta.
+- **Do dia 20 ao último dia do mês** (`janelaCampanhaAtiva`, horário de Brasília), ele também diz que temos campanhas ativas e que pode revisar a proposta, sem citar valores. Essa mensagem vem marcada com `revisar_proposta: true`, e aí:
+  - ela sempre vai para "✋ Para você aprovar", mesmo sendo uma resposta;
+  - a Jessica recebe um aviso no WhatsApp ("🙋 Autorização: … quer oferecer revisão da proposta") com o texto;
+  - fora da janela, uma mensagem com essa marcação é descartada e nunca sai.
+- **Código:** `promptCaroline` (parâmetro `janelaCampanha`) e `lerRespostaCaroline` em lib/assistente/sdr.ts; `falar` em caroline.service.ts. Não há mudança de schema.
