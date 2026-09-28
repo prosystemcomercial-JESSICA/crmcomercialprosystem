@@ -156,7 +156,11 @@ export function deveRetomar(tentativas: number, ultimaCaroline: Date | null, ago
 }
 
 // ── Termômetro ──────────────────────────────────────────────────────────────
-export const ACOES = ['continuar', 'oferecer_demo', 'passar_vendedora', 'sem_interesse', 'duvida_fora_material'] as const;
+export const ACOES = ['continuar', 'oferecer_demo', 'passar_vendedora', 'sem_interesse', 'duvida_fora_material', 'encaminhar_suporte'] as const;
+
+/** Texto padrão quando o cliente pede vídeos/treinamento/suporte: isso é do setor de suporte, o agente é do comercial. */
+export const mensagemSuporte = (agente: string) =>
+  `O envio de vídeos, treinamentos e o suporte técnico são feitos pelo nosso *setor de suporte*. Eu sou ${/^(caroline|clarice|helena|laya|marta|sofia|lurdinha|bia)/i.test(agente) ? 'a' : 'o'} ${agente}, do *setor comercial*. 😊\n\nToque no botão abaixo para falar direto com o suporte, eles vão te ajudar!`;
 export type AcaoSdr = typeof ACOES[number];
 export type RespostaCaroline = {
   mensagens: string[]; acao: AcaoSdr; nota: number; nota_motivo: string; dor_principal: string | null;
@@ -187,7 +191,7 @@ export function lerRespostaCaroline(j: any): RespostaCaroline | null {
   const dor = typeof j.dor_principal === 'string' && j.dor_principal.trim() ? j.dor_principal.trim().slice(0, 300) : null;
   let nota = Math.round(Math.max(0, Math.min(100, Number(j.nota) || 0)));
   if (!dor) nota = Math.min(nota, 59);
-  if (!mensagens.length && acao !== 'sem_interesse') return null;
+  if (!mensagens.length && acao !== 'sem_interesse' && acao !== 'encaminhar_suporte') return null;
   // Nada de preço/valores na boca da Caroline.
   if (mensagens.some((m: string) => /R\$\s*\d|\d+\s*(reais|mil reais)|por mês fica|custa\s+\d/i.test(m))) return null;
   const d = j.dados && typeof j.dados === 'object' ? j.dados : {};
@@ -234,6 +238,7 @@ export function promptCaroline(p: {
     'MISSÃO Nº 1: descobrir o PROBLEMA PRINCIPAL do cliente hoje (o que mais incomoda, desde quando, quanto custa em tempo/dinheiro, o que já tentou). Não fale de solução nem ofereça demonstração antes de entender a dor, a não ser que o cliente peça.',
     'JEITO DE CONVERSAR: fale pouco e escute muito. No máximo 2 mensagens curtas (1 a 3 frases cada), UMA pergunta por vez, perguntas abertas. Espelhe a linguagem do cliente: se ele escreve curto e informal, responda curto e informal; se formal, acompanhe. Use as palavras dele. Empática ("isso é muito comum em farmácia do seu porte") e comercial na medida, sem pressão. Pode usar exemplos do dia a dia do negócio dele, mas só com recursos que estão no MATERIAL.',
     'NÃO INVENTE NADA: sobre o produto, use SOMENTE o MATERIAL abaixo. DÚVIDA DO CLIENTE: (1) procure a resposta no MATERIAL e responda com o que está lá; (2) se não entendeu bem o que ele quer saber, PERGUNTE MAIS ao cliente para entender (acao "continuar"); (3) só se o material realmente não cobrir o assunto, diga que vai confirmar com a equipe e já retorna (acao "duvida_fora_material", com a pergunta em "duvida").',
+    'VÍDEOS E SUPORTE: se o cliente pedir vídeos (tutoriais, treinamento, "como usar"), ajuda técnica ou suporte do sistema, isso é do SETOR DE SUPORTE, não do comercial: use acao "encaminhar_suporte" com "mensagens": [] (o sistema manda o texto padrão dizendo que você é do setor comercial, com o botão do suporte). Não prometa enviar vídeos.',
     'BOTÕES: se o cliente tocou "Quero saber mais", agradeça curto e siga investigando a dor; "Me chama depois", pergunte o melhor dia e horário (acao "continuar"); "Agora não", despeça-se com gentileza e porta aberta (acao "sem_interesse").',
     'CNPJ: nunca peça no começo. Só quando a conversa já estiver avançada (dor identificada, ou ao oferecer/marcar a demonstração), de forma natural, ex.: "pra eu já deixar tudo pronto pra sua demonstração, me passa o CNPJ da farmácia?". Se ele já mandou, não peça de novo.',
     'FATOS: nunca atribua ao cliente algo que ele não disse ou fez no histórico (ex.: não diga "você pediu uma demonstração" se ele só tocou em "Quero conhecer"). Na dúvida, pergunte.',
@@ -242,7 +247,7 @@ export function promptCaroline(p: {
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
     'AÇÃO: "continuar" (seguir investigando); "oferecer_demo" quando a nota ≥ 60 e a dor está clara, ou o cliente pedir (escreva uma mensagem curta ligando a dor ao que a demonstração vai mostrar; os horários são enviados depois automaticamente); "passar_vendedora" quando ele tem interesse mas não quer marcar agora (despeça-se dizendo que a consultora vai falar com ele); "sem_interesse" quando ele disser que não quer ou não é o momento (despeça-se com gentileza, porta aberta).',
-    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
+    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',
     p.atualidades?.length ? '\n=== ASSUNTOS DA SEMANA (pesquisa da Sofia, com fonte; use no máximo UM, só se afetar a GESTÃO do negócio do lead: impostos, obrigações fiscais, regras de venda, custos. Nunca use assunto clínico, de medicamento específico ou de outro segmento. Não invente detalhes além do que está aqui. Hoje é ' + new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ': ignore assunto cujo prazo ou data já passou) ===\n' + p.atualidades.map(a => `- [${a.segmento}] ${a.titulo}: ${a.resumo} (por que importa: ${a.por_que_importa})`).join('\n') : '',

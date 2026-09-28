@@ -10,7 +10,7 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
-  PERFIS_SDR, CONVITE_INSTAGRAM, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
 
@@ -268,6 +268,19 @@ async function enviarMensagens(prisma: PrismaClient, token: string, sdr: any, me
   emitirEventoConversa(conv.dono_id, 'conversa_atualizada', { conversaId: sdr.conversaId });
 }
 
+/** Vídeos, treinamento e suporte técnico são do setor de suporte: avisa que o agente é do comercial e manda o botão. */
+async function encaminharSuporte(prisma: PrismaClient, token: string, sdr: any) {
+  const conv = await prisma.whatsappConversa.findUnique({ where: { id: sdr.conversaId }, select: { contato_numero: true, dono_id: true } });
+  if (!conv) return;
+  const { LINK_CONTATO_GERAL } = await import('@/lib/triagem/fluxo');
+  const texto = mensagemSuporte(nomeDe(sdr));
+  const r = await evo.enviarMenu(token, conv.contato_numero, { modo: 'button', texto, opcoes: [{ id: LINK_CONTATO_GERAL, texto: '💬 Falar com o suporte' }] } as any);
+  await prisma.whatsappMensagem.create({ data: { conversaId: sdr.conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: `${texto}\n\n▫️ 💬 Falar com o suporte`, status: 'ENVIADA', enviada_por: agenteDe(sdr) } });
+  await prisma.whatsappConversa.update({ where: { id: sdr.conversaId }, data: { ultima_mensagem: texto.slice(0, 200), ultima_em: new Date() } });
+  emitirEventoConversa(conv.dono_id, 'conversa_atualizada', { conversaId: sdr.conversaId });
+  registrarAcaoAgente(agenteDe(sdr), `encaminhou ${sdr.nome || 'um cliente'} para o suporte (vídeos/treinamento)`);
+}
+
 /**
  * Chamariz para quem não respondeu: botões de resposta com um toque (responder é mais fácil
  * que digitar) e, na última tentativa, a imagem do material do segmento.
@@ -462,6 +475,9 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: 
       await marcarPerdidoNews(prisma, atual, motivo, r.nota_motivo || '', nomeDe(sdr)).catch((e: any) => console.warn('[CAROLINE] perda/news:', e?.message));
       await enviarMensagens(prisma, token, atual, [CONVITE_INSTAGRAM]).catch(() => {});
     }
+  } else if (acao === 'encaminhar_suporte') {
+    await encaminharSuporte(prisma, token, atual || sdr).catch((e: any) => console.warn('[CAROLINE] suporte:', e?.message));
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
   } else if (acao === 'duvida_fora_material') {
     await enviarAvisoGestao(prisma, 'lead_qualificado', `❓ *Dúvida que ${nomeDe(sdr)} não sabe responder*\n${atual?.nome || ''}${atual?.empresa ? ` · ${atual.empresa}` : ''}: "${r.duvida || 'ver conversa'}"\nResponda na conversa do WhatsApp (ao responder, você assume e ela sai).`);
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
