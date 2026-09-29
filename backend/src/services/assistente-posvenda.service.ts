@@ -5,7 +5,7 @@ import { calcularSlaPrazo } from './whatsapp-sla.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { ultimos8 } from '@/lib/assistente/gestao';
 import {
-  elegivelBoasVindas, elegivelPesquisa, textoBoasVindas, menuPesquisa, lerBotaoPesquisa, textoRespostaPesquisa, NOME_NOTA,
+  elegivelBoasVindas, elegivelPesquisa, elegivelAcompanhamento, textoAcompanhamento, JANELA_CLIENTE_NOVO_DIAS, textoBoasVindas, menuPesquisa, lerBotaoPesquisa, textoRespostaPesquisa, NOME_NOTA,
 } from '@/lib/assistente/posvenda';
 
 // Pós-venda (Fase 4): boas-vindas e pesquisa de satisfação. Desligado por padrão
@@ -26,7 +26,8 @@ export async function salvarPosVenda(prisma: PrismaClient, ativo: boolean, por: 
   const atual = await obterConfigPosVenda(prisma);
   const up = (chave: string, valor: string) => prisma.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor, updated_by: por }, update: { valor, updated_by: por } });
   await up(CHAVE_ATIVO, String(ativo));
-  if (ativo && !atual.ativo) await up(CHAVE_DESDE, new Date().toISOString()); // só contratos a partir de agora
+  // Ao ligar: cobre os clientes novos dos últimos 90 dias (contratos mais antigos ficam com a Mila, na base).
+  if (ativo && !atual.ativo) await up(CHAVE_DESDE, new Date(Date.now() - JANELA_CLIENTE_NOVO_DIAS * 86400000).toISOString());
 }
 
 /**
@@ -70,10 +71,13 @@ export async function rodarPosVenda(prisma: PrismaClient, agora = new Date()): P
       deleted_at: null, status: 'CONTRATO_ASSINADO', NOT: { origem: 'RETROATIVO' },
       OR: [{ wpp_boasvindas_em: null, updated_at: { gte: cfg.desde } }, { wpp_boasvindas_em: { not: null }, wpp_pesquisa_em: null }],
     },
-    select: SELECT, take: 50,
+    select: SELECT, take: 50, orderBy: { updated_at: 'desc' },
   });
+  // Proteção do número: no máximo 3 mensagens de pós-venda por rodada (a cada 10 min, horário comercial).
+  const POR_RODADA = 3;
   let n = 0;
   for (const p of ps) {
+    if (n >= POR_RODADA) break;
     const empresa = (p.nome_fantasia || p.razao_social || 'sua empresa').trim();
     const numero = numeroWhatsapp(p.responsavel_telefone);
     if (!numero) continue;
@@ -83,6 +87,14 @@ export async function rodarPosVenda(prisma: PrismaClient, agora = new Date()): P
         const texto = textoBoasVindas(p.responsavel_nome, empresa);
         const r = await evo.enviarTexto(inst.instance_token, numero, texto);
         await registrarSaida(prisma, conv.id, texto, r.externo_id, 'bot');
+        await prisma.$executeRawUnsafe('UPDATE PropostaComercial SET wpp_boasvindas_em = ? WHERE id = ?', new Date(), p.id);
+        n++;
+      } else if (elegivelAcompanhamento(p, agora)) {
+        // Cliente novo que passou da janela das boas-vindas: acompanhamento da implantação (vale como 1º contato).
+        const conv = await garantirConversa(prisma, inst.id, numero, { nome: p.responsavel_nome, tipo_contato: 'CLIENTE', dono_id: p.vendedor_id });
+        const texto = textoAcompanhamento(p.responsavel_nome, empresa);
+        const r = await evo.enviarTexto(inst.instance_token, numero, texto);
+        await registrarSaida(prisma, conv.id, texto, r.externo_id, 'helena');
         await prisma.$executeRawUnsafe('UPDATE PropostaComercial SET wpp_boasvindas_em = ? WHERE id = ?', new Date(), p.id);
         n++;
       } else if (elegivelPesquisa(p, agora)) {
