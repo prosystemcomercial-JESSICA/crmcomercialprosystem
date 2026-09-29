@@ -209,6 +209,42 @@ async function exemplosEditados(prisma: PrismaClient) {
   return xs.filter(x => x.texto_final).map(x => ({ antes: x.texto.slice(0, 400), depois: x.texto_final!.slice(0, 400) }));
 }
 
+/**
+ * Aprendizado com as conversas que a equipe assume: pares "cliente disse → pessoa respondeu"
+ * dos últimos 30 dias (texto ou áudio transcrito), para os agentes fazerem igual ou melhor.
+ * Cache de 30 min (a consulta varre mensagens).
+ */
+let cacheAprendizado: { em: number; pares: { cliente: string; equipe: string }[] } | null = null;
+export async function aprendizadoDaEquipe(prisma: PrismaClient): Promise<{ cliente: string; equipe: string }[]> {
+  if (cacheAprendizado && Date.now() - cacheAprendizado.em < 30 * 60_000) return cacheAprendizado.pares;
+  const automaticos = [...REMETENTES_AUTOMATICOS, ...REMETENTES_SDR, 'bot', 'abertura_jessica', 'assistente_ia', 'campanha', 'cadencia_automatica'];
+  const humanas = await prisma.whatsappMensagem.findMany({
+    where: {
+      direcao: 'SAIDA', created_at: { gte: new Date(Date.now() - 30 * 86400000) },
+      OR: [{ enviada_por: null }, { enviada_por: { notIn: automaticos } }],
+    },
+    orderBy: { created_at: 'desc' }, take: 120,
+    select: { conversaId: true, conteudo: true, transcricao: true, tipo: true, created_at: true },
+  }).catch(() => []);
+  const pares: { cliente: string; equipe: string }[] = [];
+  const vistas = new Set<string>();
+  for (const h of humanas) {
+    if (pares.length >= 6) break;
+    const resposta = (h.tipo === 'AUDIO' ? h.transcricao : h.conteudo) || '';
+    if (resposta.trim().length < 25 || /^\[(áudio|imagem|vídeo|documento)\]$/i.test(resposta.trim()) || vistas.has(h.conversaId)) continue;
+    const antes = await prisma.whatsappMensagem.findFirst({
+      where: { conversaId: h.conversaId, direcao: 'ENTRADA', created_at: { lt: h.created_at } }, orderBy: { created_at: 'desc' },
+      select: { conteudo: true, transcricao: true, tipo: true },
+    }).catch(() => null);
+    const cliente = (antes?.tipo === 'AUDIO' ? antes.transcricao : antes?.conteudo) || '';
+    if (cliente.trim().length < 2) continue;
+    vistas.add(h.conversaId);
+    pares.push({ cliente: cliente.trim().slice(0, 300), equipe: resposta.trim().slice(0, 500) });
+  }
+  cacheAprendizado = { em: Date.now(), pares };
+  return pares;
+}
+
 async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline): Promise<RespostaCaroline | null> {
   const { guiaComercial } = await import('./assistente-ia.service');
   const { instrucoesPara } = await import('./agentes-conversa.service');
@@ -236,7 +272,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
       descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
     : '';
   const p = promptCaroline({
-    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer, exemplos: await exemplosEditados(prisma),
+    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer, exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     perfil: agenteDe(sdr),
     // Campanha: só dias 20+, e uma vez por mês por cliente (depois de autorizada ou recusada não pede de novo).

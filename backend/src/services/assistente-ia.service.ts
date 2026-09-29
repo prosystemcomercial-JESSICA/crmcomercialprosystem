@@ -134,7 +134,11 @@ export async function autoResponderDuvida(prisma: PrismaClient, token: string, c
     });
     if (!ok) return;
     const p = promptTiraDuvidas(await guiaComercial(prisma), await textoDaConversa(prisma, conversaId, 20));
-    const resposta = respostaSegura(lerJsonIa(await chamarGemini(prisma, { sistema: p.sistema + (await instrucoesPara(prisma, 'clarice')), partes: [{ text: p.usuario }], json: true, temperatura: 0.2 })));
+    // Aprende com as conversas que a equipe assume (mesmo aprendizado dos agentes de vendas).
+    const { aprendizadoDaEquipe } = await import('./caroline.service');
+    const pares = await aprendizadoDaEquipe(prisma).catch(() => []);
+    const aprender = pares.length ? `\n\n=== COMO A EQUIPE RESPONDE (aprenda o jeito e os argumentos; faça igual ou melhor, sem copiar; nunca repita dados de outro cliente) ===\n${pares.map(a => `Cliente: ${a.cliente}\nEquipe: ${a.equipe}`).join('\n---\n')}` : '';
+    const resposta = respostaSegura(lerJsonIa(await chamarGemini(prisma, { sistema: p.sistema + (await instrucoesPara(prisma, 'clarice')) + aprender, partes: [{ text: p.usuario }], json: true, temperatura: 0.2 })));
     if (!resposta) return;
     const r = await evo.enviarTexto(token, c.contato_numero, resposta);
     await prisma.whatsappMensagem.create({ data: { conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: resposta, status: 'ENVIADA', enviada_por: REMETENTE_IA } });
