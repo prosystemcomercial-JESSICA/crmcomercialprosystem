@@ -590,6 +590,7 @@ async function loadRoutes() {
     ['backups',               () => import('./routes/backups'),               'backupsRoutes'],
     ['painel-tv',             () => import('./routes/painel-tv'),             'painelTvRoutes'],
     ['push',                  () => import('./routes/push'),                  'pushRoutes'],
+    ['desempenho',            () => import('./routes/desempenho'),            'desempenhoRoutes'],
   ];
 
   let ok = 0;

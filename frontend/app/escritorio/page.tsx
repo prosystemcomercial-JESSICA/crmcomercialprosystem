@@ -10,6 +10,7 @@ import ChatAgente from '@/components/escritorio/ChatAgente';
 import PesquisasSofia from '@/components/escritorio/PesquisasSofia';
 import CadernoLaya from '@/components/escritorio/CadernoLaya';
 import PainelCaroline from '@/components/escritorio/PainelCaroline';
+import PainelDesempenho from '@/components/desempenho/PainelDesempenho';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
 // leitura; atualiza a cada 30 s com o que cada agente fez hoje.
@@ -99,6 +100,7 @@ export default function EscritorioPage() {
     apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
   };
   const [chat, setChat] = useState<string | null>(null);
+  const [metricas, setMetricas] = useState(false); // janela "Métricas da IA"
   const chamar = (id: string) => { setChamados(c => ({ ...c, [id]: 'sala' })); setSel(id); setChat(id); };
   const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
   const reunir = () => setChamados(Object.fromEntries((agentes || []).map(a => [a.id, 'reuniao' as Chamado])));
@@ -159,6 +161,24 @@ export default function EscritorioPage() {
 
   return (
     <DashboardLayout>
+      {metricas && (
+        <div role="dialog" aria-modal="true" aria-label="Métricas da IA" style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px', overflowY: 'auto' }}
+          onClick={e => { if (e.target === e.currentTarget) setMetricas(false); }}>
+          <div style={{ width: '100%', maxWidth: 1100, background: 'var(--t-content-bg)', borderRadius: 16, padding: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>📊 Métricas da IA</h2>
+                <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Os agentes, suas intervenções, compromissos, propostas e o uso das IAs. Relatório completo em Desempenho do setor.</p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href="/desempenho" style={{ padding: '8px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: 'var(--t-primary)', border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>Abrir relatório</a>
+                <button onClick={() => setMetricas(false)} aria-label="Fechar" style={{ minWidth: 40, minHeight: 40, borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+              </div>
+            </div>
+            <PainelDesempenho compacto />
+          </div>
+        </div>
+      )}
       <div className="ios-tela" style={{ padding: '0 0 24px', display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
@@ -170,6 +190,10 @@ export default function EscritorioPage() {
               👥 {agentes?.length ?? 8} agentes · <span style={{ color: '#16a34a' }}>{trabalhando} trabalhando</span>
             </span>
             {atualizado && !simulando && <span style={{ padding: '6px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>atualizado {haQuanto(atualizado)}</span>}
+            <button onClick={() => setMetricas(true)}
+              style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: '#2563eb' }}>
+              📊 Métricas da IA
+            </button>
             <button onClick={() => emReuniao ? setChamados({}) : reunir()} disabled={!agentes}
               style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: emReuniao ? '#0f766e' : '#b45309' }}>
               {emReuniao ? '✅ Encerrar reunião' : '🤝 Reunir a equipe'}

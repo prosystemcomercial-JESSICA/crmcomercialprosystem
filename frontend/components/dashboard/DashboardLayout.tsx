@@ -59,6 +59,7 @@ const navGroups: NavGroup[] = [
       { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
       { href: '/escritorio', icon: Building2,      label: 'Escritório virtual',     roles: [...COMERCIAL, 'SDR'] },
       { href: '/aprovar',    icon: Eye,            label: 'Aprovar',                roles: GESTAO_COMERCIAL },
+      { href: '/desempenho', icon: LineChart,      label: 'Desempenho do setor',    roles: GESTAO_COMERCIAL },
     ],
   },
   {
