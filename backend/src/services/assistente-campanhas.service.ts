@@ -32,9 +32,9 @@ async function contatosDoPublico(prisma: PrismaClient, f: FiltroCampanha) {
     ];
   }
   if (f.publico === 'NEWS') {
-    // Lista News: leads com a etiqueta "News" (perdidos com a porta aberta, só recebem informativos).
+    // Informativo Prosystem (jornal): leads com essa etiqueta (sem interesse agora, só recebem informativos).
     const ls = await prisma.lead.findMany({
-      where: { deleted_at: null, etiquetas_lead: { some: { etiqueta: { nome: 'News', tipo: 'LEAD' } } }, ...(seg ? { segmento: { contains: seg } } : {}) },
+      where: { deleted_at: null, etiquetas_lead: { some: { etiqueta: { nome: { in: ['Informativo Prosystem', 'News'] }, tipo: 'LEAD' } } }, ...(seg ? { segmento: { contains: seg } } : {}) },
       select: { id: true, responsavel_nome: true, nome: true, nome_fantasia: true, razao_social: true, responsavel_telefone: true, telefone: true },
       take: 5000,
     });

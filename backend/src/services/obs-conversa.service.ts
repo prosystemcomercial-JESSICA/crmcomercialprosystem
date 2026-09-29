@@ -5,6 +5,11 @@ import type { PrismaClient } from '@prisma/client';
 // a IA resume (quem é, o que foi falado, o que falta) e grava na timeline do lead.
 // Assim qualquer pessoa ou agente que retomar já tem o contexto. Roda no agendador (10 em 10 min).
 
+const SITUACAO_PROPOSTA: Record<string, string> = {
+  RASCUNHO: 'rascunho (não enviada)', ENVIADA: 'PENDENTE (enviada, aguardando decisão)', VISUALIZADA: 'PENDENTE (cliente abriu, aguardando decisão)',
+  EM_NEGOCIACAO: 'PENDENTE (em negociação)', EXPIRADA: 'PENDENTE (validade vencida, sem decisão)', ACEITA: 'ACEITA', RECUSADA: 'RECUSADA', PERDIDA: 'RECUSADA / perdida',
+  CONTRATO_EM_GERACAO: 'aceita · contrato em geração', CONTRATO_ENVIADO: 'aceita · contrato enviado', CONTRATO_ASSINADO: 'aceita · contrato assinado',
+};
 const PARADA_MIN = 30;           // conversa parada há pelo menos 30 min
 const JANELA_H = 48;             // olha conversas movimentadas nas últimas 48 h
 const POR_RODADA = 12;           // limite de resumos por rodada (custo de IA)
@@ -37,12 +42,16 @@ export async function registrarConversasNasObservacoes(prisma: PrismaClient, ago
     }
     try {
       const r = await resumirConversa(prisma, c.id);
+      // Situação da proposta (quando o contato tem uma): pendente / recusada / aceita…
+      const sdr = await prisma.sdrLead.findFirst({ where: { conversaId: c.id, proposta_id: { not: null } }, orderBy: { created_at: 'desc' }, select: { proposta_id: true } });
+      const prop = sdr?.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { status: true, plano_selecionado: true } }) : null;
       const linhas = [
         `💬 Conversa no WhatsApp${c.contato_nome ? ` com ${c.contato_nome}` : ''} (${fmt(c.ultima_em || agora)})`,
         r.quem ? `Quem: ${r.quem}` : null,
         r.falado ? `O que foi conversado: ${r.falado}` : null,
         r.falta ? `O que falta: ${r.falta}` : null,
         r.venda_adicional ? `Oportunidade: ${r.venda_adicional}` : null,
+        prop ? `📄 Proposta${prop.plano_selecionado ? ` (${prop.plano_selecionado})` : ''}: ${SITUACAO_PROPOSTA[prop.status] || prop.status}` : null,
       ].filter(Boolean).join('\n');
       await prisma.leadObservacao.create({ data: { lead_id: c.lead_id!, tipo: 'WHATSAPP', descricao: linhas, created_by: 'bot', created_by_name: 'Registro automático (WhatsApp)' } });
       await prisma.lead.update({ where: { id: c.lead_id! }, data: { ultima_obs_at: agora } }).catch(() => {});
