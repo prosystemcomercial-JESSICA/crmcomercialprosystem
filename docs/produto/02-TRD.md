@@ -472,3 +472,23 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - Caroline: 70% de resposta. Mantém a abertura direta sobre a rotina, citando a campanha e o negócio do cliente.
   - Julio: 50%. Troca o genérico "ainda está procurando ou já resolveu?" por uma pergunta sobre a prioridade atual.
   - Luiz Felipe: 35%. Troca a pergunta dupla "avaliou ou já resolveu?" por uma pergunta sobre o próximo passo ou a dúvida pendente.
+
+### Atualização 29/09/2026: etapa do lead avança sozinha na Central de Leads
+- **Auditoria:** os agentes não moviam o lead de coluna. Havia:
+  - 9 leads conversando com agente mas em "Novo Lead";
+  - 4 leads com proposta em "Novo Lead" e 1 em "Qualificado";
+  - 1 lead com demonstração marcada em "Novo Lead";
+  - 3 leads sem interesse em "Novo Lead";
+  - 1 lead na etapa `ACEITO`, que não tem coluna no quadro e por isso fica invisível.
+- **`lib/etapa-lead.ts`:** `avancarEtapaLead(leadId, alvo, motivo, quem)` e `deveAvancar`.
+  - Só avança: NOVO_LEAD → PRIMEIRO_CONTATO → EM_ATENDIMENTO → QUALIFICADO/AGUARDANDO_RETORNO → PROPOSTA_A_GERAR → PROPOSTA_ENVIADA → EM_NEGOCIACAO.
+  - Nunca mexe em Fechado, Perdido, Aceito, colunas personalizadas de quadros ou leads GANHO/PERDIDO.
+  - Cada avanço vira observação "➡️ Avançou para …: motivo" no lead.
+- **Onde avança:**
+  - agente envia mensagem → Primeiro Contato (se o SDR tem proposta, Proposta Enviada);
+  - lead responde → Em Atendimento;
+  - lead marca demonstração → Qualificado;
+  - proposta enviada pelo WhatsApp → Proposta Enviada;
+  - cliente topa a condição da campanha → Em Negociação.
+- **Correção dos dados:** 13 leads avançaram pela mesma regra. Os leads sem interesse sem proposta não foram movidos (aguardando definição), e o lead em ACEITO também ficou como estava.
+- Teste: tests/etapa-lead.test.ts.
