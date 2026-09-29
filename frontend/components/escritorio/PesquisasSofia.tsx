@@ -15,18 +15,47 @@ const SEGMENTOS = ['Farmácia', 'Manipulação', 'Padaria', 'Varejo', 'Gestão']
 const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const dia = (d: string) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
+/**
+ * Texto da IA com links no formato "([site](url))" ou URLs soltas: vira texto limpo com um link curto
+ * (nome do site), para nada de endereço gigante estourando o cartão.
+ */
+function TextoComLinks({ texto }: { texto: string }) {
+  const partes: (string | { rotulo: string; url: string })[] = [];
+  const re = /\(?\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)\)?|(https?:\/\/[^\s)]+)/g;
+  let ult = 0, m: RegExpExecArray | null;
+  while ((m = re.exec(texto))) {
+    if (m.index > ult) partes.push(texto.slice(ult, m.index));
+    const url = m[2] || m[3];
+    let rotulo = m[1] || url;
+    try { rotulo = (m[1] || new URL(url).hostname).replace(/^www\./, ''); } catch { /* mantém */ }
+    partes.push({ rotulo, url });
+    ult = m.index + m[0].length;
+  }
+  if (ult < texto.length) partes.push(texto.slice(ult));
+  return (
+    <>
+      {partes.map((p, k) => typeof p === 'string'
+        ? <span key={k}>{p}</span>
+        : <a key={k} href={p.url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', whiteSpace: 'nowrap' }}>🔗 {p.rotulo}</a>)}
+    </>
+  );
+}
+
+// Cartão nunca estoura: coluna com mínimo flexível e texto que quebra em qualquer ponto.
+const QUEBRA: React.CSSProperties = { minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' };
+
 function Itens({ p, copiado, copiar, filtro }: { p: Pesquisa; copiado: string | null; copiar: (t: string, k: string) => void; filtro?: (i: Item) => boolean }) {
   const itens = (p.itens || []).filter(i => !filtro || filtro(i));
   return (
     <div style={{ display: 'grid', gap: 10 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 10 }}>
         {itens.map((i, k) => (
-          <div key={k} style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 12, display: 'grid', gap: 6, alignContent: 'start' }}>
+          <div key={k} style={{ ...QUEBRA, border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 12, display: 'grid', gap: 6, alignContent: 'start', background: 'var(--t-card-bg)' }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', textTransform: 'uppercase' }}>{i.segmento}</span>
-            <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>{i.titulo}</b>
-            <span style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{i.resumo}</span>
-            <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}><b>Por que importa:</b> {i.por_que_importa}</span>
-            <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 8, fontSize: 12, color: '#14532d' }}>
+            <b style={{ ...QUEBRA, fontSize: 14, color: 'var(--t-text-primary)' }}>{i.titulo}</b>
+            <span style={{ ...QUEBRA, fontSize: 13, color: 'var(--t-text-secondary)' }}><TextoComLinks texto={i.resumo || ''} /></span>
+            <span style={{ ...QUEBRA, fontSize: 12, color: 'var(--t-text-muted)' }}><b>Por que importa:</b> <TextoComLinks texto={i.por_que_importa || ''} /></span>
+            <div style={{ ...QUEBRA, background: '#f0fdf4', borderRadius: 8, padding: 8, fontSize: 12, color: '#14532d' }}>
               💬 {i.sugestao_mensagem_cliente}
               <button onClick={() => copiar(i.sugestao_mensagem_cliente, `${p.id}-${k}`)} style={{ marginLeft: 8, fontSize: 11, border: 'none', background: 'none', color: '#15803d', fontWeight: 700, cursor: 'pointer' }}>
                 {copiado === `${p.id}-${k}` ? 'copiado!' : 'copiar'}
@@ -145,7 +174,7 @@ export default function PesquisasSofia() {
           </div>
           {p && (
             <div style={{ display: 'grid', gap: 10 }}>
-              <p style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{p.resumo}</p>
+              <p style={{ ...QUEBRA, fontSize: 13, color: 'var(--t-text-secondary)' }}><TextoComLinks texto={p.resumo || ''} /></p>
               <Itens p={p} copiado={copiado} copiar={copiar} />
             </div>
           )}
@@ -171,7 +200,7 @@ export default function PesquisasSofia() {
                     <b>{dia(x.created_at)}</b> · {x.titulo}{x.tema ? <span style={{ color: 'var(--t-text-muted)' }}> (tema: {x.tema})</span> : null}
                   </summary>
                   <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-                    <p style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{x.resumo}</p>
+                    <p style={{ ...QUEBRA, fontSize: 13, color: 'var(--t-text-secondary)' }}><TextoComLinks texto={x.resumo || ''} /></p>
                     <Itens p={x} copiado={copiado} copiar={copiar} filtro={busca.trim() || segmento ? filtroItem : undefined} />
                   </div>
                 </details>
