@@ -1343,6 +1343,13 @@ class ApiClient {
   async configCaroline(data: { ativa?: boolean; aprovar?: boolean; limite?: number }, agente = 'caroline') {
     return this.client.put('/assistente/caroline/config', data, { params: { agente } });
   }
+  // ── Rafael, especialista em vendas ──
+  async rafaelDocs() { return this.client.get('/especialista/docs'); }
+  async rafaelEstudar(tema?: string | null) { return this.client.post('/especialista/estudar', { tema }); }
+  async rafaelRevisar() { return this.client.post('/especialista/revisar', {}); }
+  async rafaelAbordagem() { return this.client.post('/especialista/abordagem', {}); }
+  async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
+  async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
   // ── Cronômetro de atividades longas ──
   async cronometroAtivo() { return this.client.get('/cronometros/ativo'); }
   async cronometroIniciar(titulo: string, atividade_id?: string | null) { return this.client.post('/cronometros', { titulo, atividade_id }); }

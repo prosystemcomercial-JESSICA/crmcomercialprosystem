@@ -15,9 +15,9 @@ export type AgenteSala = {
 
 const LARG = 62, ALT = 36;
 const COLS = 4, ESPACO = 2.3;
-const W = 21, D = 7.4;
+const W = 21, D = 9.7; // 4 fileiras de mesas (16 agentes)
 const ESPINHA_X = 10.2;                     // corredor vertical entre as mesas e os cantos
-const CORREDOR_LINHA = [0.38, 2.45, 4.75];  // corredor atrás de cada fileira de mesas
+const CORREDOR_LINHA = [0.38, 2.45, 4.75, 7.05];  // corredor atrás de cada fileira de mesas
 const ALA_X = 16.3;                         // a partir daqui: sala de reunião (fundo) e sala da Jessica (frente)
 const CORREDOR_ALA_Y = 3.85;                // corredor entre as duas salas
 const VELOCIDADE = 1.5;                     // células por segundo
@@ -100,6 +100,11 @@ const VISUAL: Record<string, Visual> = {
   sofia:       { cabelo: 'chanel',   corCabelo: '#facc15', feminina: true,  estampa: 'lupa', extra: 'oculos', calca: '#7c2d12' },
   caroline:    { cabelo: 'longo',    corCabelo: '#b45309', feminina: true,  estampa: 'headset', extra: 'headset', calca: '#312e81' },
   julio:       { cabelo: 'curto',    corCabelo: '#1c1917', feminina: false, estampa: 'agenda', extra: 'headset', calca: '#134e4a' },
+  rafael:      { cabelo: 'curto',    corCabelo: '#3f2a1d', feminina: false, estampa: 'gravata', extra: 'oculos', calca: '#1e3a8a' },
+  olivia:      { cabelo: 'rabo',     corCabelo: '#111827', feminina: true,  estampa: 'lupa', calca: '#4c1d95' },
+  heitor:      { cabelo: 'curto',    corCabelo: '#78350f', feminina: false, estampa: 'megafone', extra: 'headset', calca: '#365314', pele: '#c68642', peleSombra: '#a0692f' },
+  mila:        { cabelo: 'ondulado', corCabelo: '#7c2d12', feminina: true,  estampa: 'coracao', extra: 'headset', calca: '#164e63' },
+  joana:       { cabelo: 'chanel',   corCabelo: '#1f1a17', feminina: true,  estampa: 'agenda', extra: 'oculos', calca: '#7c2d12', pele: '#8d5524', peleSombra: '#6b3f1b' },
   jessica:     { cabelo: 'longo',    corCabelo: '#5a3825', feminina: true,  estampa: 'estrela', calca: '#1e293b' },
 };
 

@@ -36,6 +36,8 @@ export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promi
       .map(p => ({ texto: `Pesquisou "${p.titulo}" (${Array.isArray(p.itens) ? (p.itens as any[]).length : 0} assuntos)`, em: p.created_at.toISOString() }));
     case 'caroline': case 'julio': return agendaSdr(prisma, id);
     case 'marta': { const a = acaoRegistrada('marta'); return a ? [{ texto: a.texto, em: a.em.toISOString() }] : []; }
+    case 'rafael': return (await prisma.especialistaDoc.findMany({ where: { status: { not: 'ARQUIVADO' } }, orderBy: { created_at: 'desc' }, take: 10, select: { tipo: true, titulo: true, status: true, created_at: true } }))
+      .map(d => ({ texto: `${d.status === 'APROVADO' ? '✅' : '📝'} [${d.tipo}] ${d.titulo}`, em: d.created_at.toISOString() }));
     default: return [];
   }
 }
@@ -143,6 +145,10 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   // Sofia — pesquisas do setor
   const pesquisasMes = await prisma.pesquisaSetor.count({ where: { created_at: { gte: new Date(agora.getTime() - 30 * 86400000) } } });
   const ultPesq = await prisma.pesquisaSetor.findFirst({ orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } });
+  const docsPendentes = await prisma.especialistaDoc.count({ where: { status: 'PROPOSTO' } }).catch(() => 0);
+  const docsAprovados = await prisma.especialistaDoc.count({ where: { status: 'APROVADO' } }).catch(() => 0);
+  const ultDoc = await prisma.especialistaDoc.findFirst({ orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } }).catch(() => null);
+  const rafael = maisRecente<Acao>(ultDoc ? { texto: `escreveu "${ultDoc.titulo.slice(0, 50)}"`, em: ultDoc.created_at } : null, acaoRegistrada('rafael'));
   const sofia = maisRecente<Acao>(ultPesq ? { texto: `pesquisou "${ultPesq.titulo.slice(0, 50)}"`, em: ultPesq.created_at } : null, acaoRegistrada('sofia'));
 
   // Caroline — SDR
@@ -190,5 +196,10 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
       carolCfg.pausada_motivo ? `Pausada: ${carolCfg.pausada_motivo}` : carolCfg.ativa ? (carolCfg.aprovar ? 'Você aprova cada mensagem antes de sair' : 'Enviando sozinha') : 'Desligada: ligue no painel dela'),
     estado('julio', julioCfg.ativa, maisRecente<Acao>(null, acaoRegistrada('julio')), [{ rotulo: 'na fila', valor: julioFila }, { rotulo: 'conversando', valor: julioConversando }, { rotulo: 'para aprovar', valor: julioPendentes }, { rotulo: 'retomados', valor: julioAtivo }], quando(julioCfg) || 'Retoma a base do mais novo para o mais antigo'),
     estado('marta', true, marta, [{ rotulo: 'tarefas lançadas', valor: tarefasHoje }, { rotulo: 'descontos decididos', valor: aprovacoesHoje }]),
+    estado('rafael', temChave, rafael, [{ rotulo: 'para aprovar', valor: docsPendentes }, { rotulo: 'parâmetros aprovados', valor: docsAprovados }], temChave ? 'Revisa as conversas seg–sex às 17h · estuda toda quarta' : 'Esperando a chave da IA em Configurações'),
+    estado('olivia', false, maisRecente<Acao>(null, acaoRegistrada('olivia')), [], 'Em construção: próxima etapa'),
+    estado('heitor', false, maisRecente<Acao>(null, acaoRegistrada('heitor')), [], 'Em construção'),
+    estado('mila', false, maisRecente<Acao>(null, acaoRegistrada('mila')), [], 'Em construção'),
+    estado('joana', false, maisRecente<Acao>(null, acaoRegistrada('joana')), [], 'Em construção'),
   ];
 }

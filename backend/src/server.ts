@@ -380,6 +380,9 @@ async function iniciarSchedulerAssistente() {
       await registrarConversasNasObservacoes(prismaClient!, agora).catch((e: any) => console.error('[OBS-WPP]', e?.message));
       const { lembrarResponsavelDemo } = await import('./services/assistente-demo.service.js');
       await lembrarResponsavelDemo(prismaClient!, agora).catch((e: any) => console.error('[DEMO] lembrete responsável:', e?.message));
+      // Rafael: revisão das conversas (seg–sex 17h) e estudo de vendas (quarta 9h).
+      const { rodarRafael } = await import('./services/especialista.service.js');
+      await rodarRafael(prismaClient!, agora).catch((e: any) => console.error('[RAFAEL]', e?.message));
       // Pesquisa semanal da Sofia (segunda a partir das 8h; ela mesma confere o dia).
       const { rodarPesquisaSemanal } = await import('./services/sofia-pesquisa.service.js');
       await rodarPesquisaSemanal(prismaClient!, agora).catch((e: any) => console.error('[SOFIA]', e?.message));
@@ -592,6 +595,7 @@ async function loadRoutes() {
     ['push',                  () => import('./routes/push'),                  'pushRoutes'],
     ['desempenho',            () => import('./routes/desempenho'),            'desempenhoRoutes'],
     ['cronometro',            () => import('./routes/cronometro'),            'cronometroRoutes'],
+    ['especialista',          () => import('./routes/especialista'),          'especialistaRoutes'],
   ];
 
   let ok = 0;

@@ -14,6 +14,11 @@ export const AGENTES = [
   { id: 'sofia', nome: 'Sofia', funcao: 'Pesquisadora · assuntos do setor e novidades', cor: '#ea580c' },
   { id: 'caroline', nome: 'Caroline', funcao: 'SDR · primeiro contato com leads das campanhas', cor: '#be123c' },
   { id: 'julio', nome: 'Julio', funcao: 'Follow-up de leads · retoma a base, do mais novo ao mais antigo', cor: '#0d9488' },
+  { id: 'rafael', nome: 'Rafael', funcao: 'Especialista em vendas de software · POPs, processos, revisão das conversas', cor: '#1e40af' },
+  { id: 'olivia', nome: 'Olívia', funcao: 'Concorrentes · PDV/ERP para farmácias e padarias, avaliações e reclamações', cor: '#9333ea' },
+  { id: 'heitor', nome: 'Heitor', funcao: 'Prospectador · traz leads novos com o máximo de informação', cor: '#65a30d' },
+  { id: 'mila', nome: 'Mila', funcao: 'CS · clientes da base (8 meses ou mais e contratos do ano)', cor: '#0e7490' },
+  { id: 'joana', nome: 'Joana', funcao: 'Jornalista · Informativo Prosystem a partir das pesquisas da Sofia', cor: '#c2410c' },
 ] as const;
 export type AgenteId = typeof AGENTES[number]['id'];
 export type StatusAgente = 'trabalhando' | 'parado' | 'desligado';

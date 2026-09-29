@@ -2789,6 +2789,28 @@ model Cronometro {
   @@index([iniciado_em])
 }
 
+// Rafael, especialista em vendas de software: documentos que viram parâmetro do setor
+// (POPs, processos, exemplos, dicas, alertas de conversas e propostas de abordagem).
+// Cada título tem versões; o que a gestão aprova passa a valer (abordagem aprovada vira instrução do agente).
+model EspecialistaDoc {
+  id           String    @id @default(cuid())
+  tipo         String    @db.VarChar(20) // POP | PROCESSO | EXEMPLO | DICA | ALERTA | ABORDAGEM
+  titulo       String    @db.VarChar(255)
+  conteudo     String    @db.LongText // markdown
+  agente_alvo  String?   @db.VarChar(40) // caroline | julio | luiz_felipe (abordagem) ou null
+  status       String    @default("PROPOSTO") @db.VarChar(20) // PROPOSTO | APROVADO | ARQUIVADO
+  versao       Int       @default(1)
+  fontes       Json?
+  origem       String?   @db.VarChar(40) // estudo | revisao | abordagem | manual
+  decidido_por String?   @db.VarChar(64)
+  decidido_em  DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  @@index([tipo, status])
+  @@index([created_at])
+}
+
 model CronometroEvento {
   id            String     @id @default(cuid())
   cronometro_id String
