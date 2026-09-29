@@ -11,6 +11,7 @@ import PesquisasSofia from '@/components/escritorio/PesquisasSofia';
 import CadernoLaya from '@/components/escritorio/CadernoLaya';
 import PainelCaroline from '@/components/escritorio/PainelCaroline';
 import PainelDesempenho from '@/components/desempenho/PainelDesempenho';
+import PainelRafael from '@/components/escritorio/PainelRafael';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
 // leitura; atualiza a cada 30 s com o que cada agente fez hoje.
@@ -283,6 +284,7 @@ export default function EscritorioPage() {
           <PainelCaroline agente="luiz_felipe" />
           <PainelCaroline agente="julio" />
           <CadernoLaya />
+          <PainelRafael />
           <PesquisasSofia />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
             {mostrar?.map(a => (
