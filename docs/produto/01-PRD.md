@@ -251,3 +251,31 @@ Tudo vale só abaixo de 768px, com classes `ios-*` em `app/ios.css`. No computad
 - **Próximas etapas:**
   - 3: Propostas (gerador) e Dashboard;
   - 4: telas do "Mais".
+
+### Atualização 29/09/2026: celular no padrão iOS, etapa 3 (Propostas e Dashboard)
+Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
+- **Classes genéricas para outras telas:**
+  - `ios-tela`: fundo agrupado #F2F2F7; os `.ps-card` viram cartões iOS com raio de 12, sem borda e sem sombra.
+  - `ios-topo`: cabeçalho em coluna, com título grande de 34pt e subtítulo de 15pt.
+  - `ios-seg-inline` e `ios-abas`: controles segmentados.
+  - `ios-filtros`: busca iOS em linha própria e campos de 36 a 44pt.
+  - `ios-lista-cartoes`: a tabela vira lista de cartões, com cabeçalho escondido, uma linha por cartão e botões de ação de 44pt.
+  - `ios-modal-*`: o modal vira folha em tela cheia.
+- **Propostas (gerador):**
+  - título grande "Gerador de Proposta Comercial";
+  - Lista/Kanban como segmentado;
+  - "Nova Proposta" em botão largo azul do sistema, com 44pt;
+  - indicadores em cartões iOS;
+  - lista de propostas em cartões: empresa em 17pt, detalhes em 15pt e ações Ver/Editar/Link/WhatsApp com 44pt.
+- **Formulário da proposta em folha de tela cheia:**
+  - barra de título translúcida com área segura e botão fechar redondo;
+  - passos com 44pt e a cor de ação do sistema;
+  - campos em uma coluna, de 17pt e 44pt de altura (o `gridColumn: span 2` do FormField é anulado no celular);
+  - botões do rodapé com 44pt.
+- **Dashboard:**
+  - título grande "Dashboard Executivo";
+  - filtros e Atualizar com 36pt;
+  - abas (`AbaTabs`) como segmentado rolável, com a aba ativa em cartão branco;
+  - cartões iOS;
+  - barras horizontais com rótulo de 92px para caber na tela.
+- **Próxima:** etapa 4, com as telas do "Mais" (Escritório, Agenda, Contratos etc.), usando as classes genéricas.
