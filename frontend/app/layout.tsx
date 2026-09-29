@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/lib/theme-context";
 import { AlertaReuniaoModal } from "@/components/ui/AlertaReuniaoModal";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
+import "./ios.css";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,8 +17,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "CRM Comercial — ProSystem",
   description: "Gestão comercial e retenção de clientes · ProSystem Sistemas",
-  icons: { icon: "/logo-prosystem.png" },
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "CRM Comercial" },
+  icons: { icon: "/logo-prosystem.png", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "CRM Prosystem" },
 };
 
 // Sem isso o Safari do iOS renderiza numa largura virtual (~980px) e o usuário
