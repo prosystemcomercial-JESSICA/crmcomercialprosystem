@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ehSomenteLeitura } from '@/lib/visoes';
 import { BarraAbasIOS, FolhaMaisIOS } from '@/components/mobile/AppIOS';
+import NotificacoesApp from '@/components/mobile/NotificacoesApp';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
 const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
@@ -57,6 +58,7 @@ const navGroups: NavGroup[] = [
       { href: '/leads-sdr', icon: GitMerge,        label: 'Funil do SDR',          roles: ['SDR', 'CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'], modulo: 'Leads' },
       { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
       { href: '/escritorio', icon: Building2,      label: 'Escritório virtual',     roles: [...COMERCIAL, 'SDR'] },
+      { href: '/aprovar',    icon: Eye,            label: 'Aprovar',                roles: GESTAO_COMERCIAL },
     ],
   },
   {
@@ -881,6 +883,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Main content */}
         <main className="ps-content ios-main flex-1 overflow-auto min-h-0">
           <div className="ps-page p-2 md:p-3 h-full">
+            <NotificacoesApp />
             {children}
           </div>
         </main>

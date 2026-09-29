@@ -2754,3 +2754,17 @@ model ResultadoAnualHistorico {
 
   @@index([ano])
 }
+
+// Notificação no celular/computador (Web Push): um registro por aparelho em que a pessoa ativou.
+model PushInscricao {
+  id         String   @id @default(cuid())
+  usuario_id String   @db.VarChar(64)
+  endpoint   String   @unique @db.VarChar(700)
+  p256dh     String   @db.VarChar(255)
+  auth       String   @db.VarChar(255)
+  aparelho   String?  @db.VarChar(255)
+  created_at DateTime @default(now())
+  ultimo_ok  DateTime?
+
+  @@index([usuario_id])
+}

@@ -586,6 +586,7 @@ async function loadRoutes() {
     ['sdr',                   () => import('./routes/sdr'),                   'sdrRoutes'],
     ['backups',               () => import('./routes/backups'),               'backupsRoutes'],
     ['painel-tv',             () => import('./routes/painel-tv'),             'painelTvRoutes'],
+    ['push',                  () => import('./routes/push'),                  'pushRoutes'],
   ];
 
   let ok = 0;

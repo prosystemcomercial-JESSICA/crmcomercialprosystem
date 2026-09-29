@@ -147,6 +147,10 @@ export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, t
       const { podeEnviarUmaVez, hashTexto } = await import('./envio-unico.service');
       if (!(await podeEnviarUmaVez(prisma, `aviso.${g.id}.${hashTexto(texto)}`, 6))) continue;
       await evo.enviarTexto(inst.instance_token, g.telefone!, texto).catch((e: any) => console.error(`[AVISO] ${tipo} → ${g.nome}:`, e?.message));
+      // Mesmo aviso como notificação no celular (app instalado), abrindo a tela certa.
+      const { enviarPush } = await import('./push.service');
+      const linhas = texto.replace(/\*/g, '').split('\n').filter(Boolean);
+      await enviarPush(prisma, [g.id], { titulo: linhas[0]?.slice(0, 80) || NOME_AVISO[tipo], corpo: linhas.slice(1).join(' ').slice(0, 180) || NOME_AVISO[tipo], url: /aprova|autoriza/i.test(texto) ? '/aprovar' : '/whatsapp', tag: tipo });
       registrarAcaoAgente('marta', `avisou ${g.nome.split(' ')[0]}: ${NOME_AVISO[tipo].toLowerCase()}`);
     }
   } catch (e: any) {
