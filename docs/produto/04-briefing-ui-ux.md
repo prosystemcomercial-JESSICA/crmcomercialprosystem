@@ -344,3 +344,12 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
 - **Pendências registradas:**
   - item 5 (leads aguardando distribuição) espera a definição: agente continua ou vai direto para a vendedora;
   - Jornalista informativo (Bloco 4): envia **só para o Informativo Prosystem**, a partir das pesquisas da Sofia, com texto curto e simples e aprovação na tela Aprovar; a frequência ainda está a definir.
+
+### Atualização 29/09/2026: Leads para Distribuir vão para o Julio (Bloco 1, item 5)
+- `abastecerFila` do Julio (caroline.service.ts) coloca na frente da fila os leads de "Leads para Distribuir", pela mesma regra de `GET /leads/prontos-para-distribuir`: `etapa_sdr = QUALIFICADO` e sem vendedora, ou com a própria SDR que cadastrou.
+- Depois deles vêm os demais leads, do mais novo para o mais antigo.
+- Continuam valendo:
+  - o limite diário único do número e o intervalo entre contatos;
+  - não chamar quem conversou nos últimos 7 dias, quem pediu para sair ou quem tem proposta aberta (esses ficam com o Luiz Felipe).
+- Se o lead demonstrar interesse, passa para a Caroline. Se for qualificado para a vendedora, volta para "Leads para Distribuir" já com a conversa e o resumo.
+- **Jornalista informativo (Bloco 4, definição):** envia só para o Informativo Prosystem. Cada lead recebe no máximo um informativo a cada 20 a 25 dias, com os envios se revezando entre os leads da lista, para proteger o número.
