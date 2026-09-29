@@ -566,19 +566,24 @@ export default function LeadsPage() {
   // quantas colunas existem nem onde o usuário está.
   const boardScrollRef = useRef<HTMLDivElement>(null);
   const [colunaAtiva, setColunaAtiva] = useState(0);
-  const colWidth = 236; // largura da coluna (224) + gap (12)
+  // Passo entre colunas = largura real da coluna + gap (12). No computador 224+12;
+  // no celular cada etapa ocupa a tela inteira (páginas no padrão iOS).
+  const colWidth = () => {
+    const c = boardScrollRef.current?.querySelector('.ios-coluna') as HTMLElement | null;
+    return c ? c.offsetWidth + 12 : 236;
+  };
 
   const irParaColuna = useCallback((idx: number, total: number) => {
     const alvo = Math.max(0, Math.min(total - 1, idx));
     setColunaAtiva(alvo);
-    boardScrollRef.current?.scrollTo({ left: alvo * colWidth, behavior: 'smooth' });
+    boardScrollRef.current?.scrollTo({ left: alvo * colWidth(), behavior: 'smooth' });
   }, []);
 
   // Mantém colunaAtiva sincronizada quando o usuário rola manualmente (trackpad/arrastar a barra).
   const onBoardScroll = useCallback(() => {
     const el = boardScrollRef.current;
     if (!el) return;
-    const idx = Math.round(el.scrollLeft / colWidth);
+    const idx = Math.round(el.scrollLeft / colWidth());
     setColunaAtiva(prev => (prev === idx ? prev : idx));
   }, []);
 
@@ -1346,21 +1351,21 @@ export default function LeadsPage() {
 
   return (
     <DashboardLayout>
-      <div className="w-full space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 56px)' }}>
+      <div className="ios-leads w-full space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 56px)' }}>
 
         {/* ═══ 1. HEADER ═══════════════════════════════════════════════════ */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="ios-leads-topo flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Central de Leads</h1>
+            <h1 className="ios-large-title text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Central de Leads</h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
               {isVendedor ? 'Seus leads, metas e bônus' : 'Performance da equipe comercial'}
               {' · '}<span style={{ color: 'var(--t-primary)' }}>{totalLeads} leads</span> no funil
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
+          <div className="ios-leads-filtros flex items-center gap-2 flex-wrap">
+            <div className="ios-leads-busca relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--t-text-muted)' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead ou empresa..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 210, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead ou empresa..." type="search" enterKeyHint="search" className="ios-search-leads pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 210, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
               {search.trim() && Object.values(filtered).every(l => l.length === 0) && (
                 <span className="absolute left-0 top-full mt-1 text-[11px] whitespace-nowrap" style={{ color: 'var(--t-error, #dc2626)' }}>
                   Nenhum lead encontrado para "{search}"
@@ -1472,7 +1477,7 @@ export default function LeadsPage() {
             </div>
 
             <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '', modulos_inclusos: [], servicos_adicionais: [], vendedor_nome: (user as any)?.nome || '' }); setNewLeadError(null); setNewLeadSection(0); setShowNewLead(true); }}
-              className="ps-btn-primary h-8 flex items-center gap-1.5 px-4 rounded-lg text-xs font-semibold text-white">
+              className="ios-btn-novo ps-btn-primary h-8 flex items-center gap-1.5 px-4 rounded-lg text-xs font-semibold text-white">
               <Plus size={13} /> Novo Lead
             </button>
           </div>
@@ -1607,10 +1612,10 @@ export default function LeadsPage() {
         )}
 
         {/* ═══ 4. KANBAN PRINCIPAL ════════════════════════════════════════ */}
-        <div className="rounded-2xl ps-card overflow-hidden"
+        <div className="ios-kanban rounded-2xl ps-card overflow-hidden"
           style={{ border: '1px solid var(--t-card-border)', boxShadow: '0 1px 3px rgba(13,34,56,.05)' }}>
           {/* Toolbar de navegação: setas + posição atual + dots clicáveis */}
-          <div className="flex items-center justify-between gap-3 px-4 py-2.5 flex-wrap" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
+          <div className="ios-kanban-nav flex items-center justify-between gap-3 px-4 py-2.5 flex-wrap" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => irParaColuna(colunaAtiva - 1, colunas.length)} disabled={colunaAtiva === 0}
@@ -1649,14 +1654,14 @@ export default function LeadsPage() {
             className="overflow-x-auto overflow-y-hidden"
             style={{ height: 'min(72vh, 720px)', scrollSnapType: 'x mandatory' }}
             onDragEnd={() => { setDraggingLead(null); setDragOverCol(null); }}>
-          <div className="flex h-full gap-3 p-4" style={{ minWidth: `${colunas.length * 230}px` }}>
+          <div className="ios-kanban-trilho flex h-full gap-3 p-4" style={{ minWidth: `${colunas.length * 230}px` }}>
             {colunas.map(col => {
               const colLeads = filtered[col.chave] || [];
               const isOver   = dragOverCol === col.chave;
               const isDraggingToSame = draggingLead?.etapa_comercial === col.chave;
               return (
                 <div key={col.chave}
-                  className="flex flex-col rounded-xl flex-shrink-0 transition-colors"
+                  className="ios-coluna flex flex-col rounded-xl flex-shrink-0 transition-colors"
                   style={{
                     width: 224,
                     scrollSnapAlign: 'start',

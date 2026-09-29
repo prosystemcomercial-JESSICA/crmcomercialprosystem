@@ -77,4 +77,98 @@
 
 @keyframes ios-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes ios-fade { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .ios-sheet, .ios-scrim { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ios-sheet, .ios-scrim, .ios-action-sheet, .ios-painel-folha { animation: none; } }
+
+/* ── Componentes compartilhados (celular) ─────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Título grande (Large Title, 34pt bold) */
+  .ios-large-title { font-size: 34px !important; line-height: 41px; font-weight: 700 !important; letter-spacing: 0.37px; color: var(--ios-label); }
+  /* Controle segmentado */
+  .ios-seg { background: var(--ios-fill) !important; border: 0 !important; border-radius: 9px !important; padding: 2px; gap: 2px; width: 100%; }
+  .ios-seg > button { flex: 1; min-height: 32px; border-radius: 7px; font-size: 13px !important; font-weight: 500; background: transparent !important; color: var(--ios-label) !important; padding: 0 6px !important; white-space: nowrap; }
+  .ios-seg > button[style] { background: var(--ios-cell) !important; color: var(--ios-label) !important; box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04); font-weight: 600; }
+  /* Campo de busca */
+  .ios-search { background: var(--ios-fill) !important; border: 0 !important; border-radius: 10px !important; min-height: 36px; font-size: 17px !important; color: var(--ios-label); padding: 7px 10px !important; }
+  .ios-search::placeholder { color: var(--ios-secondary); }
+  /* Folha de ações (action sheet) */
+  .ios-action-sheet { position: absolute; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; animation: ios-sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+  .ios-action-grupo { background: var(--ios-bar); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-radius: 14px; overflow: hidden; max-height: 70vh; overflow-y: auto; }
+  .ios-action-titulo { font-size: 13px; color: var(--ios-secondary); text-align: center; padding: 14px 16px; border-bottom: 0.5px solid var(--ios-separator); }
+  .ios-action { display: block; width: 100%; min-height: 57px; font-size: 20px; color: var(--ios-tint); background: transparent; border: 0; }
+  .ios-action + .ios-action { border-top: 0.5px solid var(--ios-separator); }
+  .ios-action.perigo { color: #ff3b30; }
+  .ios-action.cancelar { background: var(--ios-cell); border-radius: 14px; font-weight: 600; }
+  .ios-action:active { background: var(--ios-fill); }
+}
+
+/* ── WhatsApp no celular (lista estilo Mensagens + conversa estilo iMessage) ── */
+@media (max-width: 767px) {
+  /* Na conversa aberta a barra de abas some (como no app Mensagens). */
+  body.ios-em-chat .ios-tabbar { display: none; }
+  body.ios-em-chat .ios-main { padding-bottom: 0; }
+  body.ios-em-chat .ps-page { padding: 0 !important; }
+  .ios-wpp { gap: 8px; }
+  .ios-wpp-chat { gap: 0; }
+  .ios-wpp-topo { flex-direction: column; align-items: stretch; gap: 10px; padding: 4px 4px 0; }
+  .ios-wpp-topo > div:last-child { flex-direction: column; align-items: stretch; }
+  .ios-inbox { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 -8px; }
+  .ios-lista { background: var(--ios-cell) !important; border: 0 !important; }
+  .ios-lista-cab { display: none !important; }
+  .ios-busca-area { border: 0 !important; padding: 4px 12px 8px !important; background: var(--ios-cell); }
+  .ios-btn-add { min-width: 44px; min-height: 36px; border-radius: 10px !important; background: var(--ios-tint) !important; font-size: 20px !important; }
+  .ios-conv { min-height: 76px; padding: 8px 16px !important; border: 0 !important; position: relative; background: var(--ios-cell); }
+  .ios-conv::after { content: ""; position: absolute; left: 80px; right: 0; bottom: 0; border-bottom: 0.5px solid var(--ios-separator); }
+  .ios-conv:active { background: var(--ios-fill) !important; }
+  .ios-conv > div:first-child { width: 52px !important; height: 52px !important; }
+  .ios-conv p.font-semibold { font-size: 17px !important; color: var(--ios-label); }
+  .ios-conv p.text-\[13px\] { font-size: 15px !important; color: var(--ios-secondary); }
+
+  /* Barra de navegação da conversa */
+  .ios-chat-cab { background: var(--ios-bar) !important; -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-bottom: 0.5px solid var(--ios-separator) !important; padding: 6px 8px !important; gap: 8px !important; min-height: 52px; }
+  .ios-voltar { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; min-width: 44px; color: var(--ios-tint); font-size: 30px; line-height: 1; font-weight: 300; background: none; border: 0; padding: 0 2px; }
+  .ios-voltar span { font-size: 17px; font-weight: 400; }
+  .ios-icone-nav { min-width: 44px; min-height: 44px; display: grid; place-items: center; color: var(--ios-tint); font-size: 22px; background: none; border: 0; }
+  .ios-chat-cab > div.w-9 { display: none; }
+
+  /* Bolhas estilo iMessage */
+  .ios-mensagens { background: var(--ios-cell) !important; padding: 10px 12px !important; }
+  .ios-bolha-out, .ios-bolha-in { border: 0 !important; box-shadow: none !important; border-radius: 18px !important; padding: 7px 12px !important; font-size: 17px !important; line-height: 22px; max-width: 78% !important; }
+  .ios-bolha-out { background: var(--ios-tint) !important; color: #fff !important; border-bottom-right-radius: 5px !important; }
+  .ios-bolha-in { background: #e9e9eb !important; color: #000 !important; border-bottom-left-radius: 5px !important; }
+  .dark .ios-bolha-in { background: #26252a !important; color: #fff !important; }
+
+  /* Campo de mensagem */
+  .ios-compositor { background: var(--ios-bar) !important; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--ios-separator); padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) !important; }
+  .ios-compositor button { box-shadow: none !important; width: 36px !important; height: 36px !important; min-width: 36px; }
+  .ios-compositor button[style] { background: var(--ios-tint) !important; }
+  .ios-campo-msg { border: 0.5px solid var(--ios-separator) !important; box-shadow: none !important; background: var(--ios-cell) !important; font-size: 17px !important; min-height: 36px; padding: 6px 14px !important; }
+
+  /* Painel de detalhes como folha em tela cheia */
+  .ios-painel-folha { position: fixed; inset: 0; z-index: 85; background: var(--ios-grouped-bg) !important; border: 0 !important; padding-bottom: env(safe-area-inset-bottom, 0px); animation: ios-sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+  .ios-painel-cab { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: center; min-height: 52px; padding-top: env(safe-area-inset-top, 0px); background: var(--ios-bar); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-bottom: 0.5px solid var(--ios-separator); font-size: 17px; font-weight: 600; color: var(--ios-label); }
+  .ios-ok { position: absolute; right: 8px; bottom: 4px; min-height: 44px; min-width: 44px; color: var(--ios-tint); font-size: 17px; font-weight: 600; background: none; border: 0; }
+}
+
+/* ── Leads no celular: título grande, busca iOS, filtros em faixa rolável e
+      funil com uma etapa por página (desliza para o lado, como páginas do iPhone) ── */
+@media (max-width: 767px) {
+  .ios-leads { background: var(--ios-grouped-bg) !important; }
+  .ios-leads-topo { flex-direction: column; align-items: stretch !important; gap: 10px !important; padding: 4px 4px 0; }
+  .ios-leads-topo p { font-size: 15px !important; color: var(--ios-secondary) !important; }
+  /* Filtros: busca em linha própria, depois faixa rolável horizontal com as "pílulas". */
+  .ios-leads-filtros { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 0 -8px; padding: 0 8px 2px; }
+  .ios-leads-filtros::-webkit-scrollbar { display: none; }
+  .ios-leads-filtros > * { flex-shrink: 0; }
+  .ios-leads-filtros select, .ios-leads-filtros > button { height: 34px !important; min-height: 34px; border-radius: 17px !important; border: 0 !important; background: var(--ios-cell) !important; font-size: 15px !important; padding: 0 12px !important; color: var(--ios-label) !important; max-width: none !important; }
+  .ios-leads-filtros > button.h-8.w-8, .ios-leads-filtros .relative > button.h-8.w-8 { width: 34px !important; padding: 0 !important; }
+  .ios-leads-busca { order: -1; flex: 0 0 calc(100% - 16px) !important; }
+  .ios-search-leads { width: 100% !important; height: 36px !important; border: 0 !important; border-radius: 10px !important; background: var(--ios-fill) !important; font-size: 17px !important; }
+  .ios-btn-novo { height: 34px !important; border-radius: 17px !important; font-size: 15px !important; background: var(--ios-tint) !important; }
+  /* Funil: uma etapa por página */
+  .ios-kanban { border: 0 !important; box-shadow: none !important; border-radius: 12px !important; margin: 0 -4px; }
+  .ios-kanban-nav { background: var(--ios-cell) !important; border-bottom: 0.5px solid var(--ios-separator) !important; padding: 8px 12px !important; }
+  .ios-kanban-nav button.w-\[26px\] { width: 44px !important; height: 36px !important; border: 0 !important; background: var(--ios-fill) !important; border-radius: 8px !important; color: var(--ios-tint) !important; }
+  .ios-kanban-nav span.text-xs { font-size: 17px !important; font-weight: 600 !important; }
+  .ios-kanban-trilho { min-width: max-content !important; padding: 12px !important; gap: 12px !important; }
+  .ios-coluna { width: calc(100vw - 40px) !important; scroll-snap-align: center !important; background: var(--ios-grouped-bg) !important; }
+}
