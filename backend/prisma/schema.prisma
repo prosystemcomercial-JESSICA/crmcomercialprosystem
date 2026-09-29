@@ -2821,3 +2821,49 @@ model CronometroEvento {
 
   @@index([cronometro_id])
 }
+
+// Heitor (prospectador): cada estabelecimento encontrado no Google Maps, com o que ele descobriu
+// (site, e-mail, redes, CNPJ e sócios na Receita, WhatsApp confirmado). Só vira lead quem tem
+// WhatsApp e não está no CRM; o resto fica aqui para não ser buscado nem cadastrado de novo.
+model ProspeccaoLocal {
+  id            String    @id @default(cuid())
+  place_id      String    @unique
+  nome          String
+  categoria     String?
+  segmento      String? // Farmácia | Padaria
+  onda          Int       @default(1)
+  regiao        String?
+  cidade        String?
+  bairro        String?
+  estado        String?
+  endereco      String?   @db.Text
+  telefone      String?
+  whatsapp      String?
+  tem_whatsapp  Boolean?
+  site          String?   @db.Text
+  emails        Json?
+  instagram     String?   @db.VarChar(500)
+  facebook      String?   @db.VarChar(500)
+  linkedin      String?   @db.VarChar(500)
+  cnpj          String?
+  razao_social  String?
+  socios        Json?
+  receita       Json?
+  nota          Float?
+  avaliacoes    Int?
+  horario       Json?
+  maps_link     String?   @db.Text
+  consulta      String?   @db.VarChar(500)
+  // NOVO | CADASTRADO | SEM_WHATSAPP | JA_NO_CRM | REDE | FORA_DO_PERFIL | FECHADO
+  status        String    @default("NOVO")
+  motivo        String?   @db.Text
+  lead_id       String?
+  sdr_id        String?
+  cadastrado_em DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([cidade])
+  @@index([created_at])
+}

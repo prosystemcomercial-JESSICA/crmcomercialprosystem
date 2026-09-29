@@ -253,7 +253,9 @@ export function promptCaroline(p: {
   guia: string; instrucoes: string; exemplos: { antes: string; depois: string }[]; historico: string; fase: FaseCaroline;
   aprendizado?: { cliente: string; equipe: string }[];
   atualidades?: { segmento: string; titulo: string; resumo: string; por_que_importa: string }[];
-  lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number; ja_conversou?: boolean; combinado?: string | null };
+  lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number; ja_conversou?: boolean; combinado?: string | null;
+    /** Encontrado pelo Heitor no Google Maps: o cliente NÃO procurou a Prosystem (primeiro contato ativo). */
+    prospeccao?: { cidade: string | null; bairro: string | null } | null };
   saudacao: string;
   perfil?: PerfilSdr;
   janelaCampanha?: boolean;
@@ -306,7 +308,14 @@ export function promptCaroline(p: {
   const aberturaFollowUp = perfil === 'luiz_felipe'
     ? `Primeira mensagem sua. Este cliente recebeu uma proposta da Prosystem${f.proposta?.plano ? ` (plano ${f.proposta.plano})` : ''}${f.proposta?.enviada_em ? `, enviada em ${f.proposta.enviada_em}` : ''} e a conversa parou. Apresente-se como Luiz Felipe, da equipe Prosystem, retome com leveza a proposta e pergunte, em UMA pergunta, se ele conseguiu avaliar ou se já resolveu a questão do sistema. Sem cobrar e sem falar de valores.`
     : `Primeira mensagem sua. Este cliente falou com a Prosystem${f.cadastro_em ? ` em ${f.cadastro_em}` : ' há um tempo'} e a conversa parou. Apresente-se como Julio, da equipe Prosystem, retome com leveza e pergunte, em UMA pergunta, como está a rotina ${/padar|confeit/i.test(l.segmento || '') ? 'da padaria' : 'da farmácia'} e se já resolveu a questão do sistema (se continua procurando ou já fechou com outro). Sem cobrar.`;
-  const tarefa = p.fase === 'abertura' && followUp
+  const pr = l.prospeccao;
+  const tipoLoja = /padar|confeit/i.test(l.segmento || '') ? 'padaria' : 'farmácia';
+  const aberturaProspeccao = pr
+    ? `PRIMEIRO CONTATO ATIVO: esta ${tipoLoja} NÃO se inscreveu nem procurou a Prosystem; a equipe encontrou a ${l.empresa || tipoLoja} no Google Maps${pr.bairro ? ` (${pr.bairro}, ${pr.cidade})` : pr.cidade ? ` (${pr.cidade})` : ''}. Apresente-se como Caroline, da Prosystem Sistemas, de Vitória/ES, que faz sistema de gestão e frente de caixa para ${tipoLoja === 'padaria' ? 'padarias' : 'farmácias e drogarias'}. Em UMA frase diga por que está chamando, com um gancho do dia a dia (${diaADia}), sem prometer nada fora do MATERIAL. Termine com UMA pergunta fácil: se ele é o responsável pela ${tipoLoja} ou qual sistema usa hoje. NUNCA diga que ele se inscreveu, pediu contato ou mostrou interesse. Nada de elogio forçado nem de citar nota ou avaliações do Google. No máximo 2 frases curtas, em uma única mensagem.${l.nome ? ` O nome ${l.nome.split(' ')[0]} veio do cadastro da empresa na Receita: use só se tiver certeza de que é ele quem atende; na dúvida, não use nome.` : ''}`
+    : '';
+  const tarefa = p.fase === 'abertura' && pr && !followUp
+    ? aberturaProspeccao
+    : p.fase === 'abertura' && followUp
     ? aberturaFollowUp
     : p.fase === 'abertura'
     ? (l.abertura_jessica
@@ -318,6 +327,8 @@ export function promptCaroline(p: {
         : l.ja_conversou
         ? `O lead já conversou antes e parou de responder (follow-up, tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores, retomando de onde pararam, sem cobrar. Se houver em ASSUNTOS DA SEMANA uma novidade que afete o negócio dele e ainda não foi usada, pode usar como gancho, ligando à dor que ele contou.${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta.' : ''}`
         : `O lead ainda não respondeu (tentativa ${l.tentativa + 1} de 3). Escreva UMA mensagem curta e diferente das anteriores. ${chamarDeVolta}${l.tentativa + 1 >= 3 ? ' É a última tentativa: deixe a porta aberta com gentileza.' : ''}`)
+      : p.fase === 'encerramento' && pr
+      ? `MENSAGEM DE ENCERRAMENTO (contato ativo, ele nunca se inscreveu): o lead não respondeu às 3 tentativas. Escreva UMA mensagem curta e respeitosa dizendo que não quer incomodar, que fica à disposição caso um dia queira conhecer um sistema para a ${tipoLoja}, e liste 2 soluções do MATERIAL que mais combinam com ${tipoLoja}, cada uma em uma linha curta começando com ✅. Não diga que ele se inscreveu. Sem pergunta insistente, sem preço, sem travessão.`
       : p.fase === 'encerramento'
       ? `MENSAGEM DE ENCERRAMENTO: o lead não respondeu às 3 tentativas. Escreva UMA mensagem (pode ter até 3 linhas curtas com ✅, só aqui) no espírito de: "${l.nome ? l.nome.split(' ')[0] : 'Oi'}, vi que você se inscreveu mas não conseguiu me retornar. Quanto antes começar a mudança, antes você resolve as pendências do dia a dia. Ainda tem interesse em continuar falando com a gente? Temos muito a agregar:" e liste 2 ou 3 soluções do MATERIAL que mais combinam com o segmento dele (${/padar|confeit/i.test(l.segmento || '') ? 'padaria' : 'farmácia'}), cada uma em uma linha curta começando com ✅. OBRIGATÓRIO: (1) dizer que viu a inscrição e que ele não retornou; (2) dizer que quanto antes começar a mudança, antes resolve as pendências do dia a dia; (3) perguntar se ainda tem interesse em continuar falando com a gente; (4) dizer que temos muito a agregar, antes das soluções. Tom respeitoso, sem cobrança, sem preço, sem travessão.`
       : 'Responda à(s) última(s) mensagem(ns) do cliente.';

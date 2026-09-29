@@ -286,7 +286,8 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
     },
     // Assuntos da atualidade só no follow-up de quem já conversou (1ª e 2ª retomadas usam o dia a dia).
     atualidades: fase === 'retomada' && sdr.ultima_lead_em ? atualidades : [],
-    lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null },
+    lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null,
+      prospeccao: (sdr.dados as any)?.prospeccao ? { cidade: (sdr.dados as any).cidade || null, bairro: (sdr.dados as any).bairro || null } : null },
   });
   const partes: any[] = [{ text: p.usuario }];
   const dm = h.foto?.match(/^data:([^;]+);base64,(.+)$/);
@@ -978,9 +979,15 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   const limite = Math.min(...ativos.map(a => limiteDoDia(cfgs[a].ativada_em ? new Date(cfgs[a].ativada_em!) : null, cfgs[a].limite, agora)));
   if (feitosAgentes + feitosCampanha >= limite) return;
   let proximo = null as Awaited<ReturnType<typeof prisma.sdrLead.findFirst>>;
+  // Prospecção do Heitor (contato ativo) só depois de todo o resto e até o teto próprio do dia.
+  const { obterConfigHeitor, enviadosHeitorHoje } = await import('./heitor.service');
+  const podeHeitor = (await enviadosHeitorHoje(prisma, agora)) < (await obterConfigHeitor(prisma)).envios_dia;
   for (const a of ativos) { // prioridade: Caroline (campanha) → Luiz Felipe (propostas) → Julio (base)
-    proximo = await prisma.sdrLead.findFirst({ where: { agente: a, status: 'FILA' }, orderBy: a === 'caroline' ? { created_at: 'asc' } : { cadastro_em: 'desc' } });
+    proximo = await prisma.sdrLead.findFirst({ where: { agente: a, status: 'FILA', OR: [{ criado_por: null }, { criado_por: { not: 'heitor' } }] }, orderBy: a === 'caroline' ? { created_at: 'asc' } : { cadastro_em: 'desc' } });
     if (proximo) break;
+  }
+  if (!proximo && podeHeitor && ativos.includes('caroline')) {
+    proximo = await prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor' }, orderBy: { created_at: 'asc' } });
   }
   if (!proximo) return;
   const r = await falar(prisma, token, proximo.id, 'abertura');
