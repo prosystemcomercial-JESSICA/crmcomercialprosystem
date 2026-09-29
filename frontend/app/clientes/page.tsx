@@ -410,7 +410,7 @@ export default function ClientesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="ios-tela space-y-6">
         {/* Erro global da página */}
         {error && !showModal && (
           <div className="flex items-center justify-between p-3 rounded-lg border border-red-200 text-sm" style={{ background: '#fef2f2', color: '#b91c1c' }}>
@@ -421,7 +421,7 @@ export default function ClientesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Clientes</h1>
+            <h1 className="ios-large-title text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Clientes</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{total} clientes cadastrados</p>
           </div>
           <div className="flex items-center gap-2">

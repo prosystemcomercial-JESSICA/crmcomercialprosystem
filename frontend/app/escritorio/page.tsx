@@ -159,10 +159,10 @@ export default function EscritorioPage() {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: '0 0 24px', display: 'grid', gap: 12 }}>
+      <div className="ios-tela" style={{ padding: '0 0 24px', display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Escritório virtual</h1>
+            <h1 className="ios-large-title" style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Escritório virtual</h1>
             <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Ande com as setas do teclado ou clicando no chão. Chegue perto de um agente para ver o trabalho dele ou chamá-lo à sua sala.</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
