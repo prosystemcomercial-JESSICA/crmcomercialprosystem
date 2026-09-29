@@ -142,7 +142,7 @@ export default function CampanhasWhatsappPage() {
               {lista.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: 'var(--t-text-muted)' }}>Nenhuma campanha ainda.</td></tr>}
               {lista.map(c => (
                 <tr key={c.id} style={{ color: 'var(--t-text-primary)' }}>
-                  <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--t-card-border)' }}>{c.nome}<br /><span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{new Date(c.created_at).toLocaleString('pt-BR')}</span></td>
+                  <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--t-card-border)' }}>{c.nome}<br /><span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{new Date(c.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span></td>
                   <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--t-card-border)' }}>{PUBLICO[c.publico] || c.publico}</td>
                   <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--t-card-border)' }}>{STATUS[c.status] || c.status}</td>
                   <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--t-card-border)', fontVariantNumeric: 'tabular-nums' }}>{c.enviados} / {c.total}</td>

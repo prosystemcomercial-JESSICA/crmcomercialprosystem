@@ -798,7 +798,7 @@ export default function WhatsappPage() {
 
   const podeTransferir = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'DIRETOR'].includes(((user as any)?.role || '').toUpperCase());
 
-  const fmtHora = (d?: string | null) => d ? new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  const fmtHora = (d?: string | null) => d ? new Date(d).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }) : '';
   const nomeContato = (c: Conversa) => c.contato_nome || c.contato_numero;
 
   // Cor de avatar determinística pelo nome (estilo WhatsApp).
@@ -823,7 +823,7 @@ export default function WhatsappPage() {
     return { texto: violado ? `Violado há ${txtHoras}` : `Prazo em ${txtHoras}`, violado };
   };
 
-  const fmtDataCurta = (d?: string | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+  const fmtDataCurta = (d?: string | null) => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
   const fmtMoeda = (v?: number | null) => v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const tempoDeCasa = (d?: string | null) => {
     if (!d) return '—';
@@ -1335,7 +1335,7 @@ export default function WhatsappPage() {
                           </span>
                         ) : <p className="text-xs text-gray-400">Sem SLA em contagem</p>}
                         {ativa.sla_prazo_em && (
-                          <p className="text-[11px] text-gray-400 mt-1">Prazo: {new Date(ativa.sla_prazo_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                          <p className="text-[11px] text-gray-400 mt-1">Prazo: {new Date(ativa.sla_prazo_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                         )}
                       </>
                     );

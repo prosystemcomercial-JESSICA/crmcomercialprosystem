@@ -51,7 +51,7 @@ export default function ObservacoesConversa({ conversaId }: { conversaId: string
             <div key={n.id} className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2">
               <p className="text-[13px] text-gray-800 whitespace-pre-wrap">{n.texto}</p>
               <p className="text-[10px] text-gray-400 mt-1">
-                {new Date(n.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                {new Date(n.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 {n.autor_nome ? ` · ${n.autor_nome}` : ''}
               </p>
             </div>
