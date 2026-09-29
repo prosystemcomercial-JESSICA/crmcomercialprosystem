@@ -94,7 +94,7 @@ export async function rodarPosVenda(prisma: PrismaClient, agora = new Date()): P
         const conv = await garantirConversa(prisma, inst.id, numero, { nome: p.responsavel_nome, tipo_contato: 'CLIENTE', dono_id: p.vendedor_id });
         const texto = textoAcompanhamento(p.responsavel_nome, empresa);
         const r = await evo.enviarTexto(inst.instance_token, numero, texto);
-        await registrarSaida(prisma, conv.id, texto, r.externo_id, 'helena');
+        await registrarSaida(prisma, conv.id, texto, r.externo_id, 'bot');
         await prisma.$executeRawUnsafe('UPDATE PropostaComercial SET wpp_boasvindas_em = ? WHERE id = ?', new Date(), p.id);
         n++;
       } else if (elegivelPesquisa(p, agora)) {
