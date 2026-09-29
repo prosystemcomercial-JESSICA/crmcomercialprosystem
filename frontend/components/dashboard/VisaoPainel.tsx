@@ -16,7 +16,7 @@ const brl = (v: number) =>
 export function VisaoSwitch({ visoes, atual, onChange }: { visoes: Visao[]; atual: Visao; onChange: (v: Visao) => void }) {
   if (visoes.length < 2) return null;
   return (
-    <div role="tablist" aria-label="Visão do dashboard" className="inline-flex rounded-lg p-0.5 gap-0.5"
+    <div role="tablist" aria-label="Visão do dashboard" className="ios-visao inline-flex rounded-lg p-0.5 gap-0.5"
       style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
       {visoes.map(v => {
         const ativo = v === atual;
