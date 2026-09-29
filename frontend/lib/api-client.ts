@@ -1347,6 +1347,7 @@ class ApiClient {
   async rafaelDocs() { return this.client.get('/especialista/docs'); }
   async rafaelEstudar(tema?: string | null) { return this.client.post('/especialista/estudar', { tema }); }
   async rafaelRevisar() { return this.client.post('/especialista/revisar', {}); }
+  async oliviaConcorrentes(foco?: string | null) { return this.client.post('/especialista/concorrentes', { foco }); }
   async rafaelAbordagem() { return this.client.post('/especialista/abordagem', {}); }
   async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }

@@ -47,6 +47,15 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
     return reply.send({ status: 'success', message: ok ? 'O Rafael está preparando a nova abordagem inicial (alguns minutos).' : 'Já está preparando.' });
   });
 
+  // Olívia (concorrentes): pesquisa na internet e entrega para o Rafael.
+  fastify.post('/especialista/concorrentes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const b = z.object({ foco: z.string().max(200).optional().nullable() }).safeParse(request.body || {});
+    const { pesquisarConcorrentes } = await import('../services/especialista.service');
+    const ok = emSegundoPlano('concorrentes', () => pesquisarConcorrentes(prisma, b.success ? b.data.foco || null : null));
+    return reply.send({ status: 'success', message: ok ? 'A Olívia começou a pesquisar a concorrência (alguns minutos).' : 'A Olívia já está pesquisando.' });
+  });
+
   fastify.post('/especialista/docs/:id/decidir', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const { id } = request.params as { id: string };
