@@ -552,7 +552,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button
             onClick={toggleFullscreen}
             title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+            className="ios-so-computador w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
             style={{ color: 'var(--t-text-muted)', background: 'transparent' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-card-border)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -561,7 +561,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
 
           {/* Divider */}
-          <div className="w-px h-5 mx-1" style={{ background: 'var(--t-card-border)' }} />
+          <div className="ios-so-computador w-px h-5 mx-1" style={{ background: 'var(--t-card-border)' }} />
 
           {/* WhatsApp */}
           <div ref={wppRef} className="relative">
@@ -674,7 +674,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Divider */}
-          <div className="w-px h-5 mx-1" style={{ background: 'var(--t-card-border)' }} />
+          <div className="ios-so-computador w-px h-5 mx-1" style={{ background: 'var(--t-card-border)' }} />
 
           {/* User menu */}
           {ehSomenteLeitura(user) && (

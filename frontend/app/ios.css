@@ -178,7 +178,9 @@
    título grande, abas como segmentado rolável e tabelas viram cartões. */
 @media (max-width: 767px) {
   .ios-tela { background: var(--ios-grouped-bg); margin: -8px; padding: 8px 12px 16px; min-height: 100%; }
-  .ios-tela .ps-card { border: 0 !important; border-radius: 12px !important; box-shadow: none !important; background: var(--ios-cell) !important; }
+  .ios-tela .ps-card { border: 0 !important; border-radius: 12px !important; box-shadow: none !important; }
+  /* Fundo branco iOS só nos cartões comuns; cartões com cor/gradiente próprio (ex.: MRR escuro) mantêm a cor. */
+  .ios-tela .ps-card:not([style*="background"]) { background: var(--ios-cell) !important; }
   .ios-topo { flex-direction: column; align-items: stretch !important; gap: 10px !important; margin-bottom: 12px !important; }
   .ios-topo p { font-size: 15px !important; color: var(--ios-secondary) !important; }
   .ios-topo > div:last-child { flex-wrap: wrap; gap: 8px !important; }
@@ -353,4 +355,16 @@
 }
 @media (max-width: 380px) {
   .ios-tela { padding-left: 12px !important; padding-right: 12px !important; }
+}
+
+/* ── Revisão com print real (iPhone 17 Pro Max): seletor de visão e barra de cima ── */
+@media (max-width: 767px) {
+  /* "Como vendedora / Como supervisora / Administração" como controle segmentado do iOS, numa linha só */
+  .ios-visao { display: flex !important; width: 100%; background: var(--ios-fill) !important; border: 0 !important; border-radius: 9px !important; padding: 2px !important; gap: 2px !important; }
+  .ios-visao > button { flex: 1 1 0; min-width: 0; height: 32px !important; padding: 0 6px !important; border-radius: 7px !important; font-size: 13px !important; font-weight: 500 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: transparent !important; color: var(--ios-label) !important; }
+  .ios-visao > button[aria-selected="true"] { background: var(--ios-cell) !important; font-weight: 600 !important; box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04); }
+  /* Filtro de vendedor + Atualizar dividem a linha por igual */
+  .ios-topo > div:last-child > select { flex: 1 1 0; min-width: 0; }
+  /* Barra de cima: ícones com 44pt de toque */
+  .ps-topbar button { min-width: 44px; min-height: 44px; }
 }
