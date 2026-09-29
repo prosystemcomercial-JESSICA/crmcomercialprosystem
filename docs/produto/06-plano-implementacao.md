@@ -419,3 +419,37 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
 - Isso soma com o aprendizado que já existia, pelas mensagens editadas na aprovação (`exemplosEditados`).
 - **Primeira leitura:** 6 exemplos reais, incluindo áudios transcritos da Jessica.
 - **Nova abordagem inicial (item 11):** fica para depois de criar o agente Especialista em vendas de software (Bloco 4), que vai construí-la junto, como pedido.
+
+### Atualização 29/09/2026: Bloco 4 — Rafael, especialista em vendas de software; novos agentes no escritório
+- **Novos agentes** (`lib/assistente/escritorio.ts` › AGENTES):
+  - **Rafael**: especialista em vendas de software (ativo).
+  - **Olívia**: concorrentes.
+  - **Heitor**: prospectador.
+  - **Mila**: CS da base.
+  - **Joana**: jornalista do Informativo Prosystem.
+  - Olívia, Heitor, Mila e Joana aparecem como "Em construção" até cada um ser construído.
+  - A sala isométrica ganhou a 4ª fileira de mesas (D 7,4 → 9,7 e novo corredor em y 7,05), com aparência própria para cada novo agente.
+- **Tabela nova `EspecialistaDoc`:** tipo (POP / PROCESSO / EXEMPLO / DICA / ALERTA / ABORDAGEM), título, conteúdo em markdown, agente_alvo, status (PROPOSTO / APROVADO / ARQUIVADO), versão, fontes, origem, quem decidiu e quando. O mesmo título ganha nova versão, e vale sempre a última aprovada.
+- **`services/especialista.service.ts`:**
+  - `estudarVendas(tema?)`: pesquisa na internet as práticas de especialistas de vendas do Brasil (B2B/SaaS, SDR, negociação, pós-venda) e de ERP/PDV para varejo pelo WhatsApp, e gera de 3 a 6 POPs, processos, exemplos e dicas para aprovar.
+  - `revisarConversas()`: olha as conversas das últimas 48 h.
+    - Conversas deixadas de lado: a última mensagem é do cliente, sem resposta há 2 h ou mais.
+    - Até 12 conversas avaliadas pela IA (não satisfatórias, com o problema e como melhorar, mais dicas para o time).
+    - Grava um documento ALERTA e avisa a gestão pelo WhatsApp e pela notificação.
+  - `proporAbordagem()`: para Caroline, Julio e Luiz Felipe, pega a taxa de resposta real, as primeiras mensagens reais (respondeu / não respondeu), o material aprovado e a pesquisa na internet. Propõe diagnóstico, diretriz e 3 exemplos de primeira mensagem.
+  - `decidirDoc`: aprovar arquiva as versões anteriores. Uma ABORDAGEM aprovada vira `AgenteInstrucao` do agente com o prefixo "ABORDAGEM INICIAL (aprovada pela gestão…)", substituindo a anterior; a partir daí o agente usa no primeiro contato e nas retomadas.
+  - `rodarRafael`: revisão de segunda a sexta às 17h e estudo às quartas às 9h, uma vez por dia (trava de envio único).
+  - `cadernoRafael`: todos os documentos aprovados em markdown.
+- **Rotas** (`routes/especialista.ts`, só gestão):
+  - `GET /especialista/docs`
+  - `POST /especialista/estudar | revisar | abordagem`: rodam em segundo plano, com trava para não repetir
+  - `POST /especialista/docs/:id/decidir`
+  - `GET /especialista/caderno`
+- **Painel do Rafael no Escritório** (`components/escritorio/PainelRafael.tsx`):
+  - botões Propor nova abordagem, Revisar conversas agora, Estudar agora (com tema opcional) e baixar o Caderno do Rafael;
+  - abas Para aprovar / Abordagens / Revisões / POPs / Processos / Exemplos / Dicas;
+  - cada documento abre para leitura, com Aprovar (e aplicar no agente) ou Arquivar.
+- **Primeira proposta de abordagem**, já gerada e esperando aprovação:
+  - Caroline: 70% de resposta. Mantém a abertura direta sobre a rotina, citando a campanha e o negócio do cliente.
+  - Julio: 50%. Troca o genérico "ainda está procurando ou já resolveu?" por uma pergunta sobre a prioridade atual.
+  - Luiz Felipe: 35%. Troca a pergunta dupla "avaliou ou já resolveu?" por uma pergunta sobre o próximo passo ou a dúvida pendente.
