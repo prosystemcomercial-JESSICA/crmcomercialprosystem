@@ -68,6 +68,10 @@ export const ROTAS_ESCRITA_LIBERADAS_LEITURA = [
   '/auth/refresh',
   '/auth/forgot-password',
   '/auth/alterar-senha',
+  // Notificações do app: só registram/removem o aparelho da própria pessoa (não mexem em dados do CRM).
+  '/push/inscrever',
+  '/push/cancelar',
+  '/push/teste',
 ];
 
 const METODOS_LEITURA = ['GET', 'HEAD', 'OPTIONS'];

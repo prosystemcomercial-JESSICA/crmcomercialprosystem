@@ -235,12 +235,12 @@ export default function AnaliseComercialPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
+      <div className="ios-tela max-w-6xl mx-auto px-4 py-6 space-y-5">
 
         {/* ─── Header ─────────────────────────── */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="ios-topo flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Análise Comercial</h1>
+            <h1 className="ios-large-title text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>Análise Comercial</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
               Visão executiva do comercial — funil, conversão, forecast e retenção, período a período.
             </p>

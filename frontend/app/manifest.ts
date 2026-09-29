@@ -1,13 +1,14 @@
 import type { MetadataRoute } from 'next';
 
 // Instalação na tela inicial do celular ("Adicionar à Tela de Início"): abre em tela cheia,
-// sem a barra do navegador, direto no WhatsApp (primeira aba do app).
+// sem a barra do navegador. Abre em "/", que leva cada pessoa à tela dela
+// (CEO e gestão → Painel/Dashboard; vendedora → Radar; SDR → funil).
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'CRM Comercial Prosystem',
     short_name: 'CRM Prosystem',
     description: 'Gestão comercial da Prosystem Sistemas',
-    start_url: '/whatsapp',
+    start_url: '/',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',

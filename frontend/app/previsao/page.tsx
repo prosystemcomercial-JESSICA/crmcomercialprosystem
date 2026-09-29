@@ -73,10 +73,10 @@ export default function PrevisaoPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="ios-tela space-y-6">
+        <div className="ios-topo flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-sm font-semibold">Previsão de Fechamento</h1>
+            <h1 className="ios-large-title text-3xl font-bold text-sm font-semibold">Previsão de Fechamento</h1>
             <p className="text-gray-500 mt-1">Sua meta do período e a estimativa de receita do seu pipeline</p>
           </div>
           <div className="flex gap-2">

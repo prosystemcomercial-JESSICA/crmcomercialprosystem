@@ -136,9 +136,9 @@ function KpiCard({
   accent?: string; delta?: number; destaque?: boolean; animate?: boolean; rawValue?: number;
 }) {
   return (
-    <div className="ps-card rounded-xl p-5 transition-shadow duration-200 hover:shadow-md">
+    <div className={`ios-widget ${destaque ? 'destaque' : ''} ps-card rounded-xl p-5 transition-shadow duration-200 hover:shadow-md`}>
       <div className="flex items-start justify-between mb-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>
+        <p className="ios-widget-rotulo text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>
           {label}
         </p>
         {delta !== undefined && (
@@ -155,7 +155,7 @@ function KpiCard({
         )}
       </div>
       <p
-        className={`font-bold tracking-tight leading-none ${destaque ? 'text-[28px]' : 'text-[22px]'}`}
+        className={`ios-widget-valor font-bold tracking-tight leading-none ${destaque ? 'text-[28px]' : 'text-[22px]'}`}
         style={{ color: accent }}
       >
         {doAnimate && rawValue !== undefined
