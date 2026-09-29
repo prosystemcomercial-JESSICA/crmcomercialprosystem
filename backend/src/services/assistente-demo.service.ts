@@ -136,6 +136,8 @@ export async function lembrarResponsavelDemo(prisma: PrismaClient, agora = new D
       link ? `🔗 ${link}` : '🔗 Ainda sem link da reunião: envie ao cliente antes do horário.',
     ].filter(Boolean).join('\n');
     try { await evo.enviarTexto(inst.instance_token, u.telefone, texto); n++; } catch (e: any) { console.error(`[DEMO] lembrete responsável ${a.id}:`, e?.message); }
+    const { enviarPush } = await import('./push.service');
+    await enviarPush(prisma, [a.responsavel_id!], { titulo: `⏰ Demonstração às ${hora}`, corpo: `${a.titulo}${link ? '' : ' · envie o link ao cliente'}`, url: '/atividades', tag: `demo-${a.id}` });
   }
   return n;
 }

@@ -537,7 +537,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   const pedeAutorizacao = !!r.revisar_proposta && janelaCampanhaAtiva(agora);
   if (r.revisar_proposta && !pedeAutorizacao) return 'falha'; // fora da janela (dias 20 ao fim do mês) nunca sai
   if ((cfg.aprovar && !semAprovacao) || pedeAutorizacao) {
-    const pendente = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, fase, chamariz, ultima }) } });
+    const pendente = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, negociacao: pedeAutorizacao, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
     // Campanha/revisão: a gestão recebe no WhatsApp a prévia da proposta + a mensagem, e responde nos botões.
     if (pedeAutorizacao) {

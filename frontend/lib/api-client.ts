@@ -1343,6 +1343,14 @@ class ApiClient {
   async configCaroline(data: { ativa?: boolean; aprovar?: boolean; limite?: number }, agente = 'caroline') {
     return this.client.put('/assistente/caroline/config', data, { params: { agente } });
   }
+  // ── App no celular: notificações, bolinha no ícone e tela "Aprovar" ──
+  async pushChave() { return this.client.get('/push/chave'); }
+  async pushInscrever(sub: any, aparelho: string) { return this.client.post('/push/inscrever', { ...sub, aparelho }); }
+  async pushCancelar(endpoint: string) { return this.client.post('/push/cancelar', { endpoint }); }
+  async pushTeste() { return this.client.post('/push/teste', {}); }
+  async pushContagem() { return this.client.get('/push/contagem'); }
+  async listarAprovacoes() { return this.client.get('/assistente/aprovacoes'); }
+  async decidirNegociacao(id: string, pct: 0 | 20 | 30) { return this.client.post(`/assistente/aprovacoes/${id}/negociacao`, { pct }); }
   async decidirMensagemCaroline(id: string, aprovar: boolean, texto?: string | null) {
     return this.client.post(`/assistente/caroline/mensagens/${id}`, { aprovar, texto });
   }

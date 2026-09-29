@@ -43,21 +43,36 @@ export async function pedirAutorizacaoNegociacao(prisma: PrismaClient, sdr: any,
   for (const g of await listarGestao(prisma)) {
     if (!(await lerPrefsAvisos(prisma, g.id)).includes('lead_qualificado')) continue;
     await evo.enviarMenu(inst.instance_token, g.telefone!, menu).catch((e: any) => console.error('[NEGOCIACAO] envio:', e?.message));
+    const { enviarPush } = await import('./push.service');
+    await enviarPush(prisma, [g.id], { titulo: `🙋 ${agente} pede autorização de campanha`, corpo: `${(p?.nome_fantasia || p?.razao_social || sdr.nome || 'Cliente').trim()}: toque para ver a proposta e autorizar.`, url: '/aprovar', tag: `neg-${msg.id}` });
   }
 }
 
-/** Botão da gestão: 30% / 20% autoriza (a mensagem sai e o desconto fica liberado); 0 = sem campanha (sai só o pedido de previsão). */
+/** Botão da gestão no WhatsApp: 30% / 20% autoriza; 0 = sem campanha. */
 export async function responderAutorizacaoNegociacao(prisma: PrismaClient, token: string, numero: string, botaoId: string | null | undefined): Promise<boolean> {
   const b = lerBotaoNegociacao(botaoId);
   if (!b) return false;
   const gestor = acharGestor(numero, await listarGestao(prisma));
   if (!gestor) return false;
-  const enviar = (t: string) => evo.enviarTexto(token, numero, t).catch(() => {});
-  const m = await prisma.sdrMensagem.findUnique({ where: { id: b.msgId } });
-  if (!m) { await enviar('Não achei essa mensagem.'); return true; }
-  if (m.status !== 'PENDENTE') { await enviar('Essa autorização já foi respondida. ✅'); return true; }
+  const texto = await decidirNegociacao(prisma, b.msgId, b.pct, gestor);
+  await evo.enviarTexto(token, numero, texto).catch(() => {});
+  return true;
+}
+
+/**
+ * Decisão da gestão sobre a oferta de campanha (WhatsApp ou tela "Aprovar"):
+ * 30% / 20% autoriza (a mensagem sai e o desconto fica liberado); 0 = sem campanha (sai só o pedido de previsão).
+ * Devolve o texto de confirmação para quem decidiu.
+ */
+export async function decidirNegociacao(prisma: PrismaClient, msgId: string, pct: number, gestor: { id: string; nome: string }): Promise<string> {
+  const m = await prisma.sdrMensagem.findUnique({ where: { id: msgId } });
+  if (!m) return 'Não achei essa mensagem.';
+  if (m.status !== 'PENDENTE') return 'Essa autorização já foi respondida. ✅';
   const sdr = await prisma.sdrLead.findUnique({ where: { id: m.sdrId } });
-  if (!sdr) { await enviar('Não achei esse cliente.'); return true; }
+  if (!sdr) return 'Não achei esse cliente.';
+  const b = { pct };
+  const saida: string[] = [];
+  const enviar = async (t: string) => { saida.push(t); };
   const dados: any = sdr.dados || {};
   const { decidirMensagem } = await import('./caroline.service');
   const primeiro = (sdr.nome || '').trim().split(/\s+/)[0];
@@ -75,7 +90,7 @@ export async function responderAutorizacaoNegociacao(prisma: PrismaClient, token
       await enviar(`Ok, sem campanha para *${sdr.nome || sdr.empresa || 'o cliente'}*. O Luiz só pediu a previsão de decisão.`);
     }
   } catch (e: any) { await enviar(`Não consegui concluir: ${e?.message || 'erro'}`); }
-  return true;
+  return saida.join('\n') || 'Pronto.';
 }
 
 /** Cliente topou a condição: atualiza a proposta (desconto na implantação + condição da mensalidade) e manda com os botões de aceite. */

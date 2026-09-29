@@ -227,3 +227,42 @@
   .ios-modal-corpo label { font-size: 13px; }
   .ios-modal > div:last-child button { min-height: 44px; font-size: 17px !important; border-radius: 12px !important; }
 }
+
+/* ── Aviso "Ativar notificações" (flutuante, não empurra a tela) ─────────── */
+.ios-banner-push {
+  position: fixed; z-index: 72; right: 16px; bottom: 16px; width: 360px; max-width: calc(100vw - 16px);
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+  background: var(--ios-bar); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  border: 0.5px solid var(--ios-separator); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  color: var(--ios-label); animation: ios-fade 0.25s ease;
+}
+@media (max-width: 767px) {
+  .ios-banner-push { left: 8px; right: 8px; width: auto; bottom: calc(57px + env(safe-area-inset-bottom, 0px)); }
+}
+.ios-banner-icone { font-size: 22px; line-height: 1; }
+.ios-banner-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ios-banner-texto strong { font-size: 15px; font-weight: 600; }
+.ios-banner-texto span { font-size: 13px; color: var(--ios-secondary); }
+.ios-banner-acoes { display: flex; flex-direction: column; gap: 4px; }
+.ios-banner-ok { min-height: 32px; padding: 0 14px; border-radius: 16px; background: var(--ios-tint); color: #fff; font-size: 15px; font-weight: 600; border: 0; }
+.ios-banner-nao { min-height: 28px; font-size: 13px; color: var(--ios-secondary); background: none; border: 0; }
+
+/* ── Tela "Aprovar" (cartões iOS; funciona no computador e no celular) ─── */
+.ap-tela { max-width: 720px; }
+.ap-lista { display: flex; flex-direction: column; gap: 12px; }
+.ap-cartao { padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; gap: 6px; }
+.ap-cab { display: flex; justify-content: space-between; align-items: center; }
+.ap-selo { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: rgba(0,122,255,0.12); color: var(--ios-tint); }
+.ap-selo.neg { background: rgba(124,58,237,0.12); color: #7c3aed; }
+.ap-tempo { font-size: 12px; color: var(--t-text-muted); }
+.ap-quem { font-size: 15px; color: var(--t-text-primary); }
+.ap-agente { font-size: 13px; color: var(--t-text-muted); }
+.ap-texto { margin: 0; padding: 10px 12px; border-radius: 14px 14px 14px 4px; background: var(--ios-fill); font-size: 15px; line-height: 1.4; white-space: pre-wrap; color: var(--t-text-primary); }
+.ap-campo { width: 100%; padding: 10px 12px; border-radius: 10px; border: 0.5px solid var(--ios-separator); background: var(--t-card-bg); font-size: 16px; color: var(--t-text-primary); }
+.ap-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.ap-btn { flex: 1 1 auto; min-height: 44px; padding: 0 14px; border-radius: 12px; font-size: 15px; font-weight: 600; border: 0; background: var(--ios-fill); color: var(--ios-tint); }
+.ap-btn.prim { background: var(--ios-tint); color: #fff; }
+.ap-btn:disabled { opacity: 0.5; }
+.ap-link { font-size: 14px; color: var(--ios-tint); align-self: flex-end; min-height: 32px; display: inline-flex; align-items: center; }
+.ap-aviso { margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: rgba(52,199,89,0.14); color: #1f7a3a; font-size: 14px; }
+.ap-aviso.erro { background: rgba(255,59,48,0.12); color: #c62828; }
