@@ -117,6 +117,36 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     prisma.especialistaDoc.count({ where: { status: 'PROPOSTO' } }).catch(() => 0),
   ]);
 
+  // ── Movimentos do WhatsApp (últimas mensagens, quem falou com quem) ──────
+  const REMETENTE: Record<string, string> = {
+    bot: 'Bia', assistente_ia: 'Clarice', cadencia_automatica: 'Luiz Felipe', luiz_felipe: 'Luiz Felipe',
+    caroline: 'Caroline', julio: 'Julio', campanha: 'Zequinha',
+  };
+  const msgs = await prisma.whatsappMensagem.findMany({
+    where: { created_at: { gte: new Date(agora.getTime() - 12 * 3600000) } },
+    orderBy: { created_at: 'desc' }, take: 40,
+    select: { id: true, direcao: true, tipo: true, conteudo: true, enviada_por: true, created_at: true, conversa: { select: { contato_nome: true, contato_numero: true } } },
+  });
+  const movimentos = msgs.map(m => {
+    const quem = m.direcao === 'ENTRADA' ? null
+      : REMETENTE[m.enviada_por || ''] || (m.enviada_por && nomeUsuario.get(m.enviada_por)) || 'Equipe (celular)';
+    const texto = (m.conteudo || '').replace(/\s+/g, ' ').trim();
+    return {
+      id: m.id, direcao: m.direcao, quem, agente: !!REMETENTE[m.enviada_por || ''], contato: nomeContato(m.conversa),
+      texto: texto ? texto.slice(0, 120) : m.tipo !== 'TEXTO' ? `[${String(m.tipo).toLowerCase()}]` : '', em: m.created_at.toISOString(),
+    };
+  });
+
+  // Conversas em andamento com os agentes SDR
+  const conversandoSdr = await prisma.sdrLead.findMany({
+    where: { status: 'CONVERSANDO' }, orderBy: { updated_at: 'desc' }, take: 12,
+    select: { id: true, agente: true, nome: true, empresa: true, numero: true, temperatura: true, nota: true, ultima_lead_em: true, updated_at: true },
+  });
+  const conversando = conversandoSdr.map(s => ({
+    id: s.id, agente: AGENTES.find(a => a.id === s.agente)?.nome || s.agente, contato: s.empresa || s.nome || s.numero,
+    temperatura: s.temperatura, nota: s.nota, em: (s.ultima_lead_em || s.updated_at).toISOString(),
+  }));
+
   // ── Feed do dia ─────────────────────────────────────────────────────────
   const historicos = await Promise.all(AGENTES.map(a => historicoAgente(prisma, a.id).then(h => h.map(x => ({ ...x, agente: a.nome }))).catch(() => [])));
   const feed = historicos.flat()
@@ -131,6 +161,6 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     sumiram: { total: sumiram.length, lista: sumiram.slice(0, 12) },
     qualificados,
     aprovacoes: { mensagens: msgsParaAprovar, documentos: docsParaAprovar },
-    feed,
+    feed, movimentos, conversando,
   };
 }
