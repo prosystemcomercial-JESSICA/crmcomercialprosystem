@@ -566,6 +566,11 @@ export default function LeadsPage() {
   // quantas colunas existem nem onde o usuário está.
   const boardScrollRef = useRef<HTMLDivElement>(null);
   const [colunaAtiva, setColunaAtiva] = useState(0);
+  // Desempenho: cada etapa desenha só os primeiros cartões (com "Mostrar mais"). Desenhar
+  // milhares de cartões de uma vez travava a tela e o resto do CRM. A busca e os filtros
+  // continuam valendo sobre TODOS os leads carregados.
+  const CARTOES_POR_ETAPA = 30;
+  const [limiteEtapa, setLimiteEtapa] = useState<Record<string, number>>({});
   // Passo entre colunas = largura real da coluna + gap (12). No computador 224+12;
   // no celular cada etapa ocupa a tela inteira (páginas no padrão iOS).
   const colWidth = () => {
@@ -1693,7 +1698,7 @@ export default function LeadsPage() {
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-muted)' }}>{colLeads.length}</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                    {colLeads.map(lead => (
+                    {colLeads.slice(0, limiteEtapa[col.chave] || CARTOES_POR_ETAPA).map(lead => (
                       <div key={lead.id} style={{ opacity: draggingLead?.id === lead.id ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                         <LeadCard
                           lead={lead}
@@ -1713,6 +1718,14 @@ export default function LeadsPage() {
                         />
                       </div>
                     ))}
+                    {colLeads.length > (limiteEtapa[col.chave] || CARTOES_POR_ETAPA) && (
+                      <button type="button"
+                        onClick={() => setLimiteEtapa(s => ({ ...s, [col.chave]: (s[col.chave] || CARTOES_POR_ETAPA) + CARTOES_POR_ETAPA * 2 }))}
+                        className="w-full py-2.5 rounded-lg text-[12px] font-semibold"
+                        style={{ minHeight: 40, background: 'var(--t-primary-light)', color: 'var(--t-primary)', border: '1px dashed var(--t-card-border)' }}>
+                        Mostrar mais ({colLeads.length - (limiteEtapa[col.chave] || CARTOES_POR_ETAPA)} restantes)
+                      </button>
+                    )}
                     {colLeads.length === 0 && (
                       <p className="text-center text-[10px] py-5" style={{ color: isOver ? col.cor : `${col.cor}66` }}>
                         {isOver && draggingLead ? '⬇ Soltar aqui' : 'Vazio'}
