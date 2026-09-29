@@ -390,3 +390,28 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - 31 mudanças de status de proposta.
   - IA: 114 chamadas à OpenAI e Laya acionada 86 vezes (43% sem custo), com 42 confirmações.
 - **Pesquisas da Sofia** (`PesquisasSofia.tsx`): os cartões não se sobrepõem mais (grade `minmax(min(280px,100%),1fr)`, `minWidth: 0` e quebra de texto em qualquer ponto). Os links crus "([site](url))" viram "🔗 site" clicável (`TextoComLinks`).
+
+### Atualização 29/09/2026: Bloco 2 — Cronômetro de atividades longas e "Meu tempo"
+- **Banco** (tabelas novas):
+  - `Cronometro`: usuario_id, usuario_nome, titulo, atividade_id?, status RODANDO/PAUSADO/FINALIZADO, segundos acumulados sem as pausas, rodando_desde, resultado, iniciado_em, finalizado_em.
+  - `CronometroEvento`: tipo INICIO/PAUSA/RETOMADA/FIM, com motivo e data.
+- **Rotas** (`routes/cronometro.ts`, cada pessoa só mexe nos próprios cronômetros e tem um aberto por vez):
+  - `GET /cronometros/ativo`
+  - `POST /cronometros` {titulo}; responde 409 se já houver um aberto
+  - `POST /cronometros/:id/pausar` {motivo}, com motivo obrigatório
+  - `POST /cronometros/:id/retomar`
+  - `POST /cronometros/:id/finalizar` {resultado?}
+  - `GET /cronometros/relatorio?dias=` (a gestão pode passar `usuario_id`), que devolve total, horas por dia, tempo por título, pausas por motivo e a lista
+- **Tela:**
+  - **Cartão flutuante em todas as telas** (`components/cronometro/Cronometro.tsx`, montado no DashboardLayout, canto inferior esquerdo):
+    - fechado, é um botão "⏱ 00:12:34" (verde rodando, âmbar pausado);
+    - aberto, mostra o título, o tempo correndo, Pausar (pede o motivo), Retomar, Finalizar ("Como terminou?"), o link Meu tempo e "↗ Destacar";
+    - no celular fica acima da barra de abas e some dentro de uma conversa.
+  - **Janelinha destacável** `/cronometro`: janela pequena separada, para acompanhar mesmo usando outros programas. Sincroniza com o CRM a cada 20 s e na hora de cada ação, também entre abas.
+  - **Relatório `/meu-tempo`** (item "Meu tempo" no menu):
+    - cronômetro e tempo total em 7, 30 ou 90 dias, com a média por dia trabalhado;
+    - gráfico de horas por dia;
+    - barras de tempo por tarefa;
+    - pausas por motivo;
+    - tabela com tarefa, início, tempo, pausas, situação e como terminou.
+- **Teste no servidor:** iniciar, recusar o segundo aberto, pausar com motivo, retomar, finalizar e gerar o relatório funcionaram, e o registro de teste foi apagado.
