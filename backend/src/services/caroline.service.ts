@@ -11,7 +11,7 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
-  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, janelaCampanhaAtiva, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
 
@@ -563,8 +563,33 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     return 'nada';
   }
   if (await prisma.sdrMensagem.findFirst({ where: { sdrId, status: 'PENDENTE' }, select: { id: true } })) return 'aprovacao';
+  // Últimas mensagens do agente: base da trava contra repetição e do "só confirmou".
+  const ultimasDoAgente = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', enviada_por: agenteDe(sdr) }, orderBy: { created_at: 'desc' }, take: 4, select: { conteudo: true, created_at: true } });
+  // Cliente só confirmou/agradeceu ("👍", "ok", "obrigado") depois da fala do agente: não responde.
+  // A conversa fica em espera (retomada leve em 7 dias, ou na data que o cliente combinou).
+  if (fase === 'resposta') {
+    const desdeAgente = ultimasDoAgente[0]?.created_at || sdr.desde;
+    const novas = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA', created_at: { gt: desdeAgente } }, select: { conteudo: true, tipo: true } });
+    if (ultimasDoAgente.length && novas.length && novas.every(m => m.tipo === 'TEXTO' && ehSoConfirmacao(m.conteudo))) {
+      const d: any = sdr.dados || {};
+      const retomar = d.retomar_em && new Date(d.retomar_em) > new Date() ? d.retomar_em : new Date(`${new Date(Date.now() + 7 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`).toISOString();
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', tentativas: 1, ultima_caroline_em: new Date(), dados: { ...d, retomar_em: retomar, combinado: d.combinado || null } } });
+      registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'o lead'} só confirmou: sem resposta, volta a falar em ${new Date(retomar).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+      return 'nada';
+    }
+  }
   const r = await gerarResposta(prisma, sdr, fase);
   if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); return 'falha'; }
+  // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.
+  const repetida = r.mensagens.some(m => ultimasDoAgente.some(u => semelhanca(m, u.conteudo || '') >= 0.6));
+  if (repetida && r.acao === 'continuar') {
+    console.warn(`[CAROLINE] mensagem repetida bloqueada para ${sdr.numero}`);
+    registrarAcaoAgente(agenteDe(sdr), `ia repetir a mesma mensagem para ${sdr.nome || 'um lead'}: bloqueada`);
+    const d: any = sdr.dados || {};
+    const amanha = new Date(`${new Date(Date.now() + 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date(), dados: { ...d, retomar_em: d.retomar_em && new Date(d.retomar_em) > amanha ? d.retomar_em : amanha.toISOString() } } });
+    return 'nada';
+  }
   await atualizarTermometro(prisma, sdr, r);
   const cfg = await obterConfigAgente(prisma, agenteDe(sdr));
   const agora = new Date();
@@ -603,6 +628,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (chamariz && r.acao === 'continuar') await enviarChamariz(prisma, token, sdr, ultima);
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
+  // Cliente adiou ("estou viajando", "quando voltar eu chamo"): o agente confirmou uma vez e agora espera a data.
+  if (r.adiar_dias && r.acao === 'continuar') {
+    const quando = new Date(`${new Date(agora.getTime() + r.adiar_dias * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
+    const d: any = (await prisma.sdrLead.findUnique({ where: { id: sdrId }, select: { dados: true } }))?.dados || {};
+    await prisma.sdrLead.update({ where: { id: sdrId }, data: { status: 'AGUARDANDO', tentativas: 1, dados: { ...d, retomar_em: quando.toISOString(), combinado: `quando ele pediu (${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})` } } });
+    if (sdr.lead_id) await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao: `⏸ Cliente pediu para retomar depois. ${nomeDe(sdr)} volta a falar em ${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}, sem mensagens até lá.`, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
+    registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'o lead'} adiou: volta a falar em ${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+  }
   registrarAcaoAgente(agenteDe(sdr), `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
   if (r.acao !== 'continuar') await aplicarAcao(prisma, token, sdr, r.acao, r);
   // Julio: com interesse (nota 35+, demo ou vendedora), a conversa segue com a Caroline.
