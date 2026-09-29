@@ -14,14 +14,14 @@ interface AbaTabsProps {
 export default function AbaTabs({ abas, abaAtiva, onChange }: AbaTabsProps) {
   return (
     <nav
-      className="flex gap-1 overflow-x-auto"
+      className="ios-abas flex gap-1 overflow-x-auto"
       style={{ borderBottom: '2px solid var(--t-card-border)', marginBottom: 16 }}
     >
       {abas.map(aba => (
         <button
           key={aba.id}
           onClick={() => onChange(aba.id)}
-          className="whitespace-nowrap"
+          className={`whitespace-nowrap ${aba.id === abaAtiva ? 'ativa' : ''}`}
           style={{
             appearance: 'none', border: 'none', background: 'transparent', cursor: 'pointer',
             padding: '9px 14px', fontFamily: 'inherit', fontSize: 12, fontWeight: 700,

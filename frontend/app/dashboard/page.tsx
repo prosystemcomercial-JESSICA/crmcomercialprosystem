@@ -359,12 +359,12 @@ export default function DashboardPage() {
         .hbar-value { font-size: 11px; font-weight: 800; color: var(--t-text-primary); margin-left: 10px; white-space: nowrap; min-width: 64px; }
       `}</style>
 
-      <div className="space-y-5 pb-10">
+      <div className="ios-tela space-y-5 pb-10">
 
         {/* ── Header ─────────────────────────────────────────────── */}
-        <div className="du-fade flex items-center justify-between flex-wrap gap-3">
+        <div className="ios-topo du-fade flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>
+            <h1 className="ios-large-title text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>
               Dashboard Executivo
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>

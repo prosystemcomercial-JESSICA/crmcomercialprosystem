@@ -796,12 +796,12 @@ export default function PropostasComerciais() {
 
   return (
     <DashboardLayout>
-      <div style={{ maxWidth: 1200 }}>
+      <div className="ios-tela" style={{ maxWidth: 1200 }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="ios-topo flex items-center justify-between mb-6">
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>
+            <h1 className="ios-large-title" style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>
               Gerador de Proposta Comercial
             </h1>
             <p style={{ fontSize: 13, color: 'var(--t-text-muted)', marginTop: 2 }}>
@@ -810,7 +810,7 @@ export default function PropostasComerciais() {
           </div>
           <div className="flex items-center gap-2">
             {/* Toggle Lista / Kanban */}
-            <div className="flex rounded-lg overflow-hidden" style={{ border: '1.5px solid var(--t-card-border)' }}>
+            <div className="ios-seg-inline flex rounded-lg overflow-hidden" style={{ border: '1.5px solid var(--t-card-border)' }}>
               <button
                 onClick={() => setViewMode('lista')}
                 title="Visualização em lista"
@@ -854,7 +854,7 @@ export default function PropostasComerciais() {
             />
             <button
               onClick={openNew}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+              className="ios-btn-principal flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
               style={{ background: 'var(--t-primary)' }}
             >
               <Plus size={15} /> Nova Proposta
@@ -984,14 +984,14 @@ export default function PropostasComerciais() {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-3 mb-5">
-          <div className="relative">
+        <div className="ios-filtros flex flex-wrap gap-3 mb-5">
+          <div className="ios-filtros-busca relative">
             <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--t-text-muted)' }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar empresa ou vendedor..."
-              className="ps-input pl-8 text-sm"
+              placeholder="Buscar empresa ou vendedor..." type="search" enterKeyHint="search"
+              className="ios-busca-campo ps-input pl-8 text-sm"
               style={{ width: 240, paddingLeft: 30 }}
             />
           </div>
@@ -1036,7 +1036,7 @@ export default function PropostasComerciais() {
 
         {/* ── Vista Lista ─────────────────────────────────────── */}
         {viewMode === 'lista' && (
-          <div className="ps-card rounded-xl overflow-hidden">
+          <div className="ios-lista-cartoes ps-card rounded-xl overflow-hidden">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--t-table-header)', borderBottom: '1px solid var(--t-card-border)' }}>
@@ -1270,17 +1270,17 @@ export default function PropostasComerciais() {
 
         {/* ── Modal formulário ────────────────────────────────── */}
         {showForm && (
-          <div style={{
+          <div className="ios-modal-fundo" style={{
             position: 'fixed', inset: 0, zIndex: 50,
             background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
             padding: '24px 16px', overflowY: 'auto',
           }}>
-            <div style={{
+            <div className="ios-modal" style={{
               background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 820,
               boxShadow: '0 24px 64px rgba(0,0,0,0.25)', overflow: 'hidden',
             }}>
               {/* Modal header */}
-              <div style={{
+              <div className="ios-modal-cab" style={{
                 padding: '20px 24px', background: 'var(--t-primary)',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between'
               }}>
@@ -1299,7 +1299,7 @@ export default function PropostasComerciais() {
               </div>
 
               {/* Stepper */}
-              <div style={{
+              <div className="ios-passos" style={{
                 display: 'flex', gap: 0, borderBottom: '1px solid var(--t-card-border)',
                 overflowX: 'auto', padding: '0 8px'
               }}>
@@ -1317,7 +1317,7 @@ export default function PropostasComerciais() {
               </div>
 
               {/* Form body */}
-              <div style={{ padding: 24, maxHeight: 'calc(80vh - 180px)', overflowY: 'auto' }}>
+              <div className="ios-modal-corpo" style={{ padding: 24, maxHeight: 'calc(80vh - 180px)', overflowY: 'auto' }}>
 
                 {/* Seção 0 — Empresa */}
                 {activeSection === 0 && (
