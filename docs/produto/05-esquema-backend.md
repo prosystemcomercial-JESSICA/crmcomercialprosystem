@@ -356,3 +356,16 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - o prompt dos agentes trata "já resolvi / já resolvemos / já temos sistema / já fechamos" como sem interesse (JA_TEM_FORNECEDOR);
   - o público das campanhas passou a se chamar "Informativo Prosystem" e aceita os dois nomes da etiqueta.
 - **Documento novo:** `docs/comercial/pesquisa-satisfacao-e-nps.md`, com o formulário em 4 etapas, a fórmula do score de 0 a 100, as ações automáticas, o cálculo do NPS (estrelas × 2), o CSAT e sugestões (NPS padrão de 0 a 10, envio pela Mila, tarefa para detratores, metas).
+
+### Atualização 29/09/2026: Kanban do WhatsApp por atendente (Bloco 1, item 6)
+- A tela "Fila de Chamados" ganhou o seletor **👥 Por atendente** (padrão) / **📊 Por fase**.
+- **Por atendente** (`colunasPorAtendente` em `app/whatsapp/page.tsx`):
+  - uma coluna por agente (🤖 Caroline, Julio, Luiz Felipe, Clarice…, na ordem do funil e com a cor de cada um);
+  - 🧭 Em triagem (Bia);
+  - 👤 uma coluna por pessoa da equipe que é dona de conversas;
+  - 📥 Sem dono.
+  - Só aparecem as colunas que têm conversas. Tocar no cartão abre a conversa. Nessa visão não se arrasta cartão, porque quem define a coluna é o atendimento.
+- **Por fase:** a visão de sempre (`estagio_funil`), em que se arrasta para mudar a fase.
+- **Pendências registradas:**
+  - item 5 (leads aguardando distribuição) espera a definição: agente continua ou vai direto para a vendedora;
+  - Jornalista informativo (Bloco 4): envia **só para o Informativo Prosystem**, a partir das pesquisas da Sofia, com texto curto e simples e aprovação na tela Aprovar; a frequência ainda está a definir.
