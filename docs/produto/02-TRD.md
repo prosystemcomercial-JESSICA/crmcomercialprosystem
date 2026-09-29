@@ -446,7 +446,7 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - **Heitor**: prospectador.
   - **Mila**: CS da base.
   - **Joana**: jornalista do Informativo Prosystem.
-  - Olívia, Heitor, Mila e Joana aparecem como "Em construção" até cada um ser construído.
+  - Mila e Joana aparecem como "Em construção" (Olívia e Heitor já foram construídos) até cada um ser construído.
   - A sala isométrica ganhou a 4ª fileira de mesas (D 7,4 → 9,7 e novo corredor em y 7,05), com aparência própria para cada novo agente.
 - **Tabela nova `EspecialistaDoc`:** tipo (POP / PROCESSO / EXEMPLO / DICA / ALERTA / ABORDAGEM), título, conteúdo em markdown, agente_alvo, status (PROPOSTO / APROVADO / ARQUIVADO), versão, fontes, origem, quem decidiu e quando. O mesmo título ganha nova versão, e vale sempre a última aprovada.
 - **`services/especialista.service.ts`:**
@@ -517,3 +517,103 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   3. **Trava de repetição** (`semelhanca`, bigramas): uma mensagem com semelhança de 0,6 ou mais a uma das 4 últimas do agente não sai, e o agente espera até o dia seguinte. O prompt também ganhou a regra "NUNCA SEJA REPETITIVO".
 - O Gustavo ficou em espera até 06/10, às 9h30.
 - Testes: tests/sdr-repeticao.test.ts, incluindo as mensagens reais do caso.
+
+### Atualização 29/09/2026: Heitor (prospecção no Google Maps) construído
+
+**O que faz**
+- Busca drogarias, farmácias e padarias no Google Maps.
+- Trabalha **por região, em ondas**, e só passa de cidade quando a atual acaba:
+
+  | Onda | Região |
+  |---|---|
+  | 1 | Grande Vitória (Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari, Fundão) |
+  | 2 | Interior do Espírito Santo (31 cidades) |
+  | 3 | Vizinhos: leste de MG, norte do RJ, sul da BA |
+  | 4 | Sudeste e capitais |
+
+- Dentro de cada cidade, faz primeiro a cidade inteira e depois bairro por bairro. A IA lista até 25 bairros com comércio de rua; cidade com menos de 60 mil habitantes fica só com a busca da cidade inteira.
+
+**Máximo de dados por estabelecimento**
+- Do Google Maps: nome, categoria, telefone, endereço completo, bairro, nota e número de avaliações, horário e link.
+- Do site do estabelecimento, quando existe:
+  - Instagram, Facebook e LinkedIn;
+  - WhatsApp (links wa.me e api.whatsapp);
+  - e-mails;
+  - CNPJ, validado pelos dígitos verificadores.
+- Da Receita (BrasilAPI, dado público), quando há CNPJ:
+  - razão social, porte, data de abertura, situação e CNAE;
+  - **sócios**: o sócio-administrador vira o responsável do lead.
+- O que ele não usa: Instagram e LinkedIn fechados exigem conta logada, o que arrisca bloqueio. Para isso fica o Agent-Reach, de forma manual no computador.
+
+**Quem fica de fora**
+- Redes grandes, por uma lista fixa (Drogasil, Raia, Pague Menos, Pacheco, Santa Lúcia, Farmes, supermercados etc.) ou pelo mesmo nome aparecendo 3 ou mais vezes.
+- Categoria fora do perfil: veterinária, hospital, distribuidora, supermercado.
+- Fechado no Google ou CNPJ inativo.
+- **Quem já está no CRM**, pelos últimos 8 dígitos do telefone ou pelo CNPJ: lead (inclusive excluído), conversa de WhatsApp, cliente ou fila de agente.
+
+**WhatsApp confirmado**
+- Antes de cadastrar, confere na UazAPI (`POST /chat/check`, só consulta, nada é enviado) qual número tem WhatsApp.
+- A ordem é: WhatsApp do site, depois celular, depois fixo.
+- Sem WhatsApp, o estabelecimento fica com status SEM_WHATSAPP e não vira lead.
+
+**Cadastro**
+- O lead é criado com:
+  - origem `PROSPECCAO`, temperatura FRIO, `etapa_sdr` NOVO_LEAD;
+  - campanha "Prospecção Heitor", plataforma Google Maps;
+  - `created_by` heitor;
+  - observação completa com tudo o que foi encontrado, também registrada no histórico de observações.
+- Cria a conversa no WhatsApp da empresa.
+- Põe o lead na fila da **Caroline** (`SdrLead` agente caroline, status FILA, `criado_por` heitor, `dados.prospeccao` true).
+- O Heitor nunca manda mensagem.
+
+**Primeiro contato (Caroline)**
+- Abertura própria de contato ativo:
+  - apresenta-se como Caroline, da Prosystem, de Vitória/ES;
+  - diz em uma frase por que está chamando, com um gancho do dia a dia do segmento;
+  - faz uma pergunta fácil: se é o responsável ou qual sistema usa;
+  - nunca diz que o cliente se inscreveu;
+  - não cita a nota do Google;
+  - usa o nome do sócio só se tiver certeza de que é ele quem atende.
+- A mensagem de encerramento também tem versão própria, sem "você se inscreveu".
+
+**Proteção do número**
+- A abordagem dos leads do Heitor entra no limite diário **único** do número, com o intervalo sorteado e o horário de sempre.
+- Eles vão sempre **por último**, depois da campanha, das propostas e da base.
+- Têm também um teto próprio por dia ("Abordagens por dia", padrão 15, de 0 a 30).
+
+**Rotina**
+- Dias úteis, das 7h às 18h (Brasília), no máximo uma rodada por hora, até a cota de cadastros do dia ("Leads por dia", padrão 30, de 1 a 60).
+- Em cada rodada:
+  1. Primeiro completa e cadastra os pendentes, das lojas com mais avaliações para as com menos.
+  2. Depois busca até 4 bairros.
+- Se o WhatsApp da empresa estiver desconectado ou a checagem não responder, para e tenta de novo na rodada seguinte. O motivo aparece no painel.
+
+**Tela (Escritório › painel do Heitor)**
+- Botões "Ligar o Heitor" / "Desligar" e "Buscar agora".
+- Números do dia: leads, abordados, esperando a Caroline, total de leads e estabelecimentos vistos.
+- Posição atual (onda, cidade, bairro X de Y), com barra de progresso das cidades e as ondas.
+- Ajuste de leads por dia, abordagens por dia e segmentos.
+- Lista filtrável: virou lead, sem WhatsApp, já no CRM, rede grande, todos.
+- Aviso quando a Caroline está desligada.
+- No Escritório virtual, o Heitor aparece ligado ou desligado, com "cadastrados hoje" e "na fila da Caroline".
+
+**Técnico**
+- Ferramenta aberta `google-maps-scraper` v1.18.1 (gosom), binário em `/opt/heitor/gmaps` na VPS, com Chrome sem tela (Playwright) e as bibliotecas do sistema instaladas.
+- Chamada: `-json -depth 6 -lang pt-BR -email -c 2 -exit-on-inactivity 2m`, com a etiqueta `#!#q<n>` em cada busca para saber o segmento.
+- Arquivos temporários em `/opt/heitor/trabalho`. Variáveis `HEITOR_GMAPS_BIN` e `HEITOR_PASTA` são opcionais.
+- Tabela nova `ProspeccaoLocal`:
+  - `place_id` único;
+  - dados do Maps, do site e da Receita;
+  - status NOVO, CADASTRADO, SEM_WHATSAPP, JA_NO_CRM, REDE, FORA_DO_PERFIL ou FECHADO, com o motivo;
+  - `lead_id` e `sdr_id` do cadastro.
+- Configuração em `ConfiguracaoIntegracao` chave `heitor.config` (JSON): ligado, cotas, segmentos, cursor (onda, cidade, bairro), bairros de cada cidade, última rodada e último erro.
+- Arquivos:
+  - `lib/assistente/heitor.ts`: regras puras (ondas, buscas, redes, perfil, telefone, leitura do site, CNPJ, sócio, observação), com testes em `tests/heitor.test.ts` (8 testes);
+  - `services/heitor.service.ts`: rodada, agendador, cadastro e painel;
+  - `routes/heitor.ts`: `GET /heitor/painel`, `POST /heitor/config`, `POST /heitor/rodar`, só gestão;
+  - `verificarWhatsapp` em `evolution.service.ts`;
+  - `components/escritorio/PainelHeitor.tsx`.
+- Caroline:
+  - `promptCaroline` recebe `lead.prospeccao` (cidade e bairro);
+  - `rodarCaroline` deixa os leads com `criado_por` heitor por último e respeita `envios_dia`.
+- Começa **desligado**: a gestão liga no painel.

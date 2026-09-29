@@ -667,7 +667,7 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - **Heitor**: prospectador.
   - **Mila**: CS da base.
   - **Joana**: jornalista do Informativo Prosystem.
-  - Olívia, Heitor, Mila e Joana aparecem como "Em construção" até cada um ser construído.
+  - Mila e Joana aparecem como "Em construção" (Olívia e Heitor já foram construídos) até cada um ser construído.
   - A sala isométrica ganhou a 4ª fileira de mesas (D 7,4 → 9,7 e novo corredor em y 7,05), com aparência própria para cada novo agente.
 - **Tabela nova `EspecialistaDoc`:** tipo (POP / PROCESSO / EXEMPLO / DICA / ALERTA / ABORDAGEM), título, conteúdo em markdown, agente_alvo, status (PROPOSTO / APROVADO / ARQUIVADO), versão, fontes, origem, quem decidiu e quando. O mesmo título ganha nova versão, e vale sempre a última aprovada.
 - **`services/especialista.service.ts`:**
@@ -738,3 +738,43 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   3. **Trava de repetição** (`semelhanca`, bigramas): uma mensagem com semelhança de 0,6 ou mais a uma das 4 últimas do agente não sai, e o agente espera até o dia seguinte. O prompt também ganhou a regra "NUNCA SEJA REPETITIVO".
 - O Gustavo ficou em espera até 06/10, às 9h30.
 - Testes: tests/sdr-repeticao.test.ts, incluindo as mensagens reais do caso.
+
+### Atualização 29/09/2026: Heitor, o prospectador
+
+**Para que serve:** trazer leads novos de drogarias, farmácias e padarias que ainda não conhecem a Prosystem.
+
+**Como ligar**
+1. Abra Escritório › painel do Heitor.
+2. Toque em "Ligar o Heitor".
+3. Para testar na hora, toque em "Buscar agora". Cada bairro leva alguns minutos.
+
+**O que ele faz sozinho**
+- Nos dias úteis, das 7h às 18h, faz uma busca por hora até chegar à cota do dia (padrão: 30 leads).
+- Começa pela Grande Vitória e vai avançando, cidade por cidade e bairro por bairro. Depois vem o interior do Espírito Santo, os vizinhos (MG, RJ, BA) e as capitais.
+- De cada estabelecimento, junta:
+  - nota e avaliações no Google, telefone, endereço e horário;
+  - site, Instagram, Facebook, LinkedIn e e-mail;
+  - CNPJ, razão social e sócios da Receita. O sócio-administrador vira o responsável do lead.
+- Só vira lead quem **tem WhatsApp**. Ele confere antes, sem mandar nenhuma mensagem.
+- Ficam de fora:
+  - redes grandes (Drogasil, Pague Menos, Pacheco etc.);
+  - fechados;
+  - o que não é drogaria, farmácia ou padaria;
+  - quem já está no CRM (lead, cliente ou conversa).
+
+**Quem manda a mensagem:** a Caroline.
+- Ela se apresenta, diz em uma frase por que está chamando e pergunta se a pessoa é a responsável ou qual sistema usa.
+- Ela nunca diz que o cliente se inscreveu.
+- Esses leads vão por último na fila do dia, depois da campanha, das propostas e da base, e respeitam o limite do número.
+- Também têm um teto próprio: "Abordagens por dia", padrão 15.
+- Se a Caroline estiver no modo "aprovar antes de enviar", as mensagens aparecem para você aprovar.
+
+**O que você acompanha no painel**
+- Onde ele está (onda, cidade e bairro).
+- Os números do dia.
+- A lista de quem virou lead, quem ficou sem WhatsApp, quem já estava no CRM e quem é rede grande, com o motivo.
+- Dá para mudar "Leads por dia", "Abordagens por dia" e os segmentos (drogarias e padarias).
+
+**Atenção**
+- Se a Caroline estiver desligada, o Heitor cadastra, mas ninguém manda a primeira mensagem.
+- Se o WhatsApp da empresa cair, ele para e avisa no painel.
