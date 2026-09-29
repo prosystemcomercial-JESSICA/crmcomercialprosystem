@@ -469,3 +469,33 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - cartões iOS;
   - barras horizontais com rótulo de 92px para caber na tela.
 - **Próxima:** etapa 4, com as telas do "Mais" (Escritório, Agenda, Contratos etc.), usando as classes genéricas.
+
+### Atualização 29/09/2026: notificações no celular, bolinha no ícone e tela "Aprovar"
+- **Notificações (Web Push):**
+  - Tabela nova `PushInscricao` (id, usuario_id, endpoint único de 700, p256dh, auth, aparelho, created_at, ultimo_ok), com um registro por aparelho.
+  - Biblioteca `web-push` no backend.
+  - Chaves VAPID (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) só no `.env` do servidor, com chmod 600.
+  - `services/push.service.ts`: `enviarPush(prisma, usuarioIds, {titulo, corpo, url, tag})` envia a todos os aparelhos da pessoa, grava `ultimo_ok` e apaga inscrições vencidas (404/410). Nunca lança.
+  - `contagemPendencias` soma aprovações pendentes (gestão), conversas sem dono com mensagens não lidas e não lidas das conversas da pessoa.
+- **Rotas** (`routes/push.ts`):
+  - `GET /push/chave`
+  - `POST /push/inscrever`
+  - `POST /push/cancelar`
+  - `POST /push/teste`
+  - `GET /push/contagem`
+  - `GET /assistente/aprovacoes` (gestão)
+  - `POST /assistente/aprovacoes/:id/negociacao` com {pct: 0 | 20 | 30}
+- **Quem dispara notificação:**
+  - `enviarAvisoGestao`: todo aviso que vai pelo WhatsApp da gestão também vira notificação. Abre /aprovar quando o texto fala de aprovação ou autorização; senão, /whatsapp.
+  - `pedirAutorizacaoNegociacao`: "🙋 Luiz Felipe pede autorização de campanha", abrindo /aprovar.
+  - `lembrarResponsavelDemo`: "⏰ Demonstração às HH:MM", abrindo /atividades.
+- **Negociação:** `decidirNegociacao` foi separada de `responderAutorizacaoNegociacao` e é usada pelos botões do WhatsApp e pela tela Aprovar. A mensagem pendente guarda `negociacao: true` no meta.
+- **Frontend:**
+  - `public/sw.js`: service worker que recebe o push, mostra a notificação, atualiza a bolinha (`setAppBadge`) e abre a URL ao tocar.
+  - `components/mobile/NotificacoesApp.tsx`: registra o service worker e mostra o aviso flutuante "Receba avisos no celular" (Ativar / Agora não). No iPhone fora do app, o aviso ensina a instalar na Tela de Início.
+  - Ao ativar, o app pede permissão, inscreve o aparelho e manda um push de teste.
+  - A bolinha no ícone é atualizada a cada 60 s e ao voltar para o app.
+- **Tela `/aprovar`** (item "Aprovar" no menu, só gestão): cartões iOS com tudo o que espera decisão, de todos os agentes.
+  - Mensagens: Aprovar e enviar / Editar (enviar com meu ajuste) / Refazer (o que mudar?).
+  - Campanhas: Autorizar 30% / Autorizar 20% / Não autorizar.
+  - Mostra o tempo de espera e o link "Ver conversa"; atualiza a cada 30 s.
