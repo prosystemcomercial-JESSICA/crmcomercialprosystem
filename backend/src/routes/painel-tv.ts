@@ -370,6 +370,25 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'ok', data: dados });
   });
 
+  // ── TV DO ESCRITÓRIO (mesma chave da TV) ─────────────────────────────────
+  let cacheEscritorio: { em: number; dados: any } | null = null;
+  fastify.get('/painel-tv/escritorio', async (request, reply) => {
+    const { chave } = (request.query || {}) as { chave?: unknown };
+    let autorizado = podeVerTudo(getUser(request));
+    if (!autorizado && chave !== undefined) {
+      const cfg = await lerConfig([CHAVE_TOKEN_TV]);
+      autorizado = tokenTvValido(chave, cfg[CHAVE_TOKEN_TV]);
+    }
+    if (!autorizado) return reply.status(401).send({ status: 'error', message: 'Link do painel inválido' });
+
+    reply.header('Cache-Control', 'no-store');
+    if (cacheEscritorio && Date.now() - cacheEscritorio.em < CACHE_MS) return reply.send({ status: 'ok', data: cacheEscritorio.dados });
+    const { montarTvEscritorio } = await import('@/services/tv-escritorio.service');
+    const dados = await montarTvEscritorio(prisma);
+    cacheEscritorio = { em: Date.now(), dados };
+    return reply.send({ status: 'ok', data: dados });
+  });
+
   // ── CONFIG (gestão) ──────────────────────────────────────────────────────
   fastify.get('/painel-tv/config', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
