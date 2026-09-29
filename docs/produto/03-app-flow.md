@@ -520,3 +520,15 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
 ### Atualização 29/09/2026: definições da Jessica sobre as etapas
 - **Sem interesse sem proposta:** entram só no Informativo Prosystem (etiqueta), com a observação "📰 Sem interesse agora… Não é perda: a porta fica aberta". Não viram Perdido e ficam na etapa em que estavam. Leads ajustados: Lisifarma, Thatiane Frederico da Silva e Drogaria Caiuá.
 - **Etapa ACEITO:** o quadro já exibe leads nessa etapa dentro da coluna Fechado (`leads.ts`, normalização da etapa antiga), então eles não somem. O lead Alex Borges (status GANHO) teve a etapa gravada como FECHADO, com observação, para ficar coerente em relatórios e filtros.
+
+### Atualização 29/09/2026: Olívia (concorrentes) ligada
+- **`pesquisarConcorrentes(foco?)`** (especialista.service.ts): pesquisa na internet os concorrentes de PDV/ERP para farmácias/drogarias e padarias/confeitarias, com recursos, preço público, avaliações (Google, Reclame Aqui, apps), reclamações e elogios comuns, e fonte.
+  - Tom factual, sem inventar notas nem preços e sem falar mal de concorrente.
+  - Grava dois documentos no painel do Rafael:
+    - **CONCORRENCIA** "Panorama da concorrência", com as oportunidades para a Prosystem;
+    - **EXEMPLO** "Quando o cliente cita um concorrente", com respostas respeitosas.
+  - Avisa a gestão pelo WhatsApp e pela notificação.
+- **Integração com o Rafael:** os documentos de concorrência aprovados entram no material que ele usa em `proporAbordagem`. O Caderno do Rafael ganhou a seção "Concorrência".
+- **Rotina:** a cada 15 dias, na terça entre 9h e 12h (trava de 13 dias). Também dá para rodar na hora pelo botão "🔍 Olívia: pesquisar concorrentes" no painel do Rafael (usa o campo de tema como foco), rota `POST /especialista/concorrentes`.
+- **Escritório:** a Olívia aparece ligada, com o número de panoramas e o histórico.
+- **Primeira pesquisa (29/09):** mapeou Trier, HOS Farma (preço público de R$ 299 a R$ 549/mês), Linx Big Farma, A7Pharma, Saipos, ConnectPlug, Sischef e outros, com avaliações, reclamações comuns (suporte demorado, estoque, SNGPC) e 8 respostas prontas. Está esperando aprovação.
