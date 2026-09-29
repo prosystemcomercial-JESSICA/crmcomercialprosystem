@@ -102,6 +102,7 @@ const navGroups: NavGroup[] = [
       { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },
       { href: '/sdr/leads-para-distribuir', icon: Send,       label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
       { href: '/tv',                      icon: Monitor,      label: 'Painel TV',          roles: GESTAO_COMERCIAL },
+      { href: '/tv/escritorio',           icon: Monitor,      label: 'TV do Escritório',   roles: GESTAO_COMERCIAL },
     ],
   },
   {
