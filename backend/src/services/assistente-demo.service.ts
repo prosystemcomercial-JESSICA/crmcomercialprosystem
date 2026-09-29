@@ -98,6 +98,9 @@ export async function responderDemo(prisma: PrismaClient, token: string, convers
       },
     });
     await prisma.whatsappConversa.update({ where: { id: c.id }, data: { bot_dados: { ...dados, demo: { ...dados.demo, atividade_id: at.id, marcada_para: quando.toISOString() } } } });
+    // Central de Leads: demonstração marcada pelo próprio lead = qualificado.
+    const { avancarEtapaLead } = await import('@/lib/etapa-lead');
+    await avancarEtapaLead(prisma, c.lead_id, 'QUALIFICADO', `marcou a demonstração para ${quando.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`, 'Lurdinha');
     const conf = textoConfirmacaoDemo(quando);
     const r = await evo.enviarTexto(token, c.contato_numero, conf);
     await gravarSaidaBot(prisma, c.id, conf, r.externo_id);
