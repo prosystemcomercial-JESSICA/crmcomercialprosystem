@@ -1303,15 +1303,37 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
-    const mensagens = await prisma.whatsappMensagem.findMany({
+    // Desempenho: as 200 mensagens MAIS RECENTES (antes vinham as 200 mais antigas) e sem o
+    // conteúdo das mídias (fotos/áudios/PDFs ficam em base64 no banco e deixavam a resposta com
+    // vários MB). A tela baixa cada mídia à parte, só quando ela aparece (GET .../midia).
+    const recentes = await prisma.whatsappMensagem.findMany({
       where: { conversaId: id },
-      orderBy: { created_at: 'asc' },
+      orderBy: { created_at: 'desc' },
       take: 200,
+      select: {
+        id: true, conversaId: true, externo_id: true, direcao: true, tipo: true, conteudo: true, status: true,
+        enviada_por: true, created_at: true, transcricao: true,
+      },
     });
+    const comMidia = new Set((await prisma.$queryRawUnsafe<{ id: string }[]>(
+      `SELECT id FROM WhatsappMensagem WHERE conversaId = ? AND midia_url IS NOT NULL AND midia_url <> '' ORDER BY created_at DESC LIMIT 200`, id,
+    )).map(r => r.id));
+    const mensagens = (recentes as any[]).reverse().map(m => ({ ...m, midia_url: comMidia.has(m.id) ? `midia:${m.id}` : null }));
     if (conversa.nao_lidas > 0) {
       await prisma.whatsappConversa.update({ where: { id }, data: { nao_lidas: 0 } });
     }
     return reply.send({ status: 'success', data: { conversa, mensagens } });
+  });
+
+  // Mídia de uma mensagem (foto/áudio/vídeo/PDF), baixada à parte pela tela quando aparece.
+  fastify.get('/whatsapp/mensagens/:id/midia', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const m = await prisma.whatsappMensagem.findUnique({ where: { id }, select: { conversaId: true, midia_url: true } });
+    if (!m?.midia_url) return reply.status(404).send({ status: 'error', message: 'Mídia não encontrada' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id: m.conversaId, ...whereLeituraConversa(getUser(request)) }, select: { id: true } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    reply.header('Cache-Control', 'private, max-age=86400');
+    return reply.send({ status: 'success', data: { midia_url: m.midia_url } });
   });
 
   // Envia mensagem numa conversa (pela instância do dono).

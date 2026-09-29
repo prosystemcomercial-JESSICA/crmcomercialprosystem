@@ -1343,6 +1343,7 @@ class ApiClient {
   async configCaroline(data: { ativa?: boolean; aprovar?: boolean; limite?: number }, agente = 'caroline') {
     return this.client.put('/assistente/caroline/config', data, { params: { agente } });
   }
+  async midiaMensagem(id: string) { return this.client.get(`/whatsapp/mensagens/${id}/midia`); }
   // ── App no celular: notificações, bolinha no ícone e tela "Aprovar" ──
   async pushChave() { return this.client.get('/push/chave'); }
   async pushInscrever(sub: any, aparelho: string) { return this.client.post('/push/inscrever', { ...sub, aparelho }); }

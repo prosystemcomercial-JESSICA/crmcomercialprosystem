@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api-client';
 import PainelLaya from '@/components/whatsapp/PainelLaya';
 import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
 import ProximaAcao from '@/components/whatsapp/ProximaAcao';
+import { MidiaMensagem } from '@/components/whatsapp/MidiaMensagem';
 import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/whatsapp/IaConversa';
 
 interface Conversa {
@@ -1219,20 +1220,20 @@ export default function WhatsappPage() {
                           {m.enviada_por === 'bot' && <p className="text-[10px] font-semibold mb-0.5 opacity-80">🤖 Atendimento automático</p>}
                           {m.enviada_por === 'cadencia_automatica' && <p className="text-[10px] font-semibold mb-0.5 opacity-80">🔁 Cadência automática</p>}
                           {m.tipo === 'IMAGEM' && m.midia_url && (
-                            <img src={m.midia_url} alt="imagem" className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />
+                            <MidiaMensagem url={m.midia_url}>{src => <img src={src} alt="imagem" className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />}</MidiaMensagem>
                           )}
                           {m.tipo === 'VIDEO' && m.midia_url && (
-                            <video controls src={m.midia_url} className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />
+                            <MidiaMensagem url={m.midia_url}>{src => <video controls src={src} className="rounded-lg max-w-full mb-1" style={{ maxHeight: 240 }} />}</MidiaMensagem>
                           )}
                           {m.tipo === 'AUDIO' && m.midia_url && (
                             <>
-                              <audio controls src={m.midia_url} className="mb-1" style={{ maxWidth: 220 }} />
+                              <MidiaMensagem url={m.midia_url}>{src => <audio controls src={src} className="mb-1" style={{ maxWidth: 220 }} />}</MidiaMensagem>
                               <TranscricaoAudio key={`${m.id}:${m.transcricao || ''}`} mensagemId={m.id} inicial={m.transcricao} />
                             </>
                           )}
                           {m.tipo === 'DOCUMENTO' && m.midia_url && (
-                            <a href={m.midia_url} download={m.conteudo || true}
-                              className={`underline text-xs block mb-1 ${m.direcao === 'SAIDA' ? 'text-white' : 'text-blue-600'}`}>📎 Baixar documento</a>
+                            <MidiaMensagem url={m.midia_url}>{src => <a href={src} download={m.conteudo || true}
+                              className={`underline text-xs block mb-1 ${m.direcao === 'SAIDA' ? 'text-white' : 'text-blue-600'}`}>📎 Baixar documento</a>}</MidiaMensagem>
                           )}
                           {!((m.tipo === 'IMAGEM' || m.tipo === 'VIDEO') && m.midia_url && ['[imagem]', '[vídeo]', '🖼️ Imagem', '🎬 Vídeo'].includes(m.conteudo)) && (
                             <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
