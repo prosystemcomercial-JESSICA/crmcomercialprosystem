@@ -1,0 +1,195 @@
+<title>Posicionamento Prosystem</title>
+<style>
+/* Layout: relatório de coluna única, faixa de veredito à esquerda de cada lei, tabelas roláveis */
+:root{
+  --bg:#f5f6f8; --papel:#ffffff; --tinta:#16202e; --suave:#556274; --linha:#dde2ea;
+  --marca:#1c4d8c; --ambar:#b7791f; --ok:#2f7d4f; --alerta:#b7791f; --risco:#b3372e;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f141b; --papel:#161d27; --tinta:#e6ebf2; --suave:#9aa7b8; --linha:#2a3442;
+  --marca:#7fb0ee; --ambar:#e0a54a; --ok:#5cc08a; --alerta:#e0a54a; --risco:#ef7b70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f141b; --papel:#161d27; --tinta:#e6ebf2; --suave:#9aa7b8; --linha:#2a3442;
+  --marca:#7fb0ee; --ambar:#e0a54a; --ok:#5cc08a; --alerta:#e0a54a; --risco:#ef7b70; color-scheme:dark}
+body{background:var(--bg);color:var(--tinta);font:16px/1.6 var(--sans)}
+.pag{max-width:880px;margin:0 auto;padding-inline:16px;padding-block:32px 64px;display:grid;gap:40px}
+h1,h2,h3{font-family:var(--serif);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(2rem,6vw,3rem)} h2{font-size:1.6rem} h3{font-size:1.1rem}
+p{margin:0;max-width:68ch} section{display:grid;gap:16px;min-width:0}
+.rot{font:600 .75rem/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ambar)}
+.capa{border-bottom:3px solid var(--tinta);padding-bottom:28px;display:grid;gap:14px}
+.capa .sub{color:var(--suave);font-size:1.05rem}
+.meta{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:.85rem;color:var(--suave)}
+.caixa{background:var(--papel);border:1px solid var(--linha);border-radius:10px;padding:20px;display:grid;gap:10px;min-width:0}
+.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.rotulo{font-size:.8rem;color:var(--suave);text-transform:uppercase;letter-spacing:.08em}
+ul{margin:0;padding-left:1.2em;display:grid;gap:6px}
+.lei{display:grid;grid-template-columns:6px 1fr;gap:16px;background:var(--papel);border:1px solid var(--linha);border-radius:10px;padding:18px 18px 18px 0;overflow:hidden}
+.lei>.faixa{border-radius:0 4px 4px 0}
+.lei.ok>.faixa{background:var(--ok)} .lei.al>.faixa{background:var(--alerta)} .lei.ri>.faixa{background:var(--risco)}
+.lei>div{display:grid;gap:8px;min-width:0}
+.ver{font-weight:700;font-size:.9rem}
+.lei.ok .ver{color:var(--ok)} .lei.al .ver{color:var(--alerta)} .lei.ri .ver{color:var(--risco)}
+.ev{font-size:.9rem;color:var(--suave);border-left:2px solid var(--linha);padding-left:10px}
+.tab{overflow-x:auto;border:1px solid var(--linha);border-radius:10px;background:var(--papel)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:.9rem}
+th,td{padding:10px 12px;border-bottom:1px solid var(--linha);text-align:left;vertical-align:top}
+th{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.frase{font-family:var(--serif);font-size:clamp(1.3rem,4vw,1.8rem);line-height:1.3;border-left:4px solid var(--ambar);padding-left:16px;max-width:none}
+.acoes{display:grid;gap:12px}
+.acao{background:var(--papel);border:1px solid var(--linha);border-radius:10px;padding:18px;display:grid;gap:8px}
+.acao .quando{font:600 .8rem var(--mono);color:var(--marca)}
+.kl{font-size:.9rem;background:var(--bg);border-radius:8px;padding:10px 12px}
+.resumo{background:var(--tinta);color:var(--bg);border-radius:12px;padding:24px;display:grid;gap:12px}
+.resumo .rot{color:var(--ambar)} .resumo p{max-width:none}
+.nota{font-size:.82rem;color:var(--suave)}
+</style>
+
+<main class="pag">
+
+<header class="capa">
+  <span class="rot">Diagnóstico estratégico · Leis de Ries + camada Klaric</span>
+  <h1>Prosystem: onde a marca está e onde pode ser dona de uma palavra</h1>
+  <p class="sub">Leitura do site, das propostas e das conversas do CRM Comercial, e da pesquisa de concorrência feita pela Olívia.</p>
+  <div class="meta"><span>Setembro de 2026</span><span>Vitória/ES</span><span>Fontes: prosystemnet.com, CRM Comercial (últimos 30 dias), panorama da Olívia</span></div>
+</header>
+
+<section>
+  <span class="rot">1 · Raio-X do posicionamento atual</span>
+  <h2>O que a marca diz hoje</h2>
+  <div class="grade">
+    <div class="caixa"><span class="rotulo">Frase principal</span><p>"Transformando a gestão do varejo", com "soluções inteligentes e eficientes".</p></div>
+    <div class="caixa"><span class="rotulo">Promessas no site</span><ul><li>Sistema rápido, sem travamentos</li><li>Suporte humano que resolve</li><li>Venda mais rápido no caixa</li><li>Conformidade fiscal garantida</li><li>98% de redução de erros operacionais</li></ul></div>
+    <div class="caixa"><span class="rotulo">Para quem</span><p>Quatro públicos com página própria: drogaria, farmácia de manipulação, padaria e varejo em geral. Planos MEI, Loja, Farma e Padaria.</p></div>
+    <div class="caixa"><span class="rotulo">Prova</span><p>"+16 anos" e três depoimentos com nota 5. O número de clientes aparece vazio no site ("+ clientes"). A página de drogaria não tem nenhum depoimento.</p></div>
+  </div>
+  <p><b>Leitura:</b> a Prosystem fala com quatro nichos ao mesmo tempo e promete atributos que qualquer sistema de gestão promete (rápido, suporte, fiscal). O que ela tem de único, como SNGPC, PBMs, leitor de cupom do Farmácia Popular, manipulação com Siproquim2 e backup a cada 3 horas, está dentro das propostas e não na frente da marca.</p>
+</section>
+
+<section>
+  <span class="rot">2 · Diagnóstico pelas Leis de Ries</span>
+  <h2>Oito leis, uma a uma</h2>
+
+  <div class="lei ri"><span class="faixa"></span><div>
+    <h3>Lei da Liderança · ser o primeiro numa categoria</h3><span class="ver">🚨 Risco</span>
+    <p>A Prosystem não é a primeira em "sistema para farmácia" (Trier, Linx Big Farma e HOS Farma ocupam essa lembrança). Ela ainda pode ser a primeira numa categoria menor, que ela mesma nomeie.</p>
+    <p class="ev">Evidência: o panorama da Olívia lista Trier, HOS Farma, Linx Big Farma e A7Pharma como os nomes mais citados em farmácia.</p>
+  </div></div>
+
+  <div class="lei al"><span class="faixa"></span><div>
+    <h3>Lei da Categoria · se não é o primeiro, crie uma categoria</h3><span class="ver">⚠️ Atenção</span>
+    <p>"Gestão do varejo" é categoria genérica. Existe um espaço livre claro: o sistema da <b>farmácia independente</b> que precisa cumprir SNGPC, PBM e Farmácia Popular sem ter um TI dentro de casa.</p>
+    <p class="ev">Evidência: esses módulos já existem nos planos Farma; nenhum concorrente pesquisado usa essa frase como posição.</p>
+  </div></div>
+
+  <div class="lei ri"><span class="faixa"></span><div>
+    <h3>Lei da Mente · ser dono de uma palavra</h3><span class="ver">🚨 Risco</span>
+    <p>Hoje a marca tenta ocupar "rápido", "suporte", "fiscal", "vendas" e "visão completa". Quem tenta ter cinco palavras não fica com nenhuma.</p>
+    <p class="ev">Evidência: seis promessas diferentes na home, nenhuma repetida nas páginas de nicho.</p>
+  </div></div>
+
+  <div class="lei al"><span class="faixa"></span><div>
+    <h3>Lei do Foco · estreitar para crescer</h3><span class="ver">⚠️ Atenção</span>
+    <p>Quatro nichos com o mesmo peso diluem a mensagem. A maior parte das propostas e dos diferenciais técnicos está em farmácia. Padaria e varejo podem continuar como linhas de produto, mas a marca precisa de um nicho principal.</p>
+    <p class="ev">Evidência: exemplo real de proposta Farma Plus (implantação R$ 1.100, mensalidade R$ 280); diferenciais exclusivos concentrados em farmácia.</p>
+  </div></div>
+
+  <div class="lei ok"><span class="faixa"></span><div>
+    <h3>Lei da Percepção · a batalha é na cabeça, não no produto</h3><span class="ver">✅ Base boa</span>
+    <p>"Suporte humano que resolve" é uma percepção que o cliente sente na prática e que concorrente grande tem dificuldade de copiar. É o ativo mais forte, desde que venha com prova.</p>
+    <p class="ev">Evidência: a Trier tem nota 5,6/10 ("Ruim") no Reclame Aqui, segundo a Olívia. A Prosystem não aparece no Reclame Aqui.</p>
+  </div></div>
+
+  <div class="lei al"><span class="faixa"></span><div>
+    <h3>Lei do Oposto · ser o contrário do líder</h3><span class="ver">⚠️ Atenção</span>
+    <p>O líder é grande, distante e com suporte criticado. O oposto natural é "perto, regional e com gente que atende". A marca ainda não se coloca de forma explícita como esse oposto.</p>
+    <p class="ev">Evidência: nenhuma comparação ou contraste no site; o motivo de perda "já resolvi com outro sistema" aparece nas conversas.</p>
+  </div></div>
+
+  <div class="lei al"><span class="faixa"></span><div>
+    <h3>Lei da Sinceridade · admitir um ponto fraco para ganhar credibilidade</h3><span class="ver">⚠️ Atenção</span>
+    <p>O preço não está no site, e "custo-benefício" aparece como motivo de perda. Admitir "não somos o mais barato, somos os que atendem" transforma a objeção em argumento.</p>
+    <p class="ev">Evidência: HOS Farma publica R$ 299–549 por mês; a Prosystem não publica nenhuma faixa.</p>
+  </div></div>
+
+  <div class="lei ri"><span class="faixa"></span><div>
+    <h3>Lei da Extensão de Linha · uma marca para tudo enfraquece</h3><span class="ver">🚨 Risco</span>
+    <p>O mesmo nome e a mesma mensagem cobrem MEI, loja, farmácia, manipulação e padaria. Isso é o padrão que Ries mais aponta como perda de força.</p>
+    <p class="ev">Evidência: nove planos sob uma única promessa ("gestão do varejo").</p>
+  </div></div>
+</section>
+
+<section>
+  <span class="rot">3 · Camada Klaric</span>
+  <h2>O que o dono de farmácia compra de verdade</h2>
+  <div class="grade">
+    <div class="caixa"><span class="rotulo">Cérebro reptiliano · medo</span><p>Multa da Vigilância e da Receita, SNGPC atrasado, perder dados, caixa parado em dia de movimento. É isso que faz ele trocar de sistema.</p></div>
+    <div class="caixa"><span class="rotulo">Cérebro emocional · alívio</span><p>"Posso dormir tranquilo" e "tenho alguém para ligar". O suporte humano fala direto aqui.</p></div>
+    <div class="caixa"><span class="rotulo">Cérebro racional · justificativa</span><p>Módulos, relatórios, preço. Serve para justificar a decisão já tomada, não para tomar a decisão.</p></div>
+  </div>
+  <p><b>Diagnóstico:</b> o site conversa quase todo com o cérebro racional (módulos e recursos). A página de drogaria acerta ao nomear as dores (rupturas, multas, PDV lento), mas não fecha com prova emocional (depoimento de dono de farmácia) nem com o alívio ("você não fica sozinho").</p>
+  <p><b>Código simbólico sugerido:</b> segurança. O sistema como "guarda" da farmácia: fiscal em dia, dados salvos a cada 3 horas, alguém que atende.</p>
+</section>
+
+<section>
+  <span class="rot">4 · Comparativo com concorrentes</span>
+  <h2>Quem ocupa qual lugar</h2>
+  <div class="tab"><table>
+    <thead><tr><th>Marca</th><th>Nicho</th><th>Lugar na cabeça do cliente</th><th>Preço público</th><th>Ponto fraco visível</th></tr></thead>
+    <tbody>
+      <tr><td><b>Prosystem</b></td><td>Farmácia, manipulação, padaria, varejo</td><td>Ainda indefinido ("gestão do varejo")</td><td class="num">Não publica</td><td>Mensagem espalhada, prova social fraca</td></tr>
+      <tr><td>Trier</td><td>Farmácia</td><td>Sistema conhecido de farmácia</td><td class="num">Não identificado</td><td>Reclame Aqui 5,6/10 ("Ruim")</td></tr>
+      <tr><td>HOS Farma</td><td>Farmácia</td><td>Opção com preço claro</td><td class="num">R$ 299–549/mês</td><td>Não identificado</td></tr>
+      <tr><td>Linx Big Farma</td><td>Farmácia (redes)</td><td>Grande, corporativo</td><td class="num">Não identificado</td><td>Não identificado</td></tr>
+      <tr><td>A7Pharma</td><td>Farmácia</td><td>Não identificado</td><td class="num">Não identificado</td><td>Não identificado</td></tr>
+      <tr><td>Saipos / ConnectPlug / Sischef</td><td>Alimentação e padaria</td><td>Foco em food service</td><td class="num">Não identificado</td><td>Não identificado</td></tr>
+    </tbody>
+  </table></div>
+  <p class="nota">"Não identificado" quer dizer que o dado não apareceu na pesquisa da Olívia. Não foi estimado.</p>
+</section>
+
+<section>
+  <span class="rot">5 · Os 3 testes de sustentabilidade</span>
+  <h2>A posição proposta aguenta?</h2>
+  <div class="grade">
+    <div class="caixa"><span class="rotulo">É verdadeira?</span><p><b>Sim.</b> Os módulos SNGPC, PBM, Farmácia Popular e Siproquim2 existem, e o suporte é feito por pessoas da própria empresa.</p></div>
+    <div class="caixa"><span class="rotulo">É defensável?</span><p><b>Em parte.</b> Módulo se copia; relação regional e suporte próximo, não. A defesa está no atendimento e na prova (depoimentos e números reais).</p></div>
+    <div class="caixa"><span class="rotulo">É relevante?</span><p><b>Sim.</b> Multa e sistema parado são as dores que aparecem na página de drogaria e nas conversas com leads.</p></div>
+  </div>
+</section>
+
+<section>
+  <span class="rot">6 · Recomendação de posicionamento</span>
+  <h2>A palavra a ocupar</h2>
+  <p class="frase">Prosystem: o sistema da farmácia independente que deixa você em dia com a Vigilância e nunca sozinho no balcão.</p>
+  <ul>
+    <li><b>Palavra:</b> "em dia" (fiscal e sanitário), sustentada por "gente que atende".</li>
+    <li><b>Nicho principal:</b> drogaria e farmácia de manipulação independentes. Padaria e varejo continuam como linhas próprias, com página e mensagem separadas.</li>
+    <li><b>Oposto do líder:</b> perto, regional, atendimento humano, contra sistemas grandes com suporte criticado.</li>
+    <li><b>Sinceridade:</b> "não somos o mais barato; somos quem atende quando o SNGPC trava".</li>
+  </ul>
+</section>
+
+<section>
+  <span class="rot">7 · Plano de 90 dias</span>
+  <h2>Quatro ações, em ordem</h2>
+  <div class="acoes">
+    <div class="acao"><span class="quando">Dias 1–15</span><h3>Trocar a frase da home e da página de drogaria</h3><p>Uma promessa só ("em dia com a Vigilância, nunca sozinho"), com os módulos SNGPC, PBM e Farmácia Popular logo abaixo.</p><p class="kl"><b>Klaric:</b> abrir pelo medo (multa, sistema parado) e fechar pelo alívio.</p></div>
+    <div class="acao"><span class="quando">Dias 1–30</span><h3>Prova social de farmácia</h3><p>Preencher o número real de clientes no site e gravar de 3 a 5 depoimentos de donos de farmácia. Criar o perfil no Reclame Aqui para ter nota própria.</p><p class="kl"><b>Klaric:</b> a voz de outro dono de farmácia fala com o cérebro emocional melhor do que qualquer lista de recursos.</p></div>
+    <div class="acao"><span class="quando">Dias 15–60</span><h3>Alinhar os agentes do CRM à nova palavra</h3><p>O Rafael já propõe a abordagem inicial; a nova versão passa a abrir pela dor fiscal e pelo suporte humano. Comparar a taxa de resposta com a atual (Caroline 70%, Julio 50%, Luiz Felipe 35%).</p><p class="kl"><b>Klaric:</b> a primeira mensagem nomeia o medo real do dono, não o recurso do sistema.</p></div>
+    <div class="acao"><span class="quando">Dias 30–90</span><h3>Separar padaria e varejo</h3><p>Página e mensagem próprias para padaria (balança, comanda), sem dividir a frase principal da marca. Medir as perdas por "custo-benefício" e "já resolvi com outro sistema" antes e depois.</p><p class="kl"><b>Klaric:</b> cada nicho tem o seu medo; um só texto não fala com os dois.</p></div>
+  </div>
+</section>
+
+<section class="resumo">
+  <span class="rot">Resumo executivo</span>
+  <p>A Prosystem tem produto e atendimento para ser dona de uma palavra, mas hoje fala com quatro nichos e promete cinco coisas. A recomendação é focar na farmácia independente e ocupar "em dia com a Vigilância, nunca sozinho", usando o que só ela reúne: SNGPC, PBM, Farmácia Popular, manipulação e suporte humano regional. As ações mais urgentes são uma frase única no site, prova social de farmácia e a nova abordagem dos agentes, medida pela taxa de resposta que o CRM já registra.</p>
+</section>
+
+<p class="nota">Nenhum número deste relatório foi estimado: todos vêm do site, das propostas e conversas do CRM ou da pesquisa da Olívia. Onde o dado não existia, está escrito "não identificado".</p>
+</main>
