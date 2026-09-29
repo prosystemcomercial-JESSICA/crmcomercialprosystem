@@ -194,3 +194,29 @@ Documento de requisitos técnicos · versão 1.0 · 27/09/2026
   - 2: WhatsApp e Leads (títulos grandes, listas e folhas);
   - 3: Propostas e Dashboard;
   - 4: telas do "Mais".
+
+### Atualização 28/09/2026: celular no padrão iOS, etapa 2 (WhatsApp e Leads)
+Tudo vale só abaixo de 768px, com classes `ios-*` em `app/ios.css`. No computador nada muda.
+- **WhatsApp, lista** (estilo app Mensagens):
+  - título grande "WhatsApp" de 34pt;
+  - Conversas/Fila e Minhas/Sem dono/Todas/Finalizadas viram controles segmentados;
+  - campo de busca iOS (preenchimento cinza, 17pt);
+  - linhas de 76pt com avatar de 52pt e separador recuado;
+  - selo "Conectado" e faixa "WhatsApp da empresa" escondidos no celular.
+- **WhatsApp, conversa** (estilo iMessage):
+  - a barra de abas some (classe `ios-em-chat` no body);
+  - barra de navegação translúcida com "‹ Conversas", nome, ⓘ (detalhes) e ⋯ (ações);
+  - bolhas de 18pt de raio, enviadas em azul do sistema e recebidas em cinza #E9E9EB, texto de 17pt;
+  - campo de mensagem em pílula na barra translúcida, com área segura.
+- **Folha de ações ⋯** (padrão action sheet): Assumir, Finalizar/Reabrir, Detalhes do atendimento, Prioridade, Etiquetar, Agendar reunião, Vincular a cliente da base, Transferir, Desvincular do funil, Excluir (em vermelho) e Cancelar. A fileira de botões só aparece no computador (`hidden md:contents`).
+- **Detalhes ⓘ:** o painel lateral (Criar proposta, Observações, IA, funil etc.) abre como folha em tela cheia, com cabeçalho "Detalhes" e botão OK (estado `painelMobile`).
+- **Leads:**
+  - título grande "Central de Leads";
+  - busca iOS em linha própria;
+  - filtros como pílulas em faixa rolável horizontal;
+  - "Novo Lead" em azul do sistema;
+  - funil com uma etapa por página (coluna com a largura da tela e rolagem com encaixe), navegando pelas setas de 44pt, pelos pontos ou deslizando.
+  - O passo das setas passou a medir a largura real da coluna (`colWidth()`), o que vale para o computador e para o celular.
+- **Próximas etapas:**
+  - 3: Propostas (gerador) e Dashboard;
+  - 4: telas do "Mais".
