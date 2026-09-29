@@ -382,7 +382,7 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
     if (!autorizado) return reply.status(401).send({ status: 'error', message: 'Link do painel inválido' });
 
     reply.header('Cache-Control', 'no-store');
-    if (cacheEscritorio && Date.now() - cacheEscritorio.em < CACHE_MS) return reply.send({ status: 'ok', data: cacheEscritorio.dados });
+    if (cacheEscritorio && Date.now() - cacheEscritorio.em < 10_000) return reply.send({ status: 'ok', data: cacheEscritorio.dados });
     const { montarTvEscritorio } = await import('@/services/tv-escritorio.service');
     const dados = await montarTvEscritorio(prisma);
     cacheEscritorio = { em: Date.now(), dados };
