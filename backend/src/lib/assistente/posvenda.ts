@@ -23,6 +23,23 @@ export function elegivelBoasVindas(p: Prop, desde: Date | null, agora: Date): bo
   return ref >= desde && agora.getTime() - ref.getTime() <= JANELA_BOAS_VINDAS_DIAS * 86400000;
 }
 
+/**
+ * Helena cuida dos CLIENTES NOVOS: até 90 dias depois do contrato assinado.
+ * Quem passou da janela das boas-vindas (7 dias) sem receber nada recebe um acompanhamento
+ * ("como está a implantação?"), uma vez; 30 dias depois vem a pesquisa, como nas boas-vindas.
+ */
+export const JANELA_CLIENTE_NOVO_DIAS = 90;
+export function elegivelAcompanhamento(p: Prop, agora: Date): boolean {
+  if (p.status !== 'CONTRATO_ASSINADO' || p.origem === 'RETROATIVO' || p.wpp_boasvindas_em || !temCelular(p.responsavel_telefone)) return false;
+  const dias = (agora.getTime() - (p.data_aceite || p.updated_at).getTime()) / 86400000;
+  return dias > JANELA_BOAS_VINDAS_DIAS && dias <= JANELA_CLIENTE_NOVO_DIAS;
+}
+
+export const textoAcompanhamento = (nome: string | null, empresa: string) =>
+  `Olá${primeiro(nome) ? `, ${primeiro(nome)}` : ''}! Aqui é a Helena, do pós-venda da *Prosystem*. 😊\n\n` +
+  `Passando para saber como está sendo o começo da *${empresa}* com o sistema: a implantação foi tranquila? Ficou alguma dúvida ou pendência que eu possa ajudar a resolver?\n\n` +
+  'Os tutoriais da nossa Universidade também podem ajudar: https://universidade.prosystemnet.com/base-conhecimento 💙';
+
 /** Pesquisa: 30 dias depois das boas-vindas enviadas por aqui, uma vez. */
 export function elegivelPesquisa(p: Prop, agora: Date): boolean {
   return !!p.wpp_boasvindas_em && !p.wpp_pesquisa_em && temCelular(p.responsavel_telefone)
