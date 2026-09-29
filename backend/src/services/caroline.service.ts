@@ -393,13 +393,18 @@ export async function entregarParaVendedora(prisma: PrismaClient, sdrId: string)
   registrarAcaoAgente(agenteDe(s), `passou ${s.nome || 'um lead'} para a vendedora`);
 }
 
-export const ETIQUETA_NEWS = 'News';
+// Lista do Informativo Prosystem (jornal): quem não tem mais interesse só recebe informativos e novidades do blog.
+export const ETIQUETA_NEWS = 'Informativo Prosystem';
+const ETIQUETA_NEWS_ANTIGA = 'News';
 
 /** Etiqueta do sistema que marca quem só recebe informativos da Prosystem (público "News" das campanhas). */
 export async function etiquetaNews(prisma: PrismaClient) {
   const ja = await prisma.etiqueta.findFirst({ where: { nome: ETIQUETA_NEWS, tipo: 'LEAD' } });
   if (ja) return ja;
-  return prisma.etiqueta.create({ data: { nome: ETIQUETA_NEWS, cor: '#7c3aed', tipo: 'LEAD', sistema: true, descricao: 'Só recebe informativos da Prosystem (perdidos com a porta aberta).', created_by: 'sistema' } });
+  // Etiqueta antiga "News" vira "Informativo Prosystem" (mesma lista, nome novo).
+  const antiga = await prisma.etiqueta.findFirst({ where: { nome: ETIQUETA_NEWS_ANTIGA, tipo: 'LEAD' } });
+  if (antiga) return prisma.etiqueta.update({ where: { id: antiga.id }, data: { nome: ETIQUETA_NEWS, descricao: 'Informativo Prosystem: só recebe o jornal e as novidades do blog (sem interesse agora, porta aberta).' } });
+  return prisma.etiqueta.create({ data: { nome: ETIQUETA_NEWS, cor: '#7c3aed', tipo: 'LEAD', sistema: true, descricao: 'Informativo Prosystem: só recebe o jornal e as novidades do blog (sem interesse agora, porta aberta).', created_by: 'sistema' } });
 }
 
 /** Negócio perdido com o motivo do cliente (lead no funil + proposta) e contato na lista News. */
@@ -438,10 +443,11 @@ export async function marcarPerdidoNews(prisma: PrismaClient, sdr: any, motivo: 
     const p = await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { id: true, status: true } });
     if (p && !['PERDIDA', 'ACEITA', 'CONTRATO_ASSINADO'].includes(p.status)) {
       await prisma.propostaComercial.update({ where: { id: p.id }, data: { status: 'PERDIDA' } });
-      await prisma.propostaHistorico.create({ data: { proposta_id: p.id, tipo: 'STATUS', campo_alterado: 'status', valor_anterior: p.status, valor_novo: 'PERDIDA', motivo: motivoCompleto, observacao: 'Cliente informou pelo WhatsApp. Contato passou para a lista News.', feito_por_nome: agente } });
+      await prisma.propostaHistorico.create({ data: { proposta_id: p.id, tipo: 'STATUS', campo_alterado: 'status', valor_anterior: p.status, valor_novo: 'PERDIDA', motivo: motivoCompleto, observacao: 'Cliente informou pelo WhatsApp. Contato passou para o Informativo Prosystem.', feito_por_nome: agente } });
+      if (sdr.lead_id) await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'STATUS', descricao: `📄 Proposta RECUSADA pelo cliente (${motivoCompleto}). Contato passou para o Informativo Prosystem.`, created_by: 'bot', created_by_name: agente } }).catch(() => {});
     }
   }
-  registrarAcaoAgente(agenteDe(sdr), `marcou ${sdr.nome || 'um lead'} como perdido (${motivo}) e passou para a lista News`);
+  registrarAcaoAgente(agenteDe(sdr), `marcou ${sdr.nome || 'um lead'} como perdido (${motivo}) e passou para o Informativo Prosystem`);
 }
 
 async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: string, r: { nota: number; nota_motivo: string; duvida?: string | null; motivo_perda?: string | null }) {
@@ -482,6 +488,11 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: 
     if (atual && (atual.proposta_id || motivo === 'JA_TEM_FORNECEDOR')) {
       await marcarPerdidoNews(prisma, atual, motivo, r.nota_motivo || '', nomeDe(sdr)).catch((e: any) => console.warn('[CAROLINE] perda/news:', e?.message));
       await enviarMensagens(prisma, token, atual, [CONVITE_INSTAGRAM]).catch(() => {});
+    } else if (atual?.lead_id) {
+      // Sem interesse agora (ex.: "já resolvi"): só entra no Informativo Prosystem (jornal), sem virar perdido.
+      const et = await etiquetaNews(prisma).catch(() => null);
+      if (et) await prisma.leadEtiquetaAplicada.upsert({ where: { lead_id_etiqueta_id: { lead_id: atual.lead_id, etiqueta_id: et.id } }, create: { lead_id: atual.lead_id, etiqueta_id: et.id }, update: {} }).catch(() => {});
+      await obs('📰 Sem interesse agora: passou para o Informativo Prosystem (recebe só o jornal e as novidades do blog).');
     }
   } else if (acao === 'aceitar_condicao') {
     // Cliente topou a condição autorizada: proposta atualizada e reenviada com os botões de aceite.
