@@ -64,6 +64,27 @@ const enderecoReceita = (r: any) => {
 
 const ESTADOS_TRIAGEM = ['MENU', 'MENU_CLIENTE', 'SERVICO', 'SEGMENTO', 'RELACAO', 'NOME', 'CIDADE', 'CNPJ', 'CNPJ_CONFIRMA'];
 const emTriagem = (c?: Conversa | null) => !!c?.bot_ativo && ESTADOS_TRIAGEM.includes(c?.bot_estado || '');
+
+// Kanban "Por atendente": uma coluna por agente (na ordem do funil), triagem, cada pessoa da equipe e "Sem dono".
+const ORDEM_AGENTES = ['Caroline', 'Julio', 'Luiz Felipe', 'Clarice', 'Lurdinha', 'Zequinha', 'Helena', 'Mila'];
+const COR_AGENTE: Record<string, string> = { Caroline: '#be123c', Julio: '#0d9488', 'Luiz Felipe': '#2563eb', Clarice: '#8b5cf6', Lurdinha: '#f59e0b', Zequinha: '#16a34a', Helena: '#0891b2' };
+function colunasPorAtendente(lista: Conversa[]) {
+  const grupos = new Map<string, { valor: string; nome: string; cor: string; ordem: number; cards: Conversa[] }>();
+  const add = (valor: string, nome: string, cor: string, ordem: number, c: Conversa) => {
+    if (!grupos.has(valor)) grupos.set(valor, { valor, nome, cor, ordem, cards: [] });
+    grupos.get(valor)!.cards.push(c);
+  };
+  for (const c of lista) {
+    const x = c as any;
+    if (c.atendente_ia) {
+      const i = ORDEM_AGENTES.indexOf(c.atendente_ia);
+      add(`ia:${c.atendente_ia}`, `🤖 ${c.atendente_ia}`, COR_AGENTE[c.atendente_ia] || '#ec4899', i >= 0 ? i : 50, c);
+    } else if (emTriagem(c)) add('triagem', '🧭 Em triagem (Bia)', '#e11d74', 60, c);
+    else if (c.dono_id) { const n = x.dono_nome || x.instancia?.dono_nome || 'Equipe'; add(`p:${c.dono_id}`, `👤 ${n}`, '#2E6EAB', 70, c); }
+    else add('sem_dono', '📥 Sem dono', '#d97706', 90, c);
+  }
+  return [...grupos.values()].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
+}
 const avisoCnpj = (c?: Conversa | null): string | null => {
   const r = c?.bot_dados?.receita;
   if (!r || String(r.situacao || '').toUpperCase() === 'ATIVA') return null;
@@ -192,6 +213,8 @@ export default function WhatsappPage() {
   const [menuTransferir, setMenuTransferir] = useState(false);
   const [painel, setPainel] = useState<PainelConversa | null>(null);
   const [viewMode, setViewMode] = useState<'inbox' | 'kanban'>('inbox');
+  // Kanban: "Por atendente" (quem está com cada conversa: agente, pessoa, triagem, sem dono) ou "Por fase".
+  const [agruparKanban, setAgruparKanban] = useState<'atendente' | 'fase'>('atendente');
   // Aba da lista. 'todas' = visão de supervisão (gestão); 'pool' = sem dono
   // (só existe com o WhatsApp da empresa configurado).
   const [aba, setAba] = useState<AbaConversas>('minhas');
@@ -1496,14 +1519,28 @@ export default function WhatsappPage() {
 
         {/* Kanban comercial — colunas: etapas do funil de atendimento */}
         {configurado && status === 'CONECTADO' && viewMode === 'kanban' && (
+          <div className="flex-1 min-h-0 flex flex-col gap-2">
+          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+            <div className="ios-seg-inline flex rounded-lg border border-gray-200 overflow-hidden" role="tablist" aria-label="Agrupar o quadro">
+              {([['atendente', '👥 Por atendente'], ['fase', '📊 Por fase']] as const).map(([k, rot]) => (
+                <button key={k} role="tab" aria-selected={agruparKanban === k} onClick={() => setAgruparKanban(k)}
+                  className={`px-3 py-1.5 text-sm font-medium ${agruparKanban === k ? 'text-white' : 'text-gray-600 bg-white'}`}
+                  style={agruparKanban === k ? { background: 'var(--t-primary)' } : {}}>{rot}</button>
+              ))}
+            </div>
+            <span className="text-xs text-gray-500">
+              {agruparKanban === 'atendente' ? 'Quem está com cada conversa agora. Toque no cartão para abrir.' : 'Fase de cada contato. Arraste o cartão para mudar a fase.'}
+            </span>
+          </div>
           <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
             <div className="flex gap-3 h-full pb-2" style={{ minWidth: 'min-content' }}>
-              {ESTAGIOS_FUNIL.map(col => {
-                const cards = conversasFiltradas.filter(c => (c.estagio_funil || 'NOVO_CONTATO') === col.valor);
+              {(agruparKanban === 'atendente' ? colunasPorAtendente(conversasFiltradas) : ESTAGIOS_FUNIL.map(col => ({ ...col, cards: conversasFiltradas.filter(c => (c.estagio_funil || 'NOVO_CONTATO') === col.valor) }))).map(col => {
+                const cards = col.cards;
+                const arrastavel = agruparKanban === 'fase';
                 return (
                   <div key={col.valor}
-                    onDragOver={e => e.preventDefault()}
-                    onDrop={() => { if (dragConvId) { moverEstagio(dragConvId, col.valor); setDragConvId(null); } }}
+                    onDragOver={e => { if (arrastavel) e.preventDefault(); }}
+                    onDrop={() => { if (arrastavel && dragConvId) { moverEstagio(dragConvId, col.valor); setDragConvId(null); } }}
                     className="flex flex-col bg-opacity-0 rounded-xl border border-gray-200 flex-shrink-0 w-72 min-h-0">
                     <div className="px-3 py-2.5 flex items-center gap-2 border-b border-gray-200 rounded-t-xl" style={{ background: `${col.cor}15` }}>
                       <span className="w-3 h-3 rounded-full" style={{ background: col.cor }} />
@@ -1517,7 +1554,7 @@ export default function WhatsappPage() {
                         const prio = PRIORIDADES.find(p => p.valor === (c.prioridade || 'NORMAL'));
                         return (
                           <div key={c.id}
-                            draggable onDragStart={() => setDragConvId(c.id)} onDragEnd={() => setDragConvId(null)}
+                            draggable={arrastavel} onDragStart={() => setDragConvId(c.id)} onDragEnd={() => setDragConvId(null)}
                             onClick={() => { setViewMode('inbox'); abrir(c); }}
                             className="ps-card rounded-lg border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm">
                             <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -1561,6 +1598,7 @@ export default function WhatsappPage() {
                 );
               })}
             </div>
+          </div>
           </div>
         )}
       </div>
