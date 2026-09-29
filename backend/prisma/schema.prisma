@@ -2768,3 +2768,34 @@ model PushInscricao {
 
   @@index([usuario_id])
 }
+
+// Cronômetro de atividades longas: a pessoa inicia, pausa (com motivo), retoma e finaliza.
+// Um ativo por pessoa. O histórico de cada passo fica em CronometroEvento (relatório "Meu tempo").
+model Cronometro {
+  id            String             @id @default(cuid())
+  usuario_id    String             @db.VarChar(64)
+  usuario_nome  String?            @db.VarChar(255)
+  titulo        String             @db.VarChar(255)
+  atividade_id  String?            @db.VarChar(64)
+  status        String             @default("RODANDO") @db.VarChar(20) // RODANDO | PAUSADO | FINALIZADO
+  segundos      Int                @default(0) // tempo trabalhado acumulado (sem contar pausas)
+  rodando_desde DateTime? // início do trecho atual (null quando pausado/finalizado)
+  resultado     String?            @db.Text
+  iniciado_em   DateTime           @default(now())
+  finalizado_em DateTime?
+  eventos       CronometroEvento[]
+
+  @@index([usuario_id, status])
+  @@index([iniciado_em])
+}
+
+model CronometroEvento {
+  id            String     @id @default(cuid())
+  cronometro_id String
+  cronometro    Cronometro @relation(fields: [cronometro_id], references: [id], onDelete: Cascade)
+  tipo          String     @db.VarChar(20) // INICIO | PAUSA | RETOMADA | FIM
+  motivo        String?    @db.VarChar(500)
+  em            DateTime   @default(now())
+
+  @@index([cronometro_id])
+}

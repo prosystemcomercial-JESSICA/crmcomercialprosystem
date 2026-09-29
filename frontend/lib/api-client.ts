@@ -1343,6 +1343,13 @@ class ApiClient {
   async configCaroline(data: { ativa?: boolean; aprovar?: boolean; limite?: number }, agente = 'caroline') {
     return this.client.put('/assistente/caroline/config', data, { params: { agente } });
   }
+  // ── Cronômetro de atividades longas ──
+  async cronometroAtivo() { return this.client.get('/cronometros/ativo'); }
+  async cronometroIniciar(titulo: string, atividade_id?: string | null) { return this.client.post('/cronometros', { titulo, atividade_id }); }
+  async cronometroPausar(id: string, motivo: string) { return this.client.post(`/cronometros/${id}/pausar`, { motivo }); }
+  async cronometroRetomar(id: string) { return this.client.post(`/cronometros/${id}/retomar`, {}); }
+  async cronometroFinalizar(id: string, resultado?: string | null) { return this.client.post(`/cronometros/${id}/finalizar`, { resultado }); }
+  async cronometroRelatorio(dias: number) { return this.client.get('/cronometros/relatorio', { params: { dias } }); }
   async relatorioDesempenho(dias: number) { return this.client.get('/relatorios/desempenho', { params: { dias } }); }
   async midiaMensagem(id: string) { return this.client.get(`/whatsapp/mensagens/${id}/midia`); }
   // ── App no celular: notificações, bolinha no ícone e tela "Aprovar" ──

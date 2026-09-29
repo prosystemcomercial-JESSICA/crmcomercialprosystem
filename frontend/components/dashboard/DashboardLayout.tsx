@@ -21,6 +21,7 @@ import {
 import { ehSomenteLeitura } from '@/lib/visoes';
 import { BarraAbasIOS, FolhaMaisIOS } from '@/components/mobile/AppIOS';
 import NotificacoesApp from '@/components/mobile/NotificacoesApp';
+import CronometroFlutuante from '@/components/cronometro/Cronometro';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
 const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
@@ -60,6 +61,7 @@ const navGroups: NavGroup[] = [
       { href: '/escritorio', icon: Building2,      label: 'Escritório virtual',     roles: [...COMERCIAL, 'SDR'] },
       { href: '/aprovar',    icon: Eye,            label: 'Aprovar',                roles: GESTAO_COMERCIAL },
       { href: '/desempenho', icon: LineChart,      label: 'Desempenho do setor',    roles: GESTAO_COMERCIAL },
+      { href: '/meu-tempo',  icon: CalendarCheck,  label: 'Meu tempo',              roles: [...ALL, 'SDR'] },
     ],
   },
   {
@@ -889,6 +891,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+
+      {/* Cronômetro de atividades longas: flutua em todas as telas */}
+      <CronometroFlutuante />
 
       {/* ── Celular: abas embaixo + folha "Mais" (guia de interface da Apple) ── */}
       <BarraAbasIOS pathname={pathname} permitidos={hrefsPermitidos} maisAberto={maisAberto} onMais={() => setMaisAberto(v => !v)} ceo={(user?.role || '').toUpperCase() === 'CEO'} />
