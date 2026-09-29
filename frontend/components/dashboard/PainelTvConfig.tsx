@@ -136,6 +136,7 @@ export default function PainelTvConfig() {
                   <>
                     <button onClick={copiar} style={botao('#475569')}>{copiado ? <><Check size={13} /> Copiado!</> : <><Copy size={13} /> Copiar</>}</button>
                     <a href={link} target="_blank" rel="noopener noreferrer" style={{ ...botao('#0891b2'), textDecoration: 'none' }}><ExternalLink size={13} /> Abrir</a>
+                    <a href={link.replace('/tv?', '/tv/escritorio?')} target="_blank" rel="noopener noreferrer" style={{ ...botao('#065f46'), textDecoration: 'none' }}><ExternalLink size={13} /> Abrir TV do Escritório</a>
                   </>
                 )}
                 <button onClick={gerar} disabled={gerando} style={{ ...botao('#b45309'), opacity: gerando ? 0.7 : 1 }}>
