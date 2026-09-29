@@ -19,6 +19,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { ehSomenteLeitura } from '@/lib/visoes';
+import { BarraAbasIOS, FolhaMaisIOS } from '@/components/mobile/AppIOS';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
 const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
@@ -148,6 +149,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [alertasOpen, setAlertasOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [maisAberto, setMaisAberto] = useState(false); // folha "Mais" do celular
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   // Colapso da sidebar em desktop (largura cheia ↔ só ícones) — libera espaço
   // horizontal para telas densas como o kanban da Central de Leads. Persistido
@@ -392,6 +394,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     overflow: 'hidden',
   };
 
+  // Itens do menu que a pessoa pode ver (cargo ou liberação manual; CEO só telas de leitura).
+  // Usado no menu lateral (computador) e nas abas + folha "Mais" (celular).
+  const gruposVisiveis = (() => {
+    const userRole = (user?.role || '').toUpperCase();
+    const ehCEO = userRole === 'CEO';
+    return navGroups
+      .map(group => ({
+        ...group,
+        items: group.items.filter(item => {
+          // Cargo já libera o item (comportamento de sempre).
+          const liberadoPeloCargo = !item.roles || item.roles.includes(userRole);
+          // OU a supervisão liberou esse módulo manualmente pra esse usuário
+          // específico (tela Usuários → "Liberação de Módulos"), mesmo que o
+          // cargo dele não inclua o item por padrão.
+          const liberadoManualmente = !!(item.modulo && user?.modulos_permissao?.[item.modulo]?.ver);
+          return (liberadoPeloCargo || liberadoManualmente) &&
+            (!ehCEO || CEO_VISIVEL.includes(item.href));
+        })
+      }))
+      .filter(group => group.items.length > 0);
+  })();
+  const hrefsPermitidos = new Set(gruposVisiveis.flatMap(g => g.items.map(i => i.href)));
+  const abrirExterno = (item: NavItem) => {
+    const base = process.env.NEXT_PUBLIC_PORTAL_URL || item.href;
+    if (!base || base === '#') return;
+    const tk = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    window.open(tk ? `${base}${base.includes('?') ? '&' : '?'}token=${encodeURIComponent(tk)}` : base, '_blank', 'noopener');
+  };
+
   return (
     <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
       <VersionWatcher />
@@ -480,7 +511,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Mobile menu toggle */}
         <button
           onClick={() => setSidebarOpen(true)}
-          className="md:hidden flex-shrink-0 p-1.5 rounded-lg"
+          className="hidden flex-shrink-0 p-1.5 rounded-lg"
           style={{ color: 'var(--t-text-muted)' }}
           aria-label="Abrir menu"
         >
@@ -755,25 +786,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
 
           <nav className="flex-1 py-1 px-2 space-y-3 overflow-y-auto overflow-x-hidden">
-            {(() => {
-              const userRole = (user?.role || '').toUpperCase();
-              const ehCEO = userRole === 'CEO';
-              return navGroups
-                .map(group => ({
-                  ...group,
-                  items: group.items.filter(item => {
-                    // Cargo já libera o item (comportamento de sempre).
-                    const liberadoPeloCargo = !item.roles || item.roles.includes(userRole);
-                    // OU a supervisão liberou esse módulo manualmente pra esse usuário
-                    // específico (tela Usuários → "Liberação de Módulos"), mesmo que o
-                    // cargo dele não inclua o item por padrão.
-                    const liberadoManualmente = !!(item.modulo && user?.modulos_permissao?.[item.modulo]?.ver);
-                    return (liberadoPeloCargo || liberadoManualmente) &&
-                      (!ehCEO || CEO_VISIVEL.includes(item.href));
-                  })
-                }))
-                .filter(group => group.items.length > 0);
-            })().map((group) => (
+            {gruposVisiveis.map((group) => (
               <div key={group.label}>
                 {!sidebarCollapsed && (
                   <p
@@ -866,12 +879,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </aside>
 
         {/* Main content */}
-        <main className="ps-content flex-1 overflow-auto min-h-0">
+        <main className="ps-content ios-main flex-1 overflow-auto min-h-0">
           <div className="ps-page p-2 md:p-3 h-full">
             {children}
           </div>
         </main>
       </div>
+
+      {/* ── Celular: abas embaixo + folha "Mais" (guia de interface da Apple) ── */}
+      <BarraAbasIOS pathname={pathname} permitidos={hrefsPermitidos} maisAberto={maisAberto} onMais={() => setMaisAberto(v => !v)} />
+      <FolhaMaisIOS aberta={maisAberto} onFechar={() => setMaisAberto(false)} grupos={gruposVisiveis} pathname={pathname}
+        onAbrirExterno={(i) => { setMaisAberto(false); abrirExterno(i as NavItem); }} />
 
       {avisoLead && (
         <div className="fixed bottom-5 right-5 z-[60] w-80 rounded-xl shadow-2xl border border-emerald-200 bg-white p-4">

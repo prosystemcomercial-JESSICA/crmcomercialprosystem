@@ -1,0 +1,80 @@
+/* ══ Celular como app de iPhone (guia de interface da Apple) ═══════════════════
+   Só abaixo de 768px. No computador nada muda. Barra de abas com material
+   translúcido, alvos de 44pt, área segura (notch / barra de início), fonte do
+   sistema (San Francisco) e folha "Mais" com lista agrupada estilo Ajustes. */
+:root {
+  --ios-tint: #007aff;
+  --ios-label: #000000;
+  --ios-secondary: rgba(60, 60, 67, 0.6);
+  --ios-separator: rgba(60, 60, 67, 0.29);
+  --ios-bar: rgba(249, 249, 249, 0.86);
+  --ios-grouped-bg: #f2f2f7;
+  --ios-cell: #ffffff;
+  --ios-fill: rgba(120, 120, 128, 0.16);
+}
+.dark {
+  --ios-tint: #0a84ff;
+  --ios-label: #ffffff;
+  --ios-secondary: rgba(235, 235, 245, 0.6);
+  --ios-separator: rgba(84, 84, 88, 0.65);
+  --ios-bar: rgba(22, 22, 24, 0.86);
+  --ios-grouped-bg: #000000;
+  --ios-cell: #1c1c1e;
+  --ios-fill: rgba(120, 120, 128, 0.32);
+}
+
+@media (max-width: 767px) {
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-sans), system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+  /* Barra de cima respeita o notch / Dynamic Island. */
+  .ps-topbar { padding-top: env(safe-area-inset-top, 0px); height: calc(3.5rem + env(safe-area-inset-top, 0px)); }
+  /* Conteúdo não fica escondido atrás da barra de abas. */
+  .ios-main { padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px)); }
+}
+
+.ios-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 75;
+  display: flex; justify-content: space-around; align-items: flex-start;
+  padding: 2px 4px env(safe-area-inset-bottom, 0px);
+  height: calc(49px + env(safe-area-inset-bottom, 0px));
+  background: var(--ios-bar);
+  -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--ios-separator);
+}
+.ios-tab {
+  flex: 1; min-width: 44px; min-height: 46px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--ios-secondary); font-size: 10px; font-weight: 500; letter-spacing: 0.1px;
+  background: none; border: 0; text-decoration: none;
+}
+.ios-tab.on { color: var(--ios-tint); }
+.ios-tab:focus-visible { outline: 2px solid var(--ios-tint); outline-offset: -2px; border-radius: 8px; }
+
+.ios-scrim { background: rgba(0, 0, 0, 0.35); animation: ios-fade 0.2s ease; }
+.ios-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh;
+  display: flex; flex-direction: column;
+  background: var(--ios-grouped-bg); border-radius: 12px 12px 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: ios-sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ios-grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--ios-fill); margin: 6px auto 0; }
+.ios-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 6px; }
+.ios-sheet-head h2 { font-size: 28px; font-weight: 700; letter-spacing: 0.36px; color: var(--ios-label); }
+.ios-close { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--ios-fill); color: var(--ios-secondary); border: 0; }
+.ios-close::after { content: ""; position: absolute; inset: -7px; } /* alvo de toque de 44pt */
+.ios-sheet-body { overflow-y: auto; padding: 0 16px 20px; -webkit-overflow-scrolling: touch; }
+.ios-group-label { font-size: 13px; text-transform: uppercase; color: var(--ios-secondary); padding: 18px 16px 6px; font-weight: 400; }
+.ios-group { background: var(--ios-cell); border-radius: 10px; overflow: hidden; }
+.ios-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 16px;
+  color: var(--ios-label); font-size: 17px; text-align: left; background: none; border: 0; text-decoration: none; position: relative;
+}
+.ios-row + .ios-row::before { content: ""; position: absolute; top: 0; left: 57px; right: 0; border-top: 0.5px solid var(--ios-separator); }
+.ios-row:active { background: var(--ios-fill); }
+.ios-row-icon { width: 29px; height: 29px; border-radius: 7px; display: grid; place-items: center; background: var(--ios-tint); color: #fff; flex-shrink: 0; }
+.ios-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ios-chevron { color: var(--ios-secondary); opacity: 0.6; flex-shrink: 0; }
+
+@keyframes ios-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ios-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ios-sheet, .ios-scrim { animation: none; } }
