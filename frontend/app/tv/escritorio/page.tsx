@@ -187,7 +187,7 @@ export default function TvEscritorioPage() {
       <style>{CSS}</style>
       <div className="wrap">
         {aviso && (
-          <div className={`toast ${aviso.tom}`}>
+          <div className={`toast tom-${aviso.tom}`}>
             <span className={`ponto ${aviso.tom}`} />
             <div><b>{aviso.titulo}</b><span>{aviso.texto}</span></div>
           </div>
@@ -252,7 +252,7 @@ export default function TvEscritorioPage() {
               </section>
 
               <div className="coluna">
-                <section className={`painel destaque ${destaque ? destaque.tom : 'ok'}`} key={`${giro}`}>
+                <section className={`painel destaque tom-${destaque ? destaque.tom : 'ok'}`} key={`${giro}`}>
                   {destaque ? (
                     <>
                       <div className="cab"><span className="rot"><span className={`ponto ${destaque.tom}`} />{destaque.titulo}</span><span className="mono mudo">{(giro % destaques.length) + 1} de {destaques.length}</span></div>
@@ -422,7 +422,7 @@ const CSS = `
 @keyframes marca{0%,40%{background:var(--s2)}100%{background:transparent}}
 
 .destaque{flex:none;border-left:3px solid var(--cinza);animation:entrar .4s ease-out}
-.destaque.bad{border-left-color:var(--bad)}.destaque.warn{border-left-color:var(--warn)}.destaque.ok{border-left-color:var(--ok)}
+.destaque.tom-bad{border-left-color:var(--bad)}.destaque.tom-warn{border-left-color:var(--warn)}.destaque.tom-ok{border-left-color:var(--ok)}
 .destaque .cab{border-bottom:0;padding-bottom:.3em}
 .destaque .nome{font-size:1.9em;font-weight:600;letter-spacing:-.025em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .destaque .det{color:var(--t2);margin-top:.35em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -451,8 +451,8 @@ const CSS = `
 .toast .ponto{margin-top:.45em;width:.7em;height:.7em}
 .toast b{display:block;font-size:1.15em;font-weight:600}
 .toast span:not(.ponto){display:block;color:var(--t2);margin-top:.2em;font-size:1.05em}
-.toast.ok{border-color:color-mix(in srgb,var(--ok) 45%,var(--borda))}
-.toast.bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--borda))}
+.toast.tom-ok{border-color:color-mix(in srgb,var(--ok) 45%,var(--borda))}
+.toast.tom-bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--borda))}
 @keyframes deslizar{from{opacity:0;transform:translateY(-8px)}}
 
 .centro{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
