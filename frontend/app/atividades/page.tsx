@@ -361,7 +361,7 @@ export default function AtividadesPage() {
 
   return (
     <DashboardLayout>
-      <div className="w-full px-4 sm:px-6 py-4 space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 64px)' }}>
+      <div className="ios-tela w-full px-4 sm:px-6 py-4 space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 64px)' }}>
 
         {/* ═══ HEADER ═══════════════════════════════════════════════════════ */}
         <div className="ps-card rounded-2xl p-4 sm:p-5 flex items-center justify-between flex-wrap gap-3"
@@ -372,7 +372,7 @@ export default function AtividadesPage() {
               <CalendarDays size={20} color="white" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>Atividades & Agenda</h1>
+              <h1 className="ios-large-title text-xl font-extrabold" style={{ color: 'var(--t-text-primary)' }}>Atividades & Agenda</h1>
               <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>
                 Kanban por prioridade · Designação · Acompanhamento automático de prazos
               </p>

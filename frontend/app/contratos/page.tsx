@@ -384,12 +384,12 @@ export default function ContratosPage() {
 
   return (
     <DashboardLayout>
-      <div className="w-full px-4 sm:px-6 py-4 space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 56px)' }}>
+      <div className="ios-tela w-full px-4 sm:px-6 py-4 space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 56px)' }}>
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Contratos Comerciais</h1>
+            <h1 className="ios-large-title text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Contratos Comerciais</h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
               Kanban · Lista · Filtro mensal · {contratos.length} contratos
             </p>

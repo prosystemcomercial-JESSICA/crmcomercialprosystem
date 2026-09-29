@@ -1002,12 +1002,12 @@ export default function AgendaPage() {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: '24px', minHeight: '100vh', background: 'var(--t-content-bg)' }}>
+      <div className="ios-tela" style={{ padding: '24px', minHeight: '100vh', background: 'var(--t-content-bg)' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 2 }}>Agenda</h1>
+            <h1 className="ios-large-title" style={{ fontSize: 22, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 2 }}>Agenda</h1>
             <p style={{ fontSize: 13, color: '#4A6E8A' }}>Reuniões, atividades e integração com Google Calendar e WhatsApp</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
