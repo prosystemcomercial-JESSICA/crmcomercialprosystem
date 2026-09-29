@@ -435,3 +435,16 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   3. Pesquisa de satisfação 30 dias depois, com os botões Ótima / Regular / Ruim, como já existia.
 - **Proteção do número:** no máximo 3 mensagens de pós-venda por rodada (a cada 10 min, em horário comercial), das mais recentes para as mais antigas. Antes podiam sair até 50 de uma vez.
 - **Na virada:** 1 cliente vai receber boas-vindas e 6 vão receber acompanhamento, aos poucos.
+
+### Atualização 29/09/2026: Bloco 3 — agentes aprendem com as conversas que a equipe assume
+- **`aprendizadoDaEquipe`** (caroline.service.ts, exportada):
+  - busca as respostas escritas por pessoas (SAIDA sem remetente automático) nos últimos 30 dias, com texto ou áudio transcrito de 25 caracteres ou mais;
+  - pega a mensagem do cliente logo antes de cada resposta;
+  - forma até 6 pares "Cliente → Equipe", um por conversa, dos mais recentes;
+  - guarda em cache por 30 min.
+- **Uso no prompt:**
+  - Caroline, Julio e Luiz Felipe (`promptCaroline`, parâmetro `aprendizado`) recebem a seção "COMO A EQUIPE RESPONDE QUANDO ASSUME A CONVERSA", com a orientação de aprender o jeito, a abordagem e os argumentos, fazer igual ou melhor, sem copiar palavra por palavra e nunca repetir dados de outro cliente;
+  - a Clarice (tira-dúvidas, `autoResponderDuvida`) recebe a mesma seção.
+- Isso soma com o aprendizado que já existia, pelas mensagens editadas na aprovação (`exemplosEditados`).
+- **Primeira leitura:** 6 exemplos reais, incluindo áudios transcritos da Jessica.
+- **Nova abordagem inicial (item 11):** fica para depois de criar o agente Especialista em vendas de software (Bloco 4), que vai construí-la junto, como pedido.
