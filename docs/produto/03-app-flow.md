@@ -336,3 +336,11 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
 - **Cartão MRR vazio:** a regra de fundo branco dos cartões (`.ios-tela .ps-card`) cobria o gradiente escuro do MRR, e o valor branco sumia. Agora o fundo branco só vale para cartões sem `background` próprio (`:not([style*="background"])`).
 - **Barra de cima no celular:** o botão de tela cheia e as divisórias foram escondidos (`ios-so-computador`). O modo escuro, as conversas, as notificações e o perfil continuam, com área de toque de 44pt.
 - **Filtro de vendedor + Atualizar** dividem a linha por igual.
+
+### Atualização 29/09/2026: desempenho da Central de Leads
+- **Diagnóstico:** o servidor responde rápido (`/leads/kanban` abaixo de 1 s nos registros). O travamento vinha do navegador desenhando um cartão para cada lead, em todas as etapas ao mesmo tempo, e isso também deixava o resto do CRM lento.
+- **Correção** (`app/leads/page.tsx`):
+  - cada etapa desenha só os primeiros 30 cartões (`CARTOES_POR_ETAPA`);
+  - o botão "Mostrar mais (N restantes)" libera mais 60 por toque, com o estado `limiteEtapa` por etapa;
+  - o contador da etapa, a busca, os filtros e a exportação continuam sobre todos os leads carregados.
+- **Próximo passo possível:** enviar do servidor só os campos que o cartão usa, para diminuir o tamanho da resposta. Ainda não foi feito.
