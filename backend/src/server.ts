@@ -591,6 +591,7 @@ async function loadRoutes() {
     ['painel-tv',             () => import('./routes/painel-tv'),             'painelTvRoutes'],
     ['push',                  () => import('./routes/push'),                  'pushRoutes'],
     ['desempenho',            () => import('./routes/desempenho'),            'desempenhoRoutes'],
+    ['cronometro',            () => import('./routes/cronometro'),            'cronometroRoutes'],
   ];
 
   let ok = 0;
