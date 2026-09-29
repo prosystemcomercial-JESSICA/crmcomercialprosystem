@@ -158,3 +158,24 @@ Versão 1.0 · 27/09/2026
   - o link da reunião ou, se não houver, um alerta para enviá-lo.
 - O aviso chega entre 65 e 75 minutos antes, portanto sempre com pelo menos 1 hora de antecedência. É uma vez só por reunião (trava `lembrete_demo_resp.<id>`).
 - O lembrete do cliente, 2 horas antes, continua como estava. Não há mudança de schema.
+
+### Atualização 28/09/2026: CRM como app de iPhone no celular (etapa 1 de 4)
+- **Base:** guia de interface da Apple (HIG iOS), usado a partir de `reference/ios.md` das skills impeccable e anti-ui-slop. Vale só abaixo de 768px; no computador nada muda.
+- **Barra de abas embaixo** (`components/mobile/AppIOS.tsx` › `BarraAbasIOS`):
+  - WhatsApp, Leads, Propostas (gerador), Dashboard e Mais;
+  - material translúcido com blur e linha fina de separação;
+  - alvos de toque de 44pt, ícones de 24px e rótulos de 10px;
+  - cor de ação azul do sistema (#007AFF, ou #0A84FF no escuro);
+  - área segura da barra de início respeitada.
+  - Uma aba só aparece se a pessoa tiver permissão para a tela, pelo mesmo filtro do menu (`gruposVisiveis`).
+- **Folha "Mais"** (`FolhaMaisIOS`): sobe de baixo com alça e botão fechar, e traz o título grande "Mais". Mostra todas as outras telas liberadas em listas agrupadas no estilo Ajustes (ícone em quadrado arredondado, linha de 44pt, seta), com animação de folha iOS e respeito a `prefers-reduced-motion`.
+- **Estrutura:** o menu hambúrguer foi escondido (a aba "Mais" substitui). A barra de cima respeita o notch e a Dynamic Island. O conteúdo tem espaço embaixo para a barra de abas, e a fonte do sistema (San Francisco) vale no celular.
+- **Estilos** em `app/ios.css`, com tokens `--ios-*` para os modos claro e escuro (`.dark`).
+- **Instalação na tela inicial:**
+  - `app/manifest.ts`: standalone, `start_url` /whatsapp, ícones de 192 e 512 (também maskable);
+  - `apple-touch-icon.png` de 180px, com a marca ▶ da Prosystem sobre fundo branco;
+  - `appleWebApp` com o título "CRM Prosystem".
+- **Próximas etapas:**
+  - 2: WhatsApp e Leads (títulos grandes, listas e folhas);
+  - 3: Propostas e Dashboard;
+  - 4: telas do "Mais".
