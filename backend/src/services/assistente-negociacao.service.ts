@@ -111,6 +111,7 @@ export async function aplicarCondicaoNaProposta(prisma: PrismaClient, sdr: any, 
     } as any,
   });
   await prisma.propostaHistorico.create({ data: { proposta_id: p.id, tipo: 'RENEGOCIACAO', campo_alterado: 'desconto', valor_anterior: String(p.desconto ?? 0), valor_novo: String(desconto), motivo: condicao, feito_por_nome: agente } }).catch(() => {});
+  { const { avancarEtapaLead } = await import('@/lib/etapa-lead'); await avancarEtapaLead(prisma, sdr.lead_id, 'EM_NEGOCIACAO', 'topou a condição da campanha', agente); }
   const { enviarPropostaWhatsapp } = await import('./assistente-proposta.service');
   await enviarPropostaWhatsapp(prisma, sdr.conversaId, p.id, { id: 'bot', nome: agente });
   const inst = await obterInstanciaEmpresa(prisma);

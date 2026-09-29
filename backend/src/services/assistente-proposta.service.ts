@@ -77,6 +77,12 @@ export async function enviarPropostaWhatsapp(prisma: PrismaClient, conversaId: s
     where: { id: p.id },
     data: { wpp_conversa_id: conversa.id, wpp_enviada_em: new Date(), wpp_followup_etapa: 0, ...(p.status === 'RASCUNHO' ? { status: 'ENVIADA' } : {}) },
   });
+  // Central de Leads: proposta enviada ao lead desta conversa.
+  {
+    const lc = await prisma.whatsappConversa.findUnique({ where: { id: conversa.id }, select: { lead_id: true } }).catch(() => null);
+    const { avancarEtapaLead } = await import('@/lib/etapa-lead');
+    await avancarEtapaLead(prisma, lc?.lead_id, 'PROPOSTA_ENVIADA', 'proposta enviada pelo WhatsApp', user.nome || 'Equipe');
+  }
   await prisma.propostaHistorico.create({
     data: {
       proposta_id: p.id, tipo: p.status === 'RASCUNHO' ? 'STATUS' : 'ENVIO', valor_anterior: p.status === 'RASCUNHO' ? 'RASCUNHO' : null,

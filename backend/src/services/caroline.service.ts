@@ -310,6 +310,10 @@ async function enviarMensagens(prisma: PrismaClient, token: string, sdr: any, me
   }
   await prisma.whatsappConversa.update({ where: { id: sdr.conversaId }, data: { ultima_mensagem: mensagens[mensagens.length - 1].slice(0, 200), ultima_em: new Date() } });
   emitirEventoConversa(conv.dono_id, 'conversa_atualizada', { conversaId: sdr.conversaId });
+  // Central de Leads acompanha: o agente falou com o lead (com proposta = Luiz Felipe retomando a proposta).
+  const { avancarEtapaLead } = await import('@/lib/etapa-lead');
+  await avancarEtapaLead(prisma, sdr.lead_id, sdr.proposta_id ? 'PROPOSTA_ENVIADA' : 'PRIMEIRO_CONTATO',
+    sdr.proposta_id ? `${nomeDe(sdr)} está acompanhando a proposta enviada` : `${nomeDe(sdr)} fez o primeiro contato pelo WhatsApp`, nomeDe(sdr));
 }
 
 /** Vídeos, treinamento e suporte técnico são do setor de suporte: avisa que o agente é do comercial e manda o botão. */
@@ -671,6 +675,8 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
     registrarAcaoAgente(agenteDe(sdr), `voltou para a conversa de ${sdr.nome || 'um lead'}: ninguém tinha assumido`);
   }
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_lead_em: new Date(), ...(sdr.status !== 'FILA' ? { status: 'CONVERSANDO' } : {}) } });
+  // O lead respondeu: está em atendimento (só avança; quem já está em proposta/negociação fica onde está).
+  { const { avancarEtapaLead } = await import('@/lib/etapa-lead'); await avancarEtapaLead(prisma, sdr.lead_id, 'EM_ATENDIMENTO', `respondeu ao ${nomeDe(sdr)} no WhatsApp`, nomeDe(sdr)); }
 
   // Tocar em "Me chama depois"/"Quero saber mais" já é sinal de interesse: registra no termômetro.
   if (botaoId === 'sdr_depois' || botaoId === 'sdr_quero') {
