@@ -266,3 +266,16 @@
 .ap-link { font-size: 14px; color: var(--ios-tint); align-self: flex-end; min-height: 32px; display: inline-flex; align-items: center; }
 .ap-aviso { margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: rgba(52,199,89,0.14); color: #1f7a3a; font-size: 14px; }
 .ap-aviso.erro { background: rgba(255,59,48,0.12); color: #c62828; }
+
+/* ── Painel do CEO / indicadores como widgets do iPhone (celular) ─────────── */
+@media (max-width: 767px) {
+  .ios-widget { padding: 14px 14px 12px !important; border-radius: 20px !important; min-height: 96px; display: flex; flex-direction: column; justify-content: space-between; }
+  .ios-widget-rotulo { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 600 !important; color: var(--ios-secondary) !important; }
+  .ios-widget-valor { font-size: 28px !important; font-weight: 700 !important; letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
+  .ios-widget.destaque .ios-widget-valor { font-size: 34px !important; }
+  /* Primeiro indicador de cada grade ocupa a largura toda (widget médio) */
+  .ios-tela .grid.grid-cols-2 > .ios-widget:first-child { grid-column: 1 / -1; }
+  /* Tabelas largas rolam dentro do próprio cartão, nunca a tela */
+  .ios-tela .ps-card:has(> table), .ios-tela .ps-card:has(> div > table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ios-tela table { font-size: 13px; }
+}

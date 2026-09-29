@@ -890,8 +890,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* ── Celular: abas embaixo + folha "Mais" (guia de interface da Apple) ── */}
-      <BarraAbasIOS pathname={pathname} permitidos={hrefsPermitidos} maisAberto={maisAberto} onMais={() => setMaisAberto(v => !v)} />
-      <FolhaMaisIOS aberta={maisAberto} onFechar={() => setMaisAberto(false)} grupos={gruposVisiveis} pathname={pathname}
+      <BarraAbasIOS pathname={pathname} permitidos={hrefsPermitidos} maisAberto={maisAberto} onMais={() => setMaisAberto(v => !v)} ceo={(user?.role || '').toUpperCase() === 'CEO'} />
+      <FolhaMaisIOS aberta={maisAberto} onFechar={() => setMaisAberto(false)} grupos={gruposVisiveis} pathname={pathname} ceo={(user?.role || '').toUpperCase() === 'CEO'}
         onAbrirExterno={(i) => { setMaisAberto(false); abrirExterno(i as NavItem); }} />
 
       {avisoLead && (

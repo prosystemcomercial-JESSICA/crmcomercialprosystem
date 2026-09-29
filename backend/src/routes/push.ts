@@ -49,7 +49,8 @@ export async function pushRoutes(fastify: FastifyInstance, options: { prisma: Pr
 
   fastify.get('/push/contagem', async (request, reply) => {
     const u = logado(request, reply); if (!u) return;
-    return reply.send({ status: 'success', data: await contagemPendencias(prisma, u.id, podeVerTudo(u)) });
+    const aprova = podeVerTudo(u) && String(u.role || '').toUpperCase() !== 'CEO'; // CEO é consulta: não aprova
+    return reply.send({ status: 'success', data: await contagemPendencias(prisma, u.id, aprova) });
   });
 
   // ── Tela "Aprovar": tudo o que espera decisão, de todos os agentes ──

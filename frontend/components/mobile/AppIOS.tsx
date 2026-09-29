@@ -7,7 +7,7 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { MessageSquare, GitMerge, ClipboardList, LayoutDashboard, MoreHorizontal, ChevronRight, X } from 'lucide-react';
+import { MessageSquare, GitMerge, ClipboardList, LayoutDashboard, MoreHorizontal, ChevronRight, X, BarChart3, TrendingUp } from 'lucide-react';
 
 export type ItemMenu = { href: string; icon: any; label: string; externoComToken?: boolean };
 export type GrupoMenu = { label: string; items: ItemMenu[] };
@@ -19,13 +19,21 @@ const ABAS = [
   { href: '/propostas-comerciais', label: 'Propostas', icon: ClipboardList },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
+// CEO (conta de consulta): números do negócio primeiro. Painel · Análise · Previsão · Leads · Mais
+const ABAS_CEO = [
+  { href: '/dashboard', label: 'Painel', icon: LayoutDashboard },
+  { href: '/analise-comercial', label: 'Análise', icon: BarChart3 },
+  { href: '/previsao', label: 'Previsão', icon: TrendingUp },
+  { href: '/leads', label: 'Leads', icon: GitMerge },
+];
+const abasDo = (ceo?: boolean) => (ceo ? ABAS_CEO : ABAS);
 
 const ativo = (pathname: string | null, href: string) => pathname === href || (!!pathname && pathname.startsWith(href + '/'));
 
-export function BarraAbasIOS({ pathname, permitidos, maisAberto, onMais }: {
-  pathname: string | null; permitidos: Set<string>; maisAberto: boolean; onMais: () => void;
+export function BarraAbasIOS({ pathname, permitidos, maisAberto, onMais, ceo }: {
+  pathname: string | null; permitidos: Set<string>; maisAberto: boolean; onMais: () => void; ceo?: boolean;
 }) {
-  const abas = ABAS.filter(a => permitidos.has(a.href));
+  const abas = abasDo(ceo).filter(a => permitidos.has(a.href));
   const emAlgumaAba = abas.some(a => ativo(pathname, a.href));
   return (
     <nav className="ios-tabbar md:hidden" aria-label="Seções principais">
@@ -48,13 +56,13 @@ export function BarraAbasIOS({ pathname, permitidos, maisAberto, onMais }: {
 }
 
 /** Folha "Mais": sobe de baixo, lista agrupada com todas as telas liberadas para a pessoa. */
-export function FolhaMaisIOS({ aberta, onFechar, grupos, pathname, onAbrirExterno }: {
-  aberta: boolean; onFechar: () => void; grupos: GrupoMenu[]; pathname: string | null; onAbrirExterno: (item: ItemMenu) => void;
+export function FolhaMaisIOS({ aberta, onFechar, grupos, pathname, onAbrirExterno, ceo }: {
+  aberta: boolean; onFechar: () => void; grupos: GrupoMenu[]; pathname: string | null; onAbrirExterno: (item: ItemMenu) => void; ceo?: boolean;
 }) {
   useEffect(() => { if (aberta) onFechar(); /* fecha ao trocar de tela */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
   if (!aberta) return null;
-  const abas = new Set(ABAS.map(a => a.href));
+  const abas = new Set(abasDo(ceo).map(a => a.href));
   return (
     <div className="md:hidden fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Mais">
       <div className="absolute inset-0 ios-scrim" onClick={onFechar} />

@@ -33,9 +33,13 @@ export async function contagemPendencias(prisma: PrismaClient, usuarioId: string
 export async function enviarPush(prisma: PrismaClient, usuarioIds: string[], aviso: AvisoPush): Promise<number> {
   if (!usuarioIds.length || !configurar()) return 0;
   const subs = await prisma.pushInscricao.findMany({ where: { usuario_id: { in: usuarioIds } } }).catch(() => []);
+  // Quem aprova (gestão comercial) conta as aprovações na bolinha; o CEO (consulta) não.
+  const cargos = new Map((await prisma.usuarioCRM.findMany({ where: { id: { in: [...new Set(subs.map(s => s.usuario_id))] } }, select: { id: true, cargo: true } }).catch(() => []))
+    .map(u => [u.id, String(u.cargo || '').toUpperCase()]));
   let n = 0;
   for (const s of subs) {
-    const badge = await contagemPendencias(prisma, s.usuario_id, true).then(c => c.total).catch(() => undefined);
+    const aprova = ['SUPERVISAO_COMERCIAL', 'ADMIN'].includes(cargos.get(s.usuario_id) || '');
+    const badge = await contagemPendencias(prisma, s.usuario_id, aprova).then(c => c.total).catch(() => undefined);
     const payload = JSON.stringify({ ...aviso, url: aviso.url || '/whatsapp', badge });
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 3600, urgency: 'high' });
