@@ -765,11 +765,16 @@ async function abastecerFila(prisma: PrismaClient, agente: 'julio' | 'luiz_felip
       jaTem.add(ultimos8(numero)); postos++;
     }
   } else {
-    const ls = await prisma.lead.findMany({
-      where: { deleted_at: null, etapa_comercial: { notIn: FECHADAS_LEAD }, status: { notIn: ['GANHO', 'PERDIDO'] } },
-      select: { id: true, nome: true, nome_fantasia: true, empresa: true, responsavel_nome: true, responsavel_telefone: true, telefone: true, segmento: true, created_at: true },
-      orderBy: { created_at: 'desc' }, take: 300,
-    });
+    // Prioridade: os leads parados em "Leads para Distribuir" (qualificados, sem vendedora) vêm primeiro;
+    // depois os demais, do mais novo para o mais antigo. O limite diário do número continua valendo.
+    const selecao = { id: true, nome: true, nome_fantasia: true, empresa: true, responsavel_nome: true, responsavel_telefone: true, telefone: true, segmento: true, created_at: true } as const;
+    const baseWhere = { deleted_at: null, etapa_comercial: { notIn: FECHADAS_LEAD }, status: { notIn: ['GANHO', 'PERDIDO'] } } as any;
+    // Mesma regra da tela "Leads para Distribuir": qualificado e sem vendedora (ou ainda com a própria SDR que cadastrou).
+    const aDistribuir = (await prisma.lead.findMany({ where: { ...baseWhere, etapa_sdr: 'QUALIFICADO' }, select: { ...selecao, responsavel_id: true, created_by: true }, orderBy: { created_at: 'desc' }, take: 300 }).catch(() => []))
+      .filter(l => !l.responsavel_id || l.responsavel_id === l.created_by);
+    const demais = await prisma.lead.findMany({ where: baseWhere, select: selecao, orderBy: { created_at: 'desc' }, take: 300 });
+    const vistos = new Set(aDistribuir.map(l => l.id));
+    const ls = [...aDistribuir, ...demais.filter(l => !vistos.has(l.id))];
     const comProposta = new Set((await prisma.propostaComercial.findMany({ where: { deleted_at: null, status: { in: PROPOSTA_ABERTA } }, select: { responsavel_telefone: true } })).map(p => ultimos8((p.responsavel_telefone || '').replace(/\D/g, ''))));
     for (const x of ls) {
       if (postos >= quer) break;
