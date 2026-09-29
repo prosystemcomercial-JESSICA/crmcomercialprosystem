@@ -116,7 +116,7 @@ export function AlertaReuniaoModal() {
 
   return (
     <>
-      <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+      <div className="ios-alerta-reuniao" style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
 
         {fila.map((alerta) => {
           const passou = alerta.minutos_restantes <= 0;
@@ -238,6 +238,7 @@ export function AlertaReuniaoModal() {
         })}
 
         <button
+          className="ios-so-computador"
           onClick={() => setConfigurando(v => !v)}
           title={`Alerta ${minutosSalvos} min antes`}
           style={{

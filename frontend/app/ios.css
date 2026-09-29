@@ -51,7 +51,7 @@
 
 .ios-scrim { background: rgba(0, 0, 0, 0.35); animation: ios-fade 0.2s ease; }
 .ios-sheet {
-  position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh;
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh; max-height: 88dvh;
   display: flex; flex-direction: column;
   background: var(--ios-grouped-bg); border-radius: 12px 12px 0 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -92,7 +92,7 @@
   .ios-search::placeholder { color: var(--ios-secondary); }
   /* Folha de ações (action sheet) */
   .ios-action-sheet { position: absolute; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; animation: ios-sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
-  .ios-action-grupo { background: var(--ios-bar); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-radius: 14px; overflow: hidden; max-height: 70vh; overflow-y: auto; }
+  .ios-action-grupo { background: var(--ios-bar); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-radius: 14px; overflow: hidden; max-height: 70vh; max-height: 70dvh; overflow-y: auto; }
   .ios-action-titulo { font-size: 13px; color: var(--ios-secondary); text-align: center; padding: 14px 16px; border-bottom: 0.5px solid var(--ios-separator); }
   .ios-action { display: block; width: 100%; min-height: 57px; font-size: 20px; color: var(--ios-tint); background: transparent; border: 0; }
   .ios-action + .ios-action { border-top: 0.5px solid var(--ios-separator); }
@@ -278,4 +278,79 @@
   /* Tabelas largas rolam dentro do próprio cartão, nunca a tela */
   .ios-tela .ps-card:has(> table), .ios-tela .ps-card:has(> div > table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .ios-tela table { font-size: 13px; }
+}
+
+/* ══ Ajustes para todos os iPhones (17 Pro Max 440pt, Air 420pt, 17/17 Pro 402pt, 16e/SE 375pt) ══ */
+/* Altura real da tela no Safari (sem ficar atrás da barra do navegador). */
+@supports (height: 100dvh) {
+  .h-screen { height: 100dvh; }
+  .min-h-screen { min-height: 100dvh; }
+}
+@media (max-width: 767px) {
+  /* Campos com 16px ou mais: o iPhone não dá zoom sozinho ao tocar no campo. */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: max(16px, 1em); }
+  /* Celular deitado: áreas seguras laterais (Dynamic Island / cantos). */
+  .ps-topbar, .ios-main { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+  .ios-tabbar { padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px)); }
+  .ios-sheet, .ios-painel-folha { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+  /* Segmentados com muitas opções não estouram em telas estreitas: encolhem e cortam com reticências. */
+  .ios-seg > button, .ios-seg-inline > button, .ios-abas > button { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* Nada cria rolagem lateral na página inteira. */
+  html, body { overflow-x: hidden; }
+  .ios-tela, .ios-wpp, .ios-leads { max-width: 100vw; }
+  img, video { max-width: 100%; height: auto; }
+}
+/* iPhone 16e / SE e telas estreitas (até 380pt) */
+@media (max-width: 380px) {
+  .ios-large-title { font-size: 30px !important; line-height: 36px; }
+  .ios-seg > button, .ios-seg-inline > button { font-size: 12px !important; padding: 0 4px !important; }
+  .ios-abas > button { font-size: 12px !important; padding: 0 8px !important; }
+  .ios-tab { font-size: 9.5px; }
+  .ios-conv { min-height: 70px; }
+  .ios-conv > div:first-child { width: 46px !important; height: 46px !important; }
+  .ios-conv::after { left: 74px; }
+  .ios-widget-valor { font-size: 24px !important; }
+  .ios-widget.destaque .ios-widget-valor { font-size: 30px !important; }
+  .ios-coluna { width: calc(100vw - 32px) !important; }
+  .ios-action { font-size: 18px; min-height: 52px; }
+}
+/* iPhone 17 Pro Max / Air (a partir de 420pt): aproveita a largura extra. */
+@media (min-width: 420px) and (max-width: 767px) {
+  .ios-bolha-out, .ios-bolha-in { max-width: 74% !important; }
+  .ios-tela .grid.grid-cols-2 { gap: 12px !important; }
+}
+/* Celular deitado (altura curta): folhas e barras mais baixas. */
+@media (max-width: 950px) and (max-height: 500px) and (orientation: landscape) {
+  .ios-tabbar { height: calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .ios-tab { min-height: 38px; flex-direction: row; gap: 6px; font-size: 12px; }
+  .ios-tab svg { width: 20px; height: 20px; }
+  .ios-main { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .ios-sheet { max-height: 94dvh; }
+}
+
+/* ── Revisão 29/09: elementos flutuantes nunca cobrem a barra de abas ── */
+@media (max-width: 767px) {
+  .ios-alerta-reuniao { right: 8px !important; left: 8px; bottom: calc(57px + env(safe-area-inset-bottom, 0px)) !important; align-items: stretch !important; }
+  body.ios-em-chat .ios-alerta-reuniao { bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important; }
+  .ios-so-computador { display: none !important; }
+  /* Leads: busca na linha de cima (largura toda) e filtros em "pílulas" que quebram linha, todos visíveis. */
+  .ios-leads-filtros { flex-wrap: wrap !important; overflow: visible; margin: 0; padding: 0; gap: 8px !important; }
+  .ios-leads-busca { flex: 1 1 100% !important; }
+  .ios-leads-filtros select { flex: 1 1 calc(50% - 4px); }
+}
+@media (max-width: 767px) {
+  .ios-leads-filtros > button.ios-btn-novo { background: var(--ios-tint) !important; color: #fff !important; flex: 1 1 100%; justify-content: center; min-height: 44px !important; font-size: 17px !important; font-weight: 600; border-radius: 12px !important; }
+}
+@media (max-width: 767px) {
+  /* Grade de 2 colunas com número ímpar de itens: o último ocupa a linha toda (sem buraco). */
+  .ios-tela .grid.grid-cols-2 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@media (max-width: 767px) {
+  /* Margem lateral padrão do iOS (16pt) em todas as telas, mesmo quando a tela define o próprio padding. */
+  .ios-tela { padding-left: 16px !important; padding-right: 16px !important; }
+  /* Rótulos pequenos em caixa alta quebram linha em vez de cortar com "…". */
+  .ios-tela .uppercase.truncate, .ios-tela .uppercase.whitespace-nowrap { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+}
+@media (max-width: 380px) {
+  .ios-tela { padding-left: 12px !important; padding-right: 12px !important; }
 }
