@@ -31,9 +31,12 @@
   .ios-main { padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px)); }
 }
 
+/* Barra de abas: SÓ no celular. No computador fica escondida (menu lateral de sempre). */
+.ios-tabbar { display: none; }
+@media (max-width: 767px) { .ios-tabbar { display: flex; } }
 .ios-tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 75;
-  display: flex; justify-content: space-around; align-items: flex-start;
+  justify-content: space-around; align-items: flex-start;
   padding: 2px 4px env(safe-area-inset-bottom, 0px);
   height: calc(49px + env(safe-area-inset-bottom, 0px));
   background: var(--ios-bar);
@@ -322,7 +325,7 @@
   .ios-tela .grid.grid-cols-2 { gap: 12px !important; }
 }
 /* Celular deitado (altura curta): folhas e barras mais baixas. */
-@media (max-width: 950px) and (max-height: 500px) and (orientation: landscape) {
+@media (max-width: 950px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
   .ios-tabbar { height: calc(40px + env(safe-area-inset-bottom, 0px)); }
   .ios-tab { min-height: 38px; flex-direction: row; gap: 6px; font-size: 12px; }
   .ios-tab svg { width: 20px; height: 20px; }
