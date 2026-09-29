@@ -33,7 +33,12 @@ export default function AprovarPage() {
 
   const carregar = useCallback(() => {
     apiClient.listarAprovacoes().then(r => { setItens(r.data.data); setErro(null); })
-      .catch(e => setErro(e?.response?.data?.message || 'Não foi possível carregar. Só a gestão aprova.'));
+      .catch(e => {
+        setErro(!e?.response ? 'Sem conexão com o servidor agora. Confira a internet; a tela tenta de novo sozinha.'
+          : e.response.status === 403 ? 'Esta tela é da Supervisão Comercial (quem aprova as mensagens).'
+          : e.response.data?.message || 'Não foi possível carregar. Tente de novo.');
+        setItens(xs => xs ?? []);
+      });
   }, []);
   useEffect(() => { if (!loading && !isAuthenticated) router.push('/login'); }, [loading, isAuthenticated, router]);
   useEffect(() => { if (isAuthenticated) { carregar(); const t = setInterval(carregar, 30_000); return () => clearInterval(t); } }, [isAuthenticated, carregar]);
@@ -53,7 +58,7 @@ export default function AprovarPage() {
           <div>
             <h1 className="ios-large-title" style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Aprovar</h1>
             <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>
-              {itens == null ? 'Carregando…' : itens.length === 0 ? 'Nada esperando por você. 🎉' : `${itens.length} ${itens.length === 1 ? 'item espera' : 'itens esperam'} sua decisão`}
+              {itens == null ? 'Carregando…' : erro ? '' : itens.length === 0 ? 'Nada esperando por você. 🎉' : `${itens.length} ${itens.length === 1 ? 'item espera' : 'itens esperam'} sua decisão`}
             </p>
           </div>
         </div>
