@@ -1351,6 +1351,10 @@ class ApiClient {
   async rafaelAbordagem() { return this.client.post('/especialista/abordagem', {}); }
   async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
+  // ── Heitor (prospecção no Google Maps) ──
+  async heitorPainel() { return this.client.get('/heitor/painel'); }
+  async heitorConfig(dados: { ativo?: boolean; cadastros_dia?: number; envios_dia?: number; segmentos?: string[] }) { return this.client.post('/heitor/config', dados); }
+  async heitorRodar() { return this.client.post('/heitor/rodar', {}); }
   // ── Cronômetro de atividades longas ──
   async cronometroAtivo() { return this.client.get('/cronometros/ativo'); }
   async cronometroIniciar(titulo: string, atividade_id?: string | null) { return this.client.post('/cronometros', { titulo, atividade_id }); }

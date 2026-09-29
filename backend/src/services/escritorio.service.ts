@@ -152,6 +152,12 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   const ultDoc = await prisma.especialistaDoc.findFirst({ orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } }).catch(() => null);
   const ultConc = await prisma.especialistaDoc.findFirst({ where: { tipo: 'CONCORRENCIA' }, orderBy: { created_at: 'desc' }, select: { created_at: true } }).catch(() => null);
   const panoramas = await prisma.especialistaDoc.count({ where: { tipo: 'CONCORRENCIA', status: { not: 'ARQUIVADO' } } }).catch(() => 0);
+  const { obterConfigHeitor } = await import('./heitor.service');
+  const heitorCfg = await obterConfigHeitor(prisma);
+  const [heitorHoje, heitorFila] = await Promise.all([
+    prisma.prospeccaoLocal.count({ where: { status: 'CADASTRADO', cadastrado_em: { gte: inicioHoje } } }).catch(() => 0),
+    prisma.sdrLead.count({ where: { criado_por: 'heitor', status: 'FILA' } }).catch(() => 0),
+  ]);
   const rafael = maisRecente<Acao>(ultDoc ? { texto: `escreveu "${ultDoc.titulo.slice(0, 50)}"`, em: ultDoc.created_at } : null, acaoRegistrada('rafael'));
   const sofia = maisRecente<Acao>(ultPesq ? { texto: `pesquisou "${ultPesq.titulo.slice(0, 50)}"`, em: ultPesq.created_at } : null, acaoRegistrada('sofia'));
 
@@ -202,7 +208,8 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
     estado('marta', true, marta, [{ rotulo: 'tarefas lançadas', valor: tarefasHoje }, { rotulo: 'descontos decididos', valor: aprovacoesHoje }]),
     estado('rafael', temChave, rafael, [{ rotulo: 'para aprovar', valor: docsPendentes }, { rotulo: 'parâmetros aprovados', valor: docsAprovados }], temChave ? 'Revisa as conversas seg–sex às 17h · estuda toda quarta' : 'Esperando a chave da IA em Configurações'),
     estado('olivia', temChave, maisRecente<Acao>(ultConc ? { texto: 'mapeou a concorrência', em: ultConc.created_at } : null, acaoRegistrada('olivia')), [{ rotulo: 'panoramas', valor: panoramas }], temChave ? 'Pesquisa a concorrência a cada 15 dias (terça) e passa para o Rafael' : 'Esperando a chave da IA em Configurações'),
-    estado('heitor', false, maisRecente<Acao>(null, acaoRegistrada('heitor')), [], 'Em construção'),
+    estado('heitor', heitorCfg.ativo, maisRecente<Acao>(null, acaoRegistrada('heitor')), [{ rotulo: 'cadastrados hoje', valor: heitorHoje }, { rotulo: 'na fila da Caroline', valor: heitorFila }],
+      heitorCfg.ultimo_erro ? `Atenção: ${heitorCfg.ultimo_erro}` : heitorCfg.ativo ? 'Prospecta no Google Maps (dias úteis, 7h–18h)' : 'Desligado: ligue no painel dele'),
     estado('mila', false, maisRecente<Acao>(null, acaoRegistrada('mila')), [], 'Em construção'),
     estado('joana', false, maisRecente<Acao>(null, acaoRegistrada('joana')), [], 'Em construção'),
   ];

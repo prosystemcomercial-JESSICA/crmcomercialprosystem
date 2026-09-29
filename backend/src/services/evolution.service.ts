@@ -142,6 +142,23 @@ export function normalizarNumero(numero: string): string {
   return n;
 }
 
+/**
+ * Confere quais números têm WhatsApp (POST /chat/check), sem mandar nada.
+ * Devolve número → true/false; número ausente no mapa = a UazAPI não respondeu sobre ele.
+ */
+export async function verificarWhatsapp(instanceToken: string, numeros: string[]): Promise<Map<string, boolean>> {
+  const r = new Map<string, boolean>();
+  if (!numeros.length) return r;
+  const data = await call('/chat/check', 'POST', instanceToken, { numbers: numeros.map(normalizarNumero) });
+  const lista: any[] = Array.isArray(data) ? data : Array.isArray(data?.numbers) ? data.numbers : Array.isArray(data?.result) ? data.result : [];
+  for (const x of lista) {
+    const q = String(x?.query ?? x?.number ?? x?.jid ?? '').replace(/\D/g, '');
+    const achou = numeros.find(n => normalizarNumero(n) === q) || numeros.find(n => q && q.endsWith(normalizarNumero(n).slice(-8)));
+    if (achou) r.set(achou, Boolean(x?.isInWhatsapp ?? x?.exists ?? x?.onWhatsapp));
+  }
+  return r;
+}
+
 /** Envia mensagem de texto via POST /send/text (com o TOKEN DA INSTÂNCIA). */
 export async function enviarTexto(
   instanceToken: string,
