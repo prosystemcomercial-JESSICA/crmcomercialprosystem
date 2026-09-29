@@ -18,7 +18,7 @@ const QUEM = [
   'Escreva em português do Brasil, simples e direto, pronto para usar no dia a dia. Nunca invente números da Prosystem nem prometa preço.',
 ].join('\n');
 
-type DocNovo = { tipo: 'POP' | 'PROCESSO' | 'EXEMPLO' | 'DICA' | 'ALERTA' | 'ABORDAGEM'; titulo: string; conteudo: string; agente_alvo?: string | null };
+type DocNovo = { tipo: 'POP' | 'PROCESSO' | 'EXEMPLO' | 'DICA' | 'ALERTA' | 'ABORDAGEM' | 'CONCORRENCIA'; titulo: string; conteudo: string; agente_alvo?: string | null };
 
 /** Grava como nova versão quando já existe um documento com o mesmo título (o anterior é arquivado). */
 async function gravarDoc(prisma: PrismaClient, d: DocNovo, origem: string, fontes?: any) {
@@ -140,7 +140,7 @@ export async function proporAbordagem(prisma: PrismaClient) {
     }
     blocos.push(`### ${a.id} — ${a.papel}\nTaxa de resposta atual: ${sdrs.length ? Math.round((responderam / sdrs.length) * 100) : 0}% (${responderam} de ${sdrs.length})\nPrimeiras mensagens reais:\n${exemplos.join('\n') || '(sem exemplos ainda)'}`);
   }
-  const base = await prisma.especialistaDoc.findMany({ where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'DICA'] } }, orderBy: { created_at: 'desc' }, take: 8, select: { titulo: true, conteudo: true } });
+  const base = await prisma.especialistaDoc.findMany({ where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'DICA', 'CONCORRENCIA'] } }, orderBy: { created_at: 'desc' }, take: 10, select: { titulo: true, conteudo: true } });
   const pergunta = [
     'Com base nas boas práticas de prospecção e retomada pelo WhatsApp (pesquise o que os especialistas de vendas do Brasil recomendam para a PRIMEIRA mensagem) e nos dados reais abaixo, proponha a nova ABORDAGEM INICIAL de cada agente.',
     'Regras da casa: mensagens curtas, humanas, sem travessão, no máximo UMA pergunta, sem preço, sem parecer robô, citar o negócio do cliente (farmácia/padaria), proteger o número (nada de texto longo ou repetitivo).',
@@ -179,6 +179,48 @@ export async function decidirDoc(prisma: PrismaClient, id: string, aprovar: bool
   return upd;
 }
 
+// ── Olívia: concorrentes ──────────────────────────────────────────────────────────
+// Pesquisa quem vende PDV/ERP para farmácias e padarias, avaliações (Google, Reclame Aqui) e
+// reclamações; entrega panorama + como responder quando o cliente cita um concorrente.
+// Os documentos entram no painel do Rafael (aba Concorrência) e alimentam o estudo/abordagem dele.
+const OLIVIA = [
+  'Você é a Olívia, analista de concorrência do time comercial da Prosystem Sistemas (ERP e PDV para farmácias, drogarias, farmácias de manipulação, padarias, confeitarias e varejo no Brasil).',
+  'Pesquise na internet fatos reais e verificáveis: empresas concorrentes, o que oferecem, preços quando forem públicos, notas e avaliações (Google, Reclame Aqui, lojas de apps) e as reclamações e elogios mais comuns de clientes.',
+  'Seja justa e factual: nunca invente nota, preço ou reclamação; cite a fonte no texto (nome do site). Nada de falar mal de concorrente para o cliente: o objetivo é o time saber onde a Prosystem pode se diferenciar.',
+  'Escreva em português do Brasil, simples e direto.',
+].join('\n');
+
+export async function pesquisarConcorrentes(prisma: PrismaClient, foco: string | null = null) {
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const pergunta = [
+    foco ? `Foque em: "${foco}".` : 'Mapeie os principais concorrentes da Prosystem em sistemas de PDV/ERP para farmácias/drogarias e para padarias/confeitarias no Brasil (os mais citados e os mais usados por pequenos e médios negócios).',
+    'Para cada concorrente: segmento, principais recursos, preço público (se houver), nota e volume de avaliações (Google/Reclame Aqui/app), reclamações mais comuns e elogios mais comuns.',
+    'Depois: as OPORTUNIDADES para a Prosystem (dores que os clientes dos concorrentes relatam e que um bom sistema + bom suporte resolvem) e respostas curtas e respeitosas para quando o lead disser que usa ou está avaliando um concorrente.',
+    'Responda APENAS com JSON: {"resumo": string, "concorrentes": [{"nome": string, "segmento": string, "recursos": string, "preco": string, "avaliacoes": string, "reclamacoes": string, "elogios": string, "fonte": string}], "oportunidades": [string], "respostas": [{"quando_o_cliente_diz": string, "responda": string}]}',
+  ].join('\n');
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: OLIVIA + (await instrucoesPara(prisma, 'olivia')), pergunta, timeoutMs: 240_000 });
+  const r = lerJsonIa<{ resumo: string; concorrentes: any[]; oportunidades: string[]; respostas: { quando_o_cliente_diz: string; responda: string }[] }>(texto);
+  const dia = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const cs = (r?.concorrentes || []).slice(0, 12);
+  const panorama = [
+    `# Panorama da concorrência · ${dia}`, '', r?.resumo || '', '',
+    ...cs.flatMap(c => [`## ${c.nome}${c.segmento ? ` (${c.segmento})` : ''}`,
+      `- **Recursos:** ${c.recursos || '—'}`, `- **Preço:** ${c.preco || 'não divulgado'}`, `- **Avaliações:** ${c.avaliacoes || '—'}`,
+      `- **Reclamações comuns:** ${c.reclamacoes || '—'}`, `- **Elogios comuns:** ${c.elogios || '—'}`, c.fonte ? `- Fonte: ${c.fonte}` : '', '']),
+    '## Oportunidades para a Prosystem', ...((r?.oportunidades || []).map(o => `- ${o}`)),
+  ].join('\n');
+  const gravados = [await gravarDoc(prisma, { tipo: 'CONCORRENCIA', titulo: `Panorama da concorrência${foco ? ` · ${foco}` : ''}`, conteudo: panorama }, 'olivia', fontes)];
+  if (r?.respostas?.length) {
+    const md = ['Respostas respeitosas para quando o lead citar um concorrente (sem falar mal de ninguém):', '',
+      ...r.respostas.slice(0, 10).flatMap(x => [`- **Quando o cliente diz:** ${x.quando_o_cliente_diz}`, `  - **Responda:** ${x.responda}`])].join('\n');
+    gravados.push(await gravarDoc(prisma, { tipo: 'EXEMPLO', titulo: 'Quando o cliente cita um concorrente', conteudo: md }, 'olivia', fontes));
+  }
+  registrarAcaoAgente('olivia', `mapeou ${cs.length} concorrente(s) e passou para o Rafael`);
+  registrarAcaoAgente('rafael', 'recebeu o panorama da concorrência da Olívia');
+  await avisar(prisma, [`🔍 *Olívia mapeou a concorrência (${cs.length} empresas)*`, r?.resumo?.slice(0, 300) || '', ...cs.slice(0, 6).map(c => `• ${c.nome}${c.avaliacoes ? `: ${String(c.avaliacoes).slice(0, 60)}` : ''}`), '', 'Detalhes e respostas prontas no Escritório › painel do Rafael › Concorrência.'].join('\n'));
+  return { resumo: r?.resumo || '', documentos: gravados };
+}
+
 /** Rotina: revisão das conversas de seg a sex às 17h; estudo toda quarta às 9h. */
 export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(agora);
@@ -192,12 +234,16 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   if (dia === 'Wed' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, `rafael.estudo.${hoje}`, 20)) {
     await estudarVendas(prisma).catch(e => console.error('[RAFAEL] estudo:', e?.message));
   }
+  // Olívia: a cada 15 dias, na terça de manhã (a trava de 14 dias evita repetir na semana seguinte).
+  if (dia === 'Tue' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, 'olivia.concorrencia', 24 * 13)) {
+    await pesquisarConcorrentes(prisma).catch(e => console.error('[OLIVIA]', e?.message));
+  }
 }
 
 /** Caderno do Rafael em markdown: tudo o que está aprovado (parâmetros do setor), por tipo. */
 export async function cadernoRafael(prisma: PrismaClient): Promise<string> {
   const ds = await prisma.especialistaDoc.findMany({ where: { status: 'APROVADO' }, orderBy: [{ tipo: 'asc' }, { titulo: 'asc' }] });
-  const NOME: Record<string, string> = { POP: 'POPs', PROCESSO: 'Processos', EXEMPLO: 'Exemplos', DICA: 'Dicas', ABORDAGEM: 'Abordagens iniciais', ALERTA: 'Revisões de conversas' };
+  const NOME: Record<string, string> = { POP: 'POPs', PROCESSO: 'Processos', EXEMPLO: 'Exemplos', DICA: 'Dicas', ABORDAGEM: 'Abordagens iniciais', CONCORRENCIA: 'Concorrência', ALERTA: 'Revisões de conversas' };
   const l = ['# Caderno do Rafael · parâmetros do setor comercial', '', `Documentos aprovados (${ds.length}). Gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.`, ''];
   let tipo = '';
   for (const d of ds) {

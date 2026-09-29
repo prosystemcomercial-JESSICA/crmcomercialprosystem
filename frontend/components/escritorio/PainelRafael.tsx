@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/api-client';
 type Doc = { id: string; tipo: string; titulo: string; conteudo: string; agente_alvo: string | null; status: string; versao: number; created_at: string };
 
 const TIPOS: { k: string; r: string }[] = [
-  { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' },
+  { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' }, { k: 'CONCORRENCIA', r: '🔍 Concorrência' },
   { k: 'POP', r: '📋 POPs' }, { k: 'PROCESSO', r: '🔁 Processos' }, { k: 'EXEMPLO', r: '💬 Exemplos' }, { k: 'DICA', r: '💡 Dicas' },
 ];
 const COR = '#1e40af';
@@ -67,6 +67,7 @@ export default function PainelRafael() {
         <input value={tema} onChange={e => setTema(e.target.value)} placeholder="Tema para estudar (opcional)" maxLength={200}
           style={{ flex: '1 1 200px', minHeight: 36, padding: '0 10px', borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 14 }} />
         <button onClick={() => acao(() => apiClient.rafaelEstudar(tema.trim() || null))} disabled={andamento.includes('estudo')} style={btn('#7c3aed')}>📚 {andamento.includes('estudo') ? 'Estudando…' : 'Estudar agora'}</button>
+        <button onClick={() => acao(() => apiClient.oliviaConcorrentes(tema.trim() || null))} disabled={andamento.includes('concorrentes')} style={btn('#9333ea')} title="A Olívia pesquisa a concorrência e passa para o Rafael">🔍 {andamento.includes('concorrentes') ? 'Olívia pesquisando…' : 'Olívia: pesquisar concorrentes'}</button>
       </div>
       {msg && <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{msg}</div>}
 
