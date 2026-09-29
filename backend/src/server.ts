@@ -375,6 +375,9 @@ async function iniciarSchedulerAssistente() {
       // Lembrete de demo 2h antes: roda sempre (a demo das 9h tem o lembrete às 7h).
       const { enviarLembretesDemo } = await import('./services/assistente-demo.service.js');
       await enviarLembretesDemo(prismaClient!, agora).catch((e: any) => console.error('[DEMO] lembretes:', e?.message));
+      // O que foi conversado no WhatsApp vai para as observações do lead (conversa parada há 30 min).
+      const { registrarConversasNasObservacoes } = await import('./services/obs-conversa.service.js');
+      await registrarConversasNasObservacoes(prismaClient!, agora).catch((e: any) => console.error('[OBS-WPP]', e?.message));
       const { lembrarResponsavelDemo } = await import('./services/assistente-demo.service.js');
       await lembrarResponsavelDemo(prismaClient!, agora).catch((e: any) => console.error('[DEMO] lembrete responsável:', e?.message));
       // Pesquisa semanal da Sofia (segunda a partir das 8h; ela mesma confere o dia).
