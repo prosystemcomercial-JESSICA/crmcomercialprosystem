@@ -494,8 +494,23 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos', errors: body.error.errors });
 
     try {
+      // Reunião/demonstração: antes de gravar "Realizada", lê o que foi escrito e o que o cliente
+      // disse na conversa do dia. Sinal de que não aconteceu → "Cliente não compareceu".
+      const antes = await prisma.atividade.findUnique({ where: { id }, select: { tipo: true, data_prevista: true, whatsapp_conversa_id: true } });
+      let statusFinal: 'REALIZADA' | 'CLIENTE_NAO_COMPARECEU' = 'REALIZADA';
+      let motivoStatus: string | null = null;
+      if (antes?.tipo === 'REUNIAO') {
+        const desde = new Date((antes.data_prevista || new Date()).getTime() - 12 * 3600_000);
+        const falas = antes.whatsapp_conversa_id
+          ? (await prisma.whatsappMensagem.findMany({ where: { conversaId: antes.whatsapp_conversa_id, direcao: 'ENTRADA', created_at: { gte: desde } }, select: { conteudo: true, transcricao: true } }))
+            .map(m => `${m.conteudo || ''} ${m.transcricao || ''}`)
+          : [];
+        const { desfechoDaReuniao } = await import('../lib/reuniao-desfecho');
+        const d = desfechoDaReuniao(body.data.resultado, falas);
+        statusFinal = d.status; motivoStatus = d.motivo;
+      }
       const data: any = {
-        status: 'REALIZADA',
+        status: statusFinal,
         resultado: body.data.resultado,
         data_realizada: body.data.data_realizada ? new Date(body.data.data_realizada) : new Date()
       };
@@ -506,8 +521,11 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
 
       const atividade = await prisma.atividade.update({ where: { id }, data });
 
-      // Registra no card do LEAD que a atividade foi REALIZADA + a observação/resultado.
-      await registrarAtividadeNoLead(prisma, atividade, 'REALIZADA', body.data.resultado, request).catch(() => {});
+      // Registra no card do LEAD o desfecho real + a observação/resultado.
+      const obsDesfecho = statusFinal === 'CLIENTE_NAO_COMPARECEU'
+        ? `${body.data.resultado || ''}${motivoStatus ? `\n(Marcado como "não compareceu" pelo CRM: ${motivoStatus}.)` : ''}`.trim()
+        : body.data.resultado;
+      await registrarAtividadeNoLead(prisma, atividade, statusFinal === 'CLIENTE_NAO_COMPARECEU' ? 'NAO_COMPARECEU' : 'REALIZADA', obsDesfecho, request).catch(() => {});
 
       // Atualiza temperatura/valor estimado do lead vinculado (best-effort — não
       // bloqueia a conclusão da atividade se o lead não existir ou a escrita falhar).
@@ -533,6 +551,9 @@ export async function atividadesRoutes(fastify: FastifyInstance, options: { pris
         })().catch(() => {});
       }
 
+      if (statusFinal === 'CLIENTE_NAO_COMPARECEU') {
+        return reply.send({ status: 'success', data: atividade, message: `Registrada como "Cliente não compareceu" (${motivoStatus}). Se a reunião aconteceu, ajuste o status na atividade.` });
+      }
       return reply.send({ status: 'success', data: atividade });
     } catch (err: any) {
       if (err.code === 'P2025') return reply.status(404).send({ status: 'error', message: 'Atividade não encontrada' });
