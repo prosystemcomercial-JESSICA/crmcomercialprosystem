@@ -5,7 +5,7 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehRespostaAutomatica } from '@/lib/assistente/sdr';
+import { ehRespostaAutomatica, compromissoDeHorario } from '@/lib/assistente/sdr';
 import { REMETENTES_AUTOMATICOS } from '@/lib/painel-tv';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import {
@@ -754,6 +754,11 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
   // Cliente adiou ("estou viajando", "quando voltar eu chamo"): o agente confirmou uma vez e agora espera a data.
+  // Rede de segurança: o agente prometeu um horário na mensagem e não registrou → registra.
+  if (!r.retomar_em && r.acao === 'continuar') {
+    const h = r.mensagens.map(m => compromissoDeHorario(m, agora)).find(Boolean) || null;
+    if (h) r.retomar_em = h;
+  }
   // Retorno combinado: dia e hora exatos (retomar_em) têm prioridade sobre "daqui a N dias".
   if ((r.retomar_em || r.adiar_dias) && r.acao === 'continuar') {
     const quando = r.retomar_em || new Date(`${new Date(agora.getTime() + r.adiar_dias! * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
