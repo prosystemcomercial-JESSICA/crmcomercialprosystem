@@ -257,6 +257,10 @@ export async function pesquisarConcorrentes(prisma: PrismaClient, foco: string |
     gravados.push(await gravarDoc(prisma, { tipo: 'EXEMPLO', titulo: 'Quando o cliente cita um concorrente', conteudo: md }, 'olivia', fontes));
   }
   registrarAcaoAgente('olivia', `mapeou ${cs.length} concorrente(s) e passou para o Rafael`);
+  import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('olivia', 'rafael', 'Panorama da concorrência', [
+    { quem: 'olivia', texto: `Rafael, mapeei ${cs.length} concorrente(s). ${String(r?.resumo || '').slice(0, 90)}` },
+    { quem: 'rafael', texto: 'Perfeito, Olívia. Vou usar nas respostas quando o lead citar um concorrente.' },
+  ])).catch(() => {});
   registrarAcaoAgente('rafael', 'recebeu o panorama da concorrência da Olívia');
   await avisar(prisma, [`🔍 *Olívia mapeou a concorrência (${cs.length} empresas)*`, r?.resumo?.slice(0, 300) || '', ...cs.slice(0, 6).map(c => `• ${c.nome}${c.avaliacoes ? `: ${String(c.avaliacoes).slice(0, 60)}` : ''}`), '', 'Detalhes e respostas prontas no Escritório › painel do Rafael › Concorrência.'].join('\n'));
   return { resumo: r?.resumo || '', documentos: gravados };
@@ -318,6 +322,7 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
   const doc = await gravarDoc(prisma, { tipo: 'TREINAMENTO', titulo: `Treinamento do ${nome} · ${dia}`, conteudo: md, agente_alvo: agente }, 'treinamento', { dialogo, regras, conversas: conversas.length, nota_antes: r.nota_antes ?? null });
   registrarAcaoAgente('rafael', `treinou o ${nome}: ${(r.problemas || []).length} pontos a melhorar`);
   registrarAcaoAgente(agente as any, `recebeu treinamento do Rafael (${regras.length} regras)`);
+  import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('rafael', agente, `Treinamento do ${nome}`, dialogo.slice(0, 4).map(f => ({ quem: f.quem === 'rafael' ? 'rafael' : agente, texto: f.texto })))).catch(() => {});
   await avisar(prisma, [`🎓 *Rafael treinou o ${nome}*`, r.resumo?.slice(0, 280) || '', `${(r.problemas || []).length} ponto(s) a melhorar · ${regras.length} regra(s) novas.`, '', 'Leia o relatório, veja os dois conversando e aprove no Escritório virtual › Rafael (ao aprovar, as regras passam a valer).'].filter(Boolean).join('\n'));
   // Iniciativa: o que ele não sabia, vai pesquisar.
   for (const q of ((r.pesquisar || []) as string[]).slice(0, 2)) await pesquisarDuvida(prisma, q, 'Rafael (treinamento)').catch(() => {});
@@ -398,6 +403,10 @@ export async function estudarRetencao(prisma: PrismaClient, tema: string | null 
   const gravados = [];
   for (const d of docs) gravados.push(await gravarDoc(prisma, { ...d, titulo: `CS · ${d.titulo.replace(/^CS\s*·\s*/, '')}` }, 'mila', fontes));
   registrarAcaoAgente('mila', `estudou retenção e escreveu ${gravados.length} documento(s)`);
+  if (gravados.length) import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('mila', 'helena', 'Retenção de clientes', [
+    { quem: 'mila', texto: `Helena, escrevi ${gravados.length} documento(s) de retenção. Tem coisa boa para o pós-venda.` },
+    { quem: 'helena', texto: 'Ótimo! Vou usar nas boas-vindas e na pesquisa com os clientes.' },
+  ])).catch(() => {});
   if (gravados.length) await avisar(prisma, [`💚 *Mila (CS) estudou retenção e criou ${gravados.length} documento(s) para você aprovar*`, r?.resumo?.slice(0, 300) || '', ...gravados.map(g => `• [${g.tipo}] ${g.titulo}`), '', 'Veja e aprove no Escritório virtual › Painel da Mila.'].join('\n'));
   return { resumo: r?.resumo || '', documentos: gravados };
 }
@@ -416,6 +425,11 @@ export async function orientarAgente(prisma: PrismaClient, agente: string, conve
   }));
   if (!r?.mensagem) return null;
   registrarAcaoAgente('rafael', `orientou o ${nome}: ${r.orientacao.slice(0, 80)}`);
+  import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes(agente, 'rafael', 'Pedido de orientação', [
+    { quem: agente, texto: 'Rafael, travei numa conversa. Como eu sigo?' },
+    { quem: 'rafael', texto: r.orientacao },
+    { quem: agente, texto: 'Entendi! Vou por aí.' },
+  ])).catch(() => {});
   registrarAcaoAgente(agente as any, 'pediu orientação ao Rafael e seguiu a conversa');
   return r;
 }

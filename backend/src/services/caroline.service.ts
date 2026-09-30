@@ -273,7 +273,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
       descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
     : '';
   const p = promptCaroline({
-    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer + (dica ? `\n=== ATENÇÃO NESTA RESPOSTA ===\n${dica}` : ''), exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
+    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + (await import('@/lib/assistente/conversas-agentes').then(m => { const x = m.memoriaDoAgente(agenteDe(sdr)); return x.length ? `\n### O que você aprendeu com os colegas (use se ajudar)\n${x.slice(0, 5).map(y => `- ${y.texto}`).join('\n')}` : ''; })) + refazer + (dica ? `\n=== ATENÇÃO NESTA RESPOSTA ===\n${dica}` : ''), exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     perfil: agenteDe(sdr),
     // Campanha: só dias 20+, e uma vez por mês por cliente (depois de autorizada ou recusada não pede de novo).
@@ -393,6 +393,11 @@ export async function passarParaCaroline(prisma: PrismaClient, sdr: any, motivo:
   }
   registrarAcaoAgente('julio', `passou ${sdr.nome || 'um lead'} para a Caroline (${motivo})`);
   registrarAcaoAgente('caroline', `recebeu ${sdr.nome || 'um lead'} do Julio`);
+  import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('julio', 'caroline', `Lead ${sdr.empresa || sdr.nome || ''}`.trim(), [
+    { quem: 'julio', texto: `Carol, ${sdr.nome || 'esse lead'}${sdr.empresa ? ` da ${sdr.empresa}` : ''} mostrou interesse. É contigo!` },
+    { quem: 'caroline', texto: 'Oba! Deixa comigo: vou entender a dor e marcar a demonstração.' },
+    { quem: 'julio', texto: `Anotei: ${String(motivo).slice(0, 80)}` },
+  ])).catch(() => {});
 }
 
 async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCaroline) {

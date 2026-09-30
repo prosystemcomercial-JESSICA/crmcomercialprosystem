@@ -120,6 +120,7 @@ export default function EscritorioPage() {
   };
   const [chat, setChat] = useState<string | null>(null);
   const [metricas, setMetricas] = useState(false); // janela "Métricas da IA"
+  const [conversasAgentes, setConversasAgentes] = useState<any[]>([]); // conversas entre agentes (balões redondos)
   const [janela, setJanela] = useState<null | 'treino' | 'rafael' | 'mila' | 'joana' | 'luiz_felipe' | 'julio' | 'heitor' | 'sofia' | 'caroline' | 'laya'>(null); // painéis dos agentes em janela
   const chamar = (id: string) => { setChamados(c => ({ ...c, [id]: 'sala' })); setSel(id); setChat(id); };
   const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
@@ -165,7 +166,7 @@ export default function EscritorioPage() {
 
   const carregar = useCallback(() => {
     apiClient.getEscritorio()
-      .then(r => { setAgentes(r.data.data.agentes); setAtualizado(r.data.data.gerado_em); setErro(false); })
+      .then(r => { setAgentes(r.data.data.agentes); setConversasAgentes(r.data.data.conversas || []); setAtualizado(r.data.data.gerado_em); setErro(false); })
       .catch(() => setErro(true));
   }, []);
   useEffect(() => {
@@ -307,7 +308,7 @@ export default function EscritorioPage() {
               onClickCapture={e => { if (arraste.current?.moveu) { e.stopPropagation(); e.preventDefault(); } }}
               style={{ overflow: zoom > 1 ? 'auto' : 'hidden', height: zoom > 1 && alturaBase.current ? alturaBase.current : undefined, cursor: zoom > 1 ? 'grab' : undefined }}>
               <div style={{ width: `${zoom * 100}%` }}>
-                {mostrar ? <SalaIsometrica zoom={zoom} agentes={comTreino(mostrar, falaTreino)} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
+                {mostrar ? <SalaIsometrica zoom={zoom} agentes={comTreino(mostrar, falaTreino)} conversas={conversasAgentes} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
               </div>
             </div>
           </div>

@@ -15,7 +15,8 @@ export type AgenteSala = {
 
 const LARG = 62, ALT = 36;
 const COLS = 4, ESPACO = 2.3;
-const W = 21, D = 9.7; // 4 fileiras de mesas (16 agentes)
+const W = 25, D = 9.7; // 4 fileiras de mesas (16 agentes) + ala da sala do Rafael e do lounge
+const ALA2_X = 21.1;                        // sala do Rafael (fundo) e lounge (frente)
 const ESPINHA_X = 10.2;                     // corredor vertical entre as mesas e os cantos
 const CORREDOR_LINHA = [0.38, 2.45, 4.75, 7.05];  // corredor atrás de cada fileira de mesas
 const ALA_X = 16.3;                         // a partir daqui: sala de reunião (fundo) e sala da Jessica (frente)
@@ -31,7 +32,7 @@ const up = (p: P, k: number) => ({ x: p.x, y: p.y - k });
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 // ── Lugares ────────────────────────────────────────────────────────────────
-type Atividade = 'mesa' | 'cafe' | 'biblioteca' | 'pebolim' | 'videogame' | 'reuniao' | 'sala';
+type Atividade = 'mesa' | 'cafe' | 'biblioteca' | 'pebolim' | 'videogame' | 'filme' | 'tabuleiro' | 'reuniao' | 'sala';
 export type Chamado = 'sala' | 'reuniao';
 type Vaga = { id: string; atividade: Atividade; p: P };
 const VAGAS: Vaga[] = [
@@ -43,6 +44,12 @@ const VAGAS: Vaga[] = [
   { id: 'pebolim2', atividade: 'pebolim', p: { x: 11.2, y: 6.45 } },
   { id: 'game1', atividade: 'videogame', p: { x: 13.75, y: 6.55 } },
   { id: 'game2', atividade: 'videogame', p: { x: 14.55, y: 6.55 } },
+  // Lounge: filme nos pufes, jogo de tabuleiro em dupla e café
+  { id: 'filme1', atividade: 'filme', p: { x: 22.0, y: 8.0 } },
+  { id: 'filme2', atividade: 'filme', p: { x: 24.3, y: 8.0 } },
+  { id: 'tab1', atividade: 'tabuleiro', p: { x: 22.35, y: 5.6 } },
+  { id: 'tab2', atividade: 'tabuleiro', p: { x: 24.05, y: 5.6 } },
+  { id: 'cafe3', atividade: 'cafe', p: { x: 24.55, y: 9.15 } },
 ];
 
 const mesaDe = (i: number) => {
@@ -50,6 +57,12 @@ const mesaDe = (i: number) => {
   const bx = 0.9 + col * ESPACO, by = 1.1 + lin * ESPACO;
   return { bx, by, lin, assento: { x: bx + 0.62, y: by - 0.38 } };
 };
+
+// O Rafael trabalha na sala dele (ala nova); os demais nas fileiras.
+const MESA_RAFAEL = { bx: 22.6, by: 1.3 };
+const mesaDeAgente = (id: string, i: number) => id === 'rafael'
+  ? { bx: MESA_RAFAEL.bx, by: MESA_RAFAEL.by, lin: null as number | null, assento: { x: MESA_RAFAEL.bx + 0.62, y: MESA_RAFAEL.by - 0.38 } }
+  : mesaDe(i) as { bx: number; by: number; lin: number | null; assento: P };
 
 // Salas da ala direita.
 const MESA_REUNIAO = { x: 18.6, y: 1.75 };
@@ -63,6 +76,8 @@ const LUGARES_SALA: P[] = [{ x: 18.2, y: 6.55 }, { x: 19.2, y: 6.55 }, { x: 17.4
 
 /** Trecho de um ponto até a espinha (corredor vertical x = ESPINHA_X). */
 function saida(p: P, lin: number | null): P[] {
+  if (p.x > ALA2_X && p.y < 3.35) return [{ x: 21.6, y: p.y }, { x: 21.6, y: CORREDOR_ALA_Y }, { x: ESPINHA_X, y: CORREDOR_ALA_Y }];
+  if (p.x > ALA2_X) return [{ x: p.x, y: CORREDOR_ALA_Y }, { x: ESPINHA_X, y: CORREDOR_ALA_Y }];
   if (lin !== null) return [{ x: p.x, y: CORREDOR_LINHA[lin] }, { x: ESPINHA_X, y: CORREDOR_LINHA[lin] }];
   if (p.x > ALA_X) return [{ x: 16.8, y: p.y }, { x: 16.8, y: CORREDOR_ALA_Y }, { x: ESPINHA_X, y: CORREDOR_ALA_Y }];
   return [{ x: ESPINHA_X, y: p.y }];
@@ -246,7 +261,9 @@ function andar(e: { pos: P; caminho: P[]; andando: boolean }, passo: number) {
 }
 
 // ── Sala ───────────────────────────────────────────────────────────────────
+export type ConversaSala = { id: string; de: string; para: string; tema: string; falas: { quem: string; texto: string }[] };
 type Props = {
+  conversas?: ConversaSala[];
   agentes: AgenteSala[]; selecionado: string | null; onSelecionar: (id: string) => void;
   zoom?: number; // a altura máxima acompanha o zoom (senão o desenho fica espremido e vai para o lado)
   chamados?: Record<string, Chamado>;                 // quem foi chamado (sala da Jessica ou reunião)
@@ -255,7 +272,7 @@ type Props = {
   onLiberar?: (id: string) => void;
 };
 
-export default function SalaIsometrica({ agentes, selecionado, onSelecionar, chamados = {}, onVerTrabalho, onChamar, onLiberar, zoom = 1 }: Props) {
+export default function SalaIsometrica({ agentes, selecionado, onSelecionar, chamados = {}, onVerTrabalho, onChamar, onLiberar, zoom = 1, conversas = [] }: Props) {
   const agora = useRelogio();
   const estados = useRef<Record<string, Estado>>({});
   const agentesRef = useRef(agentes);
@@ -303,7 +320,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
       const lugarReuniao = (i: number) => LUGARES_REUNIAO[i % LUGARES_REUNIAO.length];
       let naSala = 0;
       lista.forEach((a, i) => {
-        const m = mesaDe(i);
+        const m = mesaDeAgente(a.id, i);
         let e = estados.current[a.id];
         if (!e) { e = estados.current[a.id] = { pos: { ...m.assento }, caminho: [], atividade: 'mesa', vaga: null, ate: agoraMs + 3000 + Math.random() * 6000, andando: false, chamado: null }; }
         const naMesa = e.atividade === 'mesa' && !e.caminho.length;
@@ -372,6 +389,8 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
   type Item = { k: number; el: ReactElement };
   const itens: Item[] = [];
   const rotulos: ReactElement[] = [];
+  const cabecas: Record<string, P> = {};
+  const posicoes: Record<string, { atividade: Atividade | null }> = {};
 
   // Biblioteca: estantes na parede do fundo
   [10.6, 12.3, 14.0].forEach((x, i) => itens.push({ k: x + 0.3, el: (
@@ -422,8 +441,76 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
       <g className="planta">{[-14, 0, 14, -7, 7].map((dx, i) => { const b = iso(0.47, D - 0.57); return <ellipse key={i} cx={r1(b.x + dx)} cy={r1(b.y - 36 - (i > 2 ? 12 : 0))} rx={9} ry={16} fill={i % 2 ? '#15803d' : '#22c55e'} transform={`rotate(${dx * 2} ${r1(b.x + dx)} ${r1(b.y - 36)})`} />; })}</g>
     </g>) });
 
+
+  // ── Ala nova: sala do Rafael (fundo) e lounge (frente) ──
+  const vidro2 = (a: P, b: P, alto = 44) => (<polygon points={pts(iso(a.x, a.y), iso(b.x, b.y), up(iso(b.x, b.y), alto), up(iso(a.x, a.y), alto))} fill="#bfdbfe" opacity={0.35} stroke="#93c5fd" strokeWidth={1.5} />);
+  itens.push({ k: ALA2_X + 1.5, el: <g key="v-rafael-esq">{vidro2({ x: ALA2_X, y: 0 }, { x: ALA2_X, y: 3.35 })}</g> });
+  itens.push({ k: ALA2_X + 3.35 + 2.5, el: <g key="v-rafael-frente">{vidro2({ x: 23.9, y: 3.35 }, { x: W, y: 3.35 })}</g> });
+  itens.push({ k: ALA2_X + 4.35 + 0.6, el: <g key="v-lounge-fundo">{vidro2({ x: 22.6, y: 4.35 }, { x: W, y: 4.35 })}</g> });
+  itens.push({ k: ALA2_X + 6.5, el: <g key="v-lounge-esq">{vidro2({ x: ALA2_X, y: 4.35 }, { x: ALA2_X, y: D })}</g> });
+  // Sala do Rafael: estante, quadro de treinamentos, poltronas de visita e planta
+  itens.push({ k: 21.6 + 0.3, el: (
+    <g key="est-rafael">
+      <Caixa x={21.5} y={0.1} w={1.1} d={0.3} h={88} topo="#1e3a8a" esq="#1e40af" dir="#172554" />
+      {[16, 40, 64].map((z, j) => Array.from({ length: 5 }, (_, k) => {
+        const b = iso(21.6 + k * 0.19, 0.42);
+        return <rect key={`${j}-${k}`} x={r1(b.x - 4)} y={r1(b.y - z - 18 + (k % 2))} width={7} height={16} rx={1} fill={['#fbbf24', '#f8fafc', '#93c5fd', '#fca5a5', '#86efac'][(k + j) % 5]} />;
+      }))}
+    </g>) });
+  itens.push({ k: 0, el: (
+    <g key="quadro-rafael">
+      <polygon points={pts(up(iso(22.9, 0), 118), up(iso(24.7, 0), 118), up(iso(24.7, 0), 62), up(iso(22.9, 0), 62))} fill="#fff" stroke="#1e40af" strokeWidth={3} />
+      <text x={r1(iso(23.8, 0).x)} y={r1(iso(23.8, 0).y - 100)} fontSize={9} fontWeight={800} fill="#1e40af" textAnchor="middle" transform={`rotate(${r1(Math.atan2(ALT, LARG) * 180 / Math.PI)} ${r1(iso(23.8, 0).x)} ${r1(iso(23.8, 0).y - 100)})`}>🎓 TREINAMENTOS</text>
+      {[0, 1].map(k => <polyline key={k} points={pts(up(iso(23.1, 0), 88 - k * 12), up(iso(24.3 - k * 0.3, 0), 88 - k * 12))} stroke={['#16a34a', '#ef4444'][k]} strokeWidth={3} />)}
+    </g>) });
+  [[22.3, 2.55], [23.5, 2.55]].forEach(([x, y], k) => itens.push({ k: x + y, el: (
+    <g key={`poltrona-r${k}`}>
+      <Caixa x={x} y={y} w={0.55} d={0.5} h={14} topo="#60a5fa" esq="#3b82f6" dir="#1d4ed8" />
+      <Caixa x={x} y={y + 0.38} w={0.55} d={0.12} h={30} topo="#3b82f6" esq="#1d4ed8" dir="#1e3a8a" />
+    </g>) }));
+  itens.push({ k: 24.6 + 2.9, el: (
+    <g key="planta-rafael">
+      <Caixa x={24.45} y={2.7} w={0.4} d={0.4} h={20} topo="#b45309" esq="#92400e" dir="#78350f" />
+      <g className="planta">{[-12, 0, 12, -6, 6].map((dx, i) => { const b = iso(24.65, 2.9); return <ellipse key={i} cx={r1(b.x + dx)} cy={r1(b.y - 32 - (i > 2 ? 10 : 0))} rx={8} ry={14} fill={i % 2 ? '#15803d' : '#22c55e'} />; })}</g>
+    </g>) });
+  // Lounge: tapete, cinema com filme, pufes, jogo de tabuleiro e carrinho de café
+  itens.push({ k: 21.2 + 4.4, el: (
+    <g key="tapete-lounge"><polygon points={pts(iso(21.5, 4.8), iso(W - 0.2, 4.8), iso(W - 0.2, 9.4), iso(21.5, 9.4))} fill="#fed7aa" opacity={0.55} /></g>) });
+  itens.push({ k: 23.2 + 9.35, el: (
+    <g key="cinema">
+      <Caixa x={22.4} y={9.25} w={1.7} d={0.12} h={16} topo="#334155" esq="#1e293b" dir="#0f172a" />
+      <polygon points={pts(up(iso(22.35, 9.37), 18), up(iso(24.15, 9.37), 18), up(iso(24.15, 9.37), 66), up(iso(22.35, 9.37), 66))} fill="#0f172a" />
+      <polygon className="filme" points={pts(up(iso(22.45, 9.38), 21), up(iso(24.05, 9.38), 21), up(iso(24.05, 9.38), 63), up(iso(22.45, 9.38), 63))} fill="#1d4ed8" />
+      <text className="filme-cena" x={r1(iso(23.25, 9.38).x)} y={r1(iso(23.25, 9.38).y - 36)} fontSize={15} textAnchor="middle">🎬</text>
+    </g>) });
+  [[21.75, 8.1, '#f472b6', '#db2777'], [24.05, 8.1, '#60a5fa', '#2563eb'], [23.0, 8.45, '#facc15', '#ca8a04']].forEach(([x, y, c1, c2], k) => itens.push({ k: (x as number) + (y as number) - 0.1, el: (
+    <g key={`pufe${k}`}>
+      {(() => { const c = iso((x as number) + 0.25, (y as number) + 0.2); return (<g>
+        <ellipse cx={r1(c.x)} cy={r1(c.y - 2)} rx={22} ry={11} fill={c2 as string} />
+        <rect x={r1(c.x - 22)} y={r1(c.y - 20)} width={44} height={18} fill={c2 as string} />
+        <ellipse cx={r1(c.x)} cy={r1(c.y - 20)} rx={22} ry={11} fill={c1 as string} />
+      </g>); })()}
+    </g>) }));
+  itens.push({ k: 23.0 + 8.8, el: (<g key="pipoca"><text x={r1(iso(23.0, 8.9).x)} y={r1(iso(23.0, 8.9).y - 6)} fontSize={16} textAnchor="middle">🍿</text></g>) });
+  itens.push({ k: 23.2 + 5.6, el: (
+    <g key="tabuleiro">
+      <Caixa x={22.8} y={5.3} w={0.8} d={0.6} h={24} topo="#a16207" esq="#854d0e" dir="#713f12" />
+      <polygon points={pts(up(iso(22.9, 5.38), 24.5), up(iso(23.5, 5.38), 24.5), up(iso(23.5, 5.82), 24.5), up(iso(22.9, 5.82), 24.5))} fill="#f5f5f4" stroke="#1c1917" strokeWidth={1} />
+      <text x={r1(iso(23.2, 5.6).x)} y={r1(iso(23.2, 5.6).y - 28)} fontSize={11} textAnchor="middle">♟️</text>
+    </g>) });
+  itens.push({ k: 24.6 + 9.2 + 0.3, el: (
+    <g key="carrinho-cafe">
+      <Caixa x={24.25} y={9.35} w={0.6} d={0.25} h={26} topo="#e5e7eb" esq="#9ca3af" dir="#6b7280" />
+      <text x={r1(iso(24.55, 9.45).x)} y={r1(iso(24.55, 9.45).y - 30)} fontSize={13} textAnchor="middle">☕</text>
+    </g>) });
+  itens.push({ k: 21.4 + 9.3, el: (
+    <g key="planta-lounge">
+      <Caixa x={21.3} y={9.1} w={0.4} d={0.4} h={20} topo="#b45309" esq="#92400e" dir="#78350f" />
+      <g className="planta">{[-12, 0, 12, -6, 6].map((dx, i) => { const b = iso(21.5, 9.3); return <ellipse key={i} cx={r1(b.x + dx)} cy={r1(b.y - 32 - (i > 2 ? 10 : 0))} rx={8} ry={14} fill={i % 2 ? '#15803d' : '#4ade80'} />; })}</g>
+    </g>) });
+
   agentes.forEach((a, i) => {
-    const { bx, by, assento } = mesaDe(i);
+    const { bx, by, assento } = mesaDeAgente(a.id, i);
     const e = estados.current[a.id];
     const pos = e?.pos || assento;
     const sentado = !e || (e.atividade === 'mesa' && !e.andando && Math.hypot(pos.x - assento.x, pos.y - assento.y) < 0.05);
@@ -457,7 +544,10 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
     const p = iso(pos.x, pos.y);
     let pose: Pose = 'andando';
     if (e && !e.andando) pose = e.atividade === 'cafe' ? 'cafe' : e.atividade === 'biblioteca' ? 'lendo' : e.atividade === 'pebolim' ? 'pebolim' : e.atividade === 'videogame' ? 'jogando' : e.atividade === 'reuniao' || e.atividade === 'sala' ? 'empe' : 'andando';
-    const sentadoSofa = pose === 'jogando';
+    if (e && !e.andando && e.atividade === 'filme') pose = 'sentado';
+    if (e && !e.andando && e.atividade === 'tabuleiro') pose = 'pebolim';
+    const sentadoSofa = pose === 'jogando' || (!!e && !e.andando && e.atividade === 'filme');
+    posicoes[a.id] = { atividade: e && !e.andando ? e.atividade : null };
     if (!sentado) {
       itens.push({ k: pos.x + pos.y + (sentadoSofa ? 0.2 : 0), el: (
         <g key={`fig-${a.id}`} transform={`translate(${r1(p.x)} ${r1(p.y - (sentadoSofa ? 16 : 0))})`} style={{ cursor: 'pointer' }} onClick={() => onSelecionar(a.id)}>
@@ -467,6 +557,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
 
     // Crachá e balão acompanham a pessoa.
     const cabeca = sentado ? { x: topoMesa.x, y: topoMesa.y - 30 - 92 } : { x: p.x, y: p.y - (sentadoSofa ? 16 : 0) - 106 - (pose === 'andando' ? 0 : 0) };
+    cabecas[a.id] = cabeca;
     const balao = trabalhando && a.ultima ? quebrar(a.ultima.texto) : null;
     rotulos.push(
       <g key={`tag-${a.id}`} style={{ pointerEvents: 'none' }}>
@@ -481,6 +572,56 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
             {balao.map((l, k) => <text key={k} x={r1(cabeca.x)} y={r1(cabeca.y - 22 - balao.length * 14 + 16 + k * 14)} fontSize={11} fill="#0f172a" textAnchor="middle">{l}</text>)}
           </g>
         )}
+      </g>,
+    );
+  });
+
+
+  // Conversas entre agentes (eventos reais): uma por vez, fala a fala, em balões redondos.
+  const conversasVisiveis = (conversas || []).filter(c => cabecas[c.de] && cabecas[c.para] && c.falas.length);
+  if (conversasVisiveis.length && agora) {
+    const t = agora.getTime();
+    const duracoes = conversasVisiveis.map(c => c.falas.length * 4500 + 2500);
+    const ciclo = duracoes.reduce((x, y) => x + y, 0);
+    let resto = t % ciclo, idx = 0;
+    while (resto >= duracoes[idx]) { resto -= duracoes[idx]; idx++; }
+    const c = conversasVisiveis[idx];
+    const fi = Math.min(c.falas.length - 1, Math.floor(resto / 4500));
+    const f = c.falas[fi];
+    const quem = f.quem === c.de || f.quem === c.para ? f.quem : c.de;
+    const ha = cabecas[quem], outro = cabecas[quem === c.de ? c.para : c.de];
+    if (ha && outro) {
+      const linhas = quebrar(f.texto, 30, 3);
+      const cor = agentes.find(a => a.id === quem)?.cor || '#6366f1';
+      const w = 200, h = linhas.length * 13 + 16, bx = ha.x - w / 2, by = ha.y - 34 - h;
+      rotulos.push(
+        <g key={`conv-${c.id}-${fi}`} className="balao" style={{ pointerEvents: 'none' }}>
+          <line x1={r1(ha.x)} y1={r1(ha.y - 14)} x2={r1(outro.x)} y2={r1(outro.y - 14)} stroke={cor} strokeWidth={1.5} strokeDasharray="4 5" opacity={0.6} />
+          <rect x={r1(bx)} y={r1(by)} width={w} height={h} rx={h / 2} fill="#eef2ff" stroke={cor} strokeWidth={2} />
+          <circle cx={r1(ha.x - 6)} cy={r1(by + h + 7)} r={5} fill="#eef2ff" stroke={cor} strokeWidth={1.5} />
+          <circle cx={r1(ha.x - 2)} cy={r1(by + h + 16)} r={2.8} fill="#eef2ff" stroke={cor} strokeWidth={1.2} />
+          {linhas.map((l, k) => <text key={k} x={r1(ha.x)} y={r1(by + 14 + k * 13)} fontSize={10.5} fill="#1e1b4b" textAnchor="middle">{l}</text>)}
+          <text x={r1(outro.x)} y={r1(outro.y - 26)} fontSize={14} textAnchor="middle">💭</text>
+        </g>,
+      );
+    }
+  }
+  // Pausa: quem está junto na mesma atividade troca bolinhas com emoji.
+  const EMOJIS: Partial<Record<Atividade, string[]>> = { cafe: ['☕', '😄', '🥐'], pebolim: ['⚽', '😂', '🔥'], videogame: ['🎮', '🏆', '😆'], filme: ['🍿', '😮', '🎬'], tabuleiro: ['♟️', '🤔', '😏'] };
+  const grupos = new Map<Atividade, string[]>();
+  Object.entries(posicoes).forEach(([id, v]) => { if (v.atividade && EMOJIS[v.atividade]) grupos.set(v.atividade, [...(grupos.get(v.atividade) || []), id]); });
+  const passoPapo = agora ? Math.floor(agora.getTime() / 3000) : 0;
+  grupos.forEach((ids, atv) => {
+    if (ids.length < 2) return;
+    const fala = ids[passoPapo % ids.length];
+    const c = cabecas[fala];
+    if (!c) return;
+    const em = EMOJIS[atv]![passoPapo % EMOJIS[atv]!.length];
+    rotulos.push(
+      <g key={`papo-${atv}-${passoPapo}`} className="balao" style={{ pointerEvents: 'none' }}>
+        <circle cx={r1(c.x + 22)} cy={r1(c.y - 30)} r={13} fill="#fff" stroke="#cbd5e1" strokeWidth={1.5} />
+        <circle cx={r1(c.x + 12)} cy={r1(c.y - 14)} r={3} fill="#fff" stroke="#cbd5e1" strokeWidth={1} />
+        <text x={r1(c.x + 22)} y={r1(c.y - 25)} fontSize={13} textAnchor="middle">{em}</text>
       </g>,
     );
   });
@@ -543,7 +684,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
     // Balão de proximidade: agente mais perto (até 1,5 célula).
     let perto: { a: AgenteSala; p: P; d: number } | null = null;
     agentes.forEach((a, i) => {
-      const e = estados.current[a.id]; const pos = e?.pos || mesaDe(i).assento;
+      const e = estados.current[a.id]; const pos = e?.pos || mesaDeAgente(a.id, i).assento;
       const d = Math.hypot(pos.x - j.pos.x, pos.y - j.pos.y);
       if (d < 1.5 && (!perto || d < perto.d)) perto = { a, p: pos, d };
     });
@@ -615,6 +756,9 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
         @keyframes bola{to{transform:translate(38px,20px)}}
         .tela-game{animation:game 1.5s steps(3) infinite}
         @keyframes game{33%{fill:#db2777}66%{fill:#2563eb}}
+        .filme{animation:filme 4s steps(4) infinite}
+        @keyframes filme{25%{fill:#7c3aed}50%{fill:#0f766e}75%{fill:#b91c1c}}
+        .filme-cena{animation:pulsa 2s ease-in-out infinite}
         .luz-status-trabalhando{animation:pulsa 1.4s ease-in-out infinite}
         @keyframes pulsa{50%{opacity:.35}}
         .aura{animation:pulsa 1.4s ease-in-out infinite}
@@ -641,7 +785,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
           <text x={r1(cx)} y={r1(cy)} fill="#fde047" fontSize={15} fontWeight={900} textAnchor="middle" letterSpacing={3} transform={`rotate(${r1(ang)} ${r1(cx)} ${r1(cy - 5)})`}>PROSYSTEM · COMERCIAL</text></g>);
       })()}
       {/* placas dos cantos */}
-      {[['📚 BIBLIOTECA', 12.2], ['☕ CAFÉ', 15.2], ['🤝 SALA DE REUNIÃO', 19.8]].map(([t, x]) => {
+      {[['📚 BIBLIOTECA', 12.2], ['☕ CAFÉ', 15.2], ['🤝 SALA DE REUNIÃO', 19.8], ['🎓 SALA DO RAFAEL', 22.4]].map(([t, x]) => {
         const p = up(iso(x as number, 0), 124), ang = Math.atan2(ALT, LARG) * 180 / Math.PI;
         return <text key={t as string} x={r1(p.x)} y={r1(p.y)} fontSize={11} fontWeight={800} fill="#3730a3" textAnchor="middle" transform={`rotate(${r1(ang)} ${r1(p.x)} ${r1(p.y)})`}>{t}</text>;
       })}
@@ -661,6 +805,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
       {/* tapete do canto da diversão */}
       <polygon points={pts(iso(10.6, 4.5), iso(15.6, 4.5), iso(15.6, 7.3), iso(10.6, 7.3))} fill="#c4b5fd" opacity={0.45} />
       <text x={r1(iso(13.1, 7.3).x)} y={r1(iso(13.1, 7.3).y + 14)} fontSize={11} fontWeight={800} fill="#6d28d9" textAnchor="middle">🎮 CANTO DA DIVERSÃO</text>
+      <text x={r1(iso(23.3, 9.6).x)} y={r1(iso(23.3, 9.6).y + 14)} fontSize={11} fontWeight={800} fill="#c2410c" textAnchor="middle">🛋️ LOUNGE</text>
 
       {itens.map(i => i.el)}
       {rotulos}

@@ -1,3 +1,4 @@
+import { memoriaDoAgente } from '@/lib/assistente/conversas-agentes';
 import type { PrismaClient } from '@prisma/client';
 import { AGENTES, type AgenteId } from '@/lib/assistente/escritorio';
 import { chamarGemini, chaveGemini } from './ia-gemini.service';
@@ -55,6 +56,7 @@ export async function falarComAgente(
       'Use apenas os dados abaixo. Se não souber, diga o que falta. Não invente números.',
       instr,
       aprendido,
+      (() => { const m = memoriaDoAgente(agente); return m.length ? `\n### O que você viveu e aprendeu com os colegas\n${m.slice(0, 8).map(x => `- ${x.texto}`).join('\n')}` : ''; })(),
       `\n### Seu dia\nStatus: ${eu?.status}. ${eu?.numeros.map(n => `${n.valor} ${n.rotulo}`).join(', ')}. ${eu?.observacao || ''}`,
       `\n### Suas últimas ações\n${hist.slice(0, 10).map(h => `- ${h.em.slice(0, 16).replace('T', ' ')}: ${h.texto}`).join('\n') || '- nenhuma ainda'}`,
       `\n### Equipe agora\n${escritorio.map(a => `- ${a.nome}: ${a.status}; ${a.numeros.map(n => `${n.valor} ${n.rotulo}`).join(', ')}`).join('\n')}`,
