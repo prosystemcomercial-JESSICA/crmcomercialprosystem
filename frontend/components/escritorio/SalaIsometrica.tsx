@@ -566,6 +566,19 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
         <text x={r1(cabeca.x - 38)} y={r1(cabeca.y + 2)} fontSize={7.5} fontWeight={800} fill="#fff" textAnchor="middle">{a.nome[0]}</text>
         <text x={r1(cabeca.x + 3)} y={r1(cabeca.y + 3)} fill="#f8fafc" fontSize={11} fontWeight={700} textAnchor="middle">{a.nome}</text>
         <circle className={`luz-status-${a.status}`} cx={r1(cabeca.x + 40)} cy={r1(cabeca.y - 1)} r={4.2} fill={COR_STATUS[a.status]} />
+        {a.id === 'laya' && (
+          // Laya, o cérebro da equipe: diamante flutuante sobre a cabeça.
+          <g transform={`translate(${r1(cabeca.x)} ${r1(cabeca.y - 34)})`}>
+            <g className="diamante">
+              <ellipse cx={0} cy={24} rx={10} ry={3} fill="#7c3aed" opacity={0.18} className="diamante-sombra" />
+              <polygon points="-11,-4 -6,-11 6,-11 11,-4 0,11" fill="#a5f3fc" stroke="#0891b2" strokeWidth={1.2} strokeLinejoin="round" />
+              <polygon points="-11,-4 11,-4 0,11" fill="#67e8f9" />
+              <polygon points="-6,-11 -2,-4 2,-4 6,-11" fill="#ecfeff" />
+              <polyline points="-2,-4 0,11 2,-4" fill="none" stroke="#0891b2" strokeWidth={0.8} />
+              <circle className="brilho-diamante" cx={-4} cy={-7} r={1.6} fill="#fff" />
+            </g>
+          </g>
+        )}
         {balao && (
           <g className="balao">
             <rect x={r1(cabeca.x - 90)} y={r1(cabeca.y - 22 - balao.length * 14)} width={180} height={balao.length * 14 + 10} rx={10} fill="#fff" stroke={a.cor} strokeWidth={1.5} />
@@ -759,6 +772,9 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
         .filme{animation:filme 4s steps(4) infinite}
         @keyframes filme{25%{fill:#7c3aed}50%{fill:#0f766e}75%{fill:#b91c1c}}
         .filme-cena{animation:pulsa 2s ease-in-out infinite}
+        .diamante{animation:flutuaDiamante 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 50%}
+        @keyframes flutuaDiamante{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-7px) rotate(4deg)}}
+        .brilho-diamante{animation:pulsa 1.3s ease-in-out infinite}
         .luz-status-trabalhando{animation:pulsa 1.4s ease-in-out infinite}
         @keyframes pulsa{50%{opacity:.35}}
         .aura{animation:pulsa 1.4s ease-in-out infinite}
