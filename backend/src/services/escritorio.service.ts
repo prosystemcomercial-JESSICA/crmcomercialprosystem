@@ -38,6 +38,8 @@ export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promi
     case 'marta': { const a = acaoRegistrada('marta'); return a ? [{ texto: a.texto, em: a.em.toISOString() }] : []; }
     case 'olivia': return (await prisma.especialistaDoc.findMany({ where: { origem: 'olivia' }, orderBy: { created_at: 'desc' }, take: 10, select: { titulo: true, created_at: true } }))
       .map(d => ({ texto: `🔍 ${d.titulo}`, em: d.created_at.toISOString() }));
+    case 'mila': return (await prisma.especialistaDoc.findMany({ where: { origem: 'mila', status: { not: 'ARQUIVADO' } }, orderBy: { created_at: 'desc' }, take: 10, select: { tipo: true, titulo: true, status: true, created_at: true } }))
+      .map(d => ({ texto: `${d.status === 'APROVADO' ? '✅' : '📝'} [${d.tipo}] ${d.titulo}`, em: d.created_at.toISOString() }));
     case 'rafael': return (await prisma.especialistaDoc.findMany({ where: { status: { not: 'ARQUIVADO' } }, orderBy: { created_at: 'desc' }, take: 10, select: { tipo: true, titulo: true, status: true, created_at: true } }))
       .map(d => ({ texto: `${d.status === 'APROVADO' ? '✅' : '📝'} [${d.tipo}] ${d.titulo}`, em: d.created_at.toISOString() }));
     default: return [];
@@ -151,6 +153,11 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   const docsAprovados = await prisma.especialistaDoc.count({ where: { status: 'APROVADO' } }).catch(() => 0);
   const ultDoc = await prisma.especialistaDoc.findFirst({ orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } }).catch(() => null);
   const ultConc = await prisma.especialistaDoc.findFirst({ where: { tipo: 'CONCORRENCIA' }, orderBy: { created_at: 'desc' }, select: { created_at: true } }).catch(() => null);
+  const ultMila = await prisma.especialistaDoc.findFirst({ where: { origem: 'mila' }, orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } }).catch(() => null);
+  const [milaPendentes, milaAprovados] = await Promise.all([
+    prisma.especialistaDoc.count({ where: { origem: 'mila', status: 'PROPOSTO' } }).catch(() => 0),
+    prisma.especialistaDoc.count({ where: { origem: 'mila', status: 'APROVADO' } }).catch(() => 0),
+  ]);
   const panoramas = await prisma.especialistaDoc.count({ where: { tipo: 'CONCORRENCIA', status: { not: 'ARQUIVADO' } } }).catch(() => 0);
   const { obterConfigHeitor } = await import('./heitor.service');
   const heitorCfg = await obterConfigHeitor(prisma);
@@ -210,7 +217,8 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
     estado('olivia', temChave, maisRecente<Acao>(ultConc ? { texto: 'mapeou a concorrência', em: ultConc.created_at } : null, acaoRegistrada('olivia')), [{ rotulo: 'panoramas', valor: panoramas }], temChave ? 'Pesquisa a concorrência a cada 15 dias (terça) e passa para o Rafael' : 'Esperando a chave da IA em Configurações'),
     estado('heitor', heitorCfg.ativo, maisRecente<Acao>(null, acaoRegistrada('heitor')), [{ rotulo: 'cadastrados hoje', valor: heitorHoje }, { rotulo: 'na fila da Caroline', valor: heitorFila }],
       heitorCfg.ultimo_erro ? `Atenção: ${heitorCfg.ultimo_erro}` : heitorCfg.ativo ? 'Prospecta no Google Maps (dias úteis, 7h–18h)' : 'Desligado: ligue no painel dele'),
-    estado('mila', false, maisRecente<Acao>(null, acaoRegistrada('mila')), [], 'Em construção'),
+    estado('mila', temChave, maisRecente<Acao>(ultMila ? { texto: `escreveu "${ultMila.titulo.replace(/^CS · /, '').slice(0, 50)}"`, em: ultMila.created_at } : null, acaoRegistrada('mila')),
+      [{ rotulo: 'para aprovar', valor: milaPendentes }, { rotulo: 'aprovados', valor: milaAprovados }], temChave ? 'Estuda retenção e experiência do cliente toda segunda de manhã' : 'Esperando a chave da IA em Configurações'),
     estado('joana', false, maisRecente<Acao>(null, acaoRegistrada('joana')), [], 'Em construção'),
   ];
 }
