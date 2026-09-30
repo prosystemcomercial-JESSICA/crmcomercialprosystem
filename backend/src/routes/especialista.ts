@@ -18,7 +18,7 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
   fastify.get('/especialista/docs', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const q = request.query as { status?: string; agente?: string };
-    const dono = q.agente === 'mila' ? { origem: 'mila' } : { OR: [{ origem: null }, { origem: { not: 'mila' } }] };
+    const dono = q.agente === 'mila' ? { origem: 'mila' } : { OR: [{ origem: null }, { origem: { notIn: ['mila', 'joana'] } }] };
     const docs = await prisma.especialistaDoc.findMany({
       where: { AND: [q.status ? { status: q.status } : { status: { not: 'ARQUIVADO' } }, dono] },
       orderBy: [{ status: 'desc' }, { created_at: 'desc' }], take: 150,

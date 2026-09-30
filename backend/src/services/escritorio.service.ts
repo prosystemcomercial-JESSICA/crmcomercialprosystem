@@ -154,6 +154,11 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   const ultDoc = await prisma.especialistaDoc.findFirst({ orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } }).catch(() => null);
   const ultConc = await prisma.especialistaDoc.findFirst({ where: { tipo: 'CONCORRENCIA' }, orderBy: { created_at: 'desc' }, select: { created_at: true } }).catch(() => null);
   const ultMila = await prisma.especialistaDoc.findFirst({ where: { origem: 'mila' }, orderBy: { created_at: 'desc' }, select: { titulo: true, created_at: true } }).catch(() => null);
+  const ultJoana = await prisma.especialistaDoc.findFirst({ where: { origem: 'joana', status: { not: 'ARQUIVADO' } }, orderBy: { created_at: 'desc' }, select: { status: true, created_at: true, decidido_em: true } }).catch(() => null);
+  const [joanaPendentes, joanaPublicadas] = await Promise.all([
+    prisma.especialistaDoc.count({ where: { origem: 'joana', status: 'PROPOSTO' } }).catch(() => 0),
+    prisma.especialistaDoc.count({ where: { origem: 'joana', status: 'APROVADO' } }).catch(() => 0),
+  ]);
   const [milaPendentes, milaAprovados] = await Promise.all([
     prisma.especialistaDoc.count({ where: { origem: 'mila', status: 'PROPOSTO' } }).catch(() => 0),
     prisma.especialistaDoc.count({ where: { origem: 'mila', status: 'APROVADO' } }).catch(() => 0),
@@ -219,6 +224,7 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
       heitorCfg.ultimo_erro ? `Atenção: ${heitorCfg.ultimo_erro}` : heitorCfg.ativo ? 'Prospecta no Google Maps (dias úteis, 7h–18h)' : 'Desligado: ligue no painel dele'),
     estado('mila', temChave, maisRecente<Acao>(ultMila ? { texto: `escreveu "${ultMila.titulo.replace(/^CS · /, '').slice(0, 50)}"`, em: ultMila.created_at } : null, acaoRegistrada('mila')),
       [{ rotulo: 'para aprovar', valor: milaPendentes }, { rotulo: 'aprovados', valor: milaAprovados }], temChave ? 'Estuda retenção e experiência do cliente toda segunda de manhã' : 'Esperando a chave da IA em Configurações'),
-    estado('joana', false, maisRecente<Acao>(null, acaoRegistrada('joana')), [], 'Em construção'),
+    estado('joana', temChave, maisRecente<Acao>(ultJoana ? { texto: ultJoana.status === 'PROPOSTO' ? 'escreveu o Informativo e espera sua aprovação' : 'publicou o Informativo', em: ultJoana.decidido_em || ultJoana.created_at } : null, acaoRegistrada('joana')),
+      [{ rotulo: 'para aprovar', valor: joanaPendentes }, { rotulo: 'edições publicadas', valor: joanaPublicadas }], temChave ? 'Informativo Prosystem quinzenal (quinta de manhã), a partir das pesquisas da Sofia' : 'Esperando a chave da IA em Configurações'),
   ];
 }
