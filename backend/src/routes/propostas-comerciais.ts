@@ -15,6 +15,13 @@ import { segmentoDe, SEGMENTOS_ORDEM } from '@/lib/segmento';
 // para CONTRATO_EM_GERACAO automaticamente, então parar em ACEITA subestimaria.
 const FECHADAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
 const PERDIDAS = ['RECUSADA', 'PERDIDA'];
+// Telefone que vai na proposta, diferente do cadastro (o do cadastro recebe os avisos da gestão).
+// Jessica Cardoso (conta ativa) e as contas antigas dela. Espelha o frontend (propostas-comerciais/page.tsx).
+const TELEFONE_FIXO_VENDEDOR: Record<string, string> = {
+  'd99bc07f-160a-42ad-8741-71dd57bcd36d': '27 99752-1370',
+  'bd3cbf3c-8773-4377-b767-7125c9966bab': '27 99752-1370',
+  'c8170a2f-f931-4f1b-b820-8b23baf2a5d8': '27 99752-1370',
+};
 
 const soma  = (ns: number[]) => ns.reduce((a, b) => a + b, 0);
 const media = (ns: number[]) => (ns.length ? Math.round((soma(ns) / ns.length) * 10) / 10 : 0);
@@ -604,8 +611,9 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       ).catch(() => []);
       const perfil = perfilRows[0] || {};
       const ehLogado = alvoVendedorId === user?.id;
-      // Telefone do cadastro do vendedor sempre prevalece (se existir).
-      if (perfil.telefone) data.vendedor_telefone = perfil.telefone;
+      // Telefone fixo da proposta (Jessica) prevalece; senão, o do cadastro do vendedor.
+      if (TELEFONE_FIXO_VENDEDOR[alvoVendedorId]) data.vendedor_telefone = TELEFONE_FIXO_VENDEDOR[alvoVendedorId];
+      else if (perfil.telefone) data.vendedor_telefone = perfil.telefone;
       if (!data.vendedor_nome)  data.vendedor_nome  = perfil.nome  || (ehLogado ? user?.nome : undefined) || undefined;
       if (!data.vendedor_email) data.vendedor_email = perfil.email || (ehLogado ? user?.email : undefined) || undefined;
       if (!data.vendedor_id)    data.vendedor_id = user?.id;

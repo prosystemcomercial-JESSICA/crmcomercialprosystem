@@ -66,7 +66,12 @@ interface PropostaComercial {
 
 // Telefone comercial fixo por vendedora (vai na proposta no lugar do telefone do cadastro).
 // Jessica (vendedora e supervisora comercial): número do WhatsApp da empresa.
-const TELEFONE_FIXO_VENDEDOR: Record<string, string> = { 'bd3cbf3c-8773-4377-b767-7125c9966bab': '27 99752-1370' };
+// Telefone que vai na proposta (diferente do cadastro, que recebe os avisos da gestão). Jessica Cardoso (conta ativa) e contas antigas dela.
+const TELEFONE_FIXO_VENDEDOR: Record<string, string> = {
+  'd99bc07f-160a-42ad-8741-71dd57bcd36d': '27 99752-1370',
+  'bd3cbf3c-8773-4377-b767-7125c9966bab': '27 99752-1370',
+  'c8170a2f-f931-4f1b-b820-8b23baf2a5d8': '27 99752-1370',
+};
 const telefoneVendedor = (id: string | null | undefined, padrao: string) => (id && TELEFONE_FIXO_VENDEDOR[id]) || padrao;
 
 const BLANK_FORM = {
