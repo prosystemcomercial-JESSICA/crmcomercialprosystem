@@ -419,6 +419,19 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
   // Lista conversas (escopadas ao dono; gestão vê todas), ordenadas por atividade.
   // Filtra por instância quando ?instanciaId= é informado (seletor multi-instância).
+  // Conversas que precisam de atenção (mesma regra da TV): de qualquer aba que a pessoa pode ver.
+  fastify.get('/whatsapp/conversas/atencao', async (request, reply) => {
+    const user = getUser(request);
+    const escopo = podeVerTudo(user) ? {} : whereAcaoConversa(user);
+    const { conversasEmAtencao } = await import('@/services/atencao-conversas.service');
+    const mapa = await conversasEmAtencao(prisma, escopo);
+    const conversas = mapa.size ? await prisma.whatsappConversa.findMany({
+      where: { id: { in: [...mapa.keys()] } }, orderBy: { ultima_em: 'desc' },
+      include: { instancia: { select: { apelido: true, dono_nome: true, numero: true } } },
+    }) : [];
+    return reply.send({ status: 'success', data: conversas.map(c => ({ ...c, atencao: mapa.get(c.id)?.tipo, atencao_desde: mapa.get(c.id)?.desde })) });
+  });
+
   fastify.get('/whatsapp/conversas', async (request, reply) => {
     const { instanciaId, escopo, tipo_contato } = request.query as { instanciaId?: string; escopo?: string; tipo_contato?: string };
     // Visão de supervisão: gestão pode pedir escopo=todos p/ ver as conversas de

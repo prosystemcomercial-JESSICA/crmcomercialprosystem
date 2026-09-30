@@ -185,6 +185,12 @@ function lerDataSP(v: unknown, horaPadrao = '09:30'): Date | null {
   return Number.isFinite(d.getTime()) && d.getTime() > agora && d.getTime() < agora + 90 * 864e5 ? d : null;
 }
 
+/** Mensagem automática da loja ("em breve iremos lhe atender"): não é resposta de uma pessoa. */
+export function ehRespostaAutomatica(texto: string | null | undefined): boolean {
+  const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return /(em breve (iremos|vamos|retornaremos|lhe|te|responderemos)|mensagem automatica|resposta automatica|seja bem[- ]vind[oa]|obrigad[oa] por entrar em contato|no momento (nao|estamos)|nosso horario de atendimento|fora do horario|assim que possivel (retornaremos|responderemos)|aguarde (um momento|que ja))/.test(t);
+}
+
 /** Cliente só confirmou/agradeceu ("👍", "ok", "obrigado", "blz"): não pede resposta do agente. */
 export function ehSoConfirmacao(texto: string | null | undefined): boolean {
   const t = (texto || '').trim().toLowerCase();

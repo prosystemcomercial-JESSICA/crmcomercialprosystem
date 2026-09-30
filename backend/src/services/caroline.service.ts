@@ -5,6 +5,7 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
+import { ehRespostaAutomatica } from '@/lib/assistente/sdr';
 import { REMETENTES_AUTOMATICOS } from '@/lib/painel-tv';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import {
@@ -245,7 +246,7 @@ export async function aprendizadoDaEquipe(prisma: PrismaClient): Promise<{ clien
   return pares;
 }
 
-async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline): Promise<RespostaCaroline | null> {
+async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline, dica = ''): Promise<RespostaCaroline | null> {
   const { guiaComercial } = await import('./assistente-ia.service');
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const { chamarGemini } = await import('./ia-gemini.service');
@@ -272,7 +273,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
       descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
     : '';
   const p = promptCaroline({
-    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer, exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
+    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + refazer + (dica ? `\n=== ATENÇÃO NESTA RESPOSTA ===\n${dica}` : ''), exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     perfil: agenteDe(sdr),
     // Campanha: só dias 20+, e uma vez por mês por cliente (depois de autorizada ou recusada não pede de novo).
@@ -675,6 +676,10 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (fase === 'resposta') {
     const desdeAgente = ultimasDoAgente[0]?.created_at || sdr.desde;
     const novas = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA', created_at: { gt: desdeAgente } }, select: { conteudo: true, tipo: true } });
+    if (novas.length && novas.every(m => m.tipo === 'TEXTO' && ehRespostaAutomatica(m.conteudo))) {
+      registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: espera a pessoa responder`);
+      return 'nada';
+    }
     if (ultimasDoAgente.length && novas.length && novas.every(m => m.tipo === 'TEXTO' && ehSoConfirmacao(m.conteudo))) {
       const d: any = sdr.dados || {};
       const retomar = d.retomar_em && new Date(d.retomar_em) > new Date() ? d.retomar_em : new Date(`${new Date(Date.now() + 7 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`).toISOString();
@@ -683,10 +688,25 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       return 'nada';
     }
   }
-  const r = await gerarResposta(prisma, sdr, fase);
+  let r = await gerarResposta(prisma, sdr, fase);
   if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); return 'falha'; }
   // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.
-  const repetida = r.mensagens.some(m => ultimasDoAgente.some(u => semelhanca(m, u.conteudo || '') >= 0.6));
+  const parecida = (x: RespostaCaroline) => x.mensagens.some(m => ultimasDoAgente.some(u => semelhanca(m, u.conteudo || '') >= 0.6));
+  if (parecida(r) && r.acao === 'continuar') {
+    // 1) Nova tentativa, com outra abordagem.
+    const nova = await gerarResposta(prisma, sdr, fase, 'Sua resposta anterior repetia o que você já tinha dito. Responda ao que o cliente acabou de escrever, de forma natural e curta (ex.: se ele só cumprimentou, cumprimente de volta e retome com leveza, sem repetir a pergunta anterior palavra por palavra). Nunca repita frases suas.');
+    if (nova && !parecida(nova)) r = nova;
+    else {
+      // 2) Pede orientação ao Rafael (especialista), que lê a conversa e diz a próxima mensagem.
+      const { orientarAgente } = await import('./especialista.service');
+      const o = await orientarAgente(prisma, agenteDe(sdr), sdr.conversaId).catch(() => null);
+      if (o?.mensagem) {
+        const guiada = await gerarResposta(prisma, sdr, fase, `Orientação do Rafael (especialista): ${o.orientacao}\nMensagem sugerida por ele (adapte ao seu jeito, sem repetir frases suas): "${o.mensagem}"`);
+        if (guiada && !parecida(guiada)) r = guiada;
+      }
+    }
+  }
+  const repetida = parecida(r);
   if (repetida && r.acao === 'continuar') {
     console.warn(`[CAROLINE] mensagem repetida bloqueada para ${sdr.numero}`);
     registrarAcaoAgente(agenteDe(sdr), `ia repetir a mesma mensagem para ${sdr.nome || 'um lead'}: bloqueada`);
