@@ -383,6 +383,9 @@ async function iniciarSchedulerAssistente() {
       // Rafael: revisão das conversas (seg–sex 17h) e estudo de vendas (quarta 9h).
       const { rodarRafael } = await import('./services/especialista.service.js');
       await rodarRafael(prismaClient!, agora).catch((e: any) => console.error('[RAFAEL]', e?.message));
+      // Joana: Informativo Prosystem quinzenal (escreve na quinta; e-mails aprovados saem em lotes).
+      const { rodarJoana } = await import('./services/joana.service.js');
+      await rodarJoana(prismaClient!, agora).catch((e: any) => console.error('[JOANA]', e?.message));
       // Heitor (prospecção no Google Maps): dias úteis 7h–18h, uma rodada por hora até a cota do dia (roda em segundo plano).
       const { rodarHeitor } = await import('./services/heitor.service.js');
       await rodarHeitor(prismaClient!, agora).catch((e: any) => console.error('[HEITOR]', e?.message));
@@ -600,6 +603,7 @@ async function loadRoutes() {
     ['cronometro',            () => import('./routes/cronometro'),            'cronometroRoutes'],
     ['especialista',          () => import('./routes/especialista'),          'especialistaRoutes'],
     ['heitor',                () => import('./routes/heitor'),                'heitorRoutes'],
+    ['joana',                 () => import('./routes/joana'),                 'joanaRoutes'],
   ];
 
   let ok = 0;

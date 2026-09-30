@@ -1352,6 +1352,10 @@ class ApiClient {
   async rafaelTreinar(agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe') { return this.client.post('/especialista/treinar', { agente }); }
   async rafaelTreinamentos() { return this.client.get('/especialista/treinamentos'); }
   async milaEstudar(tema?: string | null) { return this.client.post('/especialista/mila/estudar', { tema }); }
+  async joanaEdicoes() { return this.client.get('/joana/edicoes'); }
+  async joanaEscrever() { return this.client.post('/joana/escrever', {}); }
+  async joanaAprovar(id: string) { return this.client.post(`/joana/edicoes/${id}/aprovar`, {}); }
+  async joanaArquivar(id: string) { return this.client.post(`/joana/edicoes/${id}/arquivar`, {}); }
   async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
   // ── Heitor (prospecção no Google Maps) ──

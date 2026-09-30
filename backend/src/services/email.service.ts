@@ -1442,3 +1442,20 @@ export async function enviarEmailNovaCandidaturaRepresentante(candidato: {
     return { ok: false, error: error?.message || 'Erro desconhecido' };
   }
 }
+
+// ─── Informativo Prosystem (Joana) ───────────────────────────
+/** E-mail do Informativo: um destinatário por envio (sem cópia oculta), resposta volta para a Prosystem. */
+export async function enviarEmailInformativo(para: string, assunto: string, html: string): Promise<boolean> {
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'comercial@prosystemnet.com.br';
+  try {
+    await createTransporter().sendMail({
+      from: `"Informativo Prosystem" <${fromEmail}>`, to: para, replyTo: fromEmail,
+      subject: assunto.slice(0, 150), html,
+      headers: { 'X-Mailer': 'ProSystem CRM 2.0', 'List-Unsubscribe': `<mailto:${fromEmail}?subject=SAIR>` },
+    });
+    return true;
+  } catch (err: any) {
+    console.error('[EMAIL] Informativo para', para, err?.message);
+    return false;
+  }
+}
