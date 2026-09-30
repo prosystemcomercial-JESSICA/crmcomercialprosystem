@@ -286,7 +286,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline)
     },
     // Assuntos da atualidade só no follow-up de quem já conversou (1ª e 2ª retomadas usam o dia a dia).
     atualidades: fase === 'retomada' && sdr.ultima_lead_em ? atualidades : [],
-    lead: { nome: sdr.nome, empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null,
+    lead: { nome: agenteDe(sdr) === 'caroline' ? sdr.nome : await nomeParaChamar(prisma, sdr.numero, sdr.nome), empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null,
       prospeccao: (sdr.dados as any)?.prospeccao ? { cidade: (sdr.dados as any).cidade || null, bairro: (sdr.dados as any).bairro || null } : null },
   });
   const partes: any[] = [{ text: p.usuario }];
@@ -719,7 +719,8 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
   }
 
   // "Me chama depois": combina o próximo dia útil, de manhã ou à tarde (resposta direta, sem IA).
-  const primeiro = (sdr.nome || '').trim().split(/\s+/)[0];
+  const nomeChamar = agenteDe(sdr) === 'caroline' ? sdr.nome : await nomeParaChamar(prisma, sdr.numero, sdr.nome);
+  const primeiro = (nomeChamar || '').trim().split(/\s+/)[0];
   if (botaoId === 'sdr_depois') {
     const { dia, opcoes } = opcoesAgendamento(new Date());
     void dia;
@@ -797,6 +798,36 @@ const falhouEm = new Map<string, number>();
 const falhasSeguidas: Record<string, number> = {};
 
 // Conversa já existente no WhatsApp da empresa (mesmo número com/sem 9) ou uma nova, ligada ao lead.
+// Nome para chamar o cliente. O cadastro (proposta/lead) às vezes traz o sócio da Receita e não
+// quem conversa com a gente (ex.: proposta em nome do "Marco", mas quem fala é a Carina).
+// Lê as mensagens da equipe (pessoas, não agentes) com esse número: se chamamos a pessoa por outro
+// nome, usa esse; se já houve conversa e o nome do cadastro nunca apareceu, não usa nome.
+const SAUDACAO_COM_NOME = /\b(?:ol[aá]|oi|bom dia|boa tarde|boa noite)[\s,!]+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,})/g;
+const NAO_E_NOME = new Set(['tudo', 'pessoal', 'equipe', 'senhor', 'senhora', 'amigo', 'amiga', 'querido', 'querida', 'prosystem', 'aqui', 'como']);
+export async function nomeParaChamar(prisma: PrismaClient, numero: string, nomeCadastro: string | null): Promise<string | null> {
+  const fim = ultimos8(numero);
+  const msgs = await prisma.whatsappMensagem.findMany({
+    where: { conversa: { contato_numero: { endsWith: fim } } }, orderBy: { created_at: 'desc' }, take: 300,
+    select: { direcao: true, enviada_por: true, conteudo: true },
+  }).catch(() => []);
+  if (!msgs.length) return nomeCadastro;
+  const contagem = new Map<string, number>();
+  for (const m of msgs) {
+    if (m.direcao !== 'SAIDA' || AGENTES_SDR.includes(m.enviada_por as any) || ['bot', 'assistente_ia', 'cadencia_automatica', 'campanha'].includes(m.enviada_por || '')) continue;
+    for (const r of (m.conteudo || '').matchAll(SAUDACAO_COM_NOME)) {
+      const n = r[1];
+      if (!NAO_E_NOME.has(n.toLowerCase())) contagem.set(n, (contagem.get(n) || 0) + 1);
+    }
+  }
+  const primeiro = (nomeCadastro || '').trim().split(/\s+/)[0];
+  const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const usado = [...contagem.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (usado && (!primeiro || norm(usado) !== norm(primeiro))) return usado;
+  if (!primeiro) return null;
+  const apareceu = msgs.some(m => norm(m.conteudo || '').includes(norm(primeiro)) && !AGENTES_SDR.includes(m.enviada_por as any));
+  return apareceu || msgs.length < 3 ? nomeCadastro : null;
+}
+
 async function conversaPara(prisma: PrismaClient, instanciaId: string, numero: string, d: { nome: string | null; lead_id: string | null }) {
   const cs = await prisma.whatsappConversa.findMany({ where: { instanciaId, contato_numero: { endsWith: ultimos8(numero) } }, select: { id: true, contato_numero: true, optout_campanhas: true, ultima_em: true } });
   const c = cs.find(x => ultimos8(x.contato_numero) === ultimos8(numero));
