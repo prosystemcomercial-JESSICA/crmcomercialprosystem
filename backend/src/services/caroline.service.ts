@@ -499,7 +499,7 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acao: 
   const obs = (descricao: string) => atual?.lead_id && prisma.leadObservacao.create({ data: { lead_id: atual.lead_id, tipo: 'SISTEMA', descricao, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
   if (acao === 'oferecer_demo') {
     const { oferecerDemo } = await import('./assistente-demo.service');
-    await oferecerDemo(prisma, token, sdr.conversaId).catch((e: any) => console.warn('[CAROLINE] demo:', e?.message));
+    await oferecerDemo(prisma, token, sdr.conversaId, { aPartirDe: r.demo_a_partir || null }).catch((e: any) => console.warn('[CAROLINE] demo:', e?.message));
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'DEMO', resumo } });
     await obs(`${resumo}\n\nDemonstração oferecida.`);
     await enviarAvisoGestao(prisma, 'lead_qualificado', `🔥 *${nomeDe(sdr)} ofereceu demonstração*\n${resumo}`);
@@ -630,12 +630,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
   // Cliente adiou ("estou viajando", "quando voltar eu chamo"): o agente confirmou uma vez e agora espera a data.
-  if (r.adiar_dias && r.acao === 'continuar') {
-    const quando = new Date(`${new Date(agora.getTime() + r.adiar_dias * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
+  // Retorno combinado: dia e hora exatos (retomar_em) têm prioridade sobre "daqui a N dias".
+  if ((r.retomar_em || r.adiar_dias) && r.acao === 'continuar') {
+    const quando = r.retomar_em || new Date(`${new Date(agora.getTime() + r.adiar_dias! * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
+    const quandoTxt = quando.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit', ...(r.retomar_em ? { hour: '2-digit', minute: '2-digit' } : {}) });
     const d: any = (await prisma.sdrLead.findUnique({ where: { id: sdrId }, select: { dados: true } }))?.dados || {};
-    await prisma.sdrLead.update({ where: { id: sdrId }, data: { status: 'AGUARDANDO', tentativas: 1, dados: { ...d, retomar_em: quando.toISOString(), combinado: `quando ele pediu (${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})` } } });
-    if (sdr.lead_id) await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao: `⏸ Cliente pediu para retomar depois. ${nomeDe(sdr)} volta a falar em ${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}, sem mensagens até lá.`, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
-    registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'o lead'} adiou: volta a falar em ${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+    await prisma.sdrLead.update({ where: { id: sdrId }, data: { status: 'AGUARDANDO', tentativas: 1, dados: { ...d, retomar_em: quando.toISOString(), combinado: r.retomar_em ? `combinado com ele: ${quandoTxt}` : `quando ele pediu (${quandoTxt})` } } });
+    if (sdr.lead_id) await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao: `⏸ Cliente pediu para retomar depois. ${nomeDe(sdr)} volta a falar ${quandoTxt}${r.retomar_em ? ' (combinado com o cliente)' : ''}, sem mensagens até lá.`, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
+    registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'o lead'} combinou retorno: ${quandoTxt}`);
   }
   registrarAcaoAgente(agenteDe(sdr), `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
   if (r.acao !== 'continuar') await aplicarAcao(prisma, token, sdr, r.acao, r);
