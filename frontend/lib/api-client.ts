@@ -1057,6 +1057,7 @@ class ApiClient {
   }
 
   async etapaVendaAdicional(id: string, data: { etapa: string; autorizador_nome?: string; autorizador_cpf?: string }) { return this.client.post(`/vendas-adicionais/${id}/etapa`, data); }
+  async notaVendaAdicional(id: string, texto: string) { return this.client.post(`/vendas-adicionais/${id}/nota`, { texto }); }
   async textosVendaAdicional(id: string) { return this.client.get(`/vendas-adicionais/${id}/textos`); }
   async updateVendaAdicional(id: string, data: any) {
     return this.client.patch(`/vendas-adicionais/${id}`, data);

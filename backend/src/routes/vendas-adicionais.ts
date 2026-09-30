@@ -533,7 +533,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     if (!venda) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada.' });
     const { etapa } = body.data;
     const data: any = { etapa, [CAMPO_DATA[etapa] || 'updated_at']: new Date() };
-    if (etapa === 'ACEITO') {
+    if (etapa === 'ACEITO' && !(venda.autorizador_nome && venda.autorizador_cpf)) {
       const nome = (body.data.autorizador_nome || '').trim();
       const cpf = body.data.autorizador_cpf || '';
       if (nome.split(/\s+/).length < 2) return reply.status(400).send({ status: 'error', message: 'Informe o nome completo de quem autorizou.' });
@@ -541,13 +541,28 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       data.autorizador_nome = nome;
       data.autorizador_cpf = fmtCpf(cpf);
     }
-    if (etapa === 'LANCADO' && !requireGestor(request, reply)) return;
     await prisma.vendaAdicional.update({ where: { id }, data });
-    // Lançado no financeiro: confirma a venda (libera a comissão do vendedor e cria a da supervisão).
-    if (etapa === 'LANCADO' && venda.status === 'PENDENTE') {
+    // Serviço concluído e enviado ao Thiago: a venda é confirmada (até aqui fica pendente) e a comissão
+    // do vendedor e da supervisão vai para o MÊS SEGUINTE ao dessa data.
+    if (etapa === 'NO_FINANCEIRO' && venda.status === 'PENDENTE') {
       await fastify.inject({ method: 'PATCH', url: `/vendas-adicionais/${id}`, payload: { status: 'CONFIRMADA' }, headers: { authorization: String(request.headers.authorization || '') } });
+      await prisma.comissao.updateMany({ where: { referencia_id: id, status: { notIn: ['PAGA', 'CANCELADA'] } }, data: { periodo: proximoMes() } }).catch(() => {});
+      await prisma.vendaAdicional.update({ where: { id }, data: { data_confirmacao: new Date() } }).catch(() => {});
     }
     return reply.send({ status: 'success', message: 'Etapa atualizada.' });
+  });
+
+  fastify.post('/vendas-adicionais/:id/nota', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const b = z.object({ texto: z.string().min(1).max(1000) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escreva a observação.' });
+    const v = await prisma.vendaAdicional.findUnique({ where: { id }, select: { observacoes: true } });
+    if (!v) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada.' });
+    const quem = ((request as any).user?.nome || 'Equipe').split(' ')[0];
+    const quando = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const nova = `[${quando}] ${quem}: ${b.data.texto.trim()}`;
+    await prisma.vendaAdicional.update({ where: { id }, data: { observacoes: v.observacoes ? `${v.observacoes}\n${nova}` : nova } });
+    return reply.send({ status: 'success', message: 'Observação registrada.' });
   });
 
   // Textos prontos: orçamento (WhatsApp do cliente) e lançamento (Teams do Thiago).
