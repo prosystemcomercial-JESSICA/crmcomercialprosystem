@@ -114,13 +114,13 @@ export default function EscritorioPage() {
 
   const irPara = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const verTrabalho = (id: string) => {
-    if (['rafael', 'mila', 'joana', 'luiz_felipe', 'julio', 'heitor', 'sofia'].includes(id)) setJanela(id as any);
+    if (['rafael', 'mila', 'joana', 'luiz_felipe', 'julio', 'heitor', 'sofia', 'caroline', 'laya'].includes(id)) setJanela(id as any);
     setSel(id); setHistorico({ id, itens: null });
     apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
   };
   const [chat, setChat] = useState<string | null>(null);
   const [metricas, setMetricas] = useState(false); // janela "Métricas da IA"
-  const [janela, setJanela] = useState<null | 'treino' | 'rafael' | 'mila' | 'joana' | 'luiz_felipe' | 'julio' | 'heitor' | 'sofia'>(null); // painéis dos agentes em janela
+  const [janela, setJanela] = useState<null | 'treino' | 'rafael' | 'mila' | 'joana' | 'luiz_felipe' | 'julio' | 'heitor' | 'sofia' | 'caroline' | 'laya'>(null); // painéis dos agentes em janela
   const chamar = (id: string) => { setChamados(c => ({ ...c, [id]: 'sala' })); setSel(id); setChat(id); };
   const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
   const reunir = () => setChamados(Object.fromEntries((agentes || []).map(a => [a.id, 'reuniao' as Chamado])));
@@ -187,7 +187,7 @@ export default function EscritorioPage() {
           <div style={{ width: '100%', maxWidth: 1100, background: 'var(--t-content-bg)', borderRadius: 16, padding: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.25)', display: 'grid', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>
-                {({ treino: '🎓 Treinamentos', rafael: '📚 Rafael · vendas', mila: '💚 Mila · Customer Success', joana: '📰 Joana · Informativo Prosystem', luiz_felipe: '📄 Luiz Felipe · Propostas não assinadas', julio: '🔁 Julio · Follow-up de leads', heitor: '🧭 Heitor · Prospecção no Google Maps', sofia: '🔎 Pesquisas da Sofia' } as Record<string, string>)[janela]}
+                {({ treino: '🎓 Treinamentos', rafael: '📚 Rafael · vendas', mila: '💚 Mila · Customer Success', joana: '📰 Joana · Informativo Prosystem', laya: '🧠 Laya · o cérebro da equipe', caroline: '💬 Caroline · SDR (primeiro contato)', luiz_felipe: '📄 Luiz Felipe · Propostas não assinadas', julio: '🔁 Julio · Follow-up de leads', heitor: '🧭 Heitor · Prospecção no Google Maps', sofia: '🔎 Pesquisas da Sofia' } as Record<string, string>)[janela]}
               </h2>
               <button onClick={() => setJanela(null)} aria-label="Fechar" style={{ minWidth: 40, minHeight: 40, borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
@@ -195,6 +195,8 @@ export default function EscritorioPage() {
             {janela === 'rafael' && <PainelRafael />}
             {janela === 'mila' && <PainelMila />}
             {janela === 'joana' && <PainelJoana />}
+            {janela === 'laya' && <CadernoLaya />}
+            {janela === 'caroline' && <PainelCaroline agente="caroline" />}
             {janela === 'luiz_felipe' && <PainelCaroline agente="luiz_felipe" />}
             {janela === 'julio' && <PainelCaroline agente="julio" />}
             {janela === 'heitor' && <PainelHeitor />}
@@ -248,6 +250,8 @@ export default function EscritorioPage() {
               📰 Painel da Joana
             </button>
             {([
+              ['laya', '🧠 Laya · o cérebro', '#7c3aed'],
+              ['caroline', '💬 Caroline · SDR', '#be123c'],
               ['luiz_felipe', '📄 Luiz Felipe · Propostas', '#2563eb'],
               ['julio', '🔁 Julio · Follow-up', '#0d9488'],
               ['heitor', '🧭 Heitor · Prospecção', '#65a30d'],
@@ -347,8 +351,6 @@ export default function EscritorioPage() {
             const a = (mostrar || []).find(x => x.id === chat)!;
             return <ChatAgente key={a.id} agente={{ id: a.id, nome: a.nome, cor: a.cor, funcao: a.funcao }} onFechar={() => setChat(null)} />;
           })()}
-          <PainelCaroline agente="caroline" />
-          <CadernoLaya />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
             {mostrar?.map(a => (
