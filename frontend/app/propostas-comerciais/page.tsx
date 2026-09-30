@@ -177,6 +177,12 @@ const COLUNA_DO_STATUS = (status: string): string => {
 // para CONTRATO_EM_GERACAO, então parar em ACEITA subestimaria o fechamento.
 const ST_FECHADAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO', 'ACEITO'];
 const ST_PERDIDAS = ['RECUSADA', 'PERDIDA', 'EXPIRADA', 'DECLINADA'];
+// Mesma lista de MOTIVOS_PERDA do backend (lib/assistente/sdr.ts).
+const MOTIVOS_RECUSA: [string, string][] = [
+  ['PRECO', 'Preço'], ['SEM_ORCAMENTO', 'Sem orçamento agora'], ['TIMING', 'Não é o momento'],
+  ['JA_TEM_FORNECEDOR', 'Fechou / segue com outro sistema'], ['FUNCIONALIDADE_AUSENTE', 'Faltou algum recurso'],
+  ['SEM_INTERESSE', 'Sem interesse'], ['OUTRO', 'Outro'],
+];
 
 // O campo `segmento` é texto livre ("Farmácia / Drogaria", "Padaria", "Outro"…),
 // então agrupamos por palavra-chave em 5 baldes fixos. Mesma regra do backend
@@ -503,6 +509,10 @@ export default function PropostasComerciais() {
   };
 
   const handleSave = async () => {
+    if (form.status === 'RECUSADA' && !(form as any).motivo_recusa && propostas.find((p: any) => p.id === editingId)?.status !== 'RECUSADA') {
+      showToast.error('Informe o motivo da recusa', 'Escolha o motivo na seção onde fica o status da proposta.');
+      return;
+    }
     if (!form.razao_social.trim()) {
       showToast.error('Razão social é obrigatória', 'Preencha a razão social do cliente antes de salvar a proposta.');
       return;
@@ -1449,6 +1459,20 @@ export default function PropostasComerciais() {
                         ))}
                       </select>
                     </FormField>
+                    {form.status === 'RECUSADA' && (
+                      <>
+                        <FormField label="Motivo da recusa *" col={2}>
+                          <select value={((form as any).motivo_recusa as string) || ''} onChange={e => setField('motivo_recusa', e.target.value)} className="ps-input w-full">
+                            <option value="">Selecione o motivo...</option>
+                            {MOTIVOS_RECUSA.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                          </select>
+                        </FormField>
+                        <label className="col-span-2 flex items-start gap-2 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
+                          <input type="checkbox" className="mt-0.5" checked={(form as any).recuperar_luiz !== false} onChange={e => setField('recuperar_luiz', e.target.checked)} />
+                          <span>Pedir ao <b>Luiz Felipe</b> para entender o motivo e tentar recuperar (conversa natural pelo WhatsApp, sem botões). Sem resposta em 3 dias, a proposta vira Perdida e o contato vai para o Informativo.</span>
+                        </label>
+                      </>
+                    )}
                   </div>
                 )}
 

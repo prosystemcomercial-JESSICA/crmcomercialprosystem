@@ -157,7 +157,7 @@ export function deveRetomar(tentativas: number, ultimaCaroline: Date | null, ago
 }
 
 // ── Termômetro ──────────────────────────────────────────────────────────────
-export const ACOES = ['continuar', 'oferecer_demo', 'passar_vendedora', 'sem_interesse', 'duvida_fora_material', 'encaminhar_suporte', 'aceitar_condicao'] as const;
+export const ACOES = ['continuar', 'oferecer_demo', 'passar_vendedora', 'sem_interesse', 'duvida_fora_material', 'encaminhar_suporte', 'aceitar_condicao', 'recusou'] as const;
 
 /** Texto padrão quando o cliente pede vídeos/treinamento/suporte: isso é do setor de suporte, o agente é do comercial. */
 export const mensagemSuporte = (agente: string) =>
@@ -246,7 +246,7 @@ export function lerRespostaCaroline(j: any): RespostaCaroline | null {
     adiar_dias: Number.isFinite(Number(j.adiar_dias)) && Number(j.adiar_dias) > 0 ? Math.min(60, Math.round(Number(j.adiar_dias))) : null,
     retomar_em: lerDataSP(j.retomar_em),
     demo_a_partir: lerDataSP(j.demo_a_partir, '00:00'),
-    motivo_perda: acao === 'sem_interesse' ? ((MOTIVOS_PERDA as readonly string[]).includes(j.motivo_perda) ? j.motivo_perda : 'SEM_INTERESSE') : null,
+    motivo_perda: acao === 'sem_interesse' || acao === 'recusou' ? ((MOTIVOS_PERDA as readonly string[]).includes(j.motivo_perda) ? j.motivo_perda : 'SEM_INTERESSE') : null,
   };
 }
 
@@ -270,7 +270,9 @@ export function promptCaroline(p: {
   atualidades?: { segmento: string; titulo: string; resumo: string; por_que_importa: string }[];
   lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number; ja_conversou?: boolean; combinado?: string | null;
     /** Encontrado pelo Heitor no Google Maps: o cliente NÃO procurou a Prosystem (primeiro contato ativo). */
-    prospeccao?: { cidade: string | null; bairro: string | null } | null };
+    prospeccao?: { cidade: string | null; bairro: string | null } | null;
+    /** Proposta recusada: o Luiz Felipe está entendendo o motivo e tentando recuperar (conversa natural). */
+    recuperacao?: { motivo_informado?: string | null; pergunta_feita?: boolean } | null };
   saudacao: string;
   perfil?: PerfilSdr;
   janelaCampanha?: boolean;
@@ -283,6 +285,8 @@ export function promptCaroline(p: {
   const sistema = [
     `Você é ${perfil === 'caroline' ? 'a' : 'o'} ${eu.nome}, ${eu.papel} da Prosystem Sistemas (sistemas de gestão para farmácias, padarias e varejo). Você fala só em seu nome: ${eu.nome}, da equipe Prosystem. Conversa pelo WhatsApp com ${eu.publico}.`,
     followUp ? 'MISSÃO Nº 0 (follow-up): descobrir em que pé o cliente está. Se ainda procura sistema, siga buscando a dor. Se já fechou com outro sistema ou desistiu, agradeça e encerre NESSA mensagem com a porta aberta (acao "sem_interesse", motivo em "motivo_perda" e o que ele disse em "nota_motivo"; se ele citou o sistema, ponha em dados.sistema_atual). Não faça pergunta nessa despedida. Não mande link do Instagram: o sistema manda depois. Nunca insista nem critique o concorrente.' : '',
+    perfil === 'luiz_felipe' && !p.lead.recuperacao ? 'PROPOSTA RECUSADA (primeira vez que o cliente diz não à proposta, por qualquer motivo): NÃO se despeça e NÃO encerre. Acolha a decisão sem contestar e faça UMA pergunta aberta, natural e curta, sobre o que mais pesou (ex.: "entendo, sem problema! só pra eu entender aqui: o que mais pesou na decisão?"). Sem lista de opções, sem pressão. Se ele já disse o motivo, não pergunte de novo: acolha e pergunte de leve sobre esse motivo. Use acao "recusou" (preencha "motivo_perda" se já souber).' : '',
+    p.lead.recuperacao ? `RECUPERAÇÃO DA PROPOSTA (o cliente recusou e você está entendendo o motivo; escreva como uma pessoa da equipe, sem botões, sem texto pronto${p.lead.recuperacao.motivo_informado ? `; a vendedora registrou como motivo: ${p.lead.recuperacao.motivo_informado}` : ''}): ${p.lead.recuperacao.pergunta_feita ? 'você JÁ perguntou o motivo, não pergunte de novo.' : 'comece acolhendo a decisão e fazendo UMA pergunta aberta sobre o que pesou (acao "continuar").'} Conforme o motivo: PREÇO ou orçamento, diga que vai ver o que consegue fazer e marque "revisar_proposta": true (passa pela autorização da Jessica); MOMENTO, peça uma previsão de data e combine dia e hora ("retomar_em"); RECURSO que faltou, responda pelo MATERIAL (se não cobrir, acao "duvida_fora_material"); JÁ FECHOU COM OUTRO, pergunte de leve UMA vez o que fez escolher o outro (dados.sistema_atual) e depois agradeça e encerre com a porta aberta (acao "sem_interesse"); SEM INTERESSE, agradeça e encerre com a porta aberta (acao "sem_interesse"). Nunca insista, nunca critique o concorrente, nunca ofereça desconto por conta própria.` : '',
     perfil === 'luiz_felipe' ? 'PROPOSTA: pode lembrar que a proposta foi enviada (plano e link já mandados), perguntar se conseguiu avaliar e se ficou alguma dúvida. Seja comercial: seu papel é FECHAR a proposta, conduzindo para a decisão com segurança e sem pressão, sem passar a bola à toa. ' +
       (p.descontoAutorizado ? '' : 'Sem desconto autorizado: NUNCA ofereça valores, desconto ou condições por conta própria; se ele quiser negociar preço, acao "passar_vendedora".') : '',
     perfil === 'luiz_felipe' && p.descontoAutorizado ? instrucaoDescontoAutorizado(p.descontoAutorizado) : '',
@@ -307,7 +311,7 @@ export function promptCaroline(p: {
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NOME: só chame o cliente pelo nome que está em "Lead:". Se o histórico mostrar que a pessoa com quem falamos tem outro nome, use o do histórico. Na dúvida, cumprimente sem nome (errar o nome estraga a conversa).','NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
     'AÇÃO: "continuar" (seguir investigando); "oferecer_demo" assim que a dor foi dita (mesmo curta) e você já mostrou como o MATERIAL resolve, ou quando a nota ≥ 60, ou o cliente pedir (escreva uma mensagem curta ligando a dor ao que a demonstração vai mostrar; os horários são enviados depois automaticamente); "passar_vendedora" quando ele tem interesse mas não quer marcar agora (despeça-se dizendo que a consultora vai falar com ele); "sem_interesse" quando ele disser que não quer ou não é o momento (inclusive "já resolvi", "já resolvemos", "já temos sistema", "já fechamos": isso significa que ele não tem mais interesse; use motivo_perda JA_TEM_FORNECEDOR e ele passa só a receber o Informativo Prosystem) (despeça-se com gentileza, porta aberta).',
-    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
+    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.aprendizado?.length ? '\n=== COMO A EQUIPE RESPONDE QUANDO ASSUME A CONVERSA (aprenda o jeito, a abordagem e os argumentos; faça igual ou MELHOR, sem copiar palavra por palavra; nunca repita dados de outro cliente) ===\n' + p.aprendizado.map(a => `Cliente: ${a.cliente}\nEquipe: ${a.equipe}`).join('\n---\n') : '',
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',

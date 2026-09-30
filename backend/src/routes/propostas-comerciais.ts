@@ -706,6 +706,17 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       data.comissao_supervisor_valor = comissoes.comissao_supervisor_valor;
     }
 
+    // Recusa marcada pela vendedora: motivo obrigatório; por padrão o Luiz Felipe tenta recuperar.
+    const brutoRecusa = (request.body || {}) as { motivo_recusa?: unknown; recuperar_luiz?: unknown };
+    const recusandoAgora = data.status === 'RECUSADA' && atual?.status !== 'RECUSADA';
+    const motivoRecusa = String(brutoRecusa.motivo_recusa || '');
+    if (recusandoAgora) {
+      const { MOTIVOS_PERDA } = await import('@/lib/assistente/sdr');
+      if (!(MOTIVOS_PERDA as readonly string[]).includes(motivoRecusa)) {
+        return reply.status(400).send({ status: 'error', message: 'Informe o motivo da recusa.' });
+      }
+    }
+
     // Quando proposta é ACEITA: marcar data e confirmar comissão
     if (data.status === 'ACEITA' && atual?.status !== 'ACEITA') {
       data.data_aceite = new Date();
@@ -808,6 +819,15 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       // (pela instância do vendedor dono da proposta). Não bloqueia a resposta.
       if (data.status === 'ENVIADA' && atual?.status !== 'ENVIADA' && proposta.responsavel_telefone) {
         enviarResumoWhatsApp(prisma, proposta).catch(e => console.error('[PROPOSTA] WhatsApp:', e?.message));
+      }
+
+      if (recusandoAgora) {
+        await prisma.propostaHistorico.create({ data: { proposta_id: id, tipo: 'STATUS', campo_alterado: 'motivo_recusa', valor_novo: motivoRecusa, motivo: motivoRecusa, feito_por_id: user?.id, feito_por_nome: user?.nome } }).catch(() => null);
+        if (brutoRecusa.recuperar_luiz !== false) {
+          const { recuperarPelaVendedora } = await import('@/services/caroline.service');
+          const naoIniciou = await recuperarPelaVendedora(prisma, id, motivoRecusa, user?.nome || 'Vendedora').catch((e: any) => e?.message || 'falha');
+          return reply.send({ status: 'success', data: proposta, recuperacao: naoIniciou ? { iniciada: false, motivo: naoIniciou } : { iniciada: true } });
+        }
       }
 
       return reply.send({ status: 'success', data: proposta });
