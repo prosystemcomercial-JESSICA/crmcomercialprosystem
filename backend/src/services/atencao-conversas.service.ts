@@ -17,14 +17,16 @@ export type Atencao = { tipo: 'esperando' | 'parado'; desde: string };
 export async function conversasEmAtencao(prisma: PrismaClient, escopo: Record<string, any> = {}, agora = new Date()): Promise<Map<string, Atencao>> {
   const janela = new Date(agora.getTime() - DIAS_JANELA * 864e5);
   const abertas = {
-    ...escopo, finalizada_em: null, estagio_funil: { not: 'FECHADO' },
+    finalizada_em: null, estagio_funil: { not: 'FECHADO' },
     OR: [{ etiqueta: null }, { etiqueta: { notIn: ETIQUETAS_NAO_COMERCIAIS } }],
+    // Escopo da pessoa (dono/pool) e conversa da equipe fora — em AND para um OR não sobrescrever o outro.
+    AND: [escopo, { OR: [{ tipo_contato: null }, { tipo_contato: { not: 'EQUIPE' } }] }] as any[],
   };
   const out = new Map<string, Atencao>();
 
   const limiteEsperando = new Date(agora.getTime() - MIN_ESPERANDO * 60000);
   const esperando = await prisma.whatsappConversa.findMany({
-    where: { ...abertas, ultima_em: { gte: janela }, nao_lidas: { gt: 0 }, AND: [{ OR: [{ ultima_em: { lt: limiteEsperando } }, { sla_prazo_em: { lt: agora } }] }] },
+    where: { ...abertas, ultima_em: { gte: janela }, nao_lidas: { gt: 0 }, AND: [...abertas.AND, { OR: [{ ultima_em: { lt: limiteEsperando } }, { sla_prazo_em: { lt: agora } }] }] },
     select: { id: true, ultima_em: true }, take: 300,
   }).catch(() => []);
   for (const c of esperando) out.set(c.id, { tipo: 'esperando', desde: (c.ultima_em || agora).toISOString() });

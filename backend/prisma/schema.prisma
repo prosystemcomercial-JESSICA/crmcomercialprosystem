@@ -1796,6 +1796,19 @@ model VendaAdicional {
 
   status String @default("PENDENTE") // PENDENTE | CONFIRMADA | PAGA | CANCELADO
 
+  // Serviço Prosystem (setup): esteira do orçamento ao lançamento no financeiro.
+  // ORCAMENTO | ENVIADO | ACEITO | EM_EXECUCAO | CONCLUIDO | NO_FINANCEIRO | LANCADO (null = indicação/fluxo antigo)
+  etapa             String?   @db.VarChar(20)
+  descricao_servico String?   @db.Text
+  autorizador_nome  String?   @db.VarChar(150) // quem autorizou o orçamento (registrado pela vendedora)
+  autorizador_cpf   String?   @db.VarChar(14)
+  enviado_em        DateTime?
+  aceite_em         DateTime?
+  execucao_em       DateTime?
+  concluido_em      DateTime?
+  financeiro_em     DateTime?
+  lancado_em        DateTime?
+
   observacoes String? @db.Text
 
   origem_oportunidade_id String? // OportunidadeAtivo que gerou esta venda (módulo Ativos)

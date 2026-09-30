@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { StatusBadge, type BadgeColor } from '@/components/ui/StatusBadge';
 import { apiClient } from '@/lib/api-client';
+import { showToast } from '@/components/ui/Toast';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend,
 } from 'recharts';
@@ -24,6 +25,10 @@ interface VendaAdicional {
   id: string;
   cliente_id: string;
   parceiro_id?: string | null;
+  etapa?: string | null;
+  descricao_servico?: string | null;
+  autorizador_nome?: string | null;
+  autorizador_cpf?: string | null;
   vendedor_id: string;
   vendedor_nome?: string;
   tipo_negocio?: string;
@@ -55,7 +60,19 @@ const CATEGORIA_LABEL: Record<string, string> = {
   COMUNICACAO: 'Comunicação',
   UPGRADE:     'Upgrade',
   TROCA_CNPJ:  'Troca de CNPJ',
+  SERVICO:     'Serviços Prosystem',
   OUTRO:       'Outro',
+};
+
+// Esteira do Serviço Prosystem: rótulo, cor e a próxima ação.
+const ETAPA_SERVICO: Record<string, { rot: string; cor: string; proxima?: string; acao?: string }> = {
+  ORCAMENTO:     { rot: 'Orçamento', cor: '#64748b', proxima: 'ENVIADO', acao: 'Marquei como enviado' },
+  ENVIADO:       { rot: 'Enviado ao cliente', cor: '#2563eb', proxima: 'ACEITO', acao: 'Registrar aceite' },
+  ACEITO:        { rot: 'Aceito', cor: '#7c3aed', proxima: 'EM_EXECUCAO', acao: 'Encaminhei para execução' },
+  EM_EXECUCAO:   { rot: 'Em execução', cor: '#d97706', proxima: 'CONCLUIDO', acao: 'Concluído' },
+  CONCLUIDO:     { rot: 'Concluído', cor: '#0d9488', proxima: 'NO_FINANCEIRO', acao: 'Copiar para o Thiago' },
+  NO_FINANCEIRO: { rot: 'No financeiro', cor: '#0891b2', proxima: 'LANCADO', acao: 'Lançado' },
+  LANCADO:       { rot: 'Lançado', cor: '#16a34a' },
 };
 
 const CATEGORIA_COLOR: Record<string, BadgeColor> = {
@@ -333,6 +350,7 @@ export default function IndicacoesPage() {
         vendedor_id: vendaForm.vendedor_id,
         tipo_negocio: vendaForm.tipo_negocio || 'INDICACAO',
         observacoes: vendaForm.observacoes || undefined,
+        ...(vendaForm.descricao_servico ? { descricao_servico: vendaForm.descricao_servico } : {}),
       };
       if (vendaForm.valor_venda) payload.valor_venda = parseFloat(vendaForm.valor_venda);
       if (vendaForm.acrescimo_mensal) payload.acrescimo_mensal = parseFloat(vendaForm.acrescimo_mensal);
@@ -419,6 +437,33 @@ export default function IndicacoesPage() {
     } catch (e: any) {
       console.error('Não foi possível carregar o resumo.', e);
     }
+  };
+
+  // ── Serviço Prosystem: textos prontos e avanço de etapa ──
+  const copiarTextoServico = async (id: string, qual: 'orcamento' | 'financeiro') => {
+    try {
+      const r = await apiClient.textosVendaAdicional(id);
+      await navigator.clipboard.writeText(r.data.data[qual]);
+      showToast.success(qual === 'orcamento' ? 'Orçamento copiado' : 'Texto do Thiago copiado', qual === 'orcamento' ? 'Cole no WhatsApp do cliente.' : 'Cole no Teams para o Thiago lançar no financeiro.');
+    } catch { showToast.error('Não consegui copiar', 'Tente de novo.'); }
+  };
+  const avancarServico = async (v: any) => {
+    const prox = ETAPA_SERVICO[v.etapa]?.proxima;
+    if (!prox) return;
+    const dados: any = { etapa: prox };
+    if (prox === 'ACEITO') {
+      const nome = window.prompt('Nome completo de quem autorizou o orçamento:');
+      if (!nome) return;
+      const cpf = window.prompt('CPF de quem autorizou:');
+      if (!cpf) return;
+      dados.autorizador_nome = nome; dados.autorizador_cpf = cpf;
+    }
+    if (prox === 'NO_FINANCEIRO') await copiarTextoServico(v.id, 'financeiro');
+    if (prox === 'LANCADO' && !window.confirm('O Thiago já lançou no financeiro? Isso confirma a venda e libera as comissões.')) return;
+    try {
+      await apiClient.etapaVendaAdicional(v.id, dados);
+      loadVendas();
+    } catch (e: any) { showToast.error('Não deu certo', e?.response?.data?.message || 'Tente de novo.'); }
   };
 
   const handlePagarComissao = async (id: string) => {
@@ -799,6 +844,23 @@ export default function IndicacoesPage() {
                           })()}
                         </td>
                         <td className="px-5 py-4 text-right">
+                          {v.etapa && ETAPA_SERVICO[v.etapa] && (
+                            <span className="inline-flex flex-wrap items-center justify-end gap-1 mb-1 w-full">
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: ETAPA_SERVICO[v.etapa].cor }}>{ETAPA_SERVICO[v.etapa].rot}</span>
+                              {['ORCAMENTO', 'ENVIADO'].includes(v.etapa) && (
+                                <button onClick={() => copiarTextoServico(v.id, 'orcamento')} className="text-xs text-slate-700 border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-50">📋 Orçamento</button>
+                              )}
+                              {['CONCLUIDO', 'NO_FINANCEIRO', 'LANCADO'].includes(v.etapa) && v.etapa !== 'CONCLUIDO' && (
+                                <button onClick={() => copiarTextoServico(v.id, 'financeiro')} className="text-xs text-slate-700 border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-50">📋 Texto do Thiago</button>
+                              )}
+                              {ETAPA_SERVICO[v.etapa].proxima && (ETAPA_SERVICO[v.etapa].proxima !== 'LANCADO' || isGestor) && (
+                                <button onClick={() => avancarServico(v)} className="text-xs text-white rounded-lg px-2 py-1 font-medium" style={{ background: ETAPA_SERVICO[ETAPA_SERVICO[v.etapa].proxima!].cor }}>
+                                  {ETAPA_SERVICO[v.etapa].acao}
+                                </button>
+                              )}
+                            </span>
+                          )}
+                          {v.autorizador_nome && <span className="block text-[11px] text-slate-500 mb-1">Autorizado por {v.autorizador_nome} · CPF {v.autorizador_cpf}</span>}
                           {/* Resumo p/ financeiro — Comunicação, Upgrade e Fiscal */}
                           {['COMUNICACAO', 'UPGRADE', 'FISCAL'].includes(v.parceiro?.categoria || '') && (
                             <button onClick={() => copiarResumoFinanceiro(v.id)} title="Copiar resumo para o financeiro"
@@ -1152,6 +1214,39 @@ export default function IndicacoesPage() {
                     Comissão: <span className="font-semibold text-green-700">R$ {parceiroSelecionado.comissao_valor.toLocaleString('pt-BR')}</span>
                     {parceiroSelecionado.tabela_valores && ` · ${parceiroSelecionado.tabela_valores}`}
                   </p>
+                )}
+                {parceiroSelecionado?.categoria === 'SERVICO' && (
+                  <div className="mt-3 rounded-lg border border-slate-200 p-3 space-y-2">
+                    <div>
+                      <label className="text-sm font-medium">Demanda (descreva o serviço) *</label>
+                      <textarea rows={3} value={vendaForm.descricao_servico || ''} onChange={e => setVendaForm((p: any) => ({ ...p, descricao_servico: e.target.value }))}
+                        placeholder="Ex.: Migração do cadastro de produtos do sistema antigo + treinamento de 2 h para a equipe do caixa"
+                        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium">Valor do serviço (R$) *</label>
+                        <input type="number" step="0.01" min="0" value={vendaForm.valor_venda || ''} onChange={e => setVendaForm((p: any) => ({ ...p, valor_venda: e.target.value }))}
+                          placeholder="Ex.: 450,00" className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium">1º vencimento</label>
+                        <input type="date" value={vendaForm.setup_primeiro_venc || ''} onChange={e => setVendaForm((p: any) => ({ ...p, setup_primeiro_venc: e.target.value }))}
+                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium">Parcelas</label>
+                        <input type="number" min="1" max="24" value={vendaForm.setup_parcelas || 1} onChange={e => setVendaForm((p: any) => ({ ...p, setup_parcelas: e.target.value }))}
+                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium">Entrada (R$, opcional)</label>
+                        <input type="number" step="0.01" min="0" value={vendaForm.setup_entrada || ''} onChange={e => setVendaForm((p: any) => ({ ...p, setup_entrada: e.target.value, setup_forma: e.target.value ? 'ENTRADA_PARCELAS' : 'PARCELADO' }))}
+                          className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500">Comissão: 15% do valor para o vendedor e 5% para a supervisão (sobre o serviço, nunca sobre a mensalidade). O serviço começa em &quot;Orçamento&quot;.</p>
+                  </div>
                 )}
                 {/* Aviso inline de duplicado */}
                 {vendaForm.cliente_id && vendaForm.parceiro_id && (() => {
