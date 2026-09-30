@@ -639,6 +639,8 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
   } else if (acao === 'duvida_fora_material') {
     await enviarAvisoGestao(prisma, 'lead_qualificado', `❓ *Dúvida que ${nomeDe(sdr)} não sabe responder*\n${atual?.nome || ''}${atual?.empresa ? ` · ${atual.empresa}` : ''}: "${r.duvida || 'ver conversa'}"\nResponda na conversa do WhatsApp (ao responder, você assume e ela sai).`);
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
+    // O Rafael não sabia: vai atrás da resposta (pesquisa e escreve para a Jessica aprovar; aprovada, vale para todos).
+    if (r.duvida) import('./especialista.service').then(m => m.pesquisarDuvida(prisma, r.duvida!, nomeDe(sdr))).catch((e: any) => console.warn('[RAFAEL] dúvida:', e?.message));
   }
 }
 

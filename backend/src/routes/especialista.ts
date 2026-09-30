@@ -47,6 +47,25 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
     return reply.send({ status: 'success', message: ok ? 'O Rafael está preparando a nova abordagem inicial (alguns minutos).' : 'Já está preparando.' });
   });
 
+  // Treinamento: o Rafael lê as conversas do agente, gera relatório + conversa de treino + regras.
+  fastify.post('/especialista/treinar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const b = z.object({ agente: z.enum(['luiz_felipe', 'julio', 'caroline']).default('luiz_felipe') }).safeParse(request.body || {});
+    const agente = b.success ? b.data.agente : 'luiz_felipe';
+    const { treinarAgente } = await import('../services/especialista.service');
+    const ok = emSegundoPlano(`treino_${agente}`, () => treinarAgente(prisma, agente));
+    return reply.send({ status: 'success', message: ok ? 'O Rafael chamou o agente para o treinamento (2 a 3 minutos). O relatório e a conversa aparecem aqui.' : 'O treinamento já está acontecendo.' });
+  });
+
+  fastify.get('/especialista/treinamentos', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const docs = await prisma.especialistaDoc.findMany({
+      where: { tipo: 'TREINAMENTO', status: { not: 'ARQUIVADO' } }, orderBy: { created_at: 'desc' }, take: 10,
+      select: { id: true, titulo: true, agente_alvo: true, status: true, fontes: true, created_at: true },
+    });
+    return reply.send({ status: 'success', data: { treinamentos: docs.map(d => ({ ...d, dialogo: (d.fontes as any)?.dialogo || [], regras: (d.fontes as any)?.regras || [], fontes: undefined })), em_andamento: [...emAndamento].filter(x => x.startsWith('treino_')) } });
+  });
+
   // Olívia (concorrentes): pesquisa na internet e entrega para o Rafael.
   fastify.post('/especialista/concorrentes', async (request, reply) => {
     if (!requireGestor(request, reply)) return;

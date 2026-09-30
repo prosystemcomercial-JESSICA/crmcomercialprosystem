@@ -12,6 +12,7 @@ import CadernoLaya from '@/components/escritorio/CadernoLaya';
 import PainelCaroline from '@/components/escritorio/PainelCaroline';
 import PainelDesempenho from '@/components/desempenho/PainelDesempenho';
 import PainelRafael from '@/components/escritorio/PainelRafael';
+import SalaTreinamento, { type FalaNaSala } from '@/components/escritorio/SalaTreinamento';
 import PainelHeitor from '@/components/escritorio/PainelHeitor';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
@@ -50,7 +51,19 @@ const haQuanto = (iso: string) => {
 
 const botaoZoom = { width: 28, height: 28, borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: 800, fontSize: 16, cursor: 'pointer' } as const;
 
+/** Durante o treinamento, Rafael e o agente aparecem trabalhando e só quem fala mostra o balão. */
+function comTreino<T extends { id: string; status: any; ultima: any }>(agentes: T[], f: FalaNaSala): T[] {
+  if (!f) return agentes;
+  return agentes.map(a => {
+    if (a.id !== 'rafael' && a.id !== f.agente) return a;
+    const fala = (f.quem === 'rafael') === (a.id === 'rafael');
+    return { ...a, status: 'trabalhando', ultima: fala ? { texto: f.texto.length > 110 ? f.texto.slice(0, 107) + '…' : f.texto, em: new Date().toISOString() } : null };
+  });
+}
+
 export default function EscritorioPage() {
+  // Treinamento em andamento na Sala de treinamento: Rafael e o agente conversam na sala (balões).
+  const [falaTreino, setFalaTreino] = useState<FalaNaSala>(null);
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [agentes, setAgentes] = useState<Agente[] | null>(null);
@@ -237,7 +250,7 @@ export default function EscritorioPage() {
               onClickCapture={e => { if (arraste.current?.moveu) { e.stopPropagation(); e.preventDefault(); } }}
               style={{ overflow: zoom > 1 ? 'auto' : 'hidden', height: zoom > 1 && alturaBase.current ? alturaBase.current : undefined, cursor: zoom > 1 ? 'grab' : undefined }}>
               <div style={{ width: `${zoom * 100}%` }}>
-                {mostrar ? <SalaIsometrica zoom={zoom} agentes={mostrar} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
+                {mostrar ? <SalaIsometrica zoom={zoom} agentes={comTreino(mostrar, falaTreino)} selecionado={sel} onSelecionar={id => (id ? verTrabalho(id) : setSel(null))} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
               </div>
             </div>
           </div>
@@ -285,6 +298,7 @@ export default function EscritorioPage() {
           <PainelCaroline agente="luiz_felipe" />
           <PainelCaroline agente="julio" />
           <CadernoLaya />
+          <SalaTreinamento onFala={setFalaTreino} />
           <PainelRafael />
           <PainelHeitor />
           <PesquisasSofia />

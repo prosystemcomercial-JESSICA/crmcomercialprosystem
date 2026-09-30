@@ -18,7 +18,7 @@ const QUEM = [
   'Escreva em português do Brasil, simples e direto, pronto para usar no dia a dia. Nunca invente números da Prosystem nem prometa preço.',
 ].join('\n');
 
-type DocNovo = { tipo: 'POP' | 'PROCESSO' | 'EXEMPLO' | 'DICA' | 'ALERTA' | 'ABORDAGEM' | 'CONCORRENCIA'; titulo: string; conteudo: string; agente_alvo?: string | null };
+type DocNovo = { tipo: 'POP' | 'PROCESSO' | 'EXEMPLO' | 'DICA' | 'ALERTA' | 'ABORDAGEM' | 'CONCORRENCIA' | 'TREINAMENTO'; titulo: string; conteudo: string; agente_alvo?: string | null };
 
 /** Grava como nova versão quando já existe um documento com o mesmo título (o anterior é arquivado). */
 async function gravarDoc(prisma: PrismaClient, d: DocNovo, origem: string, fontes?: any) {
@@ -205,6 +205,17 @@ export async function decidirDoc(prisma: PrismaClient, id: string, aprovar: bool
       registrarAcaoAgente('laya', 'aprendeu com o Rafael os critérios de qualificação de leads');
     }
   }
+  if (d.tipo === 'TREINAMENTO' && d.agente_alvo) {
+    const prefixo = 'TREINAMENTO DO RAFAEL (aprovado pela gestão)';
+    const regras: string[] = Array.isArray((d.fontes as any)?.regras) ? (d.fontes as any).regras : [];
+    if (regras.length) {
+      await prisma.agenteInstrucao.updateMany({ where: { agente: d.agente_alvo, ativa: true, texto: { startsWith: prefixo } }, data: { ativa: false } });
+      await prisma.agenteInstrucao.create({ data: { agente: d.agente_alvo, ativa: true, criado_por: userId, texto: `${prefixo}: siga estas regras em todas as conversas.\n${regras.map((r, i) => `${i + 1}. ${r}`).join('\n')}`.slice(0, 6000) } });
+      registrarAcaoAgente(d.agente_alvo as any, `aplicou o treinamento do Rafael (${regras.length} regras)`);
+    }
+  }
+  const { esquecerGuiaComercial } = await import('./assistente-ia.service');
+  esquecerGuiaComercial();
   registrarAcaoAgente('rafael', `teve "${d.titulo.slice(0, 50)}" aprovado`);
   return upd;
 }
@@ -252,6 +263,96 @@ export async function pesquisarConcorrentes(prisma: PrismaClient, foco: string |
 }
 
 /** Rotina: revisão das conversas de seg a sex às 17h; estudo toda quarta às 9h. */
+// ── Treinamento de um agente (Rafael → Luiz Felipe, Julio, Caroline) ─────────
+const NOME_AGENTE: Record<string, string> = { luiz_felipe: 'Luiz Felipe', julio: 'Julio', caroline: 'Caroline' };
+export type FalaTreino = { quem: 'rafael' | 'agente'; texto: string };
+
+/**
+ * Rafael lê as conversas reais do agente, aponta o que incomoda o cliente e treina:
+ * gera o relatório, a conversa de treinamento entre os dois (para ver no escritório)
+ * e as regras que o agente passa a seguir quando a Jessica aprovar.
+ */
+export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe') {
+  const nome = NOME_AGENTE[agente] || agente;
+  const desde = new Date(Date.now() - 14 * 864e5);
+  const leads = await prisma.sdrLead.findMany({ where: { agente, updated_at: { gte: desde } }, orderBy: { updated_at: 'desc' }, take: 25, select: { conversaId: true, nome: true, empresa: true, status: true } });
+  const conversas: string[] = [];
+  for (const l of leads) {
+    if (conversas.length >= 12 || !l.conversaId) continue;
+    const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId: l.conversaId }, orderBy: { created_at: 'desc' }, take: 18, select: { direcao: true, enviada_por: true, conteudo: true, transcricao: true, tipo: true, created_at: true } });
+    if (!ms.some(m => m.enviada_por === agente)) continue;
+    const linhas = ms.reverse().map(m => `[${m.created_at.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}] ${m.direcao === 'ENTRADA' ? 'Cliente' : m.enviada_por === agente ? nome : AUTOMATICOS.includes(m.enviada_por || '') ? `Sistema(${m.enviada_por})` : 'Equipe'}: ${((m.tipo === 'AUDIO' ? m.transcricao : m.conteudo) || `[${String(m.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 280)}`);
+    conversas.push(`### ${l.empresa || l.nome || 'cliente'} (status ${l.status})\n${linhas.join('\n')}`);
+  }
+  if (!conversas.length) { registrarAcaoAgente('rafael', `não achou conversas recentes do ${nome} para treinar`); return null; }
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const regrasAtuais = await instrucoesPara(prisma, agente);
+  const pops = await prisma.especialistaDoc.findMany({ where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO'] } }, select: { titulo: true, conteudo: true }, take: 6, orderBy: { decidido_em: 'desc' } });
+  const pergunta = [
+    `Você vai TREINAR o agente de IA ${nome} (conversa com clientes pelo WhatsApp em nome da Prosystem). Leia as conversas reais dele abaixo com olhar de cliente: o que soa robótico, desconfortável, insistente, repetitivo, com mensagens em sequência sem resposta, botões fora de hora, nome errado, pergunta sem contexto ou sem valor para o cliente.`,
+    'Depois treine o agente como um bom gestor comercial: aponte o problema com o exemplo REAL da conversa, explique o porquê e mostre como fazer melhor com uma mensagem pronta (curta, natural, de WhatsApp, sem travessão).',
+    `Crie também um DIÁLOGO de treinamento entre você (Rafael) e o ${nome}, de 10 a 14 falas, natural e respeitoso, como numa reunião 1:1 no escritório: você mostra um caso, ele reconhece, pergunta, você orienta, ele reescreve a mensagem e você valida. O ${nome} fala em primeira pessoa como agente.`,
+    'Por fim, consolide as REGRAS que ele deve seguir a partir de agora (6 a 12, curtas e verificáveis), mantendo as regras atuais que continuam valendo.',
+    'Se faltar informação para orientar algo (produto, mercado, regra), liste em "pesquisar" (máximo 2 perguntas objetivas) em vez de inventar.',
+    'Responda APENAS com JSON: {"resumo": string, "nota_antes": 0-10, "pontos_fortes": [string], "problemas": [{"problema": string, "exemplo_real": string, "por_que": string, "como_fazer": string, "mensagem_melhor": string}], "regras": [string], "dialogo": [{"quem": "rafael"|"agente", "texto": string}], "pesquisar": [string]}',
+    regrasAtuais ? `\nRegras atuais do agente:${regrasAtuais}` : '',
+    pops.length ? `\nMaterial aprovado do setor (use como referência):\n${pops.map(x => `## ${x.titulo}\n${x.conteudo.slice(0, 1500)}`).join('\n\n')}` : '',
+    `\n=== CONVERSAS DO ${nome.toUpperCase()} (últimos 14 dias) ===\n${conversas.join('\n\n')}`,
+  ].filter(Boolean).join('\n');
+  const r = lerJsonIa<any>(await chamarGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), partes: [{ text: pergunta }], json: true, temperatura: 0.4, timeoutMs: 180_000 }));
+  if (!r?.dialogo?.length || !r?.regras?.length) throw new Error('o Rafael não conseguiu montar o treinamento desta vez');
+  const dialogo: FalaTreino[] = r.dialogo.filter((f: any) => f?.texto).slice(0, 16).map((f: any) => ({ quem: f.quem === 'agente' ? 'agente' : 'rafael', texto: String(f.texto).slice(0, 600) }));
+  const regras: string[] = r.regras.map((x: any) => String(x).slice(0, 300)).slice(0, 12);
+  const dia = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const md = [
+    `# Relatório de treinamento · ${nome} · ${dia}`, '',
+    `**Conversas analisadas:** ${conversas.length} (últimos 14 dias) · **Nota antes do treino:** ${r.nota_antes ?? '—'}/10`, '',
+    r.resumo || '',
+    '', '## O que já está bom', ...(r.pontos_fortes || []).map((x: string) => `- ${x}`),
+    '', `## O que precisa melhorar (${(r.problemas || []).length})`,
+    ...(r.problemas || []).map((x: any, i: number) => `### ${i + 1}. ${x.problema}\n- **Na conversa:** "${x.exemplo_real}"\n- **Por que incomoda:** ${x.por_que}\n- **Como fazer:** ${x.como_fazer}\n- **Mensagem melhor:** "${x.mensagem_melhor}"`),
+    '', `## Regras que o ${nome} passa a seguir (ao aprovar)`, ...regras.map((x, i) => `${i + 1}. ${x}`),
+    '', '## Conversa do treinamento', ...dialogo.map(f => `- **${f.quem === 'rafael' ? 'Rafael' : nome}:** ${f.texto}`),
+    ...((r.pesquisar || []).length ? ['', '## O Rafael foi pesquisar', ...(r.pesquisar as string[]).slice(0, 2).map(x => `- ${x}`)] : []),
+  ].join('\n');
+  const doc = await gravarDoc(prisma, { tipo: 'TREINAMENTO', titulo: `Treinamento do ${nome} · ${dia}`, conteudo: md, agente_alvo: agente }, 'treinamento', { dialogo, regras, conversas: conversas.length, nota_antes: r.nota_antes ?? null });
+  registrarAcaoAgente('rafael', `treinou o ${nome}: ${(r.problemas || []).length} pontos a melhorar`);
+  registrarAcaoAgente(agente as any, `recebeu treinamento do Rafael (${regras.length} regras)`);
+  await avisar(prisma, [`🎓 *Rafael treinou o ${nome}*`, r.resumo?.slice(0, 280) || '', `${(r.problemas || []).length} ponto(s) a melhorar · ${regras.length} regra(s) novas.`, '', 'Leia o relatório, veja os dois conversando e aprove no Escritório virtual › Rafael (ao aprovar, as regras passam a valer).'].filter(Boolean).join('\n'));
+  // Iniciativa: o que ele não sabia, vai pesquisar.
+  for (const q of ((r.pesquisar || []) as string[]).slice(0, 2)) await pesquisarDuvida(prisma, q, 'Rafael (treinamento)').catch(() => {});
+  return doc;
+}
+
+/**
+ * Iniciativa do Rafael: dúvida que ninguém soube responder (agente com "dúvida fora do material"
+ * ou lacuna no treinamento) → ele pesquisa e escreve a resposta para a Jessica aprovar.
+ * Aprovada, entra no material de todos os agentes. Uma vez por dúvida por dia.
+ */
+export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, origem: string) {
+  const q = duvida.trim().slice(0, 300);
+  if (q.length < 8) return null;
+  const { podeEnviarUmaVez, hashTexto } = await import('./envio-unico.service');
+  if (!(await podeEnviarUmaVez(prisma, `rafael.duvida.${hashTexto(q.toLowerCase())}`, 24))) return null;
+  registrarAcaoAgente('rafael', `foi pesquisar: "${q.slice(0, 60)}"`);
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const { texto, fontes } = await pesquisarComGemini(prisma, {
+    sistema: QUEM + (await instrucoesPara(prisma, 'rafael')),
+    pergunta: [
+      `Um cliente (ou a equipe) perguntou e nenhum agente soube responder: "${q}". Origem: ${origem}.`,
+      'Pesquise e escreva a resposta que os agentes podem dar pelo WhatsApp, para farmácias/padarias. Se for sobre o PRODUTO Prosystem e você não achar fonte confiável, NÃO invente: diga o que a equipe precisa confirmar.',
+      'Responda APENAS com JSON: {"titulo": string (curto, começando com "Resposta: "), "conteudo": string (markdown: resposta curta pronta para o WhatsApp + explicação + o que confirmar com a equipe, se houver)}',
+    ].join('\n'),
+    timeoutMs: 180_000,
+  });
+  const r = lerJsonIa<{ titulo: string; conteudo: string }>(texto);
+  if (!r?.titulo || !r?.conteudo) return null;
+  const doc = await gravarDoc(prisma, { tipo: 'DICA', titulo: r.titulo.startsWith('Resposta') ? r.titulo : `Resposta: ${r.titulo}`, conteudo: `> Pergunta: "${q}" (${origem})\n\n${r.conteudo}` }, 'duvida', fontes);
+  registrarAcaoAgente('rafael', `pesquisou e respondeu: "${q.slice(0, 50)}"`);
+  await avisar(prisma, [`🔎 *Rafael pesquisou uma dúvida que ninguém sabia*`, `"${q.slice(0, 200)}"`, '', 'A resposta está no Escritório virtual › Rafael. Aprovada, vale para todos os agentes.'].join('\n'));
+  return doc;
+}
+
 export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(agora);
   const dia = partes.find(p => p.type === 'weekday')?.value || '';
@@ -263,6 +364,9 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   }
   if (dia === 'Wed' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, `rafael.estudo.${hoje}`, 20)) {
     await estudarVendas(prisma).catch(e => console.error('[RAFAEL] estudo:', e?.message));
+  }
+  if (dia === 'Thu' && hora >= 10 && hora < 12 && await podeEnviarUmaVez(prisma, `rafael.treino.luiz_felipe.${hoje}`, 20)) {
+    await treinarAgente(prisma, 'luiz_felipe').catch(e => console.error('[RAFAEL] treino:', e?.message));
   }
   // Olívia: a cada 15 dias, na terça de manhã (a trava de 14 dias evita repetir na semana seguinte).
   if (dia === 'Tue' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, 'olivia.concorrencia', 24 * 13)) {
