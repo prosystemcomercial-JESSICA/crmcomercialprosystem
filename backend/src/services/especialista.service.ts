@@ -195,6 +195,16 @@ export async function decidirDoc(prisma: PrismaClient, id: string, aprovar: bool
     await prisma.agenteInstrucao.updateMany({ where: { agente: d.agente_alvo, ativa: true, texto: { startsWith: prefixo } }, data: { ativa: false } });
     await prisma.agenteInstrucao.create({ data: { agente: d.agente_alvo, ativa: true, criado_por: userId, texto: `${prefixo}: use esta diretriz no PRIMEIRO contato e nas retomadas.\n${d.conteudo}`.slice(0, 6000) } });
   }
+  // Critérios de qualificação: passam para a Laya (pergunta nova que ela responde em cada conversa).
+  if (/crit[eé]rios de qualifica[cç][aã]o para a laya/i.test(d.titulo)) {
+    const { lerCriteriosQualificacao } = await import('@/lib/laya');
+    const c = lerCriteriosQualificacao(d.conteudo);
+    if (c) {
+      const { CHAVE_CRITERIOS_QUALIFICACAO } = await import('./laya.service');
+      await prisma.configuracaoIntegracao.upsert({ where: { chave: CHAVE_CRITERIOS_QUALIFICACAO }, create: { chave: CHAVE_CRITERIOS_QUALIFICACAO, valor: JSON.stringify(c), updated_by: userId }, update: { valor: JSON.stringify(c), updated_by: userId } });
+      registrarAcaoAgente('laya', 'aprendeu com o Rafael os critérios de qualificação de leads');
+    }
+  }
   registrarAcaoAgente('rafael', `teve "${d.titulo.slice(0, 50)}" aprovado`);
   return upd;
 }

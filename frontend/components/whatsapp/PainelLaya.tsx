@@ -6,7 +6,11 @@ import { apiClient } from '@/lib/api-client';
 // IA Laya: mostra o que ela entendeu da conversa e a equipe confirma ou corrige.
 // Cada confirmação vira uma amostra de treino (fase de aprendizado de 20 dias).
 
-type Sugestao = { segmento: string; intencao: string; cancelar: number; urgencia: number };
+type Sugestao = { segmento: string; intencao: string; cancelar: number; urgencia: number; qualificacao?: string | null };
+const QUALIF: Record<string, { rotulo: string; cor: string }> = {
+  quente: { rotulo: 'lead quente', cor: 'bg-red-600' }, morno: { rotulo: 'lead morno', cor: 'bg-amber-500' },
+  frio: { rotulo: 'lead frio', cor: 'bg-sky-600' }, nao_lead: { rotulo: 'não é lead', cor: 'bg-gray-500' },
+};
 
 const SEGMENTOS: [string, string][] = [
   ['farmacia', 'Farmácia'], ['manipulacao', 'Manipulação'], ['padaria', 'Padaria'],
@@ -58,6 +62,7 @@ export default function PainelLaya({ conversa }: { conversa: { id: string; tipo_
         <p className="text-xs text-gray-600 mb-2">
           Entendi: <b>{SEGMENTOS.find(x => x[0] === s.segmento)?.[1]}</b> · <b>{INTENCOES.find(x => x[0] === s.intencao)?.[1]}</b>
           {riscoAlto && <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">risco de cancelar</span>}
+          {s.qualificacao && QUALIF[s.qualificacao] && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${QUALIF[s.qualificacao].cor}`}>{QUALIF[s.qualificacao].rotulo}</span>}
         </p>
       ) : (
         <p className="text-xs text-gray-400 mb-2">Ainda analisando… você já pode ensinar abaixo.</p>

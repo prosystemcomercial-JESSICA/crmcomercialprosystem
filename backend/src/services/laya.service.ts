@@ -1,5 +1,12 @@
 import type { PrismaClient } from '@prisma/client';
-import { PERGUNTAS_LAYA, PERGUNTAS_TRIAGEM, TIPOS_SEM_IA, montarEstadoConversa, lerRespostaLaya, lerEscolhaTriagem } from '../lib/laya';
+import { PERGUNTAS_LAYA, PERGUNTAS_TRIAGEM, TIPOS_SEM_IA, montarEstadoConversa, lerRespostaLaya, lerEscolhaTriagem, perguntaQualificacao, type CriteriosQualificacao } from '../lib/laya';
+
+// Critérios de qualificação que o Rafael ensinou (vira pergunta da Laya depois que a gestão aprova o documento).
+export const CHAVE_CRITERIOS_QUALIFICACAO = 'laya.criterios_qualificacao';
+async function criteriosQualificacao(prisma: PrismaClient): Promise<CriteriosQualificacao | null> {
+  const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_CRITERIOS_QUALIFICACAO } }).catch(() => null);
+  try { return r?.valor ? JSON.parse(r.valor) : null; } catch { return null; }
+}
 import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { vocabulario, casoParecido, historicoAcertos, nivelTarefa, type AmostraLaya, type TarefaLaya } from '../lib/laya-caderno';
 import { registrarUsoIa } from './uso-ia.service';
@@ -35,6 +42,13 @@ export function perguntasComVocabulario(xs: AmostraLaya[]): any {
   return q;
 }
 
+async function perguntasComQualificacao(prisma: PrismaClient, xs: AmostraLaya[]) {
+  const q = perguntasComVocabulario(xs);
+  const c = await criteriosQualificacao(prisma);
+  if (c) q.qualificacao = perguntaQualificacao(c);
+  return q;
+}
+
 const SIMILARIDADE_MEMORIA = 0.6;
 
 // Serviço Laya local (pm2 "laya", só escuta em 127.0.0.1). Se estiver fora do ar,
@@ -66,7 +80,7 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
   const res = await fetch(`${LAYA_URL}/v1/systemone`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ state: estado, questions: perguntasComVocabulario(xs), model: 'multilingual' }),
+    body: JSON.stringify({ state: estado, questions: await perguntasComQualificacao(prisma, xs), model: 'multilingual' }),
     signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new Error(`Laya HTTP ${res.status}`);
