@@ -117,7 +117,7 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
   }
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ia_sugestao: sugestao, ia_sugerido_em: new Date() } });
   // Temperatura: a Laya dá o veredito e aplica no lead (a troca feita por uma pessoa é respeitada).
-  if (conversa.lead_id && sugestao.temperatura) await aplicarTemperatura(prisma, conversa.lead_id, conversaId, sugestao.temperatura, sugestao.temperatura_conf ?? 0).catch(() => {});
+  if (conversa.lead_id && sugestao.temperatura && sugestao.intencao === 'comprar') await aplicarTemperatura(prisma, conversa.lead_id, conversaId, sugestao.temperatura, sugestao.temperatura_conf ?? 0).catch(() => {});
   // Ramo já informado no lead (pela equipe): vira comparação com o palpite de agora.
   if (conversa.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { segmento: true } }).catch(() => null);

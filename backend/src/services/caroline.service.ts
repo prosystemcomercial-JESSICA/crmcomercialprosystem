@@ -574,12 +574,14 @@ async function fecharRecuperacaoSemResposta(prisma: PrismaClient, s: any, agora:
 }
 
 // A decisão do agente (IA externa) vira comparação para a Laya: assunto e ramo da conversa.
-async function aprenderLaya(prisma: PrismaClient, sdr: any, acao: string) {
+async function aprenderLaya(prisma: PrismaClient, sdr: any, acao: string, nota?: number | null) {
   const intencao = acao === 'encaminhar_suporte' ? 'suporte' : ['oferecer_demo', 'passar_vendedora', 'recusou', 'aceitar_condicao', 'continuar', 'duvida_fora_material'].includes(acao) ? 'comprar' : null;
   const segmento = SEG_LAYA[sdr.segmento || ''] || (/padar|panif|confeit/i.test(sdr.segmento || '') ? 'padaria' : /manipula/i.test(sdr.segmento || '') ? 'manipulacao' : /farm|drog/i.test(sdr.segmento || '') ? 'farmacia' : undefined);
-  if (!intencao && !segmento) return;
+  // Nota de interesse do agente (0-100) → temperatura: até 34 Frio, 35-59 Morno, 60-79 Quente, 80+ Muito quente.
+  const temperatura = typeof nota === 'number' && intencao === 'comprar' ? (nota >= 80 ? 'MUITO_QUENTE' : nota >= 60 ? 'QUENTE' : nota >= 35 ? 'MORNO' : 'FRIO') : undefined;
+  if (!intencao && !segmento && !temperatura) return;
   const { aprenderComDecisao } = await import('./laya-cerebro.service');
-  await aprenderComDecisao(prisma, sdr.conversaId, { ...(intencao ? { intencao } : {}), ...(segmento ? { segmento } : {}) }, agenteDe(sdr)).catch(() => {});
+  await aprenderComDecisao(prisma, sdr.conversaId, { ...(intencao ? { intencao } : {}), ...(segmento ? { segmento } : {}), ...(temperatura ? { temperatura } : {}) }, agenteDe(sdr)).catch(() => {});
 }
 
 async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa: string, r: { nota: number; nota_motivo: string; duvida?: string | null; motivo_perda?: string | null }) {
@@ -743,7 +745,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   }
   registrarAcaoAgente(agenteDe(sdr), `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
   if (r.acao !== 'continuar') await aplicarAcao(prisma, token, sdr, r.acao, r);
-  if (fase === 'resposta') void aprenderLaya(prisma, sdr, r.acao);
+  if (fase === 'resposta') void aprenderLaya(prisma, sdr, r.acao, r.nota);
   if (recuperacaoAtiva(sdr) && (r.revisar_proposta || r.retomar_em || r.adiar_dias || r.acao === 'duvida_fora_material')) await voltouANegociar(prisma, sdr);
   // Julio: com interesse (nota 35+, demo ou vendedora), a conversa segue com a Caroline.
   if (r.nota >= 35 || ['oferecer_demo', 'passar_vendedora'].includes(r.acao)) await passarParaCaroline(prisma, sdr, `interesse na conversa (nota ${r.nota})`);
