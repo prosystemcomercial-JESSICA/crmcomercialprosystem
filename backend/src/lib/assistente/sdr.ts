@@ -210,6 +210,10 @@ export function janelaCampanhaAtiva(d: Date): boolean {
 }
 
 // Mesmas chaves do motivo da perda no funil (MOTIVOS_PERDA do frontend / relatório comercial).
+// Faixa de mensalidade que os agentes podem informar quando o cliente pergunta o valor (orientação da Jessica).
+export const FAIXA_MENSALIDADE = 'de R$ 350,00 a R$ 400,00 por mês, dependendo do plano (R$ 400,00 é o plano mais completo), mais o valor da instalação';
+export const RECURSOS_PLANO_COMPLETO = 'PDV e vendas, controle de estoque, compras, financeiro, dashboard com visão gerencial, rentabilidade, indicador de perda de vendas, análises gerenciais avançadas, suporte ativo e treinamento por 5 meses';
+
 export const MOTIVOS_PERDA = ['PRECO', 'JA_TEM_FORNECEDOR', 'SEM_ORCAMENTO', 'TIMING', 'SEM_INTERESSE', 'FUNCIONALIDADE_AUSENTE', 'OUTRO'] as const;
 export type MotivoPerda = typeof MOTIVOS_PERDA[number];
 export const INSTAGRAM_PROSYSTEM = 'https://instagram.com/prosystemoficial';
@@ -232,8 +236,9 @@ export function lerRespostaCaroline(j: any): RespostaCaroline | null {
   let nota = Math.round(Math.max(0, Math.min(100, Number(j.nota) || 0)));
   if (!dor) nota = Math.min(nota, 59);
   if (!mensagens.length && acao !== 'sem_interesse' && acao !== 'encaminhar_suporte') return null;
-  // Nada de preço/valores na boca da Caroline.
-  if (mensagens.some((m: string) => /R\$\s*\d|\d+\s*(reais|mil reais)|por mês fica|custa\s+\d/i.test(m))) return null;
+  // Valores: só a faixa oficial de mensalidade (FAIXA_MENSALIDADE); qualquer outro valor derruba a resposta.
+  const semFaixa = (m: string) => m.replace(/R\$\s*(350|400)(,00)?\b/g, '');
+  if (mensagens.some((m: string) => /R\$\s*\d|\d+\s*(reais|mil reais)|por mês fica|custa\s+\d/i.test(semFaixa(m)))) return null;
   const d = j.dados && typeof j.dados === 'object' ? j.dados : {};
   const s = (v: any) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);
   // Nunca travessão nas mensagens: troca por vírgula (ou nada, no começo da frase).
@@ -306,7 +311,7 @@ export function promptCaroline(p: {
     'BOTÕES: se o cliente tocou "Quero saber mais", agradeça curto e siga investigando a dor; "Me chama depois", pergunte o melhor dia e horário (acao "continuar"); "Agora não", despeça-se com gentileza e porta aberta (acao "sem_interesse").',
     'CNPJ: nunca peça no começo. Só quando a conversa já estiver avançada (dor identificada, ou ao oferecer/marcar a demonstração), de forma natural, ex.: "pra eu já deixar tudo pronto pra sua demonstração, me passa o CNPJ da farmácia?". Se ele já mandou, não peça de novo.',
     'FATOS: nunca atribua ao cliente algo que ele não disse ou fez no histórico (ex.: não diga "você pediu uma demonstração" se ele só tocou em "Quero conhecer"). Na dúvida, pergunte.',
-    'NUNCA fale de preço, valores, desconto, condições ou contrato: diga que a consultora apresenta tudo na demonstração.',
+    `PREÇO: se o cliente perguntar o valor/mensalidade, responda com a faixa: ${FAIXA_MENSALIDADE}. Não fale nenhum outro valor. Logo depois, em OUTRA mensagem, apresente o plano completo com uma introdução curta e natural, começando com "Para você entender, hoje nosso plano completo oferece" e citando: ${RECURSOS_PLANO_COMPLETO}. Em seguida, conduza para a proposta personalizada ou a demonstração. NUNCA fale de desconto, condições, parcelamento ou contrato por conta própria: isso é com a consultora.`,
     `Se o cliente perguntar sinceramente se é robô ou pessoa, não negue: diga com leveza que é ${eu.assistente} da equipe Prosystem e que, se preferir, alguém da equipe atende pessoalmente.`,
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NOME: só chame o cliente pelo nome que está em "Lead:". Se o histórico mostrar que a pessoa com quem falamos tem outro nome, use o do histórico. Na dúvida, cumprimente sem nome (errar o nome estraga a conversa).','NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
