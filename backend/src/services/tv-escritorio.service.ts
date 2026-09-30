@@ -162,5 +162,6 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     qualificados,
     aprovacoes: { mensagens: msgsParaAprovar, documentos: docsParaAprovar },
     feed, movimentos, conversando,
+    captacao: await import('./tv-captacao.service').then(m => m.montarCaptacao(prisma, agora)).catch((e: any) => { console.warn('[TV] captação:', e?.message); return null; }),
   };
 }
