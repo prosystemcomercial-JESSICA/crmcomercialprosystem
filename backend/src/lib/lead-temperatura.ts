@@ -15,6 +15,11 @@ export async function registrarMudancaTemperatura(
 ): Promise<void> {
   const { leadId, temperaturaAnterior, temperaturaNova, autorId, autorNome } = params;
   if (!temperaturaNova || temperaturaNova === temperaturaAnterior) return;
+  // Troca feita por uma pessoa: vira lição da Laya (comparação com o veredito dela nesta conversa).
+  if (autorId && autorId.length >= 20) {
+    const conv = await prisma.whatsappConversa.findFirst({ where: { lead_id: leadId }, orderBy: { ultima_em: 'desc' }, select: { id: true } }).catch(() => null);
+    if (conv) import('../services/laya-cerebro.service').then(m => m.aprenderComDecisao(prisma, conv.id, { temperatura: temperaturaNova }, 'equipe-temperatura')).catch(() => {});
+  }
 
   await prisma.leadObservacao.create({
     data: {

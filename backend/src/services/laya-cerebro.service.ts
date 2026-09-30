@@ -37,7 +37,7 @@ export async function layaCompetente(prisma: PrismaClient, t: TarefaLaya): Promi
  * Aprende com uma decisão real (da equipe ou de um agente): grava a comparação entre o que
  * aconteceu e o palpite que a Laya já tinha dado nesta conversa. Uma por conversa a cada 12 h.
  */
-export async function aprenderComDecisao(prisma: PrismaClient, conversaId: string, rotulos: { segmento?: string; intencao?: string; cancelar?: boolean }, fonte: string) {
+export async function aprenderComDecisao(prisma: PrismaClient, conversaId: string, rotulos: { segmento?: string; intencao?: string; cancelar?: boolean; temperatura?: string }, fonte: string) {
   try {
     const c = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { ia_sugestao: true, ia_sugerido_em: true } });
     const s: any = c?.ia_sugestao;

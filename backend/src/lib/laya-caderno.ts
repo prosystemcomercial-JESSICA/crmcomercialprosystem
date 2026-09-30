@@ -2,7 +2,7 @@
 // que sobrevivem ao modelo. Vocabulário por etiqueta, memória de casos parecidos,
 // nível por tarefa e o documento do Caderno. Puro, sem rede nem banco.
 
-export const TAREFAS_LAYA = ['segmento', 'intencao', 'cancelar'] as const;
+export const TAREFAS_LAYA = ['segmento', 'intencao', 'cancelar', 'temperatura'] as const;
 export type TarefaLaya = typeof TAREFAS_LAYA[number];
 export type AmostraLaya = { texto: string; rotulos: any; sugestao: any; criado_por?: string | null; created_at: Date | string };
 
@@ -99,7 +99,7 @@ export function nivelTarefa(acertos: boolean[]): { nivel: Nivel; exemplos: numbe
   return { nivel: 'aprendiz', exemplos: n, acerto };
 }
 
-const NOMES_TAREFA: Record<TarefaLaya, string> = { segmento: 'Ramo do cliente', intencao: 'O que o cliente quer', cancelar: 'Risco de cancelar' };
+const NOMES_TAREFA: Record<TarefaLaya, string> = { segmento: 'Ramo do cliente', intencao: 'O que o cliente quer', cancelar: 'Risco de cancelar', temperatura: 'Temperatura do lead' };
 
 /** Documento do Caderno (Markdown), completo o bastante para ensinar outra IA. */
 export function gerarCaderno(amostras: AmostraLaya[], criterios: Record<string, Record<string, string>>, agora = new Date()): string {

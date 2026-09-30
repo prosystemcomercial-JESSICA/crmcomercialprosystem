@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { PERGUNTAS_LAYA, PERGUNTAS_TRIAGEM, TIPOS_SEM_IA, montarEstadoConversa, lerRespostaLaya, lerEscolhaTriagem, perguntaQualificacao, type CriteriosQualificacao } from '../lib/laya';
+import { PERGUNTAS_LAYA, PERGUNTAS_TRIAGEM, TIPOS_SEM_IA, montarEstadoConversa, lerRespostaLaya, lerEscolhaTriagem, perguntaQualificacao, perguntaTemperatura, type CriteriosQualificacao } from '../lib/laya';
 
 // Critérios de qualificação que o Rafael ensinou (vira pergunta da Laya depois que a gestão aprova o documento).
 export const CHAVE_CRITERIOS_QUALIFICACAO = 'laya.criterios_qualificacao';
@@ -46,7 +46,29 @@ async function perguntasComQualificacao(prisma: PrismaClient, xs: AmostraLaya[])
   const q = perguntasComVocabulario(xs);
   const c = await criteriosQualificacao(prisma);
   if (c) q.qualificacao = perguntaQualificacao(c);
+  q.temperatura = perguntaTemperatura(c);
   return q;
+}
+
+const CONFIANCA_TEMPERATURA = 0.6;
+const AUTORES_AUTOMATICOS = ['laya', 'bot', 'system', 'sistema', 'caroline', 'julio', 'luiz_felipe', 'heitor'];
+/**
+ * Veredito da Laya na temperatura do lead. Se uma pessoa trocou a temperatura, vale a escolha dela
+ * até o cliente mandar mensagem nova (aí a Laya reavalia).
+ */
+async function aplicarTemperatura(prisma: PrismaClient, leadId: string, conversaId: string, nova: string, confianca: number) {
+  if (confianca < CONFIANCA_TEMPERATURA) return;
+  const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { temperatura: true, status: true, nome: true } });
+  if (!lead || lead.temperatura === nova || ['GANHO', 'PERDIDO'].includes(String(lead.status))) return;
+  const ultimaTroca = await prisma.leadObservacao.findFirst({ where: { lead_id: leadId, temperatura_nova: { not: null } }, orderBy: { created_at: 'desc' }, select: { created_by: true, created_at: true } });
+  if (ultimaTroca && !AUTORES_AUTOMATICOS.includes(ultimaTroca.created_by || '')) {
+    const falouDepois = await prisma.whatsappMensagem.findFirst({ where: { conversaId, direcao: 'ENTRADA', created_at: { gt: ultimaTroca.created_at } }, select: { id: true } });
+    if (!falouDepois) return; // decisão da pessoa vale até o cliente dizer algo novo
+  }
+  await prisma.lead.update({ where: { id: leadId }, data: { temperatura: nova } });
+  const { registrarMudancaTemperatura } = await import('../lib/lead-temperatura');
+  await registrarMudancaTemperatura(prisma, { leadId, temperaturaAnterior: lead.temperatura, temperaturaNova: nova, autorId: 'laya', autorNome: `Laya (${Math.round(confianca * 100)}% de certeza)` });
+  registrarAcaoAgente('laya', `classificou ${lead.nome || 'um lead'}: ${lead.temperatura || '—'} → ${nova}`);
 }
 
 const SIMILARIDADE_MEMORIA = 0.6;
@@ -94,6 +116,8 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
     }
   }
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ia_sugestao: sugestao, ia_sugerido_em: new Date() } });
+  // Temperatura: a Laya dá o veredito e aplica no lead (a troca feita por uma pessoa é respeitada).
+  if (conversa.lead_id && sugestao.temperatura) await aplicarTemperatura(prisma, conversa.lead_id, conversaId, sugestao.temperatura, sugestao.temperatura_conf ?? 0).catch(() => {});
   // Ramo já informado no lead (pela equipe): vira comparação com o palpite de agora.
   if (conversa.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { segmento: true } }).catch(() => null);

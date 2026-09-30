@@ -5,9 +5,24 @@ export const SEGMENTOS_IA = ['farmacia', 'manipulacao', 'padaria', 'varejo', 'ou
 export const INTENCOES_IA = ['comprar', 'suporte', 'financeiro', 'servicos', 'outro'] as const;
 export type SegmentoIa = typeof SEGMENTOS_IA[number];
 export type IntencaoIa = typeof INTENCOES_IA[number];
+export const TEMPERATURAS_IA = ['FRIO', 'MORNO', 'QUENTE', 'MUITO_QUENTE'] as const;
+export type TemperaturaIa = typeof TEMPERATURAS_IA[number];
+/** Temperatura do lead: critérios padrão; os do Rafael (aprovados) substituem Frio/Morno/Quente. */
+export function perguntaTemperatura(c?: { frio?: string; morno?: string; quente?: string } | null) {
+  return {
+    type: 'choice', instructions: 'Qual a temperatura deste lead para comprar um sistema da Prosystem agora?',
+    criteria: {
+      FRIO: c?.frio || 'só pesquisa ou curiosidade, sem problema claro, sem prazo, respostas curtas ou parou de responder',
+      MORNO: c?.morno || 'fala do ramo, de um problema ou de interesse, mas ainda sem prazo nem próximo passo combinado',
+      QUENTE: c?.quente || 'necessidade clara e sinal de avanço: pediu demonstração, proposta ou preço, quer trocar de sistema ou cita um prazo',
+      MUITO_QUENTE: 'quer fechar agora: aceitou a proposta, tem demonstração marcada, pede contrato, forma de pagamento ou data de instalação',
+    },
+  };
+}
+
 export const QUALIFICACOES_IA = ['quente', 'morno', 'frio', 'nao_lead'] as const;
 export type QualificacaoIa = typeof QUALIFICACOES_IA[number];
-export type SugestaoIa = { segmento: SegmentoIa; intencao: IntencaoIa; cancelar: number; urgencia: number; qualificacao?: QualificacaoIa | null };
+export type SugestaoIa = { segmento: SegmentoIa; intencao: IntencaoIa; cancelar: number; urgencia: number; qualificacao?: QualificacaoIa | null; temperatura?: TemperaturaIa | null; temperatura_conf?: number | null };
 /** Critérios de qualificação ensinados pelo Rafael (documento aprovado pela gestão). */
 export type CriteriosQualificacao = Record<QualificacaoIa, string>;
 export function perguntaQualificacao(c: CriteriosQualificacao) {
@@ -112,6 +127,8 @@ export function lerRespostaLaya(res: any): SugestaoIa {
     cancelar: num(a.cancelar?.noul, 0, 1),
     urgencia: num(a.urgencia?.score, 0, 3),
     qualificacao: a.qualificacao?.choice && (QUALIFICACOES_IA as readonly string[]).includes(a.qualificacao.choice) ? a.qualificacao.choice : null,
+    temperatura: a.temperatura?.choice && (TEMPERATURAS_IA as readonly string[]).includes(a.temperatura.choice) ? a.temperatura.choice : null,
+    temperatura_conf: num(a.temperatura?.confidence ?? a.temperatura?.probabilities?.[a.temperatura?.choice], 0, 1),
   };
 }
 
