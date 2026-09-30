@@ -286,6 +286,71 @@ const tplDoSegmento = (seg?: string): SegTpl | undefined => {
   if (/padar|panific/i.test(seg)) return SEGMENTO_TEMPLATES['Padaria'];
   return SEGMENTO_TEMPLATES['Varejo'];
 };
+
+// Versões do conteúdo por segmento: cada proposta sorteia uma (e o botão "Gerar outra versão"
+// troca), para as propostas não ficarem iguais. {empresa} vira o nome do cliente (ou some).
+type SegVar = { hero: string; valor: string };
+const SEGMENTO_VARIACOES: Record<string, SegVar[]> = {
+  'Farmácia / Drogaria': [
+    { hero: 'A farmácia que vende mais, controla o estoque e nunca perde uma venda por ruptura.',
+      valor: 'O Prosystem foi feito para farmácias e drogarias: PBM e Farmácia Popular integrados, controle de uso contínuo, atenção farmacêutica, SNGPC e inteligência tributária do setor. Sua equipe vende mais rápido no balcão, o estoque se controla sozinho e a gestão enxerga tudo em tempo real.' },
+    { hero: '{empresa} com balcão ágil, estoque na medida e margem sob controle.',
+      valor: 'Com o Prosystem, {empresa} ganha um balcão que atende rápido, com PBM e Farmácia Popular integrados, SNGPC em dia e compras sugeridas pelo giro real de cada produto. Menos ruptura, menos produto parado e decisões com base nos números da loja.' },
+    { hero: 'Menos tempo com planilha, mais tempo atendendo quem entra pela porta.',
+      valor: 'O Prosystem cuida da parte pesada da farmácia: estoque e validade, SNGPC, tributação do setor e fechamento de caixa. Sua equipe foca no atendimento, com histórico do cliente de uso contínuo na tela e a gestão acompanhando vendas e rentabilidade de onde estiver.' },
+    { hero: 'Gestão de farmácia de verdade: do balcão ao financeiro, sem retrabalho.',
+      valor: 'Vendas, convênios, PBM, Farmácia Popular, estoque, compras e financeiro conversando no mesmo sistema. O Prosystem tira o retrabalho do dia a dia, reduz perdas por vencimento e mostra onde a farmácia ganha e onde perde dinheiro.' },
+    { hero: 'O cliente volta quando é bem atendido. O Prosystem ajuda você a lembrar dele.',
+      valor: 'Controle de uso contínuo, atenção farmacêutica e histórico de compras para fidelizar quem já compra com você. Somado a um estoque inteligente, SNGPC e inteligência tributária, o Prosystem faz {empresa} vender mais para os mesmos clientes, com mais margem.' },
+  ],
+  'Farmácia de Manipulação': [
+    { hero: 'Da fórmula ao balcão: controle total da manipulação, do estoque e da rentabilidade.',
+      valor: 'O Prosystem atende a farmácia de manipulação de ponta a ponta: controle de fórmulas e matérias-primas, rastreabilidade, atenção farmacêutica, SNGPC e inteligência tributária. Mais agilidade na produção, menos perdas e uma gestão que mostra a margem real de cada fórmula.' },
+    { hero: '{empresa} com cada fórmula rastreada e cada centavo da margem à vista.',
+      valor: 'Orçamento rápido, controle de matérias-primas por lote e validade, rastreabilidade completa e SNGPC em dia. Com o Prosystem, {empresa} produz com segurança e sabe exatamente quanto ganha em cada fórmula entregue.' },
+    { hero: 'Produção organizada, laboratório sem perdas e cliente atendido no prazo.',
+      valor: 'O Prosystem organiza o fluxo da manipulação, do pedido à entrega: fila de produção, baixa automática de insumos, controle de validade e histórico do paciente. Menos desperdício de matéria-prima e uma gestão que enxerga o laboratório inteiro.' },
+    { hero: 'Segurança regulatória sem papelada: a manipulação no controle.',
+      valor: 'Rastreabilidade, SNGPC, atenção farmacêutica e tributação do setor tratadas pelo sistema, com o estoque de matérias-primas sempre atualizado. Sua equipe foca na qualidade das fórmulas e a gestão acompanha resultado e rentabilidade em tempo real.' },
+  ],
+  'Padaria': [
+    { hero: 'Produção, balcão e delivery sob controle — sua padaria vendendo mais todos os dias.',
+      valor: 'O Prosystem organiza a padaria do forno ao caixa: controle de produção, balança e pesáveis, estoque de insumos, frente de caixa ágil e delivery integrado. Menos desperdício, fila mais rápida e a gestão acompanhando o resultado de cada turno.' },
+    { hero: '{empresa} com fila andando, produção na medida e sobra no mínimo.',
+      valor: 'Caixa rápido com balança integrada, etiquetas de pesáveis, controle de produção por turno e estoque de insumos. O Prosystem mostra o que vende em cada horário para {empresa} produzir na medida certa e perder menos no fim do dia.' },
+    { hero: 'Do forno ao caixa sem anotação em caderno.',
+      valor: 'Ficha técnica dos produtos, custo real de cada receita, produção programada e fechamento de caixa por turno. O Prosystem tira a padaria do improviso e mostra quanto ela ganha em cada pão, bolo e salgado.' },
+    { hero: 'Mais vendas no balcão e no delivery, com a gestão na palma da mão.',
+      valor: 'Frente de caixa ágil, comandas, delivery integrado e controle de estoque de insumos no mesmo sistema. A gestão acompanha vendas, perdas e margem de qualquer lugar, e a equipe atende mais gente com menos erro.' },
+  ],
+  'Varejo': [
+    { hero: 'O sistema completo que faz seu varejo vender mais e crescer com controle.',
+      valor: 'O Prosystem dá ao seu varejo uma operação afiada: frente de caixa rápida, controle de estoque, financeiro completo, NF-e/NFC-e e relatórios gerenciais. Tudo num só lugar, com a inteligência para você decidir com base em dados — não no achismo.' },
+    { hero: '{empresa} com caixa rápido, estoque certo e o financeiro em dia.',
+      valor: 'Vendas, estoque, compras, financeiro e notas fiscais no mesmo sistema. O Prosystem mostra os produtos que giram e os que ficam parados, para {empresa} comprar melhor e vender com mais margem.' },
+    { hero: 'Menos tempo na burocracia, mais tempo vendendo.',
+      valor: 'Emissão de NF-e e NFC-e, fechamento de caixa, contas a pagar e a receber e relatórios prontos. O Prosystem tira a burocracia do caminho e deixa a gestão enxergar o resultado da loja em tempo real.' },
+    { hero: 'Crescer com controle: da primeira loja às próximas.',
+      valor: 'Frente de caixa ágil, estoque integrado, financeiro completo e visão gerencial por loja. O Prosystem acompanha o crescimento do seu varejo sem trocar de sistema no meio do caminho.' },
+  ],
+};
+const familiaSegmento = (seg?: string) => (!seg ? undefined
+  : SEGMENTO_VARIACOES[seg] ? seg : /manipula/i.test(seg) ? 'Farmácia de Manipulação' : /farm|drogaria/i.test(seg) ? 'Farmácia / Drogaria' : /padar|panific/i.test(seg) ? 'Padaria' : 'Varejo');
+/** Aplica {empresa}; sem nome do cliente, tira o marcador de forma natural. */
+const comEmpresa = (t: string, empresa?: string) => {
+  const e = (empresa || '').trim();
+  if (e) return t.replace(/\{empresa\}/g, e);
+  return t.replace(/^\{empresa\} com /, 'Sua empresa com ').replace(/\{empresa\}/g, 'sua empresa');
+};
+/** Versão do conteúdo: índice sorteado (ou o próximo, ao pedir outra versão). */
+const variacaoDoSegmento = (seg: string | undefined, indice: number, empresa?: string): SegVar | undefined => {
+  const f = familiaSegmento(seg);
+  const vs = f ? SEGMENTO_VARIACOES[f] : undefined;
+  if (!vs?.length) return undefined;
+  const v = vs[((indice % vs.length) + vs.length) % vs.length];
+  return { hero: comEmpresa(v.hero, empresa), valor: comEmpresa(v.valor, empresa) };
+};
+const sortearIndice = () => Math.floor(Math.random() * 1000);
 const TIPOS_LOJA = ['Nova Implantação', 'Migração', 'Upgrade', 'Filial', 'Reativação'];
 const ORIGENS = ['Indicação', 'Prospecção', 'WhatsApp', 'Visita', 'Tráfego Pago', 'Cliente Antigo', 'Evento'];
 const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
@@ -313,6 +378,7 @@ export default function PropostasComerciais() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...BLANK_FORM });
+  const [versaoConteudo, setVersaoConteudo] = useState(() => sortearIndice());
   const [activeSection, setActiveSection] = useState(0);
 
   const [filterStatus, setFilterStatus] = useState('');
@@ -431,8 +497,8 @@ export default function PropostasComerciais() {
         vendedor_nome: dados.vendedor_nome || meuPerfil?.nome || user?.nome || '',
         vendedor_telefone: telefoneVendedor(dados.vendedor_id || user?.id, dados.vendedor_telefone || meuPerfil?.telefone || ''),
         titulo_proposta: dados.titulo_proposta || (tpl ? tpl.titulo : ''),
-        frase_hero:      dados.frase_hero      || (tpl ? tpl.hero  : ''),
-        texto_valor:     dados.texto_valor     || (tpl ? tpl.valor : ''),
+        frase_hero:      dados.frase_hero      || variacaoDoSegmento(seg, versaoConteudo, dados.nome_fantasia || dados.razao_social)?.hero  || (tpl ? tpl.hero  : ''),
+        texto_valor:     dados.texto_valor     || variacaoDoSegmento(seg, versaoConteudo, dados.nome_fantasia || dados.razao_social)?.valor || (tpl ? tpl.valor : ''),
       });
       setActiveSection(0);
       setShowForm(true);
@@ -722,8 +788,7 @@ export default function PropostasComerciais() {
         ...f,
         segmento: seg,
         titulo_proposta: tpl ? tpl.titulo : f.titulo_proposta,
-        frase_hero:      tpl ? tpl.hero  : f.frase_hero,
-        texto_valor:     tpl ? tpl.valor : f.texto_valor,
+        ...(() => { const v = variacaoDoSegmento(seg, sortearIndice(), (f.nome_fantasia as string) || (f.razao_social as string)); return v ? { frase_hero: v.hero, texto_valor: v.valor } : { frase_hero: tpl ? tpl.hero : f.frase_hero, texto_valor: tpl ? tpl.valor : f.texto_valor }; })(),
         // se trocou Farma↔Loja, zera os planos pra não ficar plano inválido
         plano_selecionado:  mudouFamilia ? '' : f.plano_selecionado,
         plano_recomendado:  mudouFamilia ? '' : f.plano_recomendado,
@@ -1853,6 +1918,18 @@ export default function PropostasComerciais() {
                         {(form.titulo_proposta as string) || (tplDoSegmento(form.segmento as string)?.titulo) || 'Selecione o segmento (aba Empresa) para gerar o título'}
                       </div>
                     </FormField>
+                    <div className="col-span-2 flex items-center justify-between gap-3">
+                      <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Cada proposta recebe uma versão diferente do texto. Pode editar à vontade.</span>
+                      <button type="button" className="ps-btn-secondary text-xs px-3 py-1.5 rounded-lg" style={{ border: '1px solid var(--t-card-border)' }}
+                        onClick={() => {
+                          const prox = versaoConteudo + 1;
+                          setVersaoConteudo(prox);
+                          const v = variacaoDoSegmento(form.segmento as string, prox, (form.nome_fantasia as string) || (form.razao_social as string));
+                          if (v) setForm(f => ({ ...f, frase_hero: v.hero, texto_valor: v.valor }));
+                        }}>
+                        ↻ Gerar outra versão
+                      </button>
+                    </div>
                     <FormField label="Frase do Hero (destaque)" col={2}>
                       <input value={form.frase_hero as string} onChange={e => setField('frase_hero', e.target.value)} className="ps-input w-full" placeholder="Ex: Seu negócio merece um sistema que cresce com ele" />
                     </FormField>
