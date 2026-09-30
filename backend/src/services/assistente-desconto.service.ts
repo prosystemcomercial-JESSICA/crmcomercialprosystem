@@ -3,7 +3,7 @@ import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { acharGestor } from '@/lib/assistente/gestao';
 import { LIMITE_PADRAO_PCT, pctDesconto, precisaAprovacao, textoPedidoAprovacao, menuAprovacao, lerBotaoDesconto } from '@/lib/assistente/desconto';
-import { listarGestao } from './assistente-gestao.service';
+import { listarGestao, gestoraAprovadora } from './assistente-gestao.service';
 
 // Aprovação de desconto pelo celular (ideia 23): pedido vai por WhatsApp para a
 // gestão (menos quem pediu); a resposta por botão grava na proposta e avisa quem pediu.
@@ -19,18 +19,6 @@ export async function obterLimiteDesconto(prisma: PrismaClient): Promise<number>
 
 export async function salvarLimiteDesconto(prisma: PrismaClient, pct: number, por: string) {
   await prisma.configuracaoIntegracao.upsert({ where: { chave: CHAVE_LIMITE }, create: { chave: CHAVE_LIMITE, valor: String(pct), updated_by: por }, update: { valor: String(pct), updated_by: por } });
-}
-
-// Quem aprova desconto: só a gestora (Jessica), mesmo quando é ela quem pede.
-// Troca pela chave assistente.desconto_aprovador_email. Sem ninguém encontrado, volta à regra antiga (gestão menos quem pediu).
-const CHAVE_APROVADOR = 'assistente.desconto_aprovador_email';
-const APROVADOR_PADRAO = 'jessica@prosystemnet.com.br';
-
-async function aprovadorDesconto(prisma: PrismaClient, gestao: Awaited<ReturnType<typeof listarGestao>>) {
-  const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_APROVADOR } }).catch(() => null);
-  const email = (r?.valor || APROVADOR_PADRAO).trim().toLowerCase();
-  const u = await prisma.usuarioCRM.findFirst({ where: { email, status: 'ATIVO' }, select: { id: true } }).catch(() => null);
-  return (u && gestao.find(g => g.id === u.id)) || null;
 }
 
 const SELECT = {
@@ -54,7 +42,7 @@ export async function pedirAprovacaoDesconto(prisma: PrismaClient, propostaId: s
   const inst = await obterInstanciaEmpresa(prisma);
   if (!inst?.instance_token) throw new Error('WhatsApp da empresa não está conectado.');
   const gestao = await listarGestao(prisma);
-  const aprovador = await aprovadorDesconto(prisma, gestao);
+  const aprovador = await gestoraAprovadora(prisma, gestao);
   const aprovadores = gestao.filter(g => g.id !== user.id);
   const destino = aprovador ? [aprovador] : aprovadores.length ? aprovadores : gestao;
   if (!destino.length) throw new Error('Nenhuma pessoa da gestão com telefone cadastrado para aprovar.');
@@ -76,7 +64,7 @@ export async function responderAprovacaoDesconto(prisma: PrismaClient, token: st
   if (!gestor) return false;
   const p = await prisma.propostaComercial.findUnique({ where: { id: b.id }, select: SELECT });
   const enviar = (t: string) => evo.enviarTexto(token, numero, t).catch(() => {});
-  const aprovador = await aprovadorDesconto(prisma, gestao);
+  const aprovador = await gestoraAprovadora(prisma, gestao);
   if (aprovador && aprovador.id !== gestor.id) { await enviar(`Quem aprova desconto é ${aprovador.nome.split(' ')[0]}. O pedido foi para ela.`); return true; }
   if (!p) { await enviar('Não achei essa proposta.'); return true; }
   if (p.desconto_aprov_status !== 'PENDENTE') { await enviar(`Essa proposta já foi ${p.desconto_aprov_status === 'APROVADO' ? 'aprovada' : 'recusada'}.`); return true; }

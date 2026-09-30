@@ -137,12 +137,31 @@ export async function responderComandoGestao(prisma: PrismaClient, token: string
 }
 
 /** Envia um aviso para cada pessoa da gestão que quer esse tipo. Nunca lança. */
-export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, texto: string): Promise<void> {
+// Quem aprova (descontos, documentos do Rafael): só a gestora (Jessica).
+// Troca pela chave assistente.desconto_aprovador_email.
+const CHAVE_APROVADORA = 'assistente.desconto_aprovador_email';
+const APROVADORA_PADRAO = 'jessica@prosystemnet.com.br';
+
+export async function gestoraAprovadora(prisma: PrismaClient, gestao?: Awaited<ReturnType<typeof listarGestao>>) {
+  const lista = gestao || await listarGestao(prisma);
+  const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_APROVADORA } }).catch(() => null);
+  const email = (r?.valor || APROVADORA_PADRAO).trim().toLowerCase();
+  const u = await prisma.usuarioCRM.findFirst({ where: { email, status: 'ATIVO' }, select: { id: true } }).catch(() => null);
+  return (u && lista.find(g => g.id === u.id)) || null;
+}
+
+/** somenteAprovadora: pedidos de aprovação vão só para a gestora (ignora as preferências de aviso). */
+export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, texto: string, opts: { somenteAprovadora?: boolean } = {}): Promise<void> {
   try {
     const inst = await obterInstanciaEmpresa(prisma);
     if (!inst?.instance_token) return;
-    for (const g of await listarGestao(prisma)) {
-      if (!(await lerPrefsAvisos(prisma, g.id)).includes(tipo)) continue;
+    let destino = await listarGestao(prisma);
+    if (opts.somenteAprovadora) {
+      const a = await gestoraAprovadora(prisma, destino);
+      if (a) destino = [a];
+    }
+    for (const g of destino) {
+      if (!opts.somenteAprovadora && !(await lerPrefsAvisos(prisma, g.id)).includes(tipo)) continue;
       // Nunca a mesma mensagem duas vezes para a mesma pessoa em 6 h (reinício, rodada repetida…).
       const { podeEnviarUmaVez, hashTexto } = await import('./envio-unico.service');
       if (!(await podeEnviarUmaVez(prisma, `aviso.${g.id}.${hashTexto(texto)}`, 6))) continue;
