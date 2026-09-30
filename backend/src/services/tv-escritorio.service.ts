@@ -28,6 +28,7 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     finalizada_em: null,
     estagio_funil: { not: 'FECHADO' },
     OR: [{ etiqueta: null }, { etiqueta: { notIn: ETIQUETAS_NAO_COMERCIAIS } }],
+    AND: [{ OR: [{ tipo_contato: null }, { tipo_contato: { not: 'EQUIPE' } }] }], // conversa da equipe não entra no painel
   };
 
   const agentes = await montarEscritorio(prisma, agora);
@@ -57,7 +58,7 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
   const esperandoWhere = {
     ...abertas,
     ultima_em: { gte: janela },
-    AND: [{ OR: [{ nao_lidas: { gt: 0 }, ultima_em: { lt: limiteEsperando } }, { sla_prazo_em: { lt: agora }, nao_lidas: { gt: 0 } }] }],
+    AND: [...abertas.AND, { OR: [{ nao_lidas: { gt: 0 }, ultima_em: { lt: limiteEsperando } }, { sla_prazo_em: { lt: agora }, nao_lidas: { gt: 0 } }] }],
   };
   const [esperandoTotal, esperandoLista] = await Promise.all([
     prisma.whatsappConversa.count({ where: esperandoWhere }),
@@ -123,7 +124,7 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     caroline: 'Caroline', julio: 'Julio', campanha: 'Zequinha',
   };
   const msgs = await prisma.whatsappMensagem.findMany({
-    where: { created_at: { gte: new Date(agora.getTime() - 12 * 3600000) } },
+    where: { created_at: { gte: new Date(agora.getTime() - 12 * 3600000) }, conversa: { OR: [{ tipo_contato: null }, { tipo_contato: { not: 'EQUIPE' } }] } },
     orderBy: { created_at: 'desc' }, take: 40,
     select: { id: true, direcao: true, tipo: true, conteudo: true, enviada_por: true, created_at: true, conversa: { select: { contato_nome: true, contato_numero: true } } },
   });

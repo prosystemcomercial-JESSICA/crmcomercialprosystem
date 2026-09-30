@@ -12,8 +12,8 @@ const PARCEIROS_DEFAULT = [
     pitch: 'Alguns clientes estão optando por contratar nosso serviço de geração de arquivo fiscal para facilitar a vida com a contabilidade.',
     comissao_valor: 50,
     tabela_valores: 'R$ 100/mês',
-    valor_referencia: 200,          // 5% de R$200 = R$10 de comissão para a supervisão
-    comissao_supervisao_pct: 5,
+    valor_referencia: 200,
+    comissao_supervisao_pct: 0,     // indicação/pacote fiscal: supervisão não recebe (só os R$50 do vendedor)
   },
   {
     nome: 'TEF',
@@ -21,8 +21,8 @@ const PARCEIROS_DEFAULT = [
     pitch: 'Hoje vocês já usam TEF integrado com o sistema?',
     comissao_valor: 50,
     tabela_valores: 'Conforme tabela de parceiro',
-    valor_referencia: 200,          // 5% de R$200 = R$10 de comissão para a supervisão
-    comissao_supervisao_pct: 5,
+    valor_referencia: 200,
+    comissao_supervisao_pct: 0,     // indicação/pacote fiscal: supervisão não recebe (só os R$50 do vendedor)
   },
   {
     nome: 'Avant',
@@ -30,8 +30,8 @@ const PARCEIROS_DEFAULT = [
     pitch: 'Corretor tributário — revisão tributária e recuperação de créditos.',
     comissao_valor: 50,
     tabela_valores: 'Conforme tabela de parceiro',
-    valor_referencia: 200,          // 5% de R$200 = R$10 de comissão para a supervisão
-    comissao_supervisao_pct: 5,
+    valor_referencia: 200,
+    comissao_supervisao_pct: 0,     // indicação/pacote fiscal: supervisão não recebe (só os R$50 do vendedor)
   },
   {
     nome: 'Imendes',
@@ -40,7 +40,7 @@ const PARCEIROS_DEFAULT = [
     comissao_valor: 50,
     tabela_valores: 'Conforme tabela de parceiro',
     valor_referencia: 200,
-    comissao_supervisao_pct: 5,
+    comissao_supervisao_pct: 0,     // indicação: supervisão não recebe
   },
   {
     nome: 'Comunicação de Dados',
@@ -60,14 +60,45 @@ const PARCEIROS_DEFAULT = [
     valor_referencia: 350,          // referência R$350 → 5% = R$17,50
     comissao_supervisao_pct: 5,
   },
+  {
+    nome: 'TEF Martins',
+    categoria: 'TEF',
+    pitch: 'Integradora de TEF parceira da Prosystem (indicação).',
+    comissao_valor: 50,
+    tabela_valores: 'Conforme tabela do parceiro',
+    valor_referencia: null,
+    comissao_supervisao_pct: 0,     // indicação: R$50 só do vendedor
+  },
+  {
+    nome: 'Skytef',
+    categoria: 'TEF',
+    pitch: 'Integradora de TEF parceira da Prosystem (indicação).',
+    comissao_valor: 50,
+    tabela_valores: 'Conforme tabela do parceiro',
+    valor_referencia: null,
+    comissao_supervisao_pct: 0,
+  },
+  {
+    nome: 'Serviço Prosystem',
+    categoria: 'SERVICO',
+    pitch: 'Serviço feito pela Prosystem (treinamento, migração, instalação, troca de CNPJ...). Orçamento → aceite do autorizador (nome e CPF) → execução → conclusão → financeiro.',
+    comissao_valor: 0,              // 15% do setup para o vendedor
+    tabela_valores: 'Conforme orçamento',
+    valor_referencia: null,
+    comissao_supervisao_pct: 5,     // 5% do setup (nunca da mensalidade)
+  },
 ];
 
 // Parceiros com valor de referência fixo — atualizar ao fazer sync dos defaults
 const PARCEIRO_DEFAULTS_BY_NAME: Record<string, { valor_referencia: number | null; comissao_supervisao_pct: number }> = {
-  'Pacote Fiscal':       { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
-  'TEF':                 { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
-  'Avant':               { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
-  'Imendes':             { valor_referencia: 200, comissao_supervisao_pct: 5 }, // R$10
+  // Indicação de integradora e pacote de arquivos fiscais: supervisão não recebe (só R$50 do vendedor).
+  'Pacote Fiscal':       { valor_referencia: 200, comissao_supervisao_pct: 0 },
+  'TEF':                 { valor_referencia: 200, comissao_supervisao_pct: 0 },
+  'Avant':               { valor_referencia: 200, comissao_supervisao_pct: 0 },
+  'Imendes':             { valor_referencia: 200, comissao_supervisao_pct: 0 },
+  'TEF Martins':         { valor_referencia: null, comissao_supervisao_pct: 0 },
+  'Skytef':              { valor_referencia: null, comissao_supervisao_pct: 0 },
+  'Serviço Prosystem':   { valor_referencia: null, comissao_supervisao_pct: 5 }, // 5% do setup
   'Comunicação de Dados':{ valor_referencia: null, comissao_supervisao_pct: 0 },
   'Upgrade de Plano':    { valor_referencia: 350, comissao_supervisao_pct: 5 }, // R$17,50
 };
@@ -95,6 +126,7 @@ function baseComissaoSupervisao(parceiro: any, valorVenda?: number | null, acres
   //  - FISCAL  → ACRÉSCIMO na mensalidade (acrescimo_mensal);
   //  - demais  → valor de referência fixo do parceiro (fallback p/ valor_venda).
   if (parceiro.categoria === 'COMUNICACAO') return valorVenda ?? 0;
+  if (parceiro.categoria === 'SERVICO') return valorVenda ?? 0;
   if (parceiro.categoria === 'UPGRADE') return valorVenda ?? 0;
   if (parceiro.categoria === 'FISCAL') return acrescimoMensal ?? 0;
   return parceiro.valor_referencia ?? valorVenda ?? 0;
@@ -103,7 +135,9 @@ function baseComissaoSupervisao(parceiro: any, valorVenda?: number | null, acres
 // Percentual da supervisão. COMUNICAÇÃO é fixo em 5% do setup (regra de negócio),
 // independente do cadastro do parceiro; demais usam o pct configurado no parceiro.
 function pctComissaoSupervisao(parceiro: any): number {
-  if (parceiro.categoria === 'COMUNICACAO') return 5;
+  if (parceiro.categoria === 'COMUNICACAO' || parceiro.categoria === 'SERVICO') return 5;
+  // Indicação de integradora e pacote de arquivos fiscais: supervisão não recebe.
+  if (['FISCAL', 'TEF', 'TRIBUTARIO'].includes(parceiro.categoria)) return 0;
   return parceiro.comissao_supervisao_pct ?? 0;
 }
 
@@ -148,6 +182,10 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
           }
         }
       }
+      // Padrões novos (ex.: TEF Martins, Skytef, Serviço Prosystem) entram sem mexer nos existentes.
+      const nomes = new Set((await prisma.parceiro.findMany({ select: { nome: true } })).map(x => x.nome));
+      const faltando = PARCEIROS_DEFAULT.filter(d => !nomes.has(d.nome));
+      if (faltando.length) await prisma.parceiro.createMany({ data: faltando as any });
       // Recarrega após possível sync
       parceiros = await prisma.parceiro.findMany({ where: { ativo: true }, orderBy: { nome: 'asc' } });
     }
@@ -303,6 +341,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       primeiro_vencimento: z.string().optional(),       // base da comissão (mês seguinte)
       data_indicacao: z.string().optional(),            // demais parceiros
       data_fechamento: z.string().optional(),           // data do fechamento do negócio
+      descricao_servico: z.string().max(4000).optional(),
     }).safeParse(request.body);
 
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
@@ -322,7 +361,7 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     //  - UPGRADE de plano → R$50 fixo (após confirmação);
     //  - INDICAÇÃO → R$50 fixo; REVENDA → valor do parceiro.
     // Um valor enviado explicitamente (comissao_valor) sempre prevalece.
-    const ehComunic = parceiro.categoria === 'COMUNICACAO';
+    const ehComunic = parceiro.categoria === 'COMUNICACAO' || parceiro.categoria === 'SERVICO'; // 15% do setup
     const comissaoPadrao = ehComunic
       ? parseFloat((Number(body.data.valor_venda || 0) * 0.15).toFixed(2))
       : (parceiro.categoria === 'UPGRADE'
@@ -386,6 +425,8 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
         acrescimo_mensal: ehComunicacao ? acrescimoTotal : rest.acrescimo_mensal,
         vendedor_id: vendedorId,
         vendedor_nome: vendedorNome,
+        // Serviço Prosystem começa no orçamento (esteira até o lançamento no financeiro).
+        ...(parceiro.categoria === 'SERVICO' ? { etapa: 'ORCAMENTO' } : {}),
         comissao_valor: comissaoValor,
         supervisao_id: supervisaoId,
         mensalidade_anterior: mensalidadeAnterior,
@@ -465,6 +506,84 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     }
 
     return reply.status(201).send({ status: 'success', data: venda });
+  });
+
+  // ── Serviço Prosystem: esteira orçamento → aceite → execução → conclusão → financeiro → lançado ──
+  const ETAPAS = ['ORCAMENTO', 'ENVIADO', 'ACEITO', 'EM_EXECUCAO', 'CONCLUIDO', 'NO_FINANCEIRO', 'LANCADO'] as const;
+  const CAMPO_DATA: Record<string, string> = { ENVIADO: 'enviado_em', ACEITO: 'aceite_em', EM_EXECUCAO: 'execucao_em', CONCLUIDO: 'concluido_em', NO_FINANCEIRO: 'financeiro_em', LANCADO: 'lancado_em' };
+  const cpfValido = (v: string) => {
+    const c = (v || '').replace(/\D/g, '');
+    if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false;
+    const dv = (n: number) => { let t = 0; for (let i = 0; i < n; i++) t += Number(c[i]) * (n + 1 - i); const r = (t * 10) % 11; return r === 10 ? 0 : r; };
+    return dv(9) === Number(c[9]) && dv(10) === Number(c[10]);
+  };
+  const fmtCpf = (v: string) => v.replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  const brl = (n: number | null | undefined) => (n == null ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+  const dataBr = (d: Date | string | null | undefined) => (d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—');
+
+  fastify.post('/vendas-adicionais/:id/etapa', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      etapa: z.enum(ETAPAS),
+      autorizador_nome: z.string().max(150).optional(),
+      autorizador_cpf: z.string().max(20).optional(),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Etapa inválida.' });
+    const venda = await prisma.vendaAdicional.findUnique({ where: { id } });
+    if (!venda) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada.' });
+    const { etapa } = body.data;
+    const data: any = { etapa, [CAMPO_DATA[etapa] || 'updated_at']: new Date() };
+    if (etapa === 'ACEITO') {
+      const nome = (body.data.autorizador_nome || '').trim();
+      const cpf = body.data.autorizador_cpf || '';
+      if (nome.split(/\s+/).length < 2) return reply.status(400).send({ status: 'error', message: 'Informe o nome completo de quem autorizou.' });
+      if (!cpfValido(cpf)) return reply.status(400).send({ status: 'error', message: 'CPF do autorizador inválido.' });
+      data.autorizador_nome = nome;
+      data.autorizador_cpf = fmtCpf(cpf);
+    }
+    if (etapa === 'LANCADO' && !requireGestor(request, reply)) return;
+    await prisma.vendaAdicional.update({ where: { id }, data });
+    // Lançado no financeiro: confirma a venda (libera a comissão do vendedor e cria a da supervisão).
+    if (etapa === 'LANCADO' && venda.status === 'PENDENTE') {
+      await fastify.inject({ method: 'PATCH', url: `/vendas-adicionais/${id}`, payload: { status: 'CONFIRMADA' }, headers: { authorization: String(request.headers.authorization || '') } });
+    }
+    return reply.send({ status: 'success', message: 'Etapa atualizada.' });
+  });
+
+  // Textos prontos: orçamento (WhatsApp do cliente) e lançamento (Teams do Thiago).
+  fastify.get('/vendas-adicionais/:id/textos', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const v: any = await prisma.vendaAdicional.findUnique({ where: { id }, include: { cliente: true, parceiro: true } });
+    if (!v) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada.' });
+    const cli = v.cliente || {};
+    const nomeCli = (cli.nome_fantasia || cli.razao_social || cli.nome || 'Cliente').trim();
+    const demanda = (v.descricao_servico || v.parceiro?.nome || 'Serviço').trim();
+    const forma = v.setup_forma === 'ENTRADA_PARCELAS' && v.setup_entrada
+      ? `Entrada de ${brl(v.setup_entrada)}${v.setup_parcelas ? ` + ${v.setup_parcelas}x de ${brl((Number(v.valor_venda || 0) - Number(v.setup_entrada || 0)) / Number(v.setup_parcelas))}` : ''}`
+      : v.setup_parcelas ? `${v.setup_parcelas}x de ${brl(Number(v.valor_venda || 0) / Number(v.setup_parcelas))}` : 'À vista';
+    const orcamento = [
+      `*Orçamento Prosystem* · ${nomeCli}`,
+      '',
+      `*Serviço:* ${demanda}`,
+      `*Valor:* ${brl(v.valor_venda)}`,
+      `*Forma de pagamento:* ${forma}${v.setup_primeiro_venc ? ` (1º vencimento em ${dataBr(v.setup_primeiro_venc)})` : ''}`,
+      '',
+      'Para aprovar, me envie por aqui o *nome completo* e o *CPF* de quem autoriza. Assim registro o aceite e já encaminho o serviço para execução. 😊',
+    ].join('\n');
+    const financeiro = [
+      'Lançamento no financeiro · serviço concluído',
+      '',
+      `Cliente: ${cli.razao_social || nomeCli}${cli.codigo ? ` (código ${cli.codigo})` : ''}`,
+      cli.cnpj ? `CNPJ: ${cli.cnpj}` : '',
+      `Serviço: ${demanda}`,
+      `Valor: ${brl(v.valor_venda)}`,
+      `Forma de pagamento: ${forma}${v.setup_primeiro_venc ? ` · 1º vencimento ${dataBr(v.setup_primeiro_venc)}` : ''}`,
+      v.autorizador_nome ? `Autorizado por: ${v.autorizador_nome} · CPF ${v.autorizador_cpf || '—'} · em ${dataBr(v.aceite_em)}` : '',
+      `Concluído em: ${dataBr(v.concluido_em)}`,
+      `Vendedor: ${v.vendedor_nome || '—'}`,
+      v.observacoes ? `Observações: ${v.observacoes}` : '',
+    ].filter(Boolean).join('\n');
+    return reply.send({ status: 'success', data: { orcamento, financeiro } });
   });
 
   fastify.patch('/vendas-adicionais/:id', async (request, reply) => {
