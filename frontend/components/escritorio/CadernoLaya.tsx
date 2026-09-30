@@ -10,7 +10,7 @@ type Tarefa = { tarefa: string; nivel: 'aprendiz' | 'assistente' | 'titular'; no
 type Cerebro = { decisoes: number; aprendidas: number; laya: number; externa: number; evitadas: number; pct_laya: number | null };
 type Resumo = { total: number; hoje: number; pendentes: number; tarefas: Tarefa[]; cerebro?: Cerebro };
 
-const NOME: Record<string, string> = { segmento: 'Ramo do cliente', intencao: 'O que o cliente quer', cancelar: 'Risco de cancelar' };
+const NOME: Record<string, string> = { segmento: 'Ramo do cliente', intencao: 'O que o cliente quer', cancelar: 'Risco de cancelar', temperatura: 'Temperatura do lead' };
 const COR: Record<string, string> = { aprendiz: '#64748b', assistente: '#2563eb', titular: '#15803d' };
 const META_DIA = 15;
 

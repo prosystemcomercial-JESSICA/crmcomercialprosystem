@@ -340,7 +340,7 @@ export default function TvEscritorioPage() {
                     <div className="laya-niveis">
                       {dados.laya.tarefas.map((t: any) => (
                         <div key={t.tarefa} className="laya-t">
-                          <span className="mudo">{({ segmento: 'Ramo', intencao: 'Intenção', cancelar: 'Cancelar' } as any)[t.tarefa] || t.tarefa}</span>
+                          <span className="mudo">{({ segmento: 'Ramo', intencao: 'Intenção', cancelar: 'Cancelar', temperatura: 'Temperatura' } as any)[t.tarefa] || t.tarefa}</span>
                           <b className={`nivel-${t.nivel}`}>{t.nome_nivel}</b>
                           <span className="barra-n"><i style={{ width: `${Math.min(100, (t.exemplos / 30) * 100)}%` }} /></span>
                           <small className="mono mudo">{t.exemplos}/30 · {t.acerto == null ? '—' : `${t.acerto}%`}</small>
