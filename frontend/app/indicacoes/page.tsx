@@ -61,6 +61,7 @@ const CATEGORIA_LABEL: Record<string, string> = {
   UPGRADE:     'Upgrade',
   TROCA_CNPJ:  'Troca de CNPJ',
   SERVICO:     'Serviços Prosystem',
+  INTEGRADORA: 'Integradora (indicação)',
   OUTRO:       'Outro',
 };
 
@@ -252,7 +253,7 @@ export default function IndicacoesPage() {
   // Modal parceiro
   const [showParceiroModal, setShowParceiroModal] = useState(false);
   const [parceiroForm, setParceiroForm] = useState<any>({
-    nome: '', categoria: 'OUTRO', pitch: '', comissao_valor: '50', tabela_valores: '',
+    nome: '', categoria: 'INTEGRADORA', pitch: '', comissao_valor: '50', tabela_valores: '',
   });
   const [savingParceiro, setSavingParceiro] = useState(false);
   const [editingParceiro, setEditingParceiro] = useState<Parceiro | null>(null);
