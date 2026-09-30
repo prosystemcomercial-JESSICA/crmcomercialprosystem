@@ -111,7 +111,7 @@ function FarolCaroline({ pequeno = false, nome = 'Caroline' }: { pequeno?: boole
 }
 
 // Abas da lista: Minhas / Sem dono (pool da empresa) / Todas (gestão).
-type AbaConversas = 'minhas' | 'pool' | 'todas' | 'finalizadas';
+type AbaConversas = 'minhas' | 'pool' | 'todas' | 'finalizadas' | 'atencao';
 
 interface PainelConversa {
   cliente: {
@@ -239,6 +239,8 @@ export default function WhatsappPage() {
   const [vincTipo, setVincTipo] = useState<string | null>(null);
   const [vincEmpresa, setVincEmpresa] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
+  // Quem precisa de atenção (mesma regra da TV): esperando resposta (vermelho) ou parou de responder (âmbar).
+  const [atencao, setAtencao] = useState<Record<string, 'esperando' | 'parado'>>({});
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [carregandoConn, setCarregandoConn] = useState(true);
@@ -289,11 +291,23 @@ export default function WhatsappPage() {
     checarStatus();
   }, [isAuthenticated, checarStatus]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const buscar = () => apiClient.getWhatsappConversasAtencao()
+      .then(r => setAtencao(Object.fromEntries((r.data.data as any[]).map(c => [c.id, c.atencao]))))
+      .catch(() => {});
+    buscar();
+    const t = setInterval(buscar, 60_000);
+    return () => clearInterval(t);
+  }, [isAuthenticated]);
+
   const carregarConversas = useCallback(async () => {
     try {
       // No modo supervisão (gestão), ignora a instância e traz as conversas de todos.
       // Aba "Sem dono": conversas do pool do WhatsApp da empresa.
-      const res = aba === 'finalizadas'
+      const res = aba === 'atencao'
+        ? await apiClient.getWhatsappConversasAtencao()
+        : aba === 'finalizadas'
         ? await apiClient.getWhatsappConversas(undefined, ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'DIRETOR'].includes(((user as any)?.role || '').toUpperCase()) ? 'todos' : undefined, undefined, true)
         : aba === 'todas'
         ? await apiClient.getWhatsappConversas(undefined, 'todos')
@@ -887,6 +901,7 @@ export default function WhatsappPage() {
                   { id: 'pool' as AbaConversas, nome: '📥 Sem dono' },
                   ...(podeTransferir ? [{ id: 'todas' as AbaConversas, nome: '👁️ Todas' }] : []),
                   { id: 'finalizadas' as AbaConversas, nome: '✅ Finalizadas' },
+                  { id: 'atencao' as AbaConversas, nome: `⚠️ Atenção${Object.keys(atencao).length ? ` (${Object.keys(atencao).length})` : ''}` },
                 ]).map(t => (
                   <button key={t.id} onClick={() => { setAba(t.id); setAtiva(null); }}
                     className={`px-3 py-1.5 text-sm font-medium ${aba === t.id ? 'text-white' : 'text-gray-600 bg-white'}`}
@@ -1011,6 +1026,7 @@ export default function WhatsappPage() {
           </div>
         )}
 
+        <style>{`.wpp-atencao{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;animation:wppAtencao 1.4s ease-in-out infinite}.wpp-atencao.esperando{background:#dc2626;box-shadow:0 0 0 0 rgba(220,38,38,.5)}.wpp-atencao.parado{background:#f59e0b;box-shadow:0 0 0 0 rgba(245,158,11,.5)}@keyframes wppAtencao{0%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{opacity:.35}100%{opacity:1}}`}</style>
         {/* Inbox — estilo WhatsApp Web */}
         {configurado && status === 'CONECTADO' && viewMode === 'inbox' && (
           <div className={`ios-inbox flex md:grid gap-0 rounded-2xl overflow-hidden border border-gray-200 shadow-sm flex-1 min-h-0 ${ativa ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
@@ -1051,7 +1067,10 @@ export default function WhatsappPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-semibold text-sm font-semibold text-sm truncate">{nomeContato(c)}</p>
+                        <p className="font-semibold text-sm font-semibold text-sm truncate flex items-center gap-1.5">
+                          {atencao[c.id] && <span className={`wpp-atencao ${atencao[c.id]}`} title={atencao[c.id] === 'esperando' ? 'Cliente esperando resposta' : 'Cliente parou de responder (24h+)'} />}
+                          <span className="truncate">{nomeContato(c)}</span>
+                        </p>
                         <span className="text-[11px]  flex-shrink-0">{fmtHora(c.ultima_em)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">

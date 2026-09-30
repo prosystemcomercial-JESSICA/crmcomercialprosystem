@@ -402,6 +402,24 @@ export async function estudarRetencao(prisma: PrismaClient, tema: string | null 
   return { resumo: r?.resumo || '', documentos: gravados };
 }
 
+/** Um agente pediu orientação: o Rafael lê a conversa e diz como seguir e qual a próxima mensagem. */
+export async function orientarAgente(prisma: PrismaClient, agente: string, conversaId: string): Promise<{ orientacao: string; mensagem: string } | null> {
+  const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId }, orderBy: { created_at: 'desc' }, take: 14, select: { direcao: true, enviada_por: true, conteudo: true, transcricao: true, tipo: true } });
+  if (!ms.length) return null;
+  const nome = NOME_AGENTE[agente] || agente;
+  const texto = ms.reverse().map(m => `${m.direcao === 'ENTRADA' ? 'Cliente' : m.enviada_por === agente ? nome : 'Prosystem'}: ${((m.tipo === 'AUDIO' ? m.transcricao : m.conteudo) || `[${String(m.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 300)}`).join('\n');
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const r = lerJsonIa<{ orientacao: string; mensagem: string }>(await chamarGemini(prisma, {
+    sistema: QUEM + (await instrucoesPara(prisma, 'rafael')),
+    partes: [{ text: `O agente ${nome} travou nesta conversa de WhatsApp e pediu sua orientação. Diga em 1 ou 2 frases como seguir e escreva a próxima mensagem dele: curta, natural, de gente, sem travessão, sem repetir o que ele já disse. Se o cliente só cumprimentou, cumprimente de volta e retome com leveza.\nResponda APENAS com JSON: {"orientacao": string, "mensagem": string}\n\n${texto}` }],
+    json: true, temperatura: 0.5, timeoutMs: 60_000,
+  }));
+  if (!r?.mensagem) return null;
+  registrarAcaoAgente('rafael', `orientou o ${nome}: ${r.orientacao.slice(0, 80)}`);
+  registrarAcaoAgente(agente as any, 'pediu orientação ao Rafael e seguiu a conversa');
+  return r;
+}
+
 export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(agora);
   const dia = partes.find(p => p.type === 'weekday')?.value || '';

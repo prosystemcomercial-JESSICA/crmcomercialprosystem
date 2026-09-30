@@ -114,14 +114,13 @@ export default function EscritorioPage() {
 
   const irPara = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const verTrabalho = (id: string) => {
-    if (id === 'rafael') setTimeout(() => irPara('painel-rafael'), 50);
-    if (id === 'mila') setTimeout(() => irPara('painel-mila'), 50);
-    if (id === 'joana') setTimeout(() => irPara('painel-joana'), 50);
+    if (id === 'rafael' || id === 'mila' || id === 'joana') setJanela(id);
     setSel(id); setHistorico({ id, itens: null });
     apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
   };
   const [chat, setChat] = useState<string | null>(null);
   const [metricas, setMetricas] = useState(false); // janela "Métricas da IA"
+  const [janela, setJanela] = useState<null | 'treino' | 'rafael' | 'mila' | 'joana'>(null); // painéis dos agentes em janela
   const chamar = (id: string) => { setChamados(c => ({ ...c, [id]: 'sala' })); setSel(id); setChat(id); };
   const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
   const reunir = () => setChamados(Object.fromEntries((agentes || []).map(a => [a.id, 'reuniao' as Chamado])));
@@ -182,6 +181,23 @@ export default function EscritorioPage() {
 
   return (
     <DashboardLayout>
+      {janela && (
+        <div role="dialog" aria-modal="true" aria-label="Painel" style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px', overflowY: 'auto' }}
+          onClick={e => { if (e.target === e.currentTarget) setJanela(null); }}>
+          <div style={{ width: '100%', maxWidth: 1100, background: 'var(--t-content-bg)', borderRadius: 16, padding: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.25)', display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>
+                {janela === 'treino' ? '🎓 Treinamentos' : janela === 'rafael' ? '📚 Rafael · vendas' : janela === 'mila' ? '💚 Mila · Customer Success' : '📰 Joana · Informativo Prosystem'}
+              </h2>
+              <button onClick={() => setJanela(null)} aria-label="Fechar" style={{ minWidth: 40, minHeight: 40, borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
+            {janela === 'treino' && <SalaTreinamento onFala={setFalaTreino} />}
+            {janela === 'rafael' && <PainelRafael />}
+            {janela === 'mila' && <PainelMila />}
+            {janela === 'joana' && <PainelJoana />}
+          </div>
+        </div>
+      )}
       {metricas && (
         <div role="dialog" aria-modal="true" aria-label="Métricas da IA" style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px', overflowY: 'auto' }}
           onClick={e => { if (e.target === e.currentTarget) setMetricas(false); }}>
@@ -211,19 +227,19 @@ export default function EscritorioPage() {
               👥 {agentes?.length ?? 8} agentes · <span style={{ color: '#16a34a' }}>{trabalhando} trabalhando</span>
             </span>
             {atualizado && !simulando && <span style={{ padding: '6px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>atualizado {haQuanto(atualizado)}</span>}
-            <button onClick={() => irPara('sala-treinamento')}
+            <button onClick={() => setJanela('treino')}
               style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: '#1e40af' }}>
               🎓 Treinamentos
             </button>
-            <button onClick={() => irPara('painel-rafael')}
+            <button onClick={() => setJanela('rafael')}
               style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #1e40af', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#1e40af', background: 'var(--t-card-bg)' }}>
               📚 Painel do Rafael
             </button>
-            <button onClick={() => irPara('painel-mila')}
+            <button onClick={() => setJanela('mila')}
               style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #0e7490', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#0e7490', background: 'var(--t-card-bg)' }}>
               💚 Painel da Mila (CS)
             </button>
-            <button onClick={() => irPara('painel-joana')}
+            <button onClick={() => setJanela('joana')}
               style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #c2410c', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#c2410c', background: 'var(--t-card-bg)' }}>
               📰 Painel da Joana
             </button>
@@ -316,14 +332,11 @@ export default function EscritorioPage() {
             const a = (mostrar || []).find(x => x.id === chat)!;
             return <ChatAgente key={a.id} agente={{ id: a.id, nome: a.nome, cor: a.cor, funcao: a.funcao }} onFechar={() => setChat(null)} />;
           })()}
-          <div id="sala-treinamento" style={{ scrollMarginTop: 80 }}><SalaTreinamento onFala={setFalaTreino} /></div>
           <PainelCaroline agente="caroline" />
           <PainelCaroline agente="luiz_felipe" />
           <PainelCaroline agente="julio" />
           <CadernoLaya />
-          <div id="painel-rafael" style={{ scrollMarginTop: 80 }}><PainelRafael /></div>
-          <div id="painel-mila" style={{ scrollMarginTop: 80 }}><PainelMila /></div>
-          <div id="painel-joana" style={{ scrollMarginTop: 80 }}><PainelJoana /></div>
+
           <PainelHeitor />
           <PesquisasSofia />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
