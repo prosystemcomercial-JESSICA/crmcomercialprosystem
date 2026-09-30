@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { StatusBadge, type BadgeColor } from '@/components/ui/StatusBadge';
 import { apiClient } from '@/lib/api-client';
 import { showToast } from '@/components/ui/Toast';
+import KanbanServicos from '@/components/crosssell/KanbanServicos';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend,
 } from 'recharts';
@@ -142,7 +143,8 @@ export default function IndicacoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
-  const [tab, setTab] = useState<'vendas' | 'negociacao' | 'parceiros' | 'resultado'>('vendas');
+  const [tab, setTab] = useState<'servicos' | 'vendas' | 'negociacao' | 'parceiros' | 'resultado'>('servicos');
+  const [versaoKanban, setVersaoKanban] = useState(0);
   const [resultadoAnual, setResultadoAnual] = useState<any>(null);
   const [resultadoLoading, setResultadoLoading] = useState(false);
   const [anoResultado, setAnoResultado] = useState(new Date().getFullYear());
@@ -244,6 +246,8 @@ export default function IndicacoesPage() {
 
   // Modal venda
   const [showVendaModal, setShowVendaModal] = useState(false);
+  // Tipo de venda escolhido nos cartões do topo do formulário (define os campos que aparecem).
+  const [tipoVenda, setTipoVenda] = useState<null | 'SERVICO' | 'INTEGRADORA' | 'FISCAL' | 'COMUNICACAO' | 'UPGRADE' | 'TROCA_CNPJ'>(null);
   const [vendaForm, setVendaForm] = useState<any>({
     cliente_id: '', parceiro_id: '', vendedor_id: '', valor_venda: '',
     plano_anterior: '', plano_novo: '', observacoes: '',
@@ -307,19 +311,28 @@ export default function IndicacoesPage() {
   const openNovaVenda = async () => {
     setClienteBusca('');
     try {
+      setClientes([]); // a lista só aparece depois que a vendedora busca
       const [, vends] = await Promise.all([
-        buscarClientes(''),
+        Promise.resolve(),
         // Vendedores reais cadastrados no CRM (ATIVOS) para a supervisão escolher.
         apiClient.getVendedores().catch(() => ({ data: { data: [] } })),
       ]);
       const vendList = vends.data.data || [];
       setUsuarios(vendList.length ? vendList : []);
     } catch { setClientes([]); setUsuarios([]); }
+    setTipoVenda(null);
     setVendaForm({ cliente_id: '', parceiro_id: '', vendedor_id: user?.id || '', tipo_negocio: 'INDICACAO', valor_venda: '', acrescimo_mensal: '', plano_anterior: '', plano_novo: '', observacoes: '', setup_forma: 'PARCELADO', setup_entrada: '', setup_parcelas: 1, setup_primeiro_venc: '',
       // comunicação multi-loja + datas
       lojas_ids: [], setup_loja_id: '', data_venda: '', data_inicio_comunicacao: '', primeiro_vencimento: '', data_indicacao: '', data_fechamento: '' });
     setLojaBusca(''); setLojaResultados([]); setLojasSelMap({}); setLojasAcrescimo({});
     setShowVendaModal(true);
+  };
+  // Kanban de serviços: "+ Nova venda" já abre com o tipo Serviço escolhido.
+  const abrirNovaVendaServico = async () => {
+    await openNovaVenda();
+    const serv = parceiros.find(x => x.categoria === 'SERVICO');
+    setTipoVenda('SERVICO');
+    if (serv) setVendaForm((f: any) => ({ ...f, parceiro_id: serv.id }));
   };
 
   const handleCreateVenda = async () => {
@@ -390,6 +403,7 @@ export default function IndicacoesPage() {
       }
 
       await apiClient.createVendaAdicional(payload);
+      setVersaoKanban(v => v + 1);
       setShowVendaModal(false);
       loadVendas();
     } catch (e) { console.error(e); }
@@ -616,6 +630,7 @@ export default function IndicacoesPage() {
         {/* Tabs */}
         <div className="flex gap-1 border-b border-gray-200">
           {([
+            ['servicos', '🛠️ Serviços (kanban)'],
             ['vendas', 'Vendas'],
             ['negociacao', `Em negociação${negociacoes.length ? ` (${negociacoes.length})` : ''}`],
             ['parceiros', 'Parceiros & Produtos'],
@@ -629,6 +644,9 @@ export default function IndicacoesPage() {
         </div>
 
         {/* Tab: Vendas */}
+        {tab === 'servicos' && (
+          <KanbanServicos versao={versaoKanban} onNovaVenda={() => { abrirNovaVendaServico(); }} />
+        )}
         {tab === 'vendas' && (
           <>
             {/* Filtros */}
@@ -1156,6 +1174,33 @@ export default function IndicacoesPage() {
             </div>
 
             <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Tipo de venda *</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
+                {([
+                  ['SERVICO', '🛠️', 'Serviço', 'Orçamento, aceite e execução'],
+                  ['INTEGRADORA', '🤝', 'Indicação de integradora', 'Imendes, Avant, TEF… · R$ 50'],
+                  ['FISCAL', '🧾', 'Pacote de arquivos fiscais', 'Na mensalidade · R$ 50'],
+                  ['COMUNICACAO', '🔗', 'Comunicação de dados', 'Várias lojas'],
+                  ['UPGRADE', '⬆️', 'Upgrade de plano', 'Basic → Pro → Plus'],
+                  ['TROCA_CNPJ', '🏢', 'Troca de CNPJ', 'Nova razão social'],
+                ] as const).map(([k, ic, nome, sub]) => (
+                  <button key={k} type="button"
+                    onClick={() => {
+                      setTipoVenda(k);
+                      // Tipos com um item só no catálogo: já seleciona; integradora escolhe na lista.
+                      const alvo = k === 'INTEGRADORA' ? null : parceiros.find(p => p.categoria === k);
+                      setVendaForm((f: any) => ({ ...f, parceiro_id: alvo ? alvo.id : '', plano_anterior: '', plano_novo: '', tipo_negocio: k === 'INTEGRADORA' ? 'INDICACAO' : f.tipo_negocio }));
+                    }}
+                    className={`text-left rounded-xl border px-3 py-2 transition-colors ${tipoVenda === k ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <span className="block text-lg leading-none">{ic}</span>
+                    <span className="block text-sm font-semibold mt-1">{nome}</span>
+                    <span className="block text-[11px] text-gray-500">{sub}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
               <div>
                 <label className="text-sm font-medium ">Cliente da base *</label>
                 <div className="flex gap-2 mt-1">
@@ -1194,12 +1239,13 @@ export default function IndicacoesPage() {
               </div>
 
               <div>
-                <label className="text-sm font-medium ">Produto / Parceiro *</label>
+                {(!tipoVenda || tipoVenda === 'INTEGRADORA') && (<>
+                <label className="text-sm font-medium ">{tipoVenda === 'INTEGRADORA' ? 'Qual integradora? *' : 'Produto / Parceiro *'}</label>
                 <select value={vendaForm.parceiro_id} onChange={e => setVendaForm((p: any) => ({ ...p, parceiro_id: e.target.value, plano_anterior: '', plano_novo: '' }))}
                   className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Selecione...</option>
                   {/* Agrupado por categoria: ex. Corretor Tributário → Avant, Imendes; TEF → parceiros de TEF */}
-                  {Object.entries(parceiros.reduce((acc: Record<string, Parceiro[]>, p) => {
+                  {Object.entries(parceiros.filter(p => tipoVenda !== 'INTEGRADORA' || ['TEF', 'TRIBUTARIO', 'INTEGRADORA', 'OUTRO'].includes(p.categoria)).reduce((acc: Record<string, Parceiro[]>, p) => {
                     (acc[p.categoria] = acc[p.categoria] || []).push(p); return acc;
                   }, {})).map(([cat, lista]) => (
                     <optgroup key={cat} label={CATEGORIA_LABEL[cat] || cat}>
@@ -1207,6 +1253,7 @@ export default function IndicacoesPage() {
                     </optgroup>
                   ))}
                 </select>
+                </>)}
                 {parceiroSelecionado?.pitch && (
                   <p className="mt-1.5 text-xs text-blue-600 bg-blue-50 rounded p-2 italic">"{parceiroSelecionado.pitch}"</p>
                 )}
@@ -1412,8 +1459,8 @@ export default function IndicacoesPage() {
                 </div>
               )}
 
-              {/* Tipo do negócio: Indicação (R$50) ou Revenda (valor do parceiro) */}
-              <div>
+              {/* Tipo do negócio: Indicação (R$50) ou Revenda (valor do parceiro) — só para integradora */}
+              <div style={{ display: tipoVenda && tipoVenda !== 'INTEGRADORA' ? 'none' : undefined }}>
                 <label className="text-sm font-medium ">Tipo do negócio *</label>
                 <div className="flex gap-2 mt-1">
                   {[['INDICACAO', 'Indicação', 'Comissão R$ 50'], ['REVENDA', 'Revenda', 'Comissão do parceiro']].map(([val, label, hint]) => {
@@ -1433,8 +1480,8 @@ export default function IndicacoesPage() {
                 </p>
               </div>
 
-              {/* Acréscimo na mensalidade — oculto na Comunicação (cada loja tem o seu) */}
-              {!ehComunicacao && (
+              {/* Acréscimo na mensalidade — oculto na Comunicação (cada loja tem o seu), no serviço e na integradora */}
+              {!ehComunicacao && tipoVenda !== 'SERVICO' && tipoVenda !== 'INTEGRADORA' && (
               <div>
                 <label className="text-sm font-medium ">
                   Acréscimo na mensalidade (R$/mês)
@@ -1452,7 +1499,7 @@ export default function IndicacoesPage() {
 
               {/* Datas do negócio: indicação (demais parceiros) + fechamento. A
                   comissão entra no mês seguinte à CONFIRMAÇÃO (informada ao confirmar). */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ display: tipoVenda === 'SERVICO' ? 'none' : undefined }}>
                 {!ehComunicacao && (
                   <div>
                     <label className="text-sm font-medium ">Data da indicação</label>
