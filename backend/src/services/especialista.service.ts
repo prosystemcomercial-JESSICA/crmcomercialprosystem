@@ -62,6 +62,21 @@ export async function estudarVendas(prisma: PrismaClient, tema: string | null = 
 // ── 2) Revisão das conversas ───────────────────────────────────────────────────
 const AUTOMATICOS = ['bot', 'assistente_ia', 'campanha', 'cadencia_automatica', 'caroline', 'julio', 'luiz_felipe', 'abertura_jessica'];
 
+// Recuperações de propostas recusadas nos últimos 7 dias (Luiz Felipe): contagem, motivos e o que o cliente disse.
+async function recusasDaSemana(prisma: PrismaClient, agora: Date) {
+  const desde = new Date(agora.getTime() - 7 * 864e5);
+  const ls = await prisma.sdrLead.findMany({ where: { agente: 'luiz_felipe', updated_at: { gte: desde } }, select: { nome: true, empresa: true, dados: true, nota_motivo: true } });
+  const recs = ls.filter(l => (l.dados as any)?.recuperacao && new Date((l.dados as any).recuperacao.iniciada_em) >= desde);
+  const conta = (d: string | null) => recs.filter(l => ((l.dados as any).recuperacao.desfecho || null) === d).length;
+  const motivos = new Map<string, number>();
+  for (const l of recs) { const m = String((l.dados as any).recuperacao.motivo_informado || 'não informado').split(':')[0]; motivos.set(m, (motivos.get(m) || 0) + 1); }
+  return {
+    iniciadas: recs.length, recuperadas: conta('recuperada'), perdidas: conta('perdida'), sem_resposta: conta('sem_resposta'), andamento: conta(null),
+    motivos: [...motivos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5),
+    falas: recs.filter(l => l.nota_motivo).map(l => ({ nome: l.empresa || l.nome || 'cliente', texto: String(l.nota_motivo).slice(0, 160) })),
+  };
+}
+
 export async function revisarConversas(prisma: PrismaClient) {
   const agora = new Date();
   const desde = new Date(agora.getTime() - 48 * 3600_000);
@@ -98,6 +113,7 @@ export async function revisarConversas(prisma: PrismaClient) {
     avaliacao = lerJsonIa(await chamarGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 120_000 }));
   }
   const dia = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const rec = await recusasDaSemana(prisma, agora).catch(() => null);
   const md = [
     `# Revisão das conversas · ${dia}`, '',
     avaliacao?.resumo || '',
@@ -106,6 +122,10 @@ export async function revisarConversas(prisma: PrismaClient) {
     '', `## Conversas não satisfatórias (${avaliacao?.alertas?.length || 0})`,
     ...((avaliacao?.alertas || []).map(a => `- **${a.conversa}**: ${a.problema}\n  - Como melhorar: ${a.como_melhorar}`)),
     '', '## Dicas para o time', ...((avaliacao?.dicas || []).map(d => `- ${d}`)),
+    ...(rec && rec.iniciadas ? ['', `## Recusas da semana (recuperação do Luiz Felipe)`,
+      `- Iniciadas: ${rec.iniciadas} · recuperadas: ${rec.recuperadas} · perdidas: ${rec.perdidas} · sem resposta: ${rec.sem_resposta} · em andamento: ${rec.andamento}`,
+      rec.motivos.length ? `- Motivos mais frequentes: ${rec.motivos.map(([m, n]) => `${m} (${n})`).join(', ')}` : '',
+      ...rec.falas.slice(0, 6).map(f => `- **${f.nome}**: ${f.texto}`)] : []),
   ].join('\n');
   const doc = await gravarDoc(prisma, { tipo: 'ALERTA', titulo: `Revisão das conversas · ${dia}`, conteudo: md }, 'revisao');
   registrarAcaoAgente('rafael', `revisou as conversas: ${deLado.length} de lado, ${avaliacao?.alertas?.length || 0} a melhorar`);
