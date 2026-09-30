@@ -27,7 +27,7 @@ function perguntaDe(tema: string | null) {
 
 export async function pesquisarSetor(prisma: PrismaClient, tema: string | null, userId: string | null) {
   const { instrucoesPara } = await import('./agentes-conversa.service');
-  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: SISTEMA + (await instrucoesPara(prisma, 'sofia')), pergunta: perguntaDe(tema) });
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: SISTEMA + (await instrucoesPara(prisma, 'sofia')) + (await import('./assistente-ia.service').then(m => m.parametrosAprovados(prisma, 5000)).catch(() => '')), pergunta: perguntaDe(tema) });
   const r = lerJsonIa<{ titulo: string; resumo: string; itens: ItemPesquisa[] }>(texto);
   const itens = Array.isArray(r?.itens) ? r!.itens.slice(0, 10) : [];
   const pesq = await prisma.pesquisaSetor.create({

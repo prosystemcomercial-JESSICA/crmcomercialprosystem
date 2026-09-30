@@ -44,8 +44,9 @@ export async function falarComAgente(
     resposta = 'Para eu responder perguntas preciso da chave da IA (Configurações → Assistente no WhatsApp → Chave da IA). Enquanto isso, veja minhas últimas ações em "Ver trabalho".';
   } else {
     const { historicoAgente, montarEscritorio } = await import('./escritorio.service');
-    const [hist, escritorio, conversa, instr] = await Promise.all([
-      historicoAgente(prisma, agente), montarEscritorio(prisma), conversaDoAgente(prisma, agente), instrucoesPara(prisma, agente),
+    const { parametrosAprovados } = await import('./assistente-ia.service');
+    const [hist, escritorio, conversa, instr, aprendido] = await Promise.all([
+      historicoAgente(prisma, agente), montarEscritorio(prisma), conversaDoAgente(prisma, agente), instrucoesPara(prisma, agente), parametrosAprovados(prisma),
     ]);
     const eu = escritorio.find(a => a.id === agente);
     const sistema = [
@@ -53,6 +54,7 @@ export async function falarComAgente(
       'Quem fala com você é a Jessica, desenvolvedora e supervisora da equipe. Responda em português do Brasil, em primeira pessoa, curto e direto, com dados quando tiver.',
       'Use apenas os dados abaixo. Se não souber, diga o que falta. Não invente números.',
       instr,
+      aprendido,
       `\n### Seu dia\nStatus: ${eu?.status}. ${eu?.numeros.map(n => `${n.valor} ${n.rotulo}`).join(', ')}. ${eu?.observacao || ''}`,
       `\n### Suas últimas ações\n${hist.slice(0, 10).map(h => `- ${h.em.slice(0, 16).replace('T', ' ')}: ${h.texto}`).join('\n') || '- nenhuma ainda'}`,
       `\n### Equipe agora\n${escritorio.map(a => `- ${a.nome}: ${a.status}; ${a.numeros.map(n => `${n.valor} ${n.rotulo}`).join(', ')}`).join('\n')}`,
