@@ -161,6 +161,10 @@ export async function autoResponderDuvida(prisma: PrismaClient, token: string, c
       ultima_saida_humana_em: humana?.created_at || null, auto_hoje: saidas.filter(s => s.enviada_por === REMETENTE_IA).length, texto,
     });
     if (!ok) return;
+    // Cérebro: suporte/financeiro (Laya com nível para decidir) não precisam da IA externa; a equipe responde.
+    const { rotaDaLaya, layaEvitouIa } = await import('./laya-cerebro.service');
+    const rota = await rotaDaLaya(prisma, conversaId).catch(() => null);
+    if (rota) { layaEvitouIa('Clarice', rota === 'suporte' ? 'assunto de suporte' : 'assunto financeiro'); return; }
     const p = promptTiraDuvidas(await guiaComercial(prisma), await textoDaConversa(prisma, conversaId, 20));
     // Aprende com as conversas que a equipe assume (mesmo aprendizado dos agentes de vendas).
     const { aprendizadoDaEquipe } = await import('./caroline.service');

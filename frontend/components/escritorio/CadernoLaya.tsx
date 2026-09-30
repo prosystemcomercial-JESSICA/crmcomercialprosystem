@@ -7,7 +7,8 @@ import { apiClient } from '@/lib/api-client';
 // falta a equipe confirmar. Os arquivos baixados ensinam outra IA se ela parar.
 
 type Tarefa = { tarefa: string; nivel: 'aprendiz' | 'assistente' | 'titular'; nome_nivel: string; exemplos: number; acerto: number | null };
-type Resumo = { total: number; hoje: number; pendentes: number; tarefas: Tarefa[] };
+type Cerebro = { decisoes: number; aprendidas: number; laya: number; externa: number; evitadas: number; pct_laya: number | null };
+type Resumo = { total: number; hoje: number; pendentes: number; tarefas: Tarefa[]; cerebro?: Cerebro };
 
 const NOME: Record<string, string> = { segmento: 'Ramo do cliente', intencao: 'O que o cliente quer', cancelar: 'Risco de cancelar' };
 const COR: Record<string, string> = { aprendiz: '#64748b', assistente: '#2563eb', titular: '#15803d' };
@@ -43,15 +44,31 @@ export default function CadernoLaya() {
     <div style={{ background: 'var(--t-card-bg)', border: '2px solid #7c3aed', borderRadius: 14, padding: 16, display: 'grid', gap: 12 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <div style={{ flex: '1 1 280px' }}>
-          <b style={{ fontSize: 16, color: 'var(--t-text-primary)' }}>📓 Caderno da Laya</b>
+          <b style={{ fontSize: 16, color: 'var(--t-text-primary)' }}>🧠 Laya · o cérebro da equipe</b>
           <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
-            Tudo o que ela aprende com as confirmações da equipe fica escrito aqui, com cópia diária no servidor. Se ela parar, o Caderno ensina outra IA.
+            Ela decide primeiro; a IA externa só escreve. Aprende com cada decisão da equipe e dos agentes e assume cada tarefa quando chega ao nível Assistente. Tudo fica no Caderno, com cópia diária no servidor.
           </div>
         </div>
         <button style={btn} onClick={() => baixar('caderno')}>Baixar Caderno</button>
         <button style={btn} onClick={() => baixar('amostras')}>Baixar exemplos (dados)</button>
       </div>
       {erro && <span style={{ fontSize: 12, color: '#dc2626' }}>{erro}</span>}
+      {r.cerebro && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+          {[
+            ['Decisões hoje', r.cerebro.decisoes, 'conversas que ela analisou'],
+            ['Aprendeu sozinha', r.cerebro.aprendidas, 'comparações com decisões reais'],
+            ['IA externa poupada', r.cerebro.evitadas, 'chamadas que ela resolveu'],
+            ['Laya x IA externa', r.cerebro.pct_laya == null ? '—' : `${r.cerebro.pct_laya}%`, `${r.cerebro.laya} Laya · ${r.cerebro.externa} externa`],
+          ].map(([rot, v, sub]) => (
+            <div key={rot as string} style={{ background: '#f5f3ff', borderRadius: 10, padding: '8px 10px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#6d28d9' }}>{rot}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#4c1d95', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+              <div style={{ fontSize: 11, color: '#7c3aed' }}>{sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, color: 'var(--t-text-secondary)' }}>
         <span><b style={{ fontSize: 18, color: 'var(--t-text-primary)' }}>{r.total}</b> exemplos confirmados</span>
         <span><b style={{ fontSize: 18, color: r.hoje >= META_DIA ? '#15803d' : 'var(--t-text-primary)' }}>{r.hoje}</b> hoje (meta {META_DIA})</span>

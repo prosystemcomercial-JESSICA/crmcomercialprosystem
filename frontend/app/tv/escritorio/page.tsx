@@ -300,6 +300,28 @@ export default function TvEscritorioPage() {
                     </>
                   )}
                 </section>
+                {dados.laya && (
+                  <section className="painel laya">
+                    <div className="cab"><h2><span className="ponto roxo vivo-roxo" />Laya · o cérebro</h2><span className="mono mudo">{dados.laya.cerebro?.pct_laya == null ? '' : `${dados.laya.cerebro.pct_laya}% das decisões`}</span></div>
+                    <div className="laya-niveis">
+                      {dados.laya.tarefas.map((t: any) => (
+                        <div key={t.tarefa} className="laya-t">
+                          <span className="mudo">{({ segmento: 'Ramo', intencao: 'Intenção', cancelar: 'Cancelar' } as any)[t.tarefa] || t.tarefa}</span>
+                          <b className={`nivel-${t.nivel}`}>{t.nome_nivel}</b>
+                          <span className="barra-n"><i style={{ width: `${Math.min(100, (t.exemplos / 30) * 100)}%` }} /></span>
+                          <small className="mono mudo">{t.exemplos}/30 · {t.acerto == null ? '—' : `${t.acerto}%`}</small>
+                        </div>
+                      ))}
+                    </div>
+                    {dados.laya.cerebro && (
+                      <div className="laya-hoje mono">
+                        <span><b>{dados.laya.cerebro.decisoes}</b> decisões</span>
+                        <span><b>{dados.laya.cerebro.aprendidas}</b> aprendidas</span>
+                        <span><b className="ok">{dados.laya.cerebro.evitadas}</b> IA poupada</span>
+                      </div>
+                    )}
+                  </section>
+                )}
                 <section className="painel crescer">
                   <div className="cab"><h2>Conversas em andamento</h2><span className="mono mudo">{dados.conversando.length}</span></div>
                   {(dados.conversando as Conversa[]).slice(0, 7).map(c => (
@@ -663,6 +685,19 @@ const CSS = `
 .reg b{text-align:right}
 .reg-barra{display:flex;height:.55em;background:var(--s2);border-radius:3px;overflow:hidden}
 .reg-barra i{display:block;height:100%}
+.tv{--roxo:#a78bfa}.tv.claro{--roxo:#6d28d9}
+.ponto.roxo{background:var(--roxo)}
+.vivo-roxo{animation:onda-roxo 2s infinite}
+@keyframes onda-roxo{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--roxo) 60%,transparent)}100%{box-shadow:0 0 0 .5em transparent}}
+.painel.laya{flex:none;border-color:color-mix(in srgb,var(--roxo) 40%,var(--borda))}
+.laya-niveis{display:grid;gap:.35em}
+.laya-t{display:grid;grid-template-columns:5.5em 6.5em 1fr 6.5em;align-items:center;gap:.6em;font-size:.92em}
+.laya-t b{font-weight:600}.nivel-aprendiz{color:var(--t2)}.nivel-assistente{color:var(--azul)}.nivel-titular{color:var(--ok)}
+.barra-n{height:.4em;background:var(--s2);border-radius:3px;overflow:hidden}
+.barra-n i{display:block;height:100%;background:var(--roxo)}
+.laya-t small{text-align:right}
+.laya-hoje{display:flex;gap:1.2em;margin-top:.6em;font-size:.9em;color:var(--t2)}
+.laya-hoje b{color:var(--t1)}
 @media (max-width:1400px){.agentes{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media (max-width:900px){.cap-grid{grid-template-columns:1fr}}
 @media (max-width:900px){.tv{overflow:auto}.wrap{height:auto}.tela1,.tela2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.agentes{grid-template-columns:repeat(2,minmax(0,1fr))}.top{flex-wrap:wrap}.abas{display:none}.msg{grid-template-columns:3em 1.6em minmax(0,1fr) 3.5em}.msg .txt{display:none}}

@@ -162,6 +162,7 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     qualificados,
     aprovacoes: { mensagens: msgsParaAprovar, documentos: docsParaAprovar },
     feed, movimentos, conversando,
+    laya: await import('./laya-caderno.service').then(async m => { const r = await m.resumoCaderno(prisma); return { tarefas: r.tarefas, total: r.total, cerebro: r.cerebro }; }).catch(() => null),
     captacao: await import('./tv-captacao.service').then(m => m.montarCaptacao(prisma, agora)).catch((e: any) => { console.warn('[TV] captação:', e?.message); return null; }),
   };
 }
