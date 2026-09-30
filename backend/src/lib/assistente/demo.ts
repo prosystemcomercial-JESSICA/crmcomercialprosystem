@@ -7,31 +7,38 @@ import { meiaNoiteNoFuso, partesNoFuso } from '../painel-tv';
 export const JANELAS = [[9, 12], [14, 17]] as const; // horas locais (início, fim)
 export const DURACAO_MIN = 30;
 export const ANTECEDENCIA_MIN = 120;
-export const DIAS_A_FRENTE = 7;
+export const DIAS_A_FRENTE = 14;
 export const MAX_OPCOES = 10; // limite da lista do WhatsApp
+export const MAX_POR_DIA = 2; // uma de manhã e uma à tarde: a lista cobre vários dias (mínimo 3)
 
 type Intervalo = { inicio: Date; fim: Date };
 
 const diaSemanaSP = (d: Date) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   .indexOf(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(d));
 
-/** Próximos horários livres (seg–sex, janelas fixas), sem conflito com reuniões marcadas. */
-export function gerarHorarios(agora: Date, ocupados: Intervalo[], max = MAX_OPCOES): Date[] {
-  const minimo = agora.getTime() + ANTECEDENCIA_MIN * 60000;
+/**
+ * Próximos horários livres (seg–sex, janelas fixas), sem conflito com reuniões marcadas.
+ * No máximo um por janela (manhã/tarde) em cada dia, para a lista ter vários dias.
+ * aPartirDe: o cliente quer a partir de uma data (ex.: "semana que vem").
+ */
+export function gerarHorarios(agora: Date, ocupados: Intervalo[], max = MAX_OPCOES, aPartirDe?: Date | null): Date[] {
+  const minimo = Math.max(agora.getTime() + ANTECEDENCIA_MIN * 60000, aPartirDe && aPartirDe > agora ? aPartirDe.getTime() : 0);
   const hoje = partesNoFuso(agora);
   const out: Date[] = [];
-  for (let d = 0; d <= DIAS_A_FRENTE && out.length < max; d++) {
+  for (let d = 0; d <= DIAS_A_FRENTE + (aPartirDe ? 7 : 0) && out.length < max; d++) {
     const ref = new Date(Date.UTC(hoje.ano, hoje.mes - 1, hoje.dia + d));
     const meiaNoite = meiaNoiteNoFuso(ref.getUTCFullYear(), ref.getUTCMonth() + 1, ref.getUTCDate());
     const dsem = diaSemanaSP(new Date(meiaNoite.getTime() + 12 * 3600000));
     if (dsem === 0 || dsem === 6) continue;
+    let doDia = 0;
     for (const [ini, fim] of JANELAS) {
-      for (let m = ini * 60; m + DURACAO_MIN <= fim * 60 && out.length < max; m += DURACAO_MIN) {
+      for (let m = ini * 60; m + DURACAO_MIN <= fim * 60 && out.length < max && doDia < MAX_POR_DIA; m += DURACAO_MIN) {
         const inicio = new Date(meiaNoite.getTime() + m * 60000);
         const final = new Date(inicio.getTime() + DURACAO_MIN * 60000);
         if (inicio.getTime() < minimo) continue;
         if (ocupados.some(o => inicio < o.fim && final > o.inicio)) continue;
-        out.push(inicio);
+        out.push(inicio); doDia++;
+        break; // um por janela (manhã/tarde)
       }
     }
   }

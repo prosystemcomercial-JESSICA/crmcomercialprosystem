@@ -23,15 +23,15 @@ async function gravarSaidaBot(prisma: PrismaClient, conversaId: string, conteudo
 
 async function horariosOcupados(prisma: PrismaClient, agora: Date) {
   const rs = await prisma.atividade.findMany({
-    where: { tipo: 'REUNIAO', status: { in: STATUS_ATIVOS }, data_prevista: { gte: new Date(agora.getTime() - 3600000), lt: new Date(agora.getTime() + 9 * 86400000) } },
+    where: { tipo: 'REUNIAO', status: { in: STATUS_ATIVOS }, data_prevista: { gte: new Date(agora.getTime() - 3600000), lt: new Date(agora.getTime() + 24 * 86400000) } },
     select: { data_prevista: true, duracao_minutos: true },
   });
   return rs.map(r => ({ inicio: r.data_prevista!, fim: new Date(r.data_prevista!.getTime() + (r.duracao_minutos || 60) * 60000) }));
 }
 
-async function enviarHorarios(prisma: PrismaClient, token: string, conversa: { id: string; contato_numero: string }, prefixo?: string) {
+async function enviarHorarios(prisma: PrismaClient, token: string, conversa: { id: string; contato_numero: string }, prefixo?: string, aPartirDe?: Date | null) {
   const agora = new Date();
-  const slots = gerarHorarios(agora, await horariosOcupados(prisma, agora));
+  const slots = gerarHorarios(agora, await horariosOcupados(prisma, agora), undefined, aPartirDe);
   if (!slots.length) {
     const r = await evo.enviarTexto(token, conversa.contato_numero, TEXTO_SEM_HORARIOS);
     await gravarSaidaBot(prisma, conversa.id, TEXTO_SEM_HORARIOS, r.externo_id);
@@ -45,13 +45,13 @@ async function enviarHorarios(prisma: PrismaClient, token: string, conversa: { i
 }
 
 /** Fim da triagem com lead qualificado: oferece a demo (se não houver "É a sua empresa?" pendente). */
-export async function oferecerDemo(prisma: PrismaClient, token: string, conversaId: string) {
+export async function oferecerDemo(prisma: PrismaClient, token: string, conversaId: string, opts: { aPartirDe?: Date | null } = {}) {
   const c = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, contato_numero: true, bot_dados: true, cliente_id: true } });
   if (!c || c.cliente_id) return;
   const dados: any = c.bot_dados || {};
   // Já é cliente, tem "É a sua empresa?" em aberto ou a demo já foi oferecida: não oferece.
   if (dados.relacao === 'cliente' || dados.confirmacao_cliente || dados.demo) return;
-  const ok = await enviarHorarios(prisma, token, c);
+  const ok = await enviarHorarios(prisma, token, c, undefined, opts.aPartirDe);
   await prisma.whatsappConversa.update({ where: { id: c.id }, data: { bot_dados: { ...dados, demo: { oferecida_em: new Date().toISOString(), ofertas: ok ? 1 : 0 } } } });
 }
 
