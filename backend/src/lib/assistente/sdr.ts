@@ -185,6 +185,23 @@ function lerDataSP(v: unknown, horaPadrao = '09:30'): Date | null {
   return Number.isFinite(d.getTime()) && d.getTime() > agora && d.getTime() < agora + 90 * 864e5 ? d : null;
 }
 
+/**
+ * Compromisso de horário na fala do agente ("falo com o Paulo às 13h", "te chamo amanhã às 10h30").
+ * Hoje se a hora ainda não passou; senão (ou com "amanhã"), no dia seguinte. null = sem horário.
+ */
+export function compromissoDeHorario(texto: string, agora = new Date()): Date | null {
+  const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const m = t.match(/\b(?:as|a partir das)\s+(\d{1,2})(?:[h:](\d{2})?|\s*horas?)\b/);
+  if (!m) return null;
+  const h = Number(m[1]), min = Number(m[2] || 0);
+  if (h < 7 || h > 20 || min > 59) return null;
+  const dia = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const hhmm = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  let alvo = new Date(`${dia(agora)}T${hhmm}:00-03:00`);
+  if (/\bamanha\b/.test(t) || alvo.getTime() <= agora.getTime()) alvo = new Date(`${dia(new Date(agora.getTime() + 864e5))}T${hhmm}:00-03:00`);
+  return alvo;
+}
+
 /** Mensagem automática da loja ("em breve iremos lhe atender"): não é resposta de uma pessoa. */
 export function ehRespostaAutomatica(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -218,7 +235,7 @@ export function janelaCampanhaAtiva(d: Date): boolean {
 // Mesmas chaves do motivo da perda no funil (MOTIVOS_PERDA do frontend / relatório comercial).
 // Faixa de mensalidade que os agentes podem informar quando o cliente pergunta o valor (orientação da Jessica).
 export const FAIXA_MENSALIDADE = 'de R$ 350,00 a R$ 400,00 por mês, dependendo do plano (R$ 400,00 é o plano mais completo), mais o valor da instalação';
-export const RECURSOS_PLANO_COMPLETO = 'PDV e vendas, controle de estoque, compras, financeiro, dashboard com visão gerencial, rentabilidade, indicador de perda de vendas, análises gerenciais avançadas, suporte ativo e treinamento por 5 meses';
+export const RECURSOS_PLANO_COMPLETO = 'PDV e vendas, controle de estoque, compras, financeiro, dashboard com visão gerencial, rentabilidade, indicador de perda de vendas, curva ABC de produtos com reprocessamento, análises gerenciais avançadas, integração com leitor biométrico para mais segurança, mensageria de WhatsApp para a rotina interna da loja (não é canal com o cliente), suporte ativo e treinamento por 5 meses';
 
 export const MOTIVOS_PERDA = ['PRECO', 'JA_TEM_FORNECEDOR', 'SEM_ORCAMENTO', 'TIMING', 'SEM_INTERESSE', 'FUNCIONALIDADE_AUSENTE', 'OUTRO'] as const;
 export type MotivoPerda = typeof MOTIVOS_PERDA[number];
@@ -308,6 +325,7 @@ export function promptCaroline(p: {
     'DIA A DIA DA FARMÁCIA (use de forma natural, como quem conhece o balcão, 1 exemplo por vez, só para ajudar o cliente a reconhecer o próprio problema; nunca como lista nem aula): fila e demora no caixa em horário de pico; estoque furado (produto que acaba sem aviso, remédio vencendo na prateleira, compra no escuro); controle de medicamentos controlados e receitas (SNGPC); convênios, PBMs e Farmácia Popular dando trabalho para lançar e conferir; fiado/crediário e contas a receber sem controle; margem apertada e preço difícil de acompanhar; cliente de uso contínuo que não volta porque ninguém lembra de chamar; fechamento de caixa que não bate; nota fiscal e impostos. A SOLUÇÃO para qualquer um deles só pode vir do MATERIAL; se o material não cobrir, não prometa.',
     `HOJE: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })} (datas em AAAA-MM-DD, horário de Brasília).`,
     'PEDIU OU ACEITOU REUNIÃO/DEMONSTRAÇÃO (inclusive para depois, ex.: "semana que vem pode agendar uma reunião?"): NUNCA responda "retomamos depois" nem deixe para marcar mais tarde. Use acao "oferecer_demo" NESTA resposta: o sistema manda na hora a lista com os horários livres da nossa agenda, em vários dias, e o horário escolhido entra na agenda. Em "demo_a_partir" ponha a data (AAAA-MM-DD) a partir da qual ele quer (semana que vem = próxima segunda); se for o quanto antes, null. Sua mensagem: curta, confirmando e avisando que já vai mandar as opções de horário para ele escolher.',
+    'COMPROMISSO DE HORÁRIO: sempre que você disser que vai falar com alguém num horário (ex.: o decisor não está e disseram "13h"; "te chamo amanhã às 10h"), preencha "retomar_em" com esse dia e hora exatos (AAAA-MM-DDTHH:MM). Se o decisor não está, pergunte o melhor horário para falar com ele e, quando disserem, confirme e registre. Nunca prometa um horário sem registrar.',
     'CLIENTE ADIOU (está viajando, "quando voltar eu te chamo", "depois te procuro", "mês que vem"): nunca termine sem DIA E HORA combinados. Se ele não disse quando, ofereça 3 opções concretas de dia e período dentro do horário comercial (seg a sex, 9h às 12h e 14h às 17h), ex.: "fica melhor quinta de manhã, sexta à tarde ou segunda de manhã?". Quando ele escolher (ou já tiver dito dia e hora), confirme curto repetindo o dia e o horário e preencha "retomar_em" (AAAA-MM-DDTHH:MM): você volta a falar com ele exatamente nesse momento. Só se ele recusar marcar dia, preencha "adiar_dias" (se não souber, 7). Depois disso você NÃO manda mais nada até lá.',
     'NUNCA SEJA REPETITIVO: não repita o que você já disse nas mensagens anteriores (mesma ideia, mesma frase, mesmo convite). Se não houver nada novo e útil a dizer, não escreva.',
     'CLIENTE DE RESPOSTA CURTA ("nada", "isso", "demora"): é sinal de pouca paciência. Não faça mais perguntas abertas: traga a solução do MATERIAL para o que ele falou e ofereça a demonstração.',
