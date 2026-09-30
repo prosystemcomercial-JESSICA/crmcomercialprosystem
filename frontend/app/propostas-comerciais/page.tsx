@@ -72,6 +72,18 @@ const TELEFONE_FIXO_VENDEDOR: Record<string, string> = {
   'bd3cbf3c-8773-4377-b767-7125c9966bab': '27 99752-1370',
   'c8170a2f-f931-4f1b-b820-8b23baf2a5d8': '27 99752-1370',
 };
+// Observações de cobrança prontas (o texto continua editável depois de escolhido).
+const OBSERVACOES_COBRANCA: [string, string][] = [
+  ['Entrada via Pix no aceite', 'O valor de entrada deve ser pago via Pix no ato do aceite da proposta. A implantação é agendada assim que o pagamento for confirmado.'],
+  ['Entrada via Pix + mensalidades no boleto', 'O valor de entrada deve ser pago via Pix no ato do aceite da proposta. As mensalidades são cobradas por boleto bancário, enviado por e-mail antes de cada vencimento.'],
+  ['Entrada via boleto', 'O valor de entrada será cobrado por boleto bancário, com vencimento em até 3 dias úteis após o aceite da proposta. A implantação é agendada após a confirmação do pagamento.'],
+  ['Mensalidades no boleto', 'As mensalidades são cobradas por boleto bancário, enviado por e-mail antes de cada vencimento.'],
+  ['Mensalidades no Pix', 'As mensalidades são pagas via Pix, com a chave e o valor enviados antes de cada vencimento.'],
+  ['Implantação no cartão de crédito', 'O valor da implantação pode ser pago no cartão de crédito, em até 12x (com as taxas da operadora). As mensalidades são cobradas por boleto bancário.'],
+  ['Implantação parcelada no boleto', 'O valor da implantação será parcelado em boletos mensais, conforme o número de parcelas desta proposta, junto com as mensalidades.'],
+  ['Transferência bancária (TED)', 'O pagamento pode ser feito por transferência bancária (TED) para a conta da Prosystem informada na confirmação do aceite.'],
+  ['1ª mensalidade após a implantação', 'A primeira mensalidade vence 30 dias após a conclusão da implantação do sistema.'],
+];
 const telefoneVendedor = (id: string | null | undefined, padrao: string) => (id && TELEFONE_FIXO_VENDEDOR[id]) || padrao;
 
 const BLANK_FORM = {
@@ -1821,7 +1833,11 @@ export default function PropostasComerciais() {
                       <input value={form.data_vencimento as string} onChange={e => setField('data_vencimento', e.target.value)} className="ps-input w-full" placeholder="Ex: dia 10 de cada mês" />
                     </FormField>
                     <FormField label="Observação de Cobrança" col={2}>
-                      <input value={form.observacao_cobranca as string} onChange={e => setField('observacao_cobranca', e.target.value)} className="ps-input w-full" placeholder="Observações sobre a cobrança..." />
+                      <select value="" onChange={e => { if (e.target.value) setField('observacao_cobranca', e.target.value); }} className="ps-input w-full mb-1.5">
+                        <option value="">Escolher uma observação pronta…</option>
+                        {OBSERVACOES_COBRANCA.map(([rot, txt]) => <option key={rot} value={txt}>{rot}</option>)}
+                      </select>
+                      <textarea rows={2} value={form.observacao_cobranca as string} onChange={e => setField('observacao_cobranca', e.target.value)} className="ps-input w-full" placeholder="Escolha acima ou escreva a observação sobre a cobrança..." />
                     </FormField>
                     <FormField label="Condição Especial" col={2}>
                       <input value={form.condicao_especial as string} onChange={e => setField('condicao_especial', e.target.value)} className="ps-input w-full" placeholder="Ex: Desconto especial válido até..." />
