@@ -42,6 +42,21 @@ export async function guiaComercial(prisma: PrismaClient): Promise<string> {
   guiaCache = { em: Date.now(), texto };
   return texto;
 }
+/** Parâmetros do setor aprovados (Rafael), resumidos para qualquer agente (chat com a Jessica, Sofia, Joana…). */
+export async function parametrosAprovados(prisma: PrismaClient, maxChars = 8000): Promise<string> {
+  const ds = await prisma.especialistaDoc.findMany({
+    where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'] } },
+    orderBy: { decidido_em: 'desc' }, take: 20, select: { tipo: true, titulo: true, conteudo: true },
+  }).catch(() => []);
+  let out = '';
+  for (const d of ds) {
+    const parte = `\n#### [${d.tipo}] ${d.titulo}\n${d.conteudo.slice(0, 1500)}`;
+    if (out.length + parte.length > maxChars) break;
+    out += parte;
+  }
+  return out ? `\n\n### O que a equipe aprendeu (aprovado pela gestão, ensinado pelo Rafael)${out}` : '';
+}
+
 /** Aprovou algo do Rafael: o guia dos agentes recarrega na próxima conversa. */
 export function esquecerGuiaComercial() { guiaCache = null; }
 
