@@ -159,6 +159,17 @@ export async function verificarWhatsapp(instanceToken: string, numeros: string[]
   return r;
 }
 
+/**
+ * Nome do perfil do contato no WhatsApp (POST /chat/details), sem mandar nada.
+ * undefined = a UazAPI não respondeu; null = contato sem nome.
+ */
+export async function nomeDoContato(instanceToken: string, numero: string): Promise<string | null | undefined> {
+  const data = await call('/chat/details', 'POST', instanceToken, { number: normalizarNumero(numero) }).catch(() => undefined);
+  if (!data || typeof data !== 'object') return undefined;
+  const nome = String(data.wa_name || data.wa_contactName || data.name || '').trim();
+  return nome || null;
+}
+
 /** Envia mensagem de texto via POST /send/text (com o TOKEN DA INSTÂNCIA). */
 export async function enviarTexto(
   instanceToken: string,
