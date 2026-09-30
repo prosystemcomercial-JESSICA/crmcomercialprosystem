@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Moon, Sun, Volume2, VolumeX } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { ArrowDownLeft, ArrowUpRight, Maximize, Minimize, Moon, Sun, Volume2, VolumeX } from 'lucide-react';
 
 // TV do escritório virtual — fica aberta o dia todo.
 // Acesso: /tv/escritorio?chave=<mesmo token da /tv> (ou gestão logada, p/ prévia).
@@ -58,7 +58,8 @@ export default function TvEscritorioPage() {
   const [dados, setDados] = useState<any>(null);
   const [erro, setErro] = useState<'invalido' | 'rede' | null>(null);
   const [agora, setAgora] = useState(new Date());
-  const [tela, setTela] = useState<1 | 2>(1);
+  const [tela, setTela] = useState<1 | 2 | 3>(1);
+  const [telaCheia, setTelaCheia] = useState(false);
   const [giro, setGiro] = useState(0);
   const [som, setSom] = useState(false);
   const [aviso, setAviso] = useState<{ tom: Tom; titulo: string; texto: string } | null>(null);
@@ -82,6 +83,35 @@ export default function TvEscritorioPage() {
     try { localStorage.setItem('tv-escritorio-tema', t); } catch { /* sem storage */ }
   };
   const classeTv = `tv${tema === 'claro' ? ' claro' : ''}`;
+
+  // Tela cheia: botão no topo ou tecla F. A TV lembra a escolha e volta a entrar no primeiro clique
+  // (o navegador só permite tela cheia depois de um toque na página).
+  const alternarTelaCheia = () => {
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+        localStorage.setItem('tv-escritorio-tela-cheia', '0');
+      } else {
+        document.documentElement.requestFullscreen?.().catch(() => {});
+        localStorage.setItem('tv-escritorio-tela-cheia', '1');
+      }
+    } catch { /* sem suporte */ }
+  };
+  useEffect(() => {
+    const aoMudar = () => setTelaCheia(!!document.fullscreenElement);
+    const tecla = (e: KeyboardEvent) => { if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) alternarTelaCheia(); };
+    document.addEventListener('fullscreenchange', aoMudar);
+    window.addEventListener('keydown', tecla);
+    return () => { document.removeEventListener('fullscreenchange', aoMudar); window.removeEventListener('keydown', tecla); };
+  }, []);
+  const primeiroToque = () => {
+    if (!som) ativarSom();
+    try {
+      if (!document.fullscreenElement && (localStorage.getItem('tv-escritorio-tela-cheia') === '1' || new URLSearchParams(window.location.search).get('telacheia') === '1')) {
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      }
+    } catch { /* sem suporte */ }
+  };
 
   const ativarSom = () => {
     try {
@@ -140,7 +170,7 @@ export default function TvEscritorioPage() {
 
     buscar();
     const iDados = setInterval(buscar, INTERVALO_DADOS);
-    const iTela = setInterval(() => setTela(t => (t === 1 ? 2 : 1)), INTERVALO_TELA);
+    const iTela = setInterval(() => setTela(t => (t === 3 ? 1 : ((t + 1) as 1 | 2 | 3))), INTERVALO_TELA);
     const iGiro = setInterval(() => setGiro(g => g + 1), INTERVALO_CARROSSEL);
     const iRelogio = setInterval(() => setAgora(new Date()), 10_000);
     return () => { ativo = false; clearInterval(iDados); clearInterval(iTela); clearInterval(iGiro); clearInterval(iRelogio); };
@@ -183,7 +213,7 @@ export default function TvEscritorioPage() {
   ];
 
   return (
-    <div className={classeTv} onClick={() => { if (!som) ativarSom(); }}>
+    <div className={classeTv} onClick={primeiroToque}>
       <style>{CSS}</style>
       <div className="wrap">
         {aviso && (
@@ -201,6 +231,7 @@ export default function TvEscritorioPage() {
             <nav className="abas">
               <span className={tela === 1 ? 'on' : ''}>Ao vivo</span>
               <span className={tela === 2 ? 'on' : ''}>Atenção</span>
+              <span className={tela === 3 ? 'on' : ''}>Captação</span>
             </nav>
           </div>
           <div className="acoes">
@@ -208,6 +239,9 @@ export default function TvEscritorioPage() {
               : <span className="estado"><span className="ponto ok vivo" />Ao vivo</span>}
             <button className="icone" onClick={e => { e.stopPropagation(); if (!som) ativarSom(); }} title={som ? 'Som ligado' : 'Ativar som'}>
               {som ? <Volume2 size={16} /> : <><VolumeX size={16} /><span>Ativar som</span></>}
+            </button>
+            <button className="icone" onClick={e => { e.stopPropagation(); alternarTelaCheia(); }} title="Tela cheia (tecla F)">
+              {telaCheia ? <><Minimize size={16} /><span>Sair</span></> : <><Maximize size={16} /><span>Tela cheia</span></>}
             </button>
             <button className="icone" onClick={e => { e.stopPropagation(); trocarTema(); }} title="Alternar tema">
               {tema === 'escuro' ? <Sun size={16} /> : <Moon size={16} />}
@@ -278,6 +312,8 @@ export default function TvEscritorioPage() {
                 </section>
               </div>
             </div>
+          ) : tela === 3 && dados.captacao ? (
+            <Captacao c={dados.captacao} agora={agora} />
           ) : (
             <div className="tela2">
               <Lista titulo="Aguardando resposta" tom="bad" total={dados.esperando.total} vazio="Ninguém aguardando">
@@ -335,6 +371,138 @@ export default function TvEscritorioPage() {
             </div>
           ))}
         </footer>
+      </div>
+    </div>
+  );
+}
+
+const NOME_FONTE: Record<string, string> = { heitor: 'Heitor', campanha: 'Campanha', whatsapp: 'WhatsApp', outros: 'Outros' };
+const pct = (n: number | null | undefined) => (n == null ? '—' : `${n}%`);
+
+function Captacao({ c, agora }: { c: any; agora: Date }) {
+  const fontes = ['heitor', 'campanha', 'whatsapp', 'outros'] as const;
+  const maxDia = Math.max(1, ...c.mes.por_dia.map((d: any) => d.heitor + d.campanha + d.whatsapp + d.outros));
+  const maxReg = Math.max(1, ...c.regioes_mes.map((r: any) => r.total));
+  const h = c.heitor;
+  const ritmo = c.mes.mes_passado_ate_hoje ? Math.round(((c.mes.total - c.mes.mes_passado_ate_hoje) / c.mes.mes_passado_ate_hoje) * 100) : null;
+  return (
+    <div className="tela3">
+      {c.atencao.length > 0 && (
+        <div className="faixa-atencao">
+          {c.atencao.map((a: any) => <span key={a.chave} className={`aviso-item ${a.tom}`}><span className={`ponto ${a.tom} pisca`} />{a.texto}</span>)}
+        </div>
+      )}
+      <div className="cap-grid">
+        <div className="coluna">
+          <section className="painel">
+            <div className="cab"><h2>Captados hoje</h2><span className="mono mudo">{agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span></div>
+            <div className="grande">{c.hoje.total}</div>
+            <div className="barra-fontes">
+              {fontes.map(f => c.hoje[f] ? <i key={f} className={`f-${f}`} style={{ flex: c.hoje[f] }} /> : null)}
+              {!c.hoje.total && <i className="f-vazio" style={{ flex: 1 }} />}
+            </div>
+            <div className="legenda">
+              {fontes.map(f => (
+                <span key={f}><span className={`qd f-${f}`} />{NOME_FONTE[f]} <b className="mono">{c.hoje[f]}</b></span>
+              ))}
+            </div>
+          </section>
+          <section className="painel crescer">
+            <div className="cab"><h2>Últimos captados</h2><span className="mono mudo">{c.ultimos.length}</span></div>
+            {c.ultimos.length ? c.ultimos.slice(0, 8).map((u: any, i: number) => (
+              <div key={i} className={`linha ${i === 0 ? 'novo' : ''}`}>
+                <span className="quem"><span className={`qd f-${u.fonte}`} />{u.nome || 'Sem nome'}</span>
+                <span className="meta"><span className="mudo">{u.regiao}</span><span className="mono mudo">{new Date(u.em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}</span></span>
+              </div>
+            )) : <div className="vazio">Nenhum lead captado hoje ainda</div>}
+          </section>
+        </div>
+
+        <div className="coluna">
+          <section className="painel">
+            <div className="cab">
+              <h2><span className={`ponto ${h.erro ? 'bad pisca' : h.ativo ? 'ok vivo' : 'cinza'}`} />Heitor · prospecção hoje</h2>
+              <span className="mono mudo">{h.erro ? 'com erro' : h.ativo ? 'ativo' : 'desligado'}</span>
+            </div>
+            <div className="funil-h">
+              {[
+                ['Encontrados no Maps', h.encontrados, ''],
+                ['Cadastrados como lead', h.cadastrados, 'ok'],
+                ['Sem WhatsApp', h.sem_whatsapp, ''],
+                ['Rede / fora do perfil', h.descartados, ''],
+              ].map(([rot, v, tom]) => (
+                <div key={rot as string} className="linha"><span className="quem">{rot}</span><b className={`mono ${tom}`}>{v as number}</b></div>
+              ))}
+              <div className="linha"><span className="quem">Na fila da Caroline</span><b className={`mono ${h.fila_caroline >= 30 ? 'warn' : ''}`}>{h.fila_caroline >= 30 && <span className="ponto warn pisca" />} {h.fila_caroline}</b></div>
+              <div className="linha"><span className="quem">Aguardando análise</span><b className="mono">{h.aguardando}</b></div>
+            </div>
+            <div className="rodape-p mudo">No mês: <b className="mono">{h.cadastrados_mes}</b> cadastrados{h.ultima_rodada ? ` · última rodada ${new Date(h.ultima_rodada).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}` : ''}</div>
+          </section>
+          <section className="painel crescer">
+            <div className="cab"><h2>Retorno efetivo · primeiros contatos do mês</h2></div>
+            <div className="tabela-ret">
+              <span /><b><span className="qd f-heitor" />Heitor</b><b><span className="qd f-campanha" />Campanha</b>
+              {[
+                ['Contatados', 'contatados', null],
+                ['Responderam', 'responderam', 'taxa_resposta'],
+                ['Qualificados', 'qualificados', 'taxa_qualificacao'],
+                ['Demos marcadas', 'demos', null],
+                ['Sem interesse', 'sem_interesse', null],
+              ].map(([rot, k, t]) => (
+                <Fragment key={k as string}>
+                  <span className="mudo">{rot}</span>
+                  {(['heitor', 'campanha'] as const).map(f => {
+                    const r = c.retorno[f];
+                    const baixo = t === 'taxa_resposta' && r.contatados >= 10 && (r.taxa_resposta ?? 100) < 10;
+                    return <span key={f} className={`mono ${baixo ? 'bad' : ''}`}>{baixo && <span className="ponto bad pisca" />} {r[k as string]}{t ? <small> · {pct(r[t as string])}</small> : null}</span>;
+                  })}
+                </Fragment>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <div className="coluna">
+          <section className="painel">
+            <div className="cab"><h2>Acumulado de {c.mes.nome}</h2><span className="mono mudo">dia {c.mes.dia_atual} de {c.mes.dias_no_mes}</span></div>
+            <div className="acum">
+              <div><div className="grande">{c.mes.total}</div><span className="mudo">leads no mês</span></div>
+              <div className="acum-lado">
+                <span><b className="mono">{c.mes.media_dia}</b> <span className="mudo">por dia</span></span>
+                <span><b className="mono">{c.mes.projecao ?? '—'}</b> <span className="mudo">projeção do mês</span></span>
+                {ritmo != null && <span><b className={`mono ${ritmo >= 0 ? 'ok' : 'bad'}`}>{ritmo >= 0 ? '+' : ''}{ritmo}%</b> <span className="mudo">vs mês passado</span></span>}
+              </div>
+            </div>
+            <div className="dias">
+              {c.mes.por_dia.map((d: any, i: number) => {
+                const tot = d.heitor + d.campanha + d.whatsapp + d.outros;
+                const futuro = i + 1 > c.mes.dia_atual;
+                return (
+                  <div key={i} className={`dia ${i + 1 === c.mes.dia_atual ? 'hoje' : ''} ${futuro ? 'futuro' : ''}`} title={`Dia ${i + 1}: ${tot}`}>
+                    <div className="pilha" style={{ height: futuro ? '4%' : `${Math.max(3, (tot / maxDia) * 100)}%` }}>
+                      {!futuro && fontes.map(f => d[f] ? <i key={f} className={`f-${f}`} style={{ flex: d[f] }} /> : null)}
+                    </div>
+                    <small className="mono">{(i + 1) % 5 === 0 || i === 0 || i + 1 === c.mes.dia_atual ? i + 1 : ''}</small>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="legenda">
+              {fontes.map(f => <span key={f}><span className={`qd f-${f}`} />{NOME_FONTE[f]} <b className="mono">{c.mes[f]}</b></span>)}
+            </div>
+          </section>
+          <section className="painel crescer">
+            <div className="cab"><h2>Regiões do mês</h2><span className="mono mudo">hoje: {c.regioes_hoje.slice(0, 2).map((r: any) => `${r.nome} ${r.total}`).join(' · ') || '—'}</span></div>
+            {c.regioes_mes.length ? c.regioes_mes.slice(0, 7).map((r: any) => (
+              <div key={r.nome} className="reg">
+                <span className="quem">{r.nome}</span>
+                <span className="reg-barra"><i className="f-heitor" style={{ width: `${(r.heitor / maxReg) * 100}%` }} /><i className="f-campanha" style={{ width: `${(r.campanha / maxReg) * 100}%` }} /><i className="f-outros" style={{ width: `${((r.total - r.heitor - r.campanha) / maxReg) * 100}%` }} /></span>
+                <b className="mono">{r.total}</b>
+              </div>
+            )) : <div className="vazio">Sem leads no mês</div>}
+            {c.campanhas_mes.length > 0 && <div className="rodape-p mudo">Campanhas: {c.campanhas_mes.map((x: any) => `${x.nome} (${x.total})`).join(' · ')}</div>}
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -459,6 +627,43 @@ const CSS = `
 .vazio-box{max-width:560px;text-align:center;background:var(--s1);border:1px solid var(--borda);border-radius:12px;padding:2em}
 .vazio-box h1{font-size:1.6em;margin:0 0 .5em;font-weight:600}
 .vazio-box p{color:var(--t2)}
+.tv{--c-heitor:#84cc16;--c-campanha:#3291ff;--c-whatsapp:#2dd4bf;--c-outros:#737373}
+.tv.claro{--c-heitor:#4d7c0f;--c-campanha:#0068d6;--c-whatsapp:#0f766e;--c-outros:#a3a3a3}
+.f-heitor{background:var(--c-heitor)}.f-campanha{background:var(--c-campanha)}.f-whatsapp{background:var(--c-whatsapp)}.f-outros{background:var(--c-outros)}.f-vazio{background:var(--borda)}
+.qd{display:inline-block;width:.6em;height:.6em;border-radius:2px;margin-right:.45em;flex:none;vertical-align:middle}
+.pisca{animation:pisca 1s steps(2,start) infinite}
+@keyframes pisca{to{visibility:hidden}}
+.tela3{display:flex;flex-direction:column;gap:.7vw;height:100%}
+.faixa-atencao{display:flex;flex-wrap:wrap;gap:.5em}
+.aviso-item{display:flex;align-items:center;gap:.5em;padding:.35em .8em;border:1px solid var(--borda);border-radius:8px;background:var(--s1);font-size:.92em}
+.aviso-item.bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--borda))}.aviso-item.warn{border-color:color-mix(in srgb,var(--warn) 45%,var(--borda))}
+.cap-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.9vw}
+.grande{font-size:3.4em;font-weight:600;letter-spacing:-.04em;line-height:1.05;font-variant-numeric:tabular-nums}
+.barra-fontes{display:flex;height:.7em;border-radius:4px;overflow:hidden;margin:.7em 0 .6em;gap:2px}
+.barra-fontes i{display:block;height:100%}
+.legenda{display:flex;flex-wrap:wrap;gap:.3em 1.1em;font-size:.9em;color:var(--t2)}
+.legenda b{color:var(--t1);margin-left:.2em}
+.funil-h .linha b{font-size:1.1em}
+.rodape-p{font-size:.85em;margin-top:.6em}
+.tabela-ret{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr 1fr;gap:.55em .8em;align-items:center;font-size:1em}
+.tabela-ret b{font-weight:600;font-size:.9em;display:flex;align-items:center}
+.tabela-ret small{color:var(--t2);font-size:.8em}
+.acum{display:flex;justify-content:space-between;align-items:flex-end;gap:1em}
+.acum-lado{display:flex;flex-direction:column;align-items:flex-end;gap:.25em;font-size:.95em}
+.dias{display:flex;align-items:flex-end;gap:2px;height:6.5em;margin:.9em 0 .5em}
+.dia{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:.2em;min-width:0}
+.pilha{width:100%;display:flex;flex-direction:column-reverse;border-radius:2px 2px 0 0;overflow:hidden;background:var(--borda)}
+.pilha i{display:block;width:100%}
+.dia.futuro .pilha{opacity:.4}
+.dia.hoje .pilha{box-shadow:0 0 0 1px var(--t1)}
+.dia small{font-size:.65em;color:var(--t3);height:1em}
+.reg{display:grid;grid-template-columns:minmax(0,10em) 1fr 2.5em;align-items:center;gap:.7em;padding:.4em 0;border-bottom:1px solid var(--borda2)}
+.reg:last-of-type{border-bottom:0}
+.reg .quem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.reg b{text-align:right}
+.reg-barra{display:flex;height:.55em;background:var(--s2);border-radius:3px;overflow:hidden}
+.reg-barra i{display:block;height:100%}
 @media (max-width:1400px){.agentes{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media (max-width:900px){.cap-grid{grid-template-columns:1fr}}
 @media (max-width:900px){.tv{overflow:auto}.wrap{height:auto}.tela1,.tela2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.agentes{grid-template-columns:repeat(2,minmax(0,1fr))}.top{flex-wrap:wrap}.abas{display:none}.msg{grid-template-columns:3em 1.6em minmax(0,1fr) 3.5em}.msg .txt{display:none}}
 `;
