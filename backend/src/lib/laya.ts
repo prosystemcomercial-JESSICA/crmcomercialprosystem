@@ -5,7 +5,25 @@ export const SEGMENTOS_IA = ['farmacia', 'manipulacao', 'padaria', 'varejo', 'ou
 export const INTENCOES_IA = ['comprar', 'suporte', 'financeiro', 'servicos', 'outro'] as const;
 export type SegmentoIa = typeof SEGMENTOS_IA[number];
 export type IntencaoIa = typeof INTENCOES_IA[number];
-export type SugestaoIa = { segmento: SegmentoIa; intencao: IntencaoIa; cancelar: number; urgencia: number };
+export const QUALIFICACOES_IA = ['quente', 'morno', 'frio', 'nao_lead'] as const;
+export type QualificacaoIa = typeof QUALIFICACOES_IA[number];
+export type SugestaoIa = { segmento: SegmentoIa; intencao: IntencaoIa; cancelar: number; urgencia: number; qualificacao?: QualificacaoIa | null };
+/** Critérios de qualificação ensinados pelo Rafael (documento aprovado pela gestão). */
+export type CriteriosQualificacao = Record<QualificacaoIa, string>;
+export function perguntaQualificacao(c: CriteriosQualificacao) {
+  return { type: 'choice', instructions: 'Quão qualificado está este lead para comprar um sistema da Prosystem agora?', criteria: { ...c } };
+}
+/** Lê o bloco ```json do documento do Rafael; null se faltar algum nível. */
+export function lerCriteriosQualificacao(conteudo: string): CriteriosQualificacao | null {
+  const m = conteudo.match(/```json\s*([\s\S]*?)```/) || conteudo.match(/(\{[\s\S]*"nao_lead"[\s\S]*?\})/);
+  if (!m) return null;
+  try {
+    const j = JSON.parse(m[1]);
+    const out: any = {};
+    for (const k of QUALIFICACOES_IA) { const v = String(j?.[k] || '').trim(); if (!v) return null; out[k] = v.slice(0, 400); }
+    return out;
+  } catch { return null; }
+}
 export type RotulosIa = { segmento: SegmentoIa; intencao: IntencaoIa; cancelar: boolean } | { ignorar: true };
 
 // Contatos que não são comerciais: não vale a pena analisar nem treinar.
@@ -93,6 +111,7 @@ export function lerRespostaLaya(res: any): SugestaoIa {
     intencao: dentro(INTENCOES_IA, a.intencao?.choice, 'outro'),
     cancelar: num(a.cancelar?.noul, 0, 1),
     urgencia: num(a.urgencia?.score, 0, 3),
+    qualificacao: a.qualificacao?.choice && (QUALIFICACOES_IA as readonly string[]).includes(a.qualificacao.choice) ? a.qualificacao.choice : null,
   };
 }
 
