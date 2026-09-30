@@ -127,12 +127,60 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     orderBy: { created_at: 'desc' }, take: 40,
     select: { id: true, direcao: true, tipo: true, conteudo: true, enviada_por: true, created_at: true, conversa: { select: { contato_nome: true, contato_numero: true } } },
   });
+  // ── Propostas: abertas por telefone (bolinha nas mensagens), números e acontecimentos ──
+  const ABERTAS = ['ENVIADA', 'VISUALIZADA', 'EM_NEGOCIACAO'];
+  const u8 = (t: string | null | undefined) => (t || '').replace(/\D/g, '').slice(-8);
+  const propsAbertas = await prisma.propostaComercial.findMany({
+    where: { deleted_at: null, status: { in: ABERTAS } } as any,
+    select: { id: true, status: true, responsavel_telefone: true, nome_fantasia: true, razao_social: true },
+  }).catch(() => []);
+  const vistasRecentes = await prisma.propostaHistorico.findMany({
+    where: { valor_novo: 'VISUALIZADA', created_at: { gte: new Date(agora.getTime() - 2 * 3600_000) } }, select: { proposta_id: true },
+  }).catch(() => []);
+  const vistaAgora = new Set(vistasRecentes.map(v => v.proposta_id));
+  const propostaPorFone = new Map<string, { status: string; abriu_agora: boolean }>();
+  // Decididas nos últimos 30 dias (aceitas/recusadas) também marcam a conversa.
+  const decididas = await prisma.propostaComercial.findMany({
+    where: { deleted_at: null, status: { in: ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO', 'RECUSADA', 'PERDIDA'] }, updated_at: { gte: new Date(agora.getTime() - 30 * 864e5) } } as any,
+    select: { status: true, responsavel_telefone: true },
+  }).catch(() => []);
+  for (const pr of decididas) {
+    const k = u8(pr.responsavel_telefone);
+    if (k.length === 8) propostaPorFone.set(k, { status: pr.status, abriu_agora: false });
+  }
+  for (const pr of propsAbertas) {
+    const k = u8(pr.responsavel_telefone);
+    if (k.length === 8) propostaPorFone.set(k, { status: pr.status, abriu_agora: vistaAgora.has(pr.id) });
+  }
+  const STATUS_EVENTO: Record<string, string> = { ENVIADA: 'enviada', VISUALIZADA: 'cliente abriu', EM_NEGOCIACAO: 'em negociação', ACEITA: 'aceita', CONTRATO_EM_GERACAO: 'aceita', RECUSADA: 'recusada', PERDIDA: 'perdida' };
+  const hist = await prisma.propostaHistorico.findMany({
+    where: { tipo: 'STATUS', valor_novo: { in: Object.keys(STATUS_EVENTO) }, created_at: { gte: new Date(agora.getTime() - 48 * 3600_000) } },
+    orderBy: { created_at: 'desc' }, take: 12,
+    select: { id: true, valor_novo: true, created_at: true, feito_por_nome: true, proposta: { select: { nome_fantasia: true, razao_social: true, plano_selecionado: true, vendedor_nome: true } } },
+  }).catch(() => []);
+  const [enviadasHoje, abertasHoje, aceitasMes, recusadasMes] = await Promise.all([
+    prisma.propostaHistorico.count({ where: { valor_novo: 'ENVIADA', created_at: hoje } }).catch(() => 0),
+    prisma.propostaHistorico.count({ where: { valor_novo: 'VISUALIZADA', created_at: hoje } }).catch(() => 0),
+    prisma.propostaComercial.count({ where: { deleted_at: null, data_aceite: { gte: limitesPeriodo(agora).inicioMes } } as any }).catch(() => 0),
+    prisma.propostaHistorico.count({ where: { valor_novo: { in: ['RECUSADA', 'PERDIDA'] }, created_at: { gte: limitesPeriodo(agora).inicioMes } } }).catch(() => 0),
+  ]);
+  const propostas = {
+    enviadas_hoje: enviadasHoje, abertas_hoje: abertasHoje, em_aberto: propsAbertas.length, aceitas_mes: aceitasMes, recusadas_mes: recusadasMes,
+    abriram_agora: vistasRecentes.length,
+    eventos: hist.map(h => ({
+      id: h.id, tipo: STATUS_EVENTO[h.valor_novo || ''] || h.valor_novo, status: h.valor_novo, em: h.created_at.toISOString(),
+      cliente: (h.proposta?.nome_fantasia || h.proposta?.razao_social || 'Cliente').trim(), plano: h.proposta?.plano_selecionado || null,
+      por: h.valor_novo === 'VISUALIZADA' ? 'cliente' : (h.proposta?.vendedor_nome || h.feito_por_nome || '').split(' ')[0] || null,
+    })),
+  };
+
   const movimentos = msgs.map(m => {
     const quem = m.direcao === 'ENTRADA' ? null
       : REMETENTE[m.enviada_por || ''] || (m.enviada_por && nomeUsuario.get(m.enviada_por)) || 'Equipe (celular)';
     const texto = (m.conteudo || '').replace(/\s+/g, ' ').trim();
     return {
       id: m.id, direcao: m.direcao, quem, agente: !!REMETENTE[m.enviada_por || ''], contato: nomeContato(m.conversa),
+      proposta: propostaPorFone.get(u8(m.conversa.contato_numero)) || null,
       texto: texto ? texto.slice(0, 120) : m.tipo !== 'TEXTO' ? `[${String(m.tipo).toLowerCase()}]` : '', em: m.created_at.toISOString(),
     };
   });
@@ -161,7 +209,7 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     sumiram: { total: sumiram.length, lista: sumiram.slice(0, 12) },
     qualificados,
     aprovacoes: { mensagens: msgsParaAprovar, documentos: docsParaAprovar },
-    feed, movimentos, conversando,
+    feed, movimentos, conversando, propostas,
     laya: await import('./laya-caderno.service').then(async m => { const r = await m.resumoCaderno(prisma); return { tarefas: r.tarefas, total: r.total, cerebro: r.cerebro }; }).catch(() => null),
     captacao: await import('./tv-captacao.service').then(m => m.montarCaptacao(prisma, agora)).catch((e: any) => { console.warn('[TV] captação:', e?.message); return null; }),
   };

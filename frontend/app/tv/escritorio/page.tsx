@@ -19,7 +19,8 @@ type Agente = { id: string; nome: string; funcao: string; cor: string; status: '
 type Pessoa = { id: string; nome: string; cargo: string; online: boolean; ultima: { texto: string; em: string } | null; enviadas_hoje: number; esperando: number };
 type Item = { id: string; contato: string; desde: string; responsavel: string; nao_lidas?: number; trecho?: string; origem?: string; tentativas?: number };
 type Qualificado = { id: string; contato: string; por: string; em: string };
-type Movimento = { id: string; direcao: 'ENTRADA' | 'SAIDA'; quem: string | null; agente: boolean; contato: string; texto: string; em: string };
+type Movimento = { id: string; direcao: 'ENTRADA' | 'SAIDA'; quem: string | null; agente: boolean; contato: string; texto: string; em: string; proposta?: { status: string; abriu_agora: boolean } | null };
+type EventoProposta = { id: string; tipo: string; status: string; em: string; cliente: string; plano: string | null; por: string | null };
 type Conversa = { id: string; agente: string; contato: string; temperatura: string | null; nota: number | null; em: string };
 type Tom = 'bad' | 'warn' | 'ok';
 type Destaque = { tom: Tom; titulo: string; contato: string; detalhe: string };
@@ -142,16 +143,25 @@ export default function TvEscritorioPage() {
         // O que é novo desde a última busca (na primeira carga só memoriza).
         const alertas: Item[] = [...d.esperando.lista, ...d.sumiram.lista];
         const quals: Qualificado[] = d.qualificados;
+        const evProp: EventoProposta[] = d.propostas?.eventos || [];
         const ids = [
-          ...alertas.map(a => `a:${a.id}`), ...quals.map(q => `q:${q.id}`),
+          ...alertas.map(a => `a:${a.id}`), ...quals.map(q => `q:${q.id}`), ...evProp.map(e => `p:${e.id}`),
           ...(d.movimentos as Movimento[]).map(m => `m:${m.id}`),
         ];
         const vistos = vistosRef.current;
         if (vistos) {
           const qNovo = quals.find(q => !vistos.has(`q:${q.id}`));
+          const abriu = evProp.find(e => e.status === 'VISUALIZADA' && !vistos.has(`p:${e.id}`));
+          const aceitou = evProp.find(e => ['ACEITA', 'CONTRATO_EM_GERACAO'].includes(e.status) && !vistos.has(`p:${e.id}`));
           const aNovos = alertas.filter(a => !vistos.has(`a:${a.id}`));
           const ctx = ctxRef.current;
-          if (qNovo) {
+          if (aceitou) {
+            if (ctx) somQualificado(ctx);
+            setAviso({ tom: 'ok', titulo: 'Proposta aceita', texto: `${aceitou.cliente}${aceitou.plano ? ` · ${aceitou.plano}` : ''}` });
+          } else if (abriu) {
+            if (ctx) somQualificado(ctx);
+            setAviso({ tom: 'ok', titulo: 'Cliente abriu a proposta', texto: `${abriu.cliente} · hora de chamar` });
+          } else if (qNovo) {
             if (ctx) somQualificado(ctx);
             setAviso({ tom: 'ok', titulo: 'Lead qualificado', texto: `${qNovo.contato} · ${qNovo.por}` });
           } else if (aNovos.length) {
@@ -277,7 +287,13 @@ export default function TvEscritorioPage() {
                           ? <><b>{m.contato}</b></>
                           : <><b style={m.quem && corAgente[m.quem] ? { color: corAgente[m.quem] } : undefined}>{m.quem}</b><span className="mudo"> para </span><b>{m.contato}</b></>}
                       </span>
-                      <span className="txt">{m.texto}</span>
+                      <span className="txt">{m.proposta && (() => {
+                        const st = m.proposta.status;
+                        const aceita = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'].includes(st);
+                        const recusada = ['RECUSADA', 'PERDIDA'].includes(st);
+                        const rot = aceita ? 'aceitou' : recusada ? 'recusou' : m.proposta.abriu_agora ? 'abriu a proposta' : st === 'VISUALIZADA' ? 'viu a proposta' : st === 'EM_NEGOCIACAO' ? 'negociando' : 'proposta enviada';
+                        return <span className={`tag-prop ${recusada ? 'recusada' : ''} ${m.proposta.abriu_agora || aceita ? 'quente' : ''}`}><span className={`ponto ${recusada ? 'bad' : 'ok'} ${m.proposta.abriu_agora ? 'pisca' : ''}`} />{rot}</span>;
+                      })()}{m.texto}</span>
                       <span className="mono mudo dir-r">{ha(m.em, agora)}</span>
                     </div>
                   ))}
@@ -300,6 +316,24 @@ export default function TvEscritorioPage() {
                     </>
                   )}
                 </section>
+                {dados.propostas && (
+                  <section className="painel propostas">
+                    <div className="cab"><h2><span className={`ponto ok ${dados.propostas.abriram_agora ? 'pisca' : ''}`} />Propostas</h2><span className="mono mudo">{dados.propostas.em_aberto} em aberto</span></div>
+                    <div className="prop-nums">
+                      <span><b className="mono">{dados.propostas.enviadas_hoje}</b> enviadas hoje</span>
+                      <span><b className={`mono ${dados.propostas.abertas_hoje ? 'ok' : ''}`}>{dados.propostas.abertas_hoje}</b> abertas pelo cliente</span>
+                      <span><b className="mono ok">{dados.propostas.aceitas_mes}</b> aceitas no mês</span>
+                      <span><b className={`mono ${dados.propostas.recusadas_mes ? 'bad' : ''}`}>{dados.propostas.recusadas_mes ?? 0}</b> recusadas no mês</span>
+                    </div>
+                    {(dados.propostas.eventos as EventoProposta[]).slice(0, 4).map(e => (
+                      <div key={e.id} className={`linha ${novos.has(`p:${e.id}`) ? 'novo' : ''}`}>
+                        <span className="quem"><span className={`ponto ${['ACEITA', 'CONTRATO_EM_GERACAO', 'VISUALIZADA'].includes(e.status) ? 'ok' : ['RECUSADA', 'PERDIDA'].includes(e.status) ? 'bad' : 'cinza'} ${e.status === 'VISUALIZADA' && Date.now() - new Date(e.em).getTime() < 2 * 3600_000 ? 'pisca' : ''}`} />{e.cliente}</span>
+                        <span className="meta"><span className={e.status === 'VISUALIZADA' ? 'ok' : 'mudo'}>{e.tipo}</span><span className="mono mudo">{ha(e.em, agora)}</span></span>
+                      </div>
+                    ))}
+                    {!dados.propostas.eventos.length && <div className="vazio">Nenhuma movimentação de proposta em 48 h</div>}
+                  </section>
+                )}
                 {dados.laya && (
                   <section className="painel laya">
                     <div className="cab"><h2><span className="ponto roxo vivo-roxo" />Laya · o cérebro</h2><span className="mono mudo">{dados.laya.cerebro?.pct_laya == null ? '' : `${dados.laya.cerebro.pct_laya}% das decisões`}</span></div>
@@ -698,6 +732,12 @@ const CSS = `
 .laya-t small{text-align:right}
 .laya-hoje{display:flex;gap:1.2em;margin-top:.6em;font-size:.9em;color:var(--t2)}
 .laya-hoje b{color:var(--t1)}
+.painel.propostas{flex:none;border-color:color-mix(in srgb,var(--ok) 35%,var(--borda))}
+.prop-nums{display:flex;gap:1.2em;flex-wrap:wrap;font-size:.92em;color:var(--t2);margin-bottom:.3em}
+.prop-nums b{color:var(--t1);font-size:1.25em;margin-right:.2em}
+.tag-prop{display:inline-flex;align-items:center;gap:.35em;margin-right:.6em;padding:.05em .5em;border-radius:999px;border:1px solid color-mix(in srgb,var(--ok) 40%,var(--borda));color:var(--ok);font-style:normal;font-size:.82em;font-weight:600;vertical-align:middle}
+.tag-prop.quente{background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.tag-prop.recusada{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--borda))}
 @media (max-width:1400px){.agentes{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media (max-width:900px){.cap-grid{grid-template-columns:1fr}}
 @media (max-width:900px){.tv{overflow:auto}.wrap{height:auto}.tela1,.tela2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.agentes{grid-template-columns:repeat(2,minmax(0,1fr))}.top{flex-wrap:wrap}.abas{display:none}.msg{grid-template-columns:3em 1.6em minmax(0,1fr) 3.5em}.msg .txt{display:none}}
