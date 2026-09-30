@@ -825,7 +825,24 @@ export async function nomeParaChamar(prisma: PrismaClient, numero: string, nomeC
   if (usado && (!primeiro || norm(usado) !== norm(primeiro))) return usado;
   if (!primeiro) return null;
   const apareceu = msgs.some(m => norm(m.conteudo || '').includes(norm(primeiro)) && !AGENTES_SDR.includes(m.enviada_por as any));
-  return apareceu || msgs.length < 3 ? nomeCadastro : null;
+  if (apareceu) return nomeCadastro;
+  // Sem confirmação no histórico: confere o nome do perfil do WhatsApp da pessoa.
+  const perfil = await nomeDoPerfil(prisma, fim);
+  if (perfil === undefined) return msgs.length < 3 ? nomeCadastro : null; // API não respondeu: regra do histórico
+  if (!perfil) return null;                                                // perfil sem nome de pessoa (ex.: nome de loja)
+  return norm(perfil) === norm(primeiro) ? nomeCadastro : perfil;
+}
+
+const NAO_E_PESSOA = /^(farm|drog|padar|panif|confeit|loja|mercad|supermerc|minimerc|distrib|comercial|empresa|atacad|varej|posto)|^(ltda|me|eireli)$/i;
+/** Primeiro nome do perfil do WhatsApp (undefined = não deu para consultar; null = não parece nome de pessoa). */
+async function nomeDoPerfil(prisma: PrismaClient, fim8: string): Promise<string | null | undefined> {
+  const conv = await prisma.whatsappConversa.findFirst({ where: { contato_numero: { endsWith: fim8 } }, select: { contato_numero: true, instancia: { select: { instance_token: true } } } }).catch(() => null);
+  if (!conv?.instancia?.instance_token) return undefined;
+  const bruto = await evo.nomeDoContato(conv.instancia.instance_token, conv.contato_numero).catch(() => undefined);
+  if (bruto === undefined) return undefined;
+  const primeiro = (bruto || '').replace(/[^\p{L}\s'-]/gu, ' ').trim().split(/\s+/)[0] || '';
+  if (primeiro.length < 3 || NAO_E_PESSOA.test(primeiro)) return null;
+  return primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
 }
 
 async function conversaPara(prisma: PrismaClient, instanciaId: string, numero: string, d: { nome: string | null; lead_id: string | null }) {
