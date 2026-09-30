@@ -784,7 +784,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       const { montarEscritorio } = await import('@/services/escritorio.service');
       cacheEscritorio = { em: Date.now(), dados: await montarEscritorio(prisma) };
     }
-    return reply.send({ status: 'success', data: { agentes: cacheEscritorio.dados, gerado_em: new Date(cacheEscritorio.em).toISOString() } });
+    const { conversasRecentes } = await import('@/lib/assistente/conversas-agentes');
+    return reply.send({ status: 'success', data: { agentes: cacheEscritorio.dados, conversas: conversasRecentes(6), gerado_em: new Date(cacheEscritorio.em).toISOString() } });
   });
 
   fastify.get('/assistente/escritorio/agentes/:id/historico', async (request, reply) => {

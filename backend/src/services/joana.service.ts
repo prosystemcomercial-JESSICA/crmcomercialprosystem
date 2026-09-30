@@ -75,6 +75,10 @@ export async function escreverInformativo(prisma: PrismaClient) {
     data: { tipo: 'INFORMATIVO', titulo: `Informativo Prosystem · ${dia}`, conteudo: md, origem: 'joana', status: 'PROPOSTO', fontes: { edicao: r as any, envio: null } },
   });
   registrarAcaoAgente('joana', `escreveu o Informativo de ${dia} (esperando aprovação)`);
+  import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('sofia', 'joana', 'Informativo Prosystem', [
+    { quem: 'sofia', texto: `Joana, as pesquisas estão prontas: ${pesquisas.map((p: any) => p.titulo).join('; ').slice(0, 110)}` },
+    { quem: 'joana', texto: 'Obrigada, Sofia! Já transformei no Informativo e mandei para a Jessica aprovar.' },
+  ])).catch(() => {});
   const { enviarAvisoGestao } = await import('./assistente-gestao.service');
   await enviarAvisoGestao(prisma, 'lead_qualificado', `📰 *Joana escreveu o Informativo Prosystem de ${dia}*\nClientes: "${r.assunto_clientes}"\nLista: "${r.assunto_lista}"\n\nLeia e aprove no Escritório virtual › Painel da Joana. Só sai depois da sua aprovação.`, { somenteAprovadora: true }).catch(() => {});
   return doc;
@@ -102,6 +106,10 @@ export async function aprovarInformativo(prisma: PrismaClient, id: string, userI
   await prisma.especialistaDoc.update({ where: { id }, data: { status: 'APROVADO', decidido_por: userId, decidido_em: new Date(), fontes: { edicao: e as any, envio } as any } });
   registrarAcaoAgente('joana', `teve o Informativo aprovado: ${envio.total} e-mails e ${envio.whatsapp} WhatsApp na fila`);
   if (camp) registrarAcaoAgente('zequinha', `recebeu da Joana o Informativo para ${camp.total} contato(s) da lista`);
+  if (camp) import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('joana', 'zequinha', 'Envio do Informativo', [
+    { quem: 'joana', texto: 'Zequinha, a Jessica aprovou o Informativo. A lista é tua!' },
+    { quem: 'zequinha', texto: `Fechado! ${camp.total} contato(s), no ritmo seguro para não bloquear o número.` },
+  ])).catch(() => {});
   return { emails: envio.total, whatsapp: envio.whatsapp };
 }
 

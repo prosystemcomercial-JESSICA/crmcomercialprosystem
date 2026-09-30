@@ -309,6 +309,10 @@ export async function rodadaHeitor(prisma: PrismaClient, agora = new Date()): Pr
     cfg.ultimo_erro = null;
     const msg = `Encontrou ${encontrados} estabelecimento(s) novo(s) e cadastrou ${cadastrados} lead(s) com WhatsApp.`;
     registrarAcaoAgente('heitor', msg);
+    if (cadastrados) import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('heitor', 'caroline', 'Leads novos da prospecção', [
+      { quem: 'heitor', texto: `Carol, trouxe ${cadastrados} lead(s) novo(s) com WhatsApp, já com o máximo de informação.` },
+      { quem: 'caroline', texto: 'Valeu, Heitor! Vou chamar um de cada vez, no ritmo seguro.' },
+    ])).catch(() => {});
     return { cadastrados, encontrados, mensagem: msg };
   } catch (e: any) {
     cfg.ultimo_erro = String(e?.message || e).slice(0, 300);
