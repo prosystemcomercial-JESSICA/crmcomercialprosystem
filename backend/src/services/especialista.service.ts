@@ -35,7 +35,7 @@ async function gravarDoc(prisma: PrismaClient, d: DocNovo, origem: string, fonte
 
 async function avisar(prisma: PrismaClient, texto: string) {
   const { enviarAvisoGestao } = await import('./assistente-gestao.service');
-  await enviarAvisoGestao(prisma, 'lead_qualificado', texto).catch(() => {});
+  await enviarAvisoGestao(prisma, 'lead_qualificado', texto, { somenteAprovadora: true }).catch(() => {});
 }
 
 // ── 1) Estudo ────────────────────────────────────────────────────────────────
