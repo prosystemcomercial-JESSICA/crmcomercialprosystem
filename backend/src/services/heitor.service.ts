@@ -220,6 +220,15 @@ async function completarECadastrar(prisma: PrismaClient, cfg: ConfigHeitor, cota
   return feitos;
 }
 
+// Lead.link_origem é VARCHAR(191); links do Maps costumam passar disso (o completo fica em ProspeccaoLocal.maps_link).
+// Longo demais → link curto oficial pelo place_id, que abre o mesmo lugar.
+const LIMITE_LINK_ORIGEM = 191;
+function linkOrigem(link: string | null | undefined, placeId: string | null | undefined): string | null {
+  if (!link || link.length <= LIMITE_LINK_ORIGEM) return link || null;
+  const curto = placeId ? `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(placeId)}` : '';
+  return curto && curto.length <= LIMITE_LINK_ORIGEM ? curto : null;
+}
+
 async function cadastrar(prisma: PrismaClient, instanciaId: string, p: any) {
   const est: Estabelecimento = {
     nome: p.nome, segmento: p.segmento, cidade: p.cidade, bairro: p.bairro, uf: p.estado, endereco: p.endereco, telefone: p.telefone, whatsapp: p.whatsapp,
@@ -234,7 +243,7 @@ async function cadastrar(prisma: PrismaClient, instanciaId: string, p: any) {
       nome: p.nome, nome_fantasia: p.nome, razao_social: p.razao_social, empresa: p.razao_social || p.nome, cnpj: p.cnpj, segmento: p.segmento,
       cidade: p.cidade, estado: p.estado, endereco: p.endereco, responsavel_nome: responsavel, telefone: p.whatsapp, responsavel_telefone: p.whatsapp,
       responsavel_email: p.emails?.[0] || null, email: p.emails?.[0] || null, origem: 'PROSPECCAO', temperatura: 'FRIO', etapa_sdr: 'NOVO_LEAD',
-      utm_source: 'google_maps', campanha_nome: CAMPANHA_HEITOR, utm_campaign: CAMPANHA_HEITOR, plataforma: 'Google Maps', link_origem: p.maps_link,
+      utm_source: 'google_maps', campanha_nome: CAMPANHA_HEITOR, utm_campaign: CAMPANHA_HEITOR, plataforma: 'Google Maps', link_origem: linkOrigem(p.maps_link, p.place_id),
       observacoes: obs, created_by: 'heitor',
     } as any,
     select: { id: true },
