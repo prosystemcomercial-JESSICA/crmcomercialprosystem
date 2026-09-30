@@ -110,7 +110,9 @@ export default function EscritorioPage() {
   const arraste = useRef<{ x: number; y: number; sl: number; st: number; moveu: boolean } | null>(null);
   const [historico, setHistorico] = useState<{ id: string; itens: { texto: string; em: string }[] | null } | null>(null);
 
+  const irPara = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const verTrabalho = (id: string) => {
+    if (id === 'rafael') setTimeout(() => irPara('painel-rafael'), 50);
     setSel(id); setHistorico({ id, itens: null });
     apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
   };
@@ -205,6 +207,14 @@ export default function EscritorioPage() {
               👥 {agentes?.length ?? 8} agentes · <span style={{ color: '#16a34a' }}>{trabalhando} trabalhando</span>
             </span>
             {atualizado && !simulando && <span style={{ padding: '6px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>atualizado {haQuanto(atualizado)}</span>}
+            <button onClick={() => irPara('sala-treinamento')}
+              style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: '#1e40af' }}>
+              🎓 Treinamentos
+            </button>
+            <button onClick={() => irPara('painel-rafael')}
+              style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #1e40af', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#1e40af', background: 'var(--t-card-bg)' }}>
+              📚 Painel do Rafael
+            </button>
             <button onClick={() => setMetricas(true)}
               style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: '#2563eb' }}>
               📊 Métricas da IA
@@ -294,12 +304,12 @@ export default function EscritorioPage() {
             const a = (mostrar || []).find(x => x.id === chat)!;
             return <ChatAgente key={a.id} agente={{ id: a.id, nome: a.nome, cor: a.cor, funcao: a.funcao }} onFechar={() => setChat(null)} />;
           })()}
+          <div id="sala-treinamento" style={{ scrollMarginTop: 80 }}><SalaTreinamento onFala={setFalaTreino} /></div>
           <PainelCaroline agente="caroline" />
           <PainelCaroline agente="luiz_felipe" />
           <PainelCaroline agente="julio" />
           <CadernoLaya />
-          <SalaTreinamento onFala={setFalaTreino} />
-          <PainelRafael />
+          <div id="painel-rafael" style={{ scrollMarginTop: 80 }}><PainelRafael /></div>
           <PainelHeitor />
           <PesquisasSofia />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
