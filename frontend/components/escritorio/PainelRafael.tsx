@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/api-client';
 type Doc = { id: string; tipo: string; titulo: string; conteudo: string; agente_alvo: string | null; status: string; versao: number; created_at: string };
 
 const TIPOS: { k: string; r: string }[] = [
-  { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' }, { k: 'CONCORRENCIA', r: '🔍 Concorrência' },
+  { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'TREINAMENTO', r: '🎓 Treinamentos' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' }, { k: 'CONCORRENCIA', r: '🔍 Concorrência' },
   { k: 'POP', r: '📋 POPs' }, { k: 'PROCESSO', r: '🔁 Processos' }, { k: 'EXEMPLO', r: '💬 Exemplos' }, { k: 'DICA', r: '💡 Dicas' },
 ];
 const COR = '#1e40af';
@@ -94,7 +94,7 @@ export default function PainelRafael() {
               {aberto === d.id && <Texto md={d.conteudo} />}
               {d.status === 'PROPOSTO' && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={() => acao(() => apiClient.rafaelDecidir(d.id, true))} style={btn('#16a34a')}>✅ Aprovar{d.tipo === 'ABORDAGEM' ? ' e aplicar no agente' : ''}</button>
+                  <button onClick={() => acao(() => apiClient.rafaelDecidir(d.id, true))} style={btn('#16a34a')}>✅ Aprovar{d.tipo === 'ABORDAGEM' || d.tipo === 'TREINAMENTO' ? ' e aplicar no agente' : ''}</button>
                   <button onClick={() => acao(() => apiClient.rafaelDecidir(d.id, false))} style={btn('var(--t-content-bg)', '#dc2626')}>Arquivar</button>
                   {aberto !== d.id && <button onClick={() => setAberto(d.id)} style={btn('var(--t-content-bg)', COR)}>Ler</button>}
                 </div>

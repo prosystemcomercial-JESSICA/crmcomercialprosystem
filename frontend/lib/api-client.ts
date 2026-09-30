@@ -1349,6 +1349,8 @@ class ApiClient {
   async rafaelRevisar() { return this.client.post('/especialista/revisar', {}); }
   async oliviaConcorrentes(foco?: string | null) { return this.client.post('/especialista/concorrentes', { foco }); }
   async rafaelAbordagem() { return this.client.post('/especialista/abordagem', {}); }
+  async rafaelTreinar(agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe') { return this.client.post('/especialista/treinar', { agente }); }
+  async rafaelTreinamentos() { return this.client.get('/especialista/treinamentos'); }
   async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
   // ── Heitor (prospecção no Google Maps) ──

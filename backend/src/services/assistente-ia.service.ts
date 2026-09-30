@@ -27,10 +27,23 @@ export async function guiaComercial(prisma: PrismaClient): Promise<string> {
   const doc = await readFile(arquivo, 'utf8').catch(() => '');
   const mats = await prisma.configuracaoIntegracao.findMany({ where: { chave: { in: ['whatsapp.triagem.material.farmacia', 'whatsapp.triagem.material.padaria'] } } }).catch(() => []);
   const materiais = mats.map(m => { try { return JSON.parse(m.valor).texto || ''; } catch { return ''; } }).filter(Boolean).join('\n\n');
-  const texto = `${doc}\n\n### Material enviado aos leads\n${materiais}`.slice(0, 60000);
+  // O que a gestão aprovou do Rafael (POPs, processos, exemplos, dicas, respostas pesquisadas) vale para todos os agentes.
+  const aprovados = await prisma.especialistaDoc.findMany({
+    where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'] } },
+    orderBy: { decidido_em: 'desc' }, take: 30, select: { tipo: true, titulo: true, conteudo: true },
+  }).catch(() => []);
+  let blocoRafael = '';
+  for (const d of aprovados) {
+    const parte = `\n\n#### [${d.tipo}] ${d.titulo}\n${d.conteudo.slice(0, 4000)}`;
+    if (blocoRafael.length + parte.length > 25000) break;
+    blocoRafael += parte;
+  }
+  const texto = (`${doc}\n\n### Material enviado aos leads\n${materiais}` + (blocoRafael ? `\n\n### Parâmetros do setor aprovados pela gestão (Rafael)${blocoRafael}` : '')).slice(0, 80000);
   guiaCache = { em: Date.now(), texto };
   return texto;
 }
+/** Aprovou algo do Rafael: o guia dos agentes recarrega na próxima conversa. */
+export function esquecerGuiaComercial() { guiaCache = null; }
 
 export async function obterConfigIaTexto(prisma: PrismaClient) {
   const rows = await prisma.configuracaoIntegracao.findMany({ where: { chave: { in: [CHAVE_MODO, CHAVE_TRANSCREVER] } } }).catch(() => []);
