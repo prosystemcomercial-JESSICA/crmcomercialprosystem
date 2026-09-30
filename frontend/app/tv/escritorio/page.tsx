@@ -493,7 +493,7 @@ function Captacao({ c, agora }: { c: any; agora: Date }) {
           </section>
           <section className="painel crescer">
             <div className="cab"><h2>Regiões do mês</h2><span className="mono mudo">hoje: {c.regioes_hoje.slice(0, 2).map((r: any) => `${r.nome} ${r.total}`).join(' · ') || '—'}</span></div>
-            {c.regioes_mes.length ? c.regioes_mes.slice(0, 7).map((r: any) => (
+            {c.regioes_mes.length ? c.regioes_mes.slice(0, 6).map((r: any) => (
               <div key={r.nome} className="reg">
                 <span className="quem">{r.nome}</span>
                 <span className="reg-barra"><i className="f-heitor" style={{ width: `${(r.heitor / maxReg) * 100}%` }} /><i className="f-campanha" style={{ width: `${(r.campanha / maxReg) * 100}%` }} /><i className="f-outros" style={{ width: `${((r.total - r.heitor - r.campanha) / maxReg) * 100}%` }} /></span>
@@ -645,7 +645,7 @@ const CSS = `
 .legenda b{color:var(--t1);margin-left:.2em}
 .funil-h .linha b{font-size:1.1em}
 .rodape-p{font-size:.85em;margin-top:.6em}
-.tabela-ret{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr 1fr;gap:.55em .8em;align-items:center;font-size:1em}
+.tabela-ret{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr 1fr;gap:.35em .8em;align-items:center;font-size:1em}
 .tabela-ret b{font-weight:600;font-size:.9em;display:flex;align-items:center}
 .tabela-ret small{color:var(--t2);font-size:.8em}
 .acum{display:flex;justify-content:space-between;align-items:flex-end;gap:1em}
@@ -657,7 +657,7 @@ const CSS = `
 .dia.futuro .pilha{opacity:.4}
 .dia.hoje .pilha{box-shadow:0 0 0 1px var(--t1)}
 .dia small{font-size:.65em;color:var(--t3);height:1em}
-.reg{display:grid;grid-template-columns:minmax(0,10em) 1fr 2.5em;align-items:center;gap:.7em;padding:.4em 0;border-bottom:1px solid var(--borda2)}
+.reg{display:grid;grid-template-columns:minmax(0,10em) 1fr 2.5em;align-items:center;gap:.7em;padding:.3em 0;border-bottom:1px solid var(--borda2)}
 .reg:last-of-type{border-bottom:0}
 .reg .quem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .reg b{text-align:right}
