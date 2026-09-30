@@ -137,7 +137,7 @@ function baseComissaoSupervisao(parceiro: any, valorVenda?: number | null, acres
 function pctComissaoSupervisao(parceiro: any): number {
   if (parceiro.categoria === 'COMUNICACAO' || parceiro.categoria === 'SERVICO') return 5;
   // Indicação de integradora e pacote de arquivos fiscais: supervisão não recebe.
-  if (['FISCAL', 'TEF', 'TRIBUTARIO'].includes(parceiro.categoria)) return 0;
+  if (['FISCAL', 'TEF', 'TRIBUTARIO', 'INTEGRADORA'].includes(parceiro.categoria)) return 0;
   return parceiro.comissao_supervisao_pct ?? 0;
 }
 
