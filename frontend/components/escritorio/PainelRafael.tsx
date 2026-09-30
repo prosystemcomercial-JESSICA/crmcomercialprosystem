@@ -16,7 +16,7 @@ const TIPOS: { k: string; r: string }[] = [
 const COR = '#1e40af';
 
 /** Markdown simples → blocos legíveis (títulos, listas, negrito), sem biblioteca. */
-function Texto({ md }: { md: string }) {
+export function Texto({ md }: { md: string }) {
   return (
     <div style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--t-text-secondary)', overflowWrap: 'anywhere' }}>
       {md.split('\n').map((l, i) => {

@@ -353,6 +353,45 @@ export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, orig
   return doc;
 }
 
+// ── Mila (CS): estuda retenção e experiência do cliente e vira especialista ─────
+const MILA = [
+  'Você é a Mila, Customer Success (CS) da Prosystem Sistemas, que vende ERP/PDV para farmácias, drogarias, manipulação e padarias no Brasil (mensalidade, suporte e implantação).',
+  'Sua missão é RETER o máximo de clientes e dar a melhor experiência: onboarding, adoção do sistema, saúde da conta, prevenção de cancelamento, recuperação e expansão (upgrade, módulos).',
+  'Escreva em português do Brasil, simples e prático, pronto para usar no dia a dia do CS. Nunca invente números da Prosystem nem prometa preço ou desconto.',
+].join('\n');
+
+/** Motivos reais de saída e números da base (para a Mila partir da realidade da Prosystem). */
+async function retratoDaBase(prisma: PrismaClient): Promise<string> {
+  try {
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT COALESCE(NULLIF(TRIM(motivo_inativacao),''),'sem motivo registrado') AS motivo, COUNT(*) AS n FROM Cliente WHERE status = 'INATIVO' GROUP BY motivo ORDER BY n DESC LIMIT 8`);
+    const ativos: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS n FROM Cliente WHERE status = 'ATIVO'`);
+    const lista = rows.map(r => `- ${r.motivo}: ${Number(r.n)}`).join('\n');
+    return `\n### Base da Prosystem hoje\nClientes ativos: ${Number(ativos[0]?.n || 0)}.\nMotivos de saída mais comuns (clientes inativos):\n${lista}`;
+  } catch { return ''; }
+}
+
+export async function estudarRetencao(prisma: PrismaClient, tema: string | null = null) {
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const jaTem = await prisma.especialistaDoc.findMany({ where: { origem: 'mila', status: { not: 'ARQUIVADO' } }, select: { titulo: true }, take: 40 });
+  const pergunta = [
+    tema ? `Estude a fundo: "${tema}", aplicado ao CS de uma empresa de sistemas para farmácias e padarias.`
+      : 'Pesquise o que os maiores especialistas de Customer Success e experiência do cliente (Brasil e fora) ensinam de mais atual e prático para SaaS/ERP B2B de pequenos varejistas: onboarding, health score, sinais de risco de cancelamento, régua de relacionamento, pesquisa NPS/CSAT, recuperação de clientes, expansão e cancelamento bem conduzido.',
+    'Parta dos motivos reais de saída da Prosystem (abaixo) e diga, para os principais, como prevenir e como agir quando o sinal aparecer.',
+    'Transforme em material de trabalho do CS: POPs (passo a passo), PROCESSOS (etapas com critérios, ex.: jornada do cliente e régua de contato), EXEMPLOS (mensagens reais de WhatsApp curtas, sem travessão) e DICAS objetivas.',
+    jaTem.length ? `Já existem (não repita; para melhorar um, use o MESMO título): ${jaTem.map(a => a.titulo).join(' | ')}` : '',
+    'Responda APENAS com JSON: {"resumo": string, "documentos": [{"tipo": "POP"|"PROCESSO"|"EXEMPLO"|"DICA", "titulo": string, "conteudo": string (markdown)}]}. De 3 a 6 documentos, cite de quem é cada ideia quando vier de um especialista.',
+    await retratoDaBase(prisma),
+  ].filter(Boolean).join('\n');
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: MILA + (await instrucoesPara(prisma, 'mila')), pergunta, timeoutMs: 240_000 });
+  const r = lerJsonIa<{ resumo: string; documentos: DocNovo[] }>(texto);
+  const docs = (r?.documentos || []).filter(d => d?.titulo && d?.conteudo && ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'].includes(d.tipo)).slice(0, 8);
+  const gravados = [];
+  for (const d of docs) gravados.push(await gravarDoc(prisma, { ...d, titulo: `CS · ${d.titulo.replace(/^CS\s*·\s*/, '')}` }, 'mila', fontes));
+  registrarAcaoAgente('mila', `estudou retenção e escreveu ${gravados.length} documento(s)`);
+  if (gravados.length) await avisar(prisma, [`💚 *Mila (CS) estudou retenção e criou ${gravados.length} documento(s) para você aprovar*`, r?.resumo?.slice(0, 300) || '', ...gravados.map(g => `• [${g.tipo}] ${g.titulo}`), '', 'Veja e aprove no Escritório virtual › Painel da Mila.'].join('\n'));
+  return { resumo: r?.resumo || '', documentos: gravados };
+}
+
 export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(agora);
   const dia = partes.find(p => p.type === 'weekday')?.value || '';
@@ -367,6 +406,10 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   }
   if (dia === 'Thu' && hora >= 10 && hora < 12 && await podeEnviarUmaVez(prisma, `rafael.treino.luiz_felipe.${hoje}`, 20)) {
     await treinarAgente(prisma, 'luiz_felipe').catch(e => console.error('[RAFAEL] treino:', e?.message));
+  }
+  // Mila (CS): estuda retenção toda segunda de manhã.
+  if (dia === 'Mon' && hora >= 10 && hora < 12 && await podeEnviarUmaVez(prisma, `mila.estudo.${hoje}`, 20)) {
+    await estudarRetencao(prisma).catch(e => console.error('[MILA] estudo:', e?.message));
   }
   // Olívia: a cada 15 dias, na terça de manhã (a trava de 14 dias evita repetir na semana seguinte).
   if (dia === 'Tue' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, 'olivia.concorrencia', 24 * 13)) {

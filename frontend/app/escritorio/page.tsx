@@ -12,6 +12,7 @@ import CadernoLaya from '@/components/escritorio/CadernoLaya';
 import PainelCaroline from '@/components/escritorio/PainelCaroline';
 import PainelDesempenho from '@/components/desempenho/PainelDesempenho';
 import PainelRafael from '@/components/escritorio/PainelRafael';
+import PainelMila from '@/components/escritorio/PainelMila';
 import SalaTreinamento, { type FalaNaSala } from '@/components/escritorio/SalaTreinamento';
 import PainelHeitor from '@/components/escritorio/PainelHeitor';
 
@@ -113,6 +114,7 @@ export default function EscritorioPage() {
   const irPara = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const verTrabalho = (id: string) => {
     if (id === 'rafael') setTimeout(() => irPara('painel-rafael'), 50);
+    if (id === 'mila') setTimeout(() => irPara('painel-mila'), 50);
     setSel(id); setHistorico({ id, itens: null });
     apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
   };
@@ -215,6 +217,10 @@ export default function EscritorioPage() {
               style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #1e40af', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#1e40af', background: 'var(--t-card-bg)' }}>
               📚 Painel do Rafael
             </button>
+            <button onClick={() => irPara('painel-mila')}
+              style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #0e7490', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#0e7490', background: 'var(--t-card-bg)' }}>
+              💚 Painel da Mila (CS)
+            </button>
             <button onClick={() => setMetricas(true)}
               style={{ padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: '#2563eb' }}>
               📊 Métricas da IA
@@ -310,6 +316,7 @@ export default function EscritorioPage() {
           <PainelCaroline agente="julio" />
           <CadernoLaya />
           <div id="painel-rafael" style={{ scrollMarginTop: 80 }}><PainelRafael /></div>
+          <div id="painel-mila" style={{ scrollMarginTop: 80 }}><PainelMila /></div>
           <PainelHeitor />
           <PesquisasSofia />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>

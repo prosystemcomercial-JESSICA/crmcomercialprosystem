@@ -17,9 +17,10 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
 
   fastify.get('/especialista/docs', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const q = request.query as { status?: string };
+    const q = request.query as { status?: string; agente?: string };
+    const dono = q.agente === 'mila' ? { origem: 'mila' } : { OR: [{ origem: null }, { origem: { not: 'mila' } }] };
     const docs = await prisma.especialistaDoc.findMany({
-      where: q.status ? { status: q.status } : { status: { not: 'ARQUIVADO' } },
+      where: { AND: [q.status ? { status: q.status } : { status: { not: 'ARQUIVADO' } }, dono] },
       orderBy: [{ status: 'desc' }, { created_at: 'desc' }], take: 150,
     });
     return reply.send({ status: 'success', data: { docs, em_andamento: [...emAndamento] } });
@@ -45,6 +46,15 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
     const { proporAbordagem } = await import('../services/especialista.service');
     const ok = emSegundoPlano('abordagem', () => proporAbordagem(prisma));
     return reply.send({ status: 'success', message: ok ? 'O Rafael está preparando a nova abordagem inicial (alguns minutos).' : 'Já está preparando.' });
+  });
+
+  // Mila (CS): estudo de retenção e experiência do cliente sob demanda.
+  fastify.post('/especialista/mila/estudar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const b = z.object({ tema: z.string().max(200).optional().nullable() }).safeParse(request.body || {});
+    const { estudarRetencao } = await import('../services/especialista.service');
+    const ok = emSegundoPlano('mila', () => estudarRetencao(prisma, b.success ? b.data.tema || null : null));
+    return reply.send({ status: 'success', message: ok ? 'A Mila começou a estudar retenção. Os documentos aparecem aqui em alguns minutos.' : 'A Mila já está estudando.' });
   });
 
   // Treinamento: o Rafael lê as conversas do agente, gera relatório + conversa de treino + regras.
