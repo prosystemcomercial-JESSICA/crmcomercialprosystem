@@ -361,12 +361,22 @@ const MILA = [
 ].join('\n');
 
 /** Motivos reais de saída e números da base (para a Mila partir da realidade da Prosystem). */
-async function retratoDaBase(prisma: PrismaClient): Promise<string> {
+export async function retratoDaBase(prisma: PrismaClient): Promise<string> {
   try {
-    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT COALESCE(NULLIF(TRIM(motivo_inativacao),''),'sem motivo registrado') AS motivo, COUNT(*) AS n FROM Cliente WHERE status = 'INATIVO' GROUP BY motivo ORDER BY n DESC LIMIT 8`);
-    const ativos: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS n FROM Cliente WHERE status = 'ATIVO'`);
-    const lista = rows.map(r => `- ${r.motivo}: ${Number(r.n)}`).join('\n');
-    return `\n### Base da Prosystem hoje\nClientes ativos: ${Number(ativos[0]?.n || 0)}.\nMotivos de saída mais comuns (clientes inativos):\n${lista}`;
+    const umAno = new Date(Date.now() - 365 * 864e5);
+    const [ativos, inativos] = await Promise.all([
+      prisma.cliente.count({ where: { situacao: 'ATIVA' } }),
+      prisma.cliente.findMany({ where: { situacao: 'INATIVA' }, select: { motivo_inativacao: true, inativado_em: true, mrr_perdido: true } }),
+    ]);
+    const motivos = new Map<string, number>();
+    for (const c of inativos) {
+      const m = (c.motivo_inativacao || '').trim().replace(/\s+/g, ' ').slice(0, 80) || 'sem motivo registrado';
+      motivos.set(m, (motivos.get(m) || 0) + 1);
+    }
+    const ultimoAno = inativos.filter(c => c.inativado_em && c.inativado_em >= umAno);
+    const mrr = ultimoAno.reduce((t, c) => t + (c.mrr_perdido || 0), 0);
+    const lista = [...motivos.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10).map(([m, n]) => `- ${m}: ${n}`).join('\n');
+    return `\n### Base real da Prosystem (dados do CRM)\nClientes ativos: ${ativos}. Inativos no total: ${inativos.length}. Saíram nos últimos 12 meses: ${ultimoAno.length}${mrr ? ` (MRR perdido R$ ${Math.round(mrr).toLocaleString('pt-BR')})` : ''}.\nMotivos de saída registrados (mais comuns):\n${lista}`;
   } catch { return ''; }
 }
 
