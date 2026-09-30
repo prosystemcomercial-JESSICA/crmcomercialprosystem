@@ -94,6 +94,13 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
     }
   }
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ia_sugestao: sugestao, ia_sugerido_em: new Date() } });
+  // Ramo já informado no lead (pela equipe): vira comparação com o palpite de agora.
+  if (conversa.lead_id) {
+    const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { segmento: true } }).catch(() => null);
+    const seg = lead?.segmento || '';
+    const codigo = /manipula/i.test(seg) ? 'manipulacao' : /farm|drog/i.test(seg) ? 'farmacia' : /padar|panif|confeit/i.test(seg) ? 'padaria' : /varejo|loja|mercad/i.test(seg) ? 'varejo' : null;
+    if (codigo) import('./laya-cerebro.service').then(m => m.aprenderComDecisao(prisma, conversaId, { segmento: codigo }, 'lead')).catch(() => {});
+  }
   emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId });
   // Laya com nível Assistente/Titular numa tarefa: age sozinha, sem esperar confirmação.
   const nome = conversa.contato_nome || conversa.contato_numero;

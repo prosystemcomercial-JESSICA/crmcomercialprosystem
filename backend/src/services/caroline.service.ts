@@ -573,6 +573,15 @@ async function fecharRecuperacaoSemResposta(prisma: PrismaClient, s: any, agora:
   return true;
 }
 
+// A decisão do agente (IA externa) vira comparação para a Laya: assunto e ramo da conversa.
+async function aprenderLaya(prisma: PrismaClient, sdr: any, acao: string) {
+  const intencao = acao === 'encaminhar_suporte' ? 'suporte' : ['oferecer_demo', 'passar_vendedora', 'recusou', 'aceitar_condicao', 'continuar', 'duvida_fora_material'].includes(acao) ? 'comprar' : null;
+  const segmento = SEG_LAYA[sdr.segmento || ''] || (/padar|panif|confeit/i.test(sdr.segmento || '') ? 'padaria' : /manipula/i.test(sdr.segmento || '') ? 'manipulacao' : /farm|drog/i.test(sdr.segmento || '') ? 'farmacia' : undefined);
+  if (!intencao && !segmento) return;
+  const { aprenderComDecisao } = await import('./laya-cerebro.service');
+  await aprenderComDecisao(prisma, sdr.conversaId, { ...(intencao ? { intencao } : {}), ...(segmento ? { segmento } : {}) }, agenteDe(sdr)).catch(() => {});
+}
+
 async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa: string, r: { nota: number; nota_motivo: string; duvida?: string | null; motivo_perda?: string | null }) {
   let acao = acaoIa;
   const { enviarAvisoGestao } = await import('./assistente-gestao.service');
@@ -734,6 +743,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   }
   registrarAcaoAgente(agenteDe(sdr), `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
   if (r.acao !== 'continuar') await aplicarAcao(prisma, token, sdr, r.acao, r);
+  if (fase === 'resposta') void aprenderLaya(prisma, sdr, r.acao);
   if (recuperacaoAtiva(sdr) && (r.revisar_proposta || r.retomar_em || r.adiar_dias || r.acao === 'duvida_fora_material')) await voltouANegociar(prisma, sdr);
   // Julio: com interesse (nota 35+, demo ou vendedora), a conversa segue com a Caroline.
   if (r.nota >= 35 || ['oferecer_demo', 'passar_vendedora'].includes(r.acao)) await passarParaCaroline(prisma, sdr, `interesse na conversa (nota ${r.nota})`);
@@ -861,7 +871,20 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
     // Fora do horário (7h–21h) ela espera; a rodada da manhã responde.
     const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
     if (h < 7 || h >= 21) return;
-    void falar(prisma, token, sdr.id, 'resposta').catch((e: any) => console.warn('[CAROLINE] resposta:', e?.message));
+    void (async () => {
+      // Cérebro: a Laya decide a rota antes da IA externa (só com nível Assistente em intenção).
+      const { rotaDaLaya, layaEvitouIa } = await import('./laya-cerebro.service');
+      const rota = await rotaDaLaya(prisma, conversaId).catch(() => null);
+      if (rota === 'suporte') { await encaminharSuporte(prisma, token, sdr); layaEvitouIa(nomeDe(sdr), 'assunto de suporte'); return; }
+      if (rota === 'financeiro') {
+        await enviarMensagens(prisma, token, sdr, ['Esse assunto é com o nosso financeiro. Já avisei a equipe e eles te respondem por aqui. 😊']).catch(() => {});
+        await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { etiqueta: 'Financeiro', etiqueta_cor: '#0891b2' } }).catch(() => {});
+        const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+        await enviarAvisoGestao(prisma, 'lead_qualificado', `💳 *Assunto financeiro* na conversa do ${nomeDe(sdr)} com ${sdr.nome || sdr.numero}. A Laya identificou e avisou o cliente que a equipe responde.`).catch(() => {});
+        layaEvitouIa(nomeDe(sdr), 'assunto financeiro'); return;
+      }
+      await falar(prisma, token, sdr.id, 'resposta');
+    })().catch((e: any) => console.warn('[CAROLINE] resposta:', e?.message));
   }, ESPERA_MS));
   return true;
 }
@@ -1184,7 +1207,7 @@ export async function confirmarTemperatura(prisma: PrismaClient, sdrId: string, 
     data: {
       conversaId: s.conversaId, texto, criado_por: userId,
       rotulos: { segmento: SEG_LAYA[s.segmento || ''] || 'nao_sei', intencao: 'comprar', cancelar: false, temperatura, fonte: 'caroline' },
-      sugestao: { temperatura: s.temperatura, nota: s.nota, fonte: 'caroline' },
+      sugestao: { ...(((await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId }, select: { ia_sugestao: true } }))?.ia_sugestao as any) || {}), temperatura: s.temperatura, nota: s.nota, fonte: 'caroline' },
     },
   });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: { temperatura_confirmada: temperatura } });

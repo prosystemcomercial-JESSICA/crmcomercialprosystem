@@ -1172,6 +1172,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     }
 
     const upd = await prisma.whatsappConversa.update({ where: { id }, data });
+    if (etiqueta === 'Suporte' || etiqueta === 'Financeiro') {
+      import('@/services/laya-cerebro.service').then(m => m.aprenderComDecisao(prisma, id, { intencao: etiqueta === 'Suporte' ? 'suporte' : 'financeiro' }, 'equipe')).catch(() => {});
+    }
     return reply.send({ status: 'success', data: upd });
   });
 

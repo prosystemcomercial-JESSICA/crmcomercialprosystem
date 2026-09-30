@@ -54,7 +54,21 @@ export async function resumoCaderno(prisma: PrismaClient) {
       const n = nivelTarefa(historicoAcertos(xs, t));
       return { tarefa: t, nivel: n.nivel, nome_nivel: NIVEIS[n.nivel], exemplos: n.exemplos, acerto: n.acerto };
     }),
+    cerebro: await cerebroHoje(prisma, hoje),
   };
+}
+
+/** O que a Laya fez hoje como cérebro: decisões, comparações aprendidas sozinha e IA externa poupada. */
+export async function cerebroHoje(prisma: PrismaClient, inicio?: Date) {
+  const hoje = inicio || (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+  const { usoIaUltimosDias } = await import('./uso-ia.service');
+  const [uso] = await usoIaUltimosDias(prisma, 1);
+  const [decisoes, aprendidas] = await Promise.all([
+    prisma.whatsappConversa.count({ where: { ia_sugerido_em: { gte: hoje } } }).catch(() => 0),
+    prisma.iaAmostra.count({ where: { created_at: { gte: hoje }, criado_por: { startsWith: 'auto:' } } }).catch(() => 0),
+  ]);
+  const laya = uso?.laya || 0, externa = uso?.openai || 0, evitadas = uso?.evitada || 0;
+  return { decisoes, aprendidas, laya, externa, evitadas, pct_laya: laya + externa ? Math.round((laya / (laya + externa)) * 100) : null };
 }
 
 let ultimaCopia = '';

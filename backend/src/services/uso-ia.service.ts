@@ -3,14 +3,14 @@ import type { PrismaClient } from '@prisma/client';
 // Contador de uso das IAs por dia (OpenAI paga, Grok, Laya local grátis). Conta em
 // memória e grava a cada rodada do agendador em ConfiguracaoIntegracao 'ia.uso.AAAA-MM-DD'.
 
-export type FonteIa = 'openai' | 'grok' | 'laya';
+export type FonteIa = 'openai' | 'grok' | 'laya' | 'evitada';
 const pendente: Record<string, Record<FonteIa, number>> = {};
 
 const hojeSP = (d = new Date()) => d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 
 export function registrarUsoIa(fonte: FonteIa) {
   const dia = hojeSP();
-  pendente[dia] ||= { openai: 0, grok: 0, laya: 0 };
+  pendente[dia] ||= { openai: 0, grok: 0, laya: 0, evitada: 0 };
   pendente[dia][fonte]++;
 }
 
@@ -21,23 +21,23 @@ export async function gravarUsoIa(prisma: PrismaClient) {
     delete pendente[dia];
     const chave = `ia.uso.${dia}`;
     const atual = await prisma.configuracaoIntegracao.findUnique({ where: { chave } }).catch(() => null);
-    let base: Record<FonteIa, number> = { openai: 0, grok: 0, laya: 0 };
+    let base: Record<FonteIa, number> = { openai: 0, grok: 0, laya: 0, evitada: 0 };
     try { if (atual?.valor) base = { ...base, ...JSON.parse(atual.valor) }; } catch { /* valor antigo inválido: recomeça */ }
-    const valor = JSON.stringify({ openai: base.openai + soma.openai, grok: base.grok + soma.grok, laya: base.laya + soma.laya });
+    const valor = JSON.stringify({ openai: base.openai + soma.openai, grok: base.grok + soma.grok, laya: base.laya + soma.laya, evitada: (base.evitada || 0) + (soma.evitada || 0) });
     await prisma.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor, updated_by: 'sistema' }, update: { valor } }).catch(() => {});
   }
 }
 
 /** Últimos N dias (mais recente primeiro), já com o que ainda está em memória. */
 export async function usoIaUltimosDias(prisma: PrismaClient, dias = 7) {
-  const out: { dia: string; openai: number; grok: number; laya: number }[] = [];
+  const out: { dia: string; openai: number; grok: number; laya: number; evitada: number }[] = [];
   for (let i = 0; i < dias; i++) {
     const dia = hojeSP(new Date(Date.now() - i * 864e5));
     const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: `ia.uso.${dia}` } }).catch(() => null);
-    let v = { openai: 0, grok: 0, laya: 0 };
+    let v = { openai: 0, grok: 0, laya: 0, evitada: 0 };
     try { if (r?.valor) v = { ...v, ...JSON.parse(r.valor) }; } catch { /* ignora */ }
     const mem = pendente[dia];
-    out.push({ dia, openai: v.openai + (mem?.openai || 0), grok: v.grok + (mem?.grok || 0), laya: v.laya + (mem?.laya || 0) });
+    out.push({ dia, openai: v.openai + (mem?.openai || 0), grok: v.grok + (mem?.grok || 0), laya: v.laya + (mem?.laya || 0), evitada: (v.evitada || 0) + (mem?.evitada || 0) });
   }
   return out;
 }
