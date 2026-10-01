@@ -524,15 +524,31 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
   fastify.post('/vendas-adicionais/:id/etapa', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({
-      etapa: z.enum(ETAPAS),
+      etapa: z.enum([...ETAPAS, 'RECUSADO']),
       autorizador_nome: z.string().max(150).optional(),
       autorizador_cpf: z.string().max(20).optional(),
+      motivo: z.string().max(500).optional(),
     }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Etapa inválida.' });
     const venda = await prisma.vendaAdicional.findUnique({ where: { id } });
     if (!venda) return reply.status(404).send({ status: 'error', message: 'Venda não encontrada.' });
     const { etapa } = body.data;
-    const data: any = { etapa, [CAMPO_DATA[etapa] || 'updated_at']: new Date() };
+    // Cliente recusou o orçamento: sai do kanban, a venda é cancelada e o motivo fica registrado para medição.
+    if (etapa === 'RECUSADO') {
+      const motivo = (body.data.motivo || '').trim();
+      if (!motivo) return reply.status(400).send({ status: 'error', message: 'Informe o motivo da recusa.' });
+      const quem = ((request as any).user?.nome || 'Equipe').split(' ')[0];
+      const quando = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' });
+      const linha = `[${quando}] ${quem}: RECUSADO pelo cliente. Motivo: ${motivo}`;
+      await fastify.inject({ method: 'PATCH', url: `/vendas-adicionais/${id}`, payload: { status: 'CANCELADO' }, headers: { authorization: String(request.headers.authorization || '') } });
+      await prisma.vendaAdicional.update({ where: { id }, data: { etapa: 'RECUSADO', observacoes: venda.observacoes ? `${venda.observacoes}\n${linha}` : linha } });
+      return reply.send({ status: 'success', message: 'Recusa registrada.' });
+    }
+    // Venda retroativa (data da venda em mês anterior): as datas das fases seguem a data da venda.
+    const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
+    const retroativa = venda.data_venda && venda.data_venda < inicioMes ? venda.data_venda : null;
+    const dataFase = retroativa || new Date();
+    const data: any = { etapa, [CAMPO_DATA[etapa] || 'updated_at']: dataFase };
     if (etapa === 'ACEITO' && !(venda.autorizador_nome && venda.autorizador_cpf)) {
       const nome = (body.data.autorizador_nome || '').trim();
       const cpf = body.data.autorizador_cpf || '';
@@ -546,8 +562,10 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
     // do vendedor e da supervisão vai para o MÊS SEGUINTE ao dessa data.
     if (etapa === 'NO_FINANCEIRO' && venda.status === 'PENDENTE') {
       await fastify.inject({ method: 'PATCH', url: `/vendas-adicionais/${id}`, payload: { status: 'CONFIRMADA' }, headers: { authorization: String(request.headers.authorization || '') } });
-      await prisma.comissao.updateMany({ where: { referencia_id: id, status: { notIn: ['PAGA', 'CANCELADA'] } }, data: { periodo: proximoMes() } }).catch(() => {});
-      await prisma.vendaAdicional.update({ where: { id }, data: { data_confirmacao: new Date() } }).catch(() => {});
+      // Comunicação mantém a regra própria (comissão pelo 1º vencimento).
+      const cat = venda.parceiro_id ? (await prisma.parceiro.findUnique({ where: { id: venda.parceiro_id }, select: { categoria: true } }))?.categoria : null;
+      if (cat !== 'COMUNICACAO') await prisma.comissao.updateMany({ where: { referencia_id: id, status: { notIn: ['PAGA', 'CANCELADA'] } }, data: { periodo: retroativa ? mesSeguinteDe(retroativa) : proximoMes() } }).catch(() => {});
+      await prisma.vendaAdicional.update({ where: { id }, data: { data_confirmacao: dataFase } }).catch(() => {});
     }
     return reply.send({ status: 'success', message: 'Etapa atualizada.' });
   });
@@ -613,12 +631,14 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       plano_novo: z.string().optional(),
       comissao_paga: z.boolean().optional(),
       data_confirmacao: z.string().optional(), // demais parceiros: base da comissão
+      data_venda: z.string().optional(), // lançamento retroativo (AAAA-MM-DD)
     }).safeParse(request.body);
 
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
 
-    const { data_confirmacao, ...campos } = body.data;
+    const { data_confirmacao, data_venda, ...campos } = body.data;
     const updateData: any = { ...campos };
+    if (data_venda) updateData.data_venda = new Date(`${data_venda.slice(0, 10)}T12:00:00-03:00`);
     if (body.data.comissao_paga === true) {
       updateData.comissao_paga_em = new Date();
       updateData.status = 'PAGA';
