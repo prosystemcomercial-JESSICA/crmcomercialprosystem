@@ -1,3 +1,4 @@
+import { contatoSemAgentes } from '@/lib/laya';
 import type { PrismaClient } from '@prisma/client';
 import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
@@ -729,6 +730,12 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
 async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: FaseCaroline): Promise<'enviado' | 'aprovacao' | 'nada' | 'falha'> {
   const sdr = await prisma.sdrLead.findUnique({ where: { id: sdrId } });
   if (!sdr || !sdr.conversaId || !ATIVOS.includes(sdr.status)) return 'nada';
+  // Contato marcado como equipe/parceiro/fornecedor/outro: nenhum agente escreve.
+  if (await contatoSemAgentes(prisma, sdr.numero)) {
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO', dados: { ...((sdr.dados as any) || {}), bloqueado_etiqueta: true } } });
+    registrarAcaoAgente(agenteDe(sdr), `parou de falar com ${sdr.nome || 'um contato'}: está marcado como não lead/cliente`);
+    return 'nada';
+  }
   if (await pessoaAssumiu(prisma, sdr)) {
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO' } });
     registrarAcaoAgente(agenteDe(sdr), `saiu da conversa de ${sdr.nome || 'um lead'}: uma pessoa assumiu`);
@@ -931,6 +938,8 @@ const ESPERA_MS = 20_000; // junta mensagens seguidas antes de responder (respos
 
 /** Chamado pelo webhook do WhatsApp da empresa. true = a conversa é da Caroline (os outros robôs ficam quietos). */
 export async function aoReceberDoLead(prisma: PrismaClient, token: string, conversaId: string, tipo: string, texto: string, mensagemId: string, botaoId?: string | null): Promise<boolean> {
+  const convB = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { contato_numero: true } });
+  if (convB && await contatoSemAgentes(prisma, convB.contato_numero)) return false;
   let sdr = await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS } }, orderBy: { created_at: 'desc' } });
   if (!sdr) {
     // Saiu por uma mensagem mandada do celular, mas ninguém assumiu no CRM: o cliente não pode ficar sem resposta.
@@ -1178,7 +1187,7 @@ async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: str
     });
     for (const c of soltas) {
       if (await prisma.sdrLead.findFirst({ where: { conversaId: c.id }, select: { id: true } })) continue;
-      if (await ehClienteAtivo(prisma, c.contato_numero)) continue;
+      if (await ehClienteAtivo(prisma, c.contato_numero) || await contatoSemAgentes(prisma, c.contato_numero)) continue;
       const comProposta = !!(await prisma.whatsappMensagem.findFirst({ where: { conversaId: c.id, direcao: 'SAIDA', conteudo: { contains: '/p/' } }, select: { id: true } }));
       const agente = comProposta && ativos.includes('luiz_felipe') ? 'luiz_felipe' : 'caroline';
       if (!ativos.includes(agente)) continue;
@@ -1194,7 +1203,7 @@ async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: str
   for (const s of candidatos) {
     if (enviadas >= 3) break; // poucas por rodada, para proteger o número
     const d: any = s.dados || {};
-    if (d.ja_cliente) continue;
+    if (d.ja_cliente || d.bloqueado_etiqueta || await contatoSemAgentes(prisma, s.numero)) continue;
     const conv = await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId! }, select: { finalizada_em: true, tipo_contato: true } });
     if (!conv || conv.finalizada_em || conv.tipo_contato === 'EQUIPE' || conv.tipo_contato === 'CLIENTE') continue;
     const [ultSaida, ultEntrada] = await Promise.all([
