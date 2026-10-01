@@ -58,6 +58,7 @@ const navGroups: NavGroup[] = [
       { href: '/leads',     icon: GitMerge,        label: 'Central de Leads',     roles: COMERCIAL, modulo: 'Leads' },
       { href: '/leads-sdr', icon: GitMerge,        label: 'Funil do SDR',          roles: ['SDR', 'CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'], modulo: 'Leads' },
       { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
+      { href: '/retornos',  icon: MessageSquare,   label: 'Retornos agendados',     roles: [...COMERCIAL, 'SDR'] },
       { href: '/escritorio', icon: Building2,      label: 'Escritório virtual',     roles: [...COMERCIAL, 'SDR'] },
       { href: '/aprovar',    icon: Eye,            label: 'Aprovar',                roles: GESTAO_COMERCIAL },
       { href: '/desempenho', icon: LineChart,      label: 'Desempenho do setor',    roles: GESTAO_COMERCIAL },
