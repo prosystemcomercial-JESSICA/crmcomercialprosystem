@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { requireGestor } from '@/lib/scope';
+import { consultarCnpj, cnpjValido } from '@/lib/cnpj';
 import { registrarAuditoriaAcao } from '@/lib/auditoria';
 
 const FERRAMENTAS_LISTA = [
@@ -817,6 +818,16 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     if (!cliente) return reply.status(404).send({ status: 'error', message: 'Cliente não encontrado' });
     await registrarEvento(id, 'REATIVACAO', 'Cliente reativado', { user: (request as any).user });
     return reply.send({ status: 'success', data: cliente });
+  });
+
+  // Consulta pública do CNPJ na Receita (BrasilAPI, com CNPJá de reserva) para preencher formulários.
+  fastify.get('/cnpj/:cnpj', async (request, reply) => {
+    const cnpj = String((request.params as any).cnpj || '').replace(/\D/g, '');
+    if (!cnpjValido(cnpj)) return reply.status(400).send({ status: 'error', message: 'CNPJ inválido' });
+    const r = await consultarCnpj(cnpj);
+    if (r.status === 'nao_encontrado') return reply.status(404).send({ status: 'error', message: 'CNPJ não encontrado na Receita' });
+    if (r.status === 'indisponivel') return reply.status(503).send({ status: 'error', message: 'Consulta à Receita indisponível agora, tente de novo' });
+    return reply.send({ status: 'success', data: r.dados, fonte: r.fonte });
   });
 
   // Trocar CNPJ do cliente (mantém o MESMO código). Guarda o snapshot dos dados
