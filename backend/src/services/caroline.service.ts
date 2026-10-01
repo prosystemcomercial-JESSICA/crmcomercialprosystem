@@ -5,7 +5,14 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehRespostaAutomatica, compromissoDeHorario } from '@/lib/assistente/sdr';
+import { ehRespostaAutomatica, compromissoDeHorario, ehAdiamento } from '@/lib/assistente/sdr';
+// Cliente adiou e não disse quando: retomada daqui a 5 dias (às 9h30), nunca no mesmo dia.
+const DIAS_RETOMADA_ADIOU = 5;
+const emDiasUteis = (dias: number, base = new Date()) => {
+  const d = new Date(`${new Date(base.getTime() + dias * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
+  const dow = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(d);
+  return new Date(d.getTime() + (dow === 'Sat' ? 2 : dow === 'Sun' ? 1 : 0) * 864e5);
+};
 import { REMETENTES_AUTOMATICOS } from '@/lib/painel-tv';
 import { registrarMudancaTemperatura } from '@/lib/lead-temperatura';
 import {
@@ -693,6 +700,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       return 'nada';
     }
   }
+  // Trava contra saturação: retomada não sai se o agente já escreveu nas últimas 20 h e o cliente não respondeu.
+  if (fase !== 'resposta' && ultimasDoAgente[0] && Date.now() - ultimasDoAgente[0].created_at.getTime() < 20 * 3600_000
+      && !(sdr.ultima_lead_em && sdr.ultima_lead_em > ultimasDoAgente[0].created_at)) {
+    const dT: any = sdr.dados || {};
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', dados: { ...dT, retomar_em: emDiasUteis(dT.adiou_em ? DIAS_RETOMADA_ADIOU : 1).toISOString() } } });
+    registrarAcaoAgente(agenteDe(sdr), `segurou uma retomada para ${sdr.nome || 'um lead'}: já tinha escrito há pouco, sem resposta`);
+    return 'nada';
+  }
   let r = await gerarResposta(prisma, sdr, fase);
   if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); return 'falha'; }
   // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.
@@ -759,6 +774,11 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
   // Cliente adiou ("estou viajando", "quando voltar eu chamo"): o agente confirmou uma vez e agora espera a data.
+  // Cliente adiou (viagem, "quando voltar eu chamo"...): o agente pergunta UMA vez quando; sem data, volta em 5 dias.
+  {
+    const d0: any = (await prisma.sdrLead.findUnique({ where: { id: sdrId }, select: { dados: true } }))?.dados || {};
+    if (d0.adiou_em && agora.getTime() - new Date(d0.adiou_em).getTime() < 3 * 864e5 && r.acao === 'continuar' && !r.retomar_em && !r.adiar_dias) r.adiar_dias = DIAS_RETOMADA_ADIOU;
+  }
   // Rede de segurança: o agente prometeu um horário na mensagem e não registrou → registra.
   if (!r.retomar_em && r.acao === 'continuar') {
     const h = r.mensagens.map(m => compromissoDeHorario(m, agora)).find(Boolean) || null;
@@ -846,7 +866,8 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
     sdr = await prisma.sdrLead.update({ where: { id: orfao.id }, data: { status: 'CONVERSANDO' } });
     registrarAcaoAgente(agenteDe(sdr), `voltou para a conversa de ${sdr.nome || 'um lead'}: ninguém tinha assumido`);
   }
-  await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_lead_em: new Date(), ...(sdr.status !== 'FILA' ? { status: 'CONVERSANDO' } : {}) } });
+  const adiou = tipo === 'TEXTO' && ehAdiamento(texto);
+  await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_lead_em: new Date(), ...(sdr.status !== 'FILA' ? { status: 'CONVERSANDO' } : {}), ...(adiou ? { dados: { ...((sdr.dados as any) || {}), adiou_em: new Date().toISOString() } } : {}) } });
   // O lead respondeu: está em atendimento (só avança; quem já está em proposta/negociação fica onde está).
   { const { avancarEtapaLead } = await import('@/lib/etapa-lead'); await avancarEtapaLead(prisma, sdr.lead_id, 'EM_ATENDIMENTO', `respondeu ao ${nomeDe(sdr)} no WhatsApp`, nomeDe(sdr)); }
 
@@ -1114,12 +1135,14 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     if (horaAgora < 8 || horaAgora >= 20) continue; // cutuca de dia (a mensagem das 22h vira "bom dia")
     if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: 'PENDENTE' }, select: { id: true } })) continue; // esperando aprovação
     if (recuperacaoAtiva(s)) { await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'AGUARDANDO' } }); continue; } // recuperação: sem cutucada, espera 3 dias
-    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'AGUARDANDO', tentativas: 1, dados: { ...((s.dados as any) || {}), parou_em: agora.toISOString() } } });
+    // Sem cutucada no mesmo dia: retoma no próximo dia útil (ou em 5 dias, se o cliente tinha adiado).
+    const dS: any = s.dados || {};
+    const adiouRecente = dS.adiou_em && agora.getTime() - new Date(dS.adiou_em).getTime() < 5 * 864e5;
+    const retomarEm = dS.retomar_em && new Date(dS.retomar_em) > agora ? dS.retomar_em : emDiasUteis(adiouRecente ? DIAS_RETOMADA_ADIOU : 1, agora).toISOString();
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'AGUARDANDO', tentativas: 1, dados: { ...dS, parou_em: agora.toISOString(), retomar_em: retomarEm } } });
     const { enviarAvisoGestao } = await import('./assistente-gestao.service');
     await enviarAvisoGestao(prisma, 'lead_qualificado', `⏸ *${s.nome || s.numero}${s.empresa ? ` (${s.empresa})` : ''} parou de responder* ${nomeDe(s) === 'Luiz Felipe' ? 'ao' : 'à'} ${nomeDe(s)}.\nÚltima mensagem ${s.ultima_caroline_em!.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}. Termômetro ${s.nota ?? '—'}.\nA retomada já está programada (até 3 tentativas). Se quiser, assuma a conversa.`).catch(() => {});
-    registrarAcaoAgente(agenteDe(s), `${s.nome || 'um lead'} parou de responder: retomada programada`);
-    // Já cutuca agora, retomando o assunto ("oi, ainda estou por aqui").
-    await falar(prisma, token, s.id, 'retomada').catch(() => {});
+    registrarAcaoAgente(agenteDe(s), `${s.nome || 'um lead'} parou de responder: retomada em ${new Date(retomarEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
   }
 
   if (!horarioComercial(agora)) return;
