@@ -49,6 +49,7 @@ export default function PainelTvPage() {
   const [tela, setTela] = useState<1 | 2>(1);
   const [agora, setAgora] = useState<Date | null>(null);
   const chaveRef = useRef<string | null>(null);
+  const offsetRef = useRef(0);
 
   useEffect(() => {
     chaveRef.current = new URLSearchParams(window.location.search).get('chave');
@@ -69,6 +70,9 @@ export default function PainelTvPage() {
         if (res.status === 401 || res.status === 403) { setErro('invalido'); return; }
         if (!res.ok) throw new Error(String(res.status));
         const json = await res.json();
+        // Relógio pelo servidor: a TV pode estar com a hora errada.
+        const g = json.data?.gerado_em || json.data?.tela1?.gerado_em;
+        if (g) { offsetRef.current = new Date(g).getTime() - Date.now(); setAgora(new Date(Date.now() + offsetRef.current)); }
         setDados(json.data);
         setErro(null);
       } catch {
@@ -81,8 +85,8 @@ export default function PainelTvPage() {
     buscar();
     const iDados = setInterval(buscar, INTERVALO_DADOS);
     const iTela = setInterval(() => setTela(t => (t === 1 ? 2 : 1)), INTERVALO_TELA);
-    setAgora(new Date());
-    const iRelogio = setInterval(() => setAgora(new Date()), 15_000);
+    setAgora(new Date(Date.now() + offsetRef.current));
+    const iRelogio = setInterval(() => setAgora(new Date(Date.now() + offsetRef.current)), 15_000);
     return () => { ativo = false; clearInterval(iDados); clearInterval(iTela); clearInterval(iRelogio); };
   }, []);
 
