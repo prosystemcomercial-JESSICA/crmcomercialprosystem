@@ -185,6 +185,12 @@ function lerDataSP(v: unknown, horaPadrao = '09:30'): Date | null {
   return Number.isFinite(d.getTime()) && d.getTime() > agora && d.getTime() < agora + 90 * 864e5 ? d : null;
 }
 
+/** O cliente adiou a conversa (viagem, "quando voltar eu chamo", "agora não posso", "semana que vem"...). */
+export function ehAdiamento(texto: string | null | undefined): boolean {
+  const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return /(viagem|viajando|viajei|de ferias|ferias|quando (eu )?voltar|assim q(ue)? (eu )?(voltar|puder)|depois (eu )?(te )?(chamo|falo|entro em contato|retorno|vejo)|eu (te )?(chamo|procuro|retorno|entro em contato)|entro em contato|agora nao (posso|da|consigo)|nao posso (agora|falar)|estou ocupad|to ocupad|ocupad[oa] agora|semana que vem|mes que vem|outro momento|mais pra frente|mais para frente|no momento nao|fim do mes|depois do feriado)/.test(t);
+}
+
 /**
  * Compromisso de horário na fala do agente ("falo com o Paulo às 13h", "te chamo amanhã às 10h30").
  * Hoje se a hora ainda não passou; senão (ou com "amanhã"), no dia seguinte. null = sem horário.
