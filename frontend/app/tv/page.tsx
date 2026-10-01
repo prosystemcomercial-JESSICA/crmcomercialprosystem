@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 // Painel da TV do comercial — tela cheia, sem menu e sem login.
 // Acesso: /tv?chave=<token gerado em Configurações> (ou gestão logada, p/ prévia).
-// Busca os dados a cada 60 s e alterna tela 1 (dia) / tela 2 (ano) a cada 30 s.
+// Busca os dados a cada 60 s e alterna tela 1 (dia) / tela 2 (ano) / tela 3 (base de clientes) a cada 30 s.
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const INTERVALO_DADOS = 60_000;
@@ -46,7 +46,8 @@ export default function PainelTvPage() {
   const [dados, setDados] = useState<any>(null);
   const [erro, setErro] = useState<'invalido' | 'rede' | null>(null);
   const [atualizando, setAtualizando] = useState(false);
-  const [tela, setTela] = useState<1 | 2>(1);
+  const [tela, setTela] = useState<1 | 2 | 3>(1);
+  const [tema, setTema] = useState<'escuro' | 'claro'>('escuro');
   const [agora, setAgora] = useState<Date | null>(null);
   const chaveRef = useRef<string | null>(null);
   const offsetRef = useRef(0);
@@ -84,18 +85,33 @@ export default function PainelTvPage() {
 
     buscar();
     const iDados = setInterval(buscar, INTERVALO_DADOS);
-    const iTela = setInterval(() => setTela(t => (t === 1 ? 2 : 1)), INTERVALO_TELA);
+    const iTela = setInterval(() => setTela(t => (t === 3 ? 1 : ((t + 1) as 1 | 2 | 3))), INTERVALO_TELA);
     setAgora(new Date(Date.now() + offsetRef.current));
     const iRelogio = setInterval(() => setAgora(new Date(Date.now() + offsetRef.current)), 15_000);
     return () => { ativo = false; clearInterval(iDados); clearInterval(iTela); clearInterval(iRelogio); };
   }, []);
+
+  // Tema claro/escuro: ?tema=claro|escuro ou o botão no topo (fica salvo nesta TV).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('tema');
+    let salvo: string | null = null;
+    try { salvo = localStorage.getItem('tv-painel-tema'); } catch { /* sem storage */ }
+    const t = q === 'claro' || q === 'escuro' ? q : salvo;
+    if (t === 'claro' || t === 'escuro') setTema(t);
+  }, []);
+  useEffect(() => { document.body.style.background = tema === 'claro' ? '#f4f6fb' : '#0b1220'; }, [tema]);
+  const trocarTema = () => {
+    const t = tema === 'escuro' ? 'claro' : 'escuro';
+    setTema(t);
+    try { localStorage.setItem('tv-painel-tema', t); } catch { /* sem storage */ }
+  };
 
   const relogio = agora
     ? agora.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·')
     : '';
 
   return (
-    <div className="tv">
+    <div className={`tv${tema === 'claro' ? ' claro' : ''}`}>
       <style>{CSS}</style>
       {erro === 'invalido' && !dados ? (
         <div className="centro">
@@ -112,18 +128,84 @@ export default function PainelTvPage() {
             <div className="banner">{erro === 'invalido' ? 'Link do painel inválido — gere um novo em Configurações' : 'Reconectando… mostrando os últimos dados recebidos'}</div>
           )}
           <div className="top">
-            <h1>{tela === 1 ? 'ProSystem · Comercial ao vivo' : `ProSystem · Resultados de ${dados.tela2.ano}`}</h1>
+            <h1>{tela === 1 ? 'ProSystem · Comercial ao vivo' : tela === 2 || !dados.tela3 ? `ProSystem · Resultados de ${dados.tela2.ano}` : 'ProSystem · Base de clientes'}</h1>
             <div className="topdir">
               <span className={`live ${atualizando ? 'pulsando' : ''}`}>● {atualizando ? 'atualizando…' : 'atualiza a cada 60 s'}</span>
+              <button className="tema" onClick={trocarTema}>{tema === 'escuro' ? '☀ Claro' : '☾ Escuro'}</button>
               <span className="clock">{relogio}</span>
               <span className="dots">
-                <span className={tela === 1 ? 'on' : ''} /><span className={tela === 2 ? 'on' : ''} />
+                <span className={tela === 1 ? 'on' : ''} /><span className={tela === 2 ? 'on' : ''} /><span className={tela === 3 ? 'on' : ''} />
               </span>
             </div>
           </div>
-          {tela === 1 ? <Tela1 d={dados.tela1} /> : <Tela2 d={dados.tela2} />}
+          {tela === 1 ? <Tela1 d={dados.tela1} /> : tela === 2 || !dados.tela3 ? <Tela2 d={dados.tela2} /> : <Tela3 d={dados.tela3} />}
         </div>
       )}
+    </div>
+  );
+}
+
+const tempo = (m: number | null | undefined) => {
+  if (m == null) return null;
+  const a = Math.floor(m / 12), r = Math.round(m % 12);
+  if (!a) return `${r} ${r === 1 ? 'mês' : 'meses'}`;
+  return r ? `${a}a ${r}m` : `${a} ${a === 1 ? 'ano' : 'anos'}`;
+};
+const dataCurta = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : '');
+
+function Tela3({ d }: { d: any }) {
+  const mes = new Date(d.inicio_mes).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long' });
+  return (
+    <div className="grid">
+      <div className={`t span3 ${d.em_risco.total ? 'borda-risco' : ''}`} style={{ gridRow: 'span 2' }}>
+        <div className="l">Clientes em risco agora</div>
+        <div className={`n ${d.em_risco.total ? 'bad' : 'up'}`}>{d.em_risco.total}</div>
+        <div style={{ marginTop: '.4em' }}>
+          {d.em_risco.lista.map((c: any) => (
+            <div key={c.id} className="risco-item">
+              <span className="pisca-vermelho" />
+              <span className="nome">{c.cliente}</span>
+              <span className="mot">{c.motivo || ''}</span>
+              {c.dias != null && <span className="warn">{c.dias}d</span>}
+            </div>
+          ))}
+          {!d.em_risco.lista.length && <div className="s">Nenhum cliente em risco. 👏</div>}
+        </div>
+      </div>
+      <div className="t">
+        <div className="l">Clientes ativos</div>
+        <Valor v={num(d.ativos)} />
+        <div className="s">na base hoje</div>
+      </div>
+      <div className="t">
+        <div className="l">LTV da base</div>
+        <Valor v={tempo(d.tempo_medio_ativos_meses)} classe="up" />
+        <div className="s">tempo médio de casa dos ativos</div>
+      </div>
+      <div className="t">
+        <div className="l">Quem saiu ficou</div>
+        <Valor v={tempo(d.tempo_medio_saida_meses)} />
+        <div className="s">tempo médio até cancelar</div>
+      </div>
+      <div className="t span3">
+        <div className="l">Resolvidos em {mes}</div>
+        <div className="n up">{d.resolvidos_mes.total}</div>
+        <table><tbody>
+          {d.resolvidos_mes.lista.map((r: any) => <tr key={r.id}><td>✅ {r.cliente}</td><td className="r">{dataCurta(r.em)}</td></tr>)}
+        </tbody></table>
+      </div>
+      <div className="t span6">
+        <div className="l">Cancelados em {mes} (do dia 1 até hoje)</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '1em' }}>
+          <div className={`n ${d.cancelados_mes.total ? 'bad' : 'up'}`}>{d.cancelados_mes.total}</div>
+          <div className="s">{d.cancelados_mes.total ? 'clientes cancelaram neste mês' : 'nenhum cancelamento neste mês'}</div>
+        </div>
+        <table><tbody>
+          {d.cancelados_mes.lista.map((c: any) => (
+            <tr key={c.id}><td>{c.cliente}</td><td style={{ color: 'var(--mudo)' }}>{c.motivo || ''}</td><td className="r">{tempo(c.meses_de_casa) ? `ficou ${tempo(c.meses_de_casa)}` : ''}</td><td className="r">{dataCurta(c.em)}</td></tr>
+          ))}
+        </tbody></table>
+      </div>
     </div>
   );
 }
@@ -316,39 +398,49 @@ function Tela2({ d }: { d: any }) {
 }
 
 const CSS = `
-html,body{background:#0b1220}
-.tv{min-height:100vh;background:#0b1220;color:#e5e7eb;font-family:var(--font-sans),Inter,Segoe UI,Arial,sans-serif;font-size:clamp(10px,min(0.9vw,1.55vh),18px);overflow:hidden}
+.tv{--bg:#0b1220;--card:#111a2e;--borda:#1f2a44;--txt:#e5e7eb;--mudo:#94a3b8;--mudo2:#64748b;--rel:#93c5fd}
+.tv.claro{--bg:#f4f6fb;--card:#ffffff;--borda:#d5deeb;--txt:#0f172a;--mudo:#475569;--mudo2:#64748b;--rel:#1d4ed8}
+.tv.claro .up{color:#059669}.tv.claro .warn{color:#b45309}.tv.claro .bad{color:#dc2626}.tv.claro .live{color:#059669}
+.tema{background:var(--card);border:1px solid var(--borda);color:var(--txt);border-radius:999px;padding:.25em .8em;font-size:.85em;cursor:pointer}
+.risco-item{display:flex;align-items:center;gap:.6em;padding:.45em .2em;border-bottom:1px solid var(--borda);font-size:1.05em}
+.risco-item .nome{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.risco-item .mot{color:var(--mudo);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;font-size:.9em}
+.pisca-vermelho{width:.8em;height:.8em;border-radius:50%;background:#ef4444;flex:none;animation:piscaV 1.2s ease-in-out infinite}
+@keyframes piscaV{0%{opacity:1;box-shadow:0 0 0 0 rgba(239,68,68,.7)}50%{opacity:.35;box-shadow:0 0 0 .5em rgba(239,68,68,0)}100%{opacity:1}}
+.borda-risco{border-color:#ef4444;animation:bordaR 1.6s ease-in-out infinite}
+@keyframes bordaR{50%{border-color:rgba(239,68,68,.25)}}
+.tv{min-height:100vh;background:var(--bg);color:var(--txt);font-family:var(--font-sans),Inter,Segoe UI,Arial,sans-serif;font-size:clamp(10px,min(0.9vw,1.55vh),18px);overflow:hidden}
 .wrap{padding:1.2vw 1.5vw;height:100vh;box-sizing:border-box;display:flex;flex-direction:column}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8vw}
 .top h1{font-size:1.6em;margin:0;letter-spacing:.3px;font-weight:700}
 .topdir{display:flex;align-items:center;gap:1.2em}
-.clock{font-size:1.4em;color:#93c5fd;text-transform:capitalize}
+.clock{font-size:1.4em;color:var(--rel);text-transform:capitalize}
 .live{font-size:.85em;color:#34d399}
 .pulsando{animation:pulsar 1s ease-in-out infinite}
 @keyframes pulsar{50%{opacity:.35}}
 .dots{display:flex;gap:6px}
-.dots span{width:10px;height:10px;border-radius:50%;background:#1f2a44;display:inline-block}
+.dots span{width:10px;height:10px;border-radius:50%;background:var(--borda);display:inline-block}
 .dots span.on{background:#22d3ee}
 .grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0.8vw;flex:1;align-content:start}
-.t{background:#111a2e;border:1px solid #1f2a44;border-radius:14px;padding:0.9vw 1vw;min-width:0}
-.l{font-size:.85em;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8}
+.t{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:0.9vw 1vw;min-width:0}
+.l{font-size:.85em;text-transform:uppercase;letter-spacing:.08em;color:var(--mudo)}
 .n{font-size:3em;font-weight:800;line-height:1.1;margin-top:.15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.unid{font-size:.45em;color:#94a3b8;font-weight:600}
-.s{font-size:.95em;color:#94a3b8;margin-top:.3em}
+.unid{font-size:.45em;color:var(--mudo);font-weight:600}
+.s{font-size:.95em;color:var(--mudo);margin-top:.3em}
 .dica{color:#fbbf24}
-.semdados{font-size:.4em;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.semdados{font-size:.4em;color:var(--mudo2);font-weight:600;text-transform:uppercase;letter-spacing:.08em}
 .up{color:#34d399}.warn{color:#fbbf24}.bad{color:#f87171}
 .span2{grid-column:span 2}.span3{grid-column:span 3}.span6{grid-column:span 6}
-.bar{position:relative;height:1.1em;background:#1f2a44;border-radius:999px;overflow:hidden;margin-top:.7em}
+.bar{position:relative;height:1.1em;background:var(--borda);border-radius:999px;overflow:hidden;margin-top:.7em}
 .bar>i{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#22d3ee)}
 .bar.roxo>i{background:linear-gradient(90deg,#7c3aed,#c084fc)}
-.bar>em{position:absolute;right:.6em;top:0;font-size:.8em;line-height:1.4em;font-style:normal;font-weight:700;color:#e5e7eb}
-.marco{display:flex;justify-content:space-between;font-size:.85em;color:#94a3b8;margin-top:.5em}
+.bar>em{position:absolute;right:.6em;top:0;font-size:.8em;line-height:1.4em;font-style:normal;font-weight:700;color:var(--txt)}
+.marco{display:flex;justify-content:space-between;font-size:.85em;color:var(--mudo);margin-top:.5em}
 .funil>div{display:flex;align-items:center;gap:.6em;margin:.3em 0;font-size:.95em}
 .funil b{display:inline-block;height:1.1em;border-radius:4px;background:#2563eb;flex:none}
 .funil strong{margin-left:auto}
 table{width:100%;border-collapse:collapse;font-size:.95em}
-td{padding:.35em .3em .35em 0;border-bottom:1px solid #1f2a44;white-space:nowrap}
+td{padding:.35em .3em .35em 0;border-bottom:1px solid var(--borda);white-space:nowrap}
 td.r{text-align:right}
 .feed{overflow:hidden;white-space:nowrap;font-size:1.05em;margin-top:.4em}
 .trilho{display:inline-block;animation:rolar linear infinite}
@@ -356,15 +448,15 @@ td.r{text-align:right}
 @keyframes rolar{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .meses{display:flex;align-items:flex-end;gap:.4em;height:8em;margin-top:.6em}
 .mes{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:.2em}
-.mes small{font-size:.75em;color:#94a3b8}
+.mes small{font-size:.75em;color:var(--mudo)}
 .col{width:100%;background:#2563eb;border-radius:3px 3px 0 0}
 .col.atual{background:#22d3ee}
-.col.futuro{background:#1f2a44;opacity:.4}
+.col.futuro{background:var(--borda);opacity:.4}
 .banner{background:#7c2d12;color:#fed7aa;padding:.5em 1em;border-radius:10px;margin-bottom:.6em;font-weight:600}
 .centro{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
-.aviso{max-width:640px;text-align:center;background:#111a2e;border:1px solid #1f2a44;border-radius:16px;padding:2em}
+.aviso{max-width:640px;text-align:center;background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:2em}
 .aviso h1{font-size:2em;margin:0 0 .5em}
-.aviso p{color:#94a3b8;font-size:1.2em}
+.aviso p{color:var(--mudo);font-size:1.2em}
 @media (max-width:1400px){.tv{font-size:clamp(10px,1.55vh,12px)}}
 @media (max-width:1400px),(max-height:900px){.n{font-size:2.5em}}
 @media (max-width:900px){.tv{overflow:auto}.wrap{height:auto}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.span2,.span3,.span6{grid-column:span 2}}
