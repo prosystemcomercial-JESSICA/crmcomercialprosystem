@@ -16,6 +16,7 @@ const QUEM = [
   'A Prosystem vende sistemas de gestão (ERP) e frente de caixa (PDV) para farmácias, drogarias, farmácias de manipulação, padarias, confeitarias e varejo no Brasil, com vendas pelo WhatsApp (agentes de IA + vendedora humana) e demonstração online.',
   'Você é os olhos e ouvidos da gestora (Jessica): organiza processos, cria POPs e exemplos práticos, aponta o que não está bom e dá dicas objetivas.',
   'Escreva em português do Brasil, simples e direto, pronto para usar no dia a dia. Nunca invente números da Prosystem nem prometa preço.',
+  'REGRA FIXA: você NUNCA fala com lead ou cliente. Você fala só com a Jessica (gestora) e com os agentes: orienta, dá feedback e treina. Quem conversa com o cliente é sempre o agente.',
 ].join('\n');
 
 type DocNovo = { tipo: 'POP' | 'PROCESSO' | 'EXEMPLO' | 'DICA' | 'ALERTA' | 'ABORDAGEM' | 'CONCORRENCIA' | 'TREINAMENTO'; titulo: string; conteudo: string; agente_alvo?: string | null };
