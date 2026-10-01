@@ -268,6 +268,20 @@ function resumoProposta(x: any, valores: string[]): string | null {
   return partes.length ? partes.join(', ') : null;
 }
 
+const ASSUNTO_COMERCIAL = /(cobr|valor|r\$|\d+\s*reais|pag(ar|amento|uei)|boleto|servico|contrat|jessica|thiago|farmacia popular|banco de dados|troca de cnpj|cnpj|unidade nova|loja nova|filial|orcamento|nota fiscal)/;
+// Contexto do cliente (cadastro e serviços contratados) pelo telefone, para o agente não responder no escuro.
+async function contextoDoCliente(prisma: PrismaClient, numero: string | null | undefined): Promise<string> {
+  const fim = ultimos8(numero || '');
+  if (fim.length < 8) return '';
+  const cli: any = await prisma.cliente.findFirst({ where: { OR: [{ telefone: { endsWith: fim } }, { telefone1: { endsWith: fim } }, { telefone2: { endsWith: fim } }] } as any, select: { id: true, razao_social: true, status: true } as any }).catch(() => null);
+  if (!cli) return '';
+  const vendas: any[] = await prisma.vendaAdicional.findMany({ where: { cliente_id: cli.id, status: { not: 'CANCELADO' } }, orderBy: { created_at: 'desc' }, take: 5, select: { descricao_servico: true, valor_venda: true, etapa: true, status: true, created_at: true, parceiro: { select: { nome: true } } } as any }).catch(() => []);
+  const linhas = vendas.map(v => `- ${v.parceiro?.nome || 'Serviço'}${v.descricao_servico ? ` (${String(v.descricao_servico).slice(0, 120)})` : ''}${v.valor_venda ? `, ${brl(v.valor_venda)}` : ''}, fase ${v.etapa || v.status}, lançado em ${new Date(v.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+  return `CONTEXTO DO CLIENTE: este contato JÁ É CLIENTE da Prosystem (${cli.razao_social || 'cadastro'}${cli.status ? `, ${cli.status}` : ''}).${linhas.length ? ` Serviços contratados com a equipe:
+${linhas.join('\n')}` : ''}
+Não trate como lead novo. Se ele falar de um desses serviços (prazo, valor, andamento), responda com esses dados, sem inventar, e diga que vai confirmar o andamento com a responsável (use acao "duvida_fora_material" com a dúvida dele).`;
+}
+
 async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline, dica = ''): Promise<RespostaCaroline | null> {
   const valoresProposta: string[] = [];
   const { guiaComercial } = await import('./assistente-ia.service');
@@ -732,7 +746,15 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     registrarAcaoAgente(agenteDe(sdr), `segurou uma retomada para ${sdr.nome || 'um lead'}: já tinha escrito há pouco, sem resposta`);
     return 'nada';
   }
+  if (fase === 'resposta') dicaDecisor = [dicaDecisor, await contextoDoCliente(prisma, sdr.numero)].filter(Boolean).join('\n');
   let r = await gerarResposta(prisma, sdr, fase, dicaDecisor);
+  // Trava: cliente falando de serviço contratado, valor ou alguém da equipe não vai para o suporte.
+  if (r && r.acao === 'encaminhar_suporte' && fase === 'resposta') {
+    const ult = (await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true } }))?.conteudo || '';
+    if (ASSUNTO_COMERCIAL.test(ult.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase())) {
+      r = { ...r, acao: 'duvida_fora_material', duvida: ult.slice(0, 300), mensagens: r.mensagens.length ? r.mensagens : ['Entendi! Isso é com a nossa equipe comercial: vou verificar agora com a responsável pelo seu serviço e já te retorno por aqui.'] };
+    }
+  }
   if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); return 'falha'; }
   // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.
   const parecida = (x: RespostaCaroline) => x.mensagens.some(m => ultimasDoAgente.some(u => semelhanca(m, u.conteudo || '') >= 0.6));
