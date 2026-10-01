@@ -397,7 +397,7 @@ export default function ContratosPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <ExportButton
               nome="contratos" titulo="Contratos Comerciais"
-              linhas={filtered}
+              linhas={filteredNoMes}
               colunas={[
                 { header: 'Nº', value: (c: ContratoComercial) => c.numero_contrato },
                 { header: 'Cliente', value: (c: ContratoComercial) => c.razao_social },
@@ -518,7 +518,7 @@ export default function ContratosPage() {
                 {KANBAN_ORDER.map(statusKey => {
                   const cfg = STATUS_CONFIG[statusKey];
                   const StatusIcon = cfg.icon;
-                  const colCards = filtered.filter(c => c.status === statusKey);
+                  const colCards = filteredNoMes.filter(c => c.status === statusKey);
                   const isOver = dragOverCol === statusKey;
                   return (
                     <div key={statusKey}
@@ -580,14 +580,14 @@ export default function ContratosPage() {
           <div className="ps-card rounded-xl overflow-hidden">
             <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
               <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>
-                {filtered.length} contrato{filtered.length !== 1 ? 's' : ''}
+                {filteredNoMes.length} contrato{filteredNoMes.length !== 1 ? 's' : ''}
               </p>
             </div>
-            {filtered.length === 0 ? (
+            {filteredNoMes.length === 0 ? (
               <p className="text-center py-12 text-sm" style={{ color: 'var(--t-text-secondary)' }}>Nenhum contrato encontrado</p>
             ) : (
               <div className="divide-y" style={{ borderColor: 'var(--t-card-border)' }}>
-                {[...filtered]
+                {[...filteredNoMes]
                   .sort((a, b) => STATUS_CONFIG[a.status].ordem - STATUS_CONFIG[b.status].ordem)
                   .map(c => {
                     const cfg = STATUS_CONFIG[c.status];
