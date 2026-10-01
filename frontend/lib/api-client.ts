@@ -1157,6 +1157,7 @@ class ApiClient {
     return this.client.post('/whatsapp/desconectar');
   }
 
+  async getRetornos() { return this.client.get('/assistente/retornos'); }
   async getWhatsappConversasAtencao() { return this.client.get('/whatsapp/conversas/atencao'); }
   async getWhatsappConversas(instanciaId?: string, escopo?: 'todos' | 'pool', tipoContato?: string, finalizadas?: boolean) {
     const params: any = {};

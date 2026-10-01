@@ -301,6 +301,19 @@ export default function WhatsappPage() {
     return () => clearInterval(t);
   }, [isAuthenticated]);
 
+  // Link direto (?conversa=id), ex.: vindo de Retornos agendados: abre a conversa assim que ela aparecer.
+  const conversaDoLink = useRef<string | null>(null);
+  useEffect(() => { conversaDoLink.current = new URLSearchParams(window.location.search).get('conversa'); }, []);
+  useEffect(() => {
+    const id = conversaDoLink.current;
+    if (!id || !conversas.length) return;
+    const c = conversas.find(x => x.id === id);
+    if (c) { conversaDoLink.current = null; abrir(c); }
+    else if (aba !== 'atencao' && aba !== 'pool') setAba('pool');
+    else if (aba === 'pool') setAba('todas');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversas]);
+
   const carregarConversas = useCallback(async () => {
     try {
       // No modo supervisão (gestão), ignora a instância e traz as conversas de todos.

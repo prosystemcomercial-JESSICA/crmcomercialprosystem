@@ -779,6 +779,46 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
   // ===== ESCRITÓRIO VIRTUAL (somente leitura): estado de cada agente do assistente =====
   let cacheEscritorio: { em: number; dados: any } | null = null;
+  // Retornos agendados (kanban): o que os agentes combinaram (retomar_em) e o "próximo retorno" da equipe.
+  fastify.get('/assistente/retornos', async (_request, reply) => {
+    const agora = Date.now();
+    const NOME_AG: Record<string, string> = { caroline: 'Caroline', julio: 'Julio', luiz_felipe: 'Luiz Felipe' };
+    const sdrs = await prisma.sdrLead.findMany({
+      where: { status: { in: ['AGUARDANDO', 'CONVERSANDO', 'FILA'] } },
+      select: { id: true, agente: true, nome: true, empresa: true, numero: true, nota: true, proposta_id: true, conversaId: true, dados: true, status: true },
+    });
+    const itens: any[] = [];
+    for (const s of sdrs) {
+      const d: any = s.dados || {};
+      if (!d.retomar_em) continue;
+      itens.push({
+        id: `sdr-${s.id}`, quando: d.retomar_em, nome: s.nome || s.numero, empresa: s.empresa || null,
+        combinado: d.combinado || (d.parou_em ? 'retomada: parou de responder' : 'retomada programada'),
+        responsavel: NOME_AG[s.agente] || s.agente, agente: true, origem: s.proposta_id ? 'proposta' : 'lead frio',
+        nota: s.nota ?? null, conversaId: s.conversaId || null,
+      });
+    }
+    // Retornos combinados pela equipe nas observações do lead (últimos 30 dias para frente).
+    const obs = await prisma.leadObservacao.findMany({
+      where: { data_proximo_retorno: { gte: new Date(agora - 30 * 864e5) } },
+      orderBy: { data_proximo_retorno: 'asc' }, take: 300,
+      select: { id: true, lead_id: true, proxima_acao: true, descricao: true, data_proximo_retorno: true, created_by_name: true, lead: { select: { nome: true, nome_fantasia: true, responsavel_nome: true, status: true } } },
+    }).catch(() => [] as any[]);
+    // Vale só o retorno mais recente de cada lead, e só de lead em aberto.
+    const ultimoPorLead = new Map<string, any>();
+    for (const o of obs) if (!['GANHO', 'PERDIDO'].includes(String(o.lead?.status))) ultimoPorLead.set(o.lead_id, o);
+    const convPorLead = new Map((await prisma.whatsappConversa.findMany({ where: { lead_id: { in: [...ultimoPorLead.keys()] } }, select: { id: true, lead_id: true } })).map(c => [c.lead_id!, c.id]));
+    for (const o of ultimoPorLead.values()) {
+      itens.push({
+        id: `obs-${o.id}`, quando: o.data_proximo_retorno!.toISOString(), nome: o.lead?.responsavel_nome || o.lead?.nome_fantasia || o.lead?.nome || 'Lead',
+        empresa: o.lead?.nome_fantasia || o.lead?.nome || null, combinado: (o.proxima_acao || o.descricao || 'retorno combinado').slice(0, 160),
+        responsavel: o.created_by_name || 'Equipe', agente: false, origem: 'equipe', nota: null, conversaId: convPorLead.get(o.lead_id) || null,
+      });
+    }
+    itens.sort((a, b) => a.quando.localeCompare(b.quando));
+    return reply.send({ status: 'success', data: itens });
+  });
+
   fastify.get('/assistente/escritorio', async (_request, reply) => {
     if (!cacheEscritorio || Date.now() - cacheEscritorio.em > 15_000) {
       const { montarEscritorio } = await import('@/services/escritorio.service');
