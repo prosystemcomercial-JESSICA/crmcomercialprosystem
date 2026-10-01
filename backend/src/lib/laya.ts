@@ -42,7 +42,20 @@ export function lerCriteriosQualificacao(conteudo: string): CriteriosQualificaca
 export type RotulosIa = { segmento: SegmentoIa; intencao: IntencaoIa; cancelar: boolean } | { ignorar: true };
 
 // Contatos que não são comerciais: não vale a pena analisar nem treinar.
-export const TIPOS_SEM_IA = ['EQUIPE', 'PARCEIRO', 'FORNECEDOR', 'OUTRO'];
+// Só Lead e Cliente recebem robô/agente. Qualquer outro tipo marcado pela equipe fica de fora.
+export const TIPOS_SEM_IA = ['EQUIPE', 'PARCEIRO', 'FORNECEDOR', 'OUTRO', 'TERCEIRO_CLIENTE'];
+// Etiquetas que também tiram o contato dos robôs e agentes (pedido da Jessica, 01/10/2026).
+export const ETIQUETAS_SEM_IA = /equipe|prosystem|parceir|fornecedor|suporte|financeiro|^outro/i;
+
+/** O contato (qualquer conversa deste número) foi marcado como algo que não é lead nem cliente? */
+export async function contatoSemAgentes(prisma: any, numero: string | null | undefined): Promise<boolean> {
+  const fim = String(numero || '').replace(/\D/g, '').slice(-8);
+  if (fim.length < 8) return false;
+  const cs: { tipo_contato: string | null; etiqueta: string | null }[] = await prisma.whatsappConversa.findMany({
+    where: { contato_numero: { endsWith: fim } }, select: { tipo_contato: true, etiqueta: true },
+  }).catch(() => []);
+  return cs.some(c => (c.tipo_contato && TIPOS_SEM_IA.includes(c.tipo_contato)) || (c.etiqueta && ETIQUETAS_SEM_IA.test(c.etiqueta)));
+}
 
 export const PERGUNTAS_LAYA = {
   segmento: {
