@@ -392,6 +392,11 @@ export default function CasosPage() {
         const [y, mo] = mesFiltro.split('-').map(Number);
         di = new Date(y, mo - 1, 1).toISOString();
         df = new Date(y, mo, 0, 23, 59, 59).toISOString();
+      } else if (mesFiltro && /^\d{4}$/.test(mesFiltro)) {
+        // Ano inteiro: 1º de janeiro a 31 de dezembro.
+        const y = Number(mesFiltro);
+        di = new Date(y, 0, 1).toISOString();
+        df = new Date(y, 11, 31, 23, 59, 59).toISOString();
       }
       const res = await apiClient.getCasos(modo === 'kanban' ? 0 : page, limit, modo === 'kanban' ? undefined : (statusFilter || undefined), undefined, undefined, busca || undefined, di, df);
       const data = res.data.data;
@@ -744,9 +749,32 @@ export default function CasosPage() {
             placeholder="🔍 Buscar cliente por razão social, nome fantasia, contato, código ou CNPJ…"
             className="flex-1 min-w-[220px] px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
-          <input type="month" value={mesFiltro} onChange={e => { setPage(0); setMesFiltro(e.target.value); }}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm" title="Filtrar por mês (1º ao último dia)" />
-          {mesFiltro && <button onClick={() => setMesFiltro('')} className="text-xs  hover:text-gray-700 underline">limpar mês</button>}
+          {(() => {
+            // Filtro: Total (tudo), Ano (jan–dez) ou Mês (1º ao último dia).
+            const anoAtual = new Date().getFullYear();
+            const tipo = /^\d{4}-\d{2}$/.test(mesFiltro) ? 'mes' : /^\d{4}$/.test(mesFiltro) ? 'ano' : 'total';
+            const ano = mesFiltro ? Number(mesFiltro.slice(0, 4)) : anoAtual;
+            const mes = tipo === 'mes' ? Number(mesFiltro.slice(5, 7)) : new Date().getMonth() + 1;
+            const aplicar = (v: string) => { setPage(0); setMesFiltro(v); };
+            const mm = (m: number) => String(m).padStart(2, '0');
+            const cls = 'px-3 py-2.5 border border-gray-200 rounded-lg text-sm';
+            return <>
+              <select value={tipo} aria-label="Período" className={cls}
+                onChange={e => aplicar(e.target.value === 'mes' ? `${ano}-${mm(mes)}` : e.target.value === 'ano' ? String(ano) : '')}>
+                <option value="total">Total</option><option value="ano">Ano</option><option value="mes">Mês</option>
+              </select>
+              {tipo === 'mes' && (
+                <select value={mes} aria-label="Mês" className={cls} onChange={e => aplicar(`${ano}-${mm(Number(e.target.value))}`)}>
+                  {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((n, i) => <option key={n} value={i + 1}>{n}</option>)}
+                </select>
+              )}
+              {tipo !== 'total' && (
+                <select value={ano} aria-label="Ano" className={cls} onChange={e => aplicar(tipo === 'mes' ? `${e.target.value}-${mm(mes)}` : e.target.value)}>
+                  {Array.from({ length: anoAtual - 2019 }, (_, i) => anoAtual - i).map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              )}
+            </>;
+          })()}
         </div>
 
         <div className="flex gap-2">
