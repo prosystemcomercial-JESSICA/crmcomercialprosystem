@@ -1169,6 +1169,22 @@ async function abastecerFila(prisma: PrismaClient, agente: 'julio' | 'luiz_felip
  */
 const RETOMADAS_ASSUMIDA = [1, 3];
 async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: string[], agora: Date) {
+  // Conversa de lead assumida direto por uma pessoa (veio da triagem, sem agente): passa a ter acompanhamento.
+  // Agente: Luiz Felipe se já houve proposta enviada na conversa; senão, a Caroline.
+  if (ativos.includes('caroline') || ativos.includes('luiz_felipe')) {
+    const soltas = await prisma.whatsappConversa.findMany({
+      where: { dono_id: { not: null }, finalizada_em: null, ultima_em: { gte: new Date(agora.getTime() - 30 * 864e5) }, OR: [{ tipo_contato: null }, { tipo_contato: 'LEAD' }] },
+      select: { id: true, contato_numero: true, contato_nome: true, lead_id: true }, take: 60,
+    });
+    for (const c of soltas) {
+      if (await prisma.sdrLead.findFirst({ where: { conversaId: c.id }, select: { id: true } })) continue;
+      if (await ehClienteAtivo(prisma, c.contato_numero)) continue;
+      const comProposta = !!(await prisma.whatsappMensagem.findFirst({ where: { conversaId: c.id, direcao: 'SAIDA', conteudo: { contains: '/p/' } }, select: { id: true } }));
+      const agente = comProposta && ativos.includes('luiz_felipe') ? 'luiz_felipe' : 'caroline';
+      if (!ativos.includes(agente)) continue;
+      await prisma.sdrLead.create({ data: { agente, numero: c.contato_numero, nome: c.contato_nome || null, conversaId: c.id, lead_id: c.lead_id || null, status: 'HUMANO', abertura_enviada: true } as any }).catch(() => {});
+    }
+  }
   const candidatos = await prisma.sdrLead.findMany({
     // HUMANO (pessoa assumiu) e DEMO/VENDEDORA (demonstração marcada ou lead com a consultora): se o cliente sumir, não fica de lado.
     where: { status: { in: ['HUMANO', 'DEMO', 'VENDEDORA'] }, agente: { in: ativos }, conversaId: { not: null }, updated_at: { gte: new Date(agora.getTime() - 60 * 864e5) } },
