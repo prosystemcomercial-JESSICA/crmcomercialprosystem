@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Specification"
+  short_description: "Ground candidate and accepted UI specifications"
+  default_prompt: "Use $ui-spec to ground UI work in current product source, keep unapproved candidate specs and complete prompts local and fingerprinted, then promote only approved visual semantics into DESIGN.md and hand accepted Feature Specs to dev-frontend."

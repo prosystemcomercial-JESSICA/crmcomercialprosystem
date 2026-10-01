@@ -1,0 +1,4 @@
+interface:
+  display_name: "Domain Modeling"
+  short_description: "Resolve shared business language, rules, and boundaries"
+  default_prompt: "Use $domain-modeling to resolve shared business terms, ambiguities, and rules, loading lifecycle or bounded-context depth only when material complexity requires it."

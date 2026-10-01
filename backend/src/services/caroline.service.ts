@@ -253,7 +253,23 @@ export async function aprendizadoDaEquipe(prisma: PrismaClient): Promise<{ clien
   return pares;
 }
 
+// Resumo da proposta do cliente (para o agente relembrar). Guarda os valores citados, que ficam liberados no filtro de preço.
+const brl = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function resumoProposta(x: any, valores: string[]): string | null {
+  const plano = String(x.plano_selecionado || '').toUpperCase();
+  const mensal = plano === 'BASIC' ? x.mensalidade_basic : plano === 'PRO' ? x.mensalidade_pro : plano === 'PLUS' ? x.mensalidade_plus : null;
+  const partes: string[] = [];
+  const v = (n: number) => { const t = brl(n); valores.push(t); return t; };
+  if (plano) partes.push(`plano ${plano === 'PLUS' ? 'Plus' : plano === 'PRO' ? 'Pro' : plano === 'BASIC' ? 'Basic' : plano}`);
+  if (mensal) partes.push(`mensalidade ${v(mensal)}`);
+  const impl = x.valor_final || x.valor_implantacao;
+  if (impl) partes.push(`implantação ${v(impl)}`);
+  if (x.parcelas && x.valor_parcela) partes.push(`${x.entrada ? `entrada de ${v(x.entrada)} + ` : ''}${x.parcelas}x de ${v(x.valor_parcela)}`);
+  return partes.length ? partes.join(', ') : null;
+}
+
 async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline, dica = ''): Promise<RespostaCaroline | null> {
+  const valoresProposta: string[] = [];
   const { guiaComercial } = await import('./assistente-ia.service');
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const { chamarGemini } = await import('./ia-gemini.service');
@@ -289,8 +305,8 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
     descontoAutorizado: campanhaVigente((sdr.dados as any)?.desconto_autorizado) ? (sdr.dados as any).desconto_autorizado : null,
     followup: {
       cadastro_em: sdr.cadastro_em ? new Date(sdr.cadastro_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long', year: 'numeric' }) : null,
-      proposta: sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { plano_selecionado: true, wpp_enviada_em: true, created_at: true, status: true } })
-        .then(x => x && { plano: x.plano_selecionado, status: x.status, enviada_em: (x.wpp_enviada_em || x.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) }).catch(() => null) : null,
+      proposta: sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { plano_selecionado: true, wpp_enviada_em: true, created_at: true, status: true, mensalidade_basic: true, mensalidade_pro: true, mensalidade_plus: true, valor_implantacao: true, valor_final: true, entrada: true, parcelas: true, valor_parcela: true } })
+        .then(x => x && { plano: x.plano_selecionado, status: x.status, enviada_em: (x.wpp_enviada_em || x.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }), resumo: resumoProposta(x, valoresProposta) }).catch(() => null) : null,
     },
     // Assuntos da atualidade só no follow-up de quem já conversou (1ª e 2ª retomadas usam o dia a dia).
     atualidades: fase === 'retomada' && sdr.ultima_lead_em ? atualidades : [],
@@ -304,7 +320,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
   for (let i = 0; i < 2; i++) {
     try {
       const bruto = await chamarGemini(prisma, { sistema: p.sistema, partes, json: true, temperatura: 0.5, timeoutMs: 90_000 });
-      const r = lerRespostaCaroline(JSON.parse(bruto.replace(/^```(json)?|```$/g, '').trim()));
+      const r = lerRespostaCaroline(JSON.parse(bruto.replace(/^```(json)?|```$/g, '').trim()), valoresProposta);
       if (r) return r;
     } catch (e: any) { console.warn('[CAROLINE] IA:', e?.message); }
   }

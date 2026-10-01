@@ -1,0 +1,560 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontend-visual-evidence:v1",
+  "title": "Frontend visual evidence handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stage",
+    "task_id",
+    "selected_source",
+    "required_runtime_matrix",
+    "evidence",
+    "delta_table",
+    "readiness"
+  ],
+  "properties": {
+    "schema_version": { "const": "frontend-visual-evidence/v1" },
+    "stage": { "enum": ["spec-ready", "mapped", "pass-1", "final"] },
+    "task_id": { "type": "string", "minLength": 1 },
+    "selected_source": { "$ref": "#/$defs/selectedSource" },
+    "required_runtime_matrix": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/runtimeTarget" }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "delta_table": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/delta" }
+    },
+    "implementation_mapping": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/mapping" }
+    },
+    "visual_reviews": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/visualReview" },
+      "prefixItems": [
+        { "allOf": [{ "$ref": "#/$defs/visualReview" }, { "properties": { "pass": { "const": 1 } } }] },
+        { "allOf": [{ "$ref": "#/$defs/visualReview" }, { "properties": { "pass": { "const": 2 } } }] }
+      ]
+    },
+    "readiness": { "$ref": "#/$defs/readiness" },
+    "runtime_coverage": { "$ref": "#/$defs/runtimeCoverage" },
+    "final_verdict": { "$ref": "#/$defs/finalVerdict" },
+    "capture_closure": { "$ref": "#/$defs/captureClosure" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "readiness": {
+            "properties": { "status": { "const": "Ready" } },
+            "required": ["status"]
+          }
+        },
+        "required": ["readiness"]
+      },
+      "then": {
+        "properties": {
+          "selected_source": {
+            "properties": {
+              "approval": {
+                "properties": { "status": { "const": "approved" } },
+                "required": ["status"]
+              }
+            },
+            "required": ["approval"]
+          },
+          "readiness": {
+            "properties": { "blockers": { "maxItems": 0 } },
+            "required": ["blockers"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "readiness": {
+            "properties": {
+              "status": { "enum": ["Partial", "Not Ready"] }
+            },
+            "required": ["status"]
+          }
+        },
+        "required": ["readiness"]
+      },
+      "then": {
+        "properties": {
+          "readiness": {
+            "properties": { "blockers": { "minItems": 1 } },
+            "required": ["blockers"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "stage": { "enum": ["mapped", "pass-1", "final"] }
+        },
+        "required": ["stage"]
+      },
+      "then": {
+        "properties": {
+          "readiness": {
+            "properties": { "status": { "const": "Ready" } },
+            "required": ["status"]
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "stage": { "const": "spec-ready" } }, "required": ["stage"] },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["implementation_mapping"] },
+            { "required": ["visual_reviews"] },
+            { "required": ["runtime_coverage"] },
+            { "required": ["final_verdict"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "stage": { "const": "mapped" } }, "required": ["stage"] },
+      "then": {
+        "required": ["implementation_mapping"],
+        "not": {
+          "anyOf": [
+            { "required": ["visual_reviews"] },
+            { "required": ["runtime_coverage"] },
+            { "required": ["final_verdict"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "stage": { "const": "pass-1" } }, "required": ["stage"] },
+      "then": {
+        "required": ["implementation_mapping", "visual_reviews"],
+        "properties": { "visual_reviews": { "minItems": 1, "maxItems": 1 } },
+        "not": {
+          "anyOf": [
+            { "required": ["runtime_coverage"] },
+            { "required": ["final_verdict"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "stage": { "const": "final" } }, "required": ["stage"] },
+      "then": {
+        "required": ["implementation_mapping", "visual_reviews", "runtime_coverage", "final_verdict"],
+        "properties": { "visual_reviews": { "minItems": 2 } }
+      }
+    }
+  ],
+  "$defs": {
+    "evidenceLevel": {
+      "enum": ["source-extracted", "browser-computed", "visually-inferred", "proposed", "Not verified"]
+    },
+    "runtimeCategory": {
+      "enum": ["real_assets", "font_fallback", "text_truncation", "contrast", "section_alignment", "card_dimensions", "hover_focus", "loading_empty_error", "responsive_breakpoints"]
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "zoom"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "zoom": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "runtimeTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "viewport", "state", "target_fingerprint"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "state": { "type": "string", "minLength": 1 },
+        "target_fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "selectedSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "revision", "approval", "rights", "use", "ignore", "viewport", "state", "limitations"],
+      "properties": {
+        "identity": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string", "minLength": 1 },
+        "approval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "approved_by", "approved_at"],
+          "properties": {
+            "status": { "enum": ["approved", "pending", "rejected", "Not verified"] },
+            "approved_by": { "type": "string", "minLength": 1 },
+            "approved_at": { "type": "string", "minLength": 1 }
+          }
+        },
+        "rights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowed_use", "redistribution"],
+          "properties": {
+            "allowed_use": { "type": "string", "minLength": 1 },
+            "redistribution": { "enum": ["allowed", "not-allowed", "Not verified"] }
+          }
+        },
+        "use": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "ignore": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "state": { "type": "string", "minLength": 1 },
+        "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "level", "claim", "source", "viewport", "state", "limitation"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "level": { "$ref": "#/$defs/evidenceLevel" },
+        "claim": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "review_pass": { "type": "integer", "minimum": 1 },
+        "matrix_target_id": { "type": "string", "minLength": 1 },
+        "capture_id": { "type": "string", "minLength": 1 },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_bytes": { "type": "integer", "minimum": 0 },
+        "capture_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "content_summary_sha256": { "$ref": "#/$defs/sha256" },
+        "target_fingerprint": { "$ref": "#/$defs/sha256" },
+        "categories": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/runtimeCategory" } },
+        "viewport": { "oneOf": [{ "$ref": "#/$defs/viewport" }, { "const": "not-applicable" }] },
+        "state": { "type": "string", "minLength": 1 },
+        "limitation": { "type": "string" }
+      }
+    },
+    "comparisonValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "evidence_level", "evidence_ids"],
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "evidence_level": { "$ref": "#/$defs/evidenceLevel" },
+        "evidence_ids": { "$ref": "#/$defs/evidenceRefs" },
+        "approval": { "type": "string", "minLength": 1 }
+      }
+    },
+    "delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acceptance_id", "area", "selected_source", "current_runtime", "target_contract", "priority", "owner", "validation"],
+      "properties": {
+        "acceptance_id": { "type": "string", "minLength": 1 },
+        "area": { "type": "string", "minLength": 1 },
+        "selected_source": { "$ref": "#/$defs/comparisonValue" },
+        "current_runtime": { "$ref": "#/$defs/comparisonValue" },
+        "target_contract": { "$ref": "#/$defs/comparisonValue" },
+        "priority": { "enum": ["P0", "P1", "P2", "P3"] },
+        "owner": { "type": "string", "minLength": 1 },
+        "validation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acceptance_id", "owner_file", "component", "decision", "asset_or_data_owner", "rationale", "verification_methods"],
+      "properties": {
+        "acceptance_id": { "type": "string", "minLength": 1 },
+        "owner_file": { "type": "string", "minLength": 1 },
+        "component": { "type": "string", "minLength": 1 },
+        "decision": { "enum": ["reuse", "extend", "wrap", "new"] },
+        "asset_or_data_owner": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "verification_methods": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "viewport", "state", "scroll", "captured_at"],
+      "properties": {
+        "capture_id": { "type": "string", "minLength": 1 },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_bytes": { "type": "integer", "minimum": 0 },
+        "capture_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "content_summary_sha256": { "$ref": "#/$defs/sha256" },
+        "target_fingerprint": { "$ref": "#/$defs/sha256" },
+        "artifact": { "type": "string", "minLength": 1 },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "state": { "type": "string", "minLength": 1 },
+        "scroll": { "type": "string", "minLength": 1 },
+        "captured_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "acceptance_id", "evidence_ids", "status", "summary"],
+      "properties": {
+        "severity": { "enum": ["P0", "P1", "P2", "P3"] },
+        "acceptance_id": { "type": "string", "minLength": 1 },
+        "evidence_ids": { "$ref": "#/$defs/evidenceRefs" },
+        "status": { "enum": ["open", "fixed", "rejected"] },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "visualReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "design_capture", "runtime_capture", "same_viewport", "same_state", "comparison", "computed_checks", "findings", "verdict"],
+      "properties": {
+        "pass": { "type": "integer", "minimum": 1 },
+        "design_capture": { "$ref": "#/$defs/capture" },
+        "runtime_capture": { "$ref": "#/$defs/capture" },
+        "same_viewport": { "const": true },
+        "same_state": { "const": true },
+        "comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "artifact"],
+          "properties": {
+            "mode": { "enum": ["side-by-side", "overlay", "diff"] },
+            "artifact": { "type": "string", "minLength": 1 }
+          }
+        },
+        "computed_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["category", "evidence_ids"],
+            "properties": {
+              "category": { "$ref": "#/$defs/runtimeCategory" },
+              "evidence_ids": { "$ref": "#/$defs/evidenceRefs" }
+            }
+          }
+        },
+        "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+        "verdict": { "enum": ["fail", "pass", "Partial", "Not Ready"] }
+      }
+    },
+    "coverageRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidence_ids", "reason"],
+      "properties": {
+        "status": { "enum": ["verified", "failed", "Not verified", "not-applicable"] },
+        "evidence_ids": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtimeCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["real_assets", "font_fallback", "text_truncation", "contrast", "section_alignment", "card_dimensions", "hover_focus", "loading_empty_error", "responsive_breakpoints"],
+      "properties": {
+        "real_assets": { "$ref": "#/$defs/coverageRecord" },
+        "font_fallback": { "$ref": "#/$defs/coverageRecord" },
+        "text_truncation": { "$ref": "#/$defs/coverageRecord" },
+        "contrast": { "$ref": "#/$defs/coverageRecord" },
+        "section_alignment": { "$ref": "#/$defs/coverageRecord" },
+        "card_dimensions": { "$ref": "#/$defs/coverageRecord" },
+        "hover_focus": { "$ref": "#/$defs/coverageRecord" },
+        "loading_empty_error": { "$ref": "#/$defs/coverageRecord" },
+        "responsive_breakpoints": { "$ref": "#/$defs/coverageRecord" }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "blockers"],
+      "properties": {
+        "status": { "enum": ["Ready", "Partial", "Not Ready"] },
+        "blockers": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "finalVerdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "fixed_items", "remaining_gaps", "not_verified", "changed_files", "validation", "git_state"],
+      "properties": {
+        "status": { "enum": ["Complete", "Partial", "Not Ready"] },
+        "fixed_items": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "remaining_gaps": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "not_verified": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "changed_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "validation": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "git_state": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "captureClosureRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture_id", "pass", "role", "artifact", "artifact_sha256", "artifact_bytes", "capture_manifest", "capture_manifest_sha256", "content_summary", "content_summary_sha256", "viewport", "state", "target_fingerprint"],
+      "properties": {
+        "capture_id": { "type": "string", "minLength": 1 },
+        "pass": { "type": "integer", "minimum": 1 },
+        "role": { "enum": ["design", "runtime"] },
+        "artifact": { "type": "string", "minLength": 1 },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_bytes": { "type": "integer", "minimum": 0 },
+        "capture_manifest": { "$ref": "#/$defs/captureManifest" },
+        "capture_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "content_summary": { "$ref": "#/$defs/contentSummary" },
+        "content_summary_sha256": { "$ref": "#/$defs/sha256" },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "state": { "type": "string", "minLength": 1 },
+        "target_fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "captureManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture_id", "pass", "role", "artifact", "artifact_sha256", "artifact_bytes", "viewport", "state", "target_fingerprint"],
+      "properties": {
+        "capture_id": { "type": "string", "minLength": 1 },
+        "pass": { "type": "integer", "minimum": 1 },
+        "role": { "enum": ["design", "runtime"] },
+        "artifact": { "type": "string", "minLength": 1 },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_bytes": { "type": "integer", "minimum": 0 },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "state": { "type": "string", "minLength": 1 },
+        "target_fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "contentSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture_id", "artifact", "artifact_sha256", "artifact_bytes", "summary"],
+      "properties": {
+        "capture_id": { "type": "string", "minLength": 1 },
+        "artifact": { "type": "string", "minLength": 1 },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_bytes": { "type": "integer", "minimum": 0 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "restorationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_id", "status", "operation_id", "before_state", "authorized_restoration_actions", "post_readback", "final_pass", "target_fingerprint", "artifact_sha256", "artifact_bytes", "capture_manifest_sha256", "content_summary_sha256", "receipt_canonical_sha256"],
+      "properties": {
+        "receipt_id": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["superseded", "final"] },
+        "operation_id": { "type": "string", "minLength": 1 },
+        "before_state": { "$ref": "#/$defs/browserState" },
+        "authorized_restoration_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action_id", "action", "authorized"],
+            "properties": {
+              "action_id": { "type": "string", "minLength": 1 },
+              "action": { "type": "string", "minLength": 1 },
+              "authorized": { "const": true }
+            }
+          }
+        },
+        "post_readback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operation_id", "browser_state"],
+          "properties": {
+            "operation_id": { "type": "string", "minLength": 1 },
+            "browser_state": { "$ref": "#/$defs/browserState" }
+          }
+        },
+        "final_pass": { "type": "integer", "minimum": 1 },
+        "target_fingerprint": { "$ref": "#/$defs/sha256" },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_bytes": { "type": "integer", "minimum": 0 },
+        "capture_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "content_summary_sha256": { "$ref": "#/$defs/sha256" }
+        ,"receipt_canonical_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "browserState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tab_id", "url", "viewport", "scroll"],
+      "properties": {
+        "tab_id": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "minLength": 1 },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "scroll": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "integer", "minimum": 0 },
+            "y": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "captureClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "artifact_contents", "captures", "restoration_receipts", "canonical_final_receipt_id"],
+      "properties": {
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["viewport", "state", "target_fingerprint"],
+          "properties": {
+            "viewport": { "$ref": "#/$defs/viewport" },
+            "state": { "type": "string", "minLength": 1 },
+            "target_fingerprint": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "artifact_contents": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["artifact", "bytes_base64"],
+            "properties": {
+              "artifact": { "type": "string", "minLength": 1 },
+              "bytes_base64": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "captures": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/captureClosureRecord" } },
+        "restoration_receipts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/restorationReceipt" } },
+        "canonical_final_receipt_id": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

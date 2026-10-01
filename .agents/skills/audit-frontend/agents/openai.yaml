@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Audit"
+  short_description: "Audit frontend and selected-source visual fidelity"
+  default_prompt: "Use $audit-frontend to run a read-only, profile-selected frontend audit, including traceable selected-source visual fidelity when applicable, and return P0-P3 evidence-ranked findings without editing code."
