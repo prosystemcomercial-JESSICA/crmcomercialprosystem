@@ -98,6 +98,7 @@ export default function TvEscritorioPage() {
   const [tema, setTema] = useState<'escuro' | 'claro'>('escuro');
   const ctxRef = useRef<AudioContext | null>(null);
   const vistosRef = useRef<Set<string> | null>(null);
+  const festejadosRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('tema');
@@ -184,7 +185,10 @@ export default function TvEscritorioPage() {
           const aceitou = evProp.find(e => ['ACEITA', 'CONTRATO_EM_GERACAO'].includes(e.status) && !vistos.has(`p:${e.id}`));
           const aNovos = alertas.filter(a => !vistos.has(`a:${a.id}`));
           const ctx = ctxRef.current;
-          if (aceitou) {
+          // Uma comemoração por cliente (aceita → contrato em geração não repete a festa).
+          const jaFestejou = aceitou && festejadosRef.current.has(aceitou.cliente);
+          if (aceitou) festejadosRef.current.add(aceitou.cliente);
+          if (aceitou && !jaFestejou) {
             if (ctx) somComemoracao(ctx);
             setFesta(aceitou);
             setAviso({ tom: 'ok', titulo: 'Proposta aceita', texto: `${aceitou.cliente}${aceitou.plano ? ` · ${aceitou.plano}` : ''}` });
