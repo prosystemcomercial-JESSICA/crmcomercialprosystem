@@ -809,7 +809,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (r && fase === 'resposta') {
     const ultM = await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true, transcricao: true } });
     const txt = ((ultM?.transcricao || ultM?.conteudo) || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-    if (/(treinament|implanta|videochamada|video chamada|ensinar|ensinando|orientar as|orientando|funcionari|virada|instalacao|agendar com voce|passar pra elas|passar para elas)/.test(txt)) {
+    if (/(treinament|implanta|videochamada|video chamada|ensinar|ensinando|orientar as|orientando|virada do sistema|agendar com voce|passar pra elas|passar para elas)/.test(txt)) {
       await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO' } });
       const { enviarAvisoGestao } = await import('./assistente-gestao.service');
       await enviarAvisoGestao(prisma, 'lead_qualificado', `💬 *${sdr.nome || 'Cliente'}* falou de implantação/treinamento na conversa do ${nomeDe(sdr)}:\n"${((ultM?.transcricao || ultM?.conteudo) || '').slice(0, 300)}"\nO agente não respondeu e saiu da conversa: o atendimento é seu.`).catch(() => {});
