@@ -100,7 +100,7 @@ export class CasoChurnService {
     // histórico de saída), mesmo com o cliente inativo. SISTEMA_REMOVIDO só acontece
     // depois de PERDIDO — o cliente já está sempre INATIVA nesse ponto — então sem
     // isso aqui a aba SISTEMA_REMOVIDO nunca mostrava nada (filtrava o próprio caso).
-    const ENCERRADOS = ['PERDIDO', 'RECUPERADO', 'SISTEMA_REMOVIDO'];
+    const ENCERRADOS = ['PERDIDO', 'RECUPERADO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
     const verEncerrados = filters.status && ENCERRADOS.includes(filters.status);
     const clienteWhere: any = {};
     if (!verEncerrados && !filters.status) {
@@ -204,6 +204,10 @@ export class CasoChurnService {
     if (data.status === 'SISTEMA_REMOVIDO' && caso.status !== 'PERDIDO') {
       throw new BadRequestError('Só é possível marcar "Sistema removido" a partir de um caso PERDIDO');
     }
+    // AGUARDANDO_EXCLUSAO: cadastro enviado ao CEO para exclusão. Só depois da perda (ou do sistema removido).
+    if (data.status === 'AGUARDANDO_EXCLUSAO' && !['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(caso.status)) {
+      throw new BadRequestError('Só é possível enviar para exclusão de cadastro um caso PERDIDO ou com sistema removido');
+    }
 
     // Limpa campos: '' em enum/numéricos não pode ir pro banco.
     const limpo: any = { ...data };
@@ -255,6 +259,18 @@ export class CasoChurnService {
           cliente_id: updated.clienteId, tipo: 'DESATIVACAO',
           titulo: '🗑️ Sistema removido',
           descricao: 'Sistema desligado/removido do cliente após confirmação da perda.',
+          referencia_id: id, feito_por: userId,
+        },
+      }).catch(() => {});
+    }
+
+    // AGUARDANDO_EXCLUSAO → registra na ficha do cliente que o cadastro foi enviado ao CEO para exclusão.
+    if (data.status === 'AGUARDANDO_EXCLUSAO' && caso.status !== 'AGUARDANDO_EXCLUSAO') {
+      await (this.prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: updated.clienteId, tipo: 'OBSERVACAO',
+          titulo: '📤 Enviado para exclusão de cadastro',
+          descricao: 'Cadastro enviado ao CEO para exclusão (aguardando exclusão).',
           referencia_id: id, feito_por: userId,
         },
       }).catch(() => {});
@@ -396,7 +412,7 @@ export class CasoChurnService {
     // A gestão pode mover o caso para QUALQUER etapa livremente (o kanban/seletor
     // mostra todas), inclusive pular etapas (ex.: NOVO → EXECUTANDO) ou reabrir um
     // caso. Só validamos que o destino é um status conhecido.
-    const STATUS_VALIDOS = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'];
+    const STATUS_VALIDOS = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
     return STATUS_VALIDOS.includes(to);
   }
 }

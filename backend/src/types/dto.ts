@@ -11,7 +11,7 @@ export const CreateCasoChurnSchema = z.object({
 });
 
 export const UpdateCasoChurnSchema = z.object({
-  status: z.enum(['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO']).optional(),
+  status: z.enum(['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO']).optional(),
   risk_score: z.number().min(0).max(100).optional(),
   motivo_principal: z.string().optional(),
   descricao: z.string().optional(),
