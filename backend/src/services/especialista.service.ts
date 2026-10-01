@@ -55,7 +55,10 @@ export async function estudarVendas(prisma: PrismaClient, tema: string | null = 
   const gravados = [];
   for (const d of docs) gravados.push(await gravarDoc(prisma, d, 'estudo', fontes));
   registrarAcaoAgente('rafael', `estudou e criou ${gravados.length} documento(s)`);
-  if (gravados.length) await avisar(prisma, [`📚 *Rafael estudou vendas e criou ${gravados.length} documento(s) para você aprovar*`, r?.resumo?.slice(0, 300) || '', ...gravados.map(g => `• [${g.tipo}] ${g.titulo}`), '', 'Veja e aprove no Escritório virtual › Rafael.'].join('\n'));
+  // Liberdade do Rafael: o que ele aprende passa a valer na hora e ele já treina a equipe.
+  for (const g of gravados) await decidirDoc(prisma, g.id, true, 'rafael').catch(() => {});
+  if (gravados.length) await avisar(prisma, [`📚 *Rafael estudou e já aplicou ${gravados.length} documento(s)*`, r?.resumo?.slice(0, 300) || '', ...gravados.map(g => `• [${g.tipo}] ${g.titulo}`), '', 'Ele vai treinar a Caroline, o Julio e o Luiz Felipe com esse material. Os relatórios chegam aqui; tudo fica no Escritório virtual › Rafael.'].join('\n'));
+  if (gravados.length) void transferirConhecimento(prisma, gravados.map(g => ({ titulo: g.titulo, conteudo: g.conteudo })));
   return { resumo: r?.resumo || '', documentos: gravados };
 }
 
@@ -276,7 +279,14 @@ export type FalaTreino = { quem: 'rafael' | 'agente'; texto: string };
  * gera o relatório, a conversa de treinamento entre os dois (para ver no escritório)
  * e as regras que o agente passa a seguir quando a Jessica aprovar.
  */
-export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe') {
+/** Transfere conhecimento novo: treina os agentes que conversam com clientes, um de cada vez. */
+export async function transferirConhecimento(prisma: PrismaClient, foco: { titulo: string; conteudo: string }[]) {
+  for (const ag of ['caroline', 'julio', 'luiz_felipe'] as const) {
+    await treinarAgente(prisma, ag, { foco }).catch(e => console.error('[RAFAEL] transferir:', ag, e?.message));
+  }
+}
+
+export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe', opts: { foco?: { titulo: string; conteudo: string }[] } = {}) {
   const nome = NOME_AGENTE[agente] || agente;
   const desde = new Date(Date.now() - 14 * 864e5);
   const leads = await prisma.sdrLead.findMany({ where: { agente, updated_at: { gte: desde } }, orderBy: { updated_at: 'desc' }, take: 25, select: { conversaId: true, nome: true, empresa: true, status: true } });
@@ -288,7 +298,7 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
     const linhas = ms.reverse().map(m => `[${m.created_at.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}] ${m.direcao === 'ENTRADA' ? 'Cliente' : m.enviada_por === agente ? nome : AUTOMATICOS.includes(m.enviada_por || '') ? `Sistema(${m.enviada_por})` : 'Equipe'}: ${((m.tipo === 'AUDIO' ? m.transcricao : m.conteudo) || `[${String(m.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 280)}`);
     conversas.push(`### ${l.empresa || l.nome || 'cliente'} (status ${l.status})\n${linhas.join('\n')}`);
   }
-  if (!conversas.length) { registrarAcaoAgente('rafael', `não achou conversas recentes do ${nome} para treinar`); return null; }
+  if (!conversas.length && !opts.foco?.length) { registrarAcaoAgente('rafael', `não achou conversas recentes do ${nome} para treinar`); return null; }
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const regrasAtuais = await instrucoesPara(prisma, agente);
   const pops = await prisma.especialistaDoc.findMany({ where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO'] } }, select: { titulo: true, conteudo: true }, take: 6, orderBy: { decidido_em: 'desc' } });
@@ -301,6 +311,7 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
     'Responda APENAS com JSON: {"resumo": string, "nota_antes": 0-10, "pontos_fortes": [string], "problemas": [{"problema": string, "exemplo_real": string, "por_que": string, "como_fazer": string, "mensagem_melhor": string}], "regras": [string], "dialogo": [{"quem": "rafael"|"agente", "texto": string}], "pesquisar": [string]}',
     regrasAtuais ? `\nRegras atuais do agente:${regrasAtuais}` : '',
     pops.length ? `\nMaterial aprovado do setor (use como referência):\n${pops.map(x => `## ${x.titulo}\n${x.conteudo.slice(0, 1500)}`).join('\n\n')}` : '',
+    opts.foco?.length ? `\n=== CONHECIMENTO NOVO QUE VOCÊ ACABOU DE APRENDER E DEVE ENSINAR AGORA (de forma 100% didática: explique o porquê, mostre um exemplo real ou plausível de WhatsApp, peça para o agente reescrever e valide; transforme em regras práticas) ===\n${opts.foco.map(x => `## ${x.titulo}\n${x.conteudo.slice(0, 3000)}`).join('\n\n')}` : '',
     `\n=== CONVERSAS DO ${nome.toUpperCase()} (últimos 14 dias) ===\n${conversas.join('\n\n')}`,
   ].filter(Boolean).join('\n');
   const r = lerJsonIa<any>(await chamarGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), partes: [{ text: pergunta }], json: true, temperatura: 0.4, timeoutMs: 180_000 }));
@@ -319,11 +330,12 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
     '', '## Conversa do treinamento', ...dialogo.map(f => `- **${f.quem === 'rafael' ? 'Rafael' : nome}:** ${f.texto}`),
     ...((r.pesquisar || []).length ? ['', '## O Rafael foi pesquisar', ...(r.pesquisar as string[]).slice(0, 2).map(x => `- ${x}`)] : []),
   ].join('\n');
-  const doc = await gravarDoc(prisma, { tipo: 'TREINAMENTO', titulo: `Treinamento do ${nome} · ${dia}`, conteudo: md, agente_alvo: agente }, 'treinamento', { dialogo, regras, conversas: conversas.length, nota_antes: r.nota_antes ?? null });
+  const doc = await gravarDoc(prisma, { tipo: 'TREINAMENTO', titulo: `Treinamento do ${nome} · ${dia}${opts.foco?.length ? ' · conhecimento novo' : ''}`, conteudo: md, agente_alvo: agente }, 'treinamento', { dialogo, regras, conversas: conversas.length, nota_antes: r.nota_antes ?? null });
+  await decidirDoc(prisma, doc.id, true, 'rafael').catch(() => {}); // liberdade total: as regras valem na hora
   registrarAcaoAgente('rafael', `treinou o ${nome}: ${(r.problemas || []).length} pontos a melhorar`);
   registrarAcaoAgente(agente as any, `recebeu treinamento do Rafael (${regras.length} regras)`);
   import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('rafael', agente, `Treinamento do ${nome}`, dialogo.slice(0, 4).map(f => ({ quem: f.quem === 'rafael' ? 'rafael' : agente, texto: f.texto })))).catch(() => {});
-  await avisar(prisma, [`🎓 *Rafael treinou o ${nome}*`, r.resumo?.slice(0, 280) || '', `${(r.problemas || []).length} ponto(s) a melhorar · ${regras.length} regra(s) novas.`, '', 'Leia o relatório, veja os dois conversando e aprove no Escritório virtual › Rafael (ao aprovar, as regras passam a valer).'].filter(Boolean).join('\n'));
+  await avisar(prisma, [`🎓 *Rafael treinou o ${nome}*`, r.resumo?.slice(0, 280) || '', `${(r.problemas || []).length} ponto(s) a melhorar · ${regras.length} regra(s) novas.`, '', 'As regras já estão valendo. O relatório e a conversa do treino estão no Escritório virtual › Treinamentos.'].filter(Boolean).join('\n'));
   // Iniciativa: o que ele não sabia, vai pesquisar.
   for (const q of ((r.pesquisar || []) as string[]).slice(0, 2)) await pesquisarDuvida(prisma, q, 'Rafael (treinamento)').catch(() => {});
   return doc;
@@ -354,7 +366,8 @@ export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, orig
   if (!r?.titulo || !r?.conteudo) return null;
   const doc = await gravarDoc(prisma, { tipo: 'DICA', titulo: r.titulo.startsWith('Resposta') ? r.titulo : `Resposta: ${r.titulo}`, conteudo: `> Pergunta: "${q}" (${origem})\n\n${r.conteudo}` }, 'duvida', fontes);
   registrarAcaoAgente('rafael', `pesquisou e respondeu: "${q.slice(0, 50)}"`);
-  await avisar(prisma, [`🔎 *Rafael pesquisou uma dúvida que ninguém sabia*`, `"${q.slice(0, 200)}"`, '', 'A resposta está no Escritório virtual › Rafael. Aprovada, vale para todos os agentes.'].join('\n'));
+  await decidirDoc(prisma, doc.id, true, 'rafael').catch(() => {}); // vale na hora para todos os agentes
+  await avisar(prisma, [`🔎 *Rafael pesquisou uma dúvida que ninguém sabia*`, `"${q.slice(0, 200)}"`, '', 'A resposta já vale para todos os agentes. Está no Escritório virtual › Rafael.'].join('\n'));
   return doc;
 }
 
@@ -445,6 +458,13 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   }
   if (dia === 'Wed' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, `rafael.estudo.${hoje}`, 20)) {
     await estudarVendas(prisma).catch(e => console.error('[RAFAEL] estudo:', e?.message));
+  }
+  // Feedback e retreino semanal: Caroline (segunda), Julio (terça), Luiz Felipe (quinta).
+  if (dia === 'Mon' && hora >= 14 && hora < 16 && await podeEnviarUmaVez(prisma, `rafael.treino.caroline.${hoje}`, 20)) {
+    await treinarAgente(prisma, 'caroline').catch(e => console.error('[RAFAEL] treino:', e?.message));
+  }
+  if (dia === 'Tue' && hora >= 14 && hora < 16 && await podeEnviarUmaVez(prisma, `rafael.treino.julio.${hoje}`, 20)) {
+    await treinarAgente(prisma, 'julio').catch(e => console.error('[RAFAEL] treino:', e?.message));
   }
   if (dia === 'Thu' && hora >= 10 && hora < 12 && await podeEnviarUmaVez(prisma, `rafael.treino.luiz_felipe.${hoje}`, 20)) {
     await treinarAgente(prisma, 'luiz_felipe').catch(e => console.error('[RAFAEL] treino:', e?.message));
