@@ -374,8 +374,9 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
   let cacheEscritorio: { em: number; dados: any } | null = null;
   fastify.post('/painel-tv/escritorio/teste-comemoracao', async (request, reply) => {
     if (!podeVerTudo(getUser(request))) return reply.status(403).send({ status: 'error', message: 'Sem permissão' });
-    const { dispararComemoracaoTeste } = await import('../services/tv-escritorio.service');
+    const { dispararComemoracaoTeste } = await import('@/services/tv-escritorio.service');
     dispararComemoracaoTeste();
+    cacheEscritorio = null;
     return { status: 'success' };
   });
 
