@@ -12,6 +12,7 @@ type Card = {
   id: string; etapa: string | null; valor_venda: number | null; descricao_servico: string | null; observacoes: string | null;
   autorizador_nome: string | null; autorizador_cpf: string | null; vendedor_nome: string | null; status: string; created_at: string;
   cliente?: { nome?: string | null; empresa?: string | null } | null;
+  data_venda?: string | null; parceiro?: { nome?: string | null; categoria?: string | null } | null;
   enviado_em?: string | null; aceite_em?: string | null; execucao_em?: string | null; concluido_em?: string | null; financeiro_em?: string | null; lancado_em?: string | null;
 };
 
@@ -37,12 +38,15 @@ export default function KanbanServicos({ onNovaVenda, versao }: { onNovaVenda: (
 
   const carregar = useCallback(async () => {
     try {
-      const ps = await apiClient.getParceiros();
-      const serv = (ps.data.data as any[]).find(p => p.categoria === 'SERVICO');
-      if (!serv) { setCards([]); return; }
-      const r = await apiClient.getVendasAdicionais({ parceiro_id: serv.id });
+      // Todas as vendas do cross-sell (serviço, comunicação, integradora...). Venda sem fase entra
+      // pela situação: pendente → Orçamento; confirmada → Enviado ao Thiago; paga → Lançado.
+      const r = await apiClient.getVendasAdicionais({});
       const lista = (r.data.data?.vendas || r.data.data || []) as Card[];
-      setCards(lista.filter(v => v.status !== 'CANCELADO'));
+      const limiteLancado = Date.now() - 60 * 864e5;
+      setCards(lista
+        .filter(v => v.status !== 'CANCELADO' && v.etapa !== 'RECUSADO')
+        .map(v => ({ ...v, etapa: v.etapa || (v.status === 'PAGA' ? 'LANCADO' : v.status === 'CONFIRMADA' ? 'NO_FINANCEIRO' : 'ORCAMENTO') }))
+        .filter(v => v.etapa !== 'LANCADO' || new Date(v.lancado_em || v.data_venda || v.created_at).getTime() >= limiteLancado));
     } catch { setCards([]); }
   }, []);
   useEffect(() => { carregar(); }, [carregar, versao]);
@@ -84,6 +88,27 @@ export default function KanbanServicos({ onNovaVenda, versao }: { onNovaVenda: (
     } catch { showToast.error('Não deu certo', 'Tente de novo.'); }
   };
 
+  const recusar = async (card: Card) => {
+    const motivo = window.prompt(`Por que ${nomeCli(card)} recusou o orçamento?\n(ex.: preço, já resolveu com outro, não precisa agora, sem retorno)`);
+    if (!motivo || !motivo.trim()) return;
+    try {
+      await apiClient.etapaVendaAdicional(card.id, { etapa: 'RECUSADO', motivo: motivo.trim() });
+      showToast.success('Recusa registrada', 'O card saiu do kanban e o motivo ficou salvo.');
+      setAberto(null);
+      carregar();
+    } catch (e: any) { showToast.error('Não deu certo', e?.response?.data?.message || 'Tente de novo.'); }
+  };
+
+  const salvarDataVenda = async (card: Card, valor: string) => {
+    if (!valor) return;
+    try {
+      await apiClient.updateVendaAdicional(card.id, { data_venda: valor });
+      showToast.success('Data da venda atualizada', 'Em venda de mês anterior, as fases e a comissão seguem essa data.');
+      setAberto(a => a && { ...a, data_venda: `${valor}T12:00:00-03:00` });
+      carregar();
+    } catch (e: any) { showToast.error('Não deu certo', e?.response?.data?.message || 'Tente de novo.'); }
+  };
+
   const nomeCli = (c: Card) => (c.cliente?.empresa || c.cliente?.nome || 'Cliente').trim();
 
   return (
@@ -118,7 +143,8 @@ export default function KanbanServicos({ onNovaVenda, versao }: { onNovaVenda: (
                     <div key={c.id} draggable onDragStart={() => setArrastando(c.id)} onDragEnd={() => setArrastando(null)} onClick={() => setAberto(c)}
                       style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderLeft: `3px solid ${f.cor}`, borderRadius: 10, padding: 10, cursor: 'grab', opacity: arrastando === c.id ? 0.5 : 1, display: 'grid', gap: 4 }}>
                       <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{nomeCli(c)}</b>
-                      <span style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.descricao_servico || 'Serviço'}</span>
+                      <span style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.descricao_servico || c.parceiro?.nome || 'Serviço'}</span>
+                      {c.data_venda && <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>📅 venda em {new Date(c.data_venda).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                         <b style={{ color: 'var(--t-text-primary)' }}>{brl(c.valor_venda)}</b>
                         <span style={{ color: d != null && d >= 5 && f.k !== 'LANCADO' ? '#dc2626' : 'var(--t-text-muted)' }}>{d == null ? '' : d === 0 ? 'hoje' : `${d}d nesta fase`}</span>
@@ -127,6 +153,7 @@ export default function KanbanServicos({ onNovaVenda, versao }: { onNovaVenda: (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
                         {['ORCAMENTO', 'ENVIADO'].includes(f.k) && <button onClick={() => copiar(c.id, 'orcamento')} style={btnMini}>📋 Orçamento</button>}
                         {['CONCLUIDO', 'NO_FINANCEIRO', 'LANCADO'].includes(f.k) && <button onClick={() => copiar(c.id, 'financeiro')} style={btnMini}>📋 Texto do Thiago</button>}
+                        {['ORCAMENTO', 'ENVIADO'].includes(f.k) && <button onClick={() => recusar(c)} style={{ ...btnMini, borderColor: '#fca5a5', color: '#dc2626' }}>✖ Recusou</button>}
                       </div>
                     </div>
                   );
@@ -151,6 +178,12 @@ export default function KanbanServicos({ onNovaVenda, versao }: { onNovaVenda: (
               <span><b>Valor:</b> {brl(aberto.valor_venda)} · <b>Vendedor:</b> {aberto.vendedor_nome || '—'}</span>
               <span><b>Fase:</b> {FASES.find(x => x.k === (aberto.etapa || 'ORCAMENTO'))?.rot}</span>
               {aberto.autorizador_nome && <span><b>Autorizado por:</b> {aberto.autorizador_nome} · CPF {aberto.autorizador_cpf}</span>}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <b>Data da venda:</b>
+                <input type="date" defaultValue={(aberto.data_venda || aberto.created_at || '').slice(0, 10)} onChange={e => salvarDataVenda(aberto, e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }} />
+              </label>
+              <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Venda retroativa: coloque a data real e depois arraste o card até a fase certa. As datas e o mês da comissão seguem essa data.</span>
             </div>
             <div>
               <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>Observações</b>
@@ -166,6 +199,7 @@ export default function KanbanServicos({ onNovaVenda, versao }: { onNovaVenda: (
               {FASES.filter(x => x.k !== (aberto.etapa || 'ORCAMENTO')).map(x => (
                 <button key={x.k} onClick={async () => { await mover(aberto, x.k); setAberto(null); }} style={{ ...btnMini, borderColor: x.cor, color: x.cor }}>{x.rot}</button>
               ))}
+              <button onClick={() => recusar(aberto)} style={{ ...btnMini, borderColor: '#fca5a5', color: '#dc2626' }}>✖ Cliente recusou</button>
             </div>
           </div>
         </div>
