@@ -1161,6 +1161,51 @@ async function abastecerFila(prisma: PrismaClient, agente: 'julio' | 'luiz_felip
   }
 }
 
+/**
+ * Conversa assumida por uma pessoa (pedido da Jessica, 01/10/2026): se a última mensagem foi nossa e o cliente
+ * sumiu, o agente retoma com base na conversa. 1ª retomada após 1 dia útil sem resposta; 2ª após mais 3 dias
+ * úteis; depois para. A conversa continua sendo de quem assumiu: se o cliente responder, o agente não responde.
+ * Não vale para quem já é cliente (suporte, financeiro) nem para conversa finalizada.
+ */
+const RETOMADAS_ASSUMIDA = [1, 3];
+async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: string[], agora: Date) {
+  const candidatos = await prisma.sdrLead.findMany({
+    where: { status: 'HUMANO', agente: { in: ativos }, conversaId: { not: null }, updated_at: { gte: new Date(agora.getTime() - 60 * 864e5) } },
+    orderBy: { updated_at: 'desc' }, take: 40,
+  });
+  let enviadas = 0;
+  for (const s of candidatos) {
+    if (enviadas >= 3) break; // poucas por rodada, para proteger o número
+    const d: any = s.dados || {};
+    if (d.ja_cliente) continue;
+    const conv = await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId! }, select: { finalizada_em: true, tipo_contato: true } });
+    if (!conv || conv.finalizada_em || conv.tipo_contato === 'EQUIPE' || conv.tipo_contato === 'CLIENTE') continue;
+    const [ultSaida, ultEntrada] = await Promise.all([
+      prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'SAIDA' }, orderBy: { created_at: 'desc' }, select: { id: true, created_at: true, enviada_por: true } }),
+      prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { created_at: true } }),
+    ]);
+    if (!ultSaida || !ultEntrada || ultEntrada.created_at > ultSaida.created_at) continue; // cliente respondeu: é com a pessoa
+    const f = d.retomada_assumida || {};
+    // Contagem recomeça quando a última fala não é uma retomada nossa (a pessoa voltou a falar com o cliente).
+    const n = f.ultima_msg_id && f.ultima_msg_id === ultSaida.id ? Number(f.n || 0) : 0;
+    if (n >= RETOMADAS_ASSUMIDA.length) continue;
+    if (diasUteisEntre(ultSaida.created_at, agora) < RETOMADAS_ASSUMIDA[n]) continue;
+    if (await ehClienteAtivo(prisma, s.numero)) continue;
+    const dica = `CONVERSA ASSUMIDA PELA EQUIPE: uma pessoa da equipe estava atendendo este cliente e ele parou de responder há ${diasUteisEntre(ultSaida.created_at, agora)} dia(s) útil(eis). `
+      + 'Leia a conversa inteira e escreva UMA retomada curta continuando exatamente do ponto em que parou (o último assunto, a última pergunta ou o próximo passo combinado), com leveza e sem cobrança. '
+      + 'Não se reapresente como se fosse o primeiro contato, não repita o que já foi dito e não invente valores ou condições. Termine com uma pergunta fácil de responder. Use acao "continuar".'
+      + (n > 0 ? ' Esta é a segunda e última retomada: deixe a porta aberta, sem insistir.' : '');
+    const r = await gerarResposta(prisma, s, 'retomada', dica).catch(() => null);
+    if (!r || !r.mensagens.length) continue;
+    await enviarMensagens(prisma, token, s, r.mensagens.slice(0, 2));
+    const ultima = await prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'SAIDA' }, orderBy: { created_at: 'desc' }, select: { id: true } });
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, retomada_assumida: { n: n + 1, em: agora.toISOString(), ultima_msg_id: ultima?.id || null } } } });
+    await prisma.sdrMensagem.create({ data: { sdrId: s.id, conversaId: s.conversaId!, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: 'retomada_assumida', decidido_em: agora } }).catch(() => {});
+    registrarAcaoAgente(agenteDe(s), `retomou a conversa assumida de ${s.nome || 'um lead'} (${n + 1}ª tentativa): o cliente tinha parado de responder`);
+    enviadas++;
+  }
+}
+
 export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): Promise<void> {
   const cfgs = Object.fromEntries(await Promise.all(AGENTES_SDR.map(async a => [a, await obterConfigAgente(prisma, a)] as const))) as Record<PerfilSdr, ConfigCaroline>;
   const ativos = AGENTES_SDR.filter(a => trabalhando(cfgs[a], agora));
@@ -1265,6 +1310,9 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     // Retomada só nos horários em que o comerciante costuma olhar o celular (9h–11h30 e 14h–17h).
     if (deveRetomar(s.tentativas, s.ultima_caroline_em, agora) && horaBoaParaRetomar(agora)) await falar(prisma, token, s.id, 'retomada');
   }
+
+  // 2b) Conversas assumidas por uma pessoa em que o cliente parou de responder: o agente retoma no contexto.
+  if (horaBoaParaRetomar(agora)) await retomarAssumidas(prisma, token, ativos, agora).catch((e: any) => console.warn('[AGENTES] retomar assumidas:', e?.message));
 
   // 3) Primeiros contatos: UM por vez para todos os agentes juntos, intervalo sorteado (4–9 min)
   //    e um limite do dia ÚNICO (Caroline + Julio + Luiz Felipe + campanhas). Protege o número.
