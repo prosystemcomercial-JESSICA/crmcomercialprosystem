@@ -805,6 +805,18 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   }
   if (fase === 'resposta') dicaDecisor = [dicaDecisor, await contextoDoCliente(prisma, sdr.numero)].filter(Boolean).join('\n');
   let r = await gerarResposta(prisma, sdr, fase, dicaDecisor);
+  // Trava: cliente falando de implantação/treinamento/combinados com a equipe → é com uma pessoa: o agente sai, sem mensagem.
+  if (r && fase === 'resposta') {
+    const ultM = await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true, transcricao: true } });
+    const txt = ((ultM?.transcricao || ultM?.conteudo) || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    if (/(treinament|implanta|videochamada|video chamada|ensinar|ensinando|orientar as|orientando|funcionari|virada|instalacao|agendar com voce|passar pra elas|passar para elas)/.test(txt)) {
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO' } });
+      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `💬 *${sdr.nome || 'Cliente'}* falou de implantação/treinamento na conversa do ${nomeDe(sdr)}:\n"${((ultM?.transcricao || ultM?.conteudo) || '').slice(0, 300)}"\nO agente não respondeu e saiu da conversa: o atendimento é seu.`).catch(() => {});
+      registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'um cliente'} falou de implantação/treinamento: passou para a equipe`);
+      return 'nada';
+    }
+  }
   // Trava: cliente falando de serviço contratado, valor ou alguém da equipe não vai para o suporte.
   if (r && r.acao === 'encaminhar_suporte' && fase === 'resposta') {
     const ult = (await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true } }))?.conteudo || '';
