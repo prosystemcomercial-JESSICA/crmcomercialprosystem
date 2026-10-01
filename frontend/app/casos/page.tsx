@@ -1,5 +1,6 @@
 'use client';
 
+import GraficosChurn from '@/components/casos/GraficosChurn';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -367,7 +368,7 @@ export default function CasosPage() {
   // Gate de role interno: mesmo dentro de /casos (visível a papéis técnicos),
   // só CEO/ADMIN/SUPERVISAO_COMERCIAL podem ver a aba "Visão Executiva".
   const podeVerVisaoExecutiva = SO_CEO_ROLES.includes((user?.role || '').toUpperCase());
-  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'executiva'>('lista');
+  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'executiva' | 'graficos'>('lista');
 
   // Dados da aba executiva (Radar): busca própria (getCasos(0,200) sem filtro),
   // guardada em state SEPARADO de `casos` (que alimenta a Lista paginada) para
@@ -679,6 +680,12 @@ export default function CasosPage() {
             >
               ◎ Visão Executiva
             </button>
+            <button
+              onClick={() => setAbaAtiva('graficos')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'graficos' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
+            >
+              📊 Gráficos
+            </button>
           </div>
         )}
 
@@ -738,6 +745,8 @@ export default function CasosPage() {
             </div>
           );
         })()}
+
+        {abaAtiva === 'graficos' && podeVerVisaoExecutiva && <GraficosChurn />}
 
         {/* ===== ABA LISTA ===== */}
         {abaAtiva === 'lista' && <>

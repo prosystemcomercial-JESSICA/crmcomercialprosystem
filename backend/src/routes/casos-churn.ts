@@ -104,6 +104,47 @@ export async function casosChurnRoutes(
   );
 
   // GET /casos-churn/:id — Obter caso por ID
+  // Gráficos de churn por mês: recuperados x perdidos, valores (mensalidade) perdidos e salvos, motivos.
+  // Data de referência: resolução do caso (resolvido_em; sem ela, a última atualização).
+  fastify.get('/casos-churn/graficos', { onRequest: requireAuth }, async (request, reply) => {
+    const ano = Number((request.query as any)?.ano) || new Date().getFullYear();
+    const ini = new Date(`${ano}-01-01T00:00:00-03:00`), fim = new Date(`${ano + 1}-01-01T00:00:00-03:00`);
+    const PERDA = ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
+    const casos: any[] = await prisma.casoChurn.findMany({
+      select: { status: true, created_at: true, updated_at: true, resolvido_em: true, motivo_principal: true, fin_valor_atraso: true,
+        cliente: { select: { mensalidade_base: true, mrr_perdido: true } } } as any,
+    });
+    const mesDe = (d: Date) => Number(d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(5, 7)) - 1;
+    const meses = Array.from({ length: 12 }, (_, i) => ({ mes: i + 1, abertos: 0, recuperados: 0, perdidos: 0, valor_perdido: 0, valor_recuperado: 0, divida_perdida: 0 }));
+    const motivos: Record<string, { perdidos: number; recuperados: number }> = {};
+    for (const c of casos) {
+      if (c.created_at >= ini && c.created_at < fim) meses[mesDe(c.created_at)].abertos++;
+      const perda = PERDA.includes(c.status), rec = c.status === 'RECUPERADO';
+      if (!perda && !rec) continue;
+      const quando: Date = c.resolvido_em || c.updated_at;
+      if (quando < ini || quando >= fim) continue;
+      const m = meses[mesDe(quando)];
+      const mensal = Number(c.cliente?.mrr_perdido || c.cliente?.mensalidade_base || 0);
+      const mot = (c.motivo_principal || 'Sem motivo informado').trim().slice(0, 60);
+      motivos[mot] ||= { perdidos: 0, recuperados: 0 };
+      if (perda) { m.perdidos++; m.valor_perdido += mensal; m.divida_perdida += Number(c.fin_valor_atraso || 0); motivos[mot].perdidos++; }
+      else { m.recuperados++; m.valor_recuperado += Number(c.cliente?.mensalidade_base || 0); motivos[mot].recuperados++; }
+    }
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    meses.forEach(m => { m.valor_perdido = r2(m.valor_perdido); m.valor_recuperado = r2(m.valor_recuperado); m.divida_perdida = r2(m.divida_perdida); });
+    const tot = meses.reduce((a, m) => ({ recuperados: a.recuperados + m.recuperados, perdidos: a.perdidos + m.perdidos, valor_perdido: a.valor_perdido + m.valor_perdido, valor_recuperado: a.valor_recuperado + m.valor_recuperado, abertos: a.abertos + m.abertos }), { recuperados: 0, perdidos: 0, valor_perdido: 0, valor_recuperado: 0, abertos: 0 });
+    const melhor = [...meses].sort((a, b) => b.recuperados - a.recuperados)[0];
+    const pior = [...meses].sort((a, b) => b.perdidos - a.perdidos)[0];
+    const anos = [...new Set(casos.map(c => Number((c.resolvido_em || c.created_at).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 4))))].sort((a, b) => b - a);
+    return reply.send({ status: 'success', data: {
+      ano, anos, meses,
+      totais: { ...tot, valor_perdido: r2(tot.valor_perdido), valor_recuperado: r2(tot.valor_recuperado), taxa_recuperacao: tot.recuperados + tot.perdidos ? Math.round((tot.recuperados / (tot.recuperados + tot.perdidos)) * 100) : null },
+      melhor_mes_recuperacao: melhor?.recuperados ? melhor.mes : null,
+      pior_mes_perda: pior?.perdidos ? pior.mes : null,
+      motivos: Object.entries(motivos).map(([motivo, v]) => ({ motivo, ...v })).sort((a, b) => (b.perdidos + b.recuperados) - (a.perdidos + a.recuperados)).slice(0, 8),
+    } });
+  });
+
   fastify.get('/casos-churn/:id', { onRequest: requireAuth }, async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
