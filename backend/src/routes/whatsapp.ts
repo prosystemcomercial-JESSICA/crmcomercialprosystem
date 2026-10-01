@@ -1922,7 +1922,14 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
             data: { bot_estado: null, bot_dados: Prisma.DbNull },
           });
         }
-        if (ehNova || triagemVencida) {
+        // Contato da equipe/parceiro/fornecedor (nesta conversa ou em outra do mesmo número): nada de robô.
+        const { TIPOS_SEM_IA } = await import('@/lib/laya');
+        const semRobo = (conversa as any).tipo_contato && TIPOS_SEM_IA.includes((conversa as any).tipo_contato)
+          ? (conversa as any).tipo_contato
+          : (await prisma.whatsappConversa.findFirst({ where: { contato_numero: { endsWith: contato_numero.slice(-8) }, tipo_contato: { in: TIPOS_SEM_IA } }, select: { tipo_contato: true } }).catch(() => null))?.tipo_contato;
+        if (semRobo) {
+          if (!(conversa as any).tipo_contato) await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { tipo_contato: semRobo, bot_ativo: false } }).catch(() => {});
+        } else if (ehNova || triagemVencida) {
           const sufTel = contato_numero.slice(-8);
           const clienteBase = await prisma.cliente.findFirst({
             where: { telefone: { contains: sufTel } },
