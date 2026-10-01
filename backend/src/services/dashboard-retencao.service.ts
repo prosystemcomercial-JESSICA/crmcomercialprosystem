@@ -120,7 +120,8 @@ export class DashboardRetencaoService {
           PERDIDO: 0
         };
       }
-      chartData[dia][caso.status]++;
+      // Sistema removido e aguardando exclusão do cadastro continuam contando como perdidos.
+      chartData[dia][['SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(caso.status) ? 'PERDIDO' : caso.status]++;
     });
 
     return Object.entries(chartData).map(([dia, statuses]) => ({

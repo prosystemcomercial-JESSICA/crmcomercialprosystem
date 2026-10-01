@@ -59,7 +59,7 @@ interface Caso {
 
 // Casos encerrados: risco não se aplica mais (não faz sentido reclassificar ou
 // destacar como crítico algo que já foi resolvido, perdido, ou teve o sistema removido).
-const ENCERRADOS = ['RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'];
+const ENCERRADOS = ['RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
 
 const STATUS_COLORS: Record<string, string> = {
   NOVO: 'bg-opacity-0 ',
@@ -69,6 +69,7 @@ const STATUS_COLORS: Record<string, string> = {
   RECUPERADO: 'bg-green-100 text-green-700',
   PERDIDO: 'bg-red-100 text-red-700',
   SISTEMA_REMOVIDO: 'bg-gray-200 text-gray-700',
+  AGUARDANDO_EXCLUSAO: 'bg-slate-200 text-slate-700',
 };
 
 // Classificação de risco do cliente em churn — 4 faixas.
@@ -258,6 +259,7 @@ const COLUNAS_CASO: { k: string; rot: string; dica: string; cor: string }[] = [
   { k: 'EXECUTANDO', rot: 'Em execução', dica: 'Plano sendo aplicado com o cliente', cor: '#d97706' },
   { k: 'RECUPERADO', rot: 'Recuperado', dica: 'Cliente ficou', cor: '#16a34a' },
   { k: 'PERDIDO', rot: 'Perdido', dica: 'Cliente saiu (inclui sistema removido)', cor: '#dc2626' },
+  { k: 'AGUARDANDO_EXCLUSAO', rot: 'Aguardando exclusão do cadastro', dica: 'Enviado ao CEO para excluir o cadastro', cor: '#475569' },
 ];
 const RISCO_PILL = (s: number) => s >= 85 ? { t: 'Crítico', bg: '#fee2e2', c: '#b91c1c' } : s >= 70 ? { t: 'Alto', bg: '#ffedd5', c: '#c2410c' } : s >= 40 ? { t: 'Médio', bg: '#fef3c7', c: '#a16207' } : { t: 'Baixo', bg: '#dcfce7', c: '#15803d' };
 const chip = (bg: string, c: string): React.CSSProperties => ({ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: bg, color: c });
@@ -273,7 +275,7 @@ function KanbanCasos({ casos, carregando, arrastando, sobre, setArrastando, setS
   return (
     <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(250px, 1fr)', gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
       {COLUNAS_CASO.map(col => {
-        const encerrada = col.k === 'RECUPERADO' || col.k === 'PERDIDO';
+        const encerrada = col.k === 'RECUPERADO' || col.k === 'PERDIDO' || col.k === 'AGUARDANDO_EXCLUSAO';
         const lista = casos.filter(c => colunaDe(c) === col.k)
           .sort((a, b) => encerrada ? quando(b) - quando(a) : (b.risk_score - a.risk_score) || (diasEmAberto(b) - diasEmAberto(a)));
         const visiveis = encerrada ? lista.slice(0, 25) : lista;
@@ -617,7 +619,7 @@ export default function CasosPage() {
     );
   }
 
-  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'];
+  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
 
   return (
     <DashboardLayout>
@@ -914,7 +916,7 @@ export default function CasosPage() {
                           {[
                             'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO',
                             // "Sistema removido" só é uma opção válida a partir de PERDIDO (regra do backend).
-                            ...(caso.status === 'PERDIDO' || caso.status === 'SISTEMA_REMOVIDO' ? ['SISTEMA_REMOVIDO'] : []),
+                            ...(caso.status === 'PERDIDO' || caso.status === 'SISTEMA_REMOVIDO' || caso.status === 'AGUARDANDO_EXCLUSAO' ? ['SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'] : []),
                           ].map(s => (
                             <option key={s} value={s}>{s}</option>
                           ))}
