@@ -1309,7 +1309,16 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       continue;
     }
     // Retomada só nos horários em que o comerciante costuma olhar o celular (9h–11h30 e 14h–17h).
-    if (deveRetomar(s.tentativas, s.ultima_caroline_em, agora) && horaBoaParaRetomar(agora)) await falar(prisma, token, s.id, 'retomada');
+    // Quem demonstrou interesse (pediu demonstração, proposta, preço, orçamento, "quero conhecer") não espera o
+    // ritmo do lead frio: retomada a cada dia útil (pedido da Jessica, 01/10/2026).
+    const interessado = (s.nota ?? 0) >= 35 || !!(s.conversaId && await prisma.whatsappMensagem.findFirst({
+      where: { conversaId: s.conversaId, direcao: 'ENTRADA', OR: ['demonstra', 'apresenta', 'quero conhecer', 'proposta', 'valor', 'preço', 'preco', 'orçamento', 'orcamento', 'comprar'].map(t => ({ conteudo: { contains: t } })) },
+      select: { id: true },
+    }));
+    const pronto = interessado
+      ? !!s.ultima_caroline_em && s.tentativas < TENTATIVAS_MAX && diasUteisEntre(s.ultima_caroline_em, agora) >= 1
+      : deveRetomar(s.tentativas, s.ultima_caroline_em, agora);
+    if (pronto && horaBoaParaRetomar(agora)) await falar(prisma, token, s.id, 'retomada');
   }
 
   // 2b) Conversas assumidas por uma pessoa em que o cliente parou de responder: o agente retoma no contexto.
