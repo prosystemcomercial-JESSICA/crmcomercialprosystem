@@ -1,0 +1,63 @@
+{
+  "schema_version": "frontend-visual-evidence/v1",
+  "stage": "final",
+  "task_id": "synthetic-visual-evidence-example",
+  "selected_source": {
+    "identity": "Synthetic selected visual reference",
+    "revision": "synthetic-source-001",
+    "approval": { "status": "approved", "approved_by": "synthetic approver", "approved_at": "2030-01-01T00:00:00+00:00" },
+    "rights": { "allowed_use": "Synthetic example use only", "redistribution": "Not verified" },
+    "use": ["Synthetic visual layout and role evidence only"],
+    "ignore": ["Project-specific paths, brands, data, behavior, and uninspected values"],
+    "viewport": { "width": 1280, "height": 800, "zoom": 1 },
+    "state": "synthetic populated state at scroll origin",
+    "limitations": ["This committed example is structural only and proves no external runtime claim"]
+  },
+  "required_runtime_matrix": [
+    {
+      "id": "synthetic-desktop-populated",
+      "viewport": { "width": 1280, "height": 800, "zoom": 1 },
+      "state": "synthetic populated state at scroll origin",
+      "target_fingerprint": "sha256:845fa067a8bb79ec8ec5f2ad5accfc97d44dbe9bb49634e0b4a17e0ac28b790e"
+    }
+  ],
+  "evidence": [
+    { "id": "SOURCE-001", "level": "source-extracted", "claim": "Synthetic selected-source geometry", "source": "Synthetic selected-source inspect record", "viewport": { "width": 1280, "height": 800, "zoom": 1 }, "state": "synthetic populated state at scroll origin", "limitation": "Exact only for this synthetic record" },
+    { "id": "SOURCE-002", "level": "visually-inferred", "claim": "Synthetic visual roles are distinct", "source": "Synthetic selected-source visual observation", "viewport": { "width": 1280, "height": 800, "zoom": 2 }, "state": "synthetic populated state", "limitation": "Visual observation only" },
+    { "id": "RUNTIME-PASS-1", "level": "browser-computed", "claim": "Synthetic runtime differs from selected-source geometry and visual roles", "source": "Synthetic browser-computed record", "review_pass": 1, "categories": ["card_dimensions", "real_assets", "font_fallback", "contrast", "section_alignment"], "viewport": { "width": 1280, "height": 800, "zoom": 1 }, "state": "synthetic populated state at scroll origin", "limitation": "Not evidence from an external runtime" },
+    { "id": "RUNTIME-PASS-2-GEOMETRY", "level": "browser-computed", "claim": "Synthetic pass 2 rechecks geometry", "source": "Synthetic browser-computed record", "review_pass": 2, "categories": ["card_dimensions"], "viewport": { "width": 1280, "height": 800, "zoom": 1 }, "state": "synthetic populated state at scroll origin", "limitation": "Not evidence from an external runtime" }
+  ],
+  "delta_table": [
+    { "acceptance_id": "ACCEPTANCE-001", "area": "Synthetic layout", "selected_source": { "value": "inspected synthetic geometry", "evidence_level": "source-extracted", "evidence_ids": ["SOURCE-001"] }, "current_runtime": { "value": "different synthetic geometry", "evidence_level": "browser-computed", "evidence_ids": ["RUNTIME-PASS-1"] }, "target_contract": { "value": "use the inspected synthetic geometry", "evidence_level": "source-extracted", "evidence_ids": ["SOURCE-001"] }, "priority": "P1", "owner": "local synthetic layout owner", "validation": "same-viewport geometry comparison" },
+    { "acceptance_id": "ACCEPTANCE-002", "area": "Synthetic visual role", "selected_source": { "value": "distinct synthetic visual roles", "evidence_level": "visually-inferred", "evidence_ids": ["SOURCE-002"] }, "current_runtime": { "value": "one generic synthetic role", "evidence_level": "browser-computed", "evidence_ids": ["RUNTIME-PASS-1"] }, "target_contract": { "value": "preserve distinct synthetic roles", "evidence_level": "visually-inferred", "evidence_ids": ["SOURCE-002"] }, "priority": "P1", "owner": "local synthetic element owner", "validation": "same-state role comparison" }
+  ],
+  "implementation_mapping": [
+    { "acceptance_id": "ACCEPTANCE-001", "owner_file": "components/neutral-layout.component", "component": "neutral layout component", "decision": "extend", "asset_or_data_owner": "not-applicable", "rationale": "Synthetic mapping preserves the existing local owner", "verification_methods": ["computed geometry", "synthetic overlay"] },
+    { "acceptance_id": "ACCEPTANCE-002", "owner_file": "components/neutral-element.component", "component": "neutral element component", "decision": "extend", "asset_or_data_owner": "local synthetic asset owner", "rationale": "Synthetic mapping keeps assets and behavior project-free", "verification_methods": ["synthetic role inspection", "synthetic visual comparison"] }
+  ],
+  "visual_reviews": [
+    { "pass": 1, "design_capture": { "artifact": "artifact://synthetic/pass-1-source", "viewport": { "width": 1280, "height": 800, "zoom": 1 }, "state": "synthetic populated state at scroll origin", "scroll": "origin", "captured_at": "2030-01-01T00:00:00+00:00" }, "runtime_capture": { "artifact": "artifact://synthetic/pass-1-runtime", "viewport": { "width": 1280, "height": 800, "zoom": 1 }, "state": "synthetic populated state at scroll origin", "scroll": "origin", "captured_at": "2030-01-01T00:00:00+00:00" }, "same_viewport": true, "same_state": true, "comparison": { "mode": "side-by-side", "artifact": "artifact://synthetic/pass-1-comparison" }, "computed_checks": [{ "category": "card_dimensions", "evidence_ids": ["RUNTIME-PASS-1"] }], "findings": [{ "severity": "P1", "acceptance_id": "ACCEPTANCE-001", "evidence_ids": ["SOURCE-001", "RUNTIME-PASS-1"], "status": "open", "summary": "Synthetic geometry differs" }], "verdict": "fail" },
+    { "pass": 2, "design_capture": { "artifact": "artifact://synthetic/pass-2-source", "viewport": { "width": 1280, "height": 800, "zoom": 1 }, "state": "synthetic populated state at scroll origin", "scroll": "origin", "captured_at": "2030-01-01T00:10:00+00:00" }, "runtime_capture": { "artifact": "artifact://synthetic/pass-2-runtime", "viewport": { "width": 1280, "height": 800, "zoom": 1 }, "state": "synthetic populated state at scroll origin", "scroll": "origin", "captured_at": "2030-01-01T00:10:00+00:00" }, "same_viewport": true, "same_state": true, "comparison": { "mode": "overlay", "artifact": "artifact://synthetic/pass-2-comparison" }, "computed_checks": [{ "category": "card_dimensions", "evidence_ids": ["RUNTIME-PASS-2-GEOMETRY"] }], "findings": [{ "severity": "P1", "acceptance_id": "ACCEPTANCE-001", "evidence_ids": ["RUNTIME-PASS-2-GEOMETRY"], "status": "fixed", "summary": "Synthetic geometry was rechecked" }], "verdict": "pass" }
+  ],
+  "readiness": { "status": "Ready", "blockers": [] },
+  "runtime_coverage": {
+    "real_assets": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim asset runtime coverage" },
+    "font_fallback": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim font runtime coverage" },
+    "text_truncation": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim text runtime coverage" },
+    "contrast": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim contrast runtime coverage" },
+    "section_alignment": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim alignment runtime coverage" },
+    "card_dimensions": { "status": "verified", "evidence_ids": ["RUNTIME-PASS-2-GEOMETRY"], "reason": "Synthetic final pass includes matching geometry evidence" },
+    "hover_focus": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim interaction runtime coverage" },
+    "loading_empty_error": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim state runtime coverage" },
+    "responsive_breakpoints": { "status": "Not verified", "evidence_ids": [], "reason": "Synthetic example does not claim responsive runtime coverage" }
+  },
+  "final_verdict": {
+    "status": "Partial",
+    "fixed_items": ["Synthetic geometry recapture"],
+    "remaining_gaps": ["This committed example has no external runtime evidence"],
+    "not_verified": ["Synthetic example has no full runtime coverage"],
+    "changed_files": ["components/neutral-layout.component"],
+    "validation": ["JSON Schema fixture validation only", "No project or external runtime claim"],
+    "git_state": "example-only; no external Git state is asserted"
+  }
+}

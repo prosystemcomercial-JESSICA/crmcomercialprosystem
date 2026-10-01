@@ -83,6 +83,23 @@
   --t-success-bg:     #F0FDF4;
 
   --radius: 0.5rem;
+
+  /* Espaçamento — grid base 4px (The Grid Rule). Todos os gaps/paddings de
+     layout devem vir de múltiplos destes valores, nunca de números ad-hoc. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Padding padrão de superfícies (cards/painéis). Dois níveis explícitos:
+     24px = painéis/métricas com respiro; 16px = telas de dados densas. */
+  --t-card-pad: 24px;
+  --t-card-pad-sm: 16px;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -476,25 +493,24 @@
    ProSystem Utility Classes
    ═══════════════════════════════════════════════════════════ */
 .ps-sidebar {
-  /* Degradê diagonal rico da paleta Prosystem: azul claro no topo descendo
-     para o azul-marinho profundo, com um leve brilho radial no topo p/ dar
-     profundidade (sensação premium, sem fugir do design system). */
+  /* Gradiente funcional da identidade ProSystem (claro → marinho profundo).
+     Mantido como assinatura de marca, com brilho radial discreto no topo —
+     não decorativo, é a "coluna vertebral" estrutural do produto. */
   background:
-    radial-gradient(120% 60% at 0% 0%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 42%),
-    linear-gradient(165deg,
+    linear-gradient(172deg,
       var(--t-sidebar-grad-1, #4B8EC8) 0%,
-      var(--t-sidebar-grad-2, #2E6EAB) 38%,
-      var(--t-sidebar-grad-3, #1A4E82) 72%,
+      var(--t-sidebar-grad-2, #2E6EAB) 42%,
+      var(--t-sidebar-grad-3, #1A4E82) 74%,
       var(--t-sidebar-grad-4, #0D2C52) 100%);
   border-right: 1px solid var(--t-sidebar-border);
-  box-shadow: inset -1px 0 0 rgba(255,255,255,0.06);
   transition: background 0.3s ease;
 }
 
 .ps-sidebar-item {
   color: var(--t-sidebar-text);
   border-left: 2px solid transparent;
-  transition: all 0.15s ease;
+  transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+  border-radius: 6px;
 }
 .ps-sidebar-item:hover {
   background-color: var(--t-sidebar-hover);
@@ -505,7 +521,7 @@
   background-color: var(--t-sidebar-active);
   color: #ffffff;
   border-left-color: var(--t-sidebar-active-border);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10), 0 2px 8px rgba(0,0,0,0.12);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
 }
 
 .ps-topbar {
@@ -530,8 +546,15 @@
   background: var(--t-card-bg);
   border: 1px solid var(--t-card-border);
   border-radius: 1rem;
+  padding: var(--t-card-pad);
   box-shadow: 0 1px 2px var(--t-card-shadow), 0 4px 16px color-mix(in srgb, var(--t-card-shadow) 60%, transparent);
   transition: box-shadow 0.2s ease, transform 0.2s ease, background-color 0.25s ease, border-color 0.25s ease;
+}
+.ps-card--dense {
+  padding: var(--t-card-pad-sm);
+}
+.ps-card--padded-none {
+  padding: 0;
 }
 .ps-card:hover {
   box-shadow: 0 2px 4px var(--t-card-shadow), 0 8px 28px color-mix(in srgb, var(--t-primary) 12%, transparent);
@@ -547,6 +570,16 @@
   box-shadow: 0 4px 12px color-mix(in srgb, var(--t-primary) 35%, transparent);
   transform: translateY(-1px);
 }
+.ps-btn-primary:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* Press feedback global: qualquer controle clicável dá resposta tátil.
+   Nunca abaixo de 0.95 e sempre transform+opacity (GPU-composited). */
+button:not([disabled]):active,
+a:not([disabled]):active {
+  transform: scale(0.97);
+}
 
 .ps-kpi-number {
   font-size: 2rem;
@@ -554,6 +587,43 @@
   color: var(--t-primary-dark);
   line-height: 1;
   letter-spacing: -0.02em;
+}
+
+/* ═══ Hierarquia tipográfica em 3 camadas (The Three-Layer Rule) ═══
+   Mesa de trabalho diária: o olho acha o VALOR primeiro, depois o LABEL,
+   depois a META. A hierarquia vem de peso + cor, não só de tamanho. */
+.ps-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--t-text-muted);
+  line-height: 1.4;
+}
+.ps-valor {
+  font-size: 1.625rem; /* 26px */
+  font-weight: 800;
+  color: var(--t-text-primary);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ps-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t-text-secondary);
+  line-height: 1.5;
+}
+.ps-valor--sm {
+  font-size: 1.25rem; /* 20px */
+}
+
+/* Números dinâmicos (contadores, valores, células numéricas) nunca
+   "tremem" ao mudar — as colunas ficam estáveis (anti-fadiga). */
+.ps-tabular,
+table td[data-numeric="true"],
+table td.numeric {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── Theme transition ───────────────────────────────────── */

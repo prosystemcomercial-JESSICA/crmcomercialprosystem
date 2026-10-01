@@ -259,7 +259,7 @@ export function temperaturaDaNota(nota: number): 'MUITO_QUENTE' | 'QUENTE' | 'MO
 }
 
 /** Valida a resposta da IA; null se não der para usar com segurança. */
-export function lerRespostaCaroline(j: any): RespostaCaroline | null {
+export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): RespostaCaroline | null {
   if (!j || typeof j !== 'object') return null;
   const mensagens = (Array.isArray(j.mensagens) ? j.mensagens : [j.mensagem]).map((m: any) => String(m || '').trim()).filter(Boolean).slice(0, 2);
   const acao: AcaoSdr = (ACOES as readonly string[]).includes(j.acao) ? j.acao : 'continuar';
@@ -268,7 +268,8 @@ export function lerRespostaCaroline(j: any): RespostaCaroline | null {
   if (!dor) nota = Math.min(nota, 59);
   if (!mensagens.length && acao !== 'sem_interesse' && acao !== 'encaminhar_suporte') return null;
   // Valores: só a faixa oficial de mensalidade (FAIXA_MENSALIDADE); qualquer outro valor derruba a resposta.
-  const semFaixa = (m: string) => m.replace(/R\$\s*(350|400)(,00)?\b/g, '');
+  // Também liberados: os valores da própria proposta do cliente (resumo da proposta).
+  const semFaixa = (m: string) => valoresPermitidos.reduce((t, v) => t.split(v).join(''), m).replace(/R\$\s*(350|400)(,00)?\b/g, '');
   if (mensagens.some((m: string) => /R\$\s*\d|\d+\s*(reais|mil reais)|por mês fica|custa\s+\d/i.test(semFaixa(m)))) return null;
   const d = j.dados && typeof j.dados === 'object' ? j.dados : {};
   const s = (v: any) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);
@@ -313,7 +314,7 @@ export function promptCaroline(p: {
   perfil?: PerfilSdr;
   janelaCampanha?: boolean;
   descontoAutorizado?: CondicaoAutorizada | null;
-  followup?: { cadastro_em?: string | null; proposta?: { plano?: string | null; enviada_em?: string | null; status?: string | null } | null } | null;
+  followup?: { cadastro_em?: string | null; proposta?: { plano?: string | null; enviada_em?: string | null; status?: string | null; resumo?: string | null } | null } | null;
 }): { sistema: string; usuario: string } {
   const perfil = p.perfil || 'caroline';
   const eu = PERFIS_SDR[perfil];
@@ -365,8 +366,9 @@ export function promptCaroline(p: {
     : 'correria do balcão, SNGPC, Farmácia Popular, cadastro de produtos, controle de estoque e validade, fechamento de caixa, falta de tempo do dono';
   const chamarDeVolta = `Objetivo: trazer o cliente de volta para a conversa, com sutileza. Use um gancho do DIA A DIA da operação dele (${diaADia}), em forma de pergunta leve e fácil de responder, sem notícias, prazos ou impostos. Não pareça cobrança nem venda.`;
   const f = p.followup || {};
-  const aberturaFollowUp = perfil === 'luiz_felipe'
-    ? `Primeira mensagem sua. Este cliente recebeu uma proposta da Prosystem${f.proposta?.plano ? ` (plano ${f.proposta.plano})` : ''}${f.proposta?.enviada_em ? `, enviada em ${f.proposta.enviada_em}` : ''} e a conversa parou. Apresente-se como Luiz Felipe, da equipe Prosystem, retome com leveza a proposta e pergunte, em UMA pergunta, se ele conseguiu avaliar ou se já resolveu a questão do sistema. Sem cobrar e sem falar de valores.`
+  const nomeAgente = perfil === 'luiz_felipe' ? 'Luiz Felipe' : perfil === 'julio' ? 'Julio' : 'Caroline';
+  const aberturaFollowUp = f.proposta
+    ? `Primeira mensagem sua. Este cliente recebeu uma proposta da Prosystem${f.proposta.enviada_em ? `, enviada em ${f.proposta.enviada_em}` : ''}, e a conversa parou. Apresente-se como ${nomeAgente}, da equipe Prosystem. Para RELEMBRAR o cliente, envie um RESUMO curto do que foi proposto${f.proposta.resumo ? ` (use exatamente estes dados: ${f.proposta.resumo})` : f.proposta.plano ? ` (plano ${f.proposta.plano})` : ''}, em poucas linhas, sem inventar nenhum valor. Na segunda mensagem, apresente as vantagens do Plano Plus, começando com "E lembrando que o Plano Plus inclui" e citando: ${RECURSOS_PLANO_COMPLETO}. Termine com UMA pergunta leve: se ele conseguiu avaliar ou se ficou alguma dúvida. Sem cobrar, sem pressão e sem oferecer desconto.`
     : `Primeira mensagem sua. Este cliente falou com a Prosystem${f.cadastro_em ? ` em ${f.cadastro_em}` : ' há um tempo'} e a conversa parou. Apresente-se como Julio, da equipe Prosystem, retome com leveza e pergunte, em UMA pergunta, como está a rotina ${/padar|confeit/i.test(l.segmento || '') ? 'da padaria' : 'da farmácia'} e se já resolveu a questão do sistema (se continua procurando ou já fechou com outro). Sem cobrar.`;
   const pr = l.prospeccao;
   const tipoLoja = /padar|confeit/i.test(l.segmento || '') ? 'padaria' : 'farmácia';

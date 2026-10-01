@@ -1,11 +1,65 @@
 {
   "version": 1,
   "skills": {
+    "audit-frontend": {
+      "source": "idaibin/skills",
+      "sourceType": "github",
+      "skillPath": "skills/audit-frontend/SKILL.md",
+      "computedHash": "297916d904b9fe8ed98fa50ed7dd4fe7673e06fab492ae5c3a7f6f16c483c550"
+    },
     "build-dashboard": {
       "source": "anthropics/knowledge-work-plugins",
       "sourceType": "github",
       "skillPath": "data/skills/build-dashboard/SKILL.md",
       "computedHash": "c6f7389af8916262ce81073af1f4d960e3b86b696a51bd1916b140401991f6e7"
+    },
+    "codebase-design": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/codebase-design/SKILL.md",
+      "computedHash": "caea3cb8a8281ff829fd1a2b985044e77601b62f301adf43f689ccfc74c15f6f"
+    },
+    "dev-frontend": {
+      "source": "idaibin/skills",
+      "sourceType": "github",
+      "skillPath": "skills/dev-frontend/SKILL.md",
+      "computedHash": "2327128ed3008b804b0829ab5f56ff63c6a28cb529f7b137c0487139e8ae460e"
+    },
+    "domain-modeling": {
+      "source": "idaibin/skills",
+      "sourceType": "github",
+      "skillPath": "skills/domain-modeling/SKILL.md",
+      "computedHash": "de189ee925f64e938109f4496a2ed57122574f5dfeda0018a07d26bf711456b9"
+    },
+    "grill-me": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/grill-me/SKILL.md",
+      "computedHash": "5e0c683385eafd83f106ac6c9d67dfbbfe5aa4b3fe65aad114eb1055a99c818f"
+    },
+    "ops-documentacao": {
+      "source": "fontis-pub/you-team-skills",
+      "sourceType": "github",
+      "skillPath": "08-operacoes-produto/ops-documentacao/SKILL.md",
+      "computedHash": "c35e6e3c816ff3c06937cf6494729e2436caf03e8b655b4fb65f43b23b132168"
+    },
+    "product-spec": {
+      "source": "idaibin/skills",
+      "sourceType": "github",
+      "skillPath": "skills/product-spec/SKILL.md",
+      "computedHash": "f79b439fb401b2fcbfd08f31829b98ab1746c2414f7bf8370ab91d58be12c5e3"
+    },
+    "tdd": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/tdd/SKILL.md",
+      "computedHash": "c1ed8cd854c64d4d226097255d3fa662dae4a758a1462fadd63cc10e413d88d7"
+    },
+    "ui-spec": {
+      "source": "idaibin/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-spec/SKILL.md",
+      "computedHash": "86798c0541b9ad6f658736bb9d1549d2a2fe87feff29919d7f8a9aa578292c65"
     }
   }
 }
