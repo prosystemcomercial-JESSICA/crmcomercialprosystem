@@ -250,6 +250,91 @@ function RadarCard({ caso, atualizacoes, onClick }: { caso: Caso; atualizacoes: 
   );
 }
 
+// ── Kanban de casos: uma coluna por fase; arrastar o card muda o status ──────────
+const COLUNAS_CASO: { k: string; rot: string; dica: string; cor: string }[] = [
+  { k: 'NOVO', rot: 'Novo', dica: 'Caso aberto, ainda sem diagnóstico', cor: '#64748b' },
+  { k: 'DIAGNOSTICADO', rot: 'Diagnosticado', dica: 'Sabemos o motivo do risco', cor: '#2563eb' },
+  { k: 'PLANEJADO', rot: 'Plano definido', dica: 'Ação de retenção combinada', cor: '#7c3aed' },
+  { k: 'EXECUTANDO', rot: 'Em execução', dica: 'Plano sendo aplicado com o cliente', cor: '#d97706' },
+  { k: 'RECUPERADO', rot: 'Recuperado', dica: 'Cliente ficou', cor: '#16a34a' },
+  { k: 'PERDIDO', rot: 'Perdido', dica: 'Cliente saiu (inclui sistema removido)', cor: '#dc2626' },
+];
+const RISCO_PILL = (s: number) => s >= 85 ? { t: 'Crítico', bg: '#fee2e2', c: '#b91c1c' } : s >= 70 ? { t: 'Alto', bg: '#ffedd5', c: '#c2410c' } : s >= 40 ? { t: 'Médio', bg: '#fef3c7', c: '#a16207' } : { t: 'Baixo', bg: '#dcfce7', c: '#15803d' };
+const chip = (bg: string, c: string): React.CSSProperties => ({ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: bg, color: c });
+
+function KanbanCasos({ casos, carregando, arrastando, sobre, setArrastando, setSobre, onMover, onAbrir, onRenegociar, onNovo }: {
+  casos: Caso[]; carregando: boolean; arrastando: string | null; sobre: string | null;
+  setArrastando: (v: string | null) => void; setSobre: (v: string | null) => void;
+  onMover: (c: Caso, status: string) => void; onAbrir: (c: Caso) => void; onRenegociar: (c: Caso) => void; onNovo: () => void;
+}) {
+  if (carregando && !casos.length) return <div className="p-8 text-center">Carregando…</div>;
+  const colunaDe = (c: Caso) => (c.status === 'SISTEMA_REMOVIDO' ? 'PERDIDO' : c.status);
+  const quando = (c: Caso) => new Date((c as any).updated_at || c.created_at).getTime();
+  return (
+    <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(250px, 1fr)', gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
+      {COLUNAS_CASO.map(col => {
+        const encerrada = col.k === 'RECUPERADO' || col.k === 'PERDIDO';
+        const lista = casos.filter(c => colunaDe(c) === col.k)
+          .sort((a, b) => encerrada ? quando(b) - quando(a) : (b.risk_score - a.risk_score) || (diasEmAberto(b) - diasEmAberto(a)));
+        const visiveis = encerrada ? lista.slice(0, 25) : lista;
+        const criticos = encerrada ? 0 : lista.filter(c => c.risk_score >= 70).length;
+        return (
+          <div key={col.k}
+            onDragOver={e => { e.preventDefault(); setSobre(col.k); }}
+            onDragLeave={() => setSobre(null)}
+            onDrop={e => { e.preventDefault(); setSobre(null); const c = casos.find(x => x.id === arrastando); setArrastando(null); if (c) onMover(c, col.k); }}
+            style={{ background: sobre === col.k ? `${col.cor}14` : 'var(--t-content-bg)', border: `1px solid ${sobre === col.k ? col.cor : 'var(--t-card-border)'}`, borderRadius: 12, padding: 10, minHeight: 420, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: col.cor }} />
+              <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{col.rot}</b>
+              <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 800, color: col.cor }}>{lista.length}</span>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: -4 }}>{col.dica}{criticos ? ` · ${criticos} em risco alto` : ''}</span>
+            {visiveis.map(c => {
+              const nome = c.cliente?.nome_fantasia || c.cliente?.razao_social || c.cliente?.nome || 'Cliente';
+              const risco = RISCO_PILL(c.risk_score || 0);
+              const dias = diasEmAberto(c);
+              const atraso = c.fin_situacao === 'EM_ATRASO' || c.fin_situacao === 'INADIMPLENTE';
+              const codigo = (c.cliente as any)?.codigo;
+              return (
+                <div key={c.id} draggable onDragStart={() => setArrastando(c.id)} onDragEnd={() => setArrastando(null)} onClick={() => onAbrir(c)}
+                  style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderLeft: `3px solid ${encerrada ? col.cor : risco.c}`, borderRadius: 10, padding: 10, cursor: 'grab', opacity: arrastando === c.id ? 0.5 : 1, display: 'grid', gap: 5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, alignItems: 'flex-start' }}>
+                    <b style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.25 }}>{codigo ? `${codigo} · ` : ''}{nome}</b>
+                    {!encerrada && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: risco.bg, color: risco.c, whiteSpace: 'nowrap' }}>{risco.t}</span>}
+                  </div>
+                  {c.motivo_principal && <span style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.motivo_principal}</span>}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {atraso && <span style={chip('#fee2e2', '#b91c1c')}>💸 em atraso{c.fin_valor_atraso ? ` ${Number(c.fin_valor_atraso).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}</span>}
+                    {typeof c.dias_sem_contato === 'number' && c.dias_sem_contato >= 3 && <span style={chip(c.dias_sem_contato >= 7 ? '#fee2e2' : '#fef3c7', c.dias_sem_contato >= 7 ? '#b91c1c' : '#a16207')}>⏰ {c.dias_sem_contato}d sem contato</span>}
+                    {c.reneg_ativa && <span style={chip('#dcfce7', '#15803d')}>🤝 acordo</span>}
+                    {c.reaberto && <span style={chip('#ffedd5', '#c2410c')}>🔄 reaberto</span>}
+                    {c.sistema_removido_em && <span style={chip('#e5e7eb', '#374151')}>🗑 sistema removido</span>}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--t-text-muted)' }}>
+                    <span>{c.cliente?.grupo_tecnico || 'sem técnico'}</span>
+                    <span style={{ fontWeight: 700, color: !encerrada && dias >= 30 ? '#dc2626' : 'var(--t-text-muted)' }}>{encerrada ? new Date(quando(c)).toLocaleDateString('pt-BR') : `${dias}d em aberto`}</span>
+                  </div>
+                  {!encerrada && atraso && (
+                    <button onClick={e => { e.stopPropagation(); onRenegociar(c); }}
+                      style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary)', cursor: 'pointer', justifySelf: 'start' }}>
+                      💰 {c.reneg_ativa ? 'Ver acordo' : 'Renegociar'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {encerrada && lista.length > visiveis.length && <span style={{ fontSize: 11, color: 'var(--t-text-muted)', textAlign: 'center' }}>+{lista.length - visiveis.length} mais antigos (use o filtro de mês ou a tabela)</span>}
+            {!lista.length && (col.k === 'NOVO'
+              ? <button onClick={onNovo} style={{ fontSize: 12, color: 'var(--t-primary)', background: 'none', border: '1px dashed var(--t-card-border)', borderRadius: 10, padding: 12, cursor: 'pointer' }}>+ Abrir um caso</button>
+              : <span style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', marginTop: 20 }}>Arraste um card para cá</span>)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CasosPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
@@ -269,7 +354,13 @@ export default function CasosPage() {
   const [reabrirModal, setReabrirModal] = useState<Caso | null>(null);
   const [reabrirRelato, setReabrirRelato] = useState('');
   const [reabrindo, setReabrindo] = useState(false);
-  const limit = 20;
+  // Modo de visualização da lista: kanban (padrão, uma coluna por fase) ou tabela.
+  const [modo, setModo] = useState<'kanban' | 'tabela'>('kanban');
+  useEffect(() => { try { const m = localStorage.getItem('casos-modo'); if (m === 'tabela' || m === 'kanban') setModo(m); } catch { /* sem storage */ } }, []);
+  const trocarModo = (m: 'kanban' | 'tabela') => { setModo(m); setPage(0); try { localStorage.setItem('casos-modo', m); } catch { /* sem storage */ } };
+  const [arrastando, setArrastando] = useState<string | null>(null);
+  const [sobreColuna, setSobreColuna] = useState<string | null>(null);
+  const limit = modo === 'kanban' ? 500 : 20;
 
   // Gate de role interno: mesmo dentro de /casos (visível a papéis técnicos),
   // só CEO/ADMIN/SUPERVISAO_COMERCIAL podem ver a aba "Visão Executiva".
@@ -300,7 +391,7 @@ export default function CasosPage() {
         di = new Date(y, mo - 1, 1).toISOString();
         df = new Date(y, mo, 0, 23, 59, 59).toISOString();
       }
-      const res = await apiClient.getCasos(page, limit, statusFilter || undefined, undefined, undefined, busca || undefined, di, df);
+      const res = await apiClient.getCasos(modo === 'kanban' ? 0 : page, limit, modo === 'kanban' ? undefined : (statusFilter || undefined), undefined, undefined, busca || undefined, di, df);
       const data = res.data.data;
       setCasos(data.casos || []);
       setTotal(data.total || 0);
@@ -376,7 +467,7 @@ export default function CasosPage() {
 
   useEffect(() => {
     if (isAuthenticated) fetchCasos();
-  }, [isAuthenticated, page, statusFilter, mesFiltro]);
+  }, [isAuthenticated, page, statusFilter, mesFiltro, modo]);
 
   // Busca por cliente (debounce 350ms).
   useEffect(() => {
@@ -656,6 +747,23 @@ export default function CasosPage() {
           {mesFiltro && <button onClick={() => setMesFiltro('')} className="text-xs  hover:text-gray-700 underline">limpar mês</button>}
         </div>
 
+        <div className="flex gap-2">
+          {(['kanban', 'tabela'] as const).map(m => (
+            <button key={m} onClick={() => trocarModo(m)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${modo === m ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'}`}>
+              {m === 'kanban' ? '▦ Kanban' : '☰ Tabela'}
+            </button>
+          ))}
+        </div>
+
+        {modo === 'kanban' && <KanbanCasos
+          casos={casos} carregando={dataLoading} arrastando={arrastando} sobre={sobreColuna}
+          setArrastando={setArrastando} setSobre={setSobreColuna}
+          onMover={async (c, st) => { if (c.status !== st) await handleUpdateStatus(c.id, st); }}
+          onAbrir={abrirDossie} onRenegociar={abrirRenegociacao} onNovo={() => router.push('/casos/novo')}
+        />}
+
+        {modo === 'tabela' && <>
         {/* Status filter tabs */}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {statuses.map(s => (
@@ -821,7 +929,7 @@ export default function CasosPage() {
         </div>
 
         {/* Pagination */}
-        {total > limit && (
+        {modo === 'tabela' && total > limit && (
           <div className="flex items-center justify-between">
             <p className="text-sm ">Mostrando {page * limit + 1}–{Math.min((page + 1) * limit, total)} de {total}</p>
             <div className="flex gap-2">
@@ -832,6 +940,7 @@ export default function CasosPage() {
             </div>
           </div>
         )}
+        </>}
         </>}
       </div>
 
