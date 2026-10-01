@@ -171,6 +171,32 @@ export default function IndicacoesPage() {
   const [trocaSalvando, setTrocaSalvando] = useState(false);
   const [trocaResumo, setTrocaResumo] = useState<{ texto: string; numero?: string; textoTecnico?: string; tecnico?: string | null } | null>(null);
   const [abaResumoTroca, setAbaResumoTroca] = useState<'financeiro' | 'tecnico'>('financeiro');
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+  const [cnpjMsg, setCnpjMsg] = useState('');
+  // Busca os dados do novo CNPJ na Receita e preenche o formulário (o que vier vazio da Receita fica como está).
+  const buscarCnpjTroca = async (cnpj: string) => {
+    if (cnpj.replace(/\D/g, '').length !== 14) { setCnpjMsg('Digite os 14 números do CNPJ.'); return; }
+    setBuscandoCnpj(true); setCnpjMsg('Buscando na Receita...');
+    try {
+      const d = (await apiClient.consultarCnpj(cnpj)).data.data;
+      setTrocaForm((f: any) => ({
+        ...f,
+        razao_social_nova: d.razao_social || f.razao_social_nova,
+        nome_fantasia_nova: d.nome_fantasia || d.razao_social || f.nome_fantasia_nova,
+        cep: d.cep || f.cep,
+        endereco: [d.logradouro, d.complemento].filter(Boolean).join(', ') || f.endereco,
+        numero_end: d.numero || f.numero_end,
+        bairro: d.bairro || f.bairro,
+        cidade: d.municipio || f.cidade,
+        estado: d.uf || f.estado,
+        telefone: d.telefones?.[0] || f.telefone,
+        email: d.email || f.email,
+      }));
+      setCnpjMsg(`Dados preenchidos pela Receita${d.situacao ? ` · situação: ${d.situacao}` : ''}. Confira a inscrição estadual (a Receita não informa).`);
+    } catch (e: any) {
+      setCnpjMsg(e?.response?.data?.message || 'Não consegui buscar este CNPJ.');
+    } finally { setBuscandoCnpj(false); }
+  };
   const [trocaForm, setTrocaForm] = useState<any>({ taxa: '', vendedor_id: '', cnpj_novo: '', razao_social_nova: '', nome_fantasia_nova: '', inscricao_nova: '', cep: '', endereco: '', numero_end: '', bairro: '', cidade: '', estado: '', telefone: '', email: '', motivo: '', taxa_entrada: '', taxa_parcelas: '', taxa_primeiro_venc: '' });
 
   const buscarTroca = useCallback(async (termo: string) => {
@@ -1784,7 +1810,13 @@ export default function IndicacoesPage() {
               <>
                 <p className="text-xs font-bold  uppercase mt-1">Novos dados</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-xs ">Novo CNPJ *</label><input value={trocaForm.cnpj_novo} onChange={e => setTrocaForm({ ...trocaForm, cnpj_novo: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
+                  <div><label className="text-xs ">Novo CNPJ * <span className="text-gray-400">(preenche o resto sozinho)</span></label>
+                    <div className="flex gap-1 mt-1">
+                      <input value={trocaForm.cnpj_novo} onChange={e => { const v = e.target.value; setTrocaForm({ ...trocaForm, cnpj_novo: v }); if (v.replace(/\D/g, '').length === 14) buscarCnpjTroca(v); }} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      <button type="button" onClick={() => buscarCnpjTroca(trocaForm.cnpj_novo)} disabled={buscandoCnpj} className="px-2 rounded-lg border border-violet-200 text-violet-700 text-xs font-semibold whitespace-nowrap">{buscandoCnpj ? '...' : 'Buscar'}</button>
+                    </div>
+                    {cnpjMsg && <p className="text-[11px] mt-1 text-gray-500">{cnpjMsg}</p>}
+                  </div>
                   <div><label className="text-xs ">Inscrição estadual</label><input value={trocaForm.inscricao_nova} onChange={e => setTrocaForm({ ...trocaForm, inscricao_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
                   <div className="col-span-2"><label className="text-xs ">Razão social</label><input value={trocaForm.razao_social_nova} onChange={e => setTrocaForm({ ...trocaForm, razao_social_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
                   <div className="col-span-2"><label className="text-xs ">Nome fantasia</label><input value={trocaForm.nome_fantasia_nova} onChange={e => setTrocaForm({ ...trocaForm, nome_fantasia_nova: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>

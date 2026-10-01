@@ -711,6 +711,10 @@ class ApiClient {
 
   // Troca de CNPJ (venda adicional): atualiza cadastro (guarda antigo na ficha),
   // gera venda+comissão da taxa e cria contrato novo do mesmo plano.
+  async consultarCnpj(cnpj: string) {
+    return this.client.get(`/cnpj/${cnpj.replace(/\D/g, '')}`);
+  }
+
   async trocaCnpj(data: any) {
     return this.client.post('/contratos-comerciais/troca-cnpj', data);
   }
