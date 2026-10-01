@@ -784,17 +784,25 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const agora = Date.now();
     const NOME_AG: Record<string, string> = { caroline: 'Caroline', julio: 'Julio', luiz_felipe: 'Luiz Felipe' };
     const sdrs = await prisma.sdrLead.findMany({
-      where: { status: { in: ['AGUARDANDO', 'CONVERSANDO', 'FILA'] } },
+      where: { status: { in: ['AGUARDANDO', 'CONVERSANDO', 'FILA', 'HUMANO'] } },
       select: { id: true, agente: true, nome: true, empresa: true, numero: true, nota: true, proposta_id: true, conversaId: true, dados: true, status: true },
     });
     const itens: any[] = [];
+    // Conversa assumida por uma pessoa: o agente para, então o retorno passa a ser de quem assumiu.
+    const assumidas = sdrs.filter(s => s.status === 'HUMANO' && s.conversaId).map(s => s.conversaId!);
+    const donos = new Map((await prisma.whatsappConversa.findMany({ where: { id: { in: assumidas } }, select: { id: true, dono_id: true } })).map(c => [c.id, c.dono_id]));
+    const { resolverNomesUsuarios } = await import('@/lib/usuarios');
+    const nomesDonos = await resolverNomesUsuarios(prisma, [...new Set([...donos.values()].filter(Boolean))] as string[]).catch(() => ({} as Record<string, string>));
     for (const s of sdrs) {
       const d: any = s.dados || {};
       if (!d.retomar_em) continue;
       itens.push({
         id: `sdr-${s.id}`, quando: d.retomar_em, nome: s.nome || s.numero, empresa: s.empresa || null,
         combinado: d.combinado || (d.parou_em ? 'retomada: parou de responder' : 'retomada programada'),
-        responsavel: NOME_AG[s.agente] || s.agente, agente: true, origem: s.proposta_id ? 'proposta' : 'lead frio',
+        ...(s.status === 'HUMANO'
+          ? { responsavel: `${(nomesDonos as any)[donos.get(s.conversaId!) || ''] || 'Equipe'} (assumiu a conversa)`, agente: false, assumida: true }
+          : { responsavel: NOME_AG[s.agente] || s.agente, agente: true }),
+        origem: s.proposta_id ? 'proposta' : 'lead frio',
         nota: s.nota ?? null, conversaId: s.conversaId || null,
       });
     }

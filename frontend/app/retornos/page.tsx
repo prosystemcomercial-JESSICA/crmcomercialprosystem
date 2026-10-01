@@ -9,7 +9,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 
-type Retorno = { id: string; quando: string; nome: string; empresa: string | null; combinado: string; responsavel: string; agente: boolean; origem: 'proposta' | 'lead frio' | 'equipe'; nota: number | null; conversaId: string | null };
+type Retorno = { id: string; quando: string; nome: string; empresa: string | null; combinado: string; responsavel: string; agente: boolean; assumida?: boolean; origem: 'proposta' | 'lead frio' | 'equipe'; nota: number | null; conversaId: string | null };
 
 const COLUNAS = [
   { k: 'atrasado', rot: '⚠️ Atrasados', cor: '#dc2626' },
@@ -81,6 +81,7 @@ export default function RetornosPage() {
                       {i.empresa && i.empresa !== i.nome && <span style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{i.empresa}</span>}
                       <span style={{ fontSize: 12, fontWeight: 700, color: c.cor }}>📅 {quandoTxt(i.quando)}</span>
                       <span style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{i.combinado}</span>
+                      {i.assumida && <span style={{ fontSize: 11, fontWeight: 700, color: '#b45309' }}>👤 Você assumiu: o retorno é seu (o agente não chama)</span>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginTop: 2 }}>
                         <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{i.agente ? '🤖' : '👤'} {i.responsavel}{i.nota != null ? ` · nota ${i.nota}` : ''}</span>
                         {i.conversaId && (
