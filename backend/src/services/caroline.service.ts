@@ -1170,7 +1170,8 @@ async function abastecerFila(prisma: PrismaClient, agente: 'julio' | 'luiz_felip
 const RETOMADAS_ASSUMIDA = [1, 3];
 async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: string[], agora: Date) {
   const candidatos = await prisma.sdrLead.findMany({
-    where: { status: 'HUMANO', agente: { in: ativos }, conversaId: { not: null }, updated_at: { gte: new Date(agora.getTime() - 60 * 864e5) } },
+    // HUMANO (pessoa assumiu) e DEMO/VENDEDORA (demonstração marcada ou lead com a consultora): se o cliente sumir, não fica de lado.
+    where: { status: { in: ['HUMANO', 'DEMO', 'VENDEDORA'] }, agente: { in: ativos }, conversaId: { not: null }, updated_at: { gte: new Date(agora.getTime() - 60 * 864e5) } },
     orderBy: { updated_at: 'desc' }, take: 40,
   });
   let enviadas = 0;
@@ -1191,7 +1192,7 @@ async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: str
     if (n >= RETOMADAS_ASSUMIDA.length) continue;
     if (diasUteisEntre(ultSaida.created_at, agora) < RETOMADAS_ASSUMIDA[n]) continue;
     if (await ehClienteAtivo(prisma, s.numero)) continue;
-    const dica = `CONVERSA ASSUMIDA PELA EQUIPE: uma pessoa da equipe estava atendendo este cliente e ele parou de responder há ${diasUteisEntre(ultSaida.created_at, agora)} dia(s) útil(eis). `
+    const dica = `CONVERSA ${s.status === 'HUMANO' ? 'ASSUMIDA PELA EQUIPE' : 'COM DEMONSTRAÇÃO/CONSULTORA'}: a equipe estava atendendo este cliente e ele parou de responder há ${diasUteisEntre(ultSaida.created_at, agora)} dia(s) útil(eis). Se havia uma demonstração ou ligação a combinar, o objetivo é REMARCAR (pergunte manhã ou tarde e um dia próximo). `
       + 'Leia a conversa inteira e escreva UMA retomada curta continuando exatamente do ponto em que parou (o último assunto, a última pergunta ou o próximo passo combinado), com leveza e sem cobrança. '
       + 'Não se reapresente como se fosse o primeiro contato, não repita o que já foi dito e não invente valores ou condições. Termine com uma pergunta fácil de responder. Use acao "continuar".'
       + (n > 0 ? ' Esta é a segunda e última retomada: deixe a porta aberta, sem insistir.' : '');
