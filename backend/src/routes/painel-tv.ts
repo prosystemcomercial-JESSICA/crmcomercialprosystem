@@ -372,6 +372,13 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
 
   // ── TV DO ESCRITÓRIO (mesma chave da TV) ─────────────────────────────────
   let cacheEscritorio: { em: number; dados: any } | null = null;
+  fastify.post('/painel-tv/escritorio/teste-comemoracao', async (request, reply) => {
+    if (!podeVerTudo(getUser(request))) return reply.status(403).send({ status: 'error', message: 'Sem permissão' });
+    const { dispararComemoracaoTeste } = await import('../services/tv-escritorio.service');
+    dispararComemoracaoTeste();
+    return { status: 'success' };
+  });
+
   fastify.get('/painel-tv/escritorio', async (request, reply) => {
     const { chave } = (request.query || {}) as { chave?: unknown };
     let autorizado = podeVerTudo(getUser(request));

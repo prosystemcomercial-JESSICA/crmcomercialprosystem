@@ -20,7 +20,7 @@ type Pessoa = { id: string; nome: string; cargo: string; online: boolean; ultima
 type Item = { id: string; contato: string; desde: string; responsavel: string; nao_lidas?: number; trecho?: string; origem?: string; tentativas?: number };
 type Qualificado = { id: string; contato: string; por: string; em: string };
 type Movimento = { id: string; direcao: 'ENTRADA' | 'SAIDA'; quem: string | null; agente: boolean; contato: string; texto: string; em: string; proposta?: { status: string; abriu_agora: boolean } | null };
-type EventoProposta = { id: string; tipo: string; status: string; em: string; cliente: string; plano: string | null; por: string | null };
+type EventoProposta = { id: string; tipo: string; status: string; em: string; cliente: string; plano: string | null; por: string | null; mensalidade?: number | null; implantacao?: number | null; teste?: boolean };
 type Conversa = { id: string; agente: string; contato: string; temperatura: string | null; nota: number | null; em: string };
 type Tom = 'bad' | 'warn' | 'ok';
 type Destaque = { tom: Tom; titulo: string; contato: string; detalhe: string };
@@ -53,6 +53,34 @@ function tocar(ctx: AudioContext, notas: { f: number; t: number; d: number }[], 
   });
 }
 const somAlerta = (ctx: AudioContext) => tocar(ctx, [{ f: 880, t: 0, d: 0.18 }, { f: 880, t: 0.28, d: 0.18 }, { f: 660, t: 0.56, d: 0.3 }], 'square', 0.12);
+// Comemoração de contrato: buzina com dois toques e depois três batidas de sino.
+function somComemoracao(ctx: AudioContext) {
+  const t0 = ctx.currentTime;
+  [0, 0.55].forEach(t => [233, 294, 349].forEach(f => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t0 + t); g.gain.linearRampToValueAtTime(0.09, t0 + t + 0.03);
+    g.gain.setValueAtTime(0.09, t0 + t + 0.36); g.gain.linearRampToValueAtTime(0, t0 + t + 0.42);
+    o.connect(g).connect(ctx.destination); o.start(t0 + t); o.stop(t0 + t + 0.45);
+  }));
+  [1.4, 2.1, 2.8].forEach(t => [[880, 0.3], [2200, 0.12], [3400, 0.06]].forEach(([f, v]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t0 + t); g.gain.linearRampToValueAtTime(v, t0 + t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + t + 1.6);
+    o.connect(g).connect(ctx.destination); o.start(t0 + t); o.stop(t0 + t + 1.7);
+  }));
+}
+const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const CORES_FOGOS = ['#facc15', '#f472b6', '#38bdf8', '#4ade80', '#fb923c', '#a78bfa'];
+function Fogos() {
+  const explosoes = Array.from({ length: 7 }, (_, i) => ({ x: 8 + ((i * 37) % 84), y: 10 + ((i * 23) % 45), atraso: (i * 0.45) % 2.4, cor: CORES_FOGOS[i % CORES_FOGOS.length] }));
+  return <div className="fogos">{explosoes.map((e, i) => (
+    <div key={i} className="explosao" style={{ left: `${e.x}%`, top: `${e.y}%` }}>
+      {Array.from({ length: 16 }, (_, k) => <i key={k} style={{ background: e.cor, animationDelay: `${e.atraso}s`, ['--ang' as any]: `${k * 22.5}deg` }} />)}
+    </div>))}</div>;
+}
+
 const somQualificado = (ctx: AudioContext) => tocar(ctx, [{ f: 523, t: 0, d: 0.35 }, { f: 659, t: 0.15, d: 0.35 }, { f: 784, t: 0.3, d: 0.35 }, { f: 1047, t: 0.45, d: 0.7 }], 'sine', 0.3);
 
 export default function TvEscritorioPage() {
@@ -64,6 +92,7 @@ export default function TvEscritorioPage() {
   const [giro, setGiro] = useState(0);
   const [som, setSom] = useState(false);
   const [aviso, setAviso] = useState<{ tom: Tom; titulo: string; texto: string } | null>(null);
+  const [festa, setFesta] = useState<EventoProposta | null>(null);
   const [novos, setNovos] = useState<Set<string>>(new Set());
   // Tema: escuro (padrão) ou claro. ?tema=claro|escuro ou o botão no topo (fica salvo nesta TV).
   const [tema, setTema] = useState<'escuro' | 'claro'>('escuro');
@@ -156,7 +185,8 @@ export default function TvEscritorioPage() {
           const aNovos = alertas.filter(a => !vistos.has(`a:${a.id}`));
           const ctx = ctxRef.current;
           if (aceitou) {
-            if (ctx) somQualificado(ctx);
+            if (ctx) somComemoracao(ctx);
+            setFesta(aceitou);
             setAviso({ tom: 'ok', titulo: 'Proposta aceita', texto: `${aceitou.cliente}${aceitou.plano ? ` · ${aceitou.plano}` : ''}` });
           } else if (abriu) {
             if (ctx) somQualificado(ctx);
@@ -185,6 +215,12 @@ export default function TvEscritorioPage() {
     const iRelogio = setInterval(() => setAgora(new Date()), 10_000);
     return () => { ativo = false; clearInterval(iDados); clearInterval(iTela); clearInterval(iGiro); clearInterval(iRelogio); };
   }, []);
+
+  useEffect(() => {
+    if (!festa) return;
+    const t = setTimeout(() => setFesta(null), 20_000);
+    return () => clearTimeout(t);
+  }, [festa]);
 
   useEffect(() => {
     if (!aviso) return;
@@ -226,6 +262,18 @@ export default function TvEscritorioPage() {
     <div className={classeTv} onClick={primeiroToque}>
       <style>{CSS}</style>
       <div className="wrap">
+        {festa && (
+          <div className="festa" onClick={() => setFesta(null)}>
+            <Fogos />
+            <div className="festa-card">
+              <div className="festa-emoji">🎉🔔🎉</div>
+              <div className="festa-rot">{festa.teste ? 'TESTE · ' : ''}Contrato fechado!</div>
+              <div className="festa-nome">{festa.cliente}</div>
+              {festa.mensalidade ? <div className="festa-valor">{brl(festa.mensalidade)}<small>/mês</small></div> : null}
+              <div className="festa-det">{[festa.plano && `Plano ${festa.plano}`, festa.implantacao && `implantação ${brl(festa.implantacao)}`, festa.por && `por ${festa.por}`].filter(Boolean).join(' · ')}</div>
+            </div>
+          </div>
+        )}
         {aviso && (
           <div className={`toast tom-${aviso.tom}`}>
             <span className={`ponto ${aviso.tom}`} />
@@ -575,6 +623,21 @@ function Lista({ titulo, tom, total, vazio, children }: { titulo: string; tom: T
 }
 
 const CSS = `
+.festa { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: rgba(0,0,0,.72); animation: festaIn .4s ease-out; }
+.festa-card { position: relative; z-index: 2; text-align: center; padding: 48px 72px; border-radius: 28px; background: linear-gradient(135deg, #14532d, #065f46 60%, #0f766e); color: #fff; box-shadow: 0 0 0 4px #facc15, 0 30px 120px rgba(250,204,21,.45); animation: festaPop .7s cubic-bezier(.2,1.6,.4,1); }
+.festa-emoji { font-size: 64px; }
+.festa-rot { font-size: 28px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #fde68a; }
+.festa-nome { font-size: 64px; font-weight: 900; line-height: 1.1; margin: 10px 0; }
+.festa-valor { font-size: 80px; font-weight: 900; color: #facc15; font-variant-numeric: tabular-nums; }
+.festa-valor small { font-size: 32px; color: #fde68a; }
+.festa-det { font-size: 24px; opacity: .9; margin-top: 8px; }
+.fogos { position: absolute; inset: 0; pointer-events: none; }
+.explosao { position: absolute; width: 0; height: 0; }
+.explosao i { position: absolute; width: 8px; height: 8px; border-radius: 50%; opacity: 0; animation: faisca 2.4s ease-out infinite; box-shadow: 0 0 10px currentColor; }
+@keyframes faisca { 0% { transform: rotate(var(--ang)) translateY(0); opacity: 1; } 70% { opacity: 1; } 100% { transform: rotate(var(--ang)) translateY(-160px); opacity: 0; } }
+@keyframes festaIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes festaPop { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
 .tv{
   --bg:#0a0a0a;--s1:#141414;--s2:#1c1c1c;--borda:#333333;--borda2:#292929;
   --t1:#f5f5f5;--t2:#c2c2c2;--t3:#9a9a9a;

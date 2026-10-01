@@ -20,6 +20,13 @@ const ETIQUETAS_NAO_COMERCIAIS = ['Suporte', 'Financeiro'];
 
 const nomeContato = (c: { contato_nome: string | null; contato_numero: string }) => c.contato_nome || c.contato_numero;
 
+// Comemoração de teste (POST /painel-tv/escritorio/teste-comemoracao): aparece na TV por 3 minutos.
+const comemoracoesTeste: any[] = [];
+export function dispararComemoracaoTeste() {
+  const em = new Date().toISOString();
+  comemoracoesTeste.splice(0, comemoracoesTeste.length, { id: `teste-${Date.now()}`, tipo: 'aceita', status: 'ACEITA', em, cliente: 'Farmácia Teste', plano: 'PLUS', por: 'Teste', mensalidade: 400, implantacao: 2500, teste: true });
+}
+
 export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date()) {
   const { inicioHoje, fimHoje } = limitesPeriodo(agora);
   const hoje = { gte: inicioHoje, lt: fimHoje };
@@ -157,7 +164,7 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
   const hist = await prisma.propostaHistorico.findMany({
     where: { tipo: 'STATUS', valor_novo: { in: Object.keys(STATUS_EVENTO) }, created_at: { gte: new Date(agora.getTime() - 48 * 3600_000) } },
     orderBy: { created_at: 'desc' }, take: 12,
-    select: { id: true, valor_novo: true, created_at: true, feito_por_nome: true, proposta: { select: { nome_fantasia: true, razao_social: true, plano_selecionado: true, vendedor_nome: true } } },
+    select: { id: true, valor_novo: true, created_at: true, feito_por_nome: true, proposta: { select: { nome_fantasia: true, razao_social: true, plano_selecionado: true, vendedor_nome: true, mensalidade_basic: true, mensalidade_pro: true, mensalidade_plus: true, valor_final: true, valor_implantacao: true } } },
   }).catch(() => []);
   const [enviadasHoje, abertasHoje, aceitasMes, recusadasMes] = await Promise.all([
     prisma.propostaHistorico.count({ where: { valor_novo: 'ENVIADA', created_at: hoje } }).catch(() => 0),
@@ -168,11 +175,13 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
   const propostas = {
     enviadas_hoje: enviadasHoje, abertas_hoje: abertasHoje, em_aberto: propsAbertas.length, aceitas_mes: aceitasMes, recusadas_mes: recusadasMes,
     abriram_agora: vistasRecentes.length,
-    eventos: hist.map(h => ({
+    eventos: [...hist.map(h => ({
       id: h.id, tipo: STATUS_EVENTO[h.valor_novo || ''] || h.valor_novo, status: h.valor_novo, em: h.created_at.toISOString(),
       cliente: (h.proposta?.nome_fantasia || h.proposta?.razao_social || 'Cliente').trim(), plano: h.proposta?.plano_selecionado || null,
       por: h.valor_novo === 'VISUALIZADA' ? 'cliente' : (h.proposta?.vendedor_nome || h.feito_por_nome || '').split(' ')[0] || null,
-    })),
+      mensalidade: (() => { const x: any = h.proposta || {}; const pl = String(x.plano_selecionado || '').toUpperCase(); return (pl === 'BASIC' ? x.mensalidade_basic : pl === 'PRO' ? x.mensalidade_pro : pl === 'PLUS' ? x.mensalidade_plus : null) || null; })(),
+      implantacao: h.proposta?.valor_final || h.proposta?.valor_implantacao || null,
+    })), ...comemoracoesTeste.filter(c => agora.getTime() - new Date(c.em).getTime() < 3 * 60_000)],
   };
 
   const movimentos = msgs.map(m => {
