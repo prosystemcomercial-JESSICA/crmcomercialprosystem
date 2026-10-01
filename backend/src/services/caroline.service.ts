@@ -713,6 +713,13 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
     await enviarAvisoGestao(prisma, 'lead_qualificado', `🔥 *${atual?.nome || 'Cliente'} topou a condição da campanha* (${nomeDe(sdr)})\n${ok ? 'Proposta atualizada e reenviada com os botões de aceite.' : '⚠️ Não consegui atualizar a proposta: finalize manualmente.'}`);
     registrarAcaoAgente(agenteDe(sdr), `mandou a proposta com a condição da campanha para ${atual?.nome || 'um cliente'}`);
   } else if (acao === 'encaminhar_suporte') {
+    // O texto do suporte sai no máximo uma vez a cada 7 dias na conversa; repetir irrita o cliente. Na repetição, avisa a gestão.
+    const jaMandou = await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', conteudo: { contains: 'setor de suporte' }, created_at: { gte: new Date(Date.now() - 7 * 864e5) } }, select: { id: true } });
+    if (jaMandou) {
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO' } });
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `💬 *${atual?.nome || 'Cliente'}* escreveu de novo na conversa do ${nomeDe(sdr)} e o assunto não é comercial (o botão do suporte já tinha sido enviado). O agente saiu da conversa: dê uma olhada.`).catch(() => {});
+      return;
+    }
     await encaminharSuporte(prisma, token, atual || sdr).catch((e: any) => console.warn('[CAROLINE] suporte:', e?.message));
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
   } else if (acao === 'duvida_fora_material') {
@@ -781,6 +788,20 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (fase !== 'resposta' && await ehClienteAtivo(prisma, sdr.numero)) {
     await tirarDaListaJaCliente(prisma, sdr, 'telefone cadastrado como cliente');
     return 'nada';
+  }
+  // Quem já é cliente (cadastro ativo ou proposta aceita) é atendido por pessoas: o agente não responde,
+  // sai da conversa e avisa a gestão com o que o cliente disse.
+  if (fase === 'resposta') {
+    const pr = sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { status: true } }).catch(() => null) : null;
+    const virouCliente = !!pr && ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'].includes(pr.status);
+    if (virouCliente || await ehClienteAtivo(prisma, sdr.numero)) {
+      const ult = await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true, transcricao: true } });
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO' } });
+      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `💬 *${sdr.nome || 'Cliente'}* (já é cliente) escreveu na conversa do ${nomeDe(sdr)}:\n"${((ult?.transcricao || ult?.conteudo) || '').slice(0, 300)}"\nO agente não respondeu e saiu da conversa: o atendimento é seu.`).catch(() => {});
+      registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'um cliente'} já é cliente: passou a conversa para a equipe`);
+      return 'nada';
+    }
   }
   if (fase === 'resposta') dicaDecisor = [dicaDecisor, await contextoDoCliente(prisma, sdr.numero)].filter(Boolean).join('\n');
   let r = await gerarResposta(prisma, sdr, fase, dicaDecisor);
