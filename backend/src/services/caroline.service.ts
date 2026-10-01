@@ -282,6 +282,20 @@ ${linhas.join('\n')}` : ''}
 Não trate como lead novo. Se ele falar de um desses serviços (prazo, valor, andamento), responda com esses dados, sem inventar, e diga que vai confirmar o andamento com a responsável (use acao "duvida_fora_material" com a dúvida dele).`;
 }
 
+async function ehClienteAtivo(prisma: PrismaClient, numero: string | null | undefined): Promise<boolean> {
+  const fim = ultimos8(numero || '');
+  if (fim.length < 8) return false;
+  const c: any = await prisma.cliente.findFirst({ where: { OR: [{ telefone: { endsWith: fim } }, { telefone1: { endsWith: fim } }, { telefone2: { endsWith: fim } }] } as any, select: { status: true } as any }).catch(() => null);
+  return !!c && !/inativ|cancel/i.test(String(c.status || ''));
+}
+// Contato que já usa o Prosystem não é lead: sai da lista do agente (não apaga nada, só encerra o follow-up).
+const JA_CLIENTE = /(ja (usa|usamos|utiliza|utilizamos|tem|temos|e|somos) (o )?(sistema )?(da )?prosystem|ja (e|somos) cliente|ja usa(mos)? o sistema de voces|cliente prosystem|ja usa o prosystem)/;
+async function tirarDaListaJaCliente(prisma: PrismaClient, sdr: any, motivo: string) {
+  const d: any = sdr.dados || {};
+  await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'SEM_INTERESSE', dados: { ...d, ja_cliente: true, ja_cliente_motivo: motivo, ja_cliente_em: new Date().toISOString(), retomar_em: null } } });
+  registrarAcaoAgente(agenteDe(sdr), `tirou ${sdr.nome || sdr.empresa || 'um contato'} da lista: já é cliente Prosystem`);
+}
+
 async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline, dica = ''): Promise<RespostaCaroline | null> {
   const valoresProposta: string[] = [];
   const { guiaComercial } = await import('./assistente-ia.service');
@@ -634,6 +648,16 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
   const dados: any = atual?.dados || {};
   const resumo = resumoLead(atual, dados, r);
   const obs = (descricao: string) => atual?.lead_id && prisma.leadObservacao.create({ data: { lead_id: atual.lead_id, tipo: 'SISTEMA', descricao, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
+  // Contato disse que já usa o Prosystem: sai da lista (sem marcar perda, sem lista News/Instagram).
+  {
+    const ultimas = sdr.conversaId ? await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId }, orderBy: { created_at: 'desc' }, take: 4, select: { conteudo: true } }).catch(() => []) : [];
+    const texto = [r.nota_motivo || '', ...ultimas.map(m => m.conteudo || '')].join(' ').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    if (JA_CLIENTE.test(texto)) {
+      await tirarDaListaJaCliente(prisma, atual || sdr, 'disse na conversa que já usa o Prosystem');
+      await obs(`${resumo}\n\nJá é cliente Prosystem: retirado da lista de follow-up.`);
+      return;
+    }
+  }
   const rec = recuperacaoAtiva(atual);
   if (acao === 'recusou' && (agenteDe(sdr) !== 'luiz_felipe' || !atual?.proposta_id || rec || dados.recuperacao)) acao = 'sem_interesse';
   if (acao === 'recusou') {
@@ -744,6 +768,11 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     const dT: any = sdr.dados || {};
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', dados: { ...dT, retomar_em: emDiasUteis(dT.adiou_em ? DIAS_RETOMADA_ADIOU : 1).toISOString() } } });
     registrarAcaoAgente(agenteDe(sdr), `segurou uma retomada para ${sdr.nome || 'um lead'}: já tinha escrito há pouco, sem resposta`);
+    return 'nada';
+  }
+  // Já é cliente da Prosystem (pelo telefone): sai da lista de prospecção/follow-up, sem nova mensagem.
+  if (fase !== 'resposta' && await ehClienteAtivo(prisma, sdr.numero)) {
+    await tirarDaListaJaCliente(prisma, sdr, 'telefone cadastrado como cliente');
     return 'nada';
   }
   if (fase === 'resposta') dicaDecisor = [dicaDecisor, await contextoDoCliente(prisma, sdr.numero)].filter(Boolean).join('\n');
