@@ -99,6 +99,10 @@ export default function TvEscritorioPage() {
   const ctxRef = useRef<AudioContext | null>(null);
   const vistosRef = useRef<Set<string> | null>(null);
   const festejadosRef = useRef<Set<string>>(new Set());
+  const filaFestaRef = useRef<EventoProposta[]>([]);
+  const ultimaFestaRef = useRef(0);
+  // Diferença entre o relógio do servidor e o do aparelho da TV (a TV pode estar com a hora errada).
+  const offsetRef = useRef(0);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('tema');
@@ -169,6 +173,7 @@ export default function TvEscritorioPage() {
         if (res.status === 401 || res.status === 403) { setErro('invalido'); return; }
         if (!res.ok) throw new Error(String(res.status));
         const d = (await res.json()).data;
+        if (d.gerado_em) { offsetRef.current = new Date(d.gerado_em).getTime() - Date.now(); setAgora(new Date(Date.now() + offsetRef.current)); }
 
         // O que é novo desde a última busca (na primeira carga só memoriza).
         const alertas: Item[] = [...d.esperando.lista, ...d.sumiram.lista];
@@ -185,12 +190,13 @@ export default function TvEscritorioPage() {
           const aceitou = evProp.find(e => ['ACEITA', 'CONTRATO_EM_GERACAO'].includes(e.status) && !vistos.has(`p:${e.id}`));
           const aNovos = alertas.filter(a => !vistos.has(`a:${a.id}`));
           const ctx = ctxRef.current;
-          // Uma comemoração por cliente (aceita → contrato em geração não repete a festa).
-          const jaFestejou = aceitou && festejadosRef.current.has(aceitou.cliente);
-          if (aceitou) festejadosRef.current.add(aceitou.cliente);
-          if (aceitou && !jaFestejou) {
-            if (ctx) somComemoracao(ctx);
-            setFesta(aceitou);
+          // Cada contrato fechado entra na fila de comemoração (uma por cliente; aceita → contrato em geração não repete).
+          for (const e of evProp) {
+            if (!['ACEITA', 'CONTRATO_EM_GERACAO'].includes(e.status) || vistos.has(`p:${e.id}`) || festejadosRef.current.has(e.cliente)) continue;
+            festejadosRef.current.add(e.cliente);
+            filaFestaRef.current.push(e);
+          }
+          if (aceitou) {
             setAviso({ tom: 'ok', titulo: 'Proposta aceita', texto: `${aceitou.cliente}${aceitou.plano ? ` · ${aceitou.plano}` : ''}` });
           } else if (abriu) {
             if (ctx) somQualificado(ctx);
@@ -216,8 +222,33 @@ export default function TvEscritorioPage() {
     const iDados = setInterval(buscar, INTERVALO_DADOS);
     const iTela = setInterval(() => setTela(t => (t === 3 ? 1 : ((t + 1) as 1 | 2 | 3))), INTERVALO_TELA);
     const iGiro = setInterval(() => setGiro(g => g + 1), INTERVALO_CARROSSEL);
-    const iRelogio = setInterval(() => setAgora(new Date()), 10_000);
-    return () => { ativo = false; clearInterval(iDados); clearInterval(iTela); clearInterval(iGiro); clearInterval(iRelogio); };
+    const iRelogio = setInterval(() => setAgora(new Date(Date.now() + offsetRef.current)), 10_000);
+    // Fila de comemorações: a primeira sai na hora; as seguintes, 5 minutos depois da anterior.
+    const iFesta = setInterval(() => {
+      if (!filaFestaRef.current.length || Date.now() - ultimaFestaRef.current < 5 * 60_000) return;
+      const e = filaFestaRef.current.shift()!;
+      ultimaFestaRef.current = Date.now();
+      const ctx = ctxRef.current;
+      if (ctx) { ctx.resume().catch(() => {}); somComemoracao(ctx); }
+      setFesta(e);
+    }, 2_000);
+    return () => { ativo = false; clearInterval(iDados); clearInterval(iTela); clearInterval(iGiro); clearInterval(iRelogio); clearInterval(iFesta); };
+  }, []);
+
+  // Som ligado por padrão: cria o áudio ao abrir e destrava no primeiro toque/tecla, se o navegador exigir.
+  useEffect(() => {
+    try {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = ctxRef.current || new Ctx();
+      ctxRef.current = ctx;
+      const marcar = () => setSom(ctx.state === 'running');
+      ctx.resume().then(marcar).catch(() => {});
+      ctx.onstatechange = marcar;
+      const destravar = () => { ctx.resume().then(marcar).catch(() => {}); };
+      window.addEventListener('pointerdown', destravar);
+      window.addEventListener('keydown', destravar);
+      return () => { window.removeEventListener('pointerdown', destravar); window.removeEventListener('keydown', destravar); };
+    } catch { /* sem áudio */ }
   }, []);
 
   useEffect(() => {
