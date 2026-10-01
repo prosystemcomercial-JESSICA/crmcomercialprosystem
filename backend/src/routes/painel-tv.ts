@@ -337,6 +337,49 @@ export async function montarDadosPainelTv(prisma: PrismaClient) {
       contratos_por_mes: contarPorMes(fechamentosAno.map(dataFechamento), L.ano),
       mes_atual: L.mes,
     },
+    tela3: await montarTelaBase(prisma, agora).catch((e: any) => { console.warn('[TV] base:', e?.message); return null; }),
+  };
+}
+
+// Tela 3 · Base de clientes: em risco, tempo de casa (LTV em tempo), resolvidos e cancelados do mês.
+const CASO_ABERTO = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO'];
+async function montarTelaBase(prisma: PrismaClient, agora: Date) {
+  const diaSP = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const inicioMes = new Date(`${diaSP.slice(0, 7)}-01T00:00:00-03:00`);
+  const meses = (ini: Date | null, fim: Date) => (ini ? Math.max(0, (fim.getTime() - ini.getTime()) / (30.44 * 864e5)) : null);
+  const nome = (c: any) => (c?.nome_fantasia || c?.razao_social || c?.nome || 'Cliente').trim();
+  const sel = { id: true, codigo: true, nome: true, nome_fantasia: true, razao_social: true, data_entrada: true, inativado_em: true, motivo_inativacao: true, situacao: true } as const;
+
+  const [ativos, saidas, cancelMes, casosAbertos, riscoMarcado, resolvidos] = await Promise.all([
+    prisma.cliente.findMany({ where: { situacao: 'ATIVA', NOT: { codigo: '1' } } as any, select: { data_entrada: true } }),
+    prisma.cliente.findMany({ where: { situacao: { not: 'ATIVA' }, inativado_em: { not: null }, data_entrada: { not: null } } as any, select: { data_entrada: true, inativado_em: true } }),
+    prisma.cliente.findMany({ where: { situacao: { not: 'ATIVA' }, inativado_em: { gte: inicioMes, lte: agora } } as any, select: sel, orderBy: { inativado_em: 'desc' } as any }),
+    prisma.casoChurn.findMany({ where: { status: { in: CASO_ABERTO } }, select: { id: true, status: true, risk_score: true, motivo_principal: true, created_at: true, data_abertura_real: true, cliente: { select: sel } }, orderBy: { risk_score: 'desc' } }),
+    prisma.cliente.findMany({ where: { situacao: 'ATIVA', risco_atencao: true } as any, select: sel }),
+    prisma.casoChurn.findMany({ where: { status: 'RECUPERADO', resolvido_em: { gte: inicioMes } }, select: { id: true, resolvido_em: true, motivo_principal: true, cliente: { select: sel } }, orderBy: { resolvido_em: 'desc' } }),
+  ]);
+
+  const mediaMeses = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null; };
+  const comCaso = new Set(casosAbertos.map(c => c.cliente?.id));
+  const risco = [
+    ...casosAbertos.map(c => ({
+      id: c.id, cliente: nome(c.cliente), motivo: (c.motivo_principal || '').slice(0, 90) || null, status: c.status,
+      score: Math.round(c.risk_score || 0), dias: Math.floor((agora.getTime() - (c.data_abertura_real || c.created_at).getTime()) / 864e5),
+    })),
+    ...riscoMarcado.filter(c => !comCaso.has(c.id)).map(c => ({ id: `r:${c.id}`, cliente: nome(c), motivo: 'marcado como em risco', status: 'ATENCAO', score: null as number | null, dias: null as number | null })),
+  ];
+
+  return {
+    ativos: ativos.length,
+    tempo_medio_ativos_meses: mediaMeses(ativos.map(c => meses(c.data_entrada, agora))),
+    tempo_medio_saida_meses: mediaMeses(saidas.map(c => meses(c.data_entrada, c.inativado_em!))),
+    em_risco: { total: risco.length, lista: risco.slice(0, 12) },
+    resolvidos_mes: { total: resolvidos.length, lista: resolvidos.slice(0, 8).map(r => ({ id: r.id, cliente: nome(r.cliente), em: r.resolvido_em?.toISOString() || null, motivo: (r.motivo_principal || '').slice(0, 80) || null })) },
+    cancelados_mes: {
+      total: cancelMes.length,
+      lista: cancelMes.slice(0, 10).map(c => ({ id: c.id, cliente: nome(c), em: c.inativado_em?.toISOString() || null, motivo: (c.motivo_inativacao || '').slice(0, 80) || null, meses_de_casa: meses(c.data_entrada, c.inativado_em || agora) })),
+    },
+    inicio_mes: inicioMes.toISOString(),
   };
 }
 

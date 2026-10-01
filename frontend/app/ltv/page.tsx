@@ -36,7 +36,7 @@ function formatarTempo(meses: number): string {
 
 const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-type ColunaOrdem = 'nome' | 'segmento' | 'situacao' | 'meses_de_casa' | 'ltv';
+type ColunaOrdem = 'nome' | 'segmento' | 'situacao' | 'meses_de_casa';
 
 export default function LtvPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -44,7 +44,7 @@ export default function LtvPage() {
   const [dados, setDados] = useState<RespostaLtv | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState('');
-  const [ordem, setOrdem] = useState<{ coluna: ColunaOrdem; direcao: 'asc' | 'desc' }>({ coluna: 'ltv', direcao: 'desc' });
+  const [ordem, setOrdem] = useState<{ coluna: ColunaOrdem; direcao: 'asc' | 'desc' }>({ coluna: 'meses_de_casa', direcao: 'desc' });
 
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading]);
 
@@ -89,8 +89,13 @@ export default function LtvPage() {
 
   const top10 = useMemo(() => {
     if (!dados) return [];
-    return [...dados.clientes].filter(c => c.situacao === 'ATIVA').sort((a, b) => b.ltv - a.ltv).slice(0, 10);
+    return [...dados.clientes].filter(c => c.situacao === 'ATIVA').sort((a, b) => b.meses_de_casa - a.meses_de_casa).slice(0, 10);
   }, [dados]);
+  // Tempo de casa (o LTV desta tela é medido em tempo, não em valor).
+  const ativosLista = useMemo(() => (dados?.clientes || []).filter(c => c.situacao === 'ATIVA'), [dados]);
+  const tempoMedioAtivos = ativosLista.length ? ativosLista.reduce((s, c) => s + c.meses_de_casa, 0) / ativosLista.length : 0;
+  const inativosLista = useMemo(() => (dados?.clientes || []).filter(c => c.situacao !== 'ATIVA' && c.meses_de_casa > 0), [dados]);
+  const tempoMedioSaida = inativosLista.length ? inativosLista.reduce((s, c) => s + c.meses_de_casa, 0) / inativosLista.length : 0;
 
   if (loading || !isAuthenticated) return null;
 
@@ -102,7 +107,7 @@ export default function LtvPage() {
           <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t-text-primary)' }}>LTV dos Clientes</h1>
         </div>
         <p style={{ fontSize: 12, color: 'var(--t-text-secondary)', marginBottom: 20 }}>
-          Lifetime Value realizado até hoje — mensalidade acumulada ao longo do tempo de casa + instalação + vendas adicionais confirmadas.
+          Tempo de vida do cliente: quanto tempo cada cliente está (ou ficou) com a Prosystem.
         </p>
 
         {carregando ? (
@@ -118,19 +123,19 @@ export default function LtvPage() {
               <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <TrendingUp size={14} color={PRO} />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>LTV Médio</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>Tempo médio dos ativos</span>
                 </div>
-                <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--t-text-primary)' }}>{fmt(dados.resumo.ltv_medio)}</p>
-                <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginTop: 4 }}>por cliente ativo</p>
+                <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--t-text-primary)' }}>{formatarTempo(tempoMedioAtivos)}</p>
+                <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginTop: 4 }}>{ativosLista.length} clientes ativos hoje</p>
               </div>
 
               <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <Users size={14} color={PRO} />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>LTV Total</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>Quem saiu ficou</span>
                 </div>
-                <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--t-text-primary)' }}>{fmt(dados.resumo.ltv_total)}</p>
-                <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginTop: 4 }}>{dados.resumo.total_clientes_considerados} clientes ativos</p>
+                <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--t-text-primary)' }}>{formatarTempo(tempoMedioSaida)}</p>
+                <p style={{ fontSize: 11, color: 'var(--t-text-secondary)', marginTop: 4 }}>em média, {inativosLista.length} clientes inativos com data</p>
               </div>
 
               <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 20 }}>
@@ -145,7 +150,7 @@ export default function LtvPage() {
               <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 20, gridColumn: 'span 2', minWidth: 280 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                   <Award size={14} color={PRO} />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>Top 10 clientes por LTV</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>Top 10 · mais tempo de casa</span>
                 </div>
                 <div style={{ display: 'grid', gap: 6 }}>
                   {top10.map((c, i) => (
@@ -153,7 +158,7 @@ export default function LtvPage() {
                       <span style={{ color: 'var(--t-text-primary)' }}>
                         <strong style={{ color: 'var(--t-text-secondary)', marginRight: 6 }}>{i + 1}.</strong>{c.nome}
                       </span>
-                      <span style={{ fontWeight: 700, color: PRO }}>{fmt(c.ltv)}</span>
+                      <span style={{ fontWeight: 700, color: PRO }}>{formatarTempo(c.meses_de_casa)}</span>
                     </div>
                   ))}
                 </div>
@@ -199,12 +204,12 @@ export default function LtvPage() {
                     <tr style={{ background: 'var(--t-content-bg)', borderBottom: '1px solid var(--t-card-border)' }}>
                       {([
                         ['nome', 'Cliente'], ['segmento', 'Segmento'], ['situacao', 'Situação'],
-                        ['meses_de_casa', 'Tempo de casa'], ['ltv', 'LTV'],
+                        ['meses_de_casa', 'Tempo de casa'],
                       ] as [ColunaOrdem, string][]).map(([col, label]) => (
                         <th
                           key={col}
                           onClick={() => alternarOrdem(col)}
-                          style={{ padding: '10px 14px', textAlign: col === 'ltv' || col === 'meses_de_casa' ? 'right' : 'left', cursor: 'pointer', userSelect: 'none', color: 'var(--t-text-secondary)', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                          style={{ padding: '10px 14px', textAlign: col === 'meses_de_casa' ? 'right' : 'left', cursor: 'pointer', userSelect: 'none', color: 'var(--t-text-secondary)', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}
                         >
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                             {label}
@@ -228,13 +233,12 @@ export default function LtvPage() {
                             {c.situacao === 'ATIVA' ? 'Ativa' : 'Inativa'}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--t-text-secondary)' }}>{c.meses_de_casa} meses</td>
-                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: PRO }}>{fmt(c.ltv)}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: PRO }}>{formatarTempo(c.meses_de_casa)}</td>
                       </tr>
                     ))}
                     {clientesFiltrados.length === 0 && (
                       <tr>
-                        <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--t-text-secondary)', fontSize: 12 }}>
+                        <td colSpan={4} style={{ padding: 24, textAlign: 'center', color: 'var(--t-text-secondary)', fontSize: 12 }}>
                           Nenhum cliente encontrado.
                         </td>
                       </tr>
