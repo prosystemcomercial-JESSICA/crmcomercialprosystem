@@ -685,12 +685,20 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   const ultimasDoAgente = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', enviada_por: agenteDe(sdr) }, orderBy: { created_at: 'desc' }, take: 4, select: { conteudo: true, created_at: true } });
   // Cliente só confirmou/agradeceu ("👍", "ok", "obrigado") depois da fala do agente: não responde.
   // A conversa fica em espera (retomada leve em 7 dias, ou na data que o cliente combinou).
+  let dicaDecisor = '';
   if (fase === 'resposta') {
     const desdeAgente = ultimasDoAgente[0]?.created_at || sdr.desde;
     const novas = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA', created_at: { gt: desdeAgente } }, select: { conteudo: true, tipo: true } });
     if (novas.length && novas.every(m => m.tipo === 'TEXTO' && ehRespostaAutomatica(m.conteudo))) {
-      registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: espera a pessoa responder`);
-      return 'nada';
+      // Atitude: só respondeu o robô da loja. Uma vez por conversa, escreve para o atendente pedindo o decisor.
+      const dA: any = sdr.dados || {};
+      if (dA.pediu_decisor_em) {
+        registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: já pediu o decisor, espera a pessoa`);
+        return 'nada';
+      }
+      dicaDecisor = 'A loja respondeu só com MENSAGEM AUTOMÁTICA (robô de atendimento). Não agradeça nem converse com o robô. Escreva UMA mensagem curta para o ATENDENTE que vai ler: diga quem você é e o motivo em uma frase (sistema de gestão da farmácia/padaria, sem vender), e peça com educação o nome e o WhatsApp do dono ou do gerente que cuida da parte de sistema, ou o melhor horário para falar com ele. Use acao "continuar".';
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...dA, pediu_decisor_em: new Date().toISOString() } } });
+      registrarAcaoAgente(agenteDe(sdr), `só a mensagem automática de ${sdr.nome || 'um lead'} respondeu: pediu o contato do decisor ao atendente`);
     }
     if (ultimasDoAgente.length && novas.length && novas.every(m => m.tipo === 'TEXTO' && ehSoConfirmacao(m.conteudo))) {
       const d: any = sdr.dados || {};
@@ -708,7 +716,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     registrarAcaoAgente(agenteDe(sdr), `segurou uma retomada para ${sdr.nome || 'um lead'}: já tinha escrito há pouco, sem resposta`);
     return 'nada';
   }
-  let r = await gerarResposta(prisma, sdr, fase);
+  let r = await gerarResposta(prisma, sdr, fase, dicaDecisor);
   if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); return 'falha'; }
   // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.
   const parecida = (x: RespostaCaroline) => x.mensagens.some(m => ultimasDoAgente.some(u => semelhanca(m, u.conteudo || '') >= 0.6));
