@@ -652,3 +652,38 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - nunca diz que a pessoa se inscreveu.
 - **Validação:** `lerNovoContato` só aceita celular brasileiro válido (`numeroWhatsapp`).
 - **Testes:** em `tests/sdr-caroline.test.ts`.
+
+### Atualização 02/10/2026: Portal de Implantação, fase 1 (cronômetro e esperas)
+
+Desenho completo: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.md`. Ele substitui o quadro do Trello dentro do Portal Técnico e prevê 8 fases; a 7ª é o agente de implantação no Escritório.
+
+- **Banco (só acréscimos):**
+  - `ImplantacaoSessao`: cada play do técnico, com tipo DEMANDA, SUPORTE, REUNIAO ou INTERNO; etapa INSTALACAO, CONVERSAO, TREINAMENTO ou CORRECAO; início, fim, `origem_fim` (PAUSA, TROCA, ESPERA, AUTO_23H59 ou CORRECAO) e `corrigido_por`;
+  - `ImplantacaoEspera`: tipo PROGRAMACAO, CLIENTE ou PROCESSAMENTO, motivo, o que resolver, responsável, início, fim, quem resolveu e a resposta.
+- **Regras:**
+  - só uma sessão aberta por técnico: o play em outra demanda fecha a anterior (TROCA) e registra a troca na linha do tempo das duas;
+  - abrir uma espera pausa o cronômetro, se ele estiver naquela demanda;
+  - o processamento automático (uma importação, por exemplo) não conta como trabalho;
+  - uma sessão esquecida aberta fecha às 23h59:59 do dia em que começou (verificação a cada 15 min, `iniciarSchedulerCronometro`);
+  - a gestão (ou a supervisão técnica) corrige horários, e cada correção fica registrada.
+- **Contas (`lib/implantacao/cronometro.ts`, puro):**
+  - união de intervalos: duas demandas na mesma hora contam uma hora;
+  - jornada configurável em `ConfiguracaoIntegracao` (`implantacao.jornada`); o padrão é 08h às 18h, almoço das 12h às 13h, segunda a sexta (9h), e 07h em dia de virada (10h);
+  - o tempo fora da jornada é hora extra;
+  - aproveitamento = tempo dentro da jornada ÷ jornada;
+  - tempos por demanda: trabalho por etapa, esperas por tipo (quantidade, duração, abertas) e prazo total desde a assinatura.
+- **Rotas (`routes/implantacao-cronometro.ts`):**
+  - `GET /implantacoes/cronometro/atual`;
+  - `POST /implantacoes/cronometro/play` e `/pausa`;
+  - `GET /implantacoes/cronometro/dia` (a gestão escolhe o técnico);
+  - `PATCH /implantacoes/sessoes/:id` (correção, só a gestão);
+  - `GET /implantacoes/:id/tempos`;
+  - `POST /implantacoes/:id/esperas`;
+  - `POST /implantacoes/esperas/:id/resolver` (gestão, quem abriu, o responsável ou o técnico da demanda);
+  - `GET /implantacoes/esperas/abertas`;
+  - `GET /implantacoes/cronometro/jornada`.
+- **Tela (`components/implantacao/Cronometro.tsx`):**
+  - barra no topo do Portal Técnico: o que está rodando, relógio, Pausar, "Outra atividade" (Suporte, Reunião, Tarefa interna), horas de hoje e aproveitamento;
+  - em cada implantação: etapa, Play ou Pausar e "Espera" (programação com o Sinval, cliente ou processamento);
+  - aba nova **Meu dia**: trabalhado, na jornada, aproveitamento, hora extra, registros do dia e esperas abertas com "Resolvido".
+- **Testes:** em `tests/implantacao-cronometro.test.ts`.

@@ -899,6 +899,16 @@ class ApiClient {
   async atualizarImplantacao(id: string, data: any) {
     return this.client.patch(`/implantacoes/${id}`, data);
   }
+  // Cronômetro do técnico e esperas da demanda
+  async getCronometroAtual() { return this.client.get('/implantacoes/cronometro/atual'); }
+  async playCronometro(data: { tipo: string; implantacao_id?: string | null; etapa?: string | null; descricao?: string | null }) { return this.client.post('/implantacoes/cronometro/play', data); }
+  async pausarCronometro() { return this.client.post('/implantacoes/cronometro/pausa', {}); }
+  async getDiaTecnico(params: { tecnico_id?: string; data?: string } = {}) { return this.client.get('/implantacoes/cronometro/dia', { params }); }
+  async corrigirSessao(id: string, data: { inicio?: string; fim?: string }) { return this.client.patch(`/implantacoes/sessoes/${id}`, data); }
+  async getTemposImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/tempos`); }
+  async abrirEspera(id: string, data: { tipo: string; motivo: string; o_que_resolver?: string; responsavel_nome?: string; responsavel_id?: string }) { return this.client.post(`/implantacoes/${id}/esperas`, data); }
+  async resolverEspera(esperaId: string, resposta?: string) { return this.client.post(`/implantacoes/esperas/${esperaId}/resolver`, { resposta }); }
+  async getEsperasAbertas() { return this.client.get('/implantacoes/esperas/abertas'); }
   async getTecnicosImplantacao() {
     return this.client.get('/implantacoes/tecnicos');
   }
