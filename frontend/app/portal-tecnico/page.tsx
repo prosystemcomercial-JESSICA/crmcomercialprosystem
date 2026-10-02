@@ -356,6 +356,7 @@ export default function PortalTecnicoPage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
   const [tab, setTab] = useState<Tab>(tabParam || 'inicio');
+  const [abrirDemanda, setAbrirDemanda] = useState<string | null>(null);
 
   // Bootstrap auth from URL token (when opened as external window)
   useEffect(() => {
@@ -829,10 +830,9 @@ export default function PortalTecnicoPage() {
         // 'Demandas (SLA)' escondida: lia SolicitacaoServico, que nunca existiu em produção (substituída por Quadro/Serviços).
         { key: 'inicio'      as Tab, label: 'Início',       icon: Star,         badge: null },
         { key: 'quadro'      as Tab, label: 'Quadro',       icon: LayoutGrid,   badge: null },
-        { key: 'servicos'    as Tab, label: 'Serviços',     icon: Briefcase,    badge: null },
         { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
         { key: 'avisos'      as Tab, label: 'Avisos',       icon: Zap,          badge: null },
-        { key: 'implantacoes'as Tab, label: 'Implantações', icon: Wrench,       badge: null },
+        // 'Implantações' (lista antiga com Datas/Executar) saiu do menu: tudo isso está no card do Quadro.
         { key: 'onboarding'  as Tab, label: 'Onboarding',   icon: Rocket,       badge: null },
       ],
     },
@@ -865,7 +865,7 @@ export default function PortalTecnicoPage() {
   const TAB_TITLE: Record<Tab, string> = {
     demandas:     'Demandas Técnicas',
     inicio:       'Início',
-    quadro:       'Quadro da implantação',
+    quadro:       'Quadro · implantações e serviços',
     servicos:     'Serviços técnicos',
     avisos:       'Avisos',
     painel:       'Painel da implantação',
@@ -896,8 +896,8 @@ export default function PortalTecnicoPage() {
             <div style={{ fontSize: 10, color: 'var(--t-text-muted)', lineHeight: 1 }}>ProSystem</div>
           </div>
         </div>
-        <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
+        <div className="pt-topo-extra" style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
+        <div className="pt-topo-extra" style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
         <div style={{ flex: 1 }} />
         <CronometroBarra />
         <SinoAvisos onAbrir={() => setTab('avisos')} />
@@ -911,19 +911,27 @@ export default function PortalTecnicoPage() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ── SIDEBAR ── */}
-        <aside style={{ width: 210, flexShrink: 0, background: 'var(--t-card-bg)', borderRight: '1px solid var(--t-card-border)', display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '12px 0' }}>
+        <style>{`
+          @media (max-width: 900px) {
+            .pt-aside { width: 58px !important; }
+            .pt-aside .pt-rotulo, .pt-aside .pt-grupo, .pt-aside .pt-versao { display: none; }
+            .pt-topo-extra { display: none !important; }
+            .pt-conteudo { padding: 14px !important; }
+          }
+        `}</style>
+        <aside className="pt-aside" style={{ width: 210, flexShrink: 0, background: 'var(--t-card-bg)', borderRight: '1px solid var(--t-card-border)', display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '12px 0' }}>
           {SIDEBAR_GROUPS.map(grp => (
             <div key={grp.group} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, color: grp.color, padding: '6px 16px 4px', textTransform: 'uppercase' }}>{grp.group}</div>
+              <div className="pt-grupo" style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, color: grp.color, padding: '6px 16px 4px', textTransform: 'uppercase' }}>{grp.group}</div>
               {grp.items.map(item => {
                 const active = tab === item.key;
                 const Icon = item.icon;
                 return (
-                  <button key={item.key} onClick={() => setTab(item.key)}
+                  <button key={item.key} onClick={() => setTab(item.key)} title={item.label}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', border: 'none', background: active ? `${grp.color}14` : 'transparent', cursor: 'pointer', transition: 'background 0.15s', position: 'relative',
                       borderLeft: active ? `3px solid ${grp.color}` : '3px solid transparent' }}>
                     <Icon size={15} color={active ? grp.color : 'var(--t-text-muted)'} />
-                    <span style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? grp.color : 'var(--t-text-secondary)', flex: 1, textAlign: 'left' }}>{item.label}</span>
+                    <span className="pt-rotulo" style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? grp.color : 'var(--t-text-secondary)', flex: 1, textAlign: 'left' }}>{item.label}</span>
                     {item.badge ? (
                       <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 99, background: '#dc2626', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{item.badge}</span>
                     ) : null}
@@ -935,13 +943,13 @@ export default function PortalTecnicoPage() {
 
           {/* Divider + versão */}
           <div style={{ flex: 1 }} />
-          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--t-card-border)', marginTop: 8 }}>
+          <div className="pt-versao" style={{ padding: '12px 16px', borderTop: '1px solid var(--t-card-border)', marginTop: 8 }}>
             <div style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>CRM Técnico — ProSystem</div>
           </div>
         </aside>
 
         {/* ── CONTENT ── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+        <div className="pt-conteudo" style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 'clamp(14px, 2vw, 28px)' }}>
 
         {/* ── TAB: DEMANDAS ── */}
         {tab === 'demandas' && (
@@ -1256,9 +1264,8 @@ export default function PortalTecnicoPage() {
 
         {/* ── TAB: IMPLANTAÇÕES ── */}
         {tab === 'meudia' && <PainelMeuDia gestao={gestaoTecnica} />}
-        {tab === 'inicio' && <PainelInicio gestao={gestaoTecnica} irPara={(t: string) => setTab(t as Tab)} />}
-        {tab === 'quadro' && <QuadroDemandas modulo="IMPLANTACAO" gestao={gestaoTecnica} />}
-        {tab === 'servicos' && <QuadroDemandas modulo="SERVICO" gestao={gestaoTecnica} />}
+        {tab === 'inicio' && <PainelInicio gestao={gestaoTecnica} irPara={(t: string, id?: string) => { setAbrirDemanda(id || null); setTab(t as Tab); }} />}
+        {(tab === 'quadro' || tab === 'servicos') && <QuadroDemandas gestao={gestaoTecnica} abrirId={abrirDemanda} onAberto={() => setAbrirDemanda(null)} />}
         {tab === 'avisos' && <PainelAvisos gestao={gestaoTecnica} />}
         {tab === 'painel' && gestaoTecnica && <PainelGestaoImplantacao />}
         {tab === 'config' && gestaoTecnica && <ConfigPortalImplantacao />}

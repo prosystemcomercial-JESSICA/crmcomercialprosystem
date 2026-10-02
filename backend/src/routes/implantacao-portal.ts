@@ -42,9 +42,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/quadro', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     const q = request.query as { modulo?: string };
-    const modulo = q.modulo === 'SERVICO' ? 'SERVICO' : 'IMPLANTACAO';
+    const modulo = q.modulo === 'SERVICO' || q.modulo === 'IMPLANTACAO' ? q.modulo : null; // sem filtro = tudo
     // Só as demandas dos últimos 60 dias (as antigas seguem no CRM, fora do quadro).
-    const where: any = { modulo, data_assinatura: { gte: new Date(Date.now() - DIAS_QUADRO * 864e5) } };
+    const where: any = { ...(modulo ? { modulo } : {}), data_assinatura: { gte: new Date(Date.now() - DIAS_QUADRO * 864e5) } };
     if (ehTecnico(u) && !ehGestaoTecnica(u)) where.tecnico_id = u.id;
     const lista = await prisma.implantacao.findMany({
       where, orderBy: { data_assinatura: 'desc' },

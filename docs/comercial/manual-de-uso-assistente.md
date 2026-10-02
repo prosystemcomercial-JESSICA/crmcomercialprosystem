@@ -850,3 +850,7 @@ Nos serviços, o cliente recebe só "recebemos o seu pedido e ele já está na f
 - **Gestão:** no fim da página Início, crie uma **tarefa avulsa** (com prazo) ou um **recado** para o técnico. Marque "urgente" para ele receber também no WhatsApp.
 - **Técnico:** toque no círculo da tarefa para concluir e no "Lido" para marcar o recado.
 - As telas "Demandas (SLA)" e "Histórico de solicitações" do cliente foram escondidas: nunca tiveram dados. Use **Quadro** e **Serviços**.
+
+### Atualização 02/10/2026: um quadro só
+
+Implantações e serviços ficam no mesmo **Quadro**: use os botões **Tudo / Implantações / Serviços** no topo. No Início, clicar num item de "Pede atenção agora" abre a demanda. O portal ocupa a tela inteira em qualquer tamanho; no celular, o menu vira só ícones.
