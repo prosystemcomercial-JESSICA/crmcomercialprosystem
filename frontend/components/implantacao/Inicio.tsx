@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { CheckCircle, Circle, ClipboardList, Bell, AlertTriangle, Hourglass, Rocket, GraduationCap, Loader2, Send, UserX, Clock } from 'lucide-react';
 import { fmtDur } from './Cronometro';
+import { ConfirmarLeitura, RadarLeitura } from './ConfirmarLeitura';
 
 // Início do Portal Técnico: saudação e frase do dia, como está o meu dia, tarefas avulsas,
 // recados da gestão e o que pede atenção agora. A gestão também cria tarefas e recados daqui.
@@ -19,6 +20,7 @@ const ICONE_ATENCAO: Record<string, { Icon: any; cor: string }> = {
 
 export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab: string, demandaId?: string) => void }) {
   const [d, setD] = useState<any | null>(null);
+  const [aberto, setAberto] = useState<any | null>(null);
   const carregar = useCallback(async () => { try { const r = await apiClient.getInicioPortal(); setD(r.data.data); } catch { /* sem login */ } }, []);
   useEffect(() => {
     carregar();
@@ -35,7 +37,6 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
   const naoLidos = d.recados.filter((r: any) => !r.lido_em);
   const pct = d.hoje.aproveitamento == null ? null : Math.round(d.hoje.aproveitamento * 100);
   const concluir = async (t: any, reabrir = false) => { try { await apiClient.concluirTarefa(t.id, reabrir); window.dispatchEvent(new Event('avisos:mudou')); carregar(); } catch (e) { alert(erroDe(e)); } };
-  const lido = async (r: any) => { await apiClient.marcarAvisoLido(r.id).catch(() => {}); window.dispatchEvent(new Event('avisos:mudou')); carregar(); };
 
   return (
     <div style={{ display: 'grid', gap: 18, width: '100%' }}>
@@ -133,20 +134,22 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
           <div style={{ padding: '0 16px 14px', display: 'grid', gap: 6 }}>
             {d.recados.length === 0 && <div style={{ fontSize: 13, color: 'var(--t-text-muted)', padding: '6px 0' }}>Nenhum recado novo.</div>}
             {d.recados.map((r: any) => (
-              <div key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 10, background: r.lido_em ? 'transparent' : '#2E6EAB0d' }}>
+              <button key={r.id} type="button" onClick={() => setAberto(r)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 10, border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', minHeight: 44, background: r.lido_em ? 'transparent' : '#2E6EAB0d' }}>
                 {r.prioridade === 'URGENTE' ? <AlertTriangle size={15} color="#dc2626" style={{ marginTop: 2 }} /> : <Bell size={15} color="#2E6EAB" style={{ marginTop: 2 }} />}
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
                   <div style={{ color: 'var(--t-text-primary)', fontWeight: r.lido_em ? 400 : 700 }}>{r.texto}</div>
                   <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>de {r.de_nome || 'Gestão'}{r.implantacao ? ` · ${r.implantacao.cliente_razao_social}` : ''} · {fmtData(r.created_at)}</div>
                 </div>
-                {!r.lido_em && <button onClick={() => lido(r)} style={{ fontSize: 11, fontWeight: 700, color: '#2E6EAB', background: 'transparent', border: '1px solid #2E6EAB55', borderRadius: 8, padding: '3px 8px', cursor: 'pointer' }}>Lido</button>}
-              </div>
+                {!r.lido_em && <span style={{ fontSize: 11, fontWeight: 700, color: '#2E6EAB', whiteSpace: 'nowrap' }}>Ler</span>}
+              </button>
             ))}
           </div>
         </section>
       </div>
 
+      {gestao && <RadarLeitura />}
       {gestao && <NovaTarefaOuRecado onEnviado={carregar} />}
+      <ConfirmarLeitura aviso={aberto} onFechar={() => { setAberto(null); carregar(); }} />
     </div>
   );
 }
