@@ -67,3 +67,12 @@ describe('virada, progresso e avisos', () => {
     expect(inferirTipoServico('Comunicação entre lojas')).toBe('COMUNICACAO');
   });
 });
+
+import { ehLegado } from '../src/lib/implantacao/portal';
+describe('demandas anteriores ao portal', () => {
+  it('não geram aviso nem mensagem ao cliente', () => {
+    expect(ehLegado({ data_assinatura: new Date('2026-09-23T12:00:00Z') })).toBe(true);
+    expect(ehLegado({ data_assinatura: null })).toBe(true);
+    expect(ehLegado({ data_assinatura: new Date('2026-10-03T12:00:00Z') })).toBe(false);
+  });
+});

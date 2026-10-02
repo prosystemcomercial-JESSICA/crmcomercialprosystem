@@ -8,7 +8,7 @@ import { diaSP, temposDaDemanda } from '@/lib/implantacao/cronometro';
 import { CONTATO_GERAL, LINK_CONTATO_GERAL } from '@/lib/triagem/fluxo';
 import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
-  progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, type ConfigSla,
+  progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, type ConfigSla,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -312,6 +312,7 @@ const horarioComercial = (d = new Date()) => {
 
 /** Envia um marco ao cliente (WhatsApp + e-mail), uma vez por canal. */
 export async function enviarMarco(prisma: PrismaClient, imp: any, marco: string) {
+  if (ehLegado(imp)) return; // cliente anterior ao portal: não recebe nada
   const v = await visaoCliente(prisma, imp);
   const link = `${URL_FRONT()}/acompanhamento/${imp.token_cliente}`;
   const t = await escreverMarco(prisma, imp, marco, v, link);
@@ -362,8 +363,9 @@ export async function pularMarcosPassados(prisma: PrismaClient, implantacaoId: s
 
 export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
   const cfg = await obterConfigPortal(prisma);
-  const ativas = await prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' } } });
+  const ativas = (await prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' } } })).filter(i => !ehLegado(i));
   const hoje = diaSP(agora);
+  const resumoGestao: string[] = []; // prazos e demandas sem técnico: um único resumo por rodada
 
   // 1) Esperas da programação sem resposta: lembrete ao responsável e aviso ao técnico e à gestão.
   const esperas = await prisma.implantacaoEspera.findMany({ where: { tipo: 'PROGRAMACAO', fim: null }, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_id: true } } } });
@@ -386,13 +388,14 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
     await prisma.implantacao.update({ where: { id: i.id }, data: { sla_aviso: chave } });
     const txt = s.situacao === 'ESTOURADO' ? `🔴 Prazo estourado: ${i.cliente_razao_social} (prazo ${prazo!.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}).` : `🟠 Prazo em risco: ${i.cliente_razao_social} já usou ${s.pct}% do prazo (até ${prazo!.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}).`;
     if (i.tecnico_id) await avisarTecnico(prisma, { para_id: i.tecnico_id, implantacao_id: i.id, origem: 'SISTEMA', prioridade: s.situacao === 'ESTOURADO' ? 'URGENTE' : 'NORMAL', texto: txt });
-    await avisarGestao(prisma, `sla.${i.id}.${chave}`, txt, 24 * 60);
+    resumoGestao.push(txt);
     await linha(prisma, i.id, 'NOTA', txt);
   }
 
   // 3) Cobrança: loja virada sem cobrança lançada → aviso à gestão todo dia útil (das 9h).
   if (horarioComercial(agora) && Number(agora.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false })) >= 9) {
-    const pend = await prisma.implantacao.findMany({ where: { virada_fim_em: { not: null }, cobranca_lancada_em: null } });
+    // Legadas (virada retroativa) não entram no aviso diário: ficam só no painel da gestão.
+    const pend = (await prisma.implantacao.findMany({ where: { virada_fim_em: { not: null }, cobranca_lancada_em: null } })).filter(p => !ehLegado(p));
     if (pend.length) {
       const linhas = pend.map(p => `• ${p.cliente_razao_social}: virada em ${p.virada_fim_em!.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}, 1º vencimento ${p.data_primeiro_vencimento ? p.data_primeiro_vencimento.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'}${p.mensalidade ? ` (R$ ${p.mensalidade.toFixed(2).replace('.', ',')})` : ''}`);
       await avisarGestao(prisma, `cobranca.${hoje}`, `💰 *Cobrança da mensalidade para lançar* (${pend.length})\n${linhas.join('\n')}\n\nMarque "Cobrança lançada" no Portal Técnico quando lançar.`);
@@ -402,7 +405,8 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
   // 4) Mensagens ao cliente (só em horário comercial; no máximo 3 por rodada para proteger o número).
   if (cfg.avisos_cliente && horarioComercial(agora)) {
     let enviados = 0;
-    for (const i of ativas.concat(await prisma.implantacao.findMany({ where: { virada_fim_em: { gte: new Date(agora.getTime() - 120 * 864e5) }, concluida_fila_em: { not: null } } }))) {
+    const recentes = (await prisma.implantacao.findMany({ where: { virada_fim_em: { gte: new Date(agora.getTime() - 120 * 864e5) }, concluida_fila_em: { not: null } } })).filter(i => !ehLegado(i));
+    for (const i of ativas.concat(recentes)) {
       if (enviados >= 3) break;
       if (!i.token_cliente) continue;
       const [itens, fases, coms] = await Promise.all([
@@ -420,20 +424,21 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
   }
 
   // 5) Otávio de olho: o que está faltando (uma vez por dia e demanda).
-  if (cfg.agente_ativo && horarioComercial(agora)) await vigiar(prisma, ativas, agora, hoje);
+  if (cfg.agente_ativo && horarioComercial(agora)) await vigiar(prisma, ativas, agora, hoje, resumoGestao);
+  if (resumoGestao.length) await avisarGestao(prisma, `resumo.${hoje}.${resumoGestao.join('|').length}`, `🛠️ *Implantação: o que precisa de atenção*\n${resumoGestao.map(t => `• ${t.replace(/^[^\wÀ-ú*]+/, '')}`).join('\n')}`);
 
   // 6) Ofertas depois da virada (agente de oferta).
   if (cfg.ofertas_ativo && cfg.catalogo.length && horarioComercial(agora)) await rodarOfertas(prisma, cfg, agora);
 }
 
-async function vigiar(prisma: PrismaClient, ativas: any[], agora: Date, hoje: string) {
+async function vigiar(prisma: PrismaClient, ativas: any[], agora: Date, hoje: string, resumoGestao: string[]) {
   const { podeEnviarUmaVez } = await import('./envio-unico.service');
   const umaVez = (k: string) => podeEnviarUmaVez(prisma, `otavio.${k}.${hoje}`, 20);
   for (const i of ativas) {
     const dias = (d?: Date | null) => d ? (agora.getTime() - d.getTime()) / 864e5 : 0;
     const faltas: string[] = [];
     if (!i.tecnico_id && dias(i.data_assinatura) >= 1) {
-      if (await umaVez(`sem-tecnico.${i.id}`)) await avisarGestao(prisma, `sem-tecnico.${i.id}.${hoje}`, `👷 *${i.cliente_razao_social}* está sem técnico designado há ${Math.floor(dias(i.data_assinatura))} dia(s). Designe no Portal Técnico.`);
+      if (await umaVez(`sem-tecnico.${i.id}`)) resumoGestao.push(`👷 ${i.cliente_razao_social} está sem técnico há ${Math.floor(dias(i.data_assinatura))} dia(s)`);
       continue;
     }
     if (i.modulo === 'IMPLANTACAO') {
@@ -461,7 +466,7 @@ async function vigiar(prisma: PrismaClient, ativas: any[], agora: Date, hoje: st
 
 async function rodarOfertas(prisma: PrismaClient, cfg: ConfigPortal, agora: Date) {
   const limite = new Date(agora.getTime() - cfg.ofertas_dias_apos_virada * 864e5);
-  const alvos = await prisma.implantacao.findMany({ where: { modulo: 'IMPLANTACAO', virada_fim_em: { lte: limite, gte: new Date(limite.getTime() - 60 * 864e5) } }, take: 30 });
+  const alvos = (await prisma.implantacao.findMany({ where: { modulo: 'IMPLANTACAO', virada_fim_em: { lte: limite, gte: new Date(limite.getTime() - 60 * 864e5) } }, take: 30 })).filter(i => !ehLegado(i));
   let feitas = 0;
   for (const i of alvos) {
     if (feitas >= 2) break;

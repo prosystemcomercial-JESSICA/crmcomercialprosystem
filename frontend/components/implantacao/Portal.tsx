@@ -380,7 +380,10 @@ function AbaChecklist({ d, recarregar }: { d: any; recarregar: () => void }) {
 function AbaVirada({ d, gestao, recarregar }: { d: any; gestao: boolean; recarregar: () => void }) {
   const i = d.implantacao;
   const [ocupado, setOcupado] = useState(false);
+  const [retro, setRetro] = useState('');
+  const legado = !i.data_assinatura || new Date(i.data_assinatura) < new Date('2026-10-02T14:00:00Z');
   const acao = async (f: () => Promise<any>, confirma?: string) => { if (confirma && !confirm(confirma)) return; setOcupado(true); try { await f(); recarregar(); avisarCronometro(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); } };
+  const hojeTxt = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const passo = (ok: boolean, titulo: string, sub: React.ReactNode) => (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
       <div style={{ width: 26, height: 26, borderRadius: 99, background: ok ? '#16a34a' : 'var(--t-content-bg)', border: ok ? 'none' : '2px solid var(--t-card-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{ok && <CheckCircle size={15} color="#fff" />}</div>
@@ -389,6 +392,13 @@ function AbaVirada({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
   );
   return (
     <div style={{ display: 'grid', gap: 18 }}>
+      {legado && <div style={{ ...cartao, padding: 12, fontSize: 13, color: 'var(--t-text-secondary)', background: 'var(--t-content-bg)' }}>Demanda anterior ao portal: o cliente <b>não recebe</b> nenhuma mensagem automática e ela não gera avisos.</div>}
+      {gestao && !i.virada_fim_em && (
+        <div style={{ ...cartao, padding: 12, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}><b>Virada retroativa</b> (a loja já está usando)<br /><input type="date" max={hojeTxt} value={retro} onChange={e => setRetro(e.target.value)} className="ps-input" /></label>
+          <button disabled={!retro || ocupado} onClick={() => acao(() => apiClient.concluirVirada(i.id, retro), `Lançar a virada em ${retro.split('-').reverse().join('/')}? O 1º vencimento é calculado a partir dessa data e o cliente não recebe mensagem.`)} style={{ ...btn('#7c3aed'), opacity: retro ? 1 : 0.5 }}>Lançar virada retroativa</button>
+        </div>
+      )}
       {passo(!!i.tela_suporte_arquivo_id, 'Tela do Suporte anexada', i.tela_suporte_arquivo_id ? 'Pronta.' : 'Anexe na aba Ficha de coleta. Sem ela a virada não começa.')}
       {passo(!!i.virada_inicio_em, 'Iniciar virada', i.virada_inicio_em ? `Iniciada em ${fmtDataHora(i.virada_inicio_em)}. Neste dia a jornada do técnico começa às 7h.` : (
         <button disabled={ocupado || !i.tela_suporte_arquivo_id} onClick={() => acao(() => apiClient.iniciarVirada(i.id), 'Iniciar a virada da loja agora?')} style={{ ...btn('#7c3aed'), marginTop: 6, opacity: i.tela_suporte_arquivo_id ? 1 : 0.5 }}><Rocket size={13} /> Iniciar virada</button>

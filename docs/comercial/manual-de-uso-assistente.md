@@ -824,3 +824,10 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
   - nome e **WhatsApp do Sinval** (com ele preenchido, o Sinval recebe as pendências e o lembrete; sem ele, use o link das pendências);
   - jornada, avisos ao cliente, Otávio, agente de oferta e o **catálogo** de produtos e pacotes (o agente de oferta só liga com o catálogo preenchido).
 - **Sinval:** pelo link das pendências (sem login), marca "Resolvido" e o técnico é avisado na hora.
+
+### Atualização 02/10/2026: clientes antigos e virada retroativa
+
+- O quadro do Portal Técnico mostra só as demandas dos **últimos 60 dias**.
+- Clientes com contrato antes de 02/10/2026 **não recebem nenhuma mensagem automática** do portal e não geram avisos.
+- **Virada retroativa:** abra o card, aba Virada e cobrança, escolha a data em que a loja começou a usar e toque em **Lançar virada retroativa**. O 1º vencimento e o mês da comissão saem dessa data, sem mensagem ao cliente.
+- Os avisos de prazo e de demanda sem técnico chegam no seu WhatsApp num **único resumo**, e não um por demanda.

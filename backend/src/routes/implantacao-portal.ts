@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -43,7 +43,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const u = exigirLogin(request, reply); if (!u) return;
     const q = request.query as { modulo?: string };
     const modulo = q.modulo === 'SERVICO' ? 'SERVICO' : 'IMPLANTACAO';
-    const where: any = { modulo };
+    // Só as demandas dos últimos 60 dias (as antigas seguem no CRM, fora do quadro).
+    const where: any = { modulo, data_assinatura: { gte: new Date(Date.now() - DIAS_QUADRO * 864e5) } };
     if (ehTecnico(u) && !ehGestaoTecnica(u)) where.tecnico_id = u.id;
     const lista = await prisma.implantacao.findMany({
       where, orderBy: { data_assinatura: 'desc' },
@@ -66,7 +67,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         progresso: progresso(i, i.checklist), checklist_feitos: i.checklist.filter(c => c.feito).length, checklist_total: i.checklist.length,
         esperas_abertas: i.esperas, ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
         tela_suporte: !!i.tela_suporte_arquivo_id, virada_inicio_em: i.virada_inicio_em, virada_fim_em: i.virada_fim_em, data_primeiro_vencimento: i.data_primeiro_vencimento,
-        cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em,
+        cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
       };
     });
     return reply.send({ status: 'success', data: { colunas: COLUNAS, cards } });
@@ -235,14 +236,21 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const { id } = request.params as { id: string };
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
-    if (!imp.virada_inicio_em) return reply.status(400).send({ status: 'error', message: 'Clique em "Iniciar virada" primeiro' });
-    if (imp.virada_fim_em) return reply.status(400).send({ status: 'error', message: 'A loja já foi virada' });
-    const agora = new Date();
+    // Virada retroativa (só a gestão): informa a data em que a loja começou a usar; não precisa ter iniciado
+    // pelo portal nem anexar a tela, e o cliente não recebe mensagem nenhuma por isso.
+    const b = z.object({ data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).safeParse(request.body || {});
+    const retro = b.success && b.data.data ? new Date(`${b.data.data}T12:00:00-03:00`) : null;
+    if (retro && !ehGestaoTecnica(u)) return reply.status(403).send({ status: 'error', message: 'Só a gestão lança virada retroativa' });
+    if (retro && retro > new Date()) return reply.status(400).send({ status: 'error', message: 'A data da virada não pode ser no futuro' });
+    if (!retro && !imp.virada_inicio_em) return reply.status(400).send({ status: 'error', message: 'Clique em "Iniciar virada" primeiro' });
+    if (imp.virada_fim_em && !retro) return reply.status(400).send({ status: 'error', message: 'A loja já foi virada' });
+    const agora = retro || new Date();
     const venc = primeiroVencimento(agora);
-    await prisma.implantacao.update({ where: { id }, data: { virada_fim_em: agora, coluna: 'ACOMPANHAMENTO', etapa_execucao: 'EM_TREINAMENTO', treinamento_inicio: imp.treinamento_inicio || agora } });
+    await prisma.implantacao.update({ where: { id }, data: { virada_inicio_em: imp.virada_inicio_em || agora, virada_fim_em: agora, coluna: 'ACOMPANHAMENTO', etapa_execucao: 'EM_TREINAMENTO', treinamento_inicio: imp.treinamento_inicio || agora } });
     await confirmarImplantacao(prisma, id, { data_instalacao: agora, data_primeiro_vencimento: venc, status: 'INSTALADO' });
     await garantirFasesTreinamento(prisma, id);
-    await atividade(id, 'NOTA', `✅ Loja virada. Início de uso ${fmtData(agora)}; 1º vencimento ${fmtData(venc)}. Cobrança pendente de lançamento.`, u);
+    await atividade(id, 'NOTA', `✅ Loja virada${retro ? ' (lançada retroativamente)' : ''}. Início de uso ${fmtData(agora)}; 1º vencimento ${fmtData(venc)}. Cobrança pendente de lançamento.`, u);
+    if (retro || ehLegado(imp)) return reply.send({ status: 'success', data: { virada_fim_em: agora, data_primeiro_vencimento: venc } });
     const { enviarAvisoGestao } = await import('@/services/assistente-gestao.service');
     await enviarAvisoGestao(prisma, 'lead_qualificado', `✅ *Loja virada*: ${imp.cliente_razao_social}\nInício de uso: ${fmtData(agora)}\n1º vencimento: *${fmtData(venc)}*${imp.mensalidade ? `\nMensalidade: R$ ${imp.mensalidade.toFixed(2).replace('.', ',')}` : ''}\n\n💰 Lance a cobrança e marque "Cobrança lançada" no Portal Técnico.`, { somenteAprovadora: true }).catch(() => {});
     return reply.send({ status: 'success', data: { virada_fim_em: agora, data_primeiro_vencimento: venc } });

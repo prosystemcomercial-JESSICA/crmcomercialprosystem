@@ -1,6 +1,12 @@
 // Portal de implantação (fase 2): quadro, prazo (SLA), serviços e ficha de coleta. Puro (sem banco).
 import { janelasDaJornada, sobreposicao, diaSP, JORNADA_PADRAO, type Jornada } from './cronometro';
 
+// Demandas anteriores ao portal (no ar em 02/10/2026): ficam no CRM, mas não geram aviso nenhum
+// (nem ao cliente, nem à gestão/técnico). O quadro mostra só as dos últimos 60 dias.
+export const INICIO_PORTAL = new Date('2026-10-02T14:00:00Z');
+export const ehLegado = (i: { data_assinatura?: Date | null }) => !i.data_assinatura || i.data_assinatura < INICIO_PORTAL;
+export const DIAS_QUADRO = 60;
+
 // Colunas do quadro (as mesmas do Trello). Serviços usam o mesmo quadro, filtrado pelo módulo.
 export const COLUNAS = [
   { key: 'BACKLOG', label: 'BackLog' },
