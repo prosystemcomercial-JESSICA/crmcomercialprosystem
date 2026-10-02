@@ -374,6 +374,11 @@ export async function montarTelaBase(prisma: PrismaClient, agora: Date) {
     tempo_medio_ativos_meses: mediaMeses(ativos.map(c => meses(c.data_entrada, agora))),
     tempo_medio_saida_meses: mediaMeses(saidas.map(c => meses(c.data_entrada, c.inativado_em!))),
     em_risco: { total: risco.length, lista: risco.slice(0, 12) },
+    // Separados: pedido de cancelamento = caso de churn aberto; risco = cliente marcado em risco sem caso.
+    pedidos_cancelamento: { total: casosAbertos.length, lista: risco.filter(x => !String(x.id).startsWith('r:')).slice(0, 12) },
+    em_risco_sem_pedido: { total: risco.filter(x => String(x.id).startsWith('r:')).length, lista: risco.filter(x => String(x.id).startsWith('r:')).slice(0, 12) },
+    inativos_total: await prisma.cliente.count({ where: { situacao: { not: 'ATIVA' } } as any }).catch(() => null),
+    inativos_sem_data: await prisma.cliente.count({ where: { situacao: { not: 'ATIVA' }, inativado_em: null } as any }).catch(() => null),
     resolvidos_mes: { total: resolvidos.length, lista: resolvidos.slice(0, 8).map(r => ({ id: r.id, cliente: nome(r.cliente), em: r.resolvido_em?.toISOString() || null, motivo: (r.motivo_principal || '').slice(0, 80) || null })) },
     cancelados_mes: {
       total: cancelMes.length,

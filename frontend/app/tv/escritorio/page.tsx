@@ -539,14 +539,21 @@ function Retencao({ r }: { r: any }) {
     <div className="tela3">
       <div className="cap-grid">
         <div className="coluna">
-          <section className={`painel crescer ${r.em_risco.total ? 'borda-risco' : ''}`}>
-            <div className="cab"><h2>{r.em_risco.total ? <span className="ponto bad pisca" /> : null}Clientes em risco · pedidos de cancelamento</h2><span className={`mono ${r.em_risco.total ? 'bad' : 'ok'}`}>{r.em_risco.total}</span></div>
-            {r.em_risco.lista.length ? r.em_risco.lista.slice(0, 9).map((c: any) => (
+          <section className={`painel ${r.pedidos_cancelamento?.total ? 'borda-risco' : ''}`}>
+            <div className="cab"><h2>{r.pedidos_cancelamento?.total ? <span className="ponto bad pisca" /> : null}Pedidos de cancelamento em andamento</h2><span className={`mono ${r.pedidos_cancelamento?.total ? 'bad' : 'ok'}`}>{r.pedidos_cancelamento?.total ?? 0}</span></div>
+            {r.pedidos_cancelamento?.lista?.length ? r.pedidos_cancelamento.lista.map((c: any) => (
               <div key={c.id} className="linha">
                 <span className="quem"><span className="ponto bad pisca" />{c.cliente}</span>
                 <span className="meta"><span className="mudo">{c.motivo || ''}</span>{c.dias != null && <span className="mono warn">{c.dias}d</span>}</span>
               </div>
-            )) : <div className="vazio">Nenhum cliente em risco agora 👏</div>}
+            )) : <div className="vazio">Nenhum pedido de cancelamento aberto 👏</div>}
+          </section>
+          <section className="painel crescer">
+            <div className="cab"><h2>Clientes marcados em risco</h2><span className={`mono ${r.em_risco_sem_pedido?.total ? 'warn' : ''}`}>{r.em_risco_sem_pedido?.total ?? 0}</span></div>
+            {r.em_risco_sem_pedido?.lista?.length ? r.em_risco_sem_pedido.lista.slice(0, 8).map((c: any) => (
+              <div key={c.id} className="linha"><span className="quem"><span className="ponto warn pisca" />{c.cliente}</span><span className="meta"><span className="mudo">sem caso aberto</span></span></div>
+            )) : <div className="vazio">Nenhum cliente marcado em risco</div>}
+            {(r.em_risco_sem_pedido?.total ?? 0) > 8 && <div className="rodape-p mudo">+{r.em_risco_sem_pedido.total - 8} no CRM</div>}
           </section>
         </div>
         <div className="coluna">
@@ -556,7 +563,8 @@ function Retencao({ r }: { r: any }) {
               <div><span className="mudo">Clientes ativos</span><b className="mono">{r.ativos}</b></div>
               <div><span className="mudo">LTV da base</span><b className="mono ok">{tempoCasa(r.tempo_medio_ativos_meses)}</b></div>
               <div><span className="mudo">Quem saiu ficou</span><b className="mono">{tempoCasa(r.tempo_medio_saida_meses)}</b></div>
-              <div><span className="mudo">Cancelados no ano</span><b className={`mono ${r.cancelados_ano ? 'bad' : ''}`}>{r.cancelados_ano}</b></div>
+              <div><span className="mudo">Cancelados no ano</span><b className={`mono ${r.cancelados_ano ? 'bad' : ''}`}>{r.cancelados_ano}</b><small className="mudo">com data de saída</small></div>
+              <div><span className="mudo">Inativos na base</span><b className="mono">{r.inativos_total ?? '—'}</b><small className="mudo">{r.inativos_sem_data ? `${r.inativos_sem_data} sem data de saída` : 'total histórico'}</small></div>
             </div>
           </section>
           <section className="painel">
@@ -725,7 +733,7 @@ function Lista({ titulo, tom, total, vazio, children }: { titulo: string; tom: T
 
 const CSS = `
 .kpis-ret { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8em 1.2em; }
-.kpis-ret > div { display: grid; gap: .15em; }
+.kpis-ret > div { display: grid; gap: .15em; } .kpis-ret small { font-size: .8em; }
 .kpis-ret b { font-size: 2.1em; line-height: 1.1; }
 .borda-risco { border-color: #ef4444 !important; animation: bordaRisco 1.6s ease-in-out infinite; }
 @keyframes bordaRisco { 50% { border-color: rgba(239,68,68,.25) !important; } }

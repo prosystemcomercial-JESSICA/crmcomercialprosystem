@@ -160,6 +160,7 @@ function Tela3({ d }: { d: any }) {
       <div className={`t span3 ${d.em_risco.total ? 'borda-risco' : ''}`} style={{ gridRow: 'span 2' }}>
         <div className="l">Clientes em risco agora</div>
         <div className={`n ${d.em_risco.total ? 'bad' : 'up'}`}>{d.em_risco.total}</div>
+        {d.pedidos_cancelamento && <div className="s"><b className="bad">{d.pedidos_cancelamento.total}</b> com pedido de cancelamento aberto · {d.em_risco_sem_pedido?.total ?? 0} marcados em risco</div>}
         <div style={{ marginTop: '.4em' }}>
           {d.em_risco.lista.map((c: any) => (
             <div key={c.id} className="risco-item">
@@ -185,7 +186,7 @@ function Tela3({ d }: { d: any }) {
       <div className="t">
         <div className="l">Quem saiu ficou</div>
         <Valor v={tempo(d.tempo_medio_saida_meses)} />
-        <div className="s">tempo médio até cancelar</div>
+        <div className="s">tempo médio até cancelar{d.inativos_total ? ` · ${d.inativos_total} inativos na base` : ''}</div>
       </div>
       <div className="t span3">
         <div className="l">Resolvidos em {mes}</div>
