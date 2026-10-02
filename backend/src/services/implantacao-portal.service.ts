@@ -89,9 +89,10 @@ export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; 
   return aviso;
 }
 
-/** Novidade para o sino de toda a equipe técnica (técnicos, supervisão técnica) e da gestão (admin). Só no portal. */
+/** Novidade para o sino da gestão (supervisão técnica e admin). Só no portal.
+ *  Técnico não recebe: só fica sabendo do card quando for designado nele. */
 export async function avisarEquipe(prisma: PrismaClient, texto: string, implantacaoId?: string | null) {
-  const equipe = await prisma.usuarioCRM.findMany({ where: { status: 'ATIVO', cargo: { in: ['TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA', 'ADMIN'] } }, select: { id: true } }).catch(() => []);
+  const equipe = await prisma.usuarioCRM.findMany({ where: { status: 'ATIVO', cargo: { in: ['SUPERVISAO_TECNICA', 'ADMIN'] } }, select: { id: true } }).catch(() => []);
   for (const u of equipe) await avisarTecnico(prisma, { para_id: u.id, implantacao_id: implantacaoId || null, origem: 'SISTEMA', texto }).catch(() => null);
 }
 
