@@ -221,6 +221,34 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     aprovacoes: { mensagens: msgsParaAprovar, documentos: docsParaAprovar },
     feed, movimentos, conversando, propostas,
     laya: await import('./laya-caderno.service').then(async m => { const r = await m.resumoCaderno(prisma); return { tarefas: r.tarefas, total: r.total, cerebro: r.cerebro }; }).catch(() => null),
+    retencao: await montarRetencaoTv(prisma, agora).catch((e: any) => { console.warn('[TV] retenção:', e?.message); return null; }),
     captacao: await import('./tv-captacao.service').then(m => m.montarCaptacao(prisma, agora)).catch((e: any) => { console.warn('[TV] captação:', e?.message); return null; }),
+  };
+}
+
+
+// Tela "Retenção" da TV do Escritório: base de clientes (risco, LTV em tempo, resolvidos, cancelados)
+// + ativos feitos hoje e o acumulado de cancelamentos do ano.
+async function montarRetencaoTv(prisma: PrismaClient, agora: Date) {
+  const { montarTelaBase } = await import('../routes/painel-tv');
+  const base: any = await montarTelaBase(prisma, agora);
+  const diaSP = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const inicioDia = new Date(`${diaSP}T00:00:00-03:00`);
+  const inicioAno = new Date(`${diaSP.slice(0, 4)}-01-01T00:00:00-03:00`);
+  const [ativosHoje, canceladosAno] = await Promise.all([
+    (prisma as any).contatoAtivo.findMany({ where: { contatado_em: { gte: inicioDia } }, select: { cliente_nome: true, saude: true, tem_problema: true, contatado_em: true }, orderBy: { contatado_em: 'desc' } }).catch(() => []),
+    prisma.cliente.count({ where: { situacao: { not: 'ATIVA' }, inativado_em: { gte: inicioAno, lte: agora } } as any }).catch(() => 0),
+  ]);
+  const porSaude: Record<string, number> = {};
+  for (const a of ativosHoje as any[]) porSaude[a.saude || 'SEM_AVALIACAO'] = (porSaude[a.saude || 'SEM_AVALIACAO'] || 0) + 1;
+  return {
+    ...base,
+    cancelados_ano: canceladosAno,
+    ativos_hoje: {
+      total: (ativosHoje as any[]).length,
+      com_problema: (ativosHoje as any[]).filter(a => a.tem_problema).length,
+      por_saude: porSaude,
+      ultimos: (ativosHoje as any[]).slice(0, 6).map(a => ({ cliente: a.cliente_nome || 'Cliente', saude: a.saude, problema: !!a.tem_problema, em: a.contatado_em?.toISOString() })),
+    },
   };
 }

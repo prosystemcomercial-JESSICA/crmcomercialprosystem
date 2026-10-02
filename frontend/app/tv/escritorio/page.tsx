@@ -87,7 +87,7 @@ export default function TvEscritorioPage() {
   const [dados, setDados] = useState<any>(null);
   const [erro, setErro] = useState<'invalido' | 'rede' | null>(null);
   const [agora, setAgora] = useState(new Date());
-  const [tela, setTela] = useState<1 | 2 | 3>(1);
+  const [tela, setTela] = useState<1 | 2 | 3 | 4>(1);
   const [telaCheia, setTelaCheia] = useState(false);
   const [giro, setGiro] = useState(0);
   const [som, setSom] = useState(false);
@@ -220,7 +220,7 @@ export default function TvEscritorioPage() {
 
     buscar();
     const iDados = setInterval(buscar, INTERVALO_DADOS);
-    const iTela = setInterval(() => setTela(t => (t === 3 ? 1 : ((t + 1) as 1 | 2 | 3))), INTERVALO_TELA);
+    const iTela = setInterval(() => setTela(t => (t === 4 ? 1 : ((t + 1) as 1 | 2 | 3 | 4))), INTERVALO_TELA);
     const iGiro = setInterval(() => setGiro(g => g + 1), INTERVALO_CARROSSEL);
     const iRelogio = setInterval(() => setAgora(new Date(Date.now() + offsetRef.current)), 10_000);
     // Fila de comemorações: a primeira sai na hora; as seguintes, 5 minutos depois da anterior.
@@ -325,6 +325,7 @@ export default function TvEscritorioPage() {
               <span className={tela === 1 ? 'on' : ''}>Ao vivo</span>
               <span className={tela === 2 ? 'on' : ''}>Atenção</span>
               <span className={tela === 3 ? 'on' : ''}>Captação</span>
+              <span className={tela === 4 ? 'on' : ''}>Retenção</span>
             </nav>
           </div>
           <div className="acoes">
@@ -453,6 +454,8 @@ export default function TvEscritorioPage() {
             </div>
           ) : tela === 3 && dados.captacao ? (
             <Captacao c={dados.captacao} agora={agora} />
+          ) : tela === 4 && dados.retencao ? (
+            <Retencao r={dados.retencao} />
           ) : (
             <div className="tela2">
               <Lista titulo="Aguardando resposta" tom="bad" total={dados.esperando.total} vazio="Ninguém aguardando">
@@ -517,6 +520,69 @@ export default function TvEscritorioPage() {
 
 const NOME_FONTE: Record<string, string> = { heitor: 'Heitor', campanha: 'Campanha', whatsapp: 'WhatsApp', outros: 'Outros' };
 const pct = (n: number | null | undefined) => (n == null ? '—' : `${n}%`);
+
+const tempoCasa = (m: number | null | undefined) => {
+  if (m == null) return '—';
+  const a = Math.floor(m / 12), mm = Math.round(m % 12);
+  if (!a) return `${mm} ${mm === 1 ? 'mês' : 'meses'}`;
+  return mm ? `${a}a ${mm}m` : `${a} ${a === 1 ? 'ano' : 'anos'}`;
+};
+const NOME_SAUDE: Record<string, string> = { EXCELENTE: 'Excelente', SAUDAVEL: 'Saudável', ATENCAO: 'Atenção', RISCO: 'Risco', CRITICO: 'Crítico', SEM_AVALIACAO: 'Sem avaliação' };
+const TOM_SAUDE: Record<string, string> = { EXCELENTE: 'ok', SAUDAVEL: 'ok', ATENCAO: 'warn', RISCO: 'bad', CRITICO: 'bad', SEM_AVALIACAO: '' };
+
+// Tela 4 · Retenção: clientes em risco (piscando), solicitações de cancelamento em andamento, LTV em tempo,
+// ativos feitos hoje, resolvidos e cancelados do mês, acumulado do ano.
+function Retencao({ r }: { r: any }) {
+  const mes = new Date(r.inicio_mes).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'long' });
+  const ah = r.ativos_hoje || { total: 0, com_problema: 0, por_saude: {}, ultimos: [] };
+  return (
+    <div className="tela3">
+      <div className="cap-grid">
+        <div className="coluna">
+          <section className={`painel crescer ${r.em_risco.total ? 'borda-risco' : ''}`}>
+            <div className="cab"><h2>{r.em_risco.total ? <span className="ponto bad pisca" /> : null}Clientes em risco · pedidos de cancelamento</h2><span className={`mono ${r.em_risco.total ? 'bad' : 'ok'}`}>{r.em_risco.total}</span></div>
+            {r.em_risco.lista.length ? r.em_risco.lista.slice(0, 9).map((c: any) => (
+              <div key={c.id} className="linha">
+                <span className="quem"><span className="ponto bad pisca" />{c.cliente}</span>
+                <span className="meta"><span className="mudo">{c.motivo || ''}</span>{c.dias != null && <span className="mono warn">{c.dias}d</span>}</span>
+              </div>
+            )) : <div className="vazio">Nenhum cliente em risco agora 👏</div>}
+          </section>
+        </div>
+        <div className="coluna">
+          <section className="painel">
+            <div className="cab"><h2>Retenção da base</h2></div>
+            <div className="kpis-ret">
+              <div><span className="mudo">Clientes ativos</span><b className="mono">{r.ativos}</b></div>
+              <div><span className="mudo">LTV da base</span><b className="mono ok">{tempoCasa(r.tempo_medio_ativos_meses)}</b></div>
+              <div><span className="mudo">Quem saiu ficou</span><b className="mono">{tempoCasa(r.tempo_medio_saida_meses)}</b></div>
+              <div><span className="mudo">Cancelados no ano</span><b className={`mono ${r.cancelados_ano ? 'bad' : ''}`}>{r.cancelados_ano}</b></div>
+            </div>
+          </section>
+          <section className="painel">
+            <div className="cab"><h2>Ativos feitos hoje</h2><span className="mono">{ah.total}</span></div>
+            <div className="legenda">
+              {Object.entries(ah.por_saude).map(([k, v]) => <span key={k}><span className={`ponto ${TOM_SAUDE[k] || ''}`} />{NOME_SAUDE[k] || k} <b className="mono">{v as number}</b></span>)}
+              {ah.com_problema ? <span><span className="ponto bad" />Com problema <b className="mono bad">{ah.com_problema}</b></span> : null}
+            </div>
+            {ah.ultimos.length ? ah.ultimos.map((a: any, i: number) => (
+              <div key={i} className="linha"><span className="quem"><span className={`ponto ${TOM_SAUDE[a.saude || 'SEM_AVALIACAO'] || ''}`} />{a.cliente}</span>
+                <span className="meta">{a.problema && <span className="bad">problema</span>}<span className="mono mudo">{a.em ? new Date(a.em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }) : ''}</span></span></div>
+            )) : <div className="vazio">Nenhum ativo feito hoje ainda</div>}
+          </section>
+          <section className="painel crescer">
+            <div className="cab"><h2>Em {mes}</h2></div>
+            <div className="linha"><span className="quem"><span className="ponto ok" />Recuperados</span><b className="mono ok">{r.resolvidos_mes.total}</b></div>
+            <div className="linha"><span className="quem"><span className="ponto bad" />Cancelaram</span><b className={`mono ${r.cancelados_mes.total ? 'bad' : ''}`}>{r.cancelados_mes.total}</b></div>
+            {r.cancelados_mes.lista.slice(0, 4).map((c: any) => (
+              <div key={c.id} className="linha"><span className="quem mudo">{c.cliente}</span><span className="meta"><span className="mudo">{c.motivo || ''}</span><span className="mono mudo">{c.meses_de_casa != null ? `ficou ${tempoCasa(c.meses_de_casa)}` : ''}</span></span></div>
+            ))}
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Captacao({ c, agora }: { c: any; agora: Date }) {
   const fontes = ['heitor', 'campanha', 'whatsapp', 'outros'] as const;
@@ -658,6 +724,12 @@ function Lista({ titulo, tom, total, vazio, children }: { titulo: string; tom: T
 }
 
 const CSS = `
+.kpis-ret { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8em 1.2em; }
+.kpis-ret > div { display: grid; gap: .15em; }
+.kpis-ret b { font-size: 2.1em; line-height: 1.1; }
+.borda-risco { border-color: #ef4444 !important; animation: bordaRisco 1.6s ease-in-out infinite; }
+@keyframes bordaRisco { 50% { border-color: rgba(239,68,68,.25) !important; } }
+
 .festa { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: rgba(0,0,0,.72); animation: festaIn .4s ease-out; }
 .festa-card { position: relative; z-index: 2; text-align: center; padding: 48px 72px; border-radius: 28px; background: linear-gradient(135deg, #14532d, #065f46 60%, #0f766e); color: #fff; box-shadow: 0 0 0 4px #facc15, 0 30px 120px rgba(250,204,21,.45); animation: festaPop .7s cubic-bezier(.2,1.6,.4,1); }
 .festa-emoji { font-size: 64px; }
