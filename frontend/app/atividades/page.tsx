@@ -88,13 +88,16 @@ function statusVisual(at: Atividade): { cor: string; bg: string; icon: any; etiq
 function calcularPrioridade(at: Atividade): Prioridade {
   if (at.status === 'REALIZADA' || at.status === 'CANCELADA') return 'CONCLUIDA';
   if (!at.data_prevista) return 'SEM_PRAZO';
-  const agora = new Date();
-  agora.setHours(0, 0, 0, 0);
-  const prazo = new Date(at.data_prevista);
-  const dias = Math.floor((prazo.getTime() - agora.getTime()) / 86400000);
-  if (dias < 0) return 'CRITICA';
-  if (dias <= 3) return 'EXPIRANDO';
-  if (dias <= 7) return 'PROXIMA';
+  // Fim da atividade = início + duração; sem horário (00:00), vale até as 18h do dia.
+  const inicio = new Date(at.data_prevista);
+  const semHora = inicio.getHours() === 0 && inicio.getMinutes() === 0;
+  const fim = semHora
+    ? new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate(), 18, 0, 0)
+    : new Date(inicio.getTime() + ((at as any).duracao_minutos || 0) * 60000);
+  const falta = fim.getTime() - Date.now();
+  if (falta < 0) return 'CRITICA';              // passou do fim: atrasada
+  if (falta <= 60 * 60000) return 'EXPIRANDO';  // falta 1 hora ou menos para o fim
+  if (falta <= 3 * 864e5) return 'PROXIMA';
   return 'NO_PRAZO';
 }
 
@@ -120,6 +123,7 @@ const emptyForm = {
   titulo: '',
   descricao: '',
   responsavel_id: '',
+  convidados_ids: [] as string[],
   prazo_modo: 'sla' as 'sla' | 'dias' | 'data',
   sla_horas: '4',
   dias_max: '7',
@@ -255,6 +259,7 @@ export default function AtividadesPage() {
       titulo: at.titulo,
       descricao: at.descricao || '',
       responsavel_id: at.responsavel_id || '',
+      convidados_ids: Array.isArray((at as any).convidados_ids) ? (at as any).convidados_ids : [],
       prazo_modo: 'data',
       sla_horas: '4',
       dias_max: '7',
@@ -290,6 +295,7 @@ export default function AtividadesPage() {
         titulo: form.titulo,
         descricao: form.descricao || undefined,
         responsavel_id: form.responsavel_id || undefined,
+        convidados_ids: Array.isArray(form.convidados_ids) ? form.convidados_ids.filter((id: string) => id && id !== form.responsavel_id) : [],
         data_prevista: dataPrevistaISO,
       };
       Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
@@ -350,6 +356,12 @@ export default function AtividadesPage() {
     if (!id) return null;
     return usuarios.find(u => u.id === id)?.nome || null;
   };
+  // Responsável + convidados (atividade em dupla): "Jessica + Sarah".
+  const nomesDupla = (at: any) => {
+    const nomes = [usuarioNome(at.responsavel_id), ...(Array.isArray(at.convidados_ids) ? at.convidados_ids : []).map((id: string) => usuarioNome(id))]
+      .filter(Boolean).map((n: any) => String(n).split(' ')[0]);
+    return nomes.length ? nomes.join(' + ') : null;
+  };
 
   if (loading || !isAuthenticated) {
     return (
@@ -405,7 +417,7 @@ export default function AtividadesPage() {
         {/* ═══ KPIs ═══════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard icon={AlertOctagon}   label="Críticas / Atrasadas" value={kpis.criticas.toString()}   color="#dc2626" />
-          <KpiCard icon={AlertTriangle}  label="Prazo expirando ≤3d"  value={kpis.expirando.toString()}  color="#ea580c" />
+          <KpiCard icon={AlertTriangle}  label="Prazo expirando ≤1h"  value={kpis.expirando.toString()}  color="#ea580c" />
           <KpiCard icon={Clock}          label="No prazo"              value={kpis.no_prazo.toString()}   color="#16a34a" />
           <KpiCard icon={CheckCircle2}   label="Concluídas hoje"       value={kpis.concluidas_hoje.toString()} color="#0891b2" />
         </div>
@@ -484,7 +496,7 @@ export default function AtividadesPage() {
                 <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>Quadro de Prioridade</p>
               </div>
               <p className="text-[10px]" style={{ color: 'var(--t-text-secondary)' }}>
-                Prioridade calculada automaticamente · Atividades a 3 dias ou menos do prazo entram em "Prazo expirando"
+                Prioridade calculada automaticamente · Faltando 1 hora ou menos para o fim da atividade, ela entra em "Prazo expirando"; passou do horário, vira "Crítico"
               </p>
             </div>
             <div className="overflow-x-auto" style={{ height: 'min(72vh, 700px)' }}>
@@ -512,7 +524,7 @@ export default function AtividadesPage() {
                           <AtividadeCard key={at.id} at={at} prioridade={col}
                             onClick={() => setSelected(at)}
                             onConcluir={() => iniciarConcluir(at)}
-                            usuarioNome={usuarioNome(at.responsavel_id)}
+                            usuarioNome={nomesDupla(at)}
                             concluindoId={concluindoId}
                             resultadoInput={resultadoInput}
                             onResultadoChange={setResultadoInput}
@@ -702,6 +714,26 @@ export default function AtividadesPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Atividade em dupla: convida outro(s) colaborador(es); a atividade aparece em "Minhas" para eles também. */}
+              <div>
+                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>👥 Fazer junto com (atividade em dupla)</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {usuarios.filter(u => u.status !== 'INATIVO' && u.id !== form.responsavel_id).map(u => {
+                    const marcados: string[] = Array.isArray(form.convidados_ids) ? form.convidados_ids : [];
+                    const on = marcados.includes(u.id);
+                    return (
+                      <button key={u.id} type="button"
+                        onClick={() => setForm((p: any) => { const atual: string[] = Array.isArray(p.convidados_ids) ? p.convidados_ids : []; return { ...p, convidados_ids: on ? atual.filter(x => x !== u.id) : [...atual, u.id] }; })}
+                        className="px-2.5 py-1 rounded-full text-xs font-semibold"
+                        style={{ border: `1px solid ${on ? 'var(--t-primary)' : 'var(--t-card-border)'}`, background: on ? 'var(--t-primary)' : 'var(--t-card-bg)', color: on ? '#fff' : 'var(--t-text-secondary)' }}>
+                        {on ? '✓ ' : '+ '}{u.nome.split(' ')[0]}{u.id === meuId ? ' (eu)' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] mt-1" style={{ color: 'var(--t-text-muted)' }}>Quem for convidado vê a atividade em &quot;Minhas&quot; e pode concluir.</p>
               </div>
 
               <div>
