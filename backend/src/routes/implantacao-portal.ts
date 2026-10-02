@@ -253,7 +253,12 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.post('/implantacoes/avisos/:avisoId/lido', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     const { avisoId } = request.params as { avisoId: string };
-    await prisma.avisoTecnico.updateMany({ where: { id: avisoId, para_id: u.id, lido_em: null }, data: { lido_em: new Date() } });
+    const r = await prisma.avisoTecnico.updateMany({ where: { id: avisoId, para_id: u.id, lido_em: null }, data: { lido_em: new Date() } });
+    // Recado de uma demanda: a leitura confirmada fica no histórico do card do cliente.
+    if (r.count) {
+      const av = await prisma.avisoTecnico.findUnique({ where: { id: avisoId }, select: { implantacao_id: true, texto: true, de_nome: true } });
+      if (av?.implantacao_id) await atividade(av.implantacao_id, 'NOTA', `✅ ${u.nome || 'Técnico'} confirmou a leitura do recado de ${av.de_nome || 'Gestão'}: ${av.texto}`, u);
+    }
     return reply.send({ status: 'success' });
   });
   // Tarefa avulsa: o técnico (ou a gestão) marca como concluída; reabrir também é possível.
