@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { AlertaReuniaoModal } from "@/components/ui/AlertaReuniaoModal";
 import { ToastProvider } from "@/components/ui/Toast";
+import { VoltarCrm } from "@/components/ui/VoltarCrm";
 import "./globals.css";
 import "./ios.css";
 
@@ -44,6 +45,7 @@ export default function RootLayout({
             <ToastProvider>
               {children}
               <AlertaReuniaoModal />
+              <VoltarCrm />
             </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
