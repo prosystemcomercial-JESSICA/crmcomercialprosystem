@@ -1493,6 +1493,9 @@ model Implantacao {
   cobranca_lancada_por    String?
   token_cliente           String?                      @unique // página de acompanhamento do cliente (sem login)
   concluida_fila_em       DateTime? // treinamento concluído, sem correção aberta: saiu da fila
+  onboarding_concluido_em DateTime? // onboarding técnico (primeiro contato) concluído: libera o resto da implantação
+  onboarding_aprovado_em  DateTime? // cliente aprovou o diagnóstico pela página de acompanhamento
+  onboarding_aprovado_por String?
   treinamento_fases       ImplantacaoTreinamentoFase[]
   ocorrencias             ImplantacaoOcorrencia[]
   comunicacoes            ImplantacaoComunicacao[]

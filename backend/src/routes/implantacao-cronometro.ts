@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
+import { onboardingOk } from '@/lib/implantacao/portal';
 import { ETAPAS, TIPOS_SESSAO, TIPOS_ESPERA, JORNADA_PADRAO, diaSP, emSP, fimAutomatico, resumoDoDia, temposDaDemanda, type Jornada } from '@/lib/implantacao/cronometro';
 
 /**
@@ -12,7 +13,7 @@ import { ETAPAS, TIPOS_SESSAO, TIPOS_ESPERA, JORNADA_PADRAO, diaSP, emSP, fimAut
 
 const CHAVE_JORNADA = 'implantacao.jornada';
 const NOME_ESPERA: Record<string, string> = { PROGRAMACAO: 'aguardando programação', CLIENTE: 'aguardando cliente', PROCESSAMENTO: 'processamento em andamento' };
-const NOME_ETAPA: Record<string, string> = { INSTALACAO: 'Instalação', CONVERSAO: 'Conversão', TREINAMENTO: 'Treinamento', CORRECAO: 'Correção pós-virada' };
+const NOME_ETAPA: Record<string, string> = { ONBOARDING: 'Onboarding técnico', INSTALACAO: 'Instalação', CONVERSAO: 'Conversão', TREINAMENTO: 'Treinamento', CORRECAO: 'Correção pós-virada' };
 const NOME_TIPO: Record<string, string> = { SUPORTE: 'Suporte', REUNIAO: 'Reunião', INTERNO: 'Tarefa interna' };
 
 /** Gestão (comercial) ou supervisão técnica: vê e corrige o tempo de todos os técnicos. */
@@ -87,6 +88,11 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
       const imp = await podeNaDemanda(u, d.implantacao_id!);
       if (!imp) return reply.status(403).send({ status: 'error', message: 'Demanda não encontrada ou não é sua' });
       cliente = imp.cliente_razao_social;
+      // Onboarding técnico primeiro: nenhuma outra etapa antes do primeiro contato concluído.
+      if (d.etapa !== 'ONBOARDING') {
+        const full = await prisma.implantacao.findUnique({ where: { id: d.implantacao_id! }, include: { checklist: { select: { grupo: true, feito: true } } } });
+        if (full && !onboardingOk(full, full.checklist)) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes de começar esta etapa.' });
+      }
     }
     const agora = new Date();
     const anterior = await fecharAberta(prisma, u.id, 'TROCA', agora);

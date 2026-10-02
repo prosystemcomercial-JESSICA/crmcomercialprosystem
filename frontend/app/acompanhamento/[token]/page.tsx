@@ -15,6 +15,14 @@ export default function AcompanhamentoPage() {
   const { token } = useParams<{ token: string }>();
   const [d, setD] = useState<any | null>(null);
   const [erro, setErro] = useState(false);
+  const [nomeAprova, setNomeAprova] = useState('');
+  const [aprovando, setAprovando] = useState(false);
+  const aprovar = async () => {
+    if (nomeAprova.trim().split(/\s+/).length < 2) return alert('Informe seu nome completo.');
+    setAprovando(true);
+    try { await axios.post(`${API_URL}/publico/acompanhamento/${token}/aprovar-diagnostico`, { nome: nomeAprova.trim() }); const r = await axios.get(`${API_URL}/publico/acompanhamento/${token}`); setD(r.data.data); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Não foi possível aprovar agora.'); } finally { setAprovando(false); }
+  };
   useEffect(() => {
     const carregar = () => axios.get(`${API_URL}/publico/acompanhamento/${token}`).then(r => setD(r.data.data)).catch(() => setErro(true));
     carregar();
@@ -69,6 +77,26 @@ export default function AcompanhamentoPage() {
             </div>
           )}
         </section>
+        {d.diagnostico && d.diagnostico.dados.length > 0 && (
+          <section style={{ background: '#fff', borderRadius: 16, padding: '18px 22px', boxShadow: '0 4px 30px rgba(13,34,56,.06)', display: 'grid', gap: 10 }}>
+            <b style={{ fontSize: 14, color: '#1A4E82' }}>Diagnóstico da sua loja</b>
+            <p style={{ margin: 0, fontSize: 13, color: '#5B7A99' }}>Levantado pelo técnico no primeiro contato. Confira: é com base nele que fazemos a instalação.</p>
+            <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '8px 18px' }}>
+              {d.diagnostico.dados.map((x: any) => (
+                <div key={x.rotulo}><dt style={{ fontSize: 12, color: '#7A93AD' }}>{x.rotulo}</dt><dd style={{ margin: 0, fontSize: 14, color: '#1A4E82', fontWeight: 600 }}>{x.valor}</dd></div>
+              ))}
+            </dl>
+            {d.diagnostico.aprovado_em ? (
+              <div style={{ fontSize: 13, color: '#16a34a', fontWeight: 700 }}>✓ Aprovado por {d.diagnostico.aprovado_por} em {fmtData(d.diagnostico.aprovado_em)}</div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input value={nomeAprova} onChange={e => setNomeAprova(e.target.value)} placeholder="Seu nome completo" aria-label="Seu nome completo" style={{ flex: '1 1 220px', borderRadius: 10, border: '1px solid #C9D6E3', padding: '10px 12px', fontSize: 14, fontFamily: 'inherit' }} />
+                <button disabled={aprovando} onClick={aprovar} style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 10, padding: '11px 16px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{aprovando ? 'Enviando…' : 'Os dados estão corretos, aprovo'}</button>
+                <span style={{ fontSize: 12, color: '#7A93AD', flexBasis: '100%' }}>Algo errado? Fale com o técnico antes de aprovar.</span>
+              </div>
+            )}
+          </section>
+        )}
         <section style={{ background: '#fff', borderRadius: 16, padding: '18px 22px', boxShadow: '0 4px 30px rgba(13,34,56,.06)' }}>
           <b style={{ fontSize: 14, color: '#1A4E82' }}>Passo a passo</b>
           <ol style={{ listStyle: 'none', margin: '14px 0 0', padding: 0 }}>

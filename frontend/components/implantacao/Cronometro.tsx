@@ -8,6 +8,7 @@ import { Play, Pause, Hourglass, X, Loader2, CheckCircle, Clock, Coffee } from '
 // "cronometro:mudou" (play/pausa/espera em qualquer lugar atualiza a barra e os botões).
 
 export const ETAPAS: { key: string; label: string }[] = [
+  { key: 'ONBOARDING', label: 'Onboarding técnico' },
   { key: 'INSTALACAO', label: 'Instalação' },
   { key: 'CONVERSAO', label: 'Conversão' },
   { key: 'TREINAMENTO', label: 'Treinamento' },
@@ -91,10 +92,10 @@ export function CronometroBarra() {
 }
 
 /** Play/pausa e espera na linha de uma demanda. */
-export function BotoesDemanda({ implantacao }: { implantacao: { id: string; cliente_razao_social: string; tipo_base?: string | null } }) {
+export function BotoesDemanda({ implantacao }: { implantacao: { id: string; cliente_razao_social: string; tipo_base?: string | null; onboarding_ok?: boolean } }) {
   const { sessao } = useCronometro();
   const rodandoAqui = sessao?.implantacao_id === implantacao.id;
-  const [etapa, setEtapa] = useState(implantacao.tipo_base === 'CONVERSAO' ? 'CONVERSAO' : 'INSTALACAO');
+  const [etapa, setEtapa] = useState(implantacao.onboarding_ok === false ? 'ONBOARDING' : implantacao.tipo_base === 'CONVERSAO' ? 'CONVERSAO' : 'INSTALACAO');
   const [espera, setEspera] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   useEffect(() => { if (rodandoAqui && sessao?.etapa) setEtapa(sessao.etapa); }, [rodandoAqui, sessao?.etapa]);

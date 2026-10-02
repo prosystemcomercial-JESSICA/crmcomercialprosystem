@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
 import { PainelInicio } from '@/components/implantacao/Inicio';
+import { OnboardingTecnico } from '@/components/implantacao/Portal';
 import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao } from '@/components/implantacao/Portal';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -833,7 +834,7 @@ export default function PortalTecnicoPage() {
         { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
         { key: 'avisos'      as Tab, label: 'Avisos',       icon: Zap,          badge: null },
         // 'Implantações' (lista antiga com Datas/Executar) saiu do menu: tudo isso está no card do Quadro.
-        { key: 'onboarding'  as Tab, label: 'Onboarding',   icon: Rocket,       badge: null },
+        { key: 'onboarding'  as Tab, label: 'Onboarding técnico', icon: Rocket,  badge: null },
       ],
     },
     {
@@ -872,7 +873,7 @@ export default function PortalTecnicoPage() {
     config:       'Configurações do portal',
     meudia:       'Meu dia · cronômetro',
     implantacoes: 'Implantações',
-    onboarding:   'Onboarding',
+    onboarding:   'Onboarding técnico · primeiro contato',
     suporte:      'Suporte — Tickets & SLA',
     atendimento:  'Templates de Atendimento',
     kb:           'Base de Conhecimento',
@@ -1531,7 +1532,9 @@ export default function PortalTecnicoPage() {
         )}
 
         {/* ── TAB: ONBOARDING ── */}
-        {tab === 'onboarding' && (
+        {tab === 'onboarding' && <OnboardingTecnico gestao={gestaoTecnica} />}
+        {/* Onboarding antigo (dependia de Licenca, sempre vazia): mantido no código, fora de uso. */}
+        {(tab as string) === 'onboarding_antigo' && (
           <div className="space-y-5">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
