@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
+import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
 import { useSearchParams } from 'next/navigation';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
@@ -345,10 +346,11 @@ function CategoriaIcon({ categoria, size = 14 }: { categoria: string; size?: num
 
 // ─── página principal ─────────────────────────────────────────────────────────
 
-type Tab = 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
+type Tab = 'meudia' | 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
 
 export default function PortalTecnicoPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
+  const gestaoTecnica = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'SUPERVISAO_TECNICA'].includes(String((user as any)?.role || '').toUpperCase());
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
   const [tab, setTab] = useState<Tab>(tabParam || 'implantacoes');
@@ -823,6 +825,7 @@ export default function PortalTecnicoPage() {
       color: '#2E6EAB',
       items: [
         { key: 'demandas'    as Tab, label: 'Demandas',     icon: LayoutGrid,   badge: demandas.filter(d => { const s = demandaSlaStatus(d); return s && !s.concluido && s.pct >= 100; }).length || null },
+        { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
         { key: 'implantacoes'as Tab, label: 'Implantações', icon: Wrench,       badge: null },
         { key: 'onboarding'  as Tab, label: 'Onboarding',   icon: Rocket,       badge: null },
       ],
@@ -847,6 +850,7 @@ export default function PortalTecnicoPage() {
 
   const TAB_TITLE: Record<Tab, string> = {
     demandas:     'Demandas Técnicas',
+    meudia:       'Meu dia · cronômetro',
     implantacoes: 'Implantações',
     onboarding:   'Onboarding',
     suporte:      'Suporte — Tickets & SLA',
@@ -875,6 +879,7 @@ export default function PortalTecnicoPage() {
         <div style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
         <div style={{ flex: 1 }} />
+        <CronometroBarra />
         <button onClick={() => window.close()} title="Fechar portal"
           style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
           <X size={13} />
@@ -1229,6 +1234,8 @@ export default function PortalTecnicoPage() {
         )}
 
         {/* ── TAB: IMPLANTAÇÕES ── */}
+        {tab === 'meudia' && <PainelMeuDia gestao={gestaoTecnica} />}
+
         {tab === 'implantacoes' && (
           <div>
             {implResumo && (
@@ -1278,6 +1285,7 @@ export default function PortalTecnicoPage() {
                           <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                             <button onClick={() => abrirImpl(i)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-primary-dark)', background: 'transparent', border: '1px solid #c7d8ec', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', marginRight: 6 }}>Datas</button>
                             <button onClick={() => abrirExec(i)} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#2E6EAB', border: 'none', borderRadius: 8, padding: '5px 12px', cursor: 'pointer' }}>Executar</button>
+                            <div style={{ marginTop: 6 }}><BotoesDemanda implantacao={i as any} /></div>
                           </td>
                         </tr>
                       );

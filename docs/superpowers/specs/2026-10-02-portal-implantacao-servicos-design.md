@@ -191,7 +191,7 @@ Junto com a ficha vai o **upload da tela do Suporte**, a tela de liberação do 
 
 ## 14. Entrega em fases
 
-1. **Cronômetro e esperas:**
+1. **Cronômetro e esperas** (entregue em 02/10/2026):
    - tabelas novas;
    - play único por técnico, outras atividades, aguardando programação ou cliente, processamento;
    - fechamento automático às 23h59;
@@ -209,7 +209,19 @@ Junto com a ficha vai o **upload da tela do Suporte**, a tela de liberação do 
    - boas-vindas do pós-venda passam para a virada.
 5. **Treinamento em fases e correções pós-virada.**
 6. **Painel da gestão** e cartão na TV do Escritório.
-7. **Agente de oferta:** depende do catálogo de produtos e pacotes com preços.
+7. **Agente de implantação no Escritório** (pedido de 02/10/2026): o assistente de bolso das implantações, serviços e treinamentos.
+   - Fica de olho em tudo:
+     - cronômetro esquecido ou parado;
+     - espera da programação aberta há muito tempo;
+     - SLA em risco;
+     - virada sem cobrança lançada;
+     - ficha de coleta ou tela do Suporte faltando;
+     - fase de treinamento atrasada;
+     - correção aberta.
+   - Avisa o técnico e a gestão quando há algo importante.
+   - Responde dúvidas do técnico pelo WhatsApp: situação de uma demanda, o que falta, próximos passos, tempo gasto, dados da ficha.
+   - Não fala com o cliente final; esse papel é das mensagens da fase 4 e do pós-venda.
+8. **Agente de oferta:** depende do catálogo de produtos e pacotes com preços.
 
 Os cartões ativos no Trello serão migrados para o portal numa importação única, sem apagar nada do Trello.
 

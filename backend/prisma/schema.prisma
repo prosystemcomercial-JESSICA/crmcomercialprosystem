@@ -1472,6 +1472,8 @@ model Implantacao {
   testes     ImplantacaoTeste[]
   arquivos   ImplantacaoArquivo[]
   checklist  ImplantacaoChecklistItem[]
+  sessoes    ImplantacaoSessao[]
+  esperas    ImplantacaoEspera[]
 
   @@index([status])
   @@index([etapa_execucao])
@@ -1494,6 +1496,52 @@ model ImplantacaoAtividade {
   created_at     DateTime    @default(now())
 
   @@index([implantacao_id])
+}
+
+// Cronômetro do técnico: cada play é uma sessão. Só uma sessão aberta (fim null) por técnico:
+// play em outra demanda fecha a anterior (origem_fim TROCA). Sem demanda = outra atividade.
+model ImplantacaoSessao {
+  id             String       @id @default(cuid())
+  tecnico_id     String
+  tecnico_nome   String?
+  implantacao_id String?
+  implantacao    Implantacao? @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  tipo           String       @default("DEMANDA") // DEMANDA | SUPORTE | REUNIAO | INTERNO
+  etapa          String? // INSTALACAO | CONVERSAO | TREINAMENTO | CORRECAO (só DEMANDA)
+  descricao      String?      @db.Text
+  inicio         DateTime
+  fim            DateTime?
+  origem_fim     String? // PAUSA | TROCA | ESPERA | AUTO_23H59 | CORRECAO
+  corrigido_por  String?
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+
+  @@index([tecnico_id, inicio])
+  @@index([tecnico_id, fim])
+  @@index([implantacao_id])
+}
+
+// Demanda parada: aguardando a programação (Sinval), o cliente ou um processamento automático
+// (ex.: importação rodando, que não conta como trabalho do técnico).
+model ImplantacaoEspera {
+  id                 String      @id @default(cuid())
+  implantacao_id     String
+  implantacao        Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  tipo               String // PROGRAMACAO | CLIENTE | PROCESSAMENTO
+  motivo             String      @db.Text
+  o_que_resolver     String?     @db.Text
+  responsavel_id     String?
+  responsavel_nome   String?
+  inicio             DateTime    @default(now())
+  fim                DateTime?
+  aberta_por_id      String?
+  aberta_por_nome    String?
+  resolvida_por_nome String?
+  resposta           String?     @db.Text
+  created_at         DateTime    @default(now())
+
+  @@index([implantacao_id])
+  @@index([tipo, fim])
 }
 
 // Testes de conversão de dados (checklist padrão + avulsos).
@@ -1669,13 +1717,13 @@ model PropostaComercial {
   // Proposta enviada pelo WhatsApp (assistente): conversa, quando foi e etapa do
   // follow-up já enviada (0 = nenhuma; 1..3 = dias 2, 5 e 7). Gravar a etapa por SQL
   // cru para não mexer em updated_at (usado em "propostas paradas").
-  wpp_conversa_id    String?
-  wpp_enviada_em     DateTime?
-  wpp_followup_etapa Int       @default(0)
+  wpp_conversa_id           String?
+  wpp_enviada_em            DateTime?
+  wpp_followup_etapa        Int       @default(0)
   // Pós-venda pelo WhatsApp (assistente, fase 4): boas-vindas, pesquisa de 30 dias e nota (1 ruim, 2 regular, 3 ótimo).
-  wpp_boasvindas_em  DateTime?
-  wpp_pesquisa_em    DateTime?
-  wpp_pesquisa_nota  Int?
+  wpp_boasvindas_em         DateTime?
+  wpp_pesquisa_em           DateTime?
+  wpp_pesquisa_nota         Int?
   // Aprovação de desconto pelo celular (assistente): PENDENTE | APROVADO | RECUSADO,
   // o % aprovado (se o desconto subir depois, precisa de nova aprovação), quem pediu e quem decidiu.
   desconto_aprov_status     String?
@@ -2770,13 +2818,13 @@ model ResultadoAnualHistorico {
 
 // Notificação no celular/computador (Web Push): um registro por aparelho em que a pessoa ativou.
 model PushInscricao {
-  id         String   @id @default(cuid())
-  usuario_id String   @db.VarChar(64)
-  endpoint   String   @unique @db.VarChar(700)
-  p256dh     String   @db.VarChar(255)
-  auth       String   @db.VarChar(255)
-  aparelho   String?  @db.VarChar(255)
-  created_at DateTime @default(now())
+  id         String    @id @default(cuid())
+  usuario_id String    @db.VarChar(64)
+  endpoint   String    @unique @db.VarChar(700)
+  p256dh     String    @db.VarChar(255)
+  auth       String    @db.VarChar(255)
+  aparelho   String?   @db.VarChar(255)
+  created_at DateTime  @default(now())
   ultimo_ok  DateTime?
 
   @@index([usuario_id])

@@ -787,3 +787,16 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
 2. O CRM cadastra esse contato como **lead novo**, na campanha "Decisor indicado pela loja". O lead da loja continua no CRM e ganha uma observação com o nome e o número do decisor.
 3. A Caroline começa a conversa com ele do zero. Ela conta que pegou o contato com a equipe da loja, nunca diz que ele se inscreveu, e respeita o limite e o horário do número.
 4. Se o número já está em conversa com um agente, é de cliente ou está marcado para não falar com agentes, nada é criado. Fica só a anotação no lead da loja.
+
+### Atualização 02/10/2026: cronômetro do técnico no Portal Técnico
+
+1. **Começar:** em Portal Técnico › Implantações, escolha a etapa (Instalação, Conversão, Treinamento ou Correção pós-virada) e toque em **Play**. O relógio aparece no topo.
+2. **Trocar de demanda:** é só dar Play em outra. A anterior pausa sozinha, e o tempo nunca conta em dobro.
+3. **Outra atividade:** suporte, reunião ou tarefa interna. Use o botão **Outra atividade**, no topo.
+4. **Demanda parada:** toque em **Espera** e escolha:
+   - **aguardando programação** (com o Sinval);
+   - **aguardando cliente**;
+   - **processamento rodando** (uma importação, por exemplo; não conta como trabalho).
+   Escreva o motivo. Quando resolver, marque **Resolvido** na aba Meu dia.
+5. **Meu dia:** mostra o tempo trabalhado, o tempo dentro da jornada (8h às 18h; 7h em dia de virada), o aproveitamento e a hora extra. A gestão escolhe o técnico.
+6. **Esqueceu o play ligado?** Ele fecha sozinho às 23h59, e a gestão corrige o horário.
