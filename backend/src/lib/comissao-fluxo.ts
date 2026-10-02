@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { podeReceberComissaoVendedor } from './permissoes-conta';
 import { prazosPadrao } from '@/lib/implantacao/portal';
-import { obterConfigPortal, novoTokenCliente } from '@/services/implantacao-portal.service';
+import { obterConfigPortal, novoTokenCliente, avisarEquipe } from '@/services/implantacao-portal.service';
 
 export class ComissaoValidationError extends Error {
   constructor(message: string) {
@@ -170,7 +170,7 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
       if (ehConversao) sistemaAnterior = p?.sistema_atual || undefined;
     }
 
-    await prisma.implantacao.create({
+    const novaImp = await prisma.implantacao.create({
       data: {
         contrato_id: c.id,
         proposta_id: c.proposta_comercial_id || undefined,
@@ -191,7 +191,9 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
         // Página de acompanhamento do cliente + contatos para os avisos de andamento.
         token_cliente: novoTokenCliente(), contato_whatsapp: contatoWhats, contato_email: contatoEmail,
       },
-    }).catch(() => {});
+    }).catch(() => null);
+    // Novidade no sino da equipe técnica e da gestão.
+    if (novaImp) await avisarEquipe(prisma, `🚀 Nova implantação: ${c.razao_social} (${tipoBase === 'CONVERSAO' ? `conversão${sistemaAnterior ? ` de ${sistemaAnterior}` : ''}` : 'banco zerado'}). Designe o técnico no Quadro.`, novaImp.id).catch(() => {});
   }
 
   // Comissões A_RECEBER (uma do vendedor, uma da supervisão) — idempotente por contrato+papel.

@@ -900,7 +900,7 @@ export default function PortalTecnicoPage() {
         <div className="pt-topo-extra" style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
         <div style={{ flex: 1 }} />
         <CronometroBarra />
-        <SinoAvisos onAbrir={() => setTab('avisos')} />
+        <SinoAvisos onAbrir={() => setTab('avisos')} onAbrirDemanda={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
         <button onClick={() => window.close()} title="Fechar portal"
           style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
           <X size={13} />

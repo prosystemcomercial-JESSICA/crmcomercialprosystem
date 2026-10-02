@@ -864,3 +864,13 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - Configurações em duas colunas;
   - ficha da demanda com até 1100px;
   - abaixo de 900px, o menu lateral vira só ícones e o topo esconde o título.
+
+### Atualização 02/10/2026: sino de novidades do Portal Técnico
+
+- **O sino abre uma caixa de "Novidades"** com os últimos 20 avisos: nova implantação, novo serviço, tarefa, recado, prazo.
+- **Ao abrir, marca tudo como lido** e o contador zera.
+- **Cada item abre o card da demanda** no Quadro.
+- **Quem recebe:** `avisarEquipe` manda a novidade para os técnicos de implantação, a supervisão técnica e os ADMIN quando:
+  - um contrato assinado gera uma implantação (`lib/comissao-fluxo.ts`);
+  - um serviço entra em execução.
+- As novidades ficam só no portal, sem WhatsApp.

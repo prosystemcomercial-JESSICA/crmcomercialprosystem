@@ -602,9 +602,20 @@ function EnviarAviso({ implantacaoId, tecnicoId }: { implantacaoId?: string | nu
   );
 }
 
-/** Sino do topo: avisos não lidos do usuário, com som quando chega aviso novo. */
-export function SinoAvisos({ onAbrir }: { onAbrir: () => void }) {
+/** Sino do topo: abre a caixa de novidades (implantações, serviços, tarefas, recados, prazos) e limpa ao abrir. */
+export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; onAbrirDemanda?: (id: string) => void }) {
   const [n, setN] = useState(0);
+  const [aberto, setAberto] = useState(false);
+  const [itens, setItens] = useState<any[]>([]);
+  const abrir = async () => {
+    if (aberto) { setAberto(false); return; }
+    try {
+      const r = await apiClient.getAvisosTecnico();
+      setItens((r.data.data.avisos || []).slice(0, 20));
+      setAberto(true);
+      if (r.data.data.nao_lidos) { await apiClient.marcarAvisosLidos().catch(() => {}); setN(0); window.dispatchEvent(new Event('avisos:mudou')); }
+    } catch { onAbrir(); }
+  };
   useEffect(() => {
     let anterior = -1;
     const ver = async () => {
@@ -620,11 +631,36 @@ export function SinoAvisos({ onAbrir }: { onAbrir: () => void }) {
     ver(); const t = setInterval(ver, 45000); window.addEventListener('avisos:mudou', ver);
     return () => { clearInterval(t); window.removeEventListener('avisos:mudou', ver); };
   }, []);
+  const icone = (a: any) => a.tipo === 'TAREFA' ? '📋' : a.prioridade === 'URGENTE' ? '🚨' : /implanta/i.test(a.texto) && /nova/i.test(a.texto) ? '🚀' : /servi[cç]o/i.test(a.texto) && /novo/i.test(a.texto) ? '🧰' : /prazo/i.test(a.texto) ? '⏰' : '📌';
   return (
-    <button onClick={onAbrir} title="Avisos" style={{ position: 'relative', width: 32, height: 32, borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-secondary)' }}>
-      <Bell size={15} />
-      {n > 0 && <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 99, background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{n}</span>}
-    </button>
+    <div style={{ position: 'relative' }}>
+      <button onClick={abrir} title="Novidades" aria-expanded={aberto} style={{ position: 'relative', width: 32, height: 32, borderRadius: 8, border: '1px solid var(--t-card-border)', background: aberto ? 'var(--t-content-bg)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-secondary)' }}>
+        <Bell size={15} />
+        {n > 0 && <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 99, background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{n}</span>}
+      </button>
+      {aberto && (
+        <>
+          <div onClick={() => setAberto(false)} style={{ position: 'fixed', inset: 0, zIndex: 70 }} />
+          <div role="dialog" aria-label="Novidades" style={{ position: 'absolute', right: 0, top: 40, zIndex: 71, width: 'min(380px, calc(100vw - 24px))', maxHeight: '70vh', overflowY: 'auto', background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, boxShadow: '0 16px 40px rgba(13,34,56,.18)' }}>
+            <div style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--t-card-border)' }}>
+              <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Novidades</b>
+              <button onClick={() => { setAberto(false); onAbrir(); }} style={{ fontSize: 12, fontWeight: 700, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer' }}>Ver todas</button>
+            </div>
+            {itens.length === 0 && <div style={{ padding: 16, fontSize: 13, color: 'var(--t-text-muted)' }}>Nada novo por aqui.</div>}
+            {itens.map(a => (
+              <button key={a.id} onClick={() => { setAberto(false); if (a.implantacao?.id && onAbrirDemanda) onAbrirDemanda(a.implantacao.id); else onAbrir(); }}
+                style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: a.lido_em ? 'transparent' : '#2E6EAB0d', cursor: 'pointer' }}>
+                <span style={{ fontSize: 16, lineHeight: '20px' }}>{icone(a)}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 13, color: 'var(--t-text-primary)', fontWeight: a.lido_em ? 400 : 700 }}>{a.texto}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{a.de_nome || 'Sistema'} · {fmtDataHora(a.created_at)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

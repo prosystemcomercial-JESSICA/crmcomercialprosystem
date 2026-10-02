@@ -854,3 +854,7 @@ Nos serviços, o cliente recebe só "recebemos o seu pedido e ele já está na f
 ### Atualização 02/10/2026: um quadro só
 
 Implantações e serviços ficam no mesmo **Quadro**: use os botões **Tudo / Implantações / Serviços** no topo. No Início, clicar num item de "Pede atenção agora" abre a demanda. O portal ocupa a tela inteira em qualquer tamanho; no celular, o menu vira só ícones.
+
+### Atualização 02/10/2026: sino de novidades
+
+No topo do Portal Técnico, o **sino** mostra o que chegou de novo: implantação nova, serviço novo, tarefa, recado e aviso de prazo. Ao abrir, tudo fica como lido e o número some. Toque num item para abrir a demanda.
