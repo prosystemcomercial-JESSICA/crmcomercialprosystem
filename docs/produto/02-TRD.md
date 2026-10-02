@@ -802,3 +802,8 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
 - Monitores cujo navegador não abre o https do domínio (ex.: Samsung M5) podem abrir a TV pelo IP: `http://179.199.134.177:3010/t/<código>`.
 - Aberta pelo IP, a página busca os dados no mesmo IP, porta 3011 (`app/t/[codigo]` e `app/tv/escritorio`).
 - O CORS libera só essa origem.
+
+### Atualização 02/10/2026: texto das mensagens de serviço
+
+- **Serviço** (o cliente já usa o Prosystem): não recebe boas-vindas. O aviso inicial diz que o pedido do serviço foi recebido e já está na fila do técnico.
+- **Tempo dedicado:** só aparece na mensagem e no e-mail quando passa de 1 minuto.
