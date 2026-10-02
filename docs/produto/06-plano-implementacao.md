@@ -598,3 +598,28 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - `promptCaroline` recebe `lead.prospeccao` (cidade e bairro);
   - `rodarCaroline` deixa os leads com `criado_por` heitor por último e respeita `envios_dia`.
 - Começa **desligado**: a gestão liga no painel.
+
+### Atualização 02/10/2026: decisor indicado pela loja vira lead novo
+
+- **Problema:** quando o número da loja respondia "fulano não faz parte da empresa, o telefone dele é X", o agente (Julio, Caroline ou Luiz Felipe) pedia desculpa pelo engano e o número passado se perdia.
+- **Agora:**
+  - o agente lê o WhatsApp, o nome e o cargo passados na conversa e preenche `novo_contato` na resposta;
+  - agradece, diz que vai falar direto com a pessoa e encerra com a porta aberta, sem pedir desculpa como se fosse engano;
+  - se a loja só disse o nome, o agente pede o WhatsApp.
+- **Cadastro (`registrarDecisorIndicado` em `services/caroline.service.ts`):**
+  - cria um **lead novo**, sem apagar nem alterar o da loja: origem `INDICACAO`, campanha "Decisor indicado pela loja", temperatura FRIO;
+  - copia do lead da loja a empresa, o CNPJ, o segmento e a cidade;
+  - grava observação nos dois leads; no lead da loja ficam o decisor e o número dele (`dados.decisor`, `dados.decisor_numero`);
+  - cria ou reaproveita a conversa e coloca o contato na **fila da Caroline** (`SdrLead` status FILA, `dados.indicacao`). A fila já respeita o limite de primeiros contatos, o intervalo e o horário do número.
+- **Não cadastra quando o número:**
+  - é o mesmo da loja;
+  - já está em conversa com um agente;
+  - é de cliente ativo;
+  - está marcado para não falar com agentes.
+  - Nesses casos fica só a observação no lead da loja.
+- **Primeira mensagem (`aberturaIndicacao` em `lib/assistente/sdr.ts`):**
+  - a Caroline se apresenta e diz que pegou o contato com a equipe da loja;
+  - pergunta qual sistema usam hoje;
+  - nunca diz que a pessoa se inscreveu.
+- **Validação:** `lerNovoContato` só aceita celular brasileiro válido (`numeroWhatsapp`).
+- **Testes:** em `tests/sdr-caroline.test.ts`.
