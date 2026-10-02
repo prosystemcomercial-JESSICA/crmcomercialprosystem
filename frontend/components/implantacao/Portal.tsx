@@ -381,6 +381,7 @@ function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => vo
   if (!itens.length) return <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>O roteiro do onboarding é criado quando a gestão designa o técnico.</div>;
   return (
     <div style={{ display: 'grid', gap: 14 }}>
+      <PerguntasPrimeiroContato d={d} recarregar={recarregar} />
       <div style={{ ...cartao, padding: 14, display: 'grid', gap: 8, background: d.onboarding_ok ? '#16a34a0d' : '#0369a10d', borderColor: d.onboarding_ok ? '#16a34a55' : '#0369a155' }}>
         <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>{d.onboarding_ok ? '✅ Onboarding técnico concluído' : '🔒 Primeiro contato com o cliente, antes de qualquer ação'}</b>
         <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>
@@ -409,6 +410,43 @@ function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => vo
           })}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** As 15 perguntas principais do primeiro contato: o técnico preenche durante a conversa com o cliente. */
+function PerguntasPrimeiroContato({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const i = d.implantacao;
+  const campos = (d.perguntas_primeiro_contato || []).map((k: string) => d.campos_coleta.find((c: any) => c.key === k)).filter(Boolean);
+  const [f, setF] = useState<Record<string, any>>({ ...(i.coleta || {}) });
+  const [salvando, setSalvando] = useState(false);
+  const respondidas = campos.filter((c: any) => String(f[c.key] ?? '').trim() !== '').length;
+  const salvar = async () => {
+    setSalvando(true);
+    try { await apiClient.salvarColeta(i.id, { ...(i.coleta || {}), ...f }); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
+  };
+  return (
+    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10, borderColor: respondidas === campos.length ? '#16a34a55' : '#0369a155' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Perguntas principais do primeiro contato</b>
+        <span style={{ fontSize: 12, fontWeight: 700, color: respondidas === campos.length ? '#16a34a' : 'var(--t-text-muted)' }}>{respondidas} de {campos.length} respondidas</span>
+      </div>
+      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))' }}>
+        {campos.map((c: any, k: number) => (
+          <label key={c.key} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', display: 'grid', gap: 4 }}>
+            <span>{k + 1}. {c.label}</span>
+            {c.tipo === 'opcoes' ? (
+              <select id={`pc-${c.key}`} value={f[c.key] || ''} onChange={e => setF(p => ({ ...p, [c.key]: e.target.value }))} className="ps-input w-full"><option value="">—</option>{c.opcoes.map((o: string) => <option key={o}>{o}</option>)}</select>
+            ) : (
+              <input id={`pc-${c.key}`} type={c.tipo === 'numero' ? 'number' : 'text'} value={f[c.key] || ''} onChange={e => setF(p => ({ ...p, [c.key]: e.target.value }))} className="ps-input w-full" />
+            )}
+          </label>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button disabled={salvando} onClick={salvar} style={btn('#2E6EAB')}>{salvando ? <Loader2 size={13} className="animate-spin" /> : null} Salvar respostas</button>
+        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Com as 15 respondidas, o item "Perguntas principais" do roteiro se marca sozinho.</span>
+      </div>
     </div>
   );
 }

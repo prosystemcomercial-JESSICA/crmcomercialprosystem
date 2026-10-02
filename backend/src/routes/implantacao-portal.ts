@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -123,6 +123,10 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (body.contato_whatsapp !== undefined) extra.contato_whatsapp = String(body.contato_whatsapp || '').replace(/\D/g, '') || null;
     await prisma.implantacao.update({ where: { id }, data: { coleta, ...extra } });
     await atividade(id, 'NOTA', '📝 Ficha de coleta atualizada', u);
+    // As 15 perguntas do primeiro contato respondidas: o item do onboarding se marca sozinho (e desmarca se apagarem alguma).
+    const { perguntasRespondidas, ITEM_PERGUNTAS } = await import('@/lib/implantacao/portal');
+    await prisma.implantacaoChecklistItem.updateMany({ where: { implantacao_id: id, grupo: 'ONBOARDING', titulo: ITEM_PERGUNTAS },
+      data: perguntasRespondidas(coleta) ? { feito: true, feito_por: u.nome || u.id, feito_em: new Date() } : { feito: false, feito_por: null, feito_em: null } });
     return reply.send({ status: 'success', data: { coleta, ...extra } });
   });
 
@@ -174,7 +178,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       implantacao: { ...imp, coluna: colunaDe(imp), progresso: progresso(imp, checklist) }, checklist, fases, ocorrencias, comunicacoes: comunicacoes.map(c => ({ ...c, texto: c.texto?.slice(0, 600) })),
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
       link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: CAMPOS_COLETA,
-      onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist),
+      onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
     } });
   });
 

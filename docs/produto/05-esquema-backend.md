@@ -886,3 +886,15 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - cadeado 🔒 nos cards do Quadro.
 - **Otávio:** avisa o técnico quando o onboarding passa do prazo.
 - **Rota:** `GET /implantacoes/onboarding`.
+
+### Atualização 02/10/2026: 15 perguntas principais do primeiro contato
+
+- **As perguntas** (`PERGUNTAS_PRIMEIRO_CONTATO`), na ordem em que o técnico pergunta:
+  - máquinas, faturamento, caixas, impressora NFC-e, etiquetas, colaboradores, PBMs;
+  - financeiro, corretor tributário, gerencial, SNGPC, comunicação, banco único, preço único e TEF.
+- **Ficha de coleta:** viraram o grupo "Primeiro contato".
+- **Aba Onboarding técnico:** aparecem como um formulário no topo.
+- **Item novo do roteiro** "Perguntas principais do primeiro contato respondidas":
+  - marca sozinho ao salvar a ficha com as 15 preenchidas, e desmarca se alguma for apagada;
+  - não pode ser marcado à mão sem as respostas.
+- **Página do cliente:** as respostas aparecem no diagnóstico que ele aprova.

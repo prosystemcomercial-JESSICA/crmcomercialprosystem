@@ -95,3 +95,15 @@ describe('onboarding técnico', () => {
     expect(progressoOnb({ modulo: 'IMPLANTACAO', tipo_base: 'BANCO_ZERADO' }, itens)).toBe(50);
   });
 });
+
+import { perguntasRespondidas, PERGUNTAS_PRIMEIRO_CONTATO, ONBOARDING_ITENS as ITENS_OB, ITEM_PERGUNTAS } from '../src/lib/implantacao/portal';
+describe('perguntas do primeiro contato', () => {
+  it('são 15 e só contam como respondidas com todas preenchidas', () => {
+    expect(PERGUNTAS_PRIMEIRO_CONTATO).toHaveLength(15);
+    const todas = Object.fromEntries(PERGUNTAS_PRIMEIRO_CONTATO.map(k => [k, 'Sim']));
+    expect(perguntasRespondidas(todas)).toBe(true);
+    expect(perguntasRespondidas({ ...todas, tef: '' })).toBe(false);
+    expect(perguntasRespondidas(null)).toBe(false);
+    expect(ITENS_OB).toContain(ITEM_PERGUNTAS);
+  });
+});
