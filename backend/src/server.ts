@@ -81,7 +81,9 @@ try {
       const ok = !origin
         || allowedOrigins.some(o => origin.startsWith(o))
         || /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin)
-        || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+        || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
+        // TV do Escritório aberta pelo IP (navegador de monitor que não abre o https do domínio).
+        || origin === 'http://179.199.134.177:3010';
       if (ok) cb(null, true);
       else cb(new Error('Not allowed by CORS'), false);
     },

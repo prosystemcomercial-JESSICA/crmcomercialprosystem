@@ -5,7 +5,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Aberta pelo IP (monitor/TV cujo navegador não abre o https do domínio): busca os dados no mesmo IP, porta da API.
+const API_URL = typeof window !== 'undefined' && /^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)
+  ? `${window.location.protocol}//${window.location.hostname}:3011`
+  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function AtalhoTvPage() {
   const { codigo } = useParams<{ codigo: string }>();
