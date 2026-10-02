@@ -888,3 +888,7 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
 ### Atualização 02/10/2026: recado lido sai da tela do técnico
 
 - Depois que o técnico toca em **Confirmo que li**, o recado some da lista dele (Início, sino e aba Avisos). Não é apagado do banco: continua no radar **Leitura dos recados** da supervisão, com data e hora da confirmação. (`/implantacoes/avisos` e Início filtram `lido_em: null` para o próprio usuário.)
+
+### Atualização 02/10/2026: leitura de recado no histórico do card
+
+- Quando o recado é ligado a uma demanda, a confirmação de leitura entra no **Histórico** do card do cliente: "✅ <técnico> confirmou a leitura do recado de <quem enviou>: <texto>" (`POST /implantacoes/avisos/:id/lido` grava `ImplantacaoAtividade`).
