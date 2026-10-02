@@ -866,3 +866,10 @@ Toda implantação nova começa pelo **Onboarding técnico** (Portal Técnico �
 ### Atualização 02/10/2026: perguntas do primeiro contato
 
 Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas principais durante a conversa com o cliente: máquinas, faturamento, caixas, impressora NFC-e, etiquetas, colaboradores, PBMs, financeiro, corretor tributário, gerencial, SNGPC, comunicação, banco único, preço único e TEF. Sem as 15 respondidas, o onboarding não conclui.
+
+### Atualização 02/10/2026: técnicos e recados no Portal Técnico
+
+- **Técnico entra direto no Portal Técnico** e não vê o resto do CRM. Para sair, usa o botão **Sair** no canto da tela.
+- **Para o técnico receber um card**, abra o card no Quadro e escolha o **Técnico responsável**. Técnico novo cadastrado em Usuários (ativo, cargo de técnico) já aparece na lista.
+- **O técnico só vê recados dos cards que são dele.**
+- **Recado lido de verdade:** o técnico toca no recado, lê no popup e toca em **Confirmo que li**. Na página Início, a supervisão acompanha em **Leitura dos recados** quem já confirmou e quando.
