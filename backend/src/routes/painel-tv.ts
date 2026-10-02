@@ -428,6 +428,29 @@ export async function painelTvRoutes(fastify: FastifyInstance, options: { prisma
     return { status: 'success' };
   });
 
+  // Endereço curto da TV (digitar no controle do monitor): /t/<código de 6 letras> → link com a chave.
+  const CHAVE_ATALHO = 'painel_tv.atalho';
+  const novoAtalho = () => Array.from({ length: 6 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
+  fastify.get('/painel-tv/atalho/:codigo', async (request, reply) => {
+    const { codigo } = request.params as { codigo: string };
+    const cfg = await lerConfig([CHAVE_ATALHO, CHAVE_TOKEN_TV]);
+    await new Promise(r => setTimeout(r, 400)); // freia tentativas em sequência
+    if (!cfg[CHAVE_ATALHO] || !cfg[CHAVE_TOKEN_TV] || String(codigo || '').toLowerCase().trim() !== cfg[CHAVE_ATALHO]) return reply.status(404).send({ status: 'error', message: 'Código inválido' });
+    return reply.send({ status: 'ok', data: { chave: cfg[CHAVE_TOKEN_TV] } });
+  });
+  // Gestão: vê (e gera na primeira vez) ou troca o código curto.
+  fastify.post('/painel-tv/atalho', async (request, reply) => {
+    if (!podeVerTudo(getUser(request))) return reply.status(403).send({ status: 'error', message: 'Ação da gestão' });
+    const trocar = !!(request.body as any)?.trocar;
+    const cfg = await lerConfig([CHAVE_ATALHO]);
+    let codigo = cfg[CHAVE_ATALHO];
+    if (!codigo || trocar) {
+      codigo = novoAtalho();
+      await prisma.configuracaoIntegracao.upsert({ where: { chave: CHAVE_ATALHO }, create: { chave: CHAVE_ATALHO, valor: codigo, updated_by: getUser(request)?.id || 'gestao' }, update: { valor: codigo, updated_by: getUser(request)?.id || 'gestao' } });
+    }
+    return reply.send({ status: 'ok', data: { codigo } });
+  });
+
   fastify.get('/painel-tv/escritorio', async (request, reply) => {
     const { chave } = (request.query || {}) as { chave?: unknown };
     let autorizado = podeVerTudo(getUser(request));
