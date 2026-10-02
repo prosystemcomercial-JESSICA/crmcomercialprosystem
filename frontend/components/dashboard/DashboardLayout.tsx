@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, ehSoPortalTecnico } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -175,6 +175,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
+
+  // Técnico só usa o Portal Técnico: qualquer outra tela do CRM manda pra lá.
+  const soPortal = ehSoPortalTecnico(user?.role);
+  useEffect(() => { if (soPortal) router.replace('/portal-tecnico'); }, [soPortal, router]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const toggleFullscreen = () => {
@@ -889,7 +893,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="ps-content ios-main flex-1 overflow-auto min-h-0">
           <div className="ps-page p-2 md:p-3 h-full">
             <NotificacoesApp />
-            {children}
+            {soPortal ? null : children}
           </div>
         </main>
       </div>

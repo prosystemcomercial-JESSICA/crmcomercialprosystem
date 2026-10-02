@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, podeVerTudo } from '@/lib/auth-context';
+import { useAuth, podeVerTudo, ehSoPortalTecnico } from '@/lib/auth-context';
 import LoginForm from '@/components/auth/LoginForm';
 import Image from 'next/image';
 import { LineChart, TrendingUp, Users2 } from 'lucide-react';
@@ -40,7 +40,8 @@ export default function Home() {
   useEffect(() => {
     if (!isAuthenticated) return;
     const role = (user?.role || '').toUpperCase();
-    const destino = podeVerTudo(user?.role) ? '/dashboard'
+    const destino = ehSoPortalTecnico(user?.role) ? '/portal-tecnico'
+      : podeVerTudo(user?.role) ? '/dashboard'
       : role === 'SDR' ? '/leads-sdr'
       : '/comercial';
     router.replace(destino);
