@@ -195,22 +195,23 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   ];
   return (
     <Gaveta onClose={onClose}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--t-card-border)', display: 'grid', gap: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--t-text-primary)' }}>{i.cliente_razao_social}</div>
-            <div style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
-              <Etq cor={servico ? '#0891b2' : '#16a34a'}>{d.tipo_demanda}</Etq>
-              {i.cliente_cnpj ? `${i.cliente_cnpj} · ` : ''}{i.plano ? `${i.plano} · ` : ''}técnico: {i.tecnico_nome || 'não designado'}
+      <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--t-card-border)', display: 'grid', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#2E6EAB', marginBottom: 4 }}>{d.tipo_demanda}</div>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 650, letterSpacing: '-0.01em', lineHeight: 1.25, color: 'var(--t-text-primary)', textWrap: 'balance' as any }}>{i.cliente_razao_social}</h2>
+            <div style={{ fontSize: 13, color: 'var(--t-text-muted)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[i.cliente_cnpj, i.plano, i.tecnico_nome ? `Técnico ${i.tecnico_nome}` : 'Sem técnico'].filter(Boolean).map((t, k) => <span key={k}>{k ? <span style={{ marginRight: 8, opacity: .5 }}>·</span> : null}{t}</span>)}
             </div>
           </div>
-          <button onClick={onClose} aria-label="Fechar"><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
+          <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
-        <ResponsavelEmpresa d={d} gestao={gestao} recarregar={carregar} />
-        <ContatoDestaque d={d} />
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 160 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>
-          <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{i.progresso}%</b>
+        <PainelContatos d={d} gestao={gestao} recarregar={carregar} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 160, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{i.progresso}%</span>
+          </div>
           <BotoesDemanda implantacao={{ ...i, onboarding_ok: d.onboarding_ok }} />
         </div>
       </div>
@@ -732,77 +733,86 @@ function contatosDoCliente(d: any): { nome: string | null; fone: string }[] {
   return out;
 }
 
-/** Responsável da empresa (decisor): a supervisão informa nome e telefone; o técnico vê em destaque e liga direto. */
-function ResponsavelEmpresa({ d, gestao, recarregar }: { d: any; gestao: boolean; recarregar: () => void }) {
+// ─── Linguagem visual do card (ordem de serviço): bordas finas, cor só para ação ───
+const os = {
+  linha: 'var(--t-card-border)',
+  rotulo: { fontSize: 11, fontWeight: 500, color: 'var(--t-text-muted)', letterSpacing: '.02em' } as React.CSSProperties,
+  secao: { fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', letterSpacing: '.01em' } as React.CSSProperties,
+  valor: { fontSize: 14, fontWeight: 500, color: 'var(--t-text-primary)', lineHeight: 1.5 } as React.CSSProperties,
+  painel: { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10 } as React.CSSProperties,
+};
+
+/** Botão de ícone redondo (44px de toque) para ligar / WhatsApp. */
+function AcaoContato({ href, titulo, children, externo }: { href: string; titulo: string; children: React.ReactNode; externo?: boolean }) {
+  return (
+    <a href={href} title={titulo} aria-label={titulo} {...(externo ? { target: '_blank', rel: 'noreferrer' } : {})} className="pt-acao-contato"
+      style={{ width: 36, height: 36, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${os.linha}`, color: 'var(--t-text-secondary)', textDecoration: 'none', position: 'relative' }}>
+      {children}
+    </a>
+  );
+}
+
+function LinhaContato({ papel, nome, fone, acao }: { papel: string; nome: string | null; fone: string | null; acao?: React.ReactNode }) {
+  const n = soDigitos(fone), wa = n.length >= 10 ? (n.startsWith('55') ? n : `55${n}`) : null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', minHeight: 56 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={os.rotulo}>{papel}</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--t-text-primary)' }}>{nome || 'Sem nome'}</span>
+          {n ? <a href={`tel:${n}`} style={{ fontSize: 15, fontWeight: 600, color: '#2E6EAB', textDecoration: 'none', fontVariantNumeric: 'tabular-nums' }}>{fmtFone(fone)}</a>
+            : <span style={{ fontSize: 13, color: '#b45309' }}>sem telefone</span>}
+        </div>
+      </div>
+      {acao}
+      {n && <AcaoContato href={`tel:${n}`} titulo="Ligar"><Phone size={15} /></AcaoContato>}
+      {wa && <AcaoContato href={`https://wa.me/${wa}`} titulo="WhatsApp" externo><MessageSquare size={15} color="#16a34a" /></AcaoContato>}
+    </div>
+  );
+}
+
+/** Faixa de contatos do card: decisor (informado pela supervisão) e contato do dia a dia, prontos para discar. */
+function PainelContatos({ d, gestao, recarregar }: { d: any; gestao: boolean; recarregar: () => void }) {
   const col = d.implantacao.coleta || {};
+  const contatos = contatosDoCliente(d);
+  const principal = contatos[0];
+  const nomeContato = principal?.nome || d.cliente_ficha?.contato || col.contato_nome || null;
+  const temDecisor = !!(col.decisor_nome || col.decisor_telefone);
   const [editando, setEditando] = useState(false);
   const [nome, setNome] = useState(col.decisor_nome || '');
   const [fone, setFone] = useState(col.decisor_telefone || '');
   const salvar = async () => {
     try { await apiClient.salvarDecisorImplantacao(d.implantacao.id, nome.trim(), fone.trim()); setEditando(false); recarregar(); } catch (e) { alert(erroDe(e)); }
   };
-  const tem = col.decisor_nome || col.decisor_telefone;
-  if (!tem && !gestao) return null;
-  if (editando) return (
-    <div style={{ borderRadius: 12, padding: '12px 14px', background: '#16a34a0d', border: '1px solid #16a34a55', display: 'grid', gap: 8 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '.04em' }}>Responsável da empresa (decisor)</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do responsável" className="ps-input" style={{ flex: '1 1 200px', minHeight: 40 }} />
-        <input value={fone} onChange={e => setFone(e.target.value)} placeholder="Telefone / WhatsApp" inputMode="tel" className="ps-input" style={{ flex: '1 1 160px', minHeight: 40 }} />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={salvar} style={{ ...btn('#16a34a'), minHeight: 40 }}>Salvar</button>
-        <button onClick={() => setEditando(false)} style={{ ...btn('#64748b', false), minHeight: 40 }}>Cancelar</button>
-      </div>
-    </div>
-  );
-  if (!tem) return (
-    <button onClick={() => setEditando(true)} style={{ borderRadius: 12, padding: '10px 14px', background: 'transparent', border: '1px dashed #16a34a88', color: '#15803d', fontWeight: 700, fontSize: 13, cursor: 'pointer', textAlign: 'left', minHeight: 44 }}>
-      + Informar responsável da empresa (decisor) para o técnico falar direto
-    </button>
-  );
-  const n = soDigitos(col.decisor_telefone), wa = n.length >= 10 ? (n.startsWith('55') ? n : `55${n}`) : null;
+  const editar = () => { setNome(col.decisor_nome || ''); setFone(col.decisor_telefone || ''); setEditando(true); };
+  const linkEditar = (txt: string) => <button onClick={editar} style={{ fontSize: 12, fontWeight: 500, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 4px' }}>{txt}</button>;
   return (
-    <div style={{ borderRadius: 12, padding: '12px 14px', background: '#16a34a0d', border: '1px solid #16a34a55', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-      <Users size={22} color="#16a34a" />
-      <div style={{ flex: 1, minWidth: 180 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '.04em' }}>Responsável da empresa (decisor)</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>{col.decisor_nome || 'Sem nome'}</div>
-        {n && <a href={`tel:${n}`} style={{ fontSize: 20, fontWeight: 800, color: '#15803d', textDecoration: 'none' }}>{fmtFone(col.decisor_telefone)}</a>}
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {n && <a href={`tel:${n}`} style={{ ...btn('#16a34a'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><Phone size={14} /> Ligar</a>}
-        {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><MessageSquare size={14} /> WhatsApp</a>}
-        {gestao && <button onClick={() => { setNome(col.decisor_nome || ''); setFone(col.decisor_telefone || ''); setEditando(true); }} style={{ ...btn('#64748b', false), minHeight: 44 }}>Editar</button>}
-      </div>
-    </div>
-  );
-}
-
-/** Nome e telefone do contato em evidência no topo do card, com Ligar e WhatsApp. */
-function ContatoDestaque({ d }: { d: any }) {
-  const contatos = contatosDoCliente(d);
-  const principal = contatos[0];
-  const nomeContato = principal?.nome || d.cliente_ficha?.contato || d.implantacao.coleta?.contato_nome || null;
-  if (!principal) return (
-    <div style={{ borderRadius: 12, padding: '10px 14px', background: '#dc26260d', border: '1px solid #dc262640', fontSize: 14, fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
-      <Phone size={16} /> {nomeContato ? `${nomeContato}: sem telefone cadastrado` : 'Cliente sem contato cadastrado'}
-    </div>
-  );
-  const n = soDigitos(principal.fone), wa = n.length >= 10 ? (n.startsWith('55') ? n : `55${n}`) : null;
-  return (
-    <div style={{ borderRadius: 12, padding: '12px 14px', background: '#2E6EAB0f', border: '1px solid #2E6EAB40', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-      <Phone size={22} color="#2E6EAB" />
-      <div style={{ flex: 1, minWidth: 180 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#2E6EAB', textTransform: 'uppercase', letterSpacing: '.04em' }}>Contato do cliente</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>{nomeContato || 'Contato sem nome'}</div>
-        <a href={`tel:${n}`} style={{ fontSize: 20, fontWeight: 800, color: '#2E6EAB', textDecoration: 'none' }}>{fmtFone(principal.fone)}</a>
-        {contatos.length > 1 && <div style={{ fontSize: 12, color: 'var(--t-text-secondary)', marginTop: 2 }}>Outros: {contatos.slice(1).map(x => `${x.nome ? `${x.nome} ` : ''}${fmtFone(x.fone)}`).join(' · ')}</div>}
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <a href={`tel:${n}`} style={{ ...btn('#2E6EAB'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><Phone size={14} /> Ligar</a>
-        {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><MessageSquare size={14} /> WhatsApp</a>}
-      </div>
+    <div style={{ ...os.painel, overflow: 'hidden' }}>
+      <style>{`.pt-acao-contato{transition:background-color .15s,border-color .15s,transform .12s}.pt-acao-contato:hover{background:var(--t-content-bg);border-color:#2E6EAB55}.pt-acao-contato:active{transform:scale(.96)}.pt-acao-contato::after{content:'';position:absolute;inset:-4px}`}</style>
+      {editando ? (
+        <div style={{ padding: 14, display: 'grid', gap: 10 }}>
+          <div style={os.rotulo}>Responsável da empresa (decisor)</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome" className="ps-input" style={{ flex: '1 1 200px', minHeight: 40 }} autoFocus />
+            <input value={fone} onChange={e => setFone(e.target.value)} placeholder="Telefone" inputMode="tel" className="ps-input" style={{ flex: '1 1 160px', minHeight: 40 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={salvar} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>Salvar</button>
+            <button onClick={() => setEditando(false)} style={{ ...btn('#64748b', false), minHeight: 36, border: `1px solid ${os.linha}` }}>Cancelar</button>
+          </div>
+        </div>
+      ) : temDecisor ? (
+        <LinhaContato papel="Decisor · responsável da empresa" nome={col.decisor_nome} fone={col.decisor_telefone} acao={gestao ? linkEditar('Editar') : undefined} />
+      ) : gestao ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '4px 14px', minHeight: 48 }}>
+          <span style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Decisor da empresa não informado</span>
+          {linkEditar('Informar decisor')}
+        </div>
+      ) : null}
+      {(temDecisor || gestao || editando) && <div style={{ height: 1, background: os.linha }} />}
+      {principal
+        ? <LinhaContato papel={contatos.length > 1 ? `Contato · +${contatos.length - 1} número(s) na ficha` : 'Contato'} nome={nomeContato} fone={principal.fone} />
+        : <div style={{ padding: '14px', fontSize: 13, color: '#b45309' }}>{nomeContato ? `${nomeContato}: sem telefone cadastrado` : 'Cliente sem contato cadastrado'}</div>}
     </div>
   );
 }
@@ -815,14 +825,14 @@ function AbaObservacoes({ id }: { id: string }) {
   const carregar = useCallback(async () => { try { const r = await apiClient.getObservacoesImplantacao(id); setObs(r.data.data); } catch { /* ignore */ } }, [id]);
   useEffect(() => { carregar(); }, [carregar]);
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      <BlocoObservacoes titulo="Observações compartilhadas" dica="Técnico e supervisão veem e escrevem aqui." lista={obs.compartilhadas} privada={false} id={id} eu={eu} recarregar={carregar} cor="#2E6EAB" />
-      <BlocoObservacoes titulo="Minha observação pessoal" dica="🔒 Só você vê. Não é compartilhada com ninguém." lista={obs.pessoais} privada id={id} eu={eu} recarregar={carregar} cor="#7c3aed" />
+    <div style={{ display: 'grid', gap: 24, maxWidth: 760 }}>
+      <BlocoObservacoes titulo="Equipe" dica="Técnico e supervisão leem e escrevem aqui." lista={obs.compartilhadas} privada={false} id={id} eu={eu} recarregar={carregar} />
+      <BlocoObservacoes titulo="Só para mim" dica="Anotação pessoal. Ninguém mais vê." lista={obs.pessoais} privada id={id} eu={eu} recarregar={carregar} />
     </div>
   );
 }
 
-function BlocoObservacoes({ titulo, dica, lista, privada, id, eu, recarregar, cor }: { titulo: string; dica: string; lista: any[]; privada: boolean; id: string; eu: string | null; recarregar: () => void; cor: string }) {
+function BlocoObservacoes({ titulo, dica, lista, privada, id, eu, recarregar }: { titulo: string; dica: string; lista: any[]; privada: boolean; id: string; eu: string | null; recarregar: () => void }) {
   const [texto, setTexto] = useState('');
   const [salvando, setSalvando] = useState(false);
   const salvar = async () => {
@@ -832,107 +842,117 @@ function BlocoObservacoes({ titulo, dica, lista, privada, id, eu, recarregar, co
   };
   const apagar = async (oid: string) => { if (!confirm('Apagar esta observação?')) return; try { await apiClient.delObservacaoImplantacao(oid); recarregar(); } catch (e) { alert(erroDe(e)); } };
   return (
-    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10, borderColor: `${cor}40` }}>
-      <div>
-        <div style={{ ...rotulo, color: cor }}>{titulo}</div>
-        <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 2 }}>{dica}</div>
+    <section style={{ display: 'grid', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={os.secao}>{privada ? '🔒 ' : ''}{titulo}</span>
+        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{dica}</span>
       </div>
-      <textarea rows={3} value={texto} onChange={e => setTexto(e.target.value)} className="ps-input w-full" placeholder={privada ? 'Anotação só sua…' : 'Escreva uma observação para a equipe…'} />
-      <div><button onClick={salvar} disabled={salvando || !texto.trim()} style={{ ...btn(cor), minHeight: 40 }}><Send size={12} /> {salvando ? 'Salvando…' : 'Salvar observação'}</button></div>
-      {lista.length === 0 && <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhuma observação ainda.</div>}
-      {lista.map(o => (
-        <div key={o.id} style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{o.texto}</div>
-            <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{privada ? 'você' : o.autor_nome || 'Equipe'} · {fmtDataHora(o.created_at)}</div>
-          </div>
-          {o.autor_id === eu && <button onClick={() => apagar(o.id)} title="Apagar" aria-label="Apagar observação" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--t-text-muted)', padding: 6 }}><X size={14} /></button>}
+      <div style={{ ...os.painel, padding: 4 }}>
+        <textarea rows={2} value={texto} onChange={e => setTexto(e.target.value)} placeholder={privada ? 'Escreva algo só para você…' : 'Escreva uma observação para a equipe…'}
+          style={{ width: '100%', border: 'none', outline: 'none', resize: 'vertical', background: 'transparent', padding: '8px 10px', fontSize: 14, color: 'var(--t-text-primary)', fontFamily: 'inherit' }} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 6px 6px' }}>
+          <button onClick={salvar} disabled={salvando || !texto.trim()} style={{ ...btn('#2E6EAB'), minHeight: 32, opacity: texto.trim() ? 1 : 0.45 }}>{salvando ? 'Salvando…' : 'Adicionar'}</button>
         </div>
-      ))}
-    </div>
+      </div>
+      {lista.length === 0
+        ? <div style={{ fontSize: 13, color: 'var(--t-text-muted)', padding: '2px 2px' }}>Nada escrito ainda.</div>
+        : <div style={{ display: 'grid' }}>
+          {lista.map((o, k) => (
+            <div key={o.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 2px', borderTop: k ? `1px solid ${os.linha}` : 'none' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginBottom: 3 }}><span style={{ fontWeight: 600, color: 'var(--t-text-secondary)' }}>{privada ? 'Você' : o.autor_nome || 'Equipe'}</span> · {fmtDataHora(o.created_at)}</div>
+                <div style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{o.texto}</div>
+              </div>
+              {o.autor_id === eu && <button onClick={() => apagar(o.id)} title="Apagar" aria-label="Apagar observação" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--t-text-muted)', padding: 8, borderRadius: 6 }}><X size={14} /></button>}
+            </div>
+          ))}
+        </div>}
+    </section>
   );
 }
 
 function AbaFichaCliente({ d }: { d: any }) {
   const c = d.cliente_ficha, i = d.implantacao;
   const dataBR = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : null);
-  const linha = (rotuloTxt: string, valor: any) => (valor === null || valor === undefined || valor === '') ? null : (
-    <div key={rotuloTxt} style={{ display: 'grid', gap: 2 }}>
-      <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{rotuloTxt}</div>
-      <div style={{ fontSize: 14, color: 'var(--t-text-primary)', fontWeight: 600, wordBreak: 'break-word' }}>{valor}</div>
-    </div>
-  );
-  const bloco = (t: string, itens: (React.ReactNode | null)[]) => itens.some(Boolean) ? (
-    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
-      <div style={rotulo}>{t}</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 items-start">{itens}</div>
-    </div>
-  ) : null;
+  const vendido = d.servico_descricao || (i.modulo === 'SERVICO' ? i.observacoes : null);
+  // Lista de definição: rótulo à esquerda, valor à direita, linhas finas. Campos vazios não aparecem.
+  const secao = (titulo: string, itens: [string, any][]) => {
+    const cheios = itens.filter(([, v]) => v !== null && v !== undefined && v !== '');
+    if (!cheios.length) return null;
+    return (
+      <section style={{ display: 'grid', gap: 8 }}>
+        <div style={os.secao}>{titulo}</div>
+        <dl style={{ ...os.painel, margin: 0 }}>
+          {cheios.map(([l, v], k) => (
+            <div key={l} className="pt-dl-linha" style={{ borderTop: k ? `1px solid ${os.linha}` : 'none' }}>
+              <dt style={os.rotulo}>{l}</dt>
+              <dd style={{ ...os.valor, margin: 0, wordBreak: 'break-word' }}>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    );
+  };
+  const fone = (t?: string | null) => (t ? <a href={`tel:${soDigitos(t)}`} style={{ color: '#2E6EAB', textDecoration: 'none', fontVariantNumeric: 'tabular-nums' }}>{fmtFone(t)}</a> : null);
   const end = c ? [c.endereco, c.numero_end, c.complemento].filter(Boolean).join(', ') : '';
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      {/* Demanda: tipo em destaque, serviço vendido em largura total e os dados rápidos em linha. */}
-      <div style={{ ...cartao, padding: 16, display: 'grid', gap: 14 }}>
+    <div style={{ display: 'grid', gap: 24, maxWidth: 820 }}>
+      <style>{`.pt-dl-linha{display:grid;grid-template-columns:170px 1fr;gap:16px;padding:11px 14px;align-items:baseline}@media (max-width:560px){.pt-dl-linha{grid-template-columns:1fr;gap:2px}}`}</style>
+
+      {/* O que foi vendido: o texto que o técnico mais precisa ler, solto, sem caixa. */}
+      <section style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <div style={rotulo}>Demanda</div>
-          <Etq cor={i.modulo === 'SERVICO' ? '#0891b2' : '#16a34a'}>{d.tipo_demanda}</Etq>
+          <span style={os.secao}>Demanda</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: '#2E6EAB', border: '1px solid #2E6EAB40', borderRadius: 999, padding: '2px 10px' }}>{d.tipo_demanda}</span>
         </div>
-        {(d.servico_descricao || (i.modulo === 'SERVICO' && i.observacoes)) && (
-          <div style={{ borderRadius: 10, background: 'var(--t-content-bg)', borderLeft: '3px solid #0891b2', padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 4 }}>O que foi vendido</div>
-            <div style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{d.servico_descricao || i.observacoes}</div>
-          </div>
-        )}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {([['Plano', i.plano || c?.plano, ClipboardList], ['Vendedor', i.vendedor_nome, Users], ['Técnico', i.tecnico_nome || 'não designado', Settings], ['Entrou em', dataBR(i.data_assinatura), Clock]] as [string, any, any][]).map(([l, v, Icon]) => (
-            <div key={l} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--t-card-border)' }}>
-              <Icon size={16} color="#2E6EAB" style={{ flexShrink: 0 }} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{l}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: l === 'Técnico' && !i.tecnico_nome ? '#dc2626' : 'var(--t-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v || '—'}</div>
-              </div>
+        {vendido && <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: 'var(--t-text-primary)', textWrap: 'pretty' as any, whiteSpace: 'pre-wrap' }}>{vendido}</p>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 28, rowGap: 10 }}>
+          {([['Plano', i.plano || c?.plano], ['Vendedor', i.vendedor_nome], ['Técnico', i.tecnico_nome], ['Entrou em', dataBR(i.data_assinatura)]] as [string, any][]).map(([l, v]) => (
+            <div key={l}>
+              <div style={os.rotulo}>{l}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: l === 'Técnico' && !v ? '#b45309' : 'var(--t-text-primary)' }}>{v || (l === 'Técnico' ? 'não designado' : '—')}</div>
             </div>
           ))}
         </div>
-      </div>
-      {!c && <div style={{ ...cartao, padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Cliente não encontrado no cadastro (sem vínculo pelo CNPJ). Os dados abaixo vêm só do card.</div>}
-      {bloco('Empresa', [
-        linha('Razão social', c?.razao_social || i.cliente_razao_social),
-        linha('Nome fantasia', c?.nome_fantasia),
-        linha('CNPJ', c?.cnpj || i.cliente_cnpj),
-        linha('Inscrição estadual', c?.inscricao_estadual),
-        linha('Código do cliente', c?.codigo),
-        linha('Segmento', c?.segmento),
-        linha('Regime tributário', c?.regime_tributario || i.coleta?.regime_tributario),
-        linha('Grupo técnico', c?.grupo_tecnico),
-        linha('Situação', c?.situacao),
-        linha('Cliente desde', dataBR(c?.data_entrada)),
+      </section>
+
+      {!c && <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Cliente não encontrado no cadastro pelo CNPJ. Os dados abaixo vêm só do card.</div>}
+
+      {secao('Empresa', [
+        ['Razão social', c?.razao_social || i.cliente_razao_social],
+        ['Nome fantasia', c?.nome_fantasia],
+        ['CNPJ', c?.cnpj || i.cliente_cnpj],
+        ['Inscrição estadual', c?.inscricao_estadual],
+        ['Código do cliente', c?.codigo],
+        ['Segmento', c?.segmento],
+        ['Regime tributário', c?.regime_tributario || i.coleta?.regime_tributario],
+        ['Grupo técnico', c?.grupo_tecnico],
+        ['Situação', c?.situacao],
+        ['Cliente desde', dataBR(c?.data_entrada)],
       ])}
-      {bloco('Contatos', [
-        linha('Responsável da empresa (decisor)', i.coleta?.decisor_nome ? `${i.coleta.decisor_nome}${i.coleta.decisor_telefone ? ` · ${fmtFone(i.coleta.decisor_telefone)}` : ''}` : (i.coleta?.decisor_telefone ? fmtFone(i.coleta.decisor_telefone) : null)),
-        linha('Contato principal', c?.contato || i.coleta?.contato_nome),
-        linha('Telefone do contato', c?.tel_contato ? fmtFone(c.tel_contato) : null),
-        linha('Segundo contato', c?.contato2),
-        linha('Telefone do 2º contato', c?.tel_contato2 ? fmtFone(c.tel_contato2) : null),
-        linha('Responsável legal', c?.responsavel_nome),
-        linha('Telefone 1', c?.telefone1 ? fmtFone(c.telefone1) : null),
-        linha('Telefone 2', c?.telefone2 ? fmtFone(c.telefone2) : null),
-        linha('Telefone', c?.telefone ? fmtFone(c.telefone) : null),
-        linha('WhatsApp dos avisos', i.contato_whatsapp ? fmtFone(i.contato_whatsapp) : null),
-        linha('E-mail', c?.email || i.contato_email),
+      {secao('Contatos', [
+        ['Decisor', i.coleta?.decisor_nome || i.coleta?.decisor_telefone ? <>{i.coleta?.decisor_nome || 'Sem nome'}{i.coleta?.decisor_telefone ? <> · {fone(i.coleta.decisor_telefone)}</> : null}</> : null],
+        ['Contato principal', c?.contato || i.coleta?.contato_nome ? <>{c?.contato || i.coleta?.contato_nome}{c?.tel_contato ? <> · {fone(c.tel_contato)}</> : null}</> : null],
+        ['Segundo contato', c?.contato2 ? <>{c.contato2}{c?.tel_contato2 ? <> · {fone(c.tel_contato2)}</> : null}</> : null],
+        ['Responsável legal', c?.responsavel_nome],
+        ['Telefone 1', fone(c?.telefone1)],
+        ['Telefone 2', fone(c?.telefone2)],
+        ['Telefone', fone(c?.telefone)],
+        ['WhatsApp dos avisos', fone(i.contato_whatsapp)],
+        ['E-mail', c?.email || i.contato_email],
       ])}
-      {bloco('Endereço', [
-        linha('Endereço', end),
-        linha('Bairro', c?.bairro),
-        linha('Cidade / UF', c ? [c.cidade, c.estado].filter(Boolean).join(' / ') : null),
-        linha('CEP', c?.cep),
-        linha('Região', c?.regiao),
+      {secao('Endereço', [
+        ['Endereço', end],
+        ['Bairro', c?.bairro],
+        ['Cidade', c ? [c.cidade, c.estado].filter(Boolean).join(' / ') : null],
+        ['CEP', c?.cep],
+        ['Região', c?.regiao],
       ])}
       {c?.observacoes && (
-        <div style={{ ...cartao, padding: 14, display: 'grid', gap: 6 }}>
-          <div style={rotulo}>Observações do cadastro</div>
-          <div style={{ fontSize: 13, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{c.observacoes}</div>
-        </div>
+        <section style={{ display: 'grid', gap: 8 }}>
+          <div style={os.secao}>Observações do cadastro</div>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{c.observacoes}</p>
+        </section>
       )}
     </div>
   );
