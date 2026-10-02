@@ -413,7 +413,7 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
   // ── TÉCNICOS disponíveis para designar
   fastify.get('/implantacoes/tecnicos', async (_request, reply) => {
     const tecnicos: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id, nome, cargo FROM UsuarioCRM WHERE cargo IN ('TECNICO_IMPLANTACAO','TECNICO_SUPORTE','SUPERVISAO_TECNICA') AND status = 'ATIVO' ORDER BY nome ASC`
+      `SELECT id, nome, cargo FROM UsuarioCRM WHERE cargo IN ('TECNICO','TECNICO_IMPLANTACAO','TECNICO_SUPORTE','SUPERVISAO_TECNICA') AND status = 'ATIVO' ORDER BY nome ASC`
     ).catch(() => []);
     return reply.send({ status: 'success', data: tecnicos });
   });
