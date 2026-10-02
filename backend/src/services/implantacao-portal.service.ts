@@ -232,22 +232,27 @@ async function escreverMarco(prisma: PrismaClient, imp: any, marco: string, v: A
 async function escreverMarcoBase(prisma: PrismaClient, imp: any, marco: string, v: Awaited<ReturnType<typeof visaoCliente>>, link: string): Promise<TextoMarco> {
   const contato = (imp.coleta as any)?.contato_nome?.split(' ')[0] || null;
   const servico = imp.modulo === 'SERVICO';
+  const temTempo = v.tempo_ms >= 60000; // menos de 1 minuto: não cita o tempo
   const fase = marco.startsWith('TREINO_') ? v.fases.find(f => `TREINO_${f.ordem}` === marco) : null;
   const proxFase = fase ? v.fases.find(f => f.ordem === fase.ordem + 1) : null;
   const dados = {
     contato, empresa: v.cliente, marco: ROTULO_MARCO(marco), servico: v.tipo_servico, tipo: servico ? 'serviço' : v.tipo_base === 'CONVERSAO' ? 'implantação com conversão dos dados do sistema anterior' : 'implantação do sistema do zero',
-    percentual: v.pct, tempo_dedicado: fmtHoras(v.tempo_ms), tecnico: v.tecnico,
+    percentual: v.pct, tempo_dedicado: temTempo ? fmtHoras(v.tempo_ms) : null, tecnico: v.tecnico,
+    ja_e_cliente: servico, // serviço = quem já usa o Prosystem e contratou algo a mais
     etapas: v.etapas.map(e => `${e.nome}: ${e.feitos} de ${e.total} passos`), proximos_passos: v.proximos,
     fase_concluida: fase?.nome || null, proxima_fase: proxFase?.nome || null, link,
   };
   const padrao = (): TextoMarco => {
     const oi = `Olá${contato ? `, ${contato}` : ''}! Aqui é da equipe de implantação da Prosystem.`;
+    const tempo = temTempo ? ` Foram ${fmtHoras(v.tempo_ms)} de trabalho dedicado até aqui.` : '';
     const corpo = marco === 'CONTRATO'
-      ? `Recebemos o contrato da ${v.cliente} e já começamos a preparar ${servico ? 'o serviço' : 'a sua implantação'}. ${v.tecnico ? `${v.tecnico} será o técnico responsável. ` : ''}Os próximos passos são: ${v.proximos.join('; ') || 'a instalação do sistema'}.`
+      ? (servico
+        ? `Recebemos o pedido do serviço de ${(v.tipo_servico || 'serviço').toLowerCase()} para a ${v.cliente} e ele já está na fila do nosso técnico. Os próximos passos são: ${v.proximos.join('; ') || 'a execução do serviço'}.`
+        : `Recebemos o contrato da ${v.cliente} e já começamos a preparar a sua implantação. ${v.tecnico ? `${v.tecnico} será o técnico responsável. ` : ''}Os próximos passos são: ${v.proximos.join('; ') || 'a instalação do sistema'}.`)
       : marco === 'VIRADA'
-        ? `A loja ${v.cliente} está rodando com o Prosystem! Foram ${fmtHoras(v.tempo_ms)} de trabalho dedicado até aqui. Agora seguimos com o treinamento da equipe, por fases.`
+        ? `A loja ${v.cliente} está rodando com o Prosystem!${tempo} Agora seguimos com o treinamento da equipe, por fases.`
         : fase ? `Concluímos a fase "${fase.nome}" do treinamento.${proxFase ? ` A próxima é "${proxFase.nome}".` : ' Esse foi o último módulo.'}`
-          : `${servico ? 'O serviço' : 'A implantação'} da ${v.cliente} chegou a ${v.pct}%, com ${fmtHoras(v.tempo_ms)} de trabalho dedicado. Próximos passos: ${v.proximos.join('; ') || 'reta final'}.`;
+          : `${servico ? 'O serviço' : 'A implantação'} da ${v.cliente} chegou a ${v.pct}%.${tempo} Próximos passos: ${v.proximos.join('; ') || 'reta final'}.`;
     return { whatsapp: `${oi}\n\n${corpo}\n\nAcompanhe cada passo aqui: ${link}`, assunto: `${v.cliente} · ${ROTULO_MARCO(marco)}`, titulo: marco === 'VIRADA' ? 'Sua loja está no ar!' : marco === 'CONTRATO' ? 'Bem-vindo à Prosystem' : `Atualização da ${servico ? 'execução' : 'implantação'}`, paragrafos: [oi, corpo] };
   };
   try {
@@ -256,7 +261,8 @@ async function escreverMarcoBase(prisma: PrismaClient, imp: any, marco: string, 
       'Você escreve, em nome da equipe de implantação da Prosystem (sistemas para farmácias e padarias), uma mensagem ao cliente sobre o andamento da implantação ou do serviço.',
       'Use SOMENTE os dados enviados; não invente datas, nomes, valores nem passos. Tom próximo, claro e profissional, em português do Brasil, sem travessão.',
       'NUNCA fale de esperas, atrasos, problemas, erros, bugs, programação ou equipe interna. Fale do que já foi feito, do tempo dedicado e do que vem a seguir.',
-      'Marco "próximos passos": dê as boas-vindas pelo contrato e explique os próximos passos. Marco "loja virada": dê as BOAS-VINDAS ao cliente como cliente Prosystem, comemore a loja rodando e anuncie o treinamento por fases (o vencimento, o e-mail e o boleto são acrescentados depois pelo sistema: NÃO fale deles). Marco de percentual: celebre o avanço. Marco de fase do treinamento: resuma a fase concluída e anuncie a próxima.',
+      'Se "tempo_dedicado" vier null, NÃO fale de tempo nem de horas. Se "ja_e_cliente" for true (serviço), o cliente já usa o Prosystem: NÃO dê boas-vindas; no marco "próximos passos" diga que recebemos o pedido do serviço e que ele já está na fila do técnico, com os próximos passos.',
+      'Marco "próximos passos" (implantação): dê as boas-vindas pelo contrato e explique os próximos passos. Marco "loja virada": dê as BOAS-VINDAS ao cliente como cliente Prosystem, comemore a loja rodando e anuncie o treinamento por fases (o vencimento, o e-mail e o boleto são acrescentados depois pelo sistema: NÃO fale deles). Marco de percentual: celebre o avanço. Marco de fase do treinamento: resuma a fase concluída e anuncie a próxima.',
       'WhatsApp: no máximo 5 linhas curtas, pode usar 1 emoji, termine com o link exatamente como recebido.',
       'Responda SOMENTE JSON: {"whatsapp":"...","assunto":"assunto do e-mail","titulo":"título curto do e-mail","paragrafos":["2 a 4 parágrafos curtos do e-mail, sem o link"]}',
     ].join('\n');
@@ -294,7 +300,7 @@ export function htmlEmailImplantacao(t: TextoMarco, v: Awaited<ReturnType<typeof
 <tr><td style="padding:6px 36px 4px">
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:13px;font-weight:700;color:#1A4E82">Andamento</td><td align="right" style="font-size:22px;font-weight:800;color:#2E6EAB">${v.pct}%</td></tr></table>
   ${barra}
-  <p style="margin:10px 0 0;font-size:13px;color:#5B7A99">⏱️ Tempo de trabalho dedicado à sua ${v.modulo === 'SERVICO' ? 'demanda' : 'implantação'}: <b style="color:#1A4E82">${fmtHoras(v.tempo_ms)}</b></p>
+  ${v.tempo_ms >= 60000 ? `<p style="margin:10px 0 0;font-size:13px;color:#5B7A99">⏱️ Tempo de trabalho dedicado à sua ${v.modulo === 'SERVICO' ? 'demanda' : 'implantação'}: <b style="color:#1A4E82">${fmtHoras(v.tempo_ms)}</b></p>` : ''}
 </td></tr>
 <tr><td style="padding:16px 36px 6px"><table width="100%" cellpadding="0" cellspacing="0">${etapas}</table></td></tr>
 <tr><td align="center" style="padding:26px 36px 34px">

@@ -839,3 +839,7 @@ Para abrir a TV do Escritório no navegador do monitor ou da TV, digite o endere
 ### Atualização 02/10/2026: TV no monitor Samsung
 
 Se o navegador do monitor não abrir o endereço normal, use o endereço pelo IP: `http://179.199.134.177:3010/t/<código>` (o código está em Configurações › Painel da TV).
+
+### Atualização 02/10/2026: mensagens de serviço
+
+Nos serviços, o cliente recebe só "recebemos o seu pedido e ele já está na fila do técnico", sem boas-vindas. O tempo dedicado só aparece quando já houve trabalho registrado.
