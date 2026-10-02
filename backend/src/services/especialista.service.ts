@@ -90,31 +90,56 @@ export async function revisarConversas(prisma: PrismaClient) {
     orderBy: { ultima_em: 'desc' }, take: 80,
   });
   // Deixadas de lado: a última mensagem é do cliente e ninguém respondeu há mais de 2 h.
-  const deLado: { nome: string; horas: number; texto: string }[] = [];
-  const paraAvaliar: { nome: string; texto: string }[] = [];
+  const { contatoSemAgentes } = await import('@/lib/laya');
+  const base = (process.env.FRONTEND_URL || '').split(',')[0]?.trim().replace(/\/$/, '') || 'https://comercial.prosystemnet.com';
+  const link = (id: string) => `${base}/whatsapp?conversa=${id}`;
+  const deLado: { nome: string; horas: number; texto: string; id: string }[] = [];
+  const paraAvaliar: { nome: string; texto: string; id: string }[] = [];
+  const desdeAgente = new Date(agora.getTime() - 24 * 3600_000);
   for (const c of convs) {
-    const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId: c.id }, orderBy: { created_at: 'desc' }, take: 16, select: { direcao: true, conteudo: true, transcricao: true, tipo: true, enviada_por: true, created_at: true } });
+    if (await contatoSemAgentes(prisma, c.contato_numero)) continue; // equipe/parceiro: fora da revisão comercial
+    const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId: c.id }, orderBy: { created_at: 'desc' }, take: 20, select: { direcao: true, conteudo: true, transcricao: true, tipo: true, enviada_por: true, created_at: true } });
     if (!ms.length) continue;
     const nome = c.contato_nome || c.contato_numero;
     const ult = ms[0];
     const horas = (agora.getTime() - ult.created_at.getTime()) / 3600_000;
-    if (ult.direcao === 'ENTRADA' && horas >= 2) deLado.push({ nome, horas: Math.round(horas), texto: ((ult.tipo === 'AUDIO' ? ult.transcricao : ult.conteudo) || '').slice(0, 120) });
-    if (paraAvaliar.length < 12 && ms.some(m => m.direcao === 'ENTRADA') && ms.some(m => m.direcao === 'SAIDA')) {
-      const linhas = ms.slice().reverse().map(m => `${m.direcao === 'ENTRADA' ? 'Cliente' : AUTOMATICOS.includes(m.enviada_por || '') ? `Agente(${m.enviada_por})` : 'Equipe'}: ${(m.tipo === 'AUDIO' ? `(áudio) ${m.transcricao || ''}` : m.conteudo || '').slice(0, 220)}`);
-      paraAvaliar.push({ nome, texto: linhas.join('\n') });
+    if (ult.direcao === 'ENTRADA' && horas >= 2) deLado.push({ nome, horas: Math.round(horas), texto: ((ult.tipo === 'AUDIO' ? ult.transcricao : ult.conteudo) || '').slice(0, 120), id: c.id });
+    // Foco: toda conversa em que um agente falou nas últimas 24 h (até 40).
+    const agenteFalou = ms.some(m => m.direcao === 'SAIDA' && AUTOMATICOS.includes(m.enviada_por || '') && m.created_at >= desdeAgente);
+    if (paraAvaliar.length < 40 && agenteFalou) {
+      const linhas = ms.slice().reverse().map(m => `${m.direcao === 'ENTRADA' ? 'Cliente' : AUTOMATICOS.includes(m.enviada_por || '') ? `Agente(${m.enviada_por})` : 'Equipe'}: ${(m.tipo === 'AUDIO' ? `(áudio) ${m.transcricao || ''}` : m.conteudo || '').slice(0, 260)}`);
+      paraAvaliar.push({ nome, texto: linhas.join('\n'), id: c.id });
     }
   }
-  let avaliacao: { resumo: string; alertas: { conversa: string; problema: string; como_melhorar: string }[]; dicas: string[] } | null = null;
+  type Alerta = { conversa: string; id?: string; gravidade?: string; problema: string; como_melhorar: string };
+  let avaliacao: { resumo: string; alertas: Alerta[]; dicas: string[] } | null = null;
   if (paraAvaliar.length) {
     const { instrucoesPara } = await import('./agentes-conversa.service');
-    const pergunta = [
-      'Avalie estas conversas de venda pelo WhatsApp (últimas 48 h). Aponte SÓ as que não foram satisfatórias: cliente sem resposta clara, pergunta repetida, abordagem fraca, oportunidade perdida, erro de informação, tom robótico, demora, falta de próximo passo.',
-      'Para cada uma: o problema em 1 frase e como melhorar em 1-2 frases (com um exemplo de mensagem, quando ajudar).',
-      'Depois, 2 a 4 dicas gerais para o time com base no que viu.',
-      'Responda APENAS com JSON: {"resumo": string, "alertas": [{"conversa": string (nome), "problema": string, "como_melhorar": string}], "dicas": [string]}',
-      '', ...paraAvaliar.map((c, i) => `### Conversa ${i + 1}: ${c.nome}\n${c.texto}`),
-    ].join('\n');
-    avaliacao = lerJsonIa(await chamarGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 120_000 }));
+    const sistema = QUEM + (await instrucoesPara(prisma, 'rafael'));
+    const resumos: string[] = [], alertas: Alerta[] = [], dicas: string[] = [];
+    for (let i = 0; i < paraAvaliar.length; i += 10) {
+      const lote = paraAvaliar.slice(i, i + 10);
+      const pergunta = [
+        'Você é o Rafael, supervisor dos agentes de pré-venda (Caroline, Julio, Luiz Felipe). Revise estas conversas de WhatsApp em que um AGENTE falou nas últimas 24 h. Leia cada conversa INTEIRA (inclusive áudios transcritos e falas da equipe) e aponte SÓ as que o agente conduziu mal. Erros a procurar:',
+        '- ignorou o contexto (respondeu algo genérico, não continuou do último assunto ou do último combinado);',
+        '- mandou para o SUPORTE algo que era comercial, implantação, treinamento ou assunto combinado com a Jessica;',
+        '- tratou como lead quem já é cliente, membro da equipe, parceiro ou fornecedor;',
+        '- o cliente pediu demonstração/proposta/preço e o agente fez pergunta genérica em vez de avançar;',
+        '- cliente com interesse ficou sem próximo passo ou sem data de retorno; adiou e não foi marcado retorno;',
+        '- repetiu mensagem ou pergunta; insistiu no mesmo dia; respondeu a robô de atendimento;',
+        '- informação errada, valor inventado, nome errado, tom robótico.',
+        'Para cada conversa com problema: gravidade ("alta" se pode perder venda ou irritar cliente, senão "media"), o problema em 1 frase e o que fazer AGORA em 1-2 frases (com a mensagem sugerida quando ajudar). Não liste conversas boas.',
+        'Responda APENAS com JSON: {"resumo": string, "alertas": [{"n": número da conversa, "gravidade": "alta"|"media", "problema": string, "como_melhorar": string}], "dicas": [string]}',
+        '', ...lote.map((c, k) => `### Conversa ${k + 1}: ${c.nome}\n${c.texto}`),
+      ].join('\n');
+      const r = lerJsonIa<{ resumo: string; alertas: { n: number; gravidade: string; problema: string; como_melhorar: string }[]; dicas: string[] }>(
+        await chamarGemini(prisma, { sistema, partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 150_000 }).catch(() => '{}'));
+      if (r?.resumo) resumos.push(r.resumo);
+      for (const a of r?.alertas || []) { const c = lote[(Number(a.n) || 0) - 1]; if (c) alertas.push({ conversa: c.nome, id: c.id, gravidade: a.gravidade, problema: a.problema, como_melhorar: a.como_melhorar }); }
+      dicas.push(...(r?.dicas || []));
+    }
+    alertas.sort((a, b) => (a.gravidade === 'alta' ? 0 : 1) - (b.gravidade === 'alta' ? 0 : 1));
+    avaliacao = { resumo: resumos.join(' '), alertas, dicas: [...new Set(dicas)].slice(0, 5) };
   }
   const dia = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const rec = await recusasDaSemana(prisma, agora).catch(() => null);
@@ -124,7 +149,7 @@ export async function revisarConversas(prisma: PrismaClient) {
     '', `## Deixadas de lado (${deLado.length})`,
     ...(deLado.length ? deLado.map(d => `- **${d.nome}**: sem resposta há ${d.horas} h. Última mensagem: "${d.texto}"`) : ['- Nenhuma. 👏']),
     '', `## Conversas não satisfatórias (${avaliacao?.alertas?.length || 0})`,
-    ...((avaliacao?.alertas || []).map(a => `- **${a.conversa}**: ${a.problema}\n  - Como melhorar: ${a.como_melhorar}`)),
+    ...((avaliacao?.alertas || []).map(a => `- ${a.gravidade === 'alta' ? '🔴' : '🟡'} **${a.conversa}**: ${a.problema}\n  - O que fazer: ${a.como_melhorar}${a.id ? `\n  - Abrir: ${link(a.id)}` : ''}`)),
     '', '## Dicas para o time', ...((avaliacao?.dicas || []).map(d => `- ${d}`)),
     ...(rec && rec.iniciadas ? ['', `## Recusas da semana (recuperação do Luiz Felipe)`,
       `- Iniciadas: ${rec.iniciadas} · recuperadas: ${rec.recuperadas} · perdidas: ${rec.perdidas} · sem resposta: ${rec.sem_resposta} · em andamento: ${rec.andamento}`,
@@ -134,11 +159,13 @@ export async function revisarConversas(prisma: PrismaClient) {
   const doc = await gravarDoc(prisma, { tipo: 'ALERTA', titulo: `Revisão das conversas · ${dia}`, conteudo: md }, 'revisao');
   registrarAcaoAgente('rafael', `revisou as conversas: ${deLado.length} de lado, ${avaliacao?.alertas?.length || 0} a melhorar`);
   if (deLado.length || avaliacao?.alertas?.length) {
+    const al = avaliacao?.alertas || [];
     await avisar(prisma, [
-      `👀 *Rafael revisou as conversas (${dia})*`,
-      deLado.length ? `⏰ ${deLado.length} deixada(s) de lado: ${deLado.slice(0, 5).map(d => `${d.nome} (${d.horas} h)`).join(', ')}` : '',
-      avaliacao?.alertas?.length ? `⚠️ ${avaliacao.alertas.length} a melhorar: ${avaliacao.alertas.slice(0, 3).map(a => a.conversa).join(', ')}` : '',
-      '', 'Detalhes e dicas no Escritório virtual › Rafael.',
+      `👀 *Rafael revisou as conversas dos agentes (${dia})*`,
+      al.length ? `\n⚠️ *${al.length} conduzida(s) mal*${al.filter(a => a.gravidade === 'alta').length ? ` · ${al.filter(a => a.gravidade === 'alta').length} grave(s)` : ''}:` : '✅ Nenhuma conversa de agente conduzida mal.',
+      ...al.slice(0, 8).map(a => `${a.gravidade === 'alta' ? '🔴' : '🟡'} *${a.conversa}*: ${a.problema}\n   ➜ ${a.como_melhorar}${a.id ? `\n   ${link(a.id)}` : ''}`),
+      al.length > 8 ? `…e mais ${al.length - 8} no Escritório virtual › Rafael.` : '',
+      deLado.length ? `\n⏰ *${deLado.length} cliente(s) esperando resposta*: ${deLado.slice(0, 5).map(d => `${d.nome} (${d.horas} h) ${link(d.id)}`).join('\n')}` : '',
     ].filter(Boolean).join('\n'));
   }
   return doc;
@@ -454,6 +481,10 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const hora = Number(partes.find(p => p.type === 'hour')?.value);
   const { podeEnviarUmaVez } = await import('./envio-unico.service');
   const hoje = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  // Revisão das conversas dos agentes: 12h e 17h nos dias úteis (pedido da Jessica, 01/10/2026).
+  if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 12 && hora < 14 && await podeEnviarUmaVez(prisma, `rafael.revisao.meio.${hoje}`, 20)) {
+    await revisarConversas(prisma).catch(e => console.error('[RAFAEL] revisão:', e?.message));
+  }
   if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 17 && hora < 19 && await podeEnviarUmaVez(prisma, `rafael.revisao.${hoje}`, 20)) {
     await revisarConversas(prisma).catch(e => console.error('[RAFAEL] revisão:', e?.message));
   }
