@@ -89,6 +89,12 @@ export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; 
   return aviso;
 }
 
+/** Novidade para o sino de toda a equipe técnica (técnicos, supervisão técnica) e da gestão (admin). Só no portal. */
+export async function avisarEquipe(prisma: PrismaClient, texto: string, implantacaoId?: string | null) {
+  const equipe = await prisma.usuarioCRM.findMany({ where: { status: 'ATIVO', cargo: { in: ['TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA', 'ADMIN'] } }, select: { id: true } }).catch(() => []);
+  for (const u of equipe) await avisarTecnico(prisma, { para_id: u.id, implantacao_id: implantacaoId || null, origem: 'SISTEMA', texto }).catch(() => null);
+}
+
 /** Aviso à gestão no WhatsApp (uma vez por chave e janela). */
 async function avisarGestao(prisma: PrismaClient, chave: string, texto: string, janelaHoras = 20) {
   const { podeEnviarUmaVez } = await import('./envio-unico.service');
@@ -142,8 +148,7 @@ export async function criarServicoDaVenda(prisma: PrismaClient, vendaId: string)
   });
   await prisma.implantacaoChecklistItem.createMany({ data: TIPOS_SERVICO[tipo].checklist.map((titulo, ordem) => ({ implantacao_id: imp.id, grupo: 'SERVICO', titulo, ordem })) });
   await linha(prisma, imp.id, 'NOTA', `Serviço "${TIPOS_SERVICO[tipo].label}" entrou na execução (venda de ${v.vendedor_nome || 'vendedor'}).`);
-  const tecnicos = await prisma.usuarioCRM.findMany({ where: { status: 'ATIVO', cargo: { in: ['TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] } }, select: { id: true } }).catch(() => []);
-  for (const t of tecnicos) await avisarTecnico(prisma, { para_id: t.id, implantacao_id: imp.id, origem: 'SISTEMA', texto: `Novo serviço para executar: ${TIPOS_SERVICO[tipo].label} · ${nome}.` });
+  await avisarEquipe(prisma, `🧰 Novo serviço para executar: ${TIPOS_SERVICO[tipo].label} · ${nome}.`, imp.id);
   registrarAcaoAgente('otavio', `recebeu o serviço ${TIPOS_SERVICO[tipo].label} de ${nome}`);
   return imp;
 }
