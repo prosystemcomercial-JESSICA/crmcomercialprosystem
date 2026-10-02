@@ -19,4 +19,6 @@ Get-ChildItem $destino -Directory | Where-Object {
   Remove-Item $_.FullName -Recurse -Force; $apagadas++
 }
 $qtd = (Get-ChildItem $destino -Directory).Count
+# Marca de sucesso: o próximo sync envia esta data ao servidor, que avisa se o MEGA parar.
+Set-Content -Path 'C:\Users\prosy\backups-crm-comercial-mega.txt' -Value ((Get-Date).ToUniversalTime().ToString('o')) -Encoding utf8
 Write-Output ("[MEGA] OK - {0} backups na pasta do MEGA ({1} antigos removidos) em {2}" -f $qtd, $apagadas, (Get-Date -Format 'dd/MM/yyyy HH:mm'))

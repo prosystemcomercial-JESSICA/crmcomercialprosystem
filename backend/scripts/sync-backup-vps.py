@@ -51,6 +51,23 @@ def main():
     for nome_pasta in pastas_remotas:
         sync_dir(sftp, f"{VPS_BACKUP_DIR}/{nome_pasta}", os.path.join(LOCAL_BACKUP_DIR, nome_pasta))
 
+    # Avisa o servidor que a cópia no computador deu certo (o vigia do CRM confere isso todo dia).
+    # Leva junto a data da última cópia para o MEGA (gravada pelo copiar-backup-mega.ps1).
+    try:
+        import json, io, datetime
+        mega_em = None
+        status_mega = os.path.join(os.path.dirname(LOCAL_BACKUP_DIR.rstrip("/\\")), "backups-crm-comercial-mega.txt")
+        if os.path.exists(status_mega):
+            mega_em = open(status_mega, encoding="utf-8-sig").read().strip() or None
+        try:
+            sftp.mkdir("/var/backups-comercial-status")
+        except IOError:
+            pass
+        marca = json.dumps({"pc_em": datetime.datetime.now(datetime.timezone.utc).isoformat(), "mega_em": mega_em, "backups": len(pastas_remotas)})
+        sftp.putfo(io.BytesIO(marca.encode("utf-8")), "/var/backups-comercial-status/copia-pc.json")
+    except Exception as e:
+        print(f"[SYNC] aviso: nao consegui gravar a marca no servidor: {e}")
+
     sftp.close()
     client.close()
     print(f"[SYNC] OK — {len(pastas_remotas)} backups sincronizados em {LOCAL_BACKUP_DIR}")
