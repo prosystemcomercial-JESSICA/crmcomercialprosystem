@@ -18,6 +18,8 @@ import {
  */
 
 const ehGestaoTecnica = (u: any) => podeVerTudo(u) || (u?.role || '').toUpperCase() === 'SUPERVISAO_TECNICA';
+// Recado ligado a um card só aparece para o técnico designado nele (gestão vê tudo).
+const soDoDesignado = (u: any): any => ehGestaoTecnica(u) ? {} : { OR: [{ implantacao_id: null }, { implantacao: { tecnico_id: u.id } }] };
 const ehTecnico = (u: any) => (u?.role || '').toUpperCase() === 'TECNICO_IMPLANTACAO';
 const fmtData = (d?: Date | null) => d ? d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
 
@@ -227,9 +229,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/avisos', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     const q = request.query as { enviados?: string };
-    const where: any = q.enviados === '1' && ehGestaoTecnica(u) ? {} : { para_id: u.id };
+    const where: any = q.enviados === '1' && ehGestaoTecnica(u) ? {} : { para_id: u.id, ...soDoDesignado(u) };
     const avisos = await prisma.avisoTecnico.findMany({ where, orderBy: { created_at: 'desc' }, take: 80, include: { implantacao: { select: { id: true, cliente_razao_social: true } } } });
-    const naoLidos = await prisma.avisoTecnico.count({ where: { para_id: u.id, lido_em: null } });
+    const naoLidos = await prisma.avisoTecnico.count({ where: { para_id: u.id, lido_em: null, ...soDoDesignado(u) } });
     return reply.send({ status: 'success', data: { avisos, nao_lidos: naoLidos } });
   });
   fastify.post('/implantacoes/avisos/:avisoId/lido', async (request, reply) => {
@@ -259,8 +261,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const gestao = ehGestaoTecnica(u);
     const [sessoesHoje, tarefas, recados, minhas] = await Promise.all([
       prisma.implantacaoSessao.findMany({ where: { tecnico_id: u.id, inicio: { lt: fimHoje }, OR: [{ fim: null }, { fim: { gt: iniHoje } }] } }),
-      prisma.avisoTecnico.findMany({ where: { tipo: 'TAREFA', ...(gestao ? {} : { para_id: u.id }), OR: [{ concluida_em: null }, { concluida_em: { gte: new Date(agora.getTime() - 3 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: [{ concluida_em: 'asc' }, { prazo: 'asc' }, { created_at: 'desc' }], take: 40 }),
-      prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', OR: [{ lido_em: null }, { created_at: { gte: new Date(agora.getTime() - 2 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
+      prisma.avisoTecnico.findMany({ where: { tipo: 'TAREFA', ...(gestao ? {} : { para_id: u.id }), AND: [soDoDesignado(u)], OR: [{ concluida_em: null }, { concluida_em: { gte: new Date(agora.getTime() - 3 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: [{ concluida_em: 'asc' }, { prazo: 'asc' }, { created_at: 'desc' }], take: 40 }),
+      prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', AND: [soDoDesignado(u)], OR: [{ lido_em: null }, { created_at: { gte: new Date(agora.getTime() - 2 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
       prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, data_assinatura: { gte: new Date(agora.getTime() - DIAS_QUADRO * 864e5) }, ...(gestao ? {} : { tecnico_id: u.id }) },
         include: { esperas: { where: { fim: null } }, treinamento_fases: { where: { realizada_em: null, marcada_em: { not: null } } } } }),
     ]);
