@@ -919,7 +919,7 @@ class ApiClient {
   async ajustarPrazos(id: string, data: { prazo_virada?: string | null; prazo_finalizacao?: string | null }) { return this.client.patch(`/implantacoes/${id}/prazos`, data); }
   async marcarChecklistImplantacao(itemId: string, feito: boolean) { return this.client.patch(`/implantacoes/checklist/${itemId}`, { feito }); }
   async iniciarVirada(id: string) { return this.client.post(`/implantacoes/${id}/virada/iniciar`, {}); }
-  async concluirVirada(id: string) { return this.client.post(`/implantacoes/${id}/virada/concluir`, {}); }
+  async concluirVirada(id: string, data?: string) { return this.client.post(`/implantacoes/${id}/virada/concluir`, data ? { data } : {}); }
   async cobrancaLancada(id: string) { return this.client.post(`/implantacoes/${id}/cobranca-lancada`, {}); }
   async getCobrancasPendentes() { return this.client.get('/implantacoes/cobrancas-pendentes'); }
   async atualizarFaseTreinamento(faseId: string, data: { nome?: string; marcada_em?: string | null; realizada_em?: string | null; observacao?: string | null }) { return this.client.patch(`/implantacoes/fases/${faseId}`, data); }

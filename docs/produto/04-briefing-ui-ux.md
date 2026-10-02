@@ -758,3 +758,17 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
 - **Ficha da demanda** (gaveta lateral): Resumo (tempos, paradas, prazos, aviso ao técnico), Ficha de coleta (com a tela do Suporte), Checklist, Virada e cobrança, Treinamento (fases, Play por fase), Correções (Play por correção), Tempos, Cliente (link e mensagens enviadas) e Histórico.
 - **Páginas públicas:** `/acompanhamento/<link>` (cliente) e `/programacao/<link>` (Sinval).
 - **Escritório:** Otávio na sala, com painel (abre as configurações do portal).
+
+### Atualização 02/10/2026 (tarde): demandas antigas, quadro de 60 dias e virada retroativa
+
+- **Demandas anteriores ao portal** (contrato antes de 02/10/2026, `ehLegado` em `lib/implantacao/portal.ts`):
+  - ficam no CRM, mas não geram nenhum aviso automático: nem mensagem ao cliente, nem oferta, nem aviso de prazo ou falta para a gestão e o técnico;
+  - a cobrança delas aparece só no painel da gestão, fora do aviso diário;
+  - `enviarMarco` também recusa demanda antiga, como trava final.
+- **Avisos à gestão agrupados:** prazos em risco ou estourados e demandas sem técnico chegam num único resumo por rodada, e não mais uma mensagem por demanda. Motivo: no primeiro deploy, as 14 implantações antigas geraram cerca de 20 mensagens no WhatsApp da gestão.
+- **Quadro:** mostra só as demandas com contrato (ou entrada do serviço) nos **últimos 60 dias** (`DIAS_QUADRO`).
+- **Virada retroativa** (só a gestão):
+  - na aba Virada e cobrança, informa a data em que a loja começou a usar (`POST /implantacoes/:id/virada/concluir` com `{ data }`);
+  - não exige "Iniciar virada" nem a tela do Suporte;
+  - calcula o 1º vencimento e o mês da comissão a partir dessa data;
+  - não manda mensagem ao cliente nem aviso.
