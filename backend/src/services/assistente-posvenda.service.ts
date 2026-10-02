@@ -81,6 +81,11 @@ export async function rodarPosVenda(prisma: PrismaClient, agora = new Date()): P
     const empresa = (p.nome_fantasia || p.razao_social || 'sua empresa').trim();
     const numero = numeroWhatsapp(p.responsavel_telefone);
     if (!numero) continue;
+    // Implantação acompanhada pelo portal: as boas-vindas vão na virada da loja (com o 1º vencimento).
+    if (!p.wpp_boasvindas_em) {
+      const imp = await prisma.implantacao.findFirst({ where: { proposta_id: p.id, token_cliente: { not: null } }, select: { id: true } }).catch(() => null);
+      if (imp) continue;
+    }
     try {
       if (elegivelBoasVindas(p, cfg.desde, agora)) {
         const conv = await garantirConversa(prisma, inst.id, numero, { nome: p.responsavel_nome, tipo_contato: 'CLIENTE', dono_id: p.vendedor_id });

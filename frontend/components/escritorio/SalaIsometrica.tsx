@@ -119,6 +119,7 @@ const VISUAL: Record<string, Visual> = {
   olivia:      { cabelo: 'rabo',     corCabelo: '#111827', feminina: true,  estampa: 'lupa', calca: '#4c1d95' },
   heitor:      { cabelo: 'curto',    corCabelo: '#78350f', feminina: false, estampa: 'megafone', extra: 'headset', calca: '#365314', pele: '#c68642', peleSombra: '#a0692f' },
   mila:        { cabelo: 'ondulado', corCabelo: '#7c2d12', feminina: true,  estampa: 'coracao', extra: 'headset', calca: '#164e63' },
+  otavio:      { cabelo: 'curto',    corCabelo: '#292524', feminina: false, estampa: 'circuito', extra: 'headset', calca: '#0c4a6e', pele: '#e0ac69', peleSombra: '#b8864b' },
   joana:       { cabelo: 'chanel',   corCabelo: '#1f1a17', feminina: true,  estampa: 'agenda', extra: 'oculos', calca: '#7c2d12', pele: '#8d5524', peleSombra: '#6b3f1b' },
   jessica:     { cabelo: 'longo',    corCabelo: '#5a3825', feminina: true,  estampa: 'estrela', calca: '#1e293b' },
 };

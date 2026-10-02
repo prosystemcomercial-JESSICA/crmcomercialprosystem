@@ -800,3 +800,27 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
    Escreva o motivo. Quando resolver, marque **Resolvido** na aba Meu dia.
 5. **Meu dia:** mostra o tempo trabalhado, o tempo dentro da jornada (8h às 18h; 7h em dia de virada), o aproveitamento e a hora extra. A gestão escolhe o técnico.
 6. **Esqueceu o play ligado?** Ele fecha sozinho às 23h59, e a gestão corrige o horário.
+
+### Atualização 02/10/2026: Portal de Implantação completo (substitui o Trello)
+
+**Técnico (Portal Técnico):**
+1. **Quadro:** as mesmas colunas do Trello. Arraste o card ou abra para ver tudo da demanda. **Serviços** fica numa aba própria e só recebe o serviço quando a vendedora move o card para "Em execução".
+2. **Ficha de coleta:** preencha no lugar da descrição do Trello (tipo, máquinas, regime, contabilidade, contato, e-mail e WhatsApp para os avisos) e anexe a **tela do Suporte**.
+3. **Checklist:** marque cada passo. O cliente acompanha o percentual: 30%, 50% e 80% geram aviso automático para ele.
+4. **Virada:** na aba Virada e cobrança, toque em **Iniciar virada** (exige a tela do Suporte) e, ao terminar, em **Loja virada**. O sistema:
+   - calcula o 1º vencimento;
+   - avisa a gestão para lançar a cobrança;
+   - manda ao cliente as boas-vindas com a data do vencimento, a confirmação do e-mail e a regra do boleto (enviado 10 dias antes; se não chegar, pedir até 24 horas antes pelo suporte).
+5. **Treinamento:** 3 fases. Dê Play na fase, marque a data e toque em **Fase realizada**: o cliente recebe o resumo.
+6. **Correções:** registre bugs e acertos depois da conversão ou da virada e dê Play na correção. A demanda só finaliza com tudo resolvido.
+7. **Avisos:** o sino no topo toca quando chega aviso da gestão ou do Otávio.
+8. **Dúvidas pelo WhatsApp:** mande mensagem para o número da empresa ("o que falta na Drogaria X?") e o Otávio responde com os dados reais.
+
+**Gestão:**
+- **Painel da implantação:** horas e aproveitamento por técnico, esperas e o que mais trava, prazos, viradas, horas por cliente e **cobranças a lançar** (botão "Cobrança lançada").
+- **Prazos:** mude no card (aba Resumo) ou os padrões em Configurações.
+- **Aviso para o técnico:** no card ou na aba Avisos (urgente também vai por WhatsApp). Mostra quando ele leu.
+- **Configurações:**
+  - nome e **WhatsApp do Sinval** (com ele preenchido, o Sinval recebe as pendências e o lembrete; sem ele, use o link das pendências);
+  - jornada, avisos ao cliente, Otávio, agente de oferta e o **catálogo** de produtos e pacotes (o agente de oferta só liga com o catálogo preenchido).
+- **Sinval:** pelo link das pendências (sem login), marca "Resolvido" e o técnico é avisado na hora.

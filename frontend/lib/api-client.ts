@@ -901,7 +901,7 @@ class ApiClient {
   }
   // Cronômetro do técnico e esperas da demanda
   async getCronometroAtual() { return this.client.get('/implantacoes/cronometro/atual'); }
-  async playCronometro(data: { tipo: string; implantacao_id?: string | null; etapa?: string | null; descricao?: string | null }) { return this.client.post('/implantacoes/cronometro/play', data); }
+  async playCronometro(data: { tipo: string; implantacao_id?: string | null; etapa?: string | null; descricao?: string | null; ocorrencia_id?: string | null }) { return this.client.post('/implantacoes/cronometro/play', data); }
   async pausarCronometro() { return this.client.post('/implantacoes/cronometro/pausa', {}); }
   async getDiaTecnico(params: { tecnico_id?: string; data?: string } = {}) { return this.client.get('/implantacoes/cronometro/dia', { params }); }
   async corrigirSessao(id: string, data: { inicio?: string; fim?: string }) { return this.client.patch(`/implantacoes/sessoes/${id}`, data); }
@@ -909,6 +909,30 @@ class ApiClient {
   async abrirEspera(id: string, data: { tipo: string; motivo: string; o_que_resolver?: string; responsavel_nome?: string; responsavel_id?: string }) { return this.client.post(`/implantacoes/${id}/esperas`, data); }
   async resolverEspera(esperaId: string, resposta?: string) { return this.client.post(`/implantacoes/esperas/${esperaId}/resolver`, { resposta }); }
   async getEsperasAbertas() { return this.client.get('/implantacoes/esperas/abertas'); }
+  // Portal de implantação e serviços (quadro, ficha, virada, treinamento, correções, avisos, painel, config)
+  async getQuadroImplantacao(modulo: 'IMPLANTACAO' | 'SERVICO') { return this.client.get('/implantacoes/quadro', { params: { modulo } }); }
+  async moverColunaImplantacao(id: string, coluna: string) { return this.client.patch(`/implantacoes/${id}/coluna`, { coluna }); }
+  async getPortalImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/portal`); }
+  async salvarColeta(id: string, dados: Record<string, any>) { return this.client.put(`/implantacoes/${id}/coleta`, dados); }
+  async enviarTelaSuporte(id: string, nome: string, arquivo: string) { return this.client.post(`/implantacoes/${id}/tela-suporte`, { nome, arquivo }); }
+  async getTelaSuporte(id: string) { return this.client.get(`/implantacoes/${id}/tela-suporte`); }
+  async ajustarPrazos(id: string, data: { prazo_virada?: string | null; prazo_finalizacao?: string | null }) { return this.client.patch(`/implantacoes/${id}/prazos`, data); }
+  async marcarChecklistImplantacao(itemId: string, feito: boolean) { return this.client.patch(`/implantacoes/checklist/${itemId}`, { feito }); }
+  async iniciarVirada(id: string) { return this.client.post(`/implantacoes/${id}/virada/iniciar`, {}); }
+  async concluirVirada(id: string) { return this.client.post(`/implantacoes/${id}/virada/concluir`, {}); }
+  async cobrancaLancada(id: string) { return this.client.post(`/implantacoes/${id}/cobranca-lancada`, {}); }
+  async getCobrancasPendentes() { return this.client.get('/implantacoes/cobrancas-pendentes'); }
+  async atualizarFaseTreinamento(faseId: string, data: { nome?: string; marcada_em?: string | null; realizada_em?: string | null; observacao?: string | null }) { return this.client.patch(`/implantacoes/fases/${faseId}`, data); }
+  async abrirOcorrencia(id: string, data: { titulo: string; descricao?: string; gravidade: string }) { return this.client.post(`/implantacoes/${id}/ocorrencias`, data); }
+  async atualizarOcorrencia(ocId: string, data: { situacao?: string; resolucao?: string | null; gravidade?: string }) { return this.client.patch(`/implantacoes/ocorrencias/${ocId}`, data); }
+  async gerarPaginaCliente(id: string) { return this.client.post(`/implantacoes/${id}/pagina-cliente`, {}); }
+  async enviarAvisoTecnico(data: { para_id: string; texto: string; prioridade: string; implantacao_id?: string | null }) { return this.client.post('/implantacoes/avisos', data); }
+  async getAvisosTecnico(enviados = false) { return this.client.get('/implantacoes/avisos', { params: enviados ? { enviados: '1' } : {} }); }
+  async marcarAvisoLido(id: string) { return this.client.post(`/implantacoes/avisos/${id}/lido`, {}); }
+  async marcarAvisosLidos() { return this.client.post('/implantacoes/avisos/lidos', {}); }
+  async getConfigPortal() { return this.client.get('/implantacoes/portal/config'); }
+  async salvarConfigPortal(data: any) { return this.client.put('/implantacoes/portal/config', data); }
+  async getPainelImplantacao(params: { de?: string; ate?: string } = {}) { return this.client.get('/implantacoes/painel', { params }); }
   async getTecnicosImplantacao() {
     return this.client.get('/implantacoes/tecnicos');
   }

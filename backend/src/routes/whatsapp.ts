@@ -1750,6 +1750,16 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
           return;
         }
       } catch (e: any) { console.error('[ASSISTENTE] erro:', e?.message); }
+      // Técnico de implantação ou programação (Sinval): quem responde é o Otávio.
+      if (tipoMsg === 'TEXTO' && texto) {
+        try {
+          const { responderOtavio } = await import('@/services/implantacao-portal.service');
+          if (await responderOtavio(prisma, inst.instance_token || '', contato_numero, texto)) {
+            if (externo_id) { comandosVistos.add(externo_id); if (comandosVistos.size > 2000) comandosVistos.clear(); }
+            return;
+          }
+        } catch (e: any) { console.error('[OTAVIO] erro:', e?.message); }
+      }
     }
 
     // Idempotência: se já gravamos essa mensagem, sai.

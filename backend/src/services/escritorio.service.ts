@@ -203,6 +203,13 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
   const triagemOn = cfg('whatsapp.triagem.ativa') === 'true';
   const iaOn = temChave && modoIa !== 'desligado';
   const posvendaOn = cfg('assistente.posvenda') === 'true';
+  const { obterConfigPortal } = await import('./implantacao-portal.service');
+  const portalCfg = await obterConfigPortal(prisma).catch(() => null);
+  const [impAtivas, impEsperas, impCobrancas] = await Promise.all([
+    prisma.implantacao.count({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' } } }).catch(() => 0),
+    prisma.implantacaoEspera.count({ where: { fim: null } }).catch(() => 0),
+    prisma.implantacao.count({ where: { virada_fim_em: { not: null }, cobranca_lancada_em: null } }).catch(() => 0),
+  ]);
 
   return [
     estado('bia', triagemOn, bia, [{ rotulo: 'contatos novos', valor: novos }, { rotulo: 'qualificados', valor: qualificados }, { rotulo: 'mensagens', valor: bot.total }], triagemOn ? undefined : 'Triagem desligada em Configurações'),
@@ -224,6 +231,9 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
       heitorCfg.ultimo_erro ? `Atenção: ${heitorCfg.ultimo_erro}` : heitorCfg.ativo ? 'Prospecta no Google Maps (dias úteis, 7h–18h)' : 'Desligado: ligue no painel dele'),
     estado('mila', temChave, maisRecente<Acao>(ultMila ? { texto: `escreveu "${ultMila.titulo.replace(/^CS · /, '').slice(0, 50)}"`, em: ultMila.created_at } : null, acaoRegistrada('mila')),
       [{ rotulo: 'para aprovar', valor: milaPendentes }, { rotulo: 'aprovados', valor: milaAprovados }], temChave ? 'Estuda retenção e experiência do cliente toda segunda de manhã' : 'Esperando a chave da IA em Configurações'),
+    estado('otavio', !!portalCfg?.agente_ativo, maisRecente<Acao>(null, acaoRegistrada('otavio')),
+      [{ rotulo: 'demandas em andamento', valor: impAtivas }, { rotulo: 'paradas em espera', valor: impEsperas }, { rotulo: 'cobranças a lançar', valor: impCobrancas }],
+      portalCfg?.agente_ativo ? 'De olho nas implantações, serviços e treinamentos; responde o técnico no WhatsApp' : 'Desligado: ligue no painel dele'),
     estado('joana', temChave, maisRecente<Acao>(ultJoana ? { texto: ultJoana.status === 'PROPOSTO' ? 'escreveu o Informativo e espera sua aprovação' : 'publicou o Informativo', em: ultJoana.decidido_em || ultJoana.created_at } : null, acaoRegistrada('joana')),
       [{ rotulo: 'para aprovar', valor: joanaPendentes }, { rotulo: 'edições publicadas', valor: joanaPublicadas }], temChave ? 'Informativo Prosystem quinzenal (quinta de manhã), a partir das pesquisas da Sofia' : 'Esperando a chave da IA em Configurações'),
   ];

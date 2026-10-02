@@ -1459,3 +1459,19 @@ export async function enviarEmailInformativo(para: string, assunto: string, html
     return false;
   }
 }
+
+// ─── Implantação (portal do cliente) ─────────────────────────
+/** E-mail de acompanhamento da implantação (próximos passos, progresso, virada, treinamento). */
+export async function enviarEmailImplantacao(para: string, assunto: string, html: string): Promise<boolean> {
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'comercial@prosystemnet.com.br';
+  try {
+    await createTransporter().sendMail({
+      from: `"Prosystem Implantação" <${fromEmail}>`, to: para, replyTo: fromEmail,
+      subject: assunto.slice(0, 150), html, headers: { 'X-Mailer': 'ProSystem CRM 2.0' },
+    });
+    return true;
+  } catch (err: any) {
+    console.error('[EMAIL] Implantação para', para, err?.message);
+    return false;
+  }
+}

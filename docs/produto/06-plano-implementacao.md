@@ -658,3 +658,99 @@ Desenho completo: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos
   - em cada implantação: etapa, Play ou Pausar e "Espera" (programação com o Sinval, cliente ou processamento);
   - aba nova **Meu dia**: trabalhado, na jornada, aproveitamento, hora extra, registros do dia e esperas abertas com "Resolvido".
 - **Testes:** em `tests/implantacao-cronometro.test.ts`.
+
+### Atualização 02/10/2026: Portal de Implantação, fases 2 a 8 (quadro, serviços, SLA, avisos, virada e cobrança, cliente, treinamento, correções, painel, Otávio e ofertas)
+
+Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.md`. Tudo fica dentro do Portal Técnico (`/portal-tecnico`).
+
+**Banco (só acréscimos; nada é apagado):**
+- **`Implantacao`, campos novos:**
+  - `modulo` (IMPLANTACAO ou SERVICO), `tipo_servico`, `coluna`;
+  - `coleta` (Json) e `tela_suporte_arquivo_id`;
+  - `sla_aviso`;
+  - `venda_adicional_id` (único) e `cliente_id`;
+  - `contato_whatsapp` e `contato_email`;
+  - `virada_inicio_em` e `virada_fim_em`;
+  - `cobranca_lancada_em` e `cobranca_lancada_por`;
+  - `token_cliente` (único) e `concluida_fila_em`.
+  - `contrato_id` passou a aceitar vazio, porque o serviço não tem contrato.
+- **Campos novos em tabelas existentes:**
+  - `ImplantacaoChecklistItem.fase` (fase do treinamento);
+  - `ImplantacaoSessao.ocorrencia_id`;
+  - `ImplantacaoEspera.lembrete_em`.
+- **Tabelas novas:** `AvisoTecnico`, `ImplantacaoTreinamentoFase`, `ImplantacaoOcorrencia`, `ImplantacaoComunicacao` (única por demanda, marco e canal) e `OfertaCliente`.
+
+**Regras (`lib/implantacao/portal.ts`, puro, com testes em `tests/implantacao-portal.test.ts`):**
+- **Colunas do quadro** (as do Trello): BackLog, A fazer, Em andamento, Acompanhamento e Treinamento, Concluído, Validado Supervisão, Finalizado e Cancelados. As demandas antigas caem na coluna pela etapa de execução.
+- **Prazo (SLA):**
+  - em risco a partir de 80% do tempo; estourado depois do prazo;
+  - padrões: conversão 15 dias até a virada e 30 até finalizar; banco zerado 10 e 25; serviço 3 dias úteis;
+  - tudo configurável no portal.
+- **1º vencimento:** 30 dias após o início de uso, no primeiro dia da lista 01, 05, 10, 15, 20 ou 25 igual ou posterior. Depois do dia 25, vai para o dia 01 do mês seguinte.
+- **Comissão:** o mês de pagamento é o mês seguinte ao 1º vencimento (`confirmarImplantacao`).
+- **Progresso para o cliente:**
+  - conta Instalação + Conversão (banco zerado: só Instalação);
+  - a implantação só chega a 100% com "Loja virada";
+  - o serviço chega a 100% com o seu checklist completo.
+- **Avisos ao cliente (`marcosDevidos`):**
+  - marcos: CONTRATO, P30, P50, P80, VIRADA e TREINO_n;
+  - cada marco vai uma vez só;
+  - dos percentuais alcançados de uma vez, vai só o maior, e os menores ficam como PULADO;
+  - a virada pula os percentuais que faltaram.
+- **Treinamento em 3 fases:** Caixa e PDV; Estoque, compras e cadastros; Financeiro e gestão. O checklist ganhou "Mensagerias WhatsApp" e "Prosystem Dashboard", que estavam no cartão do Trello.
+
+**Fluxos integrados:**
+- **Serviços:** o card do kanban de serviços (cross-sell) indo para "Em execução" cria a demanda no módulo Serviços (`criarServicoDaVenda`), com checklist do tipo (troca de CNPJ, comunicação, impressora, banco de dados, outro) e prazo de 3 dias úteis. Os técnicos são avisados. Ao finalizar no quadro, o card comercial vai para "Concluído" e o envio ao Thiago continua com a vendedora.
+- **Contrato assinado:** a implantação nasce com a página do cliente (`token_cliente`), o WhatsApp e o e-mail do responsável da proposta e os prazos pelo tipo.
+- **Designação do técnico:** cria as fases do treinamento e avisa o técnico.
+- **Virada:**
+  - "Iniciar virada" exige a tela do Suporte anexada e avisa a gestão;
+  - "Loja virada" grava o início de uso, calcula o 1º vencimento, recalcula o mês da comissão, move para Acompanhamento e Treinamento e avisa a gestão para lançar a cobrança;
+  - a gestão recebe aviso todo dia útil até marcar "Cobrança lançada".
+- **Mensagens ao cliente (`rodarPortal`, a cada 10 minutos, dias úteis das 8h às 18h, até 3 por rodada):**
+  - texto escrito pela IA com o contexto real (nome, loja, etapa, passos feitos, próximos passos, tempo dedicado), sem falar de esperas nem problemas; se a IA falhar, vai um texto padrão com os mesmos dados;
+  - WhatsApp (gravado no Inbox) e e-mail no visual da Prosystem, com barra de progresso, etapas e botão "Acompanhar passo a passo";
+  - a mensagem da virada é as **boas-vindas** e sempre traz, em texto fixo: o 1º vencimento, a confirmação do e-mail dos boletos e a regra do boleto (enviado 10 dias antes; se não chegar, pedir a segunda via pelo menos 24 horas antes pelo suporte, (27) 99779-8103).
+- **Pós-venda (Helena):** nas implantações com página do cliente, as boas-vindas não saem mais na assinatura. A mensagem da virada marca `wpp_boasvindas_em`, e a pesquisa de satisfação conta a partir dela.
+- **Programação (Sinval, sem usuário no CRM):**
+  - página `/programacao/<link>` sem login, com as pendências e o botão "Resolvido";
+  - com o WhatsApp dele configurado, recebe cada pendência na hora e um lembrete depois de 4 horas úteis (configurável);
+  - pode responder "resolvido" pelo WhatsApp;
+  - o técnico recebe aviso urgente quando a pendência é resolvida.
+- **Avisos para o técnico:**
+  - a gestão envia pelo portal (normal ou urgente; urgente também vai por WhatsApp);
+  - o técnico vê no sino do topo, com som, e marca como lido;
+  - a gestão vê quem leu;
+  - o sistema também avisa: prazo em risco ou estourado, espera longa, serviço novo, designação.
+- **Otávio (agente novo do Escritório):**
+  - **vigia:** demanda sem técnico; ficha incompleta; tela do Suporte faltando; cliente sem contato; demanda parada 3 dias sem espera; correção alta aberta há mais de 1 dia; play ligado há mais de 5 horas;
+  - **responde no WhatsApp** o técnico e a programação, com os dados reais das demandas.
+- **Agente de oferta:**
+  - depois da virada (15 dias, configurável), oferece um item do catálogo que o cliente não usa;
+  - 1 oferta por cliente a cada 30 dias, até 2 por rodada;
+  - nunca oferece se uma pessoa estiver atendendo a conversa;
+  - **começa desligado, até o catálogo ser preenchido** nas Configurações.
+
+**Rotas (`routes/implantacao-portal.ts`):**
+- Quadro e ficha:
+  - `GET /implantacoes/quadro?modulo=`;
+  - `PATCH /implantacoes/:id/coluna` (Finalizado exige virada feita e nenhuma correção aberta; Validado e Cancelados só a gestão);
+  - `GET /implantacoes/:id/portal`;
+  - `PUT /implantacoes/:id/coleta`;
+  - `POST` e `GET /implantacoes/:id/tela-suporte`;
+  - `PATCH /implantacoes/:id/prazos`.
+- Avisos: `POST` e `GET /implantacoes/avisos`, `POST /implantacoes/avisos/:id/lido` e `/lidos`.
+- Virada e cobrança: `POST /implantacoes/:id/virada/iniciar` e `/concluir`, `POST /implantacoes/:id/cobranca-lancada`, `GET /implantacoes/cobrancas-pendentes`.
+- Treinamento e correções: `PATCH /implantacoes/fases/:id`, `POST /implantacoes/:id/ocorrencias`, `PATCH /implantacoes/ocorrencias/:id`.
+- Página do cliente: `POST /implantacoes/:id/pagina-cliente` (demanda antiga: os marcos que já passaram ficam como PULADO).
+- Públicas: `GET /publico/acompanhamento/:token`, `GET /publico/programacao/:token`, `POST /publico/programacao/:token/esperas/:id/resolver`.
+- Gestão: `GET` e `PUT /implantacoes/portal/config` (prazos, programação, jornada, agentes, catálogo), `GET /implantacoes/painel?de&ate`.
+
+**Telas:**
+- **Portal Técnico, abas novas:**
+  - **Quadro** e **Serviços**: arrastar e soltar, etiquetas, progresso, prazo, espera e correção;
+  - **Avisos**, com sino no topo;
+  - para a gestão: **Painel da implantação** (aproveitamento e horas por técnico, esperas e o que mais trava, prazos, viradas, prazo médio, horas por cliente, cobranças a lançar) e **Configurações**.
+- **Ficha da demanda** (gaveta lateral): Resumo (tempos, paradas, prazos, aviso ao técnico), Ficha de coleta (com a tela do Suporte), Checklist, Virada e cobrança, Treinamento (fases, Play por fase), Correções (Play por correção), Tempos, Cliente (link e mensagens enviadas) e Histórico.
+- **Páginas públicas:** `/acompanhamento/<link>` (cliente) e `/programacao/<link>` (Sinval).
+- **Escritório:** Otávio na sala, com painel (abre as configurações do portal).
