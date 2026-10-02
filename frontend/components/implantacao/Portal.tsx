@@ -289,7 +289,28 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
         </div>
         {!gestao && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Só a gestão altera os prazos.</span>}
       </div>
+      {gestao && <DesignarTecnico id={i.id} tecnicoId={i.tecnico_id} recarregar={recarregar} />}
       {gestao && <EnviarAviso implantacaoId={i.id} tecnicoId={i.tecnico_id} />}
+    </div>
+  );
+}
+
+// Gestão escolhe o técnico responsável: só depois disso o card aparece no Quadro dele.
+// A lista vem dos usuários ativos com cargo técnico (cadastrou, já aparece aqui).
+function DesignarTecnico({ id, tecnicoId, recarregar }: { id: string; tecnicoId?: string | null; recarregar: () => void }) {
+  const [tecnicos, setTecnicos] = useState<any[]>([]);
+  useEffect(() => { apiClient.getTecnicosImplantacao().then(r => setTecnicos(r.data.data || [])).catch(() => {}); }, []);
+  const designar = async (tid: string) => {
+    if (!tid) return;
+    try { await apiClient.designarTecnico(id, tid); recarregar(); } catch (e) { alert(erroDe(e)); }
+  };
+  return (
+    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 8 }}>
+      <div style={rotulo}>Técnico responsável</div>
+      <select value={tecnicoId || ''} onChange={e => designar(e.target.value)} className="ps-input" style={{ width: 'auto', minHeight: 40 }}>
+        <option value="">Sem técnico, escolha…</option>
+        {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+      </select>
     </div>
   );
 }
