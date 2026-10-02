@@ -8,7 +8,7 @@ import { diaSP, temposDaDemanda } from '@/lib/implantacao/cronometro';
 import { CONTATO_GERAL, LINK_CONTATO_GERAL } from '@/lib/triagem/fluxo';
 import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
-  progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, type ConfigSla,
+  progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -175,7 +175,7 @@ export async function garantirFasesTreinamento(prisma: PrismaClient, implantacao
 
 // ─── Página e mensagens do cliente ───────────────────────────────────────────
 
-const NOME_GRUPO: Record<string, string> = { INSTALACAO: 'Instalação do sistema', CONVERSAO: 'Conversão dos dados', TREINAMENTO: 'Treinamento', SERVICO: 'Execução do serviço' };
+const NOME_GRUPO: Record<string, string> = { ONBOARDING: 'Primeiro contato e diagnóstico', INSTALACAO: 'Instalação do sistema', CONVERSAO: 'Conversão dos dados', TREINAMENTO: 'Treinamento', SERVICO: 'Execução do serviço' };
 
 /** Visão do cliente: só o passo a passo padrão, percentual e tempo dedicado (sem esperas nem descrições internas). */
 export async function visaoCliente(prisma: PrismaClient, imp: any) {
@@ -189,15 +189,28 @@ export async function visaoCliente(prisma: PrismaClient, imp: any) {
   const grupos = [...gruposDoProgresso(imp.modulo, imp.tipo_base), ...(imp.modulo === 'SERVICO' ? [] : ['TREINAMENTO'])];
   const etapas = grupos.map(g => {
     const its = itens.filter(i => i.grupo === g);
-    return { grupo: g, nome: NOME_GRUPO[g] || g, total: its.length, feitos: its.filter(i => i.feito).length, passos: its.map(i => ({ titulo: i.titulo, feito: i.feito, fase: i.fase })) };
+    // Itens do onboarding são roteiro interno do técnico: o cliente vê só o passo e a contagem.
+    return { grupo: g, nome: NOME_GRUPO[g] || g, total: its.length, feitos: its.filter(i => i.feito).length, passos: g === 'ONBOARDING' ? [] : its.map(i => ({ titulo: i.titulo, feito: i.feito, fase: i.fase })) };
   });
-  const proximos = itens.filter(i => gruposDoProgresso(imp.modulo, imp.tipo_base).includes(i.grupo) && !i.feito).slice(0, 3).map(i => i.titulo);
+  const obPendente = itens.some(i => i.grupo === 'ONBOARDING' && !i.feito);
+  const proximos = obPendente
+    ? ['Primeiro contato do técnico e diagnóstico da sua loja', 'Aprovação do diagnóstico por você']
+    : itens.filter(i => gruposDoProgresso(imp.modulo, imp.tipo_base).includes(i.grupo) && i.grupo !== 'ONBOARDING' && !i.feito).slice(0, 3).map(i => i.titulo);
+  const c: any = imp.coleta || {};
+  const diagnostico = imp.modulo === 'IMPLANTACAO' && !ehLegado(imp) ? {
+    aprovado_em: imp.onboarding_aprovado_em, aprovado_por: imp.onboarding_aprovado_por,
+    dados: [['Tipo', c.tipo_base], ['Sistema anterior', c.sistema_anterior], ['Lojas / filiais', c.filiais], ['Caixas (PDV)', c.caixas], ['Máquinas', c.maquinas],
+      ['Regime tributário', c.regime_tributario], ['Certificado digital', c.certificado], ['Contabilidade', c.contabilidade_nome], ['Contato principal', c.contato_nome],
+      ['Equipamentos', [c.balanca === 'Sim' ? 'balança' : null, c.gaveta === 'Sim' ? 'gaveta' : null, c.impressora_nfce].filter(Boolean).join(', ') || null]]
+      .filter(([, v]) => v).map(([l, v]) => ({ rotulo: l, valor: String(v) })),
+  } : null;
   return {
     cliente: imp.cliente_razao_social, modulo: imp.modulo, tipo_servico: imp.tipo_servico ? TIPOS_SERVICO[imp.tipo_servico]?.label : null,
     tipo_base: imp.tipo_base, pct, tempo_ms: t.trabalho_ms, tempo_por_etapa: t.por_etapa,
     assinatura: imp.data_assinatura, virada_inicio: imp.virada_inicio_em, virada: imp.virada_fim_em, tecnico: imp.tecnico_nome ? imp.tecnico_nome.split(' ')[0] : null,
     concluida: !!(imp.concluida_fila_em || imp.data_conclusao), etapas, proximos,
     primeiro_vencimento: imp.virada_fim_em ? imp.data_primeiro_vencimento : null,
+    diagnostico,
     suporte: { telefone: CONTATO_GERAL, link: LINK_CONTATO_GERAL },
     fases: fases.map((f: any) => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em, realizada_em: f.realizada_em })),
   };
@@ -454,6 +467,7 @@ async function vigiar(prisma: PrismaClient, ativas: any[], agora: Date, hoje: st
       if (await umaVez(`sem-tecnico.${i.id}`)) resumoGestao.push(`👷 ${i.cliente_razao_social} está sem técnico há ${Math.floor(dias(i.data_assinatura))} dia(s)`);
       continue;
     }
+    if (i.modulo === 'IMPLANTACAO' && !i.onboarding_concluido_em && i.designado_em && somarDiasUteis(i.designado_em, SLA_ONBOARDING_DIAS_UTEIS) < agora) faltas.push('o onboarding técnico (primeiro contato) passou do prazo de 2 dias úteis');
     if (i.modulo === 'IMPLANTACAO') {
       const coleta: any = i.coleta || {};
       if (dias(i.designado_em || i.data_assinatura) >= 2 && (!coleta.regime_tributario || !coleta.contato_nome)) faltas.push('a ficha de coleta está incompleta (regime tributário e contato principal)');

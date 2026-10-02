@@ -858,3 +858,7 @@ Implantações e serviços ficam no mesmo **Quadro**: use os botões **Tudo / Im
 ### Atualização 02/10/2026: sino de novidades
 
 No topo do Portal Técnico, o **sino** mostra o que chegou de novo: implantação nova, serviço novo, tarefa, recado e aviso de prazo. Ao abrir, tudo fica como lido e o número some. Toque num item para abrir a demanda.
+
+### Atualização 02/10/2026: Onboarding técnico
+
+Toda implantação nova começa pelo **Onboarding técnico** (Portal Técnico › Onboarding técnico): o técnico se apresenta, explica as etapas e os prazos, levanta o diagnóstico da loja (empresa, estrutura, equipamentos, fiscal, estoque, integrações, operação e treinamento) e pede a aprovação do cliente. O cliente aprova pela página de acompanhamento, com o nome completo; o botão "Copiar link para o cliente aprovar" fica na ficha da demanda. Prazo: 2 dias úteis. **Até concluir, nada mais da implantação é liberado.**

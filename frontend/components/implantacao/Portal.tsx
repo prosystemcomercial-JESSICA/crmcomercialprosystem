@@ -137,6 +137,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                   style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, borderLeft: `3px solid ${c.sla?.situacao === 'ESTOURADO' ? '#dc2626' : c.sla?.situacao === 'EM_RISCO' ? '#d97706' : '#2E6EAB'}` }}>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {c.modulo === 'SERVICO' ? <Etq cor="#0891b2">{c.tipo_servico_label || 'Serviço'}</Etq> : <Etq cor={c.tipo_base === 'BANCO_ZERADO' ? '#64748b' : '#16a34a'}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` ${c.sistema_anterior}` : ''}`}</Etq>}
+                    {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && <Etq cor="#0369a1">🔒 Onboarding {c.onboarding_feitos}/{c.onboarding_total}</Etq>}
                     {c.esperas_abertas.length > 0 && <Etq cor="#a16207">⏳ {NOME_ESPERA[c.esperas_abertas[0].tipo]}</Etq>}
                     {c.ocorrencias_abertas > 0 && <Etq cor="#dc2626">🐞 {c.ocorrencias_abertas} correção</Etq>}
                     {c.virada_inicio_em && !c.virada_fim_em && <Etq cor="#7c3aed">🚀 Virada em andamento</Etq>}
@@ -167,11 +168,11 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
+type Aba = 'onboarding' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
 
-export function FichaDemanda({ id, gestao, onClose }: { id: string; gestao: boolean; onClose: () => void }) {
+export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
-  const [aba, setAba] = useState<Aba>('resumo');
+  const [aba, setAba] = useState<Aba>(abaInicial || 'resumo');
   const [hist, setHist] = useState<any[]>([]);
   const carregar = useCallback(async () => {
     try {
@@ -184,6 +185,7 @@ export function FichaDemanda({ id, gestao, onClose }: { id: string; gestao: bool
   const i = d.implantacao;
   const servico = i.modulo === 'SERVICO';
   const abas: [Aba, string, any][] = [
+    ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
     ['resumo', 'Resumo', ClipboardList], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
@@ -205,7 +207,7 @@ export function FichaDemanda({ id, gestao, onClose }: { id: string; gestao: bool
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 160 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>
           <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{i.progresso}%</b>
-          <BotoesDemanda implantacao={i} />
+          <BotoesDemanda implantacao={{ ...i, onboarding_ok: d.onboarding_ok }} />
         </div>
       </div>
       <div style={{ display: 'flex', gap: 2, padding: '0 12px', borderBottom: '1px solid var(--t-card-border)', overflowX: 'auto' }}>
@@ -216,6 +218,7 @@ export function FichaDemanda({ id, gestao, onClose }: { id: string; gestao: bool
         ))}
       </div>
       <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+        {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} />}
         {aba === 'resumo' && <AbaResumo d={d} gestao={gestao} recarregar={carregar} />}
         {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} />}
         {aba === 'checklist' && <AbaChecklist d={d} recarregar={carregar} />}
@@ -363,15 +366,113 @@ function AbaFicha({ d, recarregar }: { d: any; recarregar: () => void }) {
   );
 }
 
+function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => void; irPara: (a: Aba) => void }) {
+  const itens = d.checklist.filter((c: any) => c.grupo === 'ONBOARDING');
+  const [salvando, setSalvando] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  const i = d.implantacao;
+  const feitos = itens.filter((c: any) => c.feito).length;
+  const marcar = async (item: any) => { setSalvando(item.id); try { await apiClient.marcarChecklistImplantacao(item.id, !item.feito); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(null); } };
+  const copiarLink = async () => {
+    let link = d.link_cliente;
+    if (!link) { try { const r = await apiClient.gerarPaginaCliente(i.id); link = r.data.data.link; recarregar(); } catch (e) { return alert(erroDe(e)); } }
+    try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch { prompt('Copie o link:', link); }
+  };
+  if (!itens.length) return <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>O roteiro do onboarding é criado quando a gestão designa o técnico.</div>;
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div style={{ ...cartao, padding: 14, display: 'grid', gap: 8, background: d.onboarding_ok ? '#16a34a0d' : '#0369a10d', borderColor: d.onboarding_ok ? '#16a34a55' : '#0369a155' }}>
+        <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>{d.onboarding_ok ? '✅ Onboarding técnico concluído' : '🔒 Primeiro contato com o cliente, antes de qualquer ação'}</b>
+        <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>
+          {d.onboarding_ok ? 'A implantação está liberada: instalação, conversão, quadro e virada.' : 'Responsabilidade do técnico, em até 2 dias úteis após a designação. Enquanto não terminar, a instalação, a conversão, o quadro e a virada ficam travados. Use o Play na etapa "Onboarding técnico" para contar o tempo.'}
+        </div>
+        <Barra pct={itens.length ? (feitos / itens.length) * 100 : 0} cor={d.onboarding_ok ? '#16a34a' : '#0369a1'} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{feitos} de {itens.length} itens</span>
+          <button onClick={() => irPara('ficha')} style={btn('#2E6EAB', false)}><FileText size={12} /> Preencher a ficha de coleta</button>
+          <button onClick={copiarLink} style={btn('#0369a1', false)}><Link2 size={12} /> {copiado ? 'Link copiado' : 'Copiar link para o cliente aprovar'}</button>
+          {i.onboarding_aprovado_em && <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>Aprovado pelo cliente: {i.onboarding_aprovado_por} em {fmtDataHora(i.onboarding_aprovado_em)}</span>}
+        </div>
+      </div>
+      {d.onboarding_secoes.map((s: any) => (
+        <div key={s.secao} style={{ ...cartao, padding: 14 }}>
+          <div style={{ ...rotulo, marginBottom: 6 }}>{s.secao}</div>
+          {s.itens.map((t: string) => {
+            const c = itens.find((x: any) => x.titulo === t);
+            if (!c) return null;
+            return (
+              <label key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '5px 4px', fontSize: 13, cursor: 'pointer', color: c.feito ? 'var(--t-text-muted)' : 'var(--t-text-primary)' }}>
+                {salvando === c.id ? <Loader2 size={14} className="animate-spin" /> : <input type="checkbox" checked={c.feito} onChange={() => marcar(c)} style={{ marginTop: 2 }} />}
+                <span style={{ textDecoration: c.feito ? 'line-through' : 'none' }}>{c.titulo}{c.feito && c.feito_por ? <span style={{ color: 'var(--t-text-muted)', textDecoration: 'none' }}> · {c.feito_por}</span> : null}</span>
+              </label>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const ETAPA_ONB: { key: string; label: string; cor: string; dica: string }[] = [
+  { key: 'SEM_TECNICO', label: 'Sem técnico', cor: '#dc2626', dica: 'A gestão designa o técnico' },
+  { key: 'PRIMEIRO_CONTATO', label: 'Primeiro contato', cor: '#0369a1', dica: 'Técnico se apresenta ao cliente' },
+  { key: 'DIAGNOSTICO', label: 'Diagnóstico', cor: '#2E6EAB', dica: 'Levantando a ficha da loja' },
+  { key: 'APROVACAO', label: 'Aprovação do cliente', cor: '#7c3aed', dica: 'Cliente confere e aprova' },
+  { key: 'CONCLUIDO', label: 'Concluído', cor: '#16a34a', dica: 'Implantação liberada' },
+];
+
+/** Tela "Onboarding": o primeiro contato do técnico com cada cliente, antes de qualquer ação. */
+export function OnboardingTecnico({ gestao }: { gestao: boolean }) {
+  const [cards, setCards] = useState<any[] | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null);
+  const carregar = useCallback(async () => { try { const r = await apiClient.getOnboardingTecnico(); setCards(r.data.data || []); } catch { setCards([]); } }, []);
+  useEffect(() => { carregar(); const t = setInterval(carregar, 60000); return () => clearInterval(t); }, [carregar]);
+  if (!cards) return <div style={{ padding: 30 }}><Loader2 className="animate-spin" size={18} /></div>;
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div style={{ ...cartao, padding: '12px 16px', fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.55 }}>
+        <b style={{ color: 'var(--t-text-primary)' }}>Onboarding técnico</b>: o primeiro contato do técnico com o cliente, <b>antes de qualquer ação</b>. O técnico se apresenta, explica as etapas e os prazos, levanta o diagnóstico da loja (empresa, estrutura, equipamentos, fiscal, estoque, integrações, operação e treinamento) e o cliente aprova. Prazo: 2 dias úteis após a designação. Só depois disso a implantação começa.
+      </div>
+      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
+        {ETAPA_ONB.map(col => {
+          const doCol = cards.filter(c => c.etapa === col.key);
+          return (
+            <div key={col.key} style={{ ...cartao, minWidth: 230, flex: '1 1 0', background: 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '2px 4px' }}>
+                <b style={{ fontSize: 13, color: col.cor }}>{col.label}</b><span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--t-text-muted)', padding: '0 4px' }}>{col.dica}</div>
+              {doCol.length === 0 && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', padding: '12px 0' }}>Nenhuma</div>}
+              {doCol.map(c => (
+                <button key={c.id} onClick={() => setAberta(c.id)} style={{ ...cartao, padding: 10, cursor: 'pointer', textAlign: 'left', display: 'grid', gap: 6, borderLeft: `3px solid ${c.atrasado ? '#dc2626' : col.cor}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>{c.cliente_razao_social}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` de ${c.sistema_anterior}` : ''}`} · {c.tecnico_nome ? c.tecnico_nome.split(' ')[0] : 'sem técnico'}</div>
+                  <Barra pct={c.total ? (c.feitos / c.total) * 100 : 0} cor={col.cor} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: c.atrasado ? '#dc2626' : 'var(--t-text-muted)' }}>
+                    <span>{c.feitos}/{c.total} itens</span>
+                    <span>{c.concluido_em ? `concluído ${fmtData(c.concluido_em)}` : c.prazo ? `${c.atrasado ? 'atrasado · ' : ''}prazo ${fmtData(c.prazo)}` : 'aguardando designação'}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      {aberta && <FichaDemanda id={aberta} gestao={gestao} abaInicial="onboarding" onClose={() => { setAberta(null); carregar(); }} />}
+    </div>
+  );
+}
+
 const NOME_GRUPO: Record<string, string> = { INSTALACAO: 'Instalação do sistema', CONVERSAO: 'Conversão de dados', TREINAMENTO: 'Treinamento', SERVICO: 'Serviço' };
 
 function AbaChecklist({ d, recarregar }: { d: any; recarregar: () => void }) {
-  const grupos = Array.from(new Set<string>(d.checklist.map((c: any) => c.grupo)));
+  const grupos = Array.from(new Set<string>(d.checklist.map((c: any) => c.grupo))).filter(g => g !== 'ONBOARDING');
   const [salvando, setSalvando] = useState<string | null>(null);
   const marcar = async (item: any) => { setSalvando(item.id); try { await apiClient.marcarChecklistImplantacao(item.id, !item.feito); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(null); } };
   if (!d.checklist.length) return <div style={{ color: 'var(--t-text-muted)', fontSize: 13 }}>O checklist padrão é criado quando a gestão designa o técnico.</div>;
   return (
     <div style={{ display: 'grid', gap: 14 }}>
+      {!d.onboarding_ok && <div style={{ ...cartao, padding: 12, fontSize: 13, background: '#0369a10d', borderColor: '#0369a155', color: 'var(--t-text-primary)' }}>🔒 Estes passos ficam liberados quando o <b>onboarding técnico</b> (primeiro contato com o cliente) estiver concluído.</div>}
       {grupos.map(g => {
         const its = d.checklist.filter((c: any) => c.grupo === g);
         const feitos = its.filter((c: any) => c.feito).length;

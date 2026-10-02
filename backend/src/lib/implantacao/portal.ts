@@ -86,21 +86,34 @@ export function horasUteisEntre(a: Date, b: Date, cfg: Jornada = JORNADA_PADRAO)
 export const CAMPOS_COLETA: { key: string; label: string; tipo?: 'texto' | 'numero' | 'opcoes' | 'longo'; opcoes?: string[]; grupo: string }[] = [
   { key: 'tipo_base', label: 'Tipo', tipo: 'opcoes', opcoes: ['Conversão de outro sistema', 'Banco zerado (do zero)'], grupo: 'Projeto' },
   { key: 'sistema_anterior', label: 'Sistema anterior', grupo: 'Projeto' },
+  { key: 'volume_produtos', label: 'Volume aproximado de produtos', grupo: 'Projeto' },
+  { key: 'controle_lote', label: 'Controle de lote, validade e controlados', tipo: 'opcoes', opcoes: ['Sim', 'Não', 'Parcial'], grupo: 'Projeto' },
   { key: 'maquinas', label: 'Máquinas (total)', tipo: 'numero', grupo: 'Estrutura' },
   { key: 'caixas', label: 'Caixas (PDV)', tipo: 'numero', grupo: 'Estrutura' },
   { key: 'terminais', label: 'Terminais de balcão', tipo: 'numero', grupo: 'Estrutura' },
+  { key: 'usuarios', label: 'Usuários do sistema', tipo: 'numero', grupo: 'Estrutura' },
+  { key: 'responsavel_sistema', label: 'Responsável pelo sistema na loja', grupo: 'Estrutura' },
+  { key: 'internet', label: 'Internet (velocidade de download/upload)', grupo: 'Estrutura' },
   { key: 'filiais', label: 'Filiais', tipo: 'numero', grupo: 'Estrutura' },
   { key: 'usa_comunicacao', label: 'Comunicação entre filiais', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Estrutura' },
   { key: 'balanca', label: 'Balança', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Equipamentos' },
   { key: 'gaveta', label: 'Gaveta', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Equipamentos' },
   { key: 'impressora_nfce', label: 'Impressora NFC-e (modelo)', grupo: 'Equipamentos' },
+  { key: 'outros_equipamentos', label: 'Outros equipamentos (Pin Pad, nobreak, etiquetas, coletor)', grupo: 'Equipamentos' },
   { key: 'regime_tributario', label: 'Regime tributário', tipo: 'opcoes', opcoes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], grupo: 'Fiscal' },
   { key: 'certificado', label: 'Certificado digital (tipo e validade)', grupo: 'Fiscal' },
+  { key: 'inscricao_estadual', label: 'Inscrição estadual', grupo: 'Fiscal' },
+  { key: 'csc', label: 'CSC da NFC-e e ambiente (produção/homologação)', grupo: 'Fiscal' },
   { key: 'contabilidade_nome', label: 'Contabilidade', grupo: 'Fiscal' },
   { key: 'contabilidade_contato', label: 'Contato da contabilidade', grupo: 'Fiscal' },
   { key: 'contabilidade_email', label: 'E-mail da contabilidade', grupo: 'Fiscal' },
+  { key: 'integracoes', label: 'Integrações (TEF, PBM, Farmácia Popular, convênios, e-commerce)', tipo: 'longo', grupo: 'Fiscal' },
   { key: 'contato_nome', label: 'Contato principal na loja', grupo: 'Contato' },
   { key: 'contato_telefone', label: 'Telefone do contato', grupo: 'Contato' },
+  { key: 'horario_funcionamento', label: 'Horário de funcionamento e dias de pico', grupo: 'Contato' },
+  { key: 'janela_implantacao', label: 'Melhor janela para a implantação', grupo: 'Contato' },
+  { key: 'treinamento_pessoas', label: 'Quem será treinado e quantas pessoas', grupo: 'Contato' },
+  { key: 'treinamento_modalidade', label: 'Modalidade do treinamento', tipo: 'opcoes', opcoes: ['Presencial', 'Remoto', 'Híbrido'], grupo: 'Contato' },
   { key: 'observacoes', label: 'Observações', tipo: 'longo', grupo: 'Contato' },
 ];
 
@@ -126,7 +139,7 @@ type ItemChk = { grupo: string; titulo: string; feito: boolean; ordem?: number; 
 /** Grupos que contam até a virada: Instalação (+ Conversão quando é conversão); serviço = checklist do serviço. */
 export function gruposDoProgresso(modulo: string, tipoBase?: string | null): string[] {
   if (modulo === 'SERVICO') return ['SERVICO'];
-  return tipoBase === 'BANCO_ZERADO' ? ['INSTALACAO'] : ['INSTALACAO', 'CONVERSAO'];
+  return tipoBase === 'BANCO_ZERADO' ? ['ONBOARDING', 'INSTALACAO'] : ['ONBOARDING', 'INSTALACAO', 'CONVERSAO'];
 }
 
 /** Percentual até a virada (a virada vale 100%). */
@@ -178,4 +191,61 @@ export function inferirTipoServico(texto: string): string {
   if (/impressora/.test(t)) return 'IMPRESSORA';
   if (/banco|base de dados|dados/.test(t)) return 'BANCO_DADOS';
   return 'OUTRO';
+}
+
+// ─── Onboarding técnico (primeiro contato, antes de qualquer ação) ─────────
+// Responsabilidade do técnico. Enquanto não estiver 100% (o último item é a aprovação do cliente),
+// a implantação não avança: sem play em Instalação/Conversão, sem marcar outros itens, sem mover no quadro e sem virada.
+export const ONBOARDING_SECOES: { secao: string; itens: string[] }[] = [
+  { secao: 'Apresentação', itens: [
+    'Apresentar-se ao cliente como técnico responsável pela implantação',
+    'Confirmar o contato principal (nome, telefone e e-mail) e o canal de comunicação',
+    'Explicar as etapas da implantação, os prazos e o que se espera do cliente',
+  ] },
+  { secao: 'Diagnóstico da empresa', itens: [
+    'Razão social, nome fantasia e CNPJ confirmados',
+    'Inscrição estadual, regime tributário e endereço completo',
+    'Contador responsável e contato da contabilidade',
+  ] },
+  { secao: 'Estrutura', itens: [
+    'Nº de lojas (única, matriz ou filiais), caixas, computadores e usuários',
+    'Responsável pela administração do sistema na loja definido',
+  ] },
+  { secao: 'Infraestrutura', itens: [
+    'Computadores ligados, Windows atualizado e acesso de administrador',
+    'Rede e internet testadas (velocidade registrada)',
+  ] },
+  { secao: 'Equipamentos', itens: [
+    'Equipamentos do caixa conferidos (leitor, impressora térmica, gaveta, Pin Pad, nobreak)',
+    'Outros equipamentos conferidos (impressora de etiquetas, balança, coletor)',
+  ] },
+  { secao: 'Fiscal', itens: [
+    'Certificado digital (A1/A3), CSC, inscrição estadual e ambiente (produção/homologação)',
+  ] },
+  { secao: 'Estoque e migração', itens: [
+    'Sistema anterior, escopo da migração e volume aproximado de produtos',
+    'Controle de lote, validade e medicamentos controlados definido',
+  ] },
+  { secao: 'Financeiro e integrações', itens: [
+    'Módulos financeiros usados e formas de pagamento mapeados',
+    'Integrações mapeadas (TEF, PBM, Farmácia Popular, convênios, e-commerce)',
+  ] },
+  { secao: 'Operação e treinamento', itens: [
+    'Horário de funcionamento, dias de pico e melhor janela para a implantação',
+    'Quem será treinado, quantas pessoas e modalidade (presencial ou remoto)',
+  ] },
+  { secao: 'Fechamento', itens: [
+    'Pendências registradas com responsável e prazo',
+    'Diagnóstico aprovado pelo cliente',
+  ] },
+];
+export const ONBOARDING_ITENS = ONBOARDING_SECOES.flatMap(s => s.itens);
+export const ITEM_APROVACAO = 'Diagnóstico aprovado pelo cliente';
+export const SLA_ONBOARDING_DIAS_UTEIS = 2;
+
+/** Onboarding técnico concluído? (demandas antigas e serviços não passam por ele) */
+export function onboardingOk(i: { modulo?: string | null; data_assinatura?: Date | null; onboarding_concluido_em?: Date | null }, itens?: { grupo: string; feito: boolean }[]): boolean {
+  if (i.modulo === 'SERVICO' || ehLegado(i) || i.onboarding_concluido_em) return true;
+  const ob = (itens || []).filter(x => x.grupo === 'ONBOARDING');
+  return ob.length > 0 && ob.every(x => x.feito);
 }

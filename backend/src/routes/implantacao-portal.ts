@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -68,6 +68,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         esperas_abertas: i.esperas, ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
         tela_suporte: !!i.tela_suporte_arquivo_id, virada_inicio_em: i.virada_inicio_em, virada_fim_em: i.virada_fim_em, data_primeiro_vencimento: i.data_primeiro_vencimento,
         cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
+        onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length,
       };
     });
     return reply.send({ status: 'success', data: { colunas: COLUNAS, cards } });
@@ -83,6 +84,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     const para = b.data.coluna, de = colunaDe(imp);
     if (['CANCELADOS', 'VALIDADO'].includes(para) && !ehGestaoTecnica(u)) return reply.status(403).send({ status: 'error', message: 'Só a supervisão valida ou cancela' });
+    const chk = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, feito: true } });
+    if (!['BACKLOG', 'A_FAZER', 'CANCELADOS'].includes(para) && !onboardingOk(imp, chk)) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes de avançar a demanda.' });
     const data: any = { coluna: para };
     if (para === 'FINALIZADO') {
       const abertas = await prisma.implantacaoOcorrencia.count({ where: { implantacao_id: id, situacao: { not: 'RESOLVIDA' } } });
@@ -171,7 +174,27 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       implantacao: { ...imp, coluna: colunaDe(imp), progresso: progresso(imp, checklist) }, checklist, fases, ocorrencias, comunicacoes: comunicacoes.map(c => ({ ...c, texto: c.texto?.slice(0, 600) })),
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
       link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: CAMPOS_COLETA,
+      onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist),
     } });
+  });
+
+  // ── Onboarding técnico: implantações e em que pé está o primeiro contato
+  fastify.get('/implantacoes/onboarding', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const where: any = { modulo: 'IMPLANTACAO', status: { not: 'CANCELADA' }, data_assinatura: { gte: new Date(Date.now() - DIAS_QUADRO * 864e5) } };
+    if (ehTecnico(u) && !ehGestaoTecnica(u)) where.tecnico_id = u.id;
+    const lista = await prisma.implantacao.findMany({ where, orderBy: { data_assinatura: 'asc' }, include: { checklist: { where: { grupo: 'ONBOARDING' }, select: { titulo: true, feito: true } } } });
+    const { SLA_ONBOARDING_DIAS_UTEIS, somarDiasUteis } = await import('@/lib/implantacao/portal');
+    const agora = new Date();
+    const cards = lista.filter(i => !ehLegado(i)).map(i => {
+      const feitos = i.checklist.filter(c => c.feito).length, total = i.checklist.length;
+      const aprovado = i.checklist.find(c => c.titulo === ITEM_APROVACAO)?.feito || !!i.onboarding_aprovado_em;
+      const etapa = i.onboarding_concluido_em ? 'CONCLUIDO' : !i.tecnico_id ? 'SEM_TECNICO' : feitos === 0 ? 'PRIMEIRO_CONTATO' : feitos >= total - 1 && !aprovado ? 'APROVACAO' : 'DIAGNOSTICO';
+      const prazo = i.designado_em ? somarDiasUteis(i.designado_em, SLA_ONBOARDING_DIAS_UTEIS) : null;
+      return { id: i.id, cliente_razao_social: i.cliente_razao_social, tipo_base: i.tipo_base, sistema_anterior: i.sistema_anterior, tecnico_nome: i.tecnico_nome, designado_em: i.designado_em,
+        data_assinatura: i.data_assinatura, feitos, total, etapa, prazo, atrasado: !i.onboarding_concluido_em && !!prazo && prazo < agora, aprovado_cliente_em: i.onboarding_aprovado_em, concluido_em: i.onboarding_concluido_em };
+    });
+    return reply.send({ status: 'success', data: cards });
   });
 
   // ── Prazos (SLA) da demanda (gestão)
@@ -273,6 +296,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     if (imp.modulo !== 'IMPLANTACAO') return reply.status(400).send({ status: 'error', message: 'Virada é só para implantação' });
+    if (!onboardingOk(imp, await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, feito: true } }))) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico antes da virada' });
     if (!imp.tela_suporte_arquivo_id) return reply.status(400).send({ status: 'error', message: 'Anexe a tela do Suporte antes de iniciar a virada' });
     if (imp.virada_inicio_em) return reply.status(400).send({ status: 'error', message: 'A virada já foi iniciada' });
     await prisma.implantacao.update({ where: { id }, data: { virada_inicio_em: new Date(), coluna: 'EM_ANDAMENTO' } });
@@ -384,6 +408,24 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await prisma.implantacao.findUnique({ where: { token_cliente: token } });
     if (!imp || imp.status === 'CANCELADA') return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
     return reply.send({ status: 'success', data: await visaoCliente(prisma, imp) });
+  });
+
+  // Cliente aprova o diagnóstico do onboarding técnico pela página de acompanhamento.
+  fastify.post('/publico/acompanhamento/:token/aprovar-diagnostico', async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const imp = await prisma.implantacao.findUnique({ where: { token_cliente: token } });
+    if (!imp || imp.status === 'CANCELADA') return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
+    const nome = String((request.body as any)?.nome || '').trim().slice(0, 120);
+    if (nome.split(/\s+/).length < 2) return reply.status(400).send({ status: 'error', message: 'Informe seu nome completo para aprovar.' });
+    if (!imp.onboarding_aprovado_em) {
+      await prisma.implantacao.update({ where: { id: imp.id }, data: { onboarding_aprovado_em: new Date(), onboarding_aprovado_por: nome } });
+      await prisma.implantacaoChecklistItem.updateMany({ where: { implantacao_id: imp.id, grupo: 'ONBOARDING', titulo: ITEM_APROVACAO }, data: { feito: true, feito_por: `${nome} (cliente)`, feito_em: new Date() } });
+      const ob = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: imp.id, grupo: 'ONBOARDING' }, select: { feito: true } });
+      if (ob.length && ob.every(x => x.feito)) await prisma.implantacao.update({ where: { id: imp.id }, data: { onboarding_concluido_em: new Date() } });
+      await atividade(imp.id, 'NOTA', `✅ Cliente aprovou o diagnóstico do onboarding técnico: ${nome}`, { nome: `${nome} (cliente)` });
+      if (imp.tecnico_id) await avisarTecnico(prisma, { para_id: imp.tecnico_id, implantacao_id: imp.id, origem: 'SISTEMA', texto: `${imp.cliente_razao_social}: o cliente (${nome}) aprovou o diagnóstico do onboarding.` });
+    }
+    return reply.send({ status: 'success' });
   });
 
   const esperasDaProgramacao = async (token: string) => {

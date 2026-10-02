@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
-import { faseDoItemTreinamento } from '@/lib/implantacao/portal';
+import { faseDoItemTreinamento, ONBOARDING_ITENS, onboardingOk, ehLegado } from '@/lib/implantacao/portal';
 import { avisarTecnico, garantirFasesTreinamento } from '@/services/implantacao-portal.service';
 
 /**
@@ -256,8 +256,13 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     if (temChk === 0) {
       // Semeia a trilha completa (3 grupos: Instalação, Conversão, Treinamento).
       const itens: any[] = [];
+      if (imp.modulo === 'IMPLANTACAO') ONBOARDING_ITENS.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i }));
       CHECKLIST_GRUPOS.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i, fase: g.grupo === 'TREINAMENTO' ? faseDoItemTreinamento(titulo) : null })));
       await prisma.implantacaoChecklistItem.createMany({ data: itens }).catch(() => {});
+    }
+    // Implantação designada antes do onboarding técnico existir: acrescenta os itens dele (uma vez).
+    if (imp.modulo === 'IMPLANTACAO' && temChk > 0 && !(await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id, grupo: 'ONBOARDING' } })) && !ehLegado(imp)) {
+      await prisma.implantacaoChecklistItem.createMany({ data: ONBOARDING_ITENS.map((titulo, i) => ({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i })) }).catch(() => {});
     }
     await registrarAtividade(prisma, id, 'DESIGNACAO', `Designado ao técnico ${tecnico.nome}`, ator, null, 'DESIGNADO');
     if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id).catch(() => {});
@@ -379,10 +384,26 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const body = z.object({ feito: z.boolean() }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     const ator = (request as any).user;
+    const atual = await prisma.implantacaoChecklistItem.findUnique({ where: { id: itemId }, include: { implantacao: { include: { checklist: { select: { grupo: true, feito: true } } } } } });
+    if (!atual) return reply.status(404).send({ status: 'error', message: 'Item não encontrado' });
+    // Onboarding técnico primeiro: os outros grupos ficam travados até o primeiro contato estar concluído.
+    if (atual.grupo !== 'ONBOARDING' && !onboardingOk(atual.implantacao, atual.implantacao.checklist)) {
+      return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes dos outros passos.' });
+    }
     const item = await prisma.implantacaoChecklistItem.update({
       where: { id: itemId },
       data: { feito: body.data.feito, feito_por: body.data.feito ? (ator?.nome || ator?.id) : null, feito_em: body.data.feito ? new Date() : null },
     });
+    if (atual.grupo === 'ONBOARDING') {
+      const ob = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: atual.implantacao_id, grupo: 'ONBOARDING' }, select: { feito: true } });
+      const completo = ob.length > 0 && ob.every(x => x.feito);
+      if (completo && !atual.implantacao.onboarding_concluido_em) {
+        await prisma.implantacao.update({ where: { id: atual.implantacao_id }, data: { onboarding_concluido_em: new Date() } });
+        await registrarAtividade(prisma, atual.implantacao_id, 'NOTA', '✅ Onboarding técnico concluído: implantação liberada para começar', ator);
+      } else if (!completo && atual.implantacao.onboarding_concluido_em) {
+        await prisma.implantacao.update({ where: { id: atual.implantacao_id }, data: { onboarding_concluido_em: null } });
+      }
+    }
     return reply.send({ status: 'success', data: item });
   });
 

@@ -76,3 +76,22 @@ describe('demandas anteriores ao portal', () => {
     expect(ehLegado({ data_assinatura: new Date('2026-10-03T12:00:00Z') })).toBe(false);
   });
 });
+
+import { onboardingOk, ONBOARDING_ITENS, ITEM_APROVACAO, progresso as progressoOnb } from '../src/lib/implantacao/portal';
+describe('onboarding técnico', () => {
+  const nova = { modulo: 'IMPLANTACAO', data_assinatura: new Date('2026-10-05T12:00:00Z') };
+  it('trava a implantação nova até todos os itens (com a aprovação do cliente) estarem feitos', () => {
+    const itens = ONBOARDING_ITENS.map(t => ({ grupo: 'ONBOARDING', feito: t !== ITEM_APROVACAO }));
+    expect(onboardingOk(nova, itens)).toBe(false);
+    expect(onboardingOk(nova, itens.map(i => ({ ...i, feito: true })))).toBe(true);
+    expect(onboardingOk(nova, [])).toBe(false);
+  });
+  it('não trava serviço nem demanda antiga', () => {
+    expect(onboardingOk({ ...nova, modulo: 'SERVICO' }, [])).toBe(true);
+    expect(onboardingOk({ modulo: 'IMPLANTACAO', data_assinatura: new Date('2026-09-01T12:00:00Z') }, [])).toBe(true);
+  });
+  it('o onboarding entra no percentual do cliente', () => {
+    const itens = [{ grupo: 'ONBOARDING', titulo: 'a', feito: true }, { grupo: 'INSTALACAO', titulo: 'b', feito: false }];
+    expect(progressoOnb({ modulo: 'IMPLANTACAO', tipo_base: 'BANCO_ZERADO' }, itens)).toBe(50);
+  });
+});
