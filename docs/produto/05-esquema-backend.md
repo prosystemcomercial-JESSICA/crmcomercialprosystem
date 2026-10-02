@@ -817,3 +817,21 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
 
 - **Serviço** (o cliente já usa o Prosystem): não recebe boas-vindas. O aviso inicial diz que o pedido do serviço foi recebido e já está na fila do técnico.
 - **Tempo dedicado:** só aparece na mensagem e no e-mail quando passa de 1 minuto.
+
+### Atualização 02/10/2026: página Início do Portal Técnico, tarefas avulsas e telas antigas escondidas
+
+- **Início** (primeira aba do Portal Técnico, `components/implantacao/Inicio.tsx`, `GET /implantacoes/inicio`):
+  - saudação pelo horário e **frase do dia** (`lib/implantacao/frases.ts`: 30 frases do dia a dia da implantação, a mesma para todos no dia);
+  - **Meu dia**: trabalhado, tempo na jornada, hora extra e aproveitamento;
+  - **Minhas tarefas** e **Recados**;
+  - **Pede atenção agora**: prazo estourado ou em risco, demanda parada, virada em andamento, treinamento marcado para os próximos 7 dias e, para a gestão, demanda sem técnico.
+- **Tarefas avulsas:**
+  - `AvisoTecnico` ganhou `tipo` (AVISO ou TAREFA), `prazo` e `concluida_em`;
+  - a gestão cria tarefa ou recado no próprio Início (urgente também vai por WhatsApp);
+  - o técnico conclui ou reabre (`POST /implantacoes/tarefas/:id/concluir`);
+  - tarefa ligada a uma demanda vai para o histórico dela ao ser concluída;
+  - nenhuma tarefa é criada automaticamente.
+- **Telas escondidas, sem apagar nada:**
+  - "Demandas (SLA)", no menu do Portal Técnico;
+  - aba "Histórico" (Solicitações de serviço), na ficha do cliente.
+  - As duas liam a tabela `SolicitacaoServico`, que nunca foi criada em produção, e por isso apareciam sempre zeradas.

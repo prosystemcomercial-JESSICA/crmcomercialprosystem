@@ -1580,6 +1580,9 @@ model AvisoTecnico {
   texto          String       @db.Text
   prioridade     String       @default("NORMAL") // NORMAL | URGENTE
   origem         String       @default("GESTAO") // GESTAO | SISTEMA (SLA, espera...)
+  tipo           String       @default("AVISO") // AVISO (recado) | TAREFA (tarefa avulsa com prazo)
+  prazo          DateTime?
+  concluida_em   DateTime?
   lido_em        DateTime?
   created_at     DateTime     @default(now())
 

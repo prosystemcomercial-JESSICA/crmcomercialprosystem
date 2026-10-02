@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
+import { PainelInicio } from '@/components/implantacao/Inicio';
 import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao } from '@/components/implantacao/Portal';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -347,14 +348,14 @@ function CategoriaIcon({ categoria, size = 14 }: { categoria: string; size?: num
 
 // ─── página principal ─────────────────────────────────────────────────────────
 
-type Tab = 'quadro' | 'servicos' | 'avisos' | 'painel' | 'config' | 'meudia' | 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
+type Tab = 'inicio' | 'quadro' | 'servicos' | 'avisos' | 'painel' | 'config' | 'meudia' | 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const gestaoTecnica = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'SUPERVISAO_TECNICA'].includes(String((user as any)?.role || '').toUpperCase());
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
-  const [tab, setTab] = useState<Tab>(tabParam || 'quadro');
+  const [tab, setTab] = useState<Tab>(tabParam || 'inicio');
 
   // Bootstrap auth from URL token (when opened as external window)
   useEffect(() => {
@@ -825,7 +826,8 @@ export default function PortalTecnicoPage() {
       group: 'IMPLANTAÇÃO',
       color: '#2E6EAB',
       items: [
-        { key: 'demandas'    as Tab, label: 'Demandas (SLA)', icon: ShieldAlert,   badge: demandas.filter(d => { const s = demandaSlaStatus(d); return s && !s.concluido && s.pct >= 100; }).length || null },
+        // 'Demandas (SLA)' escondida: lia SolicitacaoServico, que nunca existiu em produção (substituída por Quadro/Serviços).
+        { key: 'inicio'      as Tab, label: 'Início',       icon: Star,         badge: null },
         { key: 'quadro'      as Tab, label: 'Quadro',       icon: LayoutGrid,   badge: null },
         { key: 'servicos'    as Tab, label: 'Serviços',     icon: Briefcase,    badge: null },
         { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
@@ -862,6 +864,7 @@ export default function PortalTecnicoPage() {
 
   const TAB_TITLE: Record<Tab, string> = {
     demandas:     'Demandas Técnicas',
+    inicio:       'Início',
     quadro:       'Quadro da implantação',
     servicos:     'Serviços técnicos',
     avisos:       'Avisos',
@@ -1253,6 +1256,7 @@ export default function PortalTecnicoPage() {
 
         {/* ── TAB: IMPLANTAÇÕES ── */}
         {tab === 'meudia' && <PainelMeuDia gestao={gestaoTecnica} />}
+        {tab === 'inicio' && <PainelInicio gestao={gestaoTecnica} irPara={(t: string) => setTab(t as Tab)} />}
         {tab === 'quadro' && <QuadroDemandas modulo="IMPLANTACAO" gestao={gestaoTecnica} />}
         {tab === 'servicos' && <QuadroDemandas modulo="SERVICO" gestao={gestaoTecnica} />}
         {tab === 'avisos' && <PainelAvisos gestao={gestaoTecnica} />}

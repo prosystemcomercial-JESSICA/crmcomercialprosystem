@@ -843,3 +843,10 @@ Se o navegador do monitor não abrir o endereço normal, use o endereço pelo IP
 ### Atualização 02/10/2026: mensagens de serviço
 
 Nos serviços, o cliente recebe só "recebemos o seu pedido e ele já está na fila do técnico", sem boas-vindas. O tempo dedicado só aparece quando já houve trabalho registrado.
+
+### Atualização 02/10/2026: página Início do Portal Técnico
+
+- O Portal Técnico abre na página **Início**: frase do dia, como está o dia do técnico, **tarefas**, **recados** e o que **pede atenção agora**.
+- **Gestão:** no fim da página Início, crie uma **tarefa avulsa** (com prazo) ou um **recado** para o técnico. Marque "urgente" para ele receber também no WhatsApp.
+- **Técnico:** toque no círculo da tarefa para concluir e no "Lido" para marcar o recado.
+- As telas "Demandas (SLA)" e "Histórico de solicitações" do cliente foram escondidas: nunca tiveram dados. Use **Quadro** e **Serviços**.

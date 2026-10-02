@@ -532,7 +532,8 @@ export default function ClienteDetailPage() {
   const TABS: { key: TabName; label: string }[] = [
     { key: 'cadastro', label: 'Cadastro' },
     { key: 'contatos', label: `Contatos (${contatos.length})` },
-    { key: 'historico', label: `Histórico (${solicitacoes.length})` },
+    // 'historico' (Solicitações de serviço) escondida: a tabela SolicitacaoServico nunca foi criada em produção.
+    // Serviços técnicos agora ficam no Portal Técnico (Serviços).
     { key: 'endereco', label: 'Endereço' },
     { key: 'info', label: 'Inf. Adicionais' },
     { key: 'financeiro', label: 'Mensalidade' },

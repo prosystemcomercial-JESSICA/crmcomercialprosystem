@@ -73,17 +73,19 @@ async function whats(prisma: PrismaClient, numero: string | null | undefined, te
 // ─── Avisos ──────────────────────────────────────────────────────────────────
 
 /** Aviso para o técnico: fica no portal (com som), vai como notificação e, se urgente, no WhatsApp dele. */
-export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; texto: string; prioridade?: 'NORMAL' | 'URGENTE'; implantacao_id?: string | null; de?: { id?: string; nome?: string } | null; origem?: 'GESTAO' | 'SISTEMA' }) {
+export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; texto: string; prioridade?: 'NORMAL' | 'URGENTE'; implantacao_id?: string | null; de?: { id?: string; nome?: string } | null; origem?: 'GESTAO' | 'SISTEMA'; tipo?: 'AVISO' | 'TAREFA'; prazo?: Date | null }) {
   const para = await prisma.usuarioCRM.findUnique({ where: { id: a.para_id }, select: { id: true, nome: true, telefone: true } }).catch(() => null);
   if (!para) return null;
   const aviso = await prisma.avisoTecnico.create({
-    data: { para_id: para.id, para_nome: para.nome, de_id: a.de?.id || null, de_nome: a.de?.nome || 'Otávio (implantação)', implantacao_id: a.implantacao_id || null, texto: a.texto, prioridade: a.prioridade || 'NORMAL', origem: a.origem || 'GESTAO' },
+    data: { para_id: para.id, para_nome: para.nome, de_id: a.de?.id || null, de_nome: a.de?.nome || 'Otávio (implantação)', implantacao_id: a.implantacao_id || null, texto: a.texto, prioridade: a.prioridade || 'NORMAL', origem: a.origem || 'GESTAO', tipo: a.tipo || 'AVISO', prazo: a.prazo || null },
   });
+  const tarefa = a.tipo === 'TAREFA';
+  const prazoTxt = a.prazo ? ` (prazo ${a.prazo.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})` : '';
   try {
     const { enviarPush } = await import('./push.service');
-    await enviarPush(prisma, [para.id], { titulo: a.prioridade === 'URGENTE' ? '🚨 Aviso urgente da implantação' : '📌 Aviso da implantação', corpo: a.texto.slice(0, 180), url: '/portal-tecnico?tab=avisos', tag: 'aviso-tecnico' });
+    await enviarPush(prisma, [para.id], { titulo: tarefa ? `📋 Nova tarefa${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 Aviso urgente da implantação' : '📌 Aviso da implantação', corpo: a.texto.slice(0, 180), url: '/portal-tecnico?tab=inicio', tag: 'aviso-tecnico' });
   } catch { /* push opcional */ }
-  if (a.prioridade === 'URGENTE') await whats(prisma, para.telefone, `🚨 *Aviso urgente*${a.de?.nome ? ` de ${a.de.nome}` : ''}\n\n${a.texto}`);
+  if (a.prioridade === 'URGENTE') await whats(prisma, para.telefone, `${tarefa ? `📋 *Tarefa urgente*${prazoTxt}` : '🚨 *Aviso urgente*'}${a.de?.nome ? ` de ${a.de.nome}` : ''}\n\n${a.texto}`);
   return aviso;
 }
 

@@ -189,9 +189,10 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   // ── Avisos para o técnico
   fastify.post('/implantacoes/avisos', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;
-    const b = z.object({ para_id: z.string().min(1), texto: z.string().min(2).max(2000), prioridade: z.enum(['NORMAL', 'URGENTE']).default('NORMAL'), implantacao_id: z.string().optional().nullable() }).safeParse(request.body);
-    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escreva o aviso e escolha o técnico' });
-    const aviso = await avisarTecnico(prisma, { ...b.data, de: { id: u.id, nome: u.nome }, origem: 'GESTAO' });
+    const b = z.object({ para_id: z.string().min(1), texto: z.string().min(2).max(2000), prioridade: z.enum(['NORMAL', 'URGENTE']).default('NORMAL'), implantacao_id: z.string().optional().nullable(), tipo: z.enum(['AVISO', 'TAREFA']).default('AVISO'), prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escreva o recado e escolha o técnico' });
+    const prazo = b.data.tipo === 'TAREFA' && b.data.prazo ? new Date(`${b.data.prazo}T18:00:00-03:00`) : null;
+    const aviso = await avisarTecnico(prisma, { ...b.data, prazo, de: { id: u.id, nome: u.nome }, origem: 'GESTAO' });
     if (!aviso) return reply.status(404).send({ status: 'error', message: 'Técnico não encontrado' });
     if (b.data.implantacao_id) await atividade(b.data.implantacao_id, 'NOTA', `📌 Aviso para ${aviso.para_nome}: ${b.data.texto}`, u);
     return reply.status(201).send({ status: 'success', data: aviso });
@@ -210,6 +211,55 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     await prisma.avisoTecnico.updateMany({ where: { id: avisoId, para_id: u.id, lido_em: null }, data: { lido_em: new Date() } });
     return reply.send({ status: 'success' });
   });
+  // Tarefa avulsa: o técnico (ou a gestão) marca como concluída; reabrir também é possível.
+  fastify.post('/implantacoes/tarefas/:tarefaId/concluir', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const { tarefaId } = request.params as { tarefaId: string };
+    const t = await prisma.avisoTecnico.findUnique({ where: { id: tarefaId } });
+    if (!t || t.tipo !== 'TAREFA' || (t.para_id !== u.id && !ehGestaoTecnica(u))) return reply.status(404).send({ status: 'error', message: 'Tarefa não encontrada' });
+    const reabrir = !!(request.body as any)?.reabrir;
+    await prisma.avisoTecnico.update({ where: { id: t.id }, data: { concluida_em: reabrir ? null : new Date(), lido_em: t.lido_em || new Date() } });
+    if (!reabrir && t.implantacao_id) await atividade(t.implantacao_id, 'NOTA', `✅ Tarefa concluída por ${u.nome || 'técnico'}: ${t.texto}`, u);
+    return reply.send({ status: 'success' });
+  });
+
+  // ── Início do Portal Técnico: frase do dia, meu dia, tarefas, recados e o que pede atenção agora.
+  fastify.get('/implantacoes/inicio', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const { fraseDoDia, saudacao } = await import('@/lib/implantacao/frases');
+    const agora = new Date(), hoje = diaSP(agora);
+    const iniHoje = emSP(hoje, '00:00'), fimHoje = new Date(iniHoje.getTime() + 864e5);
+    const gestao = ehGestaoTecnica(u);
+    const [sessoesHoje, tarefas, recados, minhas] = await Promise.all([
+      prisma.implantacaoSessao.findMany({ where: { tecnico_id: u.id, inicio: { lt: fimHoje }, OR: [{ fim: null }, { fim: { gt: iniHoje } }] } }),
+      prisma.avisoTecnico.findMany({ where: { tipo: 'TAREFA', ...(gestao ? {} : { para_id: u.id }), OR: [{ concluida_em: null }, { concluida_em: { gte: new Date(agora.getTime() - 3 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: [{ concluida_em: 'asc' }, { prazo: 'asc' }, { created_at: 'desc' }], take: 40 }),
+      prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', OR: [{ lido_em: null }, { created_at: { gte: new Date(agora.getTime() - 2 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
+      prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, data_assinatura: { gte: new Date(agora.getTime() - DIAS_QUADRO * 864e5) }, ...(gestao ? {} : { tecnico_id: u.id }) },
+        include: { esperas: { where: { fim: null } }, treinamento_fases: { where: { realizada_em: null, marcada_em: { not: null } } } } }),
+    ]);
+    const viradaHoje = minhas.some(i => i.virada_inicio_em && diaSP(i.virada_inicio_em) === hoje && i.tecnico_id === u.id);
+    const resumo = resumoDoDia(sessoesHoje, hoje, { cfg: await obterJornada(prisma), virada: viradaHoje });
+    // O que pede atenção: prazo estourado/em risco, demanda parada, virada em andamento, fases de treinamento marcadas para os próximos 7 dias.
+    const atencao: { tipo: string; texto: string; implantacao_id: string; ordem: number }[] = [];
+    for (const i of minhas) {
+      const prazo = i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada;
+      const s = situacaoSla(i.data_assinatura, prazo, null, agora);
+      if (s?.situacao === 'ESTOURADO') atencao.push({ tipo: 'ESTOURADO', texto: `${i.cliente_razao_social}: prazo estourado (${fmtData(prazo)})`, implantacao_id: i.id, ordem: 0 });
+      else if (s?.situacao === 'EM_RISCO') atencao.push({ tipo: 'RISCO', texto: `${i.cliente_razao_social}: prazo em risco, vence ${fmtData(prazo)}`, implantacao_id: i.id, ordem: 1 });
+      for (const e of i.esperas) atencao.push({ tipo: 'ESPERA', texto: `${i.cliente_razao_social}: parada (${e.tipo === 'PROGRAMACAO' ? 'aguardando programação' : e.tipo === 'CLIENTE' ? 'aguardando cliente' : 'processamento'}): ${e.motivo}`, implantacao_id: i.id, ordem: 2 });
+      if (i.virada_inicio_em && !i.virada_fim_em) atencao.push({ tipo: 'VIRADA', texto: `${i.cliente_razao_social}: virada em andamento, clique em "Loja virada" ao terminar`, implantacao_id: i.id, ordem: 1 });
+      for (const f of i.treinamento_fases) if (f.marcada_em! < new Date(agora.getTime() + 7 * 864e5)) atencao.push({ tipo: 'TREINO', texto: `${i.cliente_razao_social}: treinamento fase ${f.ordem} (${f.nome}) em ${fmtData(f.marcada_em)}`, implantacao_id: i.id, ordem: 3 });
+      if (!i.tecnico_id && gestao) atencao.push({ tipo: 'SEM_TECNICO', texto: `${i.cliente_razao_social}: sem técnico designado`, implantacao_id: i.id, ordem: 1 });
+    }
+    atencao.sort((a, b) => a.ordem - b.ordem);
+    return reply.send({ status: 'success', data: {
+      saudacao: `${saudacao(agora)}, ${(u.nome || '').split(' ')[0] || 'tudo bem'}!`, frase: fraseDoDia(agora),
+      hoje: { ...resumo, virada: viradaHoje },
+      tarefas: tarefas.map(t => ({ ...t, atrasada: !t.concluida_em && !!t.prazo && t.prazo < agora })),
+      recados, atencao: atencao.slice(0, 15), demandas_ativas: minhas.length, gestao,
+    } });
+  });
+
   fastify.post('/implantacoes/avisos/lidos', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     await prisma.avisoTecnico.updateMany({ where: { para_id: u.id, lido_em: null }, data: { lido_em: new Date() } });
