@@ -843,7 +843,8 @@ export default function PortalTecnicoPage() {
       items: [
         { key: 'suporte'    as Tab, label: 'Tickets & SLA', icon: Headphones,    badge: tickets.filter(t => t.status === 'ABERTO').length || null },
         { key: 'atendimento'as Tab, label: 'Templates',     icon: MessageSquare, badge: null },
-        { key: 'csat'       as Tab, label: 'Satisfação',    icon: Star,          badge: null },
+        // Satisfação (CSAT) é só da supervisão, não do técnico.
+        ...(gestaoTecnica ? [{ key: 'csat' as Tab, label: 'Satisfação', icon: Star, badge: null }] : []),
       ],
     },
     ...(gestaoTecnica ? [{
@@ -2343,7 +2344,7 @@ export default function PortalTecnicoPage() {
         )}
 
         {/* ── TAB: CSAT ── */}
-        {tab === 'csat' && (
+        {tab === 'csat' && gestaoTecnica && (
           <div>
             {/* Sub-nav */}
             <div style={{ display: 'flex', gap: 1, marginBottom: 20, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 3, width: 'fit-content' }}>
