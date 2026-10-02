@@ -862,3 +862,7 @@ No topo do Portal Técnico, o **sino** mostra o que chegou de novo: implantaçã
 ### Atualização 02/10/2026: Onboarding técnico
 
 Toda implantação nova começa pelo **Onboarding técnico** (Portal Técnico › Onboarding técnico): o técnico se apresenta, explica as etapas e os prazos, levanta o diagnóstico da loja (empresa, estrutura, equipamentos, fiscal, estoque, integrações, operação e treinamento) e pede a aprovação do cliente. O cliente aprova pela página de acompanhamento, com o nome completo; o botão "Copiar link para o cliente aprovar" fica na ficha da demanda. Prazo: 2 dias úteis. **Até concluir, nada mais da implantação é liberado.**
+
+### Atualização 02/10/2026: perguntas do primeiro contato
+
+Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas principais durante a conversa com o cliente: máquinas, faturamento, caixas, impressora NFC-e, etiquetas, colaboradores, PBMs, financeiro, corretor tributário, gerencial, SNGPC, comunicação, banco único, preço único e TEF. Sem as 15 respondidas, o onboarding não conclui.

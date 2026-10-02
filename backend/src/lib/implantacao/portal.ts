@@ -84,21 +84,33 @@ export function horasUteisEntre(a: Date, b: Date, cfg: Jornada = JORNADA_PADRAO)
 
 // Ficha de coleta: campos que substituem a descrição em texto livre do cartão.
 export const CAMPOS_COLETA: { key: string; label: string; tipo?: 'texto' | 'numero' | 'opcoes' | 'longo'; opcoes?: string[]; grupo: string }[] = [
+  // Perguntas principais do primeiro contato (definidas pela Jessica em 02/10/2026)
+  { key: 'faturamento', label: 'Faturamento mensal aproximado', grupo: 'Primeiro contato' },
+  { key: 'etiquetas', label: 'Usa etiquetas (impressora de etiquetas)', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
+  { key: 'colaboradores', label: 'Quantidade de colaboradores', tipo: 'numero', grupo: 'Primeiro contato' },
+  { key: 'pbms', label: 'PBMs utilizadas', grupo: 'Primeiro contato' },
+  { key: 'financeiro', label: 'Vai usar o financeiro', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
+  { key: 'corretor_tributario', label: 'Corretor tributário', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
+  { key: 'gerencial', label: 'Gerencial', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
+  { key: 'sngpc', label: 'SNGPC (controlados)', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
+  { key: 'banco_unico', label: 'Banco único', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
+  { key: 'preco_unico', label: 'Preço único', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
+  { key: 'tef', label: 'TEF (qual)', grupo: 'Primeiro contato' },
   { key: 'tipo_base', label: 'Tipo', tipo: 'opcoes', opcoes: ['Conversão de outro sistema', 'Banco zerado (do zero)'], grupo: 'Projeto' },
   { key: 'sistema_anterior', label: 'Sistema anterior', grupo: 'Projeto' },
   { key: 'volume_produtos', label: 'Volume aproximado de produtos', grupo: 'Projeto' },
   { key: 'controle_lote', label: 'Controle de lote, validade e controlados', tipo: 'opcoes', opcoes: ['Sim', 'Não', 'Parcial'], grupo: 'Projeto' },
-  { key: 'maquinas', label: 'Máquinas (total)', tipo: 'numero', grupo: 'Estrutura' },
-  { key: 'caixas', label: 'Caixas (PDV)', tipo: 'numero', grupo: 'Estrutura' },
+  { key: 'maquinas', label: 'Máquinas (total)', tipo: 'numero', grupo: 'Primeiro contato' },
+  { key: 'caixas', label: 'Caixas (PDV)', tipo: 'numero', grupo: 'Primeiro contato' },
   { key: 'terminais', label: 'Terminais de balcão', tipo: 'numero', grupo: 'Estrutura' },
   { key: 'usuarios', label: 'Usuários do sistema', tipo: 'numero', grupo: 'Estrutura' },
   { key: 'responsavel_sistema', label: 'Responsável pelo sistema na loja', grupo: 'Estrutura' },
   { key: 'internet', label: 'Internet (velocidade de download/upload)', grupo: 'Estrutura' },
   { key: 'filiais', label: 'Filiais', tipo: 'numero', grupo: 'Estrutura' },
-  { key: 'usa_comunicacao', label: 'Comunicação entre filiais', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Estrutura' },
+  { key: 'usa_comunicacao', label: 'Comunicação entre filiais', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Primeiro contato' },
   { key: 'balanca', label: 'Balança', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Equipamentos' },
   { key: 'gaveta', label: 'Gaveta', tipo: 'opcoes', opcoes: ['Sim', 'Não'], grupo: 'Equipamentos' },
-  { key: 'impressora_nfce', label: 'Impressora NFC-e (modelo)', grupo: 'Equipamentos' },
+  { key: 'impressora_nfce', label: 'Impressora NFC-e (modelo)', grupo: 'Primeiro contato' },
   { key: 'outros_equipamentos', label: 'Outros equipamentos (Pin Pad, nobreak, etiquetas, coletor)', grupo: 'Equipamentos' },
   { key: 'regime_tributario', label: 'Regime tributário', tipo: 'opcoes', opcoes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], grupo: 'Fiscal' },
   { key: 'certificado', label: 'Certificado digital (tipo e validade)', grupo: 'Fiscal' },
@@ -196,9 +208,16 @@ export function inferirTipoServico(texto: string): string {
 // ─── Onboarding técnico (primeiro contato, antes de qualquer ação) ─────────
 // Responsabilidade do técnico. Enquanto não estiver 100% (o último item é a aprovação do cliente),
 // a implantação não avança: sem play em Instalação/Conversão, sem marcar outros itens, sem mover no quadro e sem virada.
+// As 15 perguntas principais do primeiro contato (na ordem em que o técnico pergunta).
+export const PERGUNTAS_PRIMEIRO_CONTATO = ['maquinas', 'faturamento', 'caixas', 'impressora_nfce', 'etiquetas', 'colaboradores', 'pbms', 'financeiro',
+  'corretor_tributario', 'gerencial', 'sngpc', 'usa_comunicacao', 'banco_unico', 'preco_unico', 'tef'];
+export const ITEM_PERGUNTAS = 'Perguntas principais do primeiro contato respondidas';
+export const perguntasRespondidas = (coleta: any) => PERGUNTAS_PRIMEIRO_CONTATO.every(k => coleta && String(coleta[k] ?? '').trim() !== '');
+
 export const ONBOARDING_SECOES: { secao: string; itens: string[] }[] = [
   { secao: 'Apresentação', itens: [
     'Apresentar-se ao cliente como técnico responsável pela implantação',
+    ITEM_PERGUNTAS,
     'Confirmar o contato principal (nome, telefone e e-mail) e o canal de comunicação',
     'Explicar as etapas da implantação, os prazos e o que se espera do cliente',
   ] },

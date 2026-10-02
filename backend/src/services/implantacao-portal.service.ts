@@ -200,6 +200,8 @@ export async function visaoCliente(prisma: PrismaClient, imp: any) {
   const diagnostico = imp.modulo === 'IMPLANTACAO' && !ehLegado(imp) ? {
     aprovado_em: imp.onboarding_aprovado_em, aprovado_por: imp.onboarding_aprovado_por,
     dados: [['Tipo', c.tipo_base], ['Sistema anterior', c.sistema_anterior], ['Lojas / filiais', c.filiais], ['Caixas (PDV)', c.caixas], ['Máquinas', c.maquinas],
+      ['Colaboradores', c.colaboradores], ['PBMs', c.pbms], ['TEF', c.tef], ['Etiquetas', c.etiquetas], ['Financeiro', c.financeiro], ['Corretor tributário', c.corretor_tributario],
+      ['Gerencial', c.gerencial], ['SNGPC', c.sngpc], ['Comunicação entre lojas', c.usa_comunicacao], ['Banco único', c.banco_unico], ['Preço único', c.preco_unico],
       ['Regime tributário', c.regime_tributario], ['Certificado digital', c.certificado], ['Contabilidade', c.contabilidade_nome], ['Contato principal', c.contato_nome],
       ['Equipamentos', [c.balanca === 'Sim' ? 'balança' : null, c.gaveta === 'Sim' ? 'gaveta' : null, c.impressora_nfce].filter(Boolean).join(', ') || null]]
       .filter(([, v]) => v).map(([l, v]) => ({ rotulo: l, valor: String(v) })),

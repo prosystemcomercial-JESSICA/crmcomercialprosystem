@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
-import { faseDoItemTreinamento, ONBOARDING_ITENS, onboardingOk, ehLegado } from '@/lib/implantacao/portal';
+import { faseDoItemTreinamento, ONBOARDING_ITENS, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidas } from '@/lib/implantacao/portal';
 import { avisarTecnico, garantirFasesTreinamento } from '@/services/implantacao-portal.service';
 
 /**
@@ -387,6 +387,9 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const atual = await prisma.implantacaoChecklistItem.findUnique({ where: { id: itemId }, include: { implantacao: { include: { checklist: { select: { grupo: true, feito: true } } } } } });
     if (!atual) return reply.status(404).send({ status: 'error', message: 'Item não encontrado' });
     // Onboarding técnico primeiro: os outros grupos ficam travados até o primeiro contato estar concluído.
+    if (atual.grupo === 'ONBOARDING' && atual.titulo === ITEM_PERGUNTAS && body.data.feito && !perguntasRespondidas(atual.implantacao.coleta)) {
+      return reply.status(400).send({ status: 'error', message: 'Responda as 15 perguntas principais na aba Onboarding técnico; este item se marca sozinho.' });
+    }
     if (atual.grupo !== 'ONBOARDING' && !onboardingOk(atual.implantacao, atual.implantacao.checklist)) {
       return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes dos outros passos.' });
     }
