@@ -879,3 +879,7 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Ao abrir um card no Portal Técnico, o **nome e o telefone do contato** aparecem em destaque no topo, com botões **Ligar** e **WhatsApp**, junto com o **tipo da demanda**.
 - A aba **Ficha do cliente** traz todos os dados do cadastro (empresa, contatos, endereço, observações), **sem nada financeiro**.
 - O portal passou a mostrar só o que entrou **a partir de 02/10/2026**. O que é anterior continua guardado no CRM, só não aparece no portal.
+
+### Atualização 02/10/2026: recado lido sai da tela do técnico
+
+- Depois que o técnico toca em **Confirmo que li**, o recado some da lista dele (Início, sino e aba Avisos). Não é apagado do banco: continua no radar **Leitura dos recados** da supervisão, com data e hora da confirmação. (`/implantacoes/avisos` e Início filtram `lido_em: null` para o próprio usuário.)

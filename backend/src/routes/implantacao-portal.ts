@@ -245,7 +245,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/avisos', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     const q = request.query as { enviados?: string };
-    const where: any = q.enviados === '1' && ehGestaoTecnica(u) ? { created_at: { gte: CORTE_PORTAL } } : { para_id: u.id, created_at: { gte: CORTE_PORTAL }, ...soDoDesignado(u) };
+    const where: any = q.enviados === '1' && ehGestaoTecnica(u) ? { created_at: { gte: CORTE_PORTAL } } : { para_id: u.id, lido_em: null, created_at: { gte: CORTE_PORTAL }, ...soDoDesignado(u) }; // lido confirmado sai da lista (fica no radar da supervisão)
     const avisos = await prisma.avisoTecnico.findMany({ where, orderBy: { created_at: 'desc' }, take: 80, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_id: true } } } });
     const naoLidos = await prisma.avisoTecnico.count({ where: { para_id: u.id, lido_em: null, created_at: { gte: CORTE_PORTAL }, ...soDoDesignado(u) } });
     return reply.send({ status: 'success', data: { avisos, nao_lidos: naoLidos } });
@@ -278,7 +278,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const [sessoesHoje, tarefas, recados, minhas] = await Promise.all([
       prisma.implantacaoSessao.findMany({ where: { tecnico_id: u.id, inicio: { lt: fimHoje }, OR: [{ fim: null }, { fim: { gt: iniHoje } }] } }),
       prisma.avisoTecnico.findMany({ where: { tipo: 'TAREFA', created_at: { gte: CORTE_PORTAL }, ...(gestao ? {} : { para_id: u.id }), AND: [soDoDesignado(u)], OR: [{ concluida_em: null }, { concluida_em: { gte: new Date(agora.getTime() - 3 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: [{ concluida_em: 'asc' }, { prazo: 'asc' }, { created_at: 'desc' }], take: 40 }),
-      prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', created_at: { gte: CORTE_PORTAL }, AND: [soDoDesignado(u)], OR: [{ lido_em: null }, { created_at: { gte: new Date(agora.getTime() - 2 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
+      prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', created_at: { gte: CORTE_PORTAL }, lido_em: null, AND: [soDoDesignado(u)] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
       prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, data_assinatura: { gte: desdeQuadro(agora.getTime()) }, ...(gestao ? {} : { tecnico_id: u.id }) },
         include: { esperas: { where: { fim: null } }, treinamento_fases: { where: { realizada_em: null, marcada_em: { not: null } } } } }),
     ]);
