@@ -831,3 +831,7 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
 - Clientes com contrato antes de 02/10/2026 **não recebem nenhuma mensagem automática** do portal e não geram avisos.
 - **Virada retroativa:** abra o card, aba Virada e cobrança, escolha a data em que a loja começou a usar e toque em **Lançar virada retroativa**. O 1º vencimento e o mês da comissão saem dessa data, sem mensagem ao cliente.
 - Os avisos de prazo e de demanda sem técnico chegam no seu WhatsApp num **único resumo**, e não um por demanda.
+
+### Atualização 02/10/2026: endereço curto da TV
+
+Para abrir a TV do Escritório no navegador do monitor ou da TV, digite o endereço curto `comercial.prosystemnet.com/t/<código>`. O endereço aparece em Configurações › Painel da TV, com o botão "Trocar código".

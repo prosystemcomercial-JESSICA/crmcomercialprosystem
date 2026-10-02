@@ -772,3 +772,12 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - não exige "Iniciar virada" nem a tela do Suporte;
   - calcula o 1º vencimento e o mês da comissão a partir dessa data;
   - não manda mensagem ao cliente nem aviso.
+
+### Atualização 02/10/2026: endereço curto da TV do Escritório
+
+- **Endereço:** `/t/<código>` (`app/t/[codigo]/page.tsx`) leva à `/tv/escritorio?chave=...`. Serve para digitar no controle de monitores e TVs que não aceitam transmitir a aba do Chrome.
+- **Rotas:**
+  - `GET /painel-tv/atalho/:codigo`: devolve a chave da TV; tem um atraso de 400 ms para frear tentativas em sequência;
+  - `POST /painel-tv/atalho` (gestão): mostra o código, ou cria um novo; com `{ trocar: true }`, troca o código.
+- **Configuração:** o código fica em `ConfiguracaoIntegracao` com a chave `painel_tv.atalho` (6 caracteres) e aparece em Configurações › Painel da TV.
+- **Menu:** o Portal Técnico agora abre sempre o `/portal-tecnico` do próprio CRM. A variável `NEXT_PUBLIC_PORTAL_URL` apontava para o app do Railway, que está fora do ar.

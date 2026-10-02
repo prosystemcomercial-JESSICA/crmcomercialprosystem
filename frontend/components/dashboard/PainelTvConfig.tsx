@@ -144,6 +144,7 @@ export default function PainelTvConfig() {
                 </button>
               </div>
               <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Quem tiver o link vê o painel (números do comercial e primeiros nomes da equipe). Se ele vazar, gere um novo.</p>
+              {link && <AtalhoTv />}
             </div>
           </>
         )}
@@ -158,6 +159,22 @@ export default function PainelTvConfig() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Endereço curto para digitar no controle da TV: /t/<código>. */
+function AtalhoTv() {
+  const [codigo, setCodigo] = useState<string | null>(null);
+  const pedir = (trocar = false) => apiClient.atalhoTv(trocar).then((r: any) => setCodigo(r.data.data.codigo)).catch(() => {});
+  useEffect(() => { pedir(); }, []);
+  if (!codigo) return null;
+  const host = typeof window !== 'undefined' ? window.location.host : '';
+  return (
+    <div style={{ marginTop: 10, padding: 12, borderRadius: 10, border: '1px dashed var(--t-card-border)', display: 'grid', gap: 6 }}>
+      <span style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Endereço curto para digitar no controle da TV (abre a TV do Escritório):</span>
+      <b style={{ fontFamily: 'monospace', fontSize: 18, color: 'var(--t-text-primary)' }}>{host}/t/{codigo}</b>
+      <div><button onClick={() => window.confirm('Trocar o código? O endereço curto atual para de funcionar.') && pedir(true)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', color: 'var(--t-text-secondary)' }}>Trocar código</button></div>
     </div>
   );
 }

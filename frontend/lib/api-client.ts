@@ -933,6 +933,7 @@ class ApiClient {
   async getConfigPortal() { return this.client.get('/implantacoes/portal/config'); }
   async salvarConfigPortal(data: any) { return this.client.put('/implantacoes/portal/config', data); }
   async getPainelImplantacao(params: { de?: string; ate?: string } = {}) { return this.client.get('/implantacoes/painel', { params }); }
+  async atalhoTv(trocar = false) { return this.client.post('/painel-tv/atalho', { trocar }); }
   async getTecnicosImplantacao() {
     return this.client.get('/implantacoes/tecnicos');
   }
