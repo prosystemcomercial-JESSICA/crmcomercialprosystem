@@ -424,7 +424,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   })();
   const hrefsPermitidos = new Set(gruposVisiveis.flatMap(g => g.items.map(i => i.href)));
   const abrirExterno = (item: NavItem) => {
-    const base = process.env.NEXT_PUBLIC_PORTAL_URL || item.href;
+    const base = item.href /* portal do próprio CRM (o app separado do Railway foi arquivado) */;
     if (!base || base === '#') return;
     const tk = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     window.open(tk ? `${base}${base.includes('?') ? '&' : '?'}token=${encodeURIComponent(tk)}` : base, '_blank', 'noopener');
@@ -841,7 +841,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           title={sidebarCollapsed ? item.label : undefined}
                           onClick={(e) => {
                             e.preventDefault();
-                            const base = process.env.NEXT_PUBLIC_PORTAL_URL || item.href;
+                            const base = item.href /* portal do próprio CRM (o app separado do Railway foi arquivado) */;
                             if (!base || base === '#') return;
                             const tk = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
                             const url = tk ? `${base}${base.includes('?') ? '&' : '?'}token=${encodeURIComponent(tk)}` : base;
