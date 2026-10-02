@@ -865,20 +865,36 @@ function AbaFichaCliente({ d }: { d: any }) {
   const bloco = (t: string, itens: (React.ReactNode | null)[]) => itens.some(Boolean) ? (
     <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
       <div style={rotulo}>{t}</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">{itens}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 items-start">{itens}</div>
     </div>
   ) : null;
   const end = c ? [c.endereco, c.numero_end, c.complemento].filter(Boolean).join(', ') : '';
   return (
     <div style={{ display: 'grid', gap: 14 }}>
-      {bloco('Demanda', [
-        linha('Tipo da demanda', d.tipo_demanda),
-        linha('Serviço vendido', d.servico_descricao || (i.modulo === 'SERVICO' ? i.observacoes : null)),
-        linha('Plano', i.plano || c?.plano),
-        linha('Vendedor', i.vendedor_nome),
-        linha('Técnico', i.tecnico_nome || 'não designado'),
-        linha('Entrou em', dataBR(i.data_assinatura)),
-      ])}
+      {/* Demanda: tipo em destaque, serviço vendido em largura total e os dados rápidos em linha. */}
+      <div style={{ ...cartao, padding: 16, display: 'grid', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={rotulo}>Demanda</div>
+          <Etq cor={i.modulo === 'SERVICO' ? '#0891b2' : '#16a34a'}>{d.tipo_demanda}</Etq>
+        </div>
+        {(d.servico_descricao || (i.modulo === 'SERVICO' && i.observacoes)) && (
+          <div style={{ borderRadius: 10, background: 'var(--t-content-bg)', borderLeft: '3px solid #0891b2', padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 4 }}>O que foi vendido</div>
+            <div style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{d.servico_descricao || i.observacoes}</div>
+          </div>
+        )}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {([['Plano', i.plano || c?.plano, ClipboardList], ['Vendedor', i.vendedor_nome, Users], ['Técnico', i.tecnico_nome || 'não designado', Settings], ['Entrou em', dataBR(i.data_assinatura), Clock]] as [string, any, any][]).map(([l, v, Icon]) => (
+            <div key={l} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--t-card-border)' }}>
+              <Icon size={16} color="#2E6EAB" style={{ flexShrink: 0 }} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{l}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: l === 'Técnico' && !i.tecnico_nome ? '#dc2626' : 'var(--t-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v || '—'}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
       {!c && <div style={{ ...cartao, padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Cliente não encontrado no cadastro (sem vínculo pelo CNPJ). Os dados abaixo vêm só do card.</div>}
       {bloco('Empresa', [
         linha('Razão social', c?.razao_social || i.cliente_razao_social),
