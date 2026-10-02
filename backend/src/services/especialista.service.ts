@@ -103,7 +103,10 @@ export async function revisarConversas(prisma: PrismaClient) {
     const nome = c.contato_nome || c.contato_numero;
     const ult = ms[0];
     const horas = (agora.getTime() - ult.created_at.getTime()) / 3600_000;
-    if (ult.direcao === 'ENTRADA' && horas >= 2) deLado.push({ nome, horas: Math.round(horas), texto: ((ult.tipo === 'AUDIO' ? ult.transcricao : ult.conteudo) || '').slice(0, 120), id: c.id });
+    const { ehRespostaAutomatica, ehSoConfirmacao } = await import('@/lib/assistente/sdr');
+    const txtUlt = (ult.tipo === 'AUDIO' ? ult.transcricao : ult.conteudo) || '';
+    // Mensagem automática de loja ou só um "👍/ok" não é cliente esperando resposta.
+    if (ult.direcao === 'ENTRADA' && horas >= 2 && !ehRespostaAutomatica(txtUlt) && !ehSoConfirmacao(txtUlt)) deLado.push({ nome, horas: Math.round(horas), texto: ((ult.tipo === 'AUDIO' ? ult.transcricao : ult.conteudo) || '').slice(0, 120), id: c.id });
     // Foco: toda conversa em que um agente falou nas últimas 24 h (até 40).
     const agenteFalou = ms.some(m => m.direcao === 'SAIDA' && AUTOMATICOS.includes(m.enviada_por || '') && m.created_at >= desdeAgente);
     if (paraAvaliar.length < 40 && agenteFalou) {
