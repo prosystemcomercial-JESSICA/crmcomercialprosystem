@@ -910,7 +910,7 @@ class ApiClient {
   async resolverEspera(esperaId: string, resposta?: string) { return this.client.post(`/implantacoes/esperas/${esperaId}/resolver`, { resposta }); }
   async getEsperasAbertas() { return this.client.get('/implantacoes/esperas/abertas'); }
   // Portal de implantação e serviços (quadro, ficha, virada, treinamento, correções, avisos, painel, config)
-  async getQuadroImplantacao(modulo: 'IMPLANTACAO' | 'SERVICO') { return this.client.get('/implantacoes/quadro', { params: { modulo } }); }
+  async getQuadroImplantacao(modulo?: 'IMPLANTACAO' | 'SERVICO' | null) { return this.client.get('/implantacoes/quadro', { params: modulo ? { modulo } : {} }); }
   async moverColunaImplantacao(id: string, coluna: string) { return this.client.patch(`/implantacoes/${id}/coluna`, { coluna }); }
   async getPortalImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/portal`); }
   async salvarColeta(id: string, dados: Record<string, any>) { return this.client.put(`/implantacoes/${id}/coleta`, dados); }

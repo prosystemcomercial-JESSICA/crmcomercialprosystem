@@ -10,14 +10,14 @@ import { fmtDur } from './Cronometro';
 
 const erroDe = (e: any) => e?.response?.data?.message || 'Não foi possível agora. Tente de novo.';
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : '');
-const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14 };
+const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, display: 'flex', flexDirection: 'column', minWidth: 0 };
 const titulo: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--t-text-primary)', padding: '14px 16px 10px' };
 const ICONE_ATENCAO: Record<string, { Icon: any; cor: string }> = {
   ESTOURADO: { Icon: AlertTriangle, cor: '#dc2626' }, RISCO: { Icon: Clock, cor: '#d97706' }, ESPERA: { Icon: Hourglass, cor: '#a16207' },
   VIRADA: { Icon: Rocket, cor: '#7c3aed' }, TREINO: { Icon: GraduationCap, cor: '#0891b2' }, SEM_TECNICO: { Icon: UserX, cor: '#dc2626' },
 };
 
-export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab: string) => void }) {
+export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab: string, demandaId?: string) => void }) {
   const [d, setD] = useState<any | null>(null);
   const carregar = useCallback(async () => { try { const r = await apiClient.getInicioPortal(); setD(r.data.data); } catch { /* sem login */ } }, []);
   useEffect(() => {
@@ -38,9 +38,14 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
   const lido = async (r: any) => { await apiClient.marcarAvisoLido(r.id).catch(() => {}); window.dispatchEvent(new Event('avisos:mudou')); carregar(); };
 
   return (
-    <div style={{ display: 'grid', gap: 18, maxWidth: 1180 }}>
+    <div style={{ display: 'grid', gap: 18, width: '100%' }}>
       {/* Saudação e frase do dia */}
-      <section style={{ borderRadius: 16, padding: '22px 24px', background: 'linear-gradient(135deg,#0D2238 0%,#1A4E82 55%,#2E6EAB 100%)', color: '#fff', display: 'grid', gap: 10 }}>
+      <style>{`
+        .pt-inicio-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        @media (max-width: 1500px) { .pt-inicio-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 760px) { .pt-inicio-grade { grid-template-columns: minmax(0, 1fr); } }
+      `}</style>
+      <section style={{ borderRadius: 16, padding: 'clamp(16px, 2.5vw, 28px)', background: 'linear-gradient(135deg,#0D2238 0%,#1A4E82 55%,#2E6EAB 100%)', color: '#fff', display: 'grid', gap: 10 }}>
         <div style={{ fontSize: 22, fontWeight: 800 }}>{d.saudacao}</div>
         <blockquote style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: '#D6E6F7', maxWidth: '64ch', borderLeft: '3px solid #90BEF0', paddingLeft: 12 }}>{d.frase}</blockquote>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13, color: '#A8C8E8', marginTop: 4 }}>
@@ -51,7 +56,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
         </div>
       </section>
 
-      <div style={{ display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', alignItems: 'start' }}>
+      <div className="pt-inicio-grade" style={{ display: 'grid', gap: 18, alignItems: 'stretch' }}>
         {/* Tarefas */}
         <section style={cartao}>
           <div style={{ ...titulo, justifyContent: 'space-between' }}><span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><ClipboardList size={16} color="#2E6EAB" /> {gestao ? 'Tarefas avulsas da equipe' : 'Minhas tarefas'}</span></div>
@@ -114,7 +119,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
             {d.atencao.map((a: any, k: number) => {
               const { Icon, cor } = ICONE_ATENCAO[a.tipo] || ICONE_ATENCAO.RISCO;
               return (
-                <button key={k} onClick={() => irPara('quadro')} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left', padding: '8px 10px', borderRadius: 10, border: 'none', background: 'var(--t-content-bg)', cursor: 'pointer', fontSize: 13, color: 'var(--t-text-primary)' }}>
+                <button key={k} onClick={() => irPara('quadro', a.implantacao_id)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left', padding: '8px 10px', borderRadius: 10, border: 'none', background: 'var(--t-content-bg)', cursor: 'pointer', fontSize: 13, color: 'var(--t-text-primary)' }}>
                   <Icon size={15} color={cor} style={{ flexShrink: 0, marginTop: 2 }} /><span>{a.texto}</span>
                 </button>
               );

@@ -48,16 +48,18 @@ function Barra({ pct, cor = '#2E6EAB' }: { pct: number; cor?: string }) {
 
 // ─── Quadro ──────────────────────────────────────────────────────────────────
 
-export function QuadroDemandas({ modulo, gestao }: { modulo: 'IMPLANTACAO' | 'SERVICO'; gestao: boolean }) {
+export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean; abrirId?: string | null; onAberto?: () => void }) {
   const [dados, setDados] = useState<{ colunas: { key: string; label: string }[]; cards: any[] } | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
+  const [modulo, setModulo] = useState<'' | 'IMPLANTACAO' | 'SERVICO'>('');
+  useEffect(() => { if (abrirId) { setAberta(abrirId); onAberto?.(); } }, [abrirId, onAberto]);
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [sobre, setSobre] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [ocultarFinalizados, setOcultarFinalizados] = useState(true);
   const carregar = useCallback(async () => {
-    try { const r = await apiClient.getQuadroImplantacao(modulo); setDados(r.data.data); } catch { setDados({ colunas: [], cards: [] }); }
-  }, [modulo]);
+    try { const r = await apiClient.getQuadroImplantacao(null); setDados(r.data.data); } catch { setDados({ colunas: [], cards: [] }); }
+  }, []);
   useEffect(() => { carregar(); const t = setInterval(carregar, 60000); window.addEventListener('cronometro:mudou', carregar); return () => { clearInterval(t); window.removeEventListener('cronometro:mudou', carregar); }; }, [carregar]);
 
   const mover = async (id: string, coluna: string) => {
@@ -70,23 +72,33 @@ export function QuadroDemandas({ modulo, gestao }: { modulo: 'IMPLANTACAO' | 'SE
 
   const colunas = (dados?.colunas || []).filter(c => !(ocultarFinalizados && ['FINALIZADO', 'CANCELADOS'].includes(c.key)));
   const filtro = busca.trim().toLowerCase();
-  const cards = (dados?.cards || []).filter(c => !filtro || `${c.cliente_razao_social} ${c.cliente_cnpj || ''} ${c.tecnico_nome || ''}`.toLowerCase().includes(filtro));
+  const doModulo = (dados?.cards || []).filter(c => !modulo || c.modulo === modulo);
+  const cards = doModulo.filter(c => !filtro || `${c.cliente_razao_social} ${c.cliente_cnpj || ''} ${c.tecnico_nome || ''}`.toLowerCase().includes(filtro));
+  const contagem = (m: string) => (dados?.cards || []).filter(c => (!m || c.modulo === m) && !['FINALIZADO', 'CANCELADOS'].includes(c.coluna)).length;
   const resumo = useMemo(() => {
-    const ativos = (dados?.cards || []).filter(c => !['FINALIZADO', 'CANCELADOS'].includes(c.coluna));
+    const ativos = doModulo.filter(c => !['FINALIZADO', 'CANCELADOS'].includes(c.coluna));
     return {
       ativos: ativos.length, risco: ativos.filter(c => c.sla?.situacao === 'EM_RISCO').length, estourado: ativos.filter(c => c.sla?.situacao === 'ESTOURADO').length,
-      esperando: ativos.filter(c => c.esperas_abertas.length).length, cobranca: (dados?.cards || []).filter(c => c.virada_fim_em && !c.cobranca_lancada_em).length,
+      esperando: ativos.filter(c => c.esperas_abertas.length).length, cobranca: doModulo.filter(c => c.virada_fim_em && !c.cobranca_lancada_em).length,
     };
-  }, [dados]);
+  }, [doModulo]);
 
   if (!dados) return <div style={{ padding: 32, color: 'var(--t-text-muted)' }}><Loader2 size={16} className="animate-spin" /> Carregando…</div>;
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }} role="tablist" aria-label="Tipo de demanda">
+        {([['', 'Tudo'], ['IMPLANTACAO', 'Implantações'], ['SERVICO', 'Serviços']] as const).map(([k, l]) => (
+          <button key={k || 'tudo'} role="tab" aria-selected={modulo === k} onClick={() => setModulo(k)}
+            style={{ fontSize: 13, fontWeight: 700, padding: '7px 14px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${modulo === k ? '#2E6EAB' : 'var(--t-card-border)'}`, background: modulo === k ? '#2E6EAB' : 'var(--t-card-bg)', color: modulo === k ? '#fff' : 'var(--t-text-secondary)' }}>
+            {l} <span style={{ opacity: 0.75, fontVariantNumeric: 'tabular-nums' }}>{contagem(k)}</span>
+          </button>
+        ))}
+      </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         {[
           ['Em andamento', resumo.ativos, '#2E6EAB'], ['Prazo em risco', resumo.risco, '#d97706'], ['Prazo estourado', resumo.estourado, '#dc2626'],
-          ['Paradas em espera', resumo.esperando, '#a16207'], ...(modulo === 'IMPLANTACAO' ? [['Cobrança a lançar', resumo.cobranca, '#7c3aed']] : []),
+          ['Paradas em espera', resumo.esperando, '#a16207'], ...(modulo !== 'SERVICO' ? [['Cobrança a lançar', resumo.cobranca, '#7c3aed']] : []),
         ].map(([l, v, cor]) => (
           <div key={l as string} style={{ ...cartao, padding: '8px 14px', display: 'flex', gap: 8, alignItems: 'baseline' }}>
             <b style={{ fontSize: 20, color: cor as string, fontVariantNumeric: 'tabular-nums' }}>{v as number}</b>
@@ -99,8 +111,13 @@ export function QuadroDemandas({ modulo, gestao }: { modulo: 'IMPLANTACAO' | 'SE
           <input type="checkbox" checked={ocultarFinalizados} onChange={e => setOcultarFinalizados(e.target.checked)} /> Ocultar finalizados e cancelados
         </label>
       </div>
-      {modulo === 'SERVICO' && (
-        <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Os serviços entram aqui quando a vendedora move o card para <b>Em execução</b> no kanban de serviços. Ao finalizar aqui, o card comercial vai para <b>Concluído</b>.</div>
+      <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
+        Entram aqui sozinhos: <b>implantações</b> quando o contrato é assinado e <b>serviços</b> quando a vendedora move o card para <b>Em execução</b> no kanban de serviços. Mostra os últimos 60 dias.
+      </div>
+      {cards.filter(c => !['FINALIZADO', 'CANCELADOS'].includes(c.coluna)).length === 0 && (
+        <div style={{ ...cartao, padding: 22, textAlign: 'center', color: 'var(--t-text-secondary)', fontSize: 14 }}>
+          Nenhuma demanda em andamento{modulo === 'SERVICO' ? ' nos serviços' : modulo === 'IMPLANTACAO' ? ' nas implantações' : ''} agora. As finalizadas aparecem ao desmarcar "Ocultar finalizados e cancelados".
+        </div>
       )}
       <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
         {colunas.map(col => {
@@ -109,7 +126,7 @@ export function QuadroDemandas({ modulo, gestao }: { modulo: 'IMPLANTACAO' | 'SE
             <div key={col.key}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
-              style={{ ...cartao, minWidth: 270, width: 270, flexShrink: 0, background: sobre === col.key ? '#2E6EAB10' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
+              style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#2E6EAB10' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px' }}>
                 <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{col.label}</b>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
@@ -226,7 +243,7 @@ export function FichaDemanda({ id, gestao, onClose }: { id: string; gestao: bool
 function Gaveta({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 65, background: 'rgba(0,0,0,.45)', display: 'flex', justifyContent: 'flex-end' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 'min(860px, 100%)', height: '100%', background: 'var(--t-card-bg)', display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 40px rgba(0,0,0,.18)' }}>{children}</div>
+      <div onClick={e => e.stopPropagation()} style={{ width: 'min(1100px, 100%)', height: '100%', background: 'var(--t-card-bg)', display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 40px rgba(0,0,0,.18)' }}>{children}</div>
     </div>
   );
 }
@@ -753,7 +770,7 @@ export function ConfigPortalImplantacao() {
     <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, cursor: 'pointer' }}><input type="checkbox" checked={v} onChange={e => f(e.target.checked)} style={{ marginTop: 3 }} /><span><b>{t}</b><br /><span style={{ color: 'var(--t-text-muted)', fontSize: 12 }}>{s}</span></span></label>
   );
   return (
-    <div style={{ display: 'grid', gap: 16, maxWidth: 820 }}>
+    <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))', alignItems: 'start' }}>
       <div style={{ ...cartao, padding: 16, display: 'grid', gap: 10 }}>
         <div style={rotulo}>Programação (quem resolve as esperas)</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -786,10 +803,10 @@ export function ConfigPortalImplantacao() {
         {liga(c.ofertas_ativo, v => set(['ofertas_ativo'], v), 'Agente de oferta', `Depois da virada, oferece ao cliente um item do catálogo que ele ainda não usa (1 por cliente a cada 30 dias, nunca se uma pessoa estiver atendendo a conversa). Só funciona com o catálogo preenchido.`)}
         <label style={{ fontSize: 12 }}>Oferecer a partir de {num(c.ofertas_dias_apos_virada, n => set(['ofertas_dias_apos_virada'], n))} dias depois da virada</label>
       </div>
-      <div style={{ ...cartao, padding: 16, display: 'grid', gap: 8 }}>
+      <div style={{ ...cartao, padding: 16, display: 'grid', gap: 8, gridColumn: '1 / -1' }}>
         <div style={rotulo}>Catálogo do agente de oferta</div>
         {c.catalogo.map((it: any, k: number) => (
-          <div key={k} style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr .8fr auto', gap: 6 }}>
+          <div key={k} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr)) auto', gap: 6 }}>
             <input value={it.produto} onChange={e => set(['catalogo', String(k), 'produto'], e.target.value)} placeholder="Produto (ex.: Pacote fiscal)" className="ps-input" />
             <input value={it.descricao} onChange={e => set(['catalogo', String(k), 'descricao'], e.target.value)} placeholder="O que é e o que resolve" className="ps-input" />
             <input value={it.preco} onChange={e => set(['catalogo', String(k), 'preco'], e.target.value)} placeholder="Preço (ex.: R$ 50/mês)" className="ps-input" />
@@ -798,7 +815,7 @@ export function ConfigPortalImplantacao() {
         ))}
         <div><button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { produto: '', descricao: '', preco: '' }] }))} style={btn('#2E6EAB', false)}>+ Produto ou pacote</button></div>
       </div>
-      <div><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), padding: '10px 18px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />} {ok ? 'Salvo' : 'Salvar configurações'}</button></div>
+      <div style={{ gridColumn: '1 / -1' }}><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), padding: '10px 18px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />} {ok ? 'Salvo' : 'Salvar configurações'}</button></div>
     </div>
   );
 }

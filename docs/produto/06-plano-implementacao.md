@@ -806,3 +806,18 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - "Demandas (SLA)", no menu do Portal Técnico;
   - aba "Histórico" (Solicitações de serviço), na ficha do cliente.
   - As duas liam a tabela `SolicitacaoServico`, que nunca foi criada em produção, e por isso apareciam sempre zeradas.
+
+### Atualização 02/10/2026: Portal Técnico unificado e de tela cheia
+
+- **Quadro único** (`QuadroDemandas`):
+  - implantações e serviços juntos, com filtro **Tudo / Implantações / Serviços** e a contagem de cada um;
+  - `GET /implantacoes/quadro` sem `modulo` devolve tudo;
+  - as colunas se esticam para ocupar a largura da tela;
+  - quando não há nada em andamento, mostra uma mensagem explicando o que entra e quando.
+- **Menu:** saíram "Serviços" (agora é o filtro do Quadro) e a lista antiga "Implantações" (Datas/Executar), sem apagar código.
+- **Início:** os itens de "Pede atenção agora" abrem direto o card da demanda no Quadro.
+- **Tela cheia e responsiva:**
+  - Início em grade fluida (4 colunas em tela grande, 2 em notebook ou tablet, 1 no celular), sem largura máxima;
+  - Configurações em duas colunas;
+  - ficha da demanda com até 1100px;
+  - abaixo de 900px, o menu lateral vira só ícones e o topo esconde o título.
