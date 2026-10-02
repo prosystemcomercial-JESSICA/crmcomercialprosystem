@@ -297,6 +297,69 @@ async function tirarDaListaJaCliente(prisma: PrismaClient, sdr: any, motivo: str
   registrarAcaoAgente(agenteDe(sdr), `tirou ${sdr.nome || sdr.empresa || 'um contato'} da lista: já é cliente Prosystem`);
 }
 
+/**
+ * Quem respondeu passou o WhatsApp do decisor (dono/gerente): vira lead novo, ligado à mesma empresa,
+ * e entra na fila da Caroline para a captação do zero (a fila respeita limite, intervalo e horário do número).
+ * Não duplica: número já em conversa com agente, cliente ativo ou marcado sem agente fica de fora.
+ */
+async function registrarDecisorIndicado(prisma: PrismaClient, sdr: any, nc: NonNullable<RespostaCaroline['novo_contato']>) {
+  const numero = nc.numero;
+  const quem = [nc.nome, nc.cargo].filter(Boolean).join(', ') || 'o responsável';
+  const anotar = (descricao: string) => sdr.lead_id
+    ? prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {})
+    : Promise.resolve();
+  if (ultimos8(numero) === ultimos8(sdr.numero || '')) return;
+  if (await prisma.sdrLead.findFirst({ where: { numero: { endsWith: ultimos8(numero) }, status: { in: ATIVOS } }, select: { id: true } })) {
+    await anotar(`📇 A loja passou o contato de ${quem}: ${numero}. Esse número já está em conversa com um agente.`);
+    return;
+  }
+  if (await ehClienteAtivo(prisma, numero) || await contatoSemAgentes(prisma, numero)) {
+    await anotar(`📇 A loja passou o contato de ${quem}: ${numero}. Não entra na captação (já é cliente ou está marcado para não falar com agentes).`);
+    return;
+  }
+  const inst = await obterInstanciaEmpresa(prisma);
+  if (!inst) return;
+  const d: any = sdr.dados || {};
+  const origem = sdr.lead_id ? await prisma.lead.findUnique({ where: { id: sdr.lead_id }, select: { empresa: true, nome_fantasia: true, razao_social: true, cnpj: true, segmento: true, cidade: true, estado: true } }).catch(() => null) : null;
+  const empresa = sdr.empresa || origem?.nome_fantasia || origem?.empresa || null;
+  const obs = `Decisor indicado pela própria loja na conversa com ${nomeDe(sdr)} (número da loja: ${sdr.numero}). ${quem}${empresa ? `, da ${empresa}` : ''}. Captação do zero.`;
+  let lead = await acharLead(prisma, numero);
+  if (!lead) {
+    const novo = await prisma.lead.create({
+      data: {
+        nome: empresa || nc.nome || numero, nome_fantasia: origem?.nome_fantasia || null, razao_social: origem?.razao_social || null, empresa, cnpj: origem?.cnpj || null,
+        segmento: sdr.segmento || origem?.segmento || null, cidade: d.cidade || origem?.cidade || null, estado: origem?.estado || null,
+        responsavel_nome: nc.nome, telefone: numero, responsavel_telefone: numero, origem: 'INDICACAO', temperatura: 'FRIO', etapa_sdr: 'NOVO_LEAD',
+        campanha_nome: 'Decisor indicado pela loja', observacoes: obs, created_by: agenteDe(sdr),
+      } as any,
+      select: { id: true },
+    });
+    lead = { id: novo.id } as any;
+  }
+  await prisma.leadObservacao.create({ data: { lead_id: lead!.id, tipo: 'SISTEMA', descricao: obs, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
+  const conv = await garantirConversaLead(prisma, inst.id, numero, nc.nome, lead!.id);
+  await prisma.sdrLead.create({
+    data: {
+      agente: 'caroline', lead_id: lead!.id, conversaId: conv.id, numero, nome: nc.nome, empresa, segmento: sdr.segmento, campanha: 'Decisor indicado pela loja',
+      cadastro_em: new Date(), status: 'FILA', criado_por: agenteDe(sdr),
+      dados: { indicacao: { por: sdr.nome || null, cargo: nc.cargo, sdr_origem: sdr.id, numero_loja: sdr.numero }, ...(d.cidade ? { cidade: d.cidade } : {}), ...(d.sistema_atual ? { sistema_atual: d.sistema_atual } : {}) },
+    },
+  });
+  await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...d, decisor: quem, decisor_numero: numero } } }).catch(() => {});
+  await anotar(`📇 A loja passou o contato de ${quem}: ${numero}. Cadastrado como lead novo; a Caroline começa a captação com ele.`);
+  registrarAcaoAgente(agenteDe(sdr), `conseguiu o contato do decisor de ${empresa || 'uma loja'} (${quem}): virou lead novo`);
+}
+
+async function garantirConversaLead(prisma: PrismaClient, instanciaId: string, numero: string, nome: string | null, leadId: string) {
+  const cs = await prisma.whatsappConversa.findMany({ where: { instanciaId, contato_numero: { endsWith: ultimos8(numero) } }, select: { id: true, contato_numero: true } });
+  const achou = cs.find(c => ultimos8(c.contato_numero) === ultimos8(numero));
+  if (achou) {
+    await prisma.whatsappConversa.update({ where: { id: achou.id }, data: { lead_id: leadId, tipo_contato: 'LEAD', contato_nome: nome || undefined, dono_id: null, bot_ativo: false } });
+    return achou;
+  }
+  return prisma.whatsappConversa.create({ data: { instanciaId, contato_numero: numero, contato_nome: nome, tipo_contato: 'LEAD', lead_id: leadId, bot_ativo: false, nao_lidas: 0 }, select: { id: true, contato_numero: true } });
+}
+
 async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline, dica = ''): Promise<RespostaCaroline | null> {
   const valoresProposta: string[] = [];
   const { guiaComercial } = await import('./assistente-ia.service');
@@ -340,6 +403,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
     // Assuntos da atualidade só no follow-up de quem já conversou (1ª e 2ª retomadas usam o dia a dia).
     atualidades: fase === 'retomada' && sdr.ultima_lead_em ? atualidades : [],
     lead: { nome: agenteDe(sdr) === 'caroline' ? sdr.nome : await nomeParaChamar(prisma, sdr.numero, sdr.nome), empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null,
+      indicacao: (sdr.dados as any)?.indicacao ? { por: (sdr.dados as any).indicacao.por || null, cargo: (sdr.dados as any).indicacao.cargo || null } : null,
       prospeccao: (sdr.dados as any)?.prospeccao ? { cidade: (sdr.dados as any).cidade || null, bairro: (sdr.dados as any).bairro || null } : null,
       recuperacao: recuperacaoAtiva(sdr) ? { motivo_informado: recuperacaoAtiva(sdr).motivo_informado || null, pergunta_feita: !!recuperacaoAtiva(sdr).pergunta_feita_em } : null },
   });
@@ -909,6 +973,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     registrarAcaoAgente(agenteDe(sdr), `${sdr.nome || 'o lead'} combinou retorno: ${quandoTxt}`);
   }
   registrarAcaoAgente(agenteDe(sdr), `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
+  if (r.novo_contato) await registrarDecisorIndicado(prisma, sdr, r.novo_contato).catch(e => console.error('[agente] decisor indicado:', e?.message || e));
   if (r.acao !== 'continuar') await aplicarAcao(prisma, token, sdr, r.acao, r);
   if (fase === 'resposta') void aprenderLaya(prisma, sdr, r.acao, r.nota);
   if (recuperacaoAtiva(sdr) && (r.revisar_proposta || r.retomar_em || r.adiar_dias || r.acao === 'duvida_fora_material')) await voltouANegociar(prisma, sdr);

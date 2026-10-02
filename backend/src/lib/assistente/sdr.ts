@@ -174,6 +174,8 @@ export type RespostaCaroline = {
   retomar_em?: Date | null;
   /** Cliente quer a reunião a partir desta data (ex.: "semana que vem" = próxima segunda). */
   demo_a_partir?: Date | null;
+  /** Quem respondeu passou o WhatsApp do decisor (dono/gerente): vira lead novo, com captação do zero. */
+  novo_contato?: { nome: string | null; numero: string; cargo: string | null } | null;
 };
 
 // "AAAA-MM-DD" ou "AAAA-MM-DDTHH:MM" no horário de Brasília; só datas futuras (até 90 dias).
@@ -258,6 +260,15 @@ export function temperaturaDaNota(nota: number): 'MUITO_QUENTE' | 'QUENTE' | 'MO
   return 'FRIO';
 }
 
+/** Contato do decisor passado na conversa; só vale com um celular brasileiro válido. */
+function lerNovoContato(v: any): RespostaCaroline['novo_contato'] {
+  if (!v || typeof v !== 'object') return null;
+  const numero = numeroWhatsapp(String(v.numero || ''));
+  if (!numero) return null;
+  const s = (x: any) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, 100) : null);
+  return { numero, nome: s(v.nome), cargo: s(v.cargo) };
+}
+
 /** Valida a resposta da IA; null se não der para usar com segurança. */
 export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): RespostaCaroline | null {
   if (!j || typeof j !== 'object') return null;
@@ -283,6 +294,7 @@ export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): R
     adiar_dias: Number.isFinite(Number(j.adiar_dias)) && Number(j.adiar_dias) > 0 ? Math.min(60, Math.round(Number(j.adiar_dias))) : null,
     retomar_em: lerDataSP(j.retomar_em),
     demo_a_partir: lerDataSP(j.demo_a_partir, '00:00'),
+    novo_contato: lerNovoContato(j.novo_contato),
     motivo_perda: acao === 'sem_interesse' || acao === 'recusou' ? ((MOTIVOS_PERDA as readonly string[]).includes(j.motivo_perda) ? j.motivo_perda : 'SEM_INTERESSE') : null,
   };
 }
@@ -308,6 +320,8 @@ export function promptCaroline(p: {
   lead: { nome: string | null; empresa: string | null; segmento: string | null; campanha: string | null; abertura_jessica: boolean; tentativa: number; ja_conversou?: boolean; combinado?: string | null;
     /** Encontrado pelo Heitor no Google Maps: o cliente NÃO procurou a Prosystem (primeiro contato ativo). */
     prospeccao?: { cidade: string | null; bairro: string | null } | null;
+    /** Contato passado por alguém da própria empresa (o número da loja indicou o decisor). */
+    indicacao?: { por: string | null; cargo: string | null } | null;
     /** Proposta recusada: o Luiz Felipe está entendendo o motivo e tentando recuperar (conversa natural). */
     recuperacao?: { motivo_informado?: string | null; pergunta_feita?: boolean } | null };
   saudacao: string;
@@ -336,6 +350,7 @@ export function promptCaroline(p: {
     'DIA A DIA DA FARMÁCIA (use de forma natural, como quem conhece o balcão, 1 exemplo por vez, só para ajudar o cliente a reconhecer o próprio problema; nunca como lista nem aula): fila e demora no caixa em horário de pico; estoque furado (produto que acaba sem aviso, remédio vencendo na prateleira, compra no escuro); controle de medicamentos controlados e receitas (SNGPC); convênios, PBMs e Farmácia Popular dando trabalho para lançar e conferir; fiado/crediário e contas a receber sem controle; margem apertada e preço difícil de acompanhar; cliente de uso contínuo que não volta porque ninguém lembra de chamar; fechamento de caixa que não bate; nota fiscal e impostos. A SOLUÇÃO para qualquer um deles só pode vir do MATERIAL; se o material não cobrir, não prometa.',
     `HOJE: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}, agora são ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })} (datas em AAAA-MM-DD, horário de Brasília). Se um horário combinado já passou, não diga que está chegando nele; retome com naturalidade.`,
     'PEDIU OU ACEITOU REUNIÃO/DEMONSTRAÇÃO (inclusive para depois, ex.: "semana que vem pode agendar uma reunião?"): NUNCA responda "retomamos depois" nem deixe para marcar mais tarde. Use acao "oferecer_demo" NESTA resposta: o sistema manda na hora a lista com os horários livres da nossa agenda, em vários dias, e o horário escolhido entra na agenda. Em "demo_a_partir" ponha a data (AAAA-MM-DD) a partir da qual ele quer (semana que vem = próxima segunda); se for o quanto antes, null. Sua mensagem: curta, confirmando e avisando que já vai mandar as opções de horário para ele escolher.',
+    'CONTATO DO DECISOR: se quem responde diz que a pessoa não é dali, não é o responsável ou passa o WhatsApp de outra pessoa (dono, gerente, sócio, quem cuida do sistema), preencha "novo_contato" com o número EXATO que ele escreveu, o nome e o cargo (se disse). Agradeça curto, diga que vai falar direto com ele e encerre com a porta aberta, sem pedir desculpa como se fosse engano e sem perguntar mais nada (acao "continuar"). O sistema cadastra esse contato como lead novo e outra conversa começa com ele. Se só disse o nome, sem número, peça com educação o WhatsApp dele. Fora disso, "novo_contato": null.',
     'COMPROMISSO DE HORÁRIO: sempre que você disser que vai falar com alguém num horário (ex.: o decisor não está e disseram "13h"; "te chamo amanhã às 10h"), preencha "retomar_em" com esse dia e hora exatos (AAAA-MM-DDTHH:MM). Se o decisor não está, pergunte o melhor horário para falar com ele e, quando disserem, confirme e registre. Nunca prometa um horário sem registrar.',
     'CLIENTE ADIOU (está viajando, "quando voltar eu te chamo", "depois te procuro", "mês que vem"): nunca termine sem DIA E HORA combinados. Se ele não disse quando, ofereça 3 opções concretas de dia e período dentro do horário comercial (seg a sex, 9h às 12h e 14h às 17h), ex.: "fica melhor quinta de manhã, sexta à tarde ou segunda de manhã?". Quando ele escolher (ou já tiver dito dia e hora), confirme curto repetindo o dia e o horário e preencha "retomar_em" (AAAA-MM-DDTHH:MM): você volta a falar com ele exatamente nesse momento. Só se ele recusar marcar dia, preencha "adiar_dias" (se não souber, 7). Depois disso você NÃO manda mais nada até lá.',
     'NUNCA SEJA REPETITIVO: não repita o que você já disse nas mensagens anteriores (mesma ideia, mesma frase, mesmo convite). Se não houver nada novo e útil a dizer, não escreva.',
@@ -353,7 +368,7 @@ export function promptCaroline(p: {
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NOME: só chame o cliente pelo nome que está em "Lead:". Se o histórico mostrar que a pessoa com quem falamos tem outro nome, use o do histórico. Na dúvida, cumprimente sem nome (errar o nome estraga a conversa).','NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
     'AÇÃO: "continuar" (seguir investigando); "oferecer_demo" assim que a dor foi dita (mesmo curta) e você já mostrou como o MATERIAL resolve, ou quando a nota ≥ 60, ou o cliente pedir (escreva uma mensagem curta ligando a dor ao que a demonstração vai mostrar; os horários são enviados depois automaticamente); "passar_vendedora" quando ele tem interesse mas não quer marcar agora (despeça-se dizendo que a consultora vai falar com ele); "sem_interesse" quando ele disser que não quer ou não é o momento (inclusive "já resolvi", "já resolvemos", "já temos sistema", "já fechamos": isso significa que ele não tem mais interesse; use motivo_perda JA_TEM_FORNECEDOR e ele passa só a receber o Informativo Prosystem) (despeça-se com gentileza, porta aberta).',
-    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
+    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","novo_contato":{"nome":null,"numero":null,"cargo":null},"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.aprendizado?.length ? '\n=== COMO A EQUIPE RESPONDE QUANDO ASSUME A CONVERSA (aprenda o jeito, a abordagem e os argumentos; faça igual ou MELHOR, sem copiar palavra por palavra; nunca repita dados de outro cliente) ===\n' + p.aprendizado.map(a => `Cliente: ${a.cliente}\nEquipe: ${a.equipe}`).join('\n---\n') : '',
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',
@@ -377,7 +392,13 @@ export function promptCaroline(p: {
   const aberturaProspeccao = pr
     ? `PRIMEIRO CONTATO ATIVO: esta ${tipoLoja} NÃO se inscreveu nem procurou a Prosystem; a equipe encontrou a ${l.empresa || tipoLoja} no Google Maps${pr.bairro ? ` (${pr.bairro}, ${pr.cidade})` : pr.cidade ? ` (${pr.cidade})` : ''}. Apresente-se como Caroline, da Prosystem Sistemas, de Vitória/ES, que faz sistema de gestão e frente de caixa para ${tipoLoja === 'padaria' ? 'padarias' : 'farmácias e drogarias'}. Em UMA frase diga por que está chamando, com um gancho do dia a dia (${diaADia}), sem prometer nada fora do MATERIAL. Termine com UMA pergunta fácil: se ele é o responsável pela ${tipoLoja} ou qual sistema usa hoje. NUNCA diga que ele se inscreveu, pediu contato ou mostrou interesse. Nada de elogio forçado nem de citar nota ou avaliações do Google. No máximo 2 frases curtas, em uma única mensagem.${l.nome ? ` O nome ${l.nome.split(' ')[0]} veio do cadastro da empresa na Receita: use só se tiver certeza de que é ele quem atende; na dúvida, não use nome.` : ''}`
     : '';
-  const tarefa = p.fase === 'abertura' && pr && !followUp
+  const ind = l.indicacao;
+  const aberturaIndicacao = ind
+    ? `PRIMEIRO CONTATO POR INDICAÇÃO: quem atendeu ${l.empresa ? `na ${l.empresa}` : 'na loja'}${ind.por ? ` (${ind.por})` : ''} passou este WhatsApp como o contato ${ind.cargo ? `do ${ind.cargo}` : 'do responsável'}. Cumprimente${l.nome ? ` ${l.nome.split(' ')[0]}` : ''}, apresente-se como Caroline, da Prosystem Sistemas, de Vitória/ES (sistema de gestão e frente de caixa para ${tipoLoja === 'padaria' ? 'padarias' : 'farmácias e drogarias'}), diga numa frase que pegou o contato dele com a equipe da loja e termine com UMA pergunta fácil sobre o sistema que usam hoje. NUNCA diga que ele se inscreveu ou pediu contato. No máximo 2 frases curtas, em uma única mensagem.`
+    : '';
+  const tarefa = p.fase === 'abertura' && ind && !followUp
+    ? aberturaIndicacao
+    : p.fase === 'abertura' && pr && !followUp
     ? aberturaProspeccao
     : p.fase === 'abertura' && followUp
     ? aberturaFollowUp

@@ -778,3 +778,12 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
 **Atenção**
 - Se a Caroline estiver desligada, o Heitor cadastra, mas ninguém manda a primeira mensagem.
 - Se o WhatsApp da empresa cair, ele para e avisa no painel.
+
+### Atualização 02/10/2026: contato do decisor passado pela loja
+
+Quando quem atende na loja diz que a pessoa procurada não é dali e passa o WhatsApp do dono, do gerente ou de quem cuida do sistema:
+
+1. O agente agradece e diz que vai falar direto com essa pessoa.
+2. O CRM cadastra esse contato como **lead novo**, na campanha "Decisor indicado pela loja". O lead da loja continua no CRM e ganha uma observação com o nome e o número do decisor.
+3. A Caroline começa a conversa com ele do zero. Ela conta que pegou o contato com a equipe da loja, nunca diz que ele se inscreveu, e respeita o limite e o horário do número.
+4. Se o número já está em conversa com um agente, é de cliente ou está marcado para não falar com agentes, nada é criado. Fica só a anotação no lead da loja.

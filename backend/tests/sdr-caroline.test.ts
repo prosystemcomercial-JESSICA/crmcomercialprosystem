@@ -116,3 +116,21 @@ describe('Caroline — termômetro e resposta da IA', () => {
     expect(p.usuario).toContain('Farmácia Exemplo');
   });
 });
+
+describe('decisor indicado pela loja', () => {
+  const base = { mensagens: ['Obrigada! Vou falar direto com ele.'], acao: 'continuar', nota: 10 };
+  it('lê o WhatsApp do decisor passado na conversa', () => {
+    const r = lerRespostaCaroline({ ...base, novo_contato: { nome: 'Leonardo', numero: '27997714897', cargo: 'dono' } });
+    expect(r?.novo_contato).toEqual({ nome: 'Leonardo', numero: '5527997714897', cargo: 'dono' });
+  });
+  it('ignora número inválido ou ausente', () => {
+    expect(lerRespostaCaroline({ ...base, novo_contato: { nome: 'Leo', numero: '1234' } })?.novo_contato).toBeNull();
+    expect(lerRespostaCaroline({ ...base, novo_contato: { nome: null, numero: null, cargo: null } })?.novo_contato).toBeNull();
+  });
+  it('abertura por indicação não fala em inscrição', () => {
+    const p = promptCaroline({ guia: '', instrucoes: '', exemplos: [], historico: '', fase: 'abertura', saudacao: 'Bom dia',
+      lead: { nome: 'Leonardo', empresa: 'Drogaria Farmalis', segmento: 'Farmácia', campanha: null, abertura_jessica: false, tentativa: 0, indicacao: { por: null, cargo: 'dono' } } });
+    expect(p.usuario).toContain('PRIMEIRO CONTATO POR INDICAÇÃO');
+    expect(p.sistema).toContain('CONTATO DO DECISOR');
+  });
+});
