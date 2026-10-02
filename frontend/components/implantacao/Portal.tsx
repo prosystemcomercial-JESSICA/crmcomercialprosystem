@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth-context';
 import {
   X, Loader2, CheckCircle, Hourglass, AlertTriangle, Rocket, FileText, Image as ImageIcon, Link2, Copy, Bell, Send,
   GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2, Phone, Building2,
@@ -169,7 +170,7 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'onboarding' | 'fichacliente' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
+type Aba = 'onboarding' | 'fichacliente' | 'observacoes' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
 
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
@@ -187,7 +188,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   const servico = i.modulo === 'SERVICO';
   const abas: [Aba, string, any][] = [
     ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
-    ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
+    ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
     ['tempos', 'Tempos', Clock], ['cliente', 'Cliente', Users], ['historico', 'Histórico', MessageSquare],
@@ -205,6 +206,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
           </div>
           <button onClick={onClose} aria-label="Fechar"><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
+        <ResponsavelEmpresa d={d} gestao={gestao} recarregar={carregar} />
         <ContatoDestaque d={d} />
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 160 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>
@@ -222,6 +224,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
       <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
         {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} />}
         {aba === 'fichacliente' && <AbaFichaCliente d={d} />}
+        {aba === 'observacoes' && <AbaObservacoes id={d.implantacao.id} />}
         {aba === 'resumo' && <AbaResumo d={d} gestao={gestao} recarregar={carregar} />}
         {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} />}
         {aba === 'checklist' && <AbaChecklist d={d} recarregar={carregar} />}
@@ -729,6 +732,53 @@ function contatosDoCliente(d: any): { nome: string | null; fone: string }[] {
   return out;
 }
 
+/** Responsável da empresa (decisor): a supervisão informa nome e telefone; o técnico vê em destaque e liga direto. */
+function ResponsavelEmpresa({ d, gestao, recarregar }: { d: any; gestao: boolean; recarregar: () => void }) {
+  const col = d.implantacao.coleta || {};
+  const [editando, setEditando] = useState(false);
+  const [nome, setNome] = useState(col.decisor_nome || '');
+  const [fone, setFone] = useState(col.decisor_telefone || '');
+  const salvar = async () => {
+    try { await apiClient.salvarDecisorImplantacao(d.implantacao.id, nome.trim(), fone.trim()); setEditando(false); recarregar(); } catch (e) { alert(erroDe(e)); }
+  };
+  const tem = col.decisor_nome || col.decisor_telefone;
+  if (!tem && !gestao) return null;
+  if (editando) return (
+    <div style={{ borderRadius: 12, padding: '12px 14px', background: '#16a34a0d', border: '1px solid #16a34a55', display: 'grid', gap: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '.04em' }}>Responsável da empresa (decisor)</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do responsável" className="ps-input" style={{ flex: '1 1 200px', minHeight: 40 }} />
+        <input value={fone} onChange={e => setFone(e.target.value)} placeholder="Telefone / WhatsApp" inputMode="tel" className="ps-input" style={{ flex: '1 1 160px', minHeight: 40 }} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={salvar} style={{ ...btn('#16a34a'), minHeight: 40 }}>Salvar</button>
+        <button onClick={() => setEditando(false)} style={{ ...btn('#64748b', false), minHeight: 40 }}>Cancelar</button>
+      </div>
+    </div>
+  );
+  if (!tem) return (
+    <button onClick={() => setEditando(true)} style={{ borderRadius: 12, padding: '10px 14px', background: 'transparent', border: '1px dashed #16a34a88', color: '#15803d', fontWeight: 700, fontSize: 13, cursor: 'pointer', textAlign: 'left', minHeight: 44 }}>
+      + Informar responsável da empresa (decisor) para o técnico falar direto
+    </button>
+  );
+  const n = soDigitos(col.decisor_telefone), wa = n.length >= 10 ? (n.startsWith('55') ? n : `55${n}`) : null;
+  return (
+    <div style={{ borderRadius: 12, padding: '12px 14px', background: '#16a34a0d', border: '1px solid #16a34a55', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Users size={22} color="#16a34a" />
+      <div style={{ flex: 1, minWidth: 180 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '.04em' }}>Responsável da empresa (decisor)</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>{col.decisor_nome || 'Sem nome'}</div>
+        {n && <a href={`tel:${n}`} style={{ fontSize: 20, fontWeight: 800, color: '#15803d', textDecoration: 'none' }}>{fmtFone(col.decisor_telefone)}</a>}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {n && <a href={`tel:${n}`} style={{ ...btn('#16a34a'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><Phone size={14} /> Ligar</a>}
+        {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><MessageSquare size={14} /> WhatsApp</a>}
+        {gestao && <button onClick={() => { setNome(col.decisor_nome || ''); setFone(col.decisor_telefone || ''); setEditando(true); }} style={{ ...btn('#64748b', false), minHeight: 44 }}>Editar</button>}
+      </div>
+    </div>
+  );
+}
+
 /** Nome e telefone do contato em evidência no topo do card, com Ligar e WhatsApp. */
 function ContatoDestaque({ d }: { d: any }) {
   const contatos = contatosDoCliente(d);
@@ -753,6 +803,52 @@ function ContatoDestaque({ d }: { d: any }) {
         <a href={`tel:${n}`} style={{ ...btn('#2E6EAB'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><Phone size={14} /> Ligar</a>
         {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><MessageSquare size={14} /> WhatsApp</a>}
       </div>
+    </div>
+  );
+}
+
+// ─── Observações do card: compartilhadas (técnico + supervisão) e pessoais (só minhas) ───
+
+function AbaObservacoes({ id }: { id: string }) {
+  const [obs, setObs] = useState<{ compartilhadas: any[]; pessoais: any[] }>({ compartilhadas: [], pessoais: [] });
+  const eu = useAuth().user?.id || null;
+  const carregar = useCallback(async () => { try { const r = await apiClient.getObservacoesImplantacao(id); setObs(r.data.data); } catch { /* ignore */ } }, [id]);
+  useEffect(() => { carregar(); }, [carregar]);
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <BlocoObservacoes titulo="Observações compartilhadas" dica="Técnico e supervisão veem e escrevem aqui." lista={obs.compartilhadas} privada={false} id={id} eu={eu} recarregar={carregar} cor="#2E6EAB" />
+      <BlocoObservacoes titulo="Minha observação pessoal" dica="🔒 Só você vê. Não é compartilhada com ninguém." lista={obs.pessoais} privada id={id} eu={eu} recarregar={carregar} cor="#7c3aed" />
+    </div>
+  );
+}
+
+function BlocoObservacoes({ titulo, dica, lista, privada, id, eu, recarregar, cor }: { titulo: string; dica: string; lista: any[]; privada: boolean; id: string; eu: string | null; recarregar: () => void; cor: string }) {
+  const [texto, setTexto] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const salvar = async () => {
+    if (!texto.trim()) return;
+    setSalvando(true);
+    try { await apiClient.addObservacaoImplantacao(id, texto.trim(), privada); setTexto(''); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
+  };
+  const apagar = async (oid: string) => { if (!confirm('Apagar esta observação?')) return; try { await apiClient.delObservacaoImplantacao(oid); recarregar(); } catch (e) { alert(erroDe(e)); } };
+  return (
+    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10, borderColor: `${cor}40` }}>
+      <div>
+        <div style={{ ...rotulo, color: cor }}>{titulo}</div>
+        <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 2 }}>{dica}</div>
+      </div>
+      <textarea rows={3} value={texto} onChange={e => setTexto(e.target.value)} className="ps-input w-full" placeholder={privada ? 'Anotação só sua…' : 'Escreva uma observação para a equipe…'} />
+      <div><button onClick={salvar} disabled={salvando || !texto.trim()} style={{ ...btn(cor), minHeight: 40 }}><Send size={12} /> {salvando ? 'Salvando…' : 'Salvar observação'}</button></div>
+      {lista.length === 0 && <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhuma observação ainda.</div>}
+      {lista.map(o => (
+        <div key={o.id} style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{o.texto}</div>
+            <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{privada ? 'você' : o.autor_nome || 'Equipe'} · {fmtDataHora(o.created_at)}</div>
+          </div>
+          {o.autor_id === eu && <button onClick={() => apagar(o.id)} title="Apagar" aria-label="Apagar observação" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--t-text-muted)', padding: 6 }}><X size={14} /></button>}
+        </div>
+      ))}
     </div>
   );
 }
@@ -797,6 +893,7 @@ function AbaFichaCliente({ d }: { d: any }) {
         linha('Cliente desde', dataBR(c?.data_entrada)),
       ])}
       {bloco('Contatos', [
+        linha('Responsável da empresa (decisor)', i.coleta?.decisor_nome ? `${i.coleta.decisor_nome}${i.coleta.decisor_telefone ? ` · ${fmtFone(i.coleta.decisor_telefone)}` : ''}` : (i.coleta?.decisor_telefone ? fmtFone(i.coleta.decisor_telefone) : null)),
         linha('Contato principal', c?.contato || i.coleta?.contato_nome),
         linha('Telefone do contato', c?.tel_contato ? fmtFone(c.tel_contato) : null),
         linha('Segundo contato', c?.contato2),

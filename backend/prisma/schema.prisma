@@ -1661,6 +1661,21 @@ model OfertaCliente {
   @@index([cliente_id])
 }
 
+// Observações do card do cliente no Portal Técnico.
+// privada = false: compartilhada entre técnico e supervisão; privada = true: só quem escreveu vê.
+model ImplantacaoObservacao {
+  id             String   @id @default(cuid())
+  implantacao_id String
+  autor_id       String
+  autor_nome     String?
+  texto          String   @db.Text
+  privada        Boolean  @default(false)
+  created_at     DateTime @default(now())
+
+  @@index([implantacao_id, privada])
+  @@index([autor_id])
+}
+
 // Testes de conversão de dados (checklist padrão + avulsos).
 model ImplantacaoTeste {
   id             String      @id @default(cuid())

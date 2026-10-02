@@ -913,6 +913,10 @@ class ApiClient {
   async getQuadroImplantacao(modulo?: 'IMPLANTACAO' | 'SERVICO' | null) { return this.client.get('/implantacoes/quadro', { params: modulo ? { modulo } : {} }); }
   async moverColunaImplantacao(id: string, coluna: string) { return this.client.patch(`/implantacoes/${id}/coluna`, { coluna }); }
   async getPortalImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/portal`); }
+  async salvarDecisorImplantacao(id: string, nome: string, telefone: string) { return this.client.patch(`/implantacoes/${id}/decisor`, { nome, telefone }); }
+  async getObservacoesImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/observacoes`); }
+  async addObservacaoImplantacao(id: string, texto: string, privada: boolean) { return this.client.post(`/implantacoes/${id}/observacoes`, { texto, privada }); }
+  async delObservacaoImplantacao(obsId: string) { return this.client.delete(`/implantacoes/observacoes/${obsId}`); }
   async salvarColeta(id: string, dados: Record<string, any>) { return this.client.put(`/implantacoes/${id}/coleta`, dados); }
   async enviarTelaSuporte(id: string, nome: string, arquivo: string) { return this.client.post(`/implantacoes/${id}/tela-suporte`, { nome, arquivo }); }
   async getTelaSuporte(id: string) { return this.client.get(`/implantacoes/${id}/tela-suporte`); }

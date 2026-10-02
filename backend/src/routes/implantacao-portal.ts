@@ -117,6 +117,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const body = (request.body || {}) as Record<string, any>;
     const coleta: Record<string, string> = {};
     for (const c of CAMPOS_COLETA) if (body[c.key] != null && String(body[c.key]).trim() !== '') coleta[c.key] = String(body[c.key]).trim().slice(0, 2000);
+    // Responsável da empresa (decisor) é da supervisão: salvar a ficha não apaga.
+    const antiga: any = imp.coleta || {};
+    for (const k of ['decisor_nome', 'decisor_telefone']) if (antiga[k]) coleta[k] = antiga[k];
     const extra: any = {};
     if (coleta.tipo_base) extra.tipo_base = /zerado/i.test(coleta.tipo_base) ? 'BANCO_ZERADO' : 'CONVERSAO';
     if (coleta.sistema_anterior) extra.sistema_anterior = coleta.sistema_anterior;
@@ -151,6 +154,48 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (!imp?.tela_suporte_arquivo_id) return reply.status(404).send({ status: 'error', message: 'Sem tela anexada' });
     const arq = await prisma.implantacaoArquivo.findUnique({ where: { id: imp.tela_suporte_arquivo_id } });
     return reply.send({ status: 'success', data: arq });
+  });
+
+  // ── Responsável da empresa (decisor): a supervisão informa, o técnico liga direto para ele.
+  fastify.patch('/implantacoes/:id/decisor', async (request, reply) => {
+    const u = exigirGestao(request, reply); if (!u) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({ nome: z.string().trim().max(120).default(''), telefone: z.string().trim().max(40).default('') }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const imp = await prisma.implantacao.findUnique({ where: { id }, select: { coleta: true } });
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    const coleta: any = { ...((imp.coleta as any) || {}), decisor_nome: b.data.nome || null, decisor_telefone: b.data.telefone || null };
+    await prisma.implantacao.update({ where: { id }, data: { coleta } });
+    await atividade(id, 'NOTA', b.data.nome || b.data.telefone ? `👤 Responsável da empresa (decisor): ${b.data.nome || 'sem nome'}${b.data.telefone ? ` · ${b.data.telefone}` : ''}` : '👤 Responsável da empresa removido', u);
+    return reply.send({ status: 'success' });
+  });
+
+  // ── Observações do card: compartilhadas (técnico + supervisão) e pessoais (só do autor)
+  fastify.get('/implantacoes/:id/observacoes', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const imp = await demanda(u, (request.params as any).id);
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    const lista = await prisma.implantacaoObservacao.findMany({
+      where: { implantacao_id: imp.id, OR: [{ privada: false }, { privada: true, autor_id: u.id }] },
+      orderBy: { created_at: 'desc' },
+    });
+    return reply.send({ status: 'success', data: { compartilhadas: lista.filter(o => !o.privada), pessoais: lista.filter(o => o.privada) } });
+  });
+  fastify.post('/implantacoes/:id/observacoes', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const imp = await demanda(u, (request.params as any).id);
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    const b = z.object({ texto: z.string().trim().min(1).max(5000), privada: z.boolean().default(false) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escreva a observação.' });
+    const obs = await prisma.implantacaoObservacao.create({ data: { implantacao_id: imp.id, autor_id: u.id, autor_nome: u.nome || null, texto: b.data.texto, privada: b.data.privada } });
+    return reply.status(201).send({ status: 'success', data: obs });
+  });
+  // Só quem escreveu apaga a própria observação.
+  fastify.delete('/implantacoes/observacoes/:obsId', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const r = await prisma.implantacaoObservacao.deleteMany({ where: { id: (request.params as any).obsId, autor_id: u.id } });
+    if (!r.count) return reply.status(404).send({ status: 'error', message: 'Observação não encontrada' });
+    return reply.send({ status: 'success' });
   });
 
   // ── Detalhe do portal (ficha, comunicações, fases, ocorrências, tempos)

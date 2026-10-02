@@ -896,3 +896,12 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
 ### Atualização 02/10/2026: Satisfação (CSAT) só para a supervisão
 
 - O item **Satisfação** do Portal Técnico (grupo Suporte) só aparece para a gestão técnica (CEO, Admin, Supervisão Comercial/Técnica). O técnico não vê o menu nem abre a tela.
+
+### Atualização 02/10/2026: observações do card e responsável da empresa (decisor)
+
+- **Aba "Observações" no card do cliente** (Portal Técnico), com dois blocos:
+  - **Observações compartilhadas:** técnico e supervisão escrevem e veem tudo.
+  - **Minha observação pessoal (🔒):** só quem escreveu vê; não é compartilhada com ninguém, nem com a supervisão.
+  - Cada um apaga só as próprias observações.
+  - Tabela nova `ImplantacaoObservacao` (`implantacao_id`, `autor_id`, `autor_nome`, `texto`, `privada`, `created_at`). Rotas: `GET/POST /implantacoes/:id/observacoes` (o GET devolve as compartilhadas + só as pessoais do próprio usuário) e `DELETE /implantacoes/observacoes/:obsId` (só o autor).
+- **Responsável da empresa (decisor):** a supervisão informa nome e telefone no topo do card (botão "+ Informar responsável da empresa"). Aparece em destaque verde, acima do contato, com **Ligar** e **WhatsApp**, para o técnico falar direto com quem decide. Só a gestão edita (`PATCH /implantacoes/:id/decisor`, `exigirGestao`); fica em `coleta.decisor_nome` / `coleta.decisor_telefone`, preservado quando o técnico salva a ficha de coleta, e registrado no Histórico do card. Também aparece na aba Ficha do cliente.
