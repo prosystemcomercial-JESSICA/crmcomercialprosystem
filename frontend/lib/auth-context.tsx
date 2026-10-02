@@ -160,6 +160,13 @@ export function useAuth() {
 // Demais (vendedor) só veem o próprio resultado.
 const ROLES_VISAO_TOTAL = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 
+// Técnicos (implantação/suporte) só usam o Portal Técnico: entram direto nele
+// e não acessam nenhuma outra tela do CRM.
+const ROLES_SO_PORTAL = ['TECNICO', 'TECNICO_IMPLANTACAO', 'TECNICO_SUPORTE'];
+export function ehSoPortalTecnico(role?: string | null): boolean {
+  return ROLES_SO_PORTAL.includes((role || '').toUpperCase());
+}
+
 export function podeVerTudo(role?: string | null): boolean {
   const r = (role || '').toUpperCase();
   return ROLES_VISAO_TOTAL.some(x => r.includes(x));
