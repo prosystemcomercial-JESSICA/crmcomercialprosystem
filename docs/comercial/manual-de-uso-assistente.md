@@ -835,3 +835,7 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
 ### Atualização 02/10/2026: endereço curto da TV
 
 Para abrir a TV do Escritório no navegador do monitor ou da TV, digite o endereço curto `comercial.prosystemnet.com/t/<código>`. O endereço aparece em Configurações › Painel da TV, com o botão "Trocar código".
+
+### Atualização 02/10/2026: TV no monitor Samsung
+
+Se o navegador do monitor não abrir o endereço normal, use o endereço pelo IP: `http://179.199.134.177:3010/t/<código>` (o código está em Configurações › Painel da TV).
