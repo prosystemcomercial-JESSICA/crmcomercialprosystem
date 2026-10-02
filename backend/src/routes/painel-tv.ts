@@ -343,7 +343,7 @@ export async function montarDadosPainelTv(prisma: PrismaClient) {
 
 // Tela 3 · Base de clientes: em risco, tempo de casa (LTV em tempo), resolvidos e cancelados do mês.
 const CASO_ABERTO = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO'];
-async function montarTelaBase(prisma: PrismaClient, agora: Date) {
+export async function montarTelaBase(prisma: PrismaClient, agora: Date) {
   const diaSP = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   const inicioMes = new Date(`${diaSP.slice(0, 7)}-01T00:00:00-03:00`);
   const meses = (ini: Date | null, fim: Date) => (ini ? Math.max(0, (fim.getTime() - ini.getTime()) / (30.44 * 864e5)) : null);
