@@ -225,7 +225,19 @@ Junto com a ficha vai o **upload da tela do Suporte**, a tela de liberação do 
 
 Os cartões ativos no Trello serão migrados para o portal numa importação única, sem apagar nada do Trello.
 
-## 15. Pendências
+## 15. Situação em 02/10/2026
+
+Fases 1 a 8 entregues. Decisões tomadas durante a construção:
+- os serviços só entram no portal quando o card do kanban de serviços vai para "Em execução";
+- na virada, o cliente recebe as boas-vindas com o 1º vencimento, a confirmação do e-mail e a regra do boleto (enviado 10 dias antes; se não chegar, pedir até 24 horas antes pelo suporte);
+- o Sinval não tem usuário: usa um link sem login e o WhatsApp;
+- o agente se chama Otávio.
+
+Ficaram de fora:
+- a importação dos cartões ativos do Trello (precisa de acesso ao quadro);
+- o cartão na TV do Escritório.
+
+## 16. Pendências
 
 - Catálogo de produtos e pacotes com preço, para o agente de oferta (fase 7).
 - Nomes das fases do treinamento: os do item 9 são uma proposta.

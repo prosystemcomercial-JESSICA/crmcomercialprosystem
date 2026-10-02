@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
+import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao } from '@/components/implantacao/Portal';
 import { useSearchParams } from 'next/navigation';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
@@ -346,14 +347,14 @@ function CategoriaIcon({ categoria, size = 14 }: { categoria: string; size?: num
 
 // ─── página principal ─────────────────────────────────────────────────────────
 
-type Tab = 'meudia' | 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
+type Tab = 'quadro' | 'servicos' | 'avisos' | 'painel' | 'config' | 'meudia' | 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const gestaoTecnica = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'SUPERVISAO_TECNICA'].includes(String((user as any)?.role || '').toUpperCase());
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
-  const [tab, setTab] = useState<Tab>(tabParam || 'implantacoes');
+  const [tab, setTab] = useState<Tab>(tabParam || 'quadro');
 
   // Bootstrap auth from URL token (when opened as external window)
   useEffect(() => {
@@ -824,8 +825,11 @@ export default function PortalTecnicoPage() {
       group: 'IMPLANTAÇÃO',
       color: '#2E6EAB',
       items: [
-        { key: 'demandas'    as Tab, label: 'Demandas',     icon: LayoutGrid,   badge: demandas.filter(d => { const s = demandaSlaStatus(d); return s && !s.concluido && s.pct >= 100; }).length || null },
+        { key: 'demandas'    as Tab, label: 'Demandas (SLA)', icon: ShieldAlert,   badge: demandas.filter(d => { const s = demandaSlaStatus(d); return s && !s.concluido && s.pct >= 100; }).length || null },
+        { key: 'quadro'      as Tab, label: 'Quadro',       icon: LayoutGrid,   badge: null },
+        { key: 'servicos'    as Tab, label: 'Serviços',     icon: Briefcase,    badge: null },
         { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
+        { key: 'avisos'      as Tab, label: 'Avisos',       icon: Zap,          badge: null },
         { key: 'implantacoes'as Tab, label: 'Implantações', icon: Wrench,       badge: null },
         { key: 'onboarding'  as Tab, label: 'Onboarding',   icon: Rocket,       badge: null },
       ],
@@ -839,6 +843,14 @@ export default function PortalTecnicoPage() {
         { key: 'csat'       as Tab, label: 'Satisfação',    icon: Star,          badge: null },
       ],
     },
+    ...(gestaoTecnica ? [{
+      group: 'GESTÃO',
+      color: '#7c3aed',
+      items: [
+        { key: 'painel' as Tab, label: 'Painel da implantação', icon: BarChart2, badge: null },
+        { key: 'config' as Tab, label: 'Configurações', icon: Edit3, badge: null },
+      ],
+    }] : []),
     {
       group: 'CONHECIMENTO',
       color: '#0891b2',
@@ -850,6 +862,11 @@ export default function PortalTecnicoPage() {
 
   const TAB_TITLE: Record<Tab, string> = {
     demandas:     'Demandas Técnicas',
+    quadro:       'Quadro da implantação',
+    servicos:     'Serviços técnicos',
+    avisos:       'Avisos',
+    painel:       'Painel da implantação',
+    config:       'Configurações do portal',
     meudia:       'Meu dia · cronômetro',
     implantacoes: 'Implantações',
     onboarding:   'Onboarding',
@@ -880,6 +897,7 @@ export default function PortalTecnicoPage() {
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
         <div style={{ flex: 1 }} />
         <CronometroBarra />
+        <SinoAvisos onAbrir={() => setTab('avisos')} />
         <button onClick={() => window.close()} title="Fechar portal"
           style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
           <X size={13} />
@@ -1235,6 +1253,11 @@ export default function PortalTecnicoPage() {
 
         {/* ── TAB: IMPLANTAÇÕES ── */}
         {tab === 'meudia' && <PainelMeuDia gestao={gestaoTecnica} />}
+        {tab === 'quadro' && <QuadroDemandas modulo="IMPLANTACAO" gestao={gestaoTecnica} />}
+        {tab === 'servicos' && <QuadroDemandas modulo="SERVICO" gestao={gestaoTecnica} />}
+        {tab === 'avisos' && <PainelAvisos gestao={gestaoTecnica} />}
+        {tab === 'painel' && gestaoTecnica && <PainelGestaoImplantacao />}
+        {tab === 'config' && gestaoTecnica && <ConfigPortalImplantacao />}
 
         {tab === 'implantacoes' && (
           <div>

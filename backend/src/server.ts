@@ -477,7 +477,8 @@ async function iniciarSchedulerAutomacao() {
   console.log('[BOOT] Scheduler de automação iniciado (motor de regras 1x/dia)');
 }
 
-// 8c2) Scheduler: cronômetro da implantação esquecido aberto fecha às 23h59 do dia (verifica a cada 15 min).
+// 8c2) Scheduler do portal de implantação (a cada 10 min): cronômetro esquecido fecha às 23h59, prazos,
+//      lembrete da programação, cobrança pendente, avisos ao cliente, vigia do Otávio e ofertas.
 async function iniciarSchedulerCronometro() {
   if (!prismaClient) return;
   const rodar = async () => {
@@ -485,13 +486,15 @@ async function iniciarSchedulerCronometro() {
       const { fecharSessoesEsquecidas } = await import('./routes/implantacao-cronometro.js');
       const n = await fecharSessoesEsquecidas(prismaClient!);
       if (n) console.log(`[CRONOMETRO] ${n} sessão(ões) esquecida(s) fechada(s) às 23h59`);
+      const { rodarPortal } = await import('./services/implantacao-portal.service.js');
+      await rodarPortal(prismaClient!);
     } catch (err: any) {
       console.error('[CRONOMETRO] Erro no scheduler:', err?.message);
     }
   };
-  setInterval(rodar, 15 * 60 * 1000);
+  setInterval(rodar, 10 * 60 * 1000);
   setTimeout(rodar, 90 * 1000);
-  console.log('[BOOT] Scheduler do cronômetro da implantação iniciado (15 min)');
+  console.log('[BOOT] Scheduler do portal de implantação iniciado (10 min: cronômetro, prazos, esperas, cobrança, avisos ao cliente, Otávio)');
 }
 
 // 8d) Scheduler: sequência de e-mail das padarias — roda 1x/dia (~10h BRT = 13h UTC).
@@ -590,6 +593,7 @@ async function loadRoutes() {
     ['comissoes',             () => import('./routes/comissoes'),             'comissoesRoutes'],
     ['implantacoes',          () => import('./routes/implantacoes'),          'implantacoesRoutes'],
     ['implantacao-cronometro', () => import('./routes/implantacao-cronometro'), 'implantacaoCronometroRoutes'],
+    ['implantacao-portal',    () => import('./routes/implantacao-portal'),    'implantacaoPortalRoutes'],
     ['health-score',          () => import('./routes/health-score'),          'healthScoreRoutes'],
     ['dashboard-power',       () => import('./routes/dashboard-power'),       'dashboardPowerRoutes'],
     ['relatorios-comerciais', () => import('./routes/relatorios-comerciais'), 'relatoriosComerciais'],

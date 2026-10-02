@@ -77,6 +77,7 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
       implantacao_id: z.string().optional().nullable(),
       etapa: z.enum(ETAPAS).optional().nullable(),
       descricao: z.string().max(500).optional().nullable(),
+      ocorrencia_id: z.string().optional().nullable(),
     }).safeParse(request.body || {});
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     const d = b.data;
@@ -93,7 +94,7 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
       await linhaDoTempo(prisma, anterior.implantacao_id, `⏸ ${u.nome || 'Técnico'} pausou (passou para ${cliente || NOME_TIPO[d.tipo] || 'outra atividade'})`, u);
     }
     const sessao = await prisma.implantacaoSessao.create({
-      data: { tecnico_id: u.id, tecnico_nome: u.nome || null, tipo: d.tipo, implantacao_id: d.tipo === 'DEMANDA' ? d.implantacao_id : null, etapa: d.tipo === 'DEMANDA' ? d.etapa : null, descricao: d.descricao || null, inicio: agora },
+      data: { tecnico_id: u.id, tecnico_nome: u.nome || null, tipo: d.tipo, implantacao_id: d.tipo === 'DEMANDA' ? d.implantacao_id : null, etapa: d.tipo === 'DEMANDA' ? d.etapa : null, descricao: d.descricao || null, ocorrencia_id: d.tipo === 'DEMANDA' && d.etapa === 'CORRECAO' ? d.ocorrencia_id || null : null, inicio: agora },
       include: { implantacao: { select: { id: true, cliente_razao_social: true } } },
     });
     if (d.tipo === 'DEMANDA' && anterior?.implantacao_id !== d.implantacao_id) await linhaDoTempo(prisma, d.implantacao_id, `▶ ${u.nome || 'Técnico'} começou a trabalhar (${NOME_ETAPA[d.etapa!]})`, u);
@@ -169,6 +170,10 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
     const aberta = await prisma.implantacaoSessao.findFirst({ where: { tecnico_id: u.id, fim: null, implantacao_id: id } });
     if (aberta) await fecharAberta(prisma, u.id, 'ESPERA');
     const espera = await prisma.implantacaoEspera.create({ data: { implantacao_id: id, ...b.data, aberta_por_id: u.id, aberta_por_nome: u.nome || null } });
+    if (b.data.tipo === 'PROGRAMACAO') {
+      const { avisarProgramacao } = await import('@/services/implantacao-portal.service');
+      await avisarProgramacao(prisma, espera.id).catch(() => {});
+    }
     await linhaDoTempo(prisma, id, `⏳ ${NOME_ESPERA[b.data.tipo][0].toUpperCase()}${NOME_ESPERA[b.data.tipo].slice(1)}: ${b.data.motivo}${b.data.o_que_resolver ? ` · Precisa: ${b.data.o_que_resolver}` : ''}${b.data.responsavel_nome ? ` · Com: ${b.data.responsavel_nome}` : ''}`, u);
     return reply.status(201).send({ status: 'success', data: espera });
   });

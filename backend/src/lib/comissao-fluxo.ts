@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { podeReceberComissaoVendedor } from './permissoes-conta';
+import { prazosPadrao } from '@/lib/implantacao/portal';
+import { obterConfigPortal, novoTokenCliente } from '@/services/implantacao-portal.service';
 
 export class ComissaoValidationError extends Error {
   constructor(message: string) {
@@ -150,12 +152,16 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
     let dataEntrada: Date | undefined;
     let tipoBase: string | undefined;
     let sistemaAnterior: string | undefined;
+    let contatoWhats: string | undefined;
+    let contatoEmail: string | undefined;
     if (c.proposta_comercial_id) {
       const p = await prisma.propostaComercial.findUnique({
         where: { id: c.proposta_comercial_id },
-        select: { created_at: true, cnpj: true, tipo_loja: true, sistema_atual: true },
+        select: { created_at: true, cnpj: true, tipo_loja: true, sistema_atual: true, responsavel_telefone: true, responsavel_email: true },
       }).catch(() => null);
       if (p?.created_at) dataEntrada = p.created_at;
+      contatoWhats = String((p as any)?.responsavel_telefone || '').replace(/\D/g, '') || undefined;
+      contatoEmail = (p as any)?.responsavel_email || undefined;
       // tipo_loja: "Migração"/"Upgrade" + sistema_atual → CONVERSÃO; senão → banco zerado.
       const tl = String(p?.tipo_loja || '').toLowerCase();
       const ehConversao = (!!p?.sistema_atual && p.sistema_atual.trim() !== '')
@@ -180,9 +186,10 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
         data_entrada_lead: dataEntrada,
         tipo_base: tipoBase,
         sistema_anterior: sistemaAnterior,
-        // Prazos-meta p/ nortear o técnico: virada +15 dias, finalização +30 dias da assinatura.
-        prazo_virada: new Date((c.signed_at || new Date()).getTime() + 15 * 86400000),
-        prazo_finalizacao: new Date((c.signed_at || new Date()).getTime() + 30 * 86400000),
+        // Prazos (SLA) pelo tipo: conversão 15/30 dias, banco zerado 10/25 (configuráveis no portal).
+        ...prazosPadrao({ modulo: 'IMPLANTACAO', tipo_base: tipoBase, inicio: c.signed_at || new Date(), cfg: (await obterConfigPortal(prisma).catch(() => null))?.sla }),
+        // Página de acompanhamento do cliente + contatos para os avisos de andamento.
+        token_cliente: novoTokenCliente(), contato_whatsapp: contatoWhats, contato_email: contatoEmail,
       },
     }).catch(() => {});
   }

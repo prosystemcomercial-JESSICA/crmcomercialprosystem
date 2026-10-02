@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
+import { faseDoItemTreinamento } from '@/lib/implantacao/portal';
+import { avisarTecnico, garantirFasesTreinamento } from '@/services/implantacao-portal.service';
 
 /**
  * Acompanhamento e EXECUÇÃO da implantação. Cada implantação nasce de um contrato
@@ -76,6 +78,8 @@ const CHECKLIST_GRUPOS: { grupo: string; itens: string[] }[] = [
       'Recarga de celular - RV',
       'Prosystem Gerencial',
       'Ofertar o Imendes',
+      'Mensagerias WhatsApp',
+      'Prosystem Dashboard',
     ],
   },
 ];
@@ -252,10 +256,12 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     if (temChk === 0) {
       // Semeia a trilha completa (3 grupos: Instalação, Conversão, Treinamento).
       const itens: any[] = [];
-      CHECKLIST_GRUPOS.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i })));
+      CHECKLIST_GRUPOS.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i, fase: g.grupo === 'TREINAMENTO' ? faseDoItemTreinamento(titulo) : null })));
       await prisma.implantacaoChecklistItem.createMany({ data: itens }).catch(() => {});
     }
     await registrarAtividade(prisma, id, 'DESIGNACAO', `Designado ao técnico ${tecnico.nome}`, ator, null, 'DESIGNADO');
+    if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id).catch(() => {});
+    await avisarTecnico(prisma, { para_id: tecnico.id, implantacao_id: id, de: { id: ator?.id, nome: ator?.nome }, texto: `Nova demanda para você: ${imp.cliente_razao_social}${imp.modulo === 'SERVICO' ? ' (serviço)' : imp.tipo_base === 'CONVERSAO' ? ` (conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''})` : ' (banco zerado)'}. Preencha a ficha de coleta e dê play quando começar.` }).catch(() => {});
     return reply.send({ status: 'success', data: imp });
   });
 

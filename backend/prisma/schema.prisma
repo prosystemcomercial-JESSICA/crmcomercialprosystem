@@ -1420,7 +1420,7 @@ model Comissao {
 // Supervisão informa a data de instalação e o 1º vencimento → libera a comissão.
 model Implantacao {
   id          String  @id @default(cuid())
-  contrato_id String  @unique
+  contrato_id String? @unique
   proposta_id String?
   lead_id     String?
 
@@ -1474,6 +1474,28 @@ model Implantacao {
   checklist  ImplantacaoChecklistItem[]
   sessoes    ImplantacaoSessao[]
   esperas    ImplantacaoEspera[]
+  avisos     AvisoTecnico[]
+
+  // ─── Portal de implantação (fase 2) ─────────────────────────────
+  modulo                  String                       @default("IMPLANTACAO") // IMPLANTACAO | SERVICO
+  tipo_servico            String? // TROCA_CNPJ | COMUNICACAO | IMPRESSORA | BANCO_DADOS | OUTRO (só SERVICO)
+  coluna                  String? // coluna do quadro (null = deduzida da etapa de execução)
+  coleta                  Json? // ficha de coleta (substitui a descrição do cartão do Trello)
+  tela_suporte_arquivo_id String? // ImplantacaoArquivo com a tela de liberação do Suporte
+  sla_aviso               String? // último aviso de SLA enviado (EM_RISCO | ESTOURADO), para avisar uma vez
+  venda_adicional_id      String?                      @unique // serviço que veio do kanban comercial (entra ao ir para "Em execução")
+  cliente_id              String?
+  contato_whatsapp        String?
+  contato_email           String?
+  virada_inicio_em        DateTime? // "Iniciar virada"
+  virada_fim_em           DateTime? // "Loja virada" (= início de uso do sistema)
+  cobranca_lancada_em     DateTime?
+  cobranca_lancada_por    String?
+  token_cliente           String?                      @unique // página de acompanhamento do cliente (sem login)
+  concluida_fila_em       DateTime? // treinamento concluído, sem correção aberta: saiu da fila
+  treinamento_fases       ImplantacaoTreinamentoFase[]
+  ocorrencias             ImplantacaoOcorrencia[]
+  comunicacoes            ImplantacaoComunicacao[]
 
   @@index([status])
   @@index([etapa_execucao])
@@ -1513,6 +1535,7 @@ model ImplantacaoSessao {
   fim            DateTime?
   origem_fim     String? // PAUSA | TROCA | ESPERA | AUTO_23H59 | CORRECAO
   corrigido_por  String?
+  ocorrencia_id  String? // correção pós-virada em que o técnico trabalhou
   created_at     DateTime     @default(now())
   updated_at     DateTime     @updatedAt
 
@@ -1538,10 +1561,98 @@ model ImplantacaoEspera {
   aberta_por_nome    String?
   resolvida_por_nome String?
   resposta           String?     @db.Text
+  lembrete_em        DateTime? // último lembrete enviado ao responsável (programação)
   created_at         DateTime    @default(now())
 
   @@index([implantacao_id])
   @@index([tipo, fim])
+}
+
+// Aviso da gestão para o técnico (com ou sem demanda), com leitura registrada.
+model AvisoTecnico {
+  id             String       @id @default(cuid())
+  de_id          String?
+  de_nome        String?
+  para_id        String
+  para_nome      String?
+  implantacao_id String?
+  implantacao    Implantacao? @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  texto          String       @db.Text
+  prioridade     String       @default("NORMAL") // NORMAL | URGENTE
+  origem         String       @default("GESTAO") // GESTAO | SISTEMA (SLA, espera...)
+  lido_em        DateTime?
+  created_at     DateTime     @default(now())
+
+  @@index([para_id, lido_em])
+  @@index([implantacao_id])
+}
+
+// Treinamento em fases (cada fase com data marcada e realizada; horas vêm do cronômetro).
+model ImplantacaoTreinamentoFase {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  ordem          Int
+  nome           String
+  marcada_em     DateTime?
+  realizada_em   DateTime?
+  observacao     String?     @db.Text
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+
+  @@index([implantacao_id])
+}
+
+// Correções e bugs depois da conversão/virada.
+model ImplantacaoOcorrencia {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  titulo         String
+  descricao      String?     @db.Text
+  gravidade      String      @default("MEDIA") // BAIXA | MEDIA | ALTA
+  situacao       String      @default("ABERTA") // ABERTA | EM_CORRECAO | AGUARDANDO_PROGRAMACAO | RESOLVIDA
+  aberta_por     String?
+  aberta_em      DateTime    @default(now())
+  resolvida_em   DateTime?
+  resolucao      String?     @db.Text
+  updated_at     DateTime    @updatedAt
+
+  @@index([implantacao_id])
+  @@index([situacao])
+}
+
+// Mensagens ao cliente por marco (contrato, 30/50/80%, virada, fase de treinamento): uma vez por canal.
+model ImplantacaoComunicacao {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  marco          String // CONTRATO | P30 | P50 | P80 | VIRADA | TREINO_<n>
+  canal          String // WHATSAPP | EMAIL
+  destino        String?
+  texto          String?     @db.Text
+  status         String      @default("ENVIADO") // ENVIADO | ERRO | SEM_DESTINO
+  erro           String?     @db.Text
+  created_at     DateTime    @default(now())
+
+  @@unique([implantacao_id, marco, canal])
+}
+
+// Ofertas do agente de oferta (o que o cliente ainda não usa): uma vez por cliente e produto.
+model OfertaCliente {
+  id             String   @id @default(cuid())
+  cliente_id     String?
+  implantacao_id String?
+  numero         String?
+  produto        String
+  texto          String?  @db.Text
+  status         String   @default("ENVIADA") // ENVIADA | INTERESSE | SEM_INTERESSE | VENDIDA
+  resposta       String?  @db.Text
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@unique([implantacao_id, produto])
+  @@index([cliente_id])
 }
 
 // Testes de conversão de dados (checklist padrão + avulsos).
@@ -1586,6 +1697,7 @@ model ImplantacaoChecklistItem {
   ordem          Int         @default(0)
   feito_por      String?
   feito_em       DateTime?
+  fase           Int? // fase do treinamento (1, 2, 3...)
   created_at     DateTime    @default(now())
 
   @@index([implantacao_id])

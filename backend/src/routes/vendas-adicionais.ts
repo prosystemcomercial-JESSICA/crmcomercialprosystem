@@ -558,6 +558,11 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
       data.autorizador_cpf = fmtCpf(cpf);
     }
     await prisma.vendaAdicional.update({ where: { id }, data });
+    // Card foi para "Em execução": a demanda entra no módulo Serviços do Portal Técnico (uma vez por venda).
+    if (etapa === 'EM_EXECUCAO') {
+      const { criarServicoDaVenda } = await import('@/services/implantacao-portal.service');
+      await criarServicoDaVenda(prisma, id).catch((e: any) => console.error('[SERVICOS] criar demanda técnica:', e?.message));
+    }
     // Serviço concluído e enviado ao Thiago: a venda é confirmada (até aqui fica pendente) e a comissão
     // do vendedor e da supervisão vai para o MÊS SEGUINTE ao dessa data.
     if (etapa === 'NO_FINANCEIRO' && venda.status === 'PENDENTE') {
