@@ -7,6 +7,7 @@ import {
   GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2,
 } from 'lucide-react';
 import { BotoesDemanda, fmtDur, NOME_ESPERA } from './Cronometro';
+import { ConfirmarLeitura } from './ConfirmarLeitura';
 
 // Portal de implantação e serviços: quadro (colunas do Trello), ficha da demanda, avisos, painel e configurações.
 
@@ -762,18 +763,18 @@ function EnviarAviso({ implantacaoId, tecnicoId }: { implantacaoId?: string | nu
   );
 }
 
-/** Sino do topo: abre a caixa de novidades (implantações, serviços, tarefas, recados, prazos) e limpa ao abrir. */
+/** Sino do topo: abre a caixa de novidades. Recado não lido abre o popup de confirmação de leitura. */
 export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; onAbrirDemanda?: (id: string) => void }) {
   const [n, setN] = useState(0);
   const [aberto, setAberto] = useState(false);
   const [itens, setItens] = useState<any[]>([]);
+  const [lendo, setLendo] = useState<any | null>(null);
   const abrir = async () => {
     if (aberto) { setAberto(false); return; }
     try {
       const r = await apiClient.getAvisosTecnico();
       setItens((r.data.data.avisos || []).slice(0, 20));
       setAberto(true);
-      if (r.data.data.nao_lidos) { await apiClient.marcarAvisosLidos().catch(() => {}); setN(0); window.dispatchEvent(new Event('avisos:mudou')); }
     } catch { onAbrir(); }
   };
   useEffect(() => {
@@ -808,7 +809,7 @@ export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; o
             </div>
             {itens.length === 0 && <div style={{ padding: 16, fontSize: 13, color: 'var(--t-text-muted)' }}>Nada novo por aqui.</div>}
             {itens.map(a => (
-              <button key={a.id} onClick={() => { setAberto(false); if (a.implantacao?.id && onAbrirDemanda) onAbrirDemanda(a.implantacao.id); else onAbrir(); }}
+              <button key={a.id} onClick={() => { setAberto(false); if (!a.lido_em) setLendo(a); else if (a.implantacao?.id && onAbrirDemanda) onAbrirDemanda(a.implantacao.id); else onAbrir(); }}
                 style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: a.lido_em ? 'transparent' : '#2E6EAB0d', cursor: 'pointer' }}>
                 <span style={{ fontSize: 16, lineHeight: '20px' }}>{icone(a)}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
@@ -820,6 +821,7 @@ export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; o
           </div>
         </>
       )}
+      <ConfirmarLeitura aviso={lendo} onFechar={() => setLendo(null)} />
     </div>
   );
 }
@@ -834,8 +836,7 @@ export function PainelAvisos({ gestao }: { gestao: boolean }) {
     } catch { /* ignore */ }
   }, [gestao]);
   useEffect(() => { carregar(); }, [carregar]);
-  const lido = async (id: string) => { await apiClient.marcarAvisoLido(id).catch(() => {}); window.dispatchEvent(new Event('avisos:mudou')); carregar(); };
-  const todos = async () => { await apiClient.marcarAvisosLidos().catch(() => {}); window.dispatchEvent(new Event('avisos:mudou')); carregar(); };
+  const [lendo, setLendo] = useState<any | null>(null);
   const item = (a: any, meu: boolean) => (
     <div key={a.id} style={{ display: 'flex', gap: 10, padding: '10px 14px', borderTop: '1px solid var(--t-card-border)', alignItems: 'flex-start', background: meu && !a.lido_em ? '#2E6EAB0a' : 'transparent' }}>
       {a.prioridade === 'URGENTE' ? <AlertTriangle size={15} color="#dc2626" /> : <Bell size={15} color="#2E6EAB" />}
@@ -843,14 +844,14 @@ export function PainelAvisos({ gestao }: { gestao: boolean }) {
         <div style={{ color: 'var(--t-text-primary)', fontWeight: meu && !a.lido_em ? 700 : 400 }}>{a.texto}</div>
         <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{meu ? `de ${a.de_nome || 'Gestão'}` : `para ${a.para_nome}`}{a.implantacao ? ` · ${a.implantacao.cliente_razao_social}` : ''} · {fmtDataHora(a.created_at)}{!meu ? (a.lido_em ? ` · ✅ lido ${fmtDataHora(a.lido_em)}` : ' · ainda não lido') : ''}</div>
       </div>
-      {meu && !a.lido_em && <button onClick={() => lido(a.id)} style={btn('#2E6EAB', false)}>Lido</button>}
+      {meu && <button onClick={() => setLendo(a)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>{a.lido_em ? 'Ver' : 'Ler'}</button>}
     </div>
   );
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {gestao && <EnviarAviso />}
       <div style={cartao}>
-        <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b style={{ fontSize: 13 }}>Meus avisos</b>{meus.some(a => !a.lido_em) && <button onClick={todos} style={btn('#2E6EAB', false)}>Marcar todos como lidos</button>}</div>
+        <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b style={{ fontSize: 13 }}>Meus avisos</b></div>
         {meus.length === 0 && <div style={{ padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum aviso.</div>}
         {meus.map(a => item(a, true))}
       </div>
@@ -861,6 +862,7 @@ export function PainelAvisos({ gestao }: { gestao: boolean }) {
           {enviados.map(a => item(a, false))}
         </div>
       )}
+      <ConfirmarLeitura aviso={lendo} onFechar={() => { setLendo(null); carregar(); }} />
     </div>
   );
 }

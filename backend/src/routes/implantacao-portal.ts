@@ -230,7 +230,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const u = exigirLogin(request, reply); if (!u) return;
     const q = request.query as { enviados?: string };
     const where: any = q.enviados === '1' && ehGestaoTecnica(u) ? {} : { para_id: u.id, ...soDoDesignado(u) };
-    const avisos = await prisma.avisoTecnico.findMany({ where, orderBy: { created_at: 'desc' }, take: 80, include: { implantacao: { select: { id: true, cliente_razao_social: true } } } });
+    const avisos = await prisma.avisoTecnico.findMany({ where, orderBy: { created_at: 'desc' }, take: 80, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_id: true } } } });
     const naoLidos = await prisma.avisoTecnico.count({ where: { para_id: u.id, lido_em: null, ...soDoDesignado(u) } });
     return reply.send({ status: 'success', data: { avisos, nao_lidos: naoLidos } });
   });
