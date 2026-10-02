@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
   X, Loader2, CheckCircle, Hourglass, AlertTriangle, Rocket, FileText, Image as ImageIcon, Link2, Copy, Bell, Send,
-  GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2,
+  GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2, Phone, Building2,
 } from 'lucide-react';
 import { BotoesDemanda, fmtDur, NOME_ESPERA } from './Cronometro';
 import { ConfirmarLeitura } from './ConfirmarLeitura';
@@ -169,7 +169,7 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'onboarding' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
+type Aba = 'onboarding' | 'fichacliente' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
 
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
@@ -187,7 +187,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   const servico = i.modulo === 'SERVICO';
   const abas: [Aba, string, any][] = [
     ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
-    ['resumo', 'Resumo', ClipboardList], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
+    ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
     ['tempos', 'Tempos', Clock], ['cliente', 'Cliente', Users], ['historico', 'Histórico', MessageSquare],
@@ -198,13 +198,14 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           <div>
             <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--t-text-primary)' }}>{i.cliente_razao_social}</div>
-            <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
-              {servico ? 'Serviço' : i.tipo_base === 'BANCO_ZERADO' ? 'Implantação · banco zerado' : `Implantação · conversão${i.sistema_anterior ? ` de ${i.sistema_anterior}` : ''}`}
-              {i.cliente_cnpj ? ` · ${i.cliente_cnpj}` : ''}{i.plano ? ` · ${i.plano}` : ''} · técnico: {i.tecnico_nome || 'não designado'}
+            <div style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+              <Etq cor={servico ? '#0891b2' : '#16a34a'}>{d.tipo_demanda}</Etq>
+              {i.cliente_cnpj ? `${i.cliente_cnpj} · ` : ''}{i.plano ? `${i.plano} · ` : ''}técnico: {i.tecnico_nome || 'não designado'}
             </div>
           </div>
           <button onClick={onClose} aria-label="Fechar"><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
+        <ContatoDestaque d={d} />
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 160 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>
           <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{i.progresso}%</b>
@@ -220,6 +221,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
       </div>
       <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
         {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} />}
+        {aba === 'fichacliente' && <AbaFichaCliente d={d} />}
         {aba === 'resumo' && <AbaResumo d={d} gestao={gestao} recarregar={carregar} />}
         {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} />}
         {aba === 'checklist' && <AbaChecklist d={d} recarregar={carregar} />}
@@ -697,6 +699,131 @@ function AbaTempos({ d }: { d: any }) {
 }
 
 const NOME_MARCO = (m: string) => m === 'CONTRATO' ? 'Próximos passos (contrato)' : m === 'VIRADA' ? 'Loja virada + boas-vindas' : m.startsWith('TREINO_') ? `Fase ${m.slice(7)} do treinamento` : `${m.slice(1)}% concluído`;
+
+// ─── Ficha do cliente (para o técnico: tudo do cadastro, sem dados financeiros) ───
+
+const soDigitos = (t?: string | null) => (t || '').replace(/\D/g, '');
+const fmtFone = (t?: string | null) => {
+  const n = soDigitos(t);
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return t || '';
+};
+
+/** Contatos do cliente, do mais confiável ao menos: ficha de coleta, cadastro, card. Sem repetir número. */
+function contatosDoCliente(d: any): { nome: string | null; fone: string }[] {
+  const c = d.cliente_ficha || {}, col = d.implantacao.coleta || {};
+  const lista = [
+    { nome: col.contato_nome || c.contato || null, fone: col.contato_telefone },
+    { nome: c.contato || null, fone: c.tel_contato },
+    { nome: c.contato2 || null, fone: c.tel_contato2 },
+    { nome: c.contato || c.responsavel_nome || null, fone: d.implantacao.contato_whatsapp },
+    { nome: null, fone: c.telefone1 }, { nome: null, fone: c.telefone }, { nome: null, fone: c.telefone2 },
+  ];
+  const vistos = new Set<string>(), out: { nome: string | null; fone: string }[] = [];
+  for (const x of lista) {
+    const n = soDigitos(x.fone);
+    if (n.length < 8 || vistos.has(n.slice(-8))) continue;
+    vistos.add(n.slice(-8)); out.push({ nome: x.nome, fone: x.fone });
+  }
+  return out;
+}
+
+/** Nome e telefone do contato em evidência no topo do card, com Ligar e WhatsApp. */
+function ContatoDestaque({ d }: { d: any }) {
+  const contatos = contatosDoCliente(d);
+  const principal = contatos[0];
+  const nomeContato = principal?.nome || d.cliente_ficha?.contato || d.implantacao.coleta?.contato_nome || null;
+  if (!principal) return (
+    <div style={{ borderRadius: 12, padding: '10px 14px', background: '#dc26260d', border: '1px solid #dc262640', fontSize: 14, fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Phone size={16} /> {nomeContato ? `${nomeContato}: sem telefone cadastrado` : 'Cliente sem contato cadastrado'}
+    </div>
+  );
+  const n = soDigitos(principal.fone), wa = n.length >= 10 ? (n.startsWith('55') ? n : `55${n}`) : null;
+  return (
+    <div style={{ borderRadius: 12, padding: '12px 14px', background: '#2E6EAB0f', border: '1px solid #2E6EAB40', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Phone size={22} color="#2E6EAB" />
+      <div style={{ flex: 1, minWidth: 180 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#2E6EAB', textTransform: 'uppercase', letterSpacing: '.04em' }}>Contato do cliente</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>{nomeContato || 'Contato sem nome'}</div>
+        <a href={`tel:${n}`} style={{ fontSize: 20, fontWeight: 800, color: '#2E6EAB', textDecoration: 'none' }}>{fmtFone(principal.fone)}</a>
+        {contatos.length > 1 && <div style={{ fontSize: 12, color: 'var(--t-text-secondary)', marginTop: 2 }}>Outros: {contatos.slice(1).map(x => `${x.nome ? `${x.nome} ` : ''}${fmtFone(x.fone)}`).join(' · ')}</div>}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <a href={`tel:${n}`} style={{ ...btn('#2E6EAB'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><Phone size={14} /> Ligar</a>
+        {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a'), minHeight: 44, padding: '0 16px', textDecoration: 'none' }}><MessageSquare size={14} /> WhatsApp</a>}
+      </div>
+    </div>
+  );
+}
+
+function AbaFichaCliente({ d }: { d: any }) {
+  const c = d.cliente_ficha, i = d.implantacao;
+  const dataBR = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : null);
+  const linha = (rotuloTxt: string, valor: any) => (valor === null || valor === undefined || valor === '') ? null : (
+    <div key={rotuloTxt} style={{ display: 'grid', gap: 2 }}>
+      <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{rotuloTxt}</div>
+      <div style={{ fontSize: 14, color: 'var(--t-text-primary)', fontWeight: 600, wordBreak: 'break-word' }}>{valor}</div>
+    </div>
+  );
+  const bloco = (t: string, itens: (React.ReactNode | null)[]) => itens.some(Boolean) ? (
+    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
+      <div style={rotulo}>{t}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">{itens}</div>
+    </div>
+  ) : null;
+  const end = c ? [c.endereco, c.numero_end, c.complemento].filter(Boolean).join(', ') : '';
+  return (
+    <div style={{ display: 'grid', gap: 14 }}>
+      {bloco('Demanda', [
+        linha('Tipo da demanda', d.tipo_demanda),
+        linha('Serviço vendido', d.servico_descricao || (i.modulo === 'SERVICO' ? i.observacoes : null)),
+        linha('Plano', i.plano || c?.plano),
+        linha('Vendedor', i.vendedor_nome),
+        linha('Técnico', i.tecnico_nome || 'não designado'),
+        linha('Entrou em', dataBR(i.data_assinatura)),
+      ])}
+      {!c && <div style={{ ...cartao, padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Cliente não encontrado no cadastro (sem vínculo pelo CNPJ). Os dados abaixo vêm só do card.</div>}
+      {bloco('Empresa', [
+        linha('Razão social', c?.razao_social || i.cliente_razao_social),
+        linha('Nome fantasia', c?.nome_fantasia),
+        linha('CNPJ', c?.cnpj || i.cliente_cnpj),
+        linha('Inscrição estadual', c?.inscricao_estadual),
+        linha('Código do cliente', c?.codigo),
+        linha('Segmento', c?.segmento),
+        linha('Regime tributário', c?.regime_tributario || i.coleta?.regime_tributario),
+        linha('Grupo técnico', c?.grupo_tecnico),
+        linha('Situação', c?.situacao),
+        linha('Cliente desde', dataBR(c?.data_entrada)),
+      ])}
+      {bloco('Contatos', [
+        linha('Contato principal', c?.contato || i.coleta?.contato_nome),
+        linha('Telefone do contato', c?.tel_contato ? fmtFone(c.tel_contato) : null),
+        linha('Segundo contato', c?.contato2),
+        linha('Telefone do 2º contato', c?.tel_contato2 ? fmtFone(c.tel_contato2) : null),
+        linha('Responsável legal', c?.responsavel_nome),
+        linha('Telefone 1', c?.telefone1 ? fmtFone(c.telefone1) : null),
+        linha('Telefone 2', c?.telefone2 ? fmtFone(c.telefone2) : null),
+        linha('Telefone', c?.telefone ? fmtFone(c.telefone) : null),
+        linha('WhatsApp dos avisos', i.contato_whatsapp ? fmtFone(i.contato_whatsapp) : null),
+        linha('E-mail', c?.email || i.contato_email),
+      ])}
+      {bloco('Endereço', [
+        linha('Endereço', end),
+        linha('Bairro', c?.bairro),
+        linha('Cidade / UF', c ? [c.cidade, c.estado].filter(Boolean).join(' / ') : null),
+        linha('CEP', c?.cep),
+        linha('Região', c?.regiao),
+      ])}
+      {c?.observacoes && (
+        <div style={{ ...cartao, padding: 14, display: 'grid', gap: 6 }}>
+          <div style={rotulo}>Observações do cadastro</div>
+          <div style={{ fontSize: 13, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{c.observacoes}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function AbaCliente({ d, recarregar }: { d: any; recarregar: () => void }) {
   const [copiado, setCopiado] = useState(false);

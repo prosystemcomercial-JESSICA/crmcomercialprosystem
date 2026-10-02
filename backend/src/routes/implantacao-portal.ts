@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -46,7 +46,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const q = request.query as { modulo?: string };
     const modulo = q.modulo === 'SERVICO' || q.modulo === 'IMPLANTACAO' ? q.modulo : null; // sem filtro = tudo
     // Só as demandas dos últimos 60 dias (as antigas seguem no CRM, fora do quadro).
-    const where: any = { ...(modulo ? { modulo } : {}), data_assinatura: { gte: new Date(Date.now() - DIAS_QUADRO * 864e5) } };
+    const where: any = { ...(modulo ? { modulo } : {}), data_assinatura: { gte: desdeQuadro() } };
     if (ehTecnico(u) && !ehGestaoTecnica(u)) where.tecnico_id = u.id;
     const lista = await prisma.implantacao.findMany({
       where, orderBy: { data_assinatura: 'desc' },
@@ -169,6 +169,21 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       prisma.implantacaoEspera.findMany({ where: { implantacao_id: id }, orderBy: { inicio: 'desc' } }),
     ]);
     const tempos = temposDaDemanda(sessoes, esperas, { inicio: imp.data_assinatura, conclusao: imp.data_conclusao });
+    // Ficha do cliente para o técnico: tudo do cadastro, menos dados financeiros e documentos pessoais.
+    const cnpjLimpo = (imp.cliente_cnpj || '').replace(/\D/g, '');
+    const cliente_ficha = await prisma.cliente.findFirst({
+      where: imp.cliente_id ? { id: imp.cliente_id } : cnpjLimpo ? { OR: [{ cnpj: imp.cliente_cnpj! }, { cnpj: cnpjLimpo }] } : { id: '__nenhum__' },
+      select: {
+        id: true, codigo: true, nome: true, empresa: true, razao_social: true, nome_fantasia: true, cnpj: true, inscricao_estadual: true,
+        situacao: true, segmento: true, grupo_tecnico: true, plano: true, regime_tributario: true, regiao: true, data_entrada: true,
+        contato: true, telefone: true, telefone1: true, telefone2: true, ddd: true, tel_contato: true, contato2: true, tel_contato2: true, email: true, responsavel_nome: true,
+        cep: true, endereco: true, numero_end: true, complemento: true, bairro: true, cidade: true, estado: true, observacoes: true,
+      },
+    }).catch(() => null);
+    const venda = imp.venda_adicional_id ? await prisma.vendaAdicional.findUnique({ where: { id: imp.venda_adicional_id }, select: { descricao_servico: true, parceiro: { select: { nome: true } } } }).catch(() => null) : null;
+    const tipo_demanda = imp.modulo === 'SERVICO'
+      ? `Serviço · ${(imp.tipo_servico && TIPOS_SERVICO[imp.tipo_servico]?.label) || 'Outro'}`
+      : `Implantação · ${imp.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : `conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''}`}`;
     // Horas de treinamento por fase e de correção por ocorrência (cronômetro).
     const horasPorFase: Record<number, number> = {}, horasPorOcorrencia: Record<string, number> = {};
     for (const s of sessoes) {
@@ -181,13 +196,14 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
       link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: CAMPOS_COLETA,
       onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
+      cliente_ficha, tipo_demanda, servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
 
   // ── Onboarding técnico: implantações e em que pé está o primeiro contato
   fastify.get('/implantacoes/onboarding', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
-    const where: any = { modulo: 'IMPLANTACAO', status: { not: 'CANCELADA' }, data_assinatura: { gte: new Date(Date.now() - DIAS_QUADRO * 864e5) } };
+    const where: any = { modulo: 'IMPLANTACAO', status: { not: 'CANCELADA' }, data_assinatura: { gte: desdeQuadro() } };
     if (ehTecnico(u) && !ehGestaoTecnica(u)) where.tecnico_id = u.id;
     const lista = await prisma.implantacao.findMany({ where, orderBy: { data_assinatura: 'asc' }, include: { checklist: { where: { grupo: 'ONBOARDING' }, select: { titulo: true, feito: true } } } });
     const { SLA_ONBOARDING_DIAS_UTEIS, somarDiasUteis } = await import('@/lib/implantacao/portal');
@@ -229,9 +245,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/avisos', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     const q = request.query as { enviados?: string };
-    const where: any = q.enviados === '1' && ehGestaoTecnica(u) ? {} : { para_id: u.id, ...soDoDesignado(u) };
+    const where: any = q.enviados === '1' && ehGestaoTecnica(u) ? { created_at: { gte: CORTE_PORTAL } } : { para_id: u.id, created_at: { gte: CORTE_PORTAL }, ...soDoDesignado(u) };
     const avisos = await prisma.avisoTecnico.findMany({ where, orderBy: { created_at: 'desc' }, take: 80, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_id: true } } } });
-    const naoLidos = await prisma.avisoTecnico.count({ where: { para_id: u.id, lido_em: null, ...soDoDesignado(u) } });
+    const naoLidos = await prisma.avisoTecnico.count({ where: { para_id: u.id, lido_em: null, created_at: { gte: CORTE_PORTAL }, ...soDoDesignado(u) } });
     return reply.send({ status: 'success', data: { avisos, nao_lidos: naoLidos } });
   });
   fastify.post('/implantacoes/avisos/:avisoId/lido', async (request, reply) => {
@@ -261,9 +277,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const gestao = ehGestaoTecnica(u);
     const [sessoesHoje, tarefas, recados, minhas] = await Promise.all([
       prisma.implantacaoSessao.findMany({ where: { tecnico_id: u.id, inicio: { lt: fimHoje }, OR: [{ fim: null }, { fim: { gt: iniHoje } }] } }),
-      prisma.avisoTecnico.findMany({ where: { tipo: 'TAREFA', ...(gestao ? {} : { para_id: u.id }), AND: [soDoDesignado(u)], OR: [{ concluida_em: null }, { concluida_em: { gte: new Date(agora.getTime() - 3 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: [{ concluida_em: 'asc' }, { prazo: 'asc' }, { created_at: 'desc' }], take: 40 }),
-      prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', AND: [soDoDesignado(u)], OR: [{ lido_em: null }, { created_at: { gte: new Date(agora.getTime() - 2 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
-      prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, data_assinatura: { gte: new Date(agora.getTime() - DIAS_QUADRO * 864e5) }, ...(gestao ? {} : { tecnico_id: u.id }) },
+      prisma.avisoTecnico.findMany({ where: { tipo: 'TAREFA', created_at: { gte: CORTE_PORTAL }, ...(gestao ? {} : { para_id: u.id }), AND: [soDoDesignado(u)], OR: [{ concluida_em: null }, { concluida_em: { gte: new Date(agora.getTime() - 3 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: [{ concluida_em: 'asc' }, { prazo: 'asc' }, { created_at: 'desc' }], take: 40 }),
+      prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', created_at: { gte: CORTE_PORTAL }, AND: [soDoDesignado(u)], OR: [{ lido_em: null }, { created_at: { gte: new Date(agora.getTime() - 2 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
+      prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, data_assinatura: { gte: desdeQuadro(agora.getTime()) }, ...(gestao ? {} : { tecnico_id: u.id }) },
         include: { esperas: { where: { fim: null } }, treinamento_fases: { where: { realizada_em: null, marcada_em: { not: null } } } } }),
     ]);
     const viradaHoje = minhas.some(i => i.virada_inicio_em && diaSP(i.virada_inicio_em) === hoje && i.tecnico_id === u.id);
