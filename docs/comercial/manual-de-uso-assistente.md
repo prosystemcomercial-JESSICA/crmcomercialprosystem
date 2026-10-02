@@ -873,3 +873,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Para o técnico receber um card**, abra o card no Quadro e escolha o **Técnico responsável**. Técnico novo cadastrado em Usuários (ativo, cargo de técnico) já aparece na lista.
 - **O técnico só vê recados dos cards que são dele.**
 - **Recado lido de verdade:** o técnico toca no recado, lê no popup e toca em **Confirmo que li**. Na página Início, a supervisão acompanha em **Leitura dos recados** quem já confirmou e quando.
+
+### Atualização 02/10/2026: ficha do cliente no card
+
+- Ao abrir um card no Portal Técnico, o **nome e o telefone do contato** aparecem em destaque no topo, com botões **Ligar** e **WhatsApp**, junto com o **tipo da demanda**.
+- A aba **Ficha do cliente** traz todos os dados do cadastro (empresa, contatos, endereço, observações), **sem nada financeiro**.
+- O portal passou a mostrar só o que entrou **a partir de 02/10/2026**. O que é anterior continua guardado no CRM, só não aparece no portal.

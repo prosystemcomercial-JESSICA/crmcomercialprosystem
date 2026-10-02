@@ -6,6 +6,11 @@ import { janelasDaJornada, sobreposicao, diaSP, JORNADA_PADRAO, type Jornada } f
 export const INICIO_PORTAL = new Date('2026-10-02T14:00:00Z');
 export const ehLegado = (i: { data_assinatura?: Date | null }) => !i.data_assinatura || i.data_assinatura < INICIO_PORTAL;
 export const DIAS_QUADRO = 60;
+// Portal recomeçou do zero em 02/10/2026 (pedido da Jessica): o que entrou antes não aparece
+// no portal nem gera aviso automático. Nada foi apagado; continua no banco e no CRM.
+export const CORTE_PORTAL = new Date('2026-10-02T03:00:00.000Z'); // 02/10/2026 00:00 de Brasília
+/** Início da janela do quadro: últimos 60 dias, mas nunca antes do recomeço do portal. */
+export const desdeQuadro = (agora = Date.now()) => new Date(Math.max(agora - DIAS_QUADRO * 864e5, CORTE_PORTAL.getTime()));
 
 // Colunas do quadro (as mesmas do Trello). Serviços usam o mesmo quadro, filtrado pelo módulo.
 export const COLUNAS = [

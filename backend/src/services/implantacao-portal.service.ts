@@ -8,7 +8,7 @@ import { diaSP, temposDaDemanda } from '@/lib/implantacao/cronometro';
 import { CONTATO_GERAL, LINK_CONTATO_GERAL } from '@/lib/triagem/fluxo';
 import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
-  progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla,
+  progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -392,7 +392,7 @@ export async function pularMarcosPassados(prisma: PrismaClient, implantacaoId: s
 
 export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
   const cfg = await obterConfigPortal(prisma);
-  const ativas = (await prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' } } })).filter(i => !ehLegado(i));
+  const ativas = (await prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, created_at: { gte: CORTE_PORTAL } } })).filter(i => !ehLegado(i));
   const hoje = diaSP(agora);
   const resumoGestao: string[] = []; // prazos e demandas sem técnico: um único resumo por rodada
 
