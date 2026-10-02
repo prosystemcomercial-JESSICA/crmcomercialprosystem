@@ -926,7 +926,7 @@ class ApiClient {
   async abrirOcorrencia(id: string, data: { titulo: string; descricao?: string; gravidade: string }) { return this.client.post(`/implantacoes/${id}/ocorrencias`, data); }
   async atualizarOcorrencia(ocId: string, data: { situacao?: string; resolucao?: string | null; gravidade?: string }) { return this.client.patch(`/implantacoes/ocorrencias/${ocId}`, data); }
   async gerarPaginaCliente(id: string) { return this.client.post(`/implantacoes/${id}/pagina-cliente`, {}); }
-  async enviarAvisoTecnico(data: { para_id: string; texto: string; prioridade: string; implantacao_id?: string | null }) { return this.client.post('/implantacoes/avisos', data); }
+  async enviarAvisoTecnico(data: { para_id: string; texto: string; prioridade: string; implantacao_id?: string | null; tipo?: 'AVISO' | 'TAREFA'; prazo?: string | null }) { return this.client.post('/implantacoes/avisos', data); }
   async getAvisosTecnico(enviados = false) { return this.client.get('/implantacoes/avisos', { params: enviados ? { enviados: '1' } : {} }); }
   async marcarAvisoLido(id: string) { return this.client.post(`/implantacoes/avisos/${id}/lido`, {}); }
   async marcarAvisosLidos() { return this.client.post('/implantacoes/avisos/lidos', {}); }
@@ -934,6 +934,8 @@ class ApiClient {
   async salvarConfigPortal(data: any) { return this.client.put('/implantacoes/portal/config', data); }
   async getPainelImplantacao(params: { de?: string; ate?: string } = {}) { return this.client.get('/implantacoes/painel', { params }); }
   async atalhoTv(trocar = false) { return this.client.post('/painel-tv/atalho', { trocar }); }
+  async getInicioPortal() { return this.client.get('/implantacoes/inicio'); }
+  async concluirTarefa(id: string, reabrir = false) { return this.client.post(`/implantacoes/tarefas/${id}/concluir`, { reabrir }); }
   async getTecnicosImplantacao() {
     return this.client.get('/implantacoes/tecnicos');
   }
