@@ -433,7 +433,8 @@ export async function salvarArquivoCliente(implantacaoId: string, tarefaId: stri
   const limpo = (nome || 'arquivo').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\- ]+/g, '_').slice(-120) || 'arquivo';
   const dir = path.join(PASTA_ARQUIVOS_CLIENTE(), implantacaoId);
   await mkdir(dir, { recursive: true });
-  const caminho = path.join(dir, `${tarefaId}-${Date.now()}-${limpo}`);
+  // A coluna arquivo_caminho tem 191 caracteres: o nome em disco fica curto (o nome original vai em arquivo_nome).
+  const caminho = path.join(dir, `${tarefaId}-${Date.now()}-${limpo.slice(-60)}`);
   await writeFile(caminho, buf);
   return { caminho, nome: limpo, mime: m[1] || 'application/octet-stream', tamanho: buf.length };
 }
