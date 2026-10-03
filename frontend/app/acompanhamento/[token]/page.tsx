@@ -41,7 +41,7 @@ export default function AcompanhamentoPage() {
       titulo: e.nome, sub: e.total ? `${e.feitos} de ${e.total} passos` : null, passos: e.passos,
       estado: (e.total && e.feitos === e.total) || d.virada ? 'feito' : e.feitos ? 'atual' : 'futuro',
     })),
-    ...(!servico ? [{ titulo: 'Virada da loja', sub: d.virada ? `Sistema em uso desde ${fmtData(d.virada)}` : d.virada_inicio ? 'Em andamento' : 'Data combinada com o técnico', estado: (d.virada ? 'feito' : d.virada_inicio ? 'atual' : 'futuro') as any }] : []),
+    ...(!servico ? [{ titulo: 'Virada da loja', sub: d.virada ? `Sistema em uso desde ${fmtData(d.virada)}` : d.virada_inicio ? 'Em andamento' : d.virada_agendada ? `Marcada para ${new Date(d.virada_agendada).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}` : 'Data combinada com o técnico', estado: (d.virada ? 'feito' : d.virada_inicio ? 'atual' : 'futuro') as any }] : []),
     ...(!servico ? d.fases.map((f: any) => ({ titulo: `Treinamento · Fase ${f.ordem}: ${f.nome}`, sub: f.realizada_em ? `Realizada em ${fmtData(f.realizada_em)}` : f.marcada_em ? `Marcada para ${fmtData(f.marcada_em)}` : null, estado: f.realizada_em ? 'feito' : f.marcada_em ? 'atual' : 'futuro' })) : []),
     ...(servico ? [{ titulo: 'Serviço concluído', sub: null, estado: (d.concluida || d.pct >= 100 ? 'feito' : 'futuro') as any }] : []),
   ];
@@ -70,6 +70,13 @@ export default function AcompanhamentoPage() {
             <span>⏱️ Tempo dedicado: <b style={{ color: '#1A4E82' }}>{fmtHoras(d.tempo_ms)}</b></span>
             {d.primeiro_vencimento && <span>📅 1º vencimento: <b style={{ color: '#1A4E82' }}>{fmtData(d.primeiro_vencimento)}</b></span>}
           </div>
+          {(d.virada_agendada || d.treinos_marcados?.length > 0) && (
+            <div style={{ marginTop: 14, padding: 12, background: '#EBF4FF', borderRadius: 10, fontSize: 14, display: 'grid', gap: 4 }}>
+              <b style={{ color: '#1A4E82' }}>Datas combinadas</b>
+              {d.virada_agendada && <span style={{ color: '#23384D' }}>🚀 Virada do sistema: <b>{new Date(d.virada_agendada).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}</b></span>}
+              {(d.treinos_marcados || []).map((t: any) => <span key={t.ordem} style={{ color: '#23384D' }}>🎓 Treinamento fase {t.ordem} ({t.nome}): <b>{fmtData(t.marcada_em)}</b></span>)}
+            </div>
+          )}
           {d.proximos?.length > 0 && !d.virada && (
             <div style={{ marginTop: 14, padding: 12, background: '#F4F7FB', borderRadius: 10, fontSize: 14 }}>
               <b style={{ color: '#1A4E82' }}>Próximos passos</b>

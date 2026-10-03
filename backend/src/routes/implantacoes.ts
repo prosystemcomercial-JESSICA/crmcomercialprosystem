@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
-import { faseDoItemTreinamento, ONBOARDING_ITENS, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidas, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
-import { avisarTecnico, garantirFasesTreinamento } from '@/services/implantacao-portal.service';
+import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoModelo, colunaDaEtapa, ONBOARDING_ITENS, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidas, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
+import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal } from '@/services/implantacao-portal.service';
 
 /**
  * Acompanhamento e EXECUÇÃO da implantação. Cada implantação nasce de um contrato
@@ -20,69 +20,6 @@ import { avisarTecnico, garantirFasesTreinamento } from '@/services/implantacao-
 const ETAPAS_EXEC = ['AGUARDANDO_DESIGNACAO', 'DESIGNADO', 'EM_ANALISE', 'EM_CONVERSAO', 'EM_CONFIGURACAO', 'EM_TREINAMENTO', 'FINALIZADO'];
 const TESTES_PADRAO = ['Produtos', 'Clientes', 'Fornecedores', 'Estoque', 'Financeiro (a pagar/receber)', 'Fiscal / NF-e', 'Vendas / Histórico'];
 
-// Trilha real de implantação (Trello) — 3 grupos com os itens do técnico.
-const CHECKLIST_GRUPOS: { grupo: string; itens: string[] }[] = [
-  {
-    grupo: 'INSTALACAO',
-    itens: [
-      'Instalação do servidor, terminais e Caixa',
-      'Configuração de Balança, gaveta',
-      'Configuração de impressora NFCE',
-      'Configurar Uninfe e Certificado',
-      'Configurar Gerencial',
-      'Configurar o Copy (backup) Interno e Externo (Nuvem)',
-      'Configurar o Connect (Comunicação entre filiais)',
-      'Testar Cadastro de Clientes',
-      'Teste de Cadastro de Produtos, verificar dados obrigatórios',
-      'Teste de Movimentação - Entrada, Emissão de nota e Cancelamento',
-      'Teste Financeiro - movimentação',
-      'Validar relatórios 100% atualizados',
-      'Instalar e Configurar Farmácias APP',
-      'Emitir uma nota de saída NFCE em Operação',
-    ],
-  },
-  {
-    grupo: 'CONVERSAO',
-    itens: [
-      'Instalação do Banco de Dados',
-      'Limpar tabelas para receber a nova versão',
-      'Conversão dos dados do sistema X para Prosystem',
-      'Validar Produtos (cód. barras, estoque, tributação, registro MS, custo, venda, lucro, promoção...)',
-      'Validar Clientes (endereço completo, RG, CPF, crediário, limite de crédito)',
-      'Validar Cadastro de Empresas e Prescritores',
-      'Financeiro (plano de contas, contas a pagar/receber, dados de cartões)',
-      'Movimentação (entrada, saída, verificar última nota NFE/NFCE)',
-      'Gerar SPED Fiscal para validação de valores',
-      'Incluir sequência das últimas 10 NFE emitidas na NFE_NUMERACAO',
-    ],
-  },
-  {
-    grupo: 'TREINAMENTO',
-    itens: [
-      'Configuração de Acesso padrão para Funcionários',
-      'Movimentação - Entrada / Saída de nota',
-      'Produtos - Cadastro',
-      'Financeiro - Plano de Contas',
-      'PDV - Pré-Venda / Orçamento',
-      'Emissão de Cupom Fiscal NFCE',
-      'PDV - Devolução',
-      'PDV - NFE Acobertamento',
-      'Fechamento de caixa',
-      'Crediário / Convênio',
-      'Sugestão de compras (Curva ABC) — ou apresentar a ferramenta',
-      'Controlados / Receitas - Controle SNGPC',
-      'Comunicação entre Filiais',
-      'Controle de Estoque',
-      'Metas de Funcionários',
-      'PBM',
-      'Recarga de celular - RV',
-      'Prosystem Gerencial',
-      'Ofertar o Imendes',
-      'Mensagerias WhatsApp',
-      'Prosystem Dashboard',
-    ],
-  },
-];
 
 function dias(a?: Date | string | null, b?: Date | string | null): number | null {
   if (!a || !b) return null;
@@ -254,10 +191,15 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     }
     const temChk = await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id } });
     if (temChk === 0) {
-      // Semeia a trilha completa (3 grupos: Instalação, Conversão, Treinamento).
+      // Semeia a trilha completa (3 grupos: Instalação, Conversão, Treinamento) pelo modelo do segmento do
+      // cliente (Configurações do portal), com os itens extras do sistema de origem na conversão.
       const itens: any[] = [];
       if (imp.modulo === 'IMPLANTACAO') ONBOARDING_ITENS.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i }));
-      CHECKLIST_GRUPOS.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i, fase: g.grupo === 'TREINAMENTO' ? faseDoItemTreinamento(titulo) : null })));
+      const cfg = await obterConfigPortal(prisma);
+      const cli = imp.cliente_id ? await prisma.cliente.findUnique({ where: { id: imp.cliente_id }, select: { segmento: true } }).catch(() => null)
+        : imp.cliente_cnpj ? await prisma.cliente.findFirst({ where: { cnpj: imp.cliente_cnpj }, select: { segmento: true } }).catch(() => null) : null;
+      const grupos = imp.modulo === 'IMPLANTACAO' ? checklistDoModelo(cfg.modelos, cfg.extras_sistema, cli?.segmento, imp.sistema_anterior) : CHECKLIST_PADRAO;
+      grupos.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i, fase: g.grupo === 'TREINAMENTO' ? faseDoItemTreinamento(titulo) : null })));
       await prisma.implantacaoChecklistItem.createMany({ data: itens }).catch(() => {});
     }
     // Implantação designada antes do onboarding técnico existir: acrescenta os itens dele (uma vez).
@@ -279,8 +221,10 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Não encontrada' });
     const ator = (request as any).user;
 
-    const data: any = { etapa_execucao: body.data.etapa };
-    if (body.data.etapa === 'FINALIZADO' && !imp.data_conclusao) data.data_conclusao = new Date();
+    // Uma só verdade: a etapa muda a coluna do quadro junto (finalizar continua sendo da supervisão).
+    if (body.data.etapa === 'FINALIZADO' && !(podeVerTudo(ator) || (ator?.role || '').toUpperCase() === 'SUPERVISAO_TECNICA')) return reply.status(403).send({ status: 'error', message: 'Só a supervisão finaliza' });
+    const data: any = { etapa_execucao: body.data.etapa, coluna: colunaDaEtapa(body.data.etapa) };
+    if (body.data.etapa === 'FINALIZADO' && !imp.data_conclusao) { data.data_conclusao = new Date(); data.concluida_fila_em = imp.concluida_fila_em || new Date(); }
     const atualizada = await prisma.implantacao.update({ where: { id }, data });
     await registrarAtividade(prisma, id, 'MUDANCA_ETAPA', `Etapa alterada para ${body.data.etapa}`, ator, imp.etapa_execucao, body.data.etapa);
     return reply.send({ status: 'success', data: atualizada });
@@ -297,7 +241,7 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const agora = new Date();
 
     if (body.data.acao === 'INICIAR') {
-      await prisma.implantacao.update({ where: { id }, data: { treinamento_inicio: agora, etapa_execucao: 'EM_TREINAMENTO' } });
+      await prisma.implantacao.update({ where: { id }, data: { treinamento_inicio: agora, etapa_execucao: 'EM_TREINAMENTO', ...(imp.virada_fim_em ? { coluna: 'ACOMPANHAMENTO' } : {}) } });
       await registrarAtividade(prisma, id, 'TREINAMENTO', 'Treinamento iniciado', ator);
     } else {
       await prisma.implantacao.update({ where: { id }, data: { treinamento_fim: agora } });

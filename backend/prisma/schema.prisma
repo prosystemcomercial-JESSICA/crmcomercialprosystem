@@ -1497,6 +1497,12 @@ model Implantacao {
   onboarding_aprovado_em  DateTime? // cliente aprovou o diagnóstico pela página de acompanhamento
   onboarding_aprovado_por String?
   treinamento_fases       ImplantacaoTreinamentoFase[]
+  // Agenda da virada (Fase 2 do plano de UX): data combinada com o cliente, lembrete 1 dia antes, remarcações.
+  virada_agendada_para    DateTime?
+  virada_duracao_h        Int?
+  virada_remarcacoes      Int                          @default(0)
+  virada_lembrete_em      DateTime?
+  assistida               ImplantacaoAssistida[]
   ocorrencias             ImplantacaoOcorrencia[]
   comunicacoes            ImplantacaoComunicacao[]
 
@@ -1602,6 +1608,7 @@ model ImplantacaoTreinamentoFase {
   nome           String
   marcada_em     DateTime?
   realizada_em   DateTime?
+  lembrete_em    DateTime? // lembrete ao cliente 1 dia antes da data marcada
   observacao     String?     @db.Text
   created_at     DateTime    @default(now())
   updated_at     DateTime    @updatedAt
@@ -1659,6 +1666,25 @@ model OfertaCliente {
 
   @@unique([implantacao_id, produto])
   @@index([cliente_id])
+}
+
+// Operação assistida: 5 dias úteis depois da loja virada, o técnico confere vendas, NFC-e e estoque.
+// Um registro por dia; problema numa checagem abre uma correção ligada ao card.
+model ImplantacaoAssistida {
+  id             String      @id @default(cuid())
+  implantacao_id String
+  implantacao    Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
+  dia            String // YYYY-MM-DD (Brasília)
+  vendas_ok      Boolean
+  nfce_ok        Boolean
+  estoque_ok     Boolean
+  observacao     String?     @db.Text
+  ocorrencia_id  String?
+  tecnico_id     String?
+  tecnico_nome   String?
+  created_at     DateTime    @default(now())
+
+  @@unique([implantacao_id, dia])
 }
 
 // Observações do card do cliente no Portal Técnico.

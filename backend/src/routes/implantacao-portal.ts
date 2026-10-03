@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
-  garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe,
+  garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -55,6 +55,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         esperas: { where: { fim: null }, select: { id: true, tipo: true, motivo: true, inicio: true } },
         ocorrencias: { where: { situacao: { not: 'RESOLVIDA' } }, select: { id: true, gravidade: true } },
         treinamento_fases: { select: { realizada_em: true } },
+        assistida: { select: { dia: true } },
       },
     });
     const agora = new Date();
@@ -71,7 +72,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         esperas_abertas: i.esperas, ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
         tela_suporte: !!i.tela_suporte_arquivo_id, virada_inicio_em: i.virada_inicio_em, virada_fim_em: i.virada_fim_em, data_primeiro_vencimento: i.data_primeiro_vencimento,
         cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
-        proximo_passo: (({ chave, titulo, quem }) => ({ chave, titulo, quem }))(proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length)),
+        proximo_passo: (({ chave, titulo, quem }) => ({ chave, titulo, quem }))(proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length, { assistida: i.assistida, agora })),
+        virada_agendada_para: i.virada_agendada_para,
         onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length,
       };
     });
@@ -87,18 +89,22 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     const para = b.data.coluna, de = colunaDe(imp);
+    const incoerente = colunaIncoerente(imp, para);
+    if (incoerente) return reply.status(400).send({ status: 'error', message: incoerente });
     if (['CANCELADOS', 'VALIDADO', 'FINALIZADO'].includes(para) && !ehGestaoTecnica(u)) return reply.status(403).send({ status: 'error', message: 'Só a supervisão valida, finaliza ou cancela' });
     const chk = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, titulo: true, feito: true } });
     if (para === 'CONCLUIDO' && de !== 'CONCLUIDO') {
-      const [fases, abertas] = await Promise.all([
+      const [fases, abertas, assistida] = await Promise.all([
         prisma.implantacaoTreinamentoFase.findMany({ where: { implantacao_id: id }, select: { realizada_em: true } }),
         prisma.implantacaoOcorrencia.count({ where: { implantacao_id: id, situacao: { not: 'RESOLVIDA' } } }),
+        prisma.implantacaoAssistida.findMany({ where: { implantacao_id: id }, select: { dia: true } }),
       ]);
-      const falta = pendenciasValidacao(imp, chk, fases, abertas);
+      const falta = pendenciasValidacao(imp, chk, fases, abertas, assistida);
       if (falta.length) return reply.status(400).send({ status: 'error', message: `Antes de concluir: ${falta.join('; ')}.`, data: { pendencias: falta } });
     }
     if (!['BACKLOG', 'A_FAZER', 'CANCELADOS'].includes(para) && !onboardingOk(imp, chk)) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes de avançar a demanda.' });
-    const data: any = { coluna: para };
+    // Uma só verdade: a etapa de execução acompanha a coluna.
+    const data: any = { coluna: para, etapa_execucao: etapaDaColuna(para, imp) };
     if (para === 'FINALIZADO') {
       const abertas = await prisma.implantacaoOcorrencia.count({ where: { implantacao_id: id, situacao: { not: 'RESOLVIDA' } } });
       if (abertas) return reply.status(400).send({ status: 'error', message: `Há ${abertas} correção(ões) aberta(s). Resolva antes de finalizar.` });
@@ -108,8 +114,6 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       data.etapa_execucao = 'FINALIZADO';
     }
     if (para === 'CANCELADOS') data.status = 'CANCELADA';
-    if (para === 'EM_ANDAMENTO' && ['AGUARDANDO_DESIGNACAO', 'DESIGNADO'].includes(imp.etapa_execucao)) data.etapa_execucao = imp.tipo_base === 'CONVERSAO' ? 'EM_CONVERSAO' : 'EM_CONFIGURACAO';
-    if (para === 'ACOMPANHAMENTO') data.etapa_execucao = 'EM_TREINAMENTO';
     await prisma.implantacao.update({ where: { id }, data });
     if (para === 'FINALIZADO' && imp.venda_adicional_id) await concluirServicoNaVenda(prisma, imp.venda_adicional_id);
     const nome = (k: string) => COLUNAS.find(c => c.key === k)?.label || k;
@@ -138,6 +142,19 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (body.contato_whatsapp !== undefined) extra.contato_whatsapp = String(body.contato_whatsapp || '').replace(/\D/g, '') || null;
     await prisma.implantacao.update({ where: { id }, data: { coleta, ...extra } });
     await atividade(id, 'NOTA', '📝 Ficha de coleta atualizada', u);
+    // Sistema de origem informado/trocado: acrescenta os itens extras desse sistema na conversão (só os que faltam).
+    if (imp.modulo === 'IMPLANTACAO' && extra.sistema_anterior && extra.sistema_anterior !== imp.sistema_anterior) {
+      const cfgP = await obterConfigPortal(prisma);
+      const novos = extrasDoSistema(cfgP.extras_sistema, extra.sistema_anterior);
+      if (novos.length) {
+        const ja = new Set((await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id, grupo: 'CONVERSAO' }, select: { titulo: true } })).map(x => x.titulo));
+        const faltam = novos.filter(t => !ja.has(t));
+        if (faltam.length) {
+          await prisma.implantacaoChecklistItem.createMany({ data: faltam.map((titulo, k) => ({ implantacao_id: id, grupo: 'CONVERSAO', titulo, ordem: 100 + k })) });
+          await atividade(id, 'NOTA', `🧩 ${faltam.length} item(ns) de conversão do sistema ${extra.sistema_anterior} acrescentado(s) ao checklist`, u);
+        }
+      }
+    }
     // As 15 perguntas do primeiro contato respondidas: o item do onboarding se marca sozinho (e desmarca se apagarem alguma).
     const { perguntasRespondidas, ITEM_PERGUNTAS } = await import('@/lib/implantacao/portal');
     await prisma.implantacaoChecklistItem.updateMany({ where: { implantacao_id: id, grupo: 'ONBOARDING', titulo: ITEM_PERGUNTAS },
@@ -173,15 +190,16 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     if (['CONCLUIDO', 'VALIDADO', 'FINALIZADO', 'CANCELADOS'].includes(colunaDe(imp))) return reply.status(400).send({ status: 'error', message: 'Esta demanda já saiu da execução' });
-    const [chk, fases, abertas] = await Promise.all([
+    const [chk, fases, abertas, assistida] = await Promise.all([
       prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, titulo: true, feito: true } }),
       prisma.implantacaoTreinamentoFase.findMany({ where: { implantacao_id: id }, select: { realizada_em: true } }),
       prisma.implantacaoOcorrencia.count({ where: { implantacao_id: id, situacao: { not: 'RESOLVIDA' } } }),
+      prisma.implantacaoAssistida.findMany({ where: { implantacao_id: id }, select: { dia: true } }),
     ]);
-    const falta = pendenciasValidacao(imp, chk, fases, abertas);
+    const falta = pendenciasValidacao(imp, chk, fases, abertas, assistida);
     if (falta.length) return reply.status(400).send({ status: 'error', message: `Antes de pedir a validação: ${falta.join('; ')}.`, data: { pendencias: falta } });
     const agora = new Date();
-    await prisma.implantacao.update({ where: { id }, data: { coluna: 'CONCLUIDO' } });
+    await prisma.implantacao.update({ where: { id }, data: { coluna: 'CONCLUIDO', etapa_execucao: etapaDaColuna('CONCLUIDO', imp) } });
     await prisma.implantacaoSessao.updateMany({ where: { implantacao_id: id, tecnico_id: u.id, fim: null }, data: { fim: agora, origem_fim: 'PAUSA' } });
     await atividade(id, 'MUDANCA_ETAPA', `✅ ${u.nome || 'Técnico'} concluiu e pediu a validação da supervisão`, u);
     await avisarEquipe(prisma, `✅ Pedido de validação: ${imp.cliente_razao_social} (${u.nome || 'técnico'}). Abra o card para validar ou devolver.`, id).catch(() => {});
@@ -199,10 +217,70 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await prisma.implantacao.findUnique({ where: { id } });
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     const coluna = imp.modulo === 'IMPLANTACAO' && imp.virada_fim_em ? 'ACOMPANHAMENTO' : 'EM_ANDAMENTO';
-    await prisma.implantacao.update({ where: { id }, data: { coluna } });
+    await prisma.implantacao.update({ where: { id }, data: { coluna, etapa_execucao: etapaDaColuna(coluna, imp) } });
     await atividade(id, 'MUDANCA_ETAPA', `↩️ ${u.nome || 'Supervisão'} devolveu ao técnico: ${b.data.motivo}`, u);
     if (imp.tecnico_id) await avisarTecnico(prisma, { para_id: imp.tecnico_id, implantacao_id: id, origem: 'GESTAO', de: { id: u.id, nome: u.nome }, prioridade: 'URGENTE', texto: `${imp.cliente_razao_social} voltou para você: ${b.data.motivo}` }).catch(() => null);
     return reply.send({ status: 'success' });
+  });
+
+  // ── Agendar (ou remarcar) a virada com o cliente: data no card, recado ao cliente, lembrete 1 dia útil antes.
+  fastify.post('/implantacoes/:id/agendar-virada', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({
+      quando: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/), duracao_h: z.number().int().min(1).max(24).optional().nullable(),
+      motivo: z.enum(['CLIENTE', 'TECNICO', 'PROGRAMACAO', 'OUTRO']).optional(), motivo_texto: z.string().trim().max(500).optional(), confirmar: z.boolean().optional(),
+    }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Informe a data e a hora da virada.' });
+    const imp = await demanda(u, id);
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    if (imp.modulo !== 'IMPLANTACAO') return reply.status(400).send({ status: 'error', message: 'Virada é só para implantação' });
+    if (imp.virada_inicio_em || imp.virada_fim_em) return reply.status(400).send({ status: 'error', message: 'A virada já começou: não dá mais para agendar.' });
+    const para = new Date(`${b.data.quando}:00-03:00`);
+    if (para.getTime() < Date.now() - 5 * 60000) return reply.status(400).send({ status: 'error', message: 'A data da virada precisa ser no futuro.' });
+    const remarcando = !!imp.virada_agendada_para;
+    if (remarcando && !b.data.motivo) return reply.status(400).send({ status: 'error', message: 'Remarcação: diga o motivo.' });
+    // Outra virada do mesmo técnico no mesmo dia: avisa e pede confirmação.
+    if (imp.tecnico_id && !b.data.confirmar) {
+      const mesmoDia = (await prisma.implantacao.findMany({ where: { id: { not: id }, tecnico_id: imp.tecnico_id, virada_fim_em: null, status: { not: 'CANCELADA' }, virada_agendada_para: { gte: new Date(para.getTime() - 864e5), lte: new Date(para.getTime() + 864e5) } }, select: { cliente_razao_social: true, virada_agendada_para: true } }))
+        .filter(o => diaSP(o.virada_agendada_para!) === diaSP(para));
+      if (mesmoDia.length) return reply.status(409).send({ status: 'error', message: `${imp.tecnico_nome || 'O técnico'} já tem virada nesse dia: ${mesmoDia.map(o => `${o.cliente_razao_social} (${o.virada_agendada_para!.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })})`).join(', ')}.`, data: { conflito: true } });
+    }
+    await prisma.implantacao.update({ where: { id }, data: { virada_agendada_para: para, virada_duracao_h: b.data.duracao_h ?? imp.virada_duracao_h ?? null, virada_lembrete_em: null, ...(remarcando ? { virada_remarcacoes: { increment: 1 } } : {}) } });
+    const MOTIVO: Record<string, string> = { CLIENTE: 'cliente pediu', TECNICO: 'problema técnico', PROGRAMACAO: 'aguardando programação', OUTRO: 'outro motivo' };
+    const quandoTxt = para.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    await atividade(id, 'NOTA', remarcando ? `📅 Virada remarcada para ${quandoTxt} (${MOTIVO[b.data.motivo!]}${b.data.motivo_texto ? `: ${b.data.motivo_texto}` : ''})` : `📅 Virada agendada para ${quandoTxt}`, u);
+    if (!ehLegado(imp)) await avisarClienteAgenda(prisma, imp, 'AGENDA_VIRADA', textoAgendaVirada(imp, para, remarcando, b.data.duracao_h ?? imp.virada_duracao_h)).catch(() => {});
+    if (remarcando) await avisarEquipe(prisma, `📅 Virada remarcada: ${imp.cliente_razao_social} para ${quandoTxt} (${MOTIVO[b.data.motivo!]}).`, id).catch(() => {});
+    return reply.send({ status: 'success' });
+  });
+
+  // ── Operação assistida: checagem do dia (vendas, NFC-e, estoque). Problema abre uma correção ligada ao card.
+  fastify.post('/implantacoes/:id/assistida', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({ dia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), vendas_ok: z.boolean(), nfce_ok: z.boolean(), estoque_ok: z.boolean(), observacao: z.string().trim().max(2000).optional() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Marque as três checagens.' });
+    const imp = await demanda(u, id);
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    const regs = await prisma.implantacaoAssistida.findMany({ where: { implantacao_id: id }, select: { dia: true } });
+    const st = statusAssistida(imp, regs);
+    if (!st) return reply.status(400).send({ status: 'error', message: 'Esta demanda não tem operação assistida (a loja ainda não virou ou é anterior a 03/10/2026).' });
+    const d = st.dias.find(x => x.dia === b.data.dia);
+    if (!d) return reply.status(400).send({ status: 'error', message: 'Esse dia não faz parte da operação assistida.' });
+    if (!d.liberado) return reply.status(400).send({ status: 'error', message: 'Essa checagem ainda não chegou: registre no dia.' });
+    if (d.feito) return reply.status(400).send({ status: 'error', message: 'Esse dia já foi checado.' });
+    const falhas = [!b.data.vendas_ok && 'vendas', !b.data.nfce_ok && 'NFC-e', !b.data.estoque_ok && 'estoque'].filter(Boolean) as string[];
+    const ddmm = `${b.data.dia.slice(8, 10)}/${b.data.dia.slice(5, 7)}`;
+    let ocorrencia_id: string | null = null;
+    if (falhas.length) {
+      const oc = await prisma.implantacaoOcorrencia.create({ data: { implantacao_id: id, titulo: `Operação assistida ${ddmm}: problema em ${falhas.join(', ')}`, descricao: b.data.observacao || null, gravidade: !b.data.vendas_ok || !b.data.nfce_ok ? 'ALTA' : 'MEDIA', aberta_por: u.nome || u.id } as any });
+      ocorrencia_id = oc.id;
+    }
+    await prisma.implantacaoAssistida.create({ data: { implantacao_id: id, dia: b.data.dia, vendas_ok: b.data.vendas_ok, nfce_ok: b.data.nfce_ok, estoque_ok: b.data.estoque_ok, observacao: b.data.observacao || null, ocorrencia_id, tecnico_id: u.id, tecnico_nome: u.nome || null } });
+    await atividade(id, 'NOTA', falhas.length ? `🩺 Operação assistida ${ddmm}: problema em ${falhas.join(', ')} (correção aberta)` : `🩺 Operação assistida ${ddmm}: vendas, NFC-e e estoque ok (${st.feitos + 1} de ${st.total})`, u);
+    if (falhas.length) await avisarEquipe(prisma, `🩺 ${imp.cliente_razao_social}: operação assistida ${ddmm} com problema em ${falhas.join(', ')}.`, id).catch(() => {});
+    return reply.send({ status: 'success', data: { ocorrencia_id } });
   });
 
   // ── Busca global (Ctrl+K): cliente, CNPJ ou técnico, só dentro do que a pessoa pode ver.
@@ -284,6 +362,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       prisma.implantacaoEspera.findMany({ where: { implantacao_id: id }, orderBy: { inicio: 'desc' } }),
     ]);
     const tempos = temposDaDemanda(sessoes, esperas, { inicio: imp.data_assinatura, conclusao: imp.data_conclusao });
+    const assistidaRegs = await prisma.implantacaoAssistida.findMany({ where: { implantacao_id: id }, orderBy: { dia: 'asc' } });
     // Ficha do cliente para o técnico: tudo do cadastro, menos dados financeiros e documentos pessoais.
     const cnpjLimpo = (imp.cliente_cnpj || '').replace(/\D/g, '');
     const cliente_ficha = await prisma.cliente.findFirst({
@@ -311,7 +390,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
       link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: CAMPOS_COLETA,
       onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
-      proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length),
+      proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length, { assistida: assistidaRegs }),
+      assistida: (() => { const st = statusAssistida(imp, assistidaRegs); return st ? { ...st, registros: assistidaRegs } : null; })(),
       cliente_ficha, tipo_demanda, servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
@@ -418,7 +498,15 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       if (!i.tecnico_id && gestao) atencao.push({ tipo: 'SEM_TECNICO', texto: `${i.cliente_razao_social}: sem técnico designado`, implantacao_id: i.id, ordem: 1 });
     }
     atencao.sort((a, b) => a.ordem - b.ordem);
+    const limite = new Date(agora.getTime() + 14 * 864e5);
+    const agenda = [
+      ...minhas.filter(i => i.virada_agendada_para && !i.virada_inicio_em && i.virada_agendada_para >= iniHoje && i.virada_agendada_para <= limite)
+        .map(i => ({ tipo: 'VIRADA', quando: i.virada_agendada_para!, dia_todo: false, titulo: `Virada${i.virada_duracao_h ? ` (${i.virada_duracao_h}h)` : ''}`, cliente: i.cliente_razao_social, implantacao_id: i.id, tecnico: i.tecnico_nome })),
+      ...minhas.flatMap(i => i.treinamento_fases.filter(f => f.marcada_em! >= iniHoje && f.marcada_em! <= limite)
+        .map(f => ({ tipo: 'TREINO', quando: f.marcada_em!, dia_todo: true, titulo: `Treinamento fase ${f.ordem}: ${f.nome}`, cliente: i.cliente_razao_social, implantacao_id: i.id, tecnico: i.tecnico_nome }))),
+    ].sort((a, b) => a.quando.getTime() - b.quando.getTime());
     return reply.send({ status: 'success', data: {
+      agenda,
       saudacao: `${saudacao(agora)}, ${(u.nome || '').split(' ')[0] || 'tudo bem'}!`, frase: fraseDoDia(agora),
       hoje: { ...resumo, virada: viradaHoje },
       tarefas: tarefas.map(t => ({ ...t, atrasada: !t.concluida_em && !!t.prazo && t.prazo < agora })),
@@ -445,7 +533,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const forcar = !!(request.body as any)?.forcar && ehGestaoTecnica(u);
     if (falta.length && !forcar) return reply.status(400).send({ status: 'error', message: `Antes de iniciar a virada: ${falta.join('; ')}.`, data: { pendencias: falta } });
     if (falta.length) await atividade(id, 'NOTA', `⚠️ ${u.nome || 'Supervisão'} liberou a virada com pendências: ${falta.join('; ')}`, u);
-    await prisma.implantacao.update({ where: { id }, data: { virada_inicio_em: new Date(), coluna: 'EM_ANDAMENTO' } });
+    await prisma.implantacao.update({ where: { id }, data: { virada_inicio_em: new Date(), coluna: 'EM_ANDAMENTO', etapa_execucao: etapaDaColuna('EM_ANDAMENTO', imp) } });
     await atividade(id, 'NOTA', `🚀 ${u.nome || 'Técnico'} iniciou a virada da loja`, u);
     const { enviarAvisoGestao } = await import('@/services/assistente-gestao.service');
     await enviarAvisoGestao(prisma, 'lead_qualificado', `🚀 *Virada iniciada*: ${imp.cliente_razao_social} (${u.nome || 'técnico'}).`, { somenteAprovadora: true }).catch(() => {});
@@ -505,7 +593,12 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const f = await prisma.implantacaoTreinamentoFase.findUnique({ where: { id: faseId } });
     if (!f || !(await demanda(u, f.implantacao_id))) return reply.status(404).send({ status: 'error', message: 'Fase não encontrada' });
     const d = (v?: string | null) => v === undefined ? undefined : v ? new Date(/T/.test(v) ? v : `${v}T12:00:00-03:00`) : null;
-    const atual = await prisma.implantacaoTreinamentoFase.update({ where: { id: faseId }, data: { nome: b.data.nome, marcada_em: d(b.data.marcada_em), realizada_em: d(b.data.realizada_em), observacao: b.data.observacao } });
+    const novaData = b.data.marcada_em !== undefined && (d(b.data.marcada_em)?.getTime() ?? null) !== (f.marcada_em?.getTime() ?? null);
+    const atual = await prisma.implantacaoTreinamentoFase.update({ where: { id: faseId }, data: { nome: b.data.nome, marcada_em: d(b.data.marcada_em), realizada_em: d(b.data.realizada_em), observacao: b.data.observacao, ...(novaData ? { lembrete_em: null } : {}) } });
+    if (novaData && atual.marcada_em && !atual.realizada_em && diaSP(atual.marcada_em) >= diaSP(new Date())) {
+      const imp = await prisma.implantacao.findUnique({ where: { id: f.implantacao_id } });
+      if (imp) await avisarClienteAgenda(prisma, imp, `AGENDA_TREINO_${f.ordem}`, textoAgendaTreino(imp, atual, atual.marcada_em, false)).catch(() => {});
+    }
     if (b.data.realizada_em && !f.realizada_em) {
       await atividade(f.implantacao_id, 'TREINAMENTO', `🎓 Fase ${f.ordem} do treinamento realizada: ${atual.nome}`, u);
       const todas = await prisma.implantacaoTreinamentoFase.findMany({ where: { implantacao_id: f.implantacao_id } });
@@ -615,7 +708,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/portal/config', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;
     const cfg = await obterConfigPortal(prisma);
-    return reply.send({ status: 'success', data: { ...cfg, link_programacao: `${URL_FRONT()}/programacao/${cfg.programacao.token}`, jornada: await obterJornada(prisma) } });
+    return reply.send({ status: 'success', data: { ...cfg, link_programacao: `${URL_FRONT()}/programacao/${cfg.programacao.token}`, jornada: await obterJornada(prisma), checklist_padrao: CHECKLIST_PADRAO } });
   });
   fastify.put('/implantacoes/portal/config', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;
@@ -624,6 +717,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       programacao: z.object({ nome: z.string().min(2).max(60), whatsapp: z.string().max(30), lembrete_horas: z.number().min(1).max(40) }).optional(),
       avisos_cliente: z.boolean().optional(), agente_ativo: z.boolean().optional(), ofertas_ativo: z.boolean().optional(), ofertas_dias_apos_virada: z.number().int().min(1).max(120).optional(),
       catalogo: z.array(z.object({ produto: z.string().min(2).max(80), descricao: z.string().max(400), preco: z.string().max(60) })).max(40).optional(),
+      modelos: z.array(z.object({ segmento: z.string().trim().min(2).max(60), grupos: z.object({ INSTALACAO: z.array(z.string().trim().min(2).max(300)).max(60), CONVERSAO: z.array(z.string().trim().min(2).max(300)).max(60), TREINAMENTO: z.array(z.string().trim().min(2).max(300)).max(60) }) })).max(20).optional(),
+      extras_sistema: z.array(z.object({ sistema: z.string().trim().min(2).max(60), itens: z.array(z.string().trim().min(2).max(300)).max(40) })).max(40).optional(),
       jornada: z.object({ inicio: z.string().regex(/^\d\d:\d\d$/), fim: z.string().regex(/^\d\d:\d\d$/), almoco_inicio: z.string().regex(/^\d\d:\d\d$/), almoco_min: z.number().int().min(0).max(180), virada_inicio: z.string().regex(/^\d\d:\d\d$/) }).optional(),
     }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Configuração inválida' });

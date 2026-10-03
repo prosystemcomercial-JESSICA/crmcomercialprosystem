@@ -13,7 +13,7 @@ import { ETAPAS, TIPOS_SESSAO, TIPOS_ESPERA, JORNADA_PADRAO, diaSP, emSP, fimAut
 
 const CHAVE_JORNADA = 'implantacao.jornada';
 const NOME_ESPERA: Record<string, string> = { PROGRAMACAO: 'aguardando programação', CLIENTE: 'aguardando cliente', PROCESSAMENTO: 'processamento em andamento' };
-const NOME_ETAPA: Record<string, string> = { ONBOARDING: 'Onboarding técnico', INSTALACAO: 'Instalação', CONVERSAO: 'Conversão', TREINAMENTO: 'Treinamento', CORRECAO: 'Correção pós-virada' };
+const NOME_ETAPA: Record<string, string> = { ONBOARDING: 'Onboarding técnico', INSTALACAO: 'Instalação', CONVERSAO: 'Conversão', TREINAMENTO: 'Treinamento', ASSISTIDA: 'Operação assistida', CORRECAO: 'Correção pós-virada' };
 const NOME_TIPO: Record<string, string> = { SUPORTE: 'Suporte', REUNIAO: 'Reunião', INTERNO: 'Tarefa interna' };
 
 /** Gestão (comercial) ou supervisão técnica: vê e corrige o tempo de todos os técnicos. */

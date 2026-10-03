@@ -12,7 +12,7 @@ export type Jornada = {
 
 export const JORNADA_PADRAO: Jornada = { inicio: '08:00', fim: '18:00', almoco_inicio: '12:00', almoco_min: 60, virada_inicio: '07:00', dias: [1, 2, 3, 4, 5] };
 
-export const ETAPAS = ['ONBOARDING', 'INSTALACAO', 'CONVERSAO', 'TREINAMENTO', 'CORRECAO'] as const;
+export const ETAPAS = ['ONBOARDING', 'INSTALACAO', 'CONVERSAO', 'TREINAMENTO', 'ASSISTIDA', 'CORRECAO'] as const;
 export const TIPOS_SESSAO = ['DEMANDA', 'SUPORTE', 'REUNIAO', 'INTERNO'] as const;
 export const TIPOS_ESPERA = ['PROGRAMACAO', 'CLIENTE', 'PROCESSAMENTO'] as const;
 
