@@ -84,6 +84,7 @@ export default function AcompanhamentoPage() {
             </div>
           )}
         </section>
+        {d.tarefas_cliente?.length > 0 && <TarefasDoCliente token={token} tarefas={d.tarefas_cliente} recarregar={() => axios.get(`${API_URL}/publico/acompanhamento/${token}`).then(r => setD(r.data.data)).catch(() => {})} />}
         {d.diagnostico && d.diagnostico.dados.length > 0 && (
           <section style={{ background: '#fff', borderRadius: 16, padding: '18px 22px', boxShadow: '0 4px 30px rgba(13,34,56,.06)', display: 'grid', gap: 10 }}>
             <b style={{ fontSize: 14, color: '#1A4E82' }}>Diagnóstico da sua loja</b>
@@ -132,5 +133,62 @@ export default function AcompanhamentoPage() {
         </p>
       </main>
     </div>
+  );
+}
+
+/** O que a implantação precisa do cliente: ele envia o arquivo (até 15 MB) ou escreve a resposta, direto do celular. */
+function TarefasDoCliente({ token, tarefas, recarregar }: { token: string; tarefas: any[]; recarregar: () => void }) {
+  const [enviando, setEnviando] = useState<string | null>(null);
+  const [texto, setTexto] = useState<Record<string, string>>({});
+  const pendentes = tarefas.filter(t => t.status === 'PENDENTE').length;
+  const enviar = async (t: any, arquivo?: File) => {
+    if (arquivo && arquivo.size > 15 * 1024 * 1024) return alert('O arquivo passa de 15 MB. Envie compactado (.zip) ou em partes.');
+    const resposta = (texto[t.id] || '').trim();
+    if (!arquivo && !resposta) return alert(t.exige_arquivo ? 'Escolha o arquivo.' : 'Escreva a resposta.');
+    setEnviando(t.id);
+    try {
+      const dataUrl = arquivo ? await new Promise<string>((ok, falha) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => falha(r.error); r.readAsDataURL(arquivo); }) : undefined;
+      await axios.post(`${API_URL}/publico/acompanhamento/${token}/tarefas/${t.id}`, { nome: arquivo?.name, arquivo: dataUrl, texto: resposta || undefined }, { maxBodyLength: Infinity });
+      setTexto(p => ({ ...p, [t.id]: '' }));
+      recarregar();
+    } catch (e: any) { alert(e?.response?.status === 413 ? 'O arquivo é grande demais. Envie compactado (.zip) ou em partes.' : e?.response?.data?.message || 'Não foi possível enviar agora. Tente de novo.'); }
+    finally { setEnviando(null); }
+  };
+  const ROT: Record<string, [string, string]> = { PENDENTE: ['Falta enviar', '#b45309'], ENVIADA: ['Recebido, a equipe vai conferir', '#2E6EAB'], CONCLUIDA: ['Conferido ✓', '#16a34a'] };
+  return (
+    <section style={{ background: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 4px 30px rgba(13,34,56,.10)', display: 'grid', gap: 12 }}>
+      <div>
+        <b style={{ fontSize: 16, color: '#1A4E82' }}>O que precisamos de você</b>
+        <div style={{ fontSize: 14, color: '#5B7A99', marginTop: 4 }}>{pendentes ? `${pendentes} item(ns) para enviar. A implantação anda mais rápido quando chegam no prazo.` : 'Tudo enviado. Obrigado!'}</div>
+      </div>
+      {tarefas.map(t => {
+        const [rot, cor] = ROT[t.status] || [t.status, '#5B7A99'];
+        const vencida = t.status === 'PENDENTE' && t.prazo && new Date(t.prazo) < new Date();
+        return (
+          <div key={t.id} style={{ borderTop: '1px solid #EBF4FF', paddingTop: 12, display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+              <b style={{ fontSize: 15, color: '#23384D', flex: '1 1 220px' }}>{t.titulo}</b>
+              <span style={{ fontSize: 13, fontWeight: 600, color: vencida ? '#dc2626' : cor }}>{vencida ? 'Prazo vencido' : rot}</span>
+            </div>
+            {t.descricao && <div style={{ fontSize: 14, color: '#5B7A99' }}>{t.descricao}</div>}
+            {t.prazo && t.status === 'PENDENTE' && <div style={{ fontSize: 13, color: '#5B7A99' }}>Prazo: {fmtData(t.prazo)}</div>}
+            {t.devolvida_motivo && t.status === 'PENDENTE' && <div style={{ fontSize: 14, color: '#b45309', background: '#fff7ed', borderRadius: 8, padding: '8px 10px' }}>Precisamos que reenvie: {t.devolvida_motivo}</div>}
+            {t.status === 'ENVIADA' && t.arquivo_nome && <div style={{ fontSize: 13, color: '#5B7A99' }}>Arquivo: {t.arquivo_nome}</div>}
+            {t.status !== 'CONCLUIDA' && (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {!t.exige_arquivo && <textarea rows={2} value={texto[t.id] || ''} onChange={e => setTexto(p => ({ ...p, [t.id]: e.target.value }))} placeholder="Escreva aqui" style={{ width: '100%', fontSize: 15, padding: 10, borderRadius: 10, border: '1px solid #CFE0F2', fontFamily: 'inherit' }} />}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, padding: '0 18px', borderRadius: 10, background: '#2E6EAB', color: '#fff', fontWeight: 700, fontSize: 15, cursor: enviando ? 'wait' : 'pointer', opacity: enviando === t.id ? 0.6 : 1 }}>
+                    {enviando === t.id ? 'Enviando…' : t.status === 'ENVIADA' ? 'Enviar outro arquivo' : 'Escolher arquivo e enviar'}
+                    <input type="file" disabled={!!enviando} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) enviar(t, f); }} style={{ display: 'none' }} />
+                  </label>
+                  {!t.exige_arquivo && <button disabled={!!enviando} onClick={() => enviar(t)} style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: '1px solid #2E6EAB', background: '#fff', color: '#2E6EAB', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Enviar resposta</button>}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
   );
 }

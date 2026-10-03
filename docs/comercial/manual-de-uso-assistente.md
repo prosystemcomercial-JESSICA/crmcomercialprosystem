@@ -921,3 +921,11 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Operação assistida:** nos 5 dias úteis depois da virada, o técnico registra todo dia se vendas, NFC-e e estoque estão ok. Problema vira correção no card. A validação só libera com os 5 dias checados.
 - **Modelos de checklist:** em Configurações, a supervisão monta o checklist por segmento (farmácia, padaria, varejo...) e os itens extras por sistema de origem da conversão.
 - **Quadro coerente:** a coluna acompanha os marcos (loja virada não volta para Em andamento, por exemplo).
+
+### Atualização 03/10/2026: tarefas do cliente, saúde do card e passagem ao suporte
+
+- **Tarefas do cliente:** na designação, a implantação já pede ao cliente o certificado, os XMLs e a lista de usuários (lista editável em Configurações). O cliente recebe o link no WhatsApp e envia pela página de acompanhamento; é lembrado se atrasar. O técnico confere no card (Cliente › Tarefas do cliente) e pode pedir reenvio.
+- **Saúde do card:** ponto verde, amarelo ou vermelho no Quadro, com o motivo. O filtro **Em risco** mostra só o que precisa de atenção.
+- **Passagem ao suporte:** ao validar, o resumo da implantação vai para os tickets do cliente, e a pesquisa de satisfação sai sozinha 2 dias úteis depois.
+- **Card:** as abas agora ficam em 5 grupos (Visão geral, Cliente, Execução, Conversa, Tempos).
+- **Quadro:** além do Kanban, as vistas Lista, Calendário e Equipe (a última só para a supervisão).

@@ -1503,6 +1503,10 @@ model Implantacao {
   virada_remarcacoes      Int                          @default(0)
   virada_lembrete_em      DateTime?
   assistida               ImplantacaoAssistida[]
+  // Passagem ao suporte (Fase 3): resumo montado quando a supervisão valida; pesquisa de satisfação 2 dias úteis depois.
+  validado_em             DateTime?
+  resumo_suporte          String?                      @db.Text
+  pesquisa_enviada_em     DateTime?
   ocorrencias             ImplantacaoOcorrencia[]
   comunicacoes            ImplantacaoComunicacao[]
 
@@ -1685,6 +1689,33 @@ model ImplantacaoAssistida {
   created_at     DateTime    @default(now())
 
   @@unique([implantacao_id, dia])
+}
+
+// Tarefas do cliente (Fase 3): o que a loja precisa entregar (certificado, XMLs, lista de usuários...).
+// O cliente envia pela página de acompanhamento; o arquivo fica em disco (ARQUIVOS_CLIENTE_DIR), não no banco.
+// Sem FK de propósito (tabelas antigas têm collation diferente); a ligação é garantida pelo código.
+model ImplantacaoTarefaCliente {
+  id                 String    @id @default(cuid())
+  implantacao_id     String
+  titulo             String
+  descricao          String?   @db.Text
+  prazo              DateTime?
+  status             String    @default("PENDENTE") // PENDENTE | ENVIADA | CONCLUIDA
+  exige_arquivo      Boolean   @default(true)
+  resposta_texto     String?   @db.Text
+  arquivo_nome       String?
+  arquivo_caminho    String?
+  arquivo_mime       String?
+  arquivo_tamanho    Int?
+  enviada_em         DateTime?
+  concluida_em       DateTime?
+  devolvida_motivo   String?   @db.Text
+  lembretes          Int       @default(0) // 0 = cliente ainda não foi avisado
+  ultimo_lembrete_em DateTime?
+  criada_por         String?
+  created_at         DateTime  @default(now())
+
+  @@index([implantacao_id, status])
 }
 
 // Observações do card do cliente no Portal Técnico.

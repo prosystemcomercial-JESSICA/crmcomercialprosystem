@@ -523,3 +523,63 @@ export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_e
   if (a && !a.concluida) return { chave: 'ASSISTIDA_ANDAMENTO', titulo: 'Operação assistida em andamento', detalhe: `${a.feitos} de ${a.total} dias checados${a.proximo ? ` · próxima checagem ${ddmm(a.proximo)}` : ''}`, quem: 'TECNICO', aba: 'assistida' };
   return pedir;
 }
+
+// ─── Fase 3: tarefas do cliente, saúde do card e passagem ao suporte ─────
+
+/** O que a loja entrega no começo da implantação (editável em Configurações). */
+export const TAREFAS_CLIENTE_PADRAO = [
+  'Certificado digital A1 (arquivo .pfx); a senha o técnico pega por telefone',
+  'XMLs das notas de entrada e saída do último mês',
+  'Lista de quem vai usar o sistema (nome e função)',
+];
+export const PRAZO_TAREFA_CLIENTE_DIAS_UTEIS = 3;
+export const MAX_LEMBRETES_TAREFA = 3; // depois do aviso inicial; acabou, a supervisão é avisada
+/** Espera "Cliente" aberta sozinha por tarefa vencida: começa com este texto (para fechar sozinha também). */
+export const MOTIVO_ESPERA_TAREFA = 'Tarefa do cliente vencida';
+
+export type Saude = { nivel: 'VERDE' | 'AMARELO' | 'VERMELHO'; motivos: string[] };
+/**
+ * Saúde do card: soma prazo, tempo sem trabalho, esperas, correções graves e tarefas do cliente vencidas.
+ * Só vale para quem está em execução (Concluído, Validado, Finalizado e Cancelado ficam verdes).
+ */
+export function saudeDoCard(p: {
+  coluna: string; sla?: { situacao: string } | null; tecnico_id?: string | null; designado_em?: Date | null; data_assinatura?: Date | null;
+  ultima_sessao?: Date | null; esperas_abertas: { inicio: Date }[]; correcoes_altas: number; tarefas_vencidas: number;
+}, agora = new Date()): Saude {
+  if (['CONCLUIDO', 'VALIDADO', 'FINALIZADO', 'CANCELADOS'].includes(p.coluna)) return { nivel: 'VERDE', motivos: [] };
+  const verm: string[] = [], amar: string[] = [];
+  const dias = (d?: Date | null) => (d ? Math.floor((agora.getTime() - d.getTime()) / 864e5) : 0);
+  if (p.sla?.situacao === 'ESTOURADO') verm.push('Prazo estourado');
+  else if (p.sla?.situacao === 'EM_RISCO') amar.push('Prazo em risco');
+  if (p.correcoes_altas) verm.push(`${p.correcoes_altas} correção(ões) grave(s) aberta(s)`);
+  if (!p.tecnico_id) { if (dias(p.data_assinatura) >= 1) amar.push(`Sem técnico há ${dias(p.data_assinatura)} dia(s)`); }
+  else if (!p.esperas_abertas.length) {
+    const parado = dias(p.ultima_sessao && p.designado_em ? (p.ultima_sessao > p.designado_em ? p.ultima_sessao : p.designado_em) : p.ultima_sessao || p.designado_em);
+    if (parado >= 5) verm.push(`Ninguém trabalhou há ${parado} dias`);
+    else if (parado >= 3) amar.push(`Ninguém trabalhou há ${parado} dias`);
+  }
+  const espera = p.esperas_abertas.reduce((m, e) => Math.max(m, dias(e.inicio)), 0);
+  if (espera >= 2) amar.push(`Parada em espera há ${espera} dias`);
+  if (p.tarefas_vencidas) amar.push(`${p.tarefas_vencidas} tarefa(s) do cliente vencida(s)`);
+  return verm.length ? { nivel: 'VERMELHO', motivos: [...verm, ...amar] } : amar.length ? { nivel: 'AMARELO', motivos: amar } : { nivel: 'VERDE', motivos: [] };
+}
+
+/** Resumo que o suporte lê antes de atender o cliente (montado na validação). Sem dados financeiros. */
+export function montarResumoSuporte(p: {
+  imp: { cliente_razao_social: string; modulo: string; tipo_base?: string | null; sistema_anterior?: string | null; tipo_servico?: string | null; data_assinatura?: Date | null; virada_fim_em?: Date | null; tecnico_nome?: string | null; coleta?: any };
+  observacoes: { texto: string; autor_nome?: string | null }[]; correcoes: { titulo: string; situacao: string }[]; campos: { key: string; label: string }[];
+}): string {
+  const i = p.imp, c = i.coleta || {};
+  const data = (d?: Date | null) => (d ? d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—');
+  const linhas: string[] = [];
+  linhas.push(i.modulo === 'SERVICO'
+    ? `Serviço: ${(i.tipo_servico && TIPOS_SERVICO[i.tipo_servico]?.label) || 'outro'} · assinado em ${data(i.data_assinatura)} · técnico ${i.tecnico_nome || '—'}`
+    : `Implantação ${i.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : `conversão${i.sistema_anterior ? ` de ${i.sistema_anterior}` : ''}`} · virada em ${data(i.virada_fim_em)} · técnico ${i.tecnico_nome || '—'}`);
+  if (c.decisor_nome || c.decisor_telefone) linhas.push(`Decisor: ${[c.decisor_nome, c.decisor_telefone].filter(Boolean).join(' · ')}`);
+  if (c.contato_nome || c.contato_telefone) linhas.push(`Contato do dia a dia: ${[c.contato_nome, c.contato_telefone].filter(Boolean).join(' · ')}`);
+  const respostas = p.campos.filter(f => c[f.key] && !['contato_nome', 'contato_telefone', 'decisor_nome', 'decisor_telefone'].includes(f.key)).map(f => `${f.label}: ${String(c[f.key]).slice(0, 200)}`);
+  if (respostas.length) linhas.push('', 'Como a loja trabalha:', ...respostas.map(r => `• ${r}`));
+  if (p.correcoes.length) linhas.push('', 'Correções feitas na implantação:', ...p.correcoes.map(o => `• ${o.titulo}${o.situacao !== 'RESOLVIDA' ? ' (em aberto)' : ''}`));
+  if (p.observacoes.length) linhas.push('', 'Observações da equipe:', ...p.observacoes.map(o => `• ${o.texto.replace(/\s+/g, ' ').slice(0, 300)}${o.autor_nome ? ` (${o.autor_nome.split(' ')[0]})` : ''}`));
+  return linhas.join('\n');
+}

@@ -946,6 +946,10 @@ class ApiClient {
   }
   async agendarVirada(id: string, data: { quando: string; duracao_h?: number | null; motivo?: string; motivo_texto?: string; confirmar?: boolean }) { return this.client.post(`/implantacoes/${id}/agendar-virada`, data); }
   async registrarAssistida(id: string, data: { dia: string; vendas_ok: boolean; nfce_ok: boolean; estoque_ok: boolean; observacao?: string }) { return this.client.post(`/implantacoes/${id}/assistida`, data); }
+  async criarTarefaCliente(id: string, data: { padrao?: boolean; titulo?: string; descricao?: string; prazo?: string; exige_arquivo?: boolean }) { return this.client.post(`/implantacoes/${id}/tarefas-cliente`, data); }
+  async acaoTarefaCliente(tid: string, acao: 'CONCLUIR' | 'DEVOLVER' | 'EXCLUIR' | 'REABRIR', motivo?: string) { return this.client.patch(`/implantacoes/tarefas-cliente/${tid}`, { acao, motivo }); }
+  async baixarArquivoTarefaCliente(tid: string) { return this.client.get(`/implantacoes/tarefas-cliente/${tid}/arquivo`, { responseType: 'blob' }); }
+  async getResumoSuporte(clienteId: string) { return this.client.get('/implantacoes/resumo-suporte', { params: { cliente_id: clienteId } }); }
   async pedirValidacao(id: string) { return this.client.post(`/implantacoes/${id}/pedir-validacao`, {}); }
   async devolverDemanda(id: string, motivo: string) { return this.client.post(`/implantacoes/${id}/devolver`, { motivo }); }
   async buscarDemandas(q: string) { return this.client.get('/implantacoes/busca', { params: { q } }); }
