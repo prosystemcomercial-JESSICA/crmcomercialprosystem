@@ -183,9 +183,15 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
     } catch (e) { alert(erroDe(e)); onClose(); }
   }, [id, onClose]);
   useEffect(() => { carregar(); window.addEventListener('cronometro:mudou', carregar); return () => window.removeEventListener('cronometro:mudou', carregar); }, [carregar]);
+  // Primeiro contato pendente: o card já abre no onboarding (uma vez, sem brigar com a escolha do técnico).
+  const pedeOnboarding = !!d && d.implantacao.modulo !== 'SERVICO' && !!d.onboarding_secoes && !d.onboarding_ok;
+  const [abriuOnboarding, setAbriuOnboarding] = useState(false);
+  useEffect(() => { if (pedeOnboarding && !abaInicial && !abriuOnboarding) { setAba('onboarding'); setAbriuOnboarding(true); } }, [pedeOnboarding, abaInicial, abriuOnboarding]);
   if (!d) return <Gaveta onClose={onClose}><div style={{ padding: 30 }}><Loader2 className="animate-spin" size={18} /></div></Gaveta>;
   const i = d.implantacao;
   const servico = i.modulo === 'SERVICO';
+  const obItens = d.checklist.filter((c: any) => c.grupo === 'ONBOARDING');
+  const obFeitos = obItens.filter((c: any) => c.feito).length;
   const abas: [Aba, string, any][] = [
     ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
     ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
@@ -207,6 +213,16 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
           <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
         <PainelContatos d={d} gestao={gestao} recarregar={carregar} />
+        {pedeOnboarding && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '10px 14px', borderRadius: 10, border: '1px solid #2E6EAB40', background: '#2E6EAB0a' }}>
+            <Users size={16} color="#2E6EAB" />
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>Primeiro contato pendente</div>
+              <div style={{ fontSize: 12, color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{obItens.length ? `${obFeitos} de ${obItens.length} itens do roteiro` : 'O roteiro é criado quando a gestão designa o técnico'} · o resto da implantação libera quando concluir</div>
+            </div>
+            {aba !== 'onboarding' && <button onClick={() => setAba('onboarding')} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>{obFeitos ? 'Continuar primeiro contato' : 'Iniciar primeiro contato'}</button>}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 160, display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>

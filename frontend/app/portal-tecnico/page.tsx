@@ -834,7 +834,8 @@ export default function PortalTecnicoPage() {
         { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
         { key: 'avisos'      as Tab, label: 'Avisos',       icon: Zap,          badge: null },
         // 'Implantações' (lista antiga com Datas/Executar) saiu do menu: tudo isso está no card do Quadro.
-        { key: 'onboarding'  as Tab, label: 'Onboarding técnico', icon: Rocket,  badge: null },
+        // Para o técnico, o onboarding fica dentro do card; a lista geral é visão da supervisão.
+        ...(gestaoTecnica ? [{ key: 'onboarding' as Tab, label: 'Onboarding técnico', icon: Rocket, badge: null }] : []),
       ],
     },
     {
@@ -1533,7 +1534,7 @@ export default function PortalTecnicoPage() {
         )}
 
         {/* ── TAB: ONBOARDING ── */}
-        {tab === 'onboarding' && <OnboardingTecnico gestao={gestaoTecnica} />}
+        {tab === 'onboarding' && gestaoTecnica && <OnboardingTecnico gestao={gestaoTecnica} />}
         {/* Onboarding antigo (dependia de Licenca, sempre vazia): mantido no código, fora de uso. */}
         {(tab as string) === 'onboarding_antigo' && (
           <div className="space-y-5">
