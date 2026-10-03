@@ -1007,3 +1007,34 @@ Origem: documento de pesquisa de UX (lacunas 2, 3, 6 e 8). Operação assistida 
 **Uma só verdade (coluna x etapa)**
 - A coluna do quadro manda; `etapa_execucao` é sempre gravada junto (`etapaDaColuna`) em mover coluna, iniciar virada, pedir validação e devolver. A rota antiga `POST /implantacoes/:id/etapa` grava a coluna correspondente (`colunaDaEtapa`) e finalizar por ela é só da supervisão.
 - A coluna precisa combinar com os marcos (`colunaIncoerente`): loja virada não volta para antes de Acompanhamento; virada iniciada não volta para A fazer; Acompanhamento só depois de "Loja virada".
+
+### Atualização 03/10/2026: Fase 3 do plano de UX do Portal Técnico (tarefas do cliente, saúde do card, passagem ao suporte, card em 5 grupos, vistas do quadro)
+
+Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do card e do quadro).
+
+**Tarefas do cliente**
+- Tabela nova `ImplantacaoTarefaCliente` (título, descrição, prazo, status PENDENTE/ENVIADA/CONCLUIDA, `exige_arquivo`, resposta em texto, arquivo, devolução, contagem de lembretes). Sem FK de propósito (collation das tabelas antigas); a ligação é garantida pelo código.
+- Arquivo enviado pelo cliente fica em disco (`ARQUIVOS_CLIENTE_DIR`, padrão `/root/arquivos-clientes/<implantação>/`), até 15 MB; só a equipe logada baixa (`GET /implantacoes/tarefas-cliente/:tid/arquivo`). **Essa pasta não entra no backup do banco.**
+- Padrões em Configurações (`ConfigPortal.tarefas_cliente`; vem com certificado A1, XMLs do último mês e lista de usuários). Criadas na designação de implantações (prazo de 3 dias úteis) ou pelo botão "Pedir os itens padrão"; o técnico pede itens extras no card.
+- Rotas: `POST /implantacoes/:id/tarefas-cliente` (item ou `padrao: true`), `PATCH /implantacoes/tarefas-cliente/:tid` (CONCLUIR, DEVOLVER com motivo — o cliente recebe no WhatsApp —, REABRIR, EXCLUIR), públicas `GET /publico/acompanhamento/:token` (devolve `tarefas_cliente`) e `POST /publico/acompanhamento/:token/tarefas/:tarefaId` (arquivo em data URL e/ou texto).
+- Robô (horário comercial, a partir das 9h, até 3 mensagens por rodada): aviso inicial com o link da página (`TAREFAS_CLIENTE`); depois do prazo, lembrete a cada 2 dias úteis, até 3 (`LEMBRETE_TAREFAS`); esgotados, aviso à supervisão para ligar ao decisor. Enquanto houver item vencido, abre sozinho uma espera "Cliente" (motivo começa com "Tarefa do cliente vencida"), que fecha sozinha quando o cliente envia ou a equipe resolve.
+- Envio do cliente: card registra no Histórico, técnico recebe recado, status vira "Enviado, conferir"; o técnico marca "Conferido" ou "Pedir para reenviar".
+- Tela: sub-aba **Tarefas do cliente** (grupo Cliente) e seção **O que precisamos de você** na página de acompanhamento (botão de arquivo de 44 px, pensado para celular).
+
+**Saúde do card** (`saudeDoCard`)
+- Vermelho: prazo estourado, correção grave aberta, ninguém trabalhou há 5+ dias (sem espera aberta). Amarelo: prazo em risco, parado há 3+ dias, espera aberta há 2+ dias, tarefa do cliente vencida, sem técnico há 1+ dia. Fora da execução (Concluído em diante) fica verde.
+- Quadro: ponto colorido no cartão (com os motivos ao passar o mouse) e filtro **Em risco**; card: linha de atenção no topo com os motivos.
+
+**Passagem ao suporte**
+- Campos novos em `Implantacao`: `validado_em`, `resumo_suporte`, `pesquisa_enviada_em`.
+- Ao mover para **Validado**, monta o resumo (`montarResumoSuporte`): tipo e datas, técnico, decisor e contato, respostas da ficha de coleta, correções feitas e as 10 últimas observações da equipe (nunca as pessoais). Sem dados financeiros.
+- `GET /implantacoes/resumo-suporte?cliente_id=`: o resumo validado mais recente do cliente (por `cliente_id` ou CNPJ). Aparece no **topo do ticket** (Tickets & SLA) e na Ficha do cliente do card.
+- Pesquisa de satisfação: o robô manda o link `/pesquisa` no WhatsApp 2 dias úteis depois da validação (`PESQUISA`, uma vez).
+
+**Card em 5 grupos**
+- Visão geral (Resumo) · Cliente (Ficha do cliente, Tarefas do cliente, Ficha de coleta, Página do cliente) · Execução (Onboarding, Checklist, Virada, Operação assistida, Treinamento, Correções) · Conversa (Observações, Histórico) · Tempos. Pílulas escolhem a aba dentro do grupo; o próximo passo continua abrindo a aba certa.
+
+**Vistas do quadro** (seletor Quadro · Lista · Calendário · Equipe)
+- Lista: tabela com saúde, cliente, coluna, próximo passo, técnico e prazo; ordena ao clicar no cabeçalho.
+- Calendário: mês com viradas agendadas e fases de treino marcadas; navegação por mês.
+- Equipe (só supervisão): 14 dias por técnico com viradas e treinos, e as demandas ativas de cada um, piores primeiro.

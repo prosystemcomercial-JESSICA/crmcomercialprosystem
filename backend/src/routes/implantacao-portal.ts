@@ -4,11 +4,12 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, montarResumoSuporte } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
+  salvarArquivoCliente, criarTarefasClientePadrao, fecharEsperaDeTarefa,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -54,11 +55,13 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         checklist: { select: { grupo: true, titulo: true, feito: true } },
         esperas: { where: { fim: null }, select: { id: true, tipo: true, motivo: true, inicio: true } },
         ocorrencias: { where: { situacao: { not: 'RESOLVIDA' } }, select: { id: true, gravidade: true } },
-        treinamento_fases: { select: { realizada_em: true } },
+        treinamento_fases: { select: { realizada_em: true, marcada_em: true, ordem: true, nome: true } },
         assistida: { select: { dia: true } },
+        sessoes: { orderBy: { inicio: 'desc' }, take: 1, select: { inicio: true } },
       },
     });
     const agora = new Date();
+    const vencidasPorCard = new Map((await prisma.implantacaoTarefaCliente.groupBy({ by: ['implantacao_id'], where: { implantacao_id: { in: lista.map(l => l.id) }, status: 'PENDENTE', prazo: { lt: agora } }, _count: { _all: true } })).map(g => [g.implantacao_id, g._count._all]));
     const cards = lista.map(i => {
       const prazo = i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada;
       const concluido = i.modulo === 'SERVICO' || i.virada_fim_em ? (i.concluida_fila_em || i.data_conclusao) : i.virada_fim_em;
@@ -74,6 +77,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
         proximo_passo: (({ chave, titulo, quem }) => ({ chave, titulo, quem }))(proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length, { assistida: i.assistida, agora })),
         virada_agendada_para: i.virada_agendada_para,
+        treinos_marcados: i.treinamento_fases.filter(f => f.marcada_em && !f.realizada_em).map(f => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em })),
+        saude: saudeDoCard({ coluna: colunaDe(i), sla: situacaoSla(i.data_assinatura, prazo, concluido, agora), tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
+          ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: i.esperas, correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidasPorCard.get(i.id) || 0 }, agora),
         onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length,
       };
     });
@@ -114,10 +120,20 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       data.etapa_execucao = 'FINALIZADO';
     }
     if (para === 'CANCELADOS') data.status = 'CANCELADA';
+    // Validação da supervisão: monta o resumo que o suporte vê nos tickets deste cliente.
+    if (para === 'VALIDADO' && de !== 'VALIDADO') {
+      const [obs, ocs] = await Promise.all([
+        prisma.implantacaoObservacao.findMany({ where: { implantacao_id: id, privada: false }, orderBy: { created_at: 'desc' }, take: 10 }),
+        prisma.implantacaoOcorrencia.findMany({ where: { implantacao_id: id }, orderBy: { aberta_em: 'asc' }, select: { titulo: true, situacao: true } }),
+      ]);
+      data.validado_em = new Date();
+      data.resumo_suporte = montarResumoSuporte({ imp, observacoes: obs, correcoes: ocs, campos: CAMPOS_COLETA });
+    }
     await prisma.implantacao.update({ where: { id }, data });
     if (para === 'FINALIZADO' && imp.venda_adicional_id) await concluirServicoNaVenda(prisma, imp.venda_adicional_id);
     const nome = (k: string) => COLUNAS.find(c => c.key === k)?.label || k;
     await atividade(id, 'MUDANCA_ETAPA', `Moveu de "${nome(de)}" para "${nome(para)}"`, u);
+    if (data.resumo_suporte) await atividade(id, 'NOTA', '🧾 Resumo da implantação enviado ao suporte (aparece nos tickets deste cliente). A pesquisa de satisfação sai em 2 dias úteis.', u);
     return reply.send({ status: 'success' });
   });
 
@@ -283,6 +299,77 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     return reply.send({ status: 'success', data: { ocorrencia_id } });
   });
 
+  // ── Tarefas do cliente (equipe): criar, padrões, concluir, devolver, excluir, baixar arquivo.
+  fastify.post('/implantacoes/:id/tarefas-cliente', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const { id } = request.params as { id: string };
+    const imp = await demanda(u, id);
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    const b = z.object({ padrao: z.boolean().optional(), titulo: z.string().trim().min(3).max(200).optional(), descricao: z.string().trim().max(1000).optional(), prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), exige_arquivo: z.boolean().optional() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    if (!imp.token_cliente) await prisma.implantacao.update({ where: { id }, data: { token_cliente: novoTokenCliente() } });
+    if (b.data.padrao) {
+      if (imp.modulo !== 'IMPLANTACAO' || ehLegado(imp)) return reply.status(400).send({ status: 'error', message: 'As tarefas padrão valem para implantações a partir de 02/10/2026.' });
+      const n = await criarTarefasClientePadrao(prisma, imp, u.nome || u.id);
+      if (!n) return reply.status(400).send({ status: 'error', message: 'Esta demanda já tem tarefas do cliente.' });
+      await atividade(id, 'NOTA', `📎 ${n} tarefa(s) padrão do cliente criadas`, u);
+      return reply.status(201).send({ status: 'success' });
+    }
+    if (!b.data.titulo) return reply.status(400).send({ status: 'error', message: 'Diga o que o cliente precisa enviar.' });
+    const prazo = b.data.prazo ? new Date(`${b.data.prazo}T17:59:00-03:00`) : null;
+    await prisma.implantacaoTarefaCliente.create({ data: { implantacao_id: id, titulo: b.data.titulo, descricao: b.data.descricao || null, prazo, exige_arquivo: b.data.exige_arquivo ?? true, criada_por: u.nome || u.id } });
+    await atividade(id, 'NOTA', `📎 Tarefa do cliente criada: ${b.data.titulo}`, u);
+    return reply.status(201).send({ status: 'success' });
+  });
+  fastify.patch('/implantacoes/tarefas-cliente/:tid', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const { tid } = request.params as { tid: string };
+    const b = z.object({ acao: z.enum(['CONCLUIR', 'DEVOLVER', 'EXCLUIR', 'REABRIR']), motivo: z.string().trim().max(1000).optional() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Ação inválida' });
+    const t = await prisma.implantacaoTarefaCliente.findUnique({ where: { id: tid } });
+    const imp = t ? await demanda(u, t.implantacao_id) : null;
+    if (!t || !imp) return reply.status(404).send({ status: 'error', message: 'Tarefa não encontrada' });
+    if (b.data.acao === 'EXCLUIR') {
+      await prisma.implantacaoTarefaCliente.delete({ where: { id: tid } });
+      await atividade(imp.id, 'NOTA', `📎 Tarefa do cliente removida: ${t.titulo}`, u);
+    } else if (b.data.acao === 'CONCLUIR') {
+      await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { status: 'CONCLUIDA', concluida_em: new Date() } });
+      await atividade(imp.id, 'NOTA', `✅ Tarefa do cliente conferida: ${t.titulo}`, u);
+    } else if (b.data.acao === 'REABRIR') {
+      await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { status: 'PENDENTE', concluida_em: null } });
+    } else {
+      if (!b.data.motivo || b.data.motivo.length < 3) return reply.status(400).send({ status: 'error', message: 'Diga ao cliente o que precisa corrigir.' });
+      await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { status: 'PENDENTE', devolvida_motivo: b.data.motivo, concluida_em: null } });
+      await atividade(imp.id, 'NOTA', `↩️ Pedido ao cliente para reenviar "${t.titulo}": ${b.data.motivo}`, u);
+      await avisarClienteAgenda(prisma, imp, 'TAREFA_DEVOLVIDA', `Olá! Aqui é da Prosystem. Sobre "${t.titulo}": ${b.data.motivo}\n\nReenvie pela sua página de acompanhamento: ${URL_FRONT()}/acompanhamento/${imp.token_cliente}`).catch(() => {});
+    }
+    await fecharEsperaDeTarefa(prisma, imp.id, u.nome || 'Equipe').catch(() => {});
+    return reply.send({ status: 'success' });
+  });
+  fastify.get('/implantacoes/tarefas-cliente/:tid/arquivo', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const t = await prisma.implantacaoTarefaCliente.findUnique({ where: { id: (request.params as any).tid } });
+    if (!t?.arquivo_caminho || !(await demanda(u, t.implantacao_id))) return reply.status(404).send({ status: 'error', message: 'Arquivo não encontrado' });
+    const { readFile } = await import('fs/promises');
+    const buf = await readFile(t.arquivo_caminho).catch(() => null);
+    if (!buf) return reply.status(404).send({ status: 'error', message: 'Arquivo não encontrado no servidor' });
+    reply.header('Content-Type', t.arquivo_mime || 'application/octet-stream');
+    reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(t.arquivo_nome || 'arquivo')}"`);
+    return reply.send(buf);
+  });
+
+  // ── Resumo da implantação para o suporte: o mais recente validado deste cliente (aparece no ticket).
+  fastify.get('/implantacoes/resumo-suporte', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const clienteId = String((request.query as any)?.cliente_id || '');
+    if (!clienteId) return reply.send({ status: 'success', data: null });
+    const cli = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { cnpj: true } }).catch(() => null);
+    const OR: any[] = [{ cliente_id: clienteId }];
+    if (cli?.cnpj) OR.push({ cliente_cnpj: cli.cnpj });
+    const imp = await prisma.implantacao.findFirst({ where: { OR, resumo_suporte: { not: null } }, orderBy: { validado_em: 'desc' }, select: { id: true, cliente_razao_social: true, validado_em: true, tecnico_nome: true, resumo_suporte: true, modulo: true } });
+    return reply.send({ status: 'success', data: imp });
+  });
+
   // ── Busca global (Ctrl+K): cliente, CNPJ ou técnico, só dentro do que a pessoa pode ver.
   fastify.get('/implantacoes/busca', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
@@ -363,6 +450,13 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     ]);
     const tempos = temposDaDemanda(sessoes, esperas, { inicio: imp.data_assinatura, conclusao: imp.data_conclusao });
     const assistidaRegs = await prisma.implantacaoAssistida.findMany({ where: { implantacao_id: id }, orderBy: { dia: 'asc' } });
+    const tarefasCliente = await prisma.implantacaoTarefaCliente.findMany({ where: { implantacao_id: id }, orderBy: [{ status: 'asc' }, { created_at: 'asc' }] });
+    const agoraP = new Date();
+    const prazoP = imp.virada_fim_em || imp.modulo === 'SERVICO' ? imp.prazo_finalizacao : imp.prazo_virada;
+    const saude = saudeDoCard({ coluna: colunaDe(imp), sla: situacaoSla(imp.data_assinatura, prazoP, imp.modulo === 'SERVICO' || imp.virada_fim_em ? (imp.concluida_fila_em || imp.data_conclusao) : imp.virada_fim_em, agoraP),
+      tecnico_id: imp.tecnico_id, designado_em: imp.designado_em, data_assinatura: imp.data_assinatura, ultima_sessao: sessoes.length ? sessoes.at(-1)!.inicio : null,
+      esperas_abertas: esperas.filter(e => !e.fim), correcoes_altas: ocorrencias.filter(o => o.situacao !== 'RESOLVIDA' && o.gravidade === 'ALTA').length,
+      tarefas_vencidas: tarefasCliente.filter(t => t.status === 'PENDENTE' && t.prazo && t.prazo < agoraP).length }, agoraP);
     // Ficha do cliente para o técnico: tudo do cadastro, menos dados financeiros e documentos pessoais.
     const cnpjLimpo = (imp.cliente_cnpj || '').replace(/\D/g, '');
     const cliente_ficha = await prisma.cliente.findFirst({
@@ -392,6 +486,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
       proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length, { assistida: assistidaRegs }),
       assistida: (() => { const st = statusAssistida(imp, assistidaRegs); return st ? { ...st, registros: assistidaRegs } : null; })(),
+      saude, tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
       cliente_ficha, tipo_demanda, servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
@@ -652,7 +747,32 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (!token || token.length < 12) return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
     const imp = await prisma.implantacao.findUnique({ where: { token_cliente: token } });
     if (!imp || imp.status === 'CANCELADA') return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
-    return reply.send({ status: 'success', data: await visaoCliente(prisma, imp) });
+    const tarefas = await prisma.implantacaoTarefaCliente.findMany({ where: { implantacao_id: imp.id }, orderBy: [{ status: 'asc' }, { created_at: 'asc' }], select: { id: true, titulo: true, descricao: true, prazo: true, status: true, exige_arquivo: true, enviada_em: true, arquivo_nome: true, devolvida_motivo: true } });
+    return reply.send({ status: 'success', data: { ...(await visaoCliente(prisma, imp)), tarefas_cliente: tarefas } });
+  });
+
+  // Cliente envia o que a implantação precisa (arquivo até 15 MB e/ou texto) pela página de acompanhamento.
+  fastify.post('/publico/acompanhamento/:token/tarefas/:tarefaId', async (request, reply) => {
+    const { token, tarefaId } = request.params as { token: string; tarefaId: string };
+    if (!token || token.length < 12) return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
+    const imp = await prisma.implantacao.findUnique({ where: { token_cliente: token } });
+    if (!imp || imp.status === 'CANCELADA') return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
+    const t = await prisma.implantacaoTarefaCliente.findUnique({ where: { id: tarefaId } });
+    if (!t || t.implantacao_id !== imp.id) return reply.status(404).send({ status: 'error', message: 'Item não encontrado' });
+    if (t.status === 'CONCLUIDA') return reply.status(400).send({ status: 'error', message: 'Este item já foi conferido pela equipe.' });
+    const b = z.object({ nome: z.string().max(200).optional(), arquivo: z.string().max(22 * 1024 * 1024).optional(), texto: z.string().trim().max(3000).optional() }).safeParse(request.body);
+    if (!b.success || (!b.data.arquivo && !b.data.texto)) return reply.status(400).send({ status: 'error', message: 'Anexe o arquivo ou escreva a resposta.' });
+    if (t.exige_arquivo && !b.data.arquivo) return reply.status(400).send({ status: 'error', message: 'Este item precisa de um arquivo.' });
+    let arq: Awaited<ReturnType<typeof salvarArquivoCliente>> | null = null;
+    if (b.data.arquivo) {
+      try { arq = await salvarArquivoCliente(imp.id, t.id, b.data.nome || 'arquivo', b.data.arquivo); }
+      catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Não foi possível salvar o arquivo.' }); }
+    }
+    await prisma.implantacaoTarefaCliente.update({ where: { id: t.id }, data: { status: 'ENVIADA', enviada_em: new Date(), resposta_texto: b.data.texto || t.resposta_texto, devolvida_motivo: null, ...(arq ? { arquivo_caminho: arq.caminho, arquivo_nome: arq.nome, arquivo_mime: arq.mime, arquivo_tamanho: arq.tamanho } : {}) } });
+    await atividade(imp.id, 'ARQUIVO', `📎 O cliente enviou: ${t.titulo}${arq ? ` (${arq.nome})` : ''}`, { nome: 'Cliente (página de acompanhamento)' });
+    await fecharEsperaDeTarefa(prisma, imp.id, 'Cliente').catch(() => {});
+    if (imp.tecnico_id) await avisarTecnico(prisma, { para_id: imp.tecnico_id, implantacao_id: imp.id, origem: 'SISTEMA', texto: `📎 ${imp.cliente_razao_social} enviou "${t.titulo}". Confira na aba Cliente › Tarefas do cliente.` }).catch(() => null);
+    return reply.send({ status: 'success' });
   });
 
   // Cliente aprova o diagnóstico do onboarding técnico pela página de acompanhamento.
@@ -719,6 +839,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       catalogo: z.array(z.object({ produto: z.string().min(2).max(80), descricao: z.string().max(400), preco: z.string().max(60) })).max(40).optional(),
       modelos: z.array(z.object({ segmento: z.string().trim().min(2).max(60), grupos: z.object({ INSTALACAO: z.array(z.string().trim().min(2).max(300)).max(60), CONVERSAO: z.array(z.string().trim().min(2).max(300)).max(60), TREINAMENTO: z.array(z.string().trim().min(2).max(300)).max(60) }) })).max(20).optional(),
       extras_sistema: z.array(z.object({ sistema: z.string().trim().min(2).max(60), itens: z.array(z.string().trim().min(2).max(300)).max(40) })).max(40).optional(),
+      tarefas_cliente: z.array(z.string().trim().min(2).max(200)).max(20).optional(),
       jornada: z.object({ inicio: z.string().regex(/^\d\d:\d\d$/), fim: z.string().regex(/^\d\d:\d\d$/), almoco_inicio: z.string().regex(/^\d\d:\d\d$/), almoco_min: z.number().int().min(0).max(180), virada_inicio: z.string().regex(/^\d\d:\d\d$/) }).optional(),
     }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Configuração inválida' });

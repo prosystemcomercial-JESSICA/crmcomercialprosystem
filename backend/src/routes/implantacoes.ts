@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoModelo, colunaDaEtapa, ONBOARDING_ITENS, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidas, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
-import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal } from '@/services/implantacao-portal.service';
+import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao } from '@/services/implantacao-portal.service';
 
 /**
  * Acompanhamento e EXECUÇÃO da implantação. Cada implantação nasce de um contrato
@@ -208,6 +208,8 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     }
     await registrarAtividade(prisma, id, 'DESIGNACAO', `Designado ao técnico ${tecnico.nome}`, ator, null, 'DESIGNADO');
     if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id).catch(() => {});
+    // Tarefas padrão do cliente (certificado, XMLs, usuários): o robô avisa o cliente com o link da página.
+    if (imp.modulo === 'IMPLANTACAO') await criarTarefasClientePadrao(prisma, imp, ator?.nome || 'Supervisão').catch(() => 0);
     await avisarTecnico(prisma, { para_id: tecnico.id, implantacao_id: id, de: { id: ator?.id, nome: ator?.nome }, texto: `Nova demanda para você: ${imp.cliente_razao_social}${imp.modulo === 'SERVICO' ? ' (serviço)' : imp.tipo_base === 'CONVERSAO' ? ` (conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''})` : ' (banco zerado)'}. Preencha a ficha de coleta e dê play quando começar.` }).catch(() => {});
     return reply.send({ status: 'success', data: imp });
   });

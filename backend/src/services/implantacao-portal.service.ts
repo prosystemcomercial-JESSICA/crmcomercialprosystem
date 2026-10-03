@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
@@ -10,6 +12,7 @@ import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
   progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
   statusAssistida, type ModeloChecklist, type ExtraSistema,
+  TAREFAS_CLIENTE_PADRAO, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -31,10 +34,11 @@ export type ConfigPortal = {
   catalogo: ItemCatalogo[];
   modelos: ModeloChecklist[]; // checklist por segmento (vazio = padrão)
   extras_sistema: ExtraSistema[]; // itens extras na conversão, por sistema de origem
+  tarefas_cliente: string[]; // o que a loja entrega no começo da implantação
 };
 const PADRAO: Omit<ConfigPortal, 'programacao'> & { programacao: Omit<ConfigPortal['programacao'], 'token'> } = {
   sla: SLA_PADRAO, programacao: { nome: 'Sinval', whatsapp: '', lembrete_horas: 4 },
-  avisos_cliente: true, agente_ativo: true, ofertas_ativo: false, ofertas_dias_apos_virada: 15, catalogo: [], modelos: [], extras_sistema: [],
+  avisos_cliente: true, agente_ativo: true, ofertas_ativo: false, ofertas_dias_apos_virada: 15, catalogo: [], modelos: [], extras_sistema: [], tarefas_cliente: TAREFAS_CLIENTE_PADRAO,
 };
 
 export async function obterConfigPortal(prisma: PrismaClient): Promise<ConfigPortal> {
@@ -48,6 +52,7 @@ export async function obterConfigPortal(prisma: PrismaClient): Promise<ConfigPor
     catalogo: Array.isArray(salvo.catalogo) ? salvo.catalogo : [],
     modelos: Array.isArray(salvo.modelos) ? salvo.modelos : [],
     extras_sistema: Array.isArray(salvo.extras_sistema) ? salvo.extras_sistema : [],
+    tarefas_cliente: Array.isArray(salvo.tarefas_cliente) ? salvo.tarefas_cliente : TAREFAS_CLIENTE_PADRAO,
   };
   if (!cfg.programacao.token) { // link do Sinval: gerado uma vez
     cfg.programacao.token = randomBytes(18).toString('base64url');
@@ -230,6 +235,7 @@ const fmtHoras = (ms: number) => { const m = Math.round(ms / 60000); return m < 
 
 const ROTULO_MARCO = (m: string) => m === 'CONTRATO' ? 'próximos passos' : m === 'VIRADA' ? 'loja virada' : m === 'AGENDA_VIRADA' ? 'data da virada' : m === 'LEMBRETE_VIRADA' ? 'lembrete da virada'
   : m.startsWith('AGENDA_TREINO_') ? `data da fase ${m.slice(14)} do treinamento` : m.startsWith('LEMBRETE_TREINO_') ? `lembrete da fase ${m.slice(16)} do treinamento`
+  : m === 'TAREFAS_CLIENTE' ? 'o que precisamos do cliente' : m === 'LEMBRETE_TAREFAS' ? 'lembrete do que falta enviar' : m === 'TAREFA_DEVOLVIDA' ? 'arquivo devolvido para reenvio' : m === 'PESQUISA' ? 'pesquisa de satisfação'
   : m.startsWith('TREINO_') ? `fase ${m.slice(7)} do treinamento` : `${m.slice(1)}% concluído`;
 
 type TextoMarco = { whatsapp: string; assunto: string; titulo: string; paragrafos: string[] };
@@ -413,6 +419,50 @@ export async function avisarClienteAgenda(prisma: PrismaClient, imp: any, marco:
   return ok;
 }
 
+// ─── Tarefas do cliente (Fase 3) ─────
+export const PASTA_ARQUIVOS_CLIENTE = () => process.env.ARQUIVOS_CLIENTE_DIR || '/root/arquivos-clientes';
+export const MAX_ARQUIVO_CLIENTE = 15 * 1024 * 1024;
+
+/** Grava o arquivo enviado pelo cliente (data URL base64) em disco. Devolve caminho, nome, tipo e tamanho. */
+export async function salvarArquivoCliente(implantacaoId: string, tarefaId: string, nome: string, dataUrl: string) {
+  const m = /^data:([^;,]*)(;base64)?,(.*)$/s.exec(dataUrl || '');
+  if (!m || !m[2]) throw new Error('Arquivo inválido');
+  const buf = Buffer.from(m[3], 'base64');
+  if (!buf.length) throw new Error('Arquivo vazio');
+  if (buf.length > MAX_ARQUIVO_CLIENTE) throw new Error('Arquivo maior que 15 MB');
+  const limpo = (nome || 'arquivo').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\- ]+/g, '_').slice(-120) || 'arquivo';
+  const dir = path.join(PASTA_ARQUIVOS_CLIENTE(), implantacaoId);
+  await mkdir(dir, { recursive: true });
+  const caminho = path.join(dir, `${tarefaId}-${Date.now()}-${limpo}`);
+  await writeFile(caminho, buf);
+  return { caminho, nome: limpo, mime: m[1] || 'application/octet-stream', tamanho: buf.length };
+}
+
+/** Cria as tarefas padrão do cliente (Configurações), com prazo de 3 dias úteis. Só uma vez por demanda. */
+export async function criarTarefasClientePadrao(prisma: PrismaClient, imp: any, por: string) {
+  if (imp.modulo !== 'IMPLANTACAO' || ehLegado(imp)) return 0;
+  if (await prisma.implantacaoTarefaCliente.count({ where: { implantacao_id: imp.id } })) return 0;
+  const cfg = await obterConfigPortal(prisma);
+  const prazo = somarDiasUteis(new Date(), PRAZO_TAREFA_CLIENTE_DIAS_UTEIS);
+  prazo.setUTCHours(20, 59, 0, 0); // fim do dia (17h59 de Brasília)
+  const lista = (cfg.tarefas_cliente || []).filter(t => t.trim().length >= 2);
+  if (lista.length) await prisma.implantacaoTarefaCliente.createMany({ data: lista.map(titulo => ({ implantacao_id: imp.id, titulo: titulo.trim(), prazo, criada_por: por })) });
+  return lista.length;
+}
+
+/** Ninguém mais devendo nada vencido: fecha a espera "Cliente" aberta sozinha por tarefa vencida. */
+export async function fecharEsperaDeTarefa(prisma: PrismaClient, implantacaoId: string, por = 'Sistema') {
+  const vencidas = await prisma.implantacaoTarefaCliente.count({ where: { implantacao_id: implantacaoId, status: 'PENDENTE', prazo: { lt: new Date() } } });
+  if (vencidas) return;
+  await prisma.implantacaoEspera.updateMany({ where: { implantacao_id: implantacaoId, tipo: 'CLIENTE', fim: null, motivo: { startsWith: MOTIVO_ESPERA_TAREFA } }, data: { fim: new Date(), resolvida_por_nome: por, resposta: 'Cliente enviou o que faltava pela página de acompanhamento' } });
+}
+
+const textoTarefasCliente = (imp: any, tarefas: { titulo: string; prazo: Date | null }[], lembrete: boolean) => {
+  const link = `${URL_FRONT()}/acompanhamento/${imp.token_cliente}`;
+  const prazo = tarefas.map(t => t.prazo).filter(Boolean).sort((a, b) => a!.getTime() - b!.getTime())[0];
+  return `${saudacaoCliente(imp)} ${lembrete ? 'Lembrete da Prosystem: ainda' : 'Aqui é da Prosystem. Para seguir com a implantação da'} ${lembrete ? `falta${tarefas.length > 1 ? 'm' : ''} para a implantação da ${imp.cliente_razao_social}:` : `${imp.cliente_razao_social}, precisamos de:`}\n${tarefas.map(t => `• ${t.titulo}`).join('\n')}\n\n${prazo && !lembrete ? `Prazo: *${prazo.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}*. ` : ''}Envie pela sua página de acompanhamento, em "O que precisamos de você": ${link}`;
+};
+
 const saudacaoCliente = (imp: any) => { const n = ((imp.coleta as any)?.contato_nome || '').split(' ')[0]; return n ? `Olá, ${n}!` : 'Olá!'; };
 export const textoAgendaVirada = (imp: any, para: Date, remarcada: boolean, duracaoH?: number | null) =>
   `${saudacaoCliente(imp)} Aqui é da Prosystem. A virada do sistema na ${imp.cliente_razao_social} ${remarcada ? 'foi remarcada' : 'ficou marcada'} para *${quando(para)}*${duracaoH ? ` (previsão de ${duracaoH}h)` : ''}.\n\nPara tudo correr bem: feche o caixa no horário combinado, evite emitir notas durante a virada e deixe alguém da loja disponível para os testes. Qualquer imprevisto, é só responder aqui.`;
@@ -520,6 +570,46 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
       if (imp) { await avisarClienteAgenda(prisma, imp, `LEMBRETE_TREINO_${f.ordem}`, textoAgendaTreino(imp, f, f.marcada_em!, true)); cota--; }
     }
   }
+  // 4d) Tarefas do cliente: aviso inicial, lembrete a cada 2 dias úteis depois do prazo (até 3), espera "Cliente"
+  // aberta sozinha enquanto houver tarefa vencida; esgotados os lembretes, a supervisão é avisada.
+  if (horarioComercial(agora) && hora >= 9) {
+    let cota = 3;
+    const pend = await prisma.implantacaoTarefaCliente.findMany({ where: { status: 'PENDENTE', implantacao_id: { in: ativas.map(a => a.id) } } });
+    const porCard = new Map<string, typeof pend>();
+    for (const t of pend) porCard.set(t.implantacao_id, [...(porCard.get(t.implantacao_id) || []), t]);
+    const { podeEnviarUmaVez } = await import('./envio-unico.service');
+    for (const [impId, ts] of porCard) {
+      const imp = ativas.find(a => a.id === impId);
+      if (!imp || !imp.token_cliente) continue;
+      const vencidas = ts.filter(t => t.prazo && t.prazo < agora);
+      if (vencidas.length && !(await prisma.implantacaoEspera.count({ where: { implantacao_id: impId, tipo: 'CLIENTE', fim: null } }))) {
+        await prisma.implantacaoEspera.create({ data: { implantacao_id: impId, tipo: 'CLIENTE', motivo: `${MOTIVO_ESPERA_TAREFA}: ${vencidas.map(v => v.titulo).join('; ').slice(0, 900)}`, o_que_resolver: 'O cliente enviar pela página de acompanhamento', aberta_por_nome: 'Otávio (implantação)' } });
+        await linha(prisma, impId, 'NOTA', `⏳ Espera "Cliente" aberta: ${vencidas.length} tarefa(s) do cliente vencida(s).`);
+      }
+      if (cota <= 0) continue;
+      const novos = ts.filter(t => t.lembretes === 0);
+      if (novos.length) {
+        await avisarClienteAgenda(prisma, imp, 'TAREFAS_CLIENTE', textoTarefasCliente(imp, novos, false)); cota--;
+        await prisma.implantacaoTarefaCliente.updateMany({ where: { id: { in: novos.map(t => t.id) } }, data: { lembretes: 1, ultimo_lembrete_em: agora } });
+        continue;
+      }
+      const devidas = vencidas.filter(t => t.lembretes <= MAX_LEMBRETES_TAREFA && (!t.ultimo_lembrete_em || somarDiasUteis(t.ultimo_lembrete_em, 2) <= agora));
+      if (devidas.length) {
+        await avisarClienteAgenda(prisma, imp, 'LEMBRETE_TAREFAS', textoTarefasCliente(imp, devidas, true)); cota--;
+        await prisma.implantacaoTarefaCliente.updateMany({ where: { id: { in: devidas.map(t => t.id) } }, data: { lembretes: { increment: 1 }, ultimo_lembrete_em: agora } });
+      } else if (vencidas.some(t => t.lembretes > MAX_LEMBRETES_TAREFA) && await podeEnviarUmaVez(prisma, `otavio.tarefas-esgotadas.${impId}.${hoje}`, 20)) {
+        await avisarEquipe(prisma, `📎 ${imp.cliente_razao_social} não enviou o que a implantação precisa, mesmo depois de ${MAX_LEMBRETES_TAREFA} lembretes: ${vencidas.map(v => v.titulo).join('; ')}. Vale uma ligação para o decisor.`, impId).catch(() => {});
+      }
+    }
+    // Pesquisa de satisfação 2 dias úteis depois da validação (uma vez).
+    const validadas = await prisma.implantacao.findMany({ where: { validado_em: { not: null, gte: CORTE_PORTAL }, pesquisa_enviada_em: null, status: { not: 'CANCELADA' } } });
+    for (const v of validadas) {
+      if (cota <= 0 || ehLegado(v) || somarDiasUteis(v.validado_em!, 2) > agora) continue;
+      await prisma.implantacao.update({ where: { id: v.id }, data: { pesquisa_enviada_em: agora } });
+      await avisarClienteAgenda(prisma, v, 'PESQUISA', `${saudacaoCliente(v)} Aqui é da Prosystem. A ${v.modulo === 'SERVICO' ? 'demanda' : 'implantação'} da ${v.cliente_razao_social} foi concluída. Leva 1 minuto: como foi o nosso atendimento? ${URL_FRONT()}/pesquisa`); cota--;
+    }
+  }
+
   // 4c) Operação assistida: a partir das 15h, lembra o técnico da checagem do dia que ainda não foi feita.
   if (horarioComercial(agora) && hora >= 15) {
     const viradas = ativas.filter(a => a.virada_fim_em && a.tecnico_id);

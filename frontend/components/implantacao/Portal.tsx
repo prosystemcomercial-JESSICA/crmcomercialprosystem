@@ -59,6 +59,8 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
   const [sobre, setSobre] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [ocultarFinalizados, setOcultarFinalizados] = useState(true);
+  const [vista, setVista] = useState<'kanban' | 'lista' | 'calendario' | 'equipe'>('kanban');
+  const [soRisco, setSoRisco] = useState(false);
   const carregar = useCallback(async () => {
     try { const r = await apiClient.getQuadroImplantacao(null); setDados(r.data.data); } catch { setDados({ colunas: [], cards: [] }); }
   }, []);
@@ -75,7 +77,9 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
   const colunas = (dados?.colunas || []).filter(c => !(ocultarFinalizados && ['FINALIZADO', 'CANCELADOS'].includes(c.key)));
   const filtro = busca.trim().toLowerCase();
   const doModulo = (dados?.cards || []).filter(c => !modulo || c.modulo === modulo);
-  const cards = doModulo.filter(c => !filtro || `${c.cliente_razao_social} ${c.cliente_cnpj || ''} ${c.tecnico_nome || ''}`.toLowerCase().includes(filtro));
+  const cards = doModulo.filter(c => !filtro || `${c.cliente_razao_social} ${c.cliente_cnpj || ''} ${c.tecnico_nome || ''}`.toLowerCase().includes(filtro))
+    .filter(c => !soRisco || (c.saude && c.saude.nivel !== 'VERDE'));
+  const emRisco = doModulo.filter(c => c.saude && c.saude.nivel !== 'VERDE').length;
   const contagem = (m: string) => (dados?.cards || []).filter(c => (!m || c.modulo === m) && !['FINALIZADO', 'CANCELADOS'].includes(c.coluna)).length;
   const resumo = useMemo(() => {
     const ativos = doModulo.filter(c => !['FINALIZADO', 'CANCELADOS'].includes(c.coluna));
@@ -109,6 +113,16 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
           </div>
         ))}
         <div style={{ flex: 1 }} />
+        <button onClick={() => setSoRisco(v => !v)} aria-pressed={soRisco}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${soRisco ? '#d97706' : 'var(--t-card-border)'}`, background: soRisco ? '#d977060f' : 'transparent', color: soRisco ? '#b45309' : 'var(--t-text-secondary)' }}>
+          <span style={{ width: 7, height: 7, borderRadius: 99, background: '#d97706' }} /> Em risco <span style={{ fontVariantNumeric: 'tabular-nums' }}>{emRisco}</span>
+        </button>
+        <div role="tablist" aria-label="Vista do quadro" style={{ display: 'inline-flex', border: '1px solid var(--t-card-border)', borderRadius: 8, overflow: 'hidden' }}>
+          {([['kanban', 'Quadro'], ['lista', 'Lista'], ['calendario', 'Calendário'], ...(gestao ? [['equipe', 'Equipe']] : [])] as [typeof vista, string][]).map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={vista === k} onClick={() => setVista(k)}
+              style={{ fontSize: 12, fontWeight: vista === k ? 600 : 500, padding: '6px 12px', minHeight: 32, border: 'none', cursor: 'pointer', background: vista === k ? '#2E6EAB' : 'transparent', color: vista === k ? '#fff' : 'var(--t-text-secondary)' }}>{l}</button>
+          ))}
+        </div>
         <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar cliente ou técnico" className="ps-input" style={{ width: 220 }} />
         <label style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
           <input type="checkbox" checked={ocultarFinalizados} onChange={e => setOcultarFinalizados(e.target.checked)} /> Ocultar finalizados e cancelados
@@ -122,7 +136,10 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
           Nenhuma demanda em andamento{modulo === 'SERVICO' ? ' nos serviços' : modulo === 'IMPLANTACAO' ? ' nas implantações' : ''} agora. As finalizadas aparecem ao desmarcar "Ocultar finalizados e cancelados".
         </div>
       )}
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
+      {vista === 'lista' && <VistaLista cards={cards.filter(c => colunas.some(k => k.key === c.coluna))} abrir={setAberta} />}
+      {vista === 'calendario' && <VistaCalendario cards={cards} abrir={setAberta} gestao={gestao} />}
+      {vista === 'equipe' && gestao && <VistaEquipe cards={cards} abrir={setAberta} />}
+      <div style={{ display: vista === 'kanban' ? 'flex' : 'none', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
         {colunas.map(col => {
           const doCol = cards.filter(c => c.coluna === col.key);
           return (
@@ -147,7 +164,10 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                     {c.virada_inicio_em && !c.virada_fim_em && <Etq cor="#7c3aed">🚀 Virada em andamento</Etq>}
                     {c.virada_fim_em && !c.cobranca_lancada_em && <Etq cor="#7c3aed">💰 Cobrança a lançar</Etq>}
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', lineHeight: 1.3 }}>{c.cliente_razao_social}</div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                    {c.saude && c.saude.nivel !== 'VERDE' && <span style={{ transform: 'translateY(-1px)' }}><PontoSaude saude={c.saude} /></span>}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', lineHeight: 1.3 }}>{c.cliente_razao_social}</div>
+                  </div>
                   {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
                     <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#2E6EAB' : 'var(--t-text-secondary)' }}>→ {c.proximo_passo.titulo}</div>
                   )}
@@ -175,7 +195,7 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'onboarding' | 'fichacliente' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
+type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
 
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
@@ -200,8 +220,20 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
     ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ...(d.assistida ? [['assistida', `Operação assistida ${d.assistida.feitos}/${d.assistida.total}`, CheckCircle] as [Aba, string, any]] : []), ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
-    ['tempos', 'Tempos', Clock], ['cliente', 'Cliente', Users], ['historico', 'Histórico', MessageSquare],
+    ['tempos', 'Tempos', Clock], ['cliente', 'Página do cliente', Users], ['historico', 'Histórico', MessageSquare],
+    ['tarefascliente', `Tarefas do cliente${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length ? ` (${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length})` : ''}`, FileText],
   ];
+  // Card em 5 grupos (Fase 3): cada grupo junta as abas de um assunto; dentro dele, pílulas escolhem a aba.
+  const GRUPOS_ABA: { k: string; l: string; subs: Aba[] }[] = [
+    { k: 'visao', l: 'Visão geral', subs: ['resumo'] },
+    { k: 'cliente', l: 'Cliente', subs: ['fichacliente', 'tarefascliente', 'ficha', 'cliente'] },
+    { k: 'execucao', l: 'Execução', subs: ['onboarding', 'checklist', 'virada', 'assistida', 'treinamento', 'correcoes'] },
+    { k: 'conversa', l: 'Conversa', subs: ['observacoes', 'historico'] },
+    { k: 'tempos', l: 'Tempos', subs: ['tempos'] },
+  ];
+  const dispo = new Map(abas.map(([k, l, Icon]) => [k, { l, Icon }]));
+  const grupos = GRUPOS_ABA.map(g => ({ ...g, subs: g.subs.filter(s => dispo.has(s)) })).filter(g => g.subs.length);
+  const grupoAtual = grupos.find(g => g.subs.includes(aba)) || grupos[0];
   return (
     <Gaveta onClose={onClose}>
       <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--t-card-border)', display: 'grid', gap: 14 }}>
@@ -215,6 +247,11 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
           </div>
           <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
+        {d.saude && d.saude.nivel !== 'VERDE' && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, color: COR_SAUDE[d.saude.nivel] }}>
+            <PontoSaude saude={d.saude} /><span><b style={{ fontWeight: 600 }}>{d.saude.nivel === 'VERMELHO' ? 'Precisa de atenção agora' : 'Atenção'}:</b> {d.saude.motivos.join(' · ')}</span>
+          </div>
+        )}
         <PainelContatos d={d} gestao={gestao} recarregar={carregar} />
         <FaixaProximoPasso d={d} gestao={gestao} aba={aba} irPara={setAba} recarregar={carregar} />
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -226,15 +263,27 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         </div>
       </div>
       <div style={{ display: 'flex', gap: 2, padding: '0 12px', borderBottom: '1px solid var(--t-card-border)', overflowX: 'auto' }}>
-        {abas.map(([k, l, Icon]) => (
-          <button key={k} onClick={() => setAba(k)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 10px', fontSize: 12, fontWeight: aba === k ? 700 : 500, whiteSpace: 'nowrap', border: 'none', background: 'transparent', cursor: 'pointer', color: aba === k ? '#2E6EAB' : 'var(--t-text-secondary)', borderBottom: aba === k ? '2px solid #2E6EAB' : '2px solid transparent' }}>
-            <Icon size={13} /> {l}
+        {grupos.map(g => (
+          <button key={g.k} onClick={() => !g.subs.includes(aba) && setAba(g.subs[0])}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 12px', fontSize: 13, fontWeight: grupoAtual.k === g.k ? 600 : 500, whiteSpace: 'nowrap', border: 'none', background: 'transparent', cursor: 'pointer', color: grupoAtual.k === g.k ? '#2E6EAB' : 'var(--t-text-secondary)', borderBottom: grupoAtual.k === g.k ? '2px solid #2E6EAB' : '2px solid transparent' }}>
+            {g.l}
           </button>
         ))}
       </div>
+      {grupoAtual.subs.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, padding: '10px 20px 0', overflowX: 'auto' }}>
+          {grupoAtual.subs.map(k => (
+            <button key={k} onClick={() => setAba(k)}
+              style={{ fontSize: 12, fontWeight: aba === k ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, whiteSpace: 'nowrap', cursor: 'pointer', border: `1px solid ${aba === k ? '#2E6EAB55' : 'var(--t-card-border)'}`, background: aba === k ? '#2E6EAB0f' : 'transparent', color: aba === k ? '#2E6EAB' : 'var(--t-text-secondary)' }}>
+              {dispo.get(k)?.l}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
         {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} />}
         {aba === 'fichacliente' && <AbaFichaCliente d={d} />}
+        {aba === 'tarefascliente' && <AbaTarefasCliente d={d} recarregar={carregar} />}
         {aba === 'observacoes' && <AbaObservacoes id={d.implantacao.id} />}
         {aba === 'resumo' && <AbaResumo d={d} gestao={gestao} recarregar={carregar} />}
         {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} />}
@@ -1117,6 +1166,252 @@ function ModelosChecklist({ c, setC }: { c: any; setC: (f: (p: any) => any) => v
   );
 }
 
+// ─── Fase 3: saúde do card, tarefas do cliente, vistas do quadro e resumo para o suporte ───
+
+const COR_SAUDE: Record<string, string> = { VERDE: '#16a34a', AMARELO: '#d97706', VERMELHO: '#dc2626' };
+function PontoSaude({ saude, tamanho = 8 }: { saude?: { nivel: string; motivos: string[] }; tamanho?: number }) {
+  if (!saude) return null;
+  return <span title={saude.motivos.length ? saude.motivos.join(' · ') : 'Em dia'} aria-label={`Saúde: ${saude.nivel.toLowerCase()}`}
+    style={{ width: tamanho, height: tamanho, borderRadius: 99, background: COR_SAUDE[saude.nivel], display: 'inline-block', flexShrink: 0 }} />;
+}
+
+/** Tarefas do cliente: o que a loja precisa entregar; o cliente envia pela página de acompanhamento. */
+function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const i = d.implantacao;
+  const lista: any[] = d.tarefas_cliente || [];
+  const [nova, setNova] = useState({ titulo: '', descricao: '', prazo: '', exige_arquivo: true });
+  const [ocupado, setOcupado] = useState(false);
+  const run = async (f: () => Promise<any>) => { setOcupado(true); try { await f(); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); } };
+  const baixar = async (t: any) => {
+    try {
+      const r = await apiClient.baixarArquivoTarefaCliente(t.id);
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement('a'); a.href = url; a.download = t.arquivo_nome || 'arquivo'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) { alert(erroDe(e)); }
+  };
+  const devolver = (t: any) => { const m = prompt(`O que o cliente precisa corrigir em "${t.titulo}"? Ele recebe esta mensagem no WhatsApp.`); if (m && m.trim().length >= 3) run(() => apiClient.acaoTarefaCliente(t.id, 'DEVOLVER', m.trim())); };
+  const STATUS: Record<string, [string, string]> = { PENDENTE: ['Aguardando o cliente', '#b45309'], ENVIADA: ['Enviado, conferir', '#2E6EAB'], CONCLUIDA: ['Conferido', '#16a34a'] };
+  return (
+    <div style={{ display: 'grid', gap: 16, maxWidth: 820 }}>
+      <div style={{ fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.5 }}>
+        O cliente vê esta lista na página de acompanhamento, em "O que precisamos de você", e envia por lá. Ele é avisado no WhatsApp e lembrado a cada 2 dias úteis depois do prazo (até 3 vezes). Enquanto houver item vencido, o card fica em espera "Cliente".
+      </div>
+      {lista.length === 0 ? (
+        <div style={{ ...cartao, padding: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 200, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum item pedido ao cliente ainda.</span>
+          {i.modulo === 'IMPLANTACAO' && <button disabled={ocupado} onClick={() => run(() => apiClient.criarTarefaCliente(i.id, { padrao: true }))} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>Pedir os itens padrão</button>}
+        </div>
+      ) : (
+        <div style={{ ...cartao }}>
+          {lista.map((t, k) => {
+            const [rot, cor] = STATUS[t.status] || [t.status, 'var(--t-text-muted)'];
+            return (
+              <div key={t.id} style={{ padding: '12px 14px', borderTop: k ? '1px solid var(--t-card-border)' : 'none', display: 'grid', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ flex: 1, minWidth: 220, fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{t.titulo}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: t.vencida ? '#dc2626' : cor }}>{t.vencida ? 'Vencida' : rot}</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
+                  {t.prazo ? `Prazo ${fmtData(t.prazo)}` : 'Sem prazo'}{t.lembretes > 1 ? ` · ${t.lembretes - 1} lembrete(s)` : t.lembretes === 1 ? ' · cliente avisado' : ' · aviso sai no próximo horário comercial'}
+                  {t.enviada_em ? ` · enviado em ${fmtDataHora(t.enviada_em)}` : ''}{t.devolvida_motivo && t.status === 'PENDENTE' ? ` · devolvido: ${t.devolvida_motivo}` : ''}
+                </div>
+                {t.resposta_texto && <div style={{ fontSize: 13, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{t.resposta_texto}</div>}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {t.tem_arquivo && <button onClick={() => baixar(t)} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}><FileText size={12} /> {t.arquivo_nome || 'Baixar arquivo'}</button>}
+                  {t.status === 'ENVIADA' && <button disabled={ocupado} onClick={() => run(() => apiClient.acaoTarefaCliente(t.id, 'CONCLUIR'))} style={{ ...btn('#16a34a'), minHeight: 32 }}><CheckCircle size={12} /> Conferido</button>}
+                  {t.status === 'ENVIADA' && <button disabled={ocupado} onClick={() => devolver(t)} style={{ ...btn('#b45309', false), minHeight: 32 }}>Pedir para reenviar</button>}
+                  {t.status === 'CONCLUIDA' && <button disabled={ocupado} onClick={() => run(() => apiClient.acaoTarefaCliente(t.id, 'REABRIR'))} style={{ ...btn('#64748b', false), minHeight: 32 }}>Reabrir</button>}
+                  {t.status !== 'CONCLUIDA' && <button disabled={ocupado} onClick={() => confirm(`Remover "${t.titulo}"?`) && run(() => apiClient.acaoTarefaCliente(t.id, 'EXCLUIR'))} style={{ ...btn('#64748b', false), minHeight: 32 }}>Remover</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ ...cartao, padding: 14, display: 'grid', gap: 8 }}>
+        <div style={rotulo}>Pedir mais um item ao cliente</div>
+        <input value={nova.titulo} onChange={e => setNova(p => ({ ...p, titulo: e.target.value }))} placeholder="O que o cliente precisa enviar (ex.: planilha de preços)" className="ps-input w-full" style={{ minHeight: 40 }} />
+        <input value={nova.descricao} onChange={e => setNova(p => ({ ...p, descricao: e.target.value }))} placeholder="Explicação para o cliente (opcional)" className="ps-input w-full" style={{ minHeight: 40 }} />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Prazo <input type="date" value={nova.prazo} onChange={e => setNova(p => ({ ...p, prazo: e.target.value }))} className="ps-input" style={{ minHeight: 36 }} /></label>
+          <label style={{ fontSize: 13, color: 'var(--t-text-secondary)', display: 'inline-flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={nova.exige_arquivo} onChange={e => setNova(p => ({ ...p, exige_arquivo: e.target.checked }))} /> Precisa de arquivo</label>
+          <button disabled={ocupado || nova.titulo.trim().length < 3} onClick={() => run(async () => { await apiClient.criarTarefaCliente(i.id, { titulo: nova.titulo.trim(), descricao: nova.descricao.trim() || undefined, prazo: nova.prazo || undefined, exige_arquivo: nova.exige_arquivo }); setNova({ titulo: '', descricao: '', prazo: '', exige_arquivo: true }); })}
+            style={{ ...btn('#2E6EAB'), minHeight: 36, opacity: nova.titulo.trim().length < 3 ? 0.5 : 1 }}>Adicionar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Resumo da implantação no topo do ticket do suporte (o mais recente validado deste cliente). */
+export function ResumoImplantacaoTicket({ clienteId }: { clienteId?: string | null }) {
+  const [r, setR] = useState<any | null>(null);
+  const [aberto, setAberto] = useState(false);
+  useEffect(() => { setR(null); if (clienteId) apiClient.getResumoSuporte(clienteId).then(x => setR(x.data.data)).catch(() => {}); }, [clienteId]);
+  if (!r) return null;
+  const linhas: string[] = (r.resumo_suporte || '').split('\n');
+  return (
+    <div style={{ border: '1px solid #2E6EAB40', background: '#2E6EAB08', borderRadius: 10, padding: '12px 14px', display: 'grid', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#2E6EAB' }}>Resumo da {r.modulo === 'SERVICO' ? 'demanda' : 'implantação'}</span>
+        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>validada em {fmtData(r.validado_em)}{r.tecnico_nome ? ` · ${r.tecnico_nome.split(' ')[0]}` : ''}</span>
+      </div>
+      <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{(aberto ? linhas : linhas.slice(0, 4)).join('\n')}</div>
+      {linhas.length > 4 && <button onClick={() => setAberto(v => !v)} style={{ justifySelf: 'start', fontSize: 12, fontWeight: 600, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>{aberto ? 'Mostrar menos' : 'Ver o resumo completo'}</button>}
+    </div>
+  );
+}
+
+/** Vistas do quadro além do Kanban: Lista (tabela ordenável), Calendário (mês) e Equipe (14 dias por técnico, só supervisão). */
+function VistaLista({ cards, abrir }: { cards: any[]; abrir: (id: string) => void }) {
+  const [ord, setOrd] = useState<{ k: string; asc: boolean }>({ k: 'saude', asc: false });
+  const ORDEM_COL = ['BACKLOG', 'A_FAZER', 'EM_ANDAMENTO', 'ACOMPANHAMENTO', 'CONCLUIDO', 'VALIDADO', 'FINALIZADO', 'CANCELADOS'];
+  const PESO_SAUDE: Record<string, number> = { VERMELHO: 2, AMARELO: 1, VERDE: 0 };
+  const valor = (c: any) => ord.k === 'cliente' ? c.cliente_razao_social : ord.k === 'coluna' ? ORDEM_COL.indexOf(c.coluna) : ord.k === 'tecnico' ? (c.tecnico_nome || '') : ord.k === 'prazo' ? (c.sla?.prazo ? new Date(c.sla.prazo).getTime() : Infinity) : PESO_SAUDE[c.saude?.nivel] ?? 0;
+  const lista = [...cards].sort((a, b) => { const x = valor(a), y = valor(b); const r = x < y ? -1 : x > y ? 1 : 0; return ord.asc ? r : -r; });
+  const cab = (k: string, l: string) => (
+    <th onClick={() => setOrd(o => ({ k, asc: o.k === k ? !o.asc : k !== 'saude' }))} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
+      {l}{ord.k === k ? (ord.asc ? ' ↑' : ' ↓') : ''}
+    </th>
+  );
+  const nomeCol: Record<string, string> = { BACKLOG: 'BackLog', A_FAZER: 'A fazer', EM_ANDAMENTO: 'Em andamento', ACOMPANHAMENTO: 'Acompanhamento', CONCLUIDO: 'Concluído', VALIDADO: 'Validado', FINALIZADO: 'Finalizado', CANCELADOS: 'Cancelado' };
+  return (
+    <div style={{ ...cartao, overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+        <thead style={{ borderBottom: '1px solid var(--t-card-border)' }}><tr>{cab('saude', 'Saúde')}{cab('cliente', 'Cliente')}{cab('coluna', 'Coluna')}<th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>Próximo passo</th>{cab('tecnico', 'Técnico')}{cab('prazo', 'Prazo')}</tr></thead>
+        <tbody>
+          {lista.map(c => (
+            <tr key={c.id} onClick={() => abrir(c.id)} style={{ borderTop: '1px solid var(--t-card-border)', cursor: 'pointer' }}>
+              <td style={{ padding: '10px 12px' }}><PontoSaude saude={c.saude} tamanho={10} /></td>
+              <td style={{ padding: '10px 12px', fontSize: 13 }}><div style={{ fontWeight: 600, color: 'var(--t-text-primary)' }}>{c.cliente_razao_social}</div><div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{c.modulo === 'SERVICO' ? c.tipo_servico_label || 'Serviço' : c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : 'Conversão'}</div></td>
+              <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--t-text-secondary)', whiteSpace: 'nowrap' }}>{nomeCol[c.coluna] || c.coluna}</td>
+              <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--t-text-primary)' }}>{c.proximo_passo?.titulo || '—'}</td>
+              <td style={{ padding: '10px 12px', fontSize: 13, color: c.tecnico_nome ? 'var(--t-text-secondary)' : '#dc2626', whiteSpace: 'nowrap' }}>{c.tecnico_nome ? c.tecnico_nome.split(' ')[0] : 'sem técnico'}</td>
+              <td style={{ padding: '10px 12px' }}><SlaBadge sla={c.sla} etapa={c.sla_etapa} /></td>
+            </tr>
+          ))}
+          {lista.length === 0 && <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhuma demanda.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+type EventoAgenda = { id: string; dia: string; hora?: string; tipo: 'VIRADA' | 'TREINO'; titulo: string; cliente: string; tecnico?: string | null };
+const diaBR = (d: Date) => new Date(d.getTime() - 3 * 3600000).toISOString().slice(0, 10);
+function eventosDosCards(cards: any[]): EventoAgenda[] {
+  const ev: EventoAgenda[] = [];
+  for (const c of cards) {
+    if (c.virada_agendada_para && !c.virada_inicio_em) { const d = new Date(c.virada_agendada_para); ev.push({ id: c.id, dia: diaBR(d), hora: d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }), tipo: 'VIRADA', titulo: 'Virada', cliente: c.cliente_razao_social, tecnico: c.tecnico_nome }); }
+    for (const f of c.treinos_marcados || []) ev.push({ id: c.id, dia: diaBR(new Date(f.marcada_em)), tipo: 'TREINO', titulo: `Treino fase ${f.ordem}`, cliente: c.cliente_razao_social, tecnico: c.tecnico_nome });
+  }
+  return ev.sort((a, b) => (a.dia + (a.hora || '')).localeCompare(b.dia + (b.hora || '')));
+}
+function ChipEvento({ e, abrir, mostrarTecnico }: { e: EventoAgenda; abrir: (id: string) => void; mostrarTecnico?: boolean }) {
+  return (
+    <button onClick={() => abrir(e.id)} title={`${e.titulo} · ${e.cliente}${e.tecnico ? ` · ${e.tecnico}` : ''}`}
+      style={{ display: 'block', width: '100%', textAlign: 'left', fontSize: 11, lineHeight: 1.3, padding: '3px 6px', borderRadius: 6, border: 'none', cursor: 'pointer', marginTop: 3,
+        background: e.tipo === 'VIRADA' ? '#2E6EAB1a' : '#0891b214', color: 'var(--t-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {e.tipo === 'VIRADA' ? '🚀' : '🎓'} {e.hora ? `${e.hora} ` : ''}{e.cliente}{mostrarTecnico && e.tecnico ? ` · ${e.tecnico.split(' ')[0]}` : ''}
+    </button>
+  );
+}
+function VistaCalendario({ cards, abrir, gestao }: { cards: any[]; abrir: (id: string) => void; gestao: boolean }) {
+  const hoje = diaBR(new Date());
+  const [mes, setMes] = useState(hoje.slice(0, 7));
+  const [y, m] = mes.split('-').map(Number);
+  const primeiro = new Date(Date.UTC(y, m - 1, 1)), dias = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const vazio = primeiro.getUTCDay();
+  const ev = eventosDosCards(cards);
+  const mover = (n: number) => { const d = new Date(Date.UTC(y, m - 1 + n, 1)); setMes(d.toISOString().slice(0, 7)); };
+  const nomeMes = primeiro.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const doMes = ev.filter(e => e.dia.startsWith(mes));
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button onClick={() => mover(-1)} aria-label="Mês anterior" style={{ ...btn('#64748b', false), minHeight: 32 }}>‹</button>
+        <b style={{ fontSize: 15, color: 'var(--t-text-primary)', textTransform: 'capitalize', minWidth: 160, textAlign: 'center' }}>{nomeMes}</b>
+        <button onClick={() => mover(1)} aria-label="Próximo mês" style={{ ...btn('#64748b', false), minHeight: 32 }}>›</button>
+        <button onClick={() => setMes(hoje.slice(0, 7))} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}>Hoje</button>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--t-text-muted)' }}>{doMes.length} compromisso(s) · 🚀 virada · 🎓 treinamento</span>
+      </div>
+      <div className="pt-cal-grade" style={{ ...cartao, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', overflow: 'hidden' }}>
+        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(n => <div key={n} style={{ padding: '6px 8px', fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', borderBottom: '1px solid var(--t-card-border)' }}>{n}</div>)}
+        {Array.from({ length: vazio }, (_, k) => <div key={`v${k}`} style={{ borderTop: '1px solid var(--t-card-border)', minHeight: 84, background: 'var(--t-content-bg)' }} />)}
+        {Array.from({ length: dias }, (_, k) => {
+          const dia = `${mes}-${String(k + 1).padStart(2, '0')}`;
+          const doDia = doMes.filter(e => e.dia === dia);
+          return (
+            <div key={dia} style={{ borderTop: '1px solid var(--t-card-border)', borderLeft: (vazio + k) % 7 ? '1px solid var(--t-card-border)' : 'none', minHeight: 84, padding: 4, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: dia === hoje ? 700 : 500, color: dia === hoje ? '#2E6EAB' : 'var(--t-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{k + 1}</div>
+              {doDia.slice(0, 3).map((e, j) => <ChipEvento key={j} e={e} abrir={abrir} mostrarTecnico={gestao} />)}
+              {doDia.length > 3 && <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>+{doDia.length - 3}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+function VistaEquipe({ cards, abrir }: { cards: any[]; abrir: (id: string) => void }) {
+  const hoje = new Date();
+  const dias = Array.from({ length: 14 }, (_, k) => diaBR(new Date(hoje.getTime() + k * 864e5)));
+  const ev = eventosDosCards(cards);
+  const ativos = cards.filter(c => !['CONCLUIDO', 'VALIDADO', 'FINALIZADO', 'CANCELADOS'].includes(c.coluna));
+  const nomes = [...new Set(ativos.map(c => c.tecnico_nome || ''))].sort((a, b) => (a ? (b ? a.localeCompare(b) : -1) : 1));
+  const PESO: Record<string, number> = { VERMELHO: 0, AMARELO: 1, VERDE: 2 };
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Próximos 14 dias por técnico (viradas e treinamentos marcados) e as demandas ativas de cada um, piores primeiro.</div>
+      <div style={{ ...cartao, overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `160px repeat(14, minmax(64px, 1fr))`, minWidth: 160 + 14 * 64 }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--t-card-border)' }} />
+          {dias.map(d => { const dt = new Date(`${d}T12:00:00-03:00`); const fds = [0, 6].includes(dt.getUTCDay()); return (
+            <div key={d} style={{ padding: '8px 4px', fontSize: 11, textAlign: 'center', fontWeight: d === dias[0] ? 700 : 500, color: d === dias[0] ? '#2E6EAB' : 'var(--t-text-muted)', borderBottom: '1px solid var(--t-card-border)', background: fds ? 'var(--t-content-bg)' : 'transparent', textTransform: 'capitalize' }}>
+              {dt.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'America/Sao_Paulo' }).replace('.', '')}<br />{d.slice(8, 10)}/{d.slice(5, 7)}
+            </div>); })}
+          {nomes.map(nome => {
+            const meus = ativos.filter(c => (c.tecnico_nome || '') === nome).sort((a, b) => (PESO[a.saude?.nivel] ?? 2) - (PESO[b.saude?.nivel] ?? 2));
+            return (
+              <div key={nome || 'sem'} style={{ display: 'contents' }}>
+                <div style={{ padding: '10px', borderTop: '1px solid var(--t-card-border)', gridRow: 'span 2' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: nome ? 'var(--t-text-primary)' : '#dc2626' }}>{nome ? nome.split(' ').slice(0, 2).join(' ') : 'Sem técnico'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{meus.length} ativa(s){meus.filter(c => c.saude?.nivel !== 'VERDE').length ? ` · ${meus.filter(c => c.saude?.nivel !== 'VERDE').length} em risco` : ''}</div>
+                </div>
+                {dias.map(d => (
+                  <div key={d} style={{ borderTop: '1px solid var(--t-card-border)', borderLeft: '1px solid var(--t-card-border)', padding: 3, minHeight: 44, minWidth: 0 }}>
+                    {ev.filter(e => e.dia === d && (e.tecnico || '') === nome).map((e, j) => <ChipEvento key={j} e={e} abrir={abrir} />)}
+                  </div>
+                ))}
+                <div style={{ gridColumn: '2 / -1', padding: '6px 6px 10px', display: 'flex', gap: 6, flexWrap: 'wrap', borderLeft: '1px solid var(--t-card-border)' }}>
+                  {meus.map(c => (
+                    <button key={c.id} onClick={() => abrir(c.id)} title={c.saude?.motivos?.join(' · ') || c.proximo_passo?.titulo}
+                      style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 12, padding: '4px 10px', borderRadius: 999, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', cursor: 'pointer', color: 'var(--t-text-primary)', maxWidth: 260 }}>
+                      <PontoSaude saude={c.saude} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.cliente_razao_social}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Tarefas padrão do cliente (Configurações). */
+function TarefasClientePadrao({ c, setC }: { c: any; setC: (f: (p: any) => any) => void }) {
+  return (
+    <div style={{ ...cartao, padding: 16, display: 'grid', gap: 8 }}>
+      <div style={rotulo}>O que pedir ao cliente no começo da implantação</div>
+      <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Criado na designação, com prazo de 3 dias úteis. O cliente é avisado no WhatsApp e envia pela página de acompanhamento. Um item por linha.</div>
+      <textarea rows={5} defaultValue={(c.tarefas_cliente || []).join('\n')} onBlur={e => setC(p => ({ ...p, tarefas_cliente: e.target.value.split('\n').map(x => x.trim()).filter(x => x.length >= 2) }))} className="ps-input w-full" style={{ fontSize: 13, lineHeight: 1.5 }} />
+    </div>
+  );
+}
+
 // ─── Linguagem visual do card (ordem de serviço): bordas finas, cor só para ação ───
 const os = {
   linha: 'var(--t-card-border)',
@@ -1257,6 +1552,12 @@ function BlocoObservacoes({ titulo, dica, lista, privada, id, eu, recarregar }: 
 
 function AbaFichaCliente({ d }: { d: any }) {
   const c = d.cliente_ficha, i = d.implantacao;
+  const resumoSuporte = i.resumo_suporte ? (
+    <section style={{ display: 'grid', gap: 8 }}>
+      <div style={os.secao}>Resumo enviado ao suporte {i.validado_em ? `(${fmtData(i.validado_em)})` : ''}</div>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{i.resumo_suporte}</p>
+    </section>
+  ) : null;
   const dataBR = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : null);
   const vendido = d.servico_descricao || (i.modulo === 'SERVICO' ? i.observacoes : null);
   // Lista de definição: rótulo à esquerda, valor à direita, linhas finas. Campos vazios não aparecem.
@@ -1332,6 +1633,7 @@ function AbaFichaCliente({ d }: { d: any }) {
         ['CEP', c?.cep],
         ['Região', c?.regiao],
       ])}
+      {resumoSuporte}
       {c?.observacoes && (
         <section style={{ display: 'grid', gap: 8 }}>
           <div style={os.secao}>Observações do cadastro</div>
@@ -1603,7 +1905,7 @@ export function ConfigPortalImplantacao() {
   const salvar = async () => {
     setSalvando(true);
     try {
-      await apiClient.salvarConfigPortal({ sla: c.sla, programacao: { nome: c.programacao.nome, whatsapp: c.programacao.whatsapp || '', lembrete_horas: Number(c.programacao.lembrete_horas) }, avisos_cliente: c.avisos_cliente, agente_ativo: c.agente_ativo, ofertas_ativo: c.ofertas_ativo, ofertas_dias_apos_virada: Number(c.ofertas_dias_apos_virada), catalogo: c.catalogo.filter((x: any) => x.produto?.trim()), modelos: (c.modelos || []).filter((m: any) => m.segmento?.trim().length >= 2).map((m: any) => ({ segmento: m.segmento.trim(), grupos: { INSTALACAO: m.grupos?.INSTALACAO || [], CONVERSAO: m.grupos?.CONVERSAO || [], TREINAMENTO: m.grupos?.TREINAMENTO || [] } })), extras_sistema: (c.extras_sistema || []).filter((x: any) => x.sistema?.trim().length >= 2 && x.itens?.length).map((x: any) => ({ sistema: x.sistema.trim(), itens: x.itens })), jornada: { inicio: c.jornada.inicio, fim: c.jornada.fim, almoco_inicio: c.jornada.almoco_inicio, almoco_min: Number(c.jornada.almoco_min), virada_inicio: c.jornada.virada_inicio } });
+      await apiClient.salvarConfigPortal({ sla: c.sla, programacao: { nome: c.programacao.nome, whatsapp: c.programacao.whatsapp || '', lembrete_horas: Number(c.programacao.lembrete_horas) }, avisos_cliente: c.avisos_cliente, agente_ativo: c.agente_ativo, ofertas_ativo: c.ofertas_ativo, ofertas_dias_apos_virada: Number(c.ofertas_dias_apos_virada), catalogo: c.catalogo.filter((x: any) => x.produto?.trim()), modelos: (c.modelos || []).filter((m: any) => m.segmento?.trim().length >= 2).map((m: any) => ({ segmento: m.segmento.trim(), grupos: { INSTALACAO: m.grupos?.INSTALACAO || [], CONVERSAO: m.grupos?.CONVERSAO || [], TREINAMENTO: m.grupos?.TREINAMENTO || [] } })), extras_sistema: (c.extras_sistema || []).filter((x: any) => x.sistema?.trim().length >= 2 && x.itens?.length).map((x: any) => ({ sistema: x.sistema.trim(), itens: x.itens })), tarefas_cliente: c.tarefas_cliente || [], jornada: { inicio: c.jornada.inicio, fim: c.jornada.fim, almoco_inicio: c.jornada.almoco_inicio, almoco_min: Number(c.jornada.almoco_min), virada_inicio: c.jornada.virada_inicio } });
       setOk(true); setTimeout(() => setOk(false), 2000);
     } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
   };
@@ -1658,6 +1960,7 @@ export function ConfigPortalImplantacao() {
         <div><button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { produto: '', descricao: '', preco: '' }] }))} style={btn('#2E6EAB', false)}>+ Produto ou pacote</button></div>
       </div>
       <div style={{ gridColumn: '1 / -1' }}><ModelosChecklist c={c} setC={setC} /></div>
+      <div style={{ gridColumn: '1 / -1' }}><TarefasClientePadrao c={c} setC={setC} /></div>
       <div style={{ gridColumn: '1 / -1' }}><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), padding: '10px 18px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />} {ok ? 'Salvo' : 'Salvar configurações'}</button></div>
     </div>
   );

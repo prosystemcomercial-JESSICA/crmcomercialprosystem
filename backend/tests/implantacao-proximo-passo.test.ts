@@ -146,3 +146,41 @@ describe('fase 2: operação assistida, agenda, modelos e coluna coerente', () =
     expect(etapaDaColuna('FINALIZADO', {})).toBe('FINALIZADO');
   });
 });
+
+import { saudeDoCard, montarResumoSuporte } from '../src/lib/implantacao/portal';
+
+describe('fase 3: saúde do card e resumo para o suporte', () => {
+  const agora = new Date('2026-10-20T15:00:00Z');
+  const dia = (n: number) => new Date(agora.getTime() - n * 864e5);
+  const ok = { coluna: 'EM_ANDAMENTO', tecnico_id: 't1', designado_em: dia(1), data_assinatura: dia(2), ultima_sessao: dia(0), esperas_abertas: [], correcoes_altas: 0, tarefas_vencidas: 0 };
+
+  it('em dia fica verde', () => { expect(saudeDoCard(ok, agora)).toEqual({ nivel: 'VERDE', motivos: [] }); });
+  it('prazo estourado ou correção grave fica vermelho', () => {
+    expect(saudeDoCard({ ...ok, sla: { situacao: 'ESTOURADO' } }, agora).nivel).toBe('VERMELHO');
+    expect(saudeDoCard({ ...ok, correcoes_altas: 1 }, agora).motivos).toEqual(['1 correção(ões) grave(s) aberta(s)']);
+  });
+  it('parado sem espera: 3 dias amarelo, 5 dias vermelho; com espera aberta não conta como parado', () => {
+    expect(saudeDoCard({ ...ok, ultima_sessao: dia(3), designado_em: dia(4) }, agora)).toEqual({ nivel: 'AMARELO', motivos: ['Ninguém trabalhou há 3 dias'] });
+    expect(saudeDoCard({ ...ok, ultima_sessao: dia(6), designado_em: dia(8) }, agora).nivel).toBe('VERMELHO');
+    expect(saudeDoCard({ ...ok, ultima_sessao: dia(6), esperas_abertas: [{ inicio: dia(1) }] }, agora).nivel).toBe('VERDE');
+  });
+  it('espera longa, tarefa do cliente vencida e sem técnico ficam amarelos', () => {
+    expect(saudeDoCard({ ...ok, esperas_abertas: [{ inicio: dia(2) }] }, agora).motivos).toEqual(['Parada em espera há 2 dias']);
+    expect(saudeDoCard({ ...ok, tarefas_vencidas: 2 }, agora).motivos).toEqual(['2 tarefa(s) do cliente vencida(s)']);
+    expect(saudeDoCard({ ...ok, tecnico_id: null }, agora).motivos).toEqual(['Sem técnico há 2 dia(s)']);
+  });
+  it('fora da execução fica verde', () => { expect(saudeDoCard({ ...ok, coluna: 'CONCLUIDO', sla: { situacao: 'ESTOURADO' } }, agora).nivel).toBe('VERDE'); });
+
+  it('resumo do suporte traz tipo, decisor, como a loja trabalha, correções e observações', () => {
+    const r = montarResumoSuporte({
+      imp: { cliente_razao_social: 'Farmácia X', modulo: 'IMPLANTACAO', tipo_base: 'CONVERSAO', sistema_anterior: 'Trier', virada_fim_em: new Date('2026-10-09T18:00:00Z'), tecnico_nome: 'Lucas Diniz', coleta: { decisor_nome: 'Ana', decisor_telefone: '27999990000', regime_tributario: 'Simples', caixas: '3' } },
+      observacoes: [{ texto: 'Cliente prefere contato à tarde', autor_nome: 'Lucas Diniz' }], correcoes: [{ titulo: 'Estoque negativo', situacao: 'RESOLVIDA' }],
+      campos: [{ key: 'regime_tributario', label: 'Regime tributário' }, { key: 'caixas', label: 'Caixas (PDV)' }],
+    });
+    expect(r).toContain('Implantação conversão de Trier · virada em 09/10/2026 · técnico Lucas Diniz');
+    expect(r).toContain('Decisor: Ana · 27999990000');
+    expect(r).toContain('• Regime tributário: Simples');
+    expect(r).toContain('• Estoque negativo');
+    expect(r).toContain('• Cliente prefere contato à tarde (Lucas)');
+  });
+});
