@@ -12,6 +12,7 @@ export const ETAPAS: { key: string; label: string }[] = [
   { key: 'INSTALACAO', label: 'Instalação' },
   { key: 'CONVERSAO', label: 'Conversão' },
   { key: 'TREINAMENTO', label: 'Treinamento' },
+  { key: 'ASSISTIDA', label: 'Operação assistida' },
   { key: 'CORRECAO', label: 'Correção pós-virada' },
 ];
 const NOME_ETAPA = Object.fromEntries(ETAPAS.map(e => [e.key, e.label]));

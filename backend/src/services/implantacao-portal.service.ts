@@ -9,6 +9,7 @@ import { CONTATO_GERAL, LINK_CONTATO_GERAL } from '@/lib/triagem/fluxo';
 import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
   progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
+  statusAssistida, type ModeloChecklist, type ExtraSistema,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -28,10 +29,12 @@ export type ConfigPortal = {
   ofertas_ativo: boolean; // agente de oferta depois da virada
   ofertas_dias_apos_virada: number;
   catalogo: ItemCatalogo[];
+  modelos: ModeloChecklist[]; // checklist por segmento (vazio = padrão)
+  extras_sistema: ExtraSistema[]; // itens extras na conversão, por sistema de origem
 };
 const PADRAO: Omit<ConfigPortal, 'programacao'> & { programacao: Omit<ConfigPortal['programacao'], 'token'> } = {
   sla: SLA_PADRAO, programacao: { nome: 'Sinval', whatsapp: '', lembrete_horas: 4 },
-  avisos_cliente: true, agente_ativo: true, ofertas_ativo: false, ofertas_dias_apos_virada: 15, catalogo: [],
+  avisos_cliente: true, agente_ativo: true, ofertas_ativo: false, ofertas_dias_apos_virada: 15, catalogo: [], modelos: [], extras_sistema: [],
 };
 
 export async function obterConfigPortal(prisma: PrismaClient): Promise<ConfigPortal> {
@@ -43,6 +46,8 @@ export async function obterConfigPortal(prisma: PrismaClient): Promise<ConfigPor
     sla: { ...PADRAO.sla, ...(salvo.sla || {}) },
     programacao: { ...PADRAO.programacao, token: '', ...(salvo.programacao || {}) },
     catalogo: Array.isArray(salvo.catalogo) ? salvo.catalogo : [],
+    modelos: Array.isArray(salvo.modelos) ? salvo.modelos : [],
+    extras_sistema: Array.isArray(salvo.extras_sistema) ? salvo.extras_sistema : [],
   };
   if (!cfg.programacao.token) { // link do Sinval: gerado uma vez
     cfg.programacao.token = randomBytes(18).toString('base64url');
@@ -213,6 +218,8 @@ export async function visaoCliente(prisma: PrismaClient, imp: any) {
     assinatura: imp.data_assinatura, virada_inicio: imp.virada_inicio_em, virada: imp.virada_fim_em, tecnico: imp.tecnico_nome ? imp.tecnico_nome.split(' ')[0] : null,
     concluida: !!(imp.concluida_fila_em || imp.data_conclusao), etapas, proximos,
     primeiro_vencimento: imp.virada_fim_em ? imp.data_primeiro_vencimento : null,
+    virada_agendada: imp.virada_fim_em || imp.virada_inicio_em ? null : imp.virada_agendada_para || null,
+    treinos_marcados: (fases as any[]).filter(f => f.marcada_em && !f.realizada_em).map(f => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em })),
     diagnostico,
     suporte: { telefone: CONTATO_GERAL, link: LINK_CONTATO_GERAL },
     fases: fases.map((f: any) => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em, realizada_em: f.realizada_em })),
@@ -221,7 +228,9 @@ export async function visaoCliente(prisma: PrismaClient, imp: any) {
 
 const fmtHoras = (ms: number) => { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}`; };
 
-const ROTULO_MARCO = (m: string) => m === 'CONTRATO' ? 'próximos passos' : m === 'VIRADA' ? 'loja virada' : m.startsWith('TREINO_') ? `fase ${m.slice(7)} do treinamento` : `${m.slice(1)}% concluído`;
+const ROTULO_MARCO = (m: string) => m === 'CONTRATO' ? 'próximos passos' : m === 'VIRADA' ? 'loja virada' : m === 'AGENDA_VIRADA' ? 'data da virada' : m === 'LEMBRETE_VIRADA' ? 'lembrete da virada'
+  : m.startsWith('AGENDA_TREINO_') ? `data da fase ${m.slice(14)} do treinamento` : m.startsWith('LEMBRETE_TREINO_') ? `lembrete da fase ${m.slice(16)} do treinamento`
+  : m.startsWith('TREINO_') ? `fase ${m.slice(7)} do treinamento` : `${m.slice(1)}% concluído`;
 
 type TextoMarco = { whatsapp: string; assunto: string; titulo: string; paragrafos: string[] };
 
@@ -376,6 +385,42 @@ export async function enviarMarco(prisma: PrismaClient, imp: any, marco: string)
   registrarAcaoAgente('otavio', `avisou ${imp.cliente_razao_social}: ${ROTULO_MARCO(marco)}`);
 }
 
+const quando = (d: Date, hora = true) => d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit', ...(hora ? { hour: '2-digit', minute: '2-digit' } : {}) }).replace(',', '');
+
+/** Recado operacional ao cliente (agenda e lembretes): WhatsApp da empresa, registrado nas comunicações do card. */
+export async function avisarClienteAgenda(prisma: PrismaClient, imp: any, marco: string, texto: string): Promise<boolean> {
+  if (ehLegado(imp)) return false;
+  const cfg = await obterConfigPortal(prisma);
+  if (!cfg.avisos_cliente) return false;
+  const coleta: any = imp.coleta || {};
+  const destWpp = numeroWhatsapp(imp.contato_whatsapp || coleta.contato_telefone || '');
+  const registrar = (destino: string | null, status: string, erro?: string) =>
+    prisma.implantacaoComunicacao.create({ data: { implantacao_id: imp.id, marco, canal: 'WHATSAPP', destino, status, texto: destino ? texto : null, erro } }).catch(() => null);
+  if (!destWpp) { await registrar(null, 'SEM_DESTINO'); return false; }
+  const inst = await obterInstanciaEmpresa(prisma);
+  let ok = false, erro = '';
+  if (inst?.instance_token) {
+    try {
+      const r = await evo.enviarTexto(inst.instance_token, destWpp, texto);
+      ok = true;
+      const { garantirConversa } = await import('./assistente-posvenda.service');
+      const conv = await garantirConversa(prisma, inst.id, destWpp, { nome: coleta.contato_nome || imp.cliente_razao_social, tipo_contato: 'CLIENTE' });
+      await prisma.whatsappMensagem.create({ data: { conversaId: conv.id, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: texto, status: 'ENVIADA', enviada_por: 'otavio' } }).catch(() => {});
+    } catch (e: any) { erro = e?.message || 'falha'; }
+  } else erro = 'WhatsApp da empresa não configurado';
+  await registrar(destWpp, ok ? 'ENVIADO' : 'ERRO', erro || undefined);
+  await linha(prisma, imp.id, 'COMUNICACAO', `📨 Cliente avisado: ${ROTULO_MARCO(marco)} (WhatsApp)${ok ? '' : ' — falhou'}.`);
+  return ok;
+}
+
+const saudacaoCliente = (imp: any) => { const n = ((imp.coleta as any)?.contato_nome || '').split(' ')[0]; return n ? `Olá, ${n}!` : 'Olá!'; };
+export const textoAgendaVirada = (imp: any, para: Date, remarcada: boolean, duracaoH?: number | null) =>
+  `${saudacaoCliente(imp)} Aqui é da Prosystem. A virada do sistema na ${imp.cliente_razao_social} ${remarcada ? 'foi remarcada' : 'ficou marcada'} para *${quando(para)}*${duracaoH ? ` (previsão de ${duracaoH}h)` : ''}.\n\nPara tudo correr bem: feche o caixa no horário combinado, evite emitir notas durante a virada e deixe alguém da loja disponível para os testes. Qualquer imprevisto, é só responder aqui.`;
+export const textoLembreteVirada = (imp: any, para: Date) =>
+  `${saudacaoCliente(imp)} Lembrete da Prosystem: a virada do sistema na ${imp.cliente_razao_social} é *${quando(para)}*. Feche o caixa no horário combinado e deixe alguém da loja disponível para os testes. Até lá!`;
+export const textoAgendaTreino = (imp: any, fase: { ordem: number; nome: string }, dia: Date, lembrete: boolean) =>
+  `${saudacaoCliente(imp)} ${lembrete ? 'Lembrete da Prosystem: ' : 'Aqui é da Prosystem. '}${lembrete ? 'o' : 'O'} treinamento da fase ${fase.ordem} (${fase.nome}) na ${imp.cliente_razao_social} ${lembrete ? 'é' : 'ficou marcado para'} *${quando(dia, false)}*. Reserve a equipe que vai usar essa parte do sistema.`;
+
 /** Marcos já passados viram PULADO (página do cliente ligada no meio do caminho: nada de mensagens atrasadas). */
 export async function pularMarcosPassados(prisma: PrismaClient, implantacaoId: string) {
   const imp: any = await prisma.implantacao.findUnique({ where: { id: implantacaoId } });
@@ -449,6 +494,42 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
       if (!proximo) continue;
       await enviarMarco(prisma, i, proximo).catch(e => console.error('[IMPLANTACAO] marco:', e?.message));
       enviados++;
+    }
+  }
+
+  // 4b) Agenda (Fase 2): lembrete ao cliente no dia útil anterior à virada e a cada fase do treinamento.
+  const hora = Number(agora.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false }));
+  if (horarioComercial(agora) && hora >= 9) {
+    const amanhaUtil = diaSP(somarDiasUteis(agora, 1));
+    let cota = 3; // mesmo limite das outras mensagens ao cliente: protege o número
+
+    for (const i of ativas) {
+      if (cota > 0 && i.virada_agendada_para && !i.virada_lembrete_em && !i.virada_inicio_em && diaSP(i.virada_agendada_para) > hoje && diaSP(i.virada_agendada_para) <= amanhaUtil) {
+        await prisma.implantacao.update({ where: { id: i.id }, data: { virada_lembrete_em: agora } });
+        await avisarClienteAgenda(prisma, i, 'LEMBRETE_VIRADA', textoLembreteVirada(i, i.virada_agendada_para)); cota--;
+        if (i.tecnico_id) await avisarTecnico(prisma, { para_id: i.tecnico_id, implantacao_id: i.id, origem: 'SISTEMA', texto: `🚀 Virada de ${i.cliente_razao_social} amanhã: ${quando(i.virada_agendada_para)}. Confira os pré-requisitos no card.` }).catch(() => null);
+      }
+    }
+    const fasesAmanha = await prisma.implantacaoTreinamentoFase.findMany({ where: { realizada_em: null, lembrete_em: null, marcada_em: { not: null }, implantacao_id: { in: ativas.map(a => a.id) } } });
+    for (const f of fasesAmanha) {
+      const dia = diaSP(f.marcada_em!);
+      if (cota <= 0) break;
+      if (dia <= hoje || dia > amanhaUtil) continue;
+      const imp = ativas.find(a => a.id === f.implantacao_id);
+      await prisma.implantacaoTreinamentoFase.update({ where: { id: f.id }, data: { lembrete_em: agora } });
+      if (imp) { await avisarClienteAgenda(prisma, imp, `LEMBRETE_TREINO_${f.ordem}`, textoAgendaTreino(imp, f, f.marcada_em!, true)); cota--; }
+    }
+  }
+  // 4c) Operação assistida: a partir das 15h, lembra o técnico da checagem do dia que ainda não foi feita.
+  if (horarioComercial(agora) && hora >= 15) {
+    const viradas = ativas.filter(a => a.virada_fim_em && a.tecnico_id);
+    const checks = viradas.length ? await prisma.implantacaoAssistida.findMany({ where: { implantacao_id: { in: viradas.map(v => v.id) } }, select: { implantacao_id: true, dia: true } }) : [];
+    const { podeEnviarUmaVez } = await import('./envio-unico.service');
+    for (const v of viradas) {
+      const st = statusAssistida(v, checks.filter(c => c.implantacao_id === v.id), agora);
+      if (st && st.pendentes.includes(hoje) && await podeEnviarUmaVez(prisma, `otavio.assistida.${v.id}.${hoje}`, 20)) {
+        await avisarTecnico(prisma, { para_id: v.tecnico_id!, implantacao_id: v.id, origem: 'SISTEMA', texto: `🩺 Operação assistida de ${v.cliente_razao_social}: falta a checagem de hoje (vendas, NFC-e e estoque). ${st.feitos} de ${st.total} dias feitos.` }).catch(() => null);
+      }
     }
   }
 

@@ -277,6 +277,136 @@ export function onboardingOk(i: { modulo?: string | null; data_assinatura?: Date
   return ob.length > 0 && ob.every(x => x.feito);
 }
 
+// Trilha real de implantação (Trello) — 3 grupos com os itens do técnico.
+export const CHECKLIST_PADRAO: { grupo: string; itens: string[] }[] = [
+  {
+    grupo: 'INSTALACAO',
+    itens: [
+      'Instalação do servidor, terminais e Caixa',
+      'Configuração de Balança, gaveta',
+      'Configuração de impressora NFCE',
+      'Configurar Uninfe e Certificado',
+      'Configurar Gerencial',
+      'Configurar o Copy (backup) Interno e Externo (Nuvem)',
+      'Configurar o Connect (Comunicação entre filiais)',
+      'Testar Cadastro de Clientes',
+      'Teste de Cadastro de Produtos, verificar dados obrigatórios',
+      'Teste de Movimentação - Entrada, Emissão de nota e Cancelamento',
+      'Teste Financeiro - movimentação',
+      'Validar relatórios 100% atualizados',
+      'Instalar e Configurar Farmácias APP',
+      'Emitir uma nota de saída NFCE em Operação',
+    ],
+  },
+  {
+    grupo: 'CONVERSAO',
+    itens: [
+      'Instalação do Banco de Dados',
+      'Limpar tabelas para receber a nova versão',
+      'Conversão dos dados do sistema X para Prosystem',
+      'Validar Produtos (cód. barras, estoque, tributação, registro MS, custo, venda, lucro, promoção...)',
+      'Validar Clientes (endereço completo, RG, CPF, crediário, limite de crédito)',
+      'Validar Cadastro de Empresas e Prescritores',
+      'Financeiro (plano de contas, contas a pagar/receber, dados de cartões)',
+      'Movimentação (entrada, saída, verificar última nota NFE/NFCE)',
+      'Gerar SPED Fiscal para validação de valores',
+      'Incluir sequência das últimas 10 NFE emitidas na NFE_NUMERACAO',
+    ],
+  },
+  {
+    grupo: 'TREINAMENTO',
+    itens: [
+      'Configuração de Acesso padrão para Funcionários',
+      'Movimentação - Entrada / Saída de nota',
+      'Produtos - Cadastro',
+      'Financeiro - Plano de Contas',
+      'PDV - Pré-Venda / Orçamento',
+      'Emissão de Cupom Fiscal NFCE',
+      'PDV - Devolução',
+      'PDV - NFE Acobertamento',
+      'Fechamento de caixa',
+      'Crediário / Convênio',
+      'Sugestão de compras (Curva ABC) — ou apresentar a ferramenta',
+      'Controlados / Receitas - Controle SNGPC',
+      'Comunicação entre Filiais',
+      'Controle de Estoque',
+      'Metas de Funcionários',
+      'PBM',
+      'Recarga de celular - RV',
+      'Prosystem Gerencial',
+      'Ofertar o Imendes',
+      'Mensagerias WhatsApp',
+      'Prosystem Dashboard',
+    ],
+  },
+];
+
+// ─── Modelos de checklist por segmento e por sistema de origem (Fase 2) ─────
+export type ModeloChecklist = { segmento: string; grupos: { INSTALACAO: string[]; CONVERSAO: string[]; TREINAMENTO: string[] } };
+export type ExtraSistema = { sistema: string; itens: string[] };
+const norm = (t?: string | null) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const listaDoPadrao = (g: string) => CHECKLIST_PADRAO.find(x => x.grupo === g)?.itens || [];
+
+/** Checklist da implantação: modelo do segmento do cliente (ou o padrão) + itens extras do sistema de origem na conversão. */
+export function checklistDoModelo(modelos: ModeloChecklist[] | undefined, extras: ExtraSistema[] | undefined, segmento?: string | null, sistemaAnterior?: string | null): { grupo: string; itens: string[] }[] {
+  const m = (modelos || []).find(x => norm(x.segmento) && norm(segmento).includes(norm(x.segmento)));
+  const grupos = ['INSTALACAO', 'CONVERSAO', 'TREINAMENTO'].map(g => ({ grupo: g, itens: (m?.grupos as any)?.[g]?.length ? (m!.grupos as any)[g] as string[] : listaDoPadrao(g) }));
+  const extra = extrasDoSistema(extras, sistemaAnterior);
+  if (extra.length) grupos.find(g => g.grupo === 'CONVERSAO')!.itens = [...grupos.find(g => g.grupo === 'CONVERSAO')!.itens, ...extra];
+  return grupos;
+}
+export function extrasDoSistema(extras: ExtraSistema[] | undefined, sistemaAnterior?: string | null): string[] {
+  const s = norm(sistemaAnterior);
+  if (!s) return [];
+  return (extras || []).filter(x => norm(x.sistema) && s.includes(norm(x.sistema))).flatMap(x => x.itens);
+}
+
+// ─── Uma só verdade: a coluna do quadro manda, a etapa de execução acompanha (Fase 2) ─────
+export function etapaDaColuna(coluna: string, i: { tecnico_id?: string | null; tipo_base?: string | null; etapa_execucao?: string | null }): string {
+  switch (coluna) {
+    case 'BACKLOG': case 'A_FAZER': return i.tecnico_id ? 'DESIGNADO' : 'AGUARDANDO_DESIGNACAO';
+    case 'EM_ANDAMENTO': return i.tipo_base === 'CONVERSAO' ? 'EM_CONVERSAO' : 'EM_CONFIGURACAO';
+    case 'ACOMPANHAMENTO': case 'CONCLUIDO': case 'VALIDADO': return 'EM_TREINAMENTO';
+    case 'FINALIZADO': return 'FINALIZADO';
+    default: return i.etapa_execucao || 'AGUARDANDO_DESIGNACAO';
+  }
+}
+export function colunaDaEtapa(etapa: string): string {
+  if (etapa === 'FINALIZADO') return 'FINALIZADO';
+  if (etapa === 'EM_TREINAMENTO') return 'ACOMPANHAMENTO';
+  if (['EM_ANALISE', 'EM_CONVERSAO', 'EM_CONFIGURACAO'].includes(etapa)) return 'EM_ANDAMENTO';
+  return 'A_FAZER';
+}
+/** A coluna pedida combina com os marcos da implantação? Devolve o motivo quando não combina. */
+export function colunaIncoerente(i: { modulo: string; virada_inicio_em?: Date | null; virada_fim_em?: Date | null }, para: string): string | null {
+  if (i.modulo !== 'IMPLANTACAO' || para === 'CANCELADOS') return null;
+  if (i.virada_fim_em && ['BACKLOG', 'A_FAZER', 'EM_ANDAMENTO'].includes(para)) return 'A loja já virou: a demanda fica em Acompanhamento e Treinamento ou depois.';
+  if (i.virada_inicio_em && ['BACKLOG', 'A_FAZER'].includes(para)) return 'A virada já começou: a demanda fica em Em andamento ou depois.';
+  if (!i.virada_fim_em && para === 'ACOMPANHAMENTO') return 'A loja ainda não virou. Use "Loja virada" na aba Virada para ir para Acompanhamento.';
+  return null;
+}
+
+// ─── Operação assistida: 5 dias úteis depois da loja virada (Fase 2) ─────
+export const DIAS_ASSISTIDA = 5;
+export const INICIO_ASSISTIDA = new Date('2026-10-03T03:00:00.000Z'); // viradas a partir de 03/10/2026
+export const assistidaExigida = (i: { modulo: string; virada_fim_em?: Date | null; data_assinatura?: Date | null }) =>
+  i.modulo === 'IMPLANTACAO' && !!i.virada_fim_em && i.virada_fim_em >= INICIO_ASSISTIDA && !ehLegado(i);
+/** Os 5 dias úteis da operação assistida (YYYY-MM-DD, Brasília), a partir do dia útil seguinte à virada. */
+export const diasAssistida = (viradaFim: Date) => Array.from({ length: DIAS_ASSISTIDA }, (_, k) => diaSP(somarDiasUteis(viradaFim, k + 1)));
+export function statusAssistida(i: { modulo: string; virada_fim_em?: Date | null; data_assinatura?: Date | null }, feitos: { dia: string }[], agora = new Date()) {
+  if (!assistidaExigida(i)) return null;
+  const hoje = diaSP(agora), set = new Set(feitos.map(f => f.dia));
+  const dias = diasAssistida(i.virada_fim_em!).map(dia => ({ dia, feito: set.has(dia), liberado: dia <= hoje }));
+  const nFeitos = dias.filter(d => d.feito).length;
+  return {
+    dias, feitos: nFeitos, total: DIAS_ASSISTIDA, concluida: nFeitos >= DIAS_ASSISTIDA,
+    pendentes: dias.filter(d => d.liberado && !d.feito).map(d => d.dia), // hoje ou atrasados
+    proximo: dias.find(d => !d.feito && !d.liberado)?.dia || null,
+  };
+}
+const ddmm = (dia: string) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
+const quandoSP = (d: Date) => d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' às');
+
 // ─── Próximo passo e pré-requisitos de cada etapa (Fase 1 do plano de UX, 03/10/2026) ─────
 // Uma regra só, usada pela faixa do card, pela linha do cartão no quadro e pelos bloqueios das rotas.
 
@@ -284,6 +414,7 @@ type DemandaPP = {
   modulo: string; tipo_base?: string | null; status?: string | null; coluna?: string | null; etapa_execucao?: string | null;
   tecnico_id?: string | null; data_assinatura?: Date | null; onboarding_concluido_em?: Date | null; coleta?: any;
   tela_suporte_arquivo_id?: string | null; virada_inicio_em?: Date | null; virada_fim_em?: Date | null;
+  virada_agendada_para?: Date | null;
 };
 type ItemPP = { grupo: string; titulo: string; feito: boolean };
 
@@ -325,8 +456,10 @@ export function pendenciasConcluirVirada(i: DemandaPP, itens: ItemPP[]): string[
 }
 
 /** O que falta para pedir a validação da supervisão (ir para "Concluído"). Vazio = liberado. */
-export function pendenciasValidacao(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number): string[] {
+export function pendenciasValidacao(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number, assistida?: { dia: string }[]): string[] {
   const p: string[] = [];
+  const a = assistida ? statusAssistida(i, assistida) : null;
+  if (a && !a.concluida) p.push(`Operação assistida: ${a.feitos} de ${a.total} dias checados`);
   if (i.modulo === 'SERVICO') {
     const s = itens.filter(x => x.grupo === 'SERVICO');
     if (s.some(x => !x.feito)) p.push(`Checklist do serviço: ${s.filter(x => x.feito).length} de ${s.length} itens`);
@@ -339,13 +472,13 @@ export function pendenciasValidacao(i: DemandaPP, itens: ItemPP[], fases: { real
 }
 
 export type ProximoPasso = {
-  chave: 'CANCELADA' | 'FINALIZADA' | 'FINALIZAR' | 'VALIDAR' | 'DESIGNAR' | 'EXECUTAR' | 'ONBOARDING' | 'COLETA' | 'PREPARAR' | 'INICIAR_VIRADA' | 'CONCLUIR_VIRADA' | 'TREINAMENTO' | 'CORRECOES' | 'PEDIR_VALIDACAO';
+  chave: 'CANCELADA' | 'FINALIZADA' | 'FINALIZAR' | 'VALIDAR' | 'DESIGNAR' | 'EXECUTAR' | 'ONBOARDING' | 'COLETA' | 'AGENDAR_VIRADA' | 'PREPARAR' | 'INICIAR_VIRADA' | 'CONCLUIR_VIRADA' | 'ASSISTIDA' | 'ASSISTIDA_ANDAMENTO' | 'TREINAMENTO' | 'CORRECOES' | 'PEDIR_VALIDACAO';
   titulo: string; detalhe?: string; quem: 'TECNICO' | 'GESTAO' | 'NINGUEM';
   aba?: string; etapa?: string; pendencias?: string[];
 };
 
 /** Próximo passo da demanda: o que fazer agora, quem faz, em qual aba e em qual etapa do cronômetro. */
-export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number): ProximoPasso {
+export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number, extra: { assistida?: { dia: string }[]; agora?: Date } = {}): ProximoPasso {
   const col = colunaDe(i);
   if (i.status === 'CANCELADA' || col === 'CANCELADOS') return { chave: 'CANCELADA', titulo: 'Demanda cancelada', quem: 'NINGUEM' };
   if (col === 'FINALIZADO') return { chave: 'FINALIZADA', titulo: 'Demanda finalizada', quem: 'NINGUEM' };
@@ -364,22 +497,29 @@ export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_e
   const etapaPrep = i.tipo_base === 'CONVERSAO' ? 'CONVERSAO' : 'INSTALACAO';
   if (!i.virada_inicio_em && !i.virada_fim_em) {
     if (!fichaOk(i) && !ehLegado(i)) return { chave: 'COLETA', titulo: 'Completar a ficha de coleta', detalhe: 'Faltam o regime tributário e/ou o contato principal', quem: 'TECNICO', aba: 'ficha', etapa: etapaPrep };
+    if (!i.virada_agendada_para && !ehLegado(i)) return { chave: 'AGENDAR_VIRADA', titulo: 'Agendar a virada com o cliente', detalhe: 'Data e hora combinadas; o cliente recebe a data e um lembrete 1 dia antes', quem: 'TECNICO', aba: 'virada' };
+    const agenda = i.virada_agendada_para ? `Virada agendada para ${quandoSP(i.virada_agendada_para)}` : null;
     const pend = pendenciasIniciarVirada(i, itens);
     if (pend.length) {
       const grupos = i.tipo_base === 'CONVERSAO' ? ['INSTALACAO', 'CONVERSAO'] : ['INSTALACAO'];
       const prep = itens.filter(x => grupos.includes(x.grupo));
       const soTela = pend.length === 1 && /Suporte/.test(pend[0]);
-      return { chave: 'PREPARAR', titulo: 'Preparar a virada', detalhe: `${prep.filter(x => x.feito).length} de ${prep.length} itens de ${i.tipo_base === 'CONVERSAO' ? 'instalação e conversão' : 'instalação'}`, quem: 'TECNICO', aba: soTela ? 'virada' : 'checklist', etapa: etapaPrep, pendencias: pend };
+      return { chave: 'PREPARAR', titulo: 'Preparar a virada', detalhe: `${prep.filter(x => x.feito).length} de ${prep.length} itens de ${i.tipo_base === 'CONVERSAO' ? 'instalação e conversão' : 'instalação'}${agenda ? ` · ${agenda}` : ''}`, quem: 'TECNICO', aba: soTela ? 'virada' : 'checklist', etapa: etapaPrep, pendencias: pend };
     }
-    return { chave: 'INICIAR_VIRADA', titulo: 'Iniciar a virada da loja', detalhe: 'Pré-requisitos completos', quem: 'TECNICO', aba: 'virada', etapa: 'INSTALACAO' };
+    return { chave: 'INICIAR_VIRADA', titulo: 'Iniciar a virada da loja', detalhe: agenda ? `Pré-requisitos completos · ${agenda}` : 'Pré-requisitos completos', quem: 'TECNICO', aba: 'virada', etapa: 'INSTALACAO' };
   }
   if (!i.virada_fim_em) {
     const pend = pendenciasConcluirVirada(i, itens);
     return { chave: 'CONCLUIR_VIRADA', titulo: 'Concluir a virada (Loja virada)', detalhe: pend.length ? undefined : 'Virada em andamento', quem: 'TECNICO', aba: pend.length ? 'checklist' : 'virada', etapa: 'INSTALACAO', pendencias: pend.length ? pend : undefined };
   }
+  // Operação assistida corre junto com o treinamento: a checagem do dia vem primeiro.
+  const a = statusAssistida(i, extra.assistida || [], extra.agora);
+  if (a && a.pendentes.length) return { chave: 'ASSISTIDA', titulo: `Operação assistida: checagem ${a.pendentes.length > 1 ? `de ${a.pendentes.length} dias` : `de ${ddmm(a.pendentes[0])}`}`, detalhe: `${a.feitos} de ${a.total} dias checados (vendas, NFC-e e estoque)`, quem: 'TECNICO', aba: 'assistida', etapa: 'ASSISTIDA' };
   if (fases.length && fases.some(f => !f.realizada_em)) {
     const feitas = fases.filter(f => f.realizada_em).length;
     return { chave: 'TREINAMENTO', titulo: `Treinamento: fase ${feitas + 1} de ${fases.length}`, detalhe: `${feitas} de ${fases.length} fases realizadas`, quem: 'TECNICO', aba: 'treinamento', etapa: 'TREINAMENTO' };
   }
-  return correcoesAbertas ? correcoes : pedir;
+  if (correcoesAbertas) return correcoes;
+  if (a && !a.concluida) return { chave: 'ASSISTIDA_ANDAMENTO', titulo: 'Operação assistida em andamento', detalhe: `${a.feitos} de ${a.total} dias checados${a.proximo ? ` · próxima checagem ${ddmm(a.proximo)}` : ''}`, quem: 'TECNICO', aba: 'assistida' };
+  return pedir;
 }

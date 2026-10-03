@@ -143,6 +143,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                     {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && <Etq cor="#0369a1">🔒 Onboarding {c.onboarding_feitos}/{c.onboarding_total}</Etq>}
                     {c.esperas_abertas.length > 0 && <Etq cor="#a16207">⏳ {NOME_ESPERA[c.esperas_abertas[0].tipo]}</Etq>}
                     {c.ocorrencias_abertas > 0 && <Etq cor="#dc2626">🐞 {c.ocorrencias_abertas} correção</Etq>}
+                    {c.virada_agendada_para && !c.virada_inicio_em && <Etq cor="#2E6EAB">📅 Virada {new Date(c.virada_agendada_para).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}</Etq>}
                     {c.virada_inicio_em && !c.virada_fim_em && <Etq cor="#7c3aed">🚀 Virada em andamento</Etq>}
                     {c.virada_fim_em && !c.cobranca_lancada_em && <Etq cor="#7c3aed">💰 Cobrança a lançar</Etq>}
                   </div>
@@ -174,7 +175,7 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'onboarding' | 'fichacliente' | 'observacoes' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
+type Aba = 'onboarding' | 'fichacliente' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
 
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
@@ -197,7 +198,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   const abas: [Aba, string, any][] = [
     ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
     ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
-    ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
+    ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ...(d.assistida ? [['assistida', `Operação assistida ${d.assistida.feitos}/${d.assistida.total}`, CheckCircle] as [Aba, string, any]] : []), ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
     ['tempos', 'Tempos', Clock], ['cliente', 'Cliente', Users], ['historico', 'Histórico', MessageSquare],
   ];
@@ -239,6 +240,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} />}
         {aba === 'checklist' && <AbaChecklist d={d} recarregar={carregar} />}
         {aba === 'virada' && <AbaVirada d={d} gestao={gestao} recarregar={carregar} />}
+        {aba === 'assistida' && <AbaAssistida d={d} recarregar={carregar} />}
         {aba === 'treinamento' && <AbaTreinamento d={d} recarregar={carregar} />}
         {aba === 'correcoes' && <AbaCorrecoes d={d} recarregar={carregar} />}
         {aba === 'tempos' && <AbaTempos d={d} />}
@@ -611,6 +613,7 @@ function AbaVirada({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
           <button disabled={!retro || ocupado} onClick={() => acao(() => apiClient.concluirVirada(i.id, retro), `Lançar a virada em ${retro.split('-').reverse().join('/')}? O 1º vencimento é calculado a partir dessa data e o cliente não recebe mensagem.`)} style={{ ...btn('#7c3aed'), opacity: retro ? 1 : 0.5 }}>Lançar virada retroativa</button>
         </div>
       )}
+      <AgendaVirada d={d} recarregar={recarregar} />
       {!i.virada_fim_em && passo(pendViradas.length === 0, 'Pré-requisitos da virada', pendViradas.length === 0 ? 'Completos.' : (
         <span style={{ display: 'grid', gap: 2 }}>{pendViradas.map(t => <span key={t}>• {t}</span>)}{gestao && <span style={{ color: 'var(--t-text-muted)', marginTop: 2 }}>Como supervisão, você pode liberar mesmo assim.</span>}</span>
       ))}
@@ -709,7 +712,7 @@ function AbaCorrecoes({ d, recarregar }: { d: any; recarregar: () => void }) {
   );
 }
 
-const NOME_ETAPA: Record<string, string> = { INSTALACAO: 'Instalação', CONVERSAO: 'Conversão', TREINAMENTO: 'Treinamento', CORRECAO: 'Correção pós-virada', SEM_ETAPA: 'Sem etapa' };
+const NOME_ETAPA: Record<string, string> = { INSTALACAO: 'Instalação', CONVERSAO: 'Conversão', TREINAMENTO: 'Treinamento', ASSISTIDA: 'Operação assistida', CORRECAO: 'Correção pós-virada', SEM_ETAPA: 'Sem etapa' };
 
 function AbaTempos({ d }: { d: any }) {
   const t = d.tempos;
@@ -733,7 +736,9 @@ function AbaTempos({ d }: { d: any }) {
   );
 }
 
-const NOME_MARCO = (m: string) => m === 'CONTRATO' ? 'Próximos passos (contrato)' : m === 'VIRADA' ? 'Loja virada + boas-vindas' : m.startsWith('TREINO_') ? `Fase ${m.slice(7)} do treinamento` : `${m.slice(1)}% concluído`;
+const NOME_MARCO = (m: string) => m === 'CONTRATO' ? 'Próximos passos (contrato)' : m === 'VIRADA' ? 'Loja virada + boas-vindas' : m === 'AGENDA_VIRADA' ? 'Data da virada' : m === 'LEMBRETE_VIRADA' ? 'Lembrete da virada'
+  : m.startsWith('AGENDA_TREINO_') ? `Data da fase ${m.slice(14)} do treinamento` : m.startsWith('LEMBRETE_TREINO_') ? `Lembrete da fase ${m.slice(16)} do treinamento`
+  : m.startsWith('TREINO_') ? `Fase ${m.slice(7)} do treinamento` : `${m.slice(1)}% concluído`;
 
 // ─── Ficha do cliente (para o técnico: tudo do cadastro, sem dados financeiros) ───
 
@@ -767,7 +772,7 @@ function contatosDoCliente(d: any): { nome: string | null; fone: string }[] {
 // ─── Próximo passo do card (Fase 1): o que fazer agora e o botão que faz ───
 // Técnico do card: Começar agora, Ir para a aba, Pedir validação. Supervisão: Designar, Validar, Devolver, Finalizar.
 
-const NOME_ABA: Record<string, string> = { onboarding: 'Onboarding', ficha: 'Ficha de coleta', checklist: 'Checklist', virada: 'Virada', treinamento: 'Treinamento', correcoes: 'Correções' };
+const NOME_ABA: Record<string, string> = { onboarding: 'Onboarding', ficha: 'Ficha de coleta', checklist: 'Checklist', virada: 'Virada', assistida: 'Operação assistida', treinamento: 'Treinamento', correcoes: 'Correções' };
 
 function FaixaProximoPasso({ d, gestao, aba, irPara, recarregar }: { d: any; gestao: boolean; aba: string; irPara: (a: any) => void; recarregar: () => void }) {
   const p = d.proximo_passo, i = d.implantacao;
@@ -929,6 +934,186 @@ export function BuscaGlobal({ onAbrir }: { onAbrir: (id: string) => void }) {
         </div>
       )}
     </>
+  );
+}
+
+// ─── Fase 2: agenda da virada, operação assistida e modelos de checklist ───
+
+const quandoBR = (s?: string | null) => (s ? new Date(s).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—');
+const paraInputDataHora = (s?: string | null) => (s ? new Date(new Date(s).getTime() - 3 * 3600000).toISOString().slice(0, 16) : '');
+
+/** Agendar ou remarcar a virada (técnico do card ou supervisão). Remarcar pede o motivo. */
+function AgendaVirada({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const i = d.implantacao;
+  const [editando, setEditando] = useState(!i.virada_agendada_para);
+  const [quando, setQuando] = useState(paraInputDataHora(i.virada_agendada_para));
+  const [duracao, setDuracao] = useState<string>(i.virada_duracao_h ? String(i.virada_duracao_h) : '');
+  const [motivo, setMotivo] = useState('');
+  const [motivoTexto, setMotivoTexto] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  if (i.virada_inicio_em || i.virada_fim_em) return null;
+  const remarcando = !!i.virada_agendada_para;
+  const salvar = async (confirmar = false) => {
+    if (!quando) return alert('Escolha a data e a hora.');
+    if (remarcando && !motivo) return alert('Diga o motivo da remarcação.');
+    setSalvando(true);
+    try {
+      await apiClient.agendarVirada(i.id, { quando, duracao_h: duracao ? Number(duracao) : null, ...(remarcando ? { motivo, motivo_texto: motivoTexto.trim() || undefined } : {}), confirmar });
+      setEditando(false); recarregar();
+    } catch (e: any) {
+      if (e?.response?.status === 409 && confirm(`${erroDe(e)}\n\nAgendar mesmo assim?`)) { setSalvando(false); return salvar(true); }
+      alert(erroDe(e));
+    } finally { setSalvando(false); }
+  };
+  return (
+    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <div style={rotulo}>Agenda da virada</div>
+        {i.virada_remarcacoes > 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>remarcada {i.virada_remarcacoes}x</span>}
+      </div>
+      {!editando ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t-text-primary)', textTransform: 'capitalize' }}>{quandoBR(i.virada_agendada_para)}</div>
+            <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{i.virada_duracao_h ? `Previsão de ${i.virada_duracao_h}h · ` : ''}{i.virada_lembrete_em ? 'Lembrete enviado ao cliente' : 'O cliente recebe um lembrete no dia útil anterior'}</div>
+          </div>
+          <button onClick={() => setEditando(true)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>Remarcar</button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Data e hora<br /><input type="datetime-local" value={quando} onChange={e => setQuando(e.target.value)} className="ps-input" style={{ minHeight: 40 }} /></label>
+            <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Duração prevista (h)<br /><input type="number" min={1} max={24} value={duracao} onChange={e => setDuracao(e.target.value)} className="ps-input" style={{ width: 120, minHeight: 40 }} /></label>
+          </div>
+          {remarcando && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <select value={motivo} onChange={e => setMotivo(e.target.value)} className="ps-input" style={{ width: 'auto', minHeight: 40 }}>
+                <option value="">Motivo da remarcação…</option>
+                <option value="CLIENTE">Cliente pediu</option><option value="TECNICO">Problema técnico</option>
+                <option value="PROGRAMACAO">Aguardando programação</option><option value="OUTRO">Outro</option>
+              </select>
+              <input value={motivoTexto} onChange={e => setMotivoTexto(e.target.value)} placeholder="Detalhe (opcional)" className="ps-input" style={{ flex: '1 1 200px', minHeight: 40 }} />
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>O cliente recebe a data no WhatsApp com o que preparar, e um lembrete no dia útil anterior.</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button disabled={salvando} onClick={() => salvar()} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>{salvando ? 'Salvando…' : remarcando ? 'Remarcar a virada' : 'Agendar a virada'}</button>
+            {remarcando && <button onClick={() => setEditando(false)} style={{ ...btn('#64748b', false), minHeight: 36 }}>Cancelar</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Operação assistida: 5 dias úteis depois da virada, uma checagem por dia (vendas, NFC-e, estoque). */
+function AbaAssistida({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const a = d.assistida;
+  const [form, setForm] = useState<Record<string, { vendas_ok: boolean; nfce_ok: boolean; estoque_ok: boolean; observacao: string }>>({});
+  const [salvando, setSalvando] = useState<string | null>(null);
+  if (!a) return <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>A operação assistida começa depois da loja virada (viradas a partir de 03/10/2026).</div>;
+  const reg = (dia: string) => a.registros.find((r: any) => r.dia === dia);
+  const f = (dia: string) => form[dia] || { vendas_ok: true, nfce_ok: true, estoque_ok: true, observacao: '' };
+  const setF = (dia: string, k: string, v: any) => setForm(p => ({ ...p, [dia]: { ...f(dia), [k]: v } }));
+  const registrar = async (dia: string) => {
+    const x = f(dia);
+    const falha = !x.vendas_ok || !x.nfce_ok || !x.estoque_ok;
+    if (falha && !x.observacao.trim()) return alert('Conte o que aconteceu: vira uma correção no card.');
+    if (falha && !confirm('Uma correção vai ser aberta no card com esse problema. Continuar?')) return;
+    setSalvando(dia);
+    try { await apiClient.registrarAssistida(d.implantacao.id, { dia, ...x, observacao: x.observacao.trim() || undefined }); avisarCronometro(); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(null); }
+  };
+  const ddmm = (dia: string) => new Date(`${dia}T12:00:00-03:00`).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit' });
+  const ITENS: [string, string][] = [['vendas_ok', 'Vendas fecharam'], ['nfce_ok', 'NFC-e autorizando'], ['estoque_ok', 'Estoque batendo']];
+  return (
+    <div style={{ display: 'grid', gap: 14, maxWidth: 760 }}>
+      <div style={{ fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.5 }}>
+        Nos 5 dias úteis depois da virada, confira todo dia se a loja está vendendo, emitindo NFC-e e com o estoque certo. Problema vira uma correção no card. A validação da supervisão só libera com os 5 dias checados. <b style={{ color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{a.feitos} de {a.total} feitos.</b>
+      </div>
+      <div style={{ ...cartao }}>
+        {a.dias.map((x: any, k: number) => {
+          const r = reg(x.dia);
+          return (
+            <div key={x.dia} style={{ padding: '12px 14px', borderTop: k ? '1px solid var(--t-card-border)' : 'none', display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)', minWidth: 120, textTransform: 'capitalize' }}>Dia {k + 1} · {ddmm(x.dia)}</span>
+                {r ? (
+                  <span style={{ fontSize: 13, color: r.vendas_ok && r.nfce_ok && r.estoque_ok ? '#16a34a' : '#b45309' }}>
+                    {r.vendas_ok && r.nfce_ok && r.estoque_ok ? '✓ Tudo certo' : `Problema em ${[!r.vendas_ok && 'vendas', !r.nfce_ok && 'NFC-e', !r.estoque_ok && 'estoque'].filter(Boolean).join(', ')} · correção aberta`} · {r.tecnico_nome?.split(' ')[0] || 'técnico'}
+                  </span>
+                ) : <span style={{ fontSize: 13, color: x.liberado ? '#b45309' : 'var(--t-text-muted)' }}>{x.liberado ? 'Checagem pendente' : 'Ainda não chegou'}</span>}
+              </div>
+              {r?.observacao && <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{r.observacao}</div>}
+              {!r && x.liberado && (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                    {ITENS.map(([chave, nome]) => (
+                      <label key={chave} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t-text-primary)', minHeight: 36, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={(f(x.dia) as any)[chave]} onChange={e => setF(x.dia, chave, e.target.checked)} style={{ width: 18, height: 18 }} /> {nome}
+                      </label>
+                    ))}
+                  </div>
+                  <input value={f(x.dia).observacao} onChange={e => setF(x.dia, 'observacao', e.target.value)} placeholder="Observação (obrigatória se algo não estiver ok)" className="ps-input w-full" style={{ minHeight: 40 }} />
+                  <div><button disabled={salvando === x.dia} onClick={() => registrar(x.dia)} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>{salvando === x.dia ? 'Registrando…' : 'Registrar checagem'}</button></div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Modelos de checklist por segmento e itens extras por sistema de origem (Configurações, só supervisão). */
+function ModelosChecklist({ c, setC }: { c: any; setC: (f: (p: any) => any) => void }) {
+  const GRUPOS: [string, string][] = [['INSTALACAO', 'Instalação'], ['CONVERSAO', 'Conversão'], ['TREINAMENTO', 'Treinamento']];
+  const padrao = (g: string) => (c.checklist_padrao || []).find((x: any) => x.grupo === g)?.itens || [];
+  const linhas = (t: string) => t.split('\n').map(x => x.trim()).filter(x => x.length >= 2);
+  const modelos: any[] = c.modelos || [], extras: any[] = c.extras_sistema || [];
+  const setModelos = (m: any[]) => setC(p => ({ ...p, modelos: m }));
+  const setExtras = (m: any[]) => setC(p => ({ ...p, extras_sistema: m }));
+  return (
+    <div style={{ ...cartao, padding: 16, display: 'grid', gap: 14 }}>
+      <div>
+        <div style={rotulo}>Modelos de checklist por segmento</div>
+        <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+          Quando a demanda é designada, o checklist vem do modelo do segmento do cliente (cadastro). Sem modelo, vale o padrão. Um item por linha.
+          Itens com "certificado", "backup/Copy", "Conversão dos dados", "Validar Produtos" e "NFCE em Operação" no texto continuam travando a virada.
+        </div>
+      </div>
+      {modelos.map((m, k) => (
+        <div key={k} style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 12, display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input value={m.segmento} onChange={e => setModelos(modelos.map((x, j) => j === k ? { ...x, segmento: e.target.value } : x))} placeholder="Segmento (ex.: Farmácia, Padaria)" className="ps-input" style={{ flex: 1, minHeight: 40 }} />
+            <button onClick={() => confirm(`Remover o modelo "${m.segmento}"?`) && setModelos(modelos.filter((_, j) => j !== k))} style={{ ...btn('#dc2626', false), minHeight: 36 }}>Remover</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {GRUPOS.map(([g, nome]) => (
+              <label key={g} style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'grid', gap: 4 }}>{nome} ({(m.grupos?.[g] || []).length})
+                <textarea rows={8} defaultValue={(m.grupos?.[g] || []).join('\n')} onBlur={e => setModelos(modelos.map((x, j) => j === k ? { ...x, grupos: { ...x.grupos, [g]: linhas(e.target.value) } } : x))} className="ps-input w-full" style={{ fontSize: 12, lineHeight: 1.5 }} />
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div><button onClick={() => setModelos([...modelos, { segmento: '', grupos: { INSTALACAO: padrao('INSTALACAO'), CONVERSAO: padrao('CONVERSAO'), TREINAMENTO: padrao('TREINAMENTO') } }])} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>+ Novo modelo (começa com o padrão)</button></div>
+
+      <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 14, display: 'grid', gap: 10 }}>
+        <div>
+          <div style={rotulo}>Itens extras por sistema de origem (conversão)</div>
+          <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 4 }}>Entram no fim da conversão quando o sistema anterior do cliente contém esse nome (na designação ou ao preencher a ficha de coleta).</div>
+        </div>
+        {extras.map((x, k) => (
+          <div key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 200px) 1fr auto', gap: 8, alignItems: 'start' }}>
+            <input value={x.sistema} onChange={e => setExtras(extras.map((y, j) => j === k ? { ...y, sistema: e.target.value } : y))} placeholder="Sistema (ex.: Trier)" className="ps-input" style={{ minHeight: 40 }} />
+            <textarea rows={3} defaultValue={(x.itens || []).join('\n')} onBlur={e => setExtras(extras.map((y, j) => j === k ? { ...y, itens: linhas(e.target.value) } : y))} placeholder="Um item por linha" className="ps-input w-full" style={{ fontSize: 12 }} />
+            <button onClick={() => setExtras(extras.filter((_, j) => j !== k))} aria-label="Remover" style={{ ...btn('#dc2626', false), minHeight: 36 }}><X size={12} /></button>
+          </div>
+        ))}
+        <div><button onClick={() => setExtras([...extras, { sistema: '', itens: [] }])} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>+ Sistema de origem</button></div>
+      </div>
+    </div>
   );
 }
 
@@ -1418,7 +1603,7 @@ export function ConfigPortalImplantacao() {
   const salvar = async () => {
     setSalvando(true);
     try {
-      await apiClient.salvarConfigPortal({ sla: c.sla, programacao: { nome: c.programacao.nome, whatsapp: c.programacao.whatsapp || '', lembrete_horas: Number(c.programacao.lembrete_horas) }, avisos_cliente: c.avisos_cliente, agente_ativo: c.agente_ativo, ofertas_ativo: c.ofertas_ativo, ofertas_dias_apos_virada: Number(c.ofertas_dias_apos_virada), catalogo: c.catalogo.filter((x: any) => x.produto?.trim()), jornada: { inicio: c.jornada.inicio, fim: c.jornada.fim, almoco_inicio: c.jornada.almoco_inicio, almoco_min: Number(c.jornada.almoco_min), virada_inicio: c.jornada.virada_inicio } });
+      await apiClient.salvarConfigPortal({ sla: c.sla, programacao: { nome: c.programacao.nome, whatsapp: c.programacao.whatsapp || '', lembrete_horas: Number(c.programacao.lembrete_horas) }, avisos_cliente: c.avisos_cliente, agente_ativo: c.agente_ativo, ofertas_ativo: c.ofertas_ativo, ofertas_dias_apos_virada: Number(c.ofertas_dias_apos_virada), catalogo: c.catalogo.filter((x: any) => x.produto?.trim()), modelos: (c.modelos || []).filter((m: any) => m.segmento?.trim().length >= 2).map((m: any) => ({ segmento: m.segmento.trim(), grupos: { INSTALACAO: m.grupos?.INSTALACAO || [], CONVERSAO: m.grupos?.CONVERSAO || [], TREINAMENTO: m.grupos?.TREINAMENTO || [] } })), extras_sistema: (c.extras_sistema || []).filter((x: any) => x.sistema?.trim().length >= 2 && x.itens?.length).map((x: any) => ({ sistema: x.sistema.trim(), itens: x.itens })), jornada: { inicio: c.jornada.inicio, fim: c.jornada.fim, almoco_inicio: c.jornada.almoco_inicio, almoco_min: Number(c.jornada.almoco_min), virada_inicio: c.jornada.virada_inicio } });
       setOk(true); setTimeout(() => setOk(false), 2000);
     } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
   };
@@ -1472,6 +1657,7 @@ export function ConfigPortalImplantacao() {
         ))}
         <div><button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { produto: '', descricao: '', preco: '' }] }))} style={btn('#2E6EAB', false)}>+ Produto ou pacote</button></div>
       </div>
+      <div style={{ gridColumn: '1 / -1' }}><ModelosChecklist c={c} setC={setC} /></div>
       <div style={{ gridColumn: '1 / -1' }}><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), padding: '10px 18px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />} {ok ? 'Salvo' : 'Salvar configurações'}</button></div>
     </div>
   );

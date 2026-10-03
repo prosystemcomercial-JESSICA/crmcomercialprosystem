@@ -944,6 +944,8 @@ class ApiClient {
   async getTecnicosImplantacao(carga = false) {
     return this.client.get('/implantacoes/tecnicos', { params: carga ? { carga: '1' } : {} });
   }
+  async agendarVirada(id: string, data: { quando: string; duracao_h?: number | null; motivo?: string; motivo_texto?: string; confirmar?: boolean }) { return this.client.post(`/implantacoes/${id}/agendar-virada`, data); }
+  async registrarAssistida(id: string, data: { dia: string; vendas_ok: boolean; nfce_ok: boolean; estoque_ok: boolean; observacao?: string }) { return this.client.post(`/implantacoes/${id}/assistida`, data); }
   async pedirValidacao(id: string) { return this.client.post(`/implantacoes/${id}/pedir-validacao`, {}); }
   async devolverDemanda(id: string, motivo: string) { return this.client.post(`/implantacoes/${id}/devolver`, { motivo }); }
   async buscarDemandas(q: string) { return this.client.get('/implantacoes/busca', { params: { q } }); }

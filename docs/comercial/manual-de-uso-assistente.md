@@ -913,3 +913,11 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Pré-requisitos:** a virada só começa com onboarding, ficha de coleta, certificado, backup (e conversão, quando houver) e tela do Suporte; "Loja virada" pede a NFC-e emitida em operação. O card mostra o que falta.
 - **Supervisão:** designa vendo a carga de cada técnico, valida, devolve com recado ou finaliza direto da faixa; pode liberar a virada com pendências (fica no histórico). A carga da equipe aparece no topo do Quadro.
 - **Busca:** Ctrl+K (ou o botão Buscar) acha qualquer card por cliente, CNPJ, técnico ou vendedor.
+
+### Atualização 03/10/2026: agenda, operação assistida e modelos no Portal Técnico
+
+- **Agendar a virada:** na aba Virada do card, escolha data, hora e duração. O cliente recebe a data no WhatsApp e um lembrete no dia útil anterior. Remarcar pede o motivo. Ao marcar a data de uma fase do treinamento, o cliente também é avisado.
+- **Agenda:** o Início mostra as viradas e os treinamentos dos próximos 14 dias (a supervisão vê a equipe toda).
+- **Operação assistida:** nos 5 dias úteis depois da virada, o técnico registra todo dia se vendas, NFC-e e estoque estão ok. Problema vira correção no card. A validação só libera com os 5 dias checados.
+- **Modelos de checklist:** em Configurações, a supervisão monta o checklist por segmento (farmácia, padaria, varejo...) e os itens extras por sistema de origem da conversão.
+- **Quadro coerente:** a coluna acompanha os marcos (loja virada não volta para Em andamento, por exemplo).

@@ -19,20 +19,23 @@ describe('próximo passo da demanda', () => {
     expect(proximoPasso({ ...base, tecnico_id: null }, [], [], 0)).toMatchObject({ chave: 'DESIGNAR', quem: 'GESTAO' });
   });
 
-  it('segue a ordem: onboarding → coleta → preparar → iniciar virada → concluir → treinamento → validação', () => {
+  it('segue a ordem: onboarding → coleta → agendar → preparar → iniciar virada → concluir → treinamento → validação', () => {
     expect(proximoPasso(base, [...ob(false), ...prep(false)], [], 0)).toMatchObject({ chave: 'ONBOARDING', aba: 'onboarding', etapa: 'ONBOARDING', detalhe: '0 de 2 itens do roteiro' });
     expect(proximoPasso(base, [...ob(true), ...prep(false)], [], 0).chave).toBe('COLETA');
-    const preparar = proximoPasso({ ...base, coleta }, [...ob(true), ...prep(false)], [], 0);
+    expect(proximoPasso({ ...base, coleta }, [...ob(true), ...prep(false)], [], 0).chave).toBe('AGENDAR_VIRADA');
+    const agenda = { virada_agendada_para: hoje };
+    const preparar = proximoPasso({ ...base, coleta, ...agenda }, [...ob(true), ...prep(false)], [], 0);
     expect(preparar.chave).toBe('PREPARAR');
     expect(preparar.pendencias).toContain('Conversão dos dados');
     expect(preparar.pendencias).toContain('Anexar a tela de liberação do Suporte');
-    expect(proximoPasso({ ...base, coleta, tela_suporte_arquivo_id: 'a1' }, [...ob(true), ...prep(true)], [], 0).chave).toBe('INICIAR_VIRADA');
-    const virando = { ...base, coleta, tela_suporte_arquivo_id: 'a1', virada_inicio_em: hoje };
+    expect(proximoPasso({ ...base, coleta, ...agenda, tela_suporte_arquivo_id: 'a1' }, [...ob(true), ...prep(true)], [], 0).chave).toBe('INICIAR_VIRADA');
+    const virando = { ...base, coleta, ...agenda, tela_suporte_arquivo_id: 'a1', virada_inicio_em: hoje };
     expect(proximoPasso(virando, [...ob(true), ...prep(true)], [], 0)).toMatchObject({ chave: 'CONCLUIR_VIRADA', aba: 'virada' });
     const virada = { ...virando, virada_fim_em: hoje, coluna: 'ACOMPANHAMENTO' };
-    expect(proximoPasso(virada, [...ob(true), ...prep(true)], [{ realizada_em: hoje }, { realizada_em: null }], 0)).toMatchObject({ chave: 'TREINAMENTO', titulo: 'Treinamento: fase 2 de 2' });
-    expect(proximoPasso(virada, [...ob(true), ...prep(true)], [{ realizada_em: hoje }], 1).chave).toBe('CORRECOES');
-    expect(proximoPasso(virada, [...ob(true), ...prep(true)], [{ realizada_em: hoje }], 0)).toMatchObject({ chave: 'PEDIR_VALIDACAO', quem: 'TECNICO' });
+    expect(proximoPasso(virada, [...ob(true), ...prep(true)], [{ realizada_em: hoje }, { realizada_em: null }], 0, { agora: hoje })).toMatchObject({ chave: 'TREINAMENTO', titulo: 'Treinamento: fase 2 de 2' });
+    expect(proximoPasso(virada, [...ob(true), ...prep(true)], [{ realizada_em: hoje }], 1, { agora: hoje }).chave).toBe('CORRECOES');
+    const assistidaFeita = { assistida: diasAssistida(hoje).map(dia => ({ dia })), agora: new Date('2026-10-13T20:00:00Z') };
+    expect(proximoPasso(virada, [...ob(true), ...prep(true)], [{ realizada_em: hoje }], 0, assistidaFeita)).toMatchObject({ chave: 'PEDIR_VALIDACAO', quem: 'TECNICO' });
   });
 
   it('colunas finais mandam: concluído espera a supervisão, validado espera finalizar', () => {
@@ -78,5 +81,68 @@ describe('etapas que travam', () => {
     const p = pendenciasValidacao({ ...base, virada_fim_em: hoje }, [], [{ realizada_em: null }], 2);
     expect(p).toEqual(['Treinamento: 0 de 1 fases realizadas', 'Resolver 2 correção(ões) aberta(s)']);
     expect(pendenciasValidacao({ ...base, virada_fim_em: hoje }, [], [{ realizada_em: hoje }], 0)).toEqual([]);
+  });
+});
+
+import { diasAssistida, statusAssistida, checklistDoModelo, extrasDoSistema, colunaIncoerente, etapaDaColuna, CHECKLIST_PADRAO } from '../src/lib/implantacao/portal';
+
+describe('fase 2: operação assistida, agenda, modelos e coluna coerente', () => {
+  // Virada numa sexta (09/10/2026 15h de Brasília): os 5 dias úteis vão de segunda 12/10 a sexta 16/10.
+  const sexta = new Date('2026-10-09T18:00:00Z');
+  const virada = { ...base, coleta, tela_suporte_arquivo_id: 'a1', virada_agendada_para: new Date('2026-10-09T13:00:00Z'), virada_inicio_em: sexta, virada_fim_em: sexta, coluna: 'ACOMPANHAMENTO' };
+
+  it('assistida: 5 dias úteis depois da virada, pulando o fim de semana', () => {
+    expect(diasAssistida(sexta)).toEqual(['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16']);
+  });
+
+  it('assistida: pendentes são os dias que já chegaram e não foram checados', () => {
+    const st = statusAssistida(virada, [{ dia: '2026-10-12' }], new Date('2026-10-14T15:00:00Z'))!;
+    expect(st.feitos).toBe(1);
+    expect(st.pendentes).toEqual(['2026-10-13', '2026-10-14']);
+    expect(st.proximo).toBe('2026-10-15');
+    expect(st.concluida).toBe(false);
+  });
+
+  it('assistida não vale para viradas antes de 03/10/2026', () => {
+    expect(statusAssistida({ ...virada, virada_fim_em: new Date('2026-10-02T15:00:00Z') }, [])).toBeNull();
+  });
+
+  it('próximo passo: checagem do dia vem antes do treinamento; validação espera os 5 dias', () => {
+    const itens = [...ob(true), ...prep(true)];
+    expect(proximoPasso(virada, itens, [{ realizada_em: null }], 0, { assistida: [], agora: new Date('2026-10-12T15:00:00Z') })).toMatchObject({ chave: 'ASSISTIDA', aba: 'assistida', etapa: 'ASSISTIDA' });
+    expect(proximoPasso(virada, itens, [{ realizada_em: null }], 0, { assistida: [{ dia: '2026-10-12' }], agora: new Date('2026-10-12T15:00:00Z') }).chave).toBe('TREINAMENTO');
+    expect(proximoPasso(virada, itens, [{ realizada_em: hoje }], 0, { assistida: [{ dia: '2026-10-12' }], agora: new Date('2026-10-12T15:00:00Z') })).toMatchObject({ chave: 'ASSISTIDA_ANDAMENTO', detalhe: '1 de 5 dias checados · próxima checagem 13/10' });
+    const cinco = diasAssistida(sexta).map(dia => ({ dia }));
+    expect(proximoPasso(virada, itens, [{ realizada_em: hoje }], 0, { assistida: cinco, agora: new Date('2026-10-16T20:00:00Z') }).chave).toBe('PEDIR_VALIDACAO');
+    expect(pendenciasValidacao(virada, itens, [{ realizada_em: hoje }], 0, [{ dia: '2026-10-12' }])).toEqual(['Operação assistida: 1 de 5 dias checados']);
+  });
+
+  it('próximo passo: depois da coleta vem agendar a virada', () => {
+    const semAgenda = { ...base, coleta };
+    expect(proximoPasso(semAgenda, [...ob(true), ...prep(false)], [], 0)).toMatchObject({ chave: 'AGENDAR_VIRADA', aba: 'virada' });
+    const agendada = { ...semAgenda, virada_agendada_para: new Date('2026-10-09T13:00:00Z') };
+    const p = proximoPasso(agendada, [...ob(true), ...prep(false)], [], 0);
+    expect(p.chave).toBe('PREPARAR');
+    expect(p.detalhe).toContain('Virada agendada para 09/10');
+  });
+
+  it('modelos: segmento do cliente escolhe o checklist; extras do sistema entram na conversão', () => {
+    const modelos = [{ segmento: 'Padaria', grupos: { INSTALACAO: ['Configurar balança'], CONVERSAO: [], TREINAMENTO: ['PDV padaria'] } }];
+    const g = checklistDoModelo(modelos, [{ sistema: 'Trier', itens: ['Exportar do Trier'] }], 'PADARIA E CONFEITARIA', 'trier v5');
+    expect(g.find(x => x.grupo === 'INSTALACAO')!.itens).toEqual(['Configurar balança']);
+    expect(g.find(x => x.grupo === 'CONVERSAO')!.itens.at(-1)).toBe('Exportar do Trier');
+    expect(g.find(x => x.grupo === 'CONVERSAO')!.itens.length).toBe(CHECKLIST_PADRAO.find(x => x.grupo === 'CONVERSAO')!.itens.length + 1);
+    expect(checklistDoModelo(modelos, [], 'Farmácia', null).find(x => x.grupo === 'INSTALACAO')!.itens).toEqual(CHECKLIST_PADRAO.find(x => x.grupo === 'INSTALACAO')!.itens);
+    expect(extrasDoSistema([{ sistema: 'Trier', itens: ['x'] }], null)).toEqual([]);
+  });
+
+  it('coluna coerente com os marcos e etapa acompanhando a coluna', () => {
+    expect(colunaIncoerente({ modulo: 'IMPLANTACAO', virada_fim_em: sexta }, 'EM_ANDAMENTO')).toMatch(/já virou/);
+    expect(colunaIncoerente({ modulo: 'IMPLANTACAO' }, 'ACOMPANHAMENTO')).toMatch(/ainda não virou/);
+    expect(colunaIncoerente({ modulo: 'IMPLANTACAO', virada_inicio_em: sexta }, 'A_FAZER')).toMatch(/já começou/);
+    expect(colunaIncoerente({ modulo: 'SERVICO' }, 'ACOMPANHAMENTO')).toBeNull();
+    expect(etapaDaColuna('EM_ANDAMENTO', { tipo_base: 'CONVERSAO' })).toBe('EM_CONVERSAO');
+    expect(etapaDaColuna('A_FAZER', { tecnico_id: null })).toBe('AGUARDANDO_DESIGNACAO');
+    expect(etapaDaColuna('FINALIZADO', {})).toBe('FINALIZADO');
   });
 });

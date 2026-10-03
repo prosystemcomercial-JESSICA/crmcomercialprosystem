@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { CheckCircle, Circle, ClipboardList, Bell, AlertTriangle, Hourglass, Rocket, GraduationCap, Loader2, Send, UserX, Clock } from 'lucide-react';
+import { CheckCircle, Circle, ClipboardList, Bell, AlertTriangle, Hourglass, Rocket, GraduationCap, Loader2, Send, UserX, Clock, CalendarDays } from 'lucide-react';
 import { fmtDur } from './Cronometro';
 import { ConfirmarLeitura, RadarLeitura } from './ConfirmarLeitura';
 
@@ -54,6 +54,30 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
           <span>📌 <b style={{ color: '#fff' }}>{naoLidos.length}</b> recado(s) novo(s)</span>
           <span>🛠️ <b style={{ color: '#fff' }}>{d.demandas_ativas}</b> demanda(s) {gestao ? 'em andamento' : 'com você'}</span>
           {d.hoje.virada && <span>🚀 <b style={{ color: '#fff' }}>Dia de virada</b> (jornada desde as 7h)</span>}
+        </div>
+      </section>
+
+      {/* Agenda: viradas e treinamentos combinados com os clientes (próximos 14 dias) */}
+      <section style={cartao}>
+        <div style={titulo}><CalendarDays size={16} color="#2E6EAB" /> Agenda {gestao ? 'da equipe' : ''}<span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>próximos 14 dias</span></div>
+        <div style={{ padding: '0 16px 14px', display: 'grid' }}>
+          {(!d.agenda || d.agenda.length === 0) && <div style={{ fontSize: 13, color: 'var(--t-text-muted)', padding: '6px 0' }}>Nada agendado. Agende a virada na aba Virada do card e marque as fases do treinamento.</div>}
+          {(d.agenda || []).map((a: any, k: number) => {
+            const dt = new Date(a.quando);
+            const ehHoje = new Date(dt.getTime() - 3 * 3600000).toISOString().slice(0, 10) === new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+            return (
+              <button key={`${a.implantacao_id}-${k}`} onClick={() => irPara('quadro', a.implantacao_id)}
+                style={{ display: 'flex', gap: 12, alignItems: 'center', width: '100%', textAlign: 'left', padding: '10px 2px', minHeight: 44, border: 'none', borderTop: k ? '1px solid var(--t-card-border)' : 'none', background: 'transparent', cursor: 'pointer' }}>
+                <span style={{ width: 92, flexShrink: 0, fontSize: 13, fontWeight: 600, color: ehHoje ? '#2E6EAB' : 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums', textTransform: 'capitalize' }}>
+                  {ehHoje ? 'Hoje' : dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit' })}{!a.dia_todo && <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>{dt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}</span>}
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{a.tipo === 'VIRADA' ? '🚀 ' : '🎓 '}{a.titulo}</span>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--t-text-muted)' }}>{a.cliente}{gestao && a.tecnico ? ` · ${a.tecnico.split(' ')[0]}` : ''}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
