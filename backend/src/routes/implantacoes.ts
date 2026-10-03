@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
-import { faseDoItemTreinamento, ONBOARDING_ITENS, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidas } from '@/lib/implantacao/portal';
+import { faseDoItemTreinamento, ONBOARDING_ITENS, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidas, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
 import { avisarTecnico, garantirFasesTreinamento } from '@/services/implantacao-portal.service';
 
 /**
@@ -112,7 +112,7 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
   const escopoTecnico = (request: any): Record<string, any> => {
     const user = request.user;
     if (podeVerTudo(user)) return {};
-    if ((user?.role || '').toUpperCase() === 'TECNICO_IMPLANTACAO') return { tecnico_id: user.id };
+    if (ehCargoTecnico(user?.role)) return { tecnico_id: user.id };
     return {}; // demais papéis (comercial) seguem regra da rota
   };
 
@@ -232,7 +232,7 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const body = z.object({ tecnico_id: z.string().min(1) }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Informe o técnico' });
 
-    const tec: any[] = await prisma.$queryRawUnsafe(
+    const tec: any[] = await prisma.$queryRawUnsafe<any[]>(
       `SELECT id, nome, cargo FROM UsuarioCRM WHERE id = ? LIMIT 1`, body.data.tecnico_id
     ).catch(() => []);
     if (!tec.length) return reply.status(404).send({ status: 'error', message: 'Técnico não encontrado' });
@@ -411,10 +411,28 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
   });
 
   // ── TÉCNICOS disponíveis para designar
-  fastify.get('/implantacoes/tecnicos', async (_request, reply) => {
-    const tecnicos: any[] = await prisma.$queryRawUnsafe(
+  fastify.get('/implantacoes/tecnicos', async (request, reply) => {
+    const tecnicos: any[] = await prisma.$queryRawUnsafe<any[]>(
       `SELECT id, nome, cargo FROM UsuarioCRM WHERE cargo IN ('TECNICO','TECNICO_IMPLANTACAO','TECNICO_SUPORTE','SUPERVISAO_TECNICA') AND status = 'ATIVO' ORDER BY nome ASC`
     ).catch(() => []);
+    // ?carga=1 (só supervisão): quanto cada técnico já tem, para designar com justiça.
+    const u: any = (request as any).user;
+    if ((request.query as any)?.carga === '1' && (podeVerTudo(u) || (u?.role || '').toUpperCase() === 'SUPERVISAO_TECNICA') && tecnicos.length) {
+      const ids = tecnicos.map(t => t.id);
+      const sp = new Date(Date.now() - 3 * 36e5); // relógio de Brasília (UTC-3)
+      const iniMes = new Date(Date.UTC(sp.getUTCFullYear(), sp.getUTCMonth(), 1, 3)); // dia 1, 00:00 de Brasília
+      const [ativas, virando, sessoes] = await Promise.all([
+        prisma.implantacao.groupBy({ by: ['tecnico_id'], where: { tecnico_id: { in: ids }, concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, data_assinatura: { gte: desdeQuadro() }, NOT: { coluna: { in: ['CONCLUIDO', 'VALIDADO', 'FINALIZADO', 'CANCELADOS'] } } }, _count: { _all: true } }),
+        prisma.implantacao.groupBy({ by: ['tecnico_id'], where: { tecnico_id: { in: ids }, virada_inicio_em: { not: null }, virada_fim_em: null, status: { not: 'CANCELADA' } }, _count: { _all: true } }),
+        prisma.implantacaoSessao.findMany({ where: { tecnico_id: { in: ids }, inicio: { gte: iniMes } }, select: { tecnico_id: true, inicio: true, fim: true } }),
+      ]);
+      const agora = Date.now();
+      for (const t of tecnicos) {
+        t.ativas = ativas.find(a => a.tecnico_id === t.id)?._count._all || 0;
+        t.em_virada = virando.find(a => a.tecnico_id === t.id)?._count._all || 0;
+        t.horas_mes = Math.round(sessoes.filter(s => s.tecnico_id === t.id).reduce((acc, s) => acc + ((s.fim?.getTime() ?? agora) - s.inicio.getTime()), 0) / 36e5);
+      }
+    }
     return reply.send({ status: 'success', data: tecnicos });
   });
 }

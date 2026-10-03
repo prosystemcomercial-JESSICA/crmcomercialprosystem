@@ -7,7 +7,7 @@ import ExportButton from '@/components/ui/ExportButton';
 import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
 import { PainelInicio } from '@/components/implantacao/Inicio';
 import { OnboardingTecnico } from '@/components/implantacao/Portal';
-import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao } from '@/components/implantacao/Portal';
+import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao, BuscaGlobal } from '@/components/implantacao/Portal';
 import { useSearchParams } from 'next/navigation';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
@@ -902,6 +902,7 @@ export default function PortalTecnicoPage() {
         <div className="pt-topo-extra" style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
         <div className="pt-topo-extra" style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
         <div style={{ flex: 1 }} />
+        <BuscaGlobal onAbrir={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
         <CronometroBarra />
         <SinoAvisos onAbrir={() => setTab('avisos')} onAbrirDemanda={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
         <button onClick={() => window.close()} title="Fechar portal"

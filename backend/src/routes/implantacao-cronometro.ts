@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
-import { onboardingOk } from '@/lib/implantacao/portal';
+import { onboardingOk, ehCargoTecnico } from '@/lib/implantacao/portal';
 import { ETAPAS, TIPOS_SESSAO, TIPOS_ESPERA, JORNADA_PADRAO, diaSP, emSP, fimAutomatico, resumoDoDia, temposDaDemanda, type Jornada } from '@/lib/implantacao/cronometro';
 
 /**
@@ -54,7 +54,7 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
   const podeNaDemanda = async (u: any, implantacaoId: string) => {
     const imp = await prisma.implantacao.findUnique({ where: { id: implantacaoId }, select: { id: true, tecnico_id: true, cliente_razao_social: true } });
     if (!imp) return null;
-    if (ehGestaoTecnica(u) || (u?.role || '').toUpperCase() !== 'TECNICO_IMPLANTACAO' || imp.tecnico_id === u.id) return imp;
+    if (ehGestaoTecnica(u) || !ehCargoTecnico(u?.role) || imp.tecnico_id === u.id) return imp;
     return null;
   };
 

@@ -6,6 +6,9 @@ import { janelasDaJornada, sobreposicao, diaSP, JORNADA_PADRAO, type Jornada } f
 export const INICIO_PORTAL = new Date('2026-10-02T14:00:00Z');
 export const ehLegado = (i: { data_assinatura?: Date | null }) => !i.data_assinatura || i.data_assinatura < INICIO_PORTAL;
 export const DIAS_QUADRO = 60;
+// Cargos de técnico: só veem e mexem nas demandas designadas a eles (o resto é da supervisão e do admin).
+export const CARGOS_TECNICO = ['TECNICO', 'TECNICO_IMPLANTACAO', 'TECNICO_SUPORTE'];
+export const ehCargoTecnico = (role?: string | null) => CARGOS_TECNICO.includes((role || '').toUpperCase());
 // Portal recomeçou do zero em 02/10/2026 (pedido da Jessica): o que entrou antes não aparece
 // no portal nem gera aviso automático. Nada foi apagado; continua no banco e no CRM.
 export const CORTE_PORTAL = new Date('2026-10-02T03:00:00.000Z'); // 02/10/2026 00:00 de Brasília
@@ -272,4 +275,111 @@ export function onboardingOk(i: { modulo?: string | null; data_assinatura?: Date
   if (i.modulo === 'SERVICO' || ehLegado(i) || i.onboarding_concluido_em) return true;
   const ob = (itens || []).filter(x => x.grupo === 'ONBOARDING');
   return ob.length > 0 && ob.every(x => x.feito);
+}
+
+// ─── Próximo passo e pré-requisitos de cada etapa (Fase 1 do plano de UX, 03/10/2026) ─────
+// Uma regra só, usada pela faixa do card, pela linha do cartão no quadro e pelos bloqueios das rotas.
+
+type DemandaPP = {
+  modulo: string; tipo_base?: string | null; status?: string | null; coluna?: string | null; etapa_execucao?: string | null;
+  tecnico_id?: string | null; data_assinatura?: Date | null; onboarding_concluido_em?: Date | null; coleta?: any;
+  tela_suporte_arquivo_id?: string | null; virada_inicio_em?: Date | null; virada_fim_em?: Date | null;
+};
+type ItemPP = { grupo: string; titulo: string; feito: boolean };
+
+// Itens do checklist que precisam estar feitos antes da virada (achados pelo título; se o card não tem o item, não trava).
+const CRITICOS_INICIAR_VIRADA: { grupo: string; re: RegExp; nome: string; so?: string }[] = [
+  { grupo: 'INSTALACAO', re: /certificado/i, nome: 'Configurar Uninfe e certificado digital' },
+  { grupo: 'INSTALACAO', re: /backup|copy/i, nome: 'Configurar o backup (Copy) interno e externo' },
+  { grupo: 'CONVERSAO', re: /^convers[aã]o dos dados/i, nome: 'Conversão dos dados', so: 'CONVERSAO' },
+  { grupo: 'CONVERSAO', re: /^validar produtos/i, nome: 'Validar produtos convertidos', so: 'CONVERSAO' },
+];
+const CRITICOS_CONCLUIR_VIRADA: { grupo: string; re: RegExp; nome: string; so?: string }[] = [
+  { grupo: 'INSTALACAO', re: /nota de sa[ií]da nfce|nfce em opera/i, nome: 'Emitir uma NFC-e de saída em operação' },
+];
+
+const fichaOk = (i: DemandaPP) => !!(i.coleta?.regime_tributario && i.coleta?.contato_nome);
+const criticosPendentes = (lista: typeof CRITICOS_INICIAR_VIRADA, i: DemandaPP, itens: ItemPP[]) =>
+  lista.filter(c => !c.so || i.tipo_base === c.so)
+    .filter(c => { const it = itens.find(x => x.grupo === c.grupo && c.re.test(x.titulo)); return !!it && !it.feito; })
+    .map(c => c.nome);
+
+/** O que falta para "Iniciar virada". Vazio = liberado. */
+export function pendenciasIniciarVirada(i: DemandaPP, itens: ItemPP[]): string[] {
+  if (ehLegado(i)) return [];
+  const p: string[] = [];
+  if (!onboardingOk(i, itens)) p.push('Concluir o onboarding técnico (primeiro contato)');
+  if (!fichaOk(i)) p.push('Ficha de coleta: regime tributário e contato principal');
+  p.push(...criticosPendentes(CRITICOS_INICIAR_VIRADA, i, itens));
+  if (!i.tela_suporte_arquivo_id) p.push('Anexar a tela de liberação do Suporte');
+  return p;
+}
+
+/** O que falta para "Loja virada". Vazio = liberado. */
+export function pendenciasConcluirVirada(i: DemandaPP, itens: ItemPP[]): string[] {
+  if (ehLegado(i)) return [];
+  const p: string[] = [];
+  if (!i.virada_inicio_em) p.push('Iniciar a virada');
+  p.push(...criticosPendentes(CRITICOS_CONCLUIR_VIRADA, i, itens));
+  return p;
+}
+
+/** O que falta para pedir a validação da supervisão (ir para "Concluído"). Vazio = liberado. */
+export function pendenciasValidacao(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number): string[] {
+  const p: string[] = [];
+  if (i.modulo === 'SERVICO') {
+    const s = itens.filter(x => x.grupo === 'SERVICO');
+    if (s.some(x => !x.feito)) p.push(`Checklist do serviço: ${s.filter(x => x.feito).length} de ${s.length} itens`);
+  } else {
+    if (!i.virada_fim_em) p.push('Concluir a virada (Loja virada)');
+    if (fases.length && fases.some(f => !f.realizada_em)) p.push(`Treinamento: ${fases.filter(f => f.realizada_em).length} de ${fases.length} fases realizadas`);
+  }
+  if (correcoesAbertas) p.push(`Resolver ${correcoesAbertas} correção(ões) aberta(s)`);
+  return p;
+}
+
+export type ProximoPasso = {
+  chave: 'CANCELADA' | 'FINALIZADA' | 'FINALIZAR' | 'VALIDAR' | 'DESIGNAR' | 'EXECUTAR' | 'ONBOARDING' | 'COLETA' | 'PREPARAR' | 'INICIAR_VIRADA' | 'CONCLUIR_VIRADA' | 'TREINAMENTO' | 'CORRECOES' | 'PEDIR_VALIDACAO';
+  titulo: string; detalhe?: string; quem: 'TECNICO' | 'GESTAO' | 'NINGUEM';
+  aba?: string; etapa?: string; pendencias?: string[];
+};
+
+/** Próximo passo da demanda: o que fazer agora, quem faz, em qual aba e em qual etapa do cronômetro. */
+export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number): ProximoPasso {
+  const col = colunaDe(i);
+  if (i.status === 'CANCELADA' || col === 'CANCELADOS') return { chave: 'CANCELADA', titulo: 'Demanda cancelada', quem: 'NINGUEM' };
+  if (col === 'FINALIZADO') return { chave: 'FINALIZADA', titulo: 'Demanda finalizada', quem: 'NINGUEM' };
+  if (col === 'VALIDADO') return { chave: 'FINALIZAR', titulo: 'Validada: falta finalizar', quem: 'GESTAO' };
+  if (col === 'CONCLUIDO') return { chave: 'VALIDAR', titulo: 'Aguardando a validação da supervisão', quem: 'GESTAO' };
+  if (!i.tecnico_id) return { chave: 'DESIGNAR', titulo: 'Designar o técnico responsável', quem: 'GESTAO' };
+  const correcoes: ProximoPasso = { chave: 'CORRECOES', titulo: 'Resolver as correções', detalhe: `${correcoesAbertas} aberta(s)`, quem: 'TECNICO', aba: 'correcoes', etapa: 'CORRECAO' };
+  const pedir: ProximoPasso = { chave: 'PEDIR_VALIDACAO', titulo: 'Pedir a validação da supervisão', detalhe: 'Tudo pronto do seu lado', quem: 'TECNICO' };
+  if (i.modulo === 'SERVICO') {
+    const s = itens.filter(x => x.grupo === 'SERVICO');
+    if (s.some(x => !x.feito)) return { chave: 'EXECUTAR', titulo: 'Executar o serviço', detalhe: `${s.filter(x => x.feito).length} de ${s.length} itens do checklist`, quem: 'TECNICO', aba: 'checklist', etapa: 'INSTALACAO' };
+    return correcoesAbertas ? correcoes : pedir;
+  }
+  const ob = itens.filter(x => x.grupo === 'ONBOARDING');
+  if (!onboardingOk(i, itens)) return { chave: 'ONBOARDING', titulo: 'Primeiro contato com o cliente', detalhe: ob.length ? `${ob.filter(x => x.feito).length} de ${ob.length} itens do roteiro` : 'O roteiro é criado quando o técnico é designado', quem: 'TECNICO', aba: 'onboarding', etapa: 'ONBOARDING' };
+  const etapaPrep = i.tipo_base === 'CONVERSAO' ? 'CONVERSAO' : 'INSTALACAO';
+  if (!i.virada_inicio_em && !i.virada_fim_em) {
+    if (!fichaOk(i) && !ehLegado(i)) return { chave: 'COLETA', titulo: 'Completar a ficha de coleta', detalhe: 'Faltam o regime tributário e/ou o contato principal', quem: 'TECNICO', aba: 'ficha', etapa: etapaPrep };
+    const pend = pendenciasIniciarVirada(i, itens);
+    if (pend.length) {
+      const grupos = i.tipo_base === 'CONVERSAO' ? ['INSTALACAO', 'CONVERSAO'] : ['INSTALACAO'];
+      const prep = itens.filter(x => grupos.includes(x.grupo));
+      const soTela = pend.length === 1 && /Suporte/.test(pend[0]);
+      return { chave: 'PREPARAR', titulo: 'Preparar a virada', detalhe: `${prep.filter(x => x.feito).length} de ${prep.length} itens de ${i.tipo_base === 'CONVERSAO' ? 'instalação e conversão' : 'instalação'}`, quem: 'TECNICO', aba: soTela ? 'virada' : 'checklist', etapa: etapaPrep, pendencias: pend };
+    }
+    return { chave: 'INICIAR_VIRADA', titulo: 'Iniciar a virada da loja', detalhe: 'Pré-requisitos completos', quem: 'TECNICO', aba: 'virada', etapa: 'INSTALACAO' };
+  }
+  if (!i.virada_fim_em) {
+    const pend = pendenciasConcluirVirada(i, itens);
+    return { chave: 'CONCLUIR_VIRADA', titulo: 'Concluir a virada (Loja virada)', detalhe: pend.length ? undefined : 'Virada em andamento', quem: 'TECNICO', aba: pend.length ? 'checklist' : 'virada', etapa: 'INSTALACAO', pendencias: pend.length ? pend : undefined };
+  }
+  if (fases.length && fases.some(f => !f.realizada_em)) {
+    const feitas = fases.filter(f => f.realizada_em).length;
+    return { chave: 'TREINAMENTO', titulo: `Treinamento: fase ${feitas + 1} de ${fases.length}`, detalhe: `${feitas} de ${fases.length} fases realizadas`, quem: 'TECNICO', aba: 'treinamento', etapa: 'TREINAMENTO' };
+  }
+  return correcoesAbertas ? correcoes : pedir;
 }
