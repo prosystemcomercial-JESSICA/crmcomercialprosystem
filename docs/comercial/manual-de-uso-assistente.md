@@ -906,3 +906,10 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Implantação com onboarding pendente: o card **já abre na aba Onboarding técnico** (uma vez por abertura; o técnico pode trocar de aba) e mostra no topo a faixa **"Primeiro contato pendente"** com o progresso (X de Y itens) e o botão **Iniciar/Continuar primeiro contato**. A faixa some quando o onboarding fica concluído.
 - O item **Onboarding técnico** do menu do portal agora é só da supervisão (visão geral de todas as implantações). O técnico faz o onboarding dentro do card.
 - Serviços não têm onboarding (continua igual).
+
+### Atualização 03/10/2026: Portal Técnico conduz o próximo passo
+
+- **Técnico:** ao abrir o card, a faixa **Próximo passo** diz o que fazer. **Começar agora** já liga o cronômetro na etapa certa; **Pedir validação** envia para a supervisão quando tudo estiver pronto.
+- **Pré-requisitos:** a virada só começa com onboarding, ficha de coleta, certificado, backup (e conversão, quando houver) e tela do Suporte; "Loja virada" pede a NFC-e emitida em operação. O card mostra o que falta.
+- **Supervisão:** designa vendo a carga de cada técnico, valida, devolve com recado ou finaliza direto da faixa; pode liberar a virada com pendências (fica no histórico). A carga da equipe aparece no topo do Quadro.
+- **Busca:** Ctrl+K (ou o botão Buscar) acha qualquer card por cliente, CNPJ, técnico ou vendedor.

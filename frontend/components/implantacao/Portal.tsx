@@ -5,9 +5,9 @@ import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import {
   X, Loader2, CheckCircle, Hourglass, AlertTriangle, Rocket, FileText, Image as ImageIcon, Link2, Copy, Bell, Send,
-  GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2, Phone, Building2,
+  GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2, Phone, Building2, Search,
 } from 'lucide-react';
-import { BotoesDemanda, fmtDur, NOME_ESPERA } from './Cronometro';
+import { BotoesDemanda, fmtDur, NOME_ESPERA, useCronometro } from './Cronometro';
 import { ConfirmarLeitura } from './ConfirmarLeitura';
 
 // Portal de implantação e serviços: quadro (colunas do Trello), ficha da demanda, avisos, painel e configurações.
@@ -97,6 +97,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
           </button>
         ))}
       </div>
+      {gestao && <CargaEquipe />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         {[
           ['Em andamento', resumo.ativos, '#2E6EAB'], ['Prazo em risco', resumo.risco, '#d97706'], ['Prazo estourado', resumo.estourado, '#dc2626'],
@@ -146,6 +147,9 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                     {c.virada_fim_em && !c.cobranca_lancada_em && <Etq cor="#7c3aed">💰 Cobrança a lançar</Etq>}
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', lineHeight: 1.3 }}>{c.cliente_razao_social}</div>
+                  {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
+                    <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#2E6EAB' : 'var(--t-text-secondary)' }}>→ {c.proximo_passo.titulo}</div>
+                  )}
                   <Barra pct={c.progresso} cor={c.progresso >= 100 ? '#16a34a' : '#2E6EAB'} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--t-text-muted)' }}>
                     <span>{c.progresso}% · ✓ {c.checklist_feitos}/{c.checklist_total}</span>
@@ -190,8 +194,6 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   if (!d) return <Gaveta onClose={onClose}><div style={{ padding: 30 }}><Loader2 className="animate-spin" size={18} /></div></Gaveta>;
   const i = d.implantacao;
   const servico = i.modulo === 'SERVICO';
-  const obItens = d.checklist.filter((c: any) => c.grupo === 'ONBOARDING');
-  const obFeitos = obItens.filter((c: any) => c.feito).length;
   const abas: [Aba, string, any][] = [
     ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
     ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
@@ -213,16 +215,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
           <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
         <PainelContatos d={d} gestao={gestao} recarregar={carregar} />
-        {pedeOnboarding && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '10px 14px', borderRadius: 10, border: '1px solid #2E6EAB40', background: '#2E6EAB0a' }}>
-            <Users size={16} color="#2E6EAB" />
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>Primeiro contato pendente</div>
-              <div style={{ fontSize: 12, color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{obItens.length ? `${obFeitos} de ${obItens.length} itens do roteiro` : 'O roteiro é criado quando a gestão designa o técnico'} · o resto da implantação libera quando concluir</div>
-            </div>
-            {aba !== 'onboarding' && <button onClick={() => setAba('onboarding')} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>{obFeitos ? 'Continuar primeiro contato' : 'Iniciar primeiro contato'}</button>}
-          </div>
-        )}
+        <FaixaProximoPasso d={d} gestao={gestao} aba={aba} irPara={setAba} recarregar={carregar} />
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 160, display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>
@@ -320,20 +313,26 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
 
 // Gestão escolhe o técnico responsável: só depois disso o card aparece no Quadro dele.
 // A lista vem dos usuários ativos com cargo técnico (cadastrou, já aparece aqui).
-function DesignarTecnico({ id, tecnicoId, recarregar }: { id: string; tecnicoId?: string | null; recarregar: () => void }) {
+function DesignarTecnico({ id, tecnicoId, recarregar, embutido }: { id: string; tecnicoId?: string | null; recarregar: () => void; embutido?: boolean }) {
   const [tecnicos, setTecnicos] = useState<any[]>([]);
-  useEffect(() => { apiClient.getTecnicosImplantacao().then(r => setTecnicos(r.data.data || [])).catch(() => {}); }, []);
+  // Com a carga de cada um (só a supervisão recebe os números), para designar com justiça.
+  useEffect(() => { apiClient.getTecnicosImplantacao(true).then(r => setTecnicos(r.data.data || [])).catch(() => {}); }, []);
   const designar = async (tid: string) => {
     if (!tid) return;
     try { await apiClient.designarTecnico(id, tid); recarregar(); } catch (e) { alert(erroDe(e)); }
   };
+  const carga = (t: any) => (t.ativas == null ? '' : ` · ${t.ativas} ativas${t.em_virada ? ` · ${t.em_virada} em virada` : ''} · ${t.horas_mes}h no mês`);
+  const seletor = (
+    <select value={tecnicoId || ''} onChange={e => designar(e.target.value)} className="ps-input" style={{ width: 'auto', maxWidth: '100%', minHeight: 40 }}>
+      <option value="">Escolha o técnico…</option>
+      {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}{carga(t)}</option>)}
+    </select>
+  );
+  if (embutido) return seletor;
   return (
     <div style={{ ...cartao, padding: 14, display: 'grid', gap: 8 }}>
       <div style={rotulo}>Técnico responsável</div>
-      <select value={tecnicoId || ''} onChange={e => designar(e.target.value)} className="ps-input" style={{ width: 'auto', minHeight: 40 }}>
-        <option value="">Sem técnico, escolha…</option>
-        {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-      </select>
+      {seletor}
     </div>
   );
 }
@@ -583,6 +582,19 @@ function AbaVirada({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
   const [retro, setRetro] = useState('');
   const legado = !i.data_assinatura || new Date(i.data_assinatura) < new Date('2026-10-02T14:00:00Z');
   const acao = async (f: () => Promise<any>, confirma?: string) => { if (confirma && !confirm(confirma)) return; setOcupado(true); try { await f(); recarregar(); avisarCronometro(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); } };
+  // Virada com pré-requisitos: o técnico vê o que falta; a supervisão pode liberar mesmo assim (fica no histórico).
+  const acaoVirada = async (f: (forcar: boolean) => Promise<any>, confirma: string) => {
+    if (!confirm(confirma)) return;
+    setOcupado(true);
+    try { await f(false); recarregar(); avisarCronometro(); }
+    catch (e: any) {
+      const falta: string[] | undefined = e?.response?.data?.data?.pendencias;
+      if (gestao && falta?.length && confirm(`Ainda falta:\n• ${falta.join('\n• ')}\n\nLiberar mesmo assim? Fica registrado no histórico do card.`)) {
+        try { await f(true); recarregar(); avisarCronometro(); } catch (e2) { alert(erroDe(e2)); }
+      } else alert(erroDe(e));
+    } finally { setOcupado(false); }
+  };
+  const pendViradas: string[] = ['PREPARAR', 'CONCLUIR_VIRADA'].includes(d.proximo_passo?.chave) ? d.proximo_passo.pendencias || [] : [];
   const hojeTxt = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const passo = (ok: boolean, titulo: string, sub: React.ReactNode) => (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -599,12 +611,15 @@ function AbaVirada({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
           <button disabled={!retro || ocupado} onClick={() => acao(() => apiClient.concluirVirada(i.id, retro), `Lançar a virada em ${retro.split('-').reverse().join('/')}? O 1º vencimento é calculado a partir dessa data e o cliente não recebe mensagem.`)} style={{ ...btn('#7c3aed'), opacity: retro ? 1 : 0.5 }}>Lançar virada retroativa</button>
         </div>
       )}
+      {!i.virada_fim_em && passo(pendViradas.length === 0, 'Pré-requisitos da virada', pendViradas.length === 0 ? 'Completos.' : (
+        <span style={{ display: 'grid', gap: 2 }}>{pendViradas.map(t => <span key={t}>• {t}</span>)}{gestao && <span style={{ color: 'var(--t-text-muted)', marginTop: 2 }}>Como supervisão, você pode liberar mesmo assim.</span>}</span>
+      ))}
       {passo(!!i.tela_suporte_arquivo_id, 'Tela do Suporte anexada', i.tela_suporte_arquivo_id ? 'Pronta.' : 'Anexe na aba Ficha de coleta. Sem ela a virada não começa.')}
       {passo(!!i.virada_inicio_em, 'Iniciar virada', i.virada_inicio_em ? `Iniciada em ${fmtDataHora(i.virada_inicio_em)}. Neste dia a jornada do técnico começa às 7h.` : (
-        <button disabled={ocupado || !i.tela_suporte_arquivo_id} onClick={() => acao(() => apiClient.iniciarVirada(i.id), 'Iniciar a virada da loja agora?')} style={{ ...btn('#7c3aed'), marginTop: 6, opacity: i.tela_suporte_arquivo_id ? 1 : 0.5 }}><Rocket size={13} /> Iniciar virada</button>
+        <button disabled={ocupado || (pendViradas.length > 0 && !gestao)} onClick={() => acaoVirada(f => apiClient.iniciarVirada(i.id, f), 'Iniciar a virada da loja agora?')} style={{ ...btn('#7c3aed'), marginTop: 6, opacity: pendViradas.length && !gestao ? 0.5 : 1 }}><Rocket size={13} /> Iniciar virada</button>
       ))}
       {passo(!!i.virada_fim_em, 'Loja virada', i.virada_fim_em ? `Em uso desde ${fmtDataHora(i.virada_fim_em)}.` : i.virada_inicio_em ? (
-        <button disabled={ocupado} onClick={() => acao(() => apiClient.concluirVirada(i.id), 'Confirmar que a loja está rodando com o Prosystem? Isso define o 1º vencimento.')} style={{ ...btn('#16a34a'), marginTop: 6 }}><CheckCircle size={13} /> Loja virada</button>
+        <button disabled={ocupado || (pendViradas.length > 0 && !gestao)} onClick={() => acaoVirada(f => apiClient.concluirVirada(i.id, undefined, f), 'Confirmar que a loja está rodando com o Prosystem? Isso define o 1º vencimento.')} style={{ ...btn('#16a34a'), marginTop: 6, opacity: pendViradas.length && !gestao ? 0.5 : 1 }}><CheckCircle size={13} /> Loja virada</button>
       ) : 'Depois de iniciar a virada.')}
       {passo(!!i.data_primeiro_vencimento && !!i.virada_fim_em, '1º vencimento da mensalidade', i.virada_fim_em ? <>Vence em <b>{fmtData(i.data_primeiro_vencimento)}</b> (30 dias após o início de uso, no próximo dia 01, 05, 10, 15, 20 ou 25). Comissão no mês seguinte ao 1º pagamento ({i.mes_pagamento_comissao || '—'}).<br />O cliente recebe as boas-vindas com essa data, a confirmação do e-mail e a regra do boleto.</> : 'Calculado automaticamente na virada.')}
       {passo(!!i.cobranca_lancada_em, 'Cobrança lançada', i.cobranca_lancada_em ? `Lançada por ${i.cobranca_lancada_por} em ${fmtDataHora(i.cobranca_lancada_em)}.` : i.virada_fim_em ? (gestao ? (
@@ -747,6 +762,174 @@ function contatosDoCliente(d: any): { nome: string | null; fone: string }[] {
     vistos.add(n.slice(-8)); out.push({ nome: x.nome, fone: x.fone });
   }
   return out;
+}
+
+// ─── Próximo passo do card (Fase 1): o que fazer agora e o botão que faz ───
+// Técnico do card: Começar agora, Ir para a aba, Pedir validação. Supervisão: Designar, Validar, Devolver, Finalizar.
+
+const NOME_ABA: Record<string, string> = { onboarding: 'Onboarding', ficha: 'Ficha de coleta', checklist: 'Checklist', virada: 'Virada', treinamento: 'Treinamento', correcoes: 'Correções' };
+
+function FaixaProximoPasso({ d, gestao, aba, irPara, recarregar }: { d: any; gestao: boolean; aba: string; irPara: (a: any) => void; recarregar: () => void }) {
+  const p = d.proximo_passo, i = d.implantacao;
+  const { user } = useAuth();
+  const { sessao } = useCronometro();
+  const [ocupado, setOcupado] = useState(false);
+  const [devolvendo, setDevolvendo] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  if (!p || p.quem === 'NINGUEM') return null;
+  const souTecnico = !!user?.id && user.id === i.tecnico_id;
+  const rodandoAqui = sessao?.implantacao_id === i.id;
+  const run = async (f: () => Promise<any>, confirma?: string) => {
+    if (confirma && !confirm(confirma)) return;
+    setOcupado(true);
+    try { await f(); avisarCronometro(); window.dispatchEvent(new Event('avisos:mudou')); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); }
+  };
+  const comecar = () => run(async () => {
+    if (['BACKLOG', 'A_FAZER'].includes(i.coluna) && p.chave !== 'ONBOARDING') await apiClient.moverColunaImplantacao(i.id, 'EM_ANDAMENTO');
+    await apiClient.playCronometro({ tipo: 'DEMANDA', implantacao_id: i.id, etapa: p.etapa });
+    if (p.aba) irPara(p.aba);
+  });
+  const devolver = () => run(async () => { await apiClient.devolverDemanda(i.id, motivo.trim()); setDevolvendo(false); setMotivo(''); });
+  const vezDeQuem = p.quem === 'GESTAO' ? (gestao ? 'Sua vez' : 'Com a supervisão') : souTecnico ? 'Sua vez' : `Com ${i.tecnico_nome ? i.tecnico_nome.split(' ')[0] : 'o técnico'}`;
+  const minhaVez = vezDeQuem === 'Sua vez';
+  const acaoPrincipal: React.CSSProperties = { ...btn('#2E6EAB'), minHeight: 36 };
+  const acaoSecundaria: React.CSSProperties = { ...btn('#2E6EAB', false), minHeight: 36, border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' };
+  return (
+    <div style={{ borderRadius: 10, border: `1px solid ${minhaVez ? '#2E6EAB55' : 'var(--t-card-border)'}`, background: minhaVez ? '#2E6EAB08' : 'transparent', padding: '12px 14px', display: 'grid', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 11, fontWeight: 500, color: minhaVez ? '#2E6EAB' : 'var(--t-text-muted)', letterSpacing: '.02em' }}>Próximo passo · {vezDeQuem}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t-text-primary)', marginTop: 2 }}>{p.titulo}</div>
+          {p.detalhe && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{p.detalhe}</div>}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Passos do técnico */}
+          {p.quem === 'TECNICO' && souTecnico && p.etapa && !rodandoAqui && p.chave !== 'PEDIR_VALIDACAO' && (
+            <button disabled={ocupado} onClick={comecar} style={acaoPrincipal}><Play size={13} /> Começar agora</button>
+          )}
+          {p.quem === 'TECNICO' && p.aba && aba !== p.aba && (
+            <button onClick={() => irPara(p.aba)} style={souTecnico && !rodandoAqui ? acaoSecundaria : acaoPrincipal}>Abrir {NOME_ABA[p.aba] || p.aba}</button>
+          )}
+          {p.chave === 'PEDIR_VALIDACAO' && souTecnico && (
+            <button disabled={ocupado} onClick={() => run(() => apiClient.pedirValidacao(i.id), 'Enviar para a supervisão validar? O cronômetro desta demanda é pausado.')} style={acaoPrincipal}><CheckCircle size={13} /> Pedir validação</button>
+          )}
+          {/* Passos da supervisão */}
+          {p.chave === 'VALIDAR' && gestao && (<>
+            <button disabled={ocupado} onClick={() => run(() => apiClient.moverColunaImplantacao(i.id, 'VALIDADO'), 'Validar esta demanda?')} style={acaoPrincipal}><CheckCircle size={13} /> Validar</button>
+            <button disabled={ocupado} onClick={() => setDevolvendo(v => !v)} style={acaoSecundaria}>Devolver ao técnico</button>
+          </>)}
+          {p.chave === 'FINALIZAR' && gestao && (
+            <button disabled={ocupado} onClick={() => run(() => apiClient.moverColunaImplantacao(i.id, 'FINALIZADO'), 'Finalizar esta demanda? Ela sai do quadro.')} style={acaoPrincipal}>Finalizar</button>
+          )}
+        </div>
+      </div>
+      {p.chave === 'DESIGNAR' && gestao && <DesignarTecnico id={i.id} tecnicoId={i.tecnico_id} recarregar={recarregar} embutido />}
+      {p.pendencias?.length > 0 && (
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--t-text-muted)' }}>Falta antes de avançar</div>
+          {p.pendencias.map((t: string) => (
+            <div key={t} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, color: 'var(--t-text-primary)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: 99, background: '#d97706', flexShrink: 0, transform: 'translateY(-1px)' }} />{t}
+            </div>
+          ))}
+        </div>
+      )}
+      {devolvendo && (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <textarea rows={2} autoFocus value={motivo} onChange={e => setMotivo(e.target.value)} className="ps-input w-full" placeholder="O que o técnico precisa corrigir ou completar?" />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button disabled={ocupado || motivo.trim().length < 3} onClick={devolver} style={{ ...acaoPrincipal, opacity: motivo.trim().length < 3 ? 0.5 : 1 }}>Devolver com recado</button>
+            <button onClick={() => setDevolvendo(false)} style={acaoSecundaria}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Carga da equipe para a supervisão: demandas ativas, viradas em andamento e horas no mês de cada técnico. */
+export function CargaEquipe() {
+  const [tecnicos, setTecnicos] = useState<any[]>([]);
+  useEffect(() => { apiClient.getTecnicosImplantacao(true).then(r => setTecnicos((r.data.data || []).filter((t: any) => t.cargo !== 'SUPERVISAO_TECNICA'))).catch(() => {}); }, []);
+  if (!tecnicos.length) return null;
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>Carga da equipe</span>
+      {tecnicos.map(t => (
+        <span key={t.id} title={`${t.ativas} demanda(s) ativa(s) · ${t.em_virada} virada(s) em andamento · ${t.horas_mes}h trabalhadas no mês`}
+          style={{ display: 'inline-flex', gap: 6, alignItems: 'baseline', fontSize: 12, padding: '4px 10px', borderRadius: 999, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', fontVariantNumeric: 'tabular-nums' }}>
+          <b style={{ fontWeight: 600, color: 'var(--t-text-primary)' }}>{t.nome.split(' ')[0]}</b>
+          <span style={{ color: 'var(--t-text-secondary)' }}>{t.ativas} ativas{t.em_virada ? ` · ${t.em_virada} em virada` : ''} · {t.horas_mes}h no mês</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Busca global do portal (Ctrl+K / ⌘K): cliente, CNPJ, técnico ou vendedor; abre o card. */
+export function BuscaGlobal({ onAbrir }: { onAbrir: (id: string) => void }) {
+  const [aberta, setAberta] = useState(false);
+  const [q, setQ] = useState('');
+  const [res, setRes] = useState<any[]>([]);
+  const [sel, setSel] = useState(0);
+  const [buscando, setBuscando] = useState(false);
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setAberta(true); } };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, []);
+  useEffect(() => {
+    if (!aberta) { setQ(''); setRes([]); setSel(0); return; }
+    if (q.trim().length < 2) { setRes([]); return; }
+    setBuscando(true);
+    const t = setTimeout(() => {
+      apiClient.buscarDemandas(q.trim()).then(r => { setRes(r.data.data || []); setSel(0); }).catch(() => setRes([])).finally(() => setBuscando(false));
+    }, 200);
+    return () => clearTimeout(t);
+  }, [q, aberta]);
+  const escolher = (id: string) => { setAberta(false); onAbrir(id); };
+  const teclas = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') setAberta(false);
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(s + 1, res.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(s - 1, 0)); }
+    else if (e.key === 'Enter' && res.length) { const r = res.at(sel); if (r) escolher(r.id); }
+  };
+  return (
+    <>
+      <button onClick={() => setAberta(true)} title="Buscar cliente, CNPJ ou técnico (Ctrl+K)" aria-label="Buscar"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-muted)', fontSize: 13, cursor: 'pointer' }}>
+        <Search size={14} /><span className="pt-topo-extra">Buscar</span>
+        <kbd className="pt-topo-extra" style={{ fontSize: 11, fontFamily: 'inherit', border: '1px solid var(--t-card-border)', borderRadius: 4, padding: '0 5px', color: 'var(--t-text-muted)' }}>Ctrl K</kbd>
+      </button>
+      {aberta && (
+        <div onClick={() => setAberta(false)} style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(13,34,56,.35)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '12vh 16px 16px' }}>
+          <div role="dialog" aria-label="Buscar demanda" onClick={e => e.stopPropagation()}
+            style={{ width: 'min(560px, 100%)', background: 'var(--t-card-bg)', borderRadius: 12, boxShadow: '0 0 0 1px rgba(13,34,56,.08), 0 16px 40px rgba(13,34,56,.22)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px', borderBottom: '1px solid var(--t-card-border)' }}>
+              <Search size={16} color="var(--t-text-muted)" />
+              <input autoFocus value={q} onChange={e => setQ(e.target.value)} onKeyDown={teclas} placeholder="Cliente, CNPJ, técnico ou vendedor"
+                style={{ flex: 1, height: 48, border: 'none', outline: 'none', background: 'transparent', fontSize: 15, color: 'var(--t-text-primary)' }} />
+              {buscando && <Loader2 size={14} className="animate-spin" color="var(--t-text-muted)" />}
+            </div>
+            <div style={{ maxHeight: '50vh', overflowY: 'auto', padding: 6 }}>
+              {q.trim().length < 2 && <div style={{ padding: '14px 10px', fontSize: 13, color: 'var(--t-text-muted)' }}>Digite pelo menos 2 letras. Use ↑ ↓ e Enter para abrir.</div>}
+              {q.trim().length >= 2 && !buscando && res.length === 0 && <div style={{ padding: '14px 10px', fontSize: 13, color: 'var(--t-text-muted)' }}>Nada encontrado.</div>}
+              {res.map((r, k) => (
+                <button key={r.id} onClick={() => escolher(r.id)} onMouseEnter={() => setSel(k)}
+                  style={{ display: 'flex', width: '100%', textAlign: 'left', gap: 12, alignItems: 'center', padding: '10px', minHeight: 44, borderRadius: 8, border: 'none', cursor: 'pointer', background: k === sel ? 'var(--t-content-bg)' : 'transparent' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.cliente}</div>
+                    <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{[r.tipo, r.cnpj, r.tecnico || 'sem técnico'].filter(Boolean).join(' · ')}</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--t-text-secondary)', border: '1px solid var(--t-card-border)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>{r.coluna}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ─── Linguagem visual do card (ordem de serviço): bordas finas, cor só para ação ───

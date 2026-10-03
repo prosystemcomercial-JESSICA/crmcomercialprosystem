@@ -922,8 +922,8 @@ class ApiClient {
   async getTelaSuporte(id: string) { return this.client.get(`/implantacoes/${id}/tela-suporte`); }
   async ajustarPrazos(id: string, data: { prazo_virada?: string | null; prazo_finalizacao?: string | null }) { return this.client.patch(`/implantacoes/${id}/prazos`, data); }
   async marcarChecklistImplantacao(itemId: string, feito: boolean) { return this.client.patch(`/implantacoes/checklist/${itemId}`, { feito }); }
-  async iniciarVirada(id: string) { return this.client.post(`/implantacoes/${id}/virada/iniciar`, {}); }
-  async concluirVirada(id: string, data?: string) { return this.client.post(`/implantacoes/${id}/virada/concluir`, data ? { data } : {}); }
+  async iniciarVirada(id: string, forcar = false) { return this.client.post(`/implantacoes/${id}/virada/iniciar`, forcar ? { forcar } : {}); }
+  async concluirVirada(id: string, data?: string, forcar = false) { return this.client.post(`/implantacoes/${id}/virada/concluir`, { ...(data ? { data } : {}), ...(forcar ? { forcar } : {}) }); }
   async cobrancaLancada(id: string) { return this.client.post(`/implantacoes/${id}/cobranca-lancada`, {}); }
   async getCobrancasPendentes() { return this.client.get('/implantacoes/cobrancas-pendentes'); }
   async atualizarFaseTreinamento(faseId: string, data: { nome?: string; marcada_em?: string | null; realizada_em?: string | null; observacao?: string | null }) { return this.client.patch(`/implantacoes/fases/${faseId}`, data); }
@@ -941,9 +941,12 @@ class ApiClient {
   async getOnboardingTecnico() { return this.client.get('/implantacoes/onboarding'); }
   async getInicioPortal() { return this.client.get('/implantacoes/inicio'); }
   async concluirTarefa(id: string, reabrir = false) { return this.client.post(`/implantacoes/tarefas/${id}/concluir`, { reabrir }); }
-  async getTecnicosImplantacao() {
-    return this.client.get('/implantacoes/tecnicos');
+  async getTecnicosImplantacao(carga = false) {
+    return this.client.get('/implantacoes/tecnicos', { params: carga ? { carga: '1' } : {} });
   }
+  async pedirValidacao(id: string) { return this.client.post(`/implantacoes/${id}/pedir-validacao`, {}); }
+  async devolverDemanda(id: string, motivo: string) { return this.client.post(`/implantacoes/${id}/devolver`, { motivo }); }
+  async buscarDemandas(q: string) { return this.client.get('/implantacoes/busca', { params: { q } }); }
   async designarTecnico(id: string, tecnico_id: string) {
     return this.client.post(`/implantacoes/${id}/designar`, { tecnico_id });
   }

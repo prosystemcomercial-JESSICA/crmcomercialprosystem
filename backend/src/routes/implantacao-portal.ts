@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
-  garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT,
+  garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -20,7 +20,7 @@ import {
 const ehGestaoTecnica = (u: any) => podeVerTudo(u) || (u?.role || '').toUpperCase() === 'SUPERVISAO_TECNICA';
 // Recado ligado a um card só aparece para o técnico designado nele (gestão vê tudo).
 const soDoDesignado = (u: any): any => ehGestaoTecnica(u) ? {} : { OR: [{ implantacao_id: null }, { implantacao: { tecnico_id: u.id } }] };
-const ehTecnico = (u: any) => (u?.role || '').toUpperCase() === 'TECNICO_IMPLANTACAO';
+const ehTecnico = (u: any) => ehCargoTecnico(u?.role);
 const fmtData = (d?: Date | null) => d ? d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
 
 export async function implantacaoPortalRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
@@ -54,6 +54,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         checklist: { select: { grupo: true, titulo: true, feito: true } },
         esperas: { where: { fim: null }, select: { id: true, tipo: true, motivo: true, inicio: true } },
         ocorrencias: { where: { situacao: { not: 'RESOLVIDA' } }, select: { id: true, gravidade: true } },
+        treinamento_fases: { select: { realizada_em: true } },
       },
     });
     const agora = new Date();
@@ -70,6 +71,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         esperas_abertas: i.esperas, ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
         tela_suporte: !!i.tela_suporte_arquivo_id, virada_inicio_em: i.virada_inicio_em, virada_fim_em: i.virada_fim_em, data_primeiro_vencimento: i.data_primeiro_vencimento,
         cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
+        proximo_passo: (({ chave, titulo, quem }) => ({ chave, titulo, quem }))(proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length)),
         onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length,
       };
     });
@@ -85,8 +87,16 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     const para = b.data.coluna, de = colunaDe(imp);
-    if (['CANCELADOS', 'VALIDADO'].includes(para) && !ehGestaoTecnica(u)) return reply.status(403).send({ status: 'error', message: 'Só a supervisão valida ou cancela' });
-    const chk = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, feito: true } });
+    if (['CANCELADOS', 'VALIDADO', 'FINALIZADO'].includes(para) && !ehGestaoTecnica(u)) return reply.status(403).send({ status: 'error', message: 'Só a supervisão valida, finaliza ou cancela' });
+    const chk = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, titulo: true, feito: true } });
+    if (para === 'CONCLUIDO' && de !== 'CONCLUIDO') {
+      const [fases, abertas] = await Promise.all([
+        prisma.implantacaoTreinamentoFase.findMany({ where: { implantacao_id: id }, select: { realizada_em: true } }),
+        prisma.implantacaoOcorrencia.count({ where: { implantacao_id: id, situacao: { not: 'RESOLVIDA' } } }),
+      ]);
+      const falta = pendenciasValidacao(imp, chk, fases, abertas);
+      if (falta.length) return reply.status(400).send({ status: 'error', message: `Antes de concluir: ${falta.join('; ')}.`, data: { pendencias: falta } });
+    }
     if (!['BACKLOG', 'A_FAZER', 'CANCELADOS'].includes(para) && !onboardingOk(imp, chk)) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes de avançar a demanda.' });
     const data: any = { coluna: para };
     if (para === 'FINALIZADO') {
@@ -154,6 +164,66 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (!imp?.tela_suporte_arquivo_id) return reply.status(404).send({ status: 'error', message: 'Sem tela anexada' });
     const arq = await prisma.implantacaoArquivo.findUnique({ where: { id: imp.tela_suporte_arquivo_id } });
     return reply.send({ status: 'success', data: arq });
+  });
+
+  // ── Pedir validação (técnico): confere tudo, vai para "Concluído", pausa o cronômetro e avisa a supervisão.
+  fastify.post('/implantacoes/:id/pedir-validacao', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const { id } = request.params as { id: string };
+    const imp = await demanda(u, id);
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    if (['CONCLUIDO', 'VALIDADO', 'FINALIZADO', 'CANCELADOS'].includes(colunaDe(imp))) return reply.status(400).send({ status: 'error', message: 'Esta demanda já saiu da execução' });
+    const [chk, fases, abertas] = await Promise.all([
+      prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, titulo: true, feito: true } }),
+      prisma.implantacaoTreinamentoFase.findMany({ where: { implantacao_id: id }, select: { realizada_em: true } }),
+      prisma.implantacaoOcorrencia.count({ where: { implantacao_id: id, situacao: { not: 'RESOLVIDA' } } }),
+    ]);
+    const falta = pendenciasValidacao(imp, chk, fases, abertas);
+    if (falta.length) return reply.status(400).send({ status: 'error', message: `Antes de pedir a validação: ${falta.join('; ')}.`, data: { pendencias: falta } });
+    const agora = new Date();
+    await prisma.implantacao.update({ where: { id }, data: { coluna: 'CONCLUIDO' } });
+    await prisma.implantacaoSessao.updateMany({ where: { implantacao_id: id, tecnico_id: u.id, fim: null }, data: { fim: agora, origem_fim: 'PAUSA' } });
+    await atividade(id, 'MUDANCA_ETAPA', `✅ ${u.nome || 'Técnico'} concluiu e pediu a validação da supervisão`, u);
+    await avisarEquipe(prisma, `✅ Pedido de validação: ${imp.cliente_razao_social} (${u.nome || 'técnico'}). Abra o card para validar ou devolver.`, id).catch(() => {});
+    const { enviarAvisoGestao } = await import('@/services/assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `✅ *Validação pedida*: ${imp.cliente_razao_social} (${u.nome || 'técnico'}). Valide no Portal Técnico.`, { somenteAprovadora: true }).catch(() => {});
+    return reply.send({ status: 'success' });
+  });
+
+  // ── Devolver ao técnico (supervisão): volta para a execução com o motivo, e o técnico recebe o recado.
+  fastify.post('/implantacoes/:id/devolver', async (request, reply) => {
+    const u = exigirGestao(request, reply); if (!u) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({ motivo: z.string().trim().min(3).max(1000) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Conte ao técnico o que falta.' });
+    const imp = await prisma.implantacao.findUnique({ where: { id } });
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    const coluna = imp.modulo === 'IMPLANTACAO' && imp.virada_fim_em ? 'ACOMPANHAMENTO' : 'EM_ANDAMENTO';
+    await prisma.implantacao.update({ where: { id }, data: { coluna } });
+    await atividade(id, 'MUDANCA_ETAPA', `↩️ ${u.nome || 'Supervisão'} devolveu ao técnico: ${b.data.motivo}`, u);
+    if (imp.tecnico_id) await avisarTecnico(prisma, { para_id: imp.tecnico_id, implantacao_id: id, origem: 'GESTAO', de: { id: u.id, nome: u.nome }, prioridade: 'URGENTE', texto: `${imp.cliente_razao_social} voltou para você: ${b.data.motivo}` }).catch(() => null);
+    return reply.send({ status: 'success' });
+  });
+
+  // ── Busca global (Ctrl+K): cliente, CNPJ ou técnico, só dentro do que a pessoa pode ver.
+  fastify.get('/implantacoes/busca', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const q = String((request.query as any)?.q || '').trim().slice(0, 80);
+    if (q.length < 2) return reply.send({ status: 'success', data: [] });
+    const dig = q.replace(/\D/g, '');
+    const OR: any[] = [{ cliente_razao_social: { contains: q } }, { tecnico_nome: { contains: q } }, { vendedor_nome: { contains: q } }];
+    if (dig.length >= 3) OR.push({ cliente_cnpj: { contains: dig } }, { cliente_cnpj: { contains: q } });
+    const where: any = { OR, data_assinatura: { gte: desdeQuadro() } };
+    if (ehTecnico(u) && !ehGestaoTecnica(u)) where.tecnico_id = u.id;
+    const lista = await prisma.implantacao.findMany({
+      where, take: 12, orderBy: { data_assinatura: 'desc' },
+      select: { id: true, cliente_razao_social: true, cliente_cnpj: true, modulo: true, tipo_servico: true, tipo_base: true, tecnico_nome: true, coluna: true, status: true, etapa_execucao: true },
+    });
+    return reply.send({ status: 'success', data: lista.map(i => ({
+      id: i.id, cliente: i.cliente_razao_social, cnpj: i.cliente_cnpj, tecnico: i.tecnico_nome,
+      tipo: i.modulo === 'SERVICO' ? `Serviço · ${(i.tipo_servico && TIPOS_SERVICO[i.tipo_servico]?.label) || 'Outro'}` : `Implantação · ${i.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : 'conversão'}`,
+      coluna: COLUNAS.find(c => c.key === colunaDe(i))?.label || colunaDe(i),
+    })) });
   });
 
   // ── Responsável da empresa (decisor): a supervisão informa, o técnico liga direto para ele.
@@ -241,6 +311,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
       link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: CAMPOS_COLETA,
       onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
+      proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length),
       cliente_ficha, tipo_demanda, servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
@@ -368,9 +439,12 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     if (imp.modulo !== 'IMPLANTACAO') return reply.status(400).send({ status: 'error', message: 'Virada é só para implantação' });
-    if (!onboardingOk(imp, await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, feito: true } }))) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico antes da virada' });
-    if (!imp.tela_suporte_arquivo_id) return reply.status(400).send({ status: 'error', message: 'Anexe a tela do Suporte antes de iniciar a virada' });
     if (imp.virada_inicio_em) return reply.status(400).send({ status: 'error', message: 'A virada já foi iniciada' });
+    // Pré-requisitos da virada: travam para o técnico; a supervisão pode liberar mesmo assim (fica no histórico).
+    const falta = pendenciasIniciarVirada(imp, await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, titulo: true, feito: true } }));
+    const forcar = !!(request.body as any)?.forcar && ehGestaoTecnica(u);
+    if (falta.length && !forcar) return reply.status(400).send({ status: 'error', message: `Antes de iniciar a virada: ${falta.join('; ')}.`, data: { pendencias: falta } });
+    if (falta.length) await atividade(id, 'NOTA', `⚠️ ${u.nome || 'Supervisão'} liberou a virada com pendências: ${falta.join('; ')}`, u);
     await prisma.implantacao.update({ where: { id }, data: { virada_inicio_em: new Date(), coluna: 'EM_ANDAMENTO' } });
     await atividade(id, 'NOTA', `🚀 ${u.nome || 'Técnico'} iniciou a virada da loja`, u);
     const { enviarAvisoGestao } = await import('@/services/assistente-gestao.service');
@@ -389,6 +463,12 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (retro && !ehGestaoTecnica(u)) return reply.status(403).send({ status: 'error', message: 'Só a gestão lança virada retroativa' });
     if (retro && retro > new Date()) return reply.status(400).send({ status: 'error', message: 'A data da virada não pode ser no futuro' });
     if (!retro && !imp.virada_inicio_em) return reply.status(400).send({ status: 'error', message: 'Clique em "Iniciar virada" primeiro' });
+    if (!retro) {
+      const falta = pendenciasConcluirVirada(imp, await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, select: { grupo: true, titulo: true, feito: true } }));
+      const forcar = !!(request.body as any)?.forcar && ehGestaoTecnica(u);
+      if (falta.length && !forcar) return reply.status(400).send({ status: 'error', message: `Antes de marcar "Loja virada": ${falta.join('; ')}.`, data: { pendencias: falta } });
+      if (falta.length) await atividade(id, 'NOTA', `⚠️ ${u.nome || 'Supervisão'} marcou a loja virada com pendências: ${falta.join('; ')}`, u);
+    }
     if (imp.virada_fim_em && !retro) return reply.status(400).send({ status: 'error', message: 'A loja já foi virada' });
     const agora = retro || new Date();
     const venc = primeiroVencimento(agora);
