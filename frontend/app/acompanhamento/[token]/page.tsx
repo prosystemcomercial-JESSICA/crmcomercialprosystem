@@ -84,6 +84,16 @@ export default function AcompanhamentoPage() {
             </div>
           )}
         </section>
+        {(d.aceite?.assinar_url || d.relatorio_disponivel) && (
+          <section style={{ background: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 4px 30px rgba(13,34,56,.10)', display: 'grid', gap: 10 }}>
+            <b style={{ fontSize: 16, color: '#1A4E82' }}>{d.aceite?.status === 'ASSINADO' ? 'Implantação concluída e aceita ✓' : 'Implantação concluída'}</b>
+            {d.aceite?.assinar_url && <div style={{ fontSize: 14, color: '#5B7A99' }}>Confira o resumo e assine o termo de aceite. A assinatura é eletrônica, pelo ZapSign.</div>}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {d.aceite?.assinar_url && <a href={d.aceite.assinar_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 10, background: '#2E6EAB', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>Assinar o termo de aceite</a>}
+              {d.relatorio_disponivel && <a href={`${API_URL}/publico/acompanhamento/${token}/relatorio.pdf`} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 10, border: '1px solid #2E6EAB', color: '#2E6EAB', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>Baixar o relatório (PDF)</a>}
+            </div>
+          </section>
+        )}
         {(d.treinos_realizados || []).some((f: any) => !f.confirmado_em) && <ConfirmarTreinamento token={token} fases={d.treinos_realizados.filter((f: any) => !f.confirmado_em)} recarregar={() => axios.get(`${API_URL}/publico/acompanhamento/${token}`).then(r => setD(r.data.data)).catch(() => {})} />}
         {d.tarefas_cliente?.length > 0 && <TarefasDoCliente token={token} tarefas={d.tarefas_cliente} recarregar={() => axios.get(`${API_URL}/publico/acompanhamento/${token}`).then(r => setD(r.data.data)).catch(() => {})} />}
         {d.diagnostico && d.diagnostico.dados.length > 0 && (

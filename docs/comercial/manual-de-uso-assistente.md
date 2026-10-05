@@ -954,3 +954,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Inventário técnico** da loja (equipamentos e IDs de acesso remoto, nunca senhas), que o suporte também vê nos tickets.
 - **Treinamento comprovado**: o cliente confirma pela página quem participou de cada fase.
 - **Indicadores** podem ser exportados em planilha.
+
+### Atualização 05/10/2026: termo de aceite e relatório final
+
+- Ao **validar** a implantação, o cliente (decisor) recebe o **termo de aceite** para assinar pelo ZapSign. A assinatura volta sozinha para o card. Sem decisor ou contato, a supervisão envia depois pelo próprio card.
+- O **relatório final em PDF** (o que foi feito, testes, treinamento, equipamentos e contato do suporte) fica no card e na página do cliente.

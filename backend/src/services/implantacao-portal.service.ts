@@ -230,6 +230,8 @@ export async function visaoCliente(prisma: PrismaClient, imp: any) {
     primeiro_vencimento: imp.virada_fim_em ? imp.data_primeiro_vencimento : null,
     virada_agendada: imp.virada_fim_em || imp.virada_inicio_em ? null : imp.virada_agendada_para || null,
     treinos_marcados: (fases as any[]).filter(f => f.marcada_em && !f.realizada_em).map(f => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em })),
+    relatorio_disponivel: !!imp.validado_em,
+    aceite: imp.aceite_status ? { status: imp.aceite_status, assinar_url: imp.aceite_status === 'ENVIADO' ? imp.aceite_sign_url : null, assinado_em: imp.aceite_assinado_em } : null,
     treinos_realizados: (fases as any[]).filter(f => f.realizada_em).map(f => ({ id: f.id, ordem: f.ordem, nome: f.nome, realizada_em: f.realizada_em, confirmado_em: f.confirmado_em, confirmado_por: f.confirmado_por, participantes: f.participantes })),
     diagnostico,
     suporte: { telefone: CONTATO_GERAL, link: LINK_CONTATO_GERAL },

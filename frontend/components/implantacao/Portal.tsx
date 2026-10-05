@@ -341,11 +341,20 @@ function Gaveta({ children, onClose }: { children: React.ReactNode; onClose: () 
 
 function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarregar: () => void }) {
   const i = d.implantacao;
+  const baixarPdf = async (termo: boolean) => {
+    try { const r = await apiClient.baixarRelatorioImplantacao(i.id, termo); const url = URL.createObjectURL(r.data); const el = document.createElement('a'); el.href = url; el.download = termo ? `termo-de-aceite-${i.cliente_razao_social}.pdf` : `relatorio-${i.cliente_razao_social}.pdf`; el.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }
+    catch (e) { alert(erroDe(e)); }
+  };
   const [prazos, setPrazos] = useState({ v: paraInputData(i.prazo_virada), f: paraInputData(i.prazo_finalizacao) });
   const abertas = d.esperas.filter((e: any) => !e.fim);
   const resolver = async (eid: string) => { const r = prompt('O que foi feito para resolver? (opcional)'); if (r === null) return; try { await apiClient.resolverEspera(eid, r || undefined); avisarCronometro(); } catch (e) { alert(erroDe(e)); } };
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button onClick={() => baixarPdf(false)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Relatório final (PDF)</button>
+        {i.modulo === 'IMPLANTACAO' && <button onClick={() => baixarPdf(true)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Prévia do termo de aceite</button>}
+        {i.aceite_status && <span style={{ fontSize: 12, color: i.aceite_status === 'ASSINADO' ? '#16a34a' : i.aceite_status === 'RECUSADO' ? '#dc2626' : '#b45309' }}>Termo de aceite: {i.aceite_status === 'ASSINADO' ? `assinado em ${fmtData(i.aceite_assinado_em)}` : i.aceite_status === 'RECUSADO' ? 'recusado pelo cliente' : `aguardando assinatura desde ${fmtData(i.aceite_enviado_em)}`}</span>}
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Mini l="Trabalho efetivo" v={fmtDur(d.tempos.trabalho_ms)} />
         <Mini l="Esperando programação" v={fmtDur(d.tempos.esperas.PROGRAMACAO?.ms || 0)} s={`${d.tempos.esperas.PROGRAMACAO?.qtd || 0} vez(es)`} cor="#a16207" />
@@ -896,9 +905,11 @@ function FaixaProximoPasso({ d, gestao, aba, irPara, recarregar }: { d: any; ges
             <button disabled={ocupado} onClick={() => run(() => apiClient.moverColunaImplantacao(i.id, 'VALIDADO'), 'Validar esta demanda?')} style={acaoPrincipal}><CheckCircle size={13} /> Validar</button>
             <button disabled={ocupado} onClick={() => setDevolvendo(v => !v)} style={acaoSecundaria}>Devolver ao técnico</button>
           </>)}
-          {p.chave === 'FINALIZAR' && gestao && (
-            <button disabled={ocupado} onClick={() => run(() => apiClient.moverColunaImplantacao(i.id, 'FINALIZADO'), 'Finalizar esta demanda? Ela sai do quadro.')} style={acaoPrincipal}>Finalizar</button>
-          )}
+          {p.chave === 'FINALIZAR' && gestao && (<>
+            {i.aceite_status === 'ASSINADO' && i.aceite_pdf_url && <a href={i.aceite_pdf_url} target="_blank" rel="noreferrer" style={{ ...acaoSecundaria, textDecoration: 'none' }}>Termo assinado</a>}
+            {i.aceite_status !== 'ASSINADO' && <button disabled={ocupado} onClick={() => run(() => apiClient.reenviarTermoAceite(i.id), i.aceite_status ? 'Reenviar o termo de aceite para o cliente assinar?' : 'Enviar o termo de aceite para o cliente assinar (ZapSign)?')} style={acaoSecundaria}>{i.aceite_status ? 'Reenviar termo' : 'Enviar termo de aceite'}</button>}
+            <button disabled={ocupado} onClick={() => run(() => apiClient.moverColunaImplantacao(i.id, 'FINALIZADO'), i.aceite_status === 'ASSINADO' ? 'Finalizar esta demanda? Ela sai do quadro.' : 'O termo de aceite ainda não foi assinado. Finalizar mesmo assim?')} style={acaoPrincipal}>Finalizar</button>
+          </>)}
         </div>
       </div>
       {p.chave === 'DESIGNAR' && gestao && <DesignarTecnico id={i.id} tecnicoId={i.tecnico_id} recarregar={recarregar} embutido />}

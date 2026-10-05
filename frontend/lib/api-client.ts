@@ -961,6 +961,8 @@ class ApiClient {
   async getInventarioImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/inventario`); }
   async salvarInventarioImplantacao(id: string, data: { itens: any[]; versao_sistema?: string; observacoes?: string }) { return this.client.put(`/implantacoes/${id}/inventario`, data); }
   async getInventarioCliente(clienteId: string) { return this.client.get('/implantacoes/inventario-cliente', { params: { cliente_id: clienteId } }); }
+  async reenviarTermoAceite(id: string) { return this.client.post(`/implantacoes/${id}/termo-aceite`, {}); }
+  async baixarRelatorioImplantacao(id: string, termo = false) { return this.client.get(`/implantacoes/${id}/relatorio.pdf`, { params: termo ? { termo: '1' } : {}, responseType: 'blob' }); }
   async pedirValidacao(id: string) { return this.client.post(`/implantacoes/${id}/pedir-validacao`, {}); }
   async devolverDemanda(id: string, motivo: string) { return this.client.post(`/implantacoes/${id}/devolver`, { motivo }); }
   async buscarDemandas(q: string) { return this.client.get('/implantacoes/busca', { params: { q } }); }
