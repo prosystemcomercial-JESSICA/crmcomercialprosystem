@@ -351,6 +351,202 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .lightbox img{max-width:min(1400px,100%);max-height:calc(100svh - 120px);width:auto;border-radius:10px;background:#fff}
 .lightbox .close{position:fixed;top:calc(env(safe-area-inset-top,0px) + 16px);right:16px}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#fff;color:var(--navy);font:700 14px/1 var(--f-display);padding:12px 18px;border-radius:30px;box-shadow:var(--shadow);z-index:90}
+
+/* ================= camada tecnológica (v2) ================= */
+:root{--grad:linear-gradient(135deg,#0084F0 0%,#00BFD1 100%);--grid-dark:rgba(120,170,255,.07);--glass:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));--ease:cubic-bezier(.2,.7,.2,1)}
+@property --ang{syntax:"<angle>";initial-value:0deg;inherits:false}
+.slide{overflow:hidden}
+.slide > .wrap{position:relative;z-index:2}
+.on-dark{background:radial-gradient(1100px 560px at 88% -8%,rgba(0,132,240,.26),transparent 62%),radial-gradient(900px 520px at -8% 108%,rgba(0,191,209,.16),transparent 60%),var(--navy)}
+.on-dark::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background-image:linear-gradient(var(--grid-dark) 1px,transparent 1px),linear-gradient(90deg,var(--grid-dark) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse 80% 70% at 60% 40%,#000 25%,transparent 80%);mask-image:radial-gradient(ellipse 80% 70% at 60% 40%,#000 25%,transparent 80%);animation:gridDrift 30s linear infinite}
+@keyframes gridDrift{to{background-position:56px 56px,56px 56px}}
+.spot{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(520px circle at var(--mx,70%) var(--my,30%),rgba(0,150,255,.16),transparent 62%);transition:opacity .4s}
+.light{background:radial-gradient(760px 420px at 100% 0%,rgba(0,132,240,.08),transparent 70%),radial-gradient(600px 380px at 0% 100%,rgba(0,191,209,.06),transparent 70%),var(--paper)}
+.mist::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background-image:radial-gradient(rgba(65,122,188,.22) 1px,transparent 1.4px);background-size:22px 22px;-webkit-mask-image:radial-gradient(ellipse 70% 60% at 80% 20%,#000,transparent 75%);mask-image:radial-gradient(ellipse 70% 60% at 80% 20%,#000,transparent 75%)}
+.slide[data-n]::after{content:attr(data-n);position:absolute;right:clamp(56px,6vw,96px);bottom:clamp(10px,3vh,32px);z-index:1;pointer-events:none;font:900 clamp(90px,12vw,190px)/1 var(--f-display);color:transparent;-webkit-text-stroke:1.5px rgba(65,122,188,.13);letter-spacing:-4px;transition:transform 1.2s var(--ease),opacity 1.2s}
+.slide[data-n]:not(.in)::after{transform:translateX(40px);opacity:.3}
+.on-dark[data-n]::after{-webkit-text-stroke-color:rgba(120,190,255,.10)}
+@media (max-width:760px){.slide[data-n]::after{display:none}}
+
+/* entrada em sequência (os elementos ficam visíveis sem JS) */
+.slide.in .rv{animation:rise .85s var(--ease) backwards;animation-delay:calc(var(--d,0) * 85ms)}
+@keyframes rise{from{opacity:0;transform:translateY(30px) scale(.985);filter:blur(4px)}}
+.slide.in .rv-l{animation-name:riseL}
+@keyframes riseL{from{opacity:0;transform:translateX(-40px);filter:blur(4px)}}
+.slide.in .rv-r{animation-name:riseR}
+@keyframes riseR{from{opacity:0;transform:translateX(40px) rotate(1deg);filter:blur(4px)}}
+
+/* eyebrow como tag com sinal ao vivo */
+.eyebrow{padding:7px 13px 7px 11px;border-radius:30px;background:rgba(0,132,240,.07);border:1px solid rgba(0,132,240,.22)}
+.eyebrow::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;animation:ping 2.2s ease-out infinite}
+.on-dark .eyebrow{background:rgba(0,191,209,.08);border-color:rgba(0,191,209,.32)}
+.eyebrow.loss{background:rgba(243,154,18,.09);border-color:rgba(243,154,18,.35)}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(0,191,209,.55)}80%,100%{box-shadow:0 0 0 9px rgba(0,191,209,0)}}
+
+/* títulos */
+.on-dark .h-title strong,#inicio h1 strong{background:linear-gradient(92deg,#FFFFFF 0%,#FFFFFF 40%,#9BE8F2 50%,#FFFFFF 60%,#FFFFFF 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s ease-in-out infinite}
+@keyframes shine{0%,60%{background-position:100% 0}100%{background-position:-50% 0}}
+.on-dark .badge{box-shadow:0 0 0 1px rgba(255,255,255,.4),0 10px 40px rgba(0,191,209,.35)}
+.slide.in .badge{animation:badgeIn .7s var(--ease) .5s backwards}
+@keyframes badgeIn{from{transform:skewX(-8deg) scaleX(0);transform-origin:left}}
+
+/* botões */
+.btn-primary{background:linear-gradient(135deg,#0094FF 0%,#0069FF 100%);box-shadow:0 10px 26px -6px rgba(0,105,255,.6),inset 0 1px rgba(255,255,255,.25);position:relative;overflow:hidden}
+.btn-primary::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);animation:sweep 4.5s ease-in-out infinite}
+@keyframes sweep{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+.btn-primary:hover{background:linear-gradient(135deg,#1AA0FF 0%,#0060EE 100%);box-shadow:0 14px 34px -6px rgba(0,105,255,.7),inset 0 1px rgba(255,255,255,.3)}
+.btn{transition:transform .2s var(--ease),background .15s ease,box-shadow .15s ease}
+
+/* ícones em gradiente */
+.feat .ico,.eco-node .ico,.res .ico{background:var(--grad);color:#fff;box-shadow:0 10px 20px -8px rgba(0,132,240,.65),inset 0 1px rgba(255,255,255,.3);transition:transform .3s var(--ease)}
+.feat:hover .ico,.res:hover .ico,.eco-node:hover .ico{transform:rotate(-8deg) scale(1.08)}
+.on-dark .feat .ico{background:var(--grad);color:#fff}
+
+/* painéis de vidro */
+.panel:not(.result),.res,.chart-card{background:var(--glass);border-color:rgba(140,190,255,.16);box-shadow:inset 0 1px rgba(255,255,255,.07),0 20px 50px -20px rgba(0,0,0,.5);backdrop-filter:blur(8px)}
+.result{box-shadow:inset 0 1px rgba(255,255,255,.06),0 0 60px -10px rgba(243,154,18,.25)}
+.big{text-shadow:0 0 34px rgba(243,154,18,.35)}
+.price-out .big{text-shadow:0 0 34px rgba(0,191,209,.45)}
+.res{transition:border-color .2s ease,box-shadow .2s ease}
+.res:hover{border-color:rgba(0,191,209,.5);box-shadow:inset 0 1px rgba(255,255,255,.1),0 0 40px -10px rgba(0,191,209,.45)}
+
+/* inclinação 3D com o mouse */
+.tilt{transition:transform .5s var(--ease);transform-style:preserve-3d;will-change:transform}
+.tilt.tilting{transition:transform .08s linear}
+
+/* telas do sistema em janela de aplicativo */
+.shot{padding:34px 0 0;box-shadow:0 30px 70px -24px rgba(0,105,255,.45),var(--shadow)}
+.shot::before{content:attr(data-win);position:absolute;top:0;left:0;right:0;height:34px;display:flex;align-items:center;justify-content:center;padding:0 72px;font:600 11px/1 var(--f-data);color:var(--muted);background:linear-gradient(#F8FAFD,#EDF2F8);border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shot::after{content:"";position:absolute;top:13px;left:14px;width:9px;height:9px;border-radius:50%;background:#FF5F57;box-shadow:15px 0 #FEBC2E,30px 0 #28C840}
+.shot .scan{position:absolute;left:0;right:0;top:34px;height:60px;background:linear-gradient(180deg,transparent,rgba(0,191,209,.18),transparent);pointer-events:none;animation:scan 4s ease-in-out infinite;opacity:0}
+.slide.in .shot .scan{opacity:1}
+@keyframes scan{0%{transform:translateY(-60px)}100%{transform:translateY(520px)}}
+.shot img{transition:transform .35s ease}
+.shot:hover img{transform:scale(1.015)}
+.media-glow{filter:drop-shadow(0 30px 40px rgba(0,105,255,.25))}
+
+/* ---------- capa ---------- */
+#inicio .bg{z-index:0;animation:kb 26s ease-in-out infinite alternate}
+@keyframes kb{to{transform:scale(1.08) translateX(-1.5%)}}
+#inicio::before{z-index:1}
+#net{position:absolute;inset:0;width:100%;height:100%;z-index:1;opacity:.8;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 35%,#000 70%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 35%,#000 70%)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:clamp(28px,4vw,64px);align-items:center}
+@media (max-width:1020px){.hero-grid{grid-template-columns:1fr}.live{max-width:440px}}
+#inicio h1{font-size:clamp(34px,4.9vw,68px)}
+.proof{border-top:0;padding-top:0;gap:10px}
+.proof div{padding:12px 16px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(140,190,255,.18);backdrop-filter:blur(8px)}
+.proof b{font-size:19px}
+.live{position:relative;border-radius:20px;padding:18px;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03));border:1px solid rgba(160,205,255,.22);backdrop-filter:blur(16px);box-shadow:0 40px 90px -20px rgba(0,0,0,.6),inset 0 1px rgba(255,255,255,.14);font-family:var(--f-data);animation:float 7s ease-in-out infinite}
+@keyframes float{50%{translate:0 -10px}}
+.live::before{content:"";position:absolute;inset:-1px;border-radius:21px;padding:1px;background:conic-gradient(from var(--ang),transparent 0 70%,var(--cyan) 85%,transparent 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 5s linear infinite;pointer-events:none}
+@keyframes spin{to{--ang:360deg}}
+.live-head{display:flex;align-items:center;gap:10px;font:700 12px/1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:#D5E4F7}
+.live-head time{margin-left:auto;font:600 13px/1 var(--f-data);color:var(--on-dark-muted);font-variant-numeric:tabular-nums;letter-spacing:0}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#2BE07C;box-shadow:0 0 10px #2BE07C;animation:ping 2s ease-out infinite}
+.scale{margin-top:14px;border-radius:14px;padding:14px 16px;background:#040A1C;border:1px solid rgba(0,191,209,.25);box-shadow:inset 0 0 30px rgba(0,191,209,.08)}
+.scale-top{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--on-dark-muted);text-transform:uppercase;letter-spacing:.06em}
+.scale-read{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+.scale-read b{font:700 clamp(40px,4.4vw,54px)/1 var(--f-data);color:var(--cyan);font-variant-numeric:tabular-nums;text-shadow:0 0 22px rgba(0,191,209,.55);letter-spacing:-1px}
+.scale-read span{font:600 16px/1 var(--f-data);color:var(--on-dark-muted)}
+.scale.weigh .scale-read b{animation:flick .5s steps(4)}
+@keyframes flick{50%{opacity:.55}}
+.scale-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:10px;border-top:1px dashed rgba(0,191,209,.25);font-size:13px;color:var(--on-dark-muted)}
+.scale-total b{font:800 22px/1 var(--f-display);color:#fff;font-variant-numeric:tabular-nums}
+.feed{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px;min-height:118px}
+.feed li{display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:13px;color:#D5E4F7;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.04)}
+.feed li span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed li b{font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.feed .ok{width:16px;height:16px;border-radius:50%;background:rgba(43,224,124,.16);position:relative}
+.feed .ok::after{content:"";position:absolute;left:5px;top:3px;width:4px;height:7px;border:solid #2BE07C;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.feed li.new{animation:feedIn .55s var(--ease)}
+@keyframes feedIn{from{transform:translateY(-10px);opacity:0;background:rgba(0,191,209,.25)}}
+.live-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.live-stats div{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05)}
+.live-stats small{display:block;font-size:11px;color:var(--on-dark-muted);text-transform:uppercase;letter-spacing:.06em}
+.live-stats b{font:800 18px/1.3 var(--f-display);color:#fff;font-variant-numeric:tabular-nums}
+.live-note{margin-top:10px;font-size:11px;color:var(--on-dark-muted);text-align:right}
+
+/* ---------- diagnóstico clicável ---------- */
+.pain{cursor:pointer;text-align:left;font:inherit;position:relative;transition:transform .2s var(--ease),border-color .2s,background .2s,box-shadow .2s}
+.pain:hover{transform:translateY(-3px);box-shadow:0 12px 26px -12px rgba(243,154,18,.6)}
+.pain::after{content:"";position:absolute;top:14px;right:14px;width:20px;height:20px;border-radius:50%;border:2px solid #F0C27E;background:#fff;transition:all .2s}
+.pain[aria-pressed="true"]{background:#FFE6C4;border-color:var(--loss);box-shadow:0 0 0 3px rgba(243,154,18,.18)}
+.pain[aria-pressed="true"]::after{background:var(--loss) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23081330' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/12px no-repeat;border-color:var(--loss);transform:scale(1.15)}
+.pain h3{padding-right:28px}
+.receipt li{cursor:pointer;border-radius:6px;padding:4px 6px;margin:-4px -6px;transition:background .2s}
+.receipt li:hover{background:#FFF4E8}
+.receipt li[aria-pressed="true"]{background:#FFE6C4}
+.receipt li[aria-pressed="true"] .v{color:#fff;background:#C2410C;border-radius:4px;padding:1px 6px}
+.diag{margin-top:18px;display:grid;gap:8px}
+.diag-bar{height:10px;border-radius:10px;background:#F3E3CC;overflow:hidden}
+.diag-bar i{display:block;height:100%;width:0;border-radius:10px;background:linear-gradient(90deg,#FFC061,var(--loss),#E0530C);transition:width .5s var(--ease)}
+.diag p{font:600 14px/1.4 var(--f-display);color:var(--navy)}
+.diag p b{color:#C2410C}
+.slide.in .receipt{animation:print 1.2s var(--ease) .2s backwards}
+@keyframes print{from{clip-path:inset(0 0 100% 0);transform:translateY(-24px)}}
+
+/* ---------- ecossistema com conexões animadas ---------- */
+.eco{gap:clamp(16px,3.6vw,44px)}
+.eco > .eco-node,.eco > .eco-core{z-index:1}
+.eco-node{position:relative;background:rgba(255,255,255,.92);backdrop-filter:blur(6px)}
+.eco-node .prog{position:absolute;left:12px;right:12px;bottom:8px;height:3px;border-radius:3px;background:var(--grad);transform:scaleX(0);transform-origin:left;opacity:0}
+.eco.auto .eco-node[aria-pressed="true"] .prog{opacity:1;animation:prog 3.4s linear forwards}
+@keyframes prog{to{transform:scaleX(1)}}
+.eco-lines{position:absolute;inset:0;width:100%;height:100%;z-index:0;overflow:visible;pointer-events:none}
+.eco-lines path{fill:none;stroke:rgba(65,122,188,.40);stroke-width:1.6;stroke-dasharray:4 7;animation:flow 1.8s linear infinite}
+.eco-lines path.on{stroke:#0084F0;stroke-width:2.6;stroke-dasharray:9 7;filter:drop-shadow(0 0 5px rgba(0,132,240,.7));animation-duration:.7s}
+.eco-lines circle{fill:#00BFD1;filter:drop-shadow(0 0 6px rgba(0,191,209,.9))}
+@keyframes flow{to{stroke-dashoffset:-22}}
+.eco-core{background:radial-gradient(circle at 50% 38%,#17357A 0%,var(--navy) 72%);box-shadow:0 0 0 1px rgba(0,191,209,.35),0 24px 60px -10px rgba(8,19,48,.45),0 0 70px rgba(0,132,240,.3);min-height:150px}
+.eco-core .ring{position:absolute;left:50%;top:50%;border-radius:50%;translate:-50% -50%;pointer-events:none}
+.eco-core .r1{width:130px;height:130px;border:1.5px dashed rgba(0,191,209,.5);animation:rot 22s linear infinite}
+.eco-core .r2{width:190px;height:190px;border:1.5px solid rgba(0,132,240,.25);border-top-color:var(--cyan);animation:rot 5s linear infinite}
+@keyframes rot{to{rotate:360deg}}
+.flow{background:linear-gradient(135deg,var(--navy),#10265A);box-shadow:0 20px 50px -20px rgba(8,19,48,.6)}
+.flow li{animation:stepIn .45s var(--ease) backwards;animation-delay:calc(var(--i) * 120ms)}
+@keyframes stepIn{from{opacity:0;transform:translateX(-10px)}}
+
+/* ---------- gráfico ---------- */
+.bar{background:linear-gradient(180deg,#3FC3E6 0%,#2A6FC0 100%);transform-origin:bottom}
+.bar.peak{background:linear-gradient(180deg,#FFC061,var(--loss));box-shadow:0 0 22px rgba(243,154,18,.5)}
+.slide.in .bar{animation:grow 1s var(--ease) backwards;animation-delay:calc(300ms + var(--i) * 45ms)}
+@keyframes grow{from{transform:scaleY(0)}}
+
+/* ---------- demais ---------- */
+.ficha header{background:linear-gradient(135deg,var(--navy),#14306E)}
+.ficha tbody tr{transition:background .2s}
+.ficha tbody tr:hover{background:#F2F8FF}
+.step{border-top:0;position:relative;overflow:hidden}
+.step::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--grad);transform-origin:left}
+.slide.in .step::before{animation:barIn 1s var(--ease) backwards;animation-delay:calc(400ms + var(--d,0) * 85ms)}
+@keyframes barIn{from{transform:scaleX(0)}}
+.slide.in .live.rv{animation:riseR .85s var(--ease) backwards,float 7s ease-in-out 1s infinite;animation-delay:calc(var(--d,0) * 85ms),1s}
+.step .num{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.plan.plus{border:1.5px solid transparent;background:linear-gradient(var(--navy),var(--navy)) padding-box,conic-gradient(from var(--ang),#0084F0,#00BFD1,rgba(0,132,240,.15),#0084F0) border-box;animation:spin 6s linear infinite;box-shadow:0 30px 70px -20px rgba(0,105,255,.5)}
+.slide.in .plan.plus{animation:spin 6s linear infinite,rise .85s var(--ease) backwards;animation-delay:0s,calc(var(--d,0) * 85ms)}
+.contact-card{position:relative;overflow:hidden}
+.contact-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--grad)}
+.phone-wrap{isolation:isolate}
+.phone-wrap::before{content:"";position:absolute;inset:10% 0;background:radial-gradient(closest-side,rgba(37,211,102,.25),rgba(0,132,240,.18),transparent);filter:blur(30px);z-index:-1}
+.alert{transition:transform .2s ease}
+.alert:hover{transform:translateX(4px)}
+.slide.in .alert .ico{animation:pop .5s var(--ease) backwards;animation-delay:calc(500ms + var(--d,0) * 85ms)}
+@keyframes pop{from{transform:scale(0)}60%{transform:scale(1.2)}}
+.faq details[open]{border-color:rgba(0,132,240,.4);box-shadow:0 10px 30px -14px rgba(0,105,255,.35)}
+.faq details[open] p{animation:stepIn .35s var(--ease)}
+
+/* ajustes de layout */
+.proof b span{font:inherit;color:inherit}
+.eco{grid-template-columns:minmax(0,1fr) minmax(170px,.75fr) minmax(0,1fr);grid-template-rows:repeat(3,auto)}
+.eco-core{grid-column:2;grid-row:1 / 4}
+.eco > button.eco-node:nth-of-type(-n+3){grid-column:1}
+.eco > button.eco-node:nth-of-type(n+4){grid-column:3}
+.eco > button.eco-node:nth-of-type(1),.eco > button.eco-node:nth-of-type(4){grid-row:1}
+.eco > button.eco-node:nth-of-type(2),.eco > button.eco-node:nth-of-type(5){grid-row:2}
+.eco > button.eco-node:nth-of-type(3),.eco > button.eco-node:nth-of-type(6){grid-row:3}
+@media (max-width:700px){.eco{grid-template-columns:1fr 1fr;grid-template-rows:none}.eco-core{grid-column:1 / -1;grid-row:auto;order:-1;min-height:120px}.eco > button.eco-node:nth-of-type(n){grid-column:auto;grid-row:auto}}
+.chart-scroll{padding-top:30px}
+.bar:hover,.bar:focus-visible{z-index:5}
 </style>
 
 </head>
@@ -404,7 +600,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 <!-- 1 -->
 <section class="slide on-dark" id="inicio" data-title="Início">
   <div class="bg" aria-hidden="true"></div>
-  <div class="wrap">
+  <canvas id="net" aria-hidden="true"></canvas>
+  <div class="wrap hero-grid">
+   <div class="hero-copy">
     <p class="eyebrow">Prosystem para padarias</p>
     <h1><strong>Sua padaria</strong> pode estar perdendo dinheiro <span class="badge">todos os dias</span></h1>
     <p class="lead">E você nem percebe. A falta de controle é o maior custo invisível do seu negócio. O Prosystem conecta balcão, cozinha, produção, estoque, delivery e financeiro em um só sistema, em tempo real.</p>
@@ -413,10 +611,29 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
       <a class="btn btn-ghost" href="#calculadora">Calcular minhas perdas</a>
     </div>
     <div class="proof">
-      <div><b>+16 anos</b><span>em gestão para o varejo</span></div>
+      <div><b><span id="years">+16</span> anos</b><span>em gestão para o varejo</span></div>
       <div><b>Tudo integrado</b><span>PDV, produção, estoque, iFood e financeiro</span></div>
       <div><b>Suporte humano</b><span>gente que entende de padaria</span></div>
     </div>
+   </div>
+    <aside class="live" aria-label="Demonstração ilustrativa do caixa em tempo real">
+      <div class="live-head"><span class="live-dot"></span><span>Caixa 01 · ao vivo</span><time id="liveClock">07:12</time></div>
+      <div class="scale" id="liveScale">
+        <div class="scale-top"><span>Balança integrada</span><span>126781 · Pão francês</span></div>
+        <div class="scale-read"><b id="liveKg">0,452</b><span>kg</span></div>
+        <div class="scale-total"><span>R$ 18,90 / kg</span><b id="liveVal">R$ 8,54</b></div>
+      </div>
+      <ul class="feed" id="liveFeed">
+        <li><span class="ok"></span><span>NFC-e 0004663307 autorizada</span><b>R$ 12,30</b></li>
+        <li><span class="ok"></span><span>Comanda 059 impressa na cozinha</span><b>2 itens</b></li>
+        <li><span class="ok"></span><span>Estoque · farinha de trigo</span><b>−0,600 kg</b></li>
+      </ul>
+      <div class="live-stats">
+        <div><small>Vendas hoje</small><b id="liveSales">R$ 1.393,68</b></div>
+        <div><small>Atendimentos</small><b id="liveAtt">214</b></div>
+      </div>
+      <p class="live-note">Demonstração ilustrativa</p>
+    </aside>
   </div>
 </section>
 
@@ -426,13 +643,14 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
     <div>
       <p class="eyebrow loss">O diagnóstico <b>02</b></p>
       <h2 class="h-title"><strong>Para onde</strong> está indo o seu lucro?</h2>
-      <p class="lead">Padaria fatura bem, mas a margem escorre por cinco ralos que ninguém mede. Se você se identifica com algum deles, sua margem está comprometida.</p>
+      <p class="lead">Padaria fatura bem, mas a margem escorre por ralos que ninguém mede. <strong style="color:var(--navy)">Toque no que acontece na sua padaria</strong>, nos cards e no cupom, e veja o seu diagnóstico.</p>
       <div class="pain-list">
-        <div class="pain"><h3>Quebra de caixa</h3><p>Dinheiro que some sem explicação ao fim do expediente.</p></div>
-        <div class="pain"><h3>Descontrole no peso</h3><p>Digitação manual do pão na balança: lento e sujeito a erro.</p></div>
-        <div class="pain"><h3>Perda de insumos</h3><p>Estoque que não bate e produto vencendo na prateleira.</p></div>
-        <div class="pain"><h3>Tempo perdido</h3><p>O dono preso no operacional, refém de planilhas e anotações.</p></div>
+        <button type="button" class="pain" aria-pressed="false"><h3>Quebra de caixa</h3><p>Dinheiro que some sem explicação ao fim do expediente.</p></button>
+        <button type="button" class="pain" aria-pressed="false"><h3>Descontrole no peso</h3><p>Digitação manual do pão na balança: lento e sujeito a erro.</p></button>
+        <button type="button" class="pain" aria-pressed="false"><h3>Perda de insumos</h3><p>Estoque que não bate e produto vencendo na prateleira.</p></button>
+        <button type="button" class="pain" aria-pressed="false"><h3>Tempo perdido</h3><p>O dono preso no operacional, refém de planilhas e anotações.</p></button>
       </div>
+      <div class="diag" aria-live="polite"><div class="diag-bar"><i id="diagFill"></i></div><p id="diagTxt">Nenhum problema marcado ainda.</p></div>
     </div>
     <div class="receipt" role="img" aria-label="Cupom com os cinco ralos de dinheiro da padaria tradicional">
       <header><strong>Os 5 ralos de dinheiro</strong>Padaria tradicional · cupom não fiscal</header>
@@ -491,13 +709,14 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
     <h2 class="h-title"><strong>A padaria sincronizada</strong></h2>
     <p class="lead">Um ecossistema único. O balcão conversa com a cozinha, que usa o estoque, que alimenta o financeiro. Toque em cada área para ver o que acontece automaticamente.</p>
     <div class="eco" id="eco">
-      <button class="eco-node" type="button" data-flow="Pão francês pesado na balança|Peso entra direto no PDV|NFC-e emitida em segundos|Baixa no estoque|Venda no financeiro" aria-pressed="true"><span class="ico"><svg class="icon"><use href="#i-scale"/></svg></span><b>Salão e caixa</b><small>PDV com balança e NFC-e</small></button>
-      <button class="eco-node" type="button" data-flow="Item lançado no caixa|Comanda impressa na cozinha|Preparo confirmado|Sem pedido esquecido"><span class="ico"><svg class="icon"><use href="#i-flame"/></svg></span><b>Cozinha</b><small>Comandas na impressora</small></button>
-      <button class="eco-node" type="button" data-flow="Ficha técnica registrada|Insumos debitados|Produto final creditado|Custo exato da fornada"><span class="ico"><svg class="icon"><use href="#i-gear"/></svg></span><b>Produção</b><small>Ficha técnica e custo</small></button>
-      <button class="eco-node" type="button" data-flow="Venda baixa os insumos|Lotes e validades rastreados|Alerta de reposição (curva ABC)|Compra na hora certa"><span class="ico"><svg class="icon"><use href="#i-box"/></svg></span><b>Estoque</b><small>Lotes, validades e reposição</small></button>
-      <div class="eco-core"><div><b>PROSYSTEM</b><small>tudo em tempo real</small></div></div>
-      <button class="eco-node" type="button" data-flow="Pedido chega do iFood|Entra direto no caixa|Estoque atualizado|Nota fiscal emitida"><span class="ico"><svg class="icon"><use href="#i-bike"/></svg></span><b>Delivery</b><small>iFood pela API oficial</small></button>
-      <button class="eco-node" type="button" data-flow="Caixa fechado e conferido|Relatório chega no WhatsApp|Painéis por hora e forma de pagamento|Decisão com dados"><span class="ico"><svg class="icon"><use href="#i-chart"/></svg></span><b>A mesa do dono</b><small>Financeiro e indicadores</small></button>
+      <svg class="eco-lines" id="ecoLines" aria-hidden="true"></svg>
+      <button class="eco-node" type="button" data-flow="Pão francês pesado na balança|Peso entra direto no PDV|NFC-e emitida em segundos|Baixa no estoque|Venda no financeiro" aria-pressed="true"><span class="ico"><svg class="icon"><use href="#i-scale"/></svg></span><b>Salão e caixa</b><small>PDV com balança e NFC-e</small><span class="prog"></span></button>
+      <button class="eco-node" type="button" data-flow="Item lançado no caixa|Comanda impressa na cozinha|Preparo confirmado|Sem pedido esquecido"><span class="ico"><svg class="icon"><use href="#i-flame"/></svg></span><b>Cozinha</b><small>Comandas na impressora</small><span class="prog"></span></button>
+      <button class="eco-node" type="button" data-flow="Ficha técnica registrada|Insumos debitados|Produto final creditado|Custo exato da fornada"><span class="ico"><svg class="icon"><use href="#i-gear"/></svg></span><b>Produção</b><small>Ficha técnica e custo</small><span class="prog"></span></button>
+      <button class="eco-node" type="button" data-flow="Venda baixa os insumos|Lotes e validades rastreados|Alerta de reposição (curva ABC)|Compra na hora certa"><span class="ico"><svg class="icon"><use href="#i-box"/></svg></span><b>Estoque</b><small>Lotes, validades e reposição</small><span class="prog"></span></button>
+      <div class="eco-core"><span class="ring r1"></span><span class="ring r2"></span><div><b>PROSYSTEM</b><small>tudo em tempo real</small></div></div>
+      <button class="eco-node" type="button" data-flow="Pedido chega do iFood|Entra direto no caixa|Estoque atualizado|Nota fiscal emitida"><span class="ico"><svg class="icon"><use href="#i-bike"/></svg></span><b>Delivery</b><small>iFood pela API oficial</small><span class="prog"></span></button>
+      <button class="eco-node" type="button" data-flow="Caixa fechado e conferido|Relatório chega no WhatsApp|Painéis por hora e forma de pagamento|Decisão com dados"><span class="ico"><svg class="icon"><use href="#i-chart"/></svg></span><b>A mesa do dono</b><small>Financeiro e indicadores</small><span class="prog"></span></button>
     </div>
     <div class="flow" aria-live="polite"><h4 id="flowTitle">Salão e caixa · o que acontece sozinho</h4><ol id="flowList"></ol></div>
   </div>
@@ -517,8 +736,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
       </div>
     </div>
     <div>
-      <img src="/apresentacao/padaria/img/pdv-balanca.webp" alt="PDV Prosystem integrado à balança, com pão francês sendo pesado" width="1100" height="733" loading="lazy">
-      <button class="shot" type="button" data-zoom="/apresentacao/padaria/img/tela-pdv.webp" style="margin-top:8px"><img src="/apresentacao/padaria/img/tela-pdv.webp" alt="Tela de movimentação de produtos do PDV Prosystem" width="845" height="498" loading="lazy"><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <img class="media-glow" src="/apresentacao/padaria/img/pdv-balanca.webp" alt="PDV Prosystem integrado à balança, com pão francês sendo pesado" width="1100" height="733" loading="lazy">
+      <button class="shot" type="button" data-win="Prosystem · Consulta movimentação de produtos" data-zoom="/apresentacao/padaria/img/tela-pdv.webp" style="margin-top:8px"><img src="/apresentacao/padaria/img/tela-pdv.webp" alt="Tela de movimentação de produtos do PDV Prosystem" width="845" height="498" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
     </div>
   </div>
 </section>
@@ -567,7 +786,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
         </table>
         </div>
       </div>
-      <button class="shot" type="button" data-zoom="/apresentacao/padaria/img/tela-prod.webp"><img src="/apresentacao/padaria/img/tela-prod.webp" alt="Telas de Produção e Custo e Procedimento da Receita do Prosystem" width="1314" height="377" loading="lazy"><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Produção e custo" data-zoom="/apresentacao/padaria/img/tela-prod.webp"><img src="/apresentacao/padaria/img/tela-prod.webp" alt="Telas de Produção e Custo e Procedimento da Receita do Prosystem" width="1314" height="377" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
     </div>
   </div>
 </section>
@@ -610,7 +829,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 <section class="slide light" id="estoque" data-title="Estoque e validades">
   <div class="wrap split rev">
     <div>
-      <button class="shot" type="button" data-zoom="/apresentacao/padaria/img/tela-estoque.webp"><img src="/apresentacao/padaria/img/tela-estoque.webp" alt="Tela de estoque mínimo e máximo com curva ABC do Prosystem" width="674" height="407" loading="lazy"><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Estoque mínimo / máximo" data-zoom="/apresentacao/padaria/img/tela-estoque.webp"><img src="/apresentacao/padaria/img/tela-estoque.webp" alt="Tela de estoque mínimo e máximo com curva ABC do Prosystem" width="674" height="407" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
       <p class="caption">Estoque mínimo/máximo com curva ABC e alertas de reposição.</p>
     </div>
     <div>
@@ -642,7 +861,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
       </div>
     </div>
     <div>
-      <button class="shot" type="button" data-zoom="/apresentacao/padaria/img/tela-caixa.webp"><img src="/apresentacao/padaria/img/tela-caixa.webp" alt="Tela de Fechamento e Conferência de caixa do Prosystem" width="789" height="509" loading="lazy"><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Fechamento / Conferência" data-zoom="/apresentacao/padaria/img/tela-caixa.webp"><img src="/apresentacao/padaria/img/tela-caixa.webp" alt="Tela de Fechamento e Conferência de caixa do Prosystem" width="789" height="509" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
       <p class="caption">Tela real de fechamento e conferência, com contadores de NFC-e.</p>
     </div>
   </div>
@@ -652,7 +871,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 <section class="slide light" id="delivery" data-title="Delivery iFood">
   <div class="wrap split rev">
     <div>
-      <button class="shot" type="button" data-zoom="/apresentacao/padaria/img/tela-ifood.webp"><img src="/apresentacao/padaria/img/tela-ifood.webp" alt="Painel de pedidos do iFood integrado ao Prosystem" width="595" height="321" loading="lazy"><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Painel de delivery" data-zoom="/apresentacao/padaria/img/tela-ifood.webp"><img src="/apresentacao/padaria/img/tela-ifood.webp" alt="Painel de pedidos do iFood integrado ao Prosystem" width="595" height="321" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
       <p class="caption">Painel de delivery com vendas por modalidade.</p>
     </div>
     <div>
@@ -678,7 +897,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
       <div class="kicker">Exemplo: os picos das <em>7h</em> e das <em>17h</em> pedem mais gente no caixa. O vale das <em>10h</em> e das <em>14h</em> é a hora de produzir e repor.</div>
     </div>
     <div class="chart-card">
-      <div class="chart-head"><div><b>43.358</b> <span>atendimentos no período</span></div><span>Atendimentos por hora · toque nas barras</span></div>
+      <div class="chart-head"><div><b id="chartTotal">43.358</b> <span>atendimentos no período</span></div><span>Atendimentos por hora · toque nas barras</span></div>
       <div class="chart-scroll">
         <div class="chart">
           <div class="yaxis" id="yaxis"></div>
@@ -828,7 +1047,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
   const $ = (s) => document.querySelector(s);
 
   // WhatsApp links with prefilled message
-  document.querySelectorAll(".wa-link").forEach(a => { a.href = WA + encodeURIComponent(a.dataset.msg); });
+  const diagNames = () => [...document.querySelectorAll('#perdas [aria-pressed="true"]')].map(e => e.querySelector("h3, b").textContent.trim());
+  const withDiag = (msg) => { const d = diagNames(); return d.length ? msg + "\nProblemas que marquei no diagnóstico: " + d.join(", ") + "." : msg; };
+  const refreshWa = () => document.querySelectorAll(".wa-link").forEach(a => { a.href = WA + encodeURIComponent(withDiag(a.dataset.msg)); });
+  refreshWa();
 
   // ---------- slide navigation ----------
   const slides = [...document.querySelectorAll(".slide")];
@@ -887,6 +1109,15 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
     $("#lightbox").hidden = false; $("#lightbox .close").focus();
   });
 
+
+  // ---------- números animados ----------
+  function tween(el, to, fmt, ms = 450) {
+    if (el._v === undefined || matchMedia("(prefers-reduced-motion: reduce)").matches) { el._v = to; el.textContent = fmt(to); return; }
+    const from = el._v, t0 = performance.now(); el._v = to; cancelAnimationFrame(el._raf);
+    const step = (t) => { const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(from + (to - from) * e); if (k < 1) el._raf = requestAnimationFrame(step); };
+    el._raf = requestAnimationFrame(step);
+  }
+
   // ---------- range fill ----------
   const fill = (r) => r.style.setProperty("--p", ((r.value - r.min) / (r.max - r.min)) * 100 + "%");
 
@@ -899,10 +1130,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
     $("#fatOut").textContent = brl(f);
     $("#lossOut").textContent = loss.value.replace(".", ",") + "%";
     $("#paoOut").textContent = brl(p, 2);
-    $("#lossMonth").textContent = brl(Math.round(m));
-    $("#lossYear").textContent = brl(Math.round(m * 12));
-    $("#lossPao").textContent = Math.round(m / p).toLocaleString("pt-BR") + " kg";
-    $("#recover").textContent = brl(Math.round(m * 6));
+    tween($("#lossMonth"), m, v => brl(Math.round(v)));
+    tween($("#lossYear"), m * 12, v => brl(Math.round(v)));
+    tween($("#lossPao"), m / p, v => Math.round(v).toLocaleString("pt-BR") + " kg");
+    tween($("#recover"), m * 6, v => brl(Math.round(v)));
   }
   [fat, loss, pao].forEach(r => r.addEventListener("input", calc)); calc();
 
@@ -915,13 +1146,13 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
     const achismo = (c + st) * (1 + +pm.value / 100);
     $("#pCustoOut").textContent = brl(c, 2); $("#pStOut").textContent = ps.value.replace(".", ",") + "%";
     $("#pRatOut").textContent = pr.value + "%"; $("#pMkOut").textContent = pm.value + "%";
-    $("#pFinal").textContent = brl(fin, 2);
+    tween($("#pFinal"), fin, v => brl(v, 2));
     [["#sC", c], ["#sS", st], ["#sR", ra], ["#sM", mk]].forEach(([id, v]) => { const el = $(id); el.style.flexGrow = v; el.style.flexBasis = 0; el.style.display = v > 0 ? "grid" : "none"; });
     $("#sC").textContent = c / fin > .11 ? "Custo" : ""; $("#sS").textContent = st / fin > .11 ? "ST" : "";
     $("#sR").textContent = ra / fin > .11 ? "Rateio" : ""; $("#sM").textContent = mk / fin > .11 ? "Markup" : "";
     $("#lC").textContent = brl(c, 2); $("#lS").textContent = brl(st, 2); $("#lR").textContent = brl(ra, 2); $("#lM").textContent = brl(mk, 2);
     $("#pAchismo").textContent = brl(achismo, 2);
-    $("#pGap").textContent = brl(Math.max(0, fin - achismo), 2) + " por kg";
+    tween($("#pGap"), Math.max(0, fin - achismo), v => brl(v, 2) + " por kg");
   }
   [pc, ps, pr, pm].forEach(r => r.addEventListener("input", price)); price();
 
@@ -930,9 +1161,162 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
   function showFlow(n) {
     nodes.forEach(x => x.setAttribute("aria-pressed", x === n));
     $("#flowTitle").textContent = n.querySelector("b").textContent + " · o que acontece sozinho";
-    $("#flowList").innerHTML = n.dataset.flow.split("|").map(t => `<li>${t}</li>`).join("");
+    $("#flowList").innerHTML = n.dataset.flow.split("|").map((t, i) => `<li style="--i:${i}">${t}</li>`).join("");
   }
-  nodes.forEach(n => n.onclick = () => showFlow(n)); showFlow(nodes[0]);
+  nodes.forEach(n => n.onclick = () => { stopAuto(); showFlow(n); }); showFlow(nodes[0]);
+
+
+  // ---------- números de fundo, entrada em sequência e contadores ----------
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fine = matchMedia("(pointer: fine)").matches;
+  const RV = ".eyebrow,.h-title,#inicio h1,.lead,.slide-cta,.proof > *,.live,.features > *,.pain,.diag,.receipt,.calc > *,.eco > .eco-node,.eco-core,.flow,.shot,.ficha,.price-grid > *,.ba > *,.kicker,.chart-card,.results > *,.quote-line,.steps > *,.faq details,.plan,.plan-note,.especialistas,.contact-lines > *,.contact-card,.alerts > *,.phone-wrap,img.media-glow,#cozinha img,.caption";
+  slides.forEach((s, i) => {
+    if (i) s.dataset.n = pad(i + 1);
+    [...s.querySelectorAll(RV)].forEach((el, k) => {
+      if (el.closest(".rv") && el.closest(".rv") !== el) return;
+      el.classList.add("rv"); el.style.setProperty("--d", Math.min(k, 12));
+      if (el.matches(".phone-wrap,#cozinha img,.live,.receipt")) el.classList.add("rv-r");
+    });
+    if (s.classList.contains("on-dark")) { const sp = document.createElement("div"); sp.className = "spot"; s.insertBefore(sp, s.firstChild.nextSibling); }
+  });
+  const onEnter = {
+    calculadora: () => { ["#lossMonth", "#lossYear", "#lossPao", "#recover"].forEach(id => $(id)._v = 0); calc(); },
+    precificacao: () => { ["#pFinal", "#pGap"].forEach(id => $(id)._v = 0); price(); },
+    dados: () => { const el = $("#chartTotal"); el._v = 0; tween(el, 43358, v => Math.round(v).toLocaleString("pt-BR"), 1400); },
+    inicio: () => { const el = $("#years"); el._v = 0; tween(el, 16, v => "+" + Math.round(v), 1200); },
+    ecossistema: () => startAuto()
+  };
+  const seen = new IntersectionObserver((es) => es.forEach(e => {
+    if (!e.isIntersecting) { if (e.target.id === "ecossistema") stopAuto(true); return; }
+    const s = e.target, first = !s.classList.contains("in");
+    s.classList.add("in");
+    if (onEnter[s.id] && (first || s.id === "ecossistema")) onEnter[s.id]();
+  }), { threshold: .18 });
+  slides.forEach(s => seen.observe(s));
+
+  // luz que segue o cursor nos slides escuros
+  if (fine && !reduce) document.querySelectorAll(".on-dark").forEach(s => s.addEventListener("pointermove", (e) => {
+    const r = s.getBoundingClientRect(); s.style.setProperty("--mx", e.clientX - r.left + "px"); s.style.setProperty("--my", e.clientY - r.top + "px");
+  }));
+
+  // inclinação 3D
+  if (fine && !reduce) document.querySelectorAll(".shot,.plan,.live,.res,.step,.ficha,.receipt,.contact-card,.chart-card,.phone-wrap img").forEach(el => {
+    el.classList.add("tilt");
+    el.addEventListener("pointermove", (e) => {
+      const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+      el.classList.add("tilting"); el.style.transform = `perspective(1000px) rotateX(${(-y * 7).toFixed(2)}deg) rotateY(${(x * 9).toFixed(2)}deg) translateZ(0)`;
+    });
+    el.addEventListener("pointerleave", () => { el.classList.remove("tilting"); el.style.transform = ""; });
+  });
+
+  // botões magnéticos
+  if (fine && !reduce) document.querySelectorAll(".btn-primary,.btn-wa").forEach(b => {
+    b.addEventListener("pointermove", (e) => { const r = b.getBoundingClientRect(); b.style.transform = `translate(${((e.clientX - r.left) / r.width - .5) * 10}px, ${((e.clientY - r.top) / r.height - .5) * 8}px)`; });
+    b.addEventListener("pointerleave", () => { b.style.transform = ""; });
+  });
+
+  // ---------- diagnóstico clicável ----------
+  const receiptItems = [...document.querySelectorAll(".receipt li")];
+  receiptItems.forEach(li => {
+    li.setAttribute("role", "button"); li.tabIndex = 0; li.setAttribute("aria-pressed", "false");
+    li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); li.click(); } });
+  });
+  const diagEls = [...document.querySelectorAll(".pain"), ...receiptItems];
+  const receiptRole = document.querySelector(".receipt"); receiptRole.removeAttribute("role"); receiptRole.removeAttribute("aria-label");
+  function updateDiag() {
+    const n = diagEls.filter(e => e.getAttribute("aria-pressed") === "true").length, total = diagEls.length;
+    $("#diagFill").style.width = (n / total) * 100 + "%";
+    $("#diagTxt").innerHTML = n === 0 ? "Nenhum problema marcado ainda."
+      : `<b>${n} de ${total}</b> ralos abertos na sua padaria. ` + (n >= 6 ? "Sua margem está em risco alto." : n >= 3 ? "Tem dinheiro escorrendo todo mês." : "Já vale medir quanto isso custa.");
+    receiptItems.forEach(li => { li.querySelector(".v").textContent = li.getAttribute("aria-pressed") === "true" ? "acontece aqui" : "− R$ ???"; });
+    refreshWa(); buildLead();
+  }
+  diagEls.forEach(el => el.addEventListener("click", () => { el.setAttribute("aria-pressed", el.getAttribute("aria-pressed") !== "true"); updateDiag(); }));
+
+  // ---------- capa: rede de dados + caixa ao vivo ----------
+  const hero = $("#inicio"); let heroOn = true;
+  const cv = $("#net"), ctx = cv.getContext("2d"); let W = 0, H = 0, pts = [], raf = 0, mouse = { x: -999, y: -999 };
+  hero.addEventListener("pointermove", (e) => { const r = hero.getBoundingClientRect(); mouse = { x: e.clientX - r.left, y: e.clientY - r.top }; });
+  hero.addEventListener("pointerleave", () => { mouse = { x: -999, y: -999 }; });
+  function sizeNet() {
+    const r = hero.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
+    W = r.width; H = r.height; cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0);
+    const n = Math.round(Math.min(90, (W * H) / 15000));
+    pts = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, p: Math.random() * 6.28 }));
+    draw();
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      for (let j = i + 1; j < pts.length; j++) {
+        const b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < 140) { ctx.strokeStyle = `rgba(0,191,209,${(1 - d / 140) * .38})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      }
+      const dm = Math.hypot(a.x - mouse.x, a.y - mouse.y);
+      if (dm < 200) { ctx.strokeStyle = `rgba(0,132,240,${(1 - dm / 200) * .8})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); }
+    }
+    for (const a of pts) {
+      const g = .55 + Math.sin(a.p) * .45;
+      ctx.fillStyle = `rgba(120,220,240,${.5 + g * .5})`; ctx.beginPath(); ctx.arc(a.x, a.y, 1.4 + g * 1.2, 0, 6.28); ctx.fill();
+    }
+  }
+  function loop() {
+    cancelAnimationFrame(raf);
+    const step = () => {
+      if (!heroOn || document.hidden) return;
+      for (const a of pts) { a.x += a.vx; a.y += a.vy; a.p += .03; if (a.x < 0 || a.x > W) a.vx *= -1; if (a.y < 0 || a.y > H) a.vy *= -1; }
+      draw(); raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+  new IntersectionObserver(([e]) => { heroOn = e.isIntersecting; if (heroOn && !reduce) loop(); }).observe(hero);
+  sizeNet(); addEventListener("resize", sizeNet);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && heroOn && !reduce) loop(); });
+
+  let sales = 1393.68, att = 214, nf = 4663307, mins = 7 * 60 + 12;
+  const feed = $("#liveFeed"), scaleBox = $("#liveScale");
+  function tick() {
+    const kg = .15 + Math.random() * .75, v = kg * 18.9;
+    att++; nf++; mins += 1 + Math.floor(Math.random() * 2);
+    scaleBox.classList.remove("weigh"); void scaleBox.offsetWidth; scaleBox.classList.add("weigh");
+    tween($("#liveKg"), kg, x => x.toFixed(3).replace(".", ","), 600);
+    tween($("#liveVal"), v, x => brl(x, 2), 600);
+    sales += v; tween($("#liveSales"), sales, x => brl(x, 2), 800);
+    $("#liveAtt").textContent = att;
+    $("#liveClock").textContent = pad(Math.floor(mins / 60) % 24) + ":" + pad(mins % 60);
+    const kgTxt = kg.toFixed(3).replace(".", ",");
+    const opts = [[`NFC-e ${String(nf).padStart(10, "0")} autorizada`, brl(v, 2)], ["Estoque · pão francês", `−${kgTxt} kg`], [`Comanda ${String(60 + (att % 40)).padStart(3, "0")} impressa na cozinha`, "1 item"]];
+    const [a, b] = opts[Math.random() < .55 ? 0 : Math.random() < .5 ? 1 : 2];
+    const li = document.createElement("li"); li.className = "new";
+    li.innerHTML = `<span class="ok"></span><span>${a}</span><b>${b}</b>`;
+    feed.prepend(li); while (feed.children.length > 3) feed.lastElementChild.remove();
+  }
+  ["#liveKg", "#liveVal", "#liveSales"].forEach(id => $(id)._v = parseFloat($(id).textContent.replace(/[^\d,]/g, "").replace(/\./g, "").replace(",", ".")));
+  if (!reduce) setInterval(() => { if (heroOn && !document.hidden) tick(); }, 2400);
+
+  // ---------- ecossistema: conexões e demonstração automática ----------
+  const eco = $("#eco"), lines = $("#ecoLines"), core = eco.querySelector(".eco-core");
+  let autoT = 0, userTook = false;
+  function drawLines() {
+    const r = eco.getBoundingClientRect(), c = core.getBoundingClientRect();
+    const cx = c.left - r.left + c.width / 2, cy = c.top - r.top + c.height / 2;
+    lines.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
+    lines.innerHTML = nodes.map(n => {
+      const b = n.getBoundingClientRect(), x = b.left - r.left + b.width / 2, y = b.top - r.top + b.height / 2;
+      const on = n.getAttribute("aria-pressed") === "true", d = `M${cx.toFixed(1)} ${cy.toFixed(1)} L${x.toFixed(1)} ${y.toFixed(1)}`;
+      return `<path class="${on ? "on" : ""}" d="${d}"/>` + (on && !reduce ? `<circle r="4.5"><animateMotion dur="1.3s" repeatCount="indefinite" path="${d}"/></circle>` : "");
+    }).join("");
+  }
+  function startAuto() {
+    if (userTook || reduce || autoT) return;
+    eco.classList.add("auto");
+    autoT = setInterval(() => { const i = nodes.findIndex(n => n.getAttribute("aria-pressed") === "true"); showFlow(nodes[(i + 1) % nodes.length]); drawLines(); }, 3400);
+  }
+  function stopAuto(pause) { clearInterval(autoT); autoT = 0; eco.classList.remove("auto"); if (!pause) userTook = true; }
+  nodes.forEach(n => n.addEventListener("click", drawLines));
+  addEventListener("resize", drawLines); drawLines();
+  document.fonts && document.fonts.ready.then(() => { drawLines(); sizeNet(); });
 
   // ---------- chart ----------
   const hours = ["05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"];
@@ -946,7 +1330,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
   vals.forEach((v, i) => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "bar" + (v >= 4400 ? " peak" : "");
-    b.style.height = (v / MAX) * 100 + "%";
+    b.style.height = (v / MAX) * 100 + "%"; b.style.setProperty("--i", i);
     b.setAttribute("aria-label", `${hours[i]}h: ${v.toLocaleString("pt-BR")} atendimentos`);
     b.innerHTML = `<span class="tip">${hours[i]}h · ${v.toLocaleString("pt-BR")}</span>`;
     plot.appendChild(b);
@@ -963,6 +1347,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
     if (v("#fCidade")) lines.push("Cidade: " + v("#fCidade"));
     lines.push("Caixas (PDVs): " + v("#fCaixas"));
     lines.push("Interesse: " + v("#fPlano"));
+    const d = diagNames(); if (d.length) lines.push("Problemas que marquei no diagnóstico: " + d.join(", "));
     send.href = WA + encodeURIComponent(lines.join("\n"));
   }
   form.addEventListener("input", buildLead); form.addEventListener("change", buildLead);

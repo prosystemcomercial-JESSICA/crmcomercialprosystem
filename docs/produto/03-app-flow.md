@@ -1141,3 +1141,7 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Página estática "Prosystem para Padarias" (entregue pela Jessica, `apresentacao-padaria.zip`) publicada em **https://comercial.prosystemnet.com/apresentacao/padaria** (`frontend/public/apresentacao/padaria/`, reescrita curta em `next.config.ts`: `/apresentacao/:nome` → `/apresentacao/:nome/index.html`). Endereço provisório "SEU-SUBDOMINIO" trocado pelo real; imagem de prévia do link (`img/og.jpg`, 1200×630, recortada da foto principal); caminhos das imagens absolutos.
 - A página não grava dados: o formulário só monta a mensagem para o WhatsApp da empresa.
 - WhatsApp do CRM: bloco **Apresentação** no painel lateral da conversa (`components/whatsapp/EnviarApresentacaoWpp.tsx`), abaixo do Enviar proposta: "Enviar apresentação · Padarias" abre a mensagem pronta (com o primeiro nome do contato) para ajustar e enviar; "ver" abre a página. A do segmento do contato aparece primeiro. Nova apresentação: pasta em `public/apresentacao/<nome>/` + item na lista do componente.
+
+### Atualização 05/10/2026: apresentação de padaria definitiva
+
+- `frontend/public/apresentacao/padaria/index.html` trocado pela versão definitiva enviada pela Jessica (mesmo link e mesmas imagens; mesmos ajustes de endereço real, imagem de prévia e caminhos absolutos).
