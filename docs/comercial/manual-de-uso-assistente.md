@@ -942,3 +942,7 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Quadro:** cartões mais limpos, filtros Meus / Virada esta semana / Esperando cliente, Finalizado e Cancelados recolhidos.
 - **Card:** linha de marcos no topo e, no celular, Ligar, WhatsApp e Play fixos no rodapé.
 - **Sino:** novidades agrupadas por card e escolha do que chega também no WhatsApp.
+
+### Atualização 05/10/2026: arquivos dos clientes no backup
+
+- Os arquivos que os clientes enviam pelo portal (certificado, XMLs, listas) entram em todos os backups do servidor e seguem para o computador e o MEGA. Se a cópia falhar, a gestão é avisada no WhatsApp.
