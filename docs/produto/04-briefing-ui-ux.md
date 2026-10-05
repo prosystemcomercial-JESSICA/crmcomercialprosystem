@@ -1120,3 +1120,10 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Demais imagens recomprimidas (só onde ficou 15% menor ou mais); imagens que o celular baixa: de 835 KB para 523 KB.
 - Fontes do Google carregadas sem bloquear a primeira exibição (preload + troca para stylesheet).
 - Cache de 7 dias para `/apresentacao/:nome/img/*` em `next.config.ts` (antes: no-cache a cada visita). Ao trocar uma imagem por outra com o mesmo nome, quem já abriu pode ver a antiga por até 7 dias: prefira um nome novo.
+
+### Atualização 05/10/2026: apresentações de farmácia e do sistema
+
+- Publicadas a partir da pasta enviada pela Jessica (`nova pasta 2`): **/apresentacao/farmacia** ("Prosystem para o seu Varejo", apresentação em slides), o PDF em **/apresentacao/farmacia/apresentacao-prosystem.pdf** e **/apresentacao/sistema** ("Prosystem Gestão Inteligente", a mesma página do artifact enviado).
+- Otimização na publicação: imagens embutidas em base64 extraídas para arquivos WebP (repetidas viram uma só), carregamento sob demanda, fontes sem bloqueio e prévia do link (Open Graph com a tela do Painel de Indicadores). Farmácia: de 470 KB para 60 KB de página + 31 KB de imagens; sistema: de 229 KB para 67 KB + 24 KB. Cache de 7 dias das imagens (regra já existente).
+- As páginas não coletam dados (a calculadora de ganho é só simulação; o contato é pelos botões do WhatsApp da empresa).
+- Botão no WhatsApp do CRM (bloco Apresentação): Farmácias, Farmácias (PDF) e Varejo (sistema), além de Padarias; a do segmento do contato aparece primeiro.

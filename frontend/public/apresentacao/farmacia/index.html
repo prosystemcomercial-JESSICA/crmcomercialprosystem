@@ -1,0 +1,863 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Prosystem para o seu Varejo</title>
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="Prosystem">
+<meta property="og:title" content="Prosystem para a sua farmácia">
+<meta property="og:description" content="Um sistema completo para vender mais, perder menos e manter o fiscal em dia. Veja a apresentação.">
+<meta property="og:url" content="https://comercial.prosystemnet.com/apresentacao/farmacia">
+<meta property="og:image" content="https://comercial.prosystemnet.com/apresentacao/farmacia/img/144a254c4e.webp">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Poppins:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Poppins:wght@400;500;600&display=swap"></noscript>
+<style>
+/* Layout: 16:9 slide canvas (1280x720) scaled to the viewport, vertical snap between slides;
+   navy "statement" slides alternate with white "proof" slides; the play triangle from the logo is the recurring mark.
+   Single brand look by choice (Prosystem identity), every color set explicitly. */
+:root{
+  --navy:#081330; --navy-2:#0F2252; --blue:#417ABC; --electric:#0084F0; --cyan:#00BFD1;
+  --orange:#FF7A1A; --ice:#EEF4FB; --ice-2:#DCE8F6; --ink:#121B2E; --mute:#55657F; --line:#D4DFEC;
+  --white:#FFFFFF; --green:#16A35A; --red:#E0453A;
+  --on-dark-mute:#A9BBD6;
+  --display:"Montserrat","Segoe UI",Arial,sans-serif;
+  --body:"Poppins","Segoe UI",Arial,sans-serif;
+  --s:.75;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{margin:0;background:#050C20;color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;overflow:hidden}
+*{box-sizing:border-box}
+h1,h2,h3,h4,p{margin:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- deck & scaling ---------- */
+.deck{height:100%;overflow-y:auto;scroll-snap-type:y mandatory;display:flex;flex-direction:column;align-items:center;gap:28px;padding-block:24px;padding-inline:16px;scroll-behavior:smooth}
+.wrap{flex:none;width:calc(1280px * var(--s));height:calc(720px * var(--s));scroll-snap-align:center;border-radius:calc(14px * var(--s));overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.slide{position:relative;width:1280px;height:720px;transform:scale(var(--s));transform-origin:0 0;overflow:hidden;padding:60px 72px 56px;display:flex;flex-direction:column}
+.progress{position:fixed;top:env(safe-area-inset-top,0px);left:0;height:3px;width:0;background:linear-gradient(90deg,var(--blue),var(--cyan));z-index:10;transition:width .3s}
+.nav{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;z-index:10;background:rgba(8,19,48,.82);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);padding:6px;border-radius:999px;color:#fff;font:600 13px var(--display)}
+.nav button{all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff}
+.nav button:hover{background:rgba(255,255,255,.12)}
+.nav button:focus-visible{outline:2px solid var(--cyan)}
+.nav .count{min-width:58px;text-align:center}
+
+/* ---------- slide themes ---------- */
+.s-dark{background:var(--navy);color:#fff}
+.s-dark::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 420px at 88% 18%,rgba(0,191,209,.22),transparent 70%),radial-gradient(700px 500px at 5% 110%,rgba(65,122,188,.35),transparent 70%);pointer-events:none}
+.s-light{background:var(--white);color:var(--ink)}
+.s-ice{background:var(--ice);color:var(--ink)}
+.slide>*{position:relative}
+
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px}
+.logo{height:30px;width:auto;display:block;align-self:flex-start;flex:none}
+.pg{font:600 13px var(--display);letter-spacing:.12em;color:var(--mute)}
+.s-dark .pg{color:var(--on-dark-mute)}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font:700 13px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--blue)}
+.s-dark .eyebrow{color:var(--cyan)}
+.eyebrow::before{content:"";width:11px;height:12px;background:currentColor;clip-path:polygon(0 0,100% 50%,0 100%)}
+h2{font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.01em;margin-top:12px;color:var(--navy)}
+.s-dark h2{color:#fff}
+h2 em,h1 em{font-style:normal;color:var(--blue)}
+.s-dark h2 em,.s-dark h1 em{color:var(--cyan)}
+.lead{font-size:18px;line-height:1.55;color:var(--mute);margin-top:14px;max-width:62ch}
+.s-dark .lead{color:var(--on-dark-mute)}
+.chip{display:inline-flex;align-items:center;gap:6px;font:700 11px var(--display);letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:var(--ice-2);color:var(--navy)}
+.chip.plus{background:var(--orange);color:#fff}
+.s-dark .chip{background:rgba(255,255,255,.1);color:#fff}
+.s-dark .chip.plus{background:var(--orange)}
+.note{font-size:12.5px;color:var(--mute);line-height:1.5}
+.s-dark .note{color:var(--on-dark-mute)}
+
+/* ---------- 1 cover ---------- */
+.cover{padding:56px 72px}
+.cover .tri{position:absolute;right:-90px;top:70px;width:620px;height:620px;opacity:.9}
+.cover h1{font-size:76px;line-height:1.02;font-weight:900;letter-spacing:-.02em;max-width:760px;margin-top:22px}
+.cover .lead{font-size:21px;max-width:600px;margin-top:22px}
+.stats{display:grid;grid-template-columns:repeat(4,auto);gap:44px;margin-top:auto;padding-top:28px;border-top:1px solid rgba(255,255,255,.14);justify-content:start}
+.stat b{display:block;font:800 40px/1 var(--display);color:#fff}
+.stat span{display:block;font-size:13.5px;color:var(--on-dark-mute);margin-top:8px;max-width:170px;line-height:1.35}
+
+/* ---------- 2 leaks ---------- */
+.leaks{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
+.leak{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:8px}
+.leak .tag{font:700 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
+.leak h3{font-size:19px;line-height:1.25;font-weight:700;color:var(--navy)}
+.leak p{font-size:14px;line-height:1.5;color:var(--mute)}
+.band{margin-top:auto;background:var(--navy);color:#fff;border-radius:12px;padding:16px 22px;font:600 17px/1.4 var(--display);display:flex;align-items:center;gap:14px}
+.band .play{flex:none;width:30px;height:30px;border-radius:50%;background:var(--orange);display:grid;place-items:center}
+.band .play::after{content:"";width:9px;height:10px;background:#fff;clip-path:polygon(0 0,100% 50%,0 100%);margin-left:2px}
+
+/* ---------- 3 ecosystem ---------- */
+.eco{display:grid;grid-template-columns:1.05fr 1fr;gap:56px;margin-top:6px;flex:1;min-height:0}
+.mods{display:grid;gap:10px;margin-top:22px}
+.mod{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.12)}
+.mod b{font:700 16px var(--display);color:#fff}
+.mod span{font-size:14.5px;color:var(--on-dark-mute);line-height:1.45}
+.agenda{align-self:center;display:grid;gap:12px}
+.ag{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 18px}
+.ag .n{font:800 26px var(--display);color:var(--cyan)}
+.ag b{font:700 19px var(--display);display:block}
+.ag small{display:block;font-size:13px;color:var(--on-dark-mute);margin-top:2px}
+.ag i{font-style:normal;font:600 12px var(--display);color:var(--on-dark-mute);letter-spacing:.08em}
+
+/* ---------- shared two-col ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:48px;flex:1;min-height:0;align-items:start}
+.two.wide-l{grid-template-columns:1.15fr .85fr}
+.feats{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px;margin-top:26px}
+.feat h4{font:700 17px var(--display);color:var(--navy);display:flex;align-items:center;gap:8px}
+.s-dark .feat h4{color:#fff}
+.feat h4::before{content:"";flex:none;width:8px;height:9px;background:var(--blue);clip-path:polygon(0 0,100% 50%,0 100%)}
+.s-dark .feat h4::before{background:var(--cyan)}
+.feat p{font-size:14px;line-height:1.5;color:var(--mute);margin-top:6px}
+.s-dark .feat p{color:var(--on-dark-mute)}
+.list{display:grid;gap:18px;margin-top:24px}
+
+/* mock windows */
+.win{background:#fff;border-radius:12px;border:1px solid var(--line);box-shadow:0 24px 50px rgba(8,19,48,.16);overflow:hidden;font-family:"Segoe UI",Arial,sans-serif}
+.win .bar{background:var(--blue);color:#fff;font:600 12px var(--display);letter-spacing:.06em;padding:9px 14px;display:flex;justify-content:space-between}
+.win .body{padding:16px}
+.alert{border:2px solid var(--blue);border-radius:8px;padding:14px 16px;background:#F5F9FE;font-family:Consolas,"Courier New",monospace;color:#1739A6;font-size:14px;line-height:1.55}
+.alert b{color:var(--navy)}
+.btnrow{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+.btn{font:700 13px var(--display);padding:9px 14px;border-radius:8px;background:var(--ice-2);color:var(--navy)}
+.btn.go{background:var(--green);color:#fff}
+.caption{font-size:12.5px;color:var(--mute);margin-top:12px;line-height:1.45}
+.s-dark .caption{color:var(--on-dark-mute)}
+
+/* ---------- 5 loyalty ---------- */
+.bigs{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}
+.big{border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:22px 24px;background:rgba(255,255,255,.04)}
+.big b{display:block;font:900 58px/1 var(--display);color:var(--orange);letter-spacing:-.02em}
+.big h4{font:700 18px var(--display);margin-top:10px}
+.big p{font-size:13.5px;color:var(--on-dark-mute);margin-top:6px;line-height:1.45}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:auto}
+.step{position:relative;padding:16px 26px 16px 18px;background:rgba(255,255,255,.07);border-top:3px solid var(--cyan)}
+.step+.step{margin-left:6px}
+.step b{font:700 15.5px var(--display);display:block}
+.step span{font-size:13px;color:var(--on-dark-mute);line-height:1.4;display:block;margin-top:4px}
+.step.last{background:var(--orange);border-top-color:var(--orange)}
+.step.last span{color:#fff}
+
+/* ---------- 6 lots ---------- */
+.pdv{width:100%;border-collapse:collapse;font-size:14px}
+.pdv th{font:600 11px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.pdv td{padding:11px 10px;border-bottom:1px solid #EDF2F8;color:var(--ink)}
+.pdv td.r,.pdv th.r{text-align:right}
+.pdv tr.m td{background:var(--orange);color:#fff;font-weight:600;border-bottom-color:var(--orange)}
+.pdv .mk{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:4px;background:#fff;color:var(--orange);font:800 12px var(--display);margin-right:8px}
+.block{display:flex;gap:12px;align-items:center;margin-top:14px;border:1.5px solid var(--red);background:#FFF4F3;border-radius:10px;padding:12px 14px}
+.block .x{flex:none;width:28px;height:28px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font:800 15px var(--display)}
+.block b{font:700 14px var(--display);color:var(--ink);display:block}
+.block span{font-size:12.5px;color:var(--mute)}
+.trip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+.trip div{border-top:2px solid var(--blue);padding-top:10px}
+.trip b{font:700 14px var(--display);color:var(--navy);display:block}
+.trip span{font-size:12.5px;color:var(--mute);line-height:1.4}
+
+/* ---------- 7 margin table ---------- */
+.act{width:100%;border-collapse:separate;border-spacing:0;font-size:14.5px;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.act th{background:var(--navy);color:#fff;font:700 12px var(--display);letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:13px 16px}
+.act td{padding:14px 16px;border-top:1px solid var(--line);vertical-align:top;line-height:1.4}
+.act td:first-child{color:var(--mute);width:48%}
+.act td:last-child{font-weight:600;color:var(--navy)}
+.reasons{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
+/* ---------- 8 buying flow ---------- */
+.chain{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:30px}
+.link{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;position:relative}
+.link .n{font:800 13px var(--display);color:var(--blue);letter-spacing:.1em}
+.link b{display:block;font:700 16px/1.25 var(--display);color:var(--navy);margin-top:6px}
+.link span{display:block;font-size:12.5px;color:var(--mute);margin-top:6px;line-height:1.4}
+.link:not(:last-child)::after{content:"";position:absolute;right:-9px;top:50%;width:8px;height:10px;transform:translateY(-50%);background:var(--blue);clip-path:polygon(0 0,100% 50%,0 100%);z-index:1}
+.link.hot{background:var(--navy);border-color:var(--navy)}
+.link.hot b{color:#fff}.link.hot span{color:var(--on-dark-mute)}.link.hot .n{color:var(--cyan)}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:auto}
+.three h4{font:700 17px var(--display);color:var(--navy)}
+.three p{font-size:14px;color:var(--mute);line-height:1.5;margin-top:6px}
+.dist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
+/* ---------- 9 notes ---------- */
+.pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:26px}
+.pipe div{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px 16px}
+.pipe .n{font:800 12px var(--display);color:var(--cyan);letter-spacing:.12em}
+.pipe b{display:block;font:700 17px var(--display);margin-top:4px}
+.pipe span{display:block;font-size:12.5px;color:var(--on-dark-mute);margin-top:4px;line-height:1.4}
+.fork{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.path{border-radius:14px;padding:18px 20px}
+.path.ok{background:rgba(22,163,90,.16);border:1px solid rgba(22,163,90,.55)}
+.path.chk{background:rgba(255,122,26,.13);border:1px solid rgba(255,122,26,.55)}
+.path .lbl{font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase}
+.path.ok .lbl{color:#4BDB8F}.path.chk .lbl{color:#FFA463}
+.path p{font-size:14.5px;line-height:1.5;margin-top:6px;color:#E6EEF9}
+.quote{margin-top:auto;font:700 23px/1.35 var(--display);max-width:900px}
+.quote span{color:var(--cyan)}
+
+/* ---------- 10 fiscal ---------- */
+.loop{position:relative;width:300px;height:300px;margin:0 auto}
+.loop svg{position:absolute;inset:0;width:100%;height:100%}
+.loop .core{position:absolute;inset:92px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;text-align:center;box-shadow:0 0 0 12px rgba(255,122,26,.15)}
+.loop .core b{font:900 44px/1 var(--display);display:block}
+.loop .core span{font:700 12px var(--display);letter-spacing:.08em;text-transform:uppercase}
+
+/* ---------- 11 finance ---------- */
+.stages{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}
+.stage{border-radius:16px;padding:22px 24px;background:var(--ice);display:flex;flex-direction:column}
+.stage .n{font:800 12px var(--display);letter-spacing:.14em;color:var(--blue);text-transform:uppercase}
+.stage h3{font-size:24px;font-weight:800;color:var(--navy);margin-top:6px}
+.stage ul{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:10px}
+.stage li{font-size:14px;line-height:1.45;color:var(--mute)}
+.stage li b{color:var(--ink);font-weight:600}
+.stage.fin{background:var(--navy)}
+.stage.fin h3{color:#fff}.stage.fin li{color:var(--on-dark-mute)}.stage.fin li b{color:#fff}.stage.fin .n{color:var(--cyan)}
+.formula{margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:18px;font:700 18px var(--display);color:var(--navy)}
+.frac{display:inline-grid;text-align:center;font-size:15px}
+.frac span:first-child{border-bottom:2px solid var(--navy);padding:0 8px 3px}
+.frac span:last-child{padding-top:3px}
+.formula .eq{color:var(--orange);font-size:24px}
+.formula .say{font:500 15px var(--body);color:var(--mute);margin-left:10px}
+
+/* ---------- 12 dashboard ---------- */
+.shot{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.2);box-shadow:0 30px 60px rgba(0,0,0,.4);background:#fff}
+.shot img{display:block;width:100%;height:auto}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+.tab h4{font:700 15px var(--display);color:var(--cyan);text-transform:uppercase;letter-spacing:.1em}
+.tab p{font-size:13.5px;color:var(--on-dark-mute);line-height:1.5;margin-top:6px}
+
+/* ---------- 13 whatsapp ---------- */
+.phone{width:290px;margin:0 auto;border-radius:34px;background:#0B1220;padding:12px;box-shadow:0 30px 60px rgba(8,19,48,.3)}
+.screen{border-radius:24px;background:#E8DED3;overflow:hidden}
+.wa-top{background:#075E54;color:#fff;padding:12px 14px;font:600 13px var(--body);display:flex;align-items:center;gap:10px}
+.wa-top i{width:28px;height:28px;border-radius:50%;background:var(--blue);display:grid;place-items:center;font-style:normal}
+.wa-top i::after{content:"";width:8px;height:9px;background:#fff;clip-path:polygon(0 0,100% 50%,0 100%);margin-left:2px}
+.msgs{padding:14px 12px 18px;display:grid;gap:8px}
+.msg{background:#DCF8C6;border-radius:10px;padding:10px 12px;font-family:Consolas,"Courier New",monospace;font-size:11.5px;line-height:1.5;color:#1B2B1B;max-width:92%;justify-self:end}
+.msg b{font-weight:700}
+.msg .t{display:block;text-align:right;font-family:var(--body);font-size:10px;color:#5E7A5E;margin-top:4px}
+
+/* ---------- 14 integrations ---------- */
+.ints{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
+.grp{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+.grp h3{font-size:19px;color:var(--navy);font-weight:800}
+.grp p.sub{font-size:13px;color:var(--mute);margin-top:4px;margin-bottom:6px}
+.partner{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid #EDF2F8}
+.partner:last-child{border-bottom:0}
+.partner b{font:700 16px var(--display);color:var(--ink)}
+.partner span{font-size:12.5px;color:var(--mute);text-align:right}
+
+/* ---------- 15 before/after ---------- */
+.ba{width:100%;border-collapse:collapse;margin-top:24px;font-size:15px}
+.ba th{font:700 12px var(--display);letter-spacing:.12em;text-transform:uppercase;text-align:left;padding:10px 16px;color:var(--on-dark-mute)}
+.ba th.pro{color:var(--cyan)}
+.ba td{padding:12px 16px;border-top:1px solid rgba(255,255,255,.1);line-height:1.4}
+.ba td:first-child{font:700 15px var(--display);color:#fff;width:180px}
+.ba td.old{color:#8C9BB4;text-decoration:line-through;text-decoration-color:rgba(224,69,58,.6)}
+.ba td.new{color:#fff;background:rgba(0,191,209,.08)}
+
+/* ---------- 16 calculator ---------- */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;flex:1;min-height:0}
+.field{display:grid;gap:8px;margin-bottom:20px}
+.field label{font:700 14px var(--display);color:var(--navy);display:flex;justify-content:space-between;gap:12px}
+.field label output{color:var(--blue);flex:none}
+.field input[type=range]{width:100%;accent-color:var(--blue)}
+.money{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;background:#fff;padding:0 14px}
+.money span{font:700 16px var(--display);color:var(--mute)}
+.money input{all:unset;flex:1;min-width:0;font:700 22px var(--display);color:var(--navy);padding:11px 10px}
+.money:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(65,122,188,.2)}
+.field small{font-size:12.5px;color:var(--mute);line-height:1.4}
+.result{background:var(--navy);color:#fff;border-radius:18px;padding:28px 30px;display:flex;flex-direction:column}
+.result .k{font:700 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+.result .total{font:900 60px/1.05 var(--display);margin-top:10px;letter-spacing:-.02em}
+.result .per{font-size:15px;color:var(--on-dark-mute);margin-top:6px}
+.result .rows{margin-top:auto;display:grid;gap:10px;border-top:1px solid rgba(255,255,255,.14);padding-top:16px}
+.result .row{display:flex;justify-content:space-between;font-size:14.5px;color:var(--on-dark-mute)}
+.result .row b{color:#fff;font-family:var(--display)}
+
+/* ---------- 17 why ---------- */
+.why{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:30px}
+.w{border-top:2px solid var(--cyan);padding-top:16px}
+.w b{display:block;font:900 46px/1 var(--display)}
+.w h4{font:700 17px var(--display);margin-top:10px}
+.w p{font-size:13.5px;color:var(--on-dark-mute);line-height:1.5;margin-top:6px}
+.segs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:auto}
+.seg{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:16px 18px}
+.seg b{font:700 16px var(--display);display:block}
+.seg span{font-size:13px;color:var(--on-dark-mute);line-height:1.45;display:block;margin-top:6px}
+
+/* ---------- 18 CTA ---------- */
+.cta{background:linear-gradient(135deg,#0B1D4A 0%,#123A80 55%,#0E6FA8 100%);color:#fff}
+.cta .tri{position:absolute;right:-150px;bottom:-190px;width:520px;height:520px;opacity:.45}
+.cta h2{font-size:58px;font-weight:900;color:#fff;max-width:820px}
+.cta h2 em{color:var(--cyan)}
+.cta .eyebrow{color:var(--cyan)}
+.cta .pg{color:#C9D7EC}
+.next{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px;max-width:980px}
+.nx{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:18px 20px}
+.nx .n{font:800 13px var(--display);color:var(--cyan);letter-spacing:.12em}
+.nx b{display:block;font:700 18px var(--display);margin-top:6px}
+.nx span{display:block;font-size:13.5px;color:#C9D7EC;margin-top:6px;line-height:1.45}
+.contact{margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:14px 28px}
+.wa{display:inline-flex;align-items:center;gap:12px;background:var(--orange);color:#fff;text-decoration:none;font:800 18px var(--display);padding:16px 26px;border-radius:12px;box-shadow:0 12px 30px rgba(255,122,26,.35)}
+.wa:hover{filter:brightness(1.06)}
+.wa:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.wa i{width:22px;height:22px;border-radius:50%;background:#fff;display:grid;place-items:center}
+.wa i::after{content:"";width:7px;height:8px;background:var(--orange);clip-path:polygon(0 0,100% 50%,0 100%);margin-left:2px}
+.cinfo{display:grid;gap:4px;font-size:15px;color:#DCE7F7}
+.cinfo b{font-family:var(--display);color:#fff}
+.copy{all:unset;cursor:pointer;font:600 12px var(--display);color:var(--cyan);margin-left:8px;border-bottom:1px dashed var(--cyan)}
+.copy:focus-visible{outline:2px solid var(--cyan)}
+
+/* ---------- phone / narrow: reflow instead of scaling ---------- */
+@media screen and (max-width:760px){
+  body{overflow:auto}
+  .deck{height:auto;overflow:visible;scroll-snap-type:none;padding:0;gap:0}
+  .wrap{width:100%;height:auto;border-radius:0;box-shadow:none}
+  .slide{width:100%;height:auto;transform:none;padding:44px 20px 40px}
+  .nav{display:none}
+  .cover h1{font-size:42px}
+  .cover .lead{font-size:17px}
+  .cover .tri,.cta .tri{width:300px;height:300px;right:-120px;top:auto;bottom:-60px;opacity:.3}
+  h2{font-size:30px}
+  .cta h2{font-size:34px}
+  .lead{font-size:16px}
+  .stats{grid-template-columns:1fr 1fr;gap:20px}
+  .stat b{font-size:32px}
+  .leaks,.eco,.two,.two.wide-l,.feats,.bigs,.flow,.trip,.chain,.three,.pipe,.fork,.stages,.tabs,.ints,.calc,.why,.segs,.next,.fis2{grid-template-columns:1fr}
+  .two[style]{grid-template-columns:1fr!important}
+  .eco,.two,.calc{gap:28px}
+  .three,.segs,.contact,.quote,.formula,.flow,.band{margin-top:28px}
+  .step+.step{margin-left:0;margin-top:6px}
+  .link:not(:last-child)::after{display:none}
+  .mod{grid-template-columns:1fr;gap:4px}
+  .big b{font-size:46px}
+  .ba-wrap{overflow-x:auto}
+  .ba{min-width:560px}
+  .result .total{font-size:42px}
+  .phone{width:260px}
+}
+@media (prefers-reduced-motion:reduce){.deck{scroll-behavior:auto}.progress{transition:none}}
+
+/* ---------- print / PDF: one slide per page ---------- */
+@media print{
+  @page{size:1280px 720px;margin:0}
+  html,body{height:auto;overflow:visible;background:#fff}
+  .deck{display:block;height:auto;overflow:visible;padding:0}
+  .wrap{width:1280px;height:720px;border-radius:0;box-shadow:none;break-after:page;page-break-after:always}
+  .slide{transform:none}
+  .nav,.progress,.copy{display:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style></head><body>
+
+<div class="progress" id="progress"></div>
+
+<main class="deck" id="deck">
+
+<!-- 1 COVER -->
+<div class="wrap"><section class="slide s-dark cover" id="inicio" aria-label="Capa">
+  <svg class="tri" viewBox="0 0 100 100" aria-hidden="true">
+    <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#417ABC"/><stop offset="1" stop-color="#00BFD1"/></linearGradient></defs>
+    <circle cx="50" cy="50" r="46" fill="none" stroke="url(#g1)" stroke-width=".6" opacity=".6"/>
+    <circle cx="50" cy="50" r="36" fill="none" stroke="url(#g1)" stroke-width=".4" opacity=".35"/>
+    <path d="M38 28 L72 50 L38 72 Z" fill="url(#g1)" opacity=".9"/>
+  </svg>
+  <img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem Desenvolvimento de Sistemas" style="height:38px" decoding="async">
+  <div style="margin-top:64px"><span class="eyebrow">Apresentação comercial</span></div>
+  <h1>Aperte o <em>play</em> na gestão da sua loja.</h1>
+  <p class="lead">Um sistema completo para vender mais, perder menos e manter o fiscal em dia. Com suporte de gente que entende de varejo.</p>
+  <div class="stats">
+    <div class="stat"><b class="num">16 anos</b><span>desenvolvendo gestão para o varejo</span></div>
+    <div class="stat"><b class="num">+600</b><span>clientes usando o Prosystem todos os dias</span></div>
+    <div class="stat"><b class="num">100%</b><span>de conformidade fiscal na operação</span></div>
+    <div class="stat"><b class="num">4</b><span>segmentos: drogarias, manipulação, padarias e varejo</span></div>
+  </div>
+</section></div>
+
+<!-- 2 LEAKS -->
+<div class="wrap"><section class="slide s-ice" aria-label="Onde a loja perde dinheiro">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async"><span class="pg num">02</span></div>
+  <span class="eyebrow">O diagnóstico</span>
+  <h2>Onde a sua loja perde dinheiro <em>todos os dias</em></h2>
+  <div class="leaks">
+    <div class="leak"><span class="tag">Estoque</span><h3>Produto vencendo na prateleira</h3><p>Checagem visual falha. Quando o lote vence, vai embora o custo, o lucro previsto e o espaço na gôndola.</p></div>
+    <div class="leak"><span class="tag">Margem</span><h3>Desconto dado no feeling</h3><p>O balcão vende muito, mas o desconto sem medição corrói a rentabilidade de grupos inteiros.</p></div>
+    <div class="leak"><span class="tag">Clientes</span><h3>Cliente de uso contínuo que comprou no vizinho</h3><p>O remédio acabou, ninguém lembrou de chamar, e a recompra foi para a concorrência.</p></div>
+    <div class="leak"><span class="tag">Vendas</span><h3>Venda perdida que ninguém registrou</h3><p>Falta do produto, preço da concorrência, demora. Sem o motivo anotado, o erro se repete.</p></div>
+    <div class="leak"><span class="tag">Operação</span><h3>Horas digitando nota fiscal</h3><p>Entrada manual de NF-e gera erro de custo, furo de estoque e ainda deixa o CNPJ exposto a notas indevidas.</p></div>
+    <div class="leak"><span class="tag">Fiscal</span><h3>Tributação errada no caixa</h3><p>NCM, CST e alíquota desatualizados viram imposto pago a mais ou multa na fiscalização.</p></div>
+  </div>
+  <div class="band"><span class="play"></span>São perdas silenciosas. Não aparecem no caixa do dia, aparecem no lucro do ano.</div>
+</section></div>
+
+<!-- 3 ECOSYSTEM -->
+<div class="wrap"><section class="slide s-dark" aria-label="A plataforma">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">03</span></div>
+  <div class="eco">
+    <div>
+      <span class="eyebrow">A solução</span>
+      <h2>Uma plataforma, <em>cinco frentes</em> de resultado</h2>
+      <div class="mods">
+        <div class="mod"><b>Caixa Frente de Loja</b><span>PDV rápido e estável, que aplica as regras sozinho: preço por cliente, lote certo, tributação correta.</span></div>
+        <div class="mod"><b>Admin Retaguarda</b><span>Cadastros, estoque, compras, financeiro e relatórios da loja ou da rede.</span></div>
+        <div class="mod"><b>Prosystem Gerencial</b><span>Robô que busca as notas na SEFAZ, atualiza o fiscal e conversa com as integrações.</span></div>
+        <div class="mod"><b>Dashboard</b><span>Os indicadores da operação em uma tela, por filial e por período.</span></div>
+        <div class="mod" style="border-bottom:0"><b>Integrações</b><span>iFood, e-commerce, distribuidores, fidelidade e inteligência tributária.</span></div>
+      </div>
+    </div>
+    <div class="agenda" aria-label="O que você vai ver">
+      <div class="ag"><span class="n num">01</span><div><b>Vender mais</b><small>Uso contínuo, fidelidade e pós-venda</small></div><i>p. 04</i></div>
+      <div class="ag"><span class="n num">02</span><div><b>Perder menos</b><small>Validade, desconto e venda perdida</small></div><i>p. 06</i></div>
+      <div class="ag"><span class="n num">03</span><div><b>Comprar certo</b><small>Estoque mínimo, sugestão e pedido eletrônico</small></div><i>p. 08</i></div>
+      <div class="ag"><span class="n num">04</span><div><b>Notas e fiscal no automático</b><small>SEFAZ, IMendes e Avant</small></div><i>p. 09</i></div>
+      <div class="ag"><span class="n num">05</span><div><b>Gestão e controle</b><small>Financeiro, dashboard, WhatsApp e auditoria</small></div><i>p. 11</i></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- 4 SELL MORE -->
+<div class="wrap"><section class="slide s-light" aria-label="Vender mais">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">04</span></div>
+  <div class="two wide-l">
+    <div>
+      <span class="eyebrow">01 · Vender mais</span>
+      <h2>O sistema lembra do cliente <em>antes</em> que ele esqueça de você</h2>
+      <div class="feats">
+        <div class="feat"><h4>Uso Contínuo Ativo</h4><p>Na venda, a posologia fica registrada. Nove dias antes do remédio acabar, o caixa avisa o vendedor para oferecer a reposição.</p></div>
+        <div class="feat"><h4>Cartão Fidelidade</h4><p>Tabelas de preço por grupo: fidelidade, aposentados, convênios. Bipou o cartão ou digitou o CPF, o desconto certo entra sozinho.</p></div>
+        <div class="feat"><h4>Pós-venda com lista pronta</h4><p>Relatório de próximas compras com nome, telefone e produto, para a equipe ligar ou chamar no WhatsApp.</p></div>
+        <div class="feat"><h4>Atenção Farmacêutica</h4><p>Ficha do paciente com anamnese, medidas e histórico de atendimentos, impressa com a marca da loja.</p></div>
+      </div>
+    </div>
+    <div style="padding-top:34px">
+      <div class="win">
+        <div class="bar"><span>CAIXA · PRÉ-VENDA</span><span>Prosystem</span></div>
+        <div class="body">
+          <div class="alert"><b>Cliente de Uso Contínuo.</b><br>A medicação desse cliente está próxima de acabar. Verifique:<br>NIMESULIDA 100MG C/12 COMP<br>Previsão próxima compra: <b>6 DIAS</b></div>
+          <div class="btnrow"><span class="btn">Não vender</span><span class="btn go">Inserir / Vender</span></div>
+        </div>
+      </div>
+      <p class="caption">Alerta exibido no caixa quando o cliente é identificado. Um clique e o item entra na venda.</p>
+    </div>
+  </div>
+</section></div>
+
+<!-- 5 LOYALTY -->
+<div class="wrap"><section class="slide s-dark" aria-label="Fidelização">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">05</span></div>
+  <span class="eyebrow">01 · Vender mais</span>
+  <h2>Cliente ocasional vira <em>receita recorrente</em></h2>
+  <p class="lead">Com a integração Fidelimax, o caixa Prosystem pontua e aplica cashback na hora, e o ChatMax manda saldo, aniversário e lembrete de expiração pelo WhatsApp.</p>
+  <div class="bigs">
+    <div class="big"><b class="num">+48%</b><h4>no ticket médio</h4><p>O cliente gasta mais para subir de nível ou resgatar um benefício maior.</p></div>
+    <div class="big"><b class="num">6,2x</b><h4>mais recompra</h4><p>O programa dá ao cliente um motivo concreto para escolher a sua loja.</p></div>
+    <div class="big"><b class="num">−12 dias</b><h4>no ciclo de visitas</h4><p>Campanhas de expiração de saldo trazem o cliente de volta mais cedo.</p></div>
+  </div>
+  <div class="flow" style="margin-top:26px">
+    <div class="step"><b>Cliente no caixa</b><span>Bipa o cartão ou informa o CPF</span></div>
+    <div class="step"><b>Consulta em tempo real</b><span>Retaguarda identifica o grupo</span></div>
+    <div class="step"><b>Regra aplicada</b><span>Preço ou cashback sem cálculo do operador</span></div>
+    <div class="step last"><b>Venda fechada</b><span>Cupom emitido, fila andando</span></div>
+  </div>
+  <p class="note" style="margin-top:12px">Resultados divulgados pela Fidelimax com base em mais de 70 mil empresas. A plataforma Fidelimax é contratada à parte.</p>
+</section></div>
+
+<!-- 6 LOTS -->
+<div class="wrap"><section class="slide s-light" aria-label="Lotes e validade">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">06</span></div>
+  <div class="two">
+    <div>
+      <span class="eyebrow">02 · Perder menos</span>
+      <h2>O fim do <em>dinheiro no lixo</em></h2>
+      <p class="lead" style="font-size:16.5px">Controle de lotes e validade que trabalha sozinho, do XML da nota até o balcão.</p>
+      <div class="list">
+        <div class="feat"><h4>Robô de validade a cada 3 horas</h4><p>Você define a janela de risco (ex.: 30 dias). O sistema varre o estoque e marca os lotes que precisam sair primeiro.</p></div>
+        <div class="feat"><h4>Semáforo no caixa</h4><p>A linha do lote em risco aparece em laranja com a letra M. O operador não precisa ler rótulo: o sistema indica qual dispensar.</p></div>
+        <div class="feat"><h4>Trava sanitária</h4><p>Lote vencido ou não informado não passa. A venda é bloqueada no ato e a loja fica protegida diante da Vigilância Sanitária.</p></div>
+      </div>
+    </div>
+    <div style="padding-top:22px">
+      <div style="margin-bottom:12px"><span class="chip plus">Plano Plus</span></div>
+      <div class="win">
+        <div class="bar"><span>CAIXA · ITENS DA VENDA</span><span>FIFO</span></div>
+        <div class="body" style="padding:6px 6px 10px">
+          <table class="pdv num">
+            <thead><tr><th>Código</th><th>Produto</th><th class="r">Qtd</th><th class="r">Valor</th></tr></thead>
+            <tbody>
+              <tr><td>104001</td><td>ACERIL 20MG 30 COMP</td><td class="r">12</td><td class="r">24,50</td></tr>
+              <tr><td>117030</td><td>OMEPRAZOL 40MG 28 CAPS</td><td class="r">8</td><td class="r">31,00</td></tr>
+              <tr class="m"><td><span class="mk">M</span>135022</td><td>IBUPROFENO 400MG 12 COMP</td><td class="r">2</td><td class="r">15,90</td></tr>
+              <tr><td>148055</td><td>PARACETAMOL 750MG 10 COMP</td><td class="r">20</td><td class="r">8,50</td></tr>
+            </tbody>
+          </table>
+          <div class="block"><span class="x">×</span><div><b>Venda impossibilitada</b><span>Lote vencido ou não informado. Ação imediata necessária.</span></div></div>
+        </div>
+      </div>
+      <div class="trip">
+        <div><b>Origem</b><span>Lote lido do XML da nota, com fornecedor.</span></div>
+        <div><b>Ciclo de vida</b><span>Validade acompanhada em tempo real.</span></div>
+        <div><b>Destino</b><span>Quem comprou cada lote, para recall.</span></div>
+      </div>
+    </div>
+  </div>
+</section></div>
+
+<!-- 7 MARGIN -->
+<div class="wrap"><section class="slide s-ice" aria-label="Margem e desconto">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">07</span></div>
+  <div class="two">
+    <div>
+      <span class="eyebrow">02 · Perder menos</span>
+      <h2>Saiba qual produto <em>sustenta</em> e qual corrói a margem</h2>
+      <div class="list">
+        <div class="feat"><h4>Análise de Descontos</h4><p>Por grupo, subgrupo ou produto: venda bruta x líquida, desconto médio x desconto pretendido e a rentabilidade que a loja teria com a regra certa.</p></div>
+        <div class="feat"><h4>Raio-X da rentabilidade</h4><p>Lucro, markup e rentabilidade item a item, com filtro para listar só os produtos que estão dando prejuízo.</p></div>
+        <div class="feat"><h4>Produtos sem giro e venda perdida</h4><p>Dias sem giro por produto e o motivo de cada venda que não aconteceu:</p>
+          <div class="reasons"><span class="chip">Falta do produto</span><span class="chip">Oferta da concorrência</span><span class="chip">Consulta de preço</span><span class="chip">Problema no pagamento</span><span class="chip">Tempo de atendimento</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding-top:34px">
+      <table class="act">
+        <thead><tr><th>O que o relatório mostra</th><th>O que você faz</th></tr></thead>
+        <tbody>
+          <tr><td>Boa venda, rentabilidade negativa</td><td>Reduzir desconto ou reajustar preço</td></tr>
+          <tr><td>Baixo giro e bom lucro</td><td>Usar como produto gancho, sem descontar</td></tr>
+          <tr><td>Desconto acima do pretendido</td><td>Ajustar a regra de desconto e a comissão</td></tr>
+          <tr><td>Alta venda e baixo lucro</td><td>Negociar custo com o fornecedor</td></tr>
+          <tr><td>Muitos dias sem giro</td><td>Montar combo ou promoção e liberar capital de giro</td></tr>
+        </tbody>
+      </table>
+      <p class="caption">Decisões que saem direto dos relatórios de Análise de Descontos e Produtos sem Giro.</p>
+    </div>
+  </div>
+</section></div>
+
+<!-- 8 BUY RIGHT -->
+<div class="wrap"><section class="slide s-light" aria-label="Comprar certo">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">08</span></div>
+  <span class="eyebrow">03 · Comprar certo</span>
+  <h2>O pedido de compra <em>se monta sozinho</em></h2>
+  <p class="lead">Num mix de milhares de itens, comprar no olho gera ruptura de um lado e estoque parado do outro.</p>
+  <div class="chain">
+    <div class="link"><span class="n num">01</span><b>Vendas registradas</b><span>Cada saída do caixa alimenta o histórico.</span></div>
+    <div class="link"><span class="n num">02</span><b>Média de vendas</b><span>Calculada no período que você escolher.</span></div>
+    <div class="link"><span class="n num">03</span><b>Estoque mínimo e máximo</b><span>Aplicado por fabricante, grupo ou subgrupo.</span></div>
+    <div class="link"><span class="n num">04</span><b>Sugestão de compras</b><span>Quanto comprar para voltar ao mínimo.</span></div>
+    <div class="link hot"><span class="n num">05</span><b>Pedido eletrônico</b><span>Enviado direto ao distribuidor.</span></div>
+  </div>
+  <div class="three">
+    <div><h4>Curva ABC e XYZ</h4><p>Priorize o que gira e o que não pode faltar. A sugestão já considera a curva de cada item.</p></div>
+    <div><h4>Poder de negociação</h4><p>Na tela do pedido, as compras dos últimos 12 meses do item: quanto pagou e a quem.</p></div>
+    <div><h4>Distribuidores e cotação integrados</h4><div class="dist"><span class="chip">PanPharma</span><span class="chip">Pharmalink</span><span class="chip">Cotefácil</span><span class="chip">SmartPed</span></div></div>
+  </div>
+</section></div>
+
+<!-- 9 NOTES -->
+<div class="wrap"><section class="slide s-dark" aria-label="Notas fiscais automáticas">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">09</span></div>
+  <span class="eyebrow">04 · Notas no automático</span>
+  <h2>A nota chega da SEFAZ e o estoque <em>se atualiza sozinho</em></h2>
+  <div class="pipe">
+    <div><span class="n num">01</span><b>Sincronizar</b><span>Um clique baixa tudo o que foi emitido contra o seu CNPJ.</span></div>
+    <div><span class="n num">02</span><b>Manifestar</b><span>Ciência, confirmação ou desconhecimento da operação.</span></div>
+    <div><span class="n num">03</span><b>Importar</b><span>Dezenas de XMLs processados de uma vez.</span></div>
+    <div><span class="n num">04</span><b>Avaliar</b><span>Cada item conferido contra cadastro, lote e custo.</span></div>
+    <div><span class="n num">05</span><b>Integrar</b><span>Entrada lançada e estoque atualizado.</span></div>
+  </div>
+  <div class="fork">
+    <div class="path ok"><span class="lbl">Caminho verde · automático</span><p>Produtos cadastrados e custo dentro da margem: a nota entra e o estoque atualiza sem ninguém digitar.</p></div>
+    <div class="path chk"><span class="lbl">NF-e em avaliação · exceção</span><p>Produto novo, lote faltando ou custo fora da margem: só essas notas pedem a atenção da equipe.</p></div>
+  </div>
+  <p class="quote">Sua equipe deixa de digitar notas e passa a <span>cuidar só das exceções</span>. E o manifesto de desconhecimento protege o CNPJ contra notas indevidas.</p>
+</section></div>
+
+<!-- 10 FISCAL -->
+<div class="wrap"><section class="slide s-light" aria-label="Inteligência tributária">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">10</span></div>
+  <div class="two wide-l">
+    <div>
+      <span class="eyebrow">04 · Fiscal blindado</span>
+      <h2>Tributação certa no caixa, <em>sem planilha</em></h2>
+      <p class="lead" style="font-size:16.5px">Integração nativa com IMendes e Avant Figura Fiscal, plataformas de auditoria tributária. O Prosystem aplica as regras no cadastro em segundo plano.</p>
+      <div class="list">
+        <div class="feat"><h4>NCM, CST e alíquota corretos no PDV</h4><p>Fim da exportação e importação manual de planilhas. Menos imposto pago a mais e menos risco de multa.</p></div>
+        <div class="feat"><h4>Transparência total</h4><p>Log de alterações com o valor antigo e o novo. Você audita o que mudou, quando e em qual produto.</p></div>
+        <div class="feat"><h4>Exceções tratadas, nada às cegas</h4><p>Produto sem EAN ou com descrição incompleta fica pendente e a equipe é guiada para corrigir.</p></div>
+      </div>
+    </div>
+    <div style="padding-top:10px">
+      <div class="loop" aria-label="Ciclo de atualização a cada 60 minutos">
+        <svg viewBox="0 0 300 300" aria-hidden="true">
+          <circle cx="150" cy="150" r="118" fill="none" stroke="#DCE8F6" stroke-width="20"/>
+          <circle cx="150" cy="150" r="118" fill="none" stroke="#00BFD1" stroke-width="20" stroke-dasharray="560 182" stroke-linecap="round" transform="rotate(-90 150 150)"/>
+        </svg>
+        <div class="core"><div><b class="num">60</b><span>minutos</span></div></div>
+      </div>
+      <div class="fis2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
+        <div class="feat"><h4>IMendes</h4><p>Atualiza a cada 60 minutos e faz varredura completa do cadastro ao menos uma vez por semana.</p></div>
+        <div class="feat"><h4>Avant</h4><p>Figura Fiscal revisa o cadastro e atualiza a base a cada 45 minutos.</p></div>
+      </div>
+      <p class="caption">IMendes e Avant são contratados diretamente com cada plataforma. A integração já vem pronta no Prosystem Gerencial.</p>
+    </div>
+  </div>
+</section></div>
+
+<!-- 11 FINANCE -->
+<div class="wrap"><section class="slide s-light" aria-label="Gestão financeira">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">11</span></div>
+  <span class="eyebrow">05 · Gestão financeira</span>
+  <h2>Do lançamento do dia à <em>rentabilidade do mês</em></h2>
+  <div class="stages">
+    <div class="stage"><span class="n">Estruturação</span><h3>A base</h3><ul>
+      <li><b>Plano de contas</b> organizado para relatórios precisos</li>
+      <li><b>Centros de custo</b> por loja, setor ou projeto</li>
+      <li><b>Contas bancárias</b> prontas para boletos e conciliação</li>
+    </ul></div>
+    <div class="stage"><span class="n">Operação diária</span><h3>O motor</h3><ul>
+      <li><b>Lançamentos com memória</b>: despesas recorrentes e parcelas geradas em um clique</li>
+      <li><b>Cartões</b>: taxa da operadora, prazo de recebimento e conciliação em lote por bandeira</li>
+      <li><b>Cheques</b>: dados capturados no caixa e status até a compensação</li>
+    </ul></div>
+    <div class="stage fin"><span class="n">Inteligência</span><h3>O resultado</h3><ul>
+      <li><b>DRE</b> para saber se a operação dá lucro</li>
+      <li><b>DFC</b> para saber se o caixa aguenta</li>
+      <li><b>Rentabilidade</b> por produto, grupo e período</li>
+    </ul></div>
+  </div>
+  <div class="formula"><span>Rentabilidade da empresa</span><span class="eq">=</span><span class="frac"><span>Lucro no período</span><span>Investimento</span></span><span class="say">O Prosystem transforma cada lançamento da retaguarda neste número.</span></div>
+</section></div>
+
+<!-- 12 DASHBOARD -->
+<div class="wrap"><section class="slide s-dark" aria-label="Dashboard">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">12</span></div>
+  <div style="display:flex;align-items:center;gap:14px"><span class="eyebrow">05 · Dashboard</span><span class="chip plus">Plano Plus</span></div>
+  <h2>A loja inteira <em>em uma tela</em></h2>
+  <div class="shot" style="margin-top:22px"><img src="/apresentacao/farmacia/img/144a254c4e.webp" alt="Tela real do Painel de Aferição de Indicadores do Prosystem Dashboard, com total de vendas, CMV, rentabilidade média, desconto médio, ticket médio, atendimentos e média diária" decoding="async" loading="lazy"></div>
+  <div class="tabs">
+    <div class="tab"><h4>Vendas</h4><p>Total, CMV, ticket médio de venda e de lucro, atendimentos por hora e produtividade por vendedor.</p></div>
+    <div class="tab"><h4>Estoque</h4><p>Ruptura, estoque excedente, curva ABC e XYZ, mais vendidos e taxa de retorno.</p></div>
+    <div class="tab"><h4>Financeiro</h4><p>Índice de endividamento, receitas x despesas, por plano de contas e centro de custo.</p></div>
+    <div class="tab"><h4>Vendas perdidas</h4><p>Os motivos que impediram cada venda, para agir na causa e não no sintoma.</p></div>
+  </div>
+</section></div>
+
+<!-- 13 WHATSAPP + CONTROL -->
+<div class="wrap"><section class="slide s-ice" aria-label="WhatsApp e controle">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">13</span></div>
+  <div class="two" style="grid-template-columns:.8fr 1.2fr">
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="wa-top"><i></i>Prosystem · Relatórios</div>
+        <div class="msgs">
+          <div class="msg"><b>VENDAS VENDEDOR · 03/2025</b><br>1º MARIA<br>R$ 61.504,00 · TM R$ 57,91<br>2º FELIPE<br>R$ 56.720,27 · TM R$ 47,62<br>3º THIAGO<br>R$ 44.579,67 · TM R$ 46,63<span class="t">08:00</span></div>
+          <div class="msg"><b>METAS · GENÉRICOS</b><br>Meta R$ 5.000,00<br>Venda R$ 7.214,93<br>Excedeu: 44,30%<span class="t">08:00</span></div>
+        </div>
+      </div></div>
+      <p class="caption" style="text-align:center">Exemplo de envio automático. Valores ilustrativos.</p>
+    </div>
+    <div>
+      <span class="eyebrow">05 · Controle</span>
+      <h2>Os números chegam <em>no seu WhatsApp</em>. O controle fica no sistema.</h2>
+      <div class="feats">
+        <div class="feat"><h4>Relatórios pelo WhatsApp</h4><p>Resumo de vendas, vendas por grupo e vendedor, comissões, metas, contas a pagar e produtos a vencer. Diário ou no fechamento do caixa.</p></div>
+        <div class="feat"><h4>Auditoria completa</h4><p>Quem fez o quê e quando. Descubra, por exemplo, quem excluiu uma venda do caixa central.</p></div>
+        <div class="feat"><h4>Acessos por usuário</h4><p>Cada pessoa vê e faz só o que deve, na retaguarda e no caixa. Perfis padrão prontos por função.</p></div>
+        <div class="feat"><h4>Registro de ponto</h4><p>Entrada, intervalo e saída no próprio caixa. Se o ponto não foi batido, o vendedor não vende.</p></div>
+      </div>
+    </div>
+  </div>
+</section></div>
+
+<!-- 14 INTEGRATIONS -->
+<div class="wrap"><section class="slide s-ice" aria-label="Integrações">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">14</span></div>
+  <span class="eyebrow">Integrações</span>
+  <h2>Conectado a quem <em>já move o seu mercado</em></h2>
+  <p class="lead">Produtos, preço e estoque sincronizados automaticamente. Você não troca de sistema para estar em todos os canais.</p>
+  <div class="ints">
+    <div class="grp"><h3>Venda online e delivery</h3><p class="sub">Catálogo e estoque sempre atualizados</p>
+      <div class="partner"><b>iFood</b><span class="num">a cada 15 min</span></div>
+      <div class="partner"><b>Farmácias APP</b><span class="num">a cada 1 hora</span></div>
+      <div class="partner"><b>Tray E-commerce</b><span class="num">a cada 3 horas</span></div>
+      <div class="partner"><b>WooCommerce</b><span>loja virtual</span></div>
+      <div class="partner"><b>Entrega Farma · Qmoleza</b><span>delivery</span></div>
+    </div>
+    <div class="grp"><h3>Compras e cotação</h3><p class="sub">Pedido saindo do Prosystem direto para o fornecedor</p>
+      <div class="partner"><b>PanPharma</b><span>pedido eletrônico</span></div>
+      <div class="partner"><b>Pharmalink</b><span>pedido eletrônico</span></div>
+      <div class="partner"><b>Cotefácil</b><span>cotação</span></div>
+      <div class="partner"><b>SmartPed</b><span>cotação</span></div>
+    </div>
+    <div class="grp"><h3>Inteligência</h3><p class="sub">Especialistas plugados no seu caixa</p>
+      <div class="partner"><b>Proffer</b><span>precificação com IA</span></div>
+      <div class="partner"><b>Fidelimax</b><span>cashback e pontos</span></div>
+      <div class="partner"><b>IMendes</b><span>auditoria tributária</span></div>
+      <div class="partner"><b>Avant</b><span>figura fiscal</span></div>
+    </div>
+  </div>
+</section></div>
+
+<!-- 15 BEFORE / AFTER -->
+<div class="wrap"><section class="slide s-dark" aria-label="Antes e depois">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">15</span></div>
+  <span class="eyebrow">A diferença no dia a dia</span>
+  <h2>Sua rotina <em>antes e depois</em> do Prosystem</h2>
+  <div class="ba-wrap">
+  <table class="ba">
+    <thead><tr><th><span hidden>Área</span></th><th>Sem Prosystem</th><th class="pro">Com Prosystem</th></tr></thead>
+    <tbody>
+      <tr><td>Entrada de notas</td><td class="old">Digitação manual, item a item</td><td class="new">XML direto da SEFAZ, importação em massa</td></tr>
+      <tr><td>Validade</td><td class="old">Checagem na prateleira e descarte</td><td class="new">Varredura a cada 3 horas e bloqueio no caixa</td></tr>
+      <tr><td>Desconto</td><td class="old">Decidido no balcão</td><td class="new">Regra por grupo de cliente e margem medida</td></tr>
+      <tr><td>Pós-venda</td><td class="old">Esperar o cliente voltar</td><td class="new">Alerta de uso contínuo e fidelidade automática</td></tr>
+      <tr><td>Compras</td><td class="old">Pedido no olho</td><td class="new">Sugestão por mínimo, curva e pedido eletrônico</td></tr>
+      <tr><td>Fiscal</td><td class="old">Planilha e risco de multa</td><td class="new">Regras auditadas e aplicadas a cada 60 minutos</td></tr>
+      <tr><td>Decisão</td><td class="old">Relatório no fim do mês</td><td class="new">Indicadores em tempo real e no WhatsApp</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section></div>
+
+<!-- 16 CALCULATOR -->
+<div class="wrap"><section class="slide s-light" aria-label="Simulador de ganho">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/53bde558de.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">16</span></div>
+  <span class="eyebrow">Faça a conta</span>
+  <h2>Quanto vale recuperar margem <em>na sua loja?</em></h2>
+  <div class="calc">
+    <form id="calc" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="fat">Faturamento mensal da loja</label>
+        <div class="money"><span>R$</span><input id="fat" inputmode="numeric" value="150.000" aria-describedby="fat-h"></div>
+        <small id="fat-h">Valor de exemplo. Digite o faturamento da sua operação.</small>
+      </div>
+      <div class="field">
+        <label for="pts">Margem recuperada com desconto controlado e compras certas <output id="pts-o" for="pts">1,5 p.p.</output></label>
+        <input id="pts" type="range" min="0.5" max="5" step="0.5" value="1.5">
+        <small>Pontos percentuais do faturamento que deixam de escapar.</small>
+      </div>
+      <div class="field">
+        <label for="venc">Perdas por vencimento evitadas por mês</label>
+        <div class="money"><span>R$</span><input id="venc" inputmode="numeric" value="1.200"></div>
+        <small>Quanto a loja descarta hoje por validade.</small>
+      </div>
+    </form>
+    <div class="result" aria-live="polite">
+      <span class="k">Ganho estimado em 12 meses</span>
+      <div class="total num" id="total">R$ 41.400</div>
+      <div class="per" id="per">R$ 3.450 por mês que ficam no caixa</div>
+      <div class="rows">
+        <div class="row"><span>Margem recuperada</span><b class="num" id="r1">R$ 27.000</b></div>
+        <div class="row"><span>Vencimento evitado</span><b class="num" id="r2">R$ 14.400</b></div>
+      </div>
+      <p class="note" style="margin-top:14px">Simulação ilustrativa com os números que você informar. Não é promessa de resultado.</p>
+    </div>
+  </div>
+</section></div>
+
+<!-- 17 WHY -->
+<div class="wrap"><section class="slide s-dark" aria-label="Por que a Prosystem">
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">17</span></div>
+  <span class="eyebrow">Por que a Prosystem</span>
+  <h2>Pioneiros em gestão para o varejo, <em>com gente do lado</em></h2>
+  <div class="why">
+    <div class="w"><b class="num">16</b><h4>anos de estrada</h4><p>Desenvolvendo gestão para farmácias, padarias e varejistas.</p></div>
+    <div class="w"><b class="num">+600</b><h4>clientes ativos</h4><p>Lojas que vendem, compram e fecham o caixa com o Prosystem.</p></div>
+    <div class="w"><b>Rápido</b><h4>sem travamentos</h4><p>PDV fluido e estável, que reduz fila e erro no caixa.</p></div>
+    <div class="w"><b>Humano</b><h4>suporte que resolve</h4><p>Atendimento especializado, por quem entende do seu negócio.</p></div>
+  </div>
+  <div class="segs">
+    <div class="seg"><b>Farmácias e drogarias</b><span>Estoque, PBM, controlados e segurança fiscal no PDV.</span></div>
+    <div class="seg"><b>Farmácias de manipulação</b><span>Fórmulas, insumos, produção e rastreabilidade.</span></div>
+    <div class="seg"><b>Padarias</b><span>Produção, vendas e estoque integrados, com menos perda.</span></div>
+    <div class="seg"><b>Varejo em geral</b><span>ERP completo para pequenos e médios varejistas.</span></div>
+  </div>
+</section></div>
+
+<!-- 18 CTA -->
+<div class="wrap"><section class="slide cta" id="contato" aria-label="Próximos passos">
+  <svg class="tri" viewBox="0 0 100 100" aria-hidden="true"><path d="M30 18 L82 50 L30 82 Z" fill="none" stroke="#00BFD1" stroke-width="1.2"/><path d="M38 32 L66 50 L38 68 Z" fill="#00BFD1" opacity=".5"/></svg>
+  <div class="top"><img class="logo" src="/apresentacao/farmacia/img/691c729f46.webp" alt="Prosystem" decoding="async" loading="lazy"><span class="pg num">18</span></div>
+  <span class="eyebrow">Próximos passos</span>
+  <h2>Vamos colocar a sua loja no <em>play</em>?</h2>
+  <div class="next">
+    <div class="nx"><span class="n num">01</span><b>Conversa de diagnóstico</b><span>Entendemos sua operação, seu mix e onde está a maior perda hoje.</span></div>
+    <div class="nx"><span class="n num">02</span><b>Demonstração no seu cenário</b><span>Você vê o Prosystem resolvendo os pontos que mais pesam no seu resultado.</span></div>
+    <div class="nx"><span class="n num">03</span><b>Implantação com suporte</b><span>Configuração, treinamento da equipe e acompanhamento de perto.</span></div>
+  </div>
+  <div class="contact">
+    <a class="wa" href="https://wa.me/5527997521370?text=Ol%C3%A1%21%20Vi%20a%20apresenta%C3%A7%C3%A3o%20do%20Prosystem%20e%20quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o." target="_blank" rel="noopener"><i></i>Agendar demonstração</a>
+    <div class="cinfo">
+      <span>WhatsApp <b class="num">(27) 99752-1370</b></span>
+      <span>E-mail <b id="mail">comercial@prosystemnet.com.br</b><button class="copy" type="button" id="copy">copiar</button></span>
+      <span>prosystemnet.com · @prosystemoficial</span>
+    </div>
+  </div>
+</section></div>
+
+</main>
+
+<nav class="nav" aria-label="Navegação dos slides">
+  <button type="button" id="prev" aria-label="Slide anterior"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 9 L7 4 L12 9" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+  <span class="count num" id="count">1 / 18</span>
+  <button type="button" id="next" aria-label="Próximo slide"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 5 L7 10 L12 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+</nav>
+
+<script>
+(function(){
+  var root=document.documentElement, deck=document.getElementById('deck');
+  var wraps=[].slice.call(document.querySelectorAll('.wrap')), n=wraps.length, cur=0;
+  var narrow=window.matchMedia('(max-width:760px)');
+  function fit(){
+    if(narrow.matches){root.style.removeProperty('--s');return}
+    var s=Math.min((window.innerWidth-48)/1280,(window.innerHeight-48)/720);
+    root.style.setProperty('--s',Math.max(.2,s).toFixed(4));
+  }
+  fit(); window.addEventListener('resize',fit);
+  function mark(i){if(i<0)return;cur=i;document.getElementById('count').textContent=(i+1)+' / '+n;document.getElementById('progress').style.width=((i+1)/n*100)+'%'}
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)mark(wraps.indexOf(e.target))})},{root:narrow.matches?null:deck,threshold:.55});
+    wraps.forEach(function(w){io.observe(w)});
+  }
+  mark(0);
+  function go(i){i=Math.max(0,Math.min(n-1,i));wraps[i].scrollIntoView({block:'center'});mark(i)}
+  document.getElementById('prev').addEventListener('click',function(){go(cur-1)});
+  document.getElementById('next').addEventListener('click',function(){go(cur+1)});
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='INPUT')return;
+    if(['ArrowDown','ArrowRight','PageDown',' '].indexOf(e.key)>-1){e.preventDefault();go(cur+1)}
+    else if(['ArrowUp','ArrowLeft','PageUp'].indexOf(e.key)>-1){e.preventDefault();go(cur-1)}
+    else if(e.key==='Home'){e.preventDefault();go(0)}
+    else if(e.key==='End'){e.preventDefault();go(n-1)}
+  });
+
+  // calculator
+  var brl=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR')};
+  var parse=function(s){var d=String(s).replace(/\D/g,'');return d?parseInt(d,10):0};
+  var fat=document.getElementById('fat'),pts=document.getElementById('pts'),venc=document.getElementById('venc');
+  function calc(){
+    var f=parse(fat.value),p=parseFloat(pts.value),v=parse(venc.value);
+    var m=f*p/100*12,vv=v*12,t=m+vv;
+    document.getElementById('pts-o').textContent=p.toLocaleString('pt-BR')+' p.p.';
+    document.getElementById('r1').textContent=brl(m);
+    document.getElementById('r2').textContent=brl(vv);
+    document.getElementById('total').textContent=brl(t);
+    document.getElementById('per').textContent=brl(t/12)+' por mês que ficam no caixa';
+  }
+  function fmt(el){var v=parse(el.value);el.value=v?v.toLocaleString('pt-BR'):''}
+  [fat,venc].forEach(function(el){el.addEventListener('input',function(){fmt(el);calc()})});
+  pts.addEventListener('input',calc);
+  document.getElementById('calc').addEventListener('submit',function(e){e.preventDefault()});
+  calc();
+
+  // copy e-mail
+  document.getElementById('copy').addEventListener('click',function(){
+    var b=this,t=document.getElementById('mail').textContent;
+    var done=function(){b.textContent='copiado';setTimeout(function(){b.textContent='copiar'},1800)};
+    var fallback=function(){var r=document.createRange();r.selectNodeContents(document.getElementById('mail'));var s=getSelection();s.removeAllRanges();s.addRange(r)};
+    try{navigator.clipboard.writeText(t).then(done,fallback)}catch(e){fallback()}
+  });
+})();
+</script>
+</body></html>
