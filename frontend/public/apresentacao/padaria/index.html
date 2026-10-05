@@ -1018,6 +1018,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
       <form class="form" id="leadForm" novalidate>
         <label for="fNome">Seu nome<input id="fNome" name="nome" autocomplete="name" placeholder="Ex.: Maria"></label>
         <label for="fPadaria">Nome da padaria<input id="fPadaria" name="padaria" placeholder="Ex.: Padaria Pão Dourado"></label>
+        <label for="fWhats">Seu WhatsApp<input id="fWhats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(27) 99999-9999" required></label>
+        <input id="fSite" name="site" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
         <div class="two">
           <label for="fCidade">Cidade<input id="fCidade" name="cidade" autocomplete="address-level2" placeholder="Ex.: Vitória/ES"></label>
           <label for="fCaixas">Caixas (PDVs)<select id="fCaixas" name="caixas"><option>1</option><option selected>2 a 3</option><option>4 a 6</option><option>Mais de 6</option></select></label>
@@ -1352,6 +1354,25 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
   }
   form.addEventListener("input", buildLead); form.addEventListener("change", buildLead);
   form.addEventListener("submit", (e) => e.preventDefault()); buildLead();
+
+  // ---------- lead no CRM (atendimento prioritário) antes de abrir o WhatsApp ----------
+  let enviado = false;
+  send.addEventListener("click", (e) => {
+    const v = (id) => $(id).value.trim();
+    const fone = v("#fWhats").replace(/\D/g, "");
+    if (v("#fNome").length < 2 || fone.length < 10) {
+      e.preventDefault();
+      toast("Preencha seu nome e o WhatsApp com DDD");
+      $(v("#fNome").length < 2 ? "#fNome" : "#fWhats").focus();
+      return;
+    }
+    if (enviado) return;
+    enviado = true;
+    const q = new URLSearchParams(location.search);
+    const dados = { material: "padaria", nome: v("#fNome"), telefone: fone, padaria: v("#fPadaria"), cidade: v("#fCidade"), caixas: v("#fCaixas"), plano: v("#fPlano"), diagnostico: diagNames(), site: v("#fSite"), pagina: location.href };
+    ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "fbclid", "gclid"].forEach(k => { if (q.get(k)) dados[k] = q.get(k); });
+    try { fetch("/api/publico/leads/apresentacao", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados), keepalive: true }).catch(() => {}); } catch (err) {}
+  });
 
   // ---------- copy ----------
   function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); }
