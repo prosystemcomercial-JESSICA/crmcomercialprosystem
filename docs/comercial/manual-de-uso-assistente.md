@@ -929,3 +929,7 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Passagem ao suporte:** ao validar, o resumo da implantação vai para os tickets do cliente, e a pesquisa de satisfação sai sozinha 2 dias úteis depois.
 - **Card:** as abas agora ficam em 5 grupos (Visão geral, Cliente, Execução, Conversa, Tempos).
 - **Quadro:** além do Kanban, as vistas Lista, Calendário e Equipe (a última só para a supervisão).
+
+### Atualização 05/10/2026: coluna Interessados no WhatsApp
+
+- Na vista **Por fase** do WhatsApp, a coluna **Interessados** reúne sozinha os contatos que demonstraram interesse (intenção de comprar ou temperatura morna para cima) e mandaram mensagem nos últimos 7 dias. Ela atualiza a cada 10 minutos; quem a equipe já moveu para outra fase não é mexido.

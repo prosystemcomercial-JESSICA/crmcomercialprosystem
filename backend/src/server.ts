@@ -496,6 +496,16 @@ async function iniciarSchedulerCronometro() {
   };
   setInterval(rodar, 10 * 60 * 1000);
   setTimeout(rodar, 90 * 1000);
+  // Kanban do WhatsApp: fase "Interessados" (interesse + conversando nos últimos 7 dias).
+  const funil = async () => {
+    try {
+      const { moverInteressados } = await import('./services/funil-whatsapp.service.js');
+      const n = await moverInteressados(prismaClient!);
+      if (n) console.log(`[FUNIL] ${n} conversa(s) movida(s) para Interessados`);
+    } catch (err: any) { console.error('[FUNIL] Erro:', err?.message); }
+  };
+  setInterval(funil, 10 * 60 * 1000);
+  setTimeout(funil, 60 * 1000);
   console.log('[BOOT] Scheduler do portal de implantação iniciado (10 min: cronômetro, prazos, esperas, cobrança, avisos ao cliente, Otávio)');
 }
 

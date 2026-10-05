@@ -2672,7 +2672,8 @@ model WhatsappConversa {
   etiqueta_cor String? @default("#6b7280")
 
   // ── Kanban comercial (fila de atendimento) ──────────────────────────────
-  // Etapa do funil: NOVO_CONTATO|EM_NEGOCIACAO|PROPOSTA_ENVIADA|AGUARDANDO_RETORNO|FECHADO
+  // Etapa do funil: NOVO_CONTATO|INTERESSADO|EM_NEGOCIACAO|PROPOSTA_ENVIADA|AGUARDANDO_RETORNO|FECHADO
+  // INTERESSADO entra sozinho (services/funil-whatsapp.service.ts): interesse + mensagem do contato nos últimos 7 dias.
   estagio_funil String @default("NOVO_CONTATO")
   // Prioridade manual, definida pelo vendedor/gestão ao abrir a conversa.
   prioridade    String @default("NORMAL") // BAIXA|NORMAL|CRITICA

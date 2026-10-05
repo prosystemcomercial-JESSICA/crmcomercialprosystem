@@ -162,6 +162,8 @@ const ETIQUETAS_TIPO = [
 // Kanban comercial (funil de atendimento) — substitui o Kanban por etiqueta.
 const ESTAGIOS_FUNIL = [
   { valor: 'NOVO_CONTATO', nome: 'Novo Contato', cor: '#7c3aed' },
+  // Entra sozinho: contato com interesse (Laya/termômetro) que mandou mensagem nos últimos 7 dias.
+  { valor: 'INTERESSADO', nome: 'Interessados', cor: '#0891b2' },
   { valor: 'EM_NEGOCIACAO', nome: 'Em Negociação', cor: '#2563eb' },
   { valor: 'PROPOSTA_ENVIADA', nome: 'Proposta Enviada', cor: '#d97706' },
   { valor: 'AGUARDANDO_RETORNO', nome: 'Aguardando Retorno', cor: '#64748b' },
