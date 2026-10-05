@@ -94,6 +94,8 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
         </div>
       </section>
 
+      <PosImplantacao gestao={gestao} irPara={irPara} />
+
       {/* Agenda: viradas e treinamentos combinados com os clientes (próximos 14 dias) */}
       <section style={cartao}>
         <div style={titulo}><CalendarDays size={16} color="#2E6EAB" /> Agenda {gestao ? 'da equipe' : ''}<span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>próximos 14 dias</span></div>
@@ -259,3 +261,78 @@ function NovaTarefaOuRecado({ onEnviado }: { onEnviado: () => void }) {
     </section>
   );
 }
+
+/** Pós-implantação 30/60/90 dias: o técnico liga para a loja e registra. Risco avisa a supervisão e abre caso de retenção. */
+function PosImplantacao({ gestao, irPara }: { gestao: boolean; irPara: (tab: string, demandaId?: string) => void }) {
+  const [lista, setLista] = useState<any[]>([]);
+  const [aberto, setAberto] = useState<string | null>(null);
+  const vazio = { usa_todo_dia: 'Sim', usa_financeiro: 'Sim', sngpc: 'Em dia', satisfacao: 5, dificuldade: '', observacao: '' };
+  const [f, setF] = useState(vazio);
+  const [salvando, setSalvando] = useState(false);
+  const carregar = useCallback(() => { apiClient.getPosVenda().then(r => setLista(r.data.data || [])).catch(() => {}); }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+  const pendentes = lista.filter(x => !x.feita_em), riscos = lista.filter(x => x.feita_em && x.risco);
+  if (!pendentes.length && !riscos.length) return null;
+  const salvar = async (pid: string) => {
+    setSalvando(true);
+    try {
+      const r = await apiClient.registrarPosVenda(pid, { ...f, dificuldade: f.dificuldade.trim() || undefined, observacao: f.observacao.trim() || undefined });
+      if (r.data.data?.risco) alert('Registrado com risco: a supervisão foi avisada e o caso entrou no radar de retenção.');
+      setAberto(null); setF(vazio); carregar();
+    } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
+  };
+  const opcoes = (k: 'usa_todo_dia' | 'usa_financeiro' | 'sngpc', l: string, ops: string[]) => (
+    <label style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'grid', gap: 4 }}>{l}
+      <select value={(f as any)[k]} onChange={e => setF(p => ({ ...p, [k]: e.target.value }))} className="ps-input" style={{ minHeight: 40 }}>{ops.map(o => <option key={o}>{o}</option>)}</select>
+    </label>
+  );
+  return (
+    <section style={cartao}>
+      <div style={titulo}><Clock size={16} color="#2E6EAB" /> Pós-implantação<span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>30, 60 e 90 dias depois da virada</span></div>
+      <div style={{ padding: '0 16px 14px', display: 'grid' }}>
+        {pendentes.map((x, k) => (
+          <div key={x.id} style={{ borderTop: k ? '1px solid var(--t-card-border)' : 'none', padding: '10px 2px', display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ flex: 1, minWidth: 200 }}>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{x.cliente} · {x.marco} dias</span>
+                <span style={{ display: 'block', fontSize: 12, color: x.atrasada ? '#b45309' : 'var(--t-text-muted)' }}>{x.atrasada ? 'Atrasada · ' : ''}prevista para {fmtData(x.prevista_em)}{x.contato ? ` · ${x.contato}` : ''}{gestao && x.tecnico ? ` · ${x.tecnico.split(' ')[0]}` : ''}</span>
+              </span>
+              <button onClick={() => setAberto(a => (a === x.id ? null : x.id))} style={{ ...btnPequeno, minHeight: 36 }}>{aberto === x.id ? 'Fechar' : 'Registrar a conversa'}</button>
+            </div>
+            {aberto === x.id && (
+              <div style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 10, background: 'var(--t-content-bg)' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {opcoes('usa_todo_dia', 'Está usando o sistema todo dia?', ['Sim', 'Não'])}
+                  {opcoes('usa_financeiro', 'Usa o financeiro?', ['Sim', 'Não', 'Não contratou'])}
+                  {opcoes('sngpc', 'SNGPC', ['Em dia', 'Com problema', 'Não se aplica'])}
+                </div>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <span style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Satisfação com a Prosystem (1 a 5)</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[1, 2, 3, 4, 5].map(n => <button key={n} onClick={() => setF(p => ({ ...p, satisfacao: n }))} style={{ width: 44, height: 44, borderRadius: 10, cursor: 'pointer', fontWeight: 700, border: `1px solid ${f.satisfacao === n ? '#2E6EAB' : 'var(--t-card-border)'}`, background: f.satisfacao === n ? '#2E6EAB' : 'transparent', color: f.satisfacao === n ? '#fff' : 'var(--t-text-secondary)' }}>{n}</button>)}
+                  </div>
+                </div>
+                <input value={f.dificuldade} onChange={e => setF(p => ({ ...p, dificuldade: e.target.value }))} placeholder="Alguma dificuldade? (opcional)" className="ps-input w-full" style={{ minHeight: 40 }} />
+                <input value={f.observacao} onChange={e => setF(p => ({ ...p, observacao: e.target.value }))} placeholder="Observação (opcional)" className="ps-input w-full" style={{ minHeight: 40 }} />
+                <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Nota até 3, loja sem usar todo dia ou SNGPC com problema avisam a supervisão e entram no radar de retenção.</div>
+                <div><button disabled={salvando} onClick={() => salvar(x.id)} style={{ ...btnPequeno, minHeight: 40, background: '#2E6EAB', color: '#fff', border: 'none' }}>{salvando ? 'Salvando…' : 'Registrar'}</button></div>
+              </div>
+            )}
+          </div>
+        ))}
+        {gestao && riscos.length > 0 && (
+          <div style={{ borderTop: pendentes.length ? '1px solid var(--t-card-border)' : 'none', paddingTop: 10, display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#b45309' }}>Com risco nos últimos 30 dias</span>
+            {riscos.map(x => (
+              <button key={x.id} onClick={() => irPara('quadro', x.implantacao_id)} style={{ textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--t-text-primary)', padding: '4px 0' }}>
+                {x.cliente} · {x.marco} dias · nota {x.respostas?.satisfacao}/5{x.respostas?.dificuldade ? ` · ${x.respostas.dificuldade}` : ''}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+const btnPequeno: React.CSSProperties = { fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', border: '1px solid #2E6EAB55', background: 'transparent', color: '#2E6EAB' };

@@ -1514,6 +1514,7 @@ model Implantacao {
   aceite_enviado_em       DateTime?
   aceite_assinado_em      DateTime?
   aceite_pdf_url          String?                      @db.Text
+  virada_evento_google    String? // evento da virada no Google Agenda da empresa (técnico convidado)
   ocorrencias             ImplantacaoOcorrencia[]
   comunicacoes            ImplantacaoComunicacao[]
 
@@ -1624,6 +1625,7 @@ model ImplantacaoTreinamentoFase {
   participantes  Json?
   confirmado_em  DateTime?
   confirmado_por String?
+  evento_google  String? // evento no Google Agenda da empresa (técnico convidado)
   observacao     String?     @db.Text
   created_at     DateTime    @default(now())
   updated_at     DateTime    @updatedAt
@@ -1745,6 +1747,25 @@ model InventarioTecnico {
 
   @@index([cliente_id])
   @@index([cliente_cnpj])
+}
+
+// Pós-implantação (portal completo): checagens 30, 60 e 90 dias depois da virada, feitas pelo técnico.
+// Risco (nota baixa ou loja sem usar) avisa a supervisão e abre um caso de retenção. Sem FK de propósito.
+model ImplantacaoPosVenda {
+  id             String    @id @default(cuid())
+  implantacao_id String
+  marco          Int // 30 | 60 | 90 (dias depois da virada)
+  prevista_em    DateTime
+  feita_em       DateTime?
+  feita_por      String?
+  respostas      Json?
+  risco          Boolean   @default(false)
+  observacao     String?   @db.Text
+  avisado_em     DateTime?
+  created_at     DateTime  @default(now())
+
+  @@unique([implantacao_id, marco])
+  @@index([prevista_em, feita_em])
 }
 
 // Observações do card do cliente no Portal Técnico.

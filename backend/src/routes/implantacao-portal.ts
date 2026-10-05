@@ -278,6 +278,13 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const quandoTxt = para.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     await atividade(id, 'NOTA', remarcando ? `📅 Virada remarcada para ${quandoTxt} (${MOTIVO[b.data.motivo!]}${b.data.motivo_texto ? `: ${b.data.motivo_texto}` : ''})` : `📅 Virada agendada para ${quandoTxt}`, u);
     if (!ehLegado(imp)) await avisarClienteAgenda(prisma, imp, 'AGENDA_VIRADA', textoAgendaVirada(imp, para, remarcando, b.data.duracao_h ?? imp.virada_duracao_h)).catch(() => {});
+    // Evento no Google Agenda da empresa com o técnico convidado (sem token: segue sem evento).
+    {
+      const { salvarEventoGoogle, emailDoTecnico } = await import('@/services/agenda-google.service');
+      const dur = b.data.duracao_h ?? imp.virada_duracao_h ?? 4;
+      const ev = await salvarEventoGoogle(prisma, { eventoId: imp.virada_evento_google, titulo: `🚀 Virada · ${imp.cliente_razao_social}`, descricao: `Virada do sistema Prosystem.\nTécnico: ${imp.tecnico_nome || '—'}\nCard: ${URL_FRONT()}/portal-tecnico`, inicio: para, fim: new Date(para.getTime() + dur * 36e5), convidados: await emailDoTecnico(prisma, imp.tecnico_id) }).catch(() => null);
+      if (ev && ev !== imp.virada_evento_google) await prisma.implantacao.update({ where: { id }, data: { virada_evento_google: ev } });
+    }
     if (remarcando) await avisarEquipe(prisma, `📅 Virada remarcada: ${imp.cliente_razao_social} para ${quandoTxt} (${MOTIVO[b.data.motivo!]}).`, id).catch(() => {});
     return reply.send({ status: 'success' });
   });
@@ -505,6 +512,45 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     return reply.send(pdf);
   });
 
+  // ── Pós-implantação 30/60/90 dias: lista do que está devido e registro da checagem.
+  fastify.get('/implantacoes/pos-venda', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const gestao = ehGestaoTecnica(u);
+    const agora = new Date();
+    const lista = await prisma.implantacaoPosVenda.findMany({ where: { OR: [{ feita_em: null, prevista_em: { lte: new Date(agora.getTime() + 2 * 864e5) } }, ...(gestao ? [{ risco: true, feita_em: { gte: new Date(agora.getTime() - 30 * 864e5) } }] : [])] }, orderBy: { prevista_em: 'asc' }, take: 60 });
+    const imps = await prisma.implantacao.findMany({ where: { id: { in: [...new Set(lista.map(l => l.implantacao_id))] }, ...(gestao ? {} : { tecnico_id: u.id }) }, select: { id: true, cliente_razao_social: true, tecnico_nome: true, tecnico_id: true, virada_fim_em: true, coleta: true } });
+    const porId = new Map(imps.map(i => [i.id, i]));
+    return reply.send({ status: 'success', data: lista.filter(l => porId.has(l.implantacao_id)).map(l => {
+      const i = porId.get(l.implantacao_id)!; const c: any = i.coleta || {};
+      return { ...l, cliente: i.cliente_razao_social, tecnico: i.tecnico_nome, atrasada: !l.feita_em && l.prevista_em < agora, contato: [c.decisor_nome || c.contato_nome, c.decisor_telefone || c.contato_telefone].filter(Boolean).join(' · ') || null };
+    }) });
+  });
+  fastify.post('/implantacoes/pos-venda/:pid', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const pv = await prisma.implantacaoPosVenda.findUnique({ where: { id: (request.params as any).pid } });
+    const imp = pv ? await demanda(u, pv.implantacao_id) : null;
+    if (!pv || !imp) return reply.status(404).send({ status: 'error', message: 'Checagem não encontrada' });
+    if (pv.feita_em) return reply.status(400).send({ status: 'error', message: 'Esta checagem já foi registrada.' });
+    const b = z.object({
+      usa_todo_dia: z.enum(['Sim', 'Não']), usa_financeiro: z.enum(['Sim', 'Não', 'Não contratou']), sngpc: z.enum(['Em dia', 'Com problema', 'Não se aplica']),
+      satisfacao: z.number().int().min(1).max(5), dificuldade: z.string().trim().max(1000).optional(), observacao: z.string().trim().max(2000).optional(),
+    }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Responda as perguntas da checagem.' });
+    const r = b.data;
+    const risco = r.satisfacao <= 3 || r.usa_todo_dia === 'Não' || r.sngpc === 'Com problema';
+    await prisma.implantacaoPosVenda.update({ where: { id: pv.id }, data: { feita_em: new Date(), feita_por: u.nome || u.id, respostas: r, risco, observacao: r.observacao || null } });
+    await atividade(imp.id, 'NOTA', `📞 Pós-implantação de ${pv.marco} dias: nota ${r.satisfacao}/5, usa todo dia: ${r.usa_todo_dia}, financeiro: ${r.usa_financeiro}, SNGPC: ${r.sngpc}${r.dificuldade ? `, dificuldade: ${r.dificuldade}` : ''}${risco ? ' ⚠️ risco' : ''}`, u);
+    if (risco) {
+      await avisarEquipe(prisma, `⚠️ Pós-implantação de ${pv.marco} dias com risco: ${imp.cliente_razao_social} (nota ${r.satisfacao}/5${r.usa_todo_dia === 'Não' ? ', não usa todo dia' : ''}${r.sngpc === 'Com problema' ? ', SNGPC com problema' : ''}).${r.dificuldade ? ` Dificuldade: ${r.dificuldade}` : ''}`, imp.id).catch(() => {});
+      // Caso de retenção (radar de churn), se o cliente está no cadastro e não tem caso aberto.
+      if (imp.cliente_id) {
+        const aberto = await prisma.casoChurn.count({ where: { clienteId: imp.cliente_id, status: { notIn: ['RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'] } } });
+        if (!aberto) await prisma.casoChurn.create({ data: { clienteId: imp.cliente_id, status: 'NOVO', motivo_principal: `Pós-implantação de ${pv.marco} dias com risco`, descricao: `Nota ${r.satisfacao}/5 · usa todo dia: ${r.usa_todo_dia} · financeiro: ${r.usa_financeiro} · SNGPC: ${r.sngpc}${r.dificuldade ? ` · dificuldade: ${r.dificuldade}` : ''}${r.observacao ? ` · ${r.observacao}` : ''} (registrado por ${u.nome || 'técnico'})` } as any }).catch(() => null);
+      }
+    }
+    return reply.send({ status: 'success', data: { risco } });
+  });
+
   // ── Indicadores da implantação (supervisão): mês pedido x mês anterior, com detalhe por técnico e metas.
   fastify.get('/implantacoes/indicadores', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;
@@ -651,6 +697,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     ]);
     const tempos = temposDaDemanda(sessoes, esperas, { inicio: imp.data_assinatura, conclusao: imp.data_conclusao });
     const assistidaRegs = await prisma.implantacaoAssistida.findMany({ where: { implantacao_id: id }, orderBy: { dia: 'asc' } });
+    const posVenda = await prisma.implantacaoPosVenda.findMany({ where: { implantacao_id: id }, orderBy: { marco: 'asc' } });
     const [testesConv, anexos] = await Promise.all([
       prisma.implantacaoTeste.findMany({ where: { implantacao_id: id }, orderBy: { created_at: 'asc' } }),
       prisma.implantacaoArquivo.findMany({ where: { implantacao_id: id }, orderBy: { created_at: 'desc' }, select: { id: true, nome: true, tipo: true, url: true, descricao: true, enviado_por: true, created_at: true } }),
@@ -690,7 +737,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: CAMPOS_COLETA,
       onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
       proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length, { assistida: assistidaRegs, testes: testesConv }),
-      testes: testesConv,
+      testes: testesConv, pos_venda: posVenda,
       anexos: anexos.map(a => ({ ...a, url: a.tipo === 'LINK' ? a.url : null, tela_suporte: a.id === imp.tela_suporte_arquivo_id })),
       assistida: (() => { const st = statusAssistida(imp, assistidaRegs); return st ? { ...st, registros: assistidaRegs } : null; })(),
       saude, prazo_efetivo: prazoP, prazo_ajuste_ms: msEsperaCliente(esperas, agoraP), tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
@@ -921,6 +968,17 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const d = (v?: string | null) => v === undefined ? undefined : v ? new Date(/T/.test(v) ? v : `${v}T12:00:00-03:00`) : null;
     const novaData = b.data.marcada_em !== undefined && (d(b.data.marcada_em)?.getTime() ?? null) !== (f.marcada_em?.getTime() ?? null);
     const atual = await prisma.implantacaoTreinamentoFase.update({ where: { id: faseId }, data: { nome: b.data.nome, marcada_em: d(b.data.marcada_em), realizada_em: d(b.data.realizada_em), observacao: b.data.observacao, ...(novaData ? { lembrete_em: null } : {}) } });
+    if (novaData) {
+      const { salvarEventoGoogle, removerEventoGoogle, emailDoTecnico } = await import('@/services/agenda-google.service');
+      const impG = await prisma.implantacao.findUnique({ where: { id: f.implantacao_id }, select: { cliente_razao_social: true, tecnico_id: true, tecnico_nome: true } });
+      if (atual.marcada_em && impG) {
+        const ev = await salvarEventoGoogle(prisma, { eventoId: atual.evento_google, titulo: `🎓 Treinamento fase ${atual.ordem} · ${impG.cliente_razao_social}`, descricao: `${atual.nome}\nTécnico: ${impG.tecnico_nome || '—'}`, inicio: atual.marcada_em, diaTodo: true, convidados: await emailDoTecnico(prisma, impG.tecnico_id) }).catch(() => null);
+        if (ev && ev !== atual.evento_google) await prisma.implantacaoTreinamentoFase.update({ where: { id: faseId }, data: { evento_google: ev } });
+      } else if (!atual.marcada_em && atual.evento_google) {
+        await removerEventoGoogle(prisma, atual.evento_google).catch(() => {});
+        await prisma.implantacaoTreinamentoFase.update({ where: { id: faseId }, data: { evento_google: null } });
+      }
+    }
     if (novaData && atual.marcada_em && !atual.realizada_em && diaSP(atual.marcada_em) >= diaSP(new Date())) {
       const imp = await prisma.implantacao.findUnique({ where: { id: f.implantacao_id } });
       if (imp) await avisarClienteAgenda(prisma, imp, `AGENDA_TREINO_${f.ordem}`, textoAgendaTreino(imp, atual, atual.marcada_em, false)).catch(() => {});

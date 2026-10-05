@@ -959,3 +959,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - Ao **validar** a implantação, o cliente (decisor) recebe o **termo de aceite** para assinar pelo ZapSign. A assinatura volta sozinha para o card. Sem decisor ou contato, a supervisão envia depois pelo próprio card.
 - O **relatório final em PDF** (o que foi feito, testes, treinamento, equipamentos e contato do suporte) fica no card e na página do cliente.
+
+### Atualização 05/10/2026: pós-implantação e Google Agenda
+
+- Aos **30, 60 e 90 dias** depois da virada, o técnico recebe a tarefa de ligar para a loja e registra a conversa no Início. Nota baixa ou loja sem usar o sistema avisa a supervisão e entra no radar de retenção.
+- Viradas agendadas e treinamentos marcados entram sozinhos no **Google Agenda** do técnico (pela agenda da empresa conectada ao CRM).
