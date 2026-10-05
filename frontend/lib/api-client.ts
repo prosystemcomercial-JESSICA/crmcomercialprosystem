@@ -950,6 +950,9 @@ class ApiClient {
   async acaoTarefaCliente(tid: string, acao: 'CONCLUIR' | 'DEVOLVER' | 'EXCLUIR' | 'REABRIR', motivo?: string) { return this.client.patch(`/implantacoes/tarefas-cliente/${tid}`, { acao, motivo }); }
   async baixarArquivoTarefaCliente(tid: string) { return this.client.get(`/implantacoes/tarefas-cliente/${tid}/arquivo`, { responseType: 'blob' }); }
   async getResumoSuporte(clienteId: string) { return this.client.get('/implantacoes/resumo-suporte', { params: { cliente_id: clienteId } }); }
+  async getIndicadoresImplantacao(mes: string) { return this.client.get('/implantacoes/indicadores', { params: { mes } }); }
+  async getMinhasPreferencias() { return this.client.get('/implantacoes/minhas-preferencias'); }
+  async salvarMinhasPreferencias(data: { whatsapp: string }) { return this.client.put('/implantacoes/minhas-preferencias', data); }
   async pedirValidacao(id: string) { return this.client.post(`/implantacoes/${id}/pedir-validacao`, {}); }
   async devolverDemanda(id: string, motivo: string) { return this.client.post(`/implantacoes/${id}/devolver`, { motivo }); }
   async buscarDemandas(q: string) { return this.client.get('/implantacoes/busca', { params: { q } }); }

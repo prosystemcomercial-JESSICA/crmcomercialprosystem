@@ -583,3 +583,41 @@ export function montarResumoSuporte(p: {
   if (p.observacoes.length) linhas.push('', 'Observações da equipe:', ...p.observacoes.map(o => `• ${o.texto.replace(/\s+/g, ' ').slice(0, 300)}${o.autor_nome ? ` (${o.autor_nome.split(' ')[0]})` : ''}`));
   return linhas.join('\n');
 }
+
+// ─── Portal completo (05/10/2026): prazo pausado na espera do cliente e indicadores ─────
+
+type EsperaPrazo = { tipo: string; inicio: Date; fim?: Date | null };
+/** Tempo em que a demanda ficou esperando o CLIENTE (abertas contam até agora). Esse tempo não conta contra o técnico. */
+export function msEsperaCliente(esperas: EsperaPrazo[], agora = new Date()): number {
+  return esperas.filter(e => e.tipo === 'CLIENTE').reduce((t, e) => t + Math.max(0, (e.fim || agora).getTime() - e.inicio.getTime()), 0);
+}
+/** Prazo com a espera do cliente somada: o relógio do técnico pausa enquanto a loja não entrega o que precisa. */
+export function prazoAjustado(prazo: Date | null | undefined, esperas: EsperaPrazo[], agora = new Date()): Date | null {
+  if (!prazo) return null;
+  return new Date(prazo.getTime() + msEsperaCliente(esperas, agora));
+}
+
+/** Metas dos indicadores (editáveis em Configurações). */
+export type MetasIndicadores = {
+  virada_conversao_dias: number; virada_zerado_dias: number; viradas_no_prazo_pct: number;
+  retrabalho_por_virada: number; horas_por_implantacao: number; satisfacao_min: number; remarcacoes_max: number;
+};
+export const METAS_PADRAO: MetasIndicadores = {
+  virada_conversao_dias: 15, virada_zerado_dias: 10, viradas_no_prazo_pct: 90,
+  retrabalho_por_virada: 1, horas_por_implantacao: 20, satisfacao_min: 4.5, remarcacoes_max: 2,
+};
+
+export type ViradaInd = { tecnico_id: string | null; tecnico_nome: string | null; tipo_base: string | null; data_assinatura: Date | null; virada_fim_em: Date; prazo_virada: Date | null; esperas: EsperaPrazo[] };
+/** Números das viradas de um período: tempo médio até a virada (dias corridos, sem a espera do cliente) e % no prazo. */
+export function indicadoresViradas(viradas: ViradaInd[]) {
+  const dias = (v: ViradaInd) => v.data_assinatura ? Math.max(0, (v.virada_fim_em.getTime() - v.data_assinatura.getTime() - msEsperaCliente(v.esperas, v.virada_fim_em)) / 864e5) : null;
+  const media = (xs: (number | null)[]) => { const ok = xs.filter((x): x is number => x != null); return ok.length ? Math.round((ok.reduce((a, b) => a + b, 0) / ok.length) * 10) / 10 : null; };
+  const comPrazo = viradas.filter(v => v.prazo_virada);
+  const noPrazo = comPrazo.filter(v => v.virada_fim_em <= prazoAjustado(v.prazo_virada, v.esperas, v.virada_fim_em)!);
+  return {
+    total: viradas.length,
+    dias_conversao: media(viradas.filter(v => v.tipo_base === 'CONVERSAO').map(dias)),
+    dias_zerado: media(viradas.filter(v => v.tipo_base === 'BANCO_ZERADO').map(dias)),
+    no_prazo_pct: comPrazo.length ? Math.round((noPrazo.length / comPrazo.length) * 100) : null,
+  };
+}

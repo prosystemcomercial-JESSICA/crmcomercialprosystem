@@ -1031,3 +1031,32 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Fica de fora: cliente, equipe, parceiro, fornecedor, terceiro, "outro", etiquetas de suporte/financeiro/equipe/pessoal, atendimento finalizado e quem pediu para sair das campanhas.
 - Quando roda: 1 min após o boot (organiza o que já existe), a cada 10 min e na hora em que a Laya analisa a conversa. Só tira de Novo Contato: nunca puxa quem a equipe moveu para outra fase; arrastar continua livre.
 - Testes em `backend/tests/funil-whatsapp.test.ts`.
+
+### Atualização 05/10/2026: Portal Técnico completo (o que faltava do documento de pesquisa de UX)
+
+**Indicadores (seção 7 do documento)** — `GET /implantacoes/indicadores?mes=YYYY-MM` (supervisão), no topo do Painel da implantação:
+- Dias até a virada (conversão e banco zerado, dias corridos da assinatura à loja virada, **sem a espera do cliente**), % de viradas no prazo (prazo ajustado), horas de espera por causa (programação, cliente, processamento), retrabalho (correções abertas até 30 dias depois da virada, por virada), horas de cronômetro por implantação concluída, satisfação (média de `nota_atendimento` das pesquisas de clientes com implantação validada) e viradas remarcadas.
+- Mês escolhido x mês anterior (seta verde/laranja), cor pela meta, detalhe por técnico ao tocar. Contam só demandas a partir de 02/10/2026. Lógica pura: `indicadoresViradas`, `msEsperaCliente`, `prazoAjustado`.
+- Metas em Configurações (`ConfigPortal.metas`, padrão `METAS_PADRAO`: conversão 15 d, banco zerado 10 d, 90% no prazo, 1 retrabalho por virada, 20 h por implantação, satisfação 4,5, 2 remarcações).
+
+**Prazo pausado na espera do cliente**: o tempo de esperas "Cliente" (abertas e fechadas) soma no prazo da demanda. Vale no quadro, no card ("prazo pausado +Xh"), no Início, na saúde do card, nos avisos de prazo do robô e nos indicadores.
+
+**Início**
+- Técnico: topo "Seu dia hoje" com as horas trabalhadas contra a jornada e a lista **Sua vez** (demandas em que o próximo passo é dele, piores primeiro, com o ponto de saúde). A frase do dia foi para o rodapé.
+- Supervisão: topo "O que pede a sua ação" com 4 números clicáveis — sem técnico, em risco, esperando validação, recados de técnicos sem leitura.
+- `GET /implantacoes/inicio` devolve `sua_vez` e `acao`.
+
+**Quadro**
+- Cartão enxuto: etiquetas, nome com ponto de saúde, próximo passo, prazo e **iniciais do técnico**; progresso virou uma linha fina de 3px no rodapé (sem %).
+- Filtros rápidos: **Meus**, **Virada esta semana**, **Esperando cliente** (somam com Em risco e a busca).
+- Finalizado e Cancelados ficam **recolhidos** (só o contador, aceitam arrastar); toque para abrir. Saiu a caixa "Ocultar finalizados".
+
+**Card**
+- **Linha de marcos** no topo (Primeiro contato → Coleta → Virada → Assistida → Treinamento → Validação; serviço: Designado → Execução → Concluído → Validado) no lugar da barra de %.
+- Celular (até 640px): card em tela cheia e **barra fixa no rodapé** com Ligar, WhatsApp e Play/Pausar.
+
+**Notificações**
+- Sino agrupa as novidades do mesmo card ("Farmácia X: 3 novidades").
+- Preferência de cada pessoa (no rodapé do sino): também no WhatsApp **só urgentes** (padrão), **tudo** ou **nada**. O portal recebe tudo sempre. `GET/PUT /implantacoes/minhas-preferencias`, gravado em `ConfiguracaoIntegracao` (`implantacao.pref.<usuário>`); respeitado em `avisarTecnico`.
+
+**Padrão visual**: `.interface-design/system.md` com cores, tipografia, espaços, componentes e o que evitar.

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, montarResumoSuporte } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, METAS_PADRAO, CARGOS_TECNICO } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -53,7 +53,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       where, orderBy: { data_assinatura: 'desc' },
       include: {
         checklist: { select: { grupo: true, titulo: true, feito: true } },
-        esperas: { where: { fim: null }, select: { id: true, tipo: true, motivo: true, inicio: true } },
+        esperas: { select: { id: true, tipo: true, motivo: true, inicio: true, fim: true } },
         ocorrencias: { where: { situacao: { not: 'RESOLVIDA' } }, select: { id: true, gravidade: true } },
         treinamento_fases: { select: { realizada_em: true, marcada_em: true, ordem: true, nome: true } },
         assistida: { select: { dia: true } },
@@ -63,7 +63,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const agora = new Date();
     const vencidasPorCard = new Map((await prisma.implantacaoTarefaCliente.groupBy({ by: ['implantacao_id'], where: { implantacao_id: { in: lista.map(l => l.id) }, status: 'PENDENTE', prazo: { lt: agora } }, _count: { _all: true } })).map(g => [g.implantacao_id, g._count._all]));
     const cards = lista.map(i => {
-      const prazo = i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada;
+      // O relógio do técnico pausa enquanto a loja não entrega o que precisa (espera "Cliente").
+      const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, agora);
+      const abertas = i.esperas.filter(e => !e.fim);
       const concluido = i.modulo === 'SERVICO' || i.virada_fim_em ? (i.concluida_fila_em || i.data_conclusao) : i.virada_fim_em;
       return {
         id: i.id, cliente_razao_social: i.cliente_razao_social, cliente_cnpj: i.cliente_cnpj, modulo: i.modulo, tipo_servico: i.tipo_servico,
@@ -72,14 +74,14 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         data_assinatura: i.data_assinatura, prazo_virada: i.prazo_virada, prazo_finalizacao: i.prazo_finalizacao,
         sla: situacaoSla(i.data_assinatura, prazo, concluido, agora), sla_etapa: i.virada_fim_em || i.modulo === 'SERVICO' ? 'finalização' : 'virada',
         progresso: progresso(i, i.checklist), checklist_feitos: i.checklist.filter(c => c.feito).length, checklist_total: i.checklist.length,
-        esperas_abertas: i.esperas, ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
+        esperas_abertas: abertas, prazo_ajuste_ms: msEsperaCliente(i.esperas, agora), ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
         tela_suporte: !!i.tela_suporte_arquivo_id, virada_inicio_em: i.virada_inicio_em, virada_fim_em: i.virada_fim_em, data_primeiro_vencimento: i.data_primeiro_vencimento,
         cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
         proximo_passo: (({ chave, titulo, quem }) => ({ chave, titulo, quem }))(proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length, { assistida: i.assistida, agora })),
         virada_agendada_para: i.virada_agendada_para,
         treinos_marcados: i.treinamento_fases.filter(f => f.marcada_em && !f.realizada_em).map(f => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em })),
         saude: saudeDoCard({ coluna: colunaDe(i), sla: situacaoSla(i.data_assinatura, prazo, concluido, agora), tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
-          ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: i.esperas, correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidasPorCard.get(i.id) || 0 }, agora),
+          ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: abertas, correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidasPorCard.get(i.id) || 0 }, agora),
         onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length,
       };
     });
@@ -370,6 +372,72 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     return reply.send({ status: 'success', data: imp });
   });
 
+  // ── Indicadores da implantação (supervisão): mês pedido x mês anterior, com detalhe por técnico e metas.
+  fastify.get('/implantacoes/indicadores', async (request, reply) => {
+    const u = exigirGestao(request, reply); if (!u) return;
+    const q = String((request.query as any)?.mes || '');
+    const mes = /^\d{4}-\d{2}$/.test(q) ? q : diaSP(new Date()).slice(0, 7);
+    const [y, m] = mes.split('-').map(Number);
+    const limites = (yy: number, mm: number) => ({ ini: new Date(Date.UTC(yy, mm - 1, 1, 3)), fim: new Date(Date.UTC(yy, mm, 1, 3)) }); // meia-noite de Brasília
+    const atual = limites(y, m), ant = limites(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1);
+    const cfg = await obterConfigPortal(prisma);
+    const metas = { ...METAS_PADRAO, ...((cfg as any).metas || {}) };
+    const calcular = async ({ ini, fim }: { ini: Date; fim: Date }) => {
+      const viradas = await prisma.implantacao.findMany({ where: { modulo: 'IMPLANTACAO', virada_fim_em: { gte: ini, lt: fim }, data_assinatura: { gte: CORTE_PORTAL } }, select: { id: true, tecnico_id: true, tecnico_nome: true, tipo_base: true, data_assinatura: true, virada_fim_em: true, prazo_virada: true, esperas: { select: { tipo: true, inicio: true, fim: true } } } });
+      const vir = viradas.map(v => ({ ...v, virada_fim_em: v.virada_fim_em! }));
+      const esperas = await prisma.implantacaoEspera.findMany({ where: { inicio: { lt: fim }, OR: [{ fim: null }, { fim: { gt: ini } }], implantacao: { data_assinatura: { gte: CORTE_PORTAL } } }, select: { tipo: true, inicio: true, fim: true, implantacao: { select: { tecnico_id: true } } } });
+      const agora = new Date();
+      const horasEspera: Record<string, number> = { PROGRAMACAO: 0, CLIENTE: 0, PROCESSAMENTO: 0 };
+      for (const e of esperas) horasEspera[e.tipo] = (horasEspera[e.tipo] || 0) + Math.max(0, Math.min((e.fim || agora).getTime(), fim.getTime()) - Math.max(e.inicio.getTime(), ini.getTime())) / 36e5;
+      const correcoes = await prisma.implantacaoOcorrencia.findMany({ where: { aberta_em: { gte: ini, lt: fim }, implantacao: { virada_fim_em: { not: null }, data_assinatura: { gte: CORTE_PORTAL } } }, select: { aberta_em: true, implantacao: { select: { virada_fim_em: true, tecnico_id: true } } } });
+      const retrab = correcoes.filter(c => c.implantacao.virada_fim_em && c.aberta_em.getTime() - c.implantacao.virada_fim_em.getTime() <= 30 * 864e5);
+      const concluidas = await prisma.implantacao.findMany({ where: { modulo: 'IMPLANTACAO', concluida_fila_em: { gte: ini, lt: fim }, data_assinatura: { gte: CORTE_PORTAL } }, select: { id: true, tecnico_id: true, sessoes: { select: { inicio: true, fim: true } } } });
+      const horasDe = (c: { sessoes: { inicio: Date; fim: Date | null }[] }) => c.sessoes.reduce((t, s) => t + ((s.fim || agora).getTime() - s.inicio.getTime()), 0) / 36e5;
+      const media = (xs: number[]) => xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null;
+      const remarcacoes = await prisma.implantacaoAtividade.count({ where: { created_at: { gte: ini, lt: fim }, descricao: { startsWith: '📅 Virada remarcada' } } });
+      const validadas = await prisma.implantacao.findMany({ where: { validado_em: { not: null } }, select: { cliente_id: true } });
+      const clientes = [...new Set(validadas.map(v => v.cliente_id).filter(Boolean))] as string[];
+      const pesquisas = clientes.length ? await prisma.pesquisaSatisfacao.findMany({ where: { created_at: { gte: ini, lt: fim }, cliente_id: { in: clientes }, nota_atendimento: { gt: 0 } }, select: { nota_atendimento: true } }) : [];
+      const vi = indicadoresViradas(vir);
+      const ids = [...new Set([...vir.map(v => v.tecnico_id), ...concluidas.map(c => c.tecnico_id), ...retrab.map(r => r.implantacao.tecnico_id)].filter(Boolean))] as string[];
+      const por_tecnico = ids.map(tid => {
+        const v = indicadoresViradas(vir.filter(x => x.tecnico_id === tid));
+        const conc = concluidas.filter(c => c.tecnico_id === tid);
+        return { tecnico_id: tid, nome: vir.find(x => x.tecnico_id === tid)?.tecnico_nome || null, viradas: v.total, dias_conversao: v.dias_conversao, dias_zerado: v.dias_zerado, no_prazo_pct: v.no_prazo_pct,
+          retrabalho: retrab.filter(r => r.implantacao.tecnico_id === tid).length, horas_por_implantacao: media(conc.map(horasDe)), concluidas: conc.length };
+      });
+      return {
+        viradas: vi.total, dias_conversao: vi.dias_conversao, dias_zerado: vi.dias_zerado, no_prazo_pct: vi.no_prazo_pct,
+        espera_horas: Object.fromEntries(Object.entries(horasEspera).map(([k, v]) => [k, Math.round(v)])),
+        retrabalho: retrab.length, retrabalho_por_virada: vi.total ? Math.round((retrab.length / vi.total) * 10) / 10 : null,
+        horas_por_implantacao: media(concluidas.map(horasDe)), concluidas: concluidas.length,
+        satisfacao: pesquisas.length ? Math.round((pesquisas.reduce((t, p) => t + p.nota_atendimento, 0) / pesquisas.length) * 10) / 10 : null, pesquisas: pesquisas.length,
+        remarcacoes, por_tecnico,
+      };
+    };
+    const [a, b] = await Promise.all([calcular(atual), calcular(ant)]);
+    const nomes = new Map((await prisma.usuarioCRM.findMany({ where: { id: { in: a.por_tecnico.map(t => t.tecnico_id) } }, select: { id: true, nome: true } })).map(x => [x.id, x.nome]));
+    a.por_tecnico.forEach(t => { t.nome = t.nome || nomes.get(t.tecnico_id) || 'Técnico'; });
+    return reply.send({ status: 'success', data: { mes, atual: a, anterior: b, metas } });
+  });
+
+  // ── Preferência de cada pessoa: o que chega também no WhatsApp (o portal recebe tudo sempre).
+  const chavePref = (uid: string) => `implantacao.pref.${uid}`;
+  fastify.get('/implantacoes/minhas-preferencias', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const row = await prisma.configuracaoIntegracao.findUnique({ where: { chave: chavePref(u.id) } }).catch(() => null);
+    let pref: any = {}; try { pref = row?.valor ? JSON.parse(row.valor) : {}; } catch { /* padrão */ }
+    return reply.send({ status: 'success', data: { whatsapp: pref.whatsapp || 'URGENTES' } });
+  });
+  fastify.put('/implantacoes/minhas-preferencias', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const b = z.object({ whatsapp: z.enum(['URGENTES', 'TODOS', 'NENHUM']) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escolha uma opção' });
+    const valor = JSON.stringify({ whatsapp: b.data.whatsapp });
+    await prisma.configuracaoIntegracao.upsert({ where: { chave: chavePref(u.id) }, create: { chave: chavePref(u.id), valor, updated_by: u.nome || u.id }, update: { valor, updated_by: u.nome || u.id } });
+    return reply.send({ status: 'success' });
+  });
+
   // ── Busca global (Ctrl+K): cliente, CNPJ ou técnico, só dentro do que a pessoa pode ver.
   fastify.get('/implantacoes/busca', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
@@ -452,7 +520,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const assistidaRegs = await prisma.implantacaoAssistida.findMany({ where: { implantacao_id: id }, orderBy: { dia: 'asc' } });
     const tarefasCliente = await prisma.implantacaoTarefaCliente.findMany({ where: { implantacao_id: id }, orderBy: [{ status: 'asc' }, { created_at: 'asc' }] });
     const agoraP = new Date();
-    const prazoP = imp.virada_fim_em || imp.modulo === 'SERVICO' ? imp.prazo_finalizacao : imp.prazo_virada;
+    const prazoP = prazoAjustado(imp.virada_fim_em || imp.modulo === 'SERVICO' ? imp.prazo_finalizacao : imp.prazo_virada, esperas, agoraP);
     const saude = saudeDoCard({ coluna: colunaDe(imp), sla: situacaoSla(imp.data_assinatura, prazoP, imp.modulo === 'SERVICO' || imp.virada_fim_em ? (imp.concluida_fila_em || imp.data_conclusao) : imp.virada_fim_em, agoraP),
       tecnico_id: imp.tecnico_id, designado_em: imp.designado_em, data_assinatura: imp.data_assinatura, ultima_sessao: sessoes.length ? sessoes.at(-1)!.inicio : null,
       esperas_abertas: esperas.filter(e => !e.fim), correcoes_altas: ocorrencias.filter(o => o.situacao !== 'RESOLVIDA' && o.gravidade === 'ALTA').length,
@@ -486,7 +554,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
       proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length, { assistida: assistidaRegs }),
       assistida: (() => { const st = statusAssistida(imp, assistidaRegs); return st ? { ...st, registros: assistidaRegs } : null; })(),
-      saude, tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
+      saude, prazo_efetivo: prazoP, prazo_ajuste_ms: msEsperaCliente(esperas, agoraP), tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
       cliente_ficha, tipo_demanda, servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
@@ -576,20 +644,20 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       prisma.avisoTecnico.findMany({ where: { tipo: 'TAREFA', created_at: { gte: CORTE_PORTAL }, ...(gestao ? {} : { para_id: u.id }), AND: [soDoDesignado(u)], OR: [{ concluida_em: null }, { concluida_em: { gte: new Date(agora.getTime() - 3 * 864e5) } }] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: [{ concluida_em: 'asc' }, { prazo: 'asc' }, { created_at: 'desc' }], take: 40 }),
       prisma.avisoTecnico.findMany({ where: { para_id: u.id, tipo: 'AVISO', created_at: { gte: CORTE_PORTAL }, lido_em: null, AND: [soDoDesignado(u)] }, include: { implantacao: { select: { id: true, cliente_razao_social: true } } }, orderBy: { created_at: 'desc' }, take: 10 }),
       prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, data_assinatura: { gte: desdeQuadro(agora.getTime()) }, ...(gestao ? {} : { tecnico_id: u.id }) },
-        include: { esperas: { where: { fim: null } }, treinamento_fases: { where: { realizada_em: null, marcada_em: { not: null } } } } }),
+        include: { esperas: true, treinamento_fases: true, checklist: { select: { grupo: true, titulo: true, feito: true } }, ocorrencias: { where: { situacao: { not: 'RESOLVIDA' } }, select: { gravidade: true } }, assistida: { select: { dia: true } }, sessoes: { orderBy: { inicio: 'desc' }, take: 1, select: { inicio: true } } } }),
     ]);
     const viradaHoje = minhas.some(i => i.virada_inicio_em && diaSP(i.virada_inicio_em) === hoje && i.tecnico_id === u.id);
     const resumo = resumoDoDia(sessoesHoje, hoje, { cfg: await obterJornada(prisma), virada: viradaHoje });
     // O que pede atenção: prazo estourado/em risco, demanda parada, virada em andamento, fases de treinamento marcadas para os próximos 7 dias.
     const atencao: { tipo: string; texto: string; implantacao_id: string; ordem: number }[] = [];
     for (const i of minhas) {
-      const prazo = i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada;
+      const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, agora);
       const s = situacaoSla(i.data_assinatura, prazo, null, agora);
       if (s?.situacao === 'ESTOURADO') atencao.push({ tipo: 'ESTOURADO', texto: `${i.cliente_razao_social}: prazo estourado (${fmtData(prazo)})`, implantacao_id: i.id, ordem: 0 });
       else if (s?.situacao === 'EM_RISCO') atencao.push({ tipo: 'RISCO', texto: `${i.cliente_razao_social}: prazo em risco, vence ${fmtData(prazo)}`, implantacao_id: i.id, ordem: 1 });
-      for (const e of i.esperas) atencao.push({ tipo: 'ESPERA', texto: `${i.cliente_razao_social}: parada (${e.tipo === 'PROGRAMACAO' ? 'aguardando programação' : e.tipo === 'CLIENTE' ? 'aguardando cliente' : 'processamento'}): ${e.motivo}`, implantacao_id: i.id, ordem: 2 });
+      for (const e of i.esperas.filter(x => !x.fim)) atencao.push({ tipo: 'ESPERA', texto: `${i.cliente_razao_social}: parada (${e.tipo === 'PROGRAMACAO' ? 'aguardando programação' : e.tipo === 'CLIENTE' ? 'aguardando cliente' : 'processamento'}): ${e.motivo}`, implantacao_id: i.id, ordem: 2 });
       if (i.virada_inicio_em && !i.virada_fim_em) atencao.push({ tipo: 'VIRADA', texto: `${i.cliente_razao_social}: virada em andamento, clique em "Loja virada" ao terminar`, implantacao_id: i.id, ordem: 1 });
-      for (const f of i.treinamento_fases) if (f.marcada_em! < new Date(agora.getTime() + 7 * 864e5)) atencao.push({ tipo: 'TREINO', texto: `${i.cliente_razao_social}: treinamento fase ${f.ordem} (${f.nome}) em ${fmtData(f.marcada_em)}`, implantacao_id: i.id, ordem: 3 });
+      for (const f of i.treinamento_fases.filter(x => x.marcada_em && !x.realizada_em)) if (f.marcada_em! < new Date(agora.getTime() + 7 * 864e5)) atencao.push({ tipo: 'TREINO', texto: `${i.cliente_razao_social}: treinamento fase ${f.ordem} (${f.nome}) em ${fmtData(f.marcada_em)}`, implantacao_id: i.id, ordem: 3 });
       if (!i.tecnico_id && gestao) atencao.push({ tipo: 'SEM_TECNICO', texto: `${i.cliente_razao_social}: sem técnico designado`, implantacao_id: i.id, ordem: 1 });
     }
     atencao.sort((a, b) => a.ordem - b.ordem);
@@ -597,11 +665,34 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const agenda = [
       ...minhas.filter(i => i.virada_agendada_para && !i.virada_inicio_em && i.virada_agendada_para >= iniHoje && i.virada_agendada_para <= limite)
         .map(i => ({ tipo: 'VIRADA', quando: i.virada_agendada_para!, dia_todo: false, titulo: `Virada${i.virada_duracao_h ? ` (${i.virada_duracao_h}h)` : ''}`, cliente: i.cliente_razao_social, implantacao_id: i.id, tecnico: i.tecnico_nome })),
-      ...minhas.flatMap(i => i.treinamento_fases.filter(f => f.marcada_em! >= iniHoje && f.marcada_em! <= limite)
+      ...minhas.flatMap(i => i.treinamento_fases.filter(f => f.marcada_em && !f.realizada_em && f.marcada_em >= iniHoje && f.marcada_em <= limite)
         .map(f => ({ tipo: 'TREINO', quando: f.marcada_em!, dia_todo: true, titulo: `Treinamento fase ${f.ordem}: ${f.nome}`, cliente: i.cliente_razao_social, implantacao_id: i.id, tecnico: i.tecnico_nome }))),
     ].sort((a, b) => a.quando.getTime() - b.quando.getTime());
+    // Próximo passo e saúde de cada demanda: "sua vez" (técnico) e os números que pedem ação (supervisão).
+    const vencidas = new Map((await prisma.implantacaoTarefaCliente.groupBy({ by: ['implantacao_id'], where: { implantacao_id: { in: minhas.map(m => m.id) }, status: 'PENDENTE', prazo: { lt: agora } }, _count: { _all: true } })).map(g => [g.implantacao_id, g._count._all]));
+    const leitura = minhas.map(i => {
+      const pp = proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length, { assistida: i.assistida, agora });
+      const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, agora);
+      const saude = saudeDoCard({ coluna: colunaDe(i), sla: situacaoSla(i.data_assinatura, prazo, null, agora), tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
+        ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: i.esperas.filter(e => !e.fim), correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidas.get(i.id) || 0 }, agora);
+      return { id: i.id, cliente: i.cliente_razao_social, tecnico_id: i.tecnico_id, tecnico: i.tecnico_nome, coluna: colunaDe(i), passo: pp, saude };
+    });
+    const PESO: Record<string, number> = { VERMELHO: 0, AMARELO: 1, VERDE: 2 };
+    const sua_vez = leitura.filter(l => l.passo.quem === 'TECNICO' && l.tecnico_id === u.id)
+      .sort((a, b) => PESO[a.saude.nivel] - PESO[b.saude.nivel]).slice(0, 12)
+      .map(l => ({ implantacao_id: l.id, cliente: l.cliente, titulo: l.passo.titulo, detalhe: l.passo.detalhe || null, saude: l.saude }));
+    let acao: any = null;
+    if (gestao) {
+      const tecnicos = await prisma.usuarioCRM.findMany({ where: { cargo: { in: CARGOS_TECNICO } }, select: { id: true } }).catch(() => []);
+      acao = {
+        sem_tecnico: leitura.filter(l => !l.tecnico_id && !['CANCELADOS', 'FINALIZADO'].includes(l.coluna)).length,
+        em_risco: leitura.filter(l => l.saude.nivel !== 'VERDE').length,
+        esperando_validacao: leitura.filter(l => l.coluna === 'CONCLUIDO').length,
+        recados_sem_leitura: tecnicos.length ? await prisma.avisoTecnico.count({ where: { para_id: { in: tecnicos.map(t => t.id) }, lido_em: null, tipo: 'AVISO', created_at: { gte: CORTE_PORTAL } } }) : 0,
+      };
+    }
     return reply.send({ status: 'success', data: {
-      agenda,
+      agenda, sua_vez, acao,
       saudacao: `${saudacao(agora)}, ${(u.nome || '').split(' ')[0] || 'tudo bem'}!`, frase: fraseDoDia(agora),
       hoje: { ...resumo, virada: viradaHoje },
       tarefas: tarefas.map(t => ({ ...t, atrasada: !t.concluida_em && !!t.prazo && t.prazo < agora })),
@@ -828,7 +919,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/portal/config', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;
     const cfg = await obterConfigPortal(prisma);
-    return reply.send({ status: 'success', data: { ...cfg, link_programacao: `${URL_FRONT()}/programacao/${cfg.programacao.token}`, jornada: await obterJornada(prisma), checklist_padrao: CHECKLIST_PADRAO } });
+    return reply.send({ status: 'success', data: { ...cfg, metas: { ...METAS_PADRAO, ...((cfg as any).metas || {}) }, link_programacao: `${URL_FRONT()}/programacao/${cfg.programacao.token}`, jornada: await obterJornada(prisma), checklist_padrao: CHECKLIST_PADRAO } });
   });
   fastify.put('/implantacoes/portal/config', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;
@@ -840,6 +931,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       modelos: z.array(z.object({ segmento: z.string().trim().min(2).max(60), grupos: z.object({ INSTALACAO: z.array(z.string().trim().min(2).max(300)).max(60), CONVERSAO: z.array(z.string().trim().min(2).max(300)).max(60), TREINAMENTO: z.array(z.string().trim().min(2).max(300)).max(60) }) })).max(20).optional(),
       extras_sistema: z.array(z.object({ sistema: z.string().trim().min(2).max(60), itens: z.array(z.string().trim().min(2).max(300)).max(40) })).max(40).optional(),
       tarefas_cliente: z.array(z.string().trim().min(2).max(200)).max(20).optional(),
+      metas: z.object({ virada_conversao_dias: z.number().min(1).max(120), virada_zerado_dias: z.number().min(1).max(120), viradas_no_prazo_pct: z.number().min(1).max(100), retrabalho_por_virada: z.number().min(0).max(50), horas_por_implantacao: z.number().min(1).max(500), satisfacao_min: z.number().min(1).max(5), remarcacoes_max: z.number().min(0).max(100) }).optional(),
       jornada: z.object({ inicio: z.string().regex(/^\d\d:\d\d$/), fim: z.string().regex(/^\d\d:\d\d$/), almoco_inicio: z.string().regex(/^\d\d:\d\d$/), almoco_min: z.number().int().min(0).max(180), virada_inicio: z.string().regex(/^\d\d:\d\d$/) }).optional(),
     }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Configuração inválida' });

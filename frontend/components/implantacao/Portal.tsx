@@ -60,6 +60,9 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
   const [busca, setBusca] = useState('');
   const [ocultarFinalizados, setOcultarFinalizados] = useState(true);
   const [vista, setVista] = useState<'kanban' | 'lista' | 'calendario' | 'equipe'>('kanban');
+  const [rapidos, setRapidos] = useState<string[]>([]);
+  const [abertasFinais, setAbertasFinais] = useState<string[]>([]);
+  const meuId = useAuth().user?.id;
   const [soRisco, setSoRisco] = useState(false);
   const carregar = useCallback(async () => {
     try { const r = await apiClient.getQuadroImplantacao(null); setDados(r.data.data); } catch { setDados({ colunas: [], cards: [] }); }
@@ -74,11 +77,15 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
     carregar();
   };
 
-  const colunas = (dados?.colunas || []).filter(c => !(ocultarFinalizados && ['FINALIZADO', 'CANCELADOS'].includes(c.key)));
+  // Finalizado e Cancelados ficam recolhidos (só o contador); toque para abrir.
+  const colunas = dados?.colunas || [];
   const filtro = busca.trim().toLowerCase();
   const doModulo = (dados?.cards || []).filter(c => !modulo || c.modulo === modulo);
   const cards = doModulo.filter(c => !filtro || `${c.cliente_razao_social} ${c.cliente_cnpj || ''} ${c.tecnico_nome || ''}`.toLowerCase().includes(filtro))
-    .filter(c => !soRisco || (c.saude && c.saude.nivel !== 'VERDE'));
+    .filter(c => !soRisco || (c.saude && c.saude.nivel !== 'VERDE'))
+    .filter(c => !rapidos.includes('meus') || c.tecnico_id === meuId)
+    .filter(c => !rapidos.includes('virada') || (c.virada_inicio_em && !c.virada_fim_em) || (c.virada_agendada_para && !c.virada_inicio_em && new Date(c.virada_agendada_para).getTime() - Date.now() < 7 * 864e5))
+    .filter(c => !rapidos.includes('cliente') || c.esperas_abertas.some((e: any) => e.tipo === 'CLIENTE'));
   const emRisco = doModulo.filter(c => c.saude && c.saude.nivel !== 'VERDE').length;
   const contagem = (m: string) => (dados?.cards || []).filter(c => (!m || c.modulo === m) && !['FINALIZADO', 'CANCELADOS'].includes(c.coluna)).length;
   const resumo = useMemo(() => {
@@ -117,6 +124,10 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${soRisco ? '#d97706' : 'var(--t-card-border)'}`, background: soRisco ? '#d977060f' : 'transparent', color: soRisco ? '#b45309' : 'var(--t-text-secondary)' }}>
           <span style={{ width: 7, height: 7, borderRadius: 99, background: '#d97706' }} /> Em risco <span style={{ fontVariantNumeric: 'tabular-nums' }}>{emRisco}</span>
         </button>
+        {([['meus', 'Meus'], ['virada', 'Virada esta semana'], ['cliente', 'Esperando cliente']] as [string, string][]).map(([k, l]) => (
+          <button key={k} onClick={() => setRapidos(r => (r.includes(k) ? r.filter(x => x !== k) : [...r, k]))} aria-pressed={rapidos.includes(k)}
+            style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${rapidos.includes(k) ? '#2E6EAB' : 'var(--t-card-border)'}`, background: rapidos.includes(k) ? '#2E6EAB0f' : 'transparent', color: rapidos.includes(k) ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{l}</button>
+        ))}
         <div role="tablist" aria-label="Vista do quadro" style={{ display: 'inline-flex', border: '1px solid var(--t-card-border)', borderRadius: 8, overflow: 'hidden' }}>
           {([['kanban', 'Quadro'], ['lista', 'Lista'], ['calendario', 'Calendário'], ...(gestao ? [['equipe', 'Equipe']] : [])] as [typeof vista, string][]).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={vista === k} onClick={() => setVista(k)}
@@ -124,16 +135,14 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
           ))}
         </div>
         <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar cliente ou técnico" className="ps-input" style={{ width: 220 }} />
-        <label style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input type="checkbox" checked={ocultarFinalizados} onChange={e => setOcultarFinalizados(e.target.checked)} /> Ocultar finalizados e cancelados
-        </label>
+
       </div>
       <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
         Entram aqui sozinhos: <b>implantações</b> quando o contrato é assinado e <b>serviços</b> quando a vendedora move o card para <b>Em execução</b> no kanban de serviços. Mostra os últimos 60 dias.
       </div>
       {cards.filter(c => !['FINALIZADO', 'CANCELADOS'].includes(c.coluna)).length === 0 && (
         <div style={{ ...cartao, padding: 22, textAlign: 'center', color: 'var(--t-text-secondary)', fontSize: 14 }}>
-          Nenhuma demanda em andamento{modulo === 'SERVICO' ? ' nos serviços' : modulo === 'IMPLANTACAO' ? ' nas implantações' : ''} agora. As finalizadas aparecem ao desmarcar "Ocultar finalizados e cancelados".
+          Nenhuma demanda em andamento{modulo === 'SERVICO' ? ' nos serviços' : modulo === 'IMPLANTACAO' ? ' nas implantações' : ''} agora. As finalizadas ficam na coluna recolhida Finalizado, à direita.
         </div>
       )}
       {vista === 'lista' && <VistaLista cards={cards.filter(c => colunas.some(k => k.key === c.coluna))} abrir={setAberta} />}
@@ -142,6 +151,15 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
       <div style={{ display: vista === 'kanban' ? 'flex' : 'none', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
         {colunas.map(col => {
           const doCol = cards.filter(c => c.coluna === col.key);
+          if (['FINALIZADO', 'CANCELADOS'].includes(col.key) && !abertasFinais.includes(col.key)) return (
+            <button key={col.key} onClick={() => setAbertasFinais(a => [...a, col.key])} title={`Abrir ${col.label}`}
+              onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
+              onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
+              style={{ ...cartao, width: 52, flexShrink: 0, alignSelf: 'stretch', minHeight: 160, cursor: 'pointer', background: sobre === col.key ? '#2E6EAB10' : 'var(--t-content-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{doCol.length}</span>
+              <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>{col.label}</span>
+            </button>
+          );
           return (
             <div key={col.key}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
@@ -171,13 +189,13 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                   {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
                     <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#2E6EAB' : 'var(--t-text-secondary)' }}>→ {c.proximo_passo.titulo}</div>
                   )}
-                  <Barra pct={c.progresso} cor={c.progresso >= 100 ? '#16a34a' : '#2E6EAB'} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--t-text-muted)' }}>
-                    <span>{c.progresso}% · ✓ {c.checklist_feitos}/{c.checklist_total}</span>
-                    <span>{c.tecnico_nome ? c.tecnico_nome.split(' ')[0] : <b style={{ color: '#dc2626' }}>sem técnico</b>}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <SlaBadge sla={c.sla} etapa={c.sla_etapa} />
+                    <Iniciais nome={c.tecnico_nome} />
                   </div>
-                  <SlaBadge sla={c.sla} etapa={c.sla_etapa} />
-                  {!c.ficha_ok && c.modulo === 'IMPLANTACAO' && <span style={{ fontSize: 11, color: '#d97706' }}>📝 Ficha de coleta incompleta</span>}
+                  <div title={`${c.progresso}% concluído`} style={{ height: 3, borderRadius: 99, background: 'var(--t-content-bg)', margin: '2px -2px -4px' }}>
+                    <div style={{ height: 3, borderRadius: 99, width: `${c.progresso}%`, background: c.progresso >= 100 ? '#16a34a' : '#2E6EAB' }} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -242,7 +260,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
             <div style={{ fontSize: 12, fontWeight: 500, color: '#2E6EAB', marginBottom: 4 }}>{d.tipo_demanda}</div>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 650, letterSpacing: '-0.01em', lineHeight: 1.25, color: 'var(--t-text-primary)', textWrap: 'balance' as any }}>{i.cliente_razao_social}</h2>
             <div style={{ fontSize: 13, color: 'var(--t-text-muted)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[i.cliente_cnpj, i.plano, i.tecnico_nome ? `Técnico ${i.tecnico_nome}` : 'Sem técnico'].filter(Boolean).map((t, k) => <span key={k}>{k ? <span style={{ marginRight: 8, opacity: .5 }}>·</span> : null}{t}</span>)}
+              {[i.cliente_cnpj, i.plano, i.tecnico_nome ? `Técnico ${i.tecnico_nome}` : 'Sem técnico', d.prazo_ajuste_ms >= 36e5 ? `prazo pausado +${Math.round(d.prazo_ajuste_ms / 36e5)}h (espera do cliente)` : null].filter(Boolean).map((t, k) => <span key={k}>{k ? <span style={{ marginRight: 8, opacity: .5 }}>·</span> : null}{t}</span>)}
             </div>
           </div>
           <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
@@ -255,10 +273,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         <PainelContatos d={d} gestao={gestao} recarregar={carregar} />
         <FaixaProximoPasso d={d} gestao={gestao} aba={aba} irPara={setAba} recarregar={carregar} />
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 160, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1 }}><Barra pct={i.progresso} cor={i.progresso >= 100 ? '#16a34a' : '#2E6EAB'} /></div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{i.progresso}%</span>
-          </div>
+          <div style={{ flex: 1, minWidth: 240 }}><LinhaMarcos d={d} /></div>
           <BotoesDemanda implantacao={{ ...i, onboarding_ok: d.onboarding_ok }} />
         </div>
       </div>
@@ -306,6 +321,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
           </div>
         )}
       </div>
+      <BarraCelularCard d={d} />
     </Gaveta>
   );
 }
@@ -1412,6 +1428,193 @@ function TarefasClientePadrao({ c, setC }: { c: any; setC: (f: (p: any) => any) 
   );
 }
 
+// ─── Portal completo (05/10/2026): indicadores, metas, marcos, barra do celular, preferências ───
+
+/** Indicadores do mês (supervisão): valor, comparação com o mês anterior, meta e detalhe por técnico. */
+function PainelIndicadores() {
+  const mesAtual = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 7);
+  const [mes, setMes] = useState(mesAtual);
+  const [r, setR] = useState<any | null>(null);
+  const [aberto, setAberto] = useState<string | null>(null);
+  useEffect(() => { setR(null); apiClient.getIndicadoresImplantacao(mes).then(x => setR(x.data.data)).catch(e => alert(erroDe(e))); }, [mes]);
+  const mover = (n: number) => { const [y, m] = mes.split('-').map(Number); setMes(new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7)); };
+  const nomeMes = new Date(`${mes}-15T12:00:00Z`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  if (!r) return <div style={{ ...cartao, padding: 20, color: 'var(--t-text-muted)', fontSize: 13 }}><Loader2 size={14} className="animate-spin" /> Calculando os indicadores…</div>;
+  const a = r.atual, b = r.anterior, mt = r.metas;
+  // menor é melhor? (dias, retrabalho, horas, remarcações) — define a cor da variação e da meta.
+  const KPIS: { k: string; l: string; v: any; ant: any; un: string; meta: number | null; menor: boolean; sub: string; col?: string }[] = [
+    { k: 'conv', l: 'Até a virada · conversão', v: a.dias_conversao, ant: b.dias_conversao, un: ' dias', meta: mt.virada_conversao_dias, menor: true, sub: 'da assinatura à loja virada, sem a espera do cliente', col: 'dias_conversao' },
+    { k: 'zer', l: 'Até a virada · banco zerado', v: a.dias_zerado, ant: b.dias_zerado, un: ' dias', meta: mt.virada_zerado_dias, menor: true, sub: 'da assinatura à loja virada, sem a espera do cliente', col: 'dias_zerado' },
+    { k: 'prazo', l: 'Viradas no prazo', v: a.no_prazo_pct, ant: b.no_prazo_pct, un: '%', meta: mt.viradas_no_prazo_pct, menor: false, sub: `${a.viradas} virada(s) no mês`, col: 'no_prazo_pct' },
+    { k: 'retrab', l: 'Retrabalho por virada', v: a.retrabalho_por_virada, ant: b.retrabalho_por_virada, un: '', meta: mt.retrabalho_por_virada, menor: true, sub: `${a.retrabalho} correção(ões) até 30 dias depois da virada`, col: 'retrabalho' },
+    { k: 'horas', l: 'Horas por implantação', v: a.horas_por_implantacao, ant: b.horas_por_implantacao, un: 'h', meta: mt.horas_por_implantacao, menor: true, sub: `${a.concluidas} concluída(s) no mês (cronômetro)`, col: 'horas_por_implantacao' },
+    { k: 'sat', l: 'Satisfação', v: a.satisfacao, ant: b.satisfacao, un: '', meta: mt.satisfacao_min, menor: false, sub: `${a.pesquisas} pesquisa(s) de clientes validados (1 a 5)` },
+    { k: 'rem', l: 'Viradas remarcadas', v: a.remarcacoes, ant: b.remarcacoes, un: '', meta: mt.remarcacoes_max, menor: true, sub: 'remarcações registradas no mês' },
+  ];
+  const cor = (k: typeof KPIS[number]) => k.v == null || k.meta == null ? 'var(--t-text-primary)' : (k.menor ? k.v <= k.meta : k.v >= k.meta) ? '#16a34a' : '#b45309';
+  const delta = (k: typeof KPIS[number]) => {
+    if (k.v == null || k.ant == null || k.v === k.ant) return null;
+    const melhor = k.menor ? k.v < k.ant : k.v > k.ant;
+    return <span style={{ fontSize: 12, fontWeight: 600, color: melhor ? '#16a34a' : '#b45309' }}>{k.v > k.ant ? '↑' : '↓'} {Math.abs(Math.round((k.v - k.ant) * 10) / 10)}{k.un} vs mês anterior</span>;
+  };
+  const esp = a.espera_horas || {};
+  const totalEsp = Object.values(esp).reduce((t: number, v: any) => t + v, 0) as number;
+  const kpiAberto = KPIS.find(k => k.k === aberto);
+  return (
+    <section style={{ ...cartao, padding: 16, display: 'grid', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 15, color: 'var(--t-text-primary)' }}>Indicadores do mês</b>
+        <span style={{ flex: 1 }} />
+        <button onClick={() => mover(-1)} aria-label="Mês anterior" style={{ ...btn('#64748b', false), minHeight: 32 }}>‹</button>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-secondary)', minWidth: 130, textAlign: 'center', textTransform: 'capitalize' }}>{nomeMes}</span>
+        <button onClick={() => mover(1)} disabled={mes >= mesAtual} aria-label="Próximo mês" style={{ ...btn('#64748b', false), minHeight: 32, opacity: mes >= mesAtual ? 0.4 : 1 }}>›</button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {KPIS.map(k => (
+          <button key={k.k} onClick={() => setAberto(x => (x === k.k ? null : k.k))} disabled={!k.col}
+            style={{ textAlign: 'left', border: `1px solid ${aberto === k.k ? '#2E6EAB66' : 'var(--t-card-border)'}`, borderRadius: 10, padding: '12px 14px', background: 'transparent', cursor: k.col ? 'pointer' : 'default', display: 'grid', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>{k.l}</span>
+            <span style={{ fontSize: 26, fontWeight: 650, color: cor(k), fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{k.v == null ? '—' : `${String(k.v).replace('.', ',')}${k.un}`}</span>
+            <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{k.meta != null ? `meta ${k.menor ? 'até' : 'pelo menos'} ${String(k.meta).replace('.', ',')}${k.un} · ` : ''}{k.sub}</span>
+            {delta(k)}
+          </button>
+        ))}
+        <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '12px 14px', display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>Horas de espera por causa</span>
+          {[['PROGRAMACAO', 'Programação', '#7c3aed'], ['CLIENTE', 'Cliente', '#b45309'], ['PROCESSAMENTO', 'Processamento', '#64748b']].map(([k, l, c]) => (
+            <div key={k} style={{ display: 'grid', gap: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--t-text-secondary)' }}><span>{l}</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{esp[k] || 0}h</span></div>
+              <div style={{ height: 6, borderRadius: 99, background: 'var(--t-content-bg)' }}><div style={{ height: 6, borderRadius: 99, width: `${totalEsp ? Math.round(((esp[k] || 0) / totalEsp) * 100) : 0}%`, background: c }} /></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {kpiAberto?.col && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520, fontSize: 13 }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--t-card-border)' }}>{['Técnico', 'Viradas', 'Conversão', 'Banco zerado', 'No prazo', 'Retrabalho', 'Horas/implantação'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {a.por_tecnico.map((t: any) => (
+                <tr key={t.tecnico_id} style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t.nome}</td>
+                  <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{t.viradas}</td>
+                  <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{t.dias_conversao ?? '—'}{t.dias_conversao != null ? ' d' : ''}</td>
+                  <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{t.dias_zerado ?? '—'}{t.dias_zerado != null ? ' d' : ''}</td>
+                  <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{t.no_prazo_pct ?? '—'}{t.no_prazo_pct != null ? '%' : ''}</td>
+                  <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{t.retrabalho}</td>
+                  <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{t.horas_por_implantacao ?? '—'}{t.horas_por_implantacao != null ? 'h' : ''}</td>
+                </tr>
+              ))}
+              {a.por_tecnico.length === 0 && <tr><td colSpan={7} style={{ padding: 14, color: 'var(--t-text-muted)' }}>Sem viradas nem conclusões neste mês.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Contam só as demandas que entraram a partir de 02/10/2026. Metas em Configurações. Toque num indicador para ver por técnico.</div>
+    </section>
+  );
+}
+
+/** Metas dos indicadores (Configurações). */
+function MetasIndicadores({ c, setC }: { c: any; setC: (f: (p: any) => any) => void }) {
+  const m = c.metas || {};
+  const CAMPOS: [string, string, number][] = [
+    ['virada_conversao_dias', 'Dias até a virada (conversão)', 1], ['virada_zerado_dias', 'Dias até a virada (banco zerado)', 1],
+    ['viradas_no_prazo_pct', 'Viradas no prazo (%)', 1], ['retrabalho_por_virada', 'Retrabalho por virada (máx.)', 0.1],
+    ['horas_por_implantacao', 'Horas por implantação (máx.)', 1], ['satisfacao_min', 'Satisfação mínima (1 a 5)', 0.1], ['remarcacoes_max', 'Remarcações por mês (máx.)', 1],
+  ];
+  return (
+    <div style={{ ...cartao, padding: 16, display: 'grid', gap: 10 }}>
+      <div style={rotulo}>Metas dos indicadores</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {CAMPOS.map(([k, l, passo]) => (
+          <label key={k} style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'grid', gap: 4 }}>{l}
+            <input type="number" step={passo} value={m[k] ?? ''} onChange={e => setC(p => ({ ...p, metas: { ...(p.metas || {}), [k]: e.target.value === '' ? '' : Number(e.target.value) } }))} className="ps-input" style={{ minHeight: 40 }} />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Linha de marcos no topo do card (substitui a barra de %): onde a demanda está na jornada. */
+function LinhaMarcos({ d }: { d: any }) {
+  const i = d.implantacao, servico = i.modulo === 'SERVICO';
+  const col = i.coluna;
+  const pos = ['CONCLUIDO', 'VALIDADO', 'FINALIZADO'];
+  const marcos: [string, boolean][] = servico ? [
+    ['Designado', !!i.tecnico_id], ['Execução', i.progresso >= 100 || pos.includes(col)], ['Concluído', pos.includes(col)], ['Validado', ['VALIDADO', 'FINALIZADO'].includes(col)],
+  ] : [
+    ['Primeiro contato', !!d.onboarding_ok], ['Coleta', !!(i.coleta?.regime_tributario && i.coleta?.contato_nome)], ['Virada', !!i.virada_fim_em],
+    ...(d.assistida ? [['Assistida', !!d.assistida.concluida] as [string, boolean]] : []),
+    ['Treinamento', (d.fases || []).length > 0 && (d.fases || []).every((f: any) => f.realizada_em)], ['Validação', ['VALIDADO', 'FINALIZADO'].includes(col)],
+  ];
+  const atual = marcos.findIndex(([, ok]) => !ok);
+  return (
+    <div role="list" aria-label="Marcos da demanda" style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', paddingBottom: 2 }}>
+      {marcos.map(([nome, ok], k) => {
+        const eAtual = k === atual;
+        return (
+          <div key={nome} role="listitem" style={{ display: 'flex', alignItems: 'center', flex: k < marcos.length - 1 ? '1 1 0' : '0 0 auto', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <span style={{ width: 18, height: 18, borderRadius: 99, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700,
+                background: ok ? '#2E6EAB' : 'transparent', color: ok ? '#fff' : eAtual ? '#2E6EAB' : 'var(--t-text-muted)', border: ok ? 'none' : `1.5px solid ${eAtual ? '#2E6EAB' : 'var(--t-card-border)'}` }}>{ok ? '✓' : k + 1}</span>
+              <span style={{ fontSize: 12, fontWeight: eAtual ? 600 : 500, color: ok ? 'var(--t-text-secondary)' : eAtual ? 'var(--t-text-primary)' : 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>{nome}</span>
+            </div>
+            {k < marcos.length - 1 && <span style={{ flex: 1, height: 1.5, minWidth: 12, margin: '0 8px', background: ok ? '#2E6EAB' : 'var(--t-card-border)' }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Celular: Ligar, WhatsApp e Play fixos no rodapé do card, ao alcance do polegar. */
+function BarraCelularCard({ d }: { d: any }) {
+  const contatos = contatosDoCliente(d);
+  const col = d.implantacao.coleta || {};
+  const fone = col.decisor_telefone || contatos[0]?.fone;
+  const n = soDigitos(fone), wa = n.length >= 10 ? (n.startsWith('55') ? n : `55${n}`) : null;
+  const { sessao } = useCronometro();
+  const rodando = sessao?.implantacao_id === d.implantacao.id;
+  const etapa = d.proximo_passo?.etapa || (d.onboarding_ok === false ? 'ONBOARDING' : 'INSTALACAO');
+  const play = async () => { try { if (rodando) await apiClient.pausarCronometro(); else await apiClient.playCronometro({ tipo: 'DEMANDA', implantacao_id: d.implantacao.id, etapa }); avisarCronometro(); } catch (e) { alert(erroDe(e)); } };
+  const item: React.CSSProperties = { flex: 1, minHeight: 52, display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 11, fontWeight: 600, color: 'var(--t-text-secondary)', textDecoration: 'none', background: 'transparent', border: 'none' };
+  return (
+    <div className="pt-barra-celular" style={{ borderTop: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <style>{`.pt-barra-celular{display:none}@media (max-width:640px){.pt-barra-celular{display:flex}}`}</style>
+      {n ? <a href={`tel:${n}`} style={item}><Phone size={18} color="#2E6EAB" />Ligar</a> : <span style={{ ...item, opacity: 0.4 }}><Phone size={18} />Sem telefone</span>}
+      {wa ? <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={item}><MessageSquare size={18} color="#16a34a" />WhatsApp</a> : <span style={{ ...item, opacity: 0.4 }}><MessageSquare size={18} />WhatsApp</span>}
+      <button onClick={play} style={{ ...item, color: rodando ? '#dc2626' : 'var(--t-text-secondary)' }}><Play size={18} color={rodando ? '#dc2626' : '#2E6EAB'} />{rodando ? 'Pausar' : 'Play'}</button>
+    </div>
+  );
+}
+
+/** Preferência de aviso no WhatsApp (o portal recebe tudo sempre). */
+function PreferenciaAvisos() {
+  const [v, setV] = useState<string | null>(null);
+  useEffect(() => { apiClient.getMinhasPreferencias().then(r => setV(r.data.data.whatsapp)).catch(() => setV('URGENTES')); }, []);
+  const salvar = async (x: string) => { setV(x); try { await apiClient.salvarMinhasPreferencias({ whatsapp: x }); } catch (e) { alert(erroDe(e)); } };
+  if (!v) return null;
+  return (
+    <div style={{ padding: '10px 14px', borderTop: '1px solid var(--t-card-border)', display: 'grid', gap: 6 }}>
+      <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Também no meu WhatsApp</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[['URGENTES', 'Só urgentes'], ['TODOS', 'Tudo'], ['NENHUM', 'Nada']].map(([k, l]) => (
+          <button key={k} onClick={() => salvar(k)} style={{ fontSize: 12, fontWeight: v === k ? 600 : 500, padding: '5px 10px', minHeight: 30, borderRadius: 999, cursor: 'pointer', border: `1px solid ${v === k ? '#2E6EAB' : 'var(--t-card-border)'}`, background: v === k ? '#2E6EAB0f' : 'transparent', color: v === k ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Iniciais do técnico no cartão do quadro (o nome completo aparece ao passar o mouse). */
+function Iniciais({ nome }: { nome?: string | null }) {
+  if (!nome) return <span title="Sem técnico" style={{ fontSize: 11, fontWeight: 600, color: '#dc2626' }}>sem técnico</span>;
+  const ini = nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+  return <span title={nome} style={{ width: 26, height: 26, borderRadius: 99, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#2E6EAB', background: '#2E6EAB14', flexShrink: 0 }}>{ini}</span>;
+}
+
 // ─── Linguagem visual do card (ordem de serviço): bordas finas, cor só para ação ───
 const os = {
   linha: 'var(--t-card-border)',
@@ -1738,6 +1941,13 @@ export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; o
     ver(); const t = setInterval(ver, 45000); window.addEventListener('avisos:mudou', ver);
     return () => { clearInterval(t); window.removeEventListener('avisos:mudou', ver); };
   }, []);
+  // Novidades do mesmo card ficam juntas ("Farmácia X: 3 novidades"), na ordem da mais recente.
+  const agrupados: { chave: string; lista: any[] }[] = [];
+  for (const it of itens) {
+    const chave = it.implantacao?.id || 'avulso';
+    const g = chave === 'avulso' ? null : agrupados.find(x => x.chave === chave);
+    if (g) g.lista.push(it); else agrupados.push({ chave: chave === 'avulso' ? `avulso-${it.id}` : chave, lista: [it] });
+  }
   const icone = (a: any) => a.tipo === 'TAREFA' ? '📋' : a.prioridade === 'URGENTE' ? '🚨' : /implanta/i.test(a.texto) && /nova/i.test(a.texto) ? '🚀' : /servi[cç]o/i.test(a.texto) && /novo/i.test(a.texto) ? '🧰' : /prazo/i.test(a.texto) ? '⏰' : '📌';
   return (
     <div style={{ position: 'relative' }}>
@@ -1754,7 +1964,17 @@ export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; o
               <button onClick={() => { setAberto(false); onAbrir(); }} style={{ fontSize: 12, fontWeight: 700, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer' }}>Ver todas</button>
             </div>
             {itens.length === 0 && <div style={{ padding: 16, fontSize: 13, color: 'var(--t-text-muted)' }}>Nada novo por aqui.</div>}
-            {itens.map(a => (
+            {agrupados.map(g => g.lista.length > 1 && !g.chave.startsWith('avulso') ? (
+              <button key={g.chave} onClick={() => { setAberto(false); if (onAbrirDemanda) onAbrirDemanda(g.chave); else onAbrir(); }}
+                style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: g.lista.some((x: any) => !x.lido_em) ? '#2E6EAB0d' : 'transparent', cursor: 'pointer' }}>
+                <span style={{ fontSize: 16, lineHeight: '20px' }}>{icone(g.lista[0])}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{g.lista[0].implantacao?.cliente_razao_social}: {g.lista.length} novidades</span>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--t-text-secondary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.lista[0].texto}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{fmtDataHora(g.lista[0].created_at)}</span>
+                </span>
+              </button>
+            ) : g.lista.map((a: any) => (
               <button key={a.id} onClick={() => { setAberto(false); if (!a.lido_em) setLendo(a); else if (a.implantacao?.id && onAbrirDemanda) onAbrirDemanda(a.implantacao.id); else onAbrir(); }}
                 style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: a.lido_em ? 'transparent' : '#2E6EAB0d', cursor: 'pointer' }}>
                 <span style={{ fontSize: 16, lineHeight: '20px' }}>{icone(a)}</span>
@@ -1763,7 +1983,8 @@ export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; o
                   <span style={{ display: 'block', fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{a.de_nome || 'Sistema'} · {fmtDataHora(a.created_at)}</span>
                 </span>
               </button>
-            ))}
+            )))}
+            <PreferenciaAvisos />
           </div>
         </>
       )}
@@ -1830,6 +2051,7 @@ export function PainelGestaoImplantacao() {
   const pct = (x: number | null) => (x == null ? '—' : `${Math.round(x * 100)}%`);
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <PainelIndicadores />
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <input type="date" value={de} max={ate} onChange={e => setDe(e.target.value)} className="ps-input" style={{ width: 'auto' }} /> até
         <input type="date" value={ate} max={hoje} onChange={e => setAte(e.target.value)} className="ps-input" style={{ width: 'auto' }} />
@@ -1905,7 +2127,7 @@ export function ConfigPortalImplantacao() {
   const salvar = async () => {
     setSalvando(true);
     try {
-      await apiClient.salvarConfigPortal({ sla: c.sla, programacao: { nome: c.programacao.nome, whatsapp: c.programacao.whatsapp || '', lembrete_horas: Number(c.programacao.lembrete_horas) }, avisos_cliente: c.avisos_cliente, agente_ativo: c.agente_ativo, ofertas_ativo: c.ofertas_ativo, ofertas_dias_apos_virada: Number(c.ofertas_dias_apos_virada), catalogo: c.catalogo.filter((x: any) => x.produto?.trim()), modelos: (c.modelos || []).filter((m: any) => m.segmento?.trim().length >= 2).map((m: any) => ({ segmento: m.segmento.trim(), grupos: { INSTALACAO: m.grupos?.INSTALACAO || [], CONVERSAO: m.grupos?.CONVERSAO || [], TREINAMENTO: m.grupos?.TREINAMENTO || [] } })), extras_sistema: (c.extras_sistema || []).filter((x: any) => x.sistema?.trim().length >= 2 && x.itens?.length).map((x: any) => ({ sistema: x.sistema.trim(), itens: x.itens })), tarefas_cliente: c.tarefas_cliente || [], jornada: { inicio: c.jornada.inicio, fim: c.jornada.fim, almoco_inicio: c.jornada.almoco_inicio, almoco_min: Number(c.jornada.almoco_min), virada_inicio: c.jornada.virada_inicio } });
+      await apiClient.salvarConfigPortal({ sla: c.sla, programacao: { nome: c.programacao.nome, whatsapp: c.programacao.whatsapp || '', lembrete_horas: Number(c.programacao.lembrete_horas) }, avisos_cliente: c.avisos_cliente, agente_ativo: c.agente_ativo, ofertas_ativo: c.ofertas_ativo, ofertas_dias_apos_virada: Number(c.ofertas_dias_apos_virada), catalogo: c.catalogo.filter((x: any) => x.produto?.trim()), modelos: (c.modelos || []).filter((m: any) => m.segmento?.trim().length >= 2).map((m: any) => ({ segmento: m.segmento.trim(), grupos: { INSTALACAO: m.grupos?.INSTALACAO || [], CONVERSAO: m.grupos?.CONVERSAO || [], TREINAMENTO: m.grupos?.TREINAMENTO || [] } })), extras_sistema: (c.extras_sistema || []).filter((x: any) => x.sistema?.trim().length >= 2 && x.itens?.length).map((x: any) => ({ sistema: x.sistema.trim(), itens: x.itens })), tarefas_cliente: c.tarefas_cliente || [], metas: Object.fromEntries(Object.entries(c.metas || {}).filter(([, v]) => typeof v === 'number' && !Number.isNaN(v))), jornada: { inicio: c.jornada.inicio, fim: c.jornada.fim, almoco_inicio: c.jornada.almoco_inicio, almoco_min: Number(c.jornada.almoco_min), virada_inicio: c.jornada.virada_inicio } });
       setOk(true); setTimeout(() => setOk(false), 2000);
     } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
   };
@@ -1961,6 +2183,7 @@ export function ConfigPortalImplantacao() {
       </div>
       <div style={{ gridColumn: '1 / -1' }}><ModelosChecklist c={c} setC={setC} /></div>
       <div style={{ gridColumn: '1 / -1' }}><TarefasClientePadrao c={c} setC={setC} /></div>
+      <div style={{ gridColumn: '1 / -1' }}><MetasIndicadores c={c} setC={setC} /></div>
       <div style={{ gridColumn: '1 / -1' }}><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), padding: '10px 18px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />} {ok ? 'Salvo' : 'Salvar configurações'}</button></div>
     </div>
   );
