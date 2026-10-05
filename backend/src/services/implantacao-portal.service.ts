@@ -13,7 +13,7 @@ import {
   progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
   statusAssistida, type ModeloChecklist, type ExtraSistema,
   TAREFAS_CLIENTE_PADRAO, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
-  prazoAjustado, type MetasIndicadores,
+  prazoAjustado, type MetasIndicadores, INICIO_ASSISTIDA,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -617,6 +617,19 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
       if (cota <= 0 || ehLegado(v) || somarDiasUteis(v.validado_em!, 2) > agora) continue;
       await prisma.implantacao.update({ where: { id: v.id }, data: { pesquisa_enviada_em: agora } });
       await avisarClienteAgenda(prisma, v, 'PESQUISA', `${saudacaoCliente(v)} Aqui é da Prosystem. A ${v.modulo === 'SERVICO' ? 'demanda' : 'implantação'} da ${v.cliente_razao_social} foi concluída. Leva 1 minuto: como foi o nosso atendimento? ${URL_FRONT()}/pesquisa`); cota--;
+    }
+  }
+
+  // 4e) Pós-implantação 30/60/90 dias depois da virada: cria as checagens e avisa o técnico quando vencem.
+  if (horarioComercial(agora) && hora >= 9) {
+    const viradas = await prisma.implantacao.findMany({ where: { modulo: 'IMPLANTACAO', virada_fim_em: { gte: INICIO_ASSISTIDA }, status: { not: 'CANCELADA' } }, select: { id: true, virada_fim_em: true, tecnico_id: true, cliente_razao_social: true, data_assinatura: true } });
+    const novas = viradas.filter(v => !ehLegado(v)).flatMap(v => [30, 60, 90].map(marco => ({ implantacao_id: v.id, marco, prevista_em: new Date(v.virada_fim_em!.getTime() + marco * 864e5) })));
+    if (novas.length) await prisma.implantacaoPosVenda.createMany({ data: novas, skipDuplicates: true });
+    const devidas = await prisma.implantacaoPosVenda.findMany({ where: { feita_em: null, avisado_em: null, prevista_em: { lte: agora } } });
+    for (const pv of devidas) {
+      const v = viradas.find(x => x.id === pv.implantacao_id);
+      await prisma.implantacaoPosVenda.update({ where: { id: pv.id }, data: { avisado_em: agora } });
+      if (v?.tecnico_id) await avisarTecnico(prisma, { para_id: v.tecnico_id, implantacao_id: v.id, origem: 'SISTEMA', tipo: 'TAREFA', prazo: new Date(agora.getTime() + 3 * 864e5), texto: `📞 Pós-implantação de ${pv.marco} dias: ligue para ${v.cliente_razao_social} e registre a conversa no Início (Pós-implantação).` }).catch(() => null);
     }
   }
 

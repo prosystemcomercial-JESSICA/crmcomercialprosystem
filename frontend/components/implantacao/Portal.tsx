@@ -353,6 +353,7 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button onClick={() => baixarPdf(false)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Relatório final (PDF)</button>
         {i.modulo === 'IMPLANTACAO' && <button onClick={() => baixarPdf(true)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Prévia do termo de aceite</button>}
+        {(d.pos_venda || []).length > 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Pós-implantação: {(d.pos_venda as any[]).map(p => `${p.marco}d ${p.feita_em ? (p.risco ? '⚠️' : '✓') : fmtData(p.prevista_em)}`).join(' · ')}</span>}
         {i.aceite_status && <span style={{ fontSize: 12, color: i.aceite_status === 'ASSINADO' ? '#16a34a' : i.aceite_status === 'RECUSADO' ? '#dc2626' : '#b45309' }}>Termo de aceite: {i.aceite_status === 'ASSINADO' ? `assinado em ${fmtData(i.aceite_assinado_em)}` : i.aceite_status === 'RECUSADO' ? 'recusado pelo cliente' : `aguardando assinatura desde ${fmtData(i.aceite_enviado_em)}`}</span>}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

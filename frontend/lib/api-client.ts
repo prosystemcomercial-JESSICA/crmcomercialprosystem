@@ -963,6 +963,8 @@ class ApiClient {
   async getInventarioCliente(clienteId: string) { return this.client.get('/implantacoes/inventario-cliente', { params: { cliente_id: clienteId } }); }
   async reenviarTermoAceite(id: string) { return this.client.post(`/implantacoes/${id}/termo-aceite`, {}); }
   async baixarRelatorioImplantacao(id: string, termo = false) { return this.client.get(`/implantacoes/${id}/relatorio.pdf`, { params: termo ? { termo: '1' } : {}, responseType: 'blob' }); }
+  async getPosVenda() { return this.client.get('/implantacoes/pos-venda'); }
+  async registrarPosVenda(pid: string, data: { usa_todo_dia: string; usa_financeiro: string; sngpc: string; satisfacao: number; dificuldade?: string; observacao?: string }) { return this.client.post(`/implantacoes/pos-venda/${pid}`, data); }
   async pedirValidacao(id: string) { return this.client.post(`/implantacoes/${id}/pedir-validacao`, {}); }
   async devolverDemanda(id: string, motivo: string) { return this.client.post(`/implantacoes/${id}/devolver`, { motivo }); }
   async buscarDemandas(q: string) { return this.client.get('/implantacoes/busca', { params: { q } }); }
