@@ -977,3 +977,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Atualização 05/10/2026: leads da apresentação de padaria
 
 - Quem preenche o formulário da apresentação de padaria entra no CRM como **lead quente**, em **Leads para distribuir**, com os dados que informou. A gestão recebe o aviso no WhatsApp na hora e a conversa desse cliente aparece com prioridade crítica.
+
+### Atualização 05/10/2026: apresentações de farmácia e do sistema
+
+- Farmácia: https://comercial.prosystemnet.com/apresentacao/farmacia (PDF: https://comercial.prosystemnet.com/apresentacao/farmacia/apresentacao-prosystem.pdf)
+- Sistema (varejo em geral): https://comercial.prosystemnet.com/apresentacao/sistema
+- No WhatsApp do CRM, o bloco **Apresentação** tem os botões de cada uma, com a mensagem pronta.

@@ -10,8 +10,28 @@ import { apiClient } from '@/lib/api-client';
 const BASE = 'https://comercial.prosystemnet.com/apresentacao';
 const APRESENTACOES = [
   {
-    id: 'padaria', nome: 'Padarias', segmento: /padaria|confeit|panifica/i,
-    texto: (nome: string) => `${nome ? `Olá, ${nome}! ` : 'Olá! '}Preparei uma apresentação rápida de como o Prosystem funciona na padaria: caixa, balança, produção, estoque, iFood e financeiro num só sistema. Dá uma olhada, leva poucos minutos:\n\n${BASE}/padaria`,
+    id: 'padaria', nome: 'Padarias', url: `${BASE}/padaria`, segmento: /padaria|confeit|panifica/i,
+    texto: (nome: string) => `${nome ? `Olá, ${nome}! ` : 'Olá! '}Preparei uma apresentação rápida de como o Prosystem funciona na padaria: caixa, balança, produção, estoque, iFood e financeiro num só sistema. Dá uma olhada, leva poucos minutos:
+
+${BASE}/padaria`,
+  },
+  {
+    id: 'farmacia', nome: 'Farmácias', url: `${BASE}/farmacia`, segmento: /farm[aá]cia|drogaria|manipula/i,
+    texto: (nome: string) => `${nome ? `Olá, ${nome}! ` : 'Olá! '}Preparei uma apresentação rápida de como o Prosystem ajuda a farmácia a vender mais, perder menos com validade e manter o fiscal em dia. Dá uma olhada, leva poucos minutos:
+
+${BASE}/farmacia`,
+  },
+  {
+    id: 'farmacia-pdf', nome: 'Farmácias (PDF)', url: `${BASE}/farmacia/apresentacao-prosystem.pdf`, segmento: /farm[aá]cia|drogaria|manipula/i,
+    texto: (nome: string) => `${nome ? `Olá, ${nome}! ` : 'Olá! '}Segue a apresentação do Prosystem em PDF, para você ver com calma ou repassar para quem decide na farmácia:
+
+${BASE}/farmacia/apresentacao-prosystem.pdf`,
+  },
+  {
+    id: 'sistema', nome: 'Varejo (sistema)', url: `${BASE}/sistema`, segmento: /varejo|loja|mercado|com[eé]rcio/i,
+    texto: (nome: string) => `${nome ? `Olá, ${nome}! ` : 'Olá! '}Separei uma página com o Prosystem Gestão Inteligente: vendas, estoque, compras, fiscal e relatórios num só sistema. Dá uma olhada:
+
+${BASE}/sistema`,
   },
 ];
 
@@ -50,7 +70,7 @@ export default function EnviarApresentacaoWpp({ conversaId, conversa }: { conver
               <button onClick={() => abrir(a.id)} className="px-3 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: 'var(--t-primary, #2E6EAB)', minHeight: 40 }}>
                 Enviar apresentação · {a.nome}
               </button>
-              <a href={`${BASE}/${a.id}`} target="_blank" rel="noreferrer" className="text-xs font-medium" style={{ color: 'var(--t-primary, #2E6EAB)' }}>ver</a>
+              <a href={a.url} target="_blank" rel="noreferrer" className="text-xs font-medium" style={{ color: 'var(--t-primary, #2E6EAB)' }}>ver</a>
             </div>
           ))}
         </div>
