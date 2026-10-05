@@ -8,7 +8,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import PainelLaya from '@/components/whatsapp/PainelLaya';
 import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
-import EnviarApresentacaoWpp from '@/components/whatsapp/EnviarApresentacaoWpp';
+import EnviarApresentacaoWpp, { BotaoApresentacaoWpp } from '@/components/whatsapp/EnviarApresentacaoWpp';
 import ProximaAcao from '@/components/whatsapp/ProximaAcao';
 import { MidiaMensagem } from '@/components/whatsapp/MidiaMensagem';
 import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/whatsapp/IaConversa';
@@ -1302,7 +1302,7 @@ export default function WhatsappPage() {
                     ))}
                     <div ref={fimRef} />
                   </div>
-                  <div className="ios-compositor p-3 flex items-center gap-2" style={{ background: '#F7F8FA' }}>
+                  <div className="ios-compositor relative p-3 flex items-center gap-2" style={{ background: '#F7F8FA' }}>
                     {gravando ? (
                       <>
                         <div className="flex-1 flex items-center gap-2 ps-card rounded-full px-4 py-2.5 text-sm shadow-sm">
@@ -1333,6 +1333,11 @@ export default function WhatsappPage() {
                           {enviandoArquivo ? '⏳' : '📎'}
                         </button>
                         <SugerirRespostaBtn conversaId={ativa.id} onTexto={setTexto} />
+                        <BotaoApresentacaoWpp conversaId={ativa.id} conversa={ativa} onEnviada={msg => {
+                          setMensagens(prev => [...prev, msg]);
+                          marcarComoMinha(ativa.id);
+                          setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                        }} />
                         <input
                           value={texto}
                           onChange={e => setTexto(e.target.value)}

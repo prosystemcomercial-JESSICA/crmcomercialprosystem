@@ -983,4 +983,5 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Farmácia: https://comercial.prosystemnet.com/apresentacao/farmacia (PDF: https://comercial.prosystemnet.com/apresentacao/farmacia/apresentacao-prosystem.pdf)
 - Sistema (varejo em geral): https://comercial.prosystemnet.com/apresentacao/sistema
 - No WhatsApp do CRM, o bloco **Apresentação** tem os botões de cada uma, com a mensagem pronta.
+- Atalho mais rápido: no campo de mensagem da conversa, toque no botão com ícone de tela (ao lado do ✨), escolha a apresentação, confira a mensagem e toque em **Enviar no WhatsApp**.
 - Na página do sistema, a parte **Sua rotina antes e depois** brilha e mostra "Toque para comparar" até o cliente tocar; quando ele chega nela, a página já mostra sozinha a diferença uma vez.
