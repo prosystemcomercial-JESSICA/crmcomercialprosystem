@@ -46,14 +46,51 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
         @media (max-width: 1500px) { .pt-inicio-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 760px) { .pt-inicio-grade { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
-      <section style={{ borderRadius: 16, padding: 'clamp(16px, 2.5vw, 28px)', background: 'linear-gradient(135deg,#0D2238 0%,#1A4E82 55%,#2E6EAB 100%)', color: '#fff', display: 'grid', gap: 10 }}>
-        <div style={{ fontSize: 22, fontWeight: 800 }}>{d.saudacao}</div>
-        <blockquote style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: '#D6E6F7', maxWidth: '64ch', borderLeft: '3px solid #90BEF0', paddingLeft: 12 }}>{d.frase}</blockquote>
-        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13, color: '#A8C8E8', marginTop: 4 }}>
-          <span>📋 <b style={{ color: '#fff' }}>{abertas.length}</b> tarefa(s) aberta(s)</span>
-          <span>📌 <b style={{ color: '#fff' }}>{naoLidos.length}</b> recado(s) novo(s)</span>
-          <span>🛠️ <b style={{ color: '#fff' }}>{d.demandas_ativas}</b> demanda(s) {gestao ? 'em andamento' : 'com você'}</span>
-          {d.hoje.virada && <span>🚀 <b style={{ color: '#fff' }}>Dia de virada</b> (jornada desde as 7h)</span>}
+      <section style={{ ...cartao, padding: 'clamp(16px, 2.5vw, 24px)', display: 'grid', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>{d.saudacao}</div>
+            <div style={{ fontSize: 20, fontWeight: 650, color: 'var(--t-text-primary)', letterSpacing: '-0.01em' }}>{gestao ? 'O que pede a sua ação' : 'Seu dia hoje'}</div>
+          </div>
+          {!gestao && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 30, fontWeight: 650, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+                {fmtDur(d.hoje.trabalhado_ms)}<span style={{ fontSize: 15, fontWeight: 500, color: 'var(--t-text-muted)' }}> de {fmtDur(d.hoje.jornada_ms)}</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>trabalhadas hoje{d.hoje.virada ? ' · dia de virada (desde as 7h)' : ''}</div>
+            </div>
+          )}
+        </div>
+        {gestao && d.acao && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {([['Sem técnico', d.acao.sem_tecnico, 'quadro', '#dc2626'], ['Em risco', d.acao.em_risco, 'quadro', '#d97706'], ['Esperando validação', d.acao.esperando_validacao, 'quadro', '#2E6EAB'], ['Recados sem leitura', d.acao.recados_sem_leitura, 'avisos', '#64748b']] as [string, number, string, string][]).map(([l, n, aba, cor]) => (
+              <button key={l} onClick={() => irPara(aba)} style={{ textAlign: 'left', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '12px 14px', background: 'transparent', cursor: 'pointer', display: 'grid', gap: 2, minHeight: 72 }}>
+                <span style={{ fontSize: 28, fontWeight: 650, color: n ? cor : 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{n}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-secondary)' }}>{l}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {!gestao && (
+          <div style={{ display: 'grid' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', marginBottom: 4 }}>Sua vez</div>
+            {(d.sua_vez || []).length === 0 && <div style={{ fontSize: 13, color: 'var(--t-text-muted)', padding: '6px 0' }}>Nada esperando por você agora.</div>}
+            {(d.sua_vez || []).map((x: any, k: number) => (
+              <button key={x.implantacao_id} onClick={() => irPara('quadro', x.implantacao_id)}
+                style={{ display: 'flex', gap: 10, alignItems: 'center', width: '100%', textAlign: 'left', padding: '10px 2px', minHeight: 44, border: 'none', borderTop: k ? '1px solid var(--t-card-border)' : 'none', background: 'transparent', cursor: 'pointer' }}>
+                <span title={x.saude?.motivos?.join(' · ') || 'Em dia'} style={{ width: 8, height: 8, borderRadius: 99, flexShrink: 0, background: x.saude?.nivel === 'VERMELHO' ? '#dc2626' : x.saude?.nivel === 'AMARELO' ? '#d97706' : '#16a34a' }} />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{x.titulo}</span>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--t-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.cliente}{x.detalhe ? ` · ${x.detalhe}` : ''}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--t-text-muted)' }}>
+          <span><b style={{ color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{abertas.length}</b> tarefa(s) aberta(s)</span>
+          <span><b style={{ color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{naoLidos.length}</b> recado(s) novo(s)</span>
+          <span><b style={{ color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{d.demandas_ativas}</b> demanda(s) {gestao ? 'em andamento' : 'com você'}</span>
         </div>
       </section>
 
@@ -174,6 +211,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
       {gestao && <RadarLeitura />}
       {gestao && <NovaTarefaOuRecado onEnviado={carregar} />}
       <ConfirmarLeitura aviso={aberto} onFechar={() => { setAberto(null); carregar(); }} />
+      {d.frase && <div style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--t-text-muted)', textAlign: 'center', maxWidth: '64ch', justifySelf: 'center', lineHeight: 1.5 }}>“{d.frase}”</div>}
     </div>
   );
 }

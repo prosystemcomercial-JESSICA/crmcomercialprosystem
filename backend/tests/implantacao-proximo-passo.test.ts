@@ -184,3 +184,24 @@ describe('fase 3: saúde do card e resumo para o suporte', () => {
     expect(r).toContain('• Cliente prefere contato à tarde (Lucas)');
   });
 });
+
+import { prazoAjustado, msEsperaCliente, indicadoresViradas } from '../src/lib/implantacao/portal';
+
+describe('portal completo: prazo pausado e indicadores', () => {
+  const d = (s: string) => new Date(s);
+  it('só a espera do cliente pausa o prazo (aberta conta até agora)', () => {
+    const esperas = [{ tipo: 'CLIENTE', inicio: d('2026-10-01T12:00:00Z'), fim: d('2026-10-02T12:00:00Z') }, { tipo: 'PROGRAMACAO', inicio: d('2026-10-01T12:00:00Z'), fim: d('2026-10-03T12:00:00Z') }, { tipo: 'CLIENTE', inicio: d('2026-10-04T12:00:00Z'), fim: null }];
+    expect(msEsperaCliente(esperas, d('2026-10-04T18:00:00Z'))).toBe(30 * 36e5);
+    expect(prazoAjustado(d('2026-10-10T12:00:00Z'), esperas, d('2026-10-04T18:00:00Z'))!.toISOString()).toBe('2026-10-11T18:00:00.000Z');
+    expect(prazoAjustado(null, esperas)).toBeNull();
+  });
+  it('indicadores de virada descontam a espera do cliente', () => {
+    const v = (tipo: string, ass: string, fim: string, prazo: string, esp: any[] = []) => ({ tecnico_id: 't', tecnico_nome: 'T', tipo_base: tipo, data_assinatura: d(ass), virada_fim_em: d(fim), prazo_virada: d(prazo), esperas: esp });
+    const r = indicadoresViradas([
+      v('CONVERSAO', '2026-10-01T12:00:00Z', '2026-10-13T12:00:00Z', '2026-10-16T12:00:00Z'),
+      v('CONVERSAO', '2026-10-01T12:00:00Z', '2026-10-21T12:00:00Z', '2026-10-16T12:00:00Z', [{ tipo: 'CLIENTE', inicio: d('2026-10-05T12:00:00Z'), fim: d('2026-10-11T12:00:00Z') }]),
+      v('BANCO_ZERADO', '2026-10-01T12:00:00Z', '2026-10-15T12:00:00Z', '2026-10-11T12:00:00Z'),
+    ]);
+    expect(r).toEqual({ total: 3, dias_conversao: 13, dias_zerado: 14, no_prazo_pct: 67 });
+  });
+});

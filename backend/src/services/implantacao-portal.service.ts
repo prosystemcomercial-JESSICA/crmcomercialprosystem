@@ -13,6 +13,7 @@ import {
   progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
   statusAssistida, type ModeloChecklist, type ExtraSistema,
   TAREFAS_CLIENTE_PADRAO, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
+  prazoAjustado, type MetasIndicadores,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -35,6 +36,7 @@ export type ConfigPortal = {
   modelos: ModeloChecklist[]; // checklist por segmento (vazio = padrão)
   extras_sistema: ExtraSistema[]; // itens extras na conversão, por sistema de origem
   tarefas_cliente: string[]; // o que a loja entrega no começo da implantação
+  metas?: Partial<MetasIndicadores>; // metas dos indicadores (Painel)
 };
 const PADRAO: Omit<ConfigPortal, 'programacao'> & { programacao: Omit<ConfigPortal['programacao'], 'token'> } = {
   sla: SLA_PADRAO, programacao: { nome: 'Sinval', whatsapp: '', lembrete_horas: 4 },
@@ -95,7 +97,10 @@ export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; 
     const { enviarPush } = await import('./push.service');
     await enviarPush(prisma, [para.id], { titulo: tarefa ? `📋 Nova tarefa${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 Aviso urgente da implantação' : '📌 Aviso da implantação', corpo: a.texto.slice(0, 180), url: '/portal-tecnico?tab=inicio', tag: 'aviso-tecnico' });
   } catch { /* push opcional */ }
-  if (a.prioridade === 'URGENTE') await whats(prisma, para.telefone, `${tarefa ? `📋 *Tarefa urgente*${prazoTxt}` : '🚨 *Aviso urgente*'}${a.de?.nome ? ` de ${a.de.nome}` : ''}\n\n${a.texto}`);
+  // WhatsApp conforme a preferência da pessoa (padrão: só urgentes). O portal recebe tudo sempre.
+  const prefRow = await prisma.configuracaoIntegracao.findUnique({ where: { chave: `implantacao.pref.${para.id}` } }).catch(() => null);
+  let pref = 'URGENTES'; try { pref = prefRow?.valor ? JSON.parse(prefRow.valor).whatsapp || 'URGENTES' : 'URGENTES'; } catch { /* padrão */ }
+  if (pref === 'TODOS' || (pref === 'URGENTES' && a.prioridade === 'URGENTE')) await whats(prisma, para.telefone, `${tarefa ? `📋 *Tarefa${a.prioridade === 'URGENTE' ? ' urgente' : ''}*${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 *Aviso urgente*' : '📌 *Aviso da implantação*'}${a.de?.nome ? ` de ${a.de.nome}` : ''}\n\n${a.texto}`);
   return aviso;
 }
 
@@ -503,9 +508,10 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
     if (e.implantacao.tecnico_id) await avisarTecnico(prisma, { para_id: e.implantacao.tecnico_id, implantacao_id: e.implantacao.id, origem: 'SISTEMA', texto: `${e.implantacao.cliente_razao_social}: a espera pela programação passou de ${cfg.programacao.lembrete_horas}h úteis. ${cfg.programacao.nome} foi lembrado${cfg.programacao.whatsapp ? '' : ' (sem WhatsApp configurado: avise pessoalmente)'}.` });
   }
 
-  // 2) Prazo (SLA): avisa uma vez quando entra em risco e quando estoura.
+  // 2) Prazo (SLA): avisa uma vez quando entra em risco e quando estoura. A espera do cliente pausa o relógio.
+  const esperasCliente = await prisma.implantacaoEspera.findMany({ where: { tipo: 'CLIENTE', implantacao_id: { in: ativas.map(a => a.id) } }, select: { implantacao_id: true, tipo: true, inicio: true, fim: true } });
   for (const i of ativas) {
-    const prazo = i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada;
+    const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, esperasCliente.filter(e => e.implantacao_id === i.id), agora);
     const s = situacaoSla(i.data_assinatura, prazo, null, agora);
     if (!s || (s.situacao !== 'EM_RISCO' && s.situacao !== 'ESTOURADO')) continue;
     const chave = `${s.situacao}:${prazo!.toISOString().slice(0, 10)}`;

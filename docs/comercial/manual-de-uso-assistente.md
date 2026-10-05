@@ -933,3 +933,12 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Atualização 05/10/2026: coluna Interessados no WhatsApp
 
 - Na vista **Por fase** do WhatsApp, a coluna **Interessados** reúne sozinha os contatos que demonstraram interesse (intenção de comprar ou temperatura morna para cima) e mandaram mensagem nos últimos 7 dias. Ela atualiza a cada 10 minutos; quem a equipe já moveu para outra fase não é mexido.
+
+### Atualização 05/10/2026: Portal Técnico completo
+
+- **Indicadores:** no Painel da implantação, os números do mês (dias até a virada, viradas no prazo, espera por causa, retrabalho, horas por implantação, satisfação, remarcações) com a comparação com o mês anterior e o detalhe por técnico. Metas em Configurações.
+- **Prazo justo:** o tempo esperando o cliente não conta contra o técnico.
+- **Início:** o técnico vê as horas do dia e "Sua vez"; a supervisão vê 4 números que pedem ação.
+- **Quadro:** cartões mais limpos, filtros Meus / Virada esta semana / Esperando cliente, Finalizado e Cancelados recolhidos.
+- **Card:** linha de marcos no topo e, no celular, Ligar, WhatsApp e Play fixos no rodapé.
+- **Sino:** novidades agrupadas por card e escolha do que chega também no WhatsApp.
