@@ -864,6 +864,78 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     return reply.status(201).send({ status: 'success', data: lead });
   });
 
+  // ── Formulário das apresentações públicas (ex.: /apresentacao/padaria) ───────
+  // Sem login: a página manda os dados antes de abrir o WhatsApp. Vira lead QUENTE (atendimento prioritário),
+  // na fila de distribuição, com aviso imediato à gestão. Mesmo telefone já cadastrado: não duplica, reaquece o lead.
+  // Proteções: campo invisível (robô preenche), limite por IP e telefone obrigatório.
+  const envioPorIp = new Map<string, number[]>();
+  fastify.post('/publico/leads/apresentacao', async (request, reply) => {
+    const ip = String((request.headers['x-real-ip'] as string) || request.ip || '');
+    const agora = Date.now();
+    const hist = (envioPorIp.get(ip) || []).filter(t => agora - t < 10 * 60_000);
+    if (hist.length >= 5) return reply.status(429).send({ status: 'error', message: 'Muitos envios. Tente de novo em alguns minutos.' });
+    envioPorIp.set(ip, [...hist, agora]);
+    const b = z.object({
+      material: z.string().trim().max(40).default('padaria'),
+      nome: z.string().trim().min(2).max(120), telefone: z.string().trim().min(8).max(30),
+      padaria: z.string().trim().max(160).optional(), cidade: z.string().trim().max(120).optional(),
+      caixas: z.string().trim().max(30).optional(), plano: z.string().trim().max(80).optional(),
+      diagnostico: z.array(z.string().trim().max(120)).max(20).optional(),
+      site: z.string().max(200).optional(), // campo invisível: humano deixa vazio
+      utm_source: z.string().max(120).optional(), utm_medium: z.string().max(120).optional(), utm_campaign: z.string().max(200).optional(),
+      utm_content: z.string().max(200).optional(), utm_term: z.string().max(200).optional(), fbclid: z.string().max(300).optional(), gclid: z.string().max(300).optional(),
+      pagina: z.string().max(500).optional(),
+    }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Preencha seu nome e WhatsApp.' });
+    const d = b.data;
+    if (d.site) return reply.send({ status: 'success' }); // robô: finge que deu certo e ignora
+    let fone = d.telefone.replace(/\D/g, '');
+    if (fone.length < 10) return reply.status(400).send({ status: 'error', message: 'Informe o WhatsApp com DDD.' });
+    if (!fone.startsWith('55')) fone = `55${fone}`;
+    const fim8 = fone.slice(-8);
+    const segmento = d.material === 'padaria' ? 'Padaria' : null;
+    const [cidade, uf] = (d.cidade || '').split(/\s*[\/\-,]\s*/);
+    const caixasNum = ({ '1': 1, '2 a 3': 3, '4 a 6': 6, 'Mais de 6': 7 } as Record<string, number>)[d.caixas || ''] ?? null;
+    const resumo = [
+      `Veio pela apresentação de ${d.material} (atendimento prioritário).`,
+      `Nome: ${d.nome}`, d.padaria ? `${segmento || 'Empresa'}: ${d.padaria}` : null, d.cidade ? `Cidade: ${d.cidade}` : null,
+      d.caixas ? `Caixas (PDVs): ${d.caixas}` : null, d.plano ? `Interesse: ${d.plano}` : null,
+      d.diagnostico?.length ? `Problemas marcados no diagnóstico: ${d.diagnostico.join(', ')}` : null,
+    ].filter(Boolean).join('\n');
+
+    const existente = await prisma.lead.findFirst({
+      where: { deleted_at: null, OR: [{ telefone: { endsWith: fim8 } }, { responsavel_telefone: { endsWith: fim8 } }] },
+      select: { id: true, nome: true, temperatura: true },
+    });
+    let leadId: string, novo = false;
+    if (existente) {
+      leadId = existente.id;
+      await prisma.lead.update({ where: { id: leadId }, data: { temperatura: existente.temperatura === 'MUITO_QUENTE' ? 'MUITO_QUENTE' : 'QUENTE', ...(d.plano ? { plano_interesse: d.plano } : {}) } });
+      await registrarObsSistema(prisma, leadId, 'SISTEMA', `🔥 Voltou pela apresentação de ${d.material}.\n${resumo}`);
+    } else {
+      const lead = await prisma.lead.create({ data: {
+        nome: d.padaria || d.nome, empresa: d.padaria || null, nome_fantasia: d.padaria || null, segmento, cidade: cidade || null, estado: uf ? uf.toUpperCase().slice(0, 2) : null,
+        qtd_caixas: caixasNum, responsavel_nome: d.nome, responsavel_telefone: fone, telefone: fone, plano_interesse: d.plano || null,
+        origem: `APRESENTACAO_${d.material.toUpperCase()}`, temperatura: 'QUENTE', campanha: `Apresentação ${segmento || d.material}`, observacoes: resumo,
+        utm_source: d.utm_source, utm_medium: d.utm_medium, utm_campaign: d.utm_campaign, utm_content: d.utm_content, utm_term: d.utm_term, fbclid: d.fbclid, gclid: d.gclid,
+        link_origem: d.pagina || null,
+      } as any });
+      leadId = lead.id; novo = true;
+      await registrarObsSistema(prisma, leadId, 'SISTEMA', `🔥 Lead da apresentação de ${d.material}: atendimento prioritário.\n${resumo}`);
+    }
+    // Aviso imediato à gestão (WhatsApp) para distribuir/atender primeiro.
+    const { enviarAvisoGestao } = await import('@/services/assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', [`🔥 *${novo ? 'Lead novo' : 'Lead voltou'} pela apresentação de ${d.material}* (atendimento prioritário)`, resumo.split('\n').slice(1).join('\n'), `WhatsApp: ${fone}`, '', novo ? 'Está em Leads para distribuir.' : 'Já estava no CRM: o lead foi reaquecido.'].join('\n')).catch(() => {});
+    // A conversa do WhatsApp desse número (o cliente é levado ao WhatsApp em seguida) ganha prioridade crítica e o vínculo com o lead.
+    const priorizar = async () => {
+      const conv = await prisma.whatsappConversa.findFirst({ where: { contato_numero: { endsWith: fim8 } }, orderBy: { ultima_em: 'desc' }, select: { id: true, lead_id: true } }).catch(() => null);
+      if (conv) await prisma.whatsappConversa.update({ where: { id: conv.id }, data: { prioridade: 'CRITICA', ...(conv.lead_id ? {} : { lead_id: leadId }) } }).catch(() => {});
+      return !!conv;
+    };
+    if (!(await priorizar())) { setTimeout(() => { priorizar().catch(() => {}); }, 2 * 60_000); setTimeout(() => { priorizar().catch(() => {}); }, 10 * 60_000); }
+    return reply.status(201).send({ status: 'success' });
+  });
+
   // ── Update lead ───────────────────────────────────────────────────────────
   fastify.patch('/leads/:id', async (request, reply) => {
     const { id } = request.params as { id: string };

@@ -1145,3 +1145,10 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 ### Atualização 05/10/2026: apresentação de padaria definitiva
 
 - `frontend/public/apresentacao/padaria/index.html` trocado pela versão definitiva enviada pela Jessica (mesmo link e mesmas imagens; mesmos ajustes de endereço real, imagem de prévia e caminhos absolutos).
+
+### Atualização 05/10/2026: formulário da apresentação vira lead no CRM (atendimento prioritário)
+
+- Página `/apresentacao/padaria`: o formulário "Fale com um especialista" ganhou o campo **Seu WhatsApp** (obrigatório) e um campo invisível contra robôs. Ao tocar em "Enviar pelo WhatsApp", a página manda os dados ao CRM (`POST /api/publico/leads/apresentacao`, `keepalive`) e segue abrindo o WhatsApp da empresa com a mensagem pronta, como antes.
+- Rota pública em `backend/src/routes/leads.ts` (`/publico/leads/apresentacao`): sem login, limite de 5 envios por IP a cada 10 min, campo invisível descarta robôs. Cria o lead **QUENTE**, sem vendedora (fila **Leads para distribuir**), origem `APRESENTACAO_PADARIA`, campanha "Apresentação Padaria", segmento Padaria, nome/padaria/cidade/UF/caixas/interesse, problemas marcados no diagnóstico e UTMs; observação de sistema "atendimento prioritário". Telefone já cadastrado: não duplica, reaquece o lead (QUENTE) e registra a volta.
+- Aviso imediato à gestão no WhatsApp ("🔥 Lead novo pela apresentação de padaria").
+- A conversa do WhatsApp desse número ganha **prioridade crítica** e o vínculo com o lead (na hora, ou 2 e 10 minutos depois, quando o cliente chega pelo WhatsApp).

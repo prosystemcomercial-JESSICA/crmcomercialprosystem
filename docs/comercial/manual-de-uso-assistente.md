@@ -973,3 +973,7 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - Link para mandar aos leads de padaria: https://comercial.prosystemnet.com/apresentacao/padaria
 - No WhatsApp do CRM, no painel lateral da conversa, o bloco **Apresentação** tem o botão **Enviar apresentação · Padarias**: a mensagem vem pronta com o nome do contato, dá para ajustar e enviar.
+
+### Atualização 05/10/2026: leads da apresentação de padaria
+
+- Quem preenche o formulário da apresentação de padaria entra no CRM como **lead quente**, em **Leads para distribuir**, com os dados que informou. A gestão recebe o aviso no WhatsApp na hora e a conversa desse cliente aparece com prioridade crítica.
