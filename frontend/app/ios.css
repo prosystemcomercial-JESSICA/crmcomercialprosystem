@@ -144,6 +144,8 @@
   .ios-compositor { background: var(--ios-bar) !important; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--ios-separator); padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) !important; }
   .ios-compositor button { box-shadow: none !important; width: 36px !important; height: 36px !important; min-width: 36px; }
   .ios-compositor button[style] { background: var(--ios-tint) !important; }
+  /* Painel de apresentações que abre sobre o campo: botões com tamanho próprio */
+  .ios-compositor .apres-pop button { width: auto !important; height: auto !important; min-width: 0; }
   .ios-campo-msg { border: 0.5px solid var(--ios-separator) !important; box-shadow: none !important; background: var(--ios-cell) !important; font-size: 17px !important; min-height: 36px; padding: 6px 14px !important; }
 
   /* Painel de detalhes como folha em tela cheia */
