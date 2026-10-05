@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   // Evita que o navegador sirva HTML antigo em cache após um deploy (causa do
   // "botão não aparece" até dar Ctrl+Shift+R). Os assets com hash (/_next/static)
   // continuam cacheáveis; só o HTML das páginas é sempre revalidado.
+  // Apresentações para leads (HTML estático em public/apresentacao/<nome>/): link curto sem /index.html.
+  async rewrites() {
+    return [{ source: '/apresentacao/:nome', destination: '/apresentacao/:nome/index.html' }];
+  },
   async headers() {
     return [
       { source: '/:path*', headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }] },

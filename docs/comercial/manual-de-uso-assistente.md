@@ -968,3 +968,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Atualização 05/10/2026: conversas de parceria de revenda
 
 - Conversa de parceria, revenda ou representação: identifique o contato como **Parceiro** no Inbox (botão Identificar). Assim os agentes param de agir, a reunião não recebe lembrete de "demonstração" e a revisão do Rafael não trata a pessoa como lead.
+
+### Atualização 05/10/2026: apresentação de padaria
+
+- Link para mandar aos leads de padaria: https://comercial.prosystemnet.com/apresentacao/padaria
+- No WhatsApp do CRM, no painel lateral da conversa, o bloco **Apresentação** tem o botão **Enviar apresentação · Padarias**: a mensagem vem pronta com o nome do contato, dá para ajustar e enviar.
