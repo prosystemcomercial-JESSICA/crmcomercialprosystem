@@ -1156,3 +1156,10 @@ Pedido da Jessica: os agentes sabem que temos apresentação para padarias e par
 - **Conversas assumidas por uma pessoa:** não ganham mensagem extra (regra das 2 retomadas continua); o link vai dentro dessas retomadas, se ainda não foi enviado.
 - **Bia (triagem, `triagem-executor.service.ts`):** o material do segmento agora sempre sai (`temMaterial` = sempre) e o texto ganha, se ainda não tiver o link, "Estamos aqui para te mostrar como o Prosystem vai adiantar a rotina da sua farmácia/padaria. Separei uma apresentação rápida, leva poucos minutos:" com o link. Imagem e PDF configurados continuam iguais.
 - **Testes:** `backend/tests/sdr-apresentacao.test.ts` (segmento, link garantido, prompt com e sem apresentação).
+
+### Atualização 05/10/2026: nova demanda chega no WhatsApp do técnico
+
+- Antes, o aviso "Nova demanda para você" era de prioridade normal e, pela preferência padrão do técnico (WhatsApp só para urgentes), ficava só no portal e na notificação. Agora a designação (`POST /implantacoes/:id/designar`) manda sempre no WhatsApp do técnico, com o título "🆕 Nova demanda", o cliente, o tipo (serviço, conversão ou banco zerado) e o link do portal (`/portal-tecnico`). Só não manda se o técnico escolheu "WhatsApp: nenhum" nas preferências do portal.
+- `avisarTecnico` (implantacao-portal.service.ts) ganhou `whatsapp: true` (manda mesmo sendo aviso normal), `titulo` e devolve `whatsapp`: ENVIADO, SEM_TELEFONE (cadastro sem celular válido), DESLIGADO (preferência "nenhum"), FALHOU (WhatsApp da empresa desconectado ou erro no envio) ou NAO_SE_APLICA.
+- A rota de designação responde `aviso_whatsapp`. No portal, quem designa vê um aviso quando o WhatsApp não saiu, com o motivo e o que fazer (ex.: colocar o celular do técnico em Usuários e designar de novo). Enviado com sucesso não mostra nada.
+- O WhatsApp sai do número da empresa para o celular do cadastro do técnico (Usuários → telefone).

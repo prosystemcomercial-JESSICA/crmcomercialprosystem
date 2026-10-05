@@ -210,8 +210,12 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id).catch(() => {});
     // Tarefas padrão do cliente (certificado, XMLs, usuários): o robô avisa o cliente com o link da página.
     if (imp.modulo === 'IMPLANTACAO') await criarTarefasClientePadrao(prisma, imp, ator?.nome || 'Supervisão').catch(() => 0);
-    await avisarTecnico(prisma, { para_id: tecnico.id, implantacao_id: id, de: { id: ator?.id, nome: ator?.nome }, texto: `Nova demanda para você: ${imp.cliente_razao_social}${imp.modulo === 'SERVICO' ? ' (serviço)' : imp.tipo_base === 'CONVERSAO' ? ` (conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''})` : ' (banco zerado)'}. Preencha a ficha de coleta e dê play quando começar.` }).catch(() => {});
-    return reply.send({ status: 'success', data: imp });
+    // Nova demanda sempre chega no WhatsApp do técnico (pedido da Jessica, 05/10/2026), salvo se ele desligou nas preferências.
+    const aviso = await avisarTecnico(prisma, {
+      para_id: tecnico.id, implantacao_id: id, de: { id: ator?.id, nome: ator?.nome }, whatsapp: true, titulo: '🆕 Nova demanda',
+      texto: `Nova demanda para você: ${imp.cliente_razao_social}${imp.modulo === 'SERVICO' ? ' (serviço)' : imp.tipo_base === 'CONVERSAO' ? ` (conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''})` : ' (banco zerado)'}. Preencha a ficha de coleta e dê play quando começar.\n\nAbra no portal: https://comercial.prosystemnet.com/portal-tecnico`,
+    }).catch(() => null);
+    return reply.send({ status: 'success', data: imp, aviso_whatsapp: aviso?.whatsapp || 'FALHOU' });
   });
 
   // ── MOVER etapa de execução (técnico ou gestão)

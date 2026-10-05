@@ -13,6 +13,12 @@ import { ConfirmarLeitura } from './ConfirmarLeitura';
 // Portal de implantação e serviços: quadro (colunas do Trello), ficha da demanda, avisos, painel e configurações.
 
 const erroDe = (e: any) => e?.response?.data?.message || 'Não foi possível agora. Tente de novo.';
+// Resultado do aviso de nova demanda no WhatsApp do técnico (ENVIADO não precisa de mensagem).
+const AVISO_WPP: Record<string, string> = {
+  SEM_TELEFONE: 'Demanda designada, mas o WhatsApp não foi enviado: o cadastro do técnico está sem telefone. Coloque o celular dele em Usuários e designe de novo.',
+  DESLIGADO: 'Demanda designada. O técnico desligou o WhatsApp nas preferências do portal: ele vê só no portal.',
+  FALHOU: 'Demanda designada, mas o WhatsApp não saiu (confira se o WhatsApp da empresa está conectado). O técnico vê no portal.',
+};
 const avisarCronometro = () => window.dispatchEvent(new Event('cronometro:mudou'));
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—');
 const fmtDataHora = (s?: string | null) => (s ? new Date(s).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
@@ -401,7 +407,12 @@ function DesignarTecnico({ id, tecnicoId, recarregar, embutido }: { id: string; 
   useEffect(() => { apiClient.getTecnicosImplantacao(true).then(r => setTecnicos(r.data.data || [])).catch(() => {}); }, []);
   const designar = async (tid: string) => {
     if (!tid) return;
-    try { await apiClient.designarTecnico(id, tid); recarregar(); } catch (e) { alert(erroDe(e)); }
+    try {
+      const r = await apiClient.designarTecnico(id, tid);
+      recarregar();
+      const w = r.data?.aviso_whatsapp;
+      if (w && AVISO_WPP[w]) alert(AVISO_WPP[w]);
+    } catch (e) { alert(erroDe(e)); }
   };
   const carga = (t: any) => (t.ativas == null ? '' : ` · ${t.ativas} ativas${t.em_virada ? ` · ${t.em_virada} em virada` : ''} · ${t.horas_mes}h no mês`);
   const seletor = (

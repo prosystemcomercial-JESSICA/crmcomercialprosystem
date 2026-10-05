@@ -992,4 +992,10 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - A **Bia** manda o link junto com o material no fim da triagem.
 - Ninguém recebe a apresentação duas vezes: se o link já está na conversa (enviado por um agente, pela Bia ou por você pelo botão), não vai de novo.
 - Ficam de fora: proposta em acompanhamento (Luiz Felipe) e o primeiro contato de prospecção ou indicação. Nesses dois, o link sai quando o cliente responder.
+
+### Atualização 05/10/2026: nova demanda no WhatsApp do técnico
+
+- Ao designar uma demanda no Portal Técnico, o técnico recebe na hora no WhatsApp dele: "🆕 Nova demanda", o cliente, o tipo e o link do portal.
+- O celular usado é o do cadastro do técnico em **Usuários**. Se estiver sem telefone, o portal avisa você na hora: coloque o celular e designe de novo.
+- Se o técnico desligou o WhatsApp nas preferências do portal, ele vê só no portal (e você é avisada).
 - Na página do sistema, a parte **Sua rotina antes e depois** brilha e mostra "Toque para comparar" até o cliente tocar; quando ele chega nela, a página já mostra sozinha a diferença uma vez.

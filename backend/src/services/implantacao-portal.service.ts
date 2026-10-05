@@ -84,8 +84,14 @@ async function whats(prisma: PrismaClient, numero: string | null | undefined, te
 
 // ─── Avisos ──────────────────────────────────────────────────────────────────
 
-/** Aviso para o técnico: fica no portal (com som), vai como notificação e, se urgente, no WhatsApp dele. */
-export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; texto: string; prioridade?: 'NORMAL' | 'URGENTE'; implantacao_id?: string | null; de?: { id?: string; nome?: string } | null; origem?: 'GESTAO' | 'SISTEMA'; tipo?: 'AVISO' | 'TAREFA'; prazo?: Date | null }) {
+export type WhatsAviso = 'ENVIADO' | 'SEM_TELEFONE' | 'DESLIGADO' | 'FALHOU' | 'NAO_SE_APLICA';
+
+/**
+ * Aviso para o técnico: fica no portal (com som), vai como notificação e, se urgente, no WhatsApp dele.
+ * `whatsapp: true` manda no WhatsApp mesmo sendo aviso normal (ex.: nova demanda), salvo se a pessoa desligou o
+ * WhatsApp nas preferências. O retorno traz `whatsapp` com o que aconteceu, para a tela avisar quem designou.
+ */
+export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; texto: string; prioridade?: 'NORMAL' | 'URGENTE'; implantacao_id?: string | null; de?: { id?: string; nome?: string } | null; origem?: 'GESTAO' | 'SISTEMA'; tipo?: 'AVISO' | 'TAREFA'; prazo?: Date | null; whatsapp?: boolean; titulo?: string }) {
   const para = await prisma.usuarioCRM.findUnique({ where: { id: a.para_id }, select: { id: true, nome: true, telefone: true } }).catch(() => null);
   if (!para) return null;
   const aviso = await prisma.avisoTecnico.create({
@@ -100,8 +106,13 @@ export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; 
   // WhatsApp conforme a preferência da pessoa (padrão: só urgentes). O portal recebe tudo sempre.
   const prefRow = await prisma.configuracaoIntegracao.findUnique({ where: { chave: `implantacao.pref.${para.id}` } }).catch(() => null);
   let pref = 'URGENTES'; try { pref = prefRow?.valor ? JSON.parse(prefRow.valor).whatsapp || 'URGENTES' : 'URGENTES'; } catch { /* padrão */ }
-  if (pref === 'TODOS' || (pref === 'URGENTES' && a.prioridade === 'URGENTE')) await whats(prisma, para.telefone, `${tarefa ? `📋 *Tarefa${a.prioridade === 'URGENTE' ? ' urgente' : ''}*${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 *Aviso urgente*' : '📌 *Aviso da implantação*'}${a.de?.nome ? ` de ${a.de.nome}` : ''}\n\n${a.texto}`);
-  return aviso;
+  let whatsapp: WhatsAviso = 'NAO_SE_APLICA';
+  if (pref === 'TODOS' || (pref === 'URGENTES' && (a.prioridade === 'URGENTE' || a.whatsapp))) {
+    const titulo = a.titulo ? `*${a.titulo}*` : tarefa ? `📋 *Tarefa${a.prioridade === 'URGENTE' ? ' urgente' : ''}*${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 *Aviso urgente*' : '📌 *Aviso da implantação*';
+    whatsapp = !numeroWhatsapp(para.telefone || '') ? 'SEM_TELEFONE'
+      : await whats(prisma, para.telefone, `${titulo}${a.de?.nome ? ` de ${a.de.nome}` : ''}\n\n${a.texto}`) ? 'ENVIADO' : 'FALHOU';
+  } else if (a.whatsapp && pref === 'NENHUM') whatsapp = 'DESLIGADO';
+  return { ...aviso, whatsapp };
 }
 
 /** Novidade para o sino da gestão (supervisão técnica e admin). Só no portal.
