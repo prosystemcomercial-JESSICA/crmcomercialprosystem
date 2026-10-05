@@ -127,6 +127,7 @@ export async function revisarConversas(prisma: PrismaClient) {
         '- ignorou o contexto (respondeu algo genérico, não continuou do último assunto ou do último combinado);',
         '- mandou para o SUPORTE algo que era comercial, implantação, treinamento ou assunto combinado com a Jessica;',
         '- tratou como lead quem já é cliente, membro da equipe, parceiro ou fornecedor;',
+        'ATENÇÃO À PARCERIA: se a conversa é sobre PARCERIA, REVENDA, REPRESENTAÇÃO comercial ou indicação de clientes (a pessoa quer vender/representar a Prosystem, não comprar o sistema para a loja dela), NÃO trate como lead nem como demonstração de venda. Nesse caso o alerta é: identificar o contato como Parceiro no Inbox (para os agentes e lembretes de demonstração pararem), cadastrar em Representantes/Candidatos e a Jessica conduzir a conversa pessoalmente. Reunião com parceiro não é demonstração.',
         '- o cliente pediu demonstração/proposta/preço e o agente fez pergunta genérica em vez de avançar;',
         '- cliente com interesse ficou sem próximo passo ou sem data de retorno; adiou e não foi marcado retorno;',
         '- repetiu mensagem ou pergunta; insistiu no mesmo dia; respondeu a robô de atendimento;',

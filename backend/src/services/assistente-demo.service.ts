@@ -160,6 +160,9 @@ export async function enviarLembretesDemo(prisma: PrismaClient, agora = new Date
   for (const a of ats) {
     const c = await prisma.whatsappConversa.findUnique({ where: { id: a.whatsapp_conversa_id! }, select: { id: true, contato_numero: true } });
     if (!c) continue;
+    // Parceiro, candidato a revenda, equipe ou fornecedor: reunião não é "demonstração" (o texto do lembrete é de lead).
+    const { contatoSemAgentes } = await import('@/lib/laya');
+    if (await contatoSemAgentes(prisma, c.contato_numero)) { await prisma.atividade.update({ where: { id: a.id }, data: { lembrete_whatsapp_em: new Date() } }); continue; }
     const texto = textoLembreteDemo(a.data_prevista!, a.google_meet_link || a.link_externo || null);
     try {
       const r = await evo.enviarTexto(inst.instance_token, c.contato_numero, texto);
