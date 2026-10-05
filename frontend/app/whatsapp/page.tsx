@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import PainelLaya from '@/components/whatsapp/PainelLaya';
 import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
+import EnviarApresentacaoWpp from '@/components/whatsapp/EnviarApresentacaoWpp';
 import ProximaAcao from '@/components/whatsapp/ProximaAcao';
 import { MidiaMensagem } from '@/components/whatsapp/MidiaMensagem';
 import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/whatsapp/IaConversa';
@@ -1507,6 +1508,8 @@ export default function WhatsappPage() {
                 <ResumoIa key={`resumo:${ativa.id}`} conversaId={ativa.id} />
 
                 <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} conversa={ativa} />
+
+                <EnviarApresentacaoWpp key={`apres:${ativa.id}`} conversaId={ativa.id} conversa={ativa} />
 
                 <PainelLaya conversa={conversas.find(c => c.id === ativa.id) || ativa} />
 

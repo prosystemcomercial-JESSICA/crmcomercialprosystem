@@ -1096,3 +1096,9 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Revisão diária do Rafael (services/especialista.service.ts): conversa sobre **parceria, revenda, representação ou indicação** não é tratada como lead nem como demonstração; o alerta orienta identificar o contato como Parceiro no Inbox, cadastrar em Representantes/Candidatos e a Jessica conduzir.
 - Origem: alerta do Rafael sobre Wagner Caldas (05/10/2026), que era uma conversa de nova parceria de revenda.
 - Manual de uso do Portal Técnico publicado no Claude Docs: "Manual do Portal Técnico: como executar uma demanda" (fluxo completo em 12 etapas, papéis, travas, avisos e perguntas frequentes).
+
+### Atualização 05/10/2026: apresentação para leads de padaria (link e botão no WhatsApp)
+
+- Página estática "Prosystem para Padarias" (entregue pela Jessica, `apresentacao-padaria.zip`) publicada em **https://comercial.prosystemnet.com/apresentacao/padaria** (`frontend/public/apresentacao/padaria/`, reescrita curta em `next.config.ts`: `/apresentacao/:nome` → `/apresentacao/:nome/index.html`). Endereço provisório "SEU-SUBDOMINIO" trocado pelo real; imagem de prévia do link (`img/og.jpg`, 1200×630, recortada da foto principal); caminhos das imagens absolutos.
+- A página não grava dados: o formulário só monta a mensagem para o WhatsApp da empresa.
+- WhatsApp do CRM: bloco **Apresentação** no painel lateral da conversa (`components/whatsapp/EnviarApresentacaoWpp.tsx`), abaixo do Enviar proposta: "Enviar apresentação · Padarias" abre a mensagem pronta (com o primeiro nome do contato) para ajustar e enviar; "ver" abre a página. A do segmento do contato aparece primeiro. Nova apresentação: pasta em `public/apresentacao/<nome>/` + item na lista do componente.
