@@ -84,6 +84,7 @@ export default function AcompanhamentoPage() {
             </div>
           )}
         </section>
+        {(d.treinos_realizados || []).some((f: any) => !f.confirmado_em) && <ConfirmarTreinamento token={token} fases={d.treinos_realizados.filter((f: any) => !f.confirmado_em)} recarregar={() => axios.get(`${API_URL}/publico/acompanhamento/${token}`).then(r => setD(r.data.data)).catch(() => {})} />}
         {d.tarefas_cliente?.length > 0 && <TarefasDoCliente token={token} tarefas={d.tarefas_cliente} recarregar={() => axios.get(`${API_URL}/publico/acompanhamento/${token}`).then(r => setD(r.data.data)).catch(() => {})} />}
         {d.diagnostico && d.diagnostico.dados.length > 0 && (
           <section style={{ background: '#fff', borderRadius: 16, padding: '18px 22px', boxShadow: '0 4px 30px rgba(13,34,56,.06)', display: 'grid', gap: 10 }}>
@@ -189,6 +190,37 @@ function TarefasDoCliente({ token, tarefas, recarregar }: { token: string; taref
           </div>
         );
       })}
+    </section>
+  );
+}
+
+/** O cliente confirma quem participou de cada fase do treinamento (comprovação). */
+function ConfirmarTreinamento({ token, fases, recarregar }: { token: string; fases: any[]; recarregar: () => void }) {
+  const [nomes, setNomes] = useState<Record<string, string>>({});
+  const [quem, setQuem] = useState('');
+  const [enviando, setEnviando] = useState<string | null>(null);
+  const confirmar = async (f: any) => {
+    const participantes = (nomes[f.id] || '').split(/[\n,;]+/).map(x => x.trim()).filter(x => x.length >= 2);
+    if (!participantes.length) return alert('Escreva o nome de quem participou (um por linha).');
+    if (quem.trim().length < 3) return alert('Informe o seu nome.');
+    setEnviando(f.id);
+    try { await axios.post(`${API_URL}/publico/acompanhamento/${token}/treinamento/${f.id}/confirmar`, { participantes, nome: quem.trim() }); recarregar(); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Não foi possível confirmar agora.'); } finally { setEnviando(null); }
+  };
+  return (
+    <section style={{ background: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 4px 30px rgba(13,34,56,.10)', display: 'grid', gap: 12 }}>
+      <div>
+        <b style={{ fontSize: 16, color: '#1A4E82' }}>Confirme o treinamento</b>
+        <div style={{ fontSize: 14, color: '#5B7A99', marginTop: 4 }}>Diga quem da sua equipe participou. Assim fica registrado quem foi treinado em cada parte do sistema.</div>
+      </div>
+      <input value={quem} onChange={e => setQuem(e.target.value)} placeholder="Seu nome" style={{ width: '100%', fontSize: 15, padding: 10, minHeight: 44, borderRadius: 10, border: '1px solid #CFE0F2' }} />
+      {fases.map(f => (
+        <div key={f.id} style={{ borderTop: '1px solid #EBF4FF', paddingTop: 12, display: 'grid', gap: 8 }}>
+          <b style={{ fontSize: 15, color: '#23384D' }}>Fase {f.ordem}: {f.nome}</b>
+          <textarea rows={3} value={nomes[f.id] || ''} onChange={e => setNomes(p => ({ ...p, [f.id]: e.target.value }))} placeholder="Quem participou (um nome por linha)" style={{ width: '100%', fontSize: 15, padding: 10, borderRadius: 10, border: '1px solid #CFE0F2', fontFamily: 'inherit' }} />
+          <button disabled={enviando === f.id} onClick={() => confirmar(f)} style={{ justifySelf: 'start', minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: '#2E6EAB', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', opacity: enviando === f.id ? 0.6 : 1 }}>{enviando === f.id ? 'Enviando…' : 'Confirmar participação'}</button>
+        </div>
+      ))}
     </section>
   );
 }

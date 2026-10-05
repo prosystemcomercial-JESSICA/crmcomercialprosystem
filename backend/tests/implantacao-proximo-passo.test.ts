@@ -205,3 +205,18 @@ describe('portal completo: prazo pausado e indicadores', () => {
     expect(r).toEqual({ total: 3, dias_conversao: 13, dias_zerado: 14, no_prazo_pct: 67 });
   });
 });
+
+import { pendenciasTestes } from '../src/lib/implantacao/portal';
+
+describe('testes de conversão travam a virada da conversão', () => {
+  it('pendente e divergente travam; ok e não se aplica liberam; banco zerado não exige', () => {
+    expect(pendenciasTestes({ modulo: 'IMPLANTACAO', tipo_base: 'CONVERSAO' }, [{ resultado: 'PENDENTE' }, { resultado: 'DIVERGENTE' }, { resultado: 'OK' }])).toEqual(['Testes de conversão: 1 sem conferir', 'Testes de conversão: 1 com divergência']);
+    expect(pendenciasTestes({ modulo: 'IMPLANTACAO', tipo_base: 'CONVERSAO' }, [{ resultado: 'OK' }, { resultado: 'NAO_APLICA' }])).toEqual([]);
+    expect(pendenciasTestes({ modulo: 'IMPLANTACAO', tipo_base: 'BANCO_ZERADO' }, [{ resultado: 'PENDENTE' }])).toEqual([]);
+  });
+  it('próximo passo leva para a aba de testes quando só faltam eles', () => {
+    const imp = { modulo: 'IMPLANTACAO', tipo_base: 'CONVERSAO', tecnico_id: 't', data_assinatura: new Date('2026-10-05T15:00:00Z'), coluna: 'EM_ANDAMENTO', coleta: { regime_tributario: 'Simples', contato_nome: 'Ana' }, tela_suporte_arquivo_id: 'a', virada_agendada_para: new Date('2026-10-20T13:00:00Z'), onboarding_concluido_em: new Date() };
+    const p = proximoPasso(imp, [], [], 0, { testes: [{ resultado: 'PENDENTE' }] });
+    expect(p).toMatchObject({ chave: 'PREPARAR', aba: 'testes' });
+  });
+});
