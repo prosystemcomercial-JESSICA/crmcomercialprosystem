@@ -11,9 +11,25 @@
 const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const DESTINO = process.argv[2] || 'C:/Users/prosy/MEGA/backup-crm';
 const RETENCAO_DIAS = 14; // mantém os últimos 14 backups locais, apaga o resto
+// Arquivos que os clientes enviam pela página de acompanhamento (Portal Técnico) ficam em disco,
+// fora do banco: entram em cada backup como _arquivos-clientes.tar.gz (vão junto para o PC e o MEGA).
+const DIR_ARQUIVOS_CLIENTE = process.env.ARQUIVOS_CLIENTE_DIR || '/root/arquivos-clientes';
+
+/** Compacta a pasta dos arquivos dos clientes dentro do backup. Devolve { arquivos, bytes } ou null se não houver nada. */
+function backupArquivosClientes(pastaBackup) {
+  if (!fs.existsSync(DIR_ARQUIVOS_CLIENTE)) return null;
+  let arquivos = 0;
+  const contar = dir => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { if (e.isDirectory()) contar(path.join(dir, e.name)); else arquivos++; } };
+  contar(DIR_ARQUIVOS_CLIENTE);
+  if (!arquivos) return { arquivos: 0, bytes: 0 };
+  const destino = path.join(pastaBackup, '_arquivos-clientes.tar.gz');
+  execFileSync('tar', ['-czf', destino, '-C', path.dirname(DIR_ARQUIVOS_CLIENTE), path.basename(DIR_ARQUIVOS_CLIENTE)], { stdio: 'pipe' });
+  return { arquivos, bytes: fs.statSync(destino).size };
+}
 
 function serializar(_key, value) {
   if (typeof value === 'bigint') return value.toString();
@@ -47,12 +63,21 @@ async function main() {
     }
   }
 
+  try {
+    resumo.arquivos_clientes = backupArquivosClientes(pastaBackup);
+  } catch (err) {
+    resumo.erros.push({ tabela: '_arquivos-clientes', erro: err.message });
+    console.error('[BACKUP] Falha ao compactar os arquivos dos clientes:', err.message);
+  }
+
   fs.writeFileSync(path.join(pastaBackup, '_resumo.json'), JSON.stringify(resumo, null, 2), 'utf8');
 
   const totalLinhas = Object.values(resumo.tabelas).reduce((a, b) => a + b, 0);
   const duracaoSeg = ((Date.now() - inicio) / 1000).toFixed(1);
   console.log(`[BACKUP] OK — ${Object.keys(resumo.tabelas).length} tabelas, ${totalLinhas} linhas, ${resumo.erros.length} erros, ${duracaoSeg}s`);
   console.log(`[BACKUP] Salvo em: ${pastaBackup}`);
+  const ac = resumo.arquivos_clientes;
+  console.log(`[BACKUP] Arquivos dos clientes: ${ac ? `${ac.arquivos} arquivo(s)${ac.arquivos ? `, ${(ac.bytes / 1048576).toFixed(1)} MB compactados` : ''}` : `pasta ${DIR_ARQUIVOS_CLIENTE} não existe`}`);
 
   // Limpeza: apaga backups locais mais antigos que RETENCAO_DIAS (o Mega guarda o histórico completo).
   try {

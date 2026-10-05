@@ -1106,3 +1106,10 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Preferência de cada pessoa (no rodapé do sino): também no WhatsApp **só urgentes** (padrão), **tudo** ou **nada**. O portal recebe tudo sempre. `GET/PUT /implantacoes/minhas-preferencias`, gravado em `ConfiguracaoIntegracao` (`implantacao.pref.<usuário>`); respeitado em `avisarTecnico`.
 
 **Padrão visual**: `.interface-design/system.md` com cores, tipografia, espaços, componentes e o que evitar.
+
+### Atualização 05/10/2026: arquivos dos clientes no backup
+
+- O backup do servidor (`backend/scripts/backup-diario.cjs`, cron 6h e 17h) agora compacta a pasta dos arquivos enviados pelos clientes na página de acompanhamento (`ARQUIVOS_CLIENTE_DIR`, padrão `/root/arquivos-clientes`) em `_arquivos-clientes.tar.gz` dentro de cada pasta de backup, com a contagem e o tamanho no `_resumo.json` e no log.
+- Vai junto para o computador da Jessica (`sync-backup-vps.py`) e para o MEGA, com a mesma retenção de 14 dias no servidor.
+- Falha ao compactar entra como erro do backup: o vigia (`backup-monitor.service.ts`) avisa a gestão no WhatsApp.
+- Restaurar: `tar -xzf _arquivos-clientes.tar.gz -C /root` (recria `/root/arquivos-clientes`).
