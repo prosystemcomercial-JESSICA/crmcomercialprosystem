@@ -6,12 +6,13 @@ import type { PrismaClient } from '@prisma/client';
 import * as evo from './evolution.service';
 import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { calcularSlaPrazo } from './whatsapp-sla.service';
-import { obterConfigTriagem, materialVazio, type ConfigTriagem } from './triagem-config.service';
+import { obterConfigTriagem, type ConfigTriagem } from './triagem-config.service';
 import { consultarCnpj } from '../lib/cnpj';
 import { iniciarTriagem, avancarTriagem, ESTADOS_TRIAGEM, type Acao, type DadosTriagem, type EstadoTriagem, type ResultadoPasso } from '../lib/triagem/fluxo';
 import { efeitosDesfecho } from '../lib/triagem/desfecho';
 import { fluxoCuidaDoCnpj, cnpjNovoNaMensagem, dadosComCnpj, efeitosCnpjNoLead } from '../lib/triagem/cnpj-conversa';
 import { serializarPorChave } from '../lib/serializar';
+import { URL_APRESENTACAO, MARCA_APRESENTACAO } from '../lib/assistente/sdr';
 
 type ConversaTriagem = { id: string; contato_numero: string; lead_id: string | null; dono_id: string | null; bot_ativo: boolean; bot_estado: string | null; bot_dados: any };
 
@@ -119,9 +120,14 @@ async function enviarAcoes(prisma: PrismaClient, token: string, conversa: Conver
         ultima = a.menu.texto;
       } else if (a.tipo === 'material') {
         const m = a.segmento === 'Farmácia' ? cfg.material.farmacia : cfg.material.padaria;
-        if (m.texto.trim()) {
-          const r = await evo.enviarTexto(token, conversa.contato_numero, m.texto);
-          await registrarSaida(prisma, conversa.id, m.texto, r.externo_id);
+        // Apresentação do segmento junto com o material (pedido da Jessica, 05/10/2026), se o texto ainda não traz o link.
+        const loja = a.segmento === 'Farmácia' ? 'farmácia' : 'padaria';
+        const link = a.segmento === 'Farmácia' ? URL_APRESENTACAO.farmacia : URL_APRESENTACAO.padaria;
+        const texto = m.texto.includes(MARCA_APRESENTACAO) ? m.texto.trim()
+          : [m.texto.trim(), `Estamos aqui para te mostrar como o Prosystem vai adiantar a rotina da sua ${loja}. Separei uma apresentação rápida, leva poucos minutos:\n\n${link}`].filter(Boolean).join('\n\n');
+        if (texto) {
+          const r = await evo.enviarTexto(token, conversa.contato_numero, texto);
+          await registrarSaida(prisma, conversa.id, texto, r.externo_id);
         }
         if (m.imagem) {
           const r = await evo.enviarArquivo(token, conversa.contato_numero, m.imagem, 'imagem.jpg');
@@ -217,7 +223,8 @@ async function executarPasso(
   const deps = {
     comCaroline,
     consultarCnpj: (c: string) => consultarCnpj(c),
-    temMaterial: (s: 'Padaria' | 'Farmácia') => !materialVazio(s === 'Farmácia' ? cfg.material.farmacia : cfg.material.padaria),
+    // Sempre há o que mandar: no mínimo o link da apresentação do segmento (05/10/2026).
+    temMaterial: () => true,
     // Laya na triagem: só quando ligada em Configurações (desligada por padrão até o treino).
     ...(ia.laya_triagem ? {
       classificar: async (pergunta: 'menu' | 'segmento', texto: string) => {

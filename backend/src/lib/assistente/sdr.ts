@@ -299,6 +299,32 @@ export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): R
   };
 }
 
+// Apresentações públicas (frontend/public/apresentacao/<nome>): padaria para padaria, farmácia para farmácia.
+// Pedido da Jessica (05/10/2026): vão no primeiro contato e em uma retomada de quem já foi contatado sem recebê-la.
+export const URL_APRESENTACAO = {
+  padaria: 'https://comercial.prosystemnet.com/apresentacao/padaria',
+  farmacia: 'https://comercial.prosystemnet.com/apresentacao/farmacia',
+} as const;
+/** Trecho que identifica no histórico qualquer apresentação já enviada (pelo agente, pela Bia ou pelo botão). */
+export const MARCA_APRESENTACAO = 'prosystemnet.com/apresentacao/';
+export type Apresentacao = { tipo: 'padaria' | 'farmacia'; url: string; enviada: boolean };
+
+/** Apresentação do segmento: o primeiro texto que indicar padaria ou farmácia decide (segmento antes do nome da empresa). */
+export function apresentacaoDoSegmento(...textos: (string | null | undefined)[]): Omit<Apresentacao, 'enviada'> | null {
+  for (const bruto of textos) {
+    const t = (bruto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    if (/padar|panific|confeit/.test(t)) return { tipo: 'padaria', url: URL_APRESENTACAO.padaria };
+    if (/farm|drog|manipula/.test(t)) return { tipo: 'farmacia', url: URL_APRESENTACAO.farmacia };
+  }
+  return null;
+}
+
+/** A IA esqueceu o link: vai no fim da última mensagem, numa linha própria. */
+export function garantirLinkApresentacao(mensagens: string[], url: string): string[] {
+  if (!mensagens.length || mensagens.some(m => m.includes(url))) return mensagens;
+  return mensagens.map((m, i) => (i === mensagens.length - 1 ? `${m}\n\n${url}` : m));
+}
+
 export const ABERTURA_JESSICA = (nome: string | null, segmento: string | null) =>
   `Bom dia, ${nome || ''}! Eu sou a Jessica, da Prosystem Sistemas. Recebemos sua inscrição em nossa campanha sobre sistema para ${segmento === 'Padaria' ? 'padarias' : 'farmácias'} e vou iniciar seu atendimento.\n\nPara começar, por favor, me informe de qual cidade você é e qual sistema utiliza atualmente. Pode responder por áudio, mensagem ou foto, como preferir.`.replace(' ,', ',');
 
@@ -329,11 +355,20 @@ export function promptCaroline(p: {
   janelaCampanha?: boolean;
   descontoAutorizado?: CondicaoAutorizada | null;
   followup?: { cadastro_em?: string | null; proposta?: { plano?: string | null; enviada_em?: string | null; status?: string | null; resumo?: string | null } | null } | null;
+  /** Apresentação do segmento do lead (null = não se aplica nesta mensagem). */
+  apresentacao?: Apresentacao | null;
 }): { sistema: string; usuario: string } {
   const perfil = p.perfil || 'caroline';
   const eu = PERFIS_SDR[perfil];
   const followUp = perfil !== 'caroline';
+  const ap = p.apresentacao;
+  const lojaAp = ap?.tipo === 'padaria' ? 'padaria' : 'farmácia';
   const sistema = [
+    ap && !ap.enviada
+      ? `APRESENTAÇÃO (OBRIGATÓRIA NESTA RESPOSTA): temos uma apresentação rápida do Prosystem para ${ap.tipo === 'padaria' ? 'padarias' : 'farmácias'}, que este cliente AINDA NÃO recebeu: ${ap.url} . Envie-a agora, de forma persuasiva e natural, ligada ao que vocês estão falando, no espírito de: "estamos aqui para te mostrar como o Prosystem vai adiantar a sua vida na ${lojaAp}: separei uma apresentação rápida, leva poucos minutos". Ponha o link EXATO numa linha própria (sem encurtar, sem mudar nada). Se for o primeiro contato, a apresentação entra junto com a apresentação de quem você é. Exceção: se o cliente disse que não tem interesse, que já fechou com outro ou pediu para não receber mensagens, NÃO mande.`
+      : ap?.enviada
+      ? 'APRESENTAÇÃO: o link da apresentação já foi enviado nesta conversa (está no histórico). Não mande de novo; se fizer sentido, pergunte de leve se ele conseguiu dar uma olhada.'
+      : '',
     `Você é ${perfil === 'caroline' ? 'a' : 'o'} ${eu.nome}, ${eu.papel} da Prosystem Sistemas (sistemas de gestão para farmácias, padarias e varejo). Você fala só em seu nome: ${eu.nome}, da equipe Prosystem. Conversa pelo WhatsApp com ${eu.publico}.`,
     followUp ? 'MISSÃO Nº 0 (follow-up): descobrir em que pé o cliente está. Se ainda procura sistema, siga buscando a dor. Se já fechou com outro sistema ou desistiu, agradeça e encerre NESSA mensagem com a porta aberta (acao "sem_interesse", motivo em "motivo_perda" e o que ele disse em "nota_motivo"; se ele citou o sistema, ponha em dados.sistema_atual). Não faça pergunta nessa despedida. Não mande link do Instagram: o sistema manda depois. Nunca insista nem critique o concorrente.' : '',
     perfil === 'luiz_felipe' && !p.lead.recuperacao ? 'PROPOSTA RECUSADA (primeira vez que o cliente diz não à proposta, por qualquer motivo): NÃO se despeça e NÃO encerre. Acolha a decisão sem contestar e faça UMA pergunta aberta, natural e curta, sobre o que mais pesou (ex.: "entendo, sem problema! só pra eu entender aqui: o que mais pesou na decisão?"). Sem lista de opções, sem pressão. Se ele já disse o motivo, não pergunte de novo: acolha e pergunte de leve sobre esse motivo. Use acao "recusou" (preencha "motivo_perda" se já souber).' : '',

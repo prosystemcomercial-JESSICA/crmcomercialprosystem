@@ -21,6 +21,7 @@ import {
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
   PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  apresentacaoDoSegmento, garantirLinkApresentacao, MARCA_APRESENTACAO, type Apresentacao,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
 
@@ -360,6 +361,28 @@ async function garantirConversaLead(prisma: PrismaClient, instanciaId: string, n
   return prisma.whatsappConversa.create({ data: { instanciaId, contato_numero: numero, contato_nome: nome, tipo_contato: 'LEAD', lead_id: leadId, bot_ativo: false, nao_lidas: 0 }, select: { id: true, contato_numero: true } });
 }
 
+/**
+ * Apresentação do segmento para esta mensagem (padaria → padaria, farmácia → farmácia), com a marca de já enviada
+ * se o link já está na conversa. null quando não se aplica: segmento desconhecido, Luiz Felipe (já tem proposta),
+ * recuperação de proposta e o primeiro contato ativo (prospecção do Heitor ou indicação), que vai sem link para
+ * proteger o número; nesses o link sai na primeira resposta.
+ */
+async function apresentacaoPara(prisma: PrismaClient, sdr: any, fase: FaseCaroline): Promise<Apresentacao | null> {
+  const d: any = sdr.dados || {};
+  if (agenteDe(sdr) === 'luiz_felipe' || sdr.proposta_id || recuperacaoAtiva(sdr) || !sdr.conversaId) return null;
+  if (fase === 'abertura' && (d.prospeccao || d.indicacao)) return null;
+  const ap = apresentacaoDoSegmento(sdr.segmento, sdr.empresa);
+  if (!ap) return null;
+  const enviada = !!(await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', conteudo: { contains: MARCA_APRESENTACAO } }, select: { id: true } }).catch(() => null));
+  return { ...ap, enviada };
+}
+
+/** Link da apresentação pendente garantido na mensagem (só quando a conversa segue; nunca em despedida). */
+function comApresentacao(r: RespostaCaroline, ap: Apresentacao | null): RespostaCaroline {
+  if (!ap || ap.enviada || !['continuar', 'oferecer_demo'].includes(r.acao)) return r;
+  return { ...r, mensagens: garantirLinkApresentacao(r.mensagens, ap.url) };
+}
+
 async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline, dica = ''): Promise<RespostaCaroline | null> {
   const valoresProposta: string[] = [];
   const { guiaComercial } = await import('./assistente-ia.service');
@@ -387,10 +410,12 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
     ? '\n=== A JESSICA DESCARTOU ESTAS VERSÕES (pense diferente: outro gancho, outra estrutura, outras palavras; nunca repita) ===\n' +
       descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
     : '';
+  const ap = await apresentacaoPara(prisma, sdr, fase);
   const p = promptCaroline({
     guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + (await import('@/lib/assistente/conversas-agentes').then(m => { const x = m.memoriaDoAgente(agenteDe(sdr)); return x.length ? `\n### O que você aprendeu com os colegas (use se ajudar)\n${x.slice(0, 5).map(y => `- ${y.texto}`).join('\n')}` : ''; })) + refazer + (dica ? `\n=== ATENÇÃO NESTA RESPOSTA ===\n${dica}` : ''), exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     perfil: agenteDe(sdr),
+    apresentacao: ap,
     // Campanha: só dias 20+, e uma vez por mês por cliente (depois de autorizada ou recusada não pede de novo).
     janelaCampanha: janelaCampanhaAtiva(new Date()) && (sdr.dados as any)?.campanha_mes !== new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 7),
     // Condição autorizada vale 5 dias corridos a partir da autorização; depois some da conversa.
@@ -414,7 +439,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
     try {
       const bruto = await chamarGemini(prisma, { sistema: p.sistema, partes, json: true, temperatura: 0.5, timeoutMs: 90_000 });
       const r = lerRespostaCaroline(JSON.parse(bruto.replace(/^```(json)?|```$/g, '').trim()), valoresProposta);
-      if (r) return r;
+      if (r) return comApresentacao(r, ap);
     } catch (e: any) { console.warn('[CAROLINE] IA:', e?.message); }
   }
   return null;
@@ -798,7 +823,7 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
  * Gera a próxima fala da Caroline e envia (ou deixa para aprovação).
  * Nunca lança; na dúvida não envia.
  */
-async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: FaseCaroline): Promise<'enviado' | 'aprovacao' | 'nada' | 'falha'> {
+async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: FaseCaroline, dicaExtra = ''): Promise<'enviado' | 'aprovacao' | 'nada' | 'falha'> {
   const sdr = await prisma.sdrLead.findUnique({ where: { id: sdrId } });
   if (!sdr || !sdr.conversaId || !ATIVOS.includes(sdr.status)) return 'nada';
   // Contato marcado como equipe/parceiro/fornecedor/outro: nenhum agente escreve.
@@ -868,7 +893,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     }
   }
   if (fase === 'resposta') dicaDecisor = [dicaDecisor, await contextoDoCliente(prisma, sdr.numero)].filter(Boolean).join('\n');
-  let r = await gerarResposta(prisma, sdr, fase, dicaDecisor);
+  let r = await gerarResposta(prisma, sdr, fase, [dicaDecisor, dicaExtra].filter(Boolean).join('\n'));
   // Trava: cliente falando de implantação/treinamento/combinados com a equipe → é com uma pessoa: o agente sai, sem mensagem.
   if (r && fase === 'resposta') {
     const ultM = await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true, transcricao: true } });
@@ -1330,6 +1355,44 @@ async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: str
   }
 }
 
+/**
+ * Pedido da Jessica (05/10/2026): quem já foi contatado pela Caroline ou pelo Julio e ainda não recebeu a apresentação
+ * do segmento recebe UMA retomada no contexto da conversa, sutil, com o link (padaria → padaria, farmácia → farmácia).
+ * Protege o número: uma por vez, com o intervalo sorteado dos primeiros contatos, no máximo 20 por dia, só nos
+ * horários de retomada e nunca antes de um horário combinado com o cliente. Passa pela aprovação como toda retomada.
+ */
+const MAX_APRESENTACAO_DIA = 20;
+let proximaApresentacao = 0;
+async function retomarComApresentacao(prisma: PrismaClient, token: string, ativos: string[], agora: Date) {
+  const agentes = ativos.filter(a => a === 'caroline' || a === 'julio');
+  if (!agentes.length || Date.now() < proximaApresentacao) return;
+  const hoje = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const mexidosHoje = await prisma.sdrLead.findMany({ where: { updated_at: { gte: new Date(`${hoje}T00:00:00-03:00`) } }, select: { dados: true } });
+  if (mexidosHoje.filter(x => (x.dados as any)?.apresentacao_retomada === hoje).length >= MAX_APRESENTACAO_DIA) return;
+  const candidatos = await prisma.sdrLead.findMany({
+    where: { agente: { in: agentes }, status: 'AGUARDANDO', conversaId: { not: null }, ultima_caroline_em: { not: null }, proposta_id: null },
+    orderBy: { updated_at: 'desc' }, take: 200,
+  });
+  for (const s of candidatos) {
+    const d: any = s.dados || {};
+    if (d.apresentacao_retomada || d.retomar_em || d.ja_cliente || d.bloqueado_etiqueta || recuperacaoAtiva(s)) continue;
+    if (s.tentativas >= TENTATIVAS_MAX && !d.ciclo_em && !d.encerramento_em) continue; // a mensagem de encerramento já leva o link
+    if (s.ultima_lead_em && s.ultima_lead_em > s.ultima_caroline_em!) continue; // a vez é do agente responder
+    if (diasUteisEntre(s.ultima_caroline_em!, agora) < 1) continue;             // falou há pouco: espera
+    const ap = await apresentacaoPara(prisma, s, 'retomada');
+    if (!ap || ap.enviada) continue;
+    if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: 'PENDENTE' }, select: { id: true } })) continue;
+    // Marca antes de falar: nunca sai duas vezes para o mesmo lead, mesmo se a IA falhar.
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, apresentacao_retomada: hoje } } });
+    const loja = ap.tipo === 'padaria' ? 'padaria' : 'farmácia';
+    const dica = `RETOMADA COM A APRESENTAÇÃO: este cliente já foi contatado e ainda não recebeu a apresentação para ${loja}. Leia a conversa inteira e retome com sutileza, continuando do ponto em que parou (não se reapresente se já se apresentou, não cobre resposta, não repita o que já disse). Envie a apresentação como algo útil para ele, no espírito de "separei uma apresentação rápida de como o Prosystem vai adiantar a rotina da sua ${loja}, dá uma olhada quando puder", com o link exato numa linha própria, e termine com uma pergunta leve. Use acao "continuar".`;
+    const r = await falar(prisma, token, s.id, 'retomada', dica).catch(() => 'falha' as const);
+    registrarAcaoAgente(agenteDe(s), r === 'enviado' ? `retomou ${s.nome || 'um lead'} com a apresentação de ${loja}` : r === 'aprovacao' ? `escreveu para ${s.nome || 'um lead'} com a apresentação de ${loja}: esperando sua aprovação` : `não conseguiu retomar ${s.nome || 'um lead'} com a apresentação`);
+    proximaApresentacao = Date.now() + intervaloSorteado();
+    return; // uma por rodada
+  }
+}
+
 export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): Promise<void> {
   const cfgs = Object.fromEntries(await Promise.all(AGENTES_SDR.map(async a => [a, await obterConfigAgente(prisma, a)] as const))) as Record<PerfilSdr, ConfigCaroline>;
   const ativos = AGENTES_SDR.filter(a => trabalhando(cfgs[a], agora));
@@ -1446,6 +1509,9 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
 
   // 2b) Conversas assumidas por uma pessoa em que o cliente parou de responder: o agente retoma no contexto.
   if (horaBoaParaRetomar(agora)) await retomarAssumidas(prisma, token, ativos, agora).catch((e: any) => console.warn('[AGENTES] retomar assumidas:', e?.message));
+
+  // 2c) Já contatados que ainda não receberam a apresentação do segmento: uma retomada com o link.
+  if (horaBoaParaRetomar(agora)) await retomarComApresentacao(prisma, token, ativos, agora).catch((e: any) => console.warn('[AGENTES] apresentação:', e?.message));
 
   // 3) Primeiros contatos: UM por vez para todos os agentes juntos, intervalo sorteado (4–9 min)
   //    e um limite do dia ÚNICO (Caroline + Julio + Luiz Felipe + campanhas). Protege o número.
