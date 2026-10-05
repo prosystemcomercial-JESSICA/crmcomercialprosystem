@@ -946,3 +946,11 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Atualização 05/10/2026: arquivos dos clientes no backup
 
 - Os arquivos que os clientes enviam pelo portal (certificado, XMLs, listas) entram em todos os backups do servidor e seguem para o computador e o MEGA. Se a cópia falhar, a gestão é avisada no WhatsApp.
+
+### Atualização 05/10/2026: card mais completo
+
+- **Testes de conversão** voltaram ao card (Execução). Na conversão, a virada só libera com os testes conferidos.
+- **Arquivos e links** do card (Cliente › Arquivos), até 15 MB.
+- **Inventário técnico** da loja (equipamentos e IDs de acesso remoto, nunca senhas), que o suporte também vê nos tickets.
+- **Treinamento comprovado**: o cliente confirma pela página quem participou de cada fase.
+- **Indicadores** podem ser exportados em planilha.

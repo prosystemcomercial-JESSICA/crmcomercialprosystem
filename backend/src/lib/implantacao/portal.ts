@@ -435,13 +435,22 @@ const criticosPendentes = (lista: typeof CRITICOS_INICIAR_VIRADA, i: DemandaPP, 
     .filter(c => { const it = itens.find(x => x.grupo === c.grupo && c.re.test(x.titulo)); return !!it && !it.feito; })
     .map(c => c.nome);
 
+type TesteConv = { resultado: string };
+/** Testes de conversão (Produtos, Clientes, Estoque...): na conversão, nenhum pode ficar pendente ou divergente antes da virada. */
+export function pendenciasTestes(i: DemandaPP, testes?: TesteConv[]): string[] {
+  if (i.tipo_base !== 'CONVERSAO' || !testes?.length) return [];
+  const pend = testes.filter(t => t.resultado === 'PENDENTE').length, div = testes.filter(t => t.resultado === 'DIVERGENTE').length;
+  return [...(pend ? [`Testes de conversão: ${pend} sem conferir`] : []), ...(div ? [`Testes de conversão: ${div} com divergência`] : [])];
+}
+
 /** O que falta para "Iniciar virada". Vazio = liberado. */
-export function pendenciasIniciarVirada(i: DemandaPP, itens: ItemPP[]): string[] {
+export function pendenciasIniciarVirada(i: DemandaPP, itens: ItemPP[], testes?: TesteConv[]): string[] {
   if (ehLegado(i)) return [];
   const p: string[] = [];
   if (!onboardingOk(i, itens)) p.push('Concluir o onboarding técnico (primeiro contato)');
   if (!fichaOk(i)) p.push('Ficha de coleta: regime tributário e contato principal');
   p.push(...criticosPendentes(CRITICOS_INICIAR_VIRADA, i, itens));
+  p.push(...pendenciasTestes(i, testes));
   if (!i.tela_suporte_arquivo_id) p.push('Anexar a tela de liberação do Suporte');
   return p;
 }
@@ -478,7 +487,7 @@ export type ProximoPasso = {
 };
 
 /** Próximo passo da demanda: o que fazer agora, quem faz, em qual aba e em qual etapa do cronômetro. */
-export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number, extra: { assistida?: { dia: string }[]; agora?: Date } = {}): ProximoPasso {
+export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_em: Date | null }[], correcoesAbertas: number, extra: { assistida?: { dia: string }[]; agora?: Date; testes?: TesteConv[] } = {}): ProximoPasso {
   const col = colunaDe(i);
   if (i.status === 'CANCELADA' || col === 'CANCELADOS') return { chave: 'CANCELADA', titulo: 'Demanda cancelada', quem: 'NINGUEM' };
   if (col === 'FINALIZADO') return { chave: 'FINALIZADA', titulo: 'Demanda finalizada', quem: 'NINGUEM' };
@@ -499,12 +508,13 @@ export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_e
     if (!fichaOk(i) && !ehLegado(i)) return { chave: 'COLETA', titulo: 'Completar a ficha de coleta', detalhe: 'Faltam o regime tributário e/ou o contato principal', quem: 'TECNICO', aba: 'ficha', etapa: etapaPrep };
     if (!i.virada_agendada_para && !ehLegado(i)) return { chave: 'AGENDAR_VIRADA', titulo: 'Agendar a virada com o cliente', detalhe: 'Data e hora combinadas; o cliente recebe a data e um lembrete 1 dia antes', quem: 'TECNICO', aba: 'virada' };
     const agenda = i.virada_agendada_para ? `Virada agendada para ${quandoSP(i.virada_agendada_para)}` : null;
-    const pend = pendenciasIniciarVirada(i, itens);
+    const pend = pendenciasIniciarVirada(i, itens, extra.testes);
     if (pend.length) {
       const grupos = i.tipo_base === 'CONVERSAO' ? ['INSTALACAO', 'CONVERSAO'] : ['INSTALACAO'];
       const prep = itens.filter(x => grupos.includes(x.grupo));
       const soTela = pend.length === 1 && /Suporte/.test(pend[0]);
-      return { chave: 'PREPARAR', titulo: 'Preparar a virada', detalhe: `${prep.filter(x => x.feito).length} de ${prep.length} itens de ${i.tipo_base === 'CONVERSAO' ? 'instalação e conversão' : 'instalação'}${agenda ? ` · ${agenda}` : ''}`, quem: 'TECNICO', aba: soTela ? 'virada' : 'checklist', etapa: etapaPrep, pendencias: pend };
+      const soTestes = pend.every(x => /^Testes de conversão/.test(x));
+      return { chave: 'PREPARAR', titulo: 'Preparar a virada', detalhe: `${prep.filter(x => x.feito).length} de ${prep.length} itens de ${i.tipo_base === 'CONVERSAO' ? 'instalação e conversão' : 'instalação'}${agenda ? ` · ${agenda}` : ''}`, quem: 'TECNICO', aba: soTela ? 'virada' : soTestes ? 'testes' : 'checklist', etapa: etapaPrep, pendencias: pend };
     }
     return { chave: 'INICIAR_VIRADA', titulo: 'Iniciar a virada da loja', detalhe: agenda ? `Pré-requisitos completos · ${agenda}` : 'Pré-requisitos completos', quem: 'TECNICO', aba: 'virada', etapa: 'INSTALACAO' };
   }

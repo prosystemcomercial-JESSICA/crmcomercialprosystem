@@ -7,7 +7,7 @@ import ExportButton from '@/components/ui/ExportButton';
 import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
 import { PainelInicio } from '@/components/implantacao/Inicio';
 import { OnboardingTecnico } from '@/components/implantacao/Portal';
-import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao, BuscaGlobal, ResumoImplantacaoTicket } from '@/components/implantacao/Portal';
+import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao, BuscaGlobal, ResumoImplantacaoTicket, InventarioTicket } from '@/components/implantacao/Portal';
 import { useSearchParams } from 'next/navigation';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
@@ -2074,6 +2074,7 @@ export default function PortalTecnicoPage() {
               {/* Drawer body */}
               <div style={{ flex: 1, padding: 20, overflowY: 'auto' }} className="space-y-5">
                 <ResumoImplantacaoTicket clienteId={ticketDetalhe.cliente?.id} />
+                <InventarioTicket clienteId={ticketDetalhe.cliente?.id} />
                 {/* Info grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>

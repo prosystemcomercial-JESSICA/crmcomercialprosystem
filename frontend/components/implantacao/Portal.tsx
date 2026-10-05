@@ -213,7 +213,7 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
+type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'testes' | 'anexos' | 'inventario' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
 
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
@@ -239,13 +239,15 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ...(d.assistida ? [['assistida', `Operação assistida ${d.assistida.feitos}/${d.assistida.total}`, CheckCircle] as [Aba, string, any]] : []), ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
     ['tempos', 'Tempos', Clock], ['cliente', 'Página do cliente', Users], ['historico', 'Histórico', MessageSquare],
+    ...(!servico ? [['testes', `Testes de conversão${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length ? ` (${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length})` : ''}`, CheckCircle] as [Aba, string, any]] : []),
+    ['anexos', `Arquivos${(d.anexos || []).length ? ` (${d.anexos.length})` : ''}`, FileText], ['inventario', 'Inventário técnico', Settings],
     ['tarefascliente', `Tarefas do cliente${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length ? ` (${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length})` : ''}`, FileText],
   ];
   // Card em 5 grupos (Fase 3): cada grupo junta as abas de um assunto; dentro dele, pílulas escolhem a aba.
   const GRUPOS_ABA: { k: string; l: string; subs: Aba[] }[] = [
     { k: 'visao', l: 'Visão geral', subs: ['resumo'] },
-    { k: 'cliente', l: 'Cliente', subs: ['fichacliente', 'tarefascliente', 'ficha', 'cliente'] },
-    { k: 'execucao', l: 'Execução', subs: ['onboarding', 'checklist', 'virada', 'assistida', 'treinamento', 'correcoes'] },
+    { k: 'cliente', l: 'Cliente', subs: ['fichacliente', 'tarefascliente', 'ficha', 'inventario', 'anexos', 'cliente'] },
+    { k: 'execucao', l: 'Execução', subs: ['onboarding', 'checklist', 'testes', 'virada', 'assistida', 'treinamento', 'correcoes'] },
     { k: 'conversa', l: 'Conversa', subs: ['observacoes', 'historico'] },
     { k: 'tempos', l: 'Tempos', subs: ['tempos'] },
   ];
@@ -299,6 +301,9 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} />}
         {aba === 'fichacliente' && <AbaFichaCliente d={d} />}
         {aba === 'tarefascliente' && <AbaTarefasCliente d={d} recarregar={carregar} />}
+        {aba === 'testes' && <AbaTestes d={d} recarregar={carregar} />}
+        {aba === 'anexos' && <AbaAnexos d={d} recarregar={carregar} />}
+        {aba === 'inventario' && <AbaInventario d={d} />}
         {aba === 'observacoes' && <AbaObservacoes id={d.implantacao.id} />}
         {aba === 'resumo' && <AbaResumo d={d} gestao={gestao} recarregar={carregar} />}
         {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} />}
@@ -719,6 +724,9 @@ function AbaTreinamento({ d, recarregar }: { d: any; recarregar: () => void }) {
               <button onClick={() => play(f)} style={btn('#2E6EAB', false)}><Play size={12} /> Play nesta fase</button>
             </div>
             <div style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{its.map((c: any) => `${c.feito ? '✓' : '○'} ${c.titulo}`).join(' · ') || 'Sem itens nesta fase.'}</div>
+            {f.realizada_em && (f.confirmado_em
+              ? <div style={{ fontSize: 12, color: '#16a34a' }}>✍️ Confirmado por {f.confirmado_por} em {fmtData(f.confirmado_em)} · participantes: {(f.participantes || []).join(', ')}</div>
+              : <div style={{ fontSize: 12, color: '#b45309' }}>Aguardando o cliente confirmar quem participou (pela página de acompanhamento).</div>)}
           </div>
         );
       })}
@@ -837,7 +845,7 @@ function contatosDoCliente(d: any): { nome: string | null; fone: string }[] {
 // ─── Próximo passo do card (Fase 1): o que fazer agora e o botão que faz ───
 // Técnico do card: Começar agora, Ir para a aba, Pedir validação. Supervisão: Designar, Validar, Devolver, Finalizar.
 
-const NOME_ABA: Record<string, string> = { onboarding: 'Onboarding', ficha: 'Ficha de coleta', checklist: 'Checklist', virada: 'Virada', assistida: 'Operação assistida', treinamento: 'Treinamento', correcoes: 'Correções' };
+const NOME_ABA: Record<string, string> = { testes: 'Testes de conversão', onboarding: 'Onboarding', ficha: 'Ficha de coleta', checklist: 'Checklist', virada: 'Virada', assistida: 'Operação assistida', treinamento: 'Treinamento', correcoes: 'Correções' };
 
 function FaixaProximoPasso({ d, gestao, aba, irPara, recarregar }: { d: any; gestao: boolean; aba: string; irPara: (a: any) => void; recarregar: () => void }) {
   const p = d.proximo_passo, i = d.implantacao;
@@ -1428,6 +1436,209 @@ function TarefasClientePadrao({ c, setC }: { c: any; setC: (f: (p: any) => any) 
   );
 }
 
+// ─── Mais completo (05/10/2026): testes de conversão, anexos, inventário técnico ───
+
+const lerArquivo = (f: File) => new Promise<string>((ok, falha) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => falha(r.error); r.readAsDataURL(f); });
+
+/** Testes de conversão: conferir cada cadastro convertido. Na conversão, pendente ou divergente trava a virada. */
+function AbaTestes({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const i = d.implantacao;
+  const testes: any[] = d.testes || [];
+  const [novo, setNovo] = useState('');
+  const [obs, setObs] = useState<Record<string, string>>({});
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const salvar = async (t: any, resultado: string) => {
+    const o = (obs[t.id] ?? t.observacao ?? '').trim();
+    if (resultado === 'DIVERGENTE' && !o) return alert('Conte qual foi a divergência no campo de observação.');
+    setOcupado(t.id);
+    try { await apiClient.atualizarTesteConversao(t.id, { resultado, observacao: o || undefined }); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(null); }
+  };
+  const R: Record<string, [string, string]> = { PENDENTE: ['Sem conferir', '#b45309'], OK: ['Ok', '#16a34a'], DIVERGENTE: ['Divergência', '#dc2626'], NAO_APLICA: ['Não se aplica', '#64748b'] };
+  const pend = testes.filter(t => t.resultado === 'PENDENTE').length, div = testes.filter(t => t.resultado === 'DIVERGENTE').length;
+  return (
+    <div style={{ display: 'grid', gap: 14, maxWidth: 820 }}>
+      <div style={{ fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.5 }}>
+        Confira no sistema novo se cada cadastro veio certo do sistema anterior. {i.tipo_base === 'CONVERSAO' ? <b style={{ color: pend || div ? '#b45309' : '#16a34a' }}>{pend || div ? `A virada só libera com tudo conferido (${pend} sem conferir, ${div} com divergência).` : 'Tudo conferido: a virada está liberada por aqui.'}</b> : 'No banco zerado, os testes são opcionais.'}
+      </div>
+      <div style={{ ...cartao }}>
+        {testes.length === 0 && <div style={{ padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum teste ainda. Eles são criados quando o técnico é designado; adicione abaixo se precisar.</div>}
+        {testes.map((t, k) => {
+          const [rot, cor] = R[t.resultado] || [t.resultado, 'var(--t-text-muted)'];
+          return (
+            <div key={t.id} style={{ padding: '12px 14px', borderTop: k ? '1px solid var(--t-card-border)' : 'none', display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <span style={{ flex: 1, minWidth: 160, fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{t.item}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: cor }}>{rot}{t.testado_por && t.resultado !== 'PENDENTE' ? ` · ${String(t.testado_por).split(' ')[0]} ${fmtData(t.testado_em)}` : ''}</span>
+              </div>
+              <input value={obs[t.id] ?? t.observacao ?? ''} onChange={e => setObs(p => ({ ...p, [t.id]: e.target.value }))} placeholder="Observação (obrigatória se houver divergência)" className="ps-input w-full" style={{ minHeight: 36, fontSize: 13 }} />
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {([['OK', 'Ok', '#16a34a'], ['DIVERGENTE', 'Divergência', '#dc2626'], ['NAO_APLICA', 'Não se aplica', '#64748b'], ['PENDENTE', 'Reabrir', '#64748b']] as [string, string, string][]).filter(([k2]) => k2 !== t.resultado && !(k2 === 'PENDENTE' && t.resultado === 'PENDENTE')).map(([k2, l, c]) => (
+                  <button key={k2} disabled={ocupado === t.id} onClick={() => salvar(t, k2)} style={{ ...btn(c, k2 === 'OK'), minHeight: 32 }}>{l}</button>
+                ))}
+                {t.resultado === 'PENDENTE' && <button onClick={() => confirm(`Remover o teste "${t.item}"?`) && apiClient.atualizarTesteConversao(t.id, { excluir: true }).then(recarregar).catch(e => alert(erroDe(e)))} style={{ ...btn('#64748b', false), minHeight: 32 }}>Remover</button>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={novo} onChange={e => setNovo(e.target.value)} placeholder="Novo teste (ex.: Convênios)" className="ps-input" style={{ flex: 1, minHeight: 40 }} />
+        <button disabled={novo.trim().length < 2} onClick={async () => { try { await apiClient.criarTesteConversao(i.id, novo.trim()); setNovo(''); recarregar(); } catch (e) { alert(erroDe(e)); } }} style={{ ...btn('#2E6EAB'), minHeight: 40, opacity: novo.trim().length < 2 ? 0.5 : 1 }}>Adicionar</button>
+      </div>
+    </div>
+  );
+}
+
+/** Arquivos e links do card (planilhas, prints, documentos). Arquivo até 15 MB. */
+function AbaAnexos({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const i = d.implantacao;
+  const lista: any[] = d.anexos || [];
+  const [link, setLink] = useState({ nome: '', url: '' });
+  const [enviando, setEnviando] = useState(false);
+  const enviarArquivo = async (f: File) => {
+    if (f.size > 15 * 1024 * 1024) return alert('O arquivo passa de 15 MB. Envie compactado (.zip) ou como link.');
+    setEnviando(true);
+    try { await apiClient.anexarImplantacao(i.id, { nome: f.name, arquivo: await lerArquivo(f) }); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setEnviando(false); }
+  };
+  const baixar = async (a: any) => {
+    try { const r = await apiClient.baixarAnexoImplantacao(a.id); const url = URL.createObjectURL(r.data); const el = document.createElement('a'); el.href = url; el.download = a.nome; el.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); } catch (e) { alert(erroDe(e)); }
+  };
+  return (
+    <div style={{ display: 'grid', gap: 14, maxWidth: 820 }}>
+      <div style={{ ...cartao }}>
+        {lista.length === 0 && <div style={{ padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum arquivo ou link ainda.</div>}
+        {lista.map((a, k) => (
+          <div key={a.id} style={{ padding: '10px 14px', borderTop: k ? '1px solid var(--t-card-border)' : 'none', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {a.tipo === 'LINK' ? <Link2 size={15} color="#2E6EAB" /> : <FileText size={15} color="#2E6EAB" />}
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)', wordBreak: 'break-word' }}>{a.nome}{a.tela_suporte ? <span style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 500 }}> · tela do Suporte</span> : null}</div>
+              <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{a.enviado_por ? `${String(a.enviado_por).split(' ')[0]} · ` : ''}{fmtDataHora(a.created_at)}{a.descricao ? ` · ${a.descricao}` : ''}</div>
+            </div>
+            {a.tipo === 'LINK' ? <a href={a.url} target="_blank" rel="noreferrer" style={{ ...btn('#2E6EAB', false), minHeight: 32, textDecoration: 'none' }}>Abrir</a>
+              : <button onClick={() => baixar(a)} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}>Baixar</button>}
+            {!a.tela_suporte && <button aria-label="Remover" onClick={() => confirm(`Remover "${a.nome}"?`) && apiClient.removerAnexoImplantacao(a.id).then(recarregar).catch(e => alert(erroDe(e)))} style={{ ...btn('#64748b', false), minHeight: 32 }}><X size={12} /></button>}
+          </div>
+        ))}
+      </div>
+      <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
+        <div style={rotulo}>Adicionar</div>
+        <label style={{ ...btn('#2E6EAB'), minHeight: 40, justifySelf: 'start', cursor: enviando ? 'wait' : 'pointer', opacity: enviando ? 0.6 : 1 }}>
+          {enviando ? 'Enviando…' : 'Escolher arquivo (até 15 MB)'}
+          <input type="file" disabled={enviando} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) enviarArquivo(f); }} style={{ display: 'none' }} />
+        </label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input value={link.nome} onChange={e => setLink(p => ({ ...p, nome: e.target.value }))} placeholder="Nome do link" className="ps-input" style={{ flex: '1 1 160px', minHeight: 40 }} />
+          <input value={link.url} onChange={e => setLink(p => ({ ...p, url: e.target.value }))} placeholder="https://…" className="ps-input" style={{ flex: '2 1 240px', minHeight: 40 }} />
+          <button disabled={!link.nome.trim() || !/^https?:\/\//.test(link.url.trim())} onClick={async () => { try { await apiClient.anexarImplantacao(i.id, { nome: link.nome.trim(), link: link.url.trim() }); setLink({ nome: '', url: '' }); recarregar(); } catch (e) { alert(erroDe(e)); } }}
+            style={{ ...btn('#2E6EAB', false), minHeight: 40 }}>Adicionar link</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const TIPOS_EQUIPAMENTO = ['Servidor', 'Caixa (PDV)', 'Terminal', 'Impressora NFC-e', 'Impressora de etiquetas', 'Balança', 'TEF / Pinpad', 'Gaveta', 'Leitor de código', 'Roteador / rede', 'Outro'];
+/** Inventário técnico da loja: fica no cliente e aparece também nos tickets do suporte. Sem senhas. */
+function AbaInventario({ d }: { d: any }) {
+  const i = d.implantacao;
+  const [inv, setInv] = useState<{ itens: any[]; versao_sistema: string; observacoes: string } | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [ok, setOk] = useState(false);
+  useEffect(() => { apiClient.getInventarioImplantacao(i.id).then(r => { const x = r.data.data; setInv({ itens: x?.itens || [], versao_sistema: x?.versao_sistema || '', observacoes: x?.observacoes || '' }); }).catch(e => alert(erroDe(e))); }, [i.id]);
+  if (!inv) return <div style={{ padding: 20 }}><Loader2 size={16} className="animate-spin" /></div>;
+  const set = (k: number, campo: string, v: string) => setInv(p => p && ({ ...p, itens: p.itens.map((x, j) => (j === k ? { ...x, [campo]: v } : x)) }));
+  const daColeta = () => {
+    const c = i.coleta || {};
+    const itens: any[] = [{ tipo: 'Servidor', descricao: '', acesso_remoto: '', observacao: '' }];
+    const caixas = Math.min(20, Number(String(c.caixas || '').replace(/\D/g, '')) || 0);
+    for (let k = 1; k <= caixas; k++) itens.push({ tipo: 'Caixa (PDV)', descricao: `Caixa ${k}`, acesso_remoto: '', observacao: '' });
+    if (c.impressora_nfce) itens.push({ tipo: 'Impressora NFC-e', descricao: String(c.impressora_nfce), acesso_remoto: '', observacao: '' });
+    if (c.balanca === 'Sim') itens.push({ tipo: 'Balança', descricao: '', acesso_remoto: '', observacao: '' });
+    if (c.gaveta === 'Sim') itens.push({ tipo: 'Gaveta', descricao: '', acesso_remoto: '', observacao: '' });
+    if (c.etiquetas === 'Sim') itens.push({ tipo: 'Impressora de etiquetas', descricao: '', acesso_remoto: '', observacao: '' });
+    if (c.tef && !/n[aã]o/i.test(String(c.tef))) itens.push({ tipo: 'TEF / Pinpad', descricao: String(c.tef), acesso_remoto: '', observacao: '' });
+    setInv(p => p && ({ ...p, itens }));
+  };
+  const salvar = async () => {
+    setSalvando(true);
+    try { await apiClient.salvarInventarioImplantacao(i.id, { itens: inv.itens.filter(x => x.tipo), versao_sistema: inv.versao_sistema.trim() || undefined, observacoes: inv.observacoes.trim() || undefined }); setOk(true); setTimeout(() => setOk(false), 2000); }
+    catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
+  };
+  return (
+    <div style={{ display: 'grid', gap: 14, maxWidth: 900 }}>
+      <div style={{ fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.5 }}>Equipamentos da loja e IDs de acesso remoto (AnyDesk, TeamViewer). Fica no cliente: o suporte vê nos tickets depois da implantação. <b style={{ color: 'var(--t-text-primary)' }}>Nunca anote senhas aqui.</b></div>
+      <div style={{ ...cartao, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--t-card-border)' }}>{['Equipamento', 'Descrição / modelo', 'ID de acesso remoto', 'Observação', ''].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>{h}</th>)}</tr></thead>
+          <tbody>
+            {inv.itens.map((x, k) => (
+              <tr key={k} style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                <td style={{ padding: 6 }}><select value={x.tipo} onChange={e => set(k, 'tipo', e.target.value)} className="ps-input" style={{ minHeight: 36, width: '100%' }}>{TIPOS_EQUIPAMENTO.map(t => <option key={t}>{t}</option>)}</select></td>
+                <td style={{ padding: 6 }}><input value={x.descricao} onChange={e => set(k, 'descricao', e.target.value)} className="ps-input w-full" style={{ minHeight: 36 }} /></td>
+                <td style={{ padding: 6 }}><input value={x.acesso_remoto} onChange={e => set(k, 'acesso_remoto', e.target.value)} placeholder="ex.: 123 456 789" className="ps-input w-full" style={{ minHeight: 36, fontVariantNumeric: 'tabular-nums' }} /></td>
+                <td style={{ padding: 6 }}><input value={x.observacao} onChange={e => set(k, 'observacao', e.target.value)} className="ps-input w-full" style={{ minHeight: 36 }} /></td>
+                <td style={{ padding: 6 }}><button aria-label="Remover linha" onClick={() => setInv(p => p && ({ ...p, itens: p.itens.filter((_, j) => j !== k) }))} style={{ ...btn('#64748b', false), minHeight: 32 }}><X size={12} /></button></td>
+              </tr>
+            ))}
+            {inv.itens.length === 0 && <tr><td colSpan={5} style={{ padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum equipamento. {i.coleta ? 'Comece pela ficha de coleta.' : ''}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={() => setInv(p => p && ({ ...p, itens: [...p.itens, { tipo: 'Caixa (PDV)', descricao: '', acesso_remoto: '', observacao: '' }] }))} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>+ Equipamento</button>
+        {inv.itens.length === 0 && i.coleta && <button onClick={daColeta} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>Preencher pela ficha de coleta</button>}
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'grid', gap: 4, flex: '0 1 220px' }}>Versão do Prosystem instalada<input value={inv.versao_sistema} onChange={e => setInv(p => p && ({ ...p, versao_sistema: e.target.value }))} className="ps-input" style={{ minHeight: 40 }} /></label>
+        <label style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'grid', gap: 4, flex: '1 1 300px' }}>Observações (rede, backup, particularidades)<input value={inv.observacoes} onChange={e => setInv(p => p && ({ ...p, observacoes: e.target.value }))} className="ps-input" style={{ minHeight: 40 }} /></label>
+      </div>
+      <div><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), minHeight: 40 }}>{salvando ? 'Salvando…' : ok ? 'Salvo' : 'Salvar inventário'}</button></div>
+    </div>
+  );
+}
+
+/** Inventário técnico no ticket do suporte (só leitura). */
+export function InventarioTicket({ clienteId }: { clienteId?: string | null }) {
+  const [inv, setInv] = useState<any | null>(null);
+  useEffect(() => { setInv(null); if (clienteId) apiClient.getInventarioCliente(clienteId).then(r => setInv(r.data.data)).catch(() => {}); }, [clienteId]);
+  if (!inv || !(inv.itens || []).length) return null;
+  return (
+    <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '12px 14px', display: 'grid', gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>Inventário técnico{inv.versao_sistema ? ` · Prosystem ${inv.versao_sistema}` : ''}</div>
+      {(inv.itens as any[]).map((x, k) => (
+        <div key={k} style={{ fontSize: 13, color: 'var(--t-text-primary)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <b style={{ fontWeight: 600 }}>{x.tipo}</b>{x.descricao && <span style={{ color: 'var(--t-text-secondary)' }}>{x.descricao}</span>}{x.acesso_remoto && <span style={{ color: '#2E6EAB', fontVariantNumeric: 'tabular-nums' }}>acesso {x.acesso_remoto}</span>}{x.observacao && <span style={{ color: 'var(--t-text-muted)' }}>· {x.observacao}</span>}
+        </div>
+      ))}
+      {inv.observacoes && <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{inv.observacoes}</div>}
+    </div>
+  );
+}
+
+/** Indicadores em planilha (CSV com ; e vírgula decimal, abre direto no Excel). */
+function exportarCsv(r: any) {
+  const n = (v: any) => (v == null ? '' : String(v).replace('.', ','));
+  const a = r.atual, b = r.anterior;
+  const linhas = [
+    ['Indicador', `Mês ${r.mes}`, 'Mês anterior', 'Meta'],
+    ['Dias até a virada (conversão)', n(a.dias_conversao), n(b.dias_conversao), n(r.metas.virada_conversao_dias)],
+    ['Dias até a virada (banco zerado)', n(a.dias_zerado), n(b.dias_zerado), n(r.metas.virada_zerado_dias)],
+    ['Viradas no prazo (%)', n(a.no_prazo_pct), n(b.no_prazo_pct), n(r.metas.viradas_no_prazo_pct)],
+    ['Viradas no mês', n(a.viradas), n(b.viradas), ''],
+    ['Retrabalho por virada', n(a.retrabalho_por_virada), n(b.retrabalho_por_virada), n(r.metas.retrabalho_por_virada)],
+    ['Horas por implantação', n(a.horas_por_implantacao), n(b.horas_por_implantacao), n(r.metas.horas_por_implantacao)],
+    ['Satisfação (1 a 5)', n(a.satisfacao), n(b.satisfacao), n(r.metas.satisfacao_min)],
+    ['Viradas remarcadas', n(a.remarcacoes), n(b.remarcacoes), n(r.metas.remarcacoes_max)],
+    ['Horas esperando programação', n(a.espera_horas?.PROGRAMACAO), n(b.espera_horas?.PROGRAMACAO), ''],
+    ['Horas esperando cliente', n(a.espera_horas?.CLIENTE), n(b.espera_horas?.CLIENTE), ''],
+    [], ['Por técnico', 'Viradas', 'Dias conversão', 'Dias banco zerado', 'No prazo (%)', 'Retrabalho', 'Horas por implantação'],
+    ...a.por_tecnico.map((t: any) => [t.nome, n(t.viradas), n(t.dias_conversao), n(t.dias_zerado), n(t.no_prazo_pct), n(t.retrabalho), n(t.horas_por_implantacao)]),
+  ];
+  const csv = '\uFEFF' + linhas.map((l: any[]) => l.map((c: any) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const el = document.createElement('a'); el.href = url; el.download = `indicadores-implantacao-${r.mes}.csv`; el.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
 // ─── Portal completo (05/10/2026): indicadores, metas, marcos, barra do celular, preferências ───
 
 /** Indicadores do mês (supervisão): valor, comparação com o mês anterior, meta e detalhe por técnico. */
@@ -1467,6 +1678,7 @@ function PainelIndicadores() {
         <span style={{ flex: 1 }} />
         <button onClick={() => mover(-1)} aria-label="Mês anterior" style={{ ...btn('#64748b', false), minHeight: 32 }}>‹</button>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-secondary)', minWidth: 130, textAlign: 'center', textTransform: 'capitalize' }}>{nomeMes}</span>
+        <button onClick={() => exportarCsv(r)} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}>Exportar planilha</button>
         <button onClick={() => mover(1)} disabled={mes >= mesAtual} aria-label="Próximo mês" style={{ ...btn('#64748b', false), minHeight: 32, opacity: mes >= mesAtual ? 0.4 : 1 }}>›</button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

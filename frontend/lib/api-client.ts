@@ -953,6 +953,14 @@ class ApiClient {
   async getIndicadoresImplantacao(mes: string) { return this.client.get('/implantacoes/indicadores', { params: { mes } }); }
   async getMinhasPreferencias() { return this.client.get('/implantacoes/minhas-preferencias'); }
   async salvarMinhasPreferencias(data: { whatsapp: string }) { return this.client.put('/implantacoes/minhas-preferencias', data); }
+  async criarTesteConversao(id: string, item: string) { return this.client.post(`/implantacoes/${id}/testes-conv`, { item }); }
+  async atualizarTesteConversao(tid: string, data: { resultado?: string; observacao?: string; excluir?: boolean }) { return this.client.patch(`/implantacoes/testes-conv/${tid}`, data); }
+  async anexarImplantacao(id: string, data: { nome: string; link?: string; arquivo?: string; descricao?: string }) { return this.client.post(`/implantacoes/${id}/anexos`, data); }
+  async baixarAnexoImplantacao(aid: string) { return this.client.get(`/implantacoes/anexos/${aid}/download`, { responseType: 'blob' }); }
+  async removerAnexoImplantacao(aid: string) { return this.client.delete(`/implantacoes/anexos/${aid}`); }
+  async getInventarioImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/inventario`); }
+  async salvarInventarioImplantacao(id: string, data: { itens: any[]; versao_sistema?: string; observacoes?: string }) { return this.client.put(`/implantacoes/${id}/inventario`, data); }
+  async getInventarioCliente(clienteId: string) { return this.client.get('/implantacoes/inventario-cliente', { params: { cliente_id: clienteId } }); }
   async pedirValidacao(id: string) { return this.client.post(`/implantacoes/${id}/pedir-validacao`, {}); }
   async devolverDemanda(id: string, motivo: string) { return this.client.post(`/implantacoes/${id}/devolver`, { motivo }); }
   async buscarDemandas(q: string) { return this.client.get('/implantacoes/busca', { params: { q } }); }

@@ -1613,6 +1613,10 @@ model ImplantacaoTreinamentoFase {
   marcada_em     DateTime?
   realizada_em   DateTime?
   lembrete_em    DateTime? // lembrete ao cliente 1 dia antes da data marcada
+  // Comprovação (portal completo): o cliente confirma quem participou, pela página de acompanhamento.
+  participantes  Json?
+  confirmado_em  DateTime?
+  confirmado_por String?
   observacao     String?     @db.Text
   created_at     DateTime    @default(now())
   updated_at     DateTime    @updatedAt
@@ -1716,6 +1720,24 @@ model ImplantacaoTarefaCliente {
   created_at         DateTime  @default(now())
 
   @@index([implantacao_id, status])
+}
+
+// Inventário técnico da loja (portal completo): equipamentos, IDs de acesso remoto (nunca senhas) e versão do sistema.
+// Pertence ao cliente (vale para o suporte depois da implantação). Achado por cliente_id ou, sem cadastro, pelo CNPJ.
+// Sem FK de propósito (collation das tabelas antigas).
+model InventarioTecnico {
+  id             String   @id @default(cuid())
+  cliente_id     String?
+  cliente_cnpj   String?
+  itens          Json // [{ tipo, descricao, acesso_remoto, observacao }]
+  versao_sistema String?
+  observacoes    String?  @db.Text
+  atualizado_por String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([cliente_id])
+  @@index([cliente_cnpj])
 }
 
 // Observações do card do cliente no Portal Técnico.
