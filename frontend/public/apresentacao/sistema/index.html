@@ -374,7 +374,23 @@ footer img{height:24px;width:auto;opacity:.85}
   .result{padding:26px}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-</style></head><body>
+</style><style>
+/* Comparativo antes/depois: convite para clicar (some na primeira interação) e brilho na troca */
+.sw-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.switch.chama{animation:swGlow 2.2s ease-in-out infinite}
+@keyframes swGlow{0%,100%{box-shadow:0 0 0 0 rgba(0,191,209,0)}50%{box-shadow:0 0 0 6px rgba(0,191,209,.16),0 0 30px rgba(0,191,209,.38)}}
+.switch.chama #swOld{overflow:hidden}
+.switch.chama #swOld::after{content:"";position:absolute;inset:0;border-radius:999px;pointer-events:none;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.38) 50%,transparent 70%);transform:translateX(-120%);animation:swShine 2.2s ease-in-out infinite}
+@keyframes swShine{0%,35%{transform:translateX(-120%)}75%,100%{transform:translateX(120%)}}
+.sw-dica{font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--cyan);display:inline-flex;align-items:center;gap:6px;transition:opacity .4s;animation:swDica 1.4s ease-in-out infinite}
+.sw-dica svg{width:14px;height:14px}
+@keyframes swDica{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.switch:not(.chama)+.sw-dica{opacity:0;pointer-events:none}
+.ba.trocou .barow{animation:baRow .6s var(--ease) both}
+@keyframes baRow{0%{transform:translateX(-8px)}45%{box-shadow:0 0 0 1px rgba(0,191,209,.5),0 0 26px rgba(0,191,209,.2)}100%{transform:none;box-shadow:none}}
+@media (prefers-reduced-motion:reduce){.switch.chama,.switch.chama #swOld::after,.sw-dica,.ba.trocou .barow{animation:none}}
+</style>
+</head><body>
 
 <div class="progress" aria-hidden="true"></div>
 
@@ -693,10 +709,13 @@ footer img{height:24px;width:auto;opacity:.85}
   <div class="container">
     <div class="head rv">
       <div><span class="eyebrow">A diferença no dia a dia</span><h2 class="h2">Sua rotina <em>antes e depois</em></h2></div>
-      <div class="switch" id="sw" role="group" aria-label="Comparar rotina">
-        <span class="knob" aria-hidden="true"></span>
-        <button type="button" id="swOld" aria-pressed="false">Sem Prosystem</button>
-        <button type="button" id="swNew" aria-pressed="true">Com Prosystem</button>
+      <div class="sw-wrap">
+        <div class="switch" id="sw" role="group" aria-label="Comparar rotina">
+          <span class="knob" aria-hidden="true"></span>
+          <button type="button" id="swOld" aria-pressed="false">Sem Prosystem</button>
+          <button type="button" id="swNew" aria-pressed="true">Com Prosystem</button>
+        </div>
+        <span class="sw-dica" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Toque para comparar</span>
       </div>
     </div>
     <div class="ba" id="ba">
@@ -934,6 +953,21 @@ footer img{height:24px;width:auto;opacity:.85}
   sOld.addEventListener('click',function(){setBA(true)});sNew.addEventListener('click',function(){setBA(false)});
   placeKnob();window.addEventListener('resize',placeKnob);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(placeKnob);
+
+  /* convite para comparar: brilho até a primeira interação + demonstração automática quando a seção aparece */
+  var sw=document.getElementById('sw'),usou=false,reduz=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if(!reduz)sw.classList.add('chama');
+  function animarLinhas(){if(reduz)return;ba.classList.remove('trocou');void ba.offsetWidth;[].forEach.call(ba.children,function(r,i){r.style.animationDelay=(i*70)+'ms'});ba.classList.add('trocou')}
+  function usar(){usou=true;sw.classList.remove('chama');animarLinhas()}
+  sOld.addEventListener('click',usar);sNew.addEventListener('click',usar);
+  if(!reduz&&'IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){
+      if(!e.isIntersecting)return;io.disconnect();
+      setTimeout(function(){if(usou)return;setBA(true);animarLinhas();
+        setTimeout(function(){if(usou)return;setBA(false);animarLinhas()},2400)},900);
+    })},{threshold:.45});
+    io.observe(ba);
+  }
 
   /* calculator */
   var brl=function(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR')};
