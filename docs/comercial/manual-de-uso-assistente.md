@@ -984,4 +984,12 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Sistema (varejo em geral): https://comercial.prosystemnet.com/apresentacao/sistema
 - No WhatsApp do CRM, o bloco **Apresentação** tem os botões de cada uma, com a mensagem pronta.
 - Atalho mais rápido: no campo de mensagem da conversa, toque no botão com ícone de tela (ao lado do ✨), escolha a apresentação, confira a mensagem e toque em **Enviar no WhatsApp**.
+
+### Atualização 05/10/2026: os agentes mandam a apresentação
+
+- A **Caroline** e o **Julio** mandam a apresentação do segmento (padaria para padaria, farmácia para farmácia) já no primeiro contato, com um convite do tipo "estamos aqui para te mostrar como o Prosystem vai adiantar a sua vida na farmácia".
+- Quem já foi contatado e ainda não recebeu ganha **uma** retomada com o link, no contexto da conversa e sem cobrar. Sai uma por vez, até 20 por dia, nos horários de retomada. Se a aprovação estiver ligada, ela aparece para você aprovar como as outras retomadas.
+- A **Bia** manda o link junto com o material no fim da triagem.
+- Ninguém recebe a apresentação duas vezes: se o link já está na conversa (enviado por um agente, pela Bia ou por você pelo botão), não vai de novo.
+- Ficam de fora: proposta em acompanhamento (Luiz Felipe) e o primeiro contato de prospecção ou indicação. Nesses dois, o link sai quando o cliente responder.
 - Na página do sistema, a parte **Sua rotina antes e depois** brilha e mostra "Toque para comparar" até o cliente tocar; quando ele chega nela, a página já mostra sozinha a diferença uma vez.
