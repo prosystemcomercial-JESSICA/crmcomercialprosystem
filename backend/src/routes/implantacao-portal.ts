@@ -136,7 +136,15 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (para === 'FINALIZADO' && imp.venda_adicional_id) await concluirServicoNaVenda(prisma, imp.venda_adicional_id);
     const nome = (k: string) => COLUNAS.find(c => c.key === k)?.label || k;
     await atividade(id, 'MUDANCA_ETAPA', `Moveu de "${nome(de)}" para "${nome(para)}"`, u);
-    if (data.resumo_suporte) await atividade(id, 'NOTA', '🧾 Resumo da implantação enviado ao suporte (aparece nos tickets deste cliente). A pesquisa de satisfação sai em 2 dias úteis.', u);
+    if (data.resumo_suporte) {
+      await atividade(id, 'NOTA', '🧾 Resumo da implantação enviado ao suporte (aparece nos tickets deste cliente). A pesquisa de satisfação sai em 2 dias úteis.', u);
+      // Termo de aceite para o decisor assinar (ZapSign). Sem decisor/contato ou sem ZapSign: fica registrado e a supervisão reenvia pelo card.
+      if (!ehLegado(imp)) {
+        const { enviarTermoAceite } = await import('@/services/implantacao-termo.service');
+        const r = await enviarTermoAceite(prisma, id).catch((e: any) => ({ ok: false as const, motivo: e?.message || 'falha' }));
+        if (!r.ok) await atividade(id, 'NOTA', `✍️ Termo de aceite não enviado: ${r.motivo}`, u);
+      }
+    }
     return reply.send({ status: 'success' });
   });
 
@@ -474,6 +482,27 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (!clienteId) return reply.send({ status: 'success', data: null });
     const cli = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { cnpj: true } }).catch(() => null);
     return reply.send({ status: 'success', data: await acharInventario(clienteId, cli?.cnpj || null) });
+  });
+
+  // ── Termo de aceite (supervisão reenvia) e relatório final em PDF (equipe e cliente).
+  fastify.post('/implantacoes/:id/termo-aceite', async (request, reply) => {
+    const u = exigirGestao(request, reply); if (!u) return;
+    const { enviarTermoAceite } = await import('@/services/implantacao-termo.service');
+    const r = await enviarTermoAceite(prisma, (request.params as any).id);
+    if (!r.ok) return reply.status(400).send({ status: 'error', message: r.motivo });
+    return reply.send({ status: 'success' });
+  });
+  fastify.get('/implantacoes/:id/relatorio.pdf', async (request, reply) => {
+    const u = exigirLogin(request, reply); if (!u) return;
+    const imp = await demanda(u, (request.params as any).id);
+    if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
+    const termo = (request.query as any)?.termo === '1';
+    const { pdfRelatorio } = await import('@/services/implantacao-termo.service');
+    const pdf = await pdfRelatorio(prisma, imp.id, termo);
+    if (!pdf) return reply.status(404).send({ status: 'error', message: 'Não foi possível gerar' });
+    reply.header('Content-Type', 'application/pdf');
+    reply.header('Content-Disposition', `attachment; filename="${termo ? 'termo-de-aceite' : 'relatorio-implantacao'}.pdf"`);
+    return reply.send(pdf);
   });
 
   // ── Indicadores da implantação (supervisão): mês pedido x mês anterior, com detalhe por técnico e metas.
@@ -975,6 +1004,20 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     await fecharEsperaDeTarefa(prisma, imp.id, 'Cliente').catch(() => {});
     if (imp.tecnico_id) await avisarTecnico(prisma, { para_id: imp.tecnico_id, implantacao_id: imp.id, origem: 'SISTEMA', texto: `📎 ${imp.cliente_razao_social} enviou "${t.titulo}". Confira na aba Cliente › Tarefas do cliente.` }).catch(() => null);
     return reply.send({ status: 'success' });
+  });
+
+  // Relatório final para o cliente (depois que a Prosystem valida).
+  fastify.get('/publico/acompanhamento/:token/relatorio.pdf', async (request, reply) => {
+    const { token } = request.params as { token: string };
+    if (!token || token.length < 12) return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
+    const imp = await prisma.implantacao.findUnique({ where: { token_cliente: token } });
+    if (!imp || imp.status === 'CANCELADA' || !imp.validado_em) return reply.status(404).send({ status: 'error', message: 'O relatório fica disponível depois da conclusão.' });
+    const { pdfRelatorio } = await import('@/services/implantacao-termo.service');
+    const pdf = await pdfRelatorio(prisma, imp.id, false);
+    if (!pdf) return reply.status(404).send({ status: 'error', message: 'Não foi possível gerar' });
+    reply.header('Content-Type', 'application/pdf');
+    reply.header('Content-Disposition', 'inline; filename="relatorio-implantacao.pdf"');
+    return reply.send(pdf);
   });
 
   // Cliente confirma quem participou de uma fase do treinamento (comprovação).

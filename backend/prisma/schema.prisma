@@ -1507,6 +1507,13 @@ model Implantacao {
   validado_em             DateTime?
   resumo_suporte          String?                      @db.Text
   pesquisa_enviada_em     DateTime?
+  // Termo de aceite (portal completo): PDF gerado na validação e assinado pelo decisor no ZapSign.
+  aceite_status           String? // ENVIADO | ASSINADO | RECUSADO
+  aceite_doc_token        String?
+  aceite_sign_url         String?                      @db.Text
+  aceite_enviado_em       DateTime?
+  aceite_assinado_em      DateTime?
+  aceite_pdf_url          String?                      @db.Text
   ocorrencias             ImplantacaoOcorrencia[]
   comunicacoes            ImplantacaoComunicacao[]
 

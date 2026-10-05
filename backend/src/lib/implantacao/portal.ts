@@ -415,6 +415,7 @@ type DemandaPP = {
   tecnico_id?: string | null; data_assinatura?: Date | null; onboarding_concluido_em?: Date | null; coleta?: any;
   tela_suporte_arquivo_id?: string | null; virada_inicio_em?: Date | null; virada_fim_em?: Date | null;
   virada_agendada_para?: Date | null;
+  aceite_status?: string | null;
 };
 type ItemPP = { grupo: string; titulo: string; feito: boolean };
 
@@ -491,7 +492,8 @@ export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_e
   const col = colunaDe(i);
   if (i.status === 'CANCELADA' || col === 'CANCELADOS') return { chave: 'CANCELADA', titulo: 'Demanda cancelada', quem: 'NINGUEM' };
   if (col === 'FINALIZADO') return { chave: 'FINALIZADA', titulo: 'Demanda finalizada', quem: 'NINGUEM' };
-  if (col === 'VALIDADO') return { chave: 'FINALIZAR', titulo: 'Validada: falta finalizar', quem: 'GESTAO' };
+  if (col === 'VALIDADO') return { chave: 'FINALIZAR', titulo: 'Validada: falta finalizar', quem: 'GESTAO',
+    detalhe: i.aceite_status === 'ASSINADO' ? 'Termo de aceite assinado pelo cliente' : i.aceite_status === 'ENVIADO' ? 'Termo de aceite aguardando a assinatura do cliente' : i.aceite_status === 'RECUSADO' ? 'O cliente recusou o termo de aceite' : 'Termo de aceite ainda não enviado' };
   if (col === 'CONCLUIDO') return { chave: 'VALIDAR', titulo: 'Aguardando a validação da supervisão', quem: 'GESTAO' };
   if (!i.tecnico_id) return { chave: 'DESIGNAR', titulo: 'Designar o técnico responsável', quem: 'GESTAO' };
   const correcoes: ProximoPasso = { chave: 'CORRECOES', titulo: 'Resolver as correções', detalhe: `${correcoesAbertas} aberta(s)`, quem: 'TECNICO', aba: 'correcoes', etapa: 'CORRECAO' };

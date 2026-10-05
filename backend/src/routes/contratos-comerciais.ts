@@ -263,7 +263,7 @@ async function aplicarRecuo(prisma: PrismaClient, contratoId: string, motivo?: s
   return atualizado;
 }
 
-async function getZapSignConfig(prisma: PrismaClient) {
+export async function getZapSignConfig(prisma: PrismaClient) {
   const configs = await prisma.configuracaoIntegracao.findMany({
     where: { chave: { startsWith: 'ZAPSIGN_' } },
   });
@@ -286,7 +286,7 @@ async function getZapSignConfig(prisma: PrismaClient) {
   };
 }
 
-const ZAPSIGN_BASE = {
+export const ZAPSIGN_BASE = {
   // Host correto da API ZapSign é api.zapsign.com.br (não app.* — esse é o painel web).
   sandbox: 'https://sandbox.api.zapsign.com.br/api/v1',
   production: 'https://api.zapsign.com.br/api/v1',
@@ -1319,7 +1319,12 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const c = await prisma.contratoComercial.findFirst({
       where: { zapsign_doc_token: String(docToken) },
     });
-    if (!c) return reply.send({ ok: true });
+    if (!c) {
+      // Termo de aceite da implantação (Portal Técnico) usa o mesmo webhook.
+      const { tratarWebhookTermo } = await import('@/services/implantacao-termo.service');
+      await tratarWebhookTermo(prisma, String(docToken), body?.document?.signed_file_url || null).catch(() => false);
+      return reply.send({ ok: true });
+    }
 
     // Não confia só no aviso: confere o status direto na ZapSign (ninguém "assina" por um POST falso).
     let doc: any = null;
