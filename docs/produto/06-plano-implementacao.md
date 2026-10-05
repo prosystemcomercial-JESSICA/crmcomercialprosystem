@@ -1019,3 +1019,11 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Lista: tabela com saúde, cliente, coluna, próximo passo, técnico e prazo; ordena ao clicar no cabeçalho.
 - Calendário: mês com viradas agendadas e fases de treino marcadas; navegação por mês.
 - Equipe (só supervisão): 14 dias por técnico com viradas e treinos, e as demandas ativas de cada um, piores primeiro.
+
+### Atualização 05/10/2026: fase "Interessados" no Kanban do WhatsApp
+
+- Coluna nova **Interessados** (`INTERESSADO`), entre Novo Contato e Em Negociação, na vista "Por fase" do WhatsApp da empresa.
+- Entra sozinho (`backend/src/services/funil-whatsapp.service.ts`, regra pura em `backend/src/lib/funil-whatsapp.ts`): conversa em **Novo Contato** cujo contato mandou mensagem nos **últimos 7 dias** e tem sinal de interesse — Laya viu intenção "comprar", qualificação da IA quente ou morna, ou temperatura (IA ou lead vinculado) morna, quente ou muito quente.
+- Fica de fora: cliente, equipe, parceiro, fornecedor, terceiro, "outro", etiquetas de suporte/financeiro/equipe/pessoal, atendimento finalizado e quem pediu para sair das campanhas.
+- Quando roda: 1 min após o boot (organiza o que já existe), a cada 10 min e na hora em que a Laya analisa a conversa. Só tira de Novo Contato: nunca puxa quem a equipe moveu para outra fase; arrastar continua livre.
+- Testes em `backend/tests/funil-whatsapp.test.ts`.

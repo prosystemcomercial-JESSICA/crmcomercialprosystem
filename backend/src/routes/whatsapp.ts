@@ -21,7 +21,7 @@ import { validarRotulos, medirAcerto } from '@/lib/laya';
 import { ehPayloadUazapi, parseUazapiEvento, EventoMensagemUazapi } from '@/lib/uazapi-webhook-parser';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
-export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
+export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'INTERESSADO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
 export const PRIORIDADES = ['BAIXA', 'NORMAL', 'CRITICA'] as const;
 
 // WhatsApp Inbox multi-instância (via UazAPI).

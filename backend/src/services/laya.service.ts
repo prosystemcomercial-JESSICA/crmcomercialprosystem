@@ -116,6 +116,8 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
     }
   }
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ia_sugestao: sugestao, ia_sugerido_em: new Date() } });
+  // Interesse visto agora: a conversa vai para "Interessados" na hora (se ainda estiver em Novo Contato).
+  { const { moverInteressados } = await import('./funil-whatsapp.service'); await moverInteressados(prisma, [conversaId]).catch(() => 0); }
   // Temperatura: a Laya dá o veredito e aplica no lead (a troca feita por uma pessoa é respeitada).
   if (conversa.lead_id && sugestao.temperatura && sugestao.intencao === 'comprar') await aplicarTemperatura(prisma, conversa.lead_id, conversaId, sugestao.temperatura, sugestao.temperatura_conf ?? 0).catch(() => {});
   // Ramo já informado no lead (pela equipe): vira comparação com o palpite de agora.
