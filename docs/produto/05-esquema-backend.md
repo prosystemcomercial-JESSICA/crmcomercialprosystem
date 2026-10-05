@@ -1138,3 +1138,10 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Rota pública em `backend/src/routes/leads.ts` (`/publico/leads/apresentacao`): sem login, limite de 5 envios por IP a cada 10 min, campo invisível descarta robôs. Cria o lead **QUENTE**, sem vendedora (fila **Leads para distribuir**), origem `APRESENTACAO_PADARIA`, campanha "Apresentação Padaria", segmento Padaria, nome/padaria/cidade/UF/caixas/interesse, problemas marcados no diagnóstico e UTMs; observação de sistema "atendimento prioritário". Telefone já cadastrado: não duplica, reaquece o lead (QUENTE) e registra a volta.
 - Aviso imediato à gestão no WhatsApp ("🔥 Lead novo pela apresentação de padaria").
 - A conversa do WhatsApp desse número ganha **prioridade crítica** e o vínculo com o lead (na hora, ou 2 e 10 minutos depois, quando o cliente chega pelo WhatsApp).
+
+### Atualização 05/10/2026: apresentação de padaria mais rápida
+
+- Foto principal em WebP com duas versões (celular até 900 px: 65 KB; computador: 157 KB) no lugar do JPG de 278 KB, com pré-carregamento.
+- Demais imagens recomprimidas (só onde ficou 15% menor ou mais); imagens que o celular baixa: de 835 KB para 523 KB.
+- Fontes do Google carregadas sem bloquear a primeira exibição (preload + troca para stylesheet).
+- Cache de 7 dias para `/apresentacao/:nome/img/*` em `next.config.ts` (antes: no-cache a cada visita). Ao trocar uma imagem por outra com o mesmo nome, quem já abriu pode ver a antiga por até 7 dias: prefira um nome novo.

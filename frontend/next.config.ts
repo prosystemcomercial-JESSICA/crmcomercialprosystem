@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
     return [
       { source: '/:path*', headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }] },
       { source: '/_next/static/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
+      // Imagens das apresentações (public/apresentacao/<nome>/img): ficam no aparelho do cliente por 7 dias.
+      { source: '/apresentacao/:nome/img/:arquivo', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }] },
     ];
   },
 };

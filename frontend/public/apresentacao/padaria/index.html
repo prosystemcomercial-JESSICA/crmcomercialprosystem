@@ -6,6 +6,8 @@
 <title>Prosystem para Padarias</title>
 <meta name="description" content="Sua padaria pode estar perdendo dinheiro todos os dias. Veja como o Prosystem conecta caixa, balança, produção, estoque, iFood e financeiro em um só sistema.">
 <meta name="theme-color" content="#081330">
+<link rel="preload" as="image" href="/apresentacao/padaria/img/hero-900.webp" media="(max-width: 900px)" fetchpriority="high">
+<link rel="preload" as="image" href="/apresentacao/padaria/img/hero.webp" media="(min-width: 901px)" fetchpriority="high">
 <link rel="icon" type="image/png" href="/apresentacao/padaria/img/favicon.png">
 <link rel="apple-touch-icon" href="/apresentacao/padaria/img/icone-180.png">
 
@@ -23,7 +25,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&family=Poppins:wght@400;500;600&family=Inter:wght@500;600;700&display=swap">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&family=Poppins:wght@400;500;600&family=Inter:wght@500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&family=Poppins:wght@400;500;600&family=Inter:wght@500;600;700&display=swap"></noscript>
 <style>
 html,body{margin:0}
 /* Layout: deck de seções em tela cheia; azul Prosystem = solução, laranja = dinheiro perdido. Título em caixa alta com palavra-chave 900 (padrão do site). */
@@ -131,7 +134,7 @@ button{font:inherit;cursor:pointer}
 
 /* ---------- 1 capa ---------- */
 #inicio{background:var(--navy);color:#fff;overflow:hidden}
-#inicio .bg{position:absolute;inset:0;background:url(/apresentacao/padaria/img/hero.jpg) center/cover no-repeat}
+#inicio .bg{position:absolute;inset:0;background:url(/apresentacao/padaria/img/hero-900.webp) center/cover no-repeat}@media (min-width:901px){#inicio .bg{background-image:url(/apresentacao/padaria/img/hero.webp)}}
 #inicio .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(95deg,rgba(8,19,48,.97) 0%,rgba(8,19,48,.88) 45%,rgba(8,19,48,.35) 100%)}
 #inicio .wrap{position:relative}
 #inicio h1{font-size:clamp(34px,5.6vw,72px);font-weight:400;text-transform:uppercase;letter-spacing:-1px;max-width:15ch}
@@ -584,7 +587,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 </svg>
 
 <header class="topbar">
-  <img class="logo" src="/apresentacao/padaria/img/logo.webp" alt="Prosystem" width="764" height="124">
+  <img class="logo" src="/apresentacao/padaria/img/logo.webp" alt="Prosystem" width="764" height="124" fetchpriority="high" decoding="async">
   <div class="chapter" aria-live="polite"><b id="chapNum">01</b><span id="chapName">Início</span></div>
   <button class="btn btn-sm btn-index" id="openIndex" type="button" aria-haspopup="dialog"><svg class="icon"><use href="#i-grid"/></svg>Índice</button>
   <a class="btn btn-sm btn-primary wa-link" data-msg="Olá! Vi a apresentação do Prosystem para padarias e quero falar com um especialista." href="https://wa.me/5527997521370" target="_blank" rel="noopener"><svg class="icon"><use href="#i-chat"/></svg><span class="cta-label">Falar com especialista</span></a>
@@ -736,8 +739,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
       </div>
     </div>
     <div>
-      <img class="media-glow" src="/apresentacao/padaria/img/pdv-balanca.webp" alt="PDV Prosystem integrado à balança, com pão francês sendo pesado" width="1100" height="733" loading="lazy">
-      <button class="shot" type="button" data-win="Prosystem · Consulta movimentação de produtos" data-zoom="/apresentacao/padaria/img/tela-pdv.webp" style="margin-top:8px"><img src="/apresentacao/padaria/img/tela-pdv.webp" alt="Tela de movimentação de produtos do PDV Prosystem" width="845" height="498" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <img class="media-glow" src="/apresentacao/padaria/img/pdv-balanca.webp" alt="PDV Prosystem integrado à balança, com pão francês sendo pesado" width="1100" height="733" loading="lazy" decoding="async">
+      <button class="shot" type="button" data-win="Prosystem · Consulta movimentação de produtos" data-zoom="/apresentacao/padaria/img/tela-pdv.webp" style="margin-top:8px"><img src="/apresentacao/padaria/img/tela-pdv.webp" alt="Tela de movimentação de produtos do PDV Prosystem" width="845" height="498" loading="lazy" decoding="async"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
     </div>
   </div>
 </section>
@@ -786,7 +789,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
         </table>
         </div>
       </div>
-      <button class="shot" type="button" data-win="Prosystem · Produção e custo" data-zoom="/apresentacao/padaria/img/tela-prod.webp"><img src="/apresentacao/padaria/img/tela-prod.webp" alt="Telas de Produção e Custo e Procedimento da Receita do Prosystem" width="1314" height="377" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Produção e custo" data-zoom="/apresentacao/padaria/img/tela-prod.webp"><img src="/apresentacao/padaria/img/tela-prod.webp" alt="Telas de Produção e Custo e Procedimento da Receita do Prosystem" width="1314" height="377" loading="lazy" decoding="async"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
     </div>
   </div>
 </section>
@@ -829,7 +832,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 <section class="slide light" id="estoque" data-title="Estoque e validades">
   <div class="wrap split rev">
     <div>
-      <button class="shot" type="button" data-win="Prosystem · Estoque mínimo / máximo" data-zoom="/apresentacao/padaria/img/tela-estoque.webp"><img src="/apresentacao/padaria/img/tela-estoque.webp" alt="Tela de estoque mínimo e máximo com curva ABC do Prosystem" width="674" height="407" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Estoque mínimo / máximo" data-zoom="/apresentacao/padaria/img/tela-estoque.webp"><img src="/apresentacao/padaria/img/tela-estoque.webp" alt="Tela de estoque mínimo e máximo com curva ABC do Prosystem" width="674" height="407" loading="lazy" decoding="async"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
       <p class="caption">Estoque mínimo/máximo com curva ABC e alertas de reposição.</p>
     </div>
     <div>
@@ -861,7 +864,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
       </div>
     </div>
     <div>
-      <button class="shot" type="button" data-win="Prosystem · Fechamento / Conferência" data-zoom="/apresentacao/padaria/img/tela-caixa.webp"><img src="/apresentacao/padaria/img/tela-caixa.webp" alt="Tela de Fechamento e Conferência de caixa do Prosystem" width="789" height="509" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Fechamento / Conferência" data-zoom="/apresentacao/padaria/img/tela-caixa.webp"><img src="/apresentacao/padaria/img/tela-caixa.webp" alt="Tela de Fechamento e Conferência de caixa do Prosystem" width="789" height="509" loading="lazy" decoding="async"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
       <p class="caption">Tela real de fechamento e conferência, com contadores de NFC-e.</p>
     </div>
   </div>
@@ -871,7 +874,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 <section class="slide light" id="delivery" data-title="Delivery iFood">
   <div class="wrap split rev">
     <div>
-      <button class="shot" type="button" data-win="Prosystem · Painel de delivery" data-zoom="/apresentacao/padaria/img/tela-ifood.webp"><img src="/apresentacao/padaria/img/tela-ifood.webp" alt="Painel de pedidos do iFood integrado ao Prosystem" width="595" height="321" loading="lazy"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
+      <button class="shot" type="button" data-win="Prosystem · Painel de delivery" data-zoom="/apresentacao/padaria/img/tela-ifood.webp"><img src="/apresentacao/padaria/img/tela-ifood.webp" alt="Painel de pedidos do iFood integrado ao Prosystem" width="595" height="321" loading="lazy" decoding="async"><span class="scan" aria-hidden="true"></span><span class="zoom-hint"><svg class="icon" style="width:14px;height:14px"><use href="#i-zoom"/></svg>Ver tela real</span></button>
       <p class="caption">Painel de delivery com vendas por modalidade.</p>
     </div>
     <div>
@@ -913,7 +916,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 <!-- 13 -->
 <section class="slide light" id="celular" data-title="Gestão pelo celular">
   <div class="wrap split rev">
-    <div class="phone-wrap"><img src="/apresentacao/padaria/img/whatsapp.webp" alt="Fechamento de caixa do Prosystem recebido no WhatsApp do celular" width="640" height="960" loading="lazy"></div>
+    <div class="phone-wrap"><img src="/apresentacao/padaria/img/whatsapp.webp" alt="Fechamento de caixa do Prosystem recebido no WhatsApp do celular" width="640" height="960" loading="lazy" decoding="async"></div>
     <div>
       <p class="eyebrow">Gestão à distância <b>13</b></p>
       <h2 class="h-title">Sua padaria <strong>na palma da mão</strong></h2>
