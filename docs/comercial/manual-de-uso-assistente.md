@@ -964,3 +964,7 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - Aos **30, 60 e 90 dias** depois da virada, o técnico recebe a tarefa de ligar para a loja e registra a conversa no Início. Nota baixa ou loja sem usar o sistema avisa a supervisão e entra no radar de retenção.
 - Viradas agendadas e treinamentos marcados entram sozinhos no **Google Agenda** do técnico (pela agenda da empresa conectada ao CRM).
+
+### Atualização 05/10/2026: conversas de parceria de revenda
+
+- Conversa de parceria, revenda ou representação: identifique o contato como **Parceiro** no Inbox (botão Identificar). Assim os agentes param de agir, a reunião não recebe lembrete de "demonstração" e a revisão do Rafael não trata a pessoa como lead.
