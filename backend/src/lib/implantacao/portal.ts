@@ -700,6 +700,30 @@ export function prazoAjustado(prazo: Date | null | undefined, esperas: EsperaPra
   return new Date(prazo.getTime() + msEsperaCliente(esperas, agora));
 }
 
+/**
+ * Alerta de prazo da demanda no sino (Alertas): mesma régua do portal.
+ * Fica de fora o que entrou antes do recomeço do portal (02/10/2026), o que está em coluna
+ * final ou cancelado e a etapa já feita no portal (virada_fim_em / concluida_fila_em) ou no
+ * fluxo antigo (data_instalacao / data_conclusao). A espera do cliente pausa o prazo.
+ * Avisa a partir de `antecedenciaDias` antes do prazo; depois dele, é atrasada.
+ */
+export function alertaPrazoDemanda(i: any, esperas: EsperaPrazo[], agora = new Date(), antecedenciaDias = 3):
+  { oque: string; alvo: Date; dias: number; atrasada: boolean } | null {
+  if (i.status === 'CANCELADA' || !i.data_assinatura || new Date(i.data_assinatura) < CORTE_PORTAL) return null;
+  if (['CONCLUIDO', 'VALIDADO', 'FINALIZADO', 'CANCELADOS'].includes(colunaDe(i))) return null;
+  const servico = i.modulo === 'SERVICO';
+  const viradaFeita = !!(i.data_instalacao || i.virada_fim_em);
+  const fimFeito = !!(i.data_conclusao || i.concluida_fila_em);
+  let oque: string, prazo: Date | null = null;
+  if (!servico && !viradaFeita && i.prazo_virada) { oque = 'virada/instalação'; prazo = new Date(i.prazo_virada); }
+  else if (!fimFeito && i.prazo_finalizacao) { oque = servico ? 'conclusão do serviço' : 'finalização'; prazo = new Date(i.prazo_finalizacao); }
+  else return null;
+  const alvo = prazoAjustado(prazo, esperas, agora)!;
+  const dias = Math.ceil((alvo.getTime() - agora.getTime()) / 864e5);
+  if (dias > antecedenciaDias) return null;
+  return { oque, alvo, dias, atrasada: dias < 0 };
+}
+
 /** Metas dos indicadores (editáveis em Configurações). */
 export type MetasIndicadores = {
   virada_conversao_dias: number; virada_zerado_dias: number; viradas_no_prazo_pct: number;

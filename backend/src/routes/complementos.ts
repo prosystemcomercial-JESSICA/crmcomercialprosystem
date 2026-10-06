@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { ownerWhere, getUser, podeVerTudo } from '@/lib/scope';
 import { calcularPrevisao } from '@/lib/previsao';
+import { CORTE_PORTAL, alertaPrazoDemanda } from '@/lib/implantacao/portal';
 
 export async function complementosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -171,24 +172,26 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       ).catch(() => []);
     }
 
-    // Implantações com prazo perto ou estourado (técnico + gestão, não CEO)
+    // Implantações e serviços com prazo perto ou estourado (técnico + gestão, não CEO).
+    // Mesma régua do portal (alertaPrazoDemanda): só o que entrou desde o recomeço do portal
+    // (02/10/2026), etapa feita no portal conta como feita e a espera do cliente pausa o prazo.
     let implantacoes_prazo: any[] = [];
     if (!isCEO) {
       const uid = user?.id || '__no_user__';
       const verTudo = podeVerTudo(user);
-      implantacoes_prazo = await prisma.$queryRawUnsafe(
-        `SELECT id, cliente_razao_social, tecnico_id, tecnico_nome, prazo_virada, prazo_finalizacao,
-                data_instalacao, data_conclusao, status
-           FROM Implantacao
-          WHERE status NOT IN ('CANCELADA')
-            AND (
-              (data_instalacao IS NULL AND prazo_virada IS NOT NULL AND prazo_virada <= DATE_ADD(NOW(), INTERVAL 3 DAY))
-              OR (data_conclusao IS NULL AND prazo_finalizacao IS NOT NULL AND prazo_finalizacao <= DATE_ADD(NOW(), INTERVAL 3 DAY))
-            )
-            ${verTudo ? '' : 'AND tecnico_id = ?'}
-          ORDER BY prazo_virada ASC LIMIT 30`,
-        ...(verTudo ? [] : [uid])
-      ).catch(() => []);
+      const candidatas = await prisma.implantacao.findMany({
+        where: { status: { not: 'CANCELADA' }, data_assinatura: { gte: CORTE_PORTAL }, ...(verTudo ? {} : { tecnico_id: uid }) },
+        select: {
+          id: true, cliente_razao_social: true, modulo: true, status: true, coluna: true, etapa_execucao: true, data_assinatura: true,
+          prazo_virada: true, prazo_finalizacao: true, data_instalacao: true, data_conclusao: true, virada_fim_em: true, concluida_fila_em: true,
+          esperas: { select: { tipo: true, inicio: true, fim: true } },
+        },
+      }).catch(() => [] as any[]);
+      implantacoes_prazo = candidatas
+        .map((i: any) => ({ i, a: alertaPrazoDemanda(i, i.esperas || [], now) }))
+        .filter(x => x.a)
+        .sort((x, y) => x.a!.alvo.getTime() - y.a!.alvo.getTime())
+        .slice(0, 30);
     }
 
     // ── Novas vendas adicionais/indicações (últimos 3 dias, qualquer vendedor)
@@ -260,21 +263,15 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
           link: `/contratos-comerciais`,
         };
       }),
-      ...implantacoes_prazo.map((i: any) => {
-        const venceVirada = !i.data_instalacao && i.prazo_virada;
-        const alvo = venceVirada ? i.prazo_virada : i.prazo_finalizacao;
-        const dr = Math.ceil((new Date(alvo).getTime() - Date.now()) / 86400000);
-        const oque = venceVirada ? 'virada/instalação' : 'finalização';
-        return {
-          id: `imp-${i.id}`,
-          tipo: 'IMPLANTACAO_PRAZO',
-          urgencia: dr < 0 ? 'ALTA' : 'MEDIA',
-          titulo: dr < 0 ? `Implantação ATRASADA: ${i.cliente_razao_social}` : `Prazo de ${oque} próximo: ${i.cliente_razao_social}`,
-          descricao: dr < 0 ? `${oque} atrasada em ${Math.abs(dr)} dia(s)` : `faltam ${dr} dia(s) para a ${oque}`,
-          data: alvo,
-          link: `/implantacoes`,
-        };
-      }),
+      ...implantacoes_prazo.map(({ i, a }: any) => ({
+        id: `imp-${i.id}`,
+        tipo: 'IMPLANTACAO_PRAZO',
+        urgencia: a.atrasada ? 'ALTA' : 'MEDIA',
+        titulo: a.atrasada ? `${i.modulo === 'SERVICO' ? 'Serviço ATRASADO' : 'Implantação ATRASADA'}: ${i.cliente_razao_social}` : `Prazo de ${a.oque} próximo: ${i.cliente_razao_social}`,
+        descricao: a.atrasada ? `${a.oque} atrasada em ${Math.abs(a.dias)} dia(s)` : a.dias === 0 ? `a ${a.oque} vence hoje` : `faltam ${a.dias} dia(s) para a ${a.oque}`,
+        data: a.alvo,
+        link: `/implantacoes`,
+      })),
       ...novos_atribuidos.map((l: any) => ({
         id: `nl-${l.id}`,
         tipo: 'NOVO_LEAD_RECEBIDO',

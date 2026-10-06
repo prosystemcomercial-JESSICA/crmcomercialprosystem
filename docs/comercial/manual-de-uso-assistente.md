@@ -1036,3 +1036,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Atendimento e horários:** tempo da 1ª resposta (agentes e pessoas), clientes sem resposta, mensagens por dia e o mapa dos horários em que os clientes mais chamam.
 - **Equipe, qualidade e mercado:** mural e última reunião do Rafael, pós-venda e CSAT, implantações, Laya, pesquisas e documentos esperando sua aprovação.
 - Uma faixa laranja **Agora** avisa se há conversa esperando resposta, conversa sem dono ou mensagem de agente para aprovar.
+
+
+### Correção 06/10/2026: alertas de implantação no sino
+
+- O sino deixou de avisar implantações antigas (de antes do recomeço do Portal Técnico, em 02/10/2026) como "atrasadas". Agora ele usa a mesma régua do portal: só demandas novas, conta a virada e a conclusão feitas no portal e pausa o prazo enquanto a loja não entrega o que precisa.
