@@ -15,7 +15,11 @@ import { MrrTrendCard } from './components/MrrTrendCard';
 import { PipelineFunnelChart } from './components/PipelineFunnelChart';
 import { TemperaturaGauge } from './components/TemperaturaGauge';
 import AbaTabs from './components/AbaTabs';
-import { DashboardCrossSell } from '@/components/crosssell/DashboardCrossSell';
+import { PanoramaCEO } from '@/components/ceo/PanoramaCEO';
+import { LeadsCEO } from '@/components/ceo/LeadsCEO';
+import { MetasConteudo } from '@/components/ceo/MetasConteudo';
+import { AnaliseComercialConteudo } from '@/components/ceo/AnaliseComercialConteudo';
+import { PipelineComercialConteudo } from '@/components/ceo/PipelineComercialConteudo';
 import { VisaoSwitch, MeuGanhoCard, AtalhosVisao } from '@/components/dashboard/VisaoPainel';
 import { Visao, visoesDisponiveis, visaoInicial, ROTULO_VISAO } from '@/lib/visoes';
 
@@ -228,11 +232,13 @@ export default function DashboardPage() {
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
   const [filtroVendedorId, setFiltroVendedorId] = useState('');
   const [mounted, setMounted] = useState(false);
-  const [abaAtiva, setAbaAtiva] = useState<'comercial' | 'crosssell' | 'retencao' | 'equipe' | 'funis' | 'manuais'>('comercial');
+  const [abaAtiva, setAbaAtiva] = useState<'panorama' | 'comercial' | 'metas' | 'leads' | 'analise' | 'retencao' | 'equipe' | 'funis' | 'manuais'>('panorama');
   // Link direto para uma aba (ex.: /dashboard?aba=crosssell, usado por /cross-sell-ceo).
   useEffect(() => {
     const a = new URLSearchParams(window.location.search).get('aba');
-    if (a && ['comercial', 'crosssell', 'retencao', 'equipe', 'funis', 'manuais'].includes(a)) setAbaAtiva(a as any);
+    // Cross-sell & Up-sell tem tela dedicada.
+    if (a === 'crosssell') { window.location.replace('/cross-sell-ceo'); return; }
+    if (a && ['panorama', 'comercial', 'metas', 'leads', 'analise', 'retencao', 'equipe', 'funis', 'manuais'].includes(a)) setAbaAtiva(a as any);
   }, []);
   const [painelCeo, setPainelCeo] = useState<any>(null);
   const [relatorioComercial, setRelatorioComercial] = useState<any>(null);
@@ -466,8 +472,11 @@ export default function DashboardPage() {
             {/* ── Abas ─────────────────────────────────────────── */}
             <AbaTabs
               abas={[
-                { id: 'comercial', label: 'Comercial & Pipeline' },
-                { id: 'crosssell', label: 'Cross-sell & Up-sell' },
+                { id: 'panorama', label: 'Panorama' },
+                { id: 'comercial', label: 'Vendas & Pipeline' },
+                { id: 'metas', label: 'Metas' },
+                { id: 'leads', label: 'Leads' },
+                { id: 'analise', label: 'Análise comercial' },
                 { id: 'retencao', label: 'Retenção & Financeiro' },
                 { id: 'equipe', label: 'Equipe' },
                 { id: 'funis', label: 'Funis' },
@@ -684,12 +693,17 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {abaAtiva === 'crosssell' && (
-              <div className="space-y-3">
-                <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>Vendas para quem já é cliente: quanto a mensalidade da base cresceu (MRR de expansão) e quanto entrou de receita única com trocas de CNPJ, upgrades, comunicação, pacote fiscal e serviços.</p>
-                <DashboardCrossSell modo="ceo" />
-              </div>
+            {abaAtiva === 'comercial' && <PipelineComercialConteudo embutido />}
+
+            {abaAtiva === 'panorama' && (
+              <PanoramaCEO data={data} relatorioComercial={relatorioComercial} nrr={nrr} irPara={(x) => { setAbaAtiva(x as any); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
             )}
+
+            {abaAtiva === 'metas' && <MetasConteudo embutido />}
+
+            {abaAtiva === 'leads' && <LeadsCEO />}
+
+            {abaAtiva === 'analise' && <AnaliseComercialConteudo embutido />}
 
             {abaAtiva === 'retencao' && painelCeo && (
               <div className="space-y-4">

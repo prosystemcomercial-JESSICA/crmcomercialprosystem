@@ -37,9 +37,10 @@ const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // Fora de propósito: importação, lançamento retroativo, campanhas, usuários,
 // configurações e demais telas que só servem para editar.
 const CEO_VISIVEL = [
-  '/dashboard', '/analise-comercial', '/relatorio-comercial', '/previsao', '/tv',
-  '/comissoes', '/metas', '/indicadores-ceo', '/cross-sell-ceo', '/painel-ia', '/centro-custos', '/ltv', '/casos',
-  '/pipeline-comercial', '/leads', '/manual',
+  // Painel do CEO (/dashboard) junta Panorama, Vendas & Pipeline, Metas, Leads em números e
+  // Análise comercial; por isso Central de Leads, Análise, Pipeline e Metas saíram daqui (06/10/2026).
+  '/dashboard', '/cross-sell-ceo', '/painel-ia', '/relatorio-comercial', '/previsao', '/tv',
+  '/comissoes', '/indicadores-ceo', '/centro-custos', '/ltv', '/casos', '/manual',
 ];
 
 // `modulo` liga o item ao nome usado em MODULOS (backend/src/routes/usuarios.ts,
@@ -53,7 +54,8 @@ const navGroups: NavGroup[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',            roles: GESTORES, modulo: 'Dashboard Geral' },
+      { href: '/dashboard', icon: LayoutDashboard, label: 'Painel do CEO',        roles: GESTORES, modulo: 'Dashboard Geral' },
+      { href: '/cross-sell-ceo', icon: TrendingUp, label: 'Cross-sell & Up-sell', roles: GESTAO_COMERCIAL },
       { href: '/comercial', icon: BarChart2,       label: 'Radar Comercial',       roles: ['VENDEDOR'] },
       { href: '/leads',     icon: GitMerge,        label: 'Central de Leads',     roles: COMERCIAL, modulo: 'Leads' },
       { href: '/leads-sdr', icon: GitMerge,        label: 'Funil do SDR',          roles: ['SDR', 'CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'], modulo: 'Leads' },
@@ -94,7 +96,8 @@ const navGroups: NavGroup[] = [
     label: 'Performance',
     items: [
       { href: '/comercial',               icon: BarChart2,    label: 'Radar Comercial',    roles: GESTAO_COMERCIAL },
-      { href: '/metas',                   icon: Trophy,       label: 'Metas Comerciais',   roles: COMERCIAL, modulo: 'Metas' },
+      // Gestão vê Metas dentro do Painel do CEO; o vendedor continua com a tela própria.
+      { href: '/metas',                   icon: Trophy,       label: 'Metas Comerciais',   roles: ['VENDEDOR'], modulo: 'Metas' },
       { href: '/comissoes',               icon: DollarSign,   label: 'Comissões',          roles: COMERCIAL, modulo: 'Comissões / Bônus' },
       { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
       { href: '/ltv',                     icon: TrendingUp,   label: 'LTV dos Clientes',   roles: GESTAO_COMERCIAL },
@@ -124,8 +127,8 @@ const navGroups: NavGroup[] = [
       { href: '/previsao',              icon: TrendingUp, label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/nutricao',              icon: Sprout,    label: 'Nutrição',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas',  roles: GESTAO_COMERCIAL },
-      { href: '/analise-comercial',     icon: BarChart2, label: 'Análise Comercial', roles: COMERCIAL },
-      { href: '/pipeline-comercial',    icon: GitMerge,  label: 'Pipeline Comercial', roles: GESTAO_COMERCIAL },
+      // Gestão vê Análise e Pipeline como abas do Painel do CEO.
+      { href: '/analise-comercial',     icon: BarChart2, label: 'Análise Comercial', roles: ['VENDEDOR'] },
       { href: '/campanha-padarias',     icon: Megaphone, label: 'Campanha Padarias', roles: GESTAO_COMERCIAL },
     ],
   },

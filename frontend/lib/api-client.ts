@@ -1125,6 +1125,11 @@ class ApiClient {
     return this.client.delete(`/parceiros/${id}`);
   }
 
+  // Leads em números para o Painel do CEO (no lugar da Central de Leads).
+  async getLeadsResumoCEO() {
+    return this.client.get('/dashboard/leads-resumo');
+  }
+
   // Painel da IA: visão panorâmica do Escritório virtual (hoje | 7d | 30d).
   async getPainelIa(periodo: 'hoje' | '7d' | '30d') {
     return this.client.get('/assistente/painel-ia', { params: { periodo } });
