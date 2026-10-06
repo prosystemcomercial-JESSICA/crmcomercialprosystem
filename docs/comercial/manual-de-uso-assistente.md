@@ -1016,4 +1016,5 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Atualização 06/10/2026: "O que fazer" no card do serviço
 
 - Ao abrir um card de **serviço** (troca de CNPJ, comunicação, impressora, outros), a **Visão geral** começa com **O que fazer**: a tarefa em uma frase (ex.: "Realizar a troca de CNPJ de 27.829.030/0001-61 para 65.045.303/0001-76"), o CNPJ e a razão social antigos e novos, ou as lojas da comunicação, e **com quem falar**, com o telefone para ligar ou chamar no WhatsApp.
+- Na **troca de CNPJ**, o card mostra lado a lado os **dados antigos** e os **dados novos** (CNPJ, razão social, fantasia, inscrição estadual, endereço, telefone e e-mail). Se o cadastro do CRM ainda estiver com o CNPJ antigo, aparece um aviso.
 - Toque em **Copiar resumo** para colar o texto no WhatsApp ou no suporte.

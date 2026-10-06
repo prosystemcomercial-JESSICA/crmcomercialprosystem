@@ -51,48 +51,81 @@ export const TIPOS_SERVICO: Record<string, { label: string; checklist: string[] 
 // ─── Resumo da demanda (Visão geral do card de serviço) ───────────────────────
 // "O que fazer" em uma frase + dados de/para, montado da venda e do histórico de CNPJ.
 // Nunca leva valores: o texto financeiro da vendedora fica fora (é escopo da supervisão).
-export type ResumoDemanda = { acao: string; detalhes: [string, string][]; observacao: string | null; autorizador: string | null };
+export type GrupoDados = { titulo: string; itens: [string, string][] };
+export type ResumoDemanda = { acao: string; detalhes: [string, string][]; grupos: GrupoDados[]; aviso: string | null; observacao: string | null; autorizador: string | null };
 
 const fmtCnpj = (v?: string | null) => {
   const n = (v || '').replace(/\D/g, '');
   return n.length === 14 ? n.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (v || '').trim();
 };
-const juntar = (...p: (string | null | undefined)[]) => p.map(x => (x || '').trim()).filter(Boolean).join(' · ');
+const digitos = (v?: string | null) => (v || '').replace(/\D/g, '');
 
-function dadosTrocaCnpj(venda: any, historico: any) {
-  if (historico?.cnpj_novo) return { cnpjAnt: historico.cnpj_anterior, razaoAnt: historico.razao_social_anterior, cnpjNovo: historico.cnpj_novo, razaoNova: historico.razao_social_nova };
+type DadosEmpresa = { cnpj?: string | null; razao?: string | null; fantasia?: string | null; ie?: string | null; endereco?: string | null; cep?: string | null; telefone?: string | null; email?: string | null };
+const CAMPOS_EMPRESA: [keyof DadosEmpresa, string][] = [['cnpj', 'CNPJ'], ['razao', 'Razão social'], ['fantasia', 'Nome fantasia'], ['ie', 'Inscrição estadual'], ['endereco', 'Endereço'], ['cep', 'CEP'], ['telefone', 'Telefone'], ['email', 'E-mail']];
+/** Junta fontes na ordem de confiança: o primeiro valor preenchido de cada campo vence. */
+const mesclar = (...fontes: (DadosEmpresa | null | undefined)[]): DadosEmpresa => {
+  const out: DadosEmpresa = {};
+  for (const [k] of CAMPOS_EMPRESA) for (const f of fontes) { const v = (f?.[k] || '').toString().trim(); if (v) { out[k] = v; break; } }
+  return out;
+};
+const deCadastro = (c: any): DadosEmpresa | null => c ? {
+  cnpj: c.cnpj, razao: c.razao_social, fantasia: c.nome_fantasia, ie: c.inscricao_estadual || c.inscricao,
+  endereco: [c.endereco, c.numero_end, c.complemento, c.bairro, [c.cidade, c.estado].filter(Boolean).join('/')].filter(Boolean).join(', ') || null,
+  cep: c.cep, telefone: c.telefone || c.telefone1, email: c.email,
+} : null;
+const itensEmpresa = (d: DadosEmpresa): [string, string][] =>
+  CAMPOS_EMPRESA.filter(([k]) => d[k]).map(([k, l]) => [l, k === 'cnpj' ? fmtCnpj(d[k]) : String(d[k])]);
+
+/** Troca de CNPJ: dados antigos e novos completos, das fontes que existirem (evento da ficha, histórico, resumo técnico, texto da vendedora, cadastro). */
+function dadosTrocaCnpj(venda: any, historico: any, antes: any, cliente: any) {
   let salvo: any = null;
   try { salvo = venda?.observacoes ? JSON.parse(venda.observacoes) : null; } catch { salvo = null; }
   const tec = String(salvo?.resumo_tecnico || ''), txt = String(salvo?.resumo || '');
+  const [tecAnt, tecNovo = ''] = tec.split(/▸\s*NOVOS DADOS/i);
   const pega = (re: RegExp, s: string) => (s.match(re)?.[1] || '').trim() || null;
   const deTexto = txt.match(/ANTIGO\s+(.+?)\s+-\s+NOVO\s+(.+)/i);
+  const tecAntigo: DadosEmpresa = {
+    cnpj: pega(/CNPJ ANTIGO:\s*(.+)/i, tecAnt), razao: pega(/Raz[ãa]o Social ANTIGA:\s*(.+)/i, tecAnt),
+    fantasia: pega(/Nome Fantasia ANTIGO:\s*(.+)/i, tecAnt), ie: pega(/Inscri[çc][ãa]o Est\. ANTIGA:\s*(.+)/i, tecAnt), endereco: pega(/Endere[çc]o ANTIGO:\s*(.+)/i, tecAnt),
+  };
+  const tecNovos: DadosEmpresa = {
+    cnpj: pega(/CNPJ NOVO:\s*(.+)/i, tecNovo), razao: pega(/Raz[ãa]o Social NOVA:\s*(.+)/i, tecNovo), fantasia: pega(/Nome Fantasia NOVO:\s*(.+)/i, tecNovo),
+    ie: pega(/Inscri[çc][ãa]o Est\. NOVA:\s*(.+)/i, tecNovo), endereco: pega(/Endere[çc]o NOVO:\s*(.+)/i, tecNovo),
+    cep: pega(/CEP:\s*(.+)/i, tecNovo), telefone: pega(/Telefone:\s*(.+)/i, tecNovo), email: pega(/E-mail:\s*(.+)/i, tecNovo),
+  };
+  const hAnt: DadosEmpresa | null = historico ? { cnpj: historico.cnpj_anterior, razao: historico.razao_social_anterior, fantasia: historico.nome_fantasia_anterior, ie: historico.inscricao_anterior } : null;
+  const hNovo: DadosEmpresa | null = historico ? { cnpj: historico.cnpj_novo, razao: historico.razao_social_nova, fantasia: historico.nome_fantasia_nova } : null;
+  const novoConhecido = mesclar(hNovo, tecNovos, { cnpj: pega(/CNPJ:\s*([\d./-]+)/i, txt), razao: deTexto?.[2]?.trim() });
+  const antigoConhecido = mesclar(deCadastro(antes), hAnt, tecAntigo, { razao: deTexto?.[1]?.trim() });
+  const cad = deCadastro(cliente);
+  const cnpjCad = digitos(cad?.cnpj), cnpjNovo = digitos(novoConhecido.cnpj);
+  const jaTrocado = !!cad && !!cnpjCad && (cnpjCad === cnpjNovo || (!cnpjNovo && !!historico));
+  const aindaAntigo = !!cad && !!cnpjCad && !!cnpjNovo && cnpjCad !== cnpjNovo;
   return {
-    cnpjAnt: pega(/CNPJ ANTIGO:\s*(.+)/i, tec),
-    razaoAnt: pega(/Raz[ãa]o Social ANTIGA:\s*(.+)/i, tec) || deTexto?.[1]?.trim() || null,
-    cnpjNovo: pega(/CNPJ NOVO:\s*(.+)/i, tec) || pega(/CNPJ:\s*([\d./-]+)/i, txt),
-    razaoNova: pega(/Raz[ãa]o Social NOVA:\s*(.+)/i, tec) || deTexto?.[2]?.trim() || null,
+    antigo: aindaAntigo ? mesclar(antigoConhecido, cad) : antigoConhecido,
+    novo: jaTrocado ? mesclar(cad, novoConhecido) : novoConhecido,
+    jaTrocado, aindaAntigo,
   };
 }
 
-export function resumoDaDemanda(imp: { modulo?: string | null; tipo_servico?: string | null }, venda: any, historico: any): ResumoDemanda | null {
+export function resumoDaDemanda(imp: { modulo?: string | null; tipo_servico?: string | null }, venda: any, historico: any, extra?: { antes?: any; cliente?: any }): ResumoDemanda | null {
   if (imp.modulo !== 'SERVICO') return null;
   const tipo = imp.tipo_servico || 'OUTRO';
   const textoLivre = venda?.observacoes && !String(venda.observacoes).trim().startsWith('{')
     ? String(venda.observacoes).split('\n').filter(l => l.trim() && !/Lançamento retroativo/i.test(l)).join('\n').trim() || null
     : null;
-  const base = { observacao: textoLivre, autorizador: venda?.autorizador_nome || null };
+  const base = { observacao: textoLivre, autorizador: venda?.autorizador_nome || null, grupos: [] as GrupoDados[], aviso: null as string | null };
 
   if (tipo === 'TROCA_CNPJ') {
-    const t = dadosTrocaCnpj(venda, historico);
-    const ant = fmtCnpj(t.cnpjAnt), novo = fmtCnpj(t.cnpjNovo);
+    const t = dadosTrocaCnpj(venda, historico, extra?.antes, extra?.cliente);
+    const ant = fmtCnpj(t.antigo.cnpj), novo = fmtCnpj(t.novo.cnpj);
     const acao = ant && novo ? `Realizar a troca de CNPJ de ${ant} para ${novo}`
       : novo ? `Realizar a troca de CNPJ para ${novo}` : 'Realizar a troca de CNPJ (novos dados na ficha do cliente)';
-    const detalhes: [string, string][] = [];
-    if (ant) detalhes.push(['CNPJ antigo', juntar(ant, t.razaoAnt)]);
-    else if (t.razaoAnt) detalhes.push(['Razão social antiga', t.razaoAnt]);
-    if (novo) detalhes.push(['CNPJ novo', juntar(novo, t.razaoNova)]);
-    else if (t.razaoNova) detalhes.push(['Razão social nova', t.razaoNova]);
-    return { acao, detalhes, ...base };
+    const grupos: GrupoDados[] = [
+      { titulo: 'Dados antigos', itens: itensEmpresa(t.antigo) },
+      { titulo: t.jaTrocado ? 'Dados novos (já no cadastro do CRM)' : 'Dados novos', itens: itensEmpresa(t.novo) },
+    ].filter(g => g.itens.length);
+    return { ...base, acao, detalhes: [], grupos, aviso: t.aindaAntigo ? 'O cadastro do CRM ainda está com os dados antigos.' : null };
   }
   if (tipo === 'COMUNICACAO') {
     const det: any[] = Array.isArray(venda?.lojas_detalhe) ? venda.lojas_detalhe : [];
