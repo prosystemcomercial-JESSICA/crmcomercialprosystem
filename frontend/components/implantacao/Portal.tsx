@@ -346,6 +346,7 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
   const resolver = async (eid: string) => { const r = prompt('O que foi feito para resolver? (opcional)'); if (r === null) return; try { await apiClient.resolverEspera(eid, r || undefined); avisarCronometro(); } catch (e) { alert(erroDe(e)); } };
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <ResumoDemanda d={d} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button onClick={() => baixarPdf(false)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Relatório final (PDF)</button>
         {i.modulo === 'IMPLANTACAO' && <button onClick={() => baixarPdf(true)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Prévia do termo de aceite</button>}
@@ -386,6 +387,58 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
       {gestao && <DesignarTecnico id={i.id} tecnicoId={i.tecnico_id} recarregar={recarregar} />}
       {gestao && <EnviarAviso implantacaoId={i.id} tecnicoId={i.tecnico_id} />}
     </div>
+  );
+}
+
+// "O que fazer" no topo da Visão geral: a demanda em uma frase, o de/para e com quem falar.
+function ResumoDemanda({ d }: { d: any }) {
+  const r = d.resumo_demanda;
+  const [copiado, setCopiado] = useState(false);
+  if (!r) return null;
+  const col = d.implantacao.coleta || {};
+  const contato = col.decisor_telefone ? { nome: col.decisor_nome || null, fone: col.decisor_telefone } : contatosDoCliente(d)[0];
+  const nomeContato = contato?.nome || d.cliente_ficha?.contato || col.contato_nome || null;
+  const texto = [
+    r.acao, ...r.detalhes.map(([l, v]: [string, string]) => `${l}: ${v}`),
+    contato ? `Falar com ${nomeContato || 'o responsável da loja'} · Tel: ${fmtFone(contato.fone)}` : null,
+    r.autorizador ? `Autorizado por: ${r.autorizador}` : null,
+    r.observacao ? `Observação da venda: ${r.observacao}` : null,
+  ].filter(Boolean).join('\n');
+  const copiar = async () => { try { await navigator.clipboard.writeText(texto); setCopiado(true); setTimeout(() => setCopiado(false), 1800); } catch { alert(texto); } };
+  return (
+    <section style={{ display: 'grid', gap: 8 }}>
+      <style>{`.pt-dl-linha{display:grid;grid-template-columns:170px 1fr;gap:16px;padding:11px 14px;align-items:baseline}@media (max-width:560px){.pt-dl-linha{grid-template-columns:1fr;gap:2px}}`}</style>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={os.secao}>O que fazer</div>
+        <button onClick={copiar} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500, color: copiado ? '#16a34a' : '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 4px', minHeight: 44 }}>
+          {copiado ? <CheckCircle size={13} /> : <Copy size={13} />} {copiado ? 'Copiado' : 'Copiar resumo'}
+        </button>
+      </div>
+      <div style={{ ...os.painel, overflow: 'hidden', borderColor: '#2E6EAB40' }}>
+        <p style={{ margin: 0, padding: '14px 14px 12px', fontSize: 15, fontWeight: 600, lineHeight: 1.45, color: 'var(--t-text-primary)', textWrap: 'pretty' as any }}>{r.acao}</p>
+        {r.detalhes.length > 0 && (
+          <dl style={{ margin: 0, borderTop: `1px solid ${os.linha}` }}>
+            {r.detalhes.map(([l, v]: [string, string], k: number) => (
+              <div key={k} className="pt-dl-linha" style={{ borderTop: k ? `1px solid ${os.linha}` : 'none' }}>
+                <dt style={os.rotulo}>{l}</dt>
+                <dd style={{ ...os.valor, margin: 0, wordBreak: 'break-word', fontVariantNumeric: 'tabular-nums' }}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <div style={{ borderTop: `1px solid ${os.linha}` }}>
+          {contato
+            ? <LinhaContato papel={col.decisor_telefone ? 'Falar com · responsável da empresa' : 'Falar com'} nome={nomeContato} fone={contato.fone} />
+            : <div style={{ padding: 14, fontSize: 13, color: '#b45309' }}>Cliente sem telefone cadastrado: confira a ficha do cliente.</div>}
+        </div>
+        {(r.autorizador || r.observacao) && (
+          <div style={{ borderTop: `1px solid ${os.linha}`, padding: '11px 14px', display: 'grid', gap: 6 }}>
+            {r.autorizador && <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}><span style={os.rotulo}>Autorizado por </span>{r.autorizador}</div>}
+            {r.observacao && <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--t-text-secondary)', whiteSpace: 'pre-wrap' }}><span style={{ ...os.rotulo, display: 'block', marginBottom: 2 }}>Observação da venda</span>{r.observacao}</div>}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

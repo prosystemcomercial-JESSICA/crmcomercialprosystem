@@ -1222,3 +1222,17 @@ Pedido da Jessica: os agentes estavam individualistas, trocando pouco; precisam 
 - **Reunião diária da equipe (`reuniaoDaEquipe`):** dias úteis, entre 8h e 10h, uma vez por dia (em `rodarRafael`). O Rafael lê o mural das últimas 24 h, o estado de cada agente no Escritório e as dúvidas em aberto, e grava: a ata (REUNIAO, com resumo e até 5 aprendizados para todos), uma orientação para cada agente que precisa (até 8), as respostas às dúvidas que consegue responder com segurança pelo material, e o diálogo da reunião (aparece na sala do Escritório). Sem nada novo em 24 h, não faz reunião.
 - **Escritório › Mural da equipe:** lista do mais recente para o mais antigo, com filtros (Reuniões, Orientações do Rafael, Dúvidas em aberto/respondidas, Respostas, Experiências, Passagem de bastão, Conversas) e o botão **Reunião da equipe agora**. Rotas: `GET /assistente/escritorio/mural` e `POST /assistente/escritorio/reuniao` (só gestão).
 - **Testes:** `backend/tests/equipe-memoria.test.ts` (gravação das conversas, recarga no boot, falha ao gravar não derruba a operação).
+
+
+### Atualização 06/10/2026: "O que fazer" na Visão geral do card de serviço
+
+Pedido da Jessica: na Visão geral do card, um resumo da demanda a executar (ex.: "Realizar troca de CNPJ X para Y" e com quem falar, com o telefone).
+
+- **Regra única (backend):** `resumoDaDemanda(imp, venda, historico)` em `backend/src/lib/implantacao/portal.ts`, só para `modulo = SERVICO`. Devolve `{ acao, detalhes[[rótulo, valor]], observacao, autorizador }`.
+  - **Troca de CNPJ:** frase "Realizar a troca de CNPJ de X para Y" e detalhes CNPJ antigo/novo com as razões sociais. Fonte, nesta ordem: último `HistoricoCnpjCliente` do cliente; senão o `resumo_tecnico` salvo em `VendaAdicional.observacoes` (JSON da troca); senão o texto da vendedora ("ANTIGO … - NOVO …" e "CNPJ:"). O texto financeiro (valores) nunca vai para o técnico.
+  - **Comunicação:** "Configurar a comunicação entre N lojas" (ou "Incluir a loja…") com Loja 1, Loja 2… (código - nome) de `lojas_detalhe`/`lojas_nomes`.
+  - **Demais serviços:** "Executar: {descrição vendida | parceiro | tipo do serviço}".
+  - `observacao` = observações livres da venda (sem a linha "Lançamento retroativo"); `autorizador` = `autorizador_nome` da venda.
+- **API:** `GET` do card (`implantacao-portal.ts`) passa a devolver `resumo_demanda`; a busca da venda inclui `cliente_id, observacoes, lojas_detalhe, lojas_nomes, autorizador_nome` e, para troca de CNPJ, o último `HistoricoCnpjCliente`.
+- **Tela (`Portal.tsx`, componente `ResumoDemanda`):** primeiro bloco da aba Visão geral (Resumo). Seção "O que fazer": a frase em 15px/600, lista de definição com o de/para, linha "Falar com" (decisor, se houver; senão o contato principal da ficha) com ligar e WhatsApp, autorizador e observação da venda. Botão **Copiar resumo** copia tudo em texto para colar no WhatsApp ou no suporte. Implantação não muda.
+- **Testes:** `backend/tests/implantacao-resumo-demanda.test.ts` (7 casos: implantação sem resumo, troca pelo histórico, pelo resumo técnico, pelo texto da vendedora sem vazar valores, comunicação, serviço com autorizador, serviço sem venda).
