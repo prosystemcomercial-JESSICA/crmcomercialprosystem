@@ -38,7 +38,7 @@ const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // configurações e demais telas que só servem para editar.
 const CEO_VISIVEL = [
   '/dashboard', '/analise-comercial', '/relatorio-comercial', '/previsao', '/tv',
-  '/comissoes', '/metas', '/indicadores-ceo', '/cross-sell-ceo', '/centro-custos', '/ltv', '/casos',
+  '/comissoes', '/metas', '/indicadores-ceo', '/cross-sell-ceo', '/painel-ia', '/centro-custos', '/ltv', '/casos',
   '/pipeline-comercial', '/leads', '/manual',
 ];
 
@@ -60,6 +60,7 @@ const navGroups: NavGroup[] = [
       { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
       { href: '/retornos',  icon: MessageSquare,   label: 'Retornos agendados',     roles: [...COMERCIAL, 'SDR'] },
       { href: '/escritorio', icon: Building2,      label: 'Escritório virtual',     roles: [...COMERCIAL, 'SDR'] },
+      { href: '/painel-ia',  icon: BarChart2,      label: 'Painel da IA',           roles: GESTAO_COMERCIAL },
       { href: '/aprovar',    icon: Eye,            label: 'Aprovar',                roles: GESTAO_COMERCIAL },
       { href: '/desempenho', icon: LineChart,      label: 'Desempenho do setor',    roles: GESTAO_COMERCIAL },
       { href: '/meu-tempo',  icon: CalendarCheck,  label: 'Meu tempo',              roles: [...ALL, 'SDR'] },
