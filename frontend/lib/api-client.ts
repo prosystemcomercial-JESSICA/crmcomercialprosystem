@@ -902,7 +902,7 @@ class ApiClient {
   // Cronômetro do técnico e esperas da demanda
   async getCronometroAtual() { return this.client.get('/implantacoes/cronometro/atual'); }
   async playCronometro(data: { tipo: string; implantacao_id?: string | null; etapa?: string | null; descricao?: string | null; ocorrencia_id?: string | null }) { return this.client.post('/implantacoes/cronometro/play', data); }
-  async pausarCronometro() { return this.client.post('/implantacoes/cronometro/pausa', {}); }
+  async pausarCronometro(motivo?: string) { return this.client.post('/implantacoes/cronometro/pausa', motivo ? { motivo } : {}); }
   async getDiaTecnico(params: { tecnico_id?: string; data?: string } = {}) { return this.client.get('/implantacoes/cronometro/dia', { params }); }
   async corrigirSessao(id: string, data: { inicio?: string; fim?: string }) { return this.client.patch(`/implantacoes/sessoes/${id}`, data); }
   async getTemposImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/tempos`); }
@@ -957,6 +957,13 @@ class ApiClient {
   async atualizarTesteConversao(tid: string, data: { resultado?: string; observacao?: string; excluir?: boolean }) { return this.client.patch(`/implantacoes/testes-conv/${tid}`, data); }
   async anexarImplantacao(id: string, data: { nome: string; link?: string; arquivo?: string; descricao?: string }) { return this.client.post(`/implantacoes/${id}/anexos`, data); }
   async baixarAnexoImplantacao(aid: string) { return this.client.get(`/implantacoes/anexos/${aid}/download`, { responseType: 'blob' }); }
+  // Prints e histórico do card (06/10/2026)
+  async getRegistrosImplantacao(id: string, excluidos = false) { return this.client.get(`/implantacoes/${id}/registros`, { params: excluidos ? { excluidos: '1' } : {} }); }
+  async criarRegistroImplantacao(id: string, data: { tipo: 'PRINT' | 'OBS'; categoria?: string | null; texto?: string | null; imagem?: string | null; nome?: string | null }) { return this.client.post(`/implantacoes/${id}/registros`, data); }
+  async editarRegistroImplantacao(rid: string, texto: string) { return this.client.patch(`/implantacoes/registros/${rid}`, { texto }); }
+  async excluirRegistroImplantacao(rid: string, motivo?: string) { return this.client.delete(`/implantacoes/registros/${rid}`, { data: { motivo: motivo || null } }); }
+  async imagemRegistroImplantacao(rid: string) { return this.client.get(`/implantacoes/registros/${rid}/imagem`, { responseType: 'blob' }); }
+  async getHistoricoImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/historico`); }
   async removerAnexoImplantacao(aid: string) { return this.client.delete(`/implantacoes/anexos/${aid}`); }
   async getInventarioImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/inventario`); }
   async salvarInventarioImplantacao(id: string, data: { itens: any[]; versao_sistema?: string; observacoes?: string }) { return this.client.put(`/implantacoes/${id}/inventario`, data); }

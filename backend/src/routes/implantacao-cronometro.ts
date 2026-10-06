@@ -111,8 +111,11 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
   fastify.post('/implantacoes/cronometro/pausa', async (request, reply) => {
     const u = getUser(request);
     if (!u) return reply.status(401).send({ status: 'error', message: 'Faça login' });
+    // Motivo da pausa (06/10/2026): vai para a sessão e para o histórico do card.
+    const motivo = String((request.body as any)?.motivo || '').trim().slice(0, 300) || null;
     const s = await fecharAberta(prisma, u.id, 'PAUSA');
-    if (s?.implantacao_id) await linhaDoTempo(prisma, s.implantacao_id, `⏸ ${u.nome || 'Técnico'} pausou`, u);
+    if (s && motivo) await prisma.implantacaoSessao.update({ where: { id: s.id }, data: { motivo_pausa: motivo } }).catch(() => null);
+    if (s?.implantacao_id) await linhaDoTempo(prisma, s.implantacao_id, `⏸ ${u.nome || 'Técnico'} pausou${motivo ? `: ${motivo}` : ''}`, u);
     return reply.send({ status: 'success', data: { pausada: !!s } });
   });
 

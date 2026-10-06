@@ -53,11 +53,42 @@ const btn = (cor: string, cheio = true): React.CSSProperties => ({
   border: cheio ? 'none' : `1px solid ${cor}55`, background: cheio ? cor : 'transparent', color: cheio ? '#fff' : cor,
 });
 
+// Motivo da pausa (06/10/2026): um toque nos mais comuns ou escrito; vai para o histórico do card.
+const MOTIVOS_PAUSA = ['Intervalo / almoço', 'Fim do expediente', 'Reunião', 'Sem acesso ao cliente', 'Problema técnico'];
+export function ModalPausa({ onClose }: { onClose: () => void }) {
+  const [outro, setOutro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const pausar = async (motivo: string) => {
+    if (!motivo.trim()) return;
+    setOcupado(true);
+    try { await apiClient.pausarCronometro(motivo.trim()); avisar(); onClose(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); }
+  };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.4)', display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Motivo da pausa" style={{ background: 'var(--t-card-bg)', borderRadius: 14, padding: 18, width: 'min(420px, 100%)', display: 'grid', gap: 12, boxShadow: '0 20px 50px rgba(0,0,0,.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <b style={{ fontSize: 16, color: 'var(--t-text-primary)' }}>Por que vai pausar?</b>
+          <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--t-text-muted)' }}><X size={18} /></button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {MOTIVOS_PAUSA.map(m => <button key={m} disabled={ocupado} onClick={() => pausar(m)} style={{ ...btn('#dc2626', false), fontSize: 13, minHeight: 40, padding: '8px 12px' }}>{m}</button>)}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input value={outro} onChange={e => setOutro(e.target.value)} onKeyDown={e => e.key === 'Enter' && pausar(outro)} placeholder="Outro motivo" maxLength={300} className="ps-input" style={{ flex: 1, minHeight: 40 }} />
+          <button disabled={ocupado || !outro.trim()} onClick={() => pausar(outro)} style={{ ...btn('#dc2626'), minHeight: 40, opacity: !outro.trim() ? 0.5 : 1 }}><Pause size={12} /> Pausar</button>
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Se está esperando o cliente ou a programação, use <b>Espera</b>: o prazo para de contar.</span>
+      </div>
+    </div>
+  );
+}
+
 /** Barra do topo: o que está rodando, pausar, outra atividade e o total do dia. */
 export function CronometroBarra() {
   const { sessao, resumo, decorrido } = useCronometro();
   const [menu, setMenu] = useState(false);
   const [ocupado, setOcupado] = useState(false);
+  const [pausa, setPausa] = useState(false);
   const acao = async (f: () => Promise<any>) => { setOcupado(true); try { await f(); avisar(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); setMenu(false); } };
   const trabalhadoHoje = (resumo?.trabalhado_ms || 0);
   const rotulo = sessao ? (sessao.tipo === 'DEMANDA' ? `${NOME_ETAPA[sessao.etapa] || ''} · ${sessao.implantacao?.cliente_razao_social || ''}` : NOME_TIPO[sessao.tipo]) : null;
@@ -68,7 +99,7 @@ export function CronometroBarra() {
           <span style={{ width: 8, height: 8, borderRadius: 99, background: '#16a34a', animation: 'pulse 1.6s infinite' }} />
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-primary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rotulo || ''}>{rotulo}</span>
           <span style={{ fontSize: 13, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#15803d' }}>{fmtRelogio(decorrido)}</span>
-          <button disabled={ocupado} onClick={() => acao(() => apiClient.pausarCronometro())} style={btn('#dc2626')}><Pause size={12} /> Pausar</button>
+          <button disabled={ocupado} onClick={() => setPausa(true)} style={btn('#dc2626')}><Pause size={12} /> Pausar</button>
         </div>
       ) : (
         <span style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Coffee size={13} /> Cronômetro parado</span>
@@ -84,6 +115,7 @@ export function CronometroBarra() {
           ))}
         </div>
       )}
+      {pausa && <ModalPausa onClose={() => setPausa(false)} />}
       <span title="Trabalhado hoje (sem contar em dobro)" style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         <Clock size={12} /> Hoje {fmtDur(trabalhadoHoje)}
         {resumo?.aproveitamento != null && <b style={{ color: 'var(--t-text-primary)' }}> · {Math.round(resumo.aproveitamento * 100)}%</b>}
@@ -99,6 +131,7 @@ export function BotoesDemanda({ implantacao }: { implantacao: { id: string; clie
   const [etapa, setEtapa] = useState(implantacao.onboarding_ok === false ? 'ONBOARDING' : implantacao.tipo_base === 'CONVERSAO' ? 'CONVERSAO' : 'INSTALACAO');
   const [espera, setEspera] = useState(false);
   const [ocupado, setOcupado] = useState(false);
+  const [pausa, setPausa] = useState(false);
   useEffect(() => { if (rodandoAqui && sessao?.etapa) setEtapa(sessao.etapa); }, [rodandoAqui, sessao?.etapa]);
   const acao = async (f: () => Promise<any>) => { setOcupado(true); try { await f(); avisar(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); } };
   return (
@@ -108,13 +141,14 @@ export function BotoesDemanda({ implantacao }: { implantacao: { id: string; clie
         {ETAPAS.map(e => <option key={e.key} value={e.key}>{e.label}</option>)}
       </select>
       {rodandoAqui ? (
-        <button disabled={ocupado} onClick={() => acao(() => apiClient.pausarCronometro())} style={btn('#dc2626')}><Pause size={12} /> Pausar</button>
+        <button disabled={ocupado} onClick={() => setPausa(true)} style={btn('#dc2626')}><Pause size={12} /> Pausar</button>
       ) : (
         <button disabled={ocupado} onClick={() => acao(() => apiClient.playCronometro({ tipo: 'DEMANDA', implantacao_id: implantacao.id, etapa }))} style={btn('#16a34a')}
           title={sessao ? 'Pausa o que está rodando e começa aqui' : 'Começar a trabalhar nesta demanda'}><Play size={12} /> Play</button>
       )}
       <button onClick={() => setEspera(true)} style={btn('#d97706', false)} title="A demanda ficou parada esperando algo"><Hourglass size={12} /> Espera</button>
       {espera && <ModalEspera implantacao={implantacao} onClose={() => setEspera(false)} />}
+      {pausa && <ModalPausa onClose={() => setPausa(false)} />}
     </span>
   );
 }
