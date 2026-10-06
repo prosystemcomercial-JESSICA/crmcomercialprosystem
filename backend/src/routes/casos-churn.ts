@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { CasoChurnService } from '@/services/caso-churn.service';
 import { requireAuth, requireRole } from '@/middleware/auth';
+import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } from '@/types/dto';
 
 export async function casosChurnRoutes(
@@ -16,7 +17,7 @@ export async function casosChurnRoutes(
   fastify.post(
     '/casos-churn',
     {
-      onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'])]
+      onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)]
     },
     async (request, reply) => {
       try {
@@ -172,7 +173,7 @@ export async function casosChurnRoutes(
   // PATCH /casos-churn/:id — Atualizar caso
   fastify.patch(
     '/casos-churn/:id',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { id } = request.params as { id: string };
@@ -222,7 +223,7 @@ export async function casosChurnRoutes(
   // POST /casos-churn/:id/reabrir — Reabrir caso RECUPERADO (só uma vez, mesmo motivo)
   fastify.post(
     '/casos-churn/:id/reabrir',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { id } = request.params as { id: string };
@@ -262,7 +263,7 @@ export async function casosChurnRoutes(
     return reply.send({ status: 'success', data: lista });
   });
 
-  fastify.post('/casos-churn/:id/atualizacoes', { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'])] }, async (request, reply) => {
+  fastify.post('/casos-churn/:id/atualizacoes', { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const user = (request as any).user;
     const body = z.object({
@@ -293,7 +294,7 @@ export async function casosChurnRoutes(
   // Direto via Prisma (não passa pelo service/DTO) p/ não acoplar ao fluxo de caso.
   fastify.patch(
     '/casos-churn/:id/renegociacao',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { id } = request.params as { id: string };

@@ -173,3 +173,11 @@ export function podeVerQuadro(
   if (quadro.dono_id && quadro.dono_id === user.id) return true;
   return compartilhadoIds.includes(user.id);
 }
+
+/**
+ * Quem inclui e trata casos de churn (caso, atualizações, diagnóstico, plano de retenção e ações).
+ * SDR incluída a pedido da Jessica (06/10/2026). Mantém os nomes antigos (SUPERVISAO, TECNICO) que
+ * algumas rotas usavam. ADMIN/DIRETOR e admin_sistema já passam em qualquer requireRole.
+ * Excluir caso/plano/ação continua só com o CEO.
+ */
+export const ROLES_TRATAM_CHURN: any[] = ['CEO', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'SDR', 'SUPERVISAO', 'TECNICO'];

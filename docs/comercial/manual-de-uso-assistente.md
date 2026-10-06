@@ -1070,3 +1070,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Correção 06/10/2026: Fila de Chamados por atendente
 
 - Em **WhatsApp › Fila de Chamados › Por atendente**, o quadro agora mostra todas as conversas, não só as da aba aberta: aparecem as colunas dos agentes, da triagem, de cada pessoa que assumiu conversas (ex.: **Jessica Cardoso**) e de **Sem dono**.
+
+
+### Correção 06/10/2026: SDR nos casos de churn
+
+- A SDR agora vê **Churn & Retenção** no menu e consegue registrar um caso novo e tratá-lo: atualizações, diagnóstico, plano de retenção e ações. Excluir continua só com o CEO.

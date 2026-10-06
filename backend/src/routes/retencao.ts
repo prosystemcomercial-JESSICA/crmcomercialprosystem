@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, requireRole } from '@/middleware/auth';
+import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { PlanoRetencaoService, AcaoRetencaoService } from '@/services/retencao.service';
 import {
   CreatePlanoRetencaoSchema,
@@ -22,7 +23,7 @@ export async function retencaoRoutes(
   // Create retention plan
   fastify.post<{ Params: { casoId: string } }>(
     '/casos/:casoId/planos',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { casoId } = request.params;
@@ -104,7 +105,7 @@ export async function retencaoRoutes(
   // Update retention plan
   fastify.patch<{ Params: { planoId: string } }>(
     '/planos/:planoId',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { planoId } = request.params;
@@ -140,7 +141,7 @@ export async function retencaoRoutes(
   // Activate retention plan
   fastify.post<{ Params: { planoId: string } }>(
     '/planos/:planoId/ativar',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { planoId } = request.params;
@@ -166,7 +167,7 @@ export async function retencaoRoutes(
   // Conclude retention plan
   fastify.post<{ Params: { planoId: string } }>(
     '/planos/:planoId/concluir',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { planoId } = request.params;
@@ -217,7 +218,7 @@ export async function retencaoRoutes(
   // Create retention action
   fastify.post<{ Params: { casoId: string } }>(
     '/casos/:casoId/acoes',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO', 'TECNICO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { casoId } = request.params;
@@ -310,7 +311,7 @@ export async function retencaoRoutes(
   // Update retention action
   fastify.patch<{ Params: { acaoId: string } }>(
     '/acoes/:acaoId',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO', 'TECNICO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { acaoId } = request.params;
@@ -356,7 +357,7 @@ export async function retencaoRoutes(
   // Mark action as in progress
   fastify.post<{ Params: { acaoId: string } }>(
     '/acoes/:acaoId/progresso',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO', 'TECNICO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { acaoId } = request.params;
@@ -382,7 +383,7 @@ export async function retencaoRoutes(
   // Conclude retention action
   fastify.post<{ Params: { acaoId: string } }>(
     '/acoes/:acaoId/concluir',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO', 'TECNICO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { acaoId } = request.params;
@@ -408,7 +409,7 @@ export async function retencaoRoutes(
   // Cancel retention action
   fastify.post<{ Params: { acaoId: string } }>(
     '/acoes/:acaoId/cancelar',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { acaoId } = request.params;
