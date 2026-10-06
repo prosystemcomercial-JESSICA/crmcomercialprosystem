@@ -1125,6 +1125,11 @@ class ApiClient {
     return this.client.delete(`/parceiros/${id}`);
   }
 
+  // Painel da IA: visão panorâmica do Escritório virtual (hoje | 7d | 30d).
+  async getPainelIa(periodo: 'hoje' | '7d' | '30d') {
+    return this.client.get('/assistente/painel-ia', { params: { periodo } });
+  }
+
   // Dashboard de cross-sell e up-sell (período pela data da venda, YYYY-MM-DD).
   async getDashboardCrossSell(params?: { inicio?: string; fim?: string }) {
     return this.client.get('/vendas-adicionais/dashboard', { params });

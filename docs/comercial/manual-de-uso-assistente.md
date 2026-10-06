@@ -1026,3 +1026,13 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **MRR de expansão** é quanto a mensalidade da base aumentou com essas vendas. **Receita única** é o setup e os serviços cobrados uma vez. Os dois aparecem separados.
 - Escolha o período (este ano, últimos 12 meses, este trimestre ou datas suas). Veja o mês a mês, o crescimento do MRR, o ranking dos serviços mais vendidos, os vendedores e as comissões (pagas e a pagar) e a lista de vendas com busca. **Exportar planilha** baixa a lista para o Excel.
 - O CEO tem a página **Vendas para a base** no menu, com o mesmo painel.
+
+
+### Atualização 06/10/2026: Painel da IA
+
+- No menu, **Painel da IA** mostra tudo o que os 17 agentes do Escritório fizeram em **Hoje**, **7 dias** ou **30 dias**.
+- **Funil dos agentes:** dos contatos novos às vendas fechadas, com a passagem de cada etapa, a origem dos leads e como a Caroline, o Julio e o Luiz Felipe estão indo (abordados, quem respondeu, demos).
+- **Produtividade por agente:** quem está ligado, a última ação, mensagens, conversas, quanto os clientes responderam e as entregas de cada um.
+- **Atendimento e horários:** tempo da 1ª resposta (agentes e pessoas), clientes sem resposta, mensagens por dia e o mapa dos horários em que os clientes mais chamam.
+- **Equipe, qualidade e mercado:** mural e última reunião do Rafael, pós-venda e CSAT, implantações, Laya, pesquisas e documentos esperando sua aprovação.
+- Uma faixa laranja **Agora** avisa se há conversa esperando resposta, conversa sem dono ou mensagem de agente para aprovar.

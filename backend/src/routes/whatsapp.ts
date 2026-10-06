@@ -844,6 +844,25 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: await historicoAgente(prisma, id as any) });
   });
 
+  // Painel da IA (06/10/2026): visão panorâmica do Escritório virtual num período (só gestão).
+  // periodo: hoje | 7d | 30d. Cache de 60 s por período (as contas varrem as mensagens do período).
+  const cachePainelIa = new Map<string, { em: number; dados: any }>();
+  fastify.get('/assistente/painel-ia', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const per = String((request.query as any)?.periodo || '7d');
+    if (!['hoje', '7d', '30d'].includes(per)) return reply.status(400).send({ status: 'error', message: 'Período inválido' });
+    const c = cachePainelIa.get(per);
+    if (!c || Date.now() - c.em > 60_000) {
+      const agora = new Date();
+      const hojeSP = new Date(agora.getTime() - 3 * 36e5).toISOString().slice(0, 10);
+      const inicio = per === 'hoje' ? new Date(`${hojeSP}T00:00:00-03:00`) : new Date(agora.getTime() - (per === '7d' ? 7 : 30) * 864e5);
+      const { montarPainelIa } = await import('@/services/painel-ia.service');
+      cachePainelIa.set(per, { em: Date.now(), dados: await montarPainelIa(prisma, { inicio, fim: agora }, agora) });
+    }
+    const atual = cachePainelIa.get(per)!;
+    return reply.send({ status: 'success', data: { ...atual.dados, gerado_em: new Date(atual.em).toISOString() } });
+  });
+
   // Mural da equipe (06/10/2026): o que os agentes passam uns para os outros e para o Rafael (só gestão).
   fastify.get('/assistente/escritorio/mural', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
