@@ -725,6 +725,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const cliHist = venda?.cliente_id || imp.cliente_id;
     const historicoCnpj = imp.tipo_servico === 'TROCA_CNPJ' && cliHist
       ? await (prisma as any).historicoCnpjCliente.findFirst({ where: { cliente_id: cliHist }, orderBy: { created_at: 'desc' } }).catch(() => null) : null;
+    // Dados antigos completos (endereço, IE, telefone…) ficam no evento da troca na ficha do cliente.
+    const eventoTroca = imp.tipo_servico === 'TROCA_CNPJ' && cliHist
+      ? await (prisma as any).eventoCliente.findFirst({ where: { cliente_id: cliHist, tipo: 'TROCA_CNPJ' }, orderBy: { created_at: 'desc' }, select: { metadados: true } }).catch(() => null) : null;
     const tipo_demanda = imp.modulo === 'SERVICO'
       ? `Serviço · ${(imp.tipo_servico && TIPOS_SERVICO[imp.tipo_servico]?.label) || 'Outro'}`
       : `Implantação · ${imp.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : `conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''}`}`;
@@ -745,7 +748,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       anexos: anexos.map(a => ({ ...a, url: a.tipo === 'LINK' ? a.url : null, tela_suporte: a.id === imp.tela_suporte_arquivo_id })),
       assistida: (() => { const st = statusAssistida(imp, assistidaRegs); return st ? { ...st, registros: assistidaRegs } : null; })(),
       saude, prazo_efetivo: prazoP, prazo_ajuste_ms: msEsperaCliente(esperas, agoraP), tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
-      cliente_ficha, tipo_demanda, resumo_demanda: resumoDaDemanda(imp, venda, historicoCnpj), servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
+      cliente_ficha, tipo_demanda, resumo_demanda: resumoDaDemanda(imp, venda, historicoCnpj, { antes: (eventoTroca?.metadados as any)?.antes, cliente: cliente_ficha }), servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
 

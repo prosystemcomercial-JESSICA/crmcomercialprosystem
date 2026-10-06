@@ -400,14 +400,16 @@ function ResumoDemanda({ d }: { d: any }) {
   const nomeContato = contato?.nome || d.cliente_ficha?.contato || col.contato_nome || null;
   const texto = [
     r.acao, ...r.detalhes.map(([l, v]: [string, string]) => `${l}: ${v}`),
+    ...(r.grupos || []).flatMap((g: any) => ['', g.titulo.toUpperCase(), ...g.itens.map(([l, v]: [string, string]) => `${l}: ${v}`)]),
+    r.aviso ? `⚠ ${r.aviso}` : null,
     contato ? `Falar com ${nomeContato || 'o responsável da loja'} · Tel: ${fmtFone(contato.fone)}` : null,
     r.autorizador ? `Autorizado por: ${r.autorizador}` : null,
     r.observacao ? `Observação da venda: ${r.observacao}` : null,
-  ].filter(Boolean).join('\n');
+  ].filter(x => x != null).join('\n');
   const copiar = async () => { try { await navigator.clipboard.writeText(texto); setCopiado(true); setTimeout(() => setCopiado(false), 1800); } catch { alert(texto); } };
   return (
     <section style={{ display: 'grid', gap: 8 }}>
-      <style>{`.pt-dl-linha{display:grid;grid-template-columns:170px 1fr;gap:16px;padding:11px 14px;align-items:baseline}@media (max-width:560px){.pt-dl-linha{grid-template-columns:1fr;gap:2px}}`}</style>
+      <style>{`.pt-dl-linha{display:grid;grid-template-columns:170px 1fr;gap:16px;padding:11px 14px;align-items:baseline}@media (max-width:560px){.pt-dl-linha{grid-template-columns:1fr;gap:2px}}.pt-de-para{display:grid;grid-template-columns:1fr 1fr}@media (max-width:560px){.pt-de-para{grid-template-columns:1fr}.pt-de-para-novo{border-left:none!important;border-top:1px solid var(--t-card-border)}}`}</style>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <div style={os.secao}>O que fazer</div>
         <button onClick={copiar} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500, color: copiado ? '#16a34a' : '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 4px', minHeight: 44 }}>
@@ -426,6 +428,27 @@ function ResumoDemanda({ d }: { d: any }) {
             ))}
           </dl>
         )}
+        {(r.grupos || []).length > 0 && (
+          <div className="pt-de-para" style={{ borderTop: `1px solid ${os.linha}` }}>
+            {r.grupos.map((g: any, gi: number) => {
+              const novo = gi > 0;
+              return (
+                <div key={gi} style={{ padding: '12px 14px', display: 'grid', gap: 8, alignContent: 'start', background: novo ? '#2E6EAB08' : 'transparent', borderLeft: novo ? `1px solid ${os.linha}` : 'none' }} className={novo ? 'pt-de-para-novo' : undefined}>
+                  <div style={{ ...os.secao, color: novo ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{g.titulo}</div>
+                  <dl style={{ margin: 0, display: 'grid', gap: 8 }}>
+                    {g.itens.map(([l, v]: [string, string], k: number) => (
+                      <div key={k}>
+                        <dt style={os.rotulo}>{l}</dt>
+                        <dd style={{ margin: 0, fontSize: 14, fontWeight: novo ? 600 : 500, lineHeight: 1.45, color: novo ? 'var(--t-text-primary)' : 'var(--t-text-secondary)', wordBreak: 'break-word', fontVariantNumeric: 'tabular-nums' }}>{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {r.aviso && <div style={{ borderTop: `1px solid ${os.linha}`, padding: '10px 14px', fontSize: 13, color: '#b45309', display: 'flex', gap: 8, alignItems: 'center' }}><AlertTriangle size={14} /> {r.aviso}</div>}
         <div style={{ borderTop: `1px solid ${os.linha}` }}>
           {contato
             ? <LinhaContato papel={col.decisor_telefone ? 'Falar com · responsável da empresa' : 'Falar com'} nome={nomeContato} fone={contato.fone} />
