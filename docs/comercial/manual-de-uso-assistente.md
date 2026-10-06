@@ -998,4 +998,10 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Ao designar uma demanda no Portal Técnico, o técnico recebe na hora no WhatsApp dele: "🆕 Nova demanda", o cliente, o tipo e o link do portal.
 - O celular usado é o do cadastro do técnico em **Usuários**. Se estiver sem telefone, o portal avisa você na hora: coloque o celular e designe de novo.
 - Se o técnico desligou o WhatsApp nas preferências do portal, ele vê só no portal (e você é avisada).
+
+### Atualização 06/10/2026: Prints e Histórico do card
+
+- **Prints:** no card, abra **Prints**. Escolha a categoria (Print do suporte, Conversa, Aviso ou Outro) e cole com **Ctrl+V**, ou toque em **Colar print** / **Escolher imagens**. Escreva a observação de cada print e salve. Para mudar a observação, toque no lápis; para tirar, na lixeira (fica guardado na Auditoria, módulo Portal Técnico).
+- **Histórico do card:** em **Histórico**, tudo o que aconteceu na demanda, por dia: quando começou, cada pausa e o motivo, esperas, recados, observações e prints. No topo, escreva uma observação e, se quiser, cole um print junto.
+- **Pausar:** agora o cronômetro pergunta o motivo (um toque). Esperando cliente ou programação? Use **Espera**, não pausa.
 - Na página do sistema, a parte **Sua rotina antes e depois** brilha e mostra "Toque para comparar" até o cliente tocar; quando ele chega nela, a página já mostra sozinha a diferença uma vez.

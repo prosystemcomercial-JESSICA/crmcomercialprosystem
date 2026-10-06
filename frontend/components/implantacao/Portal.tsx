@@ -7,8 +7,9 @@ import {
   X, Loader2, CheckCircle, Hourglass, AlertTriangle, Rocket, FileText, Image as ImageIcon, Link2, Copy, Bell, Send,
   GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2, Phone, Building2, Search,
 } from 'lucide-react';
-import { BotoesDemanda, fmtDur, NOME_ESPERA, useCronometro } from './Cronometro';
+import { BotoesDemanda, fmtDur, ModalPausa, NOME_ESPERA, useCronometro } from './Cronometro';
 import { ConfirmarLeitura } from './ConfirmarLeitura';
+import { AbaPrints, AbaHistoricoCard } from './PrintsHistorico';
 
 // Portal de implantação e serviços: quadro (colunas do Trello), ficha da demanda, avisos, painel e configurações.
 
@@ -219,17 +220,14 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'testes' | 'anexos' | 'inventario' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico';
+type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'testes' | 'anexos' | 'inventario' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico' | 'prints';
 
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
   const [aba, setAba] = useState<Aba>(abaInicial || 'resumo');
-  const [hist, setHist] = useState<any[]>([]);
   const carregar = useCallback(async () => {
-    try {
-      const [r, h] = await Promise.all([apiClient.getPortalImplantacao(id), apiClient.getImplantacao(id).catch(() => null)]);
-      setD(r.data.data); setHist(h?.data?.data?.atividades || []);
-    } catch (e) { alert(erroDe(e)); onClose(); }
+    try { setD((await apiClient.getPortalImplantacao(id)).data.data); }
+    catch (e) { alert(erroDe(e)); onClose(); }
   }, [id, onClose]);
   useEffect(() => { carregar(); window.addEventListener('cronometro:mudou', carregar); return () => window.removeEventListener('cronometro:mudou', carregar); }, [carregar]);
   // Primeiro contato pendente: o card já abre no onboarding (uma vez, sem brigar com a escolha do técnico).
@@ -244,7 +242,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
     ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ...(d.assistida ? [['assistida', `Operação assistida ${d.assistida.feitos}/${d.assistida.total}`, CheckCircle] as [Aba, string, any]] : []), ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
-    ['tempos', 'Tempos', Clock], ['cliente', 'Página do cliente', Users], ['historico', 'Histórico', MessageSquare],
+    ['tempos', 'Tempos', Clock], ['cliente', 'Página do cliente', Users], ['historico', 'Histórico do card', MessageSquare], ['prints', 'Prints', FileText],
     ...(!servico ? [['testes', `Testes de conversão${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length ? ` (${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length})` : ''}`, CheckCircle] as [Aba, string, any]] : []),
     ['anexos', `Arquivos${(d.anexos || []).length ? ` (${d.anexos.length})` : ''}`, FileText], ['inventario', 'Inventário técnico', Settings],
     ['tarefascliente', `Tarefas do cliente${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length ? ` (${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length})` : ''}`, FileText],
@@ -254,7 +252,8 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
     { k: 'visao', l: 'Visão geral', subs: ['resumo'] },
     { k: 'cliente', l: 'Cliente', subs: ['fichacliente', 'tarefascliente', 'ficha', 'inventario', 'anexos', 'cliente'] },
     { k: 'execucao', l: 'Execução', subs: ['onboarding', 'checklist', 'testes', 'virada', 'assistida', 'treinamento', 'correcoes'] },
-    { k: 'conversa', l: 'Conversa', subs: ['observacoes', 'historico'] },
+    { k: 'prints', l: 'Prints', subs: ['prints'] },
+    { k: 'conversa', l: 'Histórico', subs: ['historico', 'observacoes'] },
     { k: 'tempos', l: 'Tempos', subs: ['tempos'] },
   ];
   const dispo = new Map(abas.map(([k, l, Icon]) => [k, { l, Icon }]));
@@ -320,17 +319,8 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         {aba === 'correcoes' && <AbaCorrecoes d={d} recarregar={carregar} />}
         {aba === 'tempos' && <AbaTempos d={d} />}
         {aba === 'cliente' && <AbaCliente d={d} recarregar={carregar} />}
-        {aba === 'historico' && (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {hist.length === 0 && <span style={{ color: 'var(--t-text-muted)', fontSize: 13 }}>Sem registros.</span>}
-            {hist.map((h: any) => (
-              <div key={h.id} style={{ fontSize: 13, display: 'flex', gap: 10 }}>
-                <span style={{ color: 'var(--t-text-muted)', width: 96, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmtDataHora(h.created_at)}</span>
-                <span style={{ color: 'var(--t-text-primary)' }}>{h.descricao} <span style={{ color: 'var(--t-text-muted)' }}>· {h.autor_nome}</span></span>
-              </div>
-            ))}
-          </div>
-        )}
+        {aba === 'historico' && <AbaHistoricoCard id={i.id} />}
+        {aba === 'prints' && <AbaPrints id={i.id} gestao={gestao} />}
       </div>
       <BarraCelularCard d={d} />
     </Gaveta>
@@ -1813,7 +1803,8 @@ function BarraCelularCard({ d }: { d: any }) {
   const { sessao } = useCronometro();
   const rodando = sessao?.implantacao_id === d.implantacao.id;
   const etapa = d.proximo_passo?.etapa || (d.onboarding_ok === false ? 'ONBOARDING' : 'INSTALACAO');
-  const play = async () => { try { if (rodando) await apiClient.pausarCronometro(); else await apiClient.playCronometro({ tipo: 'DEMANDA', implantacao_id: d.implantacao.id, etapa }); avisarCronometro(); } catch (e) { alert(erroDe(e)); } };
+  const [pausa, setPausa] = useState(false);
+  const play = async () => { if (rodando) { setPausa(true); return; } try { await apiClient.playCronometro({ tipo: 'DEMANDA', implantacao_id: d.implantacao.id, etapa }); avisarCronometro(); } catch (e) { alert(erroDe(e)); } };
   const item: React.CSSProperties = { flex: 1, minHeight: 52, display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 11, fontWeight: 600, color: 'var(--t-text-secondary)', textDecoration: 'none', background: 'transparent', border: 'none' };
   return (
     <div className="pt-barra-celular" style={{ borderTop: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
@@ -1821,6 +1812,7 @@ function BarraCelularCard({ d }: { d: any }) {
       {n ? <a href={`tel:${n}`} style={item}><Phone size={18} color="#2E6EAB" />Ligar</a> : <span style={{ ...item, opacity: 0.4 }}><Phone size={18} />Sem telefone</span>}
       {wa ? <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={item}><MessageSquare size={18} color="#16a34a" />WhatsApp</a> : <span style={{ ...item, opacity: 0.4 }}><MessageSquare size={18} />WhatsApp</span>}
       <button onClick={play} style={{ ...item, color: rodando ? '#dc2626' : 'var(--t-text-secondary)' }}><Play size={18} color={rodando ? '#dc2626' : '#2E6EAB'} />{rodando ? 'Pausar' : 'Play'}</button>
+      {pausa && <ModalPausa onClose={() => setPausa(false)} />}
     </div>
   );
 }

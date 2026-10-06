@@ -606,6 +606,7 @@ async function loadRoutes() {
     ['implantacoes',          () => import('./routes/implantacoes'),          'implantacoesRoutes'],
     ['implantacao-cronometro', () => import('./routes/implantacao-cronometro'), 'implantacaoCronometroRoutes'],
     ['implantacao-portal',    () => import('./routes/implantacao-portal'),    'implantacaoPortalRoutes'],
+    ['implantacao-registros', () => import('./routes/implantacao-registros'), 'implantacaoRegistrosRoutes'],
     ['health-score',          () => import('./routes/health-score'),          'healthScoreRoutes'],
     ['dashboard-power',       () => import('./routes/dashboard-power'),       'dashboardPowerRoutes'],
     ['relatorios-comerciais', () => import('./routes/relatorios-comerciais'), 'relatoriosComerciais'],

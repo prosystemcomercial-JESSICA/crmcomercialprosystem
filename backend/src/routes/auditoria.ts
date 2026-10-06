@@ -9,7 +9,7 @@ import { requireGestor } from '@/lib/scope';
  *   - PropostaHistorico  (módulo PROPOSTA: criação, renegociação, aceite, exclusão)
  *   - LeadHistorico      (módulo LEAD: mudança de etapa, alteração de dados, atribuição)
  *   - LeadObservacao     (módulo LEAD: contatos/observações)
- *   - AuditoriaUsuario   (módulo USUARIO: criar/editar/excluir usuário)
+ *   - AuditoriaUsuario   (módulo USUARIO: criar/editar/excluir usuário; módulo IMPLANTACAO: ações CARD_* do Portal Técnico)
  *
  * Cada evento é normalizado para um formato único e filtrável.
  */
@@ -116,13 +116,32 @@ export async function auditoriaRoutes(fastify: FastifyInstance, options: { prism
       }
     }
 
-    // ── USUARIO (AuditoriaUsuario) ──
-    if (wantModulo('USUARIO')) {
+    // ── USUARIO (AuditoriaUsuario) e PORTAL TÉCNICO (ações CARD_*: prints/observações editados ou excluídos) ──
+    if (wantModulo('USUARIO') || wantModulo('IMPLANTACAO')) {
       const rows: any[] = await prisma.$queryRawUnsafe(
         `SELECT id, ator_id, ator_nome, ator_role, acao, alvo_id, alvo_nome, detalhes, created_at
          FROM AuditoriaUsuario ORDER BY created_at DESC LIMIT 1000`
       ).catch(() => []);
       for (const r of rows) {
+        if (String(r.acao || '').startsWith('CARD_')) {
+          if (!wantModulo('IMPLANTACAO')) continue;
+          let det: any = r.detalhes;
+          try { if (typeof det === 'string') det = JSON.parse(det); } catch { det = {}; }
+          det = det || {};
+          const editou = r.acao === 'CARD_EDITOU_REGISTRO';
+          eventos.push({
+            id: 'au-' + r.id, data: new Date(r.created_at).toISOString(),
+            modulo: 'IMPLANTACAO', tipo: r.acao,
+            descricao: `${editou ? 'Editou' : 'Excluiu'} registro do card: ${r.alvo_nome || '—'}`,
+            ator_id: r.ator_id || null, ator_nome: nomeDe(r.ator_id, r.ator_nome), ator_role: r.ator_role || roleDe(r.ator_id),
+            alvo: r.alvo_nome || null,
+            detalhe: editou
+              ? `Antes: "${det.antes || ''}" → Depois: "${det.depois || ''}"${det.autor_original ? ` · escrito por ${det.autor_original}` : ''}`
+              : `Texto: "${det.texto || ''}"${det.imagem ? ` · imagem ${det.imagem} (guardada)` : ''}${det.autor_original ? ` · enviado por ${det.autor_original}` : ''}${det.motivo ? ` · motivo: ${det.motivo}` : ''}`,
+          });
+          continue;
+        }
+        if (!wantModulo('USUARIO')) continue;
         eventos.push({
           id: 'au-' + r.id, data: new Date(r.created_at).toISOString(),
           modulo: 'USUARIO', tipo: r.acao || 'EVENTO',

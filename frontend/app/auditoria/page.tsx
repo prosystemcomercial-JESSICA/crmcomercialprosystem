@@ -19,6 +19,7 @@ const MODULO_CFG: Record<string, { label: string; cor: string; bg: string; icon:
   PROPOSTA: { label: 'Proposta', cor: '#2E6EAB', bg: '#EBF4FF', icon: FileText },
   LEAD:     { label: 'Lead',     cor: '#7c3aed', bg: '#f3e8ff', icon: GitMerge },
   USUARIO:  { label: 'Usuário',  cor: '#ea580c', bg: '#ffedd5', icon: Users },
+  IMPLANTACAO: { label: 'Portal Técnico', cor: '#0369a1', bg: '#e0f2fe', icon: FileText },
 };
 const fmtDateTime = (s?: string | null) =>
   s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -132,6 +133,7 @@ export default function AuditoriaPage() {
               <option value="PROPOSTA">Proposta</option>
               <option value="LEAD">Lead</option>
               <option value="USUARIO">Usuário</option>
+              <option value="IMPLANTACAO">Portal Técnico</option>
             </select>
           </div>
           <div>
