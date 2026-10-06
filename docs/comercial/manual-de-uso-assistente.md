@@ -1041,3 +1041,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Correção 06/10/2026: alertas de implantação no sino
 
 - O sino deixou de avisar implantações antigas (de antes do recomeço do Portal Técnico, em 02/10/2026) como "atrasadas". Agora ele usa a mesma régua do portal: só demandas novas, conta a virada e a conclusão feitas no portal e pausa o prazo enquanto a loja não entrega o que precisa.
+
+
+### Atualização 06/10/2026: Cross-sell & Up-sell no Painel do CEO
+
+- No **Dashboard** (Painel do CEO), a aba **Cross-sell & Up-sell** traz todos os relatórios das vendas para a base: MRR de expansão, receita única, mês a mês, serviços mais vendidos, vendedores e comissões e a lista de vendas para exportar.
