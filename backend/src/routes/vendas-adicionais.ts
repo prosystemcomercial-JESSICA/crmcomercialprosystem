@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { scopeUserId, podeVerTudo, requireGestor } from '@/lib/scope';
 import { resolverNomesUsuarios, resolverSupervisorComercial } from '@/lib/usuarios';
 import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
+import { montarDashboardCrossSell } from '@/lib/crosssell-dashboard';
 
 const PARCEIROS_DEFAULT = [
   {
@@ -248,6 +249,41 @@ export async function vendasAdicionaisRoutes(fastify: FastifyInstance, options: 
 
   // ===== VENDAS ADICIONAIS =====
   // Status flow: PENDENTE → CONFIRMADA → PAGA | CANCELADO
+
+  // Dashboard de cross-sell e up-sell (aba Dashboard do Cross-sell e página do CEO).
+  // Período pela data da venda (data_venda → data_confirmacao → created_at); padrão: ano atual.
+  // Escopo: vendedor vê só as próprias vendas; gestão e CEO veem todas.
+  fastify.get('/vendas-adicionais/dashboard', async (request, reply) => {
+    const q = z.object({ inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), fim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).safeParse(request.query);
+    if (!q.success) return reply.status(400).send({ status: 'error', message: 'Período inválido' });
+    const ano = new Date().getFullYear();
+    const inicio = new Date(`${q.data.inicio || `${ano}-01-01`}T00:00:00-03:00`);
+    const fim = new Date(`${q.data.fim || `${ano}-12-31`}T23:59:59-03:00`);
+    if (fim < inicio) return reply.status(400).send({ status: 'error', message: 'O fim do período é antes do início' });
+    const scopeId = scopeUserId(request);
+    // Margem de 1 ano no created_at: vendas retroativas têm created_at = data da venda; as normais, depois dela.
+    const vendas = await prisma.vendaAdicional.findMany({
+      where: {
+        ...(scopeId !== null ? { vendedor_id: scopeId } : {}),
+        OR: [{ data_venda: { gte: inicio, lte: fim } }, { data_venda: null, created_at: { gte: new Date(inicio.getTime() - 366 * 864e5), lte: fim } }],
+      },
+      include: { parceiro: { select: { nome: true, categoria: true } }, cliente: { select: { codigo: true, razao_social: true, nome_fantasia: true, nome: true } } },
+    });
+    const ids = vendas.map(v => v.id);
+    const comissoes = ids.length ? await prisma.comissao.findMany({
+      where: { referencia_id: { in: ids }, tipo: { in: ['VENDA_ADICIONAL', 'SUPERVISAO_VENDA_ADICIONAL'] } },
+      select: { referencia_id: true, papel: true, valor_comissao: true, status: true },
+    }) : [];
+    const dados = montarDashboardCrossSell(vendas.map((v: any) => ({
+      id: v.id, categoria: v.parceiro?.categoria || null, parceiro_nome: v.parceiro?.nome || null,
+      cliente_codigo: v.cliente?.codigo || null, cliente_nome: v.cliente?.razao_social || v.cliente?.nome_fantasia || v.cliente?.nome || null,
+      vendedor_id: v.vendedor_id, vendedor_nome: v.vendedor_nome, status: v.status,
+      valor_venda: v.valor_venda, acrescimo_mensal: v.acrescimo_mensal, mensalidade_anterior: v.mensalidade_anterior, mensalidade_nova: v.mensalidade_nova,
+      lojas_detalhe: v.lojas_detalhe, descricao_servico: v.descricao_servico,
+      data: v.data_venda || v.data_confirmacao || v.created_at,
+    })), comissoes, { inicio, fim });
+    return reply.send({ status: 'success', data: dados });
+  });
 
   fastify.get('/vendas-adicionais', async (request, reply) => {
     const query = z.object({

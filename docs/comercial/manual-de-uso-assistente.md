@@ -1018,3 +1018,11 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Ao abrir um card de **serviço** (troca de CNPJ, comunicação, impressora, outros), a **Visão geral** começa com **O que fazer**: a tarefa em uma frase (ex.: "Realizar a troca de CNPJ de 27.829.030/0001-61 para 65.045.303/0001-76"), o CNPJ e a razão social antigos e novos, ou as lojas da comunicação, e **com quem falar**, com o telefone para ligar ou chamar no WhatsApp.
 - Na **troca de CNPJ**, o card mostra lado a lado os **dados antigos** e os **dados novos** (CNPJ, razão social, fantasia, inscrição estadual, endereço, telefone e e-mail). Se o cadastro do CRM ainda estiver com o CNPJ antigo, aparece um aviso.
 - Toque em **Copiar resumo** para colar o texto no WhatsApp ou no suporte.
+
+
+### Atualização 06/10/2026: Dashboard de vendas para a base
+
+- No módulo **Cross-sell**, a aba **📊 Dashboard** mostra tudo o que foi vendido para quem já é cliente: trocas de CNPJ, upgrades, comunicação, pacote fiscal e serviços.
+- **MRR de expansão** é quanto a mensalidade da base aumentou com essas vendas. **Receita única** é o setup e os serviços cobrados uma vez. Os dois aparecem separados.
+- Escolha o período (este ano, últimos 12 meses, este trimestre ou datas suas). Veja o mês a mês, o crescimento do MRR, o ranking dos serviços mais vendidos, os vendedores e as comissões (pagas e a pagar) e a lista de vendas com busca. **Exportar planilha** baixa a lista para o Excel.
+- O CEO tem a página **Vendas para a base** no menu, com o mesmo painel.
