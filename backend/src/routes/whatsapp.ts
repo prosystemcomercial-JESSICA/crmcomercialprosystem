@@ -732,8 +732,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     try {
       const r = await evo.enviarTexto(conversa.instancia.instance_token || '', conversa.contato_numero, msg);
       externo_id = r.externo_id;
+      await corrigirNumeroConversa(conversa, r.numero_corrigido);
     } catch (e: any) {
-      return reply.status(502).send({ status: 'error', message: `Reunião criada, mas falha ao enviar no WhatsApp: ${e.message}` });
+      return reply.status(statusErroEnvio(e)).send({ status: 'error', message: `Reunião criada, mas falha ao enviar no WhatsApp: ${e.message}` });
     }
 
     // Registra a mensagem enviada no Inbox.
@@ -747,6 +748,15 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { atividadeId } });
   });
 
+  // O envio achou o número na outra forma (com/sem o 9 extra): a conversa passa a usar o número certo.
+  // Se já existir outra conversa com esse número na instância, não mexe (evita duplicar).
+  const corrigirNumeroConversa = async (conversa: { id: string; instanciaId: string }, numero?: string) => {
+    if (!numero) return;
+    const outra = await prisma.whatsappConversa.findFirst({ where: { instanciaId: conversa.instanciaId, contato_numero: numero, NOT: { id: conversa.id } }, select: { id: true } });
+    if (!outra) await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { contato_numero: numero } }).catch(() => {});
+  };
+  const statusErroEnvio = (e: any) => (e instanceof evo.NumeroSemWhatsapp ? 400 : 502);
+
   // Abre (ou cria) uma conversa pelo número — usado pelos botões de WhatsApp
   // espalhados no CRM (leads, clientes, etc.) que agora levam ao Inbox interno.
   fastify.post('/whatsapp/abrir', async (request, reply) => {
@@ -755,11 +765,19 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const body = z.object({ numero: z.string().min(8), nome: z.string().optional(), lead_id: z.string().optional() }).safeParse(request.body);
     if (!body.success) return reply.status(400).send({ status: 'error', message: 'Número inválido' });
 
-    const numero = evo.normalizarNumero(body.data.numero);
+    let numero = evo.normalizarNumero(body.data.numero);
     // WhatsApp da empresa tem prioridade; senão, a instância do próprio usuário.
     const empresa = await obterInstanciaEmpresa(prisma);
     const inst = empresa || await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: instanciaNomeDe(user.id) } });
     if (!inst) return reply.status(400).send({ status: 'error', message: 'Conecte seu WhatsApp primeiro' });
+
+    // Conversa nova: confere antes se o número tem WhatsApp (e se existe só sem/com o 9 extra).
+    const jaExiste = await prisma.whatsappConversa.findUnique({ where: { uq_conversa: { instanciaId: inst.id, contato_numero: numero } }, select: { id: true } });
+    if (!jaExiste && inst.instance_token) {
+      const r = await evo.resolverNumero(inst.instance_token, numero);
+      if (r.existe === false) return reply.status(400).send({ status: 'error', message: `Este número não tem WhatsApp (${numero}). Confira o número com o cliente.` });
+      if (r.existe && r.numero !== numero) numero = r.numero;
+    }
 
     const conversa = await prisma.whatsappConversa.upsert({
       where: { uq_conversa: { instanciaId: inst.id, contato_numero: numero } },
@@ -1452,8 +1470,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     try {
       const r = await evo.enviarTexto(conversa.instancia.instance_token || '', conversa.contato_numero, body.data.texto);
       externo_id = r.externo_id;
+      await corrigirNumeroConversa(conversa, r.numero_corrigido);
     } catch (err: any) {
-      return reply.status(502).send({ status: 'error', message: `Falha ao enviar: ${err.message}` });
+      return reply.status(statusErroEnvio(err)).send({ status: 'error', message: err instanceof evo.NumeroSemWhatsapp ? err.message : `Falha ao enviar: ${err.message}` });
     }
 
     const msg = await prisma.whatsappMensagem.create({
@@ -1503,7 +1522,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       const r = await evo.enviarAudio(conversa.instancia.instance_token || '', conversa.contato_numero, dataUrl);
       externo_id = r.externo_id;
     } catch (err: any) {
-      return reply.status(502).send({ status: 'error', message: `Falha ao enviar áudio: ${err.message}` });
+      return reply.status(statusErroEnvio(err)).send({ status: 'error', message: `Falha ao enviar áudio: ${err.message}` });
     }
 
     const msg = await prisma.whatsappMensagem.create({
@@ -1558,7 +1577,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     try {
       r = await evo.enviarArquivo(conversa.instancia.instance_token || '', conversa.contato_numero, dataUrl, body.data.nome, legenda);
     } catch (err: any) {
-      return reply.status(502).send({ status: 'error', message: `Falha ao enviar arquivo: ${err.message}` });
+      return reply.status(statusErroEnvio(err)).send({ status: 'error', message: `Falha ao enviar arquivo: ${err.message}` });
     }
 
     const rotulo = r.tipo === 'IMAGEM' ? '🖼️ Imagem' : r.tipo === 'VIDEO' ? '🎬 Vídeo' : `📎 ${body.data.nome}`;

@@ -1279,3 +1279,14 @@ Pedido da Jessica: os relatórios de cross-sell e up-sell ficam dentro do Painel
 - **Dashboard Executivo (`/dashboard`, o Painel do CEO):** nova aba **Cross-sell & Up-sell**, logo depois de "Comercial & Pipeline", com o `DashboardCrossSell` completo (modo CEO): MRR de expansão e ARR, receita única, vendas e clientes, ticket médio, comissões; destaques (mais vendido, maior MRR, melhor mês e trimestre); mês a mês com seletor; crescimento do MRR acumulado; ranking por tipo de serviço com tabela e % da receita; vendedores e comissões; lista de vendas com busca, filtro e exportação.
 - **Link direto para aba:** `/dashboard?aba=crosssell` (vale para qualquer aba: comercial, crosssell, retencao, equipe, funis, manuais), lido no carregamento da página.
 - **`/cross-sell-ceo`:** virou redirecionamento para `/dashboard?aba=crosssell`; o item "Vendas para a base" saiu do menu (evita duas telas iguais). A aba Dashboard do módulo Cross-sell (`/indicacoes`) continua.
+
+
+### Correção 06/10/2026: "número não está no WhatsApp" no envio
+
+Relato da Jessica: erro "UazAPI POST /send/text → 500: the number 5593992395940@s.whatsapp.net is not on WhatsApp" ao mandar mensagem.
+
+- **Diagnóstico:** conversa aberta em 05/10 pelo campo "Novo" com 55 93 99239-5940 (Mario Orlando Batista Dezincourt), nenhuma mensagem saiu. Conferido no `/chat/check` da UazAPI: nem 5593992395940 nem 559392395940 têm WhatsApp. O número está errado ou não usa WhatsApp; não era falha do CRM. Mas o CRM só descobria no envio e mostrava o erro técnico.
+- **Erro claro:** `evolution.service.ts` reconhece a resposta "is not on WhatsApp" (`ehNumeroSemWhatsapp`) e lança `NumeroSemWhatsapp` com a mensagem "Este número não tem WhatsApp (…). Confira o número com o cliente." As rotas de envio (texto, áudio, arquivo, convite de reunião) devolvem 400 com essa mensagem em vez de 502 com o texto da UazAPI.
+- **9 extra do celular:** `numeroAlternativoBR` dá a outra forma do celular brasileiro (13 dígitos com o 9 ↔ 12 sem ele; fixo/internacional = null). `resolverNumero` consulta as duas no `/chat/check` e devolve a que existe (pelo jid). `enviarTexto`, ao receber "não está no WhatsApp", tenta a outra forma e, se existir, envia nela e devolve `numero_corrigido`; as rotas de envio manual e de convite de reunião atualizam o número da conversa (`corrigirNumeroConversa`, sem duplicar conversa). Na base havia 21 conversas de DDD 31+ com o 9 extra.
+- **Conversa nova (`POST /whatsapp/abrir`):** antes de criar, confere o número; se nenhuma forma tem WhatsApp, devolve 400 com a mensagem clara (não cria conversa vazia); se só a outra forma existe, cria com ela. Se a UazAPI não responder, segue como antes.
+- **Testes:** `backend/tests/whatsapp-numero-alternativo.test.ts` (4 casos); os 85 testes de WhatsApp passam.

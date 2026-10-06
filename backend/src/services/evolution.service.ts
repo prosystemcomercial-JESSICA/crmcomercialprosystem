@@ -31,6 +31,28 @@ export function evolutionConfigurada(): boolean {
   return !!process.env.EVOLUTION_API_URL && !!process.env.EVOLUTION_API_KEY;
 }
 
+/** A UazAPI recusou o envio porque o número não tem conta no WhatsApp. */
+export class NumeroSemWhatsapp extends Error {
+  constructor(public numero: string) {
+    super(`Este número não tem WhatsApp${numero ? ` (${numero})` : ''}. Confira o número com o cliente.`);
+    this.name = 'NumeroSemWhatsapp';
+  }
+}
+export const ehNumeroSemWhatsapp = (respostaOuMensagem: string) => /is not on WhatsApp/i.test(respostaOuMensagem || '');
+
+/**
+ * Celular brasileiro na outra forma: com o 9 extra (13 dígitos) ↔ sem ele (12 dígitos).
+ * Muitas contas de DDD 31+ estão registradas sem o 9. Fixo, internacional ou inválido → null.
+ */
+export function numeroAlternativoBR(numero: string): string | null {
+  const n = (numero || '').replace(/\D/g, '');
+  const com9 = n.match(/^55(\d{2})9([6-9]\d{7})$/);
+  if (com9) return `55${com9[1]}${com9[2]}`;
+  const sem9 = n.match(/^55(\d{2})([6-9]\d{7})$/);
+  if (sem9) return `55${sem9[1]}9${sem9[2]}`;
+  return null;
+}
+
 async function call(path: string, method: 'GET' | 'POST' | 'DELETE', token: string, body?: any) {
   const res = await fetch(`${getBaseUrl()}${path}`, {
     method,
@@ -44,6 +66,7 @@ async function call(path: string, method: 'GET' | 'POST' | 'DELETE', token: stri
   let json: any = null;
   try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text }; }
   if (!res.ok) {
+    if (ehNumeroSemWhatsapp(text)) throw new NumeroSemWhatsapp(String(body?.number || ''));
     throw new Error(`UazAPI ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
   }
   return json;
@@ -160,6 +183,22 @@ export async function verificarWhatsapp(instanceToken: string, numeros: string[]
 }
 
 /**
+ * Qual forma do número existe no WhatsApp (a digitada ou a sem/com o 9 extra), pelo /chat/check.
+ * existe: true (numero = a forma que existe, pelo jid), false (nenhuma existe), undefined (a UazAPI não respondeu).
+ */
+export async function resolverNumero(instanceToken: string, numero: string): Promise<{ numero: string; existe: boolean | undefined }> {
+  const n = normalizarNumero(numero);
+  const alt = numeroAlternativoBR(n);
+  try {
+    const data = await call('/chat/check', 'POST', instanceToken, { numbers: alt ? [n, alt] : [n] });
+    const lista: any[] = Array.isArray(data) ? data : Array.isArray(data?.numbers) ? data.numbers : Array.isArray(data?.result) ? data.result : [];
+    const achou = lista.find(x => x?.isInWhatsapp ?? x?.exists ?? x?.onWhatsapp);
+    if (achou) return { numero: String(achou.jid || achou.query || n).split('@')[0].replace(/\D/g, '') || n, existe: true };
+    return { numero: n, existe: lista.length ? false : undefined };
+  } catch { return { numero: n, existe: undefined }; }
+}
+
+/**
  * Nome do perfil do contato no WhatsApp (POST /chat/details), sem mandar nada.
  * undefined = a UazAPI não respondeu; null = contato sem nome.
  */
@@ -176,13 +215,17 @@ export async function enviarTexto(
   numero: string,
   texto: string,
   digitandoMs?: number, // UAZAPI: espera mostrando "digitando..." antes de enviar
-): Promise<{ externo_id?: string }> {
-  const data = await call('/send/text', 'POST', instanceToken, {
-    number: normalizarNumero(numero),
-    text: texto,
-    ...(digitandoMs ? { delay: Math.round(digitandoMs) } : {}),
-  });
-  return { externo_id: idDaMensagemEnviada(data) };
+): Promise<{ externo_id?: string; numero_corrigido?: string }> {
+  const enviar = (n: string) => call('/send/text', 'POST', instanceToken, { number: n, text: texto, ...(digitandoMs ? { delay: Math.round(digitandoMs) } : {}) });
+  try {
+    return { externo_id: idDaMensagemEnviada(await enviar(normalizarNumero(numero))) };
+  } catch (e) {
+    // Número sem WhatsApp: tenta a outra forma do celular (com/sem o 9 extra) antes de desistir.
+    if (!(e instanceof NumeroSemWhatsapp)) throw e;
+    const r = await resolverNumero(instanceToken, numero);
+    if (!r.existe || r.numero === normalizarNumero(numero)) throw e;
+    return { externo_id: idDaMensagemEnviada(await enviar(r.numero)), numero_corrigido: r.numero };
+  }
 }
 
 /**
