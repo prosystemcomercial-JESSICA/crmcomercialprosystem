@@ -17,6 +17,7 @@ import PainelJoana from '@/components/escritorio/PainelJoana';
 import SalaTreinamento, { type FalaNaSala } from '@/components/escritorio/SalaTreinamento';
 import PainelHeitor from '@/components/escritorio/PainelHeitor';
 import { ConfigPortalImplantacao } from '@/components/implantacao/Portal';
+import { MuralEquipe } from '@/components/escritorio/MuralEquipe';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
 // leitura; atualiza a cada 30 s com o que cada agente fez hoje.
@@ -381,6 +382,8 @@ export default function EscritorioPage() {
               </button>
             ))}
           </div>
+
+          <MuralEquipe />
         </div>
       </div>
     </DashboardLayout>

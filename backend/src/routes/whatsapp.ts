@@ -844,6 +844,21 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: await historicoAgente(prisma, id as any) });
   });
 
+  // Mural da equipe (06/10/2026): o que os agentes passam uns para os outros e para o Rafael (só gestão).
+  fastify.get('/assistente/escritorio/mural', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = request.query as { tipo?: string; agente?: string };
+    const { muralDaEquipe } = await import('@/services/equipe.service');
+    return reply.send({ status: 'success', data: await muralDaEquipe(prisma, { tipo: q.tipo || null, agente: q.agente || null }) });
+  });
+  // Rodar a reunião da equipe agora (o Rafael conduz), sem esperar o horário das 8h.
+  fastify.post('/assistente/escritorio/reuniao', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { reuniaoDaEquipe } = await import('@/services/equipe.service');
+    try { return reply.send({ status: 'success', data: await reuniaoDaEquipe(prisma) }); }
+    catch (e: any) { return reply.status(502).send({ status: 'error', message: e?.message || 'O Rafael não conseguiu fazer a reunião agora.' }); }
+  });
+
   // Escritório virtual: conversa e instruções com cada agente (só gestão).
   fastify.get('/assistente/escritorio/agentes/:id/conversa', async (request, reply) => {
     if (!requireGestor(request, reply)) return;

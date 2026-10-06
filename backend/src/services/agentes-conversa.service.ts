@@ -14,8 +14,11 @@ export async function instrucoesPara(prisma: PrismaClient, agente: string): Prom
   const rs = await prisma.agenteInstrucao.findMany({
     where: { ativa: true, agente: { in: [agente, EQUIPE] } }, orderBy: { created_at: 'asc' }, take: 40,
   }).catch(() => []);
-  if (!rs.length) return '';
-  return `\n\n### Instruções da supervisão (siga sempre)\n${rs.map(r => `- ${r.texto}`).join('\n')}`;
+  // Mural da equipe (06/10/2026): o que os colegas e o Rafael passaram entra no prompt de todos.
+  const { muralPara } = await import('./equipe.service');
+  const mural = await muralPara(prisma, agente);
+  if (!rs.length) return mural;
+  return `\n\n### Instruções da supervisão (siga sempre)\n${rs.map(r => `- ${r.texto}`).join('\n')}${mural}`;
 }
 
 export async function conversaDoAgente(prisma: PrismaClient, agente: string) {

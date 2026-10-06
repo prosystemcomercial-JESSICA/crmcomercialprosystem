@@ -1280,6 +1280,10 @@ class ApiClient {
   async getHistoricoAgente(id: string) {
     return this.client.get(`/assistente/escritorio/agentes/${id}/historico`);
   }
+  // Mural da equipe de agentes (06/10/2026)
+  async getMuralEquipe(params: { tipo?: string; agente?: string } = {}) { return this.client.get('/assistente/escritorio/mural', { params }); }
+  async reuniaoEquipe() { return this.client.post('/assistente/escritorio/reuniao', {}, { timeout: 240_000 }); }
+
   async getEscritorio() {
     return this.client.get('/assistente/escritorio');
   }

@@ -434,6 +434,8 @@ async function iniciarSchedulerAssistente() {
   setInterval(rodar, 10 * 60 * 1000);
   setTimeout(rodar, 150 * 1000);
   console.log('[BOOT] Scheduler do assistente iniciado (prazo de resposta, 10 min)');
+  // Mural da equipe de agentes: memória e conversas entre eles recarregadas do banco (nada se perde ao reiniciar).
+  import('./services/equipe.service.js').then(m => m.iniciarEquipe(prismaClient!)).catch((e: any) => console.error('[EQUIPE]', e?.message));
   // Caroline (SDR): rodada a cada 2 min (primeiro contato com intervalo sorteado de 4–9 min).
   let carolineRodando = false;
   const iniciarCaroline = async () => {
