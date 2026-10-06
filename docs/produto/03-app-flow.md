@@ -1270,3 +1270,12 @@ Problema relatado pela Jessica: o sino (Alertas) mostrava "Implantação ATRASAD
 - **Correção:** regra única `alertaPrazoDemanda(i, esperas, agora, 3)` em `backend/src/lib/implantacao/portal.ts`: ignora cancelada, assinatura antes de `CORTE_PORTAL` e colunas CONCLUIDO/VALIDADO/FINALIZADO/CANCELADOS; implantação olha a virada até ela ser feita (portal ou fluxo antigo) e depois a finalização; serviço olha só a conclusão; prazo ajustado pela espera do cliente (`prazoAjustado`); avisa a partir de 3 dias antes e marca atrasada depois do prazo. O sino busca as candidatas desde o corte (com as esperas) e aplica a regra. Títulos: "Implantação ATRASADA" / "Serviço ATRASADO" / "Prazo de … próximo"; "vence hoje" quando é o dia.
 - **Efeito com os dados de 06/10/2026:** das 12 demandas que alertavam, 11 eram de antes do recomeço e saíram; ficou só a Gurifarma (serviço, conclusão em 3 dias). Nada foi apagado do banco.
 - **Testes:** `backend/tests/implantacao-alerta-prazo.test.ts` (7 casos).
+
+
+### Atualização 06/10/2026: relatórios de cross-sell e up-sell dentro do Painel do CEO
+
+Pedido da Jessica: os relatórios de cross-sell e up-sell ficam dentro do Painel do CEO, não numa página à parte.
+
+- **Dashboard Executivo (`/dashboard`, o Painel do CEO):** nova aba **Cross-sell & Up-sell**, logo depois de "Comercial & Pipeline", com o `DashboardCrossSell` completo (modo CEO): MRR de expansão e ARR, receita única, vendas e clientes, ticket médio, comissões; destaques (mais vendido, maior MRR, melhor mês e trimestre); mês a mês com seletor; crescimento do MRR acumulado; ranking por tipo de serviço com tabela e % da receita; vendedores e comissões; lista de vendas com busca, filtro e exportação.
+- **Link direto para aba:** `/dashboard?aba=crosssell` (vale para qualquer aba: comercial, crosssell, retencao, equipe, funis, manuais), lido no carregamento da página.
+- **`/cross-sell-ceo`:** virou redirecionamento para `/dashboard?aba=crosssell`; o item "Vendas para a base" saiu do menu (evita duas telas iguais). A aba Dashboard do módulo Cross-sell (`/indicacoes`) continua.
