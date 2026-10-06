@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, METAS_PADRAO, CARGOS_TECNICO } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -720,7 +720,11 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         cep: true, endereco: true, numero_end: true, complemento: true, bairro: true, cidade: true, estado: true, observacoes: true,
       },
     }).catch(() => null);
-    const venda = imp.venda_adicional_id ? await prisma.vendaAdicional.findUnique({ where: { id: imp.venda_adicional_id }, select: { descricao_servico: true, parceiro: { select: { nome: true } } } }).catch(() => null) : null;
+    const venda = imp.venda_adicional_id ? await prisma.vendaAdicional.findUnique({ where: { id: imp.venda_adicional_id }, select: { cliente_id: true, descricao_servico: true, observacoes: true, lojas_detalhe: true, lojas_nomes: true, autorizador_nome: true, parceiro: { select: { nome: true } } } }).catch(() => null) : null;
+    // Troca de CNPJ: o de/para vem do histórico do cliente (o cadastro já está com os dados novos).
+    const cliHist = venda?.cliente_id || imp.cliente_id;
+    const historicoCnpj = imp.tipo_servico === 'TROCA_CNPJ' && cliHist
+      ? await (prisma as any).historicoCnpjCliente.findFirst({ where: { cliente_id: cliHist }, orderBy: { created_at: 'desc' } }).catch(() => null) : null;
     const tipo_demanda = imp.modulo === 'SERVICO'
       ? `Serviço · ${(imp.tipo_servico && TIPOS_SERVICO[imp.tipo_servico]?.label) || 'Outro'}`
       : `Implantação · ${imp.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : `conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''}`}`;
@@ -741,7 +745,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       anexos: anexos.map(a => ({ ...a, url: a.tipo === 'LINK' ? a.url : null, tela_suporte: a.id === imp.tela_suporte_arquivo_id })),
       assistida: (() => { const st = statusAssistida(imp, assistidaRegs); return st ? { ...st, registros: assistidaRegs } : null; })(),
       saude, prazo_efetivo: prazoP, prazo_ajuste_ms: msEsperaCliente(esperas, agoraP), tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
-      cliente_ficha, tipo_demanda, servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
+      cliente_ficha, tipo_demanda, resumo_demanda: resumoDaDemanda(imp, venda, historicoCnpj), servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
 

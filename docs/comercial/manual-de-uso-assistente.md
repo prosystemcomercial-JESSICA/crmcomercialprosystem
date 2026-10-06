@@ -1011,3 +1011,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Todo dia útil, entre 8h e 10h, o **Rafael faz a reunião da equipe**: tira os aprendizados do dia, orienta quem precisa e responde as dúvidas que sabe.
 - Veja tudo em **Escritório › Mural da equipe** (com filtros). O botão **Reunião da equipe agora** faz o Rafael reunir a equipe na hora.
 - Na página do sistema, a parte **Sua rotina antes e depois** brilha e mostra "Toque para comparar" até o cliente tocar; quando ele chega nela, a página já mostra sozinha a diferença uma vez.
+
+
+### Atualização 06/10/2026: "O que fazer" no card do serviço
+
+- Ao abrir um card de **serviço** (troca de CNPJ, comunicação, impressora, outros), a **Visão geral** começa com **O que fazer**: a tarefa em uma frase (ex.: "Realizar a troca de CNPJ de 27.829.030/0001-61 para 65.045.303/0001-76"), o CNPJ e a razão social antigos e novos, ou as lojas da comunicação, e **com quem falar**, com o telefone para ligar ou chamar no WhatsApp.
+- Toque em **Copiar resumo** para colar o texto no WhatsApp ou no suporte.

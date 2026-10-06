@@ -48,6 +48,64 @@ export const TIPOS_SERVICO: Record<string, { label: string; checklist: string[] 
   OUTRO: { label: 'Outro serviço', checklist: ['Executar o serviço', 'Validar com o cliente'] },
 };
 
+// ─── Resumo da demanda (Visão geral do card de serviço) ───────────────────────
+// "O que fazer" em uma frase + dados de/para, montado da venda e do histórico de CNPJ.
+// Nunca leva valores: o texto financeiro da vendedora fica fora (é escopo da supervisão).
+export type ResumoDemanda = { acao: string; detalhes: [string, string][]; observacao: string | null; autorizador: string | null };
+
+const fmtCnpj = (v?: string | null) => {
+  const n = (v || '').replace(/\D/g, '');
+  return n.length === 14 ? n.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (v || '').trim();
+};
+const juntar = (...p: (string | null | undefined)[]) => p.map(x => (x || '').trim()).filter(Boolean).join(' · ');
+
+function dadosTrocaCnpj(venda: any, historico: any) {
+  if (historico?.cnpj_novo) return { cnpjAnt: historico.cnpj_anterior, razaoAnt: historico.razao_social_anterior, cnpjNovo: historico.cnpj_novo, razaoNova: historico.razao_social_nova };
+  let salvo: any = null;
+  try { salvo = venda?.observacoes ? JSON.parse(venda.observacoes) : null; } catch { salvo = null; }
+  const tec = String(salvo?.resumo_tecnico || ''), txt = String(salvo?.resumo || '');
+  const pega = (re: RegExp, s: string) => (s.match(re)?.[1] || '').trim() || null;
+  const deTexto = txt.match(/ANTIGO\s+(.+?)\s+-\s+NOVO\s+(.+)/i);
+  return {
+    cnpjAnt: pega(/CNPJ ANTIGO:\s*(.+)/i, tec),
+    razaoAnt: pega(/Raz[ãa]o Social ANTIGA:\s*(.+)/i, tec) || deTexto?.[1]?.trim() || null,
+    cnpjNovo: pega(/CNPJ NOVO:\s*(.+)/i, tec) || pega(/CNPJ:\s*([\d./-]+)/i, txt),
+    razaoNova: pega(/Raz[ãa]o Social NOVA:\s*(.+)/i, tec) || deTexto?.[2]?.trim() || null,
+  };
+}
+
+export function resumoDaDemanda(imp: { modulo?: string | null; tipo_servico?: string | null }, venda: any, historico: any): ResumoDemanda | null {
+  if (imp.modulo !== 'SERVICO') return null;
+  const tipo = imp.tipo_servico || 'OUTRO';
+  const textoLivre = venda?.observacoes && !String(venda.observacoes).trim().startsWith('{')
+    ? String(venda.observacoes).split('\n').filter(l => l.trim() && !/Lançamento retroativo/i.test(l)).join('\n').trim() || null
+    : null;
+  const base = { observacao: textoLivre, autorizador: venda?.autorizador_nome || null };
+
+  if (tipo === 'TROCA_CNPJ') {
+    const t = dadosTrocaCnpj(venda, historico);
+    const ant = fmtCnpj(t.cnpjAnt), novo = fmtCnpj(t.cnpjNovo);
+    const acao = ant && novo ? `Realizar a troca de CNPJ de ${ant} para ${novo}`
+      : novo ? `Realizar a troca de CNPJ para ${novo}` : 'Realizar a troca de CNPJ (novos dados na ficha do cliente)';
+    const detalhes: [string, string][] = [];
+    if (ant) detalhes.push(['CNPJ antigo', juntar(ant, t.razaoAnt)]);
+    else if (t.razaoAnt) detalhes.push(['Razão social antiga', t.razaoAnt]);
+    if (novo) detalhes.push(['CNPJ novo', juntar(novo, t.razaoNova)]);
+    else if (t.razaoNova) detalhes.push(['Razão social nova', t.razaoNova]);
+    return { acao, detalhes, ...base };
+  }
+  if (tipo === 'COMUNICACAO') {
+    const det: any[] = Array.isArray(venda?.lojas_detalhe) ? venda.lojas_detalhe : [];
+    const lojas = det.length ? det.map(l => [l.codigo, l.nome].filter(Boolean).join(' - ')) : (Array.isArray(venda?.lojas_nomes) ? venda.lojas_nomes.map(String) : []);
+    return {
+      acao: lojas.length > 1 ? `Configurar a comunicação entre ${lojas.length} lojas` : 'Incluir a loja na comunicação entre filiais',
+      detalhes: lojas.map((l: string, k: number) => [`Loja ${k + 1}`, l] as [string, string]), ...base,
+    };
+  }
+  const oQue = (venda?.descricao_servico || '').trim() || (venda?.parceiro?.nome || '').trim() || TIPOS_SERVICO[tipo]?.label || 'serviço';
+  return { acao: `Executar: ${oQue}`, detalhes: [], ...base };
+}
+
 // Prazos padrão (configuráveis): dias corridos até a virada/finalização; serviços em dias úteis.
 export type ConfigSla = { CONVERSAO: { virada: number; final: number }; BANCO_ZERADO: { virada: number; final: number }; SERVICO_DIAS_UTEIS: number };
 export const SLA_PADRAO: ConfigSla = { CONVERSAO: { virada: 15, final: 30 }, BANCO_ZERADO: { virada: 10, final: 25 }, SERVICO_DIAS_UTEIS: 3 };
