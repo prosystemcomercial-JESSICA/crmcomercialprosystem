@@ -1052,3 +1052,10 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - Ao abrir uma conversa nova pelo número, o CRM confere antes se ele tem WhatsApp. Se não tiver, aparece: "Este número não tem WhatsApp. Confira o número com o cliente." (antes aparecia um erro técnico só na hora de enviar).
 - Celular de DDD como 93, 31, 62… às vezes está no WhatsApp sem o 9 extra. O CRM descobre sozinho e usa a forma certa.
+
+
+### Atualização 06/10/2026: Painel do CEO num lugar só
+
+- O **Painel do CEO** (antigo Dashboard) abre no **Panorama**: receita recorrente, vendas novas, leads, base de clientes, cross-sell e up-sell e agentes de IA, cada bloco com um atalho para o detalhe.
+- Pipeline, Metas e Análise comercial agora são abas do painel. A aba **Leads** mostra só os números (origem, etapas, conversão, vendedores, motivos de perda) — o CEO não precisa mais abrir a Central de Leads.
+- **Cross-sell & Up-sell** tem tela própria no menu.

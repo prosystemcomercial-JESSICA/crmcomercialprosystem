@@ -93,6 +93,19 @@ export async function dashboardPowerRoutes(fastify: FastifyInstance, options: { 
   const safeJson = (data: any) =>
     JSON.parse(JSON.stringify(data, (_, v) => (typeof v === 'bigint' ? Number(v) : v)));
 
+  // Leads em números para o Painel do CEO (substitui a Central de Leads na visão do CEO).
+  fastify.get('/dashboard/leads-resumo', async (request, reply) => {
+    if (!podeVerTudo(getUser(request))) return reply.status(403).send({ status: 'error', message: 'Restrito a Supervisão e CEO' });
+    const { montarResumoLeads } = await import('@/lib/leads-resumo');
+    const [leads, perdas, usuarios] = await Promise.all([
+      prisma.lead.findMany({ where: { deleted_at: null }, select: { origem: true, status: true, etapa_comercial: true, temperatura: true, responsavel_id: true, created_at: true, updated_at: true } }),
+      (prisma as any).leadPerda.findMany({ where: { created_at: { gte: new Date(Date.now() - 90 * 864e5) } }, select: { motivo: true, created_at: true } }).catch(() => []),
+      prisma.usuarioCRM.findMany({ select: { id: true, nome: true } }),
+    ]);
+    const nomes = Object.fromEntries(usuarios.map(u => [u.id, u.nome]));
+    return reply.send({ status: 'success', data: montarResumoLeads(leads as any, perdas, nomes) });
+  });
+
   fastify.get('/dashboard/power', async (request, reply) => {
     try {
     // Painel executivo (MRR, contratos, renovações, projeções) — só gestão comercial.
