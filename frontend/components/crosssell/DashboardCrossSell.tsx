@@ -6,11 +6,13 @@
 // expansão (aumento da mensalidade) ficam sempre separados.
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area, Legend } from 'recharts';
 import { Download, Loader2, Search, TrendingUp } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
 const AZUL = '#2E6EAB';
+// Paleta categórica validada (2 séries): up-sell, cross-sell.
+const COR_ESTR = { UPSELL: '#2a78d6', CROSSSELL: '#eb6834' } as const;
 const brl = (v: number) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const brl0 = (v: number) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -22,9 +24,20 @@ type Metrica = 'vendas' | 'receita_unica' | 'mrr';
 const METRICAS: [Metrica, string][] = [['vendas', 'Vendas'], ['receita_unica', 'Receita única'], ['mrr', 'MRR de expansão']];
 const fmtMetrica = (m: Metrica, v: number) => (m === 'vendas' ? String(v) : brl(v));
 
-type Periodo = 'ano' | '12m' | 'tri' | 'custom';
-function intervalo(p: Periodo, ini: string, fim: string): { inicio: string; fim: string } {
+type Periodo = 'ano' | '12m' | 'tri' | 'mes' | 'custom';
+const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+/** Meses para escolher: de janeiro do ano passado até o mês atual (mais recente primeiro). */
+function mesesParaEscolher(): { valor: string; rotulo: string }[] {
+  const hoje = new Date(), out: { valor: string; rotulo: string }[] = [];
+  for (let d = new Date(hoje.getFullYear(), hoje.getMonth(), 1); d >= new Date(hoje.getFullYear() - 1, 0, 1); d = new Date(d.getFullYear(), d.getMonth() - 1, 1)) {
+    out.push({ valor: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, rotulo: `${NOMES_MES[d.getMonth()]} de ${d.getFullYear()}` });
+  }
+  return out;
+}
+function intervalo(p: Periodo, ini: string, fim: string, mes?: string): { inicio: string; fim: string } {
   const hoje = new Date();
+  // Mês escolhido: do dia 1 ao último dia do mês.
+  if (p === 'mes' && mes) { const [a, m] = mes.split('-').map(Number); return { inicio: `${mes}-01`, fim: iso(new Date(a, m, 0)) }; }
   if (p === '12m') { const i = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1); return { inicio: iso(i), fim: iso(hoje) }; }
   if (p === 'tri') { const i = new Date(hoje.getFullYear(), Math.floor(hoje.getMonth() / 3) * 3, 1); return { inicio: iso(i), fim: iso(hoje) }; }
   if (p === 'custom' && ini && fim) return { inicio: ini, fim };
@@ -87,6 +100,9 @@ function baixarCsv(lista: any[]) {
 export function DashboardCrossSell({ modo = 'modulo' }: { modo?: 'modulo' | 'ceo' }) {
   const [periodo, setPeriodo] = useState<Periodo>('ano');
   const [ini, setIni] = useState(''); const [fim, setFim] = useState('');
+  const opcoesMes = useMemo(mesesParaEscolher, []);
+  const [mesSel, setMesSel] = useState(opcoesMes[0].valor);
+  const [metEstr, setMetEstr] = useState<Metrica>('receita_unica');
   const [d, setD] = useState<any>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -94,7 +110,7 @@ export function DashboardCrossSell({ modo = 'modulo' }: { modo?: 'modulo' | 'ceo
   const [metTipo, setMetTipo] = useState<Metrica>('vendas');
   const [busca, setBusca] = useState(''); const [tipoFiltro, setTipoFiltro] = useState('');
 
-  const faixa = intervalo(periodo, ini, fim);
+  const faixa = intervalo(periodo, ini, fim, mesSel);
   useEffect(() => {
     setCarregando(true); setErro(null);
     apiClient.getDashboardCrossSell(faixa).then(r => setD(r.data.data)).catch((e: any) => setErro(e?.response?.data?.message || 'Não foi possível carregar o dashboard.')).finally(() => setCarregando(false));
@@ -114,12 +130,17 @@ export function DashboardCrossSell({ modo = 'modulo' }: { modo?: 'modulo' | 'ceo
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <style>{`.cs-tab{width:100%;border-collapse:collapse;font-size:13px}.cs-tab th{font-size:12px;font-weight:500;color:var(--t-text-muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--t-card-border);white-space:nowrap}.cs-tab td{padding:10px 12px;border-top:1px solid var(--t-card-border);color:var(--t-text-primary);vertical-align:top}.cs-tab .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.cs-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}@media (max-width:1100px){.cs-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:640px){.cs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}.cs-dois{display:grid;grid-template-columns:3fr 2fr;gap:16px}@media (max-width:1000px){.cs-dois{grid-template-columns:1fr}}`}</style>
+      <style>{`.cs-tab{width:100%;border-collapse:collapse;font-size:13px}.cs-tab th{font-size:12px;font-weight:500;color:var(--t-text-muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--t-card-border);white-space:nowrap}.cs-tab td{padding:10px 12px;border-top:1px solid var(--t-card-border);color:var(--t-text-primary);vertical-align:top}.cs-tab .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.cs-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}@media (max-width:1100px){.cs-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:640px){.cs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}.cs-dois{display:grid;grid-template-columns:3fr 2fr;gap:16px}@media (max-width:1000px){.cs-dois{grid-template-columns:1fr}}.cs-estr{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media (max-width:900px){.cs-estr{grid-template-columns:1fr}}`}</style>
 
       {/* Filtros: uma linha acima de tudo */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Pilulas nome="Período" valor={periodo} onChange={setPeriodo} opcoes={[['ano', 'Este ano'], ['12m', 'Últimos 12 meses'], ['tri', 'Este trimestre'], ['custom', 'Personalizado']]} />
+          <Pilulas nome="Período" valor={periodo} onChange={setPeriodo} opcoes={[['ano', 'Este ano'], ['12m', 'Últimos 12 meses'], ['tri', 'Este trimestre'], ['mes', 'Por mês'], ['custom', 'Personalizado']]} />
+          {periodo === 'mes' && (
+            <select value={mesSel} onChange={e => setMesSel(e.target.value)} className="ps-input" aria-label="Mês" style={{ minHeight: 36 }}>
+              {opcoesMes.map(o => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
+            </select>
+          )}
           {periodo === 'custom' && (
             <span style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--t-text-muted)' }}>
               <input type="date" value={ini} onChange={e => setIni(e.target.value)} className="ps-input" aria-label="Início" /> até
@@ -278,6 +299,62 @@ export function DashboardCrossSell({ modo = 'modulo' }: { modo?: 'modulo' | 'ceo
               </table>
             </div>
           </section>
+
+          {/* Up-sell × Cross-sell (mesmos números, separados pela estratégia) */}
+          {d.estrategias && (
+            <section style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 650, color: 'var(--t-text-primary)' }}>Up-sell × Cross-sell</div>
+                <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 2 }}>Up-sell: o cliente usa mais do sistema. Cross-sell: o cliente compra outra coisa além do sistema.</div>
+              </div>
+              <div className="cs-estr">
+                {d.estrategias.map((e: any) => (
+                  <div key={e.estrategia} style={{ ...painel, padding: 16, display: 'grid', gap: 12, alignContent: 'start', borderTop: `3px solid ${COR_ESTR[e.estrategia as 'UPSELL' | 'CROSSSELL']}` }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 650, color: 'var(--t-text-primary)' }}>{e.rotulo}</div>
+                      <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 2 }}>{e.explicacao}</div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 12 }}>
+                      {([['Vendas', String(e.vendas), `${e.clientes} cliente${e.clientes === 1 ? '' : 's'}`], ['MRR de expansão', brl0(e.mrr), `${e.pct_mrr}% do MRR novo · +${brl0(e.arr)}/ano`],
+                        ['Receita única', brl0(e.receita_unica), `${e.pct_receita}% da receita única`], ['Ticket médio', brl0(e.ticket_medio), 'receita única por venda']] as [string, string, string][]).map(([l, v, sub]) => (
+                        <div key={l}>
+                          <div style={rotulo}>{l}</div>
+                          <div style={{ fontSize: 22, fontWeight: 650, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+                          <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="cs-tab">
+                        <thead><tr><th>Tipo</th><th className="n">Vendas</th><th className="n">Receita única</th><th className="n">MRR</th></tr></thead>
+                        <tbody>{e.tipos.length ? e.tipos.map((x: any) => <tr key={x.tipo}><td>{x.rotulo}</td><td className="n">{x.vendas}</td><td className="n">{brl(x.receita_unica)}</td><td className="n">{brl(x.mrr)}</td></tr>)
+                          : <tr><td colSpan={4} style={{ color: 'var(--t-text-muted)' }}>Nenhuma venda no período.</td></tr>}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ ...painel, padding: 16, display: 'grid', gap: 12, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={secao}>Up-sell × Cross-sell mês a mês · {METRICAS.find(m => m[0] === metEstr)![1]}</div>
+                  <Pilulas nome="Medida up-sell × cross-sell" valor={metEstr} onChange={setMetEstr} opcoes={METRICAS} />
+                </div>
+                <div style={{ height: ceo ? 280 : 240 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={d.estrategias[0].meses.map((m: any, i: number) => ({ rotulo: m.rotulo, upsell: m[metEstr], crosssell: d.estrategias[1].meses[i][metEstr] }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2}>
+                      <CartesianGrid vertical={false} stroke="var(--t-card-border)" />
+                      <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--t-text-muted)' }} />
+                      <YAxis width={metEstr === 'vendas' ? 32 : 64} allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--t-text-muted)' }} tickFormatter={v => (metEstr === 'vendas' ? v : `R$ ${Number(v).toLocaleString('pt-BR', { notation: 'compact' } as any)}`)} />
+                      <Tooltip cursor={{ fill: `${AZUL}0f` }} formatter={(v: any, n: any) => [fmtMetrica(metEstr, Number(v)), n]} contentStyle={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 8, fontSize: 12 }} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="upsell" name="Up-sell" fill={COR_ESTR.UPSELL} radius={[4, 4, 0, 0]} maxBarSize={26} />
+                      <Bar dataKey="crosssell" name="Cross-sell" fill={COR_ESTR.CROSSSELL} radius={[4, 4, 0, 0]} maxBarSize={26} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>
