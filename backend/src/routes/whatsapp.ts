@@ -447,7 +447,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         ...(tipo_contato && (TIPOS_CONTATO as readonly string[]).includes(tipo_contato) ? { tipo_contato } : {}),
       },
       orderBy: { ultima_em: 'desc' },
-      take: 150,
+      // Padrão 150 (lista); o quadro da Fila de Chamados pede mais (?limite=, até 500).
+      take: Math.min(Math.max(Number((request.query as any).limite) || 150, 1), 500),
       include: { instancia: { select: { apelido: true, dono_nome: true, numero: true } } },
     });
 

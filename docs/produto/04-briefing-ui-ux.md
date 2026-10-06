@@ -1274,3 +1274,12 @@ Pedido da Jessica: separar o que é up-sell do que é cross-sell (bloco novo aba
 - **Tela (`DashboardCrossSell`, nas duas telas: aba do módulo Cross-sell e Cross-sell & Up-sell do CEO):** no fim, bloco **Up-sell × Cross-sell** com dois cartões lado a lado (empilham no celular; faixa de cor no topo), cada um com vendas, MRR de expansão, receita única, ticket médio e a tabela dos tipos; e o gráfico **Up-sell × Cross-sell mês a mês** em barras agrupadas com seletor Vendas / Receita única / MRR (paleta validada #2a78d6 / #eb6834, com legenda).
 - **Filtro "Por mês":** nova opção no período; abre a lista "Outubro de 2026", "Setembro de 2026"… (de janeiro do ano passado até o mês atual) e consulta do dia 1 ao último dia do mês escolhido.
 - **Testes:** novo caso em `backend/tests/crosssell-dashboard.test.ts` (9 casos).
+
+
+### Correção 06/10/2026: Fila de Chamados "Por atendente" mostra as conversas assumidas por pessoas
+
+Relato da Jessica: o quadro "Por atendente" mostrava só Caroline, Julio, Luiz Felipe e Sem dono; faltavam as conversas assumidas por ela.
+
+- **Causa:** o quadro usava a lista da aba aberta (no print, "Sem dono" = só conversas sem dono) e a lista parava em 150 (as colunas somavam exatamente 150). Havia 279 conversas abertas, 33 assumidas pela Jessica.
+- **Correção:** na Fila de Chamados (`viewMode === 'kanban'`) o Inbox busca `GET /whatsapp/conversas?escopo=quadro&limite=500`, independente da aba. Novo escopo em `whereListaConversas` (`backend/src/lib/whatsapp-empresa.ts`): `quadro` = gestão vê todas; demais usuários, as próprias + sem dono. A rota aceita `?limite=` (padrão 150, máx. 500). As pessoas aparecem como colunas "👤 <nome>" (nome do dono da conversa), junto com os agentes, a triagem e "Sem dono".
+- **Testes:** novo caso em `backend/tests/whatsapp-empresa.test.ts`.

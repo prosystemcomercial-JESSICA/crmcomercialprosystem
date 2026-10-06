@@ -1251,8 +1251,9 @@ class ApiClient {
 
   async getRetornos() { return this.client.get('/assistente/retornos'); }
   async getWhatsappConversasAtencao() { return this.client.get('/whatsapp/conversas/atencao'); }
-  async getWhatsappConversas(instanciaId?: string, escopo?: 'todos' | 'pool', tipoContato?: string, finalizadas?: boolean) {
+  async getWhatsappConversas(instanciaId?: string, escopo?: 'todos' | 'pool' | 'quadro', tipoContato?: string, finalizadas?: boolean, limite?: number) {
     const params: any = {};
+    if (limite) params.limite = limite;
     if (finalizadas) params.finalizadas = '1';
     if (instanciaId) params.instanciaId = instanciaId;
     if (escopo) params.escopo = escopo;

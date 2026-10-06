@@ -29,6 +29,11 @@ describe('escopo das conversas', () => {
     expect(whereListaConversas('todos', gestora)).toEqual({});
     expect(whereListaConversas('todos', vendedor)).toEqual({ dono_id: 'u-vend' });
   });
+  it('escopo=quadro (Fila de Chamados por atendente): gestão vê tudo; demais, as próprias + sem dono', () => {
+    expect(whereListaConversas('quadro', gestora)).toEqual({});
+    expect(whereListaConversas('quadro', vendedor)).toEqual({ OR: [{ dono_id: 'u-vend' }, { dono_id: null }] });
+    expect(whereListaConversas('quadro', undefined)).toEqual({ OR: [{ dono_id: '__no_user__' }, { dono_id: null }] });
+  });
   it('padrão = só as próprias; sem usuário não vaza nada', () => {
     expect(whereListaConversas(undefined, vendedor)).toEqual({ dono_id: 'u-vend' });
     expect(whereListaConversas(undefined, undefined)).toEqual({ dono_id: '__no_user__' });
