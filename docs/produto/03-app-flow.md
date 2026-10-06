@@ -1322,3 +1322,12 @@ Relato da Jessica: o quadro "Por atendente" mostrava só Caroline, Julio, Luiz F
 - **Causa:** o quadro usava a lista da aba aberta (no print, "Sem dono" = só conversas sem dono) e a lista parava em 150 (as colunas somavam exatamente 150). Havia 279 conversas abertas, 33 assumidas pela Jessica.
 - **Correção:** na Fila de Chamados (`viewMode === 'kanban'`) o Inbox busca `GET /whatsapp/conversas?escopo=quadro&limite=500`, independente da aba. Novo escopo em `whereListaConversas` (`backend/src/lib/whatsapp-empresa.ts`): `quadro` = gestão vê todas; demais usuários, as próprias + sem dono. A rota aceita `?limite=` (padrão 150, máx. 500). As pessoas aparecem como colunas "👤 <nome>" (nome do dono da conversa), junto com os agentes, a triagem e "Sem dono".
 - **Testes:** novo caso em `backend/tests/whatsapp-empresa.test.ts`.
+
+
+### Correção 06/10/2026: SDR inclui e trata casos de churn
+
+Relato da Jessica: ao registrar um caso de churn, a SDR via "Only CEO, SUPERVISAO_COMERCIAL, SUPERVISAO_TECNICA can access this".
+
+- **Causa:** as rotas que escrevem em casos de churn aceitavam só CEO e supervisões; diagnóstico e plano de retenção ainda usavam nomes de cargo antigos (`SUPERVISAO`, `TECNICO`), que não batem com os cargos atuais.
+- **Correção:** lista única `ROLES_TRATAM_CHURN` em `backend/src/lib/scope.ts` = CEO, SUPERVISAO_COMERCIAL, SUPERVISAO_TECNICA, **SDR**, SUPERVISAO e TECNICO (antigos mantidos), usada em `casos-churn.ts` (criar, editar, atualizações, status), `diagnosis-churn.ts` e `retencao.ts` (planos e ações). ADMIN/DIRETOR e `admin_sistema` continuam passando em qualquer rota. Excluir caso, plano e ação continua só com o CEO. Menu "Churn & Retenção" passa a aparecer para a SDR.
+- **Testes:** `backend/tests/churn-permissoes.test.ts` (SDR passa; supervisões e cargos antigos passam; vendedor não).

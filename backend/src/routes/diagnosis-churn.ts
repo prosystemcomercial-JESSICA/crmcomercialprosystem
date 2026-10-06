@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, requireRole } from '@/middleware/auth';
+import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { DiagnosisChurnService } from '@/services/diagnosis-churn.service';
 import { CreateDiagnosisSchema, UpdateDiagnosisSchema } from '@/types/dto';
 
@@ -14,7 +15,7 @@ export async function diagnosisChurnRoutes(
   // Create diagnosis with auto-scoring
   fastify.post<{ Params: { casoId: string } }>(
     '/casos/:casoId/diagnostico',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO', 'TECNICO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { casoId } = request.params;
@@ -81,7 +82,7 @@ export async function diagnosisChurnRoutes(
   // Update diagnosis
   fastify.patch<{ Params: { diagnosisId: string } }>(
     '/diagnosticos/:diagnosisId',
-    { onRequest: [requireAuth, requireRole(['CEO', 'SUPERVISAO', 'TECNICO'])] },
+    { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] },
     async (request, reply) => {
       try {
         const { diagnosisId } = request.params;

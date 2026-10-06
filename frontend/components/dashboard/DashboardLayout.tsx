@@ -114,7 +114,8 @@ const navGroups: NavGroup[] = [
     label: 'Retenção',
     items: [
       { href: '/ativos',       icon: Sprout,        label: 'Ativos (CS)',       roles: COMERCIAL },
-      { href: '/casos',        icon: Flame,         label: 'Churn & Retenção',  roles: TECNICO, modulo: 'Cancelamentos / Churn' },
+      // SDR também inclui e trata casos de churn (pedido da Jessica, 06/10/2026).
+      { href: '/casos',        icon: Flame,         label: 'Churn & Retenção',  roles: [...TECNICO, 'SDR'], modulo: 'Cancelamentos / Churn' },
       { href: '/health-score', icon: Activity,      label: 'Health Score',      roles: TECNICO },
       { href: '/nps',          icon: Star,          label: 'NPS',               roles: TECNICO },
       { href: '/pesquisas',    icon: MessageSquare, label: 'Pesquisas',         roles: TECNICO },
