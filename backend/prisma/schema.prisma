@@ -1769,6 +1769,26 @@ model ImplantacaoPosVenda {
   @@index([prevista_em, feita_em])
 }
 
+// Mural da equipe de agentes (06/10/2026): o que um agente passa para o outro (contexto de cliente, dúvidas para o
+// Rafael, respostas, experiências, orientações e as conversas entre eles). Fica no banco: não se perde quando o
+// servidor reinicia. para = id do agente, "equipe" (todos) ou "rafael" (o chefe). ref = conversa do cliente, se houver.
+model AgenteNota {
+  id           String    @id @default(cuid())
+  de           String    @db.VarChar(40)
+  para         String    @db.VarChar(40)
+  tipo         String    @db.VarChar(20) // CONTEXTO | DUVIDA | RESPOSTA | EXPERIENCIA | ORIENTACAO | CONVERSA | REUNIAO
+  assunto      String    @db.VarChar(160)
+  texto        String    @db.Text
+  falas        Json?
+  ref          String?   @db.VarChar(191)
+  resolvida_em DateTime?
+  created_at   DateTime  @default(now())
+
+  @@index([para, created_at])
+  @@index([ref])
+  @@index([tipo, resolvida_em])
+}
+
 // Registros do card no Portal Técnico (06/10/2026): prints (colados ou enviados) e observações do histórico,
 // cada um com o seu comentário. Editar e excluir ficam na auditoria (AuditoriaUsuario, ação CARD_*); excluído some
 // do card, mas a linha e a imagem continuam guardadas. Sem FK de propósito (tabelas antigas têm outro collation).

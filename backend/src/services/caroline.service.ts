@@ -181,6 +181,10 @@ export async function receberDaTriagem(prisma: PrismaClient, conversaId: string)
   });
   registrarAcaoAgente('bia', `passou ${d.nome || c.contato_nome || 'um lead'} para a Caroline`);
   registrarAcaoAgente('caroline', `recebeu ${d.nome || c.contato_nome || 'um lead'} da Bia`);
+  // Passagem de bastão com contexto: o que a Bia apurou na triagem vai para a Caroline.
+  const apurado = [d.segmento && `segmento ${d.segmento}`, d.cidade && `cidade ${d.cidade}`, d.sistema_atual && `usa hoje ${d.sistema_atual}`, (d.receita?.nome_fantasia || d.receita?.razao_social) && `empresa ${d.receita?.nome_fantasia || d.receita?.razao_social}`, d.cnpj && `CNPJ ${d.cnpj}`].filter(Boolean).join(', ');
+  const { anotar } = await import('./equipe.service');
+  await anotar(prisma, { de: 'bia', para: 'caroline', tipo: 'CONTEXTO', assunto: `Lead da triagem: ${d.nome || c.contato_nome || c.contato_numero}`, texto: `Carol, passei ${d.nome || c.contato_nome || 'esse lead'} pela triagem e já mandei o material${apurado ? `. O que apurei: ${apurado}` : ''}. Segue com ele.`, ref: conversaId });
 }
 
 // ── Regras da conversa ──────────────────────────────────────────────────────
@@ -411,8 +415,10 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
       descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
     : '';
   const ap = await apresentacaoPara(prisma, sdr, fase);
+  const { contextoDaEquipe } = await import('./equipe.service');
+  const daEquipe = await contextoDaEquipe(prisma, sdr.conversaId);
   const p = promptCaroline({
-    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + (await import('@/lib/assistente/conversas-agentes').then(m => { const x = m.memoriaDoAgente(agenteDe(sdr)); return x.length ? `\n### O que você aprendeu com os colegas (use se ajudar)\n${x.slice(0, 5).map(y => `- ${y.texto}`).join('\n')}` : ''; })) + refazer + (dica ? `\n=== ATENÇÃO NESTA RESPOSTA ===\n${dica}` : ''), exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
+    guia: await guiaComercial(prisma), instrucoes: (await instrucoesPara(prisma, agenteDe(sdr))) + (await import('@/lib/assistente/conversas-agentes').then(m => { const x = m.memoriaDoAgente(agenteDe(sdr)); return x.length ? `\n### O que você aprendeu com os colegas (use se ajudar)\n${x.slice(0, 5).map(y => `- ${y.texto}`).join('\n')}` : ''; })) + daEquipe + refazer + (dica ? `\n=== ATENÇÃO NESTA RESPOSTA ===\n${dica}` : ''), exemplos: await exemplosEditados(prisma), aprendizado: await aprendizadoDaEquipe(prisma),
     historico: h.texto, fase, saudacao: saudacaoAgora(new Date()),
     perfil: agenteDe(sdr),
     apresentacao: ap,
@@ -534,6 +540,10 @@ export async function passarParaCaroline(prisma: PrismaClient, sdr: any, motivo:
   }
   registrarAcaoAgente('julio', `passou ${sdr.nome || 'um lead'} para a Caroline (${motivo})`);
   registrarAcaoAgente('caroline', `recebeu ${sdr.nome || 'um lead'} do Julio`);
+  // Passagem de bastão com contexto: o que o Julio sabe desse cliente vai para a Caroline.
+  const dJ: any = sdr.dados || {};
+  const sabido = [dJ.dor_principal && `dor: ${dJ.dor_principal}`, dJ.sistema_atual && `usa hoje ${dJ.sistema_atual}`, dJ.cidade && `cidade ${dJ.cidade}`, dJ.decisor && `decisor: ${dJ.decisor}`, dJ.momento && `momento: ${dJ.momento}`, sdr.nota != null && `termômetro ${sdr.nota}`].filter(Boolean).join('; ');
+  import('./equipe.service').then(m => m.anotar(prisma, { de: 'julio', para: 'caroline', tipo: 'CONTEXTO', assunto: `Lead ${sdr.empresa || sdr.nome || ''}`.trim(), texto: `Carol, retomei ${sdr.nome || 'esse lead'}${sdr.empresa ? ` da ${sdr.empresa}` : ''} e ele mostrou interesse (${motivo}).${sabido ? ` O que já sei: ${sabido}.` : ''} É contigo.`, ref: sdr.conversaId })).catch(() => {});
   import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('julio', 'caroline', `Lead ${sdr.empresa || sdr.nome || ''}`.trim(), [
     { quem: 'julio', texto: `Carol, ${sdr.nome || 'esse lead'}${sdr.empresa ? ` da ${sdr.empresa}` : ''} mostrou interesse. É contigo!` },
     { quem: 'caroline', texto: 'Oba! Deixa comigo: vou entender a dor e marcar a demonstração.' },
@@ -815,6 +825,8 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
     await enviarAvisoGestao(prisma, 'lead_qualificado', `❓ *Dúvida que ${nomeDe(sdr)} não sabe responder*\n${atual?.nome || ''}${atual?.empresa ? ` · ${atual.empresa}` : ''}: "${r.duvida || 'ver conversa'}"\nResponda na conversa do WhatsApp (ao responder, você assume e ela sai).`);
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO' } });
     // O Rafael não sabia: vai atrás da resposta (pesquisa e escreve para a Jessica aprovar; aprovada, vale para todos).
+    // A dúvida sobe para o Rafael (o chefe) no mural da equipe; a resposta dele vale para todos.
+    if (r.duvida) await import('./equipe.service').then(m => m.anotar(prisma, { de: agenteDe(sdr), para: 'rafael', tipo: 'DUVIDA', assunto: `Dúvida de ${atual?.nome || sdr.nome || 'cliente'}${atual?.empresa ? ` (${atual.empresa})` : ''}`, texto: r.duvida!, ref: sdr.conversaId })).catch(() => {});
     if (r.duvida) import('./especialista.service').then(m => m.pesquisarDuvida(prisma, r.duvida!, nomeDe(sdr))).catch((e: any) => console.warn('[RAFAEL] dúvida:', e?.message));
   }
 }
@@ -999,6 +1011,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   }
   registrarAcaoAgente(agenteDe(sdr), `${fase === 'resposta' ? 'respondeu' : 'chamou'} ${sdr.nome || 'um lead'} (nota ${r.nota})`);
   if (r.novo_contato) await registrarDecisorIndicado(prisma, sdr, r.novo_contato).catch(e => console.error('[agente] decisor indicado:', e?.message || e));
+  // Experiência para a equipe: o que levou à demonstração e por que perdemos (todos aprendem com o caso real).
+  if (r.acao === 'oferecer_demo' || r.acao === 'sem_interesse') {
+    const quem = `${sdr.empresa || sdr.nome || 'cliente'}${sdr.segmento ? ` (${sdr.segmento})` : ''}`;
+    const { anotar } = await import('./equipe.service');
+    await anotar(prisma, r.acao === 'oferecer_demo'
+      ? { de: agenteDe(sdr), para: 'equipe', tipo: 'EXPERIENCIA', assunto: `Levou à demonstração: ${quem}`, texto: `${r.dor_principal ? `Dor: ${r.dor_principal}. ` : ''}O que eu escrevi: "${r.mensagens.join(' ').slice(0, 400)}"`, ref: sdr.conversaId }
+      : { de: agenteDe(sdr), para: 'equipe', tipo: 'EXPERIENCIA', assunto: `Perdemos: ${quem}`, texto: `Motivo: ${r.motivo_perda || 'sem interesse'}. ${r.nota_motivo ? `O que ele disse: ${r.nota_motivo}` : ''}`.trim(), ref: sdr.conversaId });
+  }
   if (r.acao !== 'continuar') await aplicarAcao(prisma, token, sdr, r.acao, r);
   if (fase === 'resposta') void aprenderLaya(prisma, sdr, r.acao, r.nota);
   if (recuperacaoAtiva(sdr) && (r.revisar_proposta || r.retomar_em || r.adiar_dias || r.acao === 'duvida_fora_material')) await voltouANegociar(prisma, sdr);

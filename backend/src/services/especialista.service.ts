@@ -366,6 +366,7 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
   await decidirDoc(prisma, doc.id, true, 'rafael').catch(() => {}); // liberdade total: as regras valem na hora
   registrarAcaoAgente('rafael', `treinou o ${nome}: ${(r.problemas || []).length} pontos a melhorar`);
   registrarAcaoAgente(agente as any, `recebeu treinamento do Rafael (${regras.length} regras)`);
+  await import('./equipe.service').then(m => m.anotar(prisma, { de: 'rafael', para: agente, tipo: 'ORIENTACAO', assunto: `Treinamento de ${dia}`, texto: [r.resumo || '', ...regras.slice(0, 5).map(x => `• ${x}`)].filter(Boolean).join('\n') })).catch(() => {});
   import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('rafael', agente, `Treinamento do ${nome}`, dialogo.slice(0, 4).map(f => ({ quem: f.quem === 'rafael' ? 'rafael' : agente, texto: f.texto })))).catch(() => {});
   await avisar(prisma, [`🎓 *Rafael treinou o ${nome}*`, r.resumo?.slice(0, 280) || '', `${(r.problemas || []).length} ponto(s) a melhorar · ${regras.length} regra(s) novas.`, '', 'As regras já estão valendo. O relatório e a conversa do treino estão no Escritório virtual › Treinamentos.'].filter(Boolean).join('\n'));
   // Iniciativa: o que ele não sabia, vai pesquisar.
@@ -399,6 +400,7 @@ export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, orig
   const doc = await gravarDoc(prisma, { tipo: 'DICA', titulo: r.titulo.startsWith('Resposta') ? r.titulo : `Resposta: ${r.titulo}`, conteudo: `> Pergunta: "${q}" (${origem})\n\n${r.conteudo}` }, 'duvida', fontes);
   registrarAcaoAgente('rafael', `pesquisou e respondeu: "${q.slice(0, 50)}"`);
   await decidirDoc(prisma, doc.id, true, 'rafael').catch(() => {}); // vale na hora para todos os agentes
+  await import('./equipe.service').then(m => m.responderDuvida(prisma, q, r.conteudo.slice(0, 1500))).catch(() => {});
   await avisar(prisma, [`🔎 *Rafael pesquisou uma dúvida que ninguém sabia*`, `"${q.slice(0, 200)}"`, '', 'A resposta já vale para todos os agentes. Está no Escritório virtual › Rafael.'].join('\n'));
   return doc;
 }
@@ -485,6 +487,11 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const hora = Number(partes.find(p => p.type === 'hour')?.value);
   const { podeEnviarUmaVez } = await import('./envio-unico.service');
   const hoje = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  // Reunião diária da equipe conduzida pelo Rafael (06/10/2026): dias úteis, das 8h às 10h, uma vez por dia.
+  if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 8 && hora < 10 && await podeEnviarUmaVez(prisma, `rafael.reuniao.${hoje}`, 20)) {
+    const { reuniaoDaEquipe } = await import('./equipe.service');
+    await reuniaoDaEquipe(prisma).catch(e => console.error('[RAFAEL] reunião:', e?.message));
+  }
   // Revisão das conversas dos agentes: 12h e 17h nos dias úteis (pedido da Jessica, 01/10/2026).
   if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 12 && hora < 14 && await podeEnviarUmaVez(prisma, `rafael.revisao.meio.${hoje}`, 20)) {
     await revisarConversas(prisma).catch(e => console.error('[RAFAEL] revisão:', e?.message));
