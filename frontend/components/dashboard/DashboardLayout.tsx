@@ -38,7 +38,7 @@ const SO_CEO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 // configurações e demais telas que só servem para editar.
 const CEO_VISIVEL = [
   '/dashboard', '/analise-comercial', '/relatorio-comercial', '/previsao', '/tv',
-  '/comissoes', '/metas', '/indicadores-ceo', '/centro-custos', '/ltv', '/casos',
+  '/comissoes', '/metas', '/indicadores-ceo', '/cross-sell-ceo', '/centro-custos', '/ltv', '/casos',
   '/pipeline-comercial', '/leads', '/manual',
 ];
 
@@ -98,6 +98,7 @@ const navGroups: NavGroup[] = [
       { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
       { href: '/ltv',                     icon: TrendingUp,   label: 'LTV dos Clientes',   roles: GESTAO_COMERCIAL },
       { href: '/indicadores-ceo',         icon: DollarSign,   label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
+      { href: '/cross-sell-ceo',          icon: TrendingUp,   label: 'Vendas para a base', roles: GESTAO_COMERCIAL },
       { href: '/relatorio-comercial',     icon: LineChart,    label: 'Relatório Comercial', roles: GESTAO_COMERCIAL, modulo: 'Relatórios Comerciais' },
       { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
       { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },

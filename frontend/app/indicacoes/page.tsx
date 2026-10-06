@@ -8,6 +8,7 @@ import { StatusBadge, type BadgeColor } from '@/components/ui/StatusBadge';
 import { apiClient } from '@/lib/api-client';
 import { showToast } from '@/components/ui/Toast';
 import KanbanServicos from '@/components/crosssell/KanbanServicos';
+import { DashboardCrossSell } from '@/components/crosssell/DashboardCrossSell';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend,
 } from 'recharts';
@@ -143,7 +144,7 @@ export default function IndicacoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
-  const [tab, setTab] = useState<'servicos' | 'vendas' | 'negociacao' | 'parceiros' | 'resultado'>('servicos');
+  const [tab, setTab] = useState<'dashboard' | 'servicos' | 'vendas' | 'negociacao' | 'parceiros' | 'resultado'>('servicos');
   const [versaoKanban, setVersaoKanban] = useState(0);
   const [resultadoAnual, setResultadoAnual] = useState<any>(null);
   const [resultadoLoading, setResultadoLoading] = useState(false);
@@ -656,6 +657,7 @@ export default function IndicacoesPage() {
         {/* Tabs */}
         <div className="flex gap-1 border-b border-gray-200">
           {([
+            ['dashboard', '📊 Dashboard'],
             ['servicos', '🛠️ Serviços (kanban)'],
             ['vendas', 'Vendas'],
             ['negociacao', `Em negociação${negociacoes.length ? ` (${negociacoes.length})` : ''}`],
@@ -670,6 +672,8 @@ export default function IndicacoesPage() {
         </div>
 
         {/* Tab: Vendas */}
+        {tab === 'dashboard' && <DashboardCrossSell />}
+
         {tab === 'servicos' && (
           <KanbanServicos versao={versaoKanban} onNovaVenda={() => { abrirNovaVendaServico(); }} />
         )}

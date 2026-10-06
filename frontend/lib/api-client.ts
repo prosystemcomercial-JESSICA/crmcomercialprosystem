@@ -1125,6 +1125,11 @@ class ApiClient {
     return this.client.delete(`/parceiros/${id}`);
   }
 
+  // Dashboard de cross-sell e up-sell (período pela data da venda, YYYY-MM-DD).
+  async getDashboardCrossSell(params?: { inicio?: string; fim?: string }) {
+    return this.client.get('/vendas-adicionais/dashboard', { params });
+  }
+
   async getVendasAdicionais(params?: { status?: string; vendedor_id?: string; parceiro_id?: string; periodo?: string }) {
     return this.client.get('/vendas-adicionais', { params });
   }
