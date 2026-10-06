@@ -1046,3 +1046,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Atualização 06/10/2026: Cross-sell & Up-sell no Painel do CEO
 
 - No **Dashboard** (Painel do CEO), a aba **Cross-sell & Up-sell** traz todos os relatórios das vendas para a base: MRR de expansão, receita única, mês a mês, serviços mais vendidos, vendedores e comissões e a lista de vendas para exportar.
+
+
+### Correção 06/10/2026: número sem WhatsApp
+
+- Ao abrir uma conversa nova pelo número, o CRM confere antes se ele tem WhatsApp. Se não tiver, aparece: "Este número não tem WhatsApp. Confira o número com o cliente." (antes aparecia um erro técnico só na hora de enviar).
+- Celular de DDD como 93, 31, 62… às vezes está no WhatsApp sem o 9 extra. O CRM descobre sozinho e usa a forma certa.
