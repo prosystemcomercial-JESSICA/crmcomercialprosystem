@@ -1260,3 +1260,13 @@ Pedido da Jessica: um dashboard mais completo do Escritório virtual, com o máx
 - **Equipe, qualidade e mercado:** mural (dúvidas, em aberto, respostas, orientações, experiências, contexto, conversas, reuniões) e a última reunião; clientes da base (boas-vindas, pesquisas e nota, CSAT do suporte, implantações em andamento e em espera, avisos do Otávio); aprendizado e mercado (Laya, Sofia, Rafael, Olívia, Mila, Joana, documentos esperando aprovação, campanhas do Zequinha).
 - **Visual:** indicadores 26/650; barras horizontais azuis no funil e nos rankings; gráfico de mensagens por dia com 3 séries (paleta validada para daltonismo: #2a78d6, #eb6834, #1baf7a, com legenda e dica); mapa de horários em rampa azul de um tom, com legenda "menos → mais" e o pico; tabelas com rolagem própria no celular.
 - **Testes:** `backend/tests/painel-ia.test.ts` (9 casos). Conferido com os dados reais dos últimos 30 dias (só leitura) antes de publicar.
+
+
+### Correção 06/10/2026: alertas de implantação atrasada no sino
+
+Problema relatado pela Jessica: o sino (Alertas) mostrava "Implantação ATRASADA … virada/instalação atrasada em 96 a 109 dias" para implantações de junho/julho.
+
+- **Causa:** a consulta do sino (`GET` de alertas em `backend/src/routes/complementos.ts`) usava a régua antiga: qualquer implantação com `prazo_virada` vencido e sem `data_instalacao`. Não respeitava o recomeço do portal em 02/10/2026 (decisão: o que entrou antes não gera aviso automático), não contava a virada/conclusão feitas no portal (`virada_fim_em`, `concluida_fila_em`), nem colunas finais, nem a pausa do prazo pela espera do cliente.
+- **Correção:** regra única `alertaPrazoDemanda(i, esperas, agora, 3)` em `backend/src/lib/implantacao/portal.ts`: ignora cancelada, assinatura antes de `CORTE_PORTAL` e colunas CONCLUIDO/VALIDADO/FINALIZADO/CANCELADOS; implantação olha a virada até ela ser feita (portal ou fluxo antigo) e depois a finalização; serviço olha só a conclusão; prazo ajustado pela espera do cliente (`prazoAjustado`); avisa a partir de 3 dias antes e marca atrasada depois do prazo. O sino busca as candidatas desde o corte (com as esperas) e aplica a regra. Títulos: "Implantação ATRASADA" / "Serviço ATRASADO" / "Prazo de … próximo"; "vence hoje" quando é o dia.
+- **Efeito com os dados de 06/10/2026:** das 12 demandas que alertavam, 11 eram de antes do recomeço e saíram; ficou só a Gurifarma (serviço, conclusão em 3 dias). Nada foi apagado do banco.
+- **Testes:** `backend/tests/implantacao-alerta-prazo.test.ts` (7 casos).
