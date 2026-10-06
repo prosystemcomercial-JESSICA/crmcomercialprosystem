@@ -14,6 +14,16 @@ export const ROTULO_TIPO_CROSSSELL: Record<string, string> = {
   SERVICO: 'Serviços', TEF: 'TEF', TRIBUTARIO: 'Tributário', INTEGRADORA: 'Integradora', OUTRO: 'Outros',
 };
 
+// Up-sell = o cliente passa a usar MAIS do mesmo sistema (plano maior, mais lojas na comunicação).
+// Cross-sell = compra OUTRA coisa além do sistema (pacote fiscal, TEF, tributário, troca de CNPJ, serviços).
+export const ESTRATEGIA_DO_TIPO: Record<string, 'UPSELL' | 'CROSSSELL'> = { UPGRADE: 'UPSELL', COMUNICACAO: 'UPSELL' };
+export const estrategiaDe = (tipo: string) => ESTRATEGIA_DO_TIPO[tipo] || 'CROSSSELL';
+const ROTULO_ESTRATEGIA = { UPSELL: 'Up-sell', CROSSSELL: 'Cross-sell' } as const;
+const EXPLICA_ESTRATEGIA = {
+  UPSELL: 'O cliente passa a usar mais do sistema: upgrade de plano e mais lojas na comunicação.',
+  CROSSSELL: 'O cliente compra outra coisa além do sistema: pacote fiscal, TEF, tributário, troca de CNPJ e serviços.',
+} as const;
+
 export type VendaDashboard = {
   id: string; categoria: string | null; parceiro_nome: string | null; cliente_codigo: string | null; cliente_nome: string | null;
   vendedor_id: string; vendedor_nome: string | null; status: string;
@@ -124,9 +134,29 @@ export function montarDashboardCrossSell(vendasTodas: VendaDashboard[], comissoe
   const lista = [...vendas].sort((a, b) => b.data.getTime() - a.data.getTime()).map(v => ({
     id: v.id, data: v.data.toISOString(), codigo: v.cliente_codigo, cliente: v.cliente_nome, tipo: v.tipo,
     rotulo: ROTULO_TIPO_CROSSSELL[v.tipo] || v.parceiro_nome || v.tipo, descricao: v.descricao_servico || v.parceiro_nome,
+    estrategia: ROTULO_ESTRATEGIA[estrategiaDe(v.tipo)],
     receita_unica: v.receita_unica, mrr: v.mrr, antes: v.mensalidade_anterior, depois: v.mensalidade_nova,
     vendedor: v.vendedor_nome, status: v.status,
   }));
 
-  return { periodo: { inicio: periodo.inicio.toISOString(), fim: periodo.fim.toISOString() }, totais, meses, trimestres, por_tipo, destaques, vendedores, comissoes: comissoesTotais, lista };
+  // Up-sell × cross-sell: mesmos números, agrupados pela estratégia do tipo de venda.
+  const estrategias = (['UPSELL', 'CROSSSELL'] as const).map(e => {
+    const vs = vendas.filter(v => estrategiaDe(v.tipo) === e);
+    const rec = r2(vs.reduce((s, v) => s + v.receita_unica, 0)), m = r2(vs.reduce((s, v) => s + v.mrr, 0));
+    return {
+      estrategia: e, rotulo: ROTULO_ESTRATEGIA[e], explicacao: EXPLICA_ESTRATEGIA[e],
+      vendas: vs.length, receita_unica: rec, mrr: m, arr: r2(m * 12),
+      ticket_medio: vs.length ? r2(rec / vs.length) : 0,
+      clientes: new Set(vs.map(v => v.cliente_codigo || v.cliente_nome || v.id)).size,
+      pct_receita: receita ? Math.round((rec / receita) * 100) : 0,
+      pct_mrr: mrr ? Math.round((m / mrr) * 100) : 0,
+      tipos: por_tipo.filter(t => estrategiaDe(t.tipo) === e),
+      meses: meses.map(x => {
+        const doMes = vs.filter(v => v.mes === x.mes);
+        return { mes: x.mes, rotulo: x.rotulo, vendas: doMes.length, receita_unica: r2(doMes.reduce((s, v) => s + v.receita_unica, 0)), mrr: r2(doMes.reduce((s, v) => s + v.mrr, 0)) };
+      }),
+    };
+  });
+
+  return { periodo: { inicio: periodo.inicio.toISOString(), fim: periodo.fim.toISOString() }, totais, meses, trimestres, por_tipo, destaques, vendedores, comissoes: comissoesTotais, lista, estrategias };
 }

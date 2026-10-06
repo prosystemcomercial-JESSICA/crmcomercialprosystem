@@ -1263,3 +1263,14 @@ Pedido da Jessica (urgente): tirar a Central de Leads do CEO e dar dados no luga
 - **Telas reaproveitadas sem duplicar código:** o conteúdo de `/analise-comercial`, `/pipeline-comercial` e `/metas` foi para `components/ceo/{AnaliseComercial,PipelineComercial,Metas}Conteudo.tsx` com `embutido` (sem moldura do menu quando dentro do painel); as rotas continuam abrindo a mesma tela.
 - **Menu:** "Dashboard" virou **Painel do CEO**; novo item **Cross-sell & Up-sell** (`/cross-sell-ceo`, tela dedicada de novo, gestão e CEO). Saíram do menu da gestão: Análise Comercial, Pipeline Comercial e Metas (ficam para o vendedor: Metas e Análise). Conta do CEO (`CEO_VISIVEL`): sem Central de Leads, Análise, Pipeline e Metas; com Painel do CEO, Cross-sell & Up-sell e Painel da IA.
 - **Testes:** `backend/tests/leads-resumo.test.ts` (6 casos).
+
+
+### Atualização 06/10/2026: Up-sell × Cross-sell e filtro por mês no dashboard de vendas para a base
+
+Pedido da Jessica: separar o que é up-sell do que é cross-sell (bloco novo abaixo, sem mexer no resto) e filtrar por mês escolhendo o nome do mês (do dia 1 ao último dia), sem digitar datas.
+
+- **Classificação (`ESTRATEGIA_DO_TIPO` / `estrategiaDe` em `backend/src/lib/crosssell-dashboard.ts`):** **Up-sell** = o cliente passa a usar mais do mesmo sistema: UPGRADE (plano maior) e COMUNICACAO (mais lojas). **Cross-sell** = compra outra coisa além do sistema: FISCAL, TEF, TRIBUTARIO, INTEGRADORA, TROCA_CNPJ, SERVICO e OUTRO.
+- **API:** `GET /vendas-adicionais/dashboard` passa a devolver `estrategias[]` (UPSELL, CROSSSELL): rótulo, explicação, vendas, receita única, MRR, ARR, ticket médio, clientes, % da receita única e % do MRR novo, tipos (do ranking) e meses (vendas, receita única, MRR); cada item da `lista` ganha `estrategia`.
+- **Tela (`DashboardCrossSell`, nas duas telas: aba do módulo Cross-sell e Cross-sell & Up-sell do CEO):** no fim, bloco **Up-sell × Cross-sell** com dois cartões lado a lado (empilham no celular; faixa de cor no topo), cada um com vendas, MRR de expansão, receita única, ticket médio e a tabela dos tipos; e o gráfico **Up-sell × Cross-sell mês a mês** em barras agrupadas com seletor Vendas / Receita única / MRR (paleta validada #2a78d6 / #eb6834, com legenda).
+- **Filtro "Por mês":** nova opção no período; abre a lista "Outubro de 2026", "Setembro de 2026"… (de janeiro do ano passado até o mês atual) e consulta do dia 1 ao último dia do mês escolhido.
+- **Testes:** novo caso em `backend/tests/crosssell-dashboard.test.ts` (9 casos).

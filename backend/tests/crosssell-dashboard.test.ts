@@ -73,4 +73,15 @@ describe('dashboard de cross-sell e up-sell', () => {
     expect(r.lista.map(l => l.id)).toEqual(['e', 'c', 'b', 'a']);
     expect(r.lista[1]).toMatchObject({ tipo: 'UPGRADE', receita_unica: 350, mrr: 50, antes: 300, depois: 350 });
   });
+
+  it('separa up-sell (upgrade, comunicação) de cross-sell (fiscal, troca de CNPJ, serviços…)', () => {
+    expect(r.estrategias.map(e => [e.estrategia, e.rotulo, e.vendas, e.receita_unica, e.mrr, e.clientes])).toEqual([
+      ['UPSELL', 'Up-sell', 1, 350, 50, 1],
+      ['CROSSSELL', 'Cross-sell', 3, 1300, 100, 3],
+    ]);
+    expect(r.estrategias[1].tipos.map(t => t.tipo)).toEqual(['TROCA_CNPJ', 'FISCAL']);
+    expect(r.estrategias[0].meses.map(m => [m.mes, m.vendas, m.mrr])).toEqual([['2026-01', 0, 0], ['2026-02', 0, 0], ['2026-03', 1, 50]]);
+    expect(r.estrategias[1].pct_receita).toBe(79);
+  });
 });
+

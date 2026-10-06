@@ -1059,3 +1059,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - O **Painel do CEO** (antigo Dashboard) abre no **Panorama**: receita recorrente, vendas novas, leads, base de clientes, cross-sell e up-sell e agentes de IA, cada bloco com um atalho para o detalhe.
 - Pipeline, Metas e Análise comercial agora são abas do painel. A aba **Leads** mostra só os números (origem, etapas, conversão, vendedores, motivos de perda) — o CEO não precisa mais abrir a Central de Leads.
 - **Cross-sell & Up-sell** tem tela própria no menu.
+
+
+### Atualização 06/10/2026: Up-sell × Cross-sell e filtro por mês
+
+- No fim do dashboard de vendas para a base, o bloco **Up-sell × Cross-sell** separa o que é **up-sell** (o cliente usa mais do sistema: upgrade de plano e mais lojas na comunicação) do que é **cross-sell** (compra outra coisa: pacote fiscal, TEF, troca de CNPJ, serviços), com números e gráfico mês a mês.
+- No período, escolha **Por mês** e o mês na lista (ex.: "Setembro de 2026"): o painel mostra do dia 1 ao último dia daquele mês.
