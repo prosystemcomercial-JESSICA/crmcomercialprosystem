@@ -1065,3 +1065,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - No fim do dashboard de vendas para a base, o bloco **Up-sell × Cross-sell** separa o que é **up-sell** (o cliente usa mais do sistema: upgrade de plano e mais lojas na comunicação) do que é **cross-sell** (compra outra coisa: pacote fiscal, TEF, troca de CNPJ, serviços), com números e gráfico mês a mês.
 - No período, escolha **Por mês** e o mês na lista (ex.: "Setembro de 2026"): o painel mostra do dia 1 ao último dia daquele mês.
+
+
+### Correção 06/10/2026: Fila de Chamados por atendente
+
+- Em **WhatsApp › Fila de Chamados › Por atendente**, o quadro agora mostra todas as conversas, não só as da aba aberta: aparecem as colunas dos agentes, da triagem, de cada pessoa que assumiu conversas (ex.: **Jessica Cardoso**) e de **Sem dono**.

@@ -37,6 +37,8 @@ export function tokenWebhookConfere(recebido: unknown, esperado: string | null |
 export function whereListaConversas(escopo: string | undefined, user?: AuthUserLike): Record<string, any> {
   if (escopo === 'pool') return { dono_id: null };
   if (escopo === 'todos' && podeVerTudo(user)) return {};
+  // Fila de Chamados "por atendente": quadro com todas as conversas (gestão) ou as próprias + sem dono.
+  if (escopo === 'quadro') return podeVerTudo(user) ? {} : whereAcaoConversa(user);
   return { dono_id: user?.id || '__no_user__' };
 }
 

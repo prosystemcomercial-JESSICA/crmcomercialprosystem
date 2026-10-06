@@ -321,7 +321,11 @@ export default function WhatsappPage() {
     try {
       // No modo supervisão (gestão), ignora a instância e traz as conversas de todos.
       // Aba "Sem dono": conversas do pool do WhatsApp da empresa.
-      const res = aba === 'atencao'
+      // Fila de Chamados (quadro): todas as conversas, não só a aba aberta — senão quem já tem dono
+      // (ex.: assumidas pela Jessica) some do "Por atendente" quando a aba é "Sem dono".
+      const res = viewMode === 'kanban'
+        ? await apiClient.getWhatsappConversas(undefined, 'quadro', undefined, false, 500)
+        : aba === 'atencao'
         ? await apiClient.getWhatsappConversasAtencao()
         : aba === 'finalizadas'
         ? await apiClient.getWhatsappConversas(undefined, ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'DIRETOR'].includes(((user as any)?.role || '').toUpperCase()) ? 'todos' : undefined, undefined, true)
@@ -338,7 +342,7 @@ export default function WhatsappPage() {
         return nova ? { ...prev, ...nova } : prev;
       });
     } catch (e) { console.error(e); }
-  }, [instAtivaId, aba, user]);
+  }, [instAtivaId, aba, user, viewMode]);
 
   useEffect(() => {
     if (status === 'CONECTADO') carregarConversas();
