@@ -1081,3 +1081,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - Quando o cliente avisa que **o CNPJ ainda não saiu**, que **está viajando** ou que **a loja está abrindo**, os agentes não chamam no mesmo dia nem perguntam "já saiu?". Voltam só **3 a 4 dias depois**, com uma mensagem curta e humana, a **apresentação do segmento** (farmácia ou padaria) e o recado de que, assim que o CNPJ sair, montamos a proposta com o melhor preço possível.
 - Toda a equipe de agentes recebeu a regra: **antes de qualquer mensagem, pesquisar como se comportar** (ler a conversa inteira, o combinado, suas instruções e os procedimentos aprovados).
+
+
+### Atualização 06/10/2026: menu por setor
+
+- O menu agora é organizado por setor, com o mais usado no topo: **Painéis**, **Atendimento & IA**, **Vendas**, **Clientes & Pós-venda**, **Técnico**, **Metas & Financeiro**, **Análises & TV** e **Administração**. Telas do mesmo assunto ficam juntas (ex.: Cross-sell e Cross-sell & Up-sell; Churn, Health Score e NPS). Ninguém ganhou nem perdeu acesso.

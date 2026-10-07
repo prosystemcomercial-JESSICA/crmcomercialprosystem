@@ -50,40 +50,59 @@ const CEO_VISIVEL = [
 type NavItem = { href: string; icon: any; label: string; roles?: string[]; modulo?: string; destaque?: 'whatsapp'; externoComToken?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
+// Menu por setor (reorganizado em 06/10/2026 a pedido da Jessica): os setores mais usados no topo e,
+// dentro de cada um, as telas mais usadas primeiro. Telas do mesmo assunto ficam juntas.
+// Os papéis (roles/modulo) de cada item continuam os mesmos — só mudou a posição.
 const navGroups: NavGroup[] = [
   {
-    label: 'Principal',
+    label: 'Painéis',
     items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Painel do CEO',        roles: GESTORES, modulo: 'Dashboard Geral' },
+      { href: '/dashboard',      icon: LayoutDashboard, label: 'Painel do CEO',        roles: GESTORES, modulo: 'Dashboard Geral' },
+      { href: '/comercial',      icon: BarChart2,       label: 'Radar Comercial',      roles: COMERCIAL },
+      { href: '/painel-ia',      icon: BarChart2,       label: 'Painel da IA',         roles: GESTAO_COMERCIAL },
+      { href: '/desempenho',     icon: LineChart,       label: 'Desempenho do setor',  roles: GESTAO_COMERCIAL },
+      { href: '/sdr/desempenho', icon: Target,          label: 'Meu Desempenho',       roles: ['SDR'] },
+      { href: '/alertas',        icon: Bell,            label: 'Alertas',              roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+    ],
+  },
+  {
+    label: 'Atendimento & IA',
+    items: [
+      { href: '/whatsapp',   icon: MessageSquare, label: 'WhatsApp',           roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
+      { href: '/aprovar',    icon: Eye,           label: 'Aprovar',            roles: GESTAO_COMERCIAL },
+      { href: '/retornos',   icon: MessageSquare, label: 'Retornos agendados', roles: [...COMERCIAL, 'SDR'] },
+      { href: '/escritorio', icon: Building2,     label: 'Escritório virtual', roles: [...COMERCIAL, 'SDR'] },
+      { href: '/meu-tempo',  icon: CalendarCheck, label: 'Meu tempo',          roles: [...ALL, 'SDR'] },
+    ],
+  },
+  {
+    label: 'Vendas',
+    items: [
+      { href: '/leads',                     icon: GitMerge,      label: 'Central de Leads',      roles: COMERCIAL, modulo: 'Leads' },
+      { href: '/leads-sdr',                 icon: GitMerge,      label: 'Funil do SDR',          roles: ['SDR', 'CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'], modulo: 'Leads' },
+      { href: '/sdr/leads-para-distribuir', icon: Send,          label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
+      { href: '/atividades',                icon: CalendarCheck, label: 'Atividades',            roles: [...ALL, 'SDR'] },
+      { href: '/agenda',                    icon: CalendarIcon,  label: 'Agenda Google',         roles: [...ALL, 'SDR'] },
+      { href: '/propostas-comerciais',      icon: ClipboardList, label: 'Propostas',             roles: COMERCIAL, modulo: 'Propostas' },
+      { href: '/contratos',                 icon: FileCheck2,    label: 'Contratos',             roles: COMERCIAL, modulo: 'Contratos' },
+      { href: '/nutricao',                  icon: Sprout,        label: 'Nutrição',              roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/campanhas',                 icon: Megaphone,     label: 'Campanhas',             roles: COMERCIAL },
+      { href: '/campanha-padarias',         icon: Megaphone,     label: 'Campanha Padarias',     roles: GESTAO_COMERCIAL },
+      { href: '/representantes',            icon: Handshake,     label: 'Representantes',        roles: COMERCIAL },
+    ],
+  },
+  {
+    label: 'Clientes & Pós-venda',
+    items: [
+      { href: '/clientes',       icon: Building2,  label: 'Clientes',             roles: [...ALL, 'SDR'], modulo: 'Empresas / Clientes' },
+      { href: '/indicacoes',     icon: Handshake,  label: 'Cross-sell',           roles: COMERCIAL },
       { href: '/cross-sell-ceo', icon: TrendingUp, label: 'Cross-sell & Up-sell', roles: GESTAO_COMERCIAL },
-      { href: '/comercial', icon: BarChart2,       label: 'Radar Comercial',       roles: ['VENDEDOR'] },
-      { href: '/leads',     icon: GitMerge,        label: 'Central de Leads',     roles: COMERCIAL, modulo: 'Leads' },
-      { href: '/leads-sdr', icon: GitMerge,        label: 'Funil do SDR',          roles: ['SDR', 'CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'], modulo: 'Leads' },
-      { href: '/whatsapp',  icon: MessageSquare,   label: 'WhatsApp',               roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
-      { href: '/retornos',  icon: MessageSquare,   label: 'Retornos agendados',     roles: [...COMERCIAL, 'SDR'] },
-      { href: '/escritorio', icon: Building2,      label: 'Escritório virtual',     roles: [...COMERCIAL, 'SDR'] },
-      { href: '/painel-ia',  icon: BarChart2,      label: 'Painel da IA',           roles: GESTAO_COMERCIAL },
-      { href: '/aprovar',    icon: Eye,            label: 'Aprovar',                roles: GESTAO_COMERCIAL },
-      { href: '/desempenho', icon: LineChart,      label: 'Desempenho do setor',    roles: GESTAO_COMERCIAL },
-      { href: '/meu-tempo',  icon: CalendarCheck,  label: 'Meu tempo',              roles: [...ALL, 'SDR'] },
-    ],
-  },
-  {
-    label: 'Comercial',
-    items: [
-      { href: '/atividades',            icon: CalendarCheck, label: 'Atividades',           roles: [...ALL, 'SDR'] },
-      { href: '/agenda',                icon: CalendarIcon,  label: 'Agenda Google',        roles: [...ALL, 'SDR'] },
-      { href: '/propostas-comerciais',  icon: ClipboardList, label: 'Propostas',          roles: COMERCIAL, modulo: 'Propostas' },
-      { href: '/contratos',             icon: FileCheck2,    label: 'Contratos',          roles: COMERCIAL, modulo: 'Contratos' },
-      { href: '/campanhas',             icon: Megaphone,     label: 'Campanhas',          roles: COMERCIAL },
-    ],
-  },
-  {
-    label: 'Clientes & Base',
-    items: [
-      { href: '/clientes',       icon: Building2, label: 'Clientes',       roles: [...ALL, 'SDR'], modulo: 'Empresas / Clientes' },
-      { href: '/indicacoes',     icon: Handshake, label: 'Cross-sell',     roles: COMERCIAL },
-      { href: '/representantes', icon: Handshake, label: 'Representantes', roles: COMERCIAL },
+      { href: '/ativos',         icon: Sprout,     label: 'Ativos (CS)',          roles: COMERCIAL },
+      // SDR também inclui e trata casos de churn (pedido da Jessica, 06/10/2026).
+      { href: '/casos',          icon: Flame,         label: 'Churn & Retenção', roles: [...TECNICO, 'SDR'], modulo: 'Cancelamentos / Churn' },
+      { href: '/health-score',   icon: Activity,      label: 'Health Score',     roles: TECNICO },
+      { href: '/nps',            icon: Star,          label: 'NPS',              roles: TECNICO },
+      { href: '/pesquisas',      icon: MessageSquare, label: 'Pesquisas',        roles: TECNICO },
     ],
   },
   {
@@ -93,54 +112,37 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Performance',
+    label: 'Metas & Financeiro',
     items: [
-      { href: '/comercial',               icon: BarChart2,    label: 'Radar Comercial',    roles: GESTAO_COMERCIAL },
       // Gestão vê Metas dentro do Painel do CEO; o vendedor continua com a tela própria.
-      { href: '/metas',                   icon: Trophy,       label: 'Metas Comerciais',   roles: ['VENDEDOR'], modulo: 'Metas' },
-      { href: '/comissoes',               icon: DollarSign,   label: 'Comissões',          roles: COMERCIAL, modulo: 'Comissões / Bônus' },
-      { href: '/centro-custos',           icon: DollarSign,   label: 'Centro de Custos',   roles: GESTAO_COMERCIAL },
-      { href: '/ltv',                     icon: TrendingUp,   label: 'LTV dos Clientes',   roles: GESTAO_COMERCIAL },
-      { href: '/indicadores-ceo',         icon: DollarSign,   label: 'Indicadores do CEO', roles: GESTAO_COMERCIAL },
-      { href: '/relatorio-comercial',     icon: LineChart,    label: 'Relatório Comercial', roles: GESTAO_COMERCIAL, modulo: 'Relatórios Comerciais' },
-      { href: '/lancamentos-retroativos', icon: RefreshCw,    label: 'Lançar Retroativo',  roles: GESTAO_COMERCIAL },
-      { href: '/sdr/desempenho',          icon: Target,       label: 'Meu Desempenho',     roles: ['SDR'] },
-      { href: '/sdr/leads-para-distribuir', icon: Send,       label: 'Leads para Distribuir', roles: GESTAO_COMERCIAL },
-      { href: '/tv',                      icon: Monitor,      label: 'Painel TV',          roles: GESTAO_COMERCIAL },
-      { href: '/tv/escritorio',           icon: Monitor,      label: 'TV do Escritório',   roles: GESTAO_COMERCIAL },
+      { href: '/metas',                   icon: Trophy,     label: 'Metas Comerciais',    roles: ['VENDEDOR'], modulo: 'Metas' },
+      { href: '/comissoes',               icon: DollarSign, label: 'Comissões',           roles: COMERCIAL, modulo: 'Comissões / Bônus' },
+      { href: '/relatorio-comercial',     icon: LineChart,  label: 'Relatório Comercial', roles: GESTAO_COMERCIAL, modulo: 'Relatórios Comerciais' },
+      { href: '/indicadores-ceo',         icon: DollarSign, label: 'Indicadores do CEO',  roles: GESTAO_COMERCIAL },
+      { href: '/centro-custos',           icon: DollarSign, label: 'Centro de Custos',    roles: GESTAO_COMERCIAL },
+      { href: '/ltv',                     icon: TrendingUp, label: 'LTV dos Clientes',    roles: GESTAO_COMERCIAL },
+      { href: '/lancamentos-retroativos', icon: RefreshCw,  label: 'Lançar Retroativo',   roles: GESTAO_COMERCIAL },
     ],
   },
   {
-    label: 'Retenção',
+    label: 'Análises & TV',
     items: [
-      { href: '/ativos',       icon: Sprout,        label: 'Ativos (CS)',       roles: COMERCIAL },
-      // SDR também inclui e trata casos de churn (pedido da Jessica, 06/10/2026).
-      { href: '/casos',        icon: Flame,         label: 'Churn & Retenção',  roles: [...TECNICO, 'SDR'], modulo: 'Cancelamentos / Churn' },
-      { href: '/health-score', icon: Activity,      label: 'Health Score',      roles: TECNICO },
-      { href: '/nps',          icon: Star,          label: 'NPS',               roles: TECNICO },
-      { href: '/pesquisas',    icon: MessageSquare, label: 'Pesquisas',         roles: TECNICO },
-    ],
-  },
-  {
-    label: 'Inteligência',
-    items: [
-      { href: '/alertas',               icon: Bell,      label: 'Alertas',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/previsao',              icon: TrendingUp, label: 'Previsão',        roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/nutricao',              icon: Sprout,    label: 'Nutrição',         roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
-      { href: '/ciclo-vendas',          icon: LineChart, label: 'Ciclo de Vendas',  roles: GESTAO_COMERCIAL },
+      { href: '/previsao',          icon: TrendingUp, label: 'Previsão',          roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
+      { href: '/ciclo-vendas',      icon: LineChart,  label: 'Ciclo de Vendas',   roles: GESTAO_COMERCIAL },
       // Gestão vê Análise e Pipeline como abas do Painel do CEO.
-      { href: '/analise-comercial',     icon: BarChart2, label: 'Análise Comercial', roles: ['VENDEDOR'] },
-      { href: '/campanha-padarias',     icon: Megaphone, label: 'Campanha Padarias', roles: GESTAO_COMERCIAL },
+      { href: '/analise-comercial', icon: BarChart2,  label: 'Análise Comercial', roles: ['VENDEDOR'] },
+      { href: '/tv',                icon: Monitor,    label: 'Painel TV',         roles: GESTAO_COMERCIAL },
+      { href: '/tv/escritorio',     icon: Monitor,    label: 'TV do Escritório',  roles: GESTAO_COMERCIAL },
     ],
   },
   {
     label: 'Administração',
     items: [
       { href: '/usuarios',      icon: Users,    label: 'Usuários',       roles: GESTORES, modulo: 'Usuários e Permissões' },
+      { href: '/configuracoes', icon: Settings, label: 'Configurações',  roles: SO_CEO, modulo: 'Configurações do Sistema' },
       { href: '/importacao',    icon: Upload,   label: 'Importar Leads', roles: GESTAO_COMERCIAL },
       { href: '/auditoria',     icon: Shield,   label: 'Auditoria',      roles: GESTAO_COMERCIAL },
       { href: '/manual',        icon: BookOpen, label: 'Manual do CRM',  roles: [...ALL, 'SDR'] },
-      { href: '/configuracoes', icon: Settings, label: 'Configurações',  roles: SO_CEO, modulo: 'Configurações do Sistema' },
     ],
   },
 ];
