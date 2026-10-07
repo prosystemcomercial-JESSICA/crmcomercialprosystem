@@ -1125,6 +1125,11 @@ class ApiClient {
     return this.client.delete(`/parceiros/${id}`);
   }
 
+  // Relatório de Retenção: ranking dos motivos de saída e LTV de cada cliente.
+  async getRelatorioRetencao() {
+    return this.client.get('/clientes/relatorio-retencao');
+  }
+
   // Leads em números para o Painel do CEO (no lugar da Central de Leads).
   async getLeadsResumoCEO() {
     return this.client.get('/dashboard/leads-resumo');
