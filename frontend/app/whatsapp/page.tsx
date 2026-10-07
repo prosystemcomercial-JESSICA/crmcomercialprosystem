@@ -30,7 +30,7 @@ interface Conversa {
   sla_prazo_em?: string | null;
   dono_id?: string | null;   // null = sem dono (pool do WhatsApp da empresa)
   dono_nome?: string | null; // quem atende a conversa
-  instancia?: { apelido?: string | null; dono_nome?: string | null; numero?: string | null };
+  instancia?: { instancia_nome?: string | null; apelido?: string | null; dono_nome?: string | null; numero?: string | null };
   bot_ativo?: boolean;
   bot_estado?: string | null;
   bot_dados?: any;
@@ -1109,6 +1109,12 @@ export default function WhatsappPage() {
                         </span>
                       )}
                       {emTriagem(c) && <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800">🤖 Em triagem</span>}
+                      {/* Número extra (vagas 2–5): a conversa fica sempre nele. */}
+                      {c.instancia?.instancia_nome && c.instancia.instancia_nome !== 'empresa' && (
+                        <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#F3E8FF', color: '#6B21A8' }} title="Esta conversa fica sempre neste número">
+                          📱 {c.instancia.apelido || c.instancia.instancia_nome}
+                        </span>
+                      )}
                       {avisoCnpj(c) && <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">⚠️ {avisoCnpj(c)}</span>}
                       {verSupervisao && c.dono_id && (c.dono_nome || c.instancia?.dono_nome) && (
                         <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#E5EEF7', color: 'var(--t-primary-dark)' }}>

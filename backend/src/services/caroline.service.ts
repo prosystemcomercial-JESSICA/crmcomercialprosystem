@@ -1595,13 +1595,19 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   for (const a of ['julio', 'luiz_felipe'] as const) if (ativos.includes(a)) await abastecerFila(prisma, a, inst.id).catch((e: any) => console.warn(`[${a}] fila:`, e?.message));
   if (Date.now() < proximoPrimeiroContato) return;
   const desde = new Date(`${agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T00:00:00-03:00`);
-  const [feitosAgentes, feitosCampanha] = await Promise.all([
+  // Rodízio (07/10/2026): número extra com folga no dia leva o primeiro contato; sem nenhum, o principal.
+  const rodizio = await import('./prospeccao-rodizio.service');
+  const numeroExtra = await rodizio.escolherNumeroProspeccao(prisma, desde, agora).catch(() => null);
+  const [feitosAgentes, feitosCampanha, feitosPorNumero] = await Promise.all([
     prisma.sdrLead.count({ where: { primeiro_envio_em: { gte: desde } } }),
     prisma.campanhaEnvio.count({ where: { status: 'ENVIADO', enviado_em: { gte: desde } } }),
+    rodizio.feitosHojePorNumero(prisma, desde),
   ]);
   // Limite mais conservador entre os agentes ligados (quem começou há menos de 2 semanas puxa para 15).
+  // Vale para o número principal: os extras têm o limite próprio (aquecimento).
   const limite = Math.min(...ativos.map(a => limiteDoDia(cfgs[a].ativada_em ? new Date(cfgs[a].ativada_em!) : null, cfgs[a].limite, agora)));
-  if (feitosAgentes + feitosCampanha >= limite) return;
+  const feitosNoPrincipal = feitosAgentes - [...feitosPorNumero.entries()].filter(([id]) => id !== inst.id).reduce((t, [, n]) => t + n, 0);
+  if (!numeroExtra && feitosNoPrincipal + feitosCampanha >= limite) return;
   let proximo = null as Awaited<ReturnType<typeof prisma.sdrLead.findFirst>>;
   // Prospecção do Heitor (contato ativo) só depois de todo o resto e até o teto próprio do dia.
   const { obterConfigHeitor, enviadosHeitorHoje } = await import('./heitor.service');
@@ -1614,7 +1620,14 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     proximo = await prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor' }, orderBy: { created_at: 'asc' } });
   }
   if (!proximo) return;
-  const r = await falar(prisma, token, proximo.id, 'abertura');
+  // Número extra: a conversa (ainda vazia) vai para ele e o contato fica preso lá. Se não der para
+  // mover (contato já fala com outro número), o envio segue a regra do contato preso.
+  let tokenAbertura = token;
+  const vaiPeloExtra = !!numeroExtra && !!proximo.conversaId && await rodizio.moverConversaParaNumero(prisma, proximo.conversaId, numeroExtra.id).catch(() => false);
+  if (vaiPeloExtra) tokenAbertura = numeroExtra!.instance_token;
+  else if (feitosNoPrincipal + feitosCampanha >= limite) return;
+  const r = await falar(prisma, tokenAbertura, proximo.id, 'abertura');
+  if (vaiPeloExtra) await rodizio.registrarResultadoRodizio(prisma, numeroExtra!, r !== 'falha');
   proximoPrimeiroContato = Date.now() + intervaloSorteado();
   const ag = agenteDe(proximo);
   if (r === 'falha') {
