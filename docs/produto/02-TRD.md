@@ -1318,3 +1318,12 @@ Relato da Jessica (conversa da Carlinha, 557184547733): a cliente disse "Assim q
 - **Leads conduzidos pelos agentes:** `DIAS_RETOMADA_ADIOU` passou de 5 para 3 dias úteis (3 a 4 dias).
 - **Instruções da supervisão para toda a equipe (AgenteInstrucao `equipe`, gravadas em nome da Jessica):** (1) cliente que ainda não pode → 3 a 4 dias, apresentação e proposta com o melhor preço, sem perguntar se saiu; (2) antes de qualquer mensagem, pesquisar como se comportar (conversa inteira, combinado, instruções, mural, POPs aprovados); conversa humana, sem questionário e sem insistir.
 - **Testes:** `backend/tests/sdr-espera-cliente.test.ts` (5 casos); os 46 testes dos agentes SDR continuam passando.
+
+
+### Atualização 06/10/2026: menu organizado por setor
+
+Pedido da Jessica: organizar o menu juntando o que é do mesmo setor, do que mais usa para o que menos usa.
+
+- **Grupos, nesta ordem:** **Painéis** (Painel do CEO, Radar Comercial, Painel da IA, Desempenho do setor, Meu Desempenho da SDR, Alertas) · **Atendimento & IA** (WhatsApp, Aprovar, Retornos agendados, Escritório virtual, Meu tempo) · **Vendas** (Central de Leads, Funil do SDR, Leads para Distribuir, Atividades, Agenda Google, Propostas, Contratos, Nutrição, Campanhas, Campanha Padarias, Representantes) · **Clientes & Pós-venda** (Clientes, Cross-sell, Cross-sell & Up-sell, Ativos (CS), Churn & Retenção, Health Score, NPS, Pesquisas) · **Técnico** (Portal Técnico) · **Metas & Financeiro** (Metas Comerciais do vendedor, Comissões, Relatório Comercial, Indicadores do CEO, Centro de Custos, LTV, Lançar Retroativo) · **Análises & TV** (Previsão, Ciclo de Vendas, Análise Comercial do vendedor, Painel TV, TV do Escritório) · **Administração** (Usuários, Configurações, Importar Leads, Auditoria, Manual do CRM).
+- **Acessos iguais:** cada item manteve `roles`/`modulo`; conferido item a item (48 telas). Única junção: "Radar Comercial" estava duas vezes (vendedor em Principal, gestão em Performance) e virou um item com `COMERCIAL` (mesmo público).
+- Arquivo: `frontend/components/dashboard/DashboardLayout.tsx` (`navGroups`).
