@@ -164,6 +164,43 @@ export async function importarLeads(prisma: PrismaClient, texto: string, abertur
 }
 
 /**
+ * Lead do formulário de captação (site/blog), pedido da Jessica em 07/10/2026: entra na fila da Caroline
+ * para o primeiro contato, como os leads de campanha (limite diário e horários continuam valendo).
+ * Não chama: número bloqueado para agentes, cliente ativo, número já com um agente ou conversa com uma pessoa.
+ */
+export async function receberDoFormulario(prisma: PrismaClient, f: {
+  leadId: string; numero: string; nome: string; empresa?: string | null; email?: string | null; segmento?: string | null; campanha: string; contexto: string;
+}): Promise<'fila' | 'ja_com_agente' | 'com_pessoa' | 'cliente' | 'sem_agentes' | 'sem_whatsapp'> {
+  const inst = await obterInstanciaEmpresa(prisma);
+  if (!inst) return 'sem_whatsapp';
+  if (await contatoSemAgentes(prisma, f.numero)) return 'sem_agentes';
+  if (await ehClienteAtivo(prisma, f.numero)) return 'cliente';
+  if (await prisma.sdrLead.findFirst({ where: { numero: { endsWith: ultimos8(f.numero) }, status: { in: ATIVOS } }, select: { id: true } })) return 'ja_com_agente';
+  const cs = await prisma.whatsappConversa.findMany({ where: { instanciaId: inst.id, contato_numero: { endsWith: ultimos8(f.numero) } }, select: { id: true, contato_numero: true, dono_id: true } });
+  let conv = cs.find(c => ultimos8(c.contato_numero) === ultimos8(f.numero)) || null;
+  if (conv?.dono_id) return 'com_pessoa'; // alguém da equipe já atende este número
+  if (!conv) {
+    conv = await prisma.whatsappConversa.create({
+      data: { instanciaId: inst.id, contato_numero: f.numero, contato_nome: f.nome, tipo_contato: 'LEAD', lead_id: f.leadId, bot_ativo: false, nao_lidas: 0 },
+      select: { id: true, contato_numero: true, dono_id: true },
+    });
+  } else {
+    await prisma.whatsappConversa.update({ where: { id: conv.id }, data: { lead_id: f.leadId, tipo_contato: 'LEAD', contato_nome: f.nome || undefined, bot_ativo: false } });
+  }
+  await prisma.sdrLead.create({
+    data: {
+      agente: 'caroline', lead_id: f.leadId, conversaId: conv.id, numero: f.numero, nome: f.nome, empresa: f.empresa || null, email: f.email || null,
+      segmento: f.segmento || null, campanha: f.campanha, cadastro_em: new Date(), status: 'FILA', criado_por: 'formulario',
+    },
+  });
+  // O que a pessoa pediu no formulário chega para a Caroline como contexto da conversa.
+  const { anotar } = await import('./equipe.service');
+  await anotar(prisma, { de: 'equipe', para: 'caroline', tipo: 'CONTEXTO', assunto: `Lead do formulário: ${f.nome}`, texto: f.contexto, ref: conv.id }).catch(() => {});
+  registrarAcaoAgente('caroline', `recebeu ${f.nome} do formulário do site para o primeiro contato`);
+  return 'fila';
+}
+
+/**
  * Fim da triagem da Bia (lead qualificado): a conversa passa para a Caroline, que responde
  * na próxima rodada (1 a 3 min). É contato que chegou sozinho: não conta no limite de primeiros contatos.
  */
