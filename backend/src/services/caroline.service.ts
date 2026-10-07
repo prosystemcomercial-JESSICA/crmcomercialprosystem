@@ -6,9 +6,10 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehRespostaAutomatica, compromissoDeHorario, ehAdiamento } from '@/lib/assistente/sdr';
-// Cliente adiou e não disse quando: retomada daqui a 5 dias (às 9h30), nunca no mesmo dia.
-const DIAS_RETOMADA_ADIOU = 5;
+import { ehRespostaAutomatica, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
+// Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
+// (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
+const DIAS_RETOMADA_ADIOU = 3;
 const emDiasUteis = (dias: number, base = new Date()) => {
   const d = new Date(`${new Date(base.getTime() + dias * 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
   const dow = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(d);
@@ -1316,10 +1317,11 @@ async function abastecerFila(prisma: PrismaClient, agente: 'julio' | 'luiz_felip
 /**
  * Conversa assumida por uma pessoa (pedido da Jessica, 01/10/2026): se a última mensagem foi nossa e o cliente
  * sumiu, o agente retoma com base na conversa. 1ª retomada após 1 dia útil sem resposta; 2ª após mais 3 dias
- * úteis; depois para. A conversa continua sendo de quem assumiu: se o cliente responder, o agente não responde.
+ * úteis; depois para. Se o cliente avisou que ainda não pode (CNPJ não saiu, viajando, loja abrindo), cada retomada
+ * espera 3 dias úteis e leva a apresentação do segmento + "assim que sair, montamos a proposta com o melhor preço"
+ * (pedido da Jessica, 06/10/2026). A conversa continua sendo de quem assumiu: se o cliente responder, o agente não responde.
  * Não vale para quem já é cliente (suporte, financeiro) nem para conversa finalizada.
  */
-const RETOMADAS_ASSUMIDA = [1, 3];
 async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: string[], agora: Date) {
   // Conversa de lead assumida direto por uma pessoa (veio da triagem, sem agente): passa a ter acompanhamento.
   // Agente: Luiz Felipe se já houve proposta enviada na conversa; senão, a Caroline.
@@ -1347,7 +1349,7 @@ async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: str
     if (enviadas >= 3) break; // poucas por rodada, para proteger o número
     const d: any = s.dados || {};
     if (d.ja_cliente || d.bloqueado_etiqueta || await contatoSemAgentes(prisma, s.numero)) continue;
-    const conv = await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId! }, select: { finalizada_em: true, tipo_contato: true } });
+    const conv = await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId! }, select: { finalizada_em: true, tipo_contato: true, etiqueta: true, bot_dados: true, contato_empresa: true } });
     if (!conv || conv.finalizada_em || conv.tipo_contato === 'EQUIPE' || conv.tipo_contato === 'CLIENTE') continue;
     const [ultSaida, ultEntrada] = await Promise.all([
       prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'SAIDA' }, orderBy: { created_at: 'desc' }, select: { id: true, created_at: true, enviada_por: true } }),
@@ -1357,20 +1359,38 @@ async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: str
     const f = d.retomada_assumida || {};
     // Contagem recomeça quando a última fala não é uma retomada nossa (a pessoa voltou a falar com o cliente).
     const n = f.ultima_msg_id && f.ultima_msg_id === ultSaida.id ? Number(f.n || 0) : 0;
-    if (n >= RETOMADAS_ASSUMIDA.length) continue;
-    if (diasUteisEntre(ultSaida.created_at, agora) < RETOMADAS_ASSUMIDA[n]) continue;
+    // O cliente avisou que ainda não pode (CNPJ não saiu, viajando, loja abrindo)? Olha as últimas falas dele e o combinado.
+    const falasCliente = await prisma.whatsappMensagem.findMany({ where: { conversaId: s.conversaId!, direcao: 'ENTRADA', tipo: 'TEXTO' }, orderBy: { created_at: 'desc' }, take: 5, select: { conteudo: true } });
+    const clienteAdiou = falasCliente.some(m => ehAdiamento(m.conteudo)) || ehAdiamento(d.combinado);
+    const precisa = intervaloRetomadaAssumida(n, clienteAdiou);
+    if (precisa == null || diasUteisEntre(ultSaida.created_at, agora) < precisa) continue;
+    if (clienteAdiou && diasUteisEntre(ultEntrada.created_at, agora) < precisa) continue; // nunca em cima da fala dele
     if (await ehClienteAtivo(prisma, s.numero)) continue;
-    const dica = `CONVERSA ${s.status === 'HUMANO' ? 'ASSUMIDA PELA EQUIPE' : 'COM DEMONSTRAÇÃO/CONSULTORA'}: a equipe estava atendendo este cliente e ele parou de responder há ${diasUteisEntre(ultSaida.created_at, agora)} dia(s) útil(eis). Se havia uma demonstração ou ligação a combinar, o objetivo é REMARCAR (pergunte manhã ou tarde e um dia próximo). `
+    const bd: any = conv.bot_dados || {};
+    const ap0 = clienteAdiou ? apresentacaoDoSegmento(s.segmento, conv.etiqueta, bd.segmento, s.empresa, conv.contato_empresa) : null;
+    const apJaEnviada = ap0 ? !!(await prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'SAIDA', conteudo: { contains: MARCA_APRESENTACAO } }, select: { id: true } })) : true;
+    const loja = ap0?.tipo === 'padaria' ? 'padaria' : 'farmácia';
+    const dica = clienteAdiou
+      ? `CLIENTE AVISOU QUE AINDA NÃO PODE (ex.: o CNPJ não saiu, está viajando, a loja está abrindo) e a equipe estava atendendo. Regra da supervisão: NÃO pergunte se já saiu/se já voltou, NÃO faça perguntas de diagnóstico e não cobre resposta. `
+        + 'Leia a conversa inteira e escreva UMA mensagem curta, calorosa e humana, como uma pessoa da equipe que lembrou dela, chamando pelo nome. '
+        + (ap0 && !apJaEnviada ? `Envie a apresentação de ${loja} como um material para ela conhecer com calma (o link exato numa linha própria). ` : 'Ela já recebeu a apresentação: não mande de novo. ')
+        + 'Diga que, assim que o CNPJ sair (ou ela puder), a gente monta a proposta para ela com o melhor preço que pudermos. Termine deixando a porta aberta (ex.: "fico à disposição"), sem pergunta obrigatória. Não invente valores. Use acao "continuar".'
+        + (n > 0 ? ' Esta é a segunda e última retomada: mais curta ainda, só para mostrar que seguimos à disposição.' : '')
+      : `CONVERSA ${s.status === 'HUMANO' ? 'ASSUMIDA PELA EQUIPE' : 'COM DEMONSTRAÇÃO/CONSULTORA'}: a equipe estava atendendo este cliente e ele parou de responder há ${diasUteisEntre(ultSaida.created_at, agora)} dia(s) útil(eis). Se havia uma demonstração ou ligação a combinar, o objetivo é REMARCAR (pergunte manhã ou tarde e um dia próximo). `
       + 'Leia a conversa inteira e escreva UMA retomada curta continuando exatamente do ponto em que parou (o último assunto, a última pergunta ou o próximo passo combinado), com leveza e sem cobrança. '
       + 'Não se reapresente como se fosse o primeiro contato, não repita o que já foi dito e não invente valores ou condições. Termine com uma pergunta fácil de responder. Use acao "continuar".'
       + (n > 0 ? ' Esta é a segunda e última retomada: deixe a porta aberta, sem insistir.' : '');
     const r = await gerarResposta(prisma, s, 'retomada', dica).catch(() => null);
     if (!r || !r.mensagens.length) continue;
-    await enviarMensagens(prisma, token, s, r.mensagens.slice(0, 2));
+    // Cliente que adiou recebe a apresentação: se a IA esquecer o link, ele vai no fim da última mensagem.
+    const msgs = ap0 && !apJaEnviada ? garantirLinkApresentacao(r.mensagens.slice(0, 2), ap0.url) : r.mensagens.slice(0, 2);
+    await enviarMensagens(prisma, token, s, msgs);
     const ultima = await prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'SAIDA' }, orderBy: { created_at: 'desc' }, select: { id: true } });
     await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, retomada_assumida: { n: n + 1, em: agora.toISOString(), ultima_msg_id: ultima?.id || null } } } });
-    await prisma.sdrMensagem.create({ data: { sdrId: s.id, conversaId: s.conversaId!, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: 'retomada_assumida', decidido_em: agora } }).catch(() => {});
-    registrarAcaoAgente(agenteDe(s), `retomou a conversa assumida de ${s.nome || 'um lead'} (${n + 1}ª tentativa): o cliente tinha parado de responder`);
+    await prisma.sdrMensagem.create({ data: { sdrId: s.id, conversaId: s.conversaId!, texto: msgs.join('\n\n'), status: 'ENVIADA_AUTO', acao: 'retomada_assumida', decidido_em: agora } }).catch(() => {});
+    registrarAcaoAgente(agenteDe(s), clienteAdiou
+      ? `retomou ${s.nome || 'um lead'} que estava esperando (ex.: CNPJ), ${precisa} dias úteis depois${ap0 && !apJaEnviada ? `, com a apresentação de ${loja}` : ''} (${n + 1}ª tentativa)`
+      : `retomou a conversa assumida de ${s.nome || 'um lead'} (${n + 1}ª tentativa): o cliente tinha parado de responder`);
     enviadas++;
   }
 }
