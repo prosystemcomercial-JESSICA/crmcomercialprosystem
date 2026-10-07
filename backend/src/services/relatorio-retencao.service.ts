@@ -1,7 +1,7 @@
 // Relatório de Retenção (Supervisão Comercial e CEO): ranking dos motivos de saída
 // (casos de churn + motivo de inativação da base) e LTV completo de cada cliente.
 import { PrismaClient } from '@prisma/client';
-import { categoriaSaida, faixaTempoDeCasa, FAIXAS_TEMPO, ltvDoCliente, montarRankingSaida, segmentoDoCliente, type Saida } from '@/lib/relatorio-retencao';
+import { categoriaSaida, faixaTempoDeCasa, FAIXAS_TEMPO, ltvDoCliente, montarRankingSaida, montarSaidasPorAno, segmentoDoCliente, type Saida } from '@/lib/relatorio-retencao';
 
 const PERDA = ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -83,5 +83,12 @@ export async function montarRelatorioRetencao(prisma: PrismaClient, agora = new 
   }
   const por_segmento = [...segs.values()].map(s => ({ ...s, ltv_medio: s.ativos ? r2(s.ltv_total / s.ativos) : 0 })).sort((a, b) => b.ltv_total - a.ltv_total);
 
-  return { gerado_em: agora.toISOString(), ranking, ltv: { resumo, faixas, por_segmento, clientes: linhas } };
+  // Quem saiu, ano a ano: inativos com data de saída (CRM) + balanços anuais importados (anos sem lista de clientes).
+  const historico: any[] = await (prisma as any).resultadoAnualHistorico.findMany({ select: { ano: true, contratos_encerrados: true, churn_valor_mensal: true, motivos_saida: true, saida_por_segmento: true } }).catch(() => []);
+  const porAno = montarSaidasPorAno(inativos.map(c => ({
+    id: c.id, codigo: c.codigo, nome: c.nome, segmento: c.segmento, data_entrada: c.data_entrada, inativado_em: c.inativado_em,
+    mensalidade: c.mensalidade, mrr_perdido: Number(porId.get(c.id)?.mrr_perdido || 0) || null, motivo: c.motivo_texto, ltv: c.ltv,
+  })), historico, agora);
+
+  return { gerado_em: agora.toISOString(), ranking, ltv: { resumo, faixas, por_segmento, clientes: linhas }, saidas: porAno };
 }

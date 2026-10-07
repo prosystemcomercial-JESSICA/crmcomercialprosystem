@@ -7,6 +7,8 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import { TrendingUp, Users, Award, Loader2, ArrowUpDown, Search, Clock } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import Link from 'next/link';
+import { SaidasPorAno } from '@/components/ceo/SaidasPorAno';
 
 const PRO = '#2E6EAB';
 
@@ -61,6 +63,9 @@ export default function LtvPage() {
   }, []);
 
   useEffect(() => { if (isAuthenticated) carregar(); }, [isAuthenticated, carregar]);
+  // Quem saiu, ano a ano (comparativo, tempo ativo, LTV e motivo de cada cliente que saiu).
+  const [retencao, setRetencao] = useState<any>(null);
+  useEffect(() => { if (isAuthenticated) apiClient.getRelatorioRetencao().then(r => setRetencao(r.data.data)).catch(() => {}); }, [isAuthenticated]);
 
   function alternarOrdem(coluna: ColunaOrdem) {
     setOrdem(prev => prev.coluna === coluna
@@ -246,6 +251,14 @@ export default function LtvPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+            {/* Quem saiu, ano a ano */}
+            <div style={{ marginTop: 28, display: 'grid', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--t-text-primary)' }}>Quem saiu, ano a ano</h2>
+                <Link href="/relatorio-retencao?aba=ltv" style={{ fontSize: 13, color: PRO, textDecoration: 'none' }}>LTV detalhado de cada cliente e motivos de saída →</Link>
+              </div>
+              {retencao?.saidas ? <SaidasPorAno s={retencao.saidas} /> : <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Loader2 size={20} className="animate-spin" color={PRO} /></div>}
             </div>
           </>
         )}

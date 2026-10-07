@@ -1093,3 +1093,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - Em **Clientes & Pós-venda › Relatório de Retenção**:
   - **Motivos de saída:** o ranking de por que os clientes saem (fechou a loja, migração de rede, trocou de sistema, suporte, preço, inadimplência…), juntando os casos de churn e o histórico de inativações. Toque num motivo para ver como ele foi escrito. Dá para ver só os casos de churn ou só a base histórica, e exportar.
   - **LTV por cliente:** quanto cada cliente já pagou (mensalidades, instalação e vendas adicionais), tempo de casa, LTV por mês, LTV por segmento e por tempo de casa. Busca, filtros, ordenação e exportação para o Excel.
+
+
+### Atualização 07/10/2026: quem saiu, ano a ano (LTV)
+
+- No **LTV dos Clientes** (e na aba "Quem saiu, ano a ano" do Relatório de Retenção): compara quem saiu este ano com o ano passado (quantos, mensalidade perdida, tempo ativo médio e LTV médio), mostra as saídas mês a mês, os motivos e a lista de cada cliente que saiu — quando entrou, quando saiu, quanto tempo ficou e quanto pagou. Exporta para o Excel.
+- O ano passado aparece pelos totais do Balanço 2025 (o CRM não tem a lista de quem saiu em 2025). Os clientes inativos sem data de saída entram sozinhos quando as datas forem preenchidas.
