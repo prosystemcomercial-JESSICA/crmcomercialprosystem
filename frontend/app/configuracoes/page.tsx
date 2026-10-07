@@ -9,6 +9,7 @@ import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, S
 import { apiClient, ResumoBackup } from '@/lib/api-client';
 import PainelTvConfig from '@/components/dashboard/PainelTvConfig';
 import AssistenteWhatsapp from '@/components/configuracoes/AssistenteWhatsapp';
+import NumerosWhatsapp from '@/components/configuracoes/NumerosWhatsapp';
 
 // ─── Theme Definitions ────────────────────────────────────
 
@@ -687,6 +688,8 @@ export default function ConfiguracoesPage() {
               </div>
             </div>
           )}
+
+          {gestaoWpp && <NumerosWhatsapp />}
 
           {gestaoWpp && <AssistenteWhatsapp />}
 

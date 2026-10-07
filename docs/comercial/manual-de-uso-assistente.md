@@ -1105,3 +1105,12 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - O formulário do site/blog manda o lead direto para o CRM: entra **Morno**, sem dono (em Leads para Distribuir), a gestão recebe um aviso no WhatsApp e a **Caroline faz o primeiro contato** entregando o que a pessoa pediu. Quem já é cliente ou já está em conversa não é chamado de novo.
 - Guia para quem monta o formulário: `docs/comercial/formulario-captacao-leads.md`.
+
+
+### Atualização 07/10/2026: mais números de WhatsApp
+
+- Em **Configurações › Números de WhatsApp** ficam 5 vagas: o número principal (o de hoje), o **Número 2** (UAZAPI: cole o token da instância nova) e os **Números 3, 4 e 5** (API gratuita: clique em "Conectar pelo QR" e leia com o celular do chip novo em WhatsApp › Aparelhos conectados).
+- Marque **"Usar na prospecção (rodízio)"** para o número entrar nos primeiros contatos dos agentes. Cada número começa devagar (10 por dia na 1ª semana, 20 na 2ª, 30 na 3ª e depois 40). O número principal continua com o atendimento, a Bia e os clientes.
+- **Regra fixa:** o contato fica sempre no número que conversou com ele primeiro. Nenhum outro número chama ou responde esse contato (nem os agentes). Se o número dele estiver desconectado, a mensagem não sai por outro: reconecte o número.
+- No Inbox, a conversa de um número extra tem a etiqueta roxa **📱** com o nome do número. Responder por ali já sai pelo número certo.
+- Se um número falhar 3 vezes seguidas, ele sai do rodízio sozinho e a gestão recebe um aviso no WhatsApp.

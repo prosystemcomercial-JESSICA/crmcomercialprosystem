@@ -1279,6 +1279,22 @@ class ApiClient {
   async salvarWhatsappEmpresa(instance_token: string) {
     return this.client.put('/whatsapp/empresa', { instance_token });
   }
+  // Números extras da empresa (vaga 2 na UAZAPI, vagas 3–5 na API gratuita).
+  async getNumerosWhatsapp() {
+    return this.client.get('/whatsapp/numeros');
+  }
+  async getNumeroWhatsapp(vaga: string) {
+    return this.client.get(`/whatsapp/numeros/${encodeURIComponent(vaga)}`);
+  }
+  async conectarNumeroWhatsapp(vaga: string, instance_token?: string) {
+    return this.client.post(`/whatsapp/numeros/${encodeURIComponent(vaga)}/conectar`, instance_token ? { instance_token } : {});
+  }
+  async salvarNumeroWhatsapp(vaga: string, dados: { apelido?: string; rodizio?: boolean; limite_dia?: number | null }) {
+    return this.client.put(`/whatsapp/numeros/${encodeURIComponent(vaga)}`, dados);
+  }
+  async desconectarNumeroWhatsapp(vaga: string) {
+    return this.client.post(`/whatsapp/numeros/${encodeURIComponent(vaga)}/desconectar`, {});
+  }
   // Escritório virtual (estado dos agentes do assistente).
   async getPesquisasSofia() {
     return this.client.get('/assistente/pesquisas');

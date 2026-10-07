@@ -15,6 +15,24 @@
 // errado/vazio — foi a causa do QR "sumir" e do status ficar preso em
 // DESCONECTADO mesmo após conectar de verdade.
 
+import * as gratis from './whatsapp-gratis.service';
+
+// ── Contato preso ao número (regra da Jessica, 07/10/2026) ─────────────────
+// "Se o número foi chamado em uma instância, toda a conversa deve permanecer lá; não deve
+// ser chamado nunca nem respondido por outra." Antes de TODO envio, o roteador (registrado
+// no server.ts, com acesso ao banco) devolve o token do número dono do contato. Assim os
+// agentes e telas que só conhecem o número da empresa enviam pelo número certo.
+export class ContatoDeOutroNumero extends Error {
+  constructor(public numero: string, public instancia: string) {
+    super(`Este contato é atendido pelo número "${instancia}", que está desconectado. A mensagem não foi enviada por outro número (regra: a conversa fica sempre no mesmo número).`);
+    this.name = 'ContatoDeOutroNumero';
+  }
+}
+type Roteador = (instanceToken: string, numero: string) => Promise<string>;
+let roteador: Roteador | null = null;
+export function registrarRoteadorEnvio(fn: Roteador) { roteador = fn; }
+const rotear = async (instanceToken: string, numero: string) => (roteador ? roteador(instanceToken, numero) : instanceToken);
+
 function getBaseUrl(): string {
   const url = process.env.EVOLUTION_API_URL || '';
   if (!url) throw new Error('EVOLUTION_API_URL não configurado');
@@ -91,6 +109,7 @@ export async function criarInstancia(instanciaNome: string): Promise<{ qr?: stri
 
 /** Reobtém o QR Code / status de uma instância (GET /instance/status, com o TOKEN DA INSTÂNCIA). */
 export async function obterQrCode(instanceToken: string): Promise<{ qr?: string }> {
+  if (gratis.ehTokenGratis(instanceToken)) return gratis.qr(gratis.nomeDoToken(instanceToken));
   try {
     const data = await call('/instance/status', 'GET', instanceToken);
     const qr = data?.qrcode?.base64 || data?.qr || data?.base64 || data?.qrCode || data?.instance?.qrcode;
@@ -103,6 +122,7 @@ export async function obterQrCode(instanceToken: string): Promise<{ qr?: string 
 
 /** Estado da conexão via GET /instance/status (com o TOKEN DA INSTÂNCIA). */
 export async function obterStatus(instanceToken: string): Promise<{ status: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'; numero?: string }> {
+  if (gratis.ehTokenGratis(instanceToken)) return gratis.status(gratis.nomeDoToken(instanceToken));
   try {
     const data = await call('/instance/status', 'GET', instanceToken);
     // A UazAPI aninha o estado real em instance.status ("connected"/"connecting"/
@@ -126,6 +146,7 @@ export async function obterStatus(instanceToken: string): Promise<{ status: 'CON
  * painel da UazAPI ou aqui, configurar isso explicitamente por instância).
  */
 export async function configurarWebhook(instanceToken: string): Promise<boolean> {
+  if (gratis.ehTokenGratis(instanceToken)) return gratis.configurarWebhook(gratis.nomeDoToken(instanceToken));
   const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL;
   if (!webhookUrl) {
     console.warn('[UAZAPI] EVOLUTION_WEBHOOK_URL não configurada — webhook da instância não foi registrado.');
@@ -150,11 +171,13 @@ export async function configurarWebhook(instanceToken: string): Promise<boolean>
 
 /** Desconecta a instância (com o TOKEN DA INSTÂNCIA). */
 export async function desconectarInstancia(instanceToken: string): Promise<void> {
+  if (gratis.ehTokenGratis(instanceToken)) return gratis.desconectar(gratis.nomeDoToken(instanceToken));
   await call('/instance/disconnect', 'POST', instanceToken).catch(() => {});
 }
 
 /** Deleta a instância (com o TOKEN DA INSTÂNCIA). */
 export async function deletarInstancia(instanceToken: string): Promise<void> {
+  if (gratis.ehTokenGratis(instanceToken)) return gratis.apagar(gratis.nomeDoToken(instanceToken));
   await call('/instance/delete', 'DELETE', instanceToken).catch(() => {});
 }
 
@@ -172,6 +195,14 @@ export function normalizarNumero(numero: string): string {
 export async function verificarWhatsapp(instanceToken: string, numeros: string[]): Promise<Map<string, boolean>> {
   const r = new Map<string, boolean>();
   if (!numeros.length) return r;
+  if (gratis.ehTokenGratis(instanceToken)) {
+    const lista = await gratis.verificar(gratis.nomeDoToken(instanceToken), numeros.map(normalizarNumero));
+    for (const x of lista) {
+      const achou = numeros.find(n => normalizarNumero(n) === x.numero) || numeros.find(n => x.numero && x.numero.endsWith(normalizarNumero(n).slice(-8)));
+      if (achou) r.set(achou, x.existe);
+    }
+    return r;
+  }
   const data = await call('/chat/check', 'POST', instanceToken, { numbers: numeros.map(normalizarNumero) });
   const lista: any[] = Array.isArray(data) ? data : Array.isArray(data?.numbers) ? data.numbers : Array.isArray(data?.result) ? data.result : [];
   for (const x of lista) {
@@ -189,6 +220,14 @@ export async function verificarWhatsapp(instanceToken: string, numeros: string[]
 export async function resolverNumero(instanceToken: string, numero: string): Promise<{ numero: string; existe: boolean | undefined }> {
   const n = normalizarNumero(numero);
   const alt = numeroAlternativoBR(n);
+  if (gratis.ehTokenGratis(instanceToken)) {
+    try {
+      const lista = await gratis.verificar(gratis.nomeDoToken(instanceToken), alt ? [n, alt] : [n]);
+      const achou = lista.find(x => x.existe);
+      if (achou) return { numero: (achou.jid || achou.numero || n).replace(/\D/g, '') || n, existe: true };
+      return { numero: n, existe: lista.length ? false : undefined };
+    } catch { return { numero: n, existe: undefined }; }
+  }
   try {
     const data = await call('/chat/check', 'POST', instanceToken, { numbers: alt ? [n, alt] : [n] });
     const lista: any[] = Array.isArray(data) ? data : Array.isArray(data?.numbers) ? data.numbers : Array.isArray(data?.result) ? data.result : [];
@@ -203,6 +242,7 @@ export async function resolverNumero(instanceToken: string, numero: string): Pro
  * undefined = a UazAPI não respondeu; null = contato sem nome.
  */
 export async function nomeDoContato(instanceToken: string, numero: string): Promise<string | null | undefined> {
+  if (gratis.ehTokenGratis(instanceToken)) return gratis.nomePerfil(gratis.nomeDoToken(instanceToken), normalizarNumero(numero));
   const data = await call('/chat/details', 'POST', instanceToken, { number: normalizarNumero(numero) }).catch(() => undefined);
   if (!data || typeof data !== 'object') return undefined;
   const nome = String(data.wa_name || data.wa_contactName || data.name || '').trim();
@@ -216,7 +256,12 @@ export async function enviarTexto(
   texto: string,
   digitandoMs?: number, // UAZAPI: espera mostrando "digitando..." antes de enviar
 ): Promise<{ externo_id?: string; numero_corrigido?: string }> {
-  const enviar = (n: string) => call('/send/text', 'POST', instanceToken, { number: n, text: texto, ...(digitandoMs ? { delay: Math.round(digitandoMs) } : {}) });
+  instanceToken = await rotear(instanceToken, numero);
+  const enviar = async (n: string) => {
+    if (!gratis.ehTokenGratis(instanceToken)) return call('/send/text', 'POST', instanceToken, { number: n, text: texto, ...(digitandoMs ? { delay: Math.round(digitandoMs) } : {}) });
+    try { return { key: { id: await gratis.texto(gratis.nomeDoToken(instanceToken), n, texto, digitandoMs) } }; }
+    catch (e: any) { if (e?.semWhatsapp) throw new NumeroSemWhatsapp(n); throw e; }
+  };
   try {
     return { externo_id: idDaMensagemEnviada(await enviar(normalizarNumero(numero))) };
   } catch (e) {
@@ -242,6 +287,8 @@ export async function enviarAudio(
   const m = audioDataUrlOuBase64.match(/^data:([^;,]+)[^,]*;base64,(.*)$/s);
   const base64Puro = (m ? m[2] : audioDataUrlOuBase64).replace(/\s/g, '');
 
+  instanceToken = await rotear(instanceToken, numero);
+  if (gratis.ehTokenGratis(instanceToken)) return { externo_id: await gratis.audio(gratis.nomeDoToken(instanceToken), normalizarNumero(numero), base64Puro) };
   const data = await call('/send/media', 'POST', instanceToken, {
     number: normalizarNumero(numero),
     type: 'ptt',
@@ -268,6 +315,12 @@ export async function enviarArquivo(
   const mimetype = m[1].toLowerCase();
   const tipo = mimetype.startsWith('image/') ? 'IMAGEM' : mimetype.startsWith('video/') ? 'VIDEO' : 'DOCUMENTO';
 
+  instanceToken = await rotear(instanceToken, numero);
+  if (gratis.ehTokenGratis(instanceToken)) {
+    const id = await gratis.arquivo(gratis.nomeDoToken(instanceToken), normalizarNumero(numero), m[2].replace(/\s/g, ''), mimetype,
+      tipo === 'IMAGEM' ? 'image' : tipo === 'VIDEO' ? 'video' : 'document', nomeArquivo, legenda);
+    return { externo_id: id, tipo };
+  }
   const data = await call('/send/media', 'POST', instanceToken, {
     number: normalizarNumero(numero),
     type: tipo === 'IMAGEM' ? 'image' : tipo === 'VIDEO' ? 'video' : 'document',
@@ -286,6 +339,10 @@ export type MenuWhatsapp =
 
 /** Menu interativo via POST /send/menu: botões (até 3) ou lista (4+ opções). */
 export async function enviarMenu(instanceToken: string, numero: string, menu: MenuWhatsapp): Promise<{ externo_id?: string }> {
+  instanceToken = await rotear(instanceToken, numero);
+  if (gratis.ehTokenGratis(instanceToken)) {
+    return { externo_id: await gratis.menu(gratis.nomeDoToken(instanceToken), normalizarNumero(numero), menu.texto, menu.opcoes, menu.rodape) };
+  }
   const corpo: any = { number: normalizarNumero(numero), type: menu.modo, text: menu.texto };
   if (menu.modo === 'button') {
     corpo.choices = menu.opcoes.map(o => `${o.texto}|${o.id}`);
@@ -317,6 +374,7 @@ export async function baixarMidia(
   instanceToken: string,
   messageId: string,
 ): Promise<{ base64: string; mimetype: string | null } | null> {
+  if (gratis.ehTokenGratis(instanceToken)) return gratis.midia(gratis.nomeDoToken(instanceToken), messageId);
   const data = await call('/message/download', 'POST', instanceToken, {
     id: messageId,
     return_base64: true,

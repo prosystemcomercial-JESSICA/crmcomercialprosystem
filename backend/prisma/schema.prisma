@@ -2727,6 +2727,14 @@ model WhatsappInstancia {
   status         String    @default("DESCONECTADO") // DESCONECTADO|CONECTANDO|CONECTADO
   qr_code        String?   @db.Text // último QR (base64) enquanto conecta
   conectado_em   DateTime?
+  // Números extras (pedido da Jessica, 07/10/2026): o número de hoje segue na UAZAPI, mais uma
+  // vaga UAZAPI e três na API gratuita (Evolution API na VPS, instance_token = "evo:<nome>").
+  provedor          String    @default("UAZAPI") // UAZAPI | GRATIS
+  uso               String? // PRINCIPAL | PROSPECCAO
+  rodizio           Boolean   @default(false) // entra no rodízio de primeiros contatos da prospecção
+  limite_dia        Int? // primeiros contatos por dia neste número (null = padrão do aquecimento)
+  aquecimento_desde DateTime? // conectado para prospecção a partir de (sobe o limite aos poucos)
+  pausada_motivo    String? // rodízio pausado sozinho (ex.: muitas mensagens sem resposta)
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
