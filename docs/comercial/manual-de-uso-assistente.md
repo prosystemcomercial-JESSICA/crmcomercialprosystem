@@ -1099,3 +1099,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 
 - No **LTV dos Clientes** (e na aba "Quem saiu, ano a ano" do Relatório de Retenção): compara quem saiu este ano com o ano passado (quantos, mensalidade perdida, tempo ativo médio e LTV médio), mostra as saídas mês a mês, os motivos e a lista de cada cliente que saiu — quando entrou, quando saiu, quanto tempo ficou e quanto pagou. Exporta para o Excel.
 - O ano passado aparece pelos totais do Balanço 2025 (o CRM não tem a lista de quem saiu em 2025). Os clientes inativos sem data de saída entram sozinhos quando as datas forem preenchidas.
+
+
+### Atualização 07/10/2026: formulário de captação de leads
+
+- O formulário do site/blog manda o lead direto para o CRM: entra **Morno**, sem dono (em Leads para Distribuir), a gestão recebe um aviso no WhatsApp e a **Caroline faz o primeiro contato** entregando o que a pessoa pediu. Quem já é cliente ou já está em conversa não é chamado de novo.
+- Guia para quem monta o formulário: `docs/comercial/formulario-captacao-leads.md`.

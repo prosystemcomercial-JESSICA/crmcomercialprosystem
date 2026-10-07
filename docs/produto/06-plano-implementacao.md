@@ -1331,3 +1331,17 @@ Pedido da Jessica: o painel de LTV tem que ser completo — cliente que saiu est
 - **API:** `GET /clientes/relatorio-retencao` passa a devolver `saidas`.
 - **Tela:** componente `frontend/components/ceo/SaidasPorAno.tsx`, no fim de `/ltv` (seção "Quem saiu, ano a ano", com atalho para o LTV detalhado) e como aba "Quem saiu, ano a ano" do Relatório de Retenção (`/relatorio-retencao?aba=saidas`). Conteúdo: comparativo (saídas, mensalidade perdida, tempo ativo médio, LTV médio de quem saiu), saídas mês a mês do ano atual, motivos do ano atual e do anterior, tabela de saídas por ano com a fonte, lista de cada cliente que saiu com filtro de ano e exportação CSV, aviso dos inativos sem data.
 - **Testes:** 2 casos novos em `backend/tests/relatorio-retencao.test.ts` (33 no total).
+
+
+### Atualização 07/10/2026: formulário de captação de leads (site/blog) com primeiro contato da Caroline
+
+Pedido da Jessica: ligar ao CRM um formulário de captação que ela vai criar. Decisão: lead **sem dono**, **aviso à gestão** e **primeiro contato da Caroline**; temperatura Morno (pediu um material).
+
+- **Porta pública:** `POST /api/publico/leads/formulario` (`backend/src/routes/leads.ts`). Leitura e normalização em `backend/src/lib/formulario-lead.ts` (`lerFormularioLead`: nome e WhatsApp obrigatórios, telefone com 55, segmento Farmácia/Padaria, cidade/UF, campo invisível `site` = robô ignorado em silêncio; `origemDoFormulario`: `blog` → `FORMULARIO_BLOG`). Limite de 5 envios por IP a cada 10 minutos.
+- **Lead:** novo → Morno, sem dono, origem `FORMULARIO_*`, campanha "Formulário: <material>", UTMs, `link_origem` = página, observação com o resumo; telefone já cadastrado → não duplica, sobe de Frio para Morno e completa empresa/e-mail vazios.
+- **Caroline (`receberDoFormulario`, `caroline.service.ts`):** cria/reaproveita a conversa no WhatsApp da empresa e o `SdrLead` em FILA (`criado_por: 'formulario'`), com uma nota de contexto no mural para a Caroline (o que a pessoa pediu e escreveu). Não entra na fila: número bloqueado para agentes, cliente ativo, número já com agente ativo, conversa com dono (pessoa atendendo). O primeiro contato segue as regras da fila (limite diário e horários).
+- **Aviso à gestão:** `enviarAvisoGestao('lead_qualificado')` com os dados e a situação (na fila da Caroline, cliente ativo, já com agente/pessoa etc.).
+- **CORS:** liberados `https://*.prosystemnet.com(.br)` e domínios extras em `FORMULARIO_ORIGENS` (vírgula).
+- **Relatórios:** `rotuloOrigem` mostra "Formulário do site/blog".
+- **Guia para quem monta o formulário:** `docs/comercial/formulario-captacao-leads.md`.
+- **Testes:** `backend/tests/formulario-lead.test.ts` (5 casos) e caso novo em `leads-resumo.test.ts`.

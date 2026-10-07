@@ -936,6 +936,73 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     return reply.status(201).send({ status: 'success' });
   });
 
+  // ── Formulário de captação (site/blog/landing) — pedido da Jessica, 07/10/2026 ──
+  // Sem login. Lead MORNO (pediu um material), sem dono (Leads para distribuir), aviso imediato à gestão
+  // e primeiro contato da Caroline (fila, com limite diário e horários). Mesmo telefone: não duplica.
+  // Proteções: campo invisível "site" (robô), limite por IP, nome e WhatsApp obrigatórios.
+  const envioFormularioPorIp = new Map<string, number[]>();
+  fastify.post('/publico/leads/formulario', async (request, reply) => {
+    const ip = String((request.headers['x-real-ip'] as string) || request.ip || '');
+    const agora = Date.now();
+    const hist = (envioFormularioPorIp.get(ip) || []).filter(t => agora - t < 10 * 60_000);
+    if (hist.length >= 5) return reply.status(429).send({ status: 'error', message: 'Muitos envios. Tente de novo em alguns minutos.' });
+    envioFormularioPorIp.set(ip, [...hist, agora]);
+    const { lerFormularioLead } = await import('@/lib/formulario-lead');
+    const r = lerFormularioLead(request.body);
+    if (!r.ok) return r.robo ? reply.send({ status: 'success' }) : reply.status(400).send({ status: 'error', message: r.erro });
+    const d = r.dados;
+    const fim8 = d.telefone.slice(-8);
+    const campanha = `Formulário${d.material ? `: ${d.material}` : ''}`;
+    const resumo = [
+      `Veio pelo formulário do site (${d.origem.replace('FORMULARIO_', '').toLowerCase().replace(/_/g, ' ')}).`,
+      `Nome: ${d.nome}`, d.empresa ? `Empresa: ${d.empresa}` : null, d.segmento ? `Segmento: ${d.segmento}` : null,
+      d.cidade ? `Cidade: ${[d.cidade, d.estado].filter(Boolean).join('/')}` : null, d.email ? `E-mail: ${d.email}` : null,
+      d.material ? `Pediu: ${d.material}` : null, d.mensagem ? `Mensagem: ${d.mensagem}` : null, d.pagina ? `Página: ${d.pagina}` : null,
+    ].filter(Boolean).join('\n');
+
+    const existente = await prisma.lead.findFirst({
+      where: { deleted_at: null, OR: [{ telefone: { endsWith: fim8 } }, { responsavel_telefone: { endsWith: fim8 } }] },
+      select: { id: true, nome: true, temperatura: true, empresa: true, responsavel_email: true },
+    });
+    let leadId: string, novo = false;
+    if (existente) {
+      leadId = existente.id;
+      await prisma.lead.update({ where: { id: leadId }, data: {
+        ...(existente.temperatura === 'FRIO' || !existente.temperatura ? { temperatura: 'MORNO' } : {}),
+        ...(!existente.empresa && d.empresa ? { empresa: d.empresa } : {}), ...(!existente.responsavel_email && d.email ? { responsavel_email: d.email } : {}),
+      } as any });
+      await registrarObsSistema(prisma, leadId, 'SISTEMA', `📝 Voltou pelo formulário do site.\n${resumo}`);
+    } else {
+      const lead = await prisma.lead.create({ data: {
+        nome: d.empresa || d.nome, empresa: d.empresa || null, nome_fantasia: d.empresa || null, segmento: d.segmento, cidade: d.cidade, estado: d.estado,
+        responsavel_nome: d.nome, responsavel_telefone: d.telefone, telefone: d.telefone, responsavel_email: d.email || null, email: d.email || null,
+        origem: d.origem, temperatura: 'MORNO', campanha, campanha_nome: campanha, observacoes: resumo,
+        utm_source: d.utm_source, utm_medium: d.utm_medium, utm_campaign: d.utm_campaign, utm_content: d.utm_content, utm_term: d.utm_term, fbclid: d.fbclid, gclid: d.gclid,
+        link_origem: d.pagina || null,
+      } as any });
+      leadId = lead.id; novo = true;
+      await registrarObsSistema(prisma, leadId, 'SISTEMA', `📝 Lead do formulário do site: primeiro contato com a Caroline (SDR).\n${resumo}`);
+    }
+
+    // Primeiro contato da Caroline (fila); o que impede vira aviso para a gestão.
+    const { receberDoFormulario } = await import('@/services/caroline.service');
+    const fila = await receberDoFormulario(prisma, {
+      leadId, numero: d.telefone, nome: d.nome, empresa: d.empresa, email: d.email, segmento: d.segmento, campanha,
+      contexto: `Veio pelo formulário do site e pediu: ${d.material || 'informações sobre o Prosystem'}.${d.mensagem ? ` Escreveu: "${d.mensagem.slice(0, 300)}".` : ''}${d.empresa ? ` Empresa: ${d.empresa}.` : ''}${d.segmento ? ` Segmento: ${d.segmento}.` : ''} Primeiro contato humano e leve, entregando o que ela pediu.`,
+    }).catch(() => 'sem_whatsapp' as const);
+    const situacao: Record<string, string> = {
+      fila: 'A Caroline faz o primeiro contato (respeitando o limite diário e o horário).',
+      ja_com_agente: 'Este número já está em conversa com um agente: sem nova abordagem.',
+      com_pessoa: 'Alguém da equipe já atende este número no WhatsApp: siga com ele.',
+      cliente: 'Atenção: o número é de um cliente ativo. A Caroline não vai chamar.',
+      sem_agentes: 'Número marcado para não receber agentes: o contato é com a equipe.',
+      sem_whatsapp: 'WhatsApp da empresa indisponível: faça o contato manualmente.',
+    };
+    const { enviarAvisoGestao } = await import('@/services/assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', [`📝 *${novo ? 'Lead novo' : 'Lead voltou'} pelo formulário do site*`, resumo.split('\n').slice(1).join('\n'), `WhatsApp: ${d.telefone}`, '', novo ? 'Está em Leads para distribuir.' : 'Já estava no CRM: o lead foi atualizado.', situacao[fila]].join('\n')).catch(() => {});
+    return reply.status(201).send({ status: 'success' });
+  });
+
   // ── Update lead ───────────────────────────────────────────────────────────
   fastify.patch('/leads/:id', async (request, reply) => {
     const { id } = request.params as { id: string };

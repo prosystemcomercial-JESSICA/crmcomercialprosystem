@@ -13,6 +13,7 @@ describe('origem do lead em português', () => {
     expect(rotuloOrigem('Indicação')).toBe('Indicação');
     expect(rotuloOrigem('INDICACAO')).toBe('Indicação');
     expect(rotuloOrigem(null)).toBe('Outros');
+    expect(rotuloOrigem('FORMULARIO_BLOG')).toBe('Formulário do site/blog');
   });
 });
 

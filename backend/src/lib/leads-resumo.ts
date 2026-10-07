@@ -11,6 +11,7 @@ const sem = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCas
 export function rotuloOrigem(o: string | null | undefined): string {
   const k = sem(o || '');
   if (!k || k === 'OUTRO' || k === 'MANUAL') return 'Outros';
+  if (k.startsWith('FORMULARIO')) return 'Formulário do site/blog';
   if (k.startsWith('PROSPEC')) return 'Prospecção';
   if (k.startsWith('CAMPANHA')) return 'Campanhas';
   if (k.startsWith('IMPORTACAO')) return 'Lista importada (marketing)';

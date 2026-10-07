@@ -83,7 +83,10 @@ try {
         || /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin)
         || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
         // TV do Escritório aberta pelo IP (navegador de monitor que não abre o https do domínio).
-        || origin === 'http://179.199.134.177:3010';
+        || origin === 'http://179.199.134.177:3010'
+        // Formulários de captação no site/blog da Prosystem (e domínios extras em FORMULARIO_ORIGENS).
+        || /^https:\/\/([a-z0-9-]+\.)*prosystemnet\.com(\.br)?$/i.test(origin)
+        || (process.env.FORMULARIO_ORIGENS || '').split(',').map(o => o.trim()).filter(Boolean).some(o => origin.startsWith(o));
       if (ok) cb(null, true);
       else cb(new Error('Not allowed by CORS'), false);
     },
