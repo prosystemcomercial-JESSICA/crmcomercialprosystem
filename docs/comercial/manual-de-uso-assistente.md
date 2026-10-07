@@ -1086,3 +1086,10 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Atualização 06/10/2026: menu por setor
 
 - O menu agora é organizado por setor, com o mais usado no topo: **Painéis**, **Atendimento & IA**, **Vendas**, **Clientes & Pós-venda**, **Técnico**, **Metas & Financeiro**, **Análises & TV** e **Administração**. Telas do mesmo assunto ficam juntas (ex.: Cross-sell e Cross-sell & Up-sell; Churn, Health Score e NPS). Ninguém ganhou nem perdeu acesso.
+
+
+### Atualização 07/10/2026: Relatório de Retenção
+
+- Em **Clientes & Pós-venda › Relatório de Retenção**:
+  - **Motivos de saída:** o ranking de por que os clientes saem (fechou a loja, migração de rede, trocou de sistema, suporte, preço, inadimplência…), juntando os casos de churn e o histórico de inativações. Toque num motivo para ver como ele foi escrito. Dá para ver só os casos de churn ou só a base histórica, e exportar.
+  - **LTV por cliente:** quanto cada cliente já pagou (mensalidades, instalação e vendas adicionais), tempo de casa, LTV por mês, LTV por segmento e por tempo de casa. Busca, filtros, ordenação e exportação para o Excel.

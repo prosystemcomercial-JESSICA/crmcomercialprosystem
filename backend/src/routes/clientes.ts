@@ -453,6 +453,14 @@ export async function clientesRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { total: clientes.length, criados, atualizados, erros_total: erros.length, erros: erros.slice(0, 50) } });
   });
 
+  // Relatório de Retenção — Supervisão Comercial e CEO: ranking dos motivos de saída (casos de churn +
+  // motivo de inativação da base, agrupados por categoria) e LTV completo de cada cliente.
+  fastify.get('/clientes/relatorio-retencao', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { montarRelatorioRetencao } = await import('@/services/relatorio-retencao.service');
+    return reply.send({ status: 'success', data: await montarRelatorioRetencao(prisma) });
+  });
+
   // LTV realizado por cliente — Supervisão Comercial e CEO.
   // Fórmula: (mensalidade_base * meses_de_casa) + valor_instalacao
   //        + soma(VendaAdicional.valor_venda + acrescimo_mensal * meses_desde_a_venda, status IN (CONFIRMADA, PAGA))
