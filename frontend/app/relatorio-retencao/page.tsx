@@ -10,8 +10,9 @@ import { useAuth } from '@/lib/auth-context';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import { AZUL, Barra, CSS_CEO, Numero, brl0, nf, painel, secao } from '@/components/ceo/blocosCeo';
+import { SaidasPorAno } from '@/components/ceo/SaidasPorAno';
 
-type Aba = 'motivos' | 'ltv';
+type Aba = 'motivos' | 'saidas' | 'ltv';
 type Origem = 'todos' | 'casos' | 'base';
 type Ordem = 'ltv' | 'meses_de_casa' | 'mensalidade' | 'receita_adicionais' | 'ltv_por_mes' | 'nome';
 const brl = (v: number | null | undefined) => (v == null ? '—' : `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -199,7 +200,7 @@ export default function RelatorioRetencaoPage() {
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading, router]);
   useEffect(() => {
     const a = new URLSearchParams(window.location.search).get('aba');
-    if (a === 'ltv' || a === 'motivos') setAba(a);
+    if (a === 'ltv' || a === 'motivos' || a === 'saidas') setAba(a);
   }, []);
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -216,11 +217,11 @@ export default function RelatorioRetencaoPage() {
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 650, letterSpacing: '-0.01em', color: 'var(--t-text-primary)' }}>Relatório de Retenção</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t-text-muted)' }}>Por que os clientes saem e quanto cada cliente já pagou à Prosystem (LTV).</p>
           </div>
-          <Pilulas nome="Relatório" valor={aba} onChange={setAba} opcoes={[['motivos', 'Motivos de saída'], ['ltv', 'LTV por cliente']]} />
+          <Pilulas nome="Relatório" valor={aba} onChange={setAba} opcoes={[['motivos', 'Motivos de saída'], ['saidas', 'Quem saiu, ano a ano'], ['ltv', 'LTV por cliente']]} />
         </header>
         {erro ? <div style={{ ...painel, padding: 16, color: '#dc2626', fontSize: 13 }}>{erro}</div>
           : !d ? <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" size={22} /></div>
-          : aba === 'motivos' ? <AbaMotivos d={d} /> : <AbaLtv d={d} />}
+          : aba === 'motivos' ? <AbaMotivos d={d} /> : aba === 'saidas' ? <SaidasPorAno s={d.saidas} /> : <AbaLtv d={d} />}
       </div>
     </DashboardLayout>
   );

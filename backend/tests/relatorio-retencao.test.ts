@@ -88,3 +88,32 @@ describe('segmento do cliente', () => {
     expect(segmentoDoCliente(null, 'RIACHO COMESTICOS')).toBe('Outros varejos');
   });
 });
+
+import { montarSaidasPorAno } from '../src/lib/relatorio-retencao';
+describe('quem saiu, ano a ano', () => {
+  const d = (s: string) => new Date(`${s}T12:00:00-03:00`);
+  const cli = (o: any) => ({ id: o.id, codigo: o.id, nome: `Loja ${o.id}`, segmento: o.seg || 'Farmácia', data_entrada: o.ent ? d(o.ent) : null, inativado_em: o.sai ? d(o.sai) : null, mensalidade: o.mens ?? 300, mrr_perdido: o.mrr ?? null, motivo: o.mot ?? null, ltv: o.ltv ?? 0 });
+  const historico = [{ ano: 2025, contratos_encerrados: 68, churn_valor_mensal: 19982, motivos_saida: [{ motivo: 'Loja fechou', quantidade: 9 }], saida_por_segmento: [{ segmento: 'DROGARIA', quantidade: 59 }] }];
+  const r = montarSaidasPorAno([
+    cli({ id: 'a', ent: '2020-01-10', sai: '2026-03-10', mrr: 400, mot: 'Cliente fechou a loja.', ltv: 20000 }),
+    cli({ id: 'b', ent: '2025-09-10', sai: '2026-03-20', mot: 'Insatisfação com o suporte', ltv: 1800, seg: 'Padaria' }),
+    cli({ id: 'c', ent: '2024-05-10', sai: '2026-08-05', mot: 'Fechamento da loja', ltv: 8000 }),
+    cli({ id: 'x' }), // inativo sem datas
+  ], historico, d('2026-10-07'));
+
+  it('ano atual pelo CRM (cliente a cliente) e ano passado pelo Balanço (só totais)', () => {
+    expect(r.anos.map(a => [a.ano, a.fonte, a.saidas, a.mrr_perdido])).toEqual([[2026, 'CRM', 3, 1000], [2025, 'BALANCO', 68, 19982]]);
+    const a26 = r.anos[0];
+    expect([a26.tempo_medio_meses, a26.ltv_medio]).toEqual([35.7, 9933.33]);
+    expect(a26.motivos[0]).toEqual({ motivo: 'Fechou a loja / encerrou', qtd: 2 });
+    expect(a26.por_segmento).toEqual([{ segmento: 'Farmácia', qtd: 2 }, { segmento: 'Padaria', qtd: 1 }]);
+    expect(a26.meses?.[2]).toBe(2); // março
+    expect(r.anos[1].tempo_medio_meses).toBeNull();
+  });
+
+  it('comparativo do ano atual com o anterior e quem não tem data', () => {
+    expect(r.comparativo).toEqual({ atual: 2026, anterior: 2025, saidas: [3, 68], var_saidas_pct: -96, mrr: [1000, 19982], var_mrr_pct: -95, parcial_atual: true });
+    expect(r.sem_data).toBe(1);
+    expect(r.clientes.map(c => [c.id, c.ano_saida, c.tempo_ativo_meses])).toEqual([['c', 2026, 27], ['b', 2026, 6], ['a', 2026, 74]]);
+  });
+});

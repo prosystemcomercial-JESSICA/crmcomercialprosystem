@@ -91,3 +91,58 @@ export function segmentoDoCliente(segmento: string | null | undefined, ...nomes:
   if (/padar|panific|confeit|pao|paes|trigo|bakery/.test(t)) return 'Padaria';
   return 'Outros varejos';
 }
+
+// ─── Quem saiu, ano a ano (painel de LTV) ──────────────────────────────────────
+// Ano com saídas datadas no CRM: cliente a cliente (tempo ativo, LTV, motivos, mês).
+// Ano sem saídas datadas mas com balanço importado (ResultadoAnualHistorico): só os totais.
+type InativoLtv = { id: string; codigo: string | null; nome: string; segmento: string; data_entrada: Date | null; inativado_em: Date | null; mensalidade: number; mrr_perdido: number | null; motivo: string | null; ltv: number };
+type Balanco = { ano: number; contratos_encerrados: number | null; churn_valor_mensal: number | null; motivos_saida: any; saida_por_segmento: any };
+
+export function montarSaidasPorAno(inativos: InativoLtv[], historico: Balanco[], agora = new Date()) {
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const anoSP = (d: Date) => Number(new Date(d.getTime() - 3 * 36e5).toISOString().slice(0, 4));
+  const mesSP = (d: Date) => Number(new Date(d.getTime() - 3 * 36e5).toISOString().slice(5, 7)) - 1;
+  const conta = (xs: string[]) => [...xs.reduce((m, k) => m.set(k, (m.get(k) || 0) + 1), new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]);
+  const datados = inativos.filter(c => c.inativado_em);
+  const clientes = datados.map(c => ({
+    ...c, ano_saida: anoSP(c.inativado_em!), mes_saida: mesSP(c.inativado_em!),
+    tempo_ativo_meses: c.data_entrada ? mesesEntre(new Date(c.data_entrada), new Date(c.inativado_em!)) : null,
+    mrr: Number(c.mrr_perdido || c.mensalidade || 0), motivo_categoria: categoriaSaida(c.motivo),
+  })).sort((a, b) => b.inativado_em!.getTime() - a.inativado_em!.getTime());
+
+  const anosCrm = new Set(clientes.map(c => c.ano_saida));
+  const anosBal = historico.filter(h => !anosCrm.has(h.ano)).map(h => h.ano);
+  const anos = [...anosCrm, ...anosBal].sort((a, b) => b - a).map(ano => {
+    if (anosCrm.has(ano)) {
+      const xs = clientes.filter(c => c.ano_saida === ano);
+      const comTempo = xs.filter(c => c.tempo_ativo_meses != null);
+      const meses = Array(12).fill(0) as number[];
+      for (const c of xs) meses[c.mes_saida]++;
+      return {
+        ano, fonte: 'CRM' as const, saidas: xs.length, mrr_perdido: r2(xs.reduce((s, c) => s + c.mrr, 0)),
+        tempo_medio_meses: comTempo.length ? Math.round((comTempo.reduce((s, c) => s + c.tempo_ativo_meses!, 0) / comTempo.length) * 10) / 10 : null,
+        ltv_medio: xs.length ? r2(xs.reduce((s, c) => s + c.ltv, 0) / xs.length) : null, ltv_total: r2(xs.reduce((s, c) => s + c.ltv, 0)),
+        motivos: conta(xs.map(c => c.motivo_categoria)).map(([motivo, qtd]) => ({ motivo, qtd })),
+        por_segmento: conta(xs.map(c => c.segmento)).map(([segmento, qtd]) => ({ segmento, qtd })),
+        meses, observacao: null as string | null,
+      };
+    }
+    const h = historico.find(x => x.ano === ano)!;
+    const lista = (v: any, k: string) => (Array.isArray(v) ? v : []).map((x: any) => ({ [k]: String(x[k] ?? x.motivo ?? x.segmento ?? ''), qtd: Number(x.quantidade || 0) }));
+    return {
+      ano, fonte: 'BALANCO' as const, saidas: Number(h.contratos_encerrados || 0), mrr_perdido: r2(Number(h.churn_valor_mensal || 0)),
+      tempo_medio_meses: null, ltv_medio: null, ltv_total: null,
+      motivos: lista(h.motivos_saida, 'motivo') as { motivo: string; qtd: number }[], por_segmento: lista(h.saida_por_segmento, 'segmento') as { segmento: string; qtd: number }[],
+      meses: null, observacao: 'Só os totais do balanço anual importado; o CRM não tem a lista de clientes que saíram neste ano.',
+    };
+  });
+
+  const anoAtual = anoSP(agora);
+  const atual = anos.find(a => a.ano === anoAtual), anterior = anos.find(a => a.ano === anoAtual - 1);
+  const pct = (a: number, b: number) => (b ? Math.round(((a - b) / b) * 100) : null);
+  const comparativo = atual && anterior ? {
+    atual: atual.ano, anterior: anterior.ano, saidas: [atual.saidas, anterior.saidas], var_saidas_pct: pct(atual.saidas, anterior.saidas),
+    mrr: [atual.mrr_perdido, anterior.mrr_perdido], var_mrr_pct: pct(atual.mrr_perdido, anterior.mrr_perdido), parcial_atual: true,
+  } : null;
+  return { anos, comparativo, clientes, sem_data: inativos.length - datados.length };
+}
