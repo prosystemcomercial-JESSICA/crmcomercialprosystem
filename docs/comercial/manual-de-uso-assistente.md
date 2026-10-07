@@ -1075,3 +1075,9 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ### Correção 06/10/2026: SDR nos casos de churn
 
 - A SDR agora vê **Churn & Retenção** no menu e consegue registrar um caso novo e tratá-lo: atualizações, diagnóstico, plano de retenção e ações. Excluir continua só com o CEO.
+
+
+### Correção 06/10/2026: cliente que ainda não pode
+
+- Quando o cliente avisa que **o CNPJ ainda não saiu**, que **está viajando** ou que **a loja está abrindo**, os agentes não chamam no mesmo dia nem perguntam "já saiu?". Voltam só **3 a 4 dias depois**, com uma mensagem curta e humana, a **apresentação do segmento** (farmácia ou padaria) e o recado de que, assim que o CNPJ sair, montamos a proposta com o melhor preço possível.
+- Toda a equipe de agentes recebeu a regra: **antes de qualquer mensagem, pesquisar como se comportar** (ler a conversa inteira, o combinado, suas instruções e os procedimentos aprovados).

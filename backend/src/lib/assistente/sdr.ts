@@ -190,7 +190,20 @@ function lerDataSP(v: unknown, horaPadrao = '09:30'): Date | null {
 /** O cliente adiou a conversa (viagem, "quando voltar eu chamo", "agora não posso", "semana que vem"...). */
 export function ehAdiamento(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  return /(viagem|viajando|viajei|de ferias|ferias|quando (eu )?voltar|assim q(ue)? (eu )?(voltar|puder)|depois (eu )?(te )?(chamo|falo|entro em contato|retorno|vejo)|eu (te )?(chamo|procuro|retorno|entro em contato)|entro em contato|agora nao (posso|da|consigo)|nao posso (agora|falar)|estou ocupad|to ocupad|ocupad[oa] agora|semana que vem|mes que vem|outro momento|mais pra frente|mais para frente|no momento nao|fim do mes|depois do feriado)/.test(t);
+  return /(viagem|viajando|viajei|de ferias|ferias|quando (eu )?voltar|assim q(ue)? (eu )?(voltar|puder)|depois (eu )?(te )?(chamo|falo|entro em contato|retorno|vejo)|eu (te )?(chamo|procuro|retorno|entro em contato)|entro em contato|agora nao (posso|da|consigo)|nao posso (agora|falar)|estou ocupad|to ocupad|ocupad[oa] agora|semana que vem|mes que vem|outro momento|mais pra frente|mais para frente|no momento nao|fim do mes|depois do feriado)/.test(t)
+    // Empresa ainda abrindo (pedido da Jessica, 06/10/2026): CNPJ que não saiu, loja em reforma/inauguração, "te chamo/te aviso".
+    || /(\bte (chamo|aviso|procuro|retorno)\b|(quando|assim q(ue)?|depois q(ue)?) sair (o )?cnpj|sair o cnpj|cnpj (ainda )?nao (saiu|sai|esta pronto|ta pronto)|(aguardando|esperando) (o |sair o )?cnpj|(vou|vamos|estou|to|estamos) (abrir|abrindo) (a |minha |nossa )?(loja|farmacia|drogaria|padaria|empresa)|inaugura|em reforma)/.test(t);
+}
+
+/**
+ * Dias úteis desde a nossa última mensagem antes de cada retomada de conversa assumida por uma pessoa.
+ * Cliente que avisou que ainda não pode (CNPJ não saiu, viajando, loja abrindo): 3 dias úteis antes de
+ * cada retomada (3 a 4 dias de calendário, nunca no mesmo dia). Só parou de responder: 1 e depois 3.
+ * null = já fez as duas retomadas.
+ */
+export function intervaloRetomadaAssumida(n: number, clienteAdiou: boolean): number | null {
+  const dias = clienteAdiou ? [3, 3] : [1, 3];
+  return n < dias.length ? dias[n] : null;
 }
 
 /**
