@@ -1133,3 +1133,11 @@ Na lista, use Nova para revelar o campo de telefone e Iniciar para abrir o atend
 ### Correção 14/10/2026 — isolamento ao trocar conversas
 
 Ao trocar de contato, aguarde “Carregando conversa…” desaparecer para consultar o histórico. O campo de mensagem é limpo e uma gravação ainda em andamento é cancelada na troca. Se ocorrer falha, clique em “Tentar novamente”. Mensagens já enviadas continuam destinadas ao contato original e não são exibidas na nova conversa.
+
+### Correção 14/10/2026 (noite): a fila de primeiros contatos voltou a andar
+
+- **O que acontecia:** quando a primeira mensagem de um lead ficava esperando a sua aprovação, a fila inteira parava nele. Desde 05/10 quase nenhum lead novo foi chamado.
+- **Agora:** quem espera aprovação fica de lado e a fila segue com os próximos, respeitando o limite do dia, o intervalo e o horário.
+- **Aprovou e o número não tem WhatsApp?** O aviso aparece, a mensagem é descartada e o lead sai da fila sozinho (status Sem WhatsApp, com anotação no lead para conferir o telefone).
+- **Robô da loja:** boas-vindas, "aguarde", folheto em imagem, "atendimento finalizado", "não precisa responder" e pesquisa de nota são reconhecidos como robô. O agente pede o contato do decisor ao atendente uma única vez e não conversa com o robô.
+- **No painel da Caroline:** "Hoje: N primeiros contatos", o limite do número principal e quantas mensagens esperam sua aprovação. A contagem "Na fila" agora mostra o total real.

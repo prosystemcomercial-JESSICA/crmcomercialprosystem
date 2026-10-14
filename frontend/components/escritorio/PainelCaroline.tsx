@@ -10,7 +10,7 @@ type Config = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: st
 type Lead = { id: string; nome: string | null; empresa: string | null; numero: string; segmento: string | null; campanha: string | null; status: string; tentativas: number; nota: number | null; nota_motivo: string | null; temperatura: string | null; temperatura_confirmada: string | null; dados: any };
 type Pendente = { id: string; sdrId: string; texto: string; meta: any; lead: string | null; empresa: string | null; criado_em: string };
 type Uso = { dia: string; openai: number; grok: number; laya: number };
-type Painel = { uso_ia?: Uso[]; config: Config; por_status: Record<string, number>; leads: Lead[]; pendentes: Pendente[] };
+type Painel = { uso_ia?: Uso[]; config: Config; por_status: Record<string, number>; hoje?: { primeiros_contatos: number; limite_principal: number; esperando_aprovacao: number }; leads: Lead[]; pendentes: Pendente[] };
 type Previa = { nome: string | null; empresa: string | null; numero: string | null; telefone: string | null; segmento: string | null; campanha: string | null; avisos: string[]; pode: boolean };
 
 const COR = '#be123c';
@@ -119,6 +119,13 @@ export default function PainelCaroline({ agente = 'caroline' }: { agente?: 'caro
           </div>
         );
       })()}
+
+      {p.hoje && (
+        <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>
+          <b style={{ color: 'var(--t-text-primary)' }}>Hoje: {p.hoje.primeiros_contatos} primeiros contatos</b> (todos os agentes e números) · limite do número principal: {p.hoje.limite_principal}
+          {p.hoje.esperando_aprovacao > 0 && <> · <b style={{ color: COR }}>{p.hoje.esperando_aprovacao} esperando sua aprovação</b></>}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {Object.entries(p.por_status).map(([s, n]) => (
