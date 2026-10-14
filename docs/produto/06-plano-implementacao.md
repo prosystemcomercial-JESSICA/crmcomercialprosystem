@@ -1454,3 +1454,9 @@ Validação local: 18 testes Chromium aprovados (50,6 s), incluindo isolamento, 
 - Testes: `tests/perguntas-jessica.test.ts`.
 
 Publicação verificada em 14/10/2026: a compactação do commit `5f4d43826b626ca283c136f0802a70c784bcc64b` foi incluída na atualização simultânea `5915d63742f0afc56560200c66c17818ca07a517`. O script desta tarefa interrompeu a própria troca ao detectar avanço do servidor, preservando a outra publicação. Build ativo verificado: `eGIWNoGx_j-ebEcQ5Fz6s`. Backup prévio em `/root/backups-deploy/whatsapp-compacto-20261014T174955Z`. Dez testes de layout e filtros passaram contra a versão publicada (28,7 s), com APIs interceptadas e dados fictícios. HTTP 200 confirmado; nenhum envio real nos testes.
+
+### Atualização 14/10/2026 (noite): números extras reservados para a prospecção do Heitor
+
+- **Problema:** a ordem fixa do primeiro contato (campanha → propostas → base do Julio → Heitor) e a base do Julio, que se reabastece sozinha (`abastecerFila`), faziam os leads do Heitor nunca terem vez: 333 na fila com o motor já andando.
+- **Correção (`rodarCaroline`, passo 3):** quando o rodízio escolhe um número extra com folga (`escolherNumeroProspeccao`) e o teto do Heitor do dia não foi atingido, o próximo primeiro contato é um lead do Heitor (mais antigo primeiro). Sem lead do Heitor, segue a ordem de sempre. O número principal continua com campanha, propostas e base.
+- **Ritmo controlado:** teto do Heitor (`heitor.config.envios_dia`) passou de 15 para 30 por dia (decisão da Jessica, "subir de forma controlada"); o ritmo real fica limitado pelo aquecimento de cada número extra (10 → 20 → 30 → 40 por dia, uma etapa por semana). Limite único do número principal, intervalo sorteado, horário e travas continuam iguais.
