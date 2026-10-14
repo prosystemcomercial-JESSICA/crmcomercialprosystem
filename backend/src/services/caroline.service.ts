@@ -21,7 +21,7 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
-  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, mensagemEncerramentoProposta, complementoApresentacaoEncerramento, PROPOSTA_FECHADA, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, mensagemEncerramentoProposta, complementoApresentacaoEncerramento, PROPOSTA_FECHADA, motivoParaNaoChamar, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
   apresentacaoDoSegmento, garantirLinkApresentacao, MARCA_APRESENTACAO, type Apresentacao,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
@@ -243,6 +243,28 @@ async function pessoaAssumiu(prisma: PrismaClient, sdr: { conversaId: string | n
     select: { id: true },
   });
   return !!humana;
+}
+
+/**
+ * Lê as últimas 40 mensagens antes de qualquer agente escrever (pedido da Jessica, 14/10/2026). Se alguém da equipe
+ * disse para não chamar, se o cliente pediu para parar ou se a conversa é de cliente da casa (suporte, técnicos,
+ * banco de dados...), o agente sai da conversa para sempre, sem mensagem, e a gestão recebe o aviso.
+ */
+async function sairSeContextoImpede(prisma: PrismaClient, sdr: any): Promise<boolean> {
+  if (!sdr?.conversaId) return false;
+  const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId }, orderBy: { created_at: 'desc' }, take: 40, select: { direcao: true, enviada_por: true, conteudo: true, transcricao: true } }).catch(() => []);
+  const automaticos = new Set<string>([...REMETENTES_AUTOMATICOS, ...REMETENTES_SDR, 'abertura_jessica', 'assistente_ia', 'bot', 'cadencia_automatica', 'campanha']);
+  const r = motivoParaNaoChamar(ms.map(m => ({ direcao: m.direcao, enviada_por: m.enviada_por, texto: m.transcricao || m.conteudo || '' })), por => !!por && automaticos.has(por));
+  if (!r) return false;
+  const d: any = sdr.dados || {};
+  await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO', dados: { ...d, retomar_em: null, parado_contexto: r.motivo, ...(r.motivo === 'ja_cliente' ? { ja_cliente: true } : {}) } } });
+  await prisma.sdrMensagem.updateMany({ where: { sdrId: sdr.id, status: 'PENDENTE' }, data: { status: 'DESCARTADA' } }).catch(() => {});
+  const porque = r.motivo === 'equipe_pediu' ? 'a equipe avisou que ele não deve mais ser chamado' : r.motivo === 'cliente_pediu' ? 'o cliente pediu para não ser mais chamado' : 'pela conversa ele já é cliente (assunto de suporte/pós-venda)';
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'lead_qualificado', `🛑 *${nomeDe(sdr)} saiu da conversa de ${sdr.nome || sdr.numero}${sdr.empresa ? ` (${sdr.empresa})` : ''}*: ${porque}.\nTrecho: "${r.trecho}"\nNenhum agente escreve mais para esse contato.`).catch(() => {});
+  if (sdr.lead_id) await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao: `🛑 ${nomeDe(sdr)} saiu da conversa: ${porque}.`, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
+  registrarAcaoAgente(agenteDe(sdr), `saiu da conversa de ${sdr.nome || 'um contato'}: ${porque}`);
+  return true;
 }
 
 async function historico(prisma: PrismaClient, conversaId: string) {
@@ -882,6 +904,8 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     registrarAcaoAgente(agenteDe(sdr), `parou de falar com ${sdr.nome || 'um contato'}: está marcado como não lead/cliente`);
     return 'nada';
   }
+  // Contexto da conversa antes de escrever: equipe pediu para não chamar, cliente pediu para parar ou é cliente da casa.
+  if (await sairSeContextoImpede(prisma, sdr)) return 'nada';
   if (await pessoaAssumiu(prisma, sdr)) {
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'HUMANO' } });
     registrarAcaoAgente(agenteDe(sdr), `saiu da conversa de ${sdr.nome || 'um lead'}: uma pessoa assumiu`);
@@ -1244,6 +1268,7 @@ async function complementarEncerramentosComApresentacao(prisma: PrismaClient, to
   for (const s of encerrados) {
     const d: any = s.dados || {};
     if (!d.encerrado_em || d.apresentacao_encerramento || agora.getTime() - new Date(d.encerrado_em).getTime() < 30 * 60_000) continue;
+    if (await contatoSemAgentes(prisma, s.numero) || await sairSeContextoImpede(prisma, s)) continue;
     const ap = await apresentacaoPendente(prisma, s);
     // Marca antes de mandar: nunca sai duas vezes, mesmo se o envio falhar.
     await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, apresentacao_encerramento: agora.toISOString() } } });
@@ -1266,6 +1291,7 @@ async function encerrarPropostaSemResposta(prisma: PrismaClient, token: string, 
     const p = await prisma.propostaComercial.findUnique({ where: { id: s.proposta_id }, select: { status: true } });
     if (p && PROPOSTA_FECHADA.includes(p.status)) { await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'HUMANO' } }); return; }
   }
+  if (await contatoSemAgentes(prisma, s.numero) || await sairSeContextoImpede(prisma, s)) return;
   const nome = await nomeParaChamar(prisma, s.numero, s.nome).catch(() => s.nome);
   const ap = await apresentacaoPendente(prisma, s).catch(() => null);
   const texto = mensagemEncerramentoProposta(nome, agora, ap);
