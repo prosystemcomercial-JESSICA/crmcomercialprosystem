@@ -1,5 +1,7 @@
 # CRM Comercial Prosystem: regras do projeto
 
+- **Antes de qualquer tarefa, leia** `docs/contexto/LEIA-PRIMEIRO.md` e `docs/contexto/ESTADO.md`; ao terminar, atualize o `ESTADO.md`.
+
 - Falar sempre em português do Brasil.
 - Não bagunçar o que existe: agregar e analisar o fluxo inteiro, não só a função.
 - A cada entrega: commit e push no `main`, deploy com backup (script de deploy com lista `PERMITIDO` para o banco).
