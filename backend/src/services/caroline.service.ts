@@ -637,7 +637,9 @@ export async function passarParaCaroline(prisma: PrismaClient, sdr: any, motivo:
 async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCaroline) {
   const temperatura = temperaturaDaNota(r.nota);
   const pediuDecisor = r.dados.interlocutor === 'atendente' && r.acao === 'continuar' && !(sdr.dados as any)?.pediu_decisor_em;
-  const dados = { ...(sdr.dados || {}), ...Object.fromEntries(Object.entries(r.dados).filter(([, v]) => v)), ...(r.dor_principal ? { dor_principal: r.dor_principal } : {}), ...(pediuDecisor ? { pediu_decisor_em: new Date().toISOString() } : {}) };
+  // Parte 2 do plano (14/10/2026): quando o lead mostrou interesse pela primeira vez (conta as 48 h até a demonstração).
+  const virouInteressado = r.nota >= 35 && !(sdr.dados as any)?.interessado_em;
+  const dados = { ...(sdr.dados || {}), ...Object.fromEntries(Object.entries(r.dados).filter(([, v]) => v)), ...(r.dor_principal ? { dor_principal: r.dor_principal } : {}), ...(pediuDecisor ? { pediu_decisor_em: new Date().toISOString() } : {}), ...(virouInteressado ? { interessado_em: new Date().toISOString() } : {}) };
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { nota: r.nota, nota_motivo: r.nota_motivo, temperatura, dados } });
   if (sdr.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: sdr.lead_id }, select: { temperatura: true } }).catch(() => null);

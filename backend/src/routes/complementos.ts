@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { ownerWhere, getUser, podeVerTudo } from '@/lib/scope';
+import { ownerWhere, getUser, podeVerTudo, requireGestor } from '@/lib/scope';
 import { calcularPrevisao } from '@/lib/previsao';
 import { CORTE_PORTAL, alertaPrazoDemanda } from '@/lib/implantacao/portal';
 
@@ -75,6 +75,13 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     timeline.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
     return reply.send({ status: 'success', data: { lead, timeline } });
+  });
+
+  // ===== PLACAR COMERCIAL (parte 2 do plano, 14/10/2026) =====
+  fastify.get('/comercial/placar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { placarComercial } = await import('../services/placar-comercial.service');
+    return reply.send({ status: 'success', data: await placarComercial(prisma) });
   });
 
   // ===== ALERTAS =====
@@ -225,12 +232,38 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       }).catch(() => []);
     }
 
+    // Parte 2 do plano (14/10/2026): interessado sem demonstração há 48 h (gestão) e proposta em rascunho há 1 dia
+    // (gestão vê todas; vendedor, as dele). CEO não vê.
+    const { interessadosSemDemo, propostasEmRascunho } = await import('../services/placar-comercial.service');
+    const [interessados_sem_demo, propostas_rascunho] = isCEO ? [[], []] : await Promise.all([
+      isGestorComercial ? interessadosSemDemo(prisma, now).catch(() => []) : Promise.resolve([]),
+      propostasEmRascunho(prisma, now, podeVerTudo(user) ? null : (user?.id || '__no_user__')).catch(() => []),
+    ]);
+
     const CATEGORIA_LABEL: Record<string, string> = {
       FISCAL: 'Pacote Fiscal', TEF: 'TEF', TRIBUTARIO: 'Tributário',
       COMUNICACAO: 'Comunicação', UPGRADE: 'Upgrade', TROCA_CNPJ: 'Troca CNPJ', OUTRO: 'Outro',
     };
 
     const alertas = [
+      ...(interessados_sem_demo as any[]).map(s => ({
+        id: `isd-${s.id}`,
+        tipo: 'INTERESSADO_SEM_DEMO',
+        urgencia: 'ALTA' as const,
+        titulo: `Interessado sem demonstração: ${s.nome || 'lead'}${s.empresa ? ` (${s.empresa})` : ''}`,
+        descricao: `termômetro ${s.nota} · há mais de 48 h sem demonstração marcada`,
+        data: s.desde || s.ultima_resposta || now,
+        link: `/whatsapp?conversa=${s.conversaId}`,
+      })),
+      ...(propostas_rascunho as any[]).map(p => ({
+        id: `prr-${p.id}`,
+        tipo: 'PROPOSTA_RASCUNHO',
+        urgencia: 'MEDIA' as const,
+        titulo: `Proposta parada em rascunho: ${p.nome_fantasia || p.razao_social}`,
+        descricao: `criada há ${Math.floor((now.getTime() - new Date(p.created_at).getTime()) / 86_400_000)} dia(s)${p.created_by_name ? ` por ${p.created_by_name}` : ''} · falta enviar`,
+        data: p.created_at,
+        link: `/propostas-comerciais`,
+      })),
       // Novas vendas adicionais/indicações (CEO e ADMIN)
       ...novas_vendas.map((v: any) => {
         const nomeCliente = v.cliente?.razao_social || v.cliente?.nome_fantasia || v.cliente?.nome || 'Cliente';

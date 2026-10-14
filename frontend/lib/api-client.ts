@@ -1489,6 +1489,8 @@ class ApiClient {
   async joanaArquivar(id: string) { return this.client.post(`/joana/edicoes/${id}/arquivar`, {}); }
   async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
+  // Placar comercial: do interesse à demonstração e à proposta (parte 2 do plano, 14/10/2026)
+  async getPlacarComercial() { return this.client.get('/comercial/placar'); }
   // Perguntas do Rafael para a Jessica (14/10/2026)
   async rafaelPerguntas() { return this.client.get('/especialista/perguntas'); }
   async rafaelResponder(id: string, resposta: string) { return this.client.post(`/especialista/perguntas/${id}/responder`, { resposta }); }
