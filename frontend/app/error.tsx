@@ -41,7 +41,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
             Recarregar
           </button>
           <button onClick={() => reset()}
-            style={{ padding: '10px 20px', borderRadius: 8, background: 'transparent', color: 'var(--t-primary-dark)', border: '1px solid #2E6EAB', fontWeight: 600, cursor: 'pointer' }}>
+            style={{ padding: '10px 20px', borderRadius: 8, background: 'transparent', color: 'var(--t-link)', border: '1px solid #2E6EAB', fontWeight: 600, cursor: 'pointer' }}>
             Tentar de novo
           </button>
         </div>

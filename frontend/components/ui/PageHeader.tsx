@@ -31,7 +31,7 @@ export function PageHeader({ title, subtitle, icon, actions, meta, className = '
             style={{
               width: 40, height: 40,
               background: 'var(--t-primary-light)',
-              color: 'var(--t-primary)',
+              color: 'var(--t-link)',
               border: '1px solid var(--t-primary-border)',
             }}
           >
@@ -70,7 +70,7 @@ export function CountBadge({ count, label }: { count: number; label?: string }) 
       className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2 py-0.5"
       style={{
         background: 'var(--t-primary-light)',
-        color: 'var(--t-primary-dark)',
+        color: 'var(--t-link)',
         border: '1px solid var(--t-primary-border)',
       }}
     >

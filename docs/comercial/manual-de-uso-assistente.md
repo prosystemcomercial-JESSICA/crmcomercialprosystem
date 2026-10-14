@@ -1177,12 +1177,26 @@ Os filtros do WhatsApp agora ficam no nome acima da busca (por exemplo, Minhas o
 - Os números extras (3 e 4, em rodízio) agora chamam primeiro os leads encontrados pelo Heitor; o número da empresa segue com campanhas, propostas e a base antiga do Julio. As duas frentes andam todo dia.
 - O teto do Heitor subiu para 30 por dia, mas de forma controlada: cada número novo começa com 10 contatos por dia e sobe uma etapa por semana até 40.
 
+
+## Fila de chamados mais compacta — 14/10/2026
+
+No WhatsApp, abra **Fila de Chamados**. Use **Por atendente** para localizar quem está cuidando de cada conversa, ou **Por fase** para acompanhar o andamento. A busca por nome ou telefone fica no topo. Se houver um filtro de tipo vindo da lista, use **Remover filtro** para voltar a ver todos os tipos.
+
+Clique no cartão (ou use Tab e Enter) para abrir a conversa. O número destacado indica mensagens não lidas. Prazo vencido e prioridade crítica aparecem em vermelho. A prioridade Normal e o nome do atendente repetido foram retirados dos cartões; em Por fase, o responsável continua aparecendo. Para mudar uma fase, arraste o cartão até a coluna desejada. No celular, deslize o quadro para os lados; cada coluna pode ser rolada para baixo.
+
 ### Novidade 14/10/2026 (noite): placar e nenhum interessado esquecido
 
 - **Placar no topo do Escritório virtual:** primeiros contatos, respostas, interessados, demonstrações, propostas e contratos de hoje e da semana, comparados com a meta da semana do plano.
 - **Interessado sem demonstração há mais de 48 h:** aparece no placar e no sino, com o link para a conversa. Chame ou peça para a consultora marcar.
 - **Proposta em rascunho há mais de 1 dia:** aparece no sino de quem criou (e da gestão), com o atalho para enviar.
 - **Resumo da manhã no WhatsApp:** nos dias úteis, entre 9h e 11h, só quando há algo parado.
+
+
+## Aparência: Champagne e Branco gelo
+
+Em **Configurações → Aparência**, escolha **Claro** ou **Escuro** e depois a paleta. **Champagne** combina fundos quentes com detalhes em bronze. **Branco gelo** combina superfícies frias e discretas. Azul Prosystem, Laranja e Verde continuam disponíveis. As miniaturas mostram a versão do modo escolhido. A mudança vale para fundos, painéis, menus e campos, mantendo cores de alerta.
+
+A preferência é salva automaticamente neste navegador; não precisa usar Salvar configurações e não muda a aparência dos colegas. Para usar a mesma aparência em outro navegador/dispositivo, selecione novamente.
 
 ### Novidade 14/10/2026 (noite): Programa de Ativos com contatos do dia e indicação premiada
 

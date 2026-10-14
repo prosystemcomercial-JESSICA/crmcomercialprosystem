@@ -219,7 +219,7 @@ export default function CampanhasPage() {
           <div className="flex items-center gap-2">
             <button onClick={fetchData} className="h-8 w-8 flex items-center justify-center rounded-lg"
               style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
-              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
+              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-link)' }} />
             </button>
             {podeGerenciar && (
               <button onClick={openCreate}
@@ -234,8 +234,8 @@ export default function CampanhasPage() {
         {!podeGerenciar && (
           <div className="rounded-xl px-4 py-3 flex items-center gap-3"
             style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
-            <Megaphone size={16} style={{ color: 'var(--t-primary)', flexShrink: 0 }} />
-            <p className="text-xs" style={{ color: 'var(--t-primary)' }}>
+            <Megaphone size={16} style={{ color: 'var(--t-link)', flexShrink: 0 }} />
+            <p className="text-xs" style={{ color: 'var(--t-link)' }}>
               Apenas CEO, Diretor e Supervisores podem criar ou editar campanhas.
             </p>
           </div>
@@ -245,7 +245,7 @@ export default function CampanhasPage() {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
-              { label: 'Total', value: stats.total, color: 'var(--t-primary)', icon: Megaphone },
+              { label: 'Total', value: stats.total, color: 'var(--t-link)', icon: Megaphone },
               { label: 'Ativas', value: stats.ativas, color: '#16a34a', icon: TrendingUp },
               { label: 'Rascunhos', value: stats.rascunhos, color: '#d97706', icon: Edit3 },
               { label: 'Finalizadas', value: stats.finalizadas, color: '#2563eb', icon: BarChart2 },
@@ -316,7 +316,7 @@ export default function CampanhasPage() {
                         <h3 className="font-bold text-sm truncate" style={{ color: 'var(--t-text-primary)' }}>{c.nome}</h3>
                         {c.nicho && (
                           <span className="text-[10px] font-semibold px-1.5 py-px rounded mt-0.5 inline-block"
-                            style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>
+                            style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>
                             {c.nicho}
                           </span>
                         )}
@@ -356,7 +356,7 @@ export default function CampanhasPage() {
                             <span className="text-[10px] font-semibold flex items-center gap-1" style={{ color: 'var(--t-text-muted)' }}>
                               <DollarSign size={9} /> Setup
                             </span>
-                            <span className="text-[11px] font-bold" style={{ color: 'var(--t-primary)' }}>
+                            <span className="text-[11px] font-bold" style={{ color: 'var(--t-link)' }}>
                               {fmtBRL(c.valor_setup)}{c.setup_condicao ? ` · ${c.setup_condicao}` : ''}
                             </span>
                           </div>
@@ -421,7 +421,7 @@ export default function CampanhasPage() {
                     {podeGerenciar && (
                       <button onClick={e => { e.stopPropagation(); openEdit(c); }}
                         className="h-7 px-3 rounded-lg text-xs font-semibold flex items-center gap-1"
-                        style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)', background: 'var(--t-card-bg)' }}>
+                        style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)', background: 'var(--t-card-bg)' }}>
                         <Edit3 size={10} /> Editar
                       </button>
                     )}
@@ -475,14 +475,14 @@ export default function CampanhasPage() {
                     </span>
                     <h2 className="text-lg font-bold leading-tight" style={{ color: 'var(--t-text-primary)' }}>{c.nome}</h2>
                     {c.nicho && (
-                      <span className="text-xs font-semibold mt-1 inline-block" style={{ color: 'var(--t-primary)' }}>{c.nicho}</span>
+                      <span className="text-xs font-semibold mt-1 inline-block" style={{ color: 'var(--t-link)' }}>{c.nicho}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {podeGerenciar && (
                       <button onClick={() => { setViewingCampanha(null); openEdit(c); }}
                         className="h-8 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5"
-                        style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)', background: 'var(--t-card-bg)' }}>
+                        style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)', background: 'var(--t-card-bg)' }}>
                         <Edit3 size={11} /> Editar
                       </button>
                     )}
@@ -513,12 +513,12 @@ export default function CampanhasPage() {
                   <div className="flex items-center gap-3">
                     <div className="flex-1 rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
                       <p className="text-[10px] font-semibold mb-0.5" style={{ color: 'var(--t-text-muted)' }}>Início</p>
-                      <p className="text-sm font-bold" style={{ color: 'var(--t-primary)' }}>{fmtDate(c.data_inicio)}</p>
+                      <p className="text-sm font-bold" style={{ color: 'var(--t-link)' }}>{fmtDate(c.data_inicio)}</p>
                     </div>
                     <span className="text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>→</span>
                     <div className="flex-1 rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
                       <p className="text-[10px] font-semibold mb-0.5" style={{ color: 'var(--t-text-muted)' }}>Fim</p>
-                      <p className="text-sm font-bold" style={{ color: 'var(--t-primary)' }}>{fmtDate(c.data_fim)}</p>
+                      <p className="text-sm font-bold" style={{ color: 'var(--t-link)' }}>{fmtDate(c.data_fim)}</p>
                     </div>
                   </div>
                 </div>
@@ -545,7 +545,7 @@ export default function CampanhasPage() {
                       {c.valor_setup != null && (
                         <div className="flex justify-between items-center py-1.5" style={{ borderBottom: c.setup_condicao ? '1px solid var(--t-card-border)' : 'none' }}>
                           <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>Setup / Implantação</span>
-                          <span className="text-sm font-bold" style={{ color: 'var(--t-primary)' }}>{fmtBRL(c.valor_setup)}</span>
+                          <span className="text-sm font-bold" style={{ color: 'var(--t-link)' }}>{fmtBRL(c.valor_setup)}</span>
                         </div>
                       )}
                       {c.setup_condicao && (
@@ -602,11 +602,11 @@ export default function CampanhasPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
                       <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>Disparos</p>
-                      <p className="text-2xl font-bold" style={{ color: 'var(--t-primary)' }}>{c._count?.disparos || 0}</p>
+                      <p className="text-2xl font-bold" style={{ color: 'var(--t-link)' }}>{c._count?.disparos || 0}</p>
                     </div>
                     <div className="rounded-lg p-3 text-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
                       <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--t-text-muted)' }}>Ações</p>
-                      <p className="text-2xl font-bold" style={{ color: 'var(--t-primary)' }}>{c._count?.acoes || 0}</p>
+                      <p className="text-2xl font-bold" style={{ color: 'var(--t-link)' }}>{c._count?.acoes || 0}</p>
                     </div>
                   </div>
                 </div>
@@ -789,8 +789,8 @@ function Section({ label, icon: Icon, children }: { label: string; icon: any; ch
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
       <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'var(--t-primary-light)', borderBottom: '1px solid var(--t-card-border)' }}>
-        <Icon size={13} style={{ color: 'var(--t-primary)' }} />
-        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>{label}</p>
+        <Icon size={13} style={{ color: 'var(--t-link)' }} />
+        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--t-link)' }}>{label}</p>
       </div>
       <div className="p-4 space-y-3">{children}</div>
     </div>

@@ -16,7 +16,7 @@ interface StatusBadgeProps {
 // Tokens de cor para badges — usam variáveis CSS com fallback seguro.
 // Garante consistência no light e dark mode sem classes Tailwind hardcoded.
 const COLOR_MAP: Record<BadgeColor, { bg: string; text: string; border: string }> = {
-  blue:   { bg: 'rgba(75,142,200,0.12)',  text: 'var(--t-primary-dark)',   border: 'rgba(75,142,200,0.30)' },
+  blue:   { bg: 'rgba(75,142,200,0.12)',  text: 'var(--t-link)',   border: 'rgba(75,142,200,0.30)' },
   green:  { bg: 'rgba(22,163,74,0.12)',   text: '#15803d',                  border: 'rgba(22,163,74,0.30)' },
   yellow: { bg: 'rgba(217,119,6,0.12)',   text: '#b45309',                  border: 'rgba(217,119,6,0.30)' },
   red:    { bg: 'rgba(220,38,38,0.12)',   text: '#b91c1c',                  border: 'rgba(220,38,38,0.30)' },

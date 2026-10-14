@@ -471,13 +471,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="grid grid-cols-2 gap-2">
                 {campanhaPopup.nicho && (
                   <div className="rounded-lg px-3 py-2" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
-                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--t-primary)' }}>Nicho</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--t-link)' }}>Nicho</p>
                     <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{campanhaPopup.nicho}</p>
                   </div>
                 )}
                 {campanhaPopup.plano_alvo && (
                   <div className="rounded-lg px-3 py-2" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-card-border)' }}>
-                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--t-primary)' }}>Plano alvo</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--t-link)' }}>Plano alvo</p>
                     <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{campanhaPopup.plano_alvo}</p>
                   </div>
                 )}
@@ -507,7 +507,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="flex gap-2 pt-1">
                 <button onClick={() => { setCampanhaPopup(null); router.push('/campanhas'); }}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold"
-                  style={{ border: '1.5px solid var(--t-primary)', color: 'var(--t-primary)', background: 'var(--t-primary-light)' }}>
+                  style={{ border: '1.5px solid var(--t-primary)', color: 'var(--t-link)', background: 'var(--t-primary-light)' }}>
                   Ver campanha completa
                 </button>
                 <button onClick={() => setCampanhaPopup(null)}
@@ -684,7 +684,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 ))}
                 <button
                   onClick={() => { setAlertasOpen(false); router.push('/alertas'); }}
-                  style={{ width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 600, color: 'var(--t-primary)', background: 'transparent', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 600, color: 'var(--t-link)', background: 'transparent', cursor: 'pointer' }}
                 >
                   Ver todos os alertas →
                 </button>
@@ -830,18 +830,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     const Icon = item.icon;
                     const isWpp = item.destaque === 'whatsapp';
 
-                    let estilo: React.CSSProperties;
-                    if (pathname === '/whatsapp') {
-                      estilo = { background: isActive ? 'var(--t-primary-light)' : 'transparent', color: isActive ? 'var(--t-primary-dark)' : 'var(--t-text-secondary)', borderLeft: '2px solid transparent', fontWeight: isActive ? 600 : 500 };
-                    } else if (isWpp) {
-                      estilo = isActive
-                        ? { background: 'linear-gradient(135deg,#25D366,#128C7E)', color: '#fff', borderLeft: '2px solid #25D366', paddingLeft: '10px', fontWeight: 600 }
-                        : { background: 'rgba(37,211,102,0.10)', color: '#25D366', borderLeft: '2px solid #25D366', paddingLeft: '10px' };
-                    } else if (isActive) {
-                      estilo = { background: 'var(--t-sidebar-active)', color: '#ffffff', borderLeft: '2px solid var(--t-sidebar-active-border)', paddingLeft: '10px' };
-                    } else {
-                      estilo = { borderLeft: '2px solid transparent', color: 'var(--t-sidebar-text)' };
-                    }
+                    const estilo: React.CSSProperties = isActive
+                      ? { background: 'var(--t-sidebar-active)', color: 'var(--t-sidebar-active-text)', borderLeft: '2px solid var(--t-sidebar-active-border)', fontWeight: 600 }
+                      : { borderLeft: '2px solid transparent', color: 'var(--t-sidebar-text)' };
 
                     const conteudoItem = (
                       <>

@@ -48,7 +48,7 @@ interface Atividade {
 // ─── Constants ────────────────────────────────────────────
 
 const TIPO_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string }> = {
-  REUNIAO:   { label: 'Reunião',    icon: Video,          color: 'var(--t-primary)',        bg: 'rgba(75,142,200,0.08)' },
+  REUNIAO:   { label: 'Reunião',    icon: Video,          color: 'var(--t-link)',        bg: 'rgba(75,142,200,0.08)' },
   LIGACAO:   { label: 'Ligação',    icon: Phone,          color: '#0891b2',                 bg: 'rgba(8,145,178,0.08)' },
   EMAIL:     { label: 'E-mail',     icon: Mail,           color: '#7c3aed',                 bg: 'rgba(124,58,237,0.08)' },
   WHATSAPP:  { label: 'WhatsApp',   icon: MessageCircle,  color: '#16a34a',                 bg: 'rgba(22,163,74,0.08)' },
@@ -66,7 +66,7 @@ const TEMPERATURA_OPCOES: { value: string; label: string; color: string; bg: str
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   PENDENTE:               { label: 'Agendada',               color: '#ca8a04', bg: 'rgba(202,138,4,0.08)',   border: 'rgba(202,138,4,0.25)' },
-  CONFIRMADA:             { label: 'Confirmada',             color: 'var(--t-primary)', bg: 'rgba(75,142,200,0.08)', border: 'var(--t-card-border)' },
+  CONFIRMADA:             { label: 'Confirmada',             color: 'var(--t-link)', bg: 'rgba(75,142,200,0.08)', border: 'var(--t-card-border)' },
   REALIZADA:              { label: 'Realizada',              color: '#16a34a', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)' },
   CANCELADA:              { label: 'Cancelada',              color: '#dc2626', bg: 'rgba(220,38,38,0.08)',   border: 'rgba(220,38,38,0.25)' },
   REMARCADA:              { label: 'Reagendada',             color: '#7c3aed', bg: 'rgba(124,58,237,0.08)',  border: 'rgba(124,58,237,0.25)' },
@@ -332,7 +332,7 @@ function AtividadeDetail({
 
       <div style={{ background: 'var(--t-content-bg)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
         {atividade.lead && row('Contato', `${atividade.lead.nome}${atividade.lead.empresa ? ` · ${atividade.lead.empresa}` : ''}`)}
-        {atividade.lead?.email && row('E-mail', <a href={`mailto:${atividade.lead.email}`} style={{ color: 'var(--t-primary)' }}>{atividade.lead.email}</a>)}
+        {atividade.lead?.email && row('E-mail', <a href={`mailto:${atividade.lead.email}`} style={{ color: 'var(--t-link)' }}>{atividade.lead.email}</a>)}
         {atividade.lead?.telefone && row('Telefone', atividade.lead.telefone)}
         {!atividade.lead && atividade.vinculo_nome && row(
           atividade.vinculo_tipo === 'PARCEIRO' ? 'Parceiro'
@@ -342,7 +342,7 @@ function AtividadeDetail({
           `${VINCULO_ICON[atividade.vinculo_tipo || ''] || ''} ${atividade.vinculo_nome}`.trim()
         )}
         {atividade.link_externo && row('Link da reunião',
-          <a href={atividade.link_externo} target="_blank" rel="noreferrer" style={{ color: 'var(--t-primary)', wordBreak: 'break-all' }}>{atividade.link_externo}</a>
+          <a href={atividade.link_externo} target="_blank" rel="noreferrer" style={{ color: 'var(--t-link)', wordBreak: 'break-all' }}>{atividade.link_externo}</a>
         )}
         {row('Data prevista', formatDateTime(atividade.data_prevista))}
         {atividade.data_realizada && row('Realizada em', formatDateTime(atividade.data_realizada))}
@@ -371,7 +371,7 @@ function AtividadeDetail({
       {/* Notas e percepção da reunião (nota 1-5, tags e observações finais) */}
       {(atividade.percepcao_observ || (atividade.percepcao_nota || 0) > 0 || (atividade.percepcao_tags?.length || 0) > 0) && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-primary)', marginBottom: 6 }}>Notas e percepção da reunião</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)', marginBottom: 6 }}>Notas e percepção da reunião</div>
           <div style={{ background: 'var(--t-primary-light)', borderRadius: 8, padding: '10px 12px', border: '1px solid #C3DCFC' }}>
             {(atividade.percepcao_nota || 0) > 0 && (
               <div style={{ fontSize: 13, color: 'var(--t-text-primary)', marginBottom: 6 }}>
@@ -381,7 +381,7 @@ function AtividadeDetail({
             {(atividade.percepcao_tags?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: atividade.percepcao_observ ? 8 : 0 }}>
                 {atividade.percepcao_tags!.map(t => (
-                  <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 14, background: '#fff', color: 'var(--t-primary-dark)', border: '1px solid #C3DCFC' }}>{t}</span>
+                  <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 14, background: '#fff', color: 'var(--t-link)', border: '1px solid #C3DCFC' }}>{t}</span>
                 ))}
               </div>
             )}
@@ -429,7 +429,7 @@ function AtividadeDetail({
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
                 borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1.5px solid #C3DCFC',
-                color: 'var(--t-primary)', background: '#fff'
+                color: 'var(--t-link)', background: '#fff'
               }}>
               <Video size={13} /> {creatinguMeet ? 'Criando...' : 'Criar Link Meet'}
             </button>
@@ -439,7 +439,7 @@ function AtividadeDetail({
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
                 borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1.5px solid #C3DCFC',
-                color: 'var(--t-primary)', background: '#fff'
+                color: 'var(--t-link)', background: '#fff'
               }}>
               <Check size={13} /> Confirmar
             </button>
@@ -513,7 +513,7 @@ const PERCEPCAO_OPCOES: Array<{ value: string; label: string; emoji: string; col
   { value: 'PRODUTIVA',           label: 'Produtiva',                emoji: '🚀', color: '#16a34a', bg: '#dcfce7' },
   { value: 'CLIENTE_INTERESSADO', label: 'Cliente muito interessado',emoji: '🔥', color: '#16a34a', bg: '#dcfce7' },
   { value: 'AVANCOU_FUNIL',       label: 'Avançou no funil',         emoji: '📈', color: '#16a34a', bg: '#dcfce7' },
-  { value: 'TECNICA_DEMO',        label: 'Técnica / Demo',           emoji: '🖥️', color: 'var(--t-primary)', bg: '#EBF4FF' },
+  { value: 'TECNICA_DEMO',        label: 'Técnica / Demo',           emoji: '🖥️', color: 'var(--t-link)', bg: '#EBF4FF' },
   { value: 'COM_OBJECOES',        label: 'Com objeções',             emoji: '⚠️', color: '#ca8a04', bg: '#fefce8' },
   { value: 'SEM_DECISAO',         label: 'Sem decisão (retorno)',    emoji: '⏳', color: '#ca8a04', bg: '#fefce8' },
   { value: 'POUCO_COMUNICATIVA',  label: 'Pouco comunicativa',       emoji: '💤', color: '#7c2d12', bg: '#fef3c7' },
@@ -956,7 +956,7 @@ export default function AgendaPage() {
   const btnOutline: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-    color: 'var(--t-primary)', cursor: 'pointer', background: '#fff',
+    color: 'var(--t-link)', cursor: 'pointer', background: '#fff',
     border: '1.5px solid #C3DCFC'
   };
 
@@ -1040,7 +1040,7 @@ export default function AgendaPage() {
         {isAdmin && colaboradores.length > 0 && (
           <div style={{ ...card, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <Users size={14} color="#4B8EC8" />
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', marginRight: 6 }}>Filtrar por colaborador:</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-link)', marginRight: 6 }}>Filtrar por colaborador:</span>
             <button onClick={() => setFiltroColaborador('')}
               style={{
                 padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
@@ -1198,7 +1198,7 @@ export default function AgendaPage() {
                             {a.google_meet_link && (
                               <a href={a.google_meet_link} target="_blank" rel="noreferrer"
                                 onClick={e => e.stopPropagation()}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 10, color: 'var(--t-primary)', textDecoration: 'none' }}>
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 10, color: 'var(--t-link)', textDecoration: 'none' }}>
                                 <Video size={9} /> Meet
                               </a>
                             )}
@@ -1345,7 +1345,7 @@ export default function AgendaPage() {
                       )}
                       {a.google_meet_link && (
                         <a href={a.google_meet_link} target="_blank" rel="noreferrer"
-                          style={{ fontSize: 12, color: 'var(--t-primary)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                          style={{ fontSize: 12, color: 'var(--t-link)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
                           <Video size={11} /> Link Meet
                         </a>
                       )}
@@ -1597,7 +1597,7 @@ export default function AgendaPage() {
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10, fontSize: 11 }}>
-                          <div><div style={{ color: 'var(--t-primary)', fontWeight: 700 }}>{u.agendadas}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Agendadas</div></div>
+                          <div><div style={{ color: 'var(--t-link)', fontWeight: 700 }}>{u.agendadas}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Agendadas</div></div>
                           <div><div style={{ color: '#dc2626', fontWeight: 700 }}>{u.canceladas}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Cancel.</div></div>
                           <div><div style={{ color: '#ea580c', fontWeight: 700 }}>{u.nao_compareceu}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>No-show</div></div>
                           <div><div style={{ color: '#7c3aed', fontWeight: 700 }}>{u.remarcadas}</div><div style={{ color: 'var(--t-text-secondary)', fontSize: 9 }}>Remarc.</div></div>
@@ -1661,7 +1661,7 @@ export default function AgendaPage() {
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                   {[
-                    { label: 'Total', value: relatorio.total, icon: BarChart2, color: 'var(--t-primary)' },
+                    { label: 'Total', value: relatorio.total, icon: BarChart2, color: 'var(--t-link)' },
                     { label: 'Reuniões', value: relatorio.reunioes_total, icon: Video, color: '#7c3aed' },
                     { label: 'Realizadas', value: relatorio.reunioes_realizadas, icon: CheckCircle2, color: '#16a34a' },
                     { label: 'Canceladas', value: relatorio.reunioes_canceladas, icon: XCircle, color: '#dc2626' },
@@ -1942,7 +1942,7 @@ export default function AgendaPage() {
               <div style={{ background: 'var(--t-primary-light)', borderRadius: 10, padding: 14, border: '1px solid #C3DCFC' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: meetLinkForm ? 10 : 0 }}>
                   <Video size={14} color="#4B8EC8" />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', flex: 1 }}>Google Meet</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-link)', flex: 1 }}>Google Meet</span>
                   {!meetLinkForm && (
                     <button onClick={handleGerarMeetForm} disabled={generatingMeet || !formData.titulo || !formData.data_prevista}
                       style={{
@@ -1973,7 +1973,7 @@ export default function AgendaPage() {
                 {meetLinkForm && !meetError && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                     <a href={meetLinkForm} target="_blank" rel="noreferrer"
-                      style={{ fontSize: 12, color: 'var(--t-primary)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      style={{ fontSize: 12, color: 'var(--t-link)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Video size={12} /> {meetLinkForm}
                     </a>
                     <CopyButton text={meetLinkForm} />
@@ -2058,7 +2058,7 @@ export default function AgendaPage() {
             </div>
             {showConcluir.lead && (
               <div style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC', borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-link)', marginBottom: 8 }}>
                   Como está o lead agora? (opcional — ajuda a priorizar quem contatar)
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
@@ -2093,7 +2093,7 @@ export default function AgendaPage() {
             {/* Percepção da reunião — só para tipo REUNIAO */}
             {showConcluir.tipo === 'REUNIAO' && (
               <div style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC', borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-primary)', marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-link)', marginBottom: 8 }}>
                   Como foi a reunião? Marque suas percepções (opcional)
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>

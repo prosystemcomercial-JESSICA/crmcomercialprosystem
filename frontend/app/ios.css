@@ -2,25 +2,15 @@
    Só abaixo de 768px. No computador nada muda. Barra de abas com material
    translúcido, alvos de 44pt, área segura (notch / barra de início), fonte do
    sistema (San Francisco) e folha "Mais" com lista agrupada estilo Ajustes. */
-:root {
-  --ios-tint: #007aff;
-  --ios-label: #000000;
-  --ios-secondary: rgba(60, 60, 67, 0.6);
-  --ios-separator: rgba(60, 60, 67, 0.29);
-  --ios-bar: rgba(249, 249, 249, 0.86);
-  --ios-grouped-bg: #f2f2f7;
-  --ios-cell: #ffffff;
-  --ios-fill: rgba(120, 120, 128, 0.16);
-}
-.dark {
-  --ios-tint: #0a84ff;
-  --ios-label: #ffffff;
-  --ios-secondary: rgba(235, 235, 245, 0.6);
-  --ios-separator: rgba(84, 84, 88, 0.65);
-  --ios-bar: rgba(22, 22, 24, 0.86);
-  --ios-grouped-bg: #000000;
-  --ios-cell: #1c1c1e;
-  --ios-fill: rgba(120, 120, 128, 0.32);
+:root, [data-theme] {
+  --ios-tint: var(--t-link);
+  --ios-label: var(--t-text-primary);
+  --ios-secondary: var(--t-text-secondary);
+  --ios-separator: var(--t-card-border);
+  --ios-bar: color-mix(in srgb, var(--t-topbar-bg) 94%, transparent);
+  --ios-grouped-bg: var(--t-content-bg);
+  --ios-cell: var(--t-card-bg);
+  --ios-fill: var(--t-surface-hover);
 }
 
 @media (max-width: 767px) {

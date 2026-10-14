@@ -1468,6 +1468,11 @@ Novo componente local FiltrosConversas usa o estado existente da página, fecha 
 - **Correção (`rodarCaroline`, passo 3):** quando o rodízio escolhe um número extra com folga (`escolherNumeroProspeccao`) e o teto do Heitor do dia não foi atingido, o próximo primeiro contato é um lead do Heitor (mais antigo primeiro). Sem lead do Heitor, segue a ordem de sempre. O número principal continua com campanha, propostas e base.
 - **Ritmo controlado:** teto do Heitor (`heitor.config.envios_dia`) passou de 15 para 30 por dia (decisão da Jessica, "subir de forma controlada"); o ritmo real fica limitado pelo aquecimento de cada número extra (10 → 20 → 30 → 40 por dia, uma etapa por semana). Limite único do número principal, intervalo sorteado, horário e travas continuam iguais.
 
+
+## Fila de chamados compacta — 14/10/2026
+
+Implementação restrita a frontend/app/whatsapp/page.tsx e whatsapp.css; sem bibliotecas novas. Colunas mantêm a precedência agente → triagem → pessoa → sem dono e os valores de estagio_funil existentes. Cartões usam button nativo, Enter/Espaço e drag HTML apenas por fase; setData fornece o id ao navegador, mantendo moverEstagio e a API PATCH existente. A abertura reutiliza abrir(c) e a proteção de sessão do histórico. O quadro controla overflow-x e cada lista overflow-y. Busca reutiliza buscaConv; filtroTipo permanece explícito e removível.
+
 ### Atualização 14/10/2026 (noite): parte 2 do Plano de Expansão, do interesse à demonstração e à proposta
 
 - **Interessado sem demonstração:** `SdrLead.dados.interessado_em` registra quando o termômetro chegou a 35 pela primeira vez (`atualizarTermometro`). `interessadosSemDemo` (services/placar-comercial) lista quem tem termômetro 35+, segue conversando (AGUARDANDO/CONVERSANDO), sem reunião não cancelada ligada à conversa ou ao lead, há mais de 48 h (leads antigos sem a data contam como esquecidos).
@@ -1477,6 +1482,11 @@ Novo componente local FiltrosConversas usa o estado existente da página, fecha 
 - **Aviso diário:** dias úteis, 9h a 11h, uma vez por dia (`comercial.parte2.<dia>`), resumo no WhatsApp da gestão só se houver interessado esquecido ou rascunho parado.
 - **Tela:** `PlacarComercial` no topo do Escritório virtual (só gestão).
 - Testes: `tests/placar-comercial.test.ts`. Primeira leitura em produção (14/10, 15h30): 19 primeiros contatos, 13 respostas, 1 interessada sem demonstração.
+
+
+## Aparência por superfícies — 14/10/2026
+
+Autoridade de tokens continua frontend/app/globals.css. Cinco paletas × dois modos definem tokens de superfícies, texto e ações; aliases conectam --t-* aos componentes shadcn. Novo --t-link separa texto interativo do fundo --t-primary, que mantém contraste com texto branco. Sidebar usa --t-sidebar-bg, substituindo gradiente azul fixo. ios.css passa a derivar sua paleta dos mesmos tokens; fundos escuros fixos foram removidos. Aparencia.tsx/aparencia.css assumem somente a seleção visual antes embutida na página de configurações. Miniaturas usam data-theme e classe dark próprios, consumindo as mesmas variáveis, sem duplicar hex no componente. ThemeProvider aceita champagne/gelo e valida valores persistidos desconhecidos. Nenhum endpoint de preferências foi criado.
 
 ### Atualização 14/10/2026 (noite): parte 3 do Plano de Expansão, Programa de Ativos com indicação premiada
 

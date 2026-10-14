@@ -122,7 +122,7 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 function SectionTitle({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <Icon size={18} style={{ color: 'var(--t-primary)' }} />
+      <Icon size={18} style={{ color: 'var(--t-link)' }} />
       <div>
         <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{title}</h3>
         {subtitle && <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{subtitle}</p>}
@@ -277,7 +277,7 @@ export function AnaliseComercialConteudo({ embutido = false }: { embutido?: bool
         {/* ─── Faixa de período selecionado ────── */}
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium w-fit"
           style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)', border: '1px solid var(--t-card-border)' }}>
-          <Calendar size={14} style={{ color: 'var(--t-primary)' }} />
+          <Calendar size={14} style={{ color: 'var(--t-link)' }} />
           Período analisado: <span style={{ color: 'var(--t-text-primary)', fontWeight: 700 }}>{intervaloPeriodo(periodoMeses)}</span>
           {vendedorId && vendedores.find(v => v.id === vendedorId) && (
             <span>· vendedor: <span style={{ color: 'var(--t-text-primary)', fontWeight: 700 }}>{vendedores.find(v => v.id === vendedorId)?.nome}</span></span>
@@ -415,16 +415,16 @@ export function AnaliseComercialConteudo({ embutido = false }: { embutido?: bool
             <Card>
               <SectionTitle icon={ShieldAlert} title="Clientes, Retenção e Expansão" subtitle="Cada indicador vive na sua própria tela — atalhos diretos abaixo" />
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <a href="/centro-custos" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                <a href="/centro-custos" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-link)' }}>
                   💰 Financeiro / MRR / DRE
                 </a>
-                <a href="/ltv" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                <a href="/ltv" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-link)' }}>
                   📈 LTV dos Clientes
                 </a>
-                <a href="/casos" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                <a href="/casos" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-link)' }}>
                   🔥 Churn &amp; Retenção
                 </a>
-                <a href="/pipeline-comercial" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-primary)' }}>
+                <a href="/pipeline-comercial" className="rounded-xl border p-3 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-link)' }}>
                   🔀 Pipeline Comercial
                 </a>
               </div>

@@ -368,7 +368,7 @@ export default function UsuariosPage() {
                       <td className="px-4 py-3">
                         {isGestor ? (
                           <div className="flex items-center gap-2 flex-wrap">
-                            <button onClick={() => openEdit(u)} className="text-xs hover:underline" style={{ color: 'var(--t-primary)' }}>Editar</button>
+                            <button onClick={() => openEdit(u)} className="text-xs hover:underline" style={{ color: 'var(--t-link)' }}>Editar</button>
                             <button onClick={() => handleRedefinirSenha(u.id)} className="text-xs hover:underline" style={{ color: '#f59e0b' }}>Resetar senha</button>
                             {u.status === 'ATIVO' && (
                               <button onClick={() => handleDesativar(u.id, u.nome)} className="text-xs text-red-500 hover:text-red-700">Desativar</button>
@@ -690,7 +690,7 @@ export default function UsuariosPage() {
               <p className="text-xs mb-1" style={{ color: 'var(--t-text-muted)' }}>E-mail</p>
               <p className="text-sm font-medium mb-3" style={{ color: 'var(--t-text-primary)' }}>{senhaGerada.email}</p>
               <p className="text-xs mb-1" style={{ color: 'var(--t-text-muted)' }}>Senha gerada</p>
-              <p className="text-2xl font-mono font-bold tracking-widest" style={{ color: 'var(--t-primary)' }}>{senhaGerada.senha}</p>
+              <p className="text-2xl font-mono font-bold tracking-widest" style={{ color: 'var(--t-link)' }}>{senhaGerada.senha}</p>
             </div>
             <button onClick={() => setSenhaGerada(null)}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white"

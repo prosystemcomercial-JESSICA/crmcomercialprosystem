@@ -94,7 +94,7 @@ export default function AssistenteWhatsapp() {
               onChange={e => setCfg(c => c && ({ ...c, desconto_limite: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))} />
             % da implantação precisa de aprovação da gestão pelo WhatsApp (0 = sem aprovação)
           </label>
-          <a href="/whatsapp/campanhas" style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-primary)' }}>📣 Abrir Campanhas pelo WhatsApp →</a>
+          <a href="/whatsapp/campanhas" style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-link)' }}>📣 Abrir Campanhas pelo WhatsApp →</a>
         </div>
         <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 14, display: 'grid', gap: 10 }}>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>IA de texto (Gemini)</p>

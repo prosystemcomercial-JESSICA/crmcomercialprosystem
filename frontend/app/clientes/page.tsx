@@ -452,7 +452,7 @@ export default function ClientesPage() {
                 <button
                   onClick={openImport}
                   className="px-4 py-2 text-sm rounded-lg border font-medium transition-colors"
-                  style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}
+                  style={{ borderColor: 'var(--t-primary)', color: 'var(--t-link)', background: 'transparent' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 8%, transparent)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
@@ -594,7 +594,7 @@ export default function ClientesPage() {
                       </td>
                       <td className="px-4 py-3">
                         {c.plano ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--t-content-bg)', color: 'var(--t-primary)', border: `1px solid var(--t-card-border)` }}>{c.plano}</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--t-content-bg)', color: 'var(--t-link)', border: `1px solid var(--t-card-border)` }}>{c.plano}</span>
                         ) : <span style={{ color: 'var(--t-text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--t-text-secondary)' }}>
@@ -614,11 +614,11 @@ export default function ClientesPage() {
                       <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                         {isGestor ? (
                           <>
-                            <button onClick={() => openEdit(c)} className="text-xs mr-3 hover:underline" style={{ color: 'var(--t-primary)' }}>Editar</button>
+                            <button onClick={() => openEdit(c)} className="text-xs mr-3 hover:underline" style={{ color: 'var(--t-link)' }}>Editar</button>
                             <button onClick={() => handleDelete(c.id)} className="text-xs text-red-500 hover:text-red-700">Remover</button>
                           </>
                         ) : (
-                          <button onClick={() => router.push(`/clientes/${c.id}`)} className="text-xs hover:underline" style={{ color: 'var(--t-primary)' }}>Ver</button>
+                          <button onClick={() => router.push(`/clientes/${c.id}`)} className="text-xs hover:underline" style={{ color: 'var(--t-link)' }}>Ver</button>
                         )}
                       </td>
                     </tr>
@@ -784,7 +784,7 @@ export default function ClientesPage() {
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <button onClick={downloadTemplate} className="text-xs underline" style={{ color: 'var(--t-primary)' }}>
+                    <button onClick={downloadTemplate} className="text-xs underline" style={{ color: 'var(--t-link)' }}>
                       Baixar template CSV de exemplo
                     </button>
                   </div>
@@ -971,7 +971,7 @@ export default function ClientesPage() {
               </>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setLimparPreview(null); setLimparFrase(''); }} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
+              <button onClick={() => { setLimparPreview(null); setLimparFrase(''); }} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)' }}>
                 Cancelar
               </button>
               {limparPreview.qtd > 0 && (

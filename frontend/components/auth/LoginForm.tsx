@@ -172,7 +172,7 @@ export default function LoginForm() {
               type="button"
               onClick={() => setShowForgot(true)}
               className="text-xs font-medium transition-colors"
-              style={{ color: 'var(--t-primary)' }}
+              style={{ color: 'var(--t-link)' }}
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--t-primary-deep)')}
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--t-primary)')}
             >

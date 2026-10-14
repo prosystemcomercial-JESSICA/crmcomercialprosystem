@@ -181,3 +181,10 @@ Estado ativo com fundo semi-transparente branco (`rgba(255,255,255,0.22)`) e bor
 ## Exceção aprovada — WhatsApp (14/10/2026)
 
 A usuária aprovou a versão clara da central, com menos azul e sem ações repetidas. Nesta rota, o menu usa superfície neutra e seleção discreta, sem o gradiente global. Os tokens de marca continuam nas ações; estados críticos preservam suas cores. O escopo é .wpp-shell/.wpp-workspace, sem mudar a aparência das outras rotas. Apresentações têm um único acesso no compositor.
+
+
+## Revisão de aparência solicitada pela Jessica — 14/10/2026
+
+Esta revisão substitui, para as superfícies do CRM, as regras anteriores de azul obrigatório, gradiente lateral e bordas sempre azuladas. A marca e o logotipo permanecem preservados. Champagne e Branco gelo somam-se às três paletas existentes, todas com modo claro/escuro. A fonte de verdade dos valores é frontend/app/globals.css; o seletor usa os mesmos tokens para suas prévias. Não há gerador externo de tokens.
+
+Menu, cabeçalho, conteúdo, cartões, campos e navegação móvel consomem tokens semânticos. Texto neutro deve manter contraste com a superfície. --t-primary representa fundo de ação com rótulo branco; --t-link representa texto/foco interativo e muda conforme o modo. Não usar fundo de ação como cor de texto no escuro. Estados de erro/sucesso/aviso usam suas próprias famílias e nunca adotam a cor do tema como substituto de significado. A nova paleta é opcional por navegador e não força uma preferência global.

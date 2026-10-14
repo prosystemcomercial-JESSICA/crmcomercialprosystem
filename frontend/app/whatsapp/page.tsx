@@ -4,7 +4,7 @@ import './whatsapp.css';
 import FiltrosConversas from '@/components/whatsapp/FiltrosConversas';
 import ObservacoesConversa from '@/components/whatsapp/ObservacoesConversa';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Hand, Check, RotateCcw, ArrowRightLeft, Trash2, MoreHorizontal, Info, Paperclip, Send, Mic, Plus, Loader2, MessageSquare } from 'lucide-react';
+import { Hand, Check, RotateCcw, ArrowRightLeft, Trash2, MoreHorizontal, Info, Paperclip, Send, Mic, Plus, Loader2, MessageSquare, Bot, UserRound, Clock3, Inbox } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -72,21 +72,20 @@ const emTriagem = (c?: Conversa | null) => !!c?.bot_ativo && ESTADOS_TRIAGEM.inc
 
 // Kanban "Por atendente": uma coluna por agente (na ordem do funil), triagem, cada pessoa da equipe e "Sem dono".
 const ORDEM_AGENTES = ['Caroline', 'Julio', 'Luiz Felipe', 'Clarice', 'Lurdinha', 'Zequinha', 'Helena', 'Mila'];
-const COR_AGENTE: Record<string, string> = { Caroline: '#be123c', Julio: '#0d9488', 'Luiz Felipe': '#2563eb', Clarice: '#8b5cf6', Lurdinha: '#f59e0b', Zequinha: '#16a34a', Helena: '#0891b2' };
 function colunasPorAtendente(lista: Conversa[]) {
-  const grupos = new Map<string, { valor: string; nome: string; cor: string; ordem: number; cards: Conversa[] }>();
-  const add = (valor: string, nome: string, cor: string, ordem: number, c: Conversa) => {
-    if (!grupos.has(valor)) grupos.set(valor, { valor, nome, cor, ordem, cards: [] });
+  const grupos = new Map<string, { valor: string; nome: string; ordem: number; cards: Conversa[] }>();
+  const add = (valor: string, nome: string, ordem: number, c: Conversa) => {
+    if (!grupos.has(valor)) grupos.set(valor, { valor, nome, ordem, cards: [] });
     grupos.get(valor)!.cards.push(c);
   };
   for (const c of lista) {
     const x = c as any;
     if (c.atendente_ia) {
       const i = ORDEM_AGENTES.indexOf(c.atendente_ia);
-      add(`ia:${c.atendente_ia}`, `🤖 ${c.atendente_ia}`, COR_AGENTE[c.atendente_ia] || '#ec4899', i >= 0 ? i : 50, c);
-    } else if (emTriagem(c)) add('triagem', '🧭 Em triagem (Bia)', '#e11d74', 60, c);
-    else if (c.dono_id) { const n = x.dono_nome || x.instancia?.dono_nome || 'Equipe'; add(`p:${c.dono_id}`, `👤 ${n}`, '#2E6EAB', 70, c); }
-    else add('sem_dono', '📥 Sem dono', '#d97706', 90, c);
+      add(`ia:${c.atendente_ia}`, c.atendente_ia, i >= 0 ? i : 50, c);
+    } else if (emTriagem(c)) add('triagem', 'Em triagem (Bia)', 60, c);
+    else if (c.dono_id) { const n = x.dono_nome || x.instancia?.dono_nome || 'Equipe'; add(`p:${c.dono_id}`, n, 70, c); }
+    else add('sem_dono', 'Sem dono', 90, c);
   }
   return [...grupos.values()].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
 }
@@ -1108,7 +1107,7 @@ export default function WhatsappPage() {
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
                         <p className="text-[13px]  truncate">{c.ultima_mensagem || '—'}</p>
-                        {c.nao_lidas > 0 && <span className="text-white text-[11px] font-semibold tabular-nums rounded px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0" style={{ background: '#2E6EAB' }}>{c.nao_lidas}</span>}
+                        {c.nao_lidas > 0 && <span className="text-white text-[11px] font-semibold tabular-nums rounded px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--t-primary)'  }}>{c.nao_lidas}</span>}
                       </div>
                       {tipoInfo(c.tipo_contato) && tipoInfo(c.tipo_contato)!.nome !== c.etiqueta && (
                         <span className="wpp-meta">{tipoInfo(c.tipo_contato)!.nome}</span>
@@ -1130,7 +1129,7 @@ export default function WhatsappPage() {
                       )}
                       {avisoCnpj(c) && <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">{avisoCnpj(c)}</span>}
                       {verSupervisao && c.dono_id && (c.dono_nome || c.instancia?.dono_nome) && (
-                        <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#E5EEF7', color: 'var(--t-primary-dark)' }}>
+                        <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>
                           {c.dono_nome || c.instancia?.dono_nome}
                         </span>
                       )}
@@ -1191,7 +1190,7 @@ export default function WhatsappPage() {
                     <button onClick={() => finalizarOuReabrir(ativa)}
                       title={ativa.finalizada_em ? 'Voltar a conversa para a lista' : 'Atendimento resolvido: tira a conversa da lista. Se o contato escrever de novo, ela volta sozinha.'}
                       className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-semibold border border-gray-300 bg-white hover:bg-gray-50 whitespace-nowrap"
-                      style={{ color: ativa.finalizada_em ? '#2E6EAB' : '#374151' }}>
+                      style={{ color: ativa.finalizada_em ? 'var(--t-link)' : 'var(--t-text-primary)' }}>
                       {ativa.finalizada_em ? <RotateCcw size={14} /> : <Check size={14} />}
                       {ativa.finalizada_em ? 'Reabrir' : 'Finalizar'}
                     </button>
@@ -1335,7 +1334,7 @@ export default function WhatsappPage() {
                           <Trash2 size={17} />
                         </button>
                         <button onClick={() => pararGravacao(false)} title="Enviar áudio"
-                          className="text-white rounded-md w-10 h-10 flex items-center justify-center" style={{ background: '#2E6EAB' }} aria-label="Enviar áudio">
+                          className="text-white rounded-md w-10 h-10 flex items-center justify-center" style={{ background: 'var(--t-primary)'  }} aria-label="Enviar áudio">
                           <Send size={17} />
                         </button>
                       </>
@@ -1371,13 +1370,13 @@ export default function WhatsappPage() {
                         {texto.trim() ? (
                           <button onClick={enviar} disabled={enviando}
                             aria-label="Enviar mensagem"
-                            className="disabled:opacity-50 text-white rounded-md w-10 h-10 flex items-center justify-center flex-shrink-0" style={{ background: '#2E6EAB' }}>
+                            className="disabled:opacity-50 text-white rounded-md w-10 h-10 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--t-primary)'  }}>
                             <Send size={17} />
                           </button>
                         ) : (
                           <button onClick={iniciarGravacao} title="Gravar áudio"
                             aria-label="Gravar áudio"
-                            className="text-white rounded-md w-10 h-10 flex items-center justify-center flex-shrink-0" style={{ background: '#2E6EAB' }}>
+                            className="text-white rounded-md w-10 h-10 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--t-primary)'  }}>
                             <Mic size={17} />
                           </button>
                         )}
@@ -1418,7 +1417,7 @@ export default function WhatsappPage() {
                         <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Prazo de atendimento</p>
                         {sla ? (
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${sla.violado ? 'text-white' : ''}`}
-                            style={sla.violado ? { background: '#dc2626' } : { background: '#f1f5f9', color: '#334155' }}>
+                            style={sla.violado ? { background: '#dc2626' } : { background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)' }}>
                             {sla.texto}
                           </span>
                         ) : <p className="text-xs text-gray-400">Sem SLA em contagem</p>}
@@ -1582,89 +1581,70 @@ export default function WhatsappPage() {
           </div>
         )}
 
-        {/* Kanban comercial — colunas: etapas do funil de atendimento */}
+        {/* Fila de chamados: mesmas regras de agrupamento e movimentação. */}
         {configurado && status === 'CONECTADO' && viewMode === 'kanban' && (
-          <div className="flex-1 min-h-0 flex flex-col gap-2">
-          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
-            <div className="ios-seg-inline flex rounded-lg border border-gray-200 overflow-hidden" role="tablist" aria-label="Agrupar o quadro">
-              {([['atendente', '👥 Por atendente'], ['fase', '📊 Por fase']] as const).map(([k, rot]) => (
-                <button key={k} role="tab" aria-selected={agruparKanban === k} onClick={() => setAgruparKanban(k)}
-                  className={`px-3 py-1.5 text-sm font-medium ${agruparKanban === k ? 'text-white' : 'text-gray-600 bg-white'}`}
-                  style={agruparKanban === k ? { background: 'var(--t-primary)' } : {}}>{rot}</button>
-              ))}
+          <section className="wpp-quadro" aria-label="Fila de chamados">
+            <div className="wpp-quadro-ferramentas">
+              <div className="wpp-quadro-agrupar" role="group" aria-label="Agrupar o quadro">
+                {([['atendente', 'Por atendente'], ['fase', 'Por fase']] as const).map(([k, rot]) => (
+                  <button key={k} type="button" aria-pressed={agruparKanban === k} onClick={() => setAgruparKanban(k)}>{rot}</button>
+                ))}
+              </div>
+              <input className="wpp-busca wpp-quadro-busca" aria-label="Buscar na fila" placeholder="Buscar nome ou telefone" value={buscaConv} onChange={e => setBuscaConv(e.target.value)} />
+              {filtroTipo && <button type="button" className="wpp-quadro-limpar" onClick={() => setFiltroTipo('')}>Remover filtro: {tipoInfo(filtroTipo)?.nome || filtroTipo}</button>}
+              <span className="wpp-quadro-ajuda">{agruparKanban === 'fase' ? 'Arraste para mudar a fase' : 'Selecione um contato para atender'}</span>
             </div>
-            <span className="text-xs text-gray-500">
-              {agruparKanban === 'atendente' ? 'Quem está com cada conversa agora. Toque no cartão para abrir.' : 'Fase de cada contato. Arraste o cartão para mudar a fase.'}
-            </span>
-          </div>
-          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-3 h-full pb-2" style={{ minWidth: 'min-content' }}>
+            <div className="wpp-quadro-rolagem" tabIndex={0} aria-label="Colunas da fila">
+              {conversasFiltradas.length === 0 && agruparKanban === 'atendente' && <p className="wpp-quadro-vazio">Nenhuma conversa encontrada.</p>}
               {(agruparKanban === 'atendente' ? colunasPorAtendente(conversasFiltradas) : ESTAGIOS_FUNIL.map(col => ({ ...col, cards: conversasFiltradas.filter(c => (c.estagio_funil || 'NOVO_CONTATO') === col.valor) }))).map(col => {
                 const cards = col.cards;
                 const arrastavel = agruparKanban === 'fase';
+                const Icone = col.valor.startsWith('ia:') || col.valor === 'triagem' ? Bot : col.valor.startsWith('p:') ? UserRound : Inbox;
                 return (
-                  <div key={col.valor}
+                  <section key={col.valor} aria-label={col.nome} className="wpp-coluna"
                     onDragOver={e => { if (arrastavel) e.preventDefault(); }}
-                    onDrop={() => { if (arrastavel && dragConvId) { moverEstagio(dragConvId, col.valor); setDragConvId(null); } }}
-                    className="flex flex-col bg-opacity-0 rounded-lg border border-gray-200 flex-shrink-0 w-72 min-h-0">
-                    <div className="px-3 py-2.5 flex items-center gap-2 border-b border-gray-200 rounded-t-xl" style={{ background: `${col.cor}15` }}>
-                      <span className="w-3 h-3 rounded-full" style={{ background: col.cor }} />
-                      <span className="font-semibold text-sm ">{col.nome}</span>
-                      <span className="ml-auto text-xs ">{cards.length}</span>
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
-                      {cards.length === 0 && <p className="text-center  text-xs py-6">—</p>}
+                    onDrop={e => { e.preventDefault(); if (arrastavel && dragConvId) { moverEstagio(dragConvId, col.valor); setDragConvId(null); } }}>
+                    <header className="wpp-coluna-cab">
+                      {!arrastavel && <Icone size={15} aria-label={col.valor.startsWith('ia:') || col.valor === 'triagem' ? 'Agente virtual' : col.valor.startsWith('p:') ? 'Pessoa da equipe' : 'Sem responsável'} />}
+                      <h2 title={col.nome}>{col.nome}</h2>
+                      <span aria-label={cards.length + ' conversas'}>{cards.length}</span>
+                    </header>
+                    <div className="wpp-coluna-lista">
+                      {cards.length === 0 && <p className="wpp-quadro-vazio">Nenhuma conversa</p>}
                       {cards.map(c => {
                         const sla = fmtSla(c.sla_prazo_em);
-                        const prio = PRIORIDADES.find(p => p.valor === (c.prioridade || 'NORMAL'));
+                        const prio = PRIORIDADES.find(p => p.valor === c.prioridade && p.valor !== 'NORMAL');
+                        const responsavel = c.atendente_ia || (emTriagem(c) ? 'Em triagem (Bia)' : c.dono_id ? c.dono_nome || c.instancia?.dono_nome || 'Equipe' : 'Sem dono');
+                        const cliente = c as Conversa & { cliente_id?: string; cliente_codigo?: string; cliente_razao?: string };
                         return (
-                          <div key={c.id}
-                            draggable={arrastavel} onDragStart={() => setDragConvId(c.id)} onDragEnd={() => setDragConvId(null)}
-                            onClick={() => { setViewMode('inbox'); abrir(c); }}
-                            className="ps-card rounded-lg border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm">
-                            <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                              {prio && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: prio.cor }}>{prio.nome}</span>
-                              )}
-                              {sla && (
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${sla.violado ? 'text-white' : ''}`}
-                                  style={sla.violado ? { background: '#dc2626' } : { background: '#f1f5f9', color: '#475569' }}>
-                                  {sla.violado ? '⏰ ' : ''}{sla.texto}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-md flex items-center justify-center text-white text-sm font-semibold flex-shrink-0" style={{ background: corAvatar(nomeContato(c)) }}>
-                                {nomeContato(c).charAt(0).toUpperCase()}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-sm font-semibold truncate">{nomeContato(c)}</p>
-                                <p className="text-xs  truncate">{c.ultima_mensagem || '—'}</p>
-                              </div>
-                              {c.nao_lidas > 0 && <span className="text-white text-[10px] font-semibold tabular-nums rounded px-1.5 min-w-[18px] text-center flex-shrink-0" style={{ background: "#2E6EAB" }}>{c.nao_lidas}</span>}
-                            </div>
-                            <div className="flex items-center gap-1 flex-wrap mt-1">
-                              {c.atendente_ia ? <FarolCaroline pequeno nome={c.atendente_ia} /> : !c.dono_id && (
-                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#FEF3C7', color: '#92400E' }}>📥 Sem dono</span>
-                              )}
-                              {c.lead_id && <span className="inline-block text-[10px] text-blue-600">🔗 funil</span>}
-                              {(c as any).cliente_id && (
-                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: '#16a34a' }}
-                                  title="Cliente da base vinculado">
-                                  👤 {(c as any).cliente_codigo ? `${(c as any).cliente_codigo} · ` : ''}{(c as any).cliente_razao || 'Cliente'}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          <button key={c.id} type="button" className="wpp-chamado" data-arrastavel={arrastavel} data-vencido={sla?.violado || undefined}
+                            draggable={arrastavel} onDragStart={e => { e.dataTransfer.setData('text/plain', c.id); setDragConvId(c.id); }} onDragEnd={() => setDragConvId(null)}
+                            onClick={() => { setViewMode('inbox'); abrir(c); }}>
+                            <span className="wpp-chamado-linha">
+                              <span className="wpp-avatar" aria-hidden="true">{nomeContato(c).charAt(0).toUpperCase()}</span>
+                              <span className="wpp-chamado-texto">
+                                <span className="wpp-chamado-nome" title={nomeContato(c)}>{nomeContato(c)}</span>
+                                <span className="wpp-chamado-previa">{c.ultima_mensagem || 'Sem mensagens'}</span>
+                              </span>
+                              {c.nao_lidas > 0 && <span className="wpp-chamado-nao-lidas" aria-label={c.nao_lidas + ' mensagens não lidas'}>{c.nao_lidas}</span>}
+                            </span>
+                            {(sla || prio) && <span className="wpp-chamado-status">
+                              {prio && <span className={prio.valor === 'CRITICA' ? 'wpp-chamado-critico' : ''}>Prioridade {prio.nome.toLowerCase()}</span>}
+                              {sla && <span className={sla.violado ? 'wpp-chamado-atrasado' : ''}><Clock3 size={12} aria-hidden="true" />{sla.texto.replace('Violado há', 'Vencido há')}</span>}
+                            </span>}
+                            {(arrastavel || cliente.cliente_id) && <span className="wpp-chamado-contexto">
+                              {arrastavel && <span>{responsavel}</span>}
+                              {cliente.cliente_id && <span title={cliente.cliente_razao || 'Cliente vinculado'}>Cliente{cliente.cliente_codigo ? ' · ' + cliente.cliente_codigo : ''}{cliente.cliente_razao ? ' · ' + cliente.cliente_razao : ''}</span>}
+                            </span>}
+                          </button>
                         );
                       })}
                     </div>
-                  </div>
+                  </section>
                 );
               })}
             </div>
-          </div>
-          </div>
+          </section>
         )}
       </div>
 

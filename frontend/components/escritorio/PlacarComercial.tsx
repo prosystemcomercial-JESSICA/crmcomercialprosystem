@@ -69,7 +69,7 @@ export default function PlacarComercial() {
             <div>
               <b style={{ color: '#b45309' }}>{p.propostas_rascunho.length} proposta(s) em rascunho há mais de 1 dia: </b>
               <span style={{ color: 'var(--t-text-secondary)' }}>{p.propostas_rascunho.slice(0, 5).map(x => x.nome_fantasia || x.razao_social).join(', ')}. </span>
-              <a href="/propostas-comerciais" style={{ color: 'var(--t-primary)', fontWeight: 700 }}>Enviar</a>
+              <a href="/propostas-comerciais" style={{ color: 'var(--t-link)', fontWeight: 700 }}>Enviar</a>
             </div>
           )}
         </div>

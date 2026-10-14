@@ -320,7 +320,7 @@ function KanbanCasos({ casos, carregando, arrastando, sobre, setArrastando, setS
                   </div>
                   {!encerrada && atraso && (
                     <button onClick={e => { e.stopPropagation(); onRenegociar(c); }}
-                      style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary)', cursor: 'pointer', justifySelf: 'start' }}>
+                      style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-link)', cursor: 'pointer', justifySelf: 'start' }}>
                       💰 {c.reneg_ativa ? 'Ver acordo' : 'Renegociar'}
                     </button>
                   )}
@@ -329,7 +329,7 @@ function KanbanCasos({ casos, carregando, arrastando, sobre, setArrastando, setS
             })}
             {encerrada && lista.length > visiveis.length && <span style={{ fontSize: 11, color: 'var(--t-text-muted)', textAlign: 'center' }}>+{lista.length - visiveis.length} mais antigos (use o filtro de mês ou a tabela)</span>}
             {!lista.length && (col.k === 'NOVO'
-              ? <button onClick={onNovo} style={{ fontSize: 12, color: 'var(--t-primary)', background: 'none', border: '1px dashed var(--t-card-border)', borderRadius: 10, padding: 12, cursor: 'pointer' }}>+ Abrir um caso</button>
+              ? <button onClick={onNovo} style={{ fontSize: 12, color: 'var(--t-link)', background: 'none', border: '1px dashed var(--t-card-border)', borderRadius: 10, padding: 12, cursor: 'pointer' }}>+ Abrir um caso</button>
               : <span style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', marginTop: 20 }}>Arraste um card para cá</span>)}
           </div>
         );
@@ -826,7 +826,7 @@ export default function CasosPage() {
             <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Saúde da carteira por técnico</p>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Ranking completo disponível na tela de Health Score.</p>
           </div>
-          <Link href="/health-score" className="text-[11px] font-semibold" style={{ color: 'var(--t-primary)' }}>
+          <Link href="/health-score" className="text-[11px] font-semibold" style={{ color: 'var(--t-link)' }}>
             Ver ranking completo →
           </Link>
         </div>

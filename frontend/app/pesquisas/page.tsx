@@ -289,7 +289,7 @@ function ModalFormulario({ pesquisa, onClose }: { pesquisa: Pesquisa; onClose: (
           {(pesquisa.email || pesquisa.whatsapp) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {pesquisa.email && (
-                <a href={`mailto:${pesquisa.email}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, color: 'var(--t-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                <a href={`mailto:${pesquisa.email}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, color: 'var(--t-link)', fontWeight: 600, textDecoration: 'none' }}>
                   ✉️ {pesquisa.email}
                 </a>
               )}
@@ -416,11 +416,11 @@ function CardPesquisa({ p, onVerDetalhes, comVincular, onVincular }: {
           <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text-muted)' }}>
             {new Date(p.created_at).toLocaleDateString('pt-BR')}
           </p>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-primary)' }}>Ver detalhes →</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)' }}>Ver detalhes →</span>
           {!p.cliente_casado && comVincular && onVincular && (
             <button
               onClick={e => { e.stopPropagation(); onVincular(p); }}
-              style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-primary)', background: 'var(--t-primary-light)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}
+              style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-link)', background: 'var(--t-primary-light)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}
             >
               🔗 Vincular
             </button>
@@ -564,7 +564,7 @@ export default function PesquisasPage() {
         {resumo && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
-              { l: 'Total de respostas', v: resumo.total,              icon: Users,         color: 'var(--t-primary)' },
+              { l: 'Total de respostas', v: resumo.total,              icon: Users,         color: 'var(--t-link)' },
               { l: 'Score médio',        v: `${scoresMedio}/100`,       icon: Star,          color: cfgMedio.color },
               { l: 'Excelentes (≥90)',   v: excelentes.length,          icon: Award,         color: '#15803d' },
               { l: 'Críticos',           v: resumo.criticos,            icon: AlertTriangle, color: '#dc2626' },
@@ -604,7 +604,7 @@ export default function PesquisasPage() {
                     {p.respondente_nome && <p style={{ margin: 0, fontSize: 12, color: '#16a34a' }}>{p.respondente_nome}</p>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    {p.recado && <p style={{ margin: 0, fontSize: 12, color: 'var(--t-primary)', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{p.recado}"</p>}
+                    {p.recado && <p style={{ margin: 0, fontSize: 12, color: 'var(--t-link)', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{p.recado}"</p>}
                     <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
                   <ChevronRight size={16} style={{ color: '#16a34a', flexShrink: 0 }} />

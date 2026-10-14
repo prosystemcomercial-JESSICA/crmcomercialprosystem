@@ -34,7 +34,7 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 function SectionTitle({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <Icon size={18} style={{ color: 'var(--t-primary)' }} />
+      <Icon size={18} style={{ color: 'var(--t-link)' }} />
       <div>
         <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{title}</h3>
         {subtitle && <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{subtitle}</p>}

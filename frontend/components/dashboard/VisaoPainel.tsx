@@ -54,7 +54,7 @@ export function MeuGanhoCard() {
   return (
     <div className="ps-card rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
-        <Wallet size={14} style={{ color: 'var(--t-primary)' }} />
+        <Wallet size={14} style={{ color: 'var(--t-link)' }} />
         <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>
           Meu ganho no mês{g ? ` · ${g.mes.split('-').reverse().join('/')}` : ''}
         </p>
@@ -65,14 +65,14 @@ export function MeuGanhoCard() {
         <div className="du-skeleton h-10 w-full" />
       ) : (
         <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-          <p className="text-2xl font-extrabold" style={{ color: 'var(--t-primary-dark)' }}>{brl(g.total)}</p>
+          <p className="text-2xl font-extrabold" style={{ color: 'var(--t-link)' }}>{brl(g.total)}</p>
           {linhas.map(([rotulo, valor]) => (
             <div key={rotulo}>
               <p className="text-[10.5px]" style={{ color: 'var(--t-text-muted)' }}>{rotulo}</p>
               <p className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{brl(valor)}</p>
             </div>
           ))}
-          <Link href="/comissoes" className="ml-auto text-xs font-semibold" style={{ color: 'var(--t-primary)' }}>
+          <Link href="/comissoes" className="ml-auto text-xs font-semibold" style={{ color: 'var(--t-link)' }}>
             Ver comissões →
           </Link>
         </div>
@@ -118,7 +118,7 @@ export function AtalhosVisao({ visao }: { visao: Visao }) {
         return (
           <Link key={`${a.href}-${a.label}`} href={a.href}
             className="ps-card rounded-xl p-3 flex items-start gap-2 transition-colors hover:opacity-90">
-            <Icon size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--t-primary)' }} />
+            <Icon size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--t-link)' }} />
             <span className="min-w-0">
               <span className="block text-xs font-semibold truncate" style={{ color: 'var(--t-text-primary)' }}>{a.label}</span>
               <span className="block text-[10.5px] truncate" style={{ color: 'var(--t-text-muted)' }}>{a.sub}</span>

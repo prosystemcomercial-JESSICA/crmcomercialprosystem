@@ -34,14 +34,14 @@ interface Ticket {
 
 const PRIORIDADE_COLOR: Record<string, React.CSSProperties> = {
   BAIXA: { background: 'rgba(148,163,184,0.12)', color: 'var(--t-text-muted)' },
-  MEDIA: { background: 'rgba(75,142,200,0.12)', color: 'var(--t-primary)' },
+  MEDIA: { background: 'rgba(75,142,200,0.12)', color: 'var(--t-link)' },
   ALTA:  { background: 'rgba(234,88,12,0.10)',  color: '#ea580c' },
   CRITICA:{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' },
 };
 
 const STATUS_COLOR: Record<string, React.CSSProperties> = {
   ABERTO:             { background: 'rgba(234,179,8,0.12)',   color: '#a16207' },
-  EM_ATENDIMENTO:     { background: 'rgba(75,142,200,0.12)', color: 'var(--t-primary)' },
+  EM_ATENDIMENTO:     { background: 'rgba(75,142,200,0.12)', color: 'var(--t-link)' },
   AGUARDANDO_CLIENTE: { background: 'rgba(147,51,234,0.10)', color: '#7e22ce' },
   RESOLVIDO:          { background: 'rgba(22,163,74,0.10)',  color: '#15803d' },
   FECHADO:            { background: 'rgba(148,163,184,0.12)', color: 'var(--t-text-muted)' },
@@ -61,7 +61,7 @@ function CategoriaIcon({ categoria, size = 14 }: { categoria: string; size?: num
 
 const STATS_STYLE: Record<string, { card: React.CSSProperties; value: React.CSSProperties }> = {
   ABERTO:             { card: { background: 'rgba(234,179,8,0.08)' },   value: { color: '#a16207' } },
-  EM_ATENDIMENTO:     { card: { background: 'rgba(75,142,200,0.08)' },  value: { color: 'var(--t-primary)' } },
+  EM_ATENDIMENTO:     { card: { background: 'rgba(75,142,200,0.08)' },  value: { color: 'var(--t-link)' } },
   AGUARDANDO_CLIENTE: { card: { background: 'rgba(147,51,234,0.08)' },  value: { color: '#7e22ce' } },
   RESOLVIDO:          { card: { background: 'rgba(22,163,74,0.08)' },   value: { color: '#15803d' } },
   FECHADO:            { card: { background: 'rgba(148,163,184,0.08)' }, value: { color: 'var(--t-text-muted)' } },
@@ -142,7 +142,7 @@ export default function SuportePage() {
   if (loading || !isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 size={40} className="animate-spin" style={{ color: 'var(--t-primary)' }} />
+        <Loader2 size={40} className="animate-spin" style={{ color: 'var(--t-link)' }} />
       </div>
     );
   }

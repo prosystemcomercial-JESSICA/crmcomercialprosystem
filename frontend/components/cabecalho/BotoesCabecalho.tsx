@@ -53,8 +53,8 @@ export function BotaoCronometro() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>Cronômetro</b>
             <div style={{ display: 'flex', gap: 4 }}>
-              <a href="/meu-tempo" style={{ fontSize: 12, padding: '6px 8px', color: 'var(--t-primary)' }}>Meu tempo</a>
-              <button onClick={destacar} title="Abrir numa janelinha separada" className="ios-so-computador" style={{ fontSize: 12, padding: '6px 8px', border: 'none', background: 'none', color: 'var(--t-primary)', cursor: 'pointer' }}>↗ Destacar</button>
+              <a href="/meu-tempo" style={{ fontSize: 12, padding: '6px 8px', color: 'var(--t-link)' }}>Meu tempo</a>
+              <button onClick={destacar} title="Abrir numa janelinha separada" className="ios-so-computador" style={{ fontSize: 12, padding: '6px 8px', border: 'none', background: 'none', color: 'var(--t-link)', cursor: 'pointer' }}>↗ Destacar</button>
             </div>
           </div>
           <ControlesCronometro />

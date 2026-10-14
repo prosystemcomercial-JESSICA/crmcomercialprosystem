@@ -566,7 +566,7 @@ export default function ComissoesPage() {
               </div>
               <div className="text-right">
                 <p className="text-xs ">Comissão por supervisor</p>
-                <p className="text-2xl font-bold" style={{ color: 'var(--t-primary-dark)' }}>
+                <p className="text-2xl font-bold" style={{ color: 'var(--t-link)' }}>
                   R$ {Number(supervisao.comissao_por_supervisor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
