@@ -228,7 +228,25 @@ export function compromissoDeHorario(texto: string, agora = new Date()): Date | 
 /** Mensagem automática da loja ("em breve iremos lhe atender"): não é resposta de uma pessoa. */
 export function ehRespostaAutomatica(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  return /(em breve (iremos|vamos|retornaremos|lhe|te|responderemos)|mensagem automatica|resposta automatica|seja bem[- ]vind[oa]|obrigad[oa] por entrar em contato|no momento (nao|estamos)|nosso horario de atendimento|fora do horario|assim que possivel (retornaremos|responderemos)|aguarde|em instantes|sera atendid|sera respondid|em breve|obrigad[oa] pel[ao] (sua )?(mensagem|contato)|recebemos sua mensagem|horario de funcionamento|envie (sua|seu|a lista|o pedido)|lista de itens|atendente (ja )?(vai|ira))/.test(t);
+  return ehEncerramentoAutomatico(texto) || /(em breve (iremos|vamos|retornaremos|lhe|te|responderemos)|mensagem automatica|resposta automatica|seja bem[- ]vind[oa]|obrigad[oa] por entrar em contato|no momento (nao|estamos)|nosso horario de atendimento|fora do horario|assim que possivel (retornaremos|responderemos)|aguarde|em instantes|sera atendid|sera respondid|em breve|obrigad[oa] pel[ao] (sua )?(mensagem|contato)|recebemos sua mensagem|horario de funcionamento|envie (sua|seu|a lista|o pedido)|lista de itens|atendente (ja )?(vai|ira))/.test(t);
+}
+
+/**
+ * Robô da loja encerrando o atendimento ou pedindo nota ("Atendimento finalizado", "Não precisa responder",
+ * "Digite o número correspondente a sua nota"). Não pede resposta nenhuma, nem ao atendente (14/10/2026).
+ */
+export function ehEncerramentoAutomatico(texto: string | null | undefined): boolean {
+  const t = (texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[*_~]/g, '');
+  return /(atendimento (foi )?(finalizado|encerrado|concluido)|encerrar (seu|o) atendimento|nao precisa responder|correspondente a sua nota|digite o numero|avalie (o |nosso )?(nosso )?atendimento|pesquisa de satisfacao|de 1 a 5|obrigad[oa] pela (sua )?(procura|preferencia)|fica a disposicao sempre que precisar)/.test(t);
+}
+
+/**
+ * As mensagens novas são só do robô da loja: ao menos um texto automático e o resto texto automático ou
+ * mídia sem fala (o folheto em imagem que vem junto com as boas-vindas). Áudio é sempre de uma pessoa.
+ */
+export function soRoboDaLoja(novas: { tipo: string; conteudo: string | null }[]): boolean {
+  const auto = (m: { tipo: string; conteudo: string | null }) => m.tipo === 'TEXTO' && ehRespostaAutomatica(m.conteudo);
+  return novas.some(auto) && novas.every(m => auto(m) || ['IMAGEM', 'DOCUMENTO', 'OUTRO'].includes(m.tipo));
 }
 
 /** Cliente só confirmou/agradeceu ("👍", "ok", "obrigado", "blz"): não pede resposta do agente. */

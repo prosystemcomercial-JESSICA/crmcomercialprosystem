@@ -6,7 +6,7 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehRespostaAutomatica, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
+import { ehEncerramentoAutomatico, soRoboDaLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
 const DIAS_RETOMADA_ADIOU = 3;
@@ -933,11 +933,15 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (fase === 'resposta') {
     const desdeAgente = ultimasDoAgente[0]?.created_at || sdr.desde;
     const novas = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA', created_at: { gt: desdeAgente } }, select: { conteudo: true, tipo: true } });
-    if (novas.length && novas.every(m => m.tipo === 'TEXTO' && ehRespostaAutomatica(m.conteudo))) {
-      // Atitude: só respondeu o robô da loja. Uma vez por conversa, escreve para o atendente pedindo o decisor.
+    if (soRoboDaLoja(novas)) {
+      // Atitude: só respondeu o robô da loja (o folheto em imagem junto conta como robô). Uma vez por conversa,
+      // escreve para o atendente pedindo o decisor. Robô encerrando ou pedindo nota: não responde nada.
       const dA: any = sdr.dados || {};
-      if (dA.pediu_decisor_em) {
-        registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: já pediu o decisor, espera a pessoa`);
+      const encerrou = novas.filter(m => m.tipo === 'TEXTO').every(m => ehEncerramentoAutomatico(m.conteudo));
+      if (dA.pediu_decisor_em || encerrou) {
+        // Sai de "esperando resposta": senão a rodada chama o agente de novo a cada 2 minutos. A retomada segue o ritmo normal.
+        await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date() } });
+        registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: ${encerrou ? 'o robô encerrou o atendimento, não respondeu' : 'já pediu o decisor, espera a pessoa'}`);
         return 'nada';
       }
       dicaDecisor = 'A loja respondeu só com MENSAGEM AUTOMÁTICA (robô de atendimento). Não agradeça nem converse com o robô. Escreva UMA mensagem curta para o ATENDENTE que vai ler: diga quem você é e o motivo em uma frase (sistema de gestão da farmácia/padaria, sem vender), e peça com educação o nome e o WhatsApp do dono ou do gerente que cuida da parte de sistema, ou o melhor horário para falar com ele. Use acao "continuar".';
@@ -1145,7 +1149,16 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
   if (!inst?.instance_token) throw new Error('O WhatsApp da empresa não está conectado.');
   const final = (decisao.texto ?? '').trim() || m.texto;
   const editada = final !== m.texto;
-  await enviarMensagens(prisma, inst.instance_token, sdr, final.split(/\n{2,}/).map(s => s.trim()).filter(Boolean).slice(0, 3));
+  try {
+    await enviarMensagens(prisma, inst.instance_token, sdr, final.split(/\n{2,}/).map(s => s.trim()).filter(Boolean).slice(0, 3));
+  } catch (e: any) {
+    // Número sem WhatsApp (já tentou com e sem o 9 extra): a mensagem sai da aprovação e o lead sai da fila,
+    // senão ele fica "na fila" para sempre e trava os primeiros contatos (bug visto em 14/10/2026).
+    if (!SEM_WHATSAPP.test(String(e?.message || e))) throw e;
+    await prisma.sdrMensagem.update({ where: { id }, data: { status: 'DESCARTADA', texto_final: 'número sem WhatsApp', decidido_em: new Date(), decidido_por: userId } });
+    await tirarDaFilaSemWhatsapp(prisma, sdr, 'o número não tem WhatsApp');
+    throw new Error(`${e.message} O lead saiu da fila e a mensagem foi descartada.`);
+  }
   await prisma.sdrMensagem.update({ where: { id }, data: { status: editada ? 'EDITADA' : 'APROVADA', texto_final: final, decidido_em: new Date(), decidido_por: userId } });
   const meta = (() => { try { return JSON.parse(m.acao || '{}'); } catch { return {}; } })();
   if (meta.chamariz && (!meta.acao || meta.acao === 'continuar') && !recuperacaoAtiva(sdr)) await enviarChamariz(prisma, inst.instance_token, sdr, !!meta.ultima);
@@ -1750,12 +1763,15 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   // Prospecção do Heitor (contato ativo) só depois de todo o resto e até o teto próprio do dia.
   const { obterConfigHeitor, enviadosHeitorHoje } = await import('./heitor.service');
   const podeHeitor = (await enviadosHeitorHoje(prisma, agora)) < (await obterConfigHeitor(prisma)).envios_dia;
+  // Quem tem a primeira mensagem esperando a aprovação da Jessica continua "na fila", mas não é a vez dele:
+  // sem este filtro o mais antigo era escolhido de novo a cada rodada e travava a fila inteira (14/10/2026).
+  const esperandoAprovacao = (await prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE' }, select: { sdrId: true } })).map(m => m.sdrId);
   for (const a of ativos) { // prioridade: Caroline (campanha) → Luiz Felipe (propostas) → Julio (base)
-    proximo = await prisma.sdrLead.findFirst({ where: { agente: a, status: 'FILA', OR: [{ criado_por: null }, { criado_por: { not: 'heitor' } }] }, orderBy: a === 'caroline' ? { created_at: 'asc' } : { cadastro_em: 'desc' } });
+    proximo = await prisma.sdrLead.findFirst({ where: { agente: a, status: 'FILA', id: { notIn: esperandoAprovacao }, OR: [{ criado_por: null }, { criado_por: { not: 'heitor' } }] }, orderBy: a === 'caroline' ? { created_at: 'asc' } : { cadastro_em: 'desc' } });
     if (proximo) break;
   }
   if (!proximo && podeHeitor && ativos.includes('caroline')) {
-    proximo = await prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor' }, orderBy: { created_at: 'asc' } });
+    proximo = await prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor', id: { notIn: esperandoAprovacao } }, orderBy: { created_at: 'asc' } });
   }
   if (!proximo) return;
   // Confere se o número tem WhatsApp antes de chamar: sem WhatsApp, sai da fila e a fila segue.
@@ -1799,14 +1815,28 @@ export async function painelCaroline(prisma: PrismaClient, agente: PerfilSdr = '
     obterConfigAgente(prisma, agente),
     prisma.sdrLead.findMany({ where: { agente }, orderBy: { updated_at: 'desc' }, take: 200 }),
   ]);
-  const pendentes = await prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE', sdrId: { in: leads.map(l => l.id) } }, orderBy: { created_at: 'asc' } });
-  const porStatus: Record<string, number> = {};
-  for (const l of leads) porStatus[l.status] = (porStatus[l.status] || 0) + 1;
+  // Pendentes de qualquer lead do agente (inclusive fora dos 200 mais recentes, como os da fila).
+  const todasPendentes = await prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE' }, orderBy: { created_at: 'asc' } });
+  const doAgente = new Set((await prisma.sdrLead.findMany({ where: { id: { in: todasPendentes.map(m => m.sdrId) }, agente }, select: { id: true } })).map(s => s.id));
+  const pendentes = todasPendentes.filter(m => doAgente.has(m.sdrId));
+  // Contagem por status de TODOS os leads do agente (a lista acima traz só os 200 mais recentes).
+  const porStatus: Record<string, number> = Object.fromEntries((await prisma.sdrLead.groupBy({ by: ['status'], where: { agente }, _count: true })).map(x => [x.status, x._count]));
+  // Primeiros contatos de hoje (todos os agentes e números juntos) e o limite do número principal: mostra se a fila anda.
+  const agora = new Date();
+  const desde = new Date(`${agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T00:00:00-03:00`);
+  const cfgs = await Promise.all(AGENTES_SDR.map(a => obterConfigAgente(prisma, a)));
+  const ligados = cfgs.filter(c => trabalhando(c, agora));
+  const hoje = {
+    primeiros_contatos: await prisma.sdrLead.count({ where: { primeiro_envio_em: { gte: desde } } }),
+    limite_principal: ligados.length ? Math.min(...ligados.map(c => limiteDoDia(c.ativada_em ? new Date(c.ativada_em) : null, c.limite, agora))) : 0,
+    esperando_aprovacao: pendentes.length,
+  };
   const nomes = new Map(leads.map(l => [l.id, l]));
+  for (const m of pendentes) if (!nomes.has(m.sdrId)) { const s = await prisma.sdrLead.findUnique({ where: { id: m.sdrId } }); if (s) nomes.set(s.id, s); }
   const { usoIaUltimosDias } = await import('./uso-ia.service');
   return {
     uso_ia: await usoIaUltimosDias(prisma, 7),
-    config: cfg, por_status: porStatus,
+    config: cfg, por_status: porStatus, hoje,
     leads: leads.map(l => ({ id: l.id, nome: l.nome, empresa: l.empresa, numero: l.numero, segmento: l.segmento, campanha: l.campanha, status: l.status, tentativas: l.tentativas, nota: l.nota, nota_motivo: l.nota_motivo, temperatura: l.temperatura, temperatura_confirmada: l.temperatura_confirmada, dados: l.dados, conversaId: l.conversaId, lead_id: l.lead_id, atualizado_em: l.updated_at })),
     pendentes: pendentes.map(m => ({ id: m.id, sdrId: m.sdrId, texto: m.texto, meta: (() => { try { return JSON.parse(m.acao || '{}'); } catch { return {}; } })(), criado_em: m.created_at, lead: nomes.get(m.sdrId)?.nome || null, empresa: nomes.get(m.sdrId)?.empresa || null })),
   };

@@ -1398,3 +1398,12 @@ Direção aprovada pela usuária: versão clara, menos azul, avatares neutros, d
 ### Correção 14/10/2026 — isolamento ao trocar conversas
 
 Preservado o visual aprovado. A área do histórico informa carregamento sem mostrar balões do contato anterior. Em falha de consulta, oferece nova tentativa. Campos e popups específicos do contato são reiniciados na troca; rolagem tardia de outra conversa não interfere na atual.
+
+### Correção 14/10/2026 (noite): fila de primeiros contatos destravada e mensagens automáticas das lojas
+
+- **Causa da fila parada (desde 05/10):** quando a primeira mensagem de um lead esperava a aprovação da Jessica, o lead continuava `FILA`. A rodada (`rodarCaroline`, passo 3) escolhe o lead mais antigo da fila; pegava sempre o mesmo, `falar` devolvia `aprovacao` e a rodada acabava. Os leads do Heitor (só depois de todos os outros) nunca eram chamados: 333 na fila com 0 tentativas.
+- **Correção:** a escolha do próximo primeiro contato ignora os leads com `SdrMensagem` `PENDENTE` (`id notIn esperandoAprovacao`). Limite único do dia, intervalo sorteado, horário e rodízio continuam iguais.
+- **Número sem WhatsApp na aprovação:** `decidirMensagem` agora trata o erro (já tentou com e sem o 9 extra): a mensagem vira `DESCARTADA` ("número sem WhatsApp"), o lead vai para `SEM_WHATSAPP` com observação no lead e a tela mostra o aviso com "O lead saiu da fila". Antes a mensagem ficava pendente e o lead travava a fila.
+- **Mensagens automáticas das lojas:** `ehEncerramentoAutomatico` (atendimento finalizado/encerrado, "não precisa responder", "digite o número correspondente a sua nota", "obrigado pela preferência/procura", "fica à disposição sempre que precisar") e `soRoboDaLoja` (texto automático + folheto em imagem/documento conta como robô; áudio é sempre pessoa). Só o robô respondeu: o agente pede o decisor ao atendente uma vez por conversa; se o robô encerrou ou pediu nota, ou se o decisor já foi pedido, o agente não responde e o lead vai para `AGUARDANDO` (sai do "esperando resposta", que chamava a IA a cada rodada em loop).
+- **Painel da Caroline:** contagem por status de todos os leads (`groupBy`; antes contava só os 200 mais recentes e mostrava 183 na fila em vez de 333), linha "Hoje: N primeiros contatos · limite do número principal · N esperando sua aprovação" (`hoje` no `GET /assistente/caroline`) e as mensagens pendentes de qualquer lead do agente.
+- Testes: `tests/sdr-mensagem-automatica.test.ts` com as frases reais (Onfarma e Farma Vila).
