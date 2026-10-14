@@ -1418,3 +1418,8 @@ Pedido da Jessica: responsiva, cantos mais retos, "menos cara de IA".
 ## WhatsApp — interface aprovada em 14/10/2026
 
 Esta revisão do WhatsApp não modifica schema, migrações, DTOs, endpoints, autorizações, envios ou cadências. Todas as ações conservam seus handlers existentes. A remoção do painel duplicado de apresentações não remove as apresentações disponíveis nem o envio pelo compositor.
+
+
+### Correção 14/10/2026 — isolamento ao trocar conversas
+
+Correção exclusivamente no estado da interface: nenhuma tabela, coluna, migration ou contrato da API foi alterado. Consultas e envios continuam usando o id original da conversa. O backup do banco continua obrigatório na publicação; PERMITIDO de alterações de schema vazio.

@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'whatsapp-layout.spec.ts',
+  testMatch: ['whatsapp-layout.spec.ts', 'whatsapp-isolation.spec.ts'],
   workers: 1,
   reporter: 'list',
   timeout: 60_000,

@@ -1408,3 +1408,8 @@ Pedido da Jessica: responsiva, cantos mais retos, "menos cara de IA".
 ## WhatsApp — interface aprovada em 14/10/2026
 
 A rota frontend/app/whatsapp/page.tsx reutiliza os componentes e handlers existentes. whatsapp.css contém o escopo .wpp-workspace/.wpp-shell. DashboardLayout aplica a variante neutra somente em /whatsapp. O grid usa container query de 1120px úteis para três colunas; abaixo, o painel de detalhes é sobreposto sob demanda. ResumoNumeros reutiliza estadoDoNumero e formatarNumero. O componente lateral de apresentações sem consumidores foi removido; BotaoApresentacaoWpp permanece como proprietário do fluxo.
+
+
+### Correção 14/10/2026 — isolamento ao trocar conversas
+
+WhatsappPage identifica cada abertura com uma sessão (id + versão). Histórico e painel validam a sessão ao concluir; consultas de histórico também validam a ordem. Polling, SSE e callbacks de envio usam a mesma proteção. Seleção/fechamento invalidam a sessão sincronamente. Componentes de sugestões, apresentações, observações e Laya remontam por abertura. Sem alteração de endpoints, backend ou schema.

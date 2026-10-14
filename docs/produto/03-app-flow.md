@@ -1432,3 +1432,8 @@ Pedido da Jessica: responsiva, cantos mais retos, "menos cara de IA".
 ## WhatsApp — interface aprovada em 14/10/2026
 
 WhatsApp → buscar/filtrar na lista → abrir conversa → escrever ou usar anexo/sugestão/apresentação no compositor. Nova revela o número com DDD; Iniciar utiliza o fluxo existente. Finalizar/reabrir e transferir permanecem no cabeçalho conforme permissão. Mais ações reúne prioridade, etiqueta, vínculo, reunião e exclusão. Detalhes abre o contexto e Fechar devolve espaço ao chat. No celular, Voltar retorna à lista.
+
+
+### Correção 14/10/2026 — isolamento ao trocar conversas
+
+Clicar A → clicar B limpa mensagens, painel, rascunho e ações de A; exibe “Carregando conversa…” até B responder. Resposta atrasada de A é descartada, inclusive no caminho A → B → A. Falha exibe aviso e “Tentar novamente”. Envios já iniciados mantêm o destinatário original; sua conclusão não entra no histórico de B.

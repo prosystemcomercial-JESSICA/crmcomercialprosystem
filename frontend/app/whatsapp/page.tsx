@@ -133,6 +133,8 @@ interface PainelConversa {
   sla_prazo_em?: string | null;
 }
 
+type SessaoConversa = { id: string | null; versao: number };
+
 interface Mensagem {
   id: string;
   direcao: 'ENTRADA' | 'SAIDA';
@@ -197,6 +199,11 @@ export default function WhatsappPage() {
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [ativa, setAtiva] = useState<Conversa | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [sessaoAtual, setSessaoAtual] = useState<SessaoConversa>({ id: null, versao: 0 });
+  const sessaoRef = useRef(sessaoAtual);
+  const consultaMensagensRef = useRef(0);
+  const [carregandoMensagens, setCarregandoMensagens] = useState(false);
+  const [erroMensagens, setErroMensagens] = useState('');
   const [texto, setTexto] = useState('');
   const [gravando, setGravando] = useState(false);
   const [gravTempo, setGravTempo] = useState(0);
@@ -255,6 +262,55 @@ export default function WhatsappPage() {
   const [enviando, setEnviando] = useState(false);
   const [carregandoConn, setCarregandoConn] = useState(true);
   const fimRef = useRef<HTMLDivElement>(null);
+
+  // Cada abertura tem identidade própria, inclusive no caminho A → B → A.
+  // A invalidação é síncrona no clique, antes de qualquer resposta/SSE pendente.
+  const sessaoValida = (sessao: SessaoConversa) => sessaoRef.current === sessao;
+  const rolarFim = (sessao: SessaoConversa) => {
+    setTimeout(() => { if (sessaoValida(sessao)) fimRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 50);
+  };
+  const adicionarMensagem = (sessao: SessaoConversa, mensagem: Mensagem) => {
+    if (!sessaoValida(sessao)) return;
+    setMensagens(prev => !sessaoValida(sessao) || prev.some(m => m.id === mensagem.id) ? prev : [...prev, mensagem]);
+    rolarFim(sessao);
+  };
+  const carregarMensagens = async (sessao: SessaoConversa, mostrarCarga = false) => {
+    if (!sessao.id || !sessaoValida(sessao)) return;
+    const consulta = ++consultaMensagensRef.current;
+    const atual = () => sessaoValida(sessao) && consulta === consultaMensagensRef.current;
+    if (mostrarCarga) setCarregandoMensagens(true);
+    setErroMensagens('');
+    try {
+      const res = await apiClient.getWhatsappMensagens(sessao.id);
+      if (!atual()) return;
+      setMensagens(res.data.data.mensagens);
+      setConversas(prev => prev.map(c => c.id === sessao.id ? { ...c, nao_lidas: 0 } : c));
+      if (mostrarCarga) rolarFim(sessao);
+    } catch {
+      if (atual()) setErroMensagens('Não foi possível carregar esta conversa.');
+    } finally {
+      if (atual()) setCarregandoMensagens(false);
+    }
+  };
+  const selecionarConversa = (conversa: Conversa | null) => {
+    const sessao = { id: conversa?.id || null, versao: sessaoRef.current.versao + 1 };
+    sessaoRef.current = sessao;
+    setSessaoAtual(sessao);
+    setAtiva(conversa);
+    setMensagens([]); setPainel(null); setTexto('');
+    setErroMensagens(''); setCarregandoMensagens(!!conversa);
+    setEnviando(false); setEnviandoArquivo(false);
+    setMenuMais(false); setMenuEtiqueta(false); setMenuPrioridade(false); setMenuTransferir(false);
+    setShowReuniao(false); setShowVincCliente(false);
+    pararGravacao(true);
+    return sessao;
+  };
+  useEffect(() => () => {
+    sessaoRef.current = { id: null, versao: sessaoRef.current.versao + 1 };
+    const rec = mediaRecRef.current;
+    if (rec) { rec.onstop = null; if (rec.state !== 'inactive') rec.stop(); rec.stream.getTracks().forEach(t => t.stop()); }
+    if (gravTimerRef.current) clearInterval(gravTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated && !loading) router.push('/');
@@ -382,7 +438,7 @@ export default function WhatsappPage() {
       if (c.finalizada_em) await apiClient.reabrirConversaWhatsapp(c.id);
       else await apiClient.finalizarConversaWhatsapp(c.id);
       setConversas(prev => prev.filter(x => x.id !== c.id));
-      setAtiva(null);
+      if (sessaoRef.current.id === c.id) selecionarConversa(null);
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Não foi possível atualizar a conversa.');
     }
@@ -424,7 +480,7 @@ export default function WhatsappPage() {
   // Ao trocar de instância no seletor, atualiza status/qr e recarrega.
   const trocarInstancia = (id: string) => {
     setInstAtivaId(id);
-    setAtiva(null);
+    selecionarConversa(null);
     const inst = instancias.find(i => i.id === id);
     setStatus((inst?.status as StatusConexao) || 'DESCONECTADO');
     setQr(inst?.status === 'CONECTADO' ? null : (inst?.qr_code || null));
@@ -479,7 +535,7 @@ export default function WhatsappPage() {
     if (!confirm('Desvincular esta conversa do funil? Ela deixa de contar como lead no dashboard.')) return;
     try {
       await apiClient.desvincularConversaFunil(ativa.id);
-      setAtiva({ ...ativa, lead_id: null });
+      setAtiva(prev => prev?.id === ativa.id ? { ...prev, lead_id: null } : prev);
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null } : c));
     } catch (e: any) { console.error('Falha ao desvincular', e); }
   };
@@ -544,6 +600,7 @@ export default function WhatsappPage() {
   // Agendar reunião: cria a atividade e envia o link pelo WhatsApp do contato.
   const agendarReuniao = async () => {
     if (!ativa || !reuniao.data) { console.warn('Escolha a data e hora da reunião.'); return; }
+    const sessao = sessaoAtual;
     setSalvandoReuniao(true);
     try {
       await apiClient.agendarReuniaoWhatsapp(ativa.id, {
@@ -556,8 +613,7 @@ export default function WhatsappPage() {
       setReuniao({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
       marcarComoMinha(ativa.id);
       // Recarrega as mensagens p/ mostrar a confirmação enviada.
-      const res = await apiClient.getWhatsappMensagens(ativa.id);
-      setMensagens(res.data.data.mensagens);
+      await carregarMensagens(sessao);
       console.warn('Reunião agendada e link enviado no WhatsApp! 📅');
     } catch (e: any) {
       console.error('Falha ao agendar reunião', e);
@@ -569,7 +625,7 @@ export default function WhatsappPage() {
     if (!confirm('Excluir esta conversa? As mensagens serão removidas do CRM.')) return;
     try {
       await apiClient.excluirConversaWhatsapp(id);
-      if (ativa?.id === id) setAtiva(null);
+      if (sessaoRef.current.id === id) selecionarConversa(null);
       setConversas(prev => prev.filter(c => c.id !== id));
     } catch (e: any) { console.error('Falha ao excluir conversa', e); }
   };
@@ -610,18 +666,13 @@ export default function WhatsappPage() {
   }, []);
 
   const abrir = async (c: Conversa) => {
-    setAtiva(c);
-    setPainel(null);
-    try {
-      const res = await apiClient.getWhatsappMensagens(c.id);
-      setMensagens(res.data.data.mensagens);
-      setConversas(prev => prev.map(x => x.id === c.id ? { ...x, nao_lidas: 0 } : x));
-      setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-    } catch (e) { console.error(e); }
-    try {
-      const resPainel = await apiClient.getPainelConversaWhatsapp(c.id);
-      setPainel(resPainel.data.data);
-    } catch (e) { console.error('Falha ao carregar painel', e); }
+    const sessao = selecionarConversa(c);
+    await Promise.all([
+      carregarMensagens(sessao, true),
+      apiClient.getPainelConversaWhatsapp(c.id).then(res => {
+        if (sessaoValida(sessao)) setPainel(res.data.data);
+      }).catch(e => { if (sessaoValida(sessao)) console.error('Falha ao carregar painel', e); }),
+    ]);
   };
 
   // Move a conversa entre as colunas do funil comercial.
@@ -629,7 +680,7 @@ export default function WhatsappPage() {
     try {
       await apiClient.moverEstagioConversa(convId, estagio_funil);
       setConversas(prev => prev.map(c => c.id === convId ? { ...c, estagio_funil } : c));
-      if (ativa?.id === convId) setAtiva({ ...ativa, estagio_funil });
+      setAtiva(prev => prev?.id === convId ? { ...prev, estagio_funil } : prev);
     } catch (e: any) { console.error('Falha ao mover etapa', e); }
   };
 
@@ -639,31 +690,20 @@ export default function WhatsappPage() {
     try {
       const res = await apiClient.definirPrioridadeConversa(ativa.id, prioridade);
       const upd = res.data.data;
-      setAtiva({ ...ativa, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em });
+      setAtiva(prev => prev?.id === ativa.id ? { ...prev, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em } : prev);
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em } : c));
-      setPainel(p => p ? { ...p, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em } : p);
+      setPainel(p => p && sessaoValida(sessaoAtual) ? { ...p, prioridade: upd.prioridade, sla_prazo_em: upd.sla_prazo_em } : p);
       setMenuPrioridade(false);
     } catch (e: any) { console.error('Falha ao definir prioridade', e); }
   };
 
-  // Polling de mensagens da conversa aberta — rede de segurança (ver SSE
-  // abaixo), bem mais espaçado agora que o tempo real cobre o caso comum.
+  // O polling carrega somente a abertura que o iniciou; respostas antigas são descartadas.
   useEffect(() => {
-    if (!ativa) return;
-    const t = setInterval(async () => {
-      try {
-        const res = await apiClient.getWhatsappMensagens(ativa.id);
-        setMensagens(res.data.data.mensagens);
-      } catch {}
-    }, 20000);
+    if (!sessaoAtual.id) return;
+    const t = setInterval(() => { void carregarMensagens(sessaoAtual); }, 20000);
     return () => clearInterval(t);
-  }, [ativa]);
-
-  // Tempo real (SSE): substitui o polling curto por push do servidor. Refs
-  // guardam o estado mais recente pra evitar closures obsoletas dentro do
-  // listener (o EventSource é aberto uma única vez por sessão autenticada).
-  const ativaRef = useRef(ativa);
-  useEffect(() => { ativaRef.current = ativa; }, [ativa]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessaoAtual]);
 
   useEffect(() => {
     if (!isAuthenticated || status !== 'CONECTADO') return;
@@ -679,10 +719,8 @@ export default function WhatsappPage() {
           // Mensagem nova de uma conversa: se é a conversa aberta, injeta na
           // lista de mensagens; sempre recarrega a lista de conversas (última
           // mensagem/não lidas mudam mesmo se a conversa não estiver aberta).
-          if (ativaRef.current?.id === evento.conversaId) {
-            setMensagens(prev => prev.some(m => m.id === evento.mensagem.id) ? prev : [...prev, evento.mensagem]);
-            setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-          }
+          const sessao = sessaoRef.current;
+          if (sessao.id === evento.conversaId) adicionarMensagem(sessao, evento.mensagem);
           carregarConversas();
         } else if (evento.tipo === 'conversa_atualizada') {
           carregarConversas();
@@ -695,20 +733,20 @@ export default function WhatsappPage() {
   }, [isAuthenticated, status, carregarConversas]);
 
   const enviar = async () => {
-    if (!texto.trim() || !ativa) return;
+    if (!texto.trim() || !ativa || enviando) return;
+    const sessao = sessaoAtual;
     setEnviando(true);
     const txt = texto;
     setTexto('');
     try {
       const res = await apiClient.enviarWhatsappMensagem(ativa.id, txt);
-      setMensagens(prev => [...prev, res.data.data]);
+      adicionarMensagem(sessao, res.data.data);
       marcarComoMinha(ativa.id);
-      setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch (e: any) {
       console.error('Falha ao enviar', e);
-      setTexto(txt);
+      if (sessaoValida(sessao)) setTexto(txt);
     } finally {
-      setEnviando(false);
+      if (sessaoValida(sessao)) setEnviando(false);
     }
   };
 
@@ -727,27 +765,29 @@ export default function WhatsappPage() {
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const enviarArquivo = async (arquivo: File) => {
     if (!ativa) return;
+    const sessao = sessaoAtual;
     if (arquivo.size > 16 * 1024 * 1024) { alert('O arquivo passa de 16 MB. Escolha um arquivo menor.'); return; }
     setEnviandoArquivo(true);
     const legenda = texto.trim();
     try {
       const dataUrl = await blobParaBase64(arquivo);
       const res = await apiClient.enviarWhatsappArquivo(ativa.id, dataUrl, arquivo.name, legenda || undefined);
-      setMensagens(prev => [...prev, res.data.data]);
-      if (legenda) setTexto('');
+      adicionarMensagem(sessao, res.data.data);
+      if (legenda && sessaoValida(sessao)) setTexto('');
       marcarComoMinha(ativa.id);
-      setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Não foi possível enviar o arquivo.');
     } finally {
-      setEnviandoArquivo(false);
+      if (sessaoValida(sessao)) setEnviandoArquivo(false);
     }
   };
 
   const iniciarGravacao = async () => {
     if (!ativa) return;
+    const sessao = sessaoAtual;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!sessaoValida(sessao)) { stream.getTracks().forEach(t => t.stop()); return; }
       // ogg/opus é o formato que o WhatsApp usa p/ voz; cai p/ webm se não suportar.
       const mime = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
         ? 'audio/ogg;codecs=opus'
@@ -762,9 +802,8 @@ export default function WhatsappPage() {
           try {
             const dataUrl = await blobParaBase64(blob);
             const res = await apiClient.enviarWhatsappAudio(ativa.id, dataUrl);
-            setMensagens(prev => [...prev, res.data.data]);
+            adicionarMensagem(sessao, res.data.data);
             marcarComoMinha(ativa.id);
-            setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
           } catch (e: any) {
             console.error('Falha ao enviar o áudio', e);
           }
@@ -811,7 +850,7 @@ export default function WhatsappPage() {
     try {
       const res = await apiClient.etiquetarConversa(ativa.id, nome, cor);
       const upd = res.data.data; // backend pode ter desvinculado (lead_id null) se tipo não-comercial
-      setAtiva({ ...ativa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id });
+      setAtiva(prev => prev?.id === ativa.id ? { ...prev, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : prev);
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
       setMenuEtiqueta(false);
     } catch (e: any) { console.error('Falha ao etiquetar', e); }
@@ -823,7 +862,7 @@ export default function WhatsappPage() {
       const res = await apiClient.etiquetarConversa(convId, nome, cor);
       const upd = res.data.data;
       setConversas(prev => prev.map(c => c.id === convId ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
-      if (ativa?.id === convId) setAtiva({ ...ativa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id });
+      setAtiva(prev => prev?.id === convId ? { ...prev, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : prev);
     } catch (e: any) { console.error('Falha ao etiquetar', e); }
   };
 
@@ -857,7 +896,7 @@ export default function WhatsappPage() {
       setMenuTransferir(false);
       console.warn('Conversa transferida com sucesso.');
       await carregarConversas();
-      setAtiva(null);
+      if (sessaoRef.current.id === ativa.id) selecionarConversa(null);
     } catch (e: any) { console.error('Falha ao transferir', e); }
   };
 
@@ -910,7 +949,7 @@ export default function WhatsappPage() {
                   { id: 'finalizadas' as AbaConversas, nome: 'Finalizadas', n: 0 },
                   { id: 'atencao' as AbaConversas, nome: 'Atenção', n: Object.keys(atencao).length },
                 ]).map(t => (
-                  <button key={t.id} onClick={() => { setAba(t.id); setAtiva(null); }}
+                  <button key={t.id} onClick={() => { setAba(t.id); selecionarConversa(null); }}
                     className="wpp-filtro" aria-pressed={aba === t.id}>
                     {t.nome}
                     {t.n > 0 && <span className={`text-[11px] font-semibold tabular-nums px-1.5 rounded ${aba === t.id ? 'bg-white/20' : 'bg-amber-100 text-amber-800'}`}>{t.n}</span>}
@@ -1134,7 +1173,7 @@ export default function WhatsappPage() {
               ) : (
                 <>
                   <div className="ios-chat-cab px-4 py-3 flex items-center gap-3 border-b border-gray-200 bg-white relative">
-                    <button onClick={() => setAtiva(null)} className="ios-voltar md:hidden" aria-label="Voltar para as conversas">‹<span>Conversas</span></button>
+                    <button onClick={() => selecionarConversa(null)} className="ios-voltar md:hidden" aria-label="Voltar para as conversas">‹<span>Conversas</span></button>
                     <div className="wpp-avatar wpp-avatar-chat">
                       {nomeContato(ativa).charAt(0).toUpperCase()}
                     </div>
@@ -1270,6 +1309,11 @@ export default function WhatsappPage() {
                     )}
                   </div>
                   <div className="ios-mensagens flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5" style={{ background: '#F7F8FA' }}>
+                    {carregandoMensagens && <p role="status" className="text-sm text-gray-500 py-4 text-center">Carregando conversa…</p>}
+                    {erroMensagens && <div role="alert" className="text-sm py-4 text-center">
+                      <p>{erroMensagens}</p>
+                      <button className="underline mt-2" onClick={() => carregarMensagens(sessaoAtual, true)}>Tentar novamente</button>
+                    </div>}
                     {mensagens.map(m => (
                       <div key={m.id} className={`flex ${m.direcao === 'SAIDA' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`${m.direcao === 'SAIDA' ? 'ios-bolha-out' : 'ios-bolha-in'} max-w-[75%] rounded-md px-3 py-1.5 text-sm border ${m.direcao === 'SAIDA' ? 'rounded-br-sm text-gray-900' : 'bg-white text-gray-800 rounded-bl-sm border-gray-200'}`}
@@ -1332,11 +1376,10 @@ export default function WhatsappPage() {
                           className="text-gray-500 rounded-md w-10 h-10 flex items-center justify-center flex-shrink-0 bg-white border border-gray-200 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50">
                           {enviandoArquivo ? <Loader2 size={17} className="animate-spin" /> : <Paperclip size={17} />}
                         </button>
-                        <SugerirRespostaBtn conversaId={ativa.id} onTexto={setTexto} />
-                        <BotaoApresentacaoWpp conversaId={ativa.id} conversa={ativa} onEnviada={msg => {
-                          setMensagens(prev => [...prev, msg]);
+                        <SugerirRespostaBtn key={`sugestao:${sessaoAtual.versao}`} conversaId={ativa.id} onTexto={t => { if (sessaoValida(sessaoAtual)) setTexto(t); }} />
+                        <BotaoApresentacaoWpp key={`apresentacao:${sessaoAtual.versao}`} conversaId={ativa.id} conversa={ativa} onEnviada={msg => {
+                          adicionarMensagem(sessaoAtual, msg);
                           marcarComoMinha(ativa.id);
-                          setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
                         }} />
                         <textarea
                           rows={1}
@@ -1518,7 +1561,7 @@ export default function WhatsappPage() {
 
                 <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} conversa={ativa} />
 
-                <PainelLaya conversa={conversas.find(c => c.id === ativa.id) || ativa} />
+                <PainelLaya key={`laya:${sessaoAtual.versao}`} conversa={conversas.find(c => c.id === ativa.id) || ativa} />
 
                 <div className="px-4 py-3.5 border-b border-gray-100">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Responsável</p>
@@ -1526,7 +1569,7 @@ export default function WhatsappPage() {
                   {avisoCnpj(ativa) && <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">{avisoCnpj(ativa)}</span>}
                 </div>
 
-                <ObservacoesConversa conversaId={ativa.id} />
+                <ObservacoesConversa key={`observacoes:${sessaoAtual.versao}`} conversaId={ativa.id} />
 
                 <div className="px-4 py-3.5">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Mover no funil</label>

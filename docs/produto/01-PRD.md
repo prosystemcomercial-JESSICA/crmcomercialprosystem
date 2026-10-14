@@ -1439,3 +1439,8 @@ Pedido da Jessica: responsiva, cantos mais retos, "menos cara de IA".
 ## WhatsApp — interface aprovada em 14/10/2026
 
 Escopo aprovado: central WhatsApp com superfícies neutras e azul restrito a ações/seleção. Cada ação tem um ponto principal: apresentações no compositor; transferência/finalização no cabeçalho; proposta e resumo no contexto. Não alterar permissões, automações, contrato de API ou dados existentes. O resumo de conversa e a sugestão de resposta são funções distintas e permanecem disponíveis.
+
+
+### Correção 14/10/2026 — isolamento ao trocar conversas
+
+Ao selecionar outro contato, o histórico anterior deve desaparecer imediatamente. A tela mostra carregamento e aceita apenas dados da abertura atual, inclusive ao retornar ao mesmo contato. Rascunho e gravação em andamento são limpos/cancelados na troca para evitar resposta no contexto errado.
