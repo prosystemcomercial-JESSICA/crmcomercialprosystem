@@ -175,7 +175,11 @@ export type RespostaCaroline = {
     /** Por que procura outra solução (o que o sistema atual não resolve, o que mudou). */
     motivo_busca?: string | null;
     /** Por que se inscreveu na campanha / o que quer ver num sistema novo. */
-    motivo_inscricao?: string | null };
+    motivo_inscricao?: string | null;
+    /** Quem é de fato (14/10/2026): loja do segmento, concorrente/empresa de sistemas, consultor/mentor ou não sei. */
+    perfil?: 'loja' | 'concorrente' | 'consultor' | 'nao_sei' | null;
+    /** Nome da loja e cidade confirmados pela pessoa. */
+    loja_confirmada?: string | null };
   duvida?: string | null;
   motivo_perda?: MotivoPerda | null;
   revisar_proposta?: boolean;
@@ -238,7 +242,7 @@ export function compromissoDeHorario(texto: string, agora = new Date()): Date | 
 /** Mensagem automática da loja ("em breve iremos lhe atender"): não é resposta de uma pessoa. */
 export function ehRespostaAutomatica(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  return ehEncerramentoAutomatico(texto) || /(em breve (iremos|vamos|retornaremos|lhe|te|responderemos)|mensagem automatica|resposta automatica|nosso catalogo|estamos felizes em (te |lhe )?atender|nosso whatsapp funciona|horario de atendimento|seja bem[- ]vind[oa]|obrigad[oa] por entrar em contato|no momento (nao|estamos)|nosso horario de atendimento|fora do horario|assim que possivel (retornaremos|responderemos)|aguarde|em instantes|sera atendid|sera respondid|em breve|obrigad[oa] pel[ao] (sua )?(mensagem|contato)|recebemos sua mensagem|horario de funcionamento|envie (sua|seu|a lista|o pedido)|lista de itens|atendente (ja )?(vai|ira))/.test(t);
+  return ehEncerramentoAutomatico(texto) || /(em breve (iremos|vamos|retornaremos|lhe|te|responderemos)|mensagem automatica|resposta automatica|nosso catalogo|agradece (o |seu )?contato|nao estamos disponiveis|responderemos (assim que|em breve|o mais breve)|responderei (sua mensagem|assim que)|retornaremos (assim que|em breve|o contato)|estamos felizes em (te |lhe )?atender|nosso whatsapp funciona|horario de atendimento|seja bem[- ]vind[oa]|obrigad[oa] por entrar em contato|no momento (nao|estamos)|nosso horario de atendimento|fora do horario|assim que possivel (retornaremos|responderemos)|aguarde|em instantes|sera atendid|sera respondid|em breve|obrigad[oa] pel[ao] (sua )?(mensagem|contato)|recebemos sua mensagem|horario de funcionamento|envie (sua|seu|a lista|o pedido)|lista de itens|atendente (ja )?(vai|ira))/.test(t);
 }
 
 /**
@@ -282,8 +286,25 @@ export function fichaDoLead(sdr: { segmento?: string | null; campanha?: string |
     d.momento && `- Momento de compra: ${d.momento}`,
     d.cidade && `- Cidade: ${d.cidade}`,
     (d.combinado || d.chamar_combinado) && `- Combinado com ele: ${d.combinado || d.chamar_combinado}`,
+    d.loja_confirmada && `- Loja confirmada pela pessoa: ${d.loja_confirmada}`,
+    (d.perfil === 'concorrente' || d.perfil === 'consultor') && `- ATENÇÃO: já identificado como ${d.perfil}; não marque demonstração nem mande material`,
+    Array.isArray(d.sinais_nao_loja) && d.sinais_nao_loja.length && !d.loja_confirmada && `- ATENÇÃO, possível concorrente ou consultor (${d.sinais_nao_loja.join('; ')}): confirme qual é a loja e a cidade antes de avançar`,
   ].filter(Boolean);
   return linhas.length ? linhas.join('\n').slice(0, 2500) : null;
+}
+
+/**
+ * Sinais de que o contato NÃO é uma loja do segmento (14/10/2026: "Prosyst Mentorias" entrou pela campanha de farmácia).
+ * Lê o nome do perfil do WhatsApp, a empresa informada e o texto do robô. Lista vazia = nada suspeito.
+ */
+export function sinaisDeNaoLoja(p: { perfil?: string | null; empresa?: string | null; textos?: (string | null | undefined)[] }): string[] {
+  const n = (x: string | null | undefined) => (x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const nomes = [p.perfil, p.empresa, ...(p.textos || [])].map(n).join(' | ');
+  const ehLoja = /farm|drog|padar|panif|confeit|manipula|mercad|loja/.test(`${n(p.perfil)} ${n(p.empresa)}`);
+  const r: string[] = [];
+  if (/prosyst(?!em)|pro syst|prosistem/.test(nomes)) r.push('nome parecido com o da Prosystem');
+  if (!ehLoja && /\b(sistemas?|software|softhouse|tecnologia|informatica|automacao|erp|pdv|consultoria|consultor|mentorias?|mentor|marketing|agencia|desenvolvimento)\b/.test(nomes)) r.push('nome de empresa de sistemas, consultoria, mentoria ou marketing');
+  return r;
 }
 
 /** Cliente só confirmou/agradeceu ("👍", "ok", "obrigado", "blz"): não pede resposta do agente. */
@@ -292,7 +313,7 @@ export function ehSoConfirmacao(texto: string | null | undefined): boolean {
   if (!t) return false;
   const semEmoji = t.replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}‍️]/gu, '').trim();
   if (!semEmoji) return true; // só emoji (👍, 🙏, 😊…)
-  return /^(ok|okay|okk+|blz|beleza|obrigad[oa]s?|obg|valeu|vlw|show|certo|combinado|t[aá]|ta bom|tá bom|perfeito|entendi|beleza então|ok obrigad[oa]|tmj|top|joia|jóia|👍)[\s!.,]*$/i.test(semEmoji);
+  return /^(ok|okay|okk+|blz|beleza|obrigad[oa]s?|obg|valeu|vlw|show|certo|combinado|t[aá]|ta bom|tá bom|perfeito|entendi|beleza então|ok obrigad[oa]|tmj|top|joia|jóia|👍|at[eé]|at[eé] (mais|logo|l[aá]|sexta|segunda|amanh[aã])|tchau|abra[cç]o|abs|falou)[\s!.,]*$/i.test(semEmoji); // despedida curta também (14/10/2026)
 }
 
 /** Semelhança entre dois textos (0 a 1, bigramas): trava contra o agente repetir a mesma mensagem. */
@@ -416,7 +437,8 @@ export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): R
     mensagens: mensagens.map((m: string) => semTravessao(m).slice(0, 700)), acao, nota, nota_motivo: String(j.nota_motivo || '').slice(0, 300), dor_principal: dor,
     dados: { cidade: s(d.cidade), sistema_atual: s(d.sistema_atual), lojas: s(d.lojas), momento: s(d.momento), decisor: s(d.decisor),
       interlocutor: (INTERLOCUTORES as readonly string[]).includes(d.interlocutor) ? d.interlocutor : null,
-      segmento_real: s(d.segmento_real), motivo_busca: s(d.motivo_busca), motivo_inscricao: s(d.motivo_inscricao) },
+      segmento_real: s(d.segmento_real), motivo_busca: s(d.motivo_busca), motivo_inscricao: s(d.motivo_inscricao),
+      perfil: ['loja', 'concorrente', 'consultor', 'nao_sei'].includes(d.perfil) ? d.perfil : null, loja_confirmada: s(d.loja_confirmada) },
     duvida: s(j.duvida),
     revisar_proposta: j.revisar_proposta === true,
     adiar_dias: Number.isFinite(Number(j.adiar_dias)) && Number(j.adiar_dias) > 0 ? Math.min(60, Math.round(Number(j.adiar_dias))) : null,
@@ -523,6 +545,7 @@ export function promptCaroline(p: {
     p.lead.ficha ? `O QUE JÁ SABEMOS DESTE LEAD (leia antes de escrever; NUNCA pergunte de novo o que está aqui, continue a partir disso):\n${p.lead.ficha}` : '',
     'CONTEXTO OBRIGATÓRIO (toda mensagem, pedido da Jessica, 14/10/2026): antes de escrever, releia a conversa INTEIRA do histórico, inclusive o começo. Responda ao que a pessoa disse por último, continuando o assunto, como uma pessoa que lembra de tudo. Use o que ela já contou (ramo do negócio, sistema que usa, o porquê da busca, quem decide). Se a conversa mostra que o negócio é de OUTRO ramo que o do cadastro (ex.: material de construção, não padaria), siga a conversa: registre em "segmento_real", não fale do ramo errado nem mande apresentação de outro segmento. Só diga "como combinamos" ou "conforme conversamos" se houver um combinado de verdade no histórico. Mensagem marcada como "Robô da loja" é automática: não é o cliente falando e não conta como resposta dele.',
     'QUEM ESTÁ FALANDO (obrigatório já na PRIMEIRA resposta, principalmente no número geral da farmácia/loja): identifique se quem responde é quem DECIDE (proprietário, sócio, farmacêutico responsável, gerente) ou atendente/balconista/robô, e registre em "interlocutor". O foco é chegar a quem decide. Se for atendente ou balconista: seja gentil, diga em uma frase quem você é e o motivo, e peça o nome e o WhatsApp do proprietário, do farmacêutico responsável ou do gerente (ou o melhor horário para falar com ele). Não tente vender para o atendente. Atendente dizer "não temos interesse" NÃO é recusa da loja: não encerre, peça o contato de quem decide. "sem_interesse" só quando quem decide disser.',
+    'QUEM É DE VERDADE (14/10/2026): antes de marcar demonstração, combinar horário ou mandar material, confirme com naturalidade o NOME DA LOJA e a CIDADE (se ainda não estão no histórico ou na ficha) e registre em "loja_confirmada". Se o nome do WhatsApp, o robô ou a conversa mostram empresa de sistemas/software, consultoria, mentoria, marketing ou agência, ou nome parecido com o da Prosystem, trate como possível CONCORRENTE ou CONSULTOR: não marque demonstração, não mande preço, apresentação nem detalhes do produto; faça UMA pergunta direta e educada sobre qual é a loja dele. Se confirmar que não é loja do segmento (ou fugir da pergunta), agradeça e encerre com cordialidade (acao "sem_interesse", motivo_perda "OUTRO") e registre "perfil" como "concorrente" ou "consultor". Loja do segmento confirmada: "perfil" = "loja".',
     'ROBÔ DA LOJA (vale para todos os agentes, 14/10/2026): mensagem automática (boas-vindas, horários, catálogo, "aguarde", folheto, "atendimento finalizado", pesquisa de nota) NUNCA é respondida, comentada ou agradecida. Se até agora só o robô respondeu, escreva como quem fala com a pessoa que vai ler: sem "obrigado pelas informações", sem citar horários ou catálogo do robô, peça com educação o nome e o WhatsApp de quem cuida da gestão e do sistema da loja (proprietário, farmacêutico responsável ou gerente) ou o melhor horário para falar com essa pessoa.',
     'JEITO DE CONVERSAR: fale pouco e seja objetiva. No máximo 2 mensagens curtas (1 a 3 frases cada), no máximo UMA pergunta por vez, e nem toda mensagem precisa de pergunta. Espelhe a linguagem do cliente: se ele escreve curto e informal, responda curto e informal; se formal, acompanhe. Use as palavras dele. Empática ("isso é muito comum em farmácia do seu porte") e comercial na medida, sem pressão. Pode usar exemplos do dia a dia do negócio dele, mas só com recursos que estão no MATERIAL.',
     'NÃO INVENTE NADA: sobre o produto, use SOMENTE o MATERIAL abaixo. DÚVIDA DO CLIENTE: (1) procure a resposta no MATERIAL e responda com o que está lá; (2) se não entendeu bem o que ele quer saber, PERGUNTE MAIS ao cliente para entender (acao "continuar"); (3) só se o material realmente não cobrir o assunto, diga que vai confirmar com a equipe e já retorna (acao "duvida_fora_material", com a pergunta em "duvida").',
@@ -537,7 +560,7 @@ export function promptCaroline(p: {
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NOME: só chame o cliente pelo nome que está em "Lead:". Se o histórico mostrar que a pessoa com quem falamos tem outro nome, use o do histórico. Na dúvida, cumprimente sem nome (errar o nome estraga a conversa).','NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
     'AÇÃO: "continuar" (seguir investigando); "oferecer_demo" assim que a dor foi dita (mesmo curta) e você já mostrou como o MATERIAL resolve, ou quando a nota ≥ 60, ou o cliente pedir (escreva uma mensagem curta ligando a dor ao que a demonstração vai mostrar; os horários são enviados depois automaticamente); "passar_vendedora" quando ele tem interesse mas não quer marcar agora (despeça-se dizendo que a consultora vai falar com ele); "sem_interesse" quando ele disser que não quer ou não é o momento (inclusive "já resolvi", "já resolvemos", "já temos sistema", "já fechamos": isso significa que ele não tem mais interesse; use motivo_perda JA_TEM_FORNECEDOR e ele passa só a receber o Informativo Prosystem) (despeça-se com gentileza, porta aberta).',
-    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":"nome e cargo de quem decide, se souber","interlocutor":"decisor|atendente|robo|nao_sei","segmento_real":"ramo real pela conversa, se diferente do cadastro","motivo_busca":"por que procura outra solução","motivo_inscricao":"por que se inscreveu / o que quer ver"},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","novo_contato":{"nome":null,"numero":null,"cargo":null},"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
+    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":"nome e cargo de quem decide, se souber","interlocutor":"decisor|atendente|robo|nao_sei","segmento_real":"ramo real pela conversa, se diferente do cadastro","motivo_busca":"por que procura outra solução","motivo_inscricao":"por que se inscreveu / o que quer ver","perfil":"loja|concorrente|consultor|nao_sei","loja_confirmada":"nome da loja e cidade, quando a pessoa confirmar"},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","novo_contato":{"nome":null,"numero":null,"cargo":null},"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.aprendizado?.length ? '\n=== COMO A EQUIPE RESPONDE QUANDO ASSUME A CONVERSA (aprenda o jeito, a abordagem e os argumentos; faça igual ou MELHOR, sem copiar palavra por palavra; nunca repita dados de outro cliente) ===\n' + p.aprendizado.map(a => `Cliente: ${a.cliente}\nEquipe: ${a.equipe}`).join('\n---\n') : '',
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',

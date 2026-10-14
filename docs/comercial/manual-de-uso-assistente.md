@@ -1227,3 +1227,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 
 - **Toda sexta, entre 16h e 18h,** chega no WhatsApp o resumo da semana: placar contra a meta, de onde vieram os leads, contatos de Ativos por pessoa e indicações.
 - **Ativos › Indicações** (gestão): quem indicou, em que pé está cada indicado e os prêmios a aplicar. Quando o indicado fechar, lance o desconto de 50% no faturamento do cliente e toque em **Marcar desconto aplicado**.
+
+### Correção 14/10/2026 (noite): concorrente disfarçado, mensagem repetida e despedida
+
+- **Possível concorrente ou consultor:** se o nome do WhatsApp ou da empresa parece de sistemas, consultoria, mentoria ou marketing (ou lembra o nome Prosystem), você recebe um aviso e o agente confirma qual é a loja e a cidade antes de marcar qualquer coisa. Se não for loja, ele encerra com educação, sem demonstração, preço ou material.
+- **Aprovar e enviar** não repete mais a mensagem, mesmo com cliques seguidos.
+- **"Até", "tchau", "abs"** não recebem resposta do agente.

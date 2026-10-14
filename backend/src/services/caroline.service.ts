@@ -6,7 +6,7 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
+import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
 const DIAS_RETOMADA_ADIOU = 3;
@@ -269,6 +269,21 @@ async function sairSeContextoImpede(prisma: PrismaClient, sdr: any): Promise<boo
   return true;
 }
 
+/** Grava em SdrLead.dados os sinais de que o contato não é loja e avisa a gestão uma vez por lead. Muta sdr.dados. */
+async function marcarSinaisDeNaoLoja(prisma: PrismaClient, sdr: any) {
+  const d: any = sdr.dados || {};
+  if (d.loja_confirmada || d.perfil === 'loja') return;
+  const conv = sdr.conversaId ? await prisma.whatsappConversa.findUnique({ where: { id: sdr.conversaId }, select: { contato_nome: true } }) : null;
+  const robo = sdr.conversaId ? await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA', tipo: 'TEXTO' }, orderBy: { created_at: 'asc' }, take: 5, select: { conteudo: true } }) : [];
+  const sinais = sinaisDeNaoLoja({ perfil: conv?.contato_nome, empresa: sdr.empresa, textos: robo.filter(m => ehRespostaAutomatica(m.conteudo)).map(m => m.conteudo) });
+  if (!sinais.length || JSON.stringify(d.sinais_nao_loja || []) === JSON.stringify(sinais)) { if (sinais.length) sdr.dados = { ...d, sinais_nao_loja: sinais }; return; }
+  sdr.dados = { ...d, sinais_nao_loja: sinais };
+  await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: sdr.dados } });
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'lead_qualificado', `🕵️ *Possível concorrente ou consultor*: ${sdr.nome || sdr.numero}${conv?.contato_nome ? ` (WhatsApp: "${conv.contato_nome}")` : ''}.\nSinais: ${sinais.join('; ')}.\n${nomeDe(sdr)} vai confirmar qual é a loja e a cidade antes de marcar qualquer coisa.`).catch(() => {});
+  registrarAcaoAgente(agenteDe(sdr), `desconfiou de ${sdr.nome || 'um contato'}: ${sinais.join('; ')}`);
+}
+
 // Conversa inteira para o agente (14/10/2026): as últimas 40 mensagens (antes eram 14, e o começo da conversa,
 // onde está por que o lead se inscreveu, se perdia) e, se a conversa for maior, as 4 primeiras.
 async function historico(prisma: PrismaClient, conversaId: string) {
@@ -500,6 +515,9 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const { chamarGemini } = await import('./ia-gemini.service');
   const h = await historico(prisma, sdr.conversaId);
+  // Quem é de verdade (14/10/2026): nome do WhatsApp, empresa e robô com cara de concorrente/consultor ("Prosyst Mentorias").
+  // Vai para a ficha (o agente confirma a loja antes de avançar) e a gestão é avisada uma vez.
+  await marcarSinaisDeNaoLoja(prisma, sdr).catch(() => {});
   // Observações da equipe (ex.: ligação por telefone): contexto que não está no WhatsApp.
   const notas = await prisma.whatsappNota.findMany({ where: { conversaId: sdr.conversaId }, orderBy: { created_at: 'desc' }, take: 5, select: { texto: true, created_at: true } }).catch(() => []);
   if (notas.length) h.texto = `[Observações da equipe sobre este cliente, use como contexto e não repita literalmente:\n${notas.reverse().map(n => `- ${n.created_at.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}: ${n.texto.slice(0, 400)}`).join('\n')}]\n\n${h.texto}`;
@@ -975,7 +993,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     registrarAcaoAgente(agenteDe(sdr), `saiu da conversa de ${sdr.nome || 'um lead'}: uma pessoa assumiu`);
     return 'nada';
   }
-  if (await prisma.sdrMensagem.findFirst({ where: { sdrId, status: 'PENDENTE' }, select: { id: true } })) return 'aprovacao';
+  if (await prisma.sdrMensagem.findFirst({ where: { sdrId, status: { in: ['PENDENTE', 'ENVIANDO'] } }, select: { id: true } })) return 'aprovacao';
   // Últimas mensagens do agente: base da trava contra repetição e do "só confirmou".
   const ultimasDoAgente = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', enviada_por: agenteDe(sdr) }, orderBy: { created_at: 'desc' }, take: 4, select: { conteudo: true, created_at: true } });
   // Cliente só confirmou/agradeceu ("👍", "ok", "obrigado") depois da fala do agente: não responde.
@@ -1084,6 +1102,13 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     return 'nada';
   }
   await atualizarTermometro(prisma, sdr, r);
+  if (r.dados.perfil === 'concorrente' || r.dados.perfil === 'consultor') {
+    const { podeEnviarUmaVez } = await import('./envio-unico.service');
+    if (await podeEnviarUmaVez(prisma, `perfil.nao_loja.${sdr.id}`, 24 * 365)) {
+      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `🕵️ *${sdr.nome || sdr.numero} parece ${r.dados.perfil === 'concorrente' ? 'um concorrente' : 'um consultor'}*, não uma loja.\n${nomeDe(sdr)} não marca demonstração nem manda material e encerra com cordialidade. Se for engano, assuma a conversa.`).catch(() => {});
+    }
+  }
   const cfg = await obterConfigAgente(prisma, agenteDe(sdr));
   const agora = new Date();
   // Retomada de quem ainda não respondeu: vai com botões (e imagem na última tentativa).
@@ -1181,8 +1206,13 @@ export async function responderAgora(prisma: PrismaClient, sdrId: string, fase: 
 export async function decidirMensagem(prisma: PrismaClient, id: string, decisao: { aprovar: boolean; texto?: string | null }, userId: string) {
   const m = await prisma.sdrMensagem.findUnique({ where: { id } });
   if (!m || m.status !== 'PENDENTE') throw new Error('Esta mensagem já foi decidida.');
+  // Trava atômica: só UMA decisão passa daqui. Sem ela, cliques repetidos em "Aprovar e enviar" mandaram a mesma
+  // abertura e a apresentação 3 vezes no mesmo minuto (14/10/2026). As outras chamadas recebem "já foi decidida".
+  const trava = await prisma.sdrMensagem.updateMany({ where: { id, status: 'PENDENTE' }, data: { status: 'ENVIANDO', decidido_em: new Date(), decidido_por: userId } });
+  if (!trava.count) throw new Error('Esta mensagem já foi decidida.');
+  const devolver = () => prisma.sdrMensagem.updateMany({ where: { id, status: 'ENVIANDO' }, data: { status: 'PENDENTE', decidido_em: null, decidido_por: null } }).catch(() => {});
   const sdr = await prisma.sdrLead.findUnique({ where: { id: m.sdrId } });
-  if (!sdr) throw new Error('Lead da Caroline não encontrado.');
+  if (!sdr) { await devolver(); throw new Error('Lead da Caroline não encontrado.'); }
   if (!decisao.aprovar) {
     // Descartar = refazer: guarda o pedido da Jessica ("o que mudar?") e já escreve outra versão.
     await prisma.sdrMensagem.update({ where: { id }, data: { status: 'DESCARTADA', texto_final: (decisao.texto || '').trim().slice(0, 500) || null, decidido_em: new Date(), decidido_por: userId } });
@@ -1200,7 +1230,7 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
     throw new Error('Uma pessoa já assumiu esta conversa; a mensagem foi descartada.');
   }
   const inst = await obterInstanciaEmpresa(prisma);
-  if (!inst?.instance_token) throw new Error('O WhatsApp da empresa não está conectado.');
+  if (!inst?.instance_token) { await devolver(); throw new Error('O WhatsApp da empresa não está conectado.'); }
   const final = (decisao.texto ?? '').trim() || m.texto;
   const editada = final !== m.texto;
   try {
@@ -1208,7 +1238,7 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
   } catch (e: any) {
     // Número sem WhatsApp (já tentou com e sem o 9 extra): a mensagem sai da aprovação e o lead sai da fila,
     // senão ele fica "na fila" para sempre e trava os primeiros contatos (bug visto em 14/10/2026).
-    if (!SEM_WHATSAPP.test(String(e?.message || e))) throw e;
+    if (!SEM_WHATSAPP.test(String(e?.message || e))) { await devolver(); throw e; }
     await prisma.sdrMensagem.update({ where: { id }, data: { status: 'DESCARTADA', texto_final: 'número sem WhatsApp', decidido_em: new Date(), decidido_por: userId } });
     await tirarDaFilaSemWhatsapp(prisma, sdr, 'o número não tem WhatsApp');
     throw new Error(`${e.message} O lead saiu da fila e a mensagem foi descartada.`);
@@ -1653,7 +1683,7 @@ async function retomarComApresentacao(prisma: PrismaClient, token: string, ativo
     if (diasUteisEntre(s.ultima_caroline_em!, agora) < 1) continue;             // falou há pouco: espera
     const ap = await apresentacaoPara(prisma, s, 'retomada');
     if (!ap || ap.enviada) continue;
-    if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: 'PENDENTE' }, select: { id: true } })) continue;
+    if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: { in: ['PENDENTE', 'ENVIANDO'] } }, select: { id: true } })) continue;
     // Marca antes de falar: nunca sai duas vezes para o mesmo lead, mesmo se a IA falhar.
     await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, apresentacao_retomada: hoje } } });
     const loja = ap.tipo === 'padaria' ? 'padaria' : 'farmácia';
@@ -1712,7 +1742,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     if (agora.getTime() - s.ultima_caroline_em!.getTime() < 2 * 3600_000) continue; // 2 h sem resposta
     const horaAgora = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
     if (horaAgora < 8 || horaAgora >= 20) continue; // cutuca de dia (a mensagem das 22h vira "bom dia")
-    if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: 'PENDENTE' }, select: { id: true } })) continue; // esperando aprovação
+    if (await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: { in: ['PENDENTE', 'ENVIANDO'] } }, select: { id: true } })) continue; // esperando aprovação
     if (recuperacaoAtiva(s)) { await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'AGUARDANDO' } }); continue; } // recuperação: sem cutucada, espera 3 dias
     // Sem cutucada no mesmo dia: retoma no próximo dia útil (ou em 5 dias, se o cliente tinha adiado).
     const dS: any = s.dados || {};
@@ -1819,7 +1849,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   const podeHeitor = (await enviadosHeitorHoje(prisma, agora)) < (await obterConfigHeitor(prisma)).envios_dia;
   // Quem tem a primeira mensagem esperando a aprovação da Jessica continua "na fila", mas não é a vez dele:
   // sem este filtro o mais antigo era escolhido de novo a cada rodada e travava a fila inteira (14/10/2026).
-  const esperandoAprovacao = (await prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE' }, select: { sdrId: true } })).map(m => m.sdrId);
+  const esperandoAprovacao = (await prisma.sdrMensagem.findMany({ where: { status: { in: ['PENDENTE', 'ENVIANDO'] } }, select: { sdrId: true } })).map(m => m.sdrId);
   const proximoDoHeitor = () => prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor', id: { notIn: esperandoAprovacao } }, orderBy: { created_at: 'asc' } });
   // Números extras (rodízio) ficam com a prospecção do Heitor; o principal segue com campanha, propostas e base.
   // Sem isso a base do Julio, que se reabastece sozinha, nunca deixava a vez para o Heitor (decisão da Jessica, 14/10/2026).
