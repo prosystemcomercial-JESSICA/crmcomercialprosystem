@@ -46,7 +46,7 @@ export async function historicoAgente(prisma: PrismaClient, id: AgenteId): Promi
   }
 }
 
-const STATUS_SDR: Record<string, string> = { FILA: 'na fila', AGUARDANDO: 'esperando resposta', CONVERSANDO: 'conversando', DEMO: 'demonstração', VENDEDORA: 'com a vendedora', SEM_INTERESSE: 'sem interesse', SEM_RESPOSTA: 'sem resposta', HUMANO: 'uma pessoa assumiu', SAIU: 'pediu para sair' };
+const STATUS_SDR: Record<string, string> = { FILA: 'na fila', AGUARDANDO: 'esperando resposta', CONVERSANDO: 'conversando', DEMO: 'demonstração', VENDEDORA: 'com a vendedora', SEM_INTERESSE: 'sem interesse', SEM_RESPOSTA: 'sem resposta', HUMANO: 'uma pessoa assumiu', SAIU: 'pediu para sair', SEM_WHATSAPP: 'número sem WhatsApp', ERRO_ENVIO: 'envio recusado' };
 const dataHora = (d: Date) => d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 /** Agenda de um agente que conversa (Caroline, Julio, Luiz Felipe): com quem está falando e o próximo passo. */

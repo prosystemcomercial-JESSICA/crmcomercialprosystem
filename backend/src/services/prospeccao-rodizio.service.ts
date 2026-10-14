@@ -55,16 +55,24 @@ export async function moverConversaParaNumero(prisma: PrismaClient, conversaId: 
   return true;
 }
 
-// Falhas seguidas por número: 3 → sai do rodízio sozinho e a gestão é avisada.
-const falhas = new Map<string, number>();
-export async function registrarResultadoRodizio(prisma: PrismaClient, n: NumeroRodizio, ok: boolean) {
+// Falhas seguidas por número: cada uma avisa a gestão com o motivo (no máximo 1 aviso a cada 30 min por número);
+// na 3ª o número sai do rodízio e o aviso traz os 3 motivos (pedido da Jessica, 14/10/2026).
+const falhas = new Map<string, { n: number; motivos: string[] }>();
+const ultimoAviso = new Map<string, number>();
+export async function registrarResultadoRodizio(prisma: PrismaClient, n: NumeroRodizio, ok: boolean, motivo?: string | null, contato?: string | null) {
   if (ok) { falhas.delete(n.id); return; }
-  const f = (falhas.get(n.id) || 0) + 1;
+  const atual = falhas.get(n.id) || { n: 0, motivos: [] };
+  const f = { n: atual.n + 1, motivos: [...atual.motivos, `${contato || 'contato'}: ${motivo || 'motivo não informado'}`].slice(-3) };
   falhas.set(n.id, f);
-  if (f < 3) return;
-  falhas.delete(n.id);
-  await prisma.whatsappInstancia.update({ where: { id: n.id }, data: { pausada_motivo: '3 falhas seguidas no primeiro contato. Confira o celular e religue o rodízio.', rodizio: false } }).catch(() => {});
-  limparCacheInstancias();
   const { enviarAvisoGestao } = await import('./assistente-gestao.service');
-  await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *O número "${n.instancia_nome}" saiu do rodízio da prospecção*: 3 falhas seguidas no primeiro contato. Confira o celular em Configurações > Números de WhatsApp.`).catch(() => {});
+  if (f.n < 3) {
+    if (Date.now() - (ultimoAviso.get(n.id) || 0) < 30 * 60_000) return;
+    ultimoAviso.set(n.id, Date.now());
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *Falha no número "${n.instancia_nome}"* (${f.n} de 3 antes de sair do rodízio).\nMotivo: ${f.motivos[f.motivos.length - 1]}`).catch(() => {});
+    return;
+  }
+  falhas.delete(n.id);
+  await prisma.whatsappInstancia.update({ where: { id: n.id }, data: { pausada_motivo: `3 falhas seguidas. Última: ${f.motivos[f.motivos.length - 1]}`.slice(0, 190), rodizio: false } }).catch(() => {});
+  limparCacheInstancias();
+  await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *O número "${n.instancia_nome}" saiu do rodízio da prospecção*: 3 falhas seguidas.\n${f.motivos.map(x => `• ${x}`).join('\n')}\nResolva o motivo e religue o rodízio em Configurações > Números de WhatsApp.`).catch(() => {});
 }

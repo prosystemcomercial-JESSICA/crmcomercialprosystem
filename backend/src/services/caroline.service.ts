@@ -506,9 +506,22 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
       const bruto = await chamarGemini(prisma, { sistema: p.sistema, partes, json: true, temperatura: 0.5, timeoutMs: 90_000 });
       const r = lerRespostaCaroline(JSON.parse(bruto.replace(/^```(json)?|```$/g, '').trim()), valoresProposta);
       if (r) return comApresentacao(r, ap);
-    } catch (e: any) { console.warn('[CAROLINE] IA:', e?.message); }
+    } catch (e: any) { console.warn('[CAROLINE] IA:', e?.message); motivoFalha.set(sdr.id, `a IA não respondeu (${String(e?.message || e).slice(0, 160)})`); continue; }
+    motivoFalha.set(sdr.id, 'a IA devolveu uma resposta fora do formato');
   }
   return null;
+}
+
+// Por que a última fala de cada lead falhou (vai no aviso à gestão e no lead).
+const motivoFalha = new Map<string, string>();
+const SEM_WHATSAPP = /not on whatsapp|não tem whatsapp|nao tem whatsapp|not exists|não existe no whatsapp/i;
+
+/** Número sem WhatsApp: o lead sai da fila (status SEM_WHATSAPP) com o motivo, sem contar como falha do número. */
+async function tirarDaFilaSemWhatsapp(prisma: PrismaClient, sdr: any, motivo: string) {
+  const d: any = sdr.dados || {};
+  await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'SEM_WHATSAPP', dados: { ...d, motivo_saida: motivo, saiu_em: new Date().toISOString() } } }).catch(() => {});
+  if (sdr.lead_id) await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao: `📵 ${nomeDe(sdr)} não conseguiu chamar: ${motivo}. Confira o telefone do lead.`, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
+  registrarAcaoAgente(agenteDe(sdr), `tirou ${sdr.nome || sdr.numero} da fila: ${motivo}`);
 }
 
 async function enviarMensagens(prisma: PrismaClient, token: string, sdr: any, mensagens: string[]) {
@@ -987,7 +1000,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       r = { ...r, acao: 'duvida_fora_material', duvida: ult.slice(0, 300), mensagens: r.mensagens.length ? r.mensagens : ['Entendi! Isso é com a nossa equipe comercial: vou verificar agora com a responsável pelo seu serviço e já te retorno por aqui.'] };
     }
   }
-  if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); return 'falha'; }
+  if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); if (!motivoFalha.has(sdr.id)) motivoFalha.set(sdr.id, 'a IA não gerou uma resposta utilizável'); return 'falha'; }
   // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.
   const parecida = (x: RespostaCaroline) => x.mensagens.some(m => ultimasDoAgente.some(u => semelhanca(m, u.conteudo || '') >= 0.6));
   if (parecida(r) && r.acao === 'continuar') {
@@ -1034,7 +1047,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   const semAprovacao = fase === 'resposta' || (fase === 'retomada' && !!sdr.ultima_lead_em && (!horarioComercial(agora) || sabado));
   // Oferta de campanha / revisão de proposta: sempre passa pela autorização da Jessica, com aviso no WhatsApp dela.
   const pedeAutorizacao = !!r.revisar_proposta && janelaCampanhaAtiva(agora);
-  if (r.revisar_proposta && !pedeAutorizacao) return 'falha'; // fora da janela (dias 20 ao fim do mês) nunca sai
+  if (r.revisar_proposta && !pedeAutorizacao) { motivoFalha.set(sdrId, 'a mensagem oferecia revisar a proposta fora da janela da campanha'); return 'falha'; } // fora da janela (dias 20 ao fim do mês) nunca sai
   if ((cfg.aprovar && !semAprovacao) || pedeAutorizacao) {
     const pendente = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, negociacao: pedeAutorizacao, fase, chamariz, ultima }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
@@ -1047,8 +1060,18 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });
     return 'aprovacao';
   }
-  if (r.mensagens.length) await enviarMensagens(prisma, token, sdr, r.mensagens);
-  if (chamariz && r.acao === 'continuar' && !recuperacaoAtiva(sdr)) await enviarChamariz(prisma, token, sdr, ultima);
+  try {
+    if (r.mensagens.length) await enviarMensagens(prisma, token, sdr, r.mensagens);
+    if (chamariz && r.acao === 'continuar' && !recuperacaoAtiva(sdr)) await enviarChamariz(prisma, token, sdr, ultima);
+  } catch (e: any) {
+    const erro = String(e?.message || e).slice(0, 200);
+    if (SEM_WHATSAPP.test(erro)) { await tirarDaFilaSemWhatsapp(prisma, sdr, 'o número não tem WhatsApp'); motivoFalha.set(sdrId, 'o número não tem WhatsApp'); return 'falha'; }
+    motivoFalha.set(sdrId, `o WhatsApp recusou o envio (${erro})`);
+    const dE: any = (await prisma.sdrLead.findUnique({ where: { id: sdrId }, select: { dados: true } }))?.dados || {};
+    const n = Number(dE.falhas_envio || 0) + 1;
+    await prisma.sdrLead.update({ where: { id: sdrId }, data: { ...(n >= 2 && fase === 'abertura' ? { status: 'ERRO_ENVIO' } : {}), dados: { ...dE, falhas_envio: n, ultimo_erro: erro } } }).catch(() => {});
+    return 'falha';
+  }
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
   // Cliente adiou ("estou viajando", "quando voltar eu chamo"): o agente confirmou uma vez e agora espera a data.
@@ -1335,6 +1358,8 @@ async function naoDesistir(prisma: PrismaClient, s: any, agora: Date) {
 let proximoPrimeiroContato = 0;
 const falhouEm = new Map<string, number>();
 const falhasSeguidas: Record<string, number> = {};
+const ultimasFalhasAgente: Record<string, string[]> = {};
+const ultimoAvisoFalha: Record<string, number> = {};
 
 // Conversa já existente no WhatsApp da empresa (mesmo número com/sem 9) ou uma nova, ligada ao lead.
 // Nome para chamar o cliente. O cadastro (proposta/lead) às vezes traz o sócio da Receita e não
@@ -1733,25 +1758,38 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     proximo = await prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor' }, orderBy: { created_at: 'asc' } });
   }
   if (!proximo) return;
+  // Confere se o número tem WhatsApp antes de chamar: sem WhatsApp, sai da fila e a fila segue.
+  const temWpp = await evo.verificarWhatsapp(token, [proximo.numero]).then(m => m.get(proximo!.numero)).catch(() => undefined);
+  if (temWpp === false) { await tirarDaFilaSemWhatsapp(prisma, proximo, 'o número não tem WhatsApp'); proximoPrimeiroContato = Date.now() + 60_000; return; }
   // Número extra: a conversa (ainda vazia) vai para ele e o contato fica preso lá. Se não der para
   // mover (contato já fala com outro número), o envio segue a regra do contato preso.
   let tokenAbertura = token;
   const vaiPeloExtra = !!numeroExtra && !!proximo.conversaId && await rodizio.moverConversaParaNumero(prisma, proximo.conversaId, numeroExtra.id).catch(() => false);
   if (vaiPeloExtra) tokenAbertura = numeroExtra!.instance_token;
   else if (feitosNoPrincipal + feitosCampanha >= limite) return;
-  const r = await falar(prisma, tokenAbertura, proximo.id, 'abertura');
-  if (vaiPeloExtra) await rodizio.registrarResultadoRodizio(prisma, numeroExtra!, r !== 'falha');
+  let r: Awaited<ReturnType<typeof falar>>;
+  motivoFalha.delete(proximo.id);
+  try { r = await falar(prisma, tokenAbertura, proximo.id, 'abertura'); }
+  catch (e: any) { r = 'falha'; motivoFalha.set(proximo.id, `erro inesperado (${String(e?.message || e).slice(0, 160)})`); }
   proximoPrimeiroContato = Date.now() + intervaloSorteado();
+  const motivo = r === 'falha' ? (motivoFalha.get(proximo.id) || 'motivo não informado') : null;
+  // Número sem WhatsApp é problema do cadastro, não do número da empresa nem do agente: não conta falha.
+  const contaFalha = r === 'falha' && !SEM_WHATSAPP.test(motivo || '');
+  if (vaiPeloExtra) await rodizio.registrarResultadoRodizio(prisma, numeroExtra!, !contaFalha, motivo, proximo.nome || proximo.numero);
   const ag = agenteDe(proximo);
-  if (r === 'falha') {
+  if (contaFalha) {
+    const lista = (ultimasFalhasAgente[ag] = [...(ultimasFalhasAgente[ag] || []), `${proximo.nome || proximo.numero}: ${motivo}`].slice(-3));
     falhasSeguidas[ag] = (falhasSeguidas[ag] || 0) + 1;
+    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
     if (falhasSeguidas[ag] >= 3) {
-      await salvarConfigAgente(prisma, ag, { ativa: false, pausada_motivo: '3 falhas seguidas no envio/IA' }, ag);
-      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
-      await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *${PERFIS_SDR[ag].nome} pausou sozinho(a)*: 3 falhas seguidas no primeiro contato. Confira o WhatsApp da empresa e religue no Escritório.`);
-      falhasSeguidas[ag] = 0;
+      await salvarConfigAgente(prisma, ag, { ativa: false, pausada_motivo: `3 falhas seguidas no primeiro contato. Última: ${motivo}`.slice(0, 300) }, ag);
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *${PERFIS_SDR[ag].nome} pausou sozinho(a)*: 3 falhas seguidas no primeiro contato.\n${lista.map(x => `• ${x}`).join('\n')}\nResolva o motivo e religue no Escritório.`).catch(() => {});
+      falhasSeguidas[ag] = 0; ultimasFalhasAgente[ag] = [];
+    } else if (Date.now() - (ultimoAvisoFalha[ag] || 0) > 30 * 60_000) {
+      ultimoAvisoFalha[ag] = Date.now();
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *${PERFIS_SDR[ag].nome} não conseguiu chamar ${proximo.nome || proximo.numero}* (falha ${falhasSeguidas[ag]} de 3 antes de pausar).\nMotivo: ${motivo}`).catch(() => {});
     }
-  } else falhasSeguidas[ag] = 0;
+  } else if (r !== 'falha') { falhasSeguidas[ag] = 0; ultimasFalhasAgente[ag] = []; }
 }
 
 // ── Painel ─────────────────────────────────────────────────────────────────
