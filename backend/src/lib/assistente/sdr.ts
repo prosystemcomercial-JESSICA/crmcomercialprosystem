@@ -264,6 +264,25 @@ export const MOTIVOS_PERDA = ['PRECO', 'JA_TEM_FORNECEDOR', 'SEM_ORCAMENTO', 'TI
 export type MotivoPerda = typeof MOTIVOS_PERDA[number];
 export const INSTAGRAM_PROSYSTEM = 'https://instagram.com/prosystemoficial';
 export const CONVITE_INSTAGRAM = `Para ficar por dentro das novidades da Prosystem, acompanhe a gente no Instagram: ${INSTAGRAM_PROSYSTEM} 😊`;
+export const BLOG_PROSYSTEM = 'https://prosystemnet.com/blog';
+
+/** Proposta já aceita (contrato a caminho ou assinado): nenhum agente cobra nem marca perda. */
+export const PROPOSTA_FECHADA = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
+
+/**
+ * Encerramento do Luiz Felipe (pedido da Jessica, 14/10/2026): sem resposta às 3 tentativas, avisa que a
+ * proposta expirou, agradece e deixa o blog e o Instagram. Texto fixo, sem IA.
+ */
+export function mensagemEncerramentoProposta(nome: string | null, agora: Date): string {
+  const p = (nome || '').trim().split(/\s+/)[0] || '';
+  const primeiro = p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
+  return [
+    `${saudacaoAgora(agora)}${primeiro ? `, ${primeiro}` : ''}! Aqui é o Luiz Felipe, da Prosystem.`,
+    'Como não tivemos retorno, estou encerrando por aqui a proposta que enviamos: ela já está expirada. Muito obrigado pela atenção e pelo tempo que você dedicou a ela! 🙏',
+    'Se um dia quiser retomar, é só me chamar aqui que preparo uma proposta atualizada.',
+    `Enquanto isso, fica o convite para acompanhar nossos conteúdos:\n📚 Blog: ${BLOG_PROSYSTEM}\n📸 Instagram: ${INSTAGRAM_PROSYSTEM}`,
+  ].join('\n\n');
+}
 
 /** Faixa do termômetro → temperatura do lead. Sem dor principal a nota fica em no máx. 59. */
 export function temperaturaDaNota(nota: number): 'MUITO_QUENTE' | 'QUENTE' | 'MORNO' | 'FRIO' {
