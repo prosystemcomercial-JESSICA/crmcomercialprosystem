@@ -126,3 +126,40 @@ export async function funilPorOrigem(prisma: PrismaClient, dias = 30, agora = ne
   }
   return { dias, desde: desde.toISOString(), linhas: [...linhas.values()].sort((a, b) => b.contratos - a.contratos || b.propostas - a.propostas || b.leads - a.leads) };
 }
+
+/**
+ * Relatório da semana no WhatsApp da gestão (sexta, fim da tarde; 14/10/2026): placar contra a meta, o funil dos
+ * últimos 7 dias por canal, o Programa de Ativos por vendedor e as indicações. Só leitura; vai uma vez por semana.
+ */
+export async function relatorioSemanal(prisma: PrismaClient, agora = new Date()) {
+  const p = await placarComercial(prisma, agora);
+  const f = await funilPorOrigem(prisma, 7, agora);
+  const { filaDoDiaAtivos } = await import('./ativos-fila.service');
+  const sem = semanaDe(agora);
+  const ativosVend = await prisma.contatoAtivo.groupBy({ by: ['vendedor_id'], where: { contatado_em: { gte: sem.inicio, lt: sem.fim } }, _count: true }).catch(() => [] as any[]);
+  const nomes = new Map(((await filaDoDiaAtivos(prisma, null, agora).catch(() => ({ vendedores: [] as any[] }))).vendedores || []).map((v: any) => [v.vendedor_id, v.vendedor_nome]));
+  const indSemana = await prisma.indicacao.count({ where: { created_at: { gte: sem.inicio, lt: sem.fim } } }).catch(() => 0);
+  const m = p.meta_semana;
+  const item = (rot: string, v: number, meta?: number) => `• ${rot}: ${v}${meta != null ? ` de ${meta}${v >= meta ? ' ✅' : ''}` : ''}`;
+  const base = (process.env.FRONTEND_URL || '').split(',')[0]?.trim().replace(/\/$/, '') || 'https://comercial.prosystemnet.com';
+  const linhas = [
+    `📊 *Semana do comercial (de ${sem.inicio.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})*`,
+    item('Primeiros contatos', p.semana.primeiros_contatos, m?.primeiros_contatos),
+    item('Responderam', p.semana.respostas),
+    item('Interessados', p.semana.interessados),
+    item('Demonstrações', p.semana.demonstracoes, m?.demonstracoes),
+    item('Propostas', p.semana.propostas, m?.propostas),
+    item('Contratos', p.semana.contratos, m?.contratos),
+    item('Clientes contatados (Ativos)', p.semana.ativos ?? 0, m?.ativos),
+    '',
+    '*De onde vieram (7 dias):*',
+    ...f.linhas.filter(l => l.leads).slice(0, 6).map(l => `• ${l.canal}${l.campanha !== l.canal ? ` (${l.campanha})` : ''}: ${l.leads} leads, ${l.responderam} responderam, ${l.demonstracoes} demonstr., ${l.propostas} propostas, ${l.contratos} contratos`),
+    ...(ativosVend.length ? ['', '*Programa de Ativos na semana:*', ...ativosVend.map((a: any) => `• ${nomes.get(a.vendedor_id) || 'Vendedor'}: ${a._count} de 40`)] : []),
+    indSemana ? `\n🤝 ${indSemana} indicação(ões) de clientes nesta semana.` : '',
+    p.interessados_sem_demo.length ? `\n🔥 ${p.interessados_sem_demo.length} interessado(s) ainda sem demonstração.` : '',
+    `\nPlacar completo: ${base}/escritorio`,
+  ].filter(x => x !== '');
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'lead_qualificado', linhas.join('\n'), { somenteAprovadora: true }).catch(() => {});
+  return linhas.join('\n');
+}

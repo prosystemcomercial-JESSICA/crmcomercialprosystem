@@ -1222,3 +1222,8 @@ Em Configurações → Aparência, Azul intenso recupera um menu azul mais marca
 ### Ao abrir o CRM e usar WhatsApp em outra aba
 
 Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Você pode abrir os que precisar durante o uso; essa revisão substitui a preferência anterior de guardar grupos abertos. O modo de largura do menu continua salvo. Ao lado da lua/sol, clique no ícone do WhatsApp para abrir o atendimento do CRM em uma nova aba, mantendo a tela atual. O atalho aparece para quem tem acesso ao WhatsApp.
+
+### Novidade 14/10/2026 (noite): relatório de sexta e painel das indicações
+
+- **Toda sexta, entre 16h e 18h,** chega no WhatsApp o resumo da semana: placar contra a meta, de onde vieram os leads, contatos de Ativos por pessoa e indicações.
+- **Ativos › Indicações** (gestão): quem indicou, em que pé está cada indicado e os prêmios a aplicar. Quando o indicado fechar, lance o desconto de 50% no faturamento do cliente e toque em **Marcar desconto aplicado**.

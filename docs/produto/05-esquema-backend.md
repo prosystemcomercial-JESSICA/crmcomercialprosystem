@@ -1525,3 +1525,9 @@ Sem alterações de API, banco, permissões, atendimento ou agentes. Preferênci
 ## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
 
 Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em memória por aba; ps_menu_closed_groups antigo deixa de ser consumido. A nova aba compartilha a autenticação já existente da mesma origem e não recebe token na URL. PERMITIDO vazio no deploy.
+
+### Atualização 14/10/2026 (noite): relatório de sexta e painel das indicações de clientes
+
+- **Relatório da semana (`relatorioSemanal`, services/placar-comercial):** sexta, entre 16h e 18h, uma vez por semana (`comercial.semana.<dia>`), no WhatsApp da gestão: placar da semana contra a meta (primeiros contatos, respostas, interessados, demonstrações, propostas, contratos, clientes contatados em Ativos), funil dos últimos 7 dias por canal e campanha, contatos de Ativos por vendedor (meta de 40), indicações da semana e interessados ainda sem demonstração.
+- **Painel das indicações (`GET /ativos/indicacoes`, gestão; `services/indicacoes-clientes`, `lib/indicacao-situacao`):** cada `Indicacao` com quem indicou, o indicado (link para a conversa), a situação derivada da Caroline e das propostas pelo telefone (Na fila da Caroline → Caroline chamou → Respondeu → Interessado → Demonstração marcada → Com proposta → Fechou contrato; ou Sem interesse / Número sem WhatsApp) e o status gravado acompanha (PENDENTE, CONTATO, CONVERTIDO, PERDIDO). Indicação que fechou e ainda não teve o prêmio aplicado aparece como "Marcar desconto aplicado" (`POST /ativos/indicacoes/:id/premio`, grava `bonus_pago` e uma observação com quem e quando). Tela: aba "Indicações" em Ativos (gestão), com totais (indicações, em andamento, fecharam, prêmios a aplicar).
+- Testes: `tests/indicacao-situacao.test.ts`.

@@ -559,6 +559,24 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Não deu para registrar a indicação.' }); }
   });
 
+  // ── Painel das indicações de clientes (gestão, 14/10/2026) ──
+  fastify.get('/ativos/indicacoes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { indicacoesDeClientes } = await import('../services/indicacoes-clientes.service');
+    return reply.send({ status: 'success', data: await indicacoesDeClientes(prisma) });
+  });
+  fastify.post('/ativos/indicacoes/:id/premio', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({ aplicado: z.boolean() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    const { marcarPremioAplicado } = await import('../services/indicacoes-clientes.service');
+    try {
+      await marcarPremioAplicado(prisma, id, b.data.aplicado, (getUser(request) as any)?.nome || 'gestão');
+      return reply.send({ status: 'success', message: b.data.aplicado ? 'Desconto marcado como aplicado.' : 'Marcação desfeita.' });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
+  });
+
   // ── Fila do dia (parte 3 do plano, 14/10/2026): 8 contatos por vendedor ──
   // Ordem: cliente em risco ou com problema → nunca contatado → "em contato" parado há mais de 14 dias.
   fastify.get('/ativos/hoje', async (request, reply) => {

@@ -1491,6 +1491,8 @@ class ApiClient {
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
   // Programa de Ativos: fila do dia e indicação premiada (parte 3 do plano, 14/10/2026)
   async getAtivosHoje() { return this.client.get('/ativos/hoje'); }
+  async getIndicacoesClientes() { return this.client.get('/ativos/indicacoes'); }
+  async marcarPremioIndicacao(id: string, aplicado: boolean) { return this.client.post(`/ativos/indicacoes/${id}/premio`, { aplicado }); }
   async registrarIndicacaoAtivo(contatoId: string, body: { nome: string; telefone: string; empresa?: string | null; segmento?: string | null }) { return this.client.post(`/ativos/contatos/${contatoId}/indicacao`, body); }
   // Placar comercial: do interesse à demonstração e à proposta (parte 2 do plano, 14/10/2026)
   async getPlacarComercial() { return this.client.get('/comercial/placar'); }

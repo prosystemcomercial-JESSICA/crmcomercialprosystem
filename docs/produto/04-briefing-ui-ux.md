@@ -1500,3 +1500,9 @@ Faixa vazia removida: os controles de largura e recolher todos ficam na mesma li
 ## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
 
 Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir previamente os atalhos antes da hidratação. Atalho de 32 px alinhado ao botão lua/sol, ícone WhatsApp de 18 px em cor semântica de sucesso, tooltip e nome acessível Abrir WhatsApp em nova aba. Nenhum deslocamento dos demais controles ou novas faixas verticais.
+
+### Atualização 14/10/2026 (noite): relatório de sexta e painel das indicações de clientes
+
+- **Relatório da semana (`relatorioSemanal`, services/placar-comercial):** sexta, entre 16h e 18h, uma vez por semana (`comercial.semana.<dia>`), no WhatsApp da gestão: placar da semana contra a meta (primeiros contatos, respostas, interessados, demonstrações, propostas, contratos, clientes contatados em Ativos), funil dos últimos 7 dias por canal e campanha, contatos de Ativos por vendedor (meta de 40), indicações da semana e interessados ainda sem demonstração.
+- **Painel das indicações (`GET /ativos/indicacoes`, gestão; `services/indicacoes-clientes`, `lib/indicacao-situacao`):** cada `Indicacao` com quem indicou, o indicado (link para a conversa), a situação derivada da Caroline e das propostas pelo telefone (Na fila da Caroline → Caroline chamou → Respondeu → Interessado → Demonstração marcada → Com proposta → Fechou contrato; ou Sem interesse / Número sem WhatsApp) e o status gravado acompanha (PENDENTE, CONTATO, CONVERTIDO, PERDIDO). Indicação que fechou e ainda não teve o prêmio aplicado aparece como "Marcar desconto aplicado" (`POST /ativos/indicacoes/:id/premio`, grava `bonus_pago` e uma observação com quem e quando). Tela: aba "Indicações" em Ativos (gestão), com totais (indicações, em andamento, fecharam, prêmios a aplicar).
+- Testes: `tests/indicacao-situacao.test.ts`.

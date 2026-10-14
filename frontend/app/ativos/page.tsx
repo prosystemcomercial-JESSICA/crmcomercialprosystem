@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import FilaHojeAtivos from '@/components/ativos/FilaHojeAtivos';
 import IndicacaoAtivo from '@/components/ativos/IndicacaoAtivo';
+import IndicacoesClientes from '@/components/ativos/IndicacoesClientes';
 
 const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIRETOR'];
 const ETAPAS = [
@@ -35,7 +36,7 @@ export default function AtivosPage() {
   const router = useRouter();
   const isGestor = ROLES_GESTOR.includes(user?.role || '');
 
-  const [aba, setAba] = useState<'fila' | 'painel'>('fila');
+  const [aba, setAba] = useState<'fila' | 'painel' | 'indicacoes'>('fila');
   const [campanhas, setCampanhas] = useState<any[]>([]);
   const [campAtiva, setCampAtiva] = useState<string | null>(null);
   const [contatos, setContatos] = useState<any[]>([]);
@@ -245,7 +246,7 @@ export default function AtivosPage() {
         {/* Abas (gestão tem painel) */}
         {isGestor && (
           <div className="flex gap-2 mb-4 border-b" style={{ borderColor: 'var(--t-card-border)' }}>
-            {[{ id: 'fila', label: '📋 Minhas filas / Kanban' }, { id: 'painel', label: '📊 Painel da Supervisão' }].map(a => (
+            {[{ id: 'fila', label: '📋 Minhas filas / Kanban' }, { id: 'painel', label: '📊 Painel da Supervisão' }, { id: 'indicacoes', label: '🤝 Indicações' }].map(a => (
               <button key={a.id} onClick={() => setAba(a.id as any)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${aba === a.id ? 'border-blue-600 text-blue-700' : 'border-transparent'}`}
                 style={aba !== a.id ? { color: 'var(--t-text-secondary)' } : {}}>{a.label}</button>
@@ -379,6 +380,9 @@ export default function AtivosPage() {
         )}
 
         {/* ─── PAINEL DA SUPERVISÃO ─── */}
+        {/* Painel das indicações de clientes (14/10/2026) */}
+        {isGestor && aba === 'indicacoes' && <IndicacoesClientes />}
+
         {isGestor && aba === 'painel' && painel && (
           <div className="space-y-5">
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
