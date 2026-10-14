@@ -6,7 +6,7 @@ import { apiClient } from '@/lib/api-client';
 // Painel da Caroline (SDR): passar leads da campanha, aprovar/editar as mensagens
 // dela, acompanhar o termômetro e confirmar a temperatura (ensina a Laya).
 
-type Config = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null };
+type Config = { ativa: boolean; aprovar: boolean; aprovar_abertura?: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null };
 type Lead = { id: string; nome: string | null; empresa: string | null; numero: string; segmento: string | null; campanha: string | null; status: string; tentativas: number; nota: number | null; nota_motivo: string | null; temperatura: string | null; temperatura_confirmada: string | null; dados: any };
 type Pendente = { id: string; sdrId: string; texto: string; meta: any; lead: string | null; empresa: string | null; criado_em: string };
 type Uso = { dia: string; openai: number; grok: number; laya: number };
@@ -90,7 +90,10 @@ export default function PainelCaroline({ agente = 'caroline' }: { agente?: 'caro
           <input type="checkbox" checked={c.ativa} onChange={e => config({ ativa: e.target.checked })} /> {c.ativa ? 'Ligada' : 'Desligada'}
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--t-text-secondary)' }}>
-          <input type="checkbox" checked={c.aprovar} onChange={e => config({ aprovar: e.target.checked })} /> Aprovar antes de enviar
+          <input type="checkbox" checked={c.aprovar_abertura ?? c.aprovar} onChange={e => config({ aprovar_abertura: e.target.checked })} /> Aprovar o primeiro contato
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--t-text-secondary)' }}>
+          <input type="checkbox" checked={c.aprovar} onChange={e => config({ aprovar: e.target.checked })} /> Aprovar as retomadas
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--t-text-secondary)' }}>
           Primeiros contatos/dia

@@ -1141,3 +1141,8 @@ Ao trocar de contato, aguarde “Carregando conversa…” desaparecer para cons
 - **Aprovou e o número não tem WhatsApp?** O aviso aparece, a mensagem é descartada e o lead sai da fila sozinho (status Sem WhatsApp, com anotação no lead para conferir o telefone).
 - **Robô da loja:** boas-vindas, "aguarde", folheto em imagem, "atendimento finalizado", "não precisa responder" e pesquisa de nota são reconhecidos como robô. O agente pede o contato do decisor ao atendente uma única vez e não conversa com o robô.
 - **No painel da Caroline:** "Hoje: N primeiros contatos", o limite do número principal e quantas mensagens esperam sua aprovação. A contagem "Na fila" agora mostra o total real.
+
+### Atualização 14/10/2026 (noite): aprovar o primeiro contato ou as retomadas, separadamente
+
+- No painel da Caroline há duas caixas: **Aprovar o primeiro contato** e **Aprovar as retomadas**.
+- Desde 14/10 o primeiro contato sai sozinho (decisão da Jessica), com as mesmas proteções do número: limite do dia, intervalo entre mensagens, horário e nada repetido. As retomadas continuam esperando sua aprovação.

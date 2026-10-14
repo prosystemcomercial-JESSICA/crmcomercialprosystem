@@ -1422,3 +1422,9 @@ WhatsappPage identifica cada abertura com uma sessão (id + versão). Histórico
 - **Mensagens automáticas das lojas:** `ehEncerramentoAutomatico` (atendimento finalizado/encerrado, "não precisa responder", "digite o número correspondente a sua nota", "obrigado pela preferência/procura", "fica à disposição sempre que precisar") e `soRoboDaLoja` (texto automático + folheto em imagem/documento conta como robô; áudio é sempre pessoa). Só o robô respondeu: o agente pede o decisor ao atendente uma vez por conversa; se o robô encerrou ou pediu nota, ou se o decisor já foi pedido, o agente não responde e o lead vai para `AGUARDANDO` (sai do "esperando resposta", que chamava a IA a cada rodada em loop).
 - **Painel da Caroline:** contagem por status de todos os leads (`groupBy`; antes contava só os 200 mais recentes e mostrava 183 na fila em vez de 333), linha "Hoje: N primeiros contatos · limite do número principal · N esperando sua aprovação" (`hoje` no `GET /assistente/caroline`) e as mensagens pendentes de qualquer lead do agente.
 - Testes: `tests/sdr-mensagem-automatica.test.ts` com as frases reais (Onfarma e Farma Vila).
+
+### Atualização 14/10/2026 (noite): aprovação do primeiro contato separada das retomadas
+
+- Nova opção `aprovar_abertura` na configuração do agente (`ConfigCaroline`, `PUT /assistente/caroline/config`). Sem valor, segue a opção `aprovar` (comportamento antigo). Com `false`, o primeiro contato sai sem aprovação; as retomadas continuam pela opção `aprovar`.
+- Painel da Caroline: duas caixas, "Aprovar o primeiro contato" e "Aprovar as retomadas".
+- Decisão da Jessica (14/10/2026): primeiro contato da Caroline sem aprovação, para a fila de 333 leads andar. Proteções do número inalteradas (limite único do dia, intervalo sorteado de 4 a 9 min, horário comercial, trava de repetição, rodízio).

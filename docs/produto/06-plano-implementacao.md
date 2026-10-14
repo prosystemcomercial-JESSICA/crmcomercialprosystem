@@ -1411,3 +1411,9 @@ Validação local final: 16 testes Chromium aprovados (45,1 s), incluindo oito r
 - Testes: `tests/sdr-mensagem-automatica.test.ts` com as frases reais (Onfarma e Farma Vila).
 
 Publicação da correção concluída em 14/10/2026: commit `d0ac1fa6623d99506ce2a71e3904fa31de64e387`; backup verificado em `/root/backups-deploy/whatsapp-isolamento-20261014T162454Z`. Compilação isolada na VPS concluída, frontend reiniciado, backend manteve o processo anterior. HTTP 200 confirmado. Oito testes de isolamento repetidos contra os arquivos publicados, com APIs interceptadas, aprovados (26,0 s). Nenhuma mensagem real foi enviada nos testes; entrega real de mensagens e gravação física de áudio não foram exercitadas.
+
+### Atualização 14/10/2026 (noite): aprovação do primeiro contato separada das retomadas
+
+- Nova opção `aprovar_abertura` na configuração do agente (`ConfigCaroline`, `PUT /assistente/caroline/config`). Sem valor, segue a opção `aprovar` (comportamento antigo). Com `false`, o primeiro contato sai sem aprovação; as retomadas continuam pela opção `aprovar`.
+- Painel da Caroline: duas caixas, "Aprovar o primeiro contato" e "Aprovar as retomadas".
+- Decisão da Jessica (14/10/2026): primeiro contato da Caroline sem aprovação, para a fila de 333 leads andar. Proteções do número inalteradas (limite único do dia, intervalo sorteado de 4 a 9 min, horário comercial, trava de repetição, rodízio).
