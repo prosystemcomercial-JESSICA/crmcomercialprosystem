@@ -399,11 +399,11 @@ export default function AtividadesPage() {
             </div>
             <button onClick={fetchData} title="Atualizar" className="p-2 rounded-lg"
               style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
-              <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
+              <RefreshCw size={13} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-link)' }} />
             </button>
             <a href="/agenda"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)', background: 'var(--t-card-bg)' }}>
+              style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)', background: 'var(--t-card-bg)' }}>
               <CalendarIcon size={12} /> Agenda Google
             </a>
             <button onClick={() => openCreate()}
@@ -492,8 +492,8 @@ export default function AtividadesPage() {
             <div className="flex items-center justify-between px-4 py-2.5"
               style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-primary-light)' }}>
               <div className="flex items-center gap-2">
-                <Sparkles size={14} style={{ color: 'var(--t-primary)' }} />
-                <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>Quadro de Prioridade</p>
+                <Sparkles size={14} style={{ color: 'var(--t-link)' }} />
+                <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--t-link)' }}>Quadro de Prioridade</p>
               </div>
               <p className="text-[10px]" style={{ color: 'var(--t-text-secondary)' }}>
                 Prioridade calculada automaticamente · Faltando 1 hora ou menos para o fim da atividade, ela entra em "Prazo expirando"; passou do horário, vira "Crítico"
@@ -545,7 +545,7 @@ export default function AtividadesPage() {
         {view === 'lista' && (
           <div className="ps-card rounded-2xl overflow-hidden">
             <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-primary-light)' }}>
-              <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>
+              <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--t-link)' }}>
                 {filtered.length} atividade{filtered.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -580,7 +580,7 @@ export default function AtividadesPage() {
                         <div onClick={() => !isBeingDeleted && !isBeingConcluded && setSelected(at)}
                           className="px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors border-l-4"
                           style={{ borderLeftColor: corBarra, background: sv ? `${sv.bg}` : 'var(--t-card-bg)' }}>
-                          <span className="flex-shrink-0" style={{ color: 'var(--t-primary)' }}>
+                          <span className="flex-shrink-0" style={{ color: 'var(--t-link)' }}>
                             <TipoIcon size={16} />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -875,7 +875,7 @@ export default function AtividadesPage() {
             <div className="ml-auto h-full overflow-y-auto" style={{ width: '90vw', maxWidth: 500, background: 'var(--t-card-bg)' }} onClick={e => e.stopPropagation()}>
               <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
                 <div className="flex items-center gap-2 min-w-0">
-                  <span style={{ color: 'var(--t-primary)', flexShrink: 0 }}>
+                  <span style={{ color: 'var(--t-link)', flexShrink: 0 }}>
                     <TipoIcon size={18} />
                   </span>
                   <h3 className="font-extrabold text-sm truncate" style={{ color: 'var(--t-text-primary)' }}>{selected.titulo}</h3>
@@ -901,7 +901,7 @@ export default function AtividadesPage() {
                 {/* Lead */}
                 {selected.lead?.nome && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-primary)' }}>Cliente</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-link)' }}>Cliente</p>
                     <p className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>{selected.lead.nome}</p>
                     {selected.lead.empresa && <p className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{selected.lead.empresa}</p>}
                   </div>
@@ -910,7 +910,7 @@ export default function AtividadesPage() {
                 {/* Descrição */}
                 {selected.descricao && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-primary)' }}>Descrição</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-link)' }}>Descrição</p>
                     <p className="text-sm" style={{ color: 'var(--t-text-primary)' }}>{selected.descricao}</p>
                   </div>
                 )}
@@ -925,7 +925,7 @@ export default function AtividadesPage() {
 
                 {/* Responsável (com possibilidade de reatribuir se gestor) */}
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-primary)' }}>Responsável</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-link)' }}>Responsável</p>
                   {isGestor ? (
                     <select value={selected.responsavel_id || ''}
                       onChange={e => handleQuickReassign(selected, e.target.value)}
@@ -941,7 +941,7 @@ export default function AtividadesPage() {
 
                 {/* Status */}
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-primary)' }}>Status</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--t-link)' }}>Status</p>
                   <p className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>{selected.status}</p>
                 </div>
 
@@ -995,7 +995,7 @@ export default function AtividadesPage() {
                 )}
                 <button onClick={() => openEdit(selected)}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                  style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)', background: 'var(--t-card-bg)' }}>
+                  style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)', background: 'var(--t-card-bg)' }}>
                   Editar
                 </button>
                 {!isDeleting && (
@@ -1051,7 +1051,7 @@ function AtividadeCard({ at, prioridade, onClick, onConcluir, usuarioNome, concl
     <div style={{ background: 'var(--t-card-bg)', border: `1px solid var(--t-card-border)`, borderRadius: 12, borderLeft: `3px solid ${cfg.cor}` }}>
       <div onClick={onClick} className="p-2.5 cursor-pointer hover:shadow-md transition-shadow rounded-xl">
         <div className="flex items-start gap-2 mb-1.5">
-          <span className="flex-shrink-0" style={{ color: 'var(--t-primary)' }}>
+          <span className="flex-shrink-0" style={{ color: 'var(--t-link)' }}>
             <TipoIcon size={14} />
           </span>
           <p className="text-xs font-bold flex-1 leading-tight" style={{ color: 'var(--t-text-primary)' }}>{at.titulo}</p>

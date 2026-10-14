@@ -279,7 +279,7 @@ export default function RadarComercialPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)', letterSpacing: '-0.02em' }}>
-              <BarChart2 size={22} style={{ color: 'var(--t-primary)' }} />
+              <BarChart2 size={22} style={{ color: 'var(--t-link)' }} />
               Radar Comercial
             </h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>
@@ -360,7 +360,7 @@ export default function RadarComercialPage() {
         {/* KPI row */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
-            { label: 'Total de Leads',  value: fmt(resumo.total_leads),    color: 'var(--t-primary-dark)' },
+            { label: 'Total de Leads',  value: fmt(resumo.total_leads),    color: 'var(--t-link)' },
             { label: 'Leads Ativos',    value: fmt(resumo.ativos_total),   color: '#7c3aed' },
             { label: 'Fechados',        value: fmt(resumo.fechados_total), color: '#16a34a' },
             { label: 'Perdidos',        value: fmt(resumo.perdidos_total), color: '#dc2626' },
@@ -386,7 +386,7 @@ export default function RadarComercialPage() {
               onClick={() => setTab(t.key as any)}
               className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
               style={tab === t.key
-                ? { background: 'var(--t-card-bg)', boxShadow: '0 1px 4px rgba(0,0,0,.08)', color: 'var(--t-primary-dark)' }
+                ? { background: 'var(--t-card-bg)', boxShadow: '0 1px 4px rgba(0,0,0,.08)', color: 'var(--t-link)' }
                 : { background: 'transparent', color: 'var(--t-text-secondary)' }
               }
             >
@@ -433,7 +433,7 @@ export default function RadarComercialPage() {
             {/* Serviços complementares vendidos no mês (indicadores do plano) */}
             {data.servicos && data.servicos.total > 0 && (
               <div className="ps-card rounded-xl p-4">
-                <p className="text-sm font-bold mb-3" style={{ color: 'var(--t-primary-deep)' }}>Serviços complementares no mês</p>
+                <p className="text-sm font-bold mb-3" style={{ color: 'var(--t-link)' }}>Serviços complementares no mês</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                   {[
                     ['Upgrades', data.servicos.upgrades, 'var(--t-primary-dark)'],
@@ -563,7 +563,7 @@ export default function RadarComercialPage() {
 
               <div className="ps-card rounded-xl p-5">
                 <h3 className="font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
-                  <MessageSquare size={16} style={{ color: 'var(--t-primary)' }} />
+                  <MessageSquare size={16} style={{ color: 'var(--t-link)' }} />
                   Atividades por Tipo
                 </h3>
                 {data.atividades_tipo.slice(0, 8).map(a => (
@@ -592,7 +592,7 @@ export default function RadarComercialPage() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-primary-border)' }}>
-                        <span className="font-bold text-sm" style={{ color: 'var(--t-primary-dark)' }}>
+                        <span className="font-bold text-sm" style={{ color: 'var(--t-link)' }}>
                           {v.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                         </span>
                       </div>
@@ -632,7 +632,7 @@ export default function RadarComercialPage() {
                       </div>
                       <div>
                         <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Setup Fechado</p>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--t-primary-dark)' }}>{fmtR(v.setup_fechado)}</p>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--t-link)' }}>{fmtR(v.setup_fechado)}</p>
                       </div>
                     </div>
                   )}
@@ -640,7 +640,7 @@ export default function RadarComercialPage() {
                   {Object.keys(v.obs_by_tipo).length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t" style={{ borderColor: 'var(--t-card-border)' }}>
                       {Object.entries(v.obs_by_tipo).map(([tipo, total]) => (
-                        <span key={tipo} className="text-xs px-2 py-1 rounded-full" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary-dark)', border: '1px solid var(--t-primary-border)' }}>
+                        <span key={tipo} className="text-xs px-2 py-1 rounded-full" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)', border: '1px solid var(--t-primary-border)' }}>
                           {OBS_LABELS[tipo] || tipo.replace(/_/g,' ').toLowerCase()} ({total as number})
                         </span>
                       ))}

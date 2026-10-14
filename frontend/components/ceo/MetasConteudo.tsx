@@ -164,7 +164,7 @@ export function MetasConteudo({ embutido = false }: { embutido?: boolean }) {
   if (loading || !isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin" style={{ width: 48, height: 48, color: 'var(--t-primary)' }} />
+        <Loader2 className="animate-spin" style={{ width: 48, height: 48, color: 'var(--t-link)' }} />
       </div>
     );
   }
@@ -255,7 +255,7 @@ export function MetasConteudo({ embutido = false }: { embutido?: boolean }) {
             {/* Evolução anual */}
             {serie?.meses?.length > 0 && (
               <div className="ps-card rounded-2xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
-                <h2 className="text-sm font-bold uppercase mb-3 flex items-center gap-1.5" style={{ color: 'var(--t-primary-dark)' }}>
+                <h2 className="text-sm font-bold uppercase mb-3 flex items-center gap-1.5" style={{ color: 'var(--t-link)' }}>
                   <TrendingUp size={14} /> Evolução do ano ({serie.ano}) — equipe
                 </h2>
                 <ResponsiveContainer width="100%" height={260}>
@@ -276,7 +276,7 @@ export function MetasConteudo({ embutido = false }: { embutido?: boolean }) {
             {/* Donut + Ranking */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="ps-card rounded-2xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
-                <h2 className="text-sm font-bold uppercase mb-2 flex items-center gap-1.5" style={{ color: 'var(--t-primary-dark)' }}>
+                <h2 className="text-sm font-bold uppercase mb-2 flex items-center gap-1.5" style={{ color: 'var(--t-link)' }}>
                   <Target size={14} /> Meta de contratos — {rotuloPeriodo}
                 </h2>
                 {agregado.metaContratos > 0 ? (
@@ -293,8 +293,8 @@ export function MetasConteudo({ embutido = false }: { embutido?: boolean }) {
                       </PieChart>
                     </ResponsiveContainer>
                     <p className="text-center text-sm -mt-2" style={{ color: 'var(--t-text-secondary)' }}>
-                      <b className="text-lg" style={{ color: 'var(--t-primary)' }}>{agregado.realContratos}</b> de <b>{agregado.metaContratos}</b> contratos
-                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: 'rgba(65,122,188,0.10)', color: 'var(--t-primary-dark)' }}>
+                      <b className="text-lg" style={{ color: 'var(--t-link)' }}>{agregado.realContratos}</b> de <b>{agregado.metaContratos}</b> contratos
+                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: 'rgba(65,122,188,0.10)', color: 'var(--t-link)' }}>
                         {agregado.metaContratos ? Math.round((agregado.realContratos / agregado.metaContratos) * 100) : 0}%
                       </span>
                     </p>
@@ -303,7 +303,7 @@ export function MetasConteudo({ embutido = false }: { embutido?: boolean }) {
               </div>
 
               <div className="ps-card rounded-2xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
-                <h2 className="text-sm font-bold uppercase mb-2 flex items-center gap-1.5" style={{ color: 'var(--t-primary-dark)' }}>
+                <h2 className="text-sm font-bold uppercase mb-2 flex items-center gap-1.5" style={{ color: 'var(--t-link)' }}>
                   <Users size={14} /> Ranking do período
                 </h2>
                 {mesSerie?.por_vendedora?.some((v: any) => v.contratos > 0) ? (

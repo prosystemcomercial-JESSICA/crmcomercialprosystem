@@ -86,7 +86,7 @@ export default function RetornosPage() {
                         <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{i.agente ? '🤖' : '👤'} {i.responsavel}{i.nota != null ? ` · nota ${i.nota}` : ''}</span>
                         {i.conversaId && (
                           <button onClick={() => router.push(`/whatsapp?conversa=${i.conversaId}`)}
-                            style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary)', cursor: 'pointer' }}>Abrir conversa</button>
+                            style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-link)', cursor: 'pointer' }}>Abrir conversa</button>
                         )}
                       </div>
                     </div>

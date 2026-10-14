@@ -236,7 +236,7 @@ export default function LeadsSdrPage() {
   };
 
   if (loading || !isAuthenticated) {
-    return <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-sidebar-grad-from)' }}><Loader2 size={28} className="animate-spin" style={{ color: 'var(--t-primary)' }} /></div>;
+    return <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-sidebar-grad-from)' }}><Loader2 size={28} className="animate-spin" style={{ color: 'var(--t-link)' }} /></div>;
   }
 
   const filtered = Object.fromEntries(Object.entries(kanban).map(([col, leads]) => [
@@ -253,7 +253,7 @@ export default function LeadsSdrPage() {
           <div>
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Meu Funil — SDR</h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
-              Prospecção e qualificação · <span style={{ color: 'var(--t-primary)' }}>{totalLeads} leads</span> no funil
+              Prospecção e qualificação · <span style={{ color: 'var(--t-link)' }}>{totalLeads} leads</span> no funil
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -262,7 +262,7 @@ export default function LeadsSdrPage() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar lead ou empresa..." className="pl-8 pr-3 h-8 text-xs rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', width: 210, color: 'var(--t-text-primary)', background: 'var(--t-card-bg)' }} />
             </div>
             <button onClick={loadData} title="Atualizar" className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0" style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
-              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
+              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-link)' }} />
             </button>
             <button onClick={() => { setNewLeadForm({ temperatura: 'FRIO', origem: '' }); setNewLeadError(''); setShowNewLead(true); }}
               className="ps-btn-primary h-8 flex items-center gap-1.5 px-4 rounded-lg text-xs font-semibold text-white">
@@ -278,12 +278,12 @@ export default function LeadsSdrPage() {
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => irParaColuna(colunaAtiva - 1)} disabled={colunaAtiva === 0}
                   className="w-[26px] h-[26px] flex items-center justify-center rounded-md transition-colors disabled:opacity-35"
-                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary-dark)' }}>
+                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-link)' }}>
                   <ChevronLeft size={13} />
                 </button>
                 <button onClick={() => irParaColuna(colunaAtiva + 1)} disabled={colunaAtiva >= COLUNAS_SDR.length - 1}
                   className="w-[26px] h-[26px] flex items-center justify-center rounded-md transition-colors disabled:opacity-35"
-                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary-dark)' }}>
+                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-link)' }}>
                   <ChevronRight size={13} />
                 </button>
               </div>
@@ -467,7 +467,7 @@ export default function LeadsSdrPage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4" style={{ borderTop: '1px solid var(--t-card-border)' }}>
-              <button onClick={() => setShowNewLead(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>Cancelar</button>
+              <button onClick={() => setShowNewLead(false)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)' }}>Cancelar</button>
               <button onClick={createNewLead} disabled={savingNewLead || !newLeadForm.razao_social || !newLeadForm.origem}
                 className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
                 style={{ background: '#16a34a' }}>

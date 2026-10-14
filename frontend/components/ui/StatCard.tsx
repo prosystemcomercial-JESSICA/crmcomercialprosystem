@@ -22,8 +22,8 @@ interface StatCardProps {
 }
 
 const VARIANT_STYLES: Record<StatCardVariant, { iconBg: string; iconColor: string; accent: string }> = {
-  default:  { iconBg: 'var(--t-primary-light)',  iconColor: 'var(--t-primary)',      accent: 'var(--t-primary)' },
-  primary:  { iconBg: 'var(--t-primary-light)',  iconColor: 'var(--t-primary-dark)', accent: 'var(--t-primary-dark)' },
+  default:  { iconBg: 'var(--t-primary-light)',  iconColor: 'var(--t-link)',      accent: 'var(--t-primary)' },
+  primary:  { iconBg: 'var(--t-primary-light)',  iconColor: 'var(--t-link)', accent: 'var(--t-primary-dark)' },
   success:  { iconBg: 'rgba(22,163,74,0.10)',    iconColor: '#16a34a',               accent: '#16a34a' },
   warning:  { iconBg: 'rgba(217,119,6,0.10)',    iconColor: '#d97706',               accent: '#d97706' },
   danger:   { iconBg: 'rgba(220,38,38,0.10)',    iconColor: '#dc2626',               accent: '#dc2626' },

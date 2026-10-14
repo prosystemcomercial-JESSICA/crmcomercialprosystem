@@ -637,7 +637,7 @@ export default function DashboardPage() {
                             )}
                           </div>
                         </div>
-                        <a href="/atividades" className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)' }}>
+                        <a href="/atividades" className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-link)' }}>
                           Ver todas <ArrowRight size={11} />
                         </a>
                       </div>
@@ -681,7 +681,7 @@ export default function DashboardPage() {
                             );
                           })}
                           {ordered.length > 10 && (
-                            <a href="/atividades" className="flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-primary)', borderTop: '1px solid var(--t-card-border)' }}>
+                            <a href="/atividades" className="flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--t-link)', borderTop: '1px solid var(--t-card-border)' }}>
                               + {ordered.length - 10} atividades
                             </a>
                           )}

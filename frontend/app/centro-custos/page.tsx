@@ -429,7 +429,7 @@ export default function CentroCustosPage() {
                 <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Comissões</p>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Gestão completa de comissões (com status de pagamento) fica em Comissões.</p>
               </div>
-              <Link href="/comissoes" className="text-[11px] font-semibold" style={{ color: 'var(--t-primary)' }}>
+              <Link href="/comissoes" className="text-[11px] font-semibold" style={{ color: 'var(--t-link)' }}>
                 Ver comissões →
               </Link>
             </div>

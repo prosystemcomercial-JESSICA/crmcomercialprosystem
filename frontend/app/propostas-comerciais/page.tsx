@@ -1160,7 +1160,7 @@ export default function PropostasComerciais() {
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>{p.segmento || '—'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t-text-primary)', fontWeight: 600 }}>{p.plano_selecionado || '—'}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: 'var(--t-primary)' }}>{fmtBRL(p.valor_final)}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: 'var(--t-link)' }}>{fmtBRL(p.valor_final)}</td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>{p.vendedor_nome || '—'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>{validade}</td>
                       <td style={{ padding: '10px 12px' }}>
@@ -1171,7 +1171,7 @@ export default function PropostasComerciais() {
                       <td style={{ padding: '10px 12px' }}>
                         <div className="flex items-center gap-1">
                           <button onClick={() => setPreviewProposta(p)} title="Ver proposta"
-                            style={{ padding: 5, borderRadius: 6, color: 'var(--t-primary)', background: 'var(--t-primary-light)', border: 'none', cursor: 'pointer' }}>
+                            style={{ padding: 5, borderRadius: 6, color: 'var(--t-link)', background: 'var(--t-primary-light)', border: 'none', cursor: 'pointer' }}>
                             <Eye size={13} />
                           </button>
                           <button onClick={() => openEdit(p)} title="Editar"
@@ -1294,7 +1294,7 @@ export default function PropostasComerciais() {
                         {/* Segmento + plano */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                           {p.segmento && (
-                            <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: 'var(--t-primary-light)', color: 'var(--t-primary-dark)' }}>
+                            <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>
                               {p.segmento}
                             </span>
                           )}
@@ -1307,7 +1307,7 @@ export default function PropostasComerciais() {
 
                         {/* Valor */}
                         {p.valor_final != null && (
-                          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-primary)', marginBottom: 4 }}>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-link)', marginBottom: 4 }}>
                             {fmtBRL(p.valor_final)}
                           </p>
                         )}
@@ -1735,7 +1735,7 @@ export default function PropostasComerciais() {
                           style={{
                             width: '100%', padding: '10px', borderRadius: 8,
                             border: '1.5px dashed var(--t-card-border)', background: 'transparent',
-                            fontSize: 13, fontWeight: 600, color: 'var(--t-primary)', cursor: 'pointer',
+                            fontSize: 13, fontWeight: 600, color: 'var(--t-link)', cursor: 'pointer',
                             marginBottom: 16,
                           }}
                         >
@@ -1805,7 +1805,7 @@ export default function PropostasComerciais() {
                             </p>
                             <div className="grid grid-cols-3 gap-3">
                               <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--t-primary)' }}>{fmtBRL(totalImplProjeto)}</div>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--t-link)' }}>{fmtBRL(totalImplProjeto)}</div>
                                 <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Total Implantação</div>
                               </div>
                               <div style={{ textAlign: 'center' }}>
@@ -1866,7 +1866,7 @@ export default function PropostasComerciais() {
                     <FormField label="Valor Final (calculado)">
                       <div style={{
                         padding: '8px 12px', borderRadius: 8, fontSize: 15, fontWeight: 800,
-                        color: 'var(--t-primary)', background: 'var(--t-primary-light)',
+                        color: 'var(--t-link)', background: 'var(--t-primary-light)',
                         border: '1.5px solid var(--t-primary-border)'
                       }}>
                         {modoMultiLoja && lojasProjeto.length > 0
@@ -2025,21 +2025,21 @@ export default function PropostasComerciais() {
                 <div style={{ background: 'var(--t-primary-light)', border: '1px solid var(--t-primary-border)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <div style={{ fontSize: 10, color: 'var(--t-primary)', fontWeight: 600, textTransform: 'uppercase' }}>Implantação</div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-primary)' }}>{fmtBRL(previewProposta.valor_final)}</div>
+                      <div style={{ fontSize: 10, color: 'var(--t-link)', fontWeight: 600, textTransform: 'uppercase' }}>Implantação</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-link)' }}>{fmtBRL(previewProposta.valor_final)}</div>
                     </div>
                     {previewProposta.parcelas && (
                       <div>
-                        <div style={{ fontSize: 10, color: 'var(--t-primary)', fontWeight: 600, textTransform: 'uppercase' }}>Parcelas</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-primary)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--t-link)', fontWeight: 600, textTransform: 'uppercase' }}>Parcelas</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-link)' }}>
                           {previewProposta.parcelas}x {fmtBRL(previewProposta.valor_parcela)}
                         </div>
                       </div>
                     )}
                     {previewProposta.mensalidade_plus && (
                       <div>
-                        <div style={{ fontSize: 10, color: 'var(--t-primary)', fontWeight: 600, textTransform: 'uppercase' }}>Mensalidade</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-primary)' }}>{fmtBRL(previewProposta.mensalidade_plus)}/mês</div>
+                        <div style={{ fontSize: 10, color: 'var(--t-link)', fontWeight: 600, textTransform: 'uppercase' }}>Mensalidade</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-link)' }}>{fmtBRL(previewProposta.mensalidade_plus)}/mês</div>
                       </div>
                     )}
                   </div>
@@ -2073,7 +2073,7 @@ export default function PropostasComerciais() {
                         {propostaLink(previewProposta, modo, versao)}
                       </span>
                       <button onClick={() => handleCopyLink(previewProposta, modo, versao)}
-                        style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
+                        style={{ fontSize: 11, color: 'var(--t-link)', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
                         Copiar
                       </button>
                     </div>
@@ -2105,7 +2105,7 @@ export default function PropostasComerciais() {
                   <button
                     onClick={() => window.open(`/p/${previewProposta.public_token}`, '_blank')}
                     className="flex items-center gap-1.5"
-                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--t-primary-border)', background: 'var(--t-primary-light)', color: 'var(--t-primary)', cursor: 'pointer' }}>
+                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--t-primary-border)', background: 'var(--t-primary-light)', color: 'var(--t-link)', cursor: 'pointer' }}>
                     <Eye size={12} /> Ver Proposta
                   </button>
                 )}

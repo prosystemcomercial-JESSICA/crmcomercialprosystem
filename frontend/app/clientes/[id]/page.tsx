@@ -233,7 +233,7 @@ function CardPesquisaCliente({ p }: { p: any }) {
               )}
               {(p.email || p.whatsapp) && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {p.email && <a href={`mailto:${p.email}`} style={{ padding: '7px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: 'var(--t-primary)', fontWeight: 600, textDecoration: 'none' }}>✉️ {p.email}</a>}
+                  {p.email && <a href={`mailto:${p.email}`} style={{ padding: '7px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: 'var(--t-link)', fontWeight: 600, textDecoration: 'none' }}>✉️ {p.email}</a>}
                   {p.whatsapp && <a href={`https://wa.me/${p.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ padding: '7px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: 12, color: '#16a34a', fontWeight: 600, textDecoration: 'none' }}>📱 {p.whatsapp}</a>}
                 </div>
               )}
@@ -274,7 +274,7 @@ function CardPesquisaCliente({ p }: { p: any }) {
           </div>
           <div className="text-right">
             <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
-            <p className="text-xs mt-0.5 font-semibold" style={{ color: 'var(--t-primary)' }}>Ver completo →</p>
+            <p className="text-xs mt-0.5 font-semibold" style={{ color: 'var(--t-link)' }}>Ver completo →</p>
           </div>
         </div>
         {p.recado && <p className="text-xs mt-1.5 italic" style={{ color: 'var(--t-text-secondary)' }}>💬 "{p.recado}"</p>}
@@ -708,7 +708,7 @@ export default function ClienteDetailPage() {
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${activeTab === t.key ? 'border-b-2 -mb-px' : 'opacity-60 hover:opacity-90'}`}
               style={activeTab === t.key
-                ? { borderColor: 'var(--t-primary)', color: 'var(--t-primary)' }
+                ? { borderColor: 'var(--t-primary)', color: 'var(--t-link)' }
                 : { color: 'var(--t-text-secondary)' }}>
               {t.label}
             </button>
@@ -737,7 +737,7 @@ export default function ClienteDetailPage() {
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <button type="button" onClick={abrirTrocaCnpj}
                   className="px-3 py-2 rounded-lg text-sm font-semibold border"
-                  style={{ borderColor: 'var(--t-primary)', color: 'var(--t-primary)', background: 'transparent' }}>
+                  style={{ borderColor: 'var(--t-primary)', color: 'var(--t-link)', background: 'transparent' }}>
                   🔁 Trocar CNPJ
                 </button>
                 <span className="text-xs" style={{ color: 'var(--t-text-muted)' }}>

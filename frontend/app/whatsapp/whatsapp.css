@@ -10,13 +10,13 @@
 .wpp-shell .ps-content { overflow: hidden; }
 .wpp-shell .ps-page { padding: 0; }
 .wpp-workspace { container: wpp / inline-size; min-width: 0; color: var(--t-text-primary); }
-.wpp-workspace :is(button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--t-primary-dark); outline-offset: 2px; }
+.wpp-workspace :is(button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }
 .wpp-workspace .ios-wpp-topo { min-height: 36px; padding: 0 10px; gap: 4px 12px; }
 .wpp-titulo { font-size: 17px; line-height: 24px; font-weight: 650; }
 .wpp-workspace .ios-wpp-topo > div:first-child { flex-wrap: wrap; }
 .wpp-visoes { display: flex; flex-wrap: wrap; gap: 0 12px; }
 .wpp-filtro { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 2px; font-size: 13px; color: var(--t-text-secondary); border-bottom: 2px solid transparent; background: transparent; white-space: nowrap; }
-.wpp-filtro[aria-pressed=true] { color: var(--t-primary-dark); border-bottom-color: currentColor; font-weight: 600; }
+.wpp-filtro[aria-pressed=true] { color: var(--t-link); border-bottom-color: currentColor; font-weight: 600; }
 .wpp-filtro:hover { color: var(--t-text-primary); }
 .wpp-abas { scrollbar-width: thin; }
 .wpp-lista-cab { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 6px 10px; }
@@ -116,7 +116,48 @@
 .wpp-filtro-opcao { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 4px 8px; border-radius: 4px; font-size: 13px; text-align: left; }
 .wpp-filtro-opcao > span:first-child { flex: 1; }
 .wpp-filtro-opcao:hover, .wpp-filtro-opcao[aria-pressed=true] { background: var(--t-content-bg); }
-.wpp-filtro-opcao[aria-pressed=true] { color: var(--t-primary-dark); }
+.wpp-filtro-opcao[aria-pressed=true] { color: var(--t-link); }
 .wpp-filtro-contador { color: #92400e; background: #fef3c7; border-radius: 4px; padding: 0 5px; font-size: 11px; }
 .wpp-filtros-tipo { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0; padding: 10px 8px 4px; border-top: 1px solid var(--t-card-border); font-size: 12px; color: var(--t-text-secondary); }
-.wpp-limpar-tipo { min-height: 32px; padding: 4px 8px; font-size: 12px; color: var(--t-primary-dark); }
+.wpp-limpar-tipo { min-height: 32px; padding: 4px 8px; font-size: 12px; color: var(--t-link); }
+
+/* Fila: a rolagem horizontal pertence ao quadro; cada coluna rola seus contatos. */
+.wpp-quadro { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; }
+.wpp-quadro-ferramentas { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 6px 10px; border-bottom: 1px solid var(--t-card-border); }
+.wpp-quadro-agrupar { display: flex; flex-shrink: 0; gap: 2px; padding: 2px; border: 1px solid var(--t-card-border); border-radius: 6px; }
+.wpp-quadro-agrupar button { min-height: 28px; padding: 3px 10px; border-radius: 4px; font-size: 12px; color: var(--t-text-secondary); }
+.wpp-quadro-agrupar button[aria-pressed=true] { background: var(--t-card-bg); color: var(--t-text-primary); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb,var(--t-text-primary) 10%,transparent); }
+.wpp-quadro-busca { width: min(240px,100%); min-width: 150px; flex: 0 1 240px; font-size: 13px; }
+.wpp-quadro-ajuda, .wpp-quadro-limpar { font-size: 12px; color: var(--t-text-secondary); }
+.wpp-quadro-ajuda { margin-left: auto; }
+.wpp-quadro-limpar { text-decoration: underline; min-height: 32px; }
+.wpp-quadro-rolagem { display: flex; flex: 1; min-height: 0; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 0 8px 8px; overscroll-behavior-x: contain; scroll-snap-type: x proximity; }
+.wpp-coluna { display: flex; flex-direction: column; flex: 1 0 264px; max-width: 320px; min-width: 0; min-height: 0; scroll-snap-align: start; }
+.wpp-coluna-cab { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 6px; color: var(--t-text-secondary); }
+.wpp-coluna-cab h2 { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--t-text-primary); }
+.wpp-coluna-cab > span { font-size: 12px; font-variant-numeric: tabular-nums; }
+.wpp-coluna-lista { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; padding: 2px 3px 6px; scrollbar-width: thin; overscroll-behavior-y: contain; }
+.wpp-quadro-vazio { padding: 20px 6px; font-size: 13px; color: var(--t-text-secondary); text-align: center; }
+.wpp-chamado { display: flex; flex-direction: column; flex-shrink: 0; gap: 7px; width: 100%; padding: 10px; border: 1px solid var(--t-card-border); border-radius: 6px; background: var(--t-card-bg); color: var(--t-text-primary); text-align: left; cursor: pointer; }
+.wpp-chamado:hover { border-color: color-mix(in srgb,var(--t-text-secondary) 50%,var(--t-card-bg)); }
+.wpp-chamado[data-arrastavel=true] { cursor: grab; }
+.wpp-chamado[data-arrastavel=true]:active { cursor: grabbing; }
+.wpp-chamado-linha { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; }
+.wpp-chamado .wpp-avatar { width: 30px; height: 30px; font-size: 12px; }
+.wpp-chamado-texto { flex: 1; min-width: 0; }
+.wpp-chamado-nome, .wpp-chamado-previa { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wpp-chamado-nome { font-size: 13px; line-height: 20px; font-weight: 600; }
+.wpp-chamado-previa { font-size: 12px; line-height: 18px; color: var(--t-text-secondary); }
+.wpp-chamado-nao-lidas { flex-shrink: 0; min-width: 20px; padding: 1px 5px; border-radius: 5px; background: var(--t-primary-dark); color: var(--t-text-inverse); text-align: center; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wpp-chamado-status { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; line-height: 17px; color: var(--t-text-secondary); }
+.wpp-chamado-status > span { display: inline-flex; align-items: center; gap: 4px; }
+.wpp-chamado-atrasado, .wpp-chamado-critico { color: var(--t-error); font-weight: 600; }
+.wpp-chamado-contexto { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--t-text-secondary); }
+.wpp-chamado-contexto > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 767px) {
+  .wpp-quadro-ferramentas { gap: 4px 8px; }
+  .wpp-quadro-agrupar button, .wpp-quadro-limpar { min-height: 44px; }
+  .wpp-quadro-busca { flex: 1 1 150px; width: auto; }
+  .wpp-quadro-ajuda { display: none; }
+  .wpp-coluna { flex-basis: min(280px,calc(100vw - 40px)); }
+}

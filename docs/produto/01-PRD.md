@@ -1499,6 +1499,11 @@ A tela de WhatsApp deve priorizar a área de conversa em zoom padrão (100%). Fi
 - **Correção (`rodarCaroline`, passo 3):** quando o rodízio escolhe um número extra com folga (`escolherNumeroProspeccao`) e o teto do Heitor do dia não foi atingido, o próximo primeiro contato é um lead do Heitor (mais antigo primeiro). Sem lead do Heitor, segue a ordem de sempre. O número principal continua com campanha, propostas e base.
 - **Ritmo controlado:** teto do Heitor (`heitor.config.envios_dia`) passou de 15 para 30 por dia (decisão da Jessica, "subir de forma controlada"); o ritmo real fica limitado pelo aquecimento de cada número extra (10 → 20 → 30 → 40 por dia, uma etapa por semana). Limite único do número principal, intervalo sorteado, horário e travas continuam iguais.
 
+
+## Fila de chamados compacta — 14/10/2026
+
+A fila de chamados deve priorizar a leitura de contatos e mensagens em zoom 100%. Os agrupamentos por atendente e fase permanecem. Cartões omitem prioridade Normal, o indicador decorativo de funil e o responsável repetido na própria coluna. Prioridades baixa/crítica, mensagens não lidas, SLA e cliente vinculado continuam identificáveis. Busca por nome/telefone fica visível no quadro; um filtro de tipo herdado da lista pode ser removido ali.
+
 ### Atualização 14/10/2026 (noite): parte 2 do Plano de Expansão, do interesse à demonstração e à proposta
 
 - **Interessado sem demonstração:** `SdrLead.dados.interessado_em` registra quando o termômetro chegou a 35 pela primeira vez (`atualizarTermometro`). `interessadosSemDemo` (services/placar-comercial) lista quem tem termômetro 35+, segue conversando (AGUARDANDO/CONVERSANDO), sem reunião não cancelada ligada à conversa ou ao lead, há mais de 48 h (leads antigos sem a data contam como esquecidos).
@@ -1508,6 +1513,11 @@ A tela de WhatsApp deve priorizar a área de conversa em zoom padrão (100%). Fi
 - **Aviso diário:** dias úteis, 9h a 11h, uma vez por dia (`comercial.parte2.<dia>`), resumo no WhatsApp da gestão só se houver interessado esquecido ou rascunho parado.
 - **Tela:** `PlacarComercial` no topo do Escritório virtual (só gestão).
 - Testes: `tests/placar-comercial.test.ts`. Primeira leitura em produção (14/10, 15h30): 19 primeiros contatos, 13 respostas, 1 interessada sem demonstração.
+
+
+## Aparência por superfícies — 14/10/2026
+
+Pedido da Jessica: temas devem alterar a aparência das superfícies, não apenas colorir letras. Disponibilizados Champagne e Branco gelo em claro/escuro, preservando Azul Prosystem, Laranja e Verde. Todos alteram área de trabalho, cartões, menu, cabeçalho, campos, seleção e controles. Textos ficam neutros e legíveis; sucesso, aviso e erro preservam significado. A escolha é individual neste navegador, aplicada imediatamente e persistida em localStorage, sem depender de Salvar configurações.
 
 ### Atualização 14/10/2026 (noite): parte 3 do Plano de Expansão, Programa de Ativos com indicação premiada
 

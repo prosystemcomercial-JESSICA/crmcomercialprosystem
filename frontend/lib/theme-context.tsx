@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-export type ThemeColor = 'azul' | 'laranja' | 'verde';
+export const THEME_COLORS = ['azul', 'laranja', 'verde', 'champagne', 'gelo'] as const;
+export type ThemeColor = typeof THEME_COLORS[number];
 export type ThemeMode = 'claro' | 'escuro';
 
 interface ThemeContextValue {
@@ -27,8 +28,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const savedColor = (localStorage.getItem('ps-theme-color') as ThemeColor) || 'azul';
-    const savedMode = (localStorage.getItem('ps-theme-mode') as ThemeMode) || 'claro';
+    const storedColor = localStorage.getItem('ps-theme-color');
+    const savedColor = THEME_COLORS.includes(storedColor as ThemeColor) ? storedColor as ThemeColor : 'azul';
+    const savedMode: ThemeMode = localStorage.getItem('ps-theme-mode') === 'escuro' ? 'escuro' : 'claro';
     setColorState(savedColor);
     setModeState(savedMode);
     applyTheme(savedColor, savedMode);

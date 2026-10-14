@@ -2,55 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { useTheme, ThemeColor, ThemeMode } from '@/lib/theme-context';
+import Aparencia from '@/components/configuracoes/Aparencia';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import PerfilForm from '@/components/perfil/PerfilForm';
-import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Check, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle, MessageSquare } from 'lucide-react';
 import { apiClient, ResumoBackup } from '@/lib/api-client';
 import PainelTvConfig from '@/components/dashboard/PainelTvConfig';
 import AssistenteWhatsapp from '@/components/configuracoes/AssistenteWhatsapp';
 import NumerosWhatsapp from '@/components/configuracoes/NumerosWhatsapp';
-
-// ─── Theme Definitions ────────────────────────────────────
-
-const THEMES: Array<{
-  id: ThemeColor;
-  name: string;
-  description: string;
-  primary: string;
-  dark: string;
-  light: string;
-  preview: string[];
-}> = [
-  {
-    id: 'azul',
-    name: 'Azul ProSystem',
-    description: 'Identidade oficial da marca. Seriedade e confiança.',
-    primary: '#4B8EC8',
-    dark: '#2E6EAB',
-    light: '#EBF4FF',
-    preview: ['#0D2238', '#4B8EC8', '#EBF4FF', '#F4F7FB'],
-  },
-  {
-    id: 'laranja',
-    name: 'Laranja Energia',
-    description: 'Alto contraste e dinamismo. Ideal para times comerciais.',
-    primary: '#E8711A',
-    dark: '#C45E10',
-    light: '#FFF4ED',
-    preview: ['#1C0E05', '#E8711A', '#FFF4ED', '#FFF8F4'],
-  },
-  {
-    id: 'verde',
-    name: 'Verde Crescimento',
-    description: 'Transmite crescimento e retenção. Foco em resultados.',
-    primary: '#1A9E5A',
-    dark: '#127A44',
-    light: '#EAFAF3',
-    preview: ['#052015', '#1A9E5A', '#EAFAF3', '#F4FAF7'],
-  },
-];
 
 // ─── Config sections ──────────────────────────────────────
 
@@ -113,7 +73,7 @@ type WhatsappEmpresaStatus = {
 
 export default function ConfiguracoesPage() {
   const { isAuthenticated, loading, user } = useAuth();
-  const { color: themeColor, mode: themeMode, setColor, setMode } = useTheme();
+
   const router = useRouter();
   const [valores, setValores] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
@@ -387,137 +347,7 @@ export default function ConfiguracoesPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          {/* ══ APARÊNCIA ══════════════════════════════════════ */}
-          <div style={cardStyle}>
-            <div style={sectionHeader}>
-              <div style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: 'var(--t-primary-light)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Palette size={16} color="var(--t-primary)" />
-              </div>
-              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Aparência</h2>
-            </div>
-
-            <div style={{ padding: 20 }}>
-
-              {/* Modo claro / escuro */}
-              <div style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                  Modo
-                </p>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  {([
-                    { id: 'claro' as ThemeMode, icon: Sun, label: 'Claro', desc: 'Interface luminosa, ideal para ambientes iluminados' },
-                    { id: 'escuro' as ThemeMode, icon: Moon, label: 'Escuro', desc: 'Reduz a fadiga visual em ambientes com pouca luz' },
-                  ]).map(m => {
-                    const Icon = m.icon;
-                    const isSelected = themeMode === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => setMode(m.id)}
-                        style={{
-                          flex: 1, padding: '16px', borderRadius: 12, cursor: 'pointer',
-                          border: `2px solid ${isSelected ? 'var(--t-primary)' : 'var(--t-card-border)'}`,
-                          background: isSelected ? 'var(--t-primary-light)' : 'var(--t-card-bg)',
-                          textAlign: 'left' as const,
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <div style={{
-                            width: 36, height: 36, borderRadius: 8,
-                            background: isSelected ? 'var(--t-primary)' : 'var(--t-card-border)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}>
-                            <Icon size={18} color={isSelected ? '#fff' : 'var(--t-text-muted)'} />
-                          </div>
-                          {isSelected && (
-                            <div style={{
-                              width: 20, height: 20, borderRadius: '50%',
-                              background: 'var(--t-primary)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                              <Check size={11} color="#fff" />
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 3 }}>{m.label}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t-text-muted)', lineHeight: 1.4 }}>{m.desc}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Tema de cor */}
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                  Tema de Cor
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                  {THEMES.map(t => {
-                    const isSelected = themeColor === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => setColor(t.id)}
-                        style={{
-                          padding: '16px', borderRadius: 12, cursor: 'pointer',
-                          border: `2px solid ${isSelected ? t.primary : 'var(--t-card-border)'}`,
-                          background: isSelected ? t.light : 'var(--t-card-bg)',
-                          textAlign: 'left' as const,
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        {/* Color preview strip */}
-                        <div style={{ display: 'flex', gap: 4, marginBottom: 12, alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', gap: 3 }}>
-                            {t.preview.map((c, i) => (
-                              <div key={i} style={{
-                                width: 20, height: 20, borderRadius: 6,
-                                background: c,
-                                border: '1px solid rgba(0,0,0,0.1)'
-                              }} />
-                            ))}
-                          </div>
-                          {isSelected && (
-                            <div style={{
-                              width: 22, height: 22, borderRadius: '50%',
-                              background: t.primary,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              <Check size={12} color="#fff" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Sidebar miniatura */}
-                        <div style={{
-                          display: 'flex', gap: 4, marginBottom: 10,
-                          padding: 8, borderRadius: 8,
-                          background: t.preview[0], border: '1px solid rgba(255,255,255,0.08)'
-                        }}>
-                          <div style={{ width: 3, height: 32, borderRadius: 2, background: t.primary }} />
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {[14, 10, 10].map((w, i) => (
-                              <div key={i} style={{ height: 4, borderRadius: 2, background: i === 0 ? t.primary : 'rgba(255,255,255,0.15)', width: `${w * 5}%` }} />
-                            ))}
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 3 }}>{t.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t-text-muted)', lineHeight: 1.4 }}>{t.description}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+          <Aparencia />
 
           {/* ══ BACKUP ══════════════════════════════════════ */}
           <div style={cardStyle}>

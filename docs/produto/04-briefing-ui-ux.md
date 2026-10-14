@@ -1453,6 +1453,11 @@ Pedido da Jessica: controles empilhados empurravam conversas e exigiam zoom de 8
 - **Correção (`rodarCaroline`, passo 3):** quando o rodízio escolhe um número extra com folga (`escolherNumeroProspeccao`) e o teto do Heitor do dia não foi atingido, o próximo primeiro contato é um lead do Heitor (mais antigo primeiro). Sem lead do Heitor, segue a ordem de sempre. O número principal continua com campanha, propostas e base.
 - **Ritmo controlado:** teto do Heitor (`heitor.config.envios_dia`) passou de 15 para 30 por dia (decisão da Jessica, "subir de forma controlada"); o ritmo real fica limitado pelo aquecimento de cada número extra (10 → 20 → 30 → 40 por dia, uma etapa por semana). Limite único do número principal, intervalo sorteado, horário e travas continuam iguais.
 
+
+## Fila de chamados compacta — 14/10/2026
+
+Fila alinhada à direção neutra aprovada: cabeçalhos sem fundos multicoloridos, ícones discretos para agente/pessoa/sem responsável, avatar neutro de 30px. Cartões sem sombra, raio 6px, padding 10px, nome 13px e prévia 12px. Em desktop, cartão simples mede cerca de 60px; SLA/prioridade adicionam linha apenas quando necessários. Prazo vencido usa texto vermelho “Vencido há”, prioridade crítica usa texto explícito e não lidas mantém contador destacado. Responsável só aparece no cartão em Por fase. Colunas têm base 264px, máximo 320px; no celular base até 280px, com continuidade visível da próxima coluna. Busca e agrupamento compartilham barra compacta.
+
 ### Atualização 14/10/2026 (noite): parte 2 do Plano de Expansão, do interesse à demonstração e à proposta
 
 - **Interessado sem demonstração:** `SdrLead.dados.interessado_em` registra quando o termômetro chegou a 35 pela primeira vez (`atualizarTermometro`). `interessadosSemDemo` (services/placar-comercial) lista quem tem termômetro 35+, segue conversando (AGUARDANDO/CONVERSANDO), sem reunião não cancelada ligada à conversa ou ao lead, há mais de 48 h (leads antigos sem a data contam como esquecidos).
@@ -1462,6 +1467,11 @@ Pedido da Jessica: controles empilhados empurravam conversas e exigiam zoom de 8
 - **Aviso diário:** dias úteis, 9h a 11h, uma vez por dia (`comercial.parte2.<dia>`), resumo no WhatsApp da gestão só se houver interessado esquecido ou rascunho parado.
 - **Tela:** `PlacarComercial` no topo do Escritório virtual (só gestão).
 - Testes: `tests/placar-comercial.test.ts`. Primeira leitura em produção (14/10, 15h30): 19 primeiros contatos, 13 respostas, 1 interessada sem demonstração.
+
+
+## Aparência por superfícies — 14/10/2026
+
+Nova direção pedida pela Jessica substitui a obrigatoriedade antiga de gradiente azul em superfícies do CRM. Champagne usa areia/marfim/bronze no claro e tons quentes de carvão no escuro; Branco gelo usa branco suave/cinza frio/ardósia no claro e grafite frio no escuro. Identidade do logotipo preservada. Menu sem gradiente fixo, painéis separados do fundo por superfície/borda, texto primário/secundário/discreto neutro. Botões de modo são compactos e miniaturas mostram menu, cartões e lista usando a paleta real. Foco e link têm token próprio, prioridade/erro preservam destaque sem alterar semântica. Medição automatizada considera contraste mínimo 4,5:1 para texto nos fundos usados, links e rótulos de ações; não equivale a uma auditoria WCAG completa de todas as rotas.
 
 ### Atualização 14/10/2026 (noite): parte 3 do Plano de Expansão, Programa de Ativos com indicação premiada
 

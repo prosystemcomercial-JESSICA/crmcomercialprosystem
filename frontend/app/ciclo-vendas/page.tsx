@@ -79,7 +79,7 @@ export default function CicloVendasPage() {
             {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {[
-                { label: 'Ciclo médio (entrada→assinatura)', value: `${data.ciclo_medio_dias} dias`, color: 'var(--t-primary)', icon: TrendingUp },
+                { label: 'Ciclo médio (entrada→assinatura)', value: `${data.ciclo_medio_dias} dias`, color: 'var(--t-link)', icon: TrendingUp },
                 { label: 'Mais rápido', value: `${data.ciclo_min} dias`, color: '#16a34a', icon: CheckCircle2 },
                 { label: 'Mais lento', value: `${data.ciclo_max} dias`, color: '#dc2626', icon: Hourglass },
                 { label: 'Fechados (assinados)', value: data.fechados, color: '#00BFD1', icon: CheckCircle2 },

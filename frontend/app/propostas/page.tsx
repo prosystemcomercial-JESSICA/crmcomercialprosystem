@@ -18,7 +18,7 @@ export default function PropostasRedirect() {
   return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-content-bg)' }}>
       <div className="flex flex-col items-center gap-3">
-        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--t-primary)' }} />
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--t-link)' }} />
         <p className="text-sm" style={{ color: 'var(--t-text-secondary)' }}>Abrindo o Gerador de Proposta…</p>
       </div>
     </div>

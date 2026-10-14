@@ -230,7 +230,7 @@ export default function EscritorioPage() {
                 <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Os agentes, suas intervenções, compromissos, propostas e o uso das IAs. Relatório completo em Desempenho do setor.</p>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <a href="/desempenho" style={{ padding: '8px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: 'var(--t-primary)', border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>Abrir relatório</a>
+                <a href="/desempenho" style={{ padding: '8px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: 'var(--t-link)', border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>Abrir relatório</a>
                 <button onClick={() => setMetricas(false)} aria-label="Fechar" style={{ minWidth: 40, minHeight: 40, borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', cursor: 'pointer', fontSize: 16 }}>✕</button>
               </div>
             </div>

@@ -68,14 +68,14 @@ const OB_STATUS_COLOR: Record<string, string> = {
 
 const TICKET_PRIO_COLOR: Record<string, React.CSSProperties> = {
   BAIXA:   { background: 'rgba(148,163,184,0.12)', color: 'var(--t-text-muted)' },
-  MEDIA:   { background: 'rgba(75,142,200,0.12)',  color: 'var(--t-primary)' },
+  MEDIA:   { background: 'rgba(75,142,200,0.12)',  color: 'var(--t-link)' },
   ALTA:    { background: 'rgba(234,88,12,0.10)',   color: '#ea580c' },
   CRITICA: { background: 'rgba(220,38,38,0.10)',   color: '#dc2626' },
 };
 
 const TICKET_STATUS_COLOR: Record<string, React.CSSProperties> = {
   ABERTO:             { background: 'rgba(234,179,8,0.12)',   color: '#a16207' },
-  EM_ATENDIMENTO:     { background: 'rgba(75,142,200,0.12)', color: 'var(--t-primary)' },
+  EM_ATENDIMENTO:     { background: 'rgba(75,142,200,0.12)', color: 'var(--t-link)' },
   AGUARDANDO_CLIENTE: { background: 'rgba(147,51,234,0.10)', color: '#7e22ce' },
   RESOLVIDO:          { background: 'rgba(22,163,74,0.10)',  color: '#15803d' },
   FECHADO:            { background: 'rgba(148,163,184,0.12)', color: 'var(--t-text-muted)' },
@@ -83,7 +83,7 @@ const TICKET_STATUS_COLOR: Record<string, React.CSSProperties> = {
 
 const TICKET_STATS_STYLE: Record<string, { card: React.CSSProperties; value: React.CSSProperties }> = {
   ABERTO:             { card: { background: 'rgba(234,179,8,0.08)' },   value: { color: '#a16207' } },
-  EM_ATENDIMENTO:     { card: { background: 'rgba(75,142,200,0.08)' },  value: { color: 'var(--t-primary)' } },
+  EM_ATENDIMENTO:     { card: { background: 'rgba(75,142,200,0.08)' },  value: { color: 'var(--t-link)' } },
   AGUARDANDO_CLIENTE: { card: { background: 'rgba(147,51,234,0.08)' },  value: { color: '#7e22ce' } },
   RESOLVIDO:          { card: { background: 'rgba(22,163,74,0.08)' },   value: { color: '#15803d' } },
   FECHADO:            { card: { background: 'rgba(148,163,184,0.08)' }, value: { color: 'var(--t-text-muted)' } },
@@ -779,7 +779,7 @@ export default function PortalTecnicoPage() {
 
   const STATUS_DEMANDA: Record<string, { label: string; color: string; bg: string }> = {
     ABERTA:                     { label: 'Aberta',               color: '#a16207', bg: 'rgba(234,179,8,0.1)' },
-    EM_ATENDIMENTO:             { label: 'Em Atendimento',       color: 'var(--t-primary)', bg: 'rgba(75,142,200,0.1)' },
+    EM_ATENDIMENTO:             { label: 'Em Atendimento',       color: 'var(--t-link)', bg: 'rgba(75,142,200,0.1)' },
     AGUARDANDO_CLIENTE:         { label: 'Aguard. Cliente',      color: '#7e22ce', bg: 'rgba(126,34,206,0.1)' },
     AGUARDANDO_SUPORTE_INTERNO: { label: 'Aguard. Suporte Int.', color: '#0f766e', bg: 'rgba(15,118,110,0.1)' },
     AGUARDANDO_FINANCEIRO:      { label: 'Aguard. Financeiro',   color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
@@ -792,7 +792,7 @@ export default function PortalTecnicoPage() {
   const PRIO_DEMANDA: Record<string, { color: string; bg: string }> = {
     URGENTE: { color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
     ALTA:    { color: '#ea580c', bg: 'rgba(234,88,12,0.1)' },
-    MEDIA:   { color: 'var(--t-primary)', bg: 'rgba(75,142,200,0.1)' },
+    MEDIA:   { color: 'var(--t-link)', bg: 'rgba(75,142,200,0.1)' },
     BAIXA:   { color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
   };
 
@@ -818,7 +818,7 @@ export default function PortalTecnicoPage() {
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--t-content-bg)' }}>
-        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--t-primary)' }} />
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--t-link)' }} />
       </div>
     );
   }
@@ -1321,7 +1321,7 @@ export default function PortalTecnicoPage() {
                           <td style={{ padding: '10px 12px', color: 'var(--t-text-muted)' }}>{fmtData(i.data_primeiro_vencimento)}</td>
                           <td style={{ padding: '10px 12px', fontWeight: 700, color: i.mes_pagamento_comissao ? '#2E6EAB' : 'var(--t-text-muted)' }}>{fmtMes(i.mes_pagamento_comissao)}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            <button onClick={() => abrirImpl(i)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-primary-dark)', background: 'transparent', border: '1px solid #c7d8ec', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', marginRight: 6 }}>Datas</button>
+                            <button onClick={() => abrirImpl(i)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)', background: 'transparent', border: '1px solid #c7d8ec', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', marginRight: 6 }}>Datas</button>
                             <button onClick={() => abrirExec(i)} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#2E6EAB', border: 'none', borderRadius: 8, padding: '5px 12px', cursor: 'pointer' }}>Executar</button>
                             <div style={{ marginTop: 6 }}><BotoesDemanda implantacao={i as any} /></div>
                           </td>
@@ -1349,7 +1349,7 @@ export default function PortalTecnicoPage() {
                       <input type="date" value={implForm.data_primeiro_vencimento} onChange={e => setImplForm((p: any) => ({ ...p, data_primeiro_vencimento: e.target.value }))} className="ps-input w-full" />
                     </Campo>
                     {previewMesPag && (
-                      <div style={{ background: 'var(--t-primary-light)', border: '1px solid #c7d8ec', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--t-primary-dark)' }}>
+                      <div style={{ background: 'var(--t-primary-light)', border: '1px solid #c7d8ec', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--t-link)' }}>
                         Comissão será paga em <strong>{fmtMes(previewMesPag)}</strong>
                       </div>
                     )}
@@ -1407,7 +1407,7 @@ export default function PortalTecnicoPage() {
                         <option value="">Designar técnico…</option>
                         {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome} ({t.cargo})</option>)}
                       </select>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-primary-dark)', background: 'var(--t-primary-light)', padding: '3px 8px', borderRadius: 999 }}>{exec.etapa_execucao}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-link)', background: 'var(--t-primary-light)', padding: '3px 8px', borderRadius: 999 }}>{exec.etapa_execucao}</span>
                     </div>
 
                     <div className="flex items-center gap-1.5 flex-wrap mt-2">
@@ -1490,7 +1490,7 @@ export default function PortalTecnicoPage() {
                         <div className="space-y-2">
                           {(exec.arquivos || []).map((a: any) => (
                             <div key={a.id} className="flex items-center justify-between" style={{ padding: 8, borderRadius: 8, border: '1px solid var(--t-card-border)' }}>
-                              <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--t-primary-dark)', fontWeight: 600 }}>📎 {a.nome} ↗</a>
+                              <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--t-link)', fontWeight: 600 }}>📎 {a.nome} ↗</a>
                               <button onClick={() => delArquivo(a.id)} style={{ fontSize: 11, color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer' }}>remover</button>
                             </div>
                           ))}
@@ -1639,7 +1639,7 @@ export default function PortalTecnicoPage() {
                 {VARIAVEIS.map(v => (
                   <button key={v} onClick={() => copiar(v, v)}
                     style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
-                      border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-primary-dark)' }}>
+                      border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-link)' }}>
                     {v}
                   </button>
                 ))}
@@ -1863,7 +1863,7 @@ export default function PortalTecnicoPage() {
                                 </select>
                               </td>
                               <td style={{ padding: '12px 14px' }}>
-                                <span style={{ fontSize: 11, color: 'var(--t-primary)', fontWeight: 600 }}>Ver →</span>
+                                <span style={{ fontSize: 11, color: 'var(--t-link)', fontWeight: 600 }}>Ver →</span>
                               </td>
                             </tr>
                           );
@@ -1906,7 +1906,7 @@ export default function PortalTecnicoPage() {
                       <BarChart2 size={16} color="var(--t-primary)" />
                       <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Total abertos</span>
                     </div>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--t-primary)', margin: 0 }}>{statsCount('ABERTO') + statsCount('EM_ATENDIMENTO')}</p>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--t-link)', margin: 0 }}>{statsCount('ABERTO') + statsCount('EM_ATENDIMENTO')}</p>
                   </div>
                 </div>
 
@@ -1980,7 +1980,7 @@ export default function PortalTecnicoPage() {
                     {VARIAVEIS.map(v => (
                       <button key={v} onClick={() => suporteCopiar(v, v)}
                         style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
-                          border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-primary-dark)' }}>
+                          border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-link)' }}>
                         {v}
                       </button>
                     ))}

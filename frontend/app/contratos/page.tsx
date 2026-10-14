@@ -419,7 +419,7 @@ export default function ContratosPage() {
         {/* ── KPI strip ── */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: 'Total contratos', value: kpis.total, color: 'var(--t-primary)', icon: FileCheck2 },
+            { label: 'Total contratos', value: kpis.total, color: 'var(--t-link)', icon: FileCheck2 },
             { label: `Assinados ${monthLabel(mesRef)}`, value: kpis.assinados_mes, color: '#16a34a', icon: CheckCircle },
             { label: `MRR ${monthLabel(mesRef)}`, value: fmtBRL(kpis.mrr_mes), color: '#16a34a', icon: DollarSign },
             { label: `Setup ${monthLabel(mesRef)}`, value: fmtBRL(kpis.setup_mes), color: '#0891b2', icon: TrendingUp },
@@ -487,7 +487,7 @@ export default function ContratosPage() {
             {/* Refresh */}
             <button onClick={load} className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
               style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
-              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
+              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-link)' }} />
             </button>
           </div>
 
@@ -579,7 +579,7 @@ export default function ContratosPage() {
         {view === 'lista' && (
           <div className="ps-card rounded-xl overflow-hidden">
             <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--t-link)' }}>
                 {filteredNoMes.length} contrato{filteredNoMes.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -621,7 +621,7 @@ export default function ContratosPage() {
                         </div>
                         <div className="text-right flex-shrink-0">
                           {c.mensalidade != null && (
-                            <p className="text-sm font-bold" style={{ color: 'var(--t-primary)' }}>{fmtBRL(c.mensalidade)}/mês</p>
+                            <p className="text-sm font-bold" style={{ color: 'var(--t-link)' }}>{fmtBRL(c.mensalidade)}/mês</p>
                           )}
                           <p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>{fmtDate(c.data_contrato)}</p>
                         </div>
@@ -848,7 +848,7 @@ export default function ContratosPage() {
                   </a>
                   <button onClick={handleCopiarResumo}
                     className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold"
-                    style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)', background: 'var(--t-primary-light)' }}>
+                    style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)', background: 'var(--t-primary-light)' }}>
                     Resumo p/ e-mail
                   </button>
                   {selected.status !== 'ENVIADO_ASSINATURA' && selected.status !== 'ASSINADO' && selected.status !== 'CANCELADO' && (
@@ -1091,14 +1091,14 @@ function ContratoCard({ contrato: c, cfg, dragging, onDragStart, onDragEnd, onCl
           </span>
         )}
         {c.cidade && (
-          <span className="text-[9px] px-1.5 py-px rounded" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary-dark)' }}>
+          <span className="text-[9px] px-1.5 py-px rounded" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>
             {c.cidade}/{c.estado}
           </span>
         )}
       </div>
 
       {c.mensalidade != null && (
-        <p className="text-[12px] font-bold mb-0.5" style={{ color: 'var(--t-primary)' }}>
+        <p className="text-[12px] font-bold mb-0.5" style={{ color: 'var(--t-link)' }}>
           {c.mensalidade.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
         </p>
       )}

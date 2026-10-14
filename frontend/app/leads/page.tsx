@@ -422,7 +422,7 @@ function LeadCard({ lead, onClick, onDragStart, onExcluir, podeExcluir }: {
               </span>
             ))}
             {outrasTags.length > 2 && (
-              <span className="text-[8px] font-semibold px-1.5 py-px rounded-full" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)' }}>
+              <span className="text-[8px] font-semibold px-1.5 py-px rounded-full" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>
                 +{outrasTags.length - 2}
               </span>
             )}
@@ -1349,7 +1349,7 @@ export default function LeadsPage() {
   const colConfig = (chave: string) => colunas.find(c => c.chave === chave) || { nome: chave, cor: '#6b7280' };
 
   if (loading || !isAuthenticated) {
-    return <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-sidebar-grad-from)' }}><Loader2 size={28} className="animate-spin" style={{ color: 'var(--t-primary)' }} /></div>;
+    return <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-sidebar-grad-from)' }}><Loader2 size={28} className="animate-spin" style={{ color: 'var(--t-link)' }} /></div>;
   }
 
   const totalLeads = Object.values(kanban).reduce((s, a) => s + a.length, 0);
@@ -1364,7 +1364,7 @@ export default function LeadsPage() {
             <h1 className="ios-large-title text-xl font-bold tracking-tight" style={{ color: 'var(--t-text-primary)' }}>Central de Leads</h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>
               {isVendedor ? 'Seus leads, metas e bônus' : 'Performance da equipe comercial'}
-              {' · '}<span style={{ color: 'var(--t-primary)' }}>{totalLeads} leads</span> no funil
+              {' · '}<span style={{ color: 'var(--t-link)' }}>{totalLeads} leads</span> no funil
             </p>
           </div>
           <div className="ios-leads-filtros flex items-center gap-2 flex-wrap">
@@ -1424,7 +1424,7 @@ export default function LeadsPage() {
             <button onClick={loadData} title="Atualizar" className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0" style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--t-card-bg)')}>
-              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-primary)' }} />
+              <RefreshCw size={12} className={dataLoading ? 'animate-spin' : ''} style={{ color: 'var(--t-link)' }} />
             </button>
 
             {/* Ações secundárias — agrupadas num único menu para não competir com "Novo Lead" */}
@@ -1509,7 +1509,7 @@ export default function LeadsPage() {
             {isGestor && (
               <button onClick={() => setShowNewQuadro(true)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ border: '1.5px dashed #D8E8F5', color: 'var(--t-primary)' }}>
+                style={{ border: '1.5px dashed #D8E8F5', color: 'var(--t-link)' }}>
                 <Plus size={12} /> Novo quadro
               </button>
             )}
@@ -1626,13 +1626,13 @@ export default function LeadsPage() {
                 <button onClick={() => irParaColuna(colunaAtiva - 1, colunas.length)} disabled={colunaAtiva === 0}
                   title="Coluna anterior (←)"
                   className="w-[26px] h-[26px] flex items-center justify-center rounded-md transition-colors disabled:opacity-35"
-                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary-dark)' }}>
+                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-link)' }}>
                   <ChevronLeft size={13} />
                 </button>
                 <button onClick={() => irParaColuna(colunaAtiva + 1, colunas.length)} disabled={colunaAtiva >= colunas.length - 1}
                   title="Próxima coluna (→)"
                   className="w-[26px] h-[26px] flex items-center justify-center rounded-md transition-colors disabled:opacity-35"
-                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-primary-dark)' }}>
+                  style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-link)' }}>
                   <ChevronRight size={13} />
                 </button>
               </div>
@@ -1722,7 +1722,7 @@ export default function LeadsPage() {
                       <button type="button"
                         onClick={() => setLimiteEtapa(s => ({ ...s, [col.chave]: (s[col.chave] || CARTOES_POR_ETAPA) + CARTOES_POR_ETAPA * 2 }))}
                         className="w-full py-2.5 rounded-lg text-[12px] font-semibold"
-                        style={{ minHeight: 40, background: 'var(--t-primary-light)', color: 'var(--t-primary)', border: '1px dashed var(--t-card-border)' }}>
+                        style={{ minHeight: 40, background: 'var(--t-primary-light)', color: 'var(--t-link)', border: '1px dashed var(--t-card-border)' }}>
                         Mostrar mais ({colLeads.length - (limiteEtapa[col.chave] || CARTOES_POR_ETAPA)} restantes)
                       </button>
                     )}
@@ -1756,7 +1756,7 @@ export default function LeadsPage() {
                     {selectedLead.razao_social || selectedLead.nome_fantasia || selectedLead.nome}
                   </h2>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                    {selectedLead.segmento && <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary-dark)' }}>{selectedLead.segmento}</span>}
+                    {selectedLead.segmento && <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>{selectedLead.segmento}</span>}
                     {(() => {
                       const col = colConfig(selectedLead.etapa_comercial);
                       return <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: `${col.cor}18`, color: col.cor }}>{col.nome}</span>;
@@ -1852,7 +1852,7 @@ export default function LeadsPage() {
                 {detailTab === 'dados' && (
                   <div className="space-y-5">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-primary)' }}>Empresa</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Empresa</p>
                       <div className="grid grid-cols-2 gap-3">
                         <Inp label="Razão Social" value={editForm.razao_social} onChange={(e: any) => setF('razao_social', e.target.value)} />
                         <Inp label="Nome Fantasia" value={editForm.nome_fantasia} onChange={(e: any) => setF('nome_fantasia', e.target.value)} />
@@ -1867,7 +1867,7 @@ export default function LeadsPage() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-primary)' }}>Responsável</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Responsável</p>
                       <div className="grid grid-cols-2 gap-3">
                         <Inp label="Nome" value={editForm.responsavel_nome} onChange={(e: any) => setF('responsavel_nome', e.target.value)} />
                         <Inp label="Cargo" value={editForm.responsavel_cargo} onChange={(e: any) => setF('responsavel_cargo', e.target.value)} />
@@ -1878,7 +1878,7 @@ export default function LeadsPage() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-primary)' }}>Classificação</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Classificação</p>
                       <div className="grid grid-cols-2 gap-3">
                         <Sel label="Temperatura" value={editForm.temperatura} onChange={(e: any) => setF('temperatura', e.target.value)}
                           options={Object.entries(TEMP_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} />
@@ -1889,7 +1889,7 @@ export default function LeadsPage() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-primary)' }}>Etiquetas</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Etiquetas</p>
                       <div className="flex flex-wrap gap-2">
                         {etiquetas.map(etq => {
                           const aplicada = (selectedLead.etiquetas_lead || []).some(e => e.etiqueta.id === etq.id);
@@ -1925,7 +1925,7 @@ export default function LeadsPage() {
                 {detailTab === 'atendimento' && (
                   <div className="space-y-5">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-primary)' }}>Acompanhamento</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Acompanhamento</p>
                       <div className="grid grid-cols-2 gap-3">
                         <Sel label="Status de atendimento" value={editForm.status_atendimento} onChange={(e: any) => setF('status_atendimento', e.target.value)}
                           options={['NOVO','SEM_CONTATO','CONTATO_TENTADO','EM_CONVERSA','QUALIFICADO','AGUARDANDO_RETORNO','PROPOSTA_NECESSARIA','PROPOSTA_ENVIADA','EM_NEGOCIACAO','ACEITO','FECHADO','PERDIDO'].map(v => ({ value: v, label: v.replace(/_/g, ' ') }))} />
@@ -2181,7 +2181,7 @@ export default function LeadsPage() {
                             <input type="number" value={propostaForm.desconto || ''} onChange={e => setPF('desconto', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} placeholder="0,00" />
                           </FormField>
                           <FormField label="Valor Final (calculado)">
-                            <div className="px-3 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--t-primary-light)', color: 'var(--t-primary)', border: '1.5px solid var(--t-card-border)' }}>{fmtBRL(pFinal)}</div>
+                            <div className="px-3 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)', border: '1.5px solid var(--t-card-border)' }}>{fmtBRL(pFinal)}</div>
                           </FormField>
                           <FormField label="Entrada (R$)">
                             <input type="number" value={propostaForm.entrada || ''} onChange={e => setPF('entrada', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} placeholder="0,00" />
@@ -2309,14 +2309,14 @@ export default function LeadsPage() {
                       {trilha.ciclo && (
                         <div className="rounded-xl border p-4" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)' }}>
                           <div className="flex items-center justify-between mb-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--t-primary)' }}>Ciclo do lead</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--t-link)' }}>Ciclo do lead</p>
                             <span className="text-xs font-bold" style={{ color: trilha.ciclo.em_aberto ? '#ea580c' : '#16a34a' }}>
                               {trilha.ciclo.assinado_em ? `Assinado em ${fmtDateTime(trilha.ciclo.assinado_em)}` : 'Em aberto'}
                             </span>
                           </div>
                           <div className="grid grid-cols-3 gap-3 text-center mb-3">
                             <div><p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Entrada</p><p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{trilha.ciclo.criado_em ? fmtDateTime(trilha.ciclo.criado_em) : '—'}</p></div>
-                            <div><p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Ciclo total</p><p className="text-lg font-extrabold" style={{ color: 'var(--t-primary)' }}>{trilha.ciclo.ciclo_dias ?? '—'} <span className="text-xs font-medium">dias</span></p></div>
+                            <div><p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Ciclo total</p><p className="text-lg font-extrabold" style={{ color: 'var(--t-link)' }}>{trilha.ciclo.ciclo_dias ?? '—'} <span className="text-xs font-medium">dias</span></p></div>
                             <div><p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Etapas</p><p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{trilha.ciclo.etapas?.length || 0}</p></div>
                           </div>
                           <div className="space-y-1.5">
@@ -2332,7 +2332,7 @@ export default function LeadsPage() {
 
                       {/* Linha do tempo completa (auditoria) */}
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-primary)' }}>Linha do tempo (auditoria completa)</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Linha do tempo (auditoria completa)</p>
                         <div className="space-y-3">
                           {buildTrilhaItens(trilha).map((it, i) => (
                             <div key={i} className="flex gap-3">
@@ -2364,7 +2364,7 @@ export default function LeadsPage() {
             {/* RIGHT: Observações */}
             <div className="flex flex-col ps-card flex-shrink-0 overflow-hidden" style={{ width: 310, borderLeft: '1px solid var(--t-card-border)' }}>
               <div className="px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--t-primary)' }}>Histórico de Contatos</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--t-link)' }}>Histórico de Contatos</p>
                 <p className="text-[9px] mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>Toda a trilha do atendimento</p>
               </div>
 
@@ -2393,7 +2393,7 @@ export default function LeadsPage() {
 
                 {showAgendaForm && (
                   <div className="space-y-2 rounded-lg p-2.5" style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC' }}>
-                    <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--t-primary)' }}>Próxima ação → Agenda</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--t-link)' }}>Próxima ação → Agenda</p>
                     <input value={agendaForm.titulo} onChange={e => setAgendaForm(p => ({ ...p, titulo: e.target.value }))}
                       placeholder="Título do compromisso..."
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
@@ -2413,7 +2413,7 @@ export default function LeadsPage() {
                       <input type="time" value={agendaForm.hora} onChange={e => setAgendaForm(p => ({ ...p, hora: e.target.value }))}
                         className="w-20 text-xs px-2 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
                     </div>
-                    <p className="text-[9px]" style={{ color: 'var(--t-primary)' }}>Será criado automaticamente na Agenda com vínculo a este lead.</p>
+                    <p className="text-[9px]" style={{ color: 'var(--t-link)' }}>Será criado automaticamente na Agenda com vínculo a este lead.</p>
                   </div>
                 )}
 
@@ -2428,7 +2428,7 @@ export default function LeadsPage() {
               {/* Timeline */}
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {obsLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin" style={{ color: 'var(--t-primary)' }} /></div>
+                  <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin" style={{ color: 'var(--t-link)' }} /></div>
                 ) : observacoes.length === 0 ? (
                   <p className="text-center text-[11px] py-6" style={{ color: 'var(--t-text-secondary)' }}>Nenhum contato registrado.</p>
                 ) : observacoes.map(obs => (
@@ -2510,7 +2510,7 @@ export default function LeadsPage() {
             <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid var(--t-card-border)' }}>
               <div className="flex gap-1">{[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full" style={{ background: newLeadSection === i ? '#4B8EC8' : '#D8E8F5' }} />)}</div>
               <div className="flex gap-2">
-                {newLeadSection > 0 && <button onClick={() => setNewLeadSection(p => p-1)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>Anterior</button>}
+                {newLeadSection > 0 && <button onClick={() => setNewLeadSection(p => p-1)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)' }}>Anterior</button>}
                 {newLeadSection < 2
                   ? <button onClick={() => setNewLeadSection(p => p+1)} className="px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#4B8EC8' }}>Próximo</button>
                   : <button onClick={createNewLead} disabled={savingNewLead || !newLeadForm.razao_social || !newLeadForm.origem}
@@ -2734,7 +2734,7 @@ export default function LeadsPage() {
                     background: et.fixo ? 'var(--t-primary-light)' : 'var(--t-card-bg)',
                     opacity: dragEtapaId === et.id ? 0.4 : 1,
                   }}>
-                  {et.fixo && <span className="col-span-12 text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--t-primary)' }}>🔒 Coluna fixa do sistema</span>}
+                  {et.fixo && <span className="col-span-12 text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--t-link)' }}>🔒 Coluna fixa do sistema</span>}
                   <span className="col-span-1 flex items-center justify-center cursor-grab active:cursor-grabbing text-lg select-none" title="Arraste para reordenar" style={{ color: 'var(--t-text-secondary)' }}>⠿</span>
                   <input value={et.nome}
                     onChange={e => setEtapasFunil(prev => prev.map(p => p.id === et.id ? { ...p, nome: e.target.value } : p))}
@@ -2971,7 +2971,7 @@ export default function LeadsPage() {
               <b>{popupPadaria.nome}</b> foi classificado como Padaria. Deseja incluir este lead na sequência de e-mail marketing (12 e-mails, D+0 a D+45)?
             </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setPopupPadaria(null)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-primary)' }}>
+              <button onClick={() => setPopupPadaria(null)} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)' }}>
                 Agora não
               </button>
               <button

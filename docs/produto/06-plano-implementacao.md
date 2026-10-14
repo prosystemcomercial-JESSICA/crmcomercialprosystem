@@ -1461,6 +1461,19 @@ Publicação verificada em 14/10/2026: a compactação do commit `5f4d43826b626c
 - **Correção (`rodarCaroline`, passo 3):** quando o rodízio escolhe um número extra com folga (`escolherNumeroProspeccao`) e o teto do Heitor do dia não foi atingido, o próximo primeiro contato é um lead do Heitor (mais antigo primeiro). Sem lead do Heitor, segue a ordem de sempre. O número principal continua com campanha, propostas e base.
 - **Ritmo controlado:** teto do Heitor (`heitor.config.envios_dia`) passou de 15 para 30 por dia (decisão da Jessica, "subir de forma controlada"); o ritmo real fica limitado pelo aquecimento de cada número extra (10 → 20 → 30 → 40 por dia, uma etapa por semana). Limite único do número principal, intervalo sorteado, horário e travas continuam iguais.
 
+
+## Fila de chamados compacta — 14/10/2026
+
+Escopo: compactar a fila sem alterar atendimento ou backend. Testes Playwright com APIs totalmente simuladas cobrem quatro larguras (390/1024/1366/1920), contagem/agrupamento, ausência de badges repetidas, prioridade/SLA, busca/estado vazio, rolagem horizontal, coluna cheia, abertura por teclado e PATCH de fase. Regressão de inbox e isolamento: 18 testes aprovados. Checagem TypeScript focada na página e dependências sem diagnósticos. Publicação terá build de produção em staging e backup de banco/.next; evidência final de publicação registrada após a verificação.
+
+### Validação e situação da entrega
+
+- 5 testes da fila aprovados, incluindo coluna cheia; 18 regressões de layout/isolamento aprovadas. Total: 23.
+- TypeScript focado na página e dependências: zero diagnósticos. Build local de produção aprovado (72 rotas); a configuração existente do build ignora tipos, por isso a verificação foi executada separadamente.
+- Backup concluído: /root/backups-deploy/whatsapp-fila-20261014T180613Z (banco e .next, com checksums).
+- Publicação pendente: a revisão automática rejeitou commit/push no main por solicitar autorização explícita para a alteração compartilhada. Nenhum commit desta entrega foi criado e nenhum build desta entrega foi publicado. O servidor estava no commit 5c334788036cfbb7f26f7a4e84cb98dea7d9a46a. Após autorização, conferir novamente a versão do servidor e renovar backup se necessário antes de publicar apenas o frontend.
+- Capturas locais em frontend/test-results/whatsapp-fila-{390,1024,1366,1920}.png, com dados fictícios. Responsividade verificada em Chromium nessas larguras; operação em produção e outros navegadores ainda não verificados.
+
 ### Atualização 14/10/2026 (noite): parte 2 do Plano de Expansão, do interesse à demonstração e à proposta
 
 - **Interessado sem demonstração:** `SdrLead.dados.interessado_em` registra quando o termômetro chegou a 35 pela primeira vez (`atualizarTermometro`). `interessadosSemDemo` (services/placar-comercial) lista quem tem termômetro 35+, segue conversando (AGUARDANDO/CONVERSANDO), sem reunião não cancelada ligada à conversa ou ao lead, há mais de 48 h (leads antigos sem a data contam como esquecidos).
@@ -1470,6 +1483,11 @@ Publicação verificada em 14/10/2026: a compactação do commit `5f4d43826b626c
 - **Aviso diário:** dias úteis, 9h a 11h, uma vez por dia (`comercial.parte2.<dia>`), resumo no WhatsApp da gestão só se houver interessado esquecido ou rascunho parado.
 - **Tela:** `PlacarComercial` no topo do Escritório virtual (só gestão).
 - Testes: `tests/placar-comercial.test.ts`. Primeira leitura em produção (14/10, 15h30): 19 primeiros contatos, 13 respostas, 1 interessada sem demonstração.
+
+
+## Aparência por superfícies — 14/10/2026
+
+Escopo implementado: tokens globais, tema móvel, seletor de aparência extraído, contexto com validação de preferências, navegação compartilhada e controles com azul fixo no WhatsApp. Também mapeadas superfícies/textos neutros Tailwind dentro do CRM e textos de ação em PageHeader/StatCard/StatusBadge. Sete testes de aparência aprovados após diagnóstico dos mocks e reinício do servidor local com cache regenerável limpo (ENOSPC); verificam dez combinações de contraste, persistência, teclado, seletor móvel, WhatsApp desktop/móvel. Validação final: 11 testes de aparência aprovados (incluindo quatro combinações de tabela/modal), mais 23 regressões de layout, isolamento e fila; total de 34 testes. Build local de produção aprovado com 72 rotas. Configuração temporária de cache usada na validação foi removida. Links de ação em consumidores compartilhados usam o token de texto adaptável ao modo; fundos de botões continuam usando o token de ação. Publicação continua pendente da autorização exigida pela revisão automática de commit/push na tarefa anterior; não reapresentar a mesma operação sem autorização nova.
 
 ### Atualização 14/10/2026 (noite): parte 3 do Plano de Expansão, Programa de Ativos com indicação premiada
 
