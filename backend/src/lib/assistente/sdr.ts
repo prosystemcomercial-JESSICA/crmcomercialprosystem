@@ -266,6 +266,36 @@ export const INSTAGRAM_PROSYSTEM = 'https://instagram.com/prosystemoficial';
 export const CONVITE_INSTAGRAM = `Para ficar por dentro das novidades da Prosystem, acompanhe a gente no Instagram: ${INSTAGRAM_PROSYSTEM} 😊`;
 export const BLOG_PROSYSTEM = 'https://prosystemnet.com/blog';
 
+// ── Contexto da conversa antes de qualquer mensagem de agente (pedido da Jessica, 14/10/2026) ──
+// Caso real: o Julio seguiu chamando um cliente da casa (banco de dados, Farmácia Popular) mesmo depois de a
+// Jessica escrever pelo celular "vou confirmar para os consultores não te chamarem mais". Textos sem acento.
+/** Alguém da equipe (pessoa, não agente) avisou que o contato não deve mais ser chamado. */
+export const EQUIPE_PEDIU_PARA_NAO_CHAMAR = /(nao (te |lhe |o |a |os |as )?(chamar|chamem|chamarem|chame|incomodar|incomodem|perturbar)\b|consultor(es|a|as)? nao\b|parar? de (te |lhe )?chamar|nao (vai|vao) mais (te |lhe )?(chamar|mandar|receber))/;
+/** O cliente pediu para não ser mais chamado. */
+export const CLIENTE_PEDIU_PARA_PARAR = /(nao (me )?(chame|chama|chamem|mande|manda|mandem|ligue|liga) mais|para(r)? de (me )?(chamar|mandar|ligar)|nao quero mais (receber|mensage|contato|que (me )?chame)|me (tira|tire|remova|remove) (da|dessa|desta) lista|descadastr|^\s*(sair|parar|pare|remover)\s*[.!]?\s*$)/;
+/** Assunto de quem já é cliente (pós-venda, suporte): é com a equipe, não com agente comercial. */
+export const ASSUNTO_DE_CLIENTE = /(\btecnicos?\b|banco de dados|troca de endereco|ja (esta|ta) emitindo|emitindo (o |os )?cupo|virada do sistema|meu sistema prosystem|sistema de voces (travou|parou|nao))/;
+
+const semAcento = (t: string) => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/**
+ * Lê a conversa (mais recente primeiro ou não, tanto faz) e diz por que nenhum agente deve escrever, ou null.
+ * `ehAgente` diz se uma mensagem de saída foi de agente/robô (as demais são de pessoas da equipe).
+ */
+export function motivoParaNaoChamar(
+  msgs: { direcao: string; enviada_por: string | null; texto: string }[],
+  ehAgente: (enviadaPor: string | null) => boolean,
+): { motivo: 'equipe_pediu' | 'cliente_pediu' | 'ja_cliente'; trecho: string } | null {
+  for (const m of msgs) {
+    const t = semAcento(m.texto);
+    if (!t.trim()) continue;
+    if (m.direcao === 'SAIDA' && !ehAgente(m.enviada_por) && EQUIPE_PEDIU_PARA_NAO_CHAMAR.test(t)) return { motivo: 'equipe_pediu', trecho: m.texto.slice(0, 200) };
+    if (m.direcao === 'ENTRADA' && CLIENTE_PEDIU_PARA_PARAR.test(t)) return { motivo: 'cliente_pediu', trecho: m.texto.slice(0, 200) };
+  }
+  const cliente = msgs.find(m => m.direcao === 'ENTRADA' && ASSUNTO_DE_CLIENTE.test(semAcento(m.texto)));
+  return cliente ? { motivo: 'ja_cliente', trecho: cliente.texto.slice(0, 200) } : null;
+}
+
 /** Proposta já aceita (contrato a caminho ou assinado): nenhum agente cobra nem marca perda. */
 export const PROPOSTA_FECHADA = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
 
