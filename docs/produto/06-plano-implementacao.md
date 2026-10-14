@@ -1435,3 +1435,10 @@ Publicação da correção concluída em 14/10/2026: commit `d0ac1fa6623d99506ce
 - **Correção:** `jsonParaIa` / `semCaractereQuebrado` (lib/assistente/ia-texto) montam o corpo de TODOS os pedidos às IAs (OpenAI, Grok e Gemini, em `ia-gemini.service`) sem caractere quebrado. Emoji inteiro e acentos ficam.
 - **Erro com motivo:** `chamarOpenAI` passa a incluir o código devolvido pela IA na mensagem ("IA indisponível (HTTP 400: invalid_json)").
 - Testes: `tests/ia-texto-seguro.test.ts`.
+
+
+### WhatsApp compacto — 14/10/2026
+
+Implementação: FiltrosConversas.tsx; composição em app/whatsapp/page.tsx; medidas em whatsapp.css. Novos cenários no whatsapp-layout.spec.ts verificam primeiro contato acima de 200px em 1366×768/100%, menu sem deslocamento, filtro de tipo sem busca, remoção, Escape/foco, Sem dono e menu móvel dentro da tela. Suíte também preserva os oito casos de isolamento entre contatos. Validação final e publicação registradas após execução.
+
+Validação local: 18 testes Chromium aprovados (50,6 s), incluindo isolamento, responsividade e filtros compactos. Ajustado o limiar do painel para 1160px após detectar espaço insuficiente no notebook com menu expandido; repetição completa passou. Tipos dos arquivos alterados e dependências sem erros. Testes com APIs interceptadas e dados fictícios, no zoom padrão do navegador, sem mensagens reais.

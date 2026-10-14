@@ -1456,3 +1456,8 @@ Correção exclusivamente no estado da interface: nenhuma tabela, coluna, migrat
 - **Correção:** `jsonParaIa` / `semCaractereQuebrado` (lib/assistente/ia-texto) montam o corpo de TODOS os pedidos às IAs (OpenAI, Grok e Gemini, em `ia-gemini.service`) sem caractere quebrado. Emoji inteiro e acentos ficam.
 - **Erro com motivo:** `chamarOpenAI` passa a incluir o código devolvido pela IA na mensagem ("IA indisponível (HTTP 400: invalid_json)").
 - Testes: `tests/ia-texto-seguro.test.ts`.
+
+
+### WhatsApp compacto — 14/10/2026
+
+Compactação exclusivamente frontend. Não muda tabelas, colunas, migrations, rotas ou payloads. Categorias existentes reutilizadas. Alteração funcional local: filtro por tipo aplica-se mesmo com busca vazia; nenhuma mudança em dados ou mensagens.

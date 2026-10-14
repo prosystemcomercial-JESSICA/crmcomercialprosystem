@@ -1159,3 +1159,8 @@ Ao trocar de contato, aguarde “Carregando conversa…” desaparecer para cons
 ### Correção 14/10/2026 (noite): IA recusando pedidos por causa de emoji
 
 - Quando uma mensagem longa era cortada no meio de um emoji, a IA recusava o pedido inteiro. Era isso que derrubava o treino do Julio. Agora todo texto vai para a IA sem esses pedaços quebrados, e quando a IA recusar algo o aviso diz o motivo.
+
+
+### WhatsApp compacto — 14/10/2026
+
+Os filtros do WhatsApp agora ficam no nome acima da busca (por exemplo, Minhas ou Atenção). Clique para trocar a lista ou escolher o tipo de contato. A seleção continua visível após fechar o menu. Para retirar o tipo escolhido, abra o menu e use Remover filtro de tipo. Nova e busca permanecem à mão; a tela foi compactada para o zoom padrão de 100%.

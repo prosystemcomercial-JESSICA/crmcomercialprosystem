@@ -1470,3 +1470,8 @@ Clicar A → clicar B limpa mensagens, painel, rascunho e ações de A; exibe �
 - **Correção:** `jsonParaIa` / `semCaractereQuebrado` (lib/assistente/ia-texto) montam o corpo de TODOS os pedidos às IAs (OpenAI, Grok e Gemini, em `ia-gemini.service`) sem caractere quebrado. Emoji inteiro e acentos ficam.
 - **Erro com motivo:** `chamarOpenAI` passa a incluir o código devolvido pela IA na mensagem ("IA indisponível (HTTP 400: invalid_json)").
 - Testes: `tests/ia-texto-seguro.test.ts`.
+
+
+### WhatsApp compacto — 14/10/2026
+
+Lista: primeira linha contém filtro ativo, quantidade e Nova; segunda linha contém busca. Clicar no filtro abre Minhas, Sem dono, Todas (gestão), Finalizadas, Atenção e Tipo de contato. Selecionar fecha o menu; tipo ativo aparece junto ao nome do filtro; Remover filtro de tipo restaura todos os tipos. Fila de Chamados mantém seus próprios agrupamentos, sem repetir filtros de posse que não filtravam o quadro.
