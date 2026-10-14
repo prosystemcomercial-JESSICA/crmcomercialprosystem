@@ -5,20 +5,12 @@ import { Video, Clock, X, Bell, ExternalLink, Volume2, AlarmClock } from 'lucide
 import { useAlertaReuniao, tocarSomAlarme, setSnooze, clearSnooze, AlertaReuniao } from '@/lib/useAlertaReuniao';
 import { useAuth } from '@/lib/auth-context';
 
-const OPCOES_MINUTOS = [5, 10, 15, 30];
 
 export function AlertaReuniaoModal() {
   const { isAuthenticated } = useAuth();
   const [fila, setFila] = useState<AlertaReuniao[]>([]);
-  const [configurando, setConfigurando] = useState(false);
-  const [minutosSalvos, setMinutosSalvos] = useState(15);
   // Quais alertas já tocaram (p/ tocar só ao aparecer, não a cada re-render).
   const jaTocouRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    const salvo = parseInt(localStorage.getItem('crm_alerta_minutos') || '15', 10);
-    setMinutosSalvos(salvo);
-  }, []);
 
   // Toca o alarme 2 vezes (curto), em vez de incessante (era a cada 2s).
   const tocarDuasVezes = useCallback(() => {
@@ -104,12 +96,6 @@ export function AlertaReuniaoModal() {
     }
     setSnooze(alerta.id, minutos);
     setFila(prev => prev.filter(a => a.id !== alerta.id));
-  };
-
-  const salvarMinutos = (min: number) => {
-    setMinutosSalvos(min);
-    localStorage.setItem('crm_alerta_minutos', String(min));
-    setConfigurando(false);
   };
 
   if (!isAuthenticated) return null;
@@ -237,41 +223,7 @@ export function AlertaReuniaoModal() {
           );
         })}
 
-        <button
-          className="ios-so-computador"
-          onClick={() => setConfigurando(v => !v)}
-          title={`Alerta ${minutosSalvos} min antes`}
-          style={{
-            background: '#fff', border: '1.5px solid #C3DCFC', borderRadius: 50,
-            padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6,
-            cursor: 'pointer', fontSize: 12, color: '#4A6E8A', fontWeight: 600,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-          }}>
-          <Bell size={13} /> {minutosSalvos} min antes
-        </button>
-
-        {configurando && (
-          <div style={{
-            background: '#fff', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-            border: '1px solid #e2e8f0', padding: 16, width: 200
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#0D2238', marginBottom: 10 }}>
-              Alertar antes:
-            </div>
-            {OPCOES_MINUTOS.map(min => (
-              <button key={min} onClick={() => salvarMinutos(min)}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  background: min === minutosSalvos ? '#EBF4FF' : 'none',
-                  border: 'none', borderRadius: 6, padding: '7px 10px',
-                  fontSize: 13, color: min === minutosSalvos ? '#4B8EC8' : '#4A6E8A',
-                  fontWeight: min === minutosSalvos ? 700 : 400, cursor: 'pointer'
-                }}>
-                {min === minutosSalvos ? '✓ ' : ''}{min} minutos
-              </button>
-            ))}
-          </div>
-        )}
+        {/* A antecedência do alerta (5/10/15/30 min) agora fica no cabeçalho, ao lado da lua (14/10/2026). */}
       </div>
 
       <style>{`

@@ -21,6 +21,10 @@ export interface User {
   vende?: boolean;           // outro cargo que também vende (visão "Como vendedora")
   admin?: boolean;           // administração total (visão "Administração")
   somente_leitura?: boolean; // conta de consulta (backend recusa escrita com 403)
+  // Perfil do colaborador (14/10/2026): foto em data URL e quando completou o perfil (1º acesso).
+  foto?: string | null;
+  telefone?: string | null;
+  perfil_completo_em?: string | null;
 }
 
 export interface GanhoMes {
@@ -1038,6 +1042,10 @@ class ApiClient {
   // Perfil completo do usuário logado (inclui telefone) — auto-preenche o vendedor
   async getMeuPerfil() {
     return this.client.get('/usuarios/me');
+  }
+  // O próprio colaborador completa o perfil (foto, nome, telefone).
+  async salvarMeuPerfil(dados: { nome?: string; telefone?: string | null; foto?: string | null }) {
+    return this.client.put('/usuarios/me/perfil', dados);
   }
   // Auditoria consolidada (só CEO/Supervisão)
   async getAuditoria(params?: { modulo?: string; ator_id?: string; tipo?: string; data_inicio?: string; data_fim?: string; busca?: string; page?: number; limit?: number }) {

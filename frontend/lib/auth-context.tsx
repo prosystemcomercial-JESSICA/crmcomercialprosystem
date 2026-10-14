@@ -10,6 +10,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
+  /** Atualiza na tela os dados do perfil logo depois de salvar (foto, nome, telefone). */
+  atualizarPerfil: (dados: Partial<Pick<User, 'nome' | 'foto' | 'telefone' | 'perfil_completo_em'>>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,6 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         vende: me.vende ?? prev.vende,
         admin: me.admin ?? prev.admin,
         somente_leitura: me.somente_leitura ?? prev.somente_leitura,
+        nome: me.nome || prev.nome,
+        telefone: me.telefone ?? null,
+        foto: me.foto ?? null,
+        perfil_completo_em: me.perfil_completo_em ?? null,
       } : prev);
     } catch (error) {
       console.error('Falha ao carregar liberação de módulos:', error);
@@ -137,7 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         login,
         logout,
-        isAuthenticated: user !== null
+        isAuthenticated: user !== null,
+        atualizarPerfil: (dados) => setUser(prev => prev ? { ...prev, ...dados } : prev),
       }}
     >
       {children}

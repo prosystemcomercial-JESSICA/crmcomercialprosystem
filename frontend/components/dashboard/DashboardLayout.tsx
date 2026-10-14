@@ -21,7 +21,9 @@ import {
 import { ehSomenteLeitura } from '@/lib/visoes';
 import { BarraAbasIOS, FolhaMaisIOS } from '@/components/mobile/AppIOS';
 import NotificacoesApp from '@/components/mobile/NotificacoesApp';
-import CronometroFlutuante from '@/components/cronometro/Cronometro';
+import { BotaoCronometro, BotaoAlertaReuniao } from '@/components/cabecalho/BotoesCabecalho';
+import CompletarPerfilModal from '@/components/perfil/CompletarPerfilModal';
+import { AvatarUsuario } from '@/components/perfil/PerfilForm';
 
 const ALL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR'];
 const COMERCIAL = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'VENDEDOR'];
@@ -141,6 +143,8 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/usuarios',      icon: Users,    label: 'Usuários',       roles: GESTORES, modulo: 'Usuários e Permissões' },
       { href: '/configuracoes', icon: Settings, label: 'Configurações',  roles: SO_CEO, modulo: 'Configurações do Sistema' },
+      // Colaborador: Configurações mostra só o próprio perfil (foto, nome, telefone), pedido da Jessica em 14/10/2026.
+      { href: '/meu-perfil',    icon: Settings, label: 'Configurações',  roles: ['SUPERVISAO_TECNICA', 'TECNICO_SUPORTE', 'VENDEDOR', 'SDR'] },
       { href: '/importacao',    icon: Upload,   label: 'Importar Leads', roles: GESTAO_COMERCIAL },
       { href: '/auditoria',     icon: Shield,   label: 'Auditoria',      roles: GESTAO_COMERCIAL },
       { href: '/manual',        icon: BookOpen, label: 'Manual do CRM',  roles: [...ALL, 'SDR'] },
@@ -352,12 +356,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/');
   };
 
-  const initials = user?.nome
-    ?.split(' ')
-    .slice(0, 2)
-    .map((n: string) => n[0])
-    .join('')
-    .toUpperCase() || 'U';
 
   // ── Popup campanha ativa ──────────────────────────────────────────────────
   const [campanhaPopup, setCampanhaPopup] = useState<{ nome: string; descricao?: string; nicho?: string; plano_alvo?: string; mensalidade?: number; meta_contratos?: number; condicao_especial?: string } | null>(null);
@@ -565,6 +563,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {mode === 'claro' ? <Moon size={15} /> : <Sun size={15} />}
           </button>
 
+          {/* Alerta de reunião (antecedência) e cronômetro: antes flutuavam nos cantos da tela (14/10/2026). */}
+          <BotaoAlertaReuniao />
+          <BotaoCronometro />
+
           {/* Fullscreen */}
           <button
             onClick={toggleFullscreen}
@@ -711,12 +713,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-card-border)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, var(--t-avatar-from) 0%, var(--t-avatar-to) 100%)' }}
-              >
-                {initials}
-              </div>
+              <AvatarUsuario nome={user?.nome} foto={user?.foto} tamanho={28} raio={8} />
               <div className="hidden md:block text-left leading-tight">
                 <p className="text-[12px] font-semibold" style={{ color: 'var(--t-text-primary)' }}>{user?.nome?.split(' ')[0]}</p>
                 <p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>{ROLE_LABELS[user?.role || ''] || user?.role}</p>
@@ -733,6 +730,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
 
                 <div style={{ padding: '4px' }}>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); router.push('/meu-perfil'); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
+                    style={{ color: 'var(--t-text-primary)', background: 'transparent' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-primary-light)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <User size={13} style={{ color: 'var(--t-text-muted)' }} />
+                    Meu perfil (foto e dados)
+                  </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); router.push('/alterar-senha'); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
@@ -906,8 +913,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
 
-      {/* Cronômetro de atividades longas: flutua em todas as telas */}
-      <CronometroFlutuante />
+      {/* Primeiro acesso: foto e perfil do colaborador */}
+      <CompletarPerfilModal />
 
       {/* ── Celular: abas embaixo + folha "Mais" (guia de interface da Apple) ── */}
       <BarraAbasIOS pathname={pathname} permitidos={hrefsPermitidos} maisAberto={maisAberto} onMais={() => setMaisAberto(v => !v)} ceo={(user?.role || '').toUpperCase() === 'CEO'} />

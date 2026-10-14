@@ -10,6 +10,7 @@ import PainelLaya from '@/components/whatsapp/PainelLaya';
 import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
 import EnviarApresentacaoWpp, { BotaoApresentacaoWpp } from '@/components/whatsapp/EnviarApresentacaoWpp';
 import ProximaAcao from '@/components/whatsapp/ProximaAcao';
+import BolinhasNumeros, { type NumeroResumo } from '@/components/whatsapp/BolinhasNumeros';
 import { MidiaMensagem } from '@/components/whatsapp/MidiaMensagem';
 import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/whatsapp/IaConversa';
 
@@ -223,6 +224,7 @@ export default function WhatsappPage() {
   const [aba, setAba] = useState<AbaConversas>('minhas');
   const verSupervisao = aba === 'todas';
   const [empresa, setEmpresa] = useState<EmpresaResumo | null>(null);
+  const [numeros, setNumeros] = useState<NumeroResumo[]>([]);
   const [assumindo, setAssumindo] = useState(false);
   const [dragConvId, setDragConvId] = useState<string | null>(null);
   const [showReuniao, setShowReuniao] = useState(false);
@@ -263,6 +265,7 @@ export default function WhatsappPage() {
       // instâncias nem QR (a gestão configura o token em Configurações).
       if (d.empresa) {
         setEmpresa(d.empresa);
+        setNumeros(d.numeros || []);
         setInstancias([]);
         setInstAtivaId(null);
         setStatus((d.empresa.status as StatusConexao) || 'DESCONECTADO');
@@ -901,9 +904,12 @@ export default function WhatsappPage() {
           a pagina nao rola junto. h-full e robusto (nao depende de offset fixo). */}
       <div className={`ios-wpp flex flex-col gap-3 h-full min-h-0 ${ativa ? 'ios-wpp-chat' : ''}`}>
         <div className={`ios-wpp-topo flex items-center justify-between gap-2 flex-wrap flex-shrink-0 ${ativa ? 'hidden md:flex' : ''}`}>
-          <div>
+          <div className="flex items-center gap-2">
             <h1 className="ios-large-title text-2xl sm:text-3xl font-bold text-sm font-semibold">WhatsApp</h1>
-            <p className="text-gray-500 text-sm hidden sm:block">Atenda seus clientes sem sair do CRM</p>
+            {/* Uma bolinha por número (passe o mouse para ver o número e a conexão). O número se gerencia em Configurações. */}
+            {empresa
+              ? <BolinhasNumeros numeros={numeros.length ? numeros : [{ vaga: 'empresa', rotulo: 'Número principal', provedor: 'UAZAPI', principal: true, numero: empresa.numero || null, status, ja_conectou: true, pausada_motivo: null }]} />
+              : <BolinhasNumeros numeros={instancias.map((i: any) => ({ vaga: i.id, rotulo: i.apelido || 'WhatsApp', provedor: 'UAZAPI', principal: false, numero: i.numero || null, status: i.status, ja_conectou: !!i.conectado_em, pausada_motivo: null }))} />}
           </div>
           <div className="flex items-center gap-2">
             {/* Toggle de visão: Inbox (lista) | Kanban (por etiqueta) */}
@@ -943,24 +949,9 @@ export default function WhatsappPage() {
                 {verSupervisao ? '👁️ Todas (supervisão)' : '👤 Minhas'}
               </button>
             )}
-            <span className={`hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-              status === 'CONECTADO' ? 'bg-green-50 text-green-700 border border-green-200'
-              : status === 'CONECTANDO' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-              : 'bg-opacity-0  border border-gray-200'}`}>
-              <span className={`w-2 h-2 rounded-full ${status === 'CONECTADO' ? 'bg-green-500' : status === 'CONECTANDO' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`} />
-              {status === 'CONECTADO' ? 'Conectado' : status === 'CONECTANDO' ? 'Conectando…' : 'Desconectado'}
-            </span>
           </div>
         </div>
 
-        {/* WhatsApp da empresa: sem barra de instâncias, só a identificação do número. */}
-        {empresa && (
-          <div className="hidden md:flex items-center gap-2 flex-wrap ps-card border border-gray-200 rounded-xl px-3 py-2 flex-shrink-0 text-sm">
-            <span className={`w-2 h-2 rounded-full ${empresa.status === 'CONECTADO' ? 'bg-green-500' : empresa.status === 'CONECTANDO' ? 'bg-yellow-500' : 'bg-gray-400'}`} />
-            <span className="font-semibold">WhatsApp da empresa</span>
-            {empresa.numero && <span className="text-gray-500">· {empresa.numero}</span>}
-          </div>
-        )}
 
         {/* Barra de instâncias (multi-WhatsApp) — abas p/ trocar + ações */}
         {configurado && !empresa && (
@@ -1283,8 +1274,8 @@ export default function WhatsappPage() {
                   <div className="ios-mensagens flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5" style={{ background: '#F7F8FA' }}>
                     {mensagens.map(m => (
                       <div key={m.id} className={`flex ${m.direcao === 'SAIDA' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`${m.direcao === 'SAIDA' ? 'ios-bolha-out' : 'ios-bolha-in'} max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm border ${m.direcao === 'SAIDA' ? 'rounded-br-none text-white border-transparent' : 'bg-white text-gray-800 rounded-bl-none border-gray-100'}`}
-                          style={m.direcao === 'SAIDA' ? { background: '#2563eb' } : {}}>
+                        <div className={`${m.direcao === 'SAIDA' ? 'ios-bolha-out' : 'ios-bolha-in'} max-w-[75%] rounded-lg px-3 py-1.5 text-sm shadow-sm border ${m.direcao === 'SAIDA' ? 'rounded-br-none text-gray-900' : 'bg-white text-gray-800 rounded-bl-none border-gray-100'}`}
+                          style={m.direcao === 'SAIDA' ? { background: '#E7EAEF', borderColor: '#D5DAE1' } : {}}>
                           {m.enviada_por === 'bot' && <p className="text-[10px] font-semibold mb-0.5 opacity-80">🤖 Atendimento automático</p>}
                           {m.enviada_por === 'cadencia_automatica' && <p className="text-[10px] font-semibold mb-0.5 opacity-80">🔁 Cadência automática</p>}
                           {m.tipo === 'IMAGEM' && m.midia_url && (
@@ -1301,12 +1292,12 @@ export default function WhatsappPage() {
                           )}
                           {m.tipo === 'DOCUMENTO' && m.midia_url && (
                             <MidiaMensagem url={m.midia_url}>{src => <a href={src} download={m.conteudo || true}
-                              className={`underline text-xs block mb-1 ${m.direcao === 'SAIDA' ? 'text-white' : 'text-blue-600'}`}>📎 Baixar documento</a>}</MidiaMensagem>
+                              className={`underline text-xs block mb-1 ${m.direcao === 'SAIDA' ? 'text-blue-700' : 'text-blue-600'}`}>📎 Baixar documento</a>}</MidiaMensagem>
                           )}
                           {!((m.tipo === 'IMAGEM' || m.tipo === 'VIDEO') && m.midia_url && ['[imagem]', '[vídeo]', '🖼️ Imagem', '🎬 Vídeo'].includes(m.conteudo)) && (
                             <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
                           )}
-                          <p className={`text-[10px] mt-0.5 text-right ${m.direcao === 'SAIDA' ? 'text-white/70' : 'text-gray-400'}`}>{fmtHora(m.created_at)}</p>
+                          <p className={`text-[10px] mt-0.5 text-right ${m.direcao === 'SAIDA' ? 'text-gray-500' : 'text-gray-400'}`}>{fmtHora(m.created_at)}</p>
                         </div>
                       </div>
                     ))}
