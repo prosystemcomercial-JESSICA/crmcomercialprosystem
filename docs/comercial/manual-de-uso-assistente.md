@@ -1155,3 +1155,7 @@ Ao trocar de contato, aguarde “Carregando conversa…” desaparecer para cons
 - **Lead não é jogado fora:** se o atendente disser "não temos interesse", o agente não encerra; pede o contato de quem decide.
 - **Ramo certo:** se a conversa mostra outro ramo (ex.: material de construção), o agente segue a conversa e não manda apresentação de outro segmento.
 - **Robô da loja** aparece para o agente como mensagem automática, nunca como resposta do cliente.
+
+### Correção 14/10/2026 (noite): IA recusando pedidos por causa de emoji
+
+- Quando uma mensagem longa era cortada no meio de um emoji, a IA recusava o pedido inteiro. Era isso que derrubava o treino do Julio. Agora todo texto vai para a IA sem esses pedaços quebrados, e quando a IA recusar algo o aviso diz o motivo.

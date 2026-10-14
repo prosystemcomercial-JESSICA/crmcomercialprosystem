@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { registrarUsoIa } from './uso-ia.service';
+import { jsonParaIa } from '@/lib/assistente/ia-texto';
 
 // Cliente mínimo do Gemini (Google AI Studio). A chave fica em Configurações
 // (ConfiguracaoIntegracao 'assistente.gemini_chave') ou na variável GEMINI_API_KEY.
@@ -30,7 +31,7 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
   const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${p.grok ? chaveXai() : chaveOpenAI()}` },
-    body: JSON.stringify({
+    body: jsonParaIa({
       model: p.grok ? MODELO_XAI : MODELO_OPENAI,
       instructions: p.sistema,
       // No modo JSON a OpenAI exige a palavra "json" na mensagem (não basta nas instruções).
@@ -43,7 +44,9 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
   if (!res.ok) {
     if (res.status === 401) throw new Error('A chave da IA é inválida. Confira no servidor.');
     if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
-    throw new Error(`IA indisponível (HTTP ${res.status}).`);
+    // O motivo que a IA devolveu vai junto: "indisponível" sozinho escondia o pedido recusado (14/10/2026).
+    const motivo = await res.json().then((j: any) => j?.error?.code || j?.error?.message || '').catch(() => '');
+    throw new Error(`IA indisponível (HTTP ${res.status}${motivo ? `: ${String(motivo).slice(0, 120)}` : ''}).`);
   }
   return res.json();
 }
@@ -91,7 +94,7 @@ export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: str
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
-    body: JSON.stringify({
+    body: jsonParaIa({
       systemInstruction: { parts: [{ text: p.sistema }] },
       contents: [{ role: 'user', parts: [{ text: p.pergunta }] }],
       tools: [{ google_search: {} }],
@@ -146,7 +149,7 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
-    body: JSON.stringify({
+    body: jsonParaIa({
       systemInstruction: { parts: [{ text: p.sistema }] },
       contents: [{ role: 'user', parts: p.partes }],
       generationConfig: { temperature: p.temperatura ?? 0.3, ...(p.json ? { responseMimeType: 'application/json' } : {}) },

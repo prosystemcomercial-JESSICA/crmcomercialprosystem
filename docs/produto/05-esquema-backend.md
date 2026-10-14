@@ -1449,3 +1449,10 @@ Correção exclusivamente no estado da interface: nenhuma tabela, coluna, migrat
 - **Trava contra jogar lead fora:** resposta `sem_interesse` com interlocutor atendente (e sem pedido de decisor antes) é refeita pedindo o contato de quem decide. O pedido fica registrado em `dados.pediu_decisor_em`.
 - **Apresentação pelo ramo real:** `apresentacaoPara` usa `dados.segmento_real` quando existe (material de construção não recebe a de padaria).
 - Testes: `tests/sdr-contexto-ficha.test.ts`; `sdr-caroline.test.ts` atualizado para a missão nova.
+
+### Correção 14/10/2026 (noite): pedido à IA recusado por emoji cortado
+
+- **Causa:** o texto das conversas é cortado com `slice()` para caber no pedido; quando o corte caía no meio de um emoji (ex.: 👩🏻‍💻 dos robôs das lojas), sobrava meio caractere (surrogate solto) e a OpenAI recusava o pedido inteiro: HTTP 400 `invalid_json`. O treino do Julio falhava sempre; o mesmo pode explicar respostas "sem resposta utilizável" em loop.
+- **Correção:** `jsonParaIa` / `semCaractereQuebrado` (lib/assistente/ia-texto) montam o corpo de TODOS os pedidos às IAs (OpenAI, Grok e Gemini, em `ia-gemini.service`) sem caractere quebrado. Emoji inteiro e acentos ficam.
+- **Erro com motivo:** `chamarOpenAI` passa a incluir o código devolvido pela IA na mensagem ("IA indisponível (HTTP 400: invalid_json)").
+- Testes: `tests/ia-texto-seguro.test.ts`.
