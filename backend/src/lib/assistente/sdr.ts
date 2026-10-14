@@ -273,15 +273,24 @@ export const PROPOSTA_FECHADA = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVI
  * Encerramento do Luiz Felipe (pedido da Jessica, 14/10/2026): sem resposta às 3 tentativas, avisa que a
  * proposta expirou, agradece e deixa o blog e o Instagram. Texto fixo, sem IA.
  */
-export function mensagemEncerramentoProposta(nome: string | null, agora: Date): string {
+export function mensagemEncerramentoProposta(nome: string | null, agora: Date, apresentacao?: { tipo: 'padaria' | 'farmacia'; url: string } | null): string {
   const p = (nome || '').trim().split(/\s+/)[0] || '';
   const primeiro = p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
   return [
     `${saudacaoAgora(agora)}${primeiro ? `, ${primeiro}` : ''}! Aqui é o Luiz Felipe, da Prosystem.`,
     'Como não tivemos retorno, estou encerrando por aqui a proposta que enviamos: ela já está expirada. Muito obrigado pela atenção e pelo tempo que você dedicou a ela! 🙏',
     'Se um dia quiser retomar, é só me chamar aqui que preparo uma proposta atualizada.',
+    // Apresentação do segmento só se a conversa ainda não teve (pedido da Jessica, 14/10/2026): pode trazer o cliente de volta.
+    ...(apresentacao ? [`Deixo também uma apresentação rápida de como o Prosystem ajuda na rotina da sua ${apresentacao.tipo === 'padaria' ? 'padaria' : 'farmácia'}, para ver quando tiver um tempinho:\n${apresentacao.url}`] : []),
     `Enquanto isso, fica o convite para acompanhar nossos conteúdos:\n📚 Blog: ${BLOG_PROSYSTEM}\n📸 Instagram: ${INSTAGRAM_PROSYSTEM}`,
   ].join('\n\n');
+}
+
+/** Complemento para quem já recebeu o encerramento sem a apresentação do segmento (uma vez só). */
+export function complementoApresentacaoEncerramento(nome: string | null, apresentacao: { tipo: 'padaria' | 'farmacia'; url: string }): string {
+  const p = (nome || '').trim().split(/\s+/)[0] || '';
+  const primeiro = p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
+  return `${primeiro ? `${primeiro}, c` : 'C'}omplementando: separei uma apresentação rápida de como o Prosystem ajuda na rotina da sua ${apresentacao.tipo === 'padaria' ? 'padaria' : 'farmácia'}. Fica aqui para quando você tiver um tempinho, sem compromisso. 😊\n${apresentacao.url}`;
 }
 
 /** Faixa do termômetro → temperatura do lead. Sem dor principal a nota fica em no máx. 59. */
