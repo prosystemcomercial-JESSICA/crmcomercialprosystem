@@ -1477,3 +1477,8 @@ Ao selecionar outro contato, o histórico anterior deve desaparecer imediatament
 - **Correção:** `jsonParaIa` / `semCaractereQuebrado` (lib/assistente/ia-texto) montam o corpo de TODOS os pedidos às IAs (OpenAI, Grok e Gemini, em `ia-gemini.service`) sem caractere quebrado. Emoji inteiro e acentos ficam.
 - **Erro com motivo:** `chamarOpenAI` passa a incluir o código devolvido pela IA na mensagem ("IA indisponível (HTTP 400: invalid_json)").
 - Testes: `tests/ia-texto-seguro.test.ts`.
+
+
+### WhatsApp compacto — 14/10/2026
+
+A tela de WhatsApp deve priorizar a área de conversa em zoom padrão (100%). Filtros de atendimento e tipo ficam em um único menu no cabeçalho da lista, com seleção e quantidade visíveis. Abrir filtros não desloca os contatos. Busca e Nova permanecem acessíveis.

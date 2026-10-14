@@ -1431,3 +1431,8 @@ Preservado o visual aprovado. A área do histórico informa carregamento sem mos
 - **Correção:** `jsonParaIa` / `semCaractereQuebrado` (lib/assistente/ia-texto) montam o corpo de TODOS os pedidos às IAs (OpenAI, Grok e Gemini, em `ia-gemini.service`) sem caractere quebrado. Emoji inteiro e acentos ficam.
 - **Erro com motivo:** `chamarOpenAI` passa a incluir o código devolvido pela IA na mensagem ("IA indisponível (HTTP 400: invalid_json)").
 - Testes: `tests/ia-texto-seguro.test.ts`.
+
+
+### WhatsApp compacto — 14/10/2026
+
+Pedido da Jessica: controles empilhados empurravam conversas e exigiam zoom de 80%. Removidas margens externas da rota WhatsApp. Faixa do título compacta (36px desktop), título 17px; cabeçalho global da rota 48px no desktop; controles da lista em duas linhas. Conteúdo legível mantido, sem CSS zoom ou transform scale. Alvos móveis de 44px preservados nos menus/botões. Painel lateral recolhe em menos de 1160px úteis.

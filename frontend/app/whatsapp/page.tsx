@@ -1,6 +1,7 @@
 'use client';
 
 import './whatsapp.css';
+import FiltrosConversas from '@/components/whatsapp/FiltrosConversas';
 import ObservacoesConversa from '@/components/whatsapp/ObservacoesConversa';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Hand, Check, RotateCcw, ArrowRightLeft, Trash2, MoreHorizontal, Info, Paperclip, Send, Mic, Plus, Loader2, MessageSquare } from 'lucide-react';
@@ -915,7 +916,7 @@ export default function WhatsappPage() {
   const conversasPorTipo = filtroTipo ? conversas.filter(c => c.tipo_contato === filtroTipo) : conversas;
   const conversasFiltradas = buscaConv.trim()
     ? conversasPorTipo.filter(c => nomeContato(c).toLowerCase().includes(buscaConv.toLowerCase()) || c.contato_numero.includes(buscaConv))
-    : conversas;
+    : conversasPorTipo;
 
   // Formata o prazo de SLA: "Violado há 3h" (vermelho) ou "Prazo em 5h" (neutro).
   const fmtSla = (sla_prazo_em?: string | null): { texto: string; violado: boolean } | null => {
@@ -938,38 +939,19 @@ export default function WhatsappPage() {
     return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
   };
 
-  const filtrosConversas = (<>
-            {/* WhatsApp da empresa: abas Minhas / Sem dono / Todas (gestão). */}
-            {status === 'CONECTADO' && empresa && (
-              <div className="wpp-filtros">
-                {([
-                  { id: 'minhas' as AbaConversas, nome: 'Minhas', n: 0 },
-                  { id: 'pool' as AbaConversas, nome: 'Sem dono', n: 0 },
-                  ...(podeTransferir ? [{ id: 'todas' as AbaConversas, nome: 'Todas', n: 0 }] : []),
-                  { id: 'finalizadas' as AbaConversas, nome: 'Finalizadas', n: 0 },
-                  { id: 'atencao' as AbaConversas, nome: 'Atenção', n: Object.keys(atencao).length },
-                ]).map(t => (
-                  <button key={t.id} onClick={() => { setAba(t.id); selecionarConversa(null); }}
-                    className="wpp-filtro" aria-pressed={aba === t.id}>
-                    {t.nome}
-                    {t.n > 0 && <span className={`text-[11px] font-semibold tabular-nums px-1.5 rounded ${aba === t.id ? 'bg-white/20' : 'bg-amber-100 text-amber-800'}`}>{t.n}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* Visão de supervisão (só gestão): alterna entre "minhas" e "todas". */}
-            {status === 'CONECTADO' && podeTransferir && !empresa && (
-              <button
-                onClick={() => setAba(a => a === 'todas' ? 'minhas' : 'todas')}
-                title="Ver as conversas de todos os vendedores (supervisão)"
-                className={`px-3 h-8 text-[13px] font-medium whitespace-nowrap rounded-md border ${
-                  verSupervisao ? 'text-white border-transparent' : 'text-gray-600 bg-white border-gray-200'
-                }`}
-                style={verSupervisao ? { background: '#2E6EAB' } : {}}>
-                {verSupervisao ? 'Todas (supervisão)' : 'Minhas'}
-              </button>
-            )}
-  </>);
+  const opcoesConversas = empresa ? [
+    { id: 'minhas', nome: 'Minhas' },
+    { id: 'pool', nome: 'Sem dono' },
+    ...(podeTransferir ? [{ id: 'todas', nome: 'Todas' }] : []),
+    { id: 'finalizadas', nome: 'Finalizadas' },
+    { id: 'atencao', nome: 'Atenção', n: Object.keys(atencao).length },
+  ] : [
+    { id: 'minhas', nome: 'Minhas' },
+    ...(podeTransferir ? [{ id: 'todas', nome: 'Todas (supervisão)' }] : []),
+  ];
+  const filtrosConversas = <FiltrosConversas opcoes={opcoesConversas} ativa={aba}
+    total={conversasFiltradas.length} tipo={filtroTipo} tipos={TIPOS_CONTATO}
+    onAba={id => { setAba(id as AbaConversas); selecionarConversa(null); }} onTipo={setFiltroTipo} />;
 
   if (loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500" /></div>;
@@ -979,10 +961,10 @@ export default function WhatsappPage() {
     <DashboardLayout>
       {/* Ocupa 100% da altura do main (que ja e flex-1). Tudo rola internamente;
           a pagina nao rola junto. h-full e robusto (nao depende de offset fixo). */}
-      <div className={`wpp-workspace ios-wpp flex flex-col gap-3 h-full min-h-0 ${ativa ? 'ios-wpp-chat' : ''}`}>
+      <div className={`wpp-workspace ios-wpp flex flex-col h-full min-h-0 ${ativa ? 'ios-wpp-chat' : ''}`}>
         <div className={`ios-wpp-topo flex items-center justify-between gap-2 flex-wrap flex-shrink-0 ${ativa ? 'hidden md:flex' : ''}`}>
           <div className="flex items-center gap-2">
-            <h1 className="ios-large-title text-xl sm:text-2xl font-bold">WhatsApp</h1>
+            <h1 className="wpp-titulo">WhatsApp</h1>
             {/* Uma bolinha por número (passe o mouse para ver o número e a conexão). O número se gerencia em Configurações. */}
             {empresa
               ? <BolinhasNumeros numeros={numeros.length ? numeros : [{ vaga: 'empresa', rotulo: 'Número principal', provedor: 'UAZAPI', principal: true, numero: empresa.numero || null, status, ja_conectou: true, pausada_motivo: null }]} />
@@ -996,7 +978,6 @@ export default function WhatsappPage() {
                 <button onClick={() => setViewMode('kanban')} className="wpp-filtro" aria-pressed={viewMode === 'kanban'}>Fila de Chamados</button>
               </div>
             )}
-            {viewMode === 'kanban' && filtrosConversas}
           </div>
         </div>
 
@@ -1093,7 +1074,8 @@ export default function WhatsappPage() {
             {/* Lista de conversas */}
             <div className={`ios-lista bg-white flex-col border-r border-gray-200 min-h-0 w-full md:w-auto ${ativa ? 'hidden md:flex' : 'flex'}`}>
               <div className="wpp-lista-cab">
-                <h2>Conversas <span>{conversasPorTipo.length}</span></h2>
+                <h2 className="sr-only">Conversas</h2>
+                {filtrosConversas}
                 <button type="button" className="wpp-nova" aria-expanded={novaConversaAberta} aria-controls="wpp-nova-conversa" onClick={() => setNovaConversaAberta(v => !v)}><Plus size={16} /> Nova</button>
               </div>
               <div className="wpp-busca-area">
@@ -1102,11 +1084,7 @@ export default function WhatsappPage() {
                   <input autoFocus value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') iniciarConversa(); }} placeholder="Número com DDD" aria-label="Número para nova conversa" inputMode="tel" className="wpp-busca min-w-0 flex-1" />
                   <button onClick={iniciarConversa} className="wpp-nova">Iniciar</button>
                 </div>}
-                {filtrosConversas}
-                <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} aria-label="Filtrar por tipo de contato" className="wpp-tipos">
-                  <option value="">Todos os tipos de contato</option>
-                  {TIPOS_CONTATO.map(t => <option key={t.valor} value={t.valor}>{t.nome}</option>)}
-                </select>
+
               </div>
               <ProximaAcao
                 versao={`${conversas.length}:${conversas[0]?.ultima_em || ''}`}

@@ -104,3 +104,53 @@ test('celular com altura reduzida mantém escrita e apresentações acessíveis'
   await page.keyboard.press('Escape');
   await page.screenshot({ path: 'test-results/whatsapp-celular-altura-reduzida.png' });
 });
+
+
+test('filtros compactos preservam espaço e filtram sem depender da busca', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/whatsapp');
+  const contato = page.getByRole('button', { name: /Contato de teste com nome comprido/ });
+  await expect(contato).toBeVisible();
+  const antes = (await contato.boundingBox())!;
+  expect(antes.y).toBeLessThan(200);
+  const filtro = page.getByRole('button', { name: 'Filtrar conversas: Minhas', exact: true });
+  await filtro.click();
+  const menu = page.getByRole('dialog', { name: 'Filtros das conversas' });
+  await expect(menu).toBeVisible();
+  expect((await contato.boundingBox())!.y).toBe(antes.y);
+  await menu.getByRole('combobox', { name: 'Filtrar por tipo de contato' }).selectOption('LEAD');
+  await expect(menu).toBeHidden();
+  await expect(contato).toHaveCount(0);
+  await expect(page.getByText('Nenhuma conversa', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Filtrar conversas: Minhas, Lead', exact: true }).click();
+  await page.getByRole('button', { name: 'Remover filtro de tipo', exact: true }).click();
+  await expect(contato).toBeVisible();
+  await filtro.click();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(filtro).toBeFocused();
+  await filtro.click();
+  await menu.getByRole('button', { name: 'Sem dono', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Filtrar conversas: Sem dono', exact: true })).toBeVisible();
+  await expect(menu).toBeHidden();
+  await page.screenshot({ path: 'test-results/whatsapp-compacto-notebook.png' });
+});
+
+test('filtros no celular abrem sem deslocar a lista e fecham ao tocar fora', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto('/whatsapp');
+  const contato = page.getByRole('button', { name: /Contato de teste com nome comprido/ });
+  await expect(contato).toBeVisible();
+  const y = (await contato.boundingBox())!.y;
+  await page.getByRole('button', { name: 'Filtrar conversas: Minhas', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Filtros das conversas' });
+  await expect(menu).toBeVisible();
+  const bounds = (await menu.boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  expect(bounds.y + bounds.height).toBeLessThan(600);
+  expect((await contato.boundingBox())!.y).toBe(y);
+  await page.getByRole('heading', { name: 'WhatsApp', exact: true }).click();
+  await expect(menu).toBeHidden();
+  await page.screenshot({ path: 'test-results/whatsapp-compacto-celular.png' });
+});
