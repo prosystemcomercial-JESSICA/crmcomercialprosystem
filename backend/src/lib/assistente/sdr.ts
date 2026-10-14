@@ -163,9 +163,19 @@ export const ACOES = ['continuar', 'oferecer_demo', 'passar_vendedora', 'sem_int
 export const mensagemSuporte = (agente: string) =>
   `O envio de vídeos, treinamentos e o suporte técnico são feitos pelo nosso *setor de suporte*. Eu sou ${/^(caroline|clarice|helena|laya|marta|sofia|lurdinha|bia)/i.test(agente) ? 'a' : 'o'} ${agente}, do *setor comercial*. 😊\n\nToque no botão abaixo para falar direto com o suporte, eles vão te ajudar!`;
 export type AcaoSdr = typeof ACOES[number];
+export const INTERLOCUTORES = ['decisor', 'atendente', 'robo', 'nao_sei'] as const;
+export type Interlocutor = typeof INTERLOCUTORES[number];
 export type RespostaCaroline = {
   mensagens: string[]; acao: AcaoSdr; nota: number; nota_motivo: string; dor_principal: string | null;
-  dados: { cidade?: string | null; sistema_atual?: string | null; lojas?: string | null; momento?: string | null; decisor?: string | null };
+  dados: { cidade?: string | null; sistema_atual?: string | null; lojas?: string | null; momento?: string | null; decisor?: string | null;
+    /** Quem está respondendo (14/10/2026): o foco é chegar a quem decide. */
+    interlocutor?: Interlocutor | null;
+    /** Ramo real do negócio pela conversa (ex.: "material de construção"), quando difere do cadastro. */
+    segmento_real?: string | null;
+    /** Por que procura outra solução (o que o sistema atual não resolve, o que mudou). */
+    motivo_busca?: string | null;
+    /** Por que se inscreveu na campanha / o que quer ver num sistema novo. */
+    motivo_inscricao?: string | null };
   duvida?: string | null;
   motivo_perda?: MotivoPerda | null;
   revisar_proposta?: boolean;
@@ -247,6 +257,33 @@ export function ehEncerramentoAutomatico(texto: string | null | undefined): bool
 export function soRoboDaLoja(novas: { tipo: string; conteudo: string | null }[]): boolean {
   const auto = (m: { tipo: string; conteudo: string | null }) => m.tipo === 'TEXTO' && ehRespostaAutomatica(m.conteudo);
   return novas.some(auto) && novas.every(m => auto(m) || ['IMAGEM', 'DOCUMENTO', 'OUTRO'].includes(m.tipo));
+}
+
+/**
+ * O que já sabemos do lead, para o agente nunca perguntar de novo (pedido da Jessica, 14/10/2026: "toda conversa é
+ * obrigatório buscar contexto"). Vem do que a IA registrou nas falas anteriores (SdrLead.dados) e do cadastro.
+ */
+export function fichaDoLead(sdr: { segmento?: string | null; campanha?: string | null; empresa?: string | null; dados?: any }): string | null {
+  const d: any = sdr.dados || {};
+  const quem: Record<string, string> = { decisor: 'quem decide (proprietário, farmacêutico responsável ou gerente)', atendente: 'atendente/balconista (ainda não chegamos a quem decide)', robo: 'só o robô da loja respondeu até agora' };
+  const quando = (v: any) => { const t = new Date(v); return isNaN(t.getTime()) ? '' : ` em ${t.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`; };
+  const linhas = [
+    sdr.empresa && `- Empresa: ${sdr.empresa}`,
+    d.segmento_real ? `- Ramo real do negócio (pela conversa): ${d.segmento_real}${sdr.segmento ? ` (o cadastro dizia ${sdr.segmento}; vale a conversa)` : ''}` : sdr.segmento && `- Ramo pelo cadastro: ${sdr.segmento}`,
+    sdr.campanha && `- Origem: ${sdr.campanha}`,
+    d.interlocutor && quem[d.interlocutor] && `- Quem tem respondido: ${quem[d.interlocutor]}`,
+    d.decisor && `- Quem decide: ${d.decisor}`,
+    d.pediu_decisor_em && `- Já pedimos o contato de quem decide${quando(d.pediu_decisor_em)}: não peça de novo do mesmo jeito`,
+    d.motivo_inscricao && `- Por que se inscreveu / o que quer ver: ${d.motivo_inscricao}`,
+    d.motivo_busca && `- Por que procura outra solução: ${d.motivo_busca}`,
+    d.dor_principal && `- Dor principal: ${d.dor_principal}`,
+    d.sistema_atual && `- Sistema que usa hoje: ${d.sistema_atual}`,
+    d.lojas && `- Lojas/caixas: ${d.lojas}`,
+    d.momento && `- Momento de compra: ${d.momento}`,
+    d.cidade && `- Cidade: ${d.cidade}`,
+    (d.combinado || d.chamar_combinado) && `- Combinado com ele: ${d.combinado || d.chamar_combinado}`,
+  ].filter(Boolean);
+  return linhas.length ? linhas.join('\n').slice(0, 2500) : null;
 }
 
 /** Cliente só confirmou/agradeceu ("👍", "ok", "obrigado", "blz"): não pede resposta do agente. */
@@ -377,7 +414,9 @@ export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): R
   const semTravessao = (m: string) => m.replace(/\s*[—–]\s*/g, ', ').replace(/^,\s*/, '').replace(/,\s*([.!?])/g, '$1').replace(/,\s*,/g, ',');
   return {
     mensagens: mensagens.map((m: string) => semTravessao(m).slice(0, 700)), acao, nota, nota_motivo: String(j.nota_motivo || '').slice(0, 300), dor_principal: dor,
-    dados: { cidade: s(d.cidade), sistema_atual: s(d.sistema_atual), lojas: s(d.lojas), momento: s(d.momento), decisor: s(d.decisor) },
+    dados: { cidade: s(d.cidade), sistema_atual: s(d.sistema_atual), lojas: s(d.lojas), momento: s(d.momento), decisor: s(d.decisor),
+      interlocutor: (INTERLOCUTORES as readonly string[]).includes(d.interlocutor) ? d.interlocutor : null,
+      segmento_real: s(d.segmento_real), motivo_busca: s(d.motivo_busca), motivo_inscricao: s(d.motivo_inscricao) },
     duvida: s(j.duvida),
     revisar_proposta: j.revisar_proposta === true,
     adiar_dias: Number.isFinite(Number(j.adiar_dias)) && Number(j.adiar_dias) > 0 ? Math.min(60, Math.round(Number(j.adiar_dias))) : null,
@@ -438,7 +477,9 @@ export function promptCaroline(p: {
     /** Contato passado por alguém da própria empresa (o número da loja indicou o decisor). */
     indicacao?: { por: string | null; cargo: string | null } | null;
     /** Proposta recusada: o Luiz Felipe está entendendo o motivo e tentando recuperar (conversa natural). */
-    recuperacao?: { motivo_informado?: string | null; pergunta_feita?: boolean } | null };
+    recuperacao?: { motivo_informado?: string | null; pergunta_feita?: boolean } | null;
+    /** O que já sabemos do lead (fichaDoLead): o agente nunca pergunta de novo o que está aqui. */
+    ficha?: string | null };
   saudacao: string;
   perfil?: PerfilSdr;
   janelaCampanha?: boolean;
@@ -468,8 +509,8 @@ export function promptCaroline(p: {
     perfil === 'luiz_felipe' ? 'PEDIU MAIS PRAZO: nunca saia só agradecendo. Peça uma previsão de forma leve ("sem problema! pra quando você acha que consegue decidir? assim já te chamo nesse dia") (acao "continuar"). Quando ele der a data, confirme que chama nesse dia e deixe a porta aberta para a próxima conversa.' : '',
     perfil === 'luiz_felipe' && p.janelaCampanha ? 'CAMPANHA (vale só do dia 20 ao fim do mês, e hoje está valendo): quando o cliente pedir prazo ou hesitar, diga também, junto com o pedido de previsão, que temos uma campanha ativa por poucos dias e que, se ele quiser, podemos revisar a proposta. Nessa mensagem marque "revisar_proposta": true (ela passa pela autorização da Jessica antes de sair). Sem valores nem descontos.' : 'Não fale de campanha ativa nem ofereça revisar a proposta.',
     perfil === 'julio'
-      ? 'MISSÃO DO JULIO (follow-up de lead antigo): 1) descobrir se AINDA FAZ SENTIDO: o lead ainda procura sistema ou já resolveu? (pergunta curta e direta, com o contexto da conversa anterior). 2) Se quem responde NÃO é o decisor (atendente, balconista, mensagem automática), o objetivo é CHEGAR AO DECISOR: peça orientação com educação (quem cuida da parte de sistema/gestão, nome e WhatsApp do dono ou do gerente, melhor horário para falar com ele). 3) Se ainda faz sentido e mostrar interesse, diga que a consultora vai mostrar como funciona e use acao "oferecer_demo". NUNCA pergunte de forma genérica pelo "maior problema" ou pela "rotina" sem contexto: você não está prospectando dor, está retomando um contato.'
-      : 'MISSÃO Nº 1: descobrir o PROBLEMA PRINCIPAL do cliente hoje, com POUCAS perguntas. Assim que ele disser qual é o problema (mesmo numa palavra, ex.: "demora", "estoque", "fila"), PARE de investigar: mostre em 1 ou 2 frases como a Prosystem resolve isso, usando SOMENTE recursos do MATERIAL (ex.: demora no atendimento → o que o material diz sobre agilidade no caixa/balcão), e já convide para a demonstração (acao "oferecer_demo"). No máximo 2 perguntas de investigação na conversa inteira; nunca repita nem reformule uma pergunta que ele já respondeu.',
+      ? 'MISSÃO DO JULIO (follow-up de lead antigo): 1) descobrir se AINDA FAZ SENTIDO: o lead ainda procura sistema ou já resolveu? (pergunta curta e direta, com o contexto da conversa anterior). 2) Se quem responde NÃO é o decisor (atendente, balconista, mensagem automática), o objetivo é CHEGAR AO DECISOR: peça orientação com educação (quem cuida da parte de sistema/gestão, nome e WhatsApp do dono ou do gerente, melhor horário para falar com ele). 3) Se ainda faz sentido e mostrar interesse, diga que a consultora vai mostrar como funciona e use acao "oferecer_demo". NUNCA pergunte de forma genérica pelo "maior problema" ou pela "rotina" sem contexto: você não está prospectando dor, está retomando um contato. Se ainda faz sentido, entenda por que ele procurava outro sistema na época e se isso continua (registre em "motivo_busca").'
+      : 'MISSÃO Nº 1 (pedido da Jessica, 14/10/2026): o foco é o lead. Entenda o PORQUÊ: por que ele está procurando outra solução (o que o sistema atual não resolve, o que mudou na loja) e por que se inscreveu na campanha para ver outro sistema. Esse porquê é a dor principal; registre em "motivo_busca", "motivo_inscricao" e "dor_principal". Pergunte de forma humana, ligada ao que ele já contou (ex.: "o que te fez procurar outro sistema agora?"), nunca como formulário. Com POUCAS perguntas. Assim que ele disser o porquê (mesmo numa palavra, ex.: "demora", "estoque", "fila"), PARE de investigar: mostre em 1 ou 2 frases como a Prosystem resolve isso, usando SOMENTE recursos do MATERIAL (ex.: demora no atendimento → o que o material diz sobre agilidade no caixa/balcão), e já convide para a demonstração (acao "oferecer_demo"). No máximo 2 perguntas de investigação na conversa inteira; nunca repita nem reformule uma pergunta que ele já respondeu.',
     'PERGUNTA DIRETA: vá direto ao ponto, com palavras simples: "Qual é o maior problema que você quer resolver hoje na farmácia?" e diga que, se for mais fácil, pode explicar por áudio, assim a gente já vê se tem a solução pra ela. Nada de rodeio nem palavra difícil.',
     'DIA A DIA DA FARMÁCIA (use de forma natural, como quem conhece o balcão, 1 exemplo por vez, só para ajudar o cliente a reconhecer o próprio problema; nunca como lista nem aula): fila e demora no caixa em horário de pico; estoque furado (produto que acaba sem aviso, remédio vencendo na prateleira, compra no escuro); controle de medicamentos controlados e receitas (SNGPC); convênios, PBMs e Farmácia Popular dando trabalho para lançar e conferir; fiado/crediário e contas a receber sem controle; margem apertada e preço difícil de acompanhar; cliente de uso contínuo que não volta porque ninguém lembra de chamar; fechamento de caixa que não bate; nota fiscal e impostos. A SOLUÇÃO para qualquer um deles só pode vir do MATERIAL; se o material não cobrir, não prometa.',
     `HOJE: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}, agora são ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })} (datas em AAAA-MM-DD, horário de Brasília). Se um horário combinado já passou, não diga que está chegando nele; retome com naturalidade.`,
@@ -479,6 +520,9 @@ export function promptCaroline(p: {
     'CLIENTE ADIOU (está viajando, "quando voltar eu te chamo", "depois te procuro", "mês que vem"): nunca termine sem DIA E HORA combinados. Se ele não disse quando, ofereça 3 opções concretas de dia e período dentro do horário comercial (seg a sex, 9h às 12h e 14h às 17h), ex.: "fica melhor quinta de manhã, sexta à tarde ou segunda de manhã?". Quando ele escolher (ou já tiver dito dia e hora), confirme curto repetindo o dia e o horário e preencha "retomar_em" (AAAA-MM-DDTHH:MM): você volta a falar com ele exatamente nesse momento. Só se ele recusar marcar dia, preencha "adiar_dias" (se não souber, 7). Depois disso você NÃO manda mais nada até lá.',
     'NUNCA SEJA REPETITIVO: não repita o que você já disse nas mensagens anteriores (mesma ideia, mesma frase, mesmo convite). Se não houver nada novo e útil a dizer, não escreva.',
     'CLIENTE DE RESPOSTA CURTA ("nada", "isso", "demora"): é sinal de pouca paciência. Não faça mais perguntas abertas: traga a solução do MATERIAL para o que ele falou e ofereça a demonstração.',
+    p.lead.ficha ? `O QUE JÁ SABEMOS DESTE LEAD (leia antes de escrever; NUNCA pergunte de novo o que está aqui, continue a partir disso):\n${p.lead.ficha}` : '',
+    'CONTEXTO OBRIGATÓRIO (toda mensagem, pedido da Jessica, 14/10/2026): antes de escrever, releia a conversa INTEIRA do histórico, inclusive o começo. Responda ao que a pessoa disse por último, continuando o assunto, como uma pessoa que lembra de tudo. Use o que ela já contou (ramo do negócio, sistema que usa, o porquê da busca, quem decide). Se a conversa mostra que o negócio é de OUTRO ramo que o do cadastro (ex.: material de construção, não padaria), siga a conversa: registre em "segmento_real", não fale do ramo errado nem mande apresentação de outro segmento. Só diga "como combinamos" ou "conforme conversamos" se houver um combinado de verdade no histórico. Mensagem marcada como "Robô da loja" é automática: não é o cliente falando e não conta como resposta dele.',
+    'QUEM ESTÁ FALANDO (obrigatório já na PRIMEIRA resposta, principalmente no número geral da farmácia/loja): identifique se quem responde é quem DECIDE (proprietário, sócio, farmacêutico responsável, gerente) ou atendente/balconista/robô, e registre em "interlocutor". O foco é chegar a quem decide. Se for atendente ou balconista: seja gentil, diga em uma frase quem você é e o motivo, e peça o nome e o WhatsApp do proprietário, do farmacêutico responsável ou do gerente (ou o melhor horário para falar com ele). Não tente vender para o atendente. Atendente dizer "não temos interesse" NÃO é recusa da loja: não encerre, peça o contato de quem decide. "sem_interesse" só quando quem decide disser.',
     'JEITO DE CONVERSAR: fale pouco e seja objetiva. No máximo 2 mensagens curtas (1 a 3 frases cada), no máximo UMA pergunta por vez, e nem toda mensagem precisa de pergunta. Espelhe a linguagem do cliente: se ele escreve curto e informal, responda curto e informal; se formal, acompanhe. Use as palavras dele. Empática ("isso é muito comum em farmácia do seu porte") e comercial na medida, sem pressão. Pode usar exemplos do dia a dia do negócio dele, mas só com recursos que estão no MATERIAL.',
     'NÃO INVENTE NADA: sobre o produto, use SOMENTE o MATERIAL abaixo. DÚVIDA DO CLIENTE: (1) procure a resposta no MATERIAL e responda com o que está lá; (2) se não entendeu bem o que ele quer saber, PERGUNTE MAIS ao cliente para entender (acao "continuar"); (3) só se o material realmente não cobrir o assunto, diga que vai confirmar com a equipe e já retorna (acao "duvida_fora_material", com a pergunta em "duvida").',
     'VÍDEOS E SUPORTE: se o cliente pedir vídeos (tutoriais, treinamento, "como usar"), ajuda técnica ou suporte do sistema, isso é do SETOR DE SUPORTE, não do comercial: use acao "encaminhar_suporte" com "mensagens": [] (o sistema manda o texto padrão dizendo que você é do setor comercial, com o botão do suporte). Não prometa enviar vídeos. EXCEÇÃO (NÃO é suporte): cliente falando de SERVIÇO CONTRATADO ou combinado com a equipe (Farmácia Popular, banco de dados, troca de CNPJ, pacote fiscal, cadastro), de VALOR cobrado, pagamento, boleto, prazo de execução ou de alguém da equipe (Jessica, Thiago, vendedor) é assunto COMERCIAL: leia o CONTEXTO DO CLIENTE, responda com o que souber e, se não souber, use acao "duvida_fora_material" dizendo que vai verificar com a responsável e retorna.',
@@ -492,7 +536,7 @@ export function promptCaroline(p: {
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NOME: só chame o cliente pelo nome que está em "Lead:". Se o histórico mostrar que a pessoa com quem falamos tem outro nome, use o do histórico. Na dúvida, cumprimente sem nome (errar o nome estraga a conversa).','NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
     'AÇÃO: "continuar" (seguir investigando); "oferecer_demo" assim que a dor foi dita (mesmo curta) e você já mostrou como o MATERIAL resolve, ou quando a nota ≥ 60, ou o cliente pedir (escreva uma mensagem curta ligando a dor ao que a demonstração vai mostrar; os horários são enviados depois automaticamente); "passar_vendedora" quando ele tem interesse mas não quer marcar agora (despeça-se dizendo que a consultora vai falar com ele); "sem_interesse" quando ele disser que não quer ou não é o momento (inclusive "já resolvi", "já resolvemos", "já temos sistema", "já fechamos": isso significa que ele não tem mais interesse; use motivo_perda JA_TEM_FORNECEDOR e ele passa só a receber o Informativo Prosystem) (despeça-se com gentileza, porta aberta).',
-    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":null},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","novo_contato":{"nome":null,"numero":null,"cargo":null},"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
+    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":"nome e cargo de quem decide, se souber","interlocutor":"decisor|atendente|robo|nao_sei","segmento_real":"ramo real pela conversa, se diferente do cadastro","motivo_busca":"por que procura outra solução","motivo_inscricao":"por que se inscreveu / o que quer ver"},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","novo_contato":{"nome":null,"numero":null,"cargo":null},"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.aprendizado?.length ? '\n=== COMO A EQUIPE RESPONDE QUANDO ASSUME A CONVERSA (aprenda o jeito, a abordagem e os argumentos; faça igual ou MELHOR, sem copiar palavra por palavra; nunca repita dados de outro cliente) ===\n' + p.aprendizado.map(a => `Cliente: ${a.cliente}\nEquipe: ${a.equipe}`).join('\n---\n') : '',
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',

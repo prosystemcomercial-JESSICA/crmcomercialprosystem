@@ -1438,3 +1438,14 @@ Correção exclusivamente no estado da interface: nenhuma tabela, coluna, migrat
 - Nova opção `aprovar_abertura` na configuração do agente (`ConfigCaroline`, `PUT /assistente/caroline/config`). Sem valor, segue a opção `aprovar` (comportamento antigo). Com `false`, o primeiro contato sai sem aprovação; as retomadas continuam pela opção `aprovar`.
 - Painel da Caroline: duas caixas, "Aprovar o primeiro contato" e "Aprovar as retomadas".
 - Decisão da Jessica (14/10/2026): primeiro contato da Caroline sem aprovação, para a fila de 333 leads andar. Proteções do número inalteradas (limite único do dia, intervalo sorteado de 4 a 9 min, horário comercial, trava de repetição, rodízio).
+
+### Atualização 14/10/2026 (noite): contexto obrigatório, foco no porquê do lead e em quem decide
+
+- **Conversa inteira:** `historico` (caroline.service) lê as últimas 40 mensagens (antes 14) e, em conversa maior, as 4 primeiras (onde está por que o lead se inscreveu). Mensagem automática da loja aparece como "Robô da loja (mensagem automática)", não como "Cliente".
+- **Ficha do lead (`fichaDoLead`, lib/assistente/sdr):** o que já sabemos vai no roteiro antes de cada fala, com a ordem de nunca perguntar de novo: empresa, ramo real (vale a conversa sobre o cadastro), origem, quem tem respondido, quem decide, se já pedimos o contato do decisor, por que se inscreveu, por que procura outra solução, dor, sistema atual, lojas, momento, cidade e combinado.
+- **Novos campos que a IA registra (`SdrLead.dados`, sem mudança de banco):** `interlocutor` (decisor | atendente | robo | nao_sei), `segmento_real`, `motivo_busca`, `motivo_inscricao`; `decisor` passa a pedir nome e cargo.
+- **Missão nº 1 da Caroline:** entender por que o lead procura outra solução e por que se inscreveu na campanha; com o porquê, mostrar como a Prosystem resolve e convidar para a demonstração. Julio: se ainda faz sentido, entender por que procurava outro sistema.
+- **Regras novas do roteiro:** CONTEXTO OBRIGATÓRIO (reler a conversa inteira, continuar o assunto, seguir o ramo real, "como combinamos" só com combinado de verdade, robô não é o cliente) e QUEM ESTÁ FALANDO (na primeira resposta, sobretudo no número geral da farmácia: identificar proprietário, farmacêutico responsável ou gerente; com atendente, pedir nome e WhatsApp de quem decide; "sem_interesse" só de quem decide).
+- **Trava contra jogar lead fora:** resposta `sem_interesse` com interlocutor atendente (e sem pedido de decisor antes) é refeita pedindo o contato de quem decide. O pedido fica registrado em `dados.pediu_decisor_em`.
+- **Apresentação pelo ramo real:** `apresentacaoPara` usa `dados.segmento_real` quando existe (material de construção não recebe a de padaria).
+- Testes: `tests/sdr-contexto-ficha.test.ts`; `sdr-caroline.test.ts` atualizado para a missão nova.
