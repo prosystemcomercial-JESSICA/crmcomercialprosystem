@@ -21,7 +21,7 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
-  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, mensagemEncerramentoProposta, PROPOSTA_FECHADA, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
   apresentacaoDoSegmento, garantirLinkApresentacao, MARCA_APRESENTACAO, type Apresentacao,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
@@ -678,7 +678,7 @@ export async function marcarPerdidoNews(prisma: PrismaClient, sdr: any, motivo: 
   }
   if (sdr.proposta_id) {
     const p = await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { id: true, status: true } });
-    if (p && !['PERDIDA', 'ACEITA', 'CONTRATO_ASSINADO'].includes(p.status)) {
+    if (p && p.status !== 'PERDIDA' && !PROPOSTA_FECHADA.includes(p.status)) {
       await prisma.propostaComercial.update({ where: { id: p.id }, data: { status: 'PERDIDA' } });
       await prisma.propostaHistorico.create({ data: { proposta_id: p.id, tipo: 'STATUS', campo_alterado: 'status', valor_anterior: p.status, valor_novo: 'PERDIDA', motivo: motivoCompleto, observacao: 'Cliente informou pelo WhatsApp. Contato passou para o Informativo Prosystem.', feito_por_nome: agente } });
       if (sdr.lead_id) await prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'STATUS', descricao: `📄 Proposta RECUSADA pelo cliente (${motivoCompleto}). Contato passou para o Informativo Prosystem.`, created_by: 'bot', created_by_name: agente } }).catch(() => {});
@@ -763,7 +763,7 @@ async function fecharRecuperacaoSemResposta(prisma: PrismaClient, s: any, agora:
   if (s.ultima_lead_em && new Date(s.ultima_lead_em) > desde) return false; // o cliente respondeu: a conversa segue
   if (agora.getTime() - desde.getTime() < DIAS_SEM_RESPOSTA_RECUPERACAO * 864e5) return true; // esperando: nada de retomada
   await marcarPerdidoNews(prisma, s, 'OUTRO', `não informou o motivo da recusa (sem resposta em ${DIAS_SEM_RESPOSTA_RECUPERACAO} dias)`, 'Luiz Felipe').catch((e: any) => console.warn('[RECUPERACAO] fechar:', e?.message));
-  await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESP', dados: { ...(s.dados || {}), recuperacao: { ...rec, desfecho: 'sem_resposta', desfecho_em: agora.toISOString() } } } });
+  await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA', dados: { ...(s.dados || {}), recuperacao: { ...rec, desfecho: 'sem_resposta', desfecho_em: agora.toISOString() } } } });
   registrarAcaoAgente('luiz_felipe', `${s.nome || 'um cliente'} não respondeu em ${DIAS_SEM_RESPOSTA_RECUPERACAO} dias: proposta perdida, contato no Informativo`);
   return true;
 }
@@ -1123,6 +1123,14 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
   if (convB && await contatoSemAgentes(prisma, convB.contato_numero)) return false;
   let sdr = await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS } }, orderBy: { created_at: 'desc' } });
   if (!sdr) {
+    // Proposta encerrada sem resposta (Luiz Felipe): se o cliente responder depois, a conversa volta para ele.
+    const encerrado = await prisma.sdrLead.findFirst({ where: { conversaId, agente: 'luiz_felipe', status: 'SEM_RESPOSTA' }, orderBy: { created_at: 'desc' } });
+    if (encerrado) {
+      sdr = await prisma.sdrLead.update({ where: { id: encerrado.id }, data: { status: 'CONVERSANDO' } });
+      registrarAcaoAgente('luiz_felipe', `${sdr.nome || 'um cliente'} respondeu depois do encerramento: voltou para a conversa`);
+    }
+  }
+  if (!sdr) {
     // Saiu por uma mensagem mandada do celular, mas ninguém assumiu no CRM: o cliente não pode ficar sem resposta.
     // Sem dono, sem finalizar e sem pessoa conversando agora → o agente volta para a conversa.
     const orfao = await prisma.sdrLead.findFirst({ where: { conversaId, status: 'HUMANO' }, orderBy: { created_at: 'desc' } });
@@ -1212,6 +1220,39 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
  * retomadas a cada 30 dias, até 3 ciclos). Depois disso, a vendedora recebe o lead com aviso.
  */
 const CICLOS_MAX = 3;
+
+/**
+ * Luiz Felipe sem resposta às 3 tentativas (pedido da Jessica, 14/10/2026): manda o encerramento fixo (proposta
+ * expirada, agradecimento, blog e Instagram). A proposta ainda aberta passa a EXPIRADA, o contato entra no
+ * Informativo Prosystem e a conversa termina aqui, sem ciclo longo do Julio e sem marcar perda.
+ * Se o cliente responder depois, aoReceberDoLead devolve a conversa ao Luiz Felipe.
+ */
+async function encerrarPropostaSemResposta(prisma: PrismaClient, token: string, s: any, agora: Date) {
+  if (s.proposta_id) {
+    const p = await prisma.propostaComercial.findUnique({ where: { id: s.proposta_id }, select: { status: true } });
+    if (p && PROPOSTA_FECHADA.includes(p.status)) { await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'HUMANO' } }); return; }
+  }
+  const nome = await nomeParaChamar(prisma, s.numero, s.nome).catch(() => s.nome);
+  const texto = mensagemEncerramentoProposta(nome, agora);
+  await enviarMensagens(prisma, token, s, [texto]);
+  const d: any = s.dados || {};
+  await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA', ultima_caroline_em: agora, dados: { ...d, retomar_em: null, encerrado_em: agora.toISOString() } } });
+  await prisma.sdrMensagem.create({ data: { sdrId: s.id, conversaId: s.conversaId, texto, status: 'ENVIADA_AUTO', acao: 'encerramento_proposta', decidido_em: agora } });
+  if (s.proposta_id) {
+    const p = await prisma.propostaComercial.findUnique({ where: { id: s.proposta_id }, select: { id: true, status: true } });
+    if (p && ['ENVIADA', 'VISUALIZADA', 'EM_NEGOCIACAO'].includes(p.status)) {
+      await prisma.propostaComercial.update({ where: { id: p.id }, data: { status: 'EXPIRADA' } });
+      await prisma.propostaHistorico.create({ data: { proposta_id: p.id, tipo: 'STATUS', campo_alterado: 'status', valor_anterior: p.status, valor_novo: 'EXPIRADA', motivo: 'Sem resposta às 3 tentativas do Luiz Felipe', observacao: 'Encerrada pelo Luiz Felipe com a mensagem de proposta expirada (blog e Instagram).', feito_por_nome: 'Luiz Felipe' } });
+    }
+  }
+  if (s.lead_id) {
+    const et = await etiquetaNews(prisma).catch(() => null);
+    if (et) await prisma.leadEtiquetaAplicada.upsert({ where: { lead_id_etiqueta_id: { lead_id: s.lead_id, etiqueta_id: et.id } }, create: { lead_id: s.lead_id, etiqueta_id: et.id }, update: {} }).catch(() => {});
+    await prisma.leadObservacao.create({ data: { lead_id: s.lead_id, tipo: 'SISTEMA', descricao: '📄 Sem resposta às 3 tentativas: Luiz Felipe encerrou a proposta (expirada), agradeceu e mandou o blog e o Instagram. Contato no Informativo Prosystem.', created_by: 'bot', created_by_name: 'Luiz Felipe' } }).catch(() => {});
+  }
+  registrarAcaoAgente('luiz_felipe', `encerrou a proposta de ${s.nome || 'um cliente'}: sem resposta, proposta expirada (blog e Instagram enviados)`);
+}
+
 async function naoDesistir(prisma: PrismaClient, s: any, agora: Date) {
   const d: any = s.dados || {};
   const ciclos = Number(d.ciclos || 0);
@@ -1309,8 +1350,9 @@ async function abastecerFila(prisma: PrismaClient, agente: 'julio' | 'luiz_felip
   const quer = 2 - naFila;
   let postos = 0;
   if (agente === 'luiz_felipe') {
+    // Contrato em geração = o cliente já aceitou: não é proposta para cobrar (caso Varanda Padaria, 29/09/2026).
     const ps = await prisma.propostaComercial.findMany({
-      where: { deleted_at: null, status: { in: PROPOSTA_ABERTA }, updated_at: { lt: recente } },
+      where: { deleted_at: null, status: { in: PROPOSTA_ABERTA.filter(st => !PROPOSTA_FECHADA.includes(st)) }, updated_at: { lt: recente } },
       select: { id: true, responsavel_nome: true, responsavel_telefone: true, nome_fantasia: true, razao_social: true, segmento: true, created_at: true, wpp_enviada_em: true, wpp_followup_etapa: true },
       orderBy: { updated_at: 'desc' }, take: 50,
     });
@@ -1536,11 +1578,20 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   for (const s of aguardando) {
     // Recuperação de proposta recusada: sem retomadas; fecha sozinha após 3 dias sem resposta.
     if (recuperacaoAtiva(s) && !(s.dados as any)?.retomar_em) { await fecharRecuperacaoSemResposta(prisma, s, agora); continue; }
+    // Luiz Felipe sem resposta às 3 tentativas: encerra a proposta (expirada) com agradecimento, blog e Instagram.
+    // Vale também para quem já recebeu o encerramento antigo; só um retorno combinado com o cliente vem antes.
+    if (agenteDe(s) === 'luiz_felipe' && s.tentativas >= TENTATIVAS_MAX && !(s.dados as any)?.combinado) {
+      if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= ((s.dados as any)?.encerramento_em ? 1 : 2) && horaBoaParaRetomar(agora)) {
+        await encerrarPropostaSemResposta(prisma, token, s, agora).catch((e: any) => console.warn('[LUIZ FELIPE] encerramento:', e?.message));
+      }
+      continue;
+    }
     // Horário combinado com o lead ("Me chama depois"): chama nesse horário, não antes.
     const combinado = (s.dados as any)?.retomar_em ? new Date((s.dados as any).retomar_em) : null;
     if (combinado) {
       if (agora >= combinado) {
-        await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...((s.dados as any) || {}), retomar_em: null, chamar_combinado: (s.dados as any).combinado || true } } });
+        // "Como combinamos" só quando houve combinado de verdade com o cliente; retomada que o sistema agendou sozinho não é combinado.
+        await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...((s.dados as any) || {}), retomar_em: null, chamar_combinado: (s.dados as any).combinado || null } } });
         await falar(prisma, token, s.id, 'retomada');
         // O "como combinamos" vale só para esta mensagem.
         const depois = await prisma.sdrLead.findUnique({ where: { id: s.id }, select: { dados: true } });
