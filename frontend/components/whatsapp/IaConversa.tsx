@@ -1,5 +1,5 @@
 'use client';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, MessageSquareText } from 'lucide-react';
 
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
@@ -47,7 +47,7 @@ export function SugerirRespostaBtn({ conversaId, onTexto }: { conversaId: string
     <button onClick={sugerir} disabled={carregando} title={erro || 'Sugerir resposta com IA (você revisa antes de enviar)'}
       aria-label="Sugerir resposta com IA"
       className={`rounded-md w-10 h-10 flex items-center justify-center flex-shrink-0 border ${erro ? 'border-red-300 text-red-600' : 'border-gray-200 text-gray-500 hover:text-[#2E6EAB] hover:bg-gray-50'} bg-white disabled:opacity-50`}>
-      {carregando ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
+      {carregando ? <Loader2 size={17} className="animate-spin" /> : <MessageSquareText size={17} />}
     </button>
   );
 }

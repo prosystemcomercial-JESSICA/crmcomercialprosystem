@@ -1,0 +1,97 @@
+/* WhatsApp — direção aprovada em 14/10/2026. Escopo explícito: não altera outras rotas. */
+.wpp-shell {
+  --t-sidebar-text: var(--t-text-primary);
+  --t-sidebar-muted: var(--t-text-secondary);
+  --t-card-border: color-mix(in srgb, var(--t-text-primary) 12%, var(--t-card-bg));
+  --t-text-muted: var(--t-text-secondary);
+}
+.wpp-shell .ps-sidebar { background: var(--t-card-bg); border-right-color: var(--t-card-border); }
+.wpp-shell .ps-sidebar-item:hover { background: var(--t-content-bg); color: var(--t-text-primary); border-left-color: transparent; }
+.wpp-shell .ps-content { overflow: hidden; }
+.wpp-workspace { container: wpp / inline-size; min-width: 0; color: var(--t-text-primary); }
+.wpp-workspace :is(button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--t-primary-dark); outline-offset: 2px; }
+.wpp-workspace .ios-wpp-topo { min-height: 44px; }
+.wpp-workspace .ios-wpp-topo > div:first-child { flex-wrap: wrap; }
+.wpp-visoes, .wpp-filtros { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.wpp-filtro { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 2px; font-size: 13px; color: var(--t-text-secondary); border-bottom: 2px solid transparent; background: transparent; white-space: nowrap; }
+.wpp-filtro[aria-pressed=true] { color: var(--t-primary-dark); border-bottom-color: currentColor; font-weight: 600; }
+.wpp-filtro:hover { color: var(--t-text-primary); }
+.wpp-abas { scrollbar-width: thin; }
+.wpp-lista-cab { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 12px; }
+.wpp-lista-cab h2 { font-size: 16px; font-weight: 600; }
+.wpp-lista-cab h2 span { font-size: 12px; font-weight: 400; color: var(--t-text-secondary); margin-left: 8px; font-variant-numeric: tabular-nums; }
+.wpp-nova { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 36px; padding: 0 12px; border-radius: 6px; background: var(--t-primary-dark); color: var(--t-text-inverse); font-size: 13px; font-weight: 600; }
+.wpp-busca-area { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
+.wpp-busca { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--t-card-border); border-radius: 6px; background: var(--t-content-bg); color: var(--t-text-primary); font-size: 14px; }
+.wpp-tipos { width: 100%; min-height: 36px; padding: 4px 8px; background: var(--t-card-bg); color: var(--t-text-secondary); border: 1px solid var(--t-card-border); border-radius: 6px; font-size: 12px; }
+.wpp-workspace .ios-lista { background: var(--t-card-bg); }
+.wpp-workspace .wpp-conversa { padding: 10px 12px; gap: 10px; min-height: 76px; color: var(--t-text-primary); }
+.wpp-workspace .wpp-conversa[aria-current=true] { background: var(--t-primary-light); }
+.wpp-workspace .wpp-conversa:hover { background: var(--t-content-bg); }
+.wpp-workspace .wpp-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; flex-shrink: 0; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--t-text-secondary); background: color-mix(in srgb, var(--t-text-secondary) 12%, var(--t-card-bg)); }
+.wpp-meta, .wpp-prioridade { display: inline-block; color: var(--t-text-secondary); font-size: 11px; line-height: 1.5; margin-right: 6px; }
+.wpp-grade { position: relative; }
+.wpp-workspace .ios-chat-cab { flex-wrap: wrap; gap: 8px; padding: 12px; background: var(--t-card-bg); }
+.wpp-transferir, .wpp-abrir-detalhes { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; min-width: 36px; padding: 0 8px; border: 1px solid var(--t-card-border); border-radius: 6px; color: var(--t-text-secondary); background: var(--t-card-bg); font-size: 12px; }
+.wpp-workspace .ios-mensagens { background: var(--t-content-bg) !important; overscroll-behavior: contain; }
+.wpp-workspace :is(.ios-bolha-in, .ios-bolha-out) { min-width: 0; overflow-wrap: anywhere; }
+.wpp-workspace .ios-bolha-in { background: var(--t-card-bg); color: var(--t-text-primary); border-color: var(--t-card-border); }
+.wpp-workspace .ios-bolha-out { background: color-mix(in srgb, var(--t-text-secondary) 12%, var(--t-card-bg)) !important; color: var(--t-text-primary) !important; border-color: var(--t-card-border) !important; }
+.wpp-workspace audio { width: 100%; }
+.wpp-workspace .ios-compositor { background: var(--t-card-bg) !important; flex-shrink: 0; }
+.wpp-workspace .ios-campo-msg { resize: vertical; min-height: 44px; max-height: 120px; padding-top: 10px; background: var(--t-content-bg); color: var(--t-text-primary); }
+.wpp-workspace .apres-pop { max-width: calc(100% - 24px); max-height: min(420px, 60dvh); overflow-y: auto; }
+.wpp-detalhes { display: none; background: var(--t-card-bg); color: var(--t-text-primary); border-left: 1px solid var(--t-card-border); min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; }
+.wpp-detalhes-aberto { display: flex; flex-direction: column; position: absolute; inset: 0 0 0 auto; width: min(320px,100%); z-index: 40; box-shadow: -8px 0 24px color-mix(in srgb,var(--t-text-primary) 10%,transparent); }
+.wpp-painel-cab { position: sticky; top: 0; z-index: 1; background: var(--t-card-bg); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; min-height: 52px; border-bottom: 1px solid var(--t-card-border); font-size: 14px; font-weight: 600; }
+.wpp-painel-cab button { min-height: 36px; padding: 4px 8px; font-size: 12px; font-weight: 500; color: var(--t-text-secondary); }
+.wpp-numeros { position: relative; font-size: 12px; color: var(--t-text-secondary); }
+.wpp-numeros summary { cursor: pointer; min-height: 36px; padding: 8px; border: 1px solid var(--t-card-border); border-radius: 6px; }
+.wpp-numeros-lista { position: absolute; left: 0; top: 100%; z-index: 50; width: min(320px,calc(100vw - 48px)); padding: 12px; background: var(--t-card-bg); border: 1px solid var(--t-card-border); border-radius: 6px; box-shadow: 0 4px 16px color-mix(in srgb,var(--t-text-primary) 10%,transparent); }
+.wpp-numeros-lista li + li { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--t-card-border); }
+.wpp-numeros-lista :is(strong,span) { display: block; overflow-wrap: anywhere; }
+.wpp-numeros-lista i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+@media (min-width: 768px) {
+  .wpp-grade { grid-template-columns: minmax(240px,300px) minmax(0,1fr); }
+}
+/* Three columns depend on usable workspace width, not the full browser width. */
+@container wpp (min-width: 1120px) {
+  .wpp-grade-painel:not(.wpp-painel-recolhido) { grid-template-columns: minmax(260px,300px) minmax(0,1fr) 280px; }
+  .wpp-grade-painel:not(.wpp-painel-recolhido) .wpp-detalhes { display: flex; flex-direction: column; position: static; width: auto; box-shadow: none; }
+  .wpp-grade-painel:not(.wpp-painel-recolhido) .wpp-abrir-detalhes { display: none; }
+}
+@container wpp (max-width: 850px) {
+  .wpp-transferir span { display: none; }
+  .wpp-workspace .ios-chat-cab > .min-w-0 { flex-basis: 45%; }
+}
+@media (max-width: 767px) {
+  .wpp-workspace .ios-inbox { margin: 0; }
+  .wpp-workspace .wpp-lista-cab { padding: 8px 12px; }
+  .wpp-workspace .wpp-nova, .wpp-workspace .wpp-filtro, .wpp-workspace .wpp-tipos { min-height: 44px; }
+  .wpp-workspace .wpp-conversa > div:first-child { width: 36px !important; height: 36px !important; }
+  .wpp-workspace .wpp-conversa p.font-semibold { font-size: 15px !important; }
+  .wpp-workspace .wpp-conversa p.text-\[13px\] { font-size: 14px !important; }
+  .wpp-workspace .ios-conv::after { left: 60px; }
+  .wpp-workspace .ios-voltar span { display: none; }
+  .wpp-workspace .wpp-avatar-chat { display: none; }
+  .wpp-workspace .wpp-abrir-detalhes { min-width: 44px; min-height: 44px; border: 0; }
+  .wpp-detalhes-aberto { width: 100%; }
+  .wpp-painel-cab button { min-height: 44px; }
+  .wpp-workspace .ios-compositor { display: grid; grid-template-columns: repeat(3,44px) minmax(0,1fr) 44px; gap: 4px; }
+  .wpp-workspace .ios-compositor > .ios-campo-msg { grid-row: 1; grid-column: 1 / 5; width: 100%; font-size: 16px !important; }
+  .wpp-workspace .ios-compositor > button:last-child { grid-row: 1; grid-column: 5; }
+  .wpp-workspace .ios-compositor > button:not(:last-child), .wpp-workspace .ios-compositor > div { grid-row: 2; }
+  .wpp-workspace .ios-compositor > button, .wpp-workspace .ios-compositor > div > button { width: 44px !important; height: 44px !important; }
+  .wpp-workspace .ios-compositor .apres-pop button { min-height: 44px; }
+  .wpp-workspace .ios-bolha-in { background: var(--t-card-bg) !important; color: var(--t-text-primary) !important; }
+}
+@media (prefers-reduced-motion: reduce) { .wpp-workspace .wpp-atencao { animation: none; } }
+
+.wpp-workspace .ios-compositor.wpp-gravando { display: flex; }
+
+/* Em telas baixas, filtros e contatos compartilham a rolagem da lista. */
+@media (max-width: 767px) and (max-height: 600px) {
+  .wpp-workspace .ios-lista { overflow-y: auto; overscroll-behavior: contain; }
+  .wpp-workspace .ios-lista > * { flex-shrink: 0; }
+  .wpp-workspace .ios-lista > .flex-1 { flex: none; overflow-y: visible; }
+}

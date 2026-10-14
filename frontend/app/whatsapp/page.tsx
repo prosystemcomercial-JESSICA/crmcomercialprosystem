@@ -1,17 +1,18 @@
 'use client';
 
+import './whatsapp.css';
 import ObservacoesConversa from '@/components/whatsapp/ObservacoesConversa';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Hand, Check, RotateCcw, Link2, CalendarPlus, Tag, ArrowRightLeft, Unlink, Trash2, MoreHorizontal, Info, Paperclip, Send, Mic, Plus, Loader2, MessageSquare } from 'lucide-react';
+import { Hand, Check, RotateCcw, ArrowRightLeft, Trash2, MoreHorizontal, Info, Paperclip, Send, Mic, Plus, Loader2, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import PainelLaya from '@/components/whatsapp/PainelLaya';
 import EnviarPropostaWpp from '@/components/whatsapp/EnviarPropostaWpp';
-import EnviarApresentacaoWpp, { BotaoApresentacaoWpp } from '@/components/whatsapp/EnviarApresentacaoWpp';
+import { BotaoApresentacaoWpp } from '@/components/whatsapp/EnviarApresentacaoWpp';
 import ProximaAcao from '@/components/whatsapp/ProximaAcao';
-import BolinhasNumeros, { type NumeroResumo } from '@/components/whatsapp/BolinhasNumeros';
+import { ResumoNumeros as BolinhasNumeros, formatarNumero, type NumeroResumo } from '@/components/whatsapp/BolinhasNumeros';
 import { MidiaMensagem } from '@/components/whatsapp/MidiaMensagem';
 import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/whatsapp/IaConversa';
 
@@ -209,6 +210,8 @@ export default function WhatsappPage() {
   // Celular (padrão iOS): folha de ações "⋯" e painel de detalhes do atendimento.
   const [acoesMobile, setAcoesMobile] = useState(false);
   const [painelMobile, setPainelMobile] = useState(false);
+  const [painelRecolhido, setPainelRecolhido] = useState(false);
+  const [novaConversaAberta, setNovaConversaAberta] = useState(false);
   const [menuMais, setMenuMais] = useState(false);
   // Conversa aberta no celular: esconde a barra de abas (como o app Mensagens do iPhone).
   useEffect(() => {
@@ -896,44 +899,19 @@ export default function WhatsappPage() {
     return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
   };
 
-  if (loading || !isAuthenticated) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500" /></div>;
-  }
-
-  return (
-    <DashboardLayout>
-      {/* Ocupa 100% da altura do main (que ja e flex-1). Tudo rola internamente;
-          a pagina nao rola junto. h-full e robusto (nao depende de offset fixo). */}
-      <div className={`ios-wpp flex flex-col gap-3 h-full min-h-0 ${ativa ? 'ios-wpp-chat' : ''}`}>
-        <div className={`ios-wpp-topo flex items-center justify-between gap-2 flex-wrap flex-shrink-0 ${ativa ? 'hidden md:flex' : ''}`}>
-          <div className="flex items-center gap-2">
-            <h1 className="ios-large-title text-xl sm:text-2xl font-bold">WhatsApp</h1>
-            {/* Uma bolinha por número (passe o mouse para ver o número e a conexão). O número se gerencia em Configurações. */}
-            {empresa
-              ? <BolinhasNumeros numeros={numeros.length ? numeros : [{ vaga: 'empresa', rotulo: 'Número principal', provedor: 'UAZAPI', principal: true, numero: empresa.numero || null, status, ja_conectou: true, pausada_motivo: null }]} />
-              : <BolinhasNumeros numeros={instancias.map((i: any) => ({ vaga: i.id, rotulo: i.apelido || 'WhatsApp', provedor: 'UAZAPI', principal: false, numero: i.numero || null, status: i.status, ja_conectou: !!i.conectado_em, pausada_motivo: null }))} />}
-          </div>
-          <div className="wpp-abas flex items-center gap-2 overflow-x-auto max-w-full">
-            {/* Toggle de visão: Inbox (lista) | Kanban (por etiqueta) */}
-            {status === 'CONECTADO' && (
-              <div className="ios-seg flex flex-shrink-0 rounded-md border border-gray-200 overflow-hidden">
-                <button onClick={() => setViewMode('inbox')} className={`px-3 h-8 text-[13px] font-medium whitespace-nowrap ${viewMode === 'inbox' ? 'text-white' : 'text-gray-600 bg-white hover:bg-gray-50'}`} style={viewMode === 'inbox' ? { background: '#2E6EAB' } : {}}>Conversas</button>
-                <button onClick={() => setViewMode('kanban')} className={`px-3 h-8 text-[13px] font-medium whitespace-nowrap border-l border-gray-200 ${viewMode === 'kanban' ? 'text-white' : 'text-gray-600 bg-white hover:bg-gray-50'}`} style={viewMode === 'kanban' ? { background: '#2E6EAB' } : {}}>Fila de Chamados</button>
-              </div>
-            )}
+  const filtrosConversas = (<>
             {/* WhatsApp da empresa: abas Minhas / Sem dono / Todas (gestão). */}
             {status === 'CONECTADO' && empresa && (
-              <div className="ios-seg flex flex-shrink-0 rounded-md border border-gray-200 overflow-hidden">
+              <div className="wpp-filtros">
                 {([
                   { id: 'minhas' as AbaConversas, nome: 'Minhas', n: 0 },
                   { id: 'pool' as AbaConversas, nome: 'Sem dono', n: 0 },
                   ...(podeTransferir ? [{ id: 'todas' as AbaConversas, nome: 'Todas', n: 0 }] : []),
                   { id: 'finalizadas' as AbaConversas, nome: 'Finalizadas', n: 0 },
                   { id: 'atencao' as AbaConversas, nome: 'Atenção', n: Object.keys(atencao).length },
-                ]).map((t, i) => (
+                ]).map(t => (
                   <button key={t.id} onClick={() => { setAba(t.id); setAtiva(null); }}
-                    className={`px-3 h-8 text-[13px] font-medium whitespace-nowrap inline-flex items-center gap-1.5 ${i ? 'border-l border-gray-200' : ''} ${aba === t.id ? 'text-white' : 'text-gray-600 bg-white hover:bg-gray-50'}`}
-                    style={aba === t.id ? { background: '#2E6EAB' } : {}}>
+                    className="wpp-filtro" aria-pressed={aba === t.id}>
                     {t.nome}
                     {t.n > 0 && <span className={`text-[11px] font-semibold tabular-nums px-1.5 rounded ${aba === t.id ? 'bg-white/20' : 'bg-amber-100 text-amber-800'}`}>{t.n}</span>}
                   </button>
@@ -952,6 +930,34 @@ export default function WhatsappPage() {
                 {verSupervisao ? 'Todas (supervisão)' : 'Minhas'}
               </button>
             )}
+  </>);
+
+  if (loading || !isAuthenticated) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500" /></div>;
+  }
+
+  return (
+    <DashboardLayout>
+      {/* Ocupa 100% da altura do main (que ja e flex-1). Tudo rola internamente;
+          a pagina nao rola junto. h-full e robusto (nao depende de offset fixo). */}
+      <div className={`wpp-workspace ios-wpp flex flex-col gap-3 h-full min-h-0 ${ativa ? 'ios-wpp-chat' : ''}`}>
+        <div className={`ios-wpp-topo flex items-center justify-between gap-2 flex-wrap flex-shrink-0 ${ativa ? 'hidden md:flex' : ''}`}>
+          <div className="flex items-center gap-2">
+            <h1 className="ios-large-title text-xl sm:text-2xl font-bold">WhatsApp</h1>
+            {/* Uma bolinha por número (passe o mouse para ver o número e a conexão). O número se gerencia em Configurações. */}
+            {empresa
+              ? <BolinhasNumeros numeros={numeros.length ? numeros : [{ vaga: 'empresa', rotulo: 'Número principal', provedor: 'UAZAPI', principal: true, numero: empresa.numero || null, status, ja_conectou: true, pausada_motivo: null }]} />
+              : <BolinhasNumeros numeros={instancias.map((i: any) => ({ vaga: i.id, rotulo: i.apelido || 'WhatsApp', provedor: 'UAZAPI', principal: false, numero: i.numero || null, status: i.status, ja_conectou: !!i.conectado_em, pausada_motivo: null }))} />}
+          </div>
+          <div className="wpp-abas flex items-center gap-2 overflow-x-auto max-w-full">
+            {/* Toggle de visão: Inbox (lista) | Kanban (por etiqueta) */}
+            {status === 'CONECTADO' && (
+              <div className="wpp-visoes">
+                <button onClick={() => setViewMode('inbox')} className="wpp-filtro" aria-pressed={viewMode === 'inbox'}>Conversas</button>
+                <button onClick={() => setViewMode('kanban')} className="wpp-filtro" aria-pressed={viewMode === 'kanban'}>Fila de Chamados</button>
+              </div>
+            )}
+            {viewMode === 'kanban' && filtrosConversas}
           </div>
         </div>
 
@@ -1040,35 +1046,28 @@ export default function WhatsappPage() {
           </div>
         )}
 
-        {/* Layout responsivo (14/10/2026): lista + conversa no tablet; painel fixo só a partir de 1280px (antes, gaveta). */}
-        <style>{`.wpp-abas{scrollbar-width:none}.wpp-abas::-webkit-scrollbar{display:none}@media (min-width:768px){.wpp-grade{grid-template-columns:minmax(240px,300px) minmax(0,1fr)}.wpp-painel-gaveta{position:fixed;top:0;right:0;bottom:0;width:min(360px,92vw);z-index:85;box-shadow:-8px 0 24px rgba(15,23,42,.12)}.wpp-painel-cab{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;font-weight:600;position:sticky;top:0;background:#fff;z-index:1}.wpp-painel-cab .ios-ok{font-size:13px;font-weight:600;color:#2E6EAB;background:none;border:1px solid #d1d5db;border-radius:6px;padding:4px 12px}}@media (min-width:1280px){.wpp-grade.wpp-grade-painel{grid-template-columns:minmax(260px,320px) minmax(0,1fr) minmax(280px,320px)}.wpp-painel-gaveta{position:static;width:auto;box-shadow:none}}`}</style>
+
         <style>{`.wpp-atencao{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;animation:wppAtencao 1.4s ease-in-out infinite}.wpp-atencao.esperando{background:#dc2626;box-shadow:0 0 0 0 rgba(220,38,38,.5)}.wpp-atencao.parado{background:#f59e0b;box-shadow:0 0 0 0 rgba(245,158,11,.5)}@keyframes wppAtencao{0%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{opacity:.35}100%{opacity:1}}`}</style>
         {/* Inbox — estilo WhatsApp Web */}
         {configurado && status === 'CONECTADO' && viewMode === 'inbox' && (
-          <div className={`ios-inbox wpp-grade flex md:grid gap-0 rounded-lg overflow-hidden border border-gray-200 flex-1 min-h-0 ${ativa ? 'wpp-grade-painel' : ''}`}>
+          <div className={`ios-inbox wpp-grade flex md:grid gap-0 rounded-lg overflow-hidden border border-gray-200 flex-1 min-h-0 ${ativa ? 'wpp-grade-painel' : ''} ${painelRecolhido ? 'wpp-painel-recolhido' : ''}`}>
             {/* Lista de conversas */}
             <div className={`ios-lista bg-white flex-col border-r border-gray-200 min-h-0 w-full md:w-auto ${ativa ? 'hidden md:flex' : 'flex'}`}>
-              <div className="ios-lista-cab px-4 py-3 flex items-center gap-2 border-b border-gray-200 bg-white">
-                <span className="text-gray-800 font-semibold text-sm">Conversas</span>
-                <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} title="Filtrar por tipo de contato"
-                  className="ml-auto text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white text-gray-600">
-                  <option value="">Todos</option>
+              <div className="wpp-lista-cab">
+                <h2>Conversas <span>{conversasPorTipo.length}</span></h2>
+                <button type="button" className="wpp-nova" aria-expanded={novaConversaAberta} aria-controls="wpp-nova-conversa" onClick={() => setNovaConversaAberta(v => !v)}><Plus size={16} /> Nova</button>
+              </div>
+              <div className="wpp-busca-area">
+                <input value={buscaConv} onChange={e => setBuscaConv(e.target.value)} aria-label="Buscar conversas" placeholder="Buscar nome ou telefone" type="search" enterKeyHint="search" className="wpp-busca" />
+                {novaConversaAberta && <div id="wpp-nova-conversa" className="flex gap-2">
+                  <input autoFocus value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') iniciarConversa(); }} placeholder="Número com DDD" aria-label="Número para nova conversa" inputMode="tel" className="wpp-busca min-w-0 flex-1" />
+                  <button onClick={iniciarConversa} className="wpp-nova">Iniciar</button>
+                </div>}
+                {filtrosConversas}
+                <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} aria-label="Filtrar por tipo de contato" className="wpp-tipos">
+                  <option value="">Todos os tipos de contato</option>
                   {TIPOS_CONTATO.map(t => <option key={t.valor} value={t.valor}>{t.nome}</option>)}
                 </select>
-                <span className="text-xs text-gray-400">{conversasPorTipo.length}</span>
-              </div>
-              <div className="ios-busca-area p-2 border-b border-gray-100 space-y-2">
-                <input value={buscaConv} onChange={e => setBuscaConv(e.target.value)}
-                  placeholder="Buscar conversa…" type="search" enterKeyHint="search"
-                  className="ios-search w-full bg-white border border-gray-200 rounded-md px-3 h-9 text-sm focus:outline-none focus:border-[#2E6EAB]" />
-                <div className="flex gap-1.5">
-                  <input value={novoNumero} onChange={e => setNovoNumero(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') iniciarConversa(); }}
-                    placeholder="Novo: nº com DDD (27999998888)" inputMode="tel"
-                    className="ios-search flex-1 min-w-0 bg-white border border-gray-200 rounded-md px-3 h-9 text-sm focus:outline-none focus:border-[#2E6EAB]" />
-                  <button onClick={iniciarConversa} title="Iniciar conversa" aria-label="Iniciar conversa"
-                    className="ios-btn-add text-white rounded-md w-9 h-9 flex items-center justify-center flex-shrink-0" style={{ background: '#2E6EAB' }}><Plus size={16} /></button>
-                </div>
               </div>
               <ProximaAcao
                 versao={`${conversas.length}:${conversas[0]?.ultima_em || ''}`}
@@ -1077,8 +1076,9 @@ export default function WhatsappPage() {
                 {conversasFiltradas.length === 0 && <p className="text-center  text-sm p-6">Nenhuma conversa</p>}
                 {conversasFiltradas.map(c => (
                   <button key={c.id} onClick={() => abrir(c)}
-                    className={`ios-conv w-full text-left px-3 py-3 flex items-center gap-3 border-b border-gray-50 transition-colors ${ativa?.id === c.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                    <div className="w-10 h-10 rounded-md flex items-center justify-center font-semibold text-white flex-shrink-0 text-base" style={{ background: corAvatar(nomeContato(c)) }}>
+                    aria-current={ativa?.id === c.id ? true : undefined}
+                    className={`ios-conv wpp-conversa w-full text-left px-3 py-3 flex items-center gap-3 border-b border-gray-50 transition-colors ${ativa?.id === c.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                    <div className="wpp-avatar">
                       {nomeContato(c).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1094,10 +1094,10 @@ export default function WhatsappPage() {
                         {c.nao_lidas > 0 && <span className="text-white text-[11px] font-semibold tabular-nums rounded px-1.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0" style={{ background: '#2E6EAB' }}>{c.nao_lidas}</span>}
                       </div>
                       {tipoInfo(c.tipo_contato) && tipoInfo(c.tipo_contato)!.nome !== c.etiqueta && (
-                        <span className="inline-block mt-1 mr-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: tipoInfo(c.tipo_contato)!.cor }}>{tipoInfo(c.tipo_contato)!.nome}</span>
+                        <span className="wpp-meta">{tipoInfo(c.tipo_contato)!.nome}</span>
                       )}
                       {c.etiqueta && (
-                        <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: c.etiqueta_cor || '#6b7280' }}>{c.etiqueta}</span>
+                        <span className="wpp-meta">{c.etiqueta}</span>
                       )}
                       {c.atendente_ia ? <span className="inline-block mt-1 ml-1"><FarolCaroline nome={c.atendente_ia} /></span> : !c.dono_id && (
                         <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: '#FEF3C7', color: '#92400E' }}>
@@ -1135,13 +1135,13 @@ export default function WhatsappPage() {
                 <>
                   <div className="ios-chat-cab px-4 py-3 flex items-center gap-3 border-b border-gray-200 bg-white relative">
                     <button onClick={() => setAtiva(null)} className="ios-voltar md:hidden" aria-label="Voltar para as conversas">‹<span>Conversas</span></button>
-                    <div className="w-9 h-9 rounded-md flex items-center justify-center font-semibold text-white flex-shrink-0 text-sm" style={{ background: corAvatar(nomeContato(ativa)) }}>
+                    <div className="wpp-avatar wpp-avatar-chat">
                       {nomeContato(ativa).charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-gray-800 text-sm truncate">{nomeContato(ativa)}</p>
-                        {ativa.etiqueta && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: ativa.etiqueta_cor || '#6b7280' }}>{ativa.etiqueta}</span>}
+                        {ativa.etiqueta && <span className="wpp-meta">{ativa.etiqueta}</span>}
                         {(ativa as any).cliente_id && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white inline-flex items-center gap-1" style={{ background: '#16a34a' }}
                             title="Cliente da base vinculado a esta conversa">
@@ -1149,7 +1149,7 @@ export default function WhatsappPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-gray-400 truncate">{ativa.contato_numero}{ativa.lead_id ? ' · no funil' : ''}{!ativa.dono_id && !ativa.atendente_ia ? ' · sem dono' : ''}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{formatarNumero(ativa.contato_numero)}{ativa.lead_id ? ' · no funil' : ''}{!ativa.dono_id && !ativa.atendente_ia ? ' · sem dono' : ''}</p>
                       {ativa.atendente_ia && <div className="mt-0.5"><FarolCaroline pequeno nome={ativa.atendente_ia} /></div>}
                       <div className="flex items-center gap-1 flex-wrap mt-1">
                         {emTriagem(ativa) && <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800">Em triagem: responda para o robô parar</span>}
@@ -1157,7 +1157,7 @@ export default function WhatsappPage() {
                       </div>
                     </div>
                     {/* Celular: detalhes (ⓘ) e ações (⋯) no lugar da fileira de botões. */}
-                    <button onClick={() => setPainelMobile(true)} className="ios-icone-nav xl:hidden md:w-8 md:h-8 md:min-w-0 md:min-h-0 md:rounded-md md:border md:border-gray-200 md:bg-white md:text-gray-500 md:flex md:items-center md:justify-center md:flex-shrink-0" aria-label="Detalhes do atendimento" title="Detalhes do atendimento"><Info size={17} /></button>
+                    <button onClick={() => { setPainelMobile(true); setPainelRecolhido(false); }} className="wpp-abrir-detalhes" aria-label="Detalhes do atendimento" aria-controls="wpp-detalhes" title="Detalhes do atendimento"><Info size={17} /></button>
                     <button onClick={() => setAcoesMobile(true)} className="ios-icone-nav md:hidden" aria-label="Ações da conversa">⋯</button>
                     <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
                     {/* Conversa sem dono (pool da empresa): assumir o atendimento. */}
@@ -1178,47 +1178,19 @@ export default function WhatsappPage() {
                       {ativa.finalizada_em ? <RotateCcw size={14} /> : <Check size={14} />}
                       {ativa.finalizada_em ? 'Reabrir' : 'Finalizar'}
                     </button>
-                    {/* Prioridade da conversa */}
-                    {(() => {
-                      const prioAtiva = PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'));
-                      const slaAtiva = fmtSla(ativa.sla_prazo_em);
-                      return (
-                        <button onClick={() => { setMenuPrioridade(v => !v); setMenuEtiqueta(false); setMenuTransferir(false); setMenuMais(false); }}
-                          title={`Prioridade${slaAtiva?.violado ? ' · SLA estourado' : ''}`}
-                          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-semibold border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 whitespace-nowrap">
-                          <span className="w-2 h-2 rounded-full" style={{ background: prioAtiva?.cor || '#64748b' }} />
-                          {prioAtiva?.nome || 'Normal'}
-                          {slaAtiva?.violado && <span className="text-[10px] font-bold text-red-600">SLA</span>}
-                        </button>
-                      );
-                    })()}
-                    {/* Ações secundárias: ícones nas telas largas; menu "Mais" no tablet. */}
-                    <div className="hidden lg:flex items-center gap-1">
-                      {[
-                        { t: 'Vincular a um cliente da base', i: <Link2 size={15} />, f: abrirVincCliente, ver: true },
-                        { t: 'Agendar reunião', i: <CalendarPlus size={15} />, f: () => setShowReuniao(true), ver: true },
-                        { t: 'Etiquetar', i: <Tag size={15} />, f: () => { setMenuEtiqueta(v => !v); setMenuTransferir(false); setMenuPrioridade(false); }, ver: true },
-                        { t: 'Transferir vendedor', i: <ArrowRightLeft size={15} />, f: () => { abrirTransferir(); setMenuEtiqueta(false); }, ver: podeTransferir },
-                        { t: 'Desvincular do funil (não conta como lead)', i: <Unlink size={15} />, f: desvincularFunil, ver: !!ativa.lead_id },
-                      ].filter(b => b.ver).map(b => (
-                        <button key={b.t} onClick={b.f} title={b.t} aria-label={b.t}
-                          className="w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-500 hover:text-gray-800 hover:bg-gray-50 flex items-center justify-center">{b.i}</button>
-                      ))}
-                      <button onClick={() => excluirConversa(ativa.id)} title="Excluir conversa" aria-label="Excluir conversa"
-                        className="w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center"><Trash2 size={15} /></button>
-                    </div>
+                    {podeTransferir && <button onClick={() => { abrirTransferir(); setMenuEtiqueta(false); setMenuPrioridade(false); setMenuMais(false); }} className="wpp-transferir" title="Transferir atendimento"><ArrowRightLeft size={15} /><span>Transferir</span></button>}
                     <button onClick={() => { setMenuMais(v => !v); setMenuEtiqueta(false); setMenuPrioridade(false); setMenuTransferir(false); }}
                       title="Mais ações" aria-label="Mais ações" aria-expanded={menuMais}
-                      className="lg:hidden w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center justify-center"><MoreHorizontal size={16} /></button>
+                      className="w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center justify-center"><MoreHorizontal size={16} /></button>
                     </div>
                     {/* Menu "Mais" (tablet) */}
                     {menuMais && (
-                      <div className="hidden md:block lg:hidden absolute right-3 top-14 ps-card rounded-md shadow-lg border border-gray-200 z-20 p-1 w-56">
+                      <div className="hidden md:block absolute right-3 top-14 ps-card rounded-md shadow-lg border border-gray-200 z-20 p-1 w-56">
                         {[
                           { t: 'Vincular a cliente da base', f: abrirVincCliente, ver: true },
                           { t: 'Agendar reunião', f: () => setShowReuniao(true), ver: true },
+                          { t: 'Prioridade', f: () => setMenuPrioridade(true), ver: true },
                           { t: 'Etiquetar', f: () => setMenuEtiqueta(true), ver: true },
-                          { t: 'Transferir vendedor', f: () => abrirTransferir(), ver: podeTransferir },
                           { t: 'Desvincular do funil', f: desvincularFunil, ver: !!ativa.lead_id },
                         ].filter(b => b.ver).map(b => (
                           <button key={b.t} onClick={() => { setMenuMais(false); b.f(); }} className="w-full text-left px-2.5 h-9 rounded text-sm text-gray-700 hover:bg-gray-50">{b.t}</button>
@@ -1240,7 +1212,6 @@ export default function WhatsappPage() {
                               return [
                                 !ativa.dono_id && acao(assumindo ? 'Assumindo…' : 'Assumir conversa', () => assumirConversa(ativa)),
                                 acao(ativa.finalizada_em ? 'Reabrir conversa' : 'Finalizar atendimento', () => finalizarOuReabrir(ativa)),
-                                acao('Detalhes do atendimento', () => setPainelMobile(true)),
                                 acao('Prioridade', () => { setMenuPrioridade(true); setMenuEtiqueta(false); setMenuTransferir(false); }),
                                 acao('Etiquetar', () => { setMenuEtiqueta(true); setMenuTransferir(false); setMenuPrioridade(false); }),
                                 acao('Agendar reunião', () => setShowReuniao(true)),
@@ -1330,7 +1301,7 @@ export default function WhatsappPage() {
                     ))}
                     <div ref={fimRef} />
                   </div>
-                  <div className="ios-compositor relative p-2.5 flex items-center gap-1.5 border-t border-gray-200" style={{ background: '#F7F8FA' }}>
+                  <div className={`ios-compositor relative p-2.5 flex items-center gap-1.5 border-t border-gray-200 ${gravando ? 'wpp-gravando' : ''}`} style={{ background: '#F7F8FA' }}>
                     {gravando ? (
                       <>
                         <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-md px-3 h-10 text-sm">
@@ -1367,10 +1338,12 @@ export default function WhatsappPage() {
                           marcarComoMinha(ativa.id);
                           setTimeout(() => fimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
                         }} />
-                        <input
+                        <textarea
+                          rows={1}
+                          aria-label="Mensagem"
                           value={texto}
                           onChange={e => setTexto(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); enviar(); } }}
                           placeholder="Escreva uma mensagem…" enterKeyHint="send"
                           className="ios-campo-msg flex-1 min-w-0 bg-white border border-gray-200 rounded-md px-3 h-10 text-sm focus:outline-none focus:border-[#2E6EAB]"
                         />
@@ -1396,10 +1369,10 @@ export default function WhatsappPage() {
 
             {/* Painel lateral — resumo comercial da conversa ativa */}
             {ativa && (
-              <div className={`${painelMobile ? 'ios-painel-folha wpp-painel-gaveta flex flex-col' : 'hidden'} xl:flex xl:flex-col bg-white border-l border-gray-200 min-h-0 min-w-0 overflow-y-auto`}>
-                <div className="ios-painel-cab wpp-painel-cab xl:hidden">
+              <div id="wpp-detalhes" role="region" aria-label="Detalhes do atendimento" className={`wpp-detalhes ${painelMobile ? 'wpp-detalhes-aberto' : ''}`} onKeyDown={e => { if (e.key === 'Escape') { setPainelMobile(false); setPainelRecolhido(true); } }}>
+                <div className="wpp-painel-cab">
                   <span>Detalhes</span>
-                  <button onClick={() => setPainelMobile(false)} className="ios-ok">OK</button>
+                  <button onClick={() => { setPainelMobile(false); setPainelRecolhido(true); }} aria-label="Fechar detalhes">Fechar</button>
                 </div>
                 <div className="px-4 py-3.5 border-b border-gray-100">
                   <p className="text-sm font-semibold text-gray-800">{painel?.cliente ? (painel.cliente.razao_social || painel.cliente.nome_fantasia || painel.cliente.nome) : 'Atendimento'}</p>
@@ -1407,10 +1380,10 @@ export default function WhatsappPage() {
                     {(() => {
                       const prio = PRIORIDADES.find(p => p.valor === (ativa.prioridade || 'NORMAL'));
                       return prio && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: prio.cor }}>{prio.nome}</span>
+                        <span className="wpp-prioridade" style={prio.valor === 'NORMAL' ? undefined : { color: prio.cor }}>{prio.nome}</span>
                       );
                     })()}
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: '#eef2ff', color: '#4338ca' }}>
+                    <span className="wpp-meta">
                       {ESTAGIOS_FUNIL.find(e => e.valor === ativa.estagio_funil)?.nome || 'Novo Contato'}
                     </span>
                   </div>
@@ -1421,7 +1394,7 @@ export default function WhatsappPage() {
                     const sla = fmtSla(ativa.sla_prazo_em);
                     return (
                       <>
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">SLA</p>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Prazo de atendimento</p>
                         {sla ? (
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${sla.violado ? 'text-white' : ''}`}
                             style={sla.violado ? { background: '#dc2626' } : { background: '#f1f5f9', color: '#334155' }}>
@@ -1448,7 +1421,7 @@ export default function WhatsappPage() {
                   {ativa.contato_cargo && (<><p className="text-xs text-gray-400 mb-0.5">Cargo</p><p className="text-sm font-medium text-gray-800 mb-2">{ativa.contato_cargo}</p></>)}
                   {ativa.contato_empresa && (<><p className="text-xs text-gray-400 mb-0.5">Empresa</p><p className="text-sm font-medium text-gray-800 mb-2">{ativa.contato_empresa}</p></>)}
                   <p className="text-xs text-gray-400 mb-0.5">WhatsApp</p>
-                  <p className="text-sm font-medium text-gray-800">{ativa.contato_numero}</p>
+                  <p className="text-sm font-medium text-gray-800">{formatarNumero(ativa.contato_numero)}</p>
                 </div>
 
                 {(() => {
@@ -1544,8 +1517,6 @@ export default function WhatsappPage() {
                 <ResumoIa key={`resumo:${ativa.id}`} conversaId={ativa.id} />
 
                 <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} conversa={ativa} />
-
-                <EnviarApresentacaoWpp key={`apres:${ativa.id}`} conversaId={ativa.id} conversa={ativa} />
 
                 <PainelLaya conversa={conversas.find(c => c.id === ativa.id) || ativa} />
 

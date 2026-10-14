@@ -176,3 +176,8 @@ Estado ativo com fundo semi-transparente branco (`rgba(255,255,255,0.22)`) e bor
 - **Don't** empilhar `margin` ad-hoc entre elementos irmãos quando `gap` em flex/grid resolve — o projeto já tem esse padrão estabelecido em componentes recentes.
 - **Don't** adicionar uma segunda família tipográfica sem necessidade funcional clara.
 - **Don't** confundir o radius de card (`1rem`, fixo) com a escala de radius de controles (`sm`/`md`/`lg`/`xl`) — são propositalmente diferentes.
+
+
+## Exceção aprovada — WhatsApp (14/10/2026)
+
+A usuária aprovou a versão clara da central, com menos azul e sem ações repetidas. Nesta rota, o menu usa superfície neutra e seleção discreta, sem o gradiente global. Os tokens de marca continuam nas ações; estados críticos preservam suas cores. O escopo é .wpp-shell/.wpp-workspace, sem mudar a aparência das outras rotas. Apresentações têm um único acesso no compositor.

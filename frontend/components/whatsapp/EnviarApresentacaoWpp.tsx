@@ -46,56 +46,6 @@ function preparar(conversa: Conversa) {
   return { nomeValido, lista, doSegmento: (id: string) => APRESENTACOES.find(x => x.id === id)!.segmento.test(segmento) };
 }
 
-export default function EnviarApresentacaoWpp({ conversaId, conversa }: { conversaId: string; conversa: Conversa }) {
-  const { nomeValido, lista } = preparar(conversa);
-  const [aberta, setAberta] = useState<string | null>(null);
-  const [texto, setTexto] = useState('');
-  const [enviando, setEnviando] = useState(false);
-  const [enviada, setEnviada] = useState<string | null>(null);
-
-  const abrir = (id: string) => {
-    const a = APRESENTACOES.find(x => x.id === id)!;
-    setTexto(a.texto(nomeValido)); setAberta(id); setEnviada(null);
-  };
-  const enviar = async () => {
-    if (!texto.trim()) return;
-    setEnviando(true);
-    try { await apiClient.enviarWhatsappMensagem(conversaId, texto.trim()); setEnviada(aberta); setAberta(null); }
-    catch (e: any) { alert(e?.response?.data?.message || 'Não foi possível enviar agora.'); }
-    finally { setEnviando(false); }
-  };
-
-  return (
-    <div className="px-4 py-3.5 border-b border-gray-100">
-      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1.5">Apresentação</p>
-      {!aberta && (
-        <div className="flex flex-wrap gap-2">
-          {lista.map(a => (
-            <div key={a.id} className="flex items-center gap-2">
-              <button onClick={() => abrir(a.id)} className="px-3 rounded-md text-xs font-semibold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50" style={{ minHeight: 36 }}>
-                Enviar apresentação · {a.nome}
-              </button>
-              <a href={a.url} target="_blank" rel="noreferrer" className="text-xs font-medium" style={{ color: 'var(--t-primary, #2E6EAB)' }}>ver</a>
-            </div>
-          ))}
-        </div>
-      )}
-      {enviada && !aberta && <p className="text-xs mt-2" style={{ color: '#16a34a' }}>Apresentação enviada.</p>}
-      {aberta && (
-        <div className="space-y-2">
-          <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={6} className="w-full text-sm rounded-md border border-gray-200 p-2" />
-          <div className="flex gap-2">
-            <button disabled={enviando || !texto.trim()} onClick={enviar} className="px-3 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#16a34a', minHeight: 40 }}>
-              {enviando ? 'Enviando…' : 'Enviar no WhatsApp'}
-            </button>
-            <button onClick={() => setAberta(null)} className="px-3 py-2 rounded-md text-sm font-medium text-gray-600 border border-gray-200" style={{ minHeight: 40 }}>Cancelar</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Botão ao lado do campo de mensagem: abre as apresentações, mostra a mensagem pronta
 // (editável) e envia direto na conversa, sem ir até o painel lateral.
 export function BotaoApresentacaoWpp({ conversaId, conversa, onEnviada }: { conversaId: string; conversa: Conversa; onEnviada: (msg: any) => void }) {
