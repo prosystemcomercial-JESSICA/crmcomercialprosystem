@@ -97,23 +97,23 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
       <div className="flex gap-2">
         {conversa && (
           <button onClick={criar}
-            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold rounded-lg py-2 border border-teal-700 text-teal-800 hover:bg-teal-50">
-            ➕ Criar proposta
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold rounded-md h-9 border border-[#2E6EAB] text-[#2E6EAB] bg-white hover:bg-[#2E6EAB0d]">
+            Criar proposta
           </button>
         )}
         <button onClick={abrir}
-          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-white rounded-lg py-2" style={{ background: '#0f766e' }}>
-          📄 Enviar / reenviar
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-white rounded-md h-9" style={{ background: '#2E6EAB' }}>
+          Enviar / reenviar
         </button>
       </div>
       {aberto && (
         <div className="mt-2 space-y-1.5">
           {lista === null && <p className="text-xs text-gray-400">Buscando propostas deste contato…</p>}
           {lista?.length === 0 && (
-            <p className="text-xs text-gray-500">Nenhuma proposta aberta com o CNPJ ou o telefone deste contato. Clique em ➕ Criar proposta.</p>
+            <p className="text-xs text-gray-500">Nenhuma proposta aberta com o CNPJ ou o telefone deste contato. Clique em Criar proposta.</p>
           )}
           {lista?.map(p => (
-            <div key={p.id} className="border border-gray-200 rounded-lg p-2">
+            <div key={p.id} className="border border-gray-200 rounded-md p-2">
               <p className="text-xs font-semibold text-gray-800">{p.nome}</p>
               <p className="text-[11px] text-gray-500">
                 {[p.plano, brl(p.valor), STATUS[p.status] || p.status].filter(Boolean).join(' · ')}

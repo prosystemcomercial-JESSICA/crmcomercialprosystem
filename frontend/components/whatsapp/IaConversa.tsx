@@ -1,4 +1,5 @@
 'use client';
+import { Loader2, Sparkles } from 'lucide-react';
 
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
@@ -19,8 +20,8 @@ export function ResumoIa({ conversaId }: { conversaId: string }) {
   return (
     <div className="px-4 py-3.5 border-b border-gray-100">
       <button onClick={resumir} disabled={carregando}
-        className="w-full text-xs font-semibold rounded-lg py-2 border border-violet-300 text-violet-700 hover:bg-violet-50 disabled:opacity-50">
-        {carregando ? 'Resumindo…' : r ? '✨ Resumir de novo' : '✨ Resumir conversa'}
+        className="w-full text-xs font-semibold rounded-md h-9 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
+        {carregando ? 'Resumindo…' : r ? 'Resumir de novo' : 'Resumir conversa'}
       </button>
       {r && (
         <div className="mt-2 space-y-1.5 text-xs text-gray-700">
@@ -44,8 +45,9 @@ export function SugerirRespostaBtn({ conversaId, onTexto }: { conversaId: string
   };
   return (
     <button onClick={sugerir} disabled={carregando} title={erro || 'Sugerir resposta com IA (você revisa antes de enviar)'}
-      className={`rounded-full w-11 h-11 flex items-center justify-center shadow-sm text-lg flex-shrink-0 border ${erro ? 'border-red-300' : 'border-violet-200'} bg-white disabled:opacity-50`}>
-      {carregando ? '⏳' : '✨'}
+      aria-label="Sugerir resposta com IA"
+      className={`rounded-md w-10 h-10 flex items-center justify-center flex-shrink-0 border ${erro ? 'border-red-300 text-red-600' : 'border-gray-200 text-gray-500 hover:text-[#2E6EAB] hover:bg-gray-50'} bg-white disabled:opacity-50`}>
+      {carregando ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
     </button>
   );
 }

@@ -1122,3 +1122,4 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Tela do WhatsApp:** ao lado do título há uma bolinha para cada número. Passe o mouse (ou toque) para ver o número e se está conectado, conectando ou se caiu a conexão. O número completo e a conexão ficam em Configurações › Números de WhatsApp. As mensagens que a equipe envia agora aparecem em cinza claro.
 - **Cabeçalho:** o alarme da reunião (5, 10, 15 ou 30 minutos antes) e o cronômetro ficam ao lado da lua, em cima.
 - **Seu perfil:** no primeiro acesso aparece a janela para colocar a foto e conferir nome e telefone. Para mudar depois: menu do seu nome › **Meu perfil**, ou **Configurações** no menu lateral.
+- **Tela do WhatsApp (tarde de 14/10):** no notebook e no tablet a conversa ganha mais espaço. O painel de atendimento abre pelo botão **ⓘ** quando a tela é menor, e os ícones de vincular, agendar, etiquetar, transferir e excluir ficam no menu **⋯ Mais**.

@@ -72,7 +72,7 @@ export default function EnviarApresentacaoWpp({ conversaId, conversa }: { conver
         <div className="flex flex-wrap gap-2">
           {lista.map(a => (
             <div key={a.id} className="flex items-center gap-2">
-              <button onClick={() => abrir(a.id)} className="px-3 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: 'var(--t-primary, #2E6EAB)', minHeight: 40 }}>
+              <button onClick={() => abrir(a.id)} className="px-3 rounded-md text-xs font-semibold border border-gray-300 text-gray-700 bg-white hover:bg-gray-50" style={{ minHeight: 36 }}>
                 Enviar apresentação · {a.nome}
               </button>
               <a href={a.url} target="_blank" rel="noreferrer" className="text-xs font-medium" style={{ color: 'var(--t-primary, #2E6EAB)' }}>ver</a>
@@ -83,12 +83,12 @@ export default function EnviarApresentacaoWpp({ conversaId, conversa }: { conver
       {enviada && !aberta && <p className="text-xs mt-2" style={{ color: '#16a34a' }}>Apresentação enviada.</p>}
       {aberta && (
         <div className="space-y-2">
-          <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={6} className="w-full text-sm rounded-lg border border-gray-200 p-2" />
+          <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={6} className="w-full text-sm rounded-md border border-gray-200 p-2" />
           <div className="flex gap-2">
-            <button disabled={enviando || !texto.trim()} onClick={enviar} className="px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#16a34a', minHeight: 40 }}>
+            <button disabled={enviando || !texto.trim()} onClick={enviar} className="px-3 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#16a34a', minHeight: 40 }}>
               {enviando ? 'Enviando…' : 'Enviar no WhatsApp'}
             </button>
-            <button onClick={() => setAberta(null)} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 border border-gray-200" style={{ minHeight: 40 }}>Cancelar</button>
+            <button onClick={() => setAberta(null)} className="px-3 py-2 rounded-md text-sm font-medium text-gray-600 border border-gray-200" style={{ minHeight: 40 }}>Cancelar</button>
           </div>
         </div>
       )}
@@ -131,14 +131,14 @@ export function BotaoApresentacaoWpp({ conversaId, conversa, onEnviada }: { conv
   return (
     <div ref={caixa} className="flex-shrink-0">
       <button onClick={() => (aberto ? fechar() : setAberto(true))} title="Enviar apresentação" aria-label="Enviar apresentação" aria-expanded={aberto}
-        className={`rounded-full w-11 h-11 flex items-center justify-center shadow-sm border bg-white text-[#2E6EAB] ${aberto ? 'border-[#2E6EAB]' : 'border-[#C9D8EA]'}`}>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        className={`rounded-md w-10 h-10 flex items-center justify-center border bg-white ${aberto ? 'border-[#2E6EAB] text-[#2E6EAB]' : 'border-gray-200 text-gray-500 hover:text-[#2E6EAB] hover:bg-gray-50'}`}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /><path d="M10 8.5v3l3-1.5z" fill="currentColor" />
         </svg>
       </button>
       {aberto && (
         <div role="dialog" aria-label="Enviar apresentação"
-          className="apres-pop absolute bottom-full left-3 mb-1 z-30 bg-white rounded-xl border border-gray-200 shadow-xl p-3"
+          className="apres-pop absolute bottom-full left-3 mb-1 z-30 bg-white rounded-lg border border-gray-200 shadow-lg p-3"
           style={{ width: 'min(340px, calc(100vw - 24px))' }}>
           {!escolhida ? (
             <>
@@ -147,7 +147,7 @@ export function BotaoApresentacaoWpp({ conversaId, conversa, onEnviada }: { conv
                 {lista.map(a => (
                   <div key={a.id} className="flex items-center gap-2">
                     <button onClick={() => escolher(a.id)}
-                      className={`flex-1 min-h-[44px] text-left px-3 rounded-lg border text-sm font-medium text-gray-800 bg-white hover:bg-gray-50 ${doSegmento(a.id) ? 'border-[#2E6EAB]' : 'border-gray-200'}`}>
+                      className={`flex-1 min-h-[44px] text-left px-3 rounded-md border text-sm font-medium text-gray-800 bg-white hover:bg-gray-50 ${doSegmento(a.id) ? 'border-[#2E6EAB]' : 'border-gray-200'}`}>
                       {a.nome}
                       {doSegmento(a.id) && <span className="ml-2 text-[10px] font-semibold uppercase" style={{ color: '#2E6EAB' }}>do segmento</span>}
                     </button>
@@ -159,14 +159,14 @@ export function BotaoApresentacaoWpp({ conversaId, conversa, onEnviada }: { conv
           ) : (
             <div className="space-y-2">
               <p className="text-[11px] font-semibold text-gray-400 uppercase">{nomeEscolhida}: confira a mensagem</p>
-              <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={6} autoFocus className="w-full text-sm rounded-lg border border-gray-200 p-2" />
+              <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={6} autoFocus className="w-full text-sm rounded-md border border-gray-200 p-2" />
               {erro && <p className="text-xs text-red-600">{erro}</p>}
               <div className="flex gap-2">
                 <button disabled={enviando || !texto.trim()} onClick={enviar}
-                  className="flex-1 min-h-[44px] px-3 rounded-lg text-sm font-semibold text-white bg-[#16a34a] disabled:opacity-50">
+                  className="flex-1 min-h-[44px] px-3 rounded-md text-sm font-semibold text-white bg-[#16a34a] disabled:opacity-50">
                   {enviando ? 'Enviando…' : 'Enviar no WhatsApp'}
                 </button>
-                <button onClick={() => setEscolhida(null)} className="min-h-[44px] px-3 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200">Voltar</button>
+                <button onClick={() => setEscolhida(null)} className="min-h-[44px] px-3 rounded-md text-sm font-medium text-gray-600 bg-white border border-gray-200">Voltar</button>
               </div>
             </div>
           )}
