@@ -91,3 +91,16 @@ export function respostaSegura(r: { responder?: boolean; resposta?: string } | n
   if (/R\$\s?\d|\d+\s?reais|\bdesconto\b/i.test(t)) return null;
   return t;
 }
+
+/**
+ * Remove metade de emoji (surrogate solto) deixada pelo corte de um texto com slice(). A OpenAI recusa o pedido
+ * inteiro com "invalid_json" (HTTP 400) quando acha uma; foi o que derrubou o treino do Julio (14/10/2026).
+ */
+export function semCaractereQuebrado(s: string): string {
+  return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+}
+
+/** JSON.stringify para os pedidos às IAs: todo texto vai sem caractere quebrado. */
+export function jsonParaIa(obj: unknown): string {
+  return JSON.stringify(obj, (_k, v) => (typeof v === 'string' ? semCaractereQuebrado(v) : v));
+}
