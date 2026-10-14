@@ -240,12 +240,28 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       propostasEmRascunho(prisma, now, podeVerTudo(user) ? null : (user?.id || '__no_user__')).catch(() => []),
     ]);
 
+    // Programa de Ativos (parte 3, 14/10/2026): o vendedor vê quantos contatos da base faltam hoje.
+    let ativos_hoje: { feitos_hoje: number; faltam_hoje: number; fila: any[] } | null = null;
+    if (!isCEO && !podeVerTudo(user) && user?.id) {
+      const { filaDoDiaAtivos } = await import('../services/ativos-fila.service');
+      ativos_hoje = (await filaDoDiaAtivos(prisma, user.id, now).catch(() => null))?.vendedores?.[0] || null;
+    }
+
     const CATEGORIA_LABEL: Record<string, string> = {
       FISCAL: 'Pacote Fiscal', TEF: 'TEF', TRIBUTARIO: 'Tributário',
       COMUNICACAO: 'Comunicação', UPGRADE: 'Upgrade', TROCA_CNPJ: 'Troca CNPJ', OUTRO: 'Outro',
     };
 
     const alertas = [
+      ...(ativos_hoje && ativos_hoje.faltam_hoje > 0 && ativos_hoje.fila.length ? [{
+        id: `ativos-hoje-${now.toISOString().slice(0, 10)}`,
+        tipo: 'ATIVOS_HOJE',
+        urgencia: 'MEDIA' as const,
+        titulo: `Programa de Ativos: ${ativos_hoje.faltam_hoje} contato(s) para hoje`,
+        descricao: `feitos hoje: ${ativos_hoje.feitos_hoje} de 8 · primeiro da fila: ${ativos_hoje.fila[0]?.cliente_nome || 'cliente'}`,
+        data: now,
+        link: `/ativos`,
+      }] : []),
       ...(interessados_sem_demo as any[]).map(s => ({
         id: `isd-${s.id}`,
         tipo: 'INTERESSADO_SEM_DEMO',

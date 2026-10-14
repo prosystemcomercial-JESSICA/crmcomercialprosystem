@@ -15,15 +15,17 @@ async function metas(prisma: PrismaClient): Promise<Record<string, MetaSemana>> 
 
 async function contar(prisma: PrismaClient, ini: Date, fim: Date) {
   const no = { gte: ini, lt: fim };
-  const [primeiros_contatos, respostas, interessados, demonstracoes, propostas, contratos] = await Promise.all([
+  const [primeiros_contatos, respostas, interessados, demonstracoes, propostas, contratos, ativos] = await Promise.all([
     prisma.sdrLead.count({ where: { primeiro_envio_em: no } }),
     prisma.sdrLead.count({ where: { ultima_lead_em: no } }),
     prisma.sdrLead.count({ where: { nota: { gte: NOTA_INTERESSE }, updated_at: no } }),
     prisma.atividade.count({ where: { tipo: 'REUNIAO', created_at: no, status: { not: 'CANCELADA' }, OR: [{ vinculo_tipo: 'LEAD' }, { vinculo_tipo: null }] } }),
     prisma.propostaComercial.count({ where: { deleted_at: null, OR: [{ wpp_enviada_em: no }, { created_at: no, status: { not: 'RASCUNHO' } }] } }),
     prisma.propostaComercial.count({ where: { deleted_at: null, status: { in: FECHADA }, data_aceite: no } }),
+    // Programa de Ativos (parte 3, 14/10/2026): clientes da base contatados.
+    prisma.contatoAtivo.count({ where: { contatado_em: no } }),
   ]);
-  return { primeiros_contatos, respostas, interessados, demonstracoes, propostas, contratos };
+  return { primeiros_contatos, respostas, interessados, demonstracoes, propostas, contratos, ativos };
 }
 
 /** Leads com interesse (termômetro 35+) há mais de 48 h, ainda conversando, sem demonstração marcada. */
@@ -56,14 +58,16 @@ export async function propostasEmRascunho(prisma: PrismaClient, agora = new Date
 /** Placar do dia e da semana contra a meta, mais o que está parado. */
 export async function placarComercial(prisma: PrismaClient, agora = new Date()) {
   const sem = semanaDe(agora);
-  const [hoje, semana, todasMetas, interessados, rascunhos] = await Promise.all([
+  const { metaDiaAtivos } = await import('./ativos-fila.service');
+  const [hoje, semana, todasMetas, interessados, rascunhos, metaAtivosDia] = await Promise.all([
     contar(prisma, inicioDoDia(agora), new Date(inicioDoDia(agora).getTime() + 864e5)),
     contar(prisma, sem.inicio, sem.fim),
     metas(prisma),
     interessadosSemDemo(prisma, agora),
     propostasEmRascunho(prisma, agora),
+    metaDiaAtivos(prisma).catch(() => 0),
   ]);
-  return { gerado_em: agora.toISOString(), semana_de: sem.chave, hoje, semana, meta_semana: todasMetas[sem.chave] || null, interessados_sem_demo: interessados, propostas_rascunho: rascunhos };
+  return { gerado_em: agora.toISOString(), semana_de: sem.chave, hoje, semana, meta_semana: todasMetas[sem.chave] ? { ...todasMetas[sem.chave], ativos: metaAtivosDia * 5 } : null, meta_ativos_dia: metaAtivosDia, interessados_sem_demo: interessados, propostas_rascunho: rascunhos };
 }
 
 /** Resumo do dia no WhatsApp da gestão (dias úteis, de manhã): só manda se houver algo parado. */

@@ -665,7 +665,7 @@ class ApiClient {
   }
 
   // ── Módulo ATIVOS (CS comercial) ──
-  async criarCampanhaAtivo(data: { grupo_tecnico: string; vendedor_id: string; meta_cobertura_pct?: number; observacoes?: string }) {
+  async criarCampanhaAtivo(data: { grupo_tecnico: string; vendedor_id: string; meta_cobertura_pct?: number; observacoes?: string; lote?: number }) {
     return this.client.post('/ativos/campanhas', data);
   }
   async getCampanhasAtivo() {
@@ -1489,6 +1489,9 @@ class ApiClient {
   async joanaArquivar(id: string) { return this.client.post(`/joana/edicoes/${id}/arquivar`, {}); }
   async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
+  // Programa de Ativos: fila do dia e indicação premiada (parte 3 do plano, 14/10/2026)
+  async getAtivosHoje() { return this.client.get('/ativos/hoje'); }
+  async registrarIndicacaoAtivo(contatoId: string, body: { nome: string; telefone: string; empresa?: string | null; segmento?: string | null }) { return this.client.post(`/ativos/contatos/${contatoId}/indicacao`, body); }
   // Placar comercial: do interesse à demonstração e à proposta (parte 2 do plano, 14/10/2026)
   async getPlacarComercial() { return this.client.get('/comercial/placar'); }
   // Perguntas do Rafael para a Jessica (14/10/2026)

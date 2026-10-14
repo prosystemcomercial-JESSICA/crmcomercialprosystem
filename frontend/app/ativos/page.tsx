@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
+import FilaHojeAtivos from '@/components/ativos/FilaHojeAtivos';
+import IndicacaoAtivo from '@/components/ativos/IndicacaoAtivo';
 
 const ROLES_GESTOR = ['CEO', 'SUPERVISAO', 'SUPERVISAO_COMERCIAL', 'ADMIN', 'DIRETOR'];
 const ETAPAS = [
@@ -81,7 +83,7 @@ export default function AtivosPage() {
   const [grupos, setGrupos] = useState<string[]>([]);
   const [vendedores, setVendedores] = useState<any[]>([]);
   const [parceiros, setParceiros] = useState<any[]>([]);
-  const [novaCamp, setNovaCamp] = useState({ grupo_tecnico: '', vendedor_id: '', meta_cobertura_pct: '100' });
+  const [novaCamp, setNovaCamp] = useState({ grupo_tecnico: '', vendedor_id: '', meta_cobertura_pct: '100', lote: '80' });
   const [criando, setCriando] = useState(false);
   const [showNova, setShowNova] = useState(false);
 
@@ -118,8 +120,8 @@ export default function AtivosPage() {
     if (!novaCamp.grupo_tecnico || !novaCamp.vendedor_id) return;
     setCriando(true);
     try {
-      const r = await apiClient.criarCampanhaAtivo({ grupo_tecnico: novaCamp.grupo_tecnico, vendedor_id: novaCamp.vendedor_id, meta_cobertura_pct: Number(novaCamp.meta_cobertura_pct) || 100 });
-      setShowNova(false); setNovaCamp({ grupo_tecnico: '', vendedor_id: '', meta_cobertura_pct: '100' });
+      const r = await apiClient.criarCampanhaAtivo({ grupo_tecnico: novaCamp.grupo_tecnico, vendedor_id: novaCamp.vendedor_id, meta_cobertura_pct: Number(novaCamp.meta_cobertura_pct) || 100, lote: Number(novaCamp.lote) || 80 });
+      setShowNova(false); setNovaCamp({ grupo_tecnico: '', vendedor_id: '', meta_cobertura_pct: '100', lote: '80' });
       loadCampanhas();
     } catch { /* erro silenciado — recarrega a lista mesmo assim */ }
     finally { setCriando(false); }
@@ -236,6 +238,9 @@ export default function AtivosPage() {
             <button onClick={() => setShowNova(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">+ Designar fila</button>
           )}
         </div>
+
+        {/* Contatos de hoje: 8 por vendedor (parte 3 do plano, 14/10/2026) */}
+        <FilaHojeAtivos onAbrir={c => abrirFicha(c, 'questionario')} />
 
         {/* Abas (gestão tem painel) */}
         {isGestor && (
@@ -444,8 +449,16 @@ export default function AtivosPage() {
               <select value={novaCamp.grupo_tecnico} onChange={e => setNovaCamp({ ...novaCamp, grupo_tecnico: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
                 <option value="">— selecione —</option>
                 {grupos.map(g => <option key={g} value={g}>{g}</option>)}
+                <option value="__SEM_GRUPO__">Clientes sem grupo técnico (em lotes)</option>
               </select>
             </div>
+            {novaCamp.grupo_tecnico === '__SEM_GRUPO__' && (
+              <div>
+                <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Clientes neste lote</label>
+                <input type="number" min={10} max={200} value={novaCamp.lote} onChange={e => setNovaCamp({ ...novaCamp, lote: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                <p className="text-xs mt-1" style={{ color: 'var(--t-text-muted)' }}>Entram os clientes ativos sem grupo que ainda não estão em nenhuma fila. Com 8 contatos por dia, 80 clientes levam cerca de 2 semanas.</p>
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>Vendedor responsável *</label>
               <select value={novaCamp.vendedor_id} onChange={e => setNovaCamp({ ...novaCamp, vendedor_id: e.target.value })} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
@@ -810,6 +823,7 @@ export default function AtivosPage() {
                                 {savingQ ? 'Salvando…' : 'Salvar questionário'}
                               </button>
                             </div>
+                            <IndicacaoAtivo contatoId={c.id} clienteNome={c.cliente_nome} />
                           </div>
                         )}
 
