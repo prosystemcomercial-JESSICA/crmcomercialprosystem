@@ -580,6 +580,11 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
     const { avisoDiarioParte2 } = await import('./placar-comercial.service');
     await avisoDiarioParte2(prisma, agora).catch(e => console.error('[PLACAR] aviso diário:', e?.message));
   }
+  // Relatório da semana do comercial: sexta, entre 16h e 18h, uma vez por semana (14/10/2026).
+  if (dia === 'Fri' && hora >= 16 && hora < 18 && await podeEnviarUmaVez(prisma, `comercial.semana.${hoje}`, 20)) {
+    const { relatorioSemanal } = await import('./placar-comercial.service');
+    await relatorioSemanal(prisma, agora).catch(e => console.error('[PLACAR] relatório da semana:', e?.message));
+  }
   // Revisão das conversas dos agentes: 12h e 17h nos dias úteis (pedido da Jessica, 01/10/2026).
   if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 12 && hora < 14 && await podeEnviarUmaVez(prisma, `rafael.revisao.meio.${hoje}`, 20)) {
     await revisarConversas(prisma).catch(e => console.error('[RAFAEL] revisão:', e?.message));

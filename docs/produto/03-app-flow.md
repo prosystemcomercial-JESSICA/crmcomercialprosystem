@@ -1539,3 +1539,9 @@ Menu → clicar no título de um grupo alterna sua lista; o chevron informa esta
 ## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
 
 Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somente a aba em uso até recarregar. Ícone WhatsApp à direita da lua/sol → nova aba no atendimento do CRM; a tela anterior continua no mesmo endereço. A nova aba também inicia com os grupos fechados. Mais no celular segue o mesmo padrão inicial.
+
+### Atualização 14/10/2026 (noite): relatório de sexta e painel das indicações de clientes
+
+- **Relatório da semana (`relatorioSemanal`, services/placar-comercial):** sexta, entre 16h e 18h, uma vez por semana (`comercial.semana.<dia>`), no WhatsApp da gestão: placar da semana contra a meta (primeiros contatos, respostas, interessados, demonstrações, propostas, contratos, clientes contatados em Ativos), funil dos últimos 7 dias por canal e campanha, contatos de Ativos por vendedor (meta de 40), indicações da semana e interessados ainda sem demonstração.
+- **Painel das indicações (`GET /ativos/indicacoes`, gestão; `services/indicacoes-clientes`, `lib/indicacao-situacao`):** cada `Indicacao` com quem indicou, o indicado (link para a conversa), a situação derivada da Caroline e das propostas pelo telefone (Na fila da Caroline → Caroline chamou → Respondeu → Interessado → Demonstração marcada → Com proposta → Fechou contrato; ou Sem interesse / Número sem WhatsApp) e o status gravado acompanha (PENDENTE, CONTATO, CONVERTIDO, PERDIDO). Indicação que fechou e ainda não teve o prêmio aplicado aparece como "Marcar desconto aplicado" (`POST /ativos/indicacoes/:id/premio`, grava `bonus_pago` e uma observação com quem e quando). Tela: aba "Indicações" em Ativos (gestão), com totais (indicações, em andamento, fecharam, prêmios a aplicar).
+- Testes: `tests/indicacao-situacao.test.ts`.
