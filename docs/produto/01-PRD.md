@@ -1482,3 +1482,13 @@ Ao selecionar outro contato, o histórico anterior deve desaparecer imediatament
 ### WhatsApp compacto — 14/10/2026
 
 A tela de WhatsApp deve priorizar a área de conversa em zoom padrão (100%). Filtros de atendimento e tipo ficam em um único menu no cabeçalho da lista, com seleção e quantidade visíveis. Abrir filtros não desloca os contatos. Busca e Nova permanecem acessíveis.
+
+### Atualização 14/10/2026 (noite): Perguntas para você (painel do Rafael)
+
+- **Pedido da Jessica:** ela não conseguia responder o que o Rafael pergunta. As perguntas ficavam soltas nos documentos ("o que a equipe precisa confirmar") e nos avisos de WhatsApp, e o painel só tinha Aprovar e Arquivar.
+- **Mural (`AgenteNota`, sem mudança de banco):** tipo novo `PERGUNTA` (de `rafael` para `jessica`, constante `GESTORA`). `perguntarAJessica` não repete pergunta aberta nem a respondida nos últimos 90 dias (`normalPergunta`). `ref` = id da conversa ou `doc:<id>` do documento de origem. Rótulo `RESPOSTA` passa a ser "Resposta" (o nome de quem respondeu vem de `de`).
+- **De onde saem as perguntas:** `pesquisarDuvida` (campo `perguntas_para_jessica`, até 2, com a conversa do cliente em `ref`); reunião diária da equipe (até 3); revisão das conversas (até 2 por lote, com a conversa); botão "Rafael: juntar perguntas dos documentos" (`levantarPerguntas`: relê os documentos dos últimos 30 dias, até 10). Cada leva gera um aviso único no WhatsApp com o link `…/escritorio?rafael=perguntas`.
+- **Responder (`jessicaResponde`):** marca a pergunta e as iguais como resolvidas, grava `RESPOSTA` de `jessica` no mural (todos os agentes veem por 7 dias e a conversa de origem recebe o contexto) e cria a DICA aprovada "Resposta da Jessica: …" (origem `jessica`). No guia comercial e nos parâmetros aprovados, as respostas da Jessica entram primeiro, como fonte oficial. "Não se aplica" (`dispensarPergunta`) tira da lista sem ir para os agentes.
+- **Rotas:** `GET /especialista/perguntas`, `POST /especialista/perguntas/:id/responder`, `POST /especialista/perguntas/:id/dispensar`, `POST /especialista/perguntas/levantar` (segundo plano). Todas `requireGestor`.
+- **Tela:** aba "Perguntas para você" (primeira do painel do Rafael) com o número de perguntas, cada uma com o contexto, campo de resposta (Ctrl+Enter envia), "Não se aplica" e "Abrir conversa"; lista "Já respondidas". No Escritório, o botão do painel mostra "· N perguntas para você" e o link do aviso abre direto na aba. Mural da equipe com o filtro "Perguntas para a Jessica".
+- Testes: `tests/perguntas-jessica.test.ts`.

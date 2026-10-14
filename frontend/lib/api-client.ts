@@ -1489,6 +1489,11 @@ class ApiClient {
   async joanaArquivar(id: string) { return this.client.post(`/joana/edicoes/${id}/arquivar`, {}); }
   async rafaelDecidir(id: string, aprovar: boolean) { return this.client.post(`/especialista/docs/${id}/decidir`, { aprovar }); }
   async rafaelCaderno() { return this.client.get('/especialista/caderno', { responseType: 'blob' }); }
+  // Perguntas do Rafael para a Jessica (14/10/2026)
+  async rafaelPerguntas() { return this.client.get('/especialista/perguntas'); }
+  async rafaelResponder(id: string, resposta: string) { return this.client.post(`/especialista/perguntas/${id}/responder`, { resposta }); }
+  async rafaelDispensar(id: string) { return this.client.post(`/especialista/perguntas/${id}/dispensar`, {}); }
+  async rafaelLevantarPerguntas() { return this.client.post('/especialista/perguntas/levantar', {}); }
   // ── Heitor (prospecção no Google Maps) ──
   async heitorPainel() { return this.client.get('/heitor/painel'); }
   async heitorConfig(dados: { ativo?: boolean; cadastros_dia?: number; envios_dia?: number; segmentos?: string[] }) { return this.client.post('/heitor/config', dados); }

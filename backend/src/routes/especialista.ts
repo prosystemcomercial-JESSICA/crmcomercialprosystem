@@ -97,6 +97,40 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
     } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
   });
 
+  // Perguntas do Rafael e dúvidas da equipe para a Jessica responder (14/10/2026).
+  fastify.get('/especialista/perguntas', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { perguntasParaJessica } = await import('../services/equipe.service');
+    return reply.send({ status: 'success', data: { ...(await perguntasParaJessica(prisma)), em_andamento: emAndamento.has('perguntas') } });
+  });
+
+  fastify.post('/especialista/perguntas/:id/responder', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const b = z.object({ resposta: z.string().trim().min(2).max(4000) }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escreva a resposta.' });
+    const { jessicaResponde } = await import('../services/especialista.service');
+    try {
+      await jessicaResponde(prisma, id, b.data.resposta, getUser(request)!.id);
+      return reply.send({ status: 'success', message: 'Respondido. Já vale para todos os agentes.' });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
+  });
+
+  fastify.post('/especialista/perguntas/:id/dispensar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { id } = request.params as { id: string };
+    const { dispensarPergunta } = await import('../services/especialista.service');
+    try { await dispensarPergunta(prisma, id); return reply.send({ status: 'success', message: 'Pergunta retirada da lista.' }); }
+    catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Falhou.' }); }
+  });
+
+  fastify.post('/especialista/perguntas/levantar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { levantarPerguntas } = await import('../services/especialista.service');
+    const ok = emSegundoPlano('perguntas', () => levantarPerguntas(prisma));
+    return reply.send({ status: 'success', message: ok ? 'O Rafael está relendo os documentos dele e juntando as perguntas (1 a 2 minutos).' : 'O Rafael já está juntando as perguntas.' });
+  });
+
   fastify.get('/especialista/caderno', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const { cadernoRafael } = await import('../services/especialista.service');
