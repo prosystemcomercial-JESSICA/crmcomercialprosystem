@@ -21,7 +21,7 @@ import {
   lerLeadsColados, horarioComercial, limiteDoDia, intervaloSorteado, tempoDigitando, deveRetomar, diasUteisEntre,
   lerRespostaCaroline, temperaturaDaNota, promptCaroline, saudacaoAgora, ABERTURA_JESSICA, TENTATIVAS_MAX, horaBoaParaRetomar,
   opcoesAgendamento, lerAgendamento, nomeDoDia, horarioVendedora, proximaJanelaVendedora,
-  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, mensagemEncerramentoProposta, PROPOSTA_FECHADA, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
+  PERFIS_SDR, CONVITE_INSTAGRAM, mensagemSuporte, mensagemEncerramentoProposta, complementoApresentacaoEncerramento, PROPOSTA_FECHADA, janelaCampanhaAtiva, ehSoConfirmacao, semelhanca, type RespostaCaroline, type FaseCaroline, type PerfilSdr,
   apresentacaoDoSegmento, garantirLinkApresentacao, MARCA_APRESENTACAO, type Apresentacao,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
@@ -1222,6 +1222,40 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
 const CICLOS_MAX = 3;
 
 /**
+ * Apresentação do segmento que a conversa ainda não teve (pedido da Jessica, 14/10/2026). Lê o contexto: segmento
+ * do cadastro e da proposta, etiqueta e empresa da conversa e o que já foi falado; se qualquer apresentação já saiu
+ * (agente, Bia, pessoa ou botão), não manda de novo.
+ */
+async function apresentacaoPendente(prisma: PrismaClient, s: any): Promise<Omit<Apresentacao, 'enviada'> | null> {
+  if (!s.conversaId) return null;
+  if (await prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId, direcao: 'SAIDA', conteudo: { contains: MARCA_APRESENTACAO } }, select: { id: true } })) return null;
+  const pr = s.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: s.proposta_id }, select: { segmento: true, nome_fantasia: true } }).catch(() => null) : null;
+  const conv = await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId }, select: { etiqueta: true, contato_empresa: true } }).catch(() => null);
+  const falas = await prisma.whatsappMensagem.findMany({ where: { conversaId: s.conversaId }, orderBy: { created_at: 'desc' }, take: 20, select: { conteudo: true } }).catch(() => []);
+  return apresentacaoDoSegmento(s.segmento, pr?.segmento, conv?.etiqueta, s.empresa, pr?.nome_fantasia, conv?.contato_empresa, falas.map(m => m.conteudo).join(' '));
+}
+
+/**
+ * Quem foi encerrado antes de a apresentação entrar no encerramento recebe um complemento com o link (uma vez,
+ * 30 min ou mais depois do encerramento, um por rodada, só nos horários de retomada).
+ */
+async function complementarEncerramentosComApresentacao(prisma: PrismaClient, token: string, agora: Date) {
+  const encerrados = await prisma.sdrLead.findMany({ where: { agente: 'luiz_felipe', status: 'SEM_RESPOSTA', conversaId: { not: null }, updated_at: { gte: new Date(agora.getTime() - 15 * 864e5) } }, take: 50 });
+  for (const s of encerrados) {
+    const d: any = s.dados || {};
+    if (!d.encerrado_em || d.apresentacao_encerramento || agora.getTime() - new Date(d.encerrado_em).getTime() < 30 * 60_000) continue;
+    const ap = await apresentacaoPendente(prisma, s);
+    // Marca antes de mandar: nunca sai duas vezes, mesmo se o envio falhar.
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, apresentacao_encerramento: agora.toISOString() } } });
+    if (!ap) continue;
+    const nome = await nomeParaChamar(prisma, s.numero, s.nome).catch(() => s.nome);
+    await enviarMensagens(prisma, token, s, [complementoApresentacaoEncerramento(nome, ap)]);
+    registrarAcaoAgente('luiz_felipe', `mandou a apresentação de ${ap.tipo === 'padaria' ? 'padaria' : 'farmácia'} para ${s.nome || 'um cliente'} depois do encerramento`);
+    return; // um por rodada
+  }
+}
+
+/**
  * Luiz Felipe sem resposta às 3 tentativas (pedido da Jessica, 14/10/2026): manda o encerramento fixo (proposta
  * expirada, agradecimento, blog e Instagram). A proposta ainda aberta passa a EXPIRADA, o contato entra no
  * Informativo Prosystem e a conversa termina aqui, sem ciclo longo do Julio e sem marcar perda.
@@ -1233,10 +1267,11 @@ async function encerrarPropostaSemResposta(prisma: PrismaClient, token: string, 
     if (p && PROPOSTA_FECHADA.includes(p.status)) { await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'HUMANO' } }); return; }
   }
   const nome = await nomeParaChamar(prisma, s.numero, s.nome).catch(() => s.nome);
-  const texto = mensagemEncerramentoProposta(nome, agora);
+  const ap = await apresentacaoPendente(prisma, s).catch(() => null);
+  const texto = mensagemEncerramentoProposta(nome, agora, ap);
   await enviarMensagens(prisma, token, s, [texto]);
   const d: any = s.dados || {};
-  await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA', ultima_caroline_em: agora, dados: { ...d, retomar_em: null, encerrado_em: agora.toISOString() } } });
+  await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'SEM_RESPOSTA', ultima_caroline_em: agora, dados: { ...d, retomar_em: null, encerrado_em: agora.toISOString(), ...(ap ? { apresentacao_encerramento: agora.toISOString() } : {}) } } });
   await prisma.sdrMensagem.create({ data: { sdrId: s.id, conversaId: s.conversaId, texto, status: 'ENVIADA_AUTO', acao: 'encerramento_proposta', decidido_em: agora } });
   if (s.proposta_id) {
     const p = await prisma.propostaComercial.findUnique({ where: { id: s.proposta_id }, select: { id: true, status: true } });
@@ -1640,6 +1675,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
 
   // 2c) Já contatados que ainda não receberam a apresentação do segmento: uma retomada com o link.
   if (horaBoaParaRetomar(agora)) await retomarComApresentacao(prisma, token, ativos, agora).catch((e: any) => console.warn('[AGENTES] apresentação:', e?.message));
+  if (horaBoaParaRetomar(agora) && ativos.includes('luiz_felipe')) await complementarEncerramentosComApresentacao(prisma, token, agora).catch((e: any) => console.warn('[LUIZ FELIPE] apresentação:', e?.message));
 
   // 3) Primeiros contatos: UM por vez para todos os agentes juntos, intervalo sorteado (4–9 min)
   //    e um limite do dia ÚNICO (Caroline + Julio + Luiz Felipe + campanhas). Protege o número.
