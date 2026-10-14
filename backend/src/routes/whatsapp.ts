@@ -1088,7 +1088,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   });
   fastify.put('/assistente/caroline/config', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const b = z.object({ ativa: z.boolean().optional(), aprovar: z.boolean().optional(), limite: z.number().int().min(1).max(30).optional() }).safeParse(request.body);
+    const b = z.object({ ativa: z.boolean().optional(), aprovar: z.boolean().optional(), aprovar_abertura: z.boolean().optional(), limite: z.number().int().min(1).max(30).optional() }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos.' });
     const { salvarConfigAgente, AGENTES_SDR } = await import('@/services/caroline.service');
     const ag = String((request.query as any)?.agente || 'caroline');

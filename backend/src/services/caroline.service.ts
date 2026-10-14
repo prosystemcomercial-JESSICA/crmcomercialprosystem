@@ -40,7 +40,9 @@ const nomeDe = (sdr: any) => PERFIS_SDR[agenteDe(sdr)].nome;
 const chaveCfg = (a: PerfilSdr) => (a === 'caroline' ? 'assistente.caroline' : `assistente.sdr.${a}`);
 
 // inicia_em: o agente só começa a partir desse horário (ex.: segunda 9h).
-export type ConfigCaroline = { ativa: boolean; aprovar: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null };
+// aprovar_abertura: o primeiro contato passa pela aprovação (padrão = aprovar). A Jessica desligou só o primeiro
+// contato em 14/10/2026 para a fila andar; retomadas seguem pela opção aprovar.
+export type ConfigCaroline = { ativa: boolean; aprovar: boolean; aprovar_abertura?: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null };
 const PADRAO: ConfigCaroline = { ativa: false, aprovar: true, limite: 30, ativada_em: null, pausada_motivo: null, inicia_em: null };
 
 export async function obterConfigAgente(prisma: PrismaClient, agente: PerfilSdr): Promise<ConfigCaroline> {
@@ -1048,7 +1050,8 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   // Resposta a quem escreveu sai SEMPRE na hora (prioridade: até 1 minuto). Aprovação só no que o agente
   // puxa sozinho (primeiro contato e retomadas), e nas retomadas de quem já conversou fora do comercial.
   void sabado;
-  const semAprovacao = fase === 'resposta' || (fase === 'retomada' && !!sdr.ultima_lead_em && (!horarioComercial(agora) || sabado));
+  const semAprovacao = fase === 'resposta' || (fase === 'abertura' && cfg.aprovar_abertura === false)
+    || (fase === 'retomada' && !!sdr.ultima_lead_em && (!horarioComercial(agora) || sabado));
   // Oferta de campanha / revisão de proposta: sempre passa pela autorização da Jessica, com aviso no WhatsApp dela.
   const pedeAutorizacao = !!r.revisar_proposta && janelaCampanhaAtiva(agora);
   if (r.revisar_proposta && !pedeAutorizacao) { motivoFalha.set(sdrId, 'a mensagem oferecia revisar a proposta fora da janela da campanha'); return 'falha'; } // fora da janela (dias 20 ao fim do mês) nunca sai
