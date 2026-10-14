@@ -1128,3 +1128,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 ## WhatsApp: organização da interface (14/10/2026)
 
 Na lista, use Nova para revelar o campo de telefone e Iniciar para abrir o atendimento. A busca e os filtros ficam junto às conversas. As apresentações ficam somente no ícone de monitor junto ao campo da mensagem: escolha o segmento, confira o texto e envie; o link ver continua disponível. O painel lateral não repete esse acesso. Sugerir resposta ajuda a escrever; Resumir conversa reúne o histórico e não envia mensagem. No cabeçalho, Mais ações reúne prioridade, etiquetas, vínculo, reunião e exclusão conforme as permissões. Detalhes pode ser fechado para ampliar o chat. Em telas menores, os detalhes abrem sobre a conversa; no celular, Voltar retorna à lista.
+
+
+### Correção 14/10/2026 — isolamento ao trocar conversas
+
+Ao trocar de contato, aguarde “Carregando conversa…” desaparecer para consultar o histórico. O campo de mensagem é limpo e uma gravação ainda em andamento é cancelada na troca. Se ocorrer falha, clique em “Tentar novamente”. Mensagens já enviadas continuam destinadas ao contato original e não são exibidas na nova conversa.

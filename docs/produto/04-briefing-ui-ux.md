@@ -1393,3 +1393,8 @@ Pedido da Jessica: responsiva, cantos mais retos, "menos cara de IA".
 ## WhatsApp — interface aprovada em 14/10/2026
 
 Direção aprovada pela usuária: versão clara, menos azul, avatares neutros, densidade operacional e ausência de atalhos duplicados. Manter marca e tokens existentes; exceção visual do WhatsApp remove gradiente do menu apenas nesta rota. Lista com linhas de pelo menos 76px; elementos de toque principais com 44px no celular. Campo de escrita em linha própria no celular e anexos/apresentações abaixo. Estados de risco continuam semânticos. Não confundir tipo de contato com setor: o filtro conserva sua semântica real.
+
+
+### Correção 14/10/2026 — isolamento ao trocar conversas
+
+Preservado o visual aprovado. A área do histórico informa carregamento sem mostrar balões do contato anterior. Em falha de consulta, oferece nova tentativa. Campos e popups específicos do contato são reiniciados na troca; rolagem tardia de outra conversa não interfere na atual.
