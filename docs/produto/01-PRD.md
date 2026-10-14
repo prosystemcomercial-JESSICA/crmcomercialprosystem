@@ -1434,3 +1434,8 @@ Pedido da Jessica: responsiva, cantos mais retos, "menos cara de IA".
 - **Barra da conversa:** Assumir (verde), Finalizar/Reabrir e Prioridade (ponto colorido + nome, "SLA" em vermelho quando estoura) com contorno neutro; ações secundárias (vincular cliente, agendar reunião, etiquetar, transferir, desvincular do funil, excluir) como ícones lucide de 32 px a partir de 1024 px e num menu "Mais" no tablet. O nome do contato não some mais atrás dos botões.
 - **Visual:** cantos de 6 px em botões, campos, balões e menus e 8 px nas caixas (balões do celular 10 px); sem emojis em abas, botões, etiquetas e avisos (ícones lucide no lugar); sem sombras nos balões e no compositor; azul da marca `#2E6EAB` em todas as ações (antes misturava `#2563eb`, verde-azulado e violeta); avatares quadrados com cantos de 6 px; abas roláveis na horizontal com contador da Atenção em etiqueta.
 - **Painel:** Resumir conversa, Criar proposta, Enviar/reenviar e Enviar apresentação com o mesmo padrão (contorno neutro ou azul da marca, 36 px de altura).
+
+
+## WhatsApp — interface aprovada em 14/10/2026
+
+Escopo aprovado: central WhatsApp com superfícies neutras e azul restrito a ações/seleção. Cada ação tem um ponto principal: apresentações no compositor; transferência/finalização no cabeçalho; proposta e resumo no contexto. Não alterar permissões, automações, contrato de API ou dados existentes. O resumo de conversa e a sugestão de resposta são funções distintas e permanecem disponíveis.

@@ -441,7 +441,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'var(--t-content-bg)' }}>
+    <div className={`h-screen overflow-hidden flex flex-col ${pathname === '/whatsapp' ? 'wpp-shell' : ''}`} style={{ background: 'var(--t-content-bg)' }}>
       <VersionWatcher />
 
       {/* ── Popup campanha ativa (vendedor, 1x por sessão) ── */}
@@ -831,7 +831,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     const isWpp = item.destaque === 'whatsapp';
 
                     let estilo: React.CSSProperties;
-                    if (isWpp) {
+                    if (pathname === '/whatsapp') {
+                      estilo = { background: isActive ? 'var(--t-primary-light)' : 'transparent', color: isActive ? 'var(--t-primary-dark)' : 'var(--t-text-secondary)', borderLeft: '2px solid transparent', fontWeight: isActive ? 600 : 500 };
+                    } else if (isWpp) {
                       estilo = isActive
                         ? { background: 'linear-gradient(135deg,#25D366,#128C7E)', color: '#fff', borderLeft: '2px solid #25D366', paddingLeft: '10px', fontWeight: 600 }
                         : { background: 'rgba(37,211,102,0.10)', color: '#25D366', borderLeft: '2px solid #25D366', paddingLeft: '10px' };
@@ -905,7 +907,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </aside>
 
         {/* Main content */}
-        <main className="ps-content ios-main flex-1 overflow-auto min-h-0">
+        <main className="ps-content ios-main flex-1 overflow-auto min-h-0 min-w-0">
           <div className="ps-page p-2 md:p-3 h-full">
             <NotificacoesApp />
             {soPortal ? null : children}

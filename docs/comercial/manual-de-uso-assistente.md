@@ -1123,3 +1123,8 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Cabeçalho:** o alarme da reunião (5, 10, 15 ou 30 minutos antes) e o cronômetro ficam ao lado da lua, em cima.
 - **Seu perfil:** no primeiro acesso aparece a janela para colocar a foto e conferir nome e telefone. Para mudar depois: menu do seu nome › **Meu perfil**, ou **Configurações** no menu lateral.
 - **Tela do WhatsApp (tarde de 14/10):** no notebook e no tablet a conversa ganha mais espaço. O painel de atendimento abre pelo botão **ⓘ** quando a tela é menor, e os ícones de vincular, agendar, etiquetar, transferir e excluir ficam no menu **⋯ Mais**.
+
+
+## WhatsApp: organização da interface (14/10/2026)
+
+Na lista, use Nova para revelar o campo de telefone e Iniciar para abrir o atendimento. A busca e os filtros ficam junto às conversas. As apresentações ficam somente no ícone de monitor junto ao campo da mensagem: escolha o segmento, confira o texto e envie; o link ver continua disponível. O painel lateral não repete esse acesso. Sugerir resposta ajuda a escrever; Resumir conversa reúne o histórico e não envia mensagem. No cabeçalho, Mais ações reúne prioridade, etiquetas, vínculo, reunião e exclusão conforme as permissões. Detalhes pode ser fechado para ampliar o chat. Em telas menores, os detalhes abrem sobre a conversa; no celular, Voltar retorna à lista.

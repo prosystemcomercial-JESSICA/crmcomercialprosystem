@@ -72,3 +72,24 @@ export default function BolinhasNumeros({ numeros }: { numeros: NumeroResumo[] }
     </div>
   );
 }
+
+/** Resumo textual para a central de atendimento; mantém os estados reais de cada linha. */
+export function ResumoNumeros({ numeros }: { numeros: NumeroResumo[] }) {
+  if (!numeros.length) return null;
+  const conectados = numeros.filter(n => n.status === 'CONECTADO').length;
+  return (
+    <details className="wpp-numeros" onKeyDown={e => { if (e.key === 'Escape') { e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus(); } }}>
+      <summary>Números · {conectados} de {numeros.length} conectados</summary>
+      <ul className="wpp-numeros-lista">
+        {numeros.map(n => {
+          const estado = estadoDoNumero(n);
+          return <li key={n.vaga}>
+            <strong>{n.rotulo}{n.principal ? ' · principal' : ''}</strong>
+            <span>{formatarNumero(n.numero)}</span>
+            <span><i aria-hidden style={{ background: estado.cor }} />{estado.texto}</span>
+          </li>;
+        })}
+      </ul>
+    </details>
+  );
+}
