@@ -17,6 +17,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
   const { prisma } = options;
 
   const NIVEIS = ['CRITICO', 'RISCO', 'ATENCAO', 'SAUDAVEL', 'EXCELENTE'];
+  const SEM_GRUPO = '__SEM_GRUPO__';
 
   // Análise PONDERADA de saúde do cliente a partir do contato ativo.
   // Não é só a nota: pondera conhecimento das ferramentas, suporte, técnico, Plus e
@@ -52,15 +53,22 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     const nomes = await resolverNomesUsuarios(prisma, [body.data.vendedor_id]).catch(() => ({} as any));
     const vendedorNome = nomes[body.data.vendedor_id] || null;
 
-    // Clientes ATIVOS do grupo técnico (a fila).
-    const clientes = await prisma.cliente.findMany({
-      where: { grupo_tecnico: body.data.grupo_tecnico, OR: [{ situacao: 'ATIVA' }, { situacao: null }] },
+    // Clientes ATIVOS do grupo técnico (a fila). "Sem grupo técnico" (parte 3 do plano, 14/10/2026): 362 dos 533
+    // ativos não têm grupo e nunca entravam no programa; vão em lotes, sem repetir quem já está numa fila ativa.
+    const semGrupo = body.data.grupo_tecnico === SEM_GRUPO;
+    const lote = Math.max(10, Math.min(200, Number((request.body as any)?.lote) || 80));
+    const jaNaFila = semGrupo ? new Set((await prisma.contatoAtivo.findMany({ where: { campanha: { status: 'ATIVA' } }, select: { cliente_id: true } })).map(c => c.cliente_id)) : new Set<string>();
+    const clientes = (await prisma.cliente.findMany({
+      where: { grupo_tecnico: semGrupo ? null : body.data.grupo_tecnico, OR: [{ situacao: 'ATIVA' }, { situacao: null }] },
       select: { id: true, codigo: true, razao_social: true, nome_fantasia: true, nome: true },
-    }).catch(() => [] as any[]);
+      orderBy: semGrupo ? { razao_social: 'asc' } : undefined,
+    }).catch(() => [] as any[])).filter((c: any) => !jaNaFila.has(c.id)).slice(0, semGrupo ? lote : undefined);
+    if (semGrupo && !clientes.length) return reply.status(400).send({ status: 'error', message: 'Todos os clientes sem grupo técnico já estão numa fila ativa.' });
+    const nLote = semGrupo ? (await prisma.campanhaAtivo.count({ where: { grupo_tecnico: { startsWith: 'Sem grupo técnico' } } })) + 1 : 0;
 
     const campanha = await prisma.campanhaAtivo.create({
       data: {
-        grupo_tecnico: body.data.grupo_tecnico,
+        grupo_tecnico: semGrupo ? `Sem grupo técnico · lote ${nLote}` : body.data.grupo_tecnico,
         vendedor_id: body.data.vendedor_id,
         vendedor_nome: vendedorNome,
         criada_por: user?.id || 'system',
@@ -530,6 +538,33 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
       },
     }).catch(() => {});
     return reply.send({ status: 'success', data: contato });
+  });
+
+  // ── Indicação premiada (parte 3 do plano, 14/10/2026): o cliente indicou alguém neste contato ──
+  // Vira lead novo na fila da Caroline (ela cita quem indicou) e fica em Indicacao com o prêmio da Meta 2026.
+  fastify.post('/ativos/contatos/:id/indicacao', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ nome: z.string().trim().min(2, 'Informe o nome do indicado'), telefone: z.string().trim().min(10, 'Informe o WhatsApp com DDD'), empresa: z.string().trim().max(200).optional().nullable(), segmento: z.string().trim().max(60).optional().nullable() }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Dados inválidos' });
+    const atual = await prisma.contatoAtivo.findUnique({ where: { id } });
+    if (!atual) return reply.status(404).send({ status: 'error', message: 'Contato não encontrado' });
+    const scopeId = scopeUserId(request);
+    if (scopeId !== null && atual.vendedor_id !== scopeId) return reply.status(403).send({ status: 'error', message: 'Sem acesso' });
+    const user = getUser(request) as any;
+    try {
+      const { cadastrarIndicacaoDeCliente } = await import('../services/caroline.service');
+      const r = await cadastrarIndicacaoDeCliente(prisma, { clienteId: atual.cliente_id, clienteNome: atual.cliente_nome, nome: body.data.nome, telefone: body.data.telefone, empresa: body.data.empresa, segmento: body.data.segmento, userId: user?.id || 'system', userNome: user?.nome || null });
+      await (prisma as any).eventoCliente.create({ data: { cliente_id: atual.cliente_id, tipo: 'OBSERVACAO', titulo: `🤝 Indicou ${body.data.nome}${body.data.empresa ? ` (${body.data.empresa})` : ''}`, descricao: 'Indicação premiada: 50% na próxima mensalidade se fechar contrato. A Caroline faz o primeiro contato citando a indicação.', feito_por: user?.id, feito_por_nome: user?.nome } }).catch(() => {});
+      return reply.status(201).send({ status: 'success', data: r, message: 'Indicação registrada. A Caroline vai chamar o indicado citando o cliente.' });
+    } catch (e: any) { return reply.status(400).send({ status: 'error', message: e?.message || 'Não deu para registrar a indicação.' }); }
+  });
+
+  // ── Fila do dia (parte 3 do plano, 14/10/2026): 8 contatos por vendedor ──
+  // Ordem: cliente em risco ou com problema → nunca contatado → "em contato" parado há mais de 14 dias.
+  fastify.get('/ativos/hoje', async (request, reply) => {
+    const scopeId = scopeUserId(request);
+    const { filaDoDiaAtivos } = await import('../services/ativos-fila.service');
+    return reply.send({ status: 'success', data: await filaDoDiaAtivos(prisma, scopeId) });
   });
 
   // ── Contatos ativos de um cliente (p/ aba na ficha) ──

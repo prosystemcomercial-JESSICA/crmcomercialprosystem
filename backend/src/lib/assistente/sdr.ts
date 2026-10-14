@@ -475,7 +475,7 @@ export function promptCaroline(p: {
     /** Encontrado pelo Heitor no Google Maps: o cliente NÃO procurou a Prosystem (primeiro contato ativo). */
     prospeccao?: { cidade: string | null; bairro: string | null } | null;
     /** Contato passado por alguém da própria empresa (o número da loja indicou o decisor). */
-    indicacao?: { por: string | null; cargo: string | null } | null;
+    indicacao?: { por: string | null; cargo: string | null; /** Indicado por um CLIENTE Prosystem (Programa de Ativos, 14/10/2026). */ cliente?: boolean } | null;
     /** Proposta recusada: o Luiz Felipe está entendendo o motivo e tentando recuperar (conversa natural). */
     recuperacao?: { motivo_informado?: string | null; pergunta_feita?: boolean } | null;
     /** O que já sabemos do lead (fichaDoLead): o agente nunca pergunta de novo o que está aqui. */
@@ -561,7 +561,9 @@ export function promptCaroline(p: {
     ? `PRIMEIRO CONTATO ATIVO: esta ${tipoLoja} NÃO se inscreveu nem procurou a Prosystem; a equipe encontrou a ${l.empresa || tipoLoja} no Google Maps${pr.bairro ? ` (${pr.bairro}, ${pr.cidade})` : pr.cidade ? ` (${pr.cidade})` : ''}. Apresente-se como Caroline, da Prosystem Sistemas, de Vitória/ES, que faz sistema de gestão e frente de caixa para ${tipoLoja === 'padaria' ? 'padarias' : 'farmácias e drogarias'}. Em UMA frase diga por que está chamando, com um gancho do dia a dia (${diaADia}), sem prometer nada fora do MATERIAL. Termine com UMA pergunta fácil: se ele é o responsável pela ${tipoLoja} ou qual sistema usa hoje. NUNCA diga que ele se inscreveu, pediu contato ou mostrou interesse. Nada de elogio forçado nem de citar nota ou avaliações do Google. No máximo 2 frases curtas, em uma única mensagem.${l.nome ? ` O nome ${l.nome.split(' ')[0]} veio do cadastro da empresa na Receita: use só se tiver certeza de que é ele quem atende; na dúvida, não use nome.` : ''}`
     : '';
   const ind = l.indicacao;
-  const aberturaIndicacao = ind
+  const aberturaIndicacao = ind?.cliente
+    ? `PRIMEIRO CONTATO POR INDICAÇÃO DE CLIENTE: ${ind.por || 'um cliente da Prosystem'}, que já usa o sistema da Prosystem, indicou${l.nome ? ` ${l.nome.split(' ')[0]}` : ' você'}${l.empresa ? ` (${l.empresa})` : ''}. Cumprimente pelo nome, apresente-se como Caroline, da Prosystem Sistemas, de Vitória/ES (sistema de gestão e frente de caixa para ${tipoLoja === 'padaria' ? 'padarias' : 'farmácias e drogarias'}), diga logo na primeira frase quem indicou e termine com UMA pergunta leve: se faz sentido conversar sobre o sistema que a loja usa hoje. NUNCA diga que ele se inscreveu ou pediu contato; não fale de preço nem de desconto. No máximo 2 frases curtas, em uma única mensagem.`
+    : ind
     ? `PRIMEIRO CONTATO POR INDICAÇÃO: quem atendeu ${l.empresa ? `na ${l.empresa}` : 'na loja'}${ind.por ? ` (${ind.por})` : ''} passou este WhatsApp como o contato ${ind.cargo ? `do ${ind.cargo}` : 'do responsável'}. Cumprimente${l.nome ? ` ${l.nome.split(' ')[0]}` : ''}, apresente-se como Caroline, da Prosystem Sistemas, de Vitória/ES (sistema de gestão e frente de caixa para ${tipoLoja === 'padaria' ? 'padarias' : 'farmácias e drogarias'}), diga numa frase que pegou o contato dele com a equipe da loja e termine com UMA pergunta fácil sobre o sistema que usam hoje. NUNCA diga que ele se inscreveu ou pediu contato. No máximo 2 frases curtas, em uma única mensagem.`
     : '';
   const tarefa = p.fase === 'abertura' && ind && !followUp

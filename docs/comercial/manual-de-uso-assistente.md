@@ -1183,3 +1183,10 @@ Os filtros do WhatsApp agora ficam no nome acima da busca (por exemplo, Minhas o
 - **Interessado sem demonstração há mais de 48 h:** aparece no placar e no sino, com o link para a conversa. Chame ou peça para a consultora marcar.
 - **Proposta em rascunho há mais de 1 dia:** aparece no sino de quem criou (e da gestão), com o atalho para enviar.
 - **Resumo da manhã no WhatsApp:** nos dias úteis, entre 9h e 11h, só quando há algo parado.
+
+### Novidade 14/10/2026 (noite): Programa de Ativos com contatos do dia e indicação premiada
+
+- **Contatos de hoje:** no topo de Ativos aparecem os 8 clientes da vez de cada vendedor: primeiro quem está em risco, depois quem nunca foi contatado, depois quem está parado há mais de 14 dias. Toque no nome para abrir o questionário. O sino lembra quantos faltam no dia.
+- **Indicação premiada:** em todo contato, pergunte "Você conhece alguma farmácia ou loja que esteja procurando sistema? Posso falar que foi indicação sua?". No questionário, toque em **Registrar indicação** e informe nome e WhatsApp. A Caroline chama o indicado citando o cliente, e se fechar o cliente ganha 50% de desconto na próxima mensalidade.
+- **Clientes sem grupo técnico:** em Designar fila, escolha "Clientes sem grupo técnico (em lotes)" e o tamanho do lote (80 clientes levam cerca de 2 semanas com 8 contatos por dia).
+- **Placar:** os clientes contatados aparecem no placar do Escritório, com a meta do dia.

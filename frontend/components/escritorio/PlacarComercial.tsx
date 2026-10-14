@@ -6,20 +6,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 
-type Num = { primeiros_contatos: number; respostas: number; interessados: number; demonstracoes: number; propostas: number; contratos: number };
+type Num = { primeiros_contatos: number; respostas: number; interessados: number; demonstracoes: number; propostas: number; contratos: number; ativos?: number };
 type Placar = {
-  hoje: Num; semana: Num; meta_semana: { primeiros_contatos: number; demonstracoes: number; propostas: number; contratos: number } | null;
+  hoje: Num; semana: Num; meta_semana: { primeiros_contatos: number; demonstracoes: number; propostas: number; contratos: number; ativos?: number } | null;
   interessados_sem_demo: { id: string; nome: string | null; empresa: string | null; nota: number | null; conversaId: string }[];
   propostas_rascunho: { id: string; razao_social: string; nome_fantasia: string | null; created_by_name: string | null; created_at: string }[];
 };
 
-const ITENS: { k: keyof Num; r: string; meta?: 'primeiros_contatos' | 'demonstracoes' | 'propostas' | 'contratos' }[] = [
+const ITENS: { k: keyof Num; r: string; meta?: 'primeiros_contatos' | 'demonstracoes' | 'propostas' | 'contratos' | 'ativos' }[] = [
   { k: 'primeiros_contatos', r: 'Primeiros contatos', meta: 'primeiros_contatos' },
   { k: 'respostas', r: 'Responderam' },
   { k: 'interessados', r: 'Interessados' },
   { k: 'demonstracoes', r: 'Demonstrações', meta: 'demonstracoes' },
   { k: 'propostas', r: 'Propostas', meta: 'propostas' },
   { k: 'contratos', r: 'Contratos', meta: 'contratos' },
+  { k: 'ativos', r: 'Clientes contatados (Ativos)', meta: 'ativos' }, // parte 3 do plano, 14/10/2026
 ];
 
 export default function PlacarComercial() {
@@ -38,13 +39,13 @@ export default function PlacarComercial() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
         {ITENS.map(i => {
           const meta = i.meta && p.meta_semana ? p.meta_semana[i.meta] : null;
-          const atingiu = meta != null && p.semana[i.k] >= meta;
+          const atingiu = meta != null && (p.semana[i.k] ?? 0) >= meta;
           return (
             <div key={i.k} style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '8px 10px', display: 'grid', gap: 2 }}>
               <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{i.r}</span>
-              <b style={{ fontSize: 20, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{p.hoje[i.k]}</b>
+              <b style={{ fontSize: 20, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{p.hoje[i.k] ?? 0}</b>
               <span style={{ fontSize: 12, color: atingiu ? '#16a34a' : 'var(--t-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                semana {p.semana[i.k]}{meta != null ? ` / ${meta}` : ''}
+                semana {p.semana[i.k] ?? 0}{meta != null ? ` / ${meta}` : ''}
               </span>
             </div>
           );
