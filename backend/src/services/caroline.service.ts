@@ -6,7 +6,7 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehEncerramentoAutomatico, soRoboDaLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
+import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
 const DIAS_RETOMADA_ADIOU = 3;
@@ -269,13 +269,19 @@ async function sairSeContextoImpede(prisma: PrismaClient, sdr: any): Promise<boo
   return true;
 }
 
+// Conversa inteira para o agente (14/10/2026): as últimas 40 mensagens (antes eram 14, e o começo da conversa,
+// onde está por que o lead se inscreveu, se perdia) e, se a conversa for maior, as 4 primeiras.
 async function historico(prisma: PrismaClient, conversaId: string) {
-  const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId }, orderBy: { created_at: 'desc' }, take: 14, select: { direcao: true, tipo: true, conteudo: true, transcricao: true, enviada_por: true, midia_url: true } });
-  const linhas = ms.reverse().map(m => {
-    const quem = m.direcao === 'ENTRADA' ? 'Cliente' : REMETENTES_SDR.includes(m.enviada_por || '') ? PERFIS_SDR[m.enviada_por as PerfilSdr].nome : m.enviada_por === 'abertura_jessica' || !m.enviada_por ? 'Jessica' : 'Empresa';
+  const sel = { id: true, direcao: true, tipo: true, conteudo: true, transcricao: true, enviada_por: true, midia_url: true } as const;
+  const ms = (await prisma.whatsappMensagem.findMany({ where: { conversaId }, orderBy: { created_at: 'desc' }, take: 40, select: sel })).reverse();
+  const inicio = ms.length === 40 ? (await prisma.whatsappMensagem.findMany({ where: { conversaId }, orderBy: { created_at: 'asc' }, take: 4, select: sel })).filter(m => !ms.some(x => x.id === m.id)) : [];
+  const linha = (m: typeof ms[number]) => {
+    // Robô da loja não é o cliente: marcado para o agente não tratar como resposta dele.
+    const quem = m.direcao === 'ENTRADA' ? (m.tipo === 'TEXTO' && ehRespostaAutomatica(m.conteudo) ? 'Robô da loja (mensagem automática)' : 'Cliente') : REMETENTES_SDR.includes(m.enviada_por || '') ? PERFIS_SDR[m.enviada_por as PerfilSdr].nome : m.enviada_por === 'abertura_jessica' || !m.enviada_por ? 'Jessica' : 'Empresa';
     const txt = m.tipo === 'AUDIO' ? `[áudio] ${m.transcricao || '(sem transcrição)'}` : m.tipo === 'IMAGEM' ? `[foto] ${m.conteudo || ''}` : (m.conteudo || '');
-    return `${quem}: ${txt.replace(/\s+/g, ' ').trim().slice(0, 600)}`;
-  });
+    return `${quem}: ${txt.replace(/\s+/g, ' ').trim().slice(0, 500)}`;
+  };
+  const linhas = [...(inicio.length ? [...inicio.map(linha), '(… mensagens do meio da conversa …)'] : []), ...ms.map(linha)];
   const ultimaFoto = ms.filter(m => m.direcao === 'ENTRADA' && m.tipo === 'IMAGEM' && (m.midia_url || '').startsWith('data:')).pop();
   return { texto: linhas.join('\n'), foto: ultimaFoto?.midia_url || null };
 }
@@ -437,7 +443,8 @@ async function apresentacaoPara(prisma: PrismaClient, sdr: any, fase: FaseCaroli
   const d: any = sdr.dados || {};
   if (agenteDe(sdr) === 'luiz_felipe' || sdr.proposta_id || recuperacaoAtiva(sdr) || !sdr.conversaId) return null;
   if (fase === 'abertura' && (d.prospeccao || d.indicacao)) return null;
-  const ap = apresentacaoDoSegmento(sdr.segmento, sdr.empresa);
+  // Ramo real pela conversa vale mais que o cadastro (Breno, material de construção, recebeu a de padaria em 14/10/2026).
+  const ap = d.segmento_real ? apresentacaoDoSegmento(d.segmento_real) : apresentacaoDoSegmento(sdr.segmento, sdr.empresa);
   if (!ap) return null;
   const enviada = !!(await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', conteudo: { contains: MARCA_APRESENTACAO } }, select: { id: true } }).catch(() => null));
   return { ...ap, enviada };
@@ -498,7 +505,8 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
     lead: { nome: agenteDe(sdr) === 'caroline' ? sdr.nome : await nomeParaChamar(prisma, sdr.numero, sdr.nome), empresa: sdr.empresa, segmento: sdr.segmento, campanha: sdr.campanha, abertura_jessica: sdr.abertura_enviada, tentativa: sdr.tentativas, ja_conversou: !!sdr.ultima_lead_em, combinado: fase === 'retomada' && (sdr.dados as any)?.chamar_combinado ? String((sdr.dados as any).chamar_combinado) : null,
       indicacao: (sdr.dados as any)?.indicacao ? { por: (sdr.dados as any).indicacao.por || null, cargo: (sdr.dados as any).indicacao.cargo || null } : null,
       prospeccao: (sdr.dados as any)?.prospeccao ? { cidade: (sdr.dados as any).cidade || null, bairro: (sdr.dados as any).bairro || null } : null,
-      recuperacao: recuperacaoAtiva(sdr) ? { motivo_informado: recuperacaoAtiva(sdr).motivo_informado || null, pergunta_feita: !!recuperacaoAtiva(sdr).pergunta_feita_em } : null },
+      recuperacao: recuperacaoAtiva(sdr) ? { motivo_informado: recuperacaoAtiva(sdr).motivo_informado || null, pergunta_feita: !!recuperacaoAtiva(sdr).pergunta_feita_em } : null,
+      ficha: fichaDoLead(sdr) },
   });
   const partes: any[] = [{ text: p.usuario }];
   const dm = h.foto?.match(/^data:([^;]+);base64,(.+)$/);
@@ -628,7 +636,8 @@ export async function passarParaCaroline(prisma: PrismaClient, sdr: any, motivo:
 
 async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCaroline) {
   const temperatura = temperaturaDaNota(r.nota);
-  const dados = { ...(sdr.dados || {}), ...Object.fromEntries(Object.entries(r.dados).filter(([, v]) => v)), ...(r.dor_principal ? { dor_principal: r.dor_principal } : {}) };
+  const pediuDecisor = r.dados.interlocutor === 'atendente' && r.acao === 'continuar' && !(sdr.dados as any)?.pediu_decisor_em;
+  const dados = { ...(sdr.dados || {}), ...Object.fromEntries(Object.entries(r.dados).filter(([, v]) => v)), ...(r.dor_principal ? { dor_principal: r.dor_principal } : {}), ...(pediuDecisor ? { pediu_decisor_em: new Date().toISOString() } : {}) };
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { nota: r.nota, nota_motivo: r.nota_motivo, temperatura, dados } });
   if (sdr.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: sdr.lead_id }, select: { temperatura: true } }).catch(() => null);
@@ -1005,6 +1014,12 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     if (ASSUNTO_COMERCIAL.test(ult.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase())) {
       r = { ...r, acao: 'duvida_fora_material', duvida: ult.slice(0, 300), mensagens: r.mensagens.length ? r.mensagens : ['Entendi! Isso é com a nossa equipe comercial: vou verificar agora com a responsável pelo seu serviço e já te retorno por aqui.'] };
     }
+  }
+  // Atendente dizendo "não temos interesse" não é a loja recusando: não joga o lead fora, pede o contato de
+  // quem decide (proprietário, farmacêutico responsável, gerente). Pedido da Jessica, 14/10/2026.
+  if (r && r.acao === 'sem_interesse' && r.dados.interlocutor === 'atendente' && !(sdr.dados as any)?.pediu_decisor_em) {
+    const nova = await gerarResposta(prisma, sdr, fase, 'Quem respondeu é atendente ou balconista, não quem decide. NÃO encerre e NÃO use "sem_interesse": agradeça com gentileza e peça o nome e o WhatsApp do proprietário, do farmacêutico responsável ou do gerente (ou o melhor horário para falar com ele). acao "continuar", dados.interlocutor "atendente".');
+    if (nova && nova.acao !== 'sem_interesse') { r = nova; registrarAcaoAgente(agenteDe(sdr), `não desistiu de ${sdr.nome || 'um lead'}: quem recusou foi o atendente, pediu o contato de quem decide`); }
   }
   if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); if (!motivoFalha.has(sdr.id)) motivoFalha.set(sdr.id, 'a IA não gerou uma resposta utilizável'); return 'falha'; }
   // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.

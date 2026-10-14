@@ -1146,3 +1146,12 @@ Ao trocar de contato, aguarde “Carregando conversa…” desaparecer para cons
 
 - No painel da Caroline há duas caixas: **Aprovar o primeiro contato** e **Aprovar as retomadas**.
 - Desde 14/10 o primeiro contato sai sozinho (decisão da Jessica), com as mesmas proteções do número: limite do dia, intervalo entre mensagens, horário e nada repetido. As retomadas continuam esperando sua aprovação.
+
+### Atualização 14/10/2026 (noite): agentes com contexto e foco em quem decide
+
+- **Os agentes leem a conversa inteira** (as últimas 40 mensagens e o começo dela) e recebem uma ficha com o que o lead já contou. Não perguntam de novo o que já sabem.
+- **O foco é o porquê:** por que o lead procura outra solução e por que se inscreveu na campanha. Com isso claro, mostram como a Prosystem resolve e convidam para a demonstração.
+- **Quem decide, já na primeira resposta:** no número geral da farmácia, o agente identifica se fala com o proprietário, o farmacêutico responsável ou o gerente. Se for o atendente, pede o nome e o WhatsApp de quem decide. O contato passado vira lead novo na fila.
+- **Lead não é jogado fora:** se o atendente disser "não temos interesse", o agente não encerra; pede o contato de quem decide.
+- **Ramo certo:** se a conversa mostra outro ramo (ex.: material de construção), o agente segue a conversa e não manda apresentação de outro segmento.
+- **Robô da loja** aparece para o agente como mensagem automática, nunca como resposta do cliente.

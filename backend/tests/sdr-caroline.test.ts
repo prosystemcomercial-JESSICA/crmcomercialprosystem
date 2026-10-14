@@ -110,7 +110,7 @@ describe('Caroline — termômetro e resposta da IA', () => {
   });
   it('prompt usa só o material e a missão da dor', () => {
     const p = promptCaroline({ guia: 'GUIA X', instrucoes: '', exemplos: [{ antes: 'oi', depois: 'olá' }], historico: 'Cliente: oi', fase: 'resposta', lead: { nome: 'João', empresa: 'Farmácia Exemplo', segmento: 'Farmácia', campanha: 'c1', abertura_jessica: true, tentativa: 1 }, saudacao: 'Bom dia' });
-    expect(p.sistema).toContain('PROBLEMA PRINCIPAL');
+    expect(p.sistema).toContain('por que ele está procurando outra solução');
     expect(p.sistema).toContain('GUIA X');
     expect(p.sistema).toContain('Ela enviou: olá');
     expect(p.usuario).toContain('Farmácia Exemplo');
