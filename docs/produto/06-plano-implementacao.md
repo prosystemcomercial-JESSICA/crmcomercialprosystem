@@ -1498,3 +1498,10 @@ Escopo implementado: tokens globais, tema móvel, seletor de aparência extraíd
 - **Primeiro contato do indicado:** roteiro novo "PRIMEIRO CONTATO POR INDICAÇÃO DE CLIENTE" (cita na primeira frase o cliente que indicou, pergunta se faz sentido conversar, sem preço nem desconto, nunca diz que ele se inscreveu).
 - **Placar:** linha "Clientes contatados (Ativos)" no dia e na semana; meta = 8 por vendedor com fila ativa por dia (× 5 na semana).
 - Testes: `tests/ativos-fila.test.ts`.
+
+
+### Publicação concluída — aparência e fila, 14/10/2026
+
+Autorização explícita recebida: publicar agora. Commit `207e3e1b4426be3d176262d1d419c066864506db` enviado ao main e publicado sobre `86c29aab3049e3519df8abc943c9e93d3dac00e7`. Backup completo de banco e interface com checksums em `/root/backups-deploy/aparencia-fila-20261014T192101Z`. Build de produção em staging aprovado (72 rotas), ativo `X-jUfIecOSfXviZuUcb_f`; somente comercial-frontend reiniciado, PID do backend preservado. PERMITIDO vazio: nenhuma alteração no banco. HTTP e CSS publicados verificados com marcadores da fila compacta, Champagne e Gelo.
+
+Dezesseis testes Chromium aprovados contra https://comercial.prosystemnet.com em 1,1 minuto, com todas as APIs interceptadas e dados fictícios: dez combinações de paleta/modo e contraste, persistência/teclado, seletor móvel, WhatsApp desktop/móvel, tabela/modal e fila em 390/1024/1366/1920 px, busca, abertura e movimentação por fase simulada. Nenhuma mensagem real enviada. Somam-se aos 34 testes locais anteriores. Outros navegadores e chamadas reais de alteração de dados não foram exercitados. Capturas de publicação preservadas localmente em `.refs/publicacao-aparencia/`.
