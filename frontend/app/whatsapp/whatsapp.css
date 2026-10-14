@@ -1,12 +1,8 @@
 /* WhatsApp — direção aprovada em 14/10/2026. Escopo explícito: não altera outras rotas. */
 .wpp-shell {
-  --t-sidebar-text: var(--t-text-primary);
-  --t-sidebar-muted: var(--t-text-secondary);
   --t-card-border: color-mix(in srgb, var(--t-text-primary) 12%, var(--t-card-bg));
   --t-text-muted: var(--t-text-secondary);
 }
-.wpp-shell .ps-sidebar { background: var(--t-card-bg); border-right-color: var(--t-card-border); }
-.wpp-shell .ps-sidebar-item:hover { background: var(--t-content-bg); color: var(--t-text-primary); border-left-color: transparent; }
 .wpp-shell .ps-content { overflow: hidden; }
 .wpp-shell .ps-page { padding: 0; }
 .wpp-workspace { container: wpp / inline-size; min-width: 0; color: var(--t-text-primary); }

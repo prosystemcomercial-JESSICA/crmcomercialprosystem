@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 
-const palettes = ['champagne','gelo','azul','laranja','verde'];
+const palettes = ['champagne','gelo','azul','laranja','verde','azul-intenso'];
 function contrast(a: string, b: string) {
   const luminance = (color: string) => {
     const rgb = color.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
@@ -45,11 +45,11 @@ function contrast(a: string, b: string) {
   return (Math.max(x,y) + .05) / (Math.min(x,y) + .05);
 }
 
-test('cinco paletas mudam superfícies com contraste legível nos dois modos', async ({ page }) => {
+test('seis paletas mudam superfícies com contraste legível nos dois modos', async ({ page }) => {
   await page.goto('/configuracoes');
   const section = page.getByRole('region', { name: 'Aparência', exact: true });
   await expect(section).toBeVisible();
-  const names = ['Champagne','Branco gelo','Azul Prosystem','Laranja','Verde'];
+  const names = ['Champagne','Branco gelo','Azul Prosystem','Laranja','Verde','Azul intenso'];
   const backgrounds = new Set<string>();
   for (const mode of ['Claro','Escuro']) {
     await section.getByRole('button', { name: mode, exact: true }).click();
@@ -60,13 +60,15 @@ test('cinco paletas mudam superfícies com contraste legível nos dois modos', a
       const colors = await page.evaluate(() => {
         const probe = document.createElement('span'); probe.style.setProperty('transition','none','important'); document.body.append(probe);
         const read = (token: string) => { probe.style.color = 'var(' + token + ')'; return getComputedStyle(probe).color; };
-        const result = Object.fromEntries(['--t-content-bg','--t-card-bg','--t-text-primary','--t-text-secondary','--t-text-muted','--t-primary','--t-text-inverse','--t-link','--t-primary-light','--t-sidebar-bg','--t-error','--t-error-bg','--card','--popover'].map(t => [t, read(t)]));
+        const result = Object.fromEntries(['--t-content-bg','--t-card-bg','--t-text-primary','--t-text-secondary','--t-text-muted','--t-primary','--t-text-inverse','--t-link','--t-primary-light','--t-sidebar-bg','--t-sidebar-text','--t-sidebar-muted','--t-sidebar-active','--t-sidebar-active-text','--t-error','--t-error-bg','--card','--popover'].map(t => [t, read(t)]));
         probe.remove(); return result;
       });
       backgrounds.add(colors['--t-content-bg']);
       for (const text of ['--t-text-primary','--t-text-secondary','--t-text-muted','--t-link']) {
-        for (const surface of ['--t-content-bg','--t-card-bg','--t-sidebar-bg','--t-primary-light']) expect(contrast(colors[text],colors[surface]), palette + mode + text + surface).toBeGreaterThanOrEqual(4.5);
+        for (const surface of ['--t-content-bg','--t-card-bg','--t-primary-light']) expect(contrast(colors[text],colors[surface]), palette + mode + text + surface).toBeGreaterThanOrEqual(4.5);
       }
+      for (const token of ['--t-sidebar-text','--t-sidebar-muted']) expect(contrast(colors[token],colors['--t-sidebar-bg'])).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(colors['--t-sidebar-active-text'],colors['--t-sidebar-active'])).toBeGreaterThanOrEqual(4.5);
       expect(contrast(colors['--t-primary'],colors['--t-text-inverse'])).toBeGreaterThanOrEqual(4.5);
       expect(contrast(colors['--t-error'],colors['--t-error-bg'])).toBeGreaterThanOrEqual(4.5);
       expect(colors['--card']).toBe(colors['--t-card-bg']);
@@ -74,10 +76,10 @@ test('cinco paletas mudam superfícies com contraste legível nos dois modos', a
       await expect(page.locator('.ps-sidebar')).toHaveCSS('background-image','none');
       const preview = section.getByRole('button', { name: names[i], exact: true }).locator('.aparencia-previa');
       await expect(preview).toHaveCSS('background-color',colors['--t-content-bg']);
-      if (i < 2) await section.screenshot({ path: 'test-results/aparencia-' + palette + '-' + mode + '.png' });
+      if (i < 2 || palette === 'azul-intenso') await section.screenshot({ path: 'test-results/aparencia-' + palette + '-' + mode + '.png' });
     }
   }
-  expect(backgrounds.size).toBe(10);
+  expect(backgrounds.size).toBe(12);
 });
 
 test('preferência persiste após recarregar e opções são acessíveis por teclado', async ({ page }) => {
@@ -92,7 +94,7 @@ test('preferência persiste após recarregar e opções são acessíveis por tec
   expect(await page.evaluate(() => localStorage.getItem('ps-theme-color'))).toBe('champagne');
 });
 
-for (const palette of ['champagne','gelo']) for (const mode of ['claro','escuro']) {
+for (const palette of ['champagne','gelo','azul-intenso']) for (const mode of ['claro','escuro']) {
   test('WhatsApp integra tema ' + palette + ' ' + mode, async ({ page }) => {
     await page.addInitScript(({ palette, mode }) => { localStorage.setItem('ps-theme-color',palette); localStorage.setItem('ps-theme-mode',mode); }, { palette, mode });
     await page.setViewportSize({ width: 1366, height: 768 });
@@ -100,6 +102,15 @@ for (const palette of ['champagne','gelo']) for (const mode of ['claro','escuro'
     await page.getByRole('button', { name: /Contato de teste com nome comprido/ }).click();
     await expect(page.getByRole('textbox', { name: 'Mensagem', exact: true })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-theme',palette);
+    const sidebar = page.getByRole('complementary', { name: 'Menu lateral' });
+    const actual = await sidebar.evaluate(el => {
+      const probe = document.createElement('span'); probe.style.color = 'var(--t-sidebar-bg)'; el.append(probe);
+      const expected = getComputedStyle(probe).color; probe.remove();
+      const link = el.querySelector('.ps-menu-link:not(.active)')!;
+      return { bg: getComputedStyle(el).backgroundColor, expected, text: getComputedStyle(link).color };
+    });
+    expect(actual.bg).toBe(actual.expected);
+    expect(contrast(actual.text, actual.bg)).toBeGreaterThanOrEqual(4.5);
     await page.screenshot({ path: 'test-results/tema-whatsapp-' + palette + '-' + mode + '.png' });
     await page.getByRole('button', { name: 'Detalhes do atendimento', exact: true }).click();
     await expect(page.locator('#wpp-detalhes')).toBeVisible();
@@ -123,7 +134,7 @@ test('seletor cabe no celular e preferência inválida usa padrão válido', asy
   expect(await section.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
 });
 
-for (const palette of ['champagne','gelo']) for (const mode of ['claro','escuro']) {
+for (const palette of ['champagne','gelo','azul-intenso']) for (const mode of ['claro','escuro']) {
   test('tabela e formulário de clientes ' + palette + ' ' + mode, async ({ page }) => {
     await page.addInitScript(({ palette, mode }) => { localStorage.setItem('ps-theme-color',palette); localStorage.setItem('ps-theme-mode',mode); }, { palette, mode });
     await page.setViewportSize({ width: 1366, height: 900 });

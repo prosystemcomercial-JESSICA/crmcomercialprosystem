@@ -188,3 +188,8 @@ A usuária aprovou a versão clara da central, com menos azul e sem ações repe
 Esta revisão substitui, para as superfícies do CRM, as regras anteriores de azul obrigatório, gradiente lateral e bordas sempre azuladas. A marca e o logotipo permanecem preservados. Champagne e Branco gelo somam-se às três paletas existentes, todas com modo claro/escuro. A fonte de verdade dos valores é frontend/app/globals.css; o seletor usa os mesmos tokens para suas prévias. Não há gerador externo de tokens.
 
 Menu, cabeçalho, conteúdo, cartões, campos e navegação móvel consomem tokens semânticos. Texto neutro deve manter contraste com a superfície. --t-primary representa fundo de ação com rótulo branco; --t-link representa texto/foco interativo e muda conforme o modo. Não usar fundo de ação como cor de texto no escuro. Estados de erro/sucesso/aviso usam suas próprias famílias e nunca adotam a cor do tema como substituto de significado. A nova paleta é opcional por navegador e não força uma preferência global.
+
+
+### Menu compacto e Azul intenso (14/10/2026)
+
+Navegação desktop: 208 px expandida, 52 px em ícones; links de 28 px, grupos de 24 px e primeiro grupo de 32 px com os controles integrados. O modo móvel mantém alvos de 44 px. Grupos recolhíveis preservam a preferência e a seleção atual, com um único link ativo por rota. A paleta opcional azul-intenso recupera o menu azul profundo, usando tokens próprios de texto e seleção; não altera o padrão nem as demais paletas.

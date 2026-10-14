@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import VersionWatcher from '@/components/VersionWatcher';
+import SidebarMenu from './SidebarMenu';
 import {
   LayoutDashboard, GitMerge, CalendarCheck, Calendar as CalendarIcon, FileCheck2,
   Megaphone, Trophy, Building2, Users, DollarSign,
@@ -15,7 +16,7 @@ import {
   Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
-  Maximize2, Minimize2, ChevronDown, User, Target, Send, PanelLeftClose, PanelLeftOpen, Monitor,
+  Maximize2, Minimize2, ChevronDown, User, Target, Send, Monitor,
   Eye,
 } from 'lucide-react';
 import { ehSomenteLeitura } from '@/lib/visoes';
@@ -170,22 +171,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [maisAberto, setMaisAberto] = useState(false); // folha "Mais" do celular
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  // Colapso da sidebar em desktop (largura cheia ↔ só ícones) — libera espaço
-  // horizontal para telas densas como o kanban da Central de Leads. Persistido
-  // por usuário para não voltar ao padrão a cada navegação/refresh.
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  useEffect(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('ps_sidebar_collapsed') : null;
-    if (saved === '1') setSidebarCollapsed(true);
-  }, []);
-  const toggleSidebarCollapsed = () => {
-    setSidebarCollapsed(prev => {
-      const next = !prev;
-      localStorage.setItem('ps_sidebar_collapsed', next ? '1' : '0');
-      return next;
-    });
-  };
-
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   // Técnico só usa o Portal Técnico: qualquer outra tela do CRM manda pra lá.
@@ -782,120 +767,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
         )}
 
-        {/* Sidebar */}
-        <aside
-          className={`ps-sidebar flex-shrink-0 flex flex-col overflow-y-auto
-            fixed md:static inset-y-0 left-0 z-[70] md:z-auto
-            transform transition-[transform,width] duration-200 md:transform-none
-            ${sidebarCollapsed ? 'md:w-14' : 'md:w-56'} w-56
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
-        >
-          {/* Close (mobile) */}
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden absolute top-3 right-3 p-1 rounded-lg"
-            style={{ color: 'var(--t-sidebar-text)' }}
-            aria-label="Fechar menu"
-          >
-            <XIcon size={18} />
-          </button>
-
-          {/* Collapse toggle (desktop only) */}
-          <button
-            onClick={toggleSidebarCollapsed}
-            className="hidden md:flex items-center justify-center flex-shrink-0 mx-2 mt-2 mb-1 p-1.5 rounded-md transition-colors"
-            style={{ color: 'var(--t-sidebar-muted)', alignSelf: sidebarCollapsed ? 'center' : 'flex-end' }}
-            title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
-            aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
-          </button>
-
-          <nav className="flex-1 py-1 px-2 space-y-3 overflow-y-auto overflow-x-hidden">
-            {gruposVisiveis.map((group) => (
-              <div key={group.label}>
-                {!sidebarCollapsed && (
-                  <p
-                    className="px-2.5 mb-0.5 text-[9px] font-bold uppercase tracking-widest"
-                    style={{ color: 'var(--t-sidebar-muted)' }}
-                  >
-                    {group.label}
-                  </p>
-                )}
-                <div>
-                  {group.items.map((item) => {
-                    const isActive =
-                      pathname === item.href ||
-                      (item.href !== '/dashboard' && pathname?.startsWith(item.href));
-                    const Icon = item.icon;
-                    const isWpp = item.destaque === 'whatsapp';
-
-                    const estilo: React.CSSProperties = isActive
-                      ? { background: 'var(--t-sidebar-active)', color: 'var(--t-sidebar-active-text)', borderLeft: '2px solid var(--t-sidebar-active-border)', fontWeight: 600 }
-                      : { borderLeft: '2px solid transparent', color: 'var(--t-sidebar-text)' };
-
-                    const conteudoItem = (
-                      <>
-                        <Icon size={13} className="flex-shrink-0" style={{ opacity: isWpp || isActive ? 1 : 0.7 }} />
-                        {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                        {!sidebarCollapsed && item.externoComToken && <span style={{ marginLeft: 'auto', fontSize: 9, opacity: 0.5 }}>↗</span>}
-                        {!sidebarCollapsed && isWpp && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#25D366', flexShrink: 0 }} />}
-                      </>
-                    );
-
-                    const classeItem = `ps-sidebar-item flex items-center gap-2 py-1.5 rounded-md text-[12px] font-medium select-none ${isActive ? 'active' : ''} ${sidebarCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'}`;
-
-                    if (item.externoComToken) {
-                      return (
-                        <a
-                          key={item.label}
-                          href="#"
-                          title={sidebarCollapsed ? item.label : undefined}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            const base = item.href /* portal do próprio CRM (o app separado do Railway foi arquivado) */;
-                            if (!base || base === '#') return;
-                            const tk = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-                            const url = tk ? `${base}${base.includes('?') ? '&' : '?'}token=${encodeURIComponent(tk)}` : base;
-                            window.open(url, '_blank', 'noopener');
-                          }}
-                          className={classeItem}
-                          style={estilo}
-                        >
-                          {conteudoItem}
-                        </a>
-                      );
-                    }
-
-                    return (
-                      <Link key={item.href} href={item.href} className={classeItem} style={estilo} title={sidebarCollapsed ? item.label : undefined}>
-                        {conteudoItem}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-
-          {/* Sidebar footer */}
-          {!sidebarCollapsed && (
-            <div
-              className="px-2 py-2 mx-2 mb-2 rounded-lg"
-              style={{
-                background: 'var(--t-sidebar-footer-bg)',
-                border: '1px solid var(--t-sidebar-footer-border)',
-              }}
-            >
-              <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--t-sidebar-muted)' }}>
-                ProSystem Sistemas
-              </p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-sidebar-text)', opacity: 0.5 }}>
-                Vitória · ES · Desde 2008
-              </p>
-            </div>
-          )}
-        </aside>
+        <SidebarMenu groups={gruposVisiveis} pathname={pathname} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onOpenExternal={abrirExterno} />
 
         {/* Main content */}
         <main className="ps-content ios-main flex-1 overflow-auto min-h-0 min-w-0">

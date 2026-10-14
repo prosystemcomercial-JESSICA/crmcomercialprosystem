@@ -1210,3 +1210,10 @@ A preferência é salva automaticamente neste navegador; não precisa usar Salva
 - **Página de captação:** `comercial.prosystemnet.com/conhecer`. Coloque no blog e nos anúncios um botão para ela; quem preenche vira lead no CRM e a Caroline chama no WhatsApp. No fim do link vai de onde a pessoa veio, por exemplo `?origem=blog&material=Guia do SNGPC`.
 - **De onde vêm as vendas:** abaixo do placar do Escritório, abra o funil por origem para ver, por canal e campanha, quantos leads responderam, se interessaram, tiveram demonstração, proposta e contrato.
 - **Robô da loja:** nenhum agente responde a mensagem automática. Quando só o robô respondeu, o agente espera a retomada e então escreve para a pessoa, pedindo o contato de quem decide.
+
+
+### Menu menor e grupos recolhíveis
+
+Clique no nome de um grupo (Painéis, Vendas etc.) para fechar ou abrir seus atalhos. No topo, o botão de recolher grupos fecha todos; clique novamente para abrir. O botão de recolher menu deixa somente ícones e libera espaço. Ao expandir, seus grupos permanecem como você deixou. As escolhas ficam salvas neste navegador e também valem no menu Mais do celular. O grupo fechado da tela atual continua marcado.
+
+Em Configurações → Aparência, Azul intenso recupera um menu azul mais marcante, com versões clara e escura. Azul Prosystem continua disponível com superfícies neutras.

@@ -254,6 +254,35 @@
   --t-link: #b2ceda;
 }
 
+[data-theme="azul-intenso"] {
+  --t-content-bg: #edf3fa;
+  --t-card-bg: #ffffff;
+  --t-sidebar-bg: #184a78;
+  --t-card-border: #c5d4e5;
+  --t-text-primary: #1b2f44;
+  --t-text-secondary: #445c73;
+  --t-text-muted: #4f6479;
+  --t-primary: #1d5da0;
+  --t-primary-dark: #174d86;
+  --t-primary-deep: #103e70;
+  --t-primary-light: #dceafb;
+  --t-link: #174f86;
+}
+.dark[data-theme="azul-intenso"] {
+  --t-content-bg: #101c2a;
+  --t-card-bg: #192b3e;
+  --t-sidebar-bg: #102e4d;
+  --t-card-border: #38526c;
+  --t-text-primary: #edf4fd;
+  --t-text-secondary: #bdcfe2;
+  --t-text-muted: #a6bdd5;
+  --t-primary: #1d5da0;
+  --t-primary-dark: #174d86;
+  --t-primary-deep: #103e70;
+  --t-primary-light: #233e5b;
+  --t-link: #9fcbff;
+}
+
 :root, [data-theme] {
   color-scheme: light;
   --t-text-inverse: #ffffff;
@@ -365,6 +394,22 @@
 /* ═══════════════════════════════════════════════════════════
    ProSystem Utility Classes
    ═══════════════════════════════════════════════════════════ */
+/* A opção intensa recupera o menu azul, com texto próprio de alto contraste. */
+[data-theme="azul-intenso"] {
+  --t-sidebar-text: #e6eff9;
+  --t-sidebar-muted: #c0d5e9;
+  --t-sidebar-active-text: #ffffff;
+  --t-sidebar-active: #28649a;
+  --t-sidebar-active-border: #a6d4ff;
+  --t-sidebar-hover: #235986;
+  --t-sidebar-border: #37658f;
+}
+.dark[data-theme="azul-intenso"] {
+  --t-sidebar-active: #254e78;
+  --t-sidebar-hover: #1c4064;
+  --t-sidebar-border: #304d6b;
+}
+
 .ps-sidebar {
   background: var(--t-sidebar-bg);
   border-right: 1px solid var(--t-sidebar-border);
