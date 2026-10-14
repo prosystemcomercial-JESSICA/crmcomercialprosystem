@@ -1492,3 +1492,9 @@ A tela de WhatsApp deve priorizar a área de conversa em zoom padrão (100%). Fi
 - **Rotas:** `GET /especialista/perguntas`, `POST /especialista/perguntas/:id/responder`, `POST /especialista/perguntas/:id/dispensar`, `POST /especialista/perguntas/levantar` (segundo plano). Todas `requireGestor`.
 - **Tela:** aba "Perguntas para você" (primeira do painel do Rafael) com o número de perguntas, cada uma com o contexto, campo de resposta (Ctrl+Enter envia), "Não se aplica" e "Abrir conversa"; lista "Já respondidas". No Escritório, o botão do painel mostra "· N perguntas para você" e o link do aviso abre direto na aba. Mural da equipe com o filtro "Perguntas para a Jessica".
 - Testes: `tests/perguntas-jessica.test.ts`.
+
+### Atualização 14/10/2026 (noite): números extras reservados para a prospecção do Heitor
+
+- **Problema:** a ordem fixa do primeiro contato (campanha → propostas → base do Julio → Heitor) e a base do Julio, que se reabastece sozinha (`abastecerFila`), faziam os leads do Heitor nunca terem vez: 333 na fila com o motor já andando.
+- **Correção (`rodarCaroline`, passo 3):** quando o rodízio escolhe um número extra com folga (`escolherNumeroProspeccao`) e o teto do Heitor do dia não foi atingido, o próximo primeiro contato é um lead do Heitor (mais antigo primeiro). Sem lead do Heitor, segue a ordem de sempre. O número principal continua com campanha, propostas e base.
+- **Ritmo controlado:** teto do Heitor (`heitor.config.envios_dia`) passou de 15 para 30 por dia (decisão da Jessica, "subir de forma controlada"); o ritmo real fica limitado pelo aquecimento de cada número extra (10 → 20 → 30 → 40 por dia, uma etapa por semana). Limite único do número principal, intervalo sorteado, horário e travas continuam iguais.

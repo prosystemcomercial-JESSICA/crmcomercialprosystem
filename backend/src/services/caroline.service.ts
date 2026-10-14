@@ -1784,13 +1784,16 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   // Quem tem a primeira mensagem esperando a aprovação da Jessica continua "na fila", mas não é a vez dele:
   // sem este filtro o mais antigo era escolhido de novo a cada rodada e travava a fila inteira (14/10/2026).
   const esperandoAprovacao = (await prisma.sdrMensagem.findMany({ where: { status: 'PENDENTE' }, select: { sdrId: true } })).map(m => m.sdrId);
-  for (const a of ativos) { // prioridade: Caroline (campanha) → Luiz Felipe (propostas) → Julio (base)
+  const proximoDoHeitor = () => prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor', id: { notIn: esperandoAprovacao } }, orderBy: { created_at: 'asc' } });
+  // Números extras (rodízio) ficam com a prospecção do Heitor; o principal segue com campanha, propostas e base.
+  // Sem isso a base do Julio, que se reabastece sozinha, nunca deixava a vez para o Heitor (decisão da Jessica, 14/10/2026).
+  // O ritmo fica controlado pelo aquecimento de cada número extra (10 → 40 por dia em 3 semanas) e pelo teto do Heitor.
+  if (numeroExtra && podeHeitor && ativos.includes('caroline')) proximo = await proximoDoHeitor();
+  if (!proximo) for (const a of ativos) { // prioridade: Caroline (campanha) → Luiz Felipe (propostas) → Julio (base)
     proximo = await prisma.sdrLead.findFirst({ where: { agente: a, status: 'FILA', id: { notIn: esperandoAprovacao }, OR: [{ criado_por: null }, { criado_por: { not: 'heitor' } }] }, orderBy: a === 'caroline' ? { created_at: 'asc' } : { cadastro_em: 'desc' } });
     if (proximo) break;
   }
-  if (!proximo && podeHeitor && ativos.includes('caroline')) {
-    proximo = await prisma.sdrLead.findFirst({ where: { agente: 'caroline', status: 'FILA', criado_por: 'heitor', id: { notIn: esperandoAprovacao } }, orderBy: { created_at: 'asc' } });
-  }
+  if (!proximo && podeHeitor && ativos.includes('caroline')) proximo = await proximoDoHeitor();
   if (!proximo) return;
   // Confere se o número tem WhatsApp antes de chamar: sem WhatsApp, sai da fila e a fila segue.
   const temWpp = await evo.verificarWhatsapp(token, [proximo.numero]).then(m => m.get(proximo!.numero)).catch(() => undefined);

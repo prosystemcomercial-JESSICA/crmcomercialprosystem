@@ -1171,3 +1171,8 @@ Os filtros do WhatsApp agora ficam no nome acima da busca (por exemplo, Minhas o
 - **O que aparece:** o que o Rafael precisa que você confirme (produto, preço, prazo, regra da casa) e as dúvidas de clientes que nenhum agente soube responder, com o contexto e, quando houver, o botão **Abrir conversa**.
 - **Como responder:** escreva como explicaria para a equipe e toque em **Responder** (ou Ctrl+Enter). A resposta vale na hora para todos os agentes e vira fonte oficial no material deles. Se a pergunta não fizer sentido, use **Não se aplica**.
 - **Juntar o que já foi perguntado:** o botão **Rafael: juntar perguntas dos documentos** faz ele reler os documentos dos últimos 30 dias e trazer para a lista tudo o que ficou "para confirmar".
+
+### Atualização 14/10/2026 (noite): números extras para a prospecção do Heitor
+
+- Os números extras (3 e 4, em rodízio) agora chamam primeiro os leads encontrados pelo Heitor; o número da empresa segue com campanhas, propostas e a base antiga do Julio. As duas frentes andam todo dia.
+- O teto do Heitor subiu para 30 por dia, mas de forma controlada: cada número novo começa com 10 contatos por dia e sobe uma etapa por semana até 40.
