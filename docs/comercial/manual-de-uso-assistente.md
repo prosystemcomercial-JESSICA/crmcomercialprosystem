@@ -1204,3 +1204,9 @@ A preferência é salva automaticamente neste navegador; não precisa usar Salva
 - **Indicação premiada:** em todo contato, pergunte "Você conhece alguma farmácia ou loja que esteja procurando sistema? Posso falar que foi indicação sua?". No questionário, toque em **Registrar indicação** e informe nome e WhatsApp. A Caroline chama o indicado citando o cliente, e se fechar o cliente ganha 50% de desconto na próxima mensalidade.
 - **Clientes sem grupo técnico:** em Designar fila, escolha "Clientes sem grupo técnico (em lotes)" e o tamanho do lote (80 clientes levam cerca de 2 semanas com 8 contatos por dia).
 - **Placar:** os clientes contatados aparecem no placar do Escritório, com a meta do dia.
+
+### Novidade 14/10/2026 (noite): página de captação, funil por origem e robô da loja
+
+- **Página de captação:** `comercial.prosystemnet.com/conhecer`. Coloque no blog e nos anúncios um botão para ela; quem preenche vira lead no CRM e a Caroline chama no WhatsApp. No fim do link vai de onde a pessoa veio, por exemplo `?origem=blog&material=Guia do SNGPC`.
+- **De onde vêm as vendas:** abaixo do placar do Escritório, abra o funil por origem para ver, por canal e campanha, quantos leads responderam, se interessaram, tiveram demonstração, proposta e contrato.
+- **Robô da loja:** nenhum agente responde a mensagem automática. Quando só o robô respondeu, o agente espera a retomada e então escreve para a pessoa, pedindo o contato de quem decide.

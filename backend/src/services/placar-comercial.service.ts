@@ -90,3 +90,39 @@ export async function avisoDiarioParte2(prisma: PrismaClient, agora = new Date()
   await enviarAvisoGestao(prisma, 'lead_qualificado', linhas.join('\n'), { somenteAprovadora: true }).catch(() => {});
   return true;
 }
+
+/**
+ * Funil por origem (parte 4 do plano, 14/10/2026): para cada canal e campanha dos leads criados nos últimos `dias`,
+ * quantos responderam ao agente, se interessaram (termômetro 35+), tiveram demonstração, proposta e contrato.
+ * A proposta não guarda o lead: liga pelo telefone (últimos 8 dígitos), criada depois do lead.
+ */
+export async function funilPorOrigem(prisma: PrismaClient, dias = 30, agora = new Date()) {
+  const { canalDoLead, campanhaDoLead, ultimos8 } = await import('@/lib/funil-origem');
+  const desde = new Date(agora.getTime() - dias * 864e5);
+  const leads = await prisma.lead.findMany({ where: { created_at: { gte: desde }, deleted_at: null }, select: { id: true, origem: true, utm_source: true, utm_campaign: true, campanha_nome: true, telefone: true, responsavel_telefone: true, created_at: true } });
+  const ids = leads.map(l => l.id);
+  const [sdrs, reunioes, propostas] = await Promise.all([
+    prisma.sdrLead.findMany({ where: { lead_id: { in: ids } }, select: { lead_id: true, ultima_lead_em: true, nota: true, conversaId: true } }),
+    prisma.atividade.findMany({ where: { tipo: 'REUNIAO', status: { not: 'CANCELADA' }, created_at: { gte: desde } }, select: { lead_id: true, whatsapp_conversa_id: true } }),
+    prisma.propostaComercial.findMany({ where: { deleted_at: null, created_at: { gte: desde }, NOT: { status: 'RASCUNHO' } }, select: { responsavel_telefone: true, created_at: true, status: true, data_aceite: true } }),
+  ]);
+  const conversaDoLead = new Map<string, string[]>();
+  for (const s of sdrs) if (s.lead_id && s.conversaId) conversaDoLead.set(s.lead_id, [...(conversaDoLead.get(s.lead_id) || []), s.conversaId]);
+  const comReuniao = new Set([...reunioes.map(r => r.lead_id), ...reunioes.map(r => r.whatsapp_conversa_id)].filter(Boolean) as string[]);
+  const linhas = new Map<string, { canal: string; campanha: string; leads: number; responderam: number; interessados: number; demonstracoes: number; propostas: number; contratos: number }>();
+  for (const l of leads) {
+    const canal = canalDoLead(l), campanha = campanhaDoLead(l), k = `${canal}|${campanha}`;
+    const r = linhas.get(k) || { canal, campanha, leads: 0, responderam: 0, interessados: 0, demonstracoes: 0, propostas: 0, contratos: 0 };
+    const dele = sdrs.filter(s => s.lead_id === l.id);
+    const fones = [ultimos8(l.telefone), ultimos8(l.responsavel_telefone)].filter(f => f.length === 8);
+    const props = propostas.filter(p => fones.includes(ultimos8(p.responsavel_telefone)) && p.created_at >= l.created_at);
+    r.leads++;
+    if (dele.some(s => s.ultima_lead_em)) r.responderam++;
+    if (dele.some(s => (s.nota ?? 0) >= NOTA_INTERESSE)) r.interessados++;
+    if (comReuniao.has(l.id) || (conversaDoLead.get(l.id) || []).some(c => comReuniao.has(c))) r.demonstracoes++;
+    if (props.length) r.propostas++;
+    if (props.some(p => FECHADA.includes(p.status) && p.data_aceite)) r.contratos++;
+    linhas.set(k, r);
+  }
+  return { dias, desde: desde.toISOString(), linhas: [...linhas.values()].sort((a, b) => b.contratos - a.contratos || b.propostas - a.propostas || b.leads - a.leads) };
+}

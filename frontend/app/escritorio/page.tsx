@@ -19,6 +19,7 @@ import PainelHeitor from '@/components/escritorio/PainelHeitor';
 import { ConfigPortalImplantacao } from '@/components/implantacao/Portal';
 import { MuralEquipe } from '@/components/escritorio/MuralEquipe';
 import PlacarComercial from '@/components/escritorio/PlacarComercial';
+import FunilOrigem from '@/components/escritorio/FunilOrigem';
 
 // Escritório virtual: os agentes do assistente como uma equipe numa sala. Somente
 // leitura; atualiza a cada 30 s com o que cada agente fez hoje.
@@ -295,6 +296,7 @@ export default function EscritorioPage() {
         </div>
 
         <PlacarComercial />
+        <FunilOrigem />
 
         {simulando && (
           <p style={{ background: '#ede9fe', color: '#5b21b6', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 600 }}>

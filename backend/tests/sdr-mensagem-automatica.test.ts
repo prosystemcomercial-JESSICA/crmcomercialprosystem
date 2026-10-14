@@ -11,6 +11,8 @@ describe('mensagem automática da loja', () => {
       '_Digite o *número* correspondente a sua nota_',
       'Vou encerrar seu atendimento por aqui.\nObrigado pela sua procura!\n\nA Farma Vila fica à disposição sempre que precisar, Bom dia!',
       'Atendimento finalizado ✓\nObrigado pela preferência, atenciosamente Farma Vila!\n\nBoa tarde',
+      'Olá, seja bem vindo a Nevespan. Estamos felizes em te atender! Nosso catálogo: https://wa.me/c/5527998097725 Caso queira falar com nossa loja: 02733894592',
+      'Estamos felizes em te atender! Nosso WhatsApp funciona: Segunda a sexta das 08h às 18h',
     ]) expect(ehRespostaAutomatica(t), t).toBe(true);
   });
 

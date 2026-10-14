@@ -985,19 +985,15 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     const desdeAgente = ultimasDoAgente[0]?.created_at || sdr.desde;
     const novas = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA', created_at: { gt: desdeAgente } }, select: { conteudo: true, tipo: true } });
     if (soRoboDaLoja(novas)) {
-      // Atitude: só respondeu o robô da loja (o folheto em imagem junto conta como robô). Uma vez por conversa,
-      // escreve para o atendente pedindo o decisor. Robô encerrando ou pedindo nota: não responde nada.
+      // Só respondeu o robô da loja (boas-vindas, horários, catálogo, folheto, encerramento ou pesquisa de nota).
+      // Nenhum agente responde a robô (pedido da Jessica, 14/10/2026: o Julio agradeceu o robô da Nevespan um minuto
+      // depois). O lead fica marcado como "só o robô respondeu" e segue o ritmo normal de retomada; na retomada o agente
+      // escreve para a pessoa que vai ler e pede o contato de quem decide (regra QUEM ESTÁ FALANDO + ficha do lead).
       const dA: any = sdr.dados || {};
       const encerrou = novas.filter(m => m.tipo === 'TEXTO').every(m => ehEncerramentoAutomatico(m.conteudo));
-      if (dA.pediu_decisor_em || encerrou) {
-        // Sai de "esperando resposta": senão a rodada chama o agente de novo a cada 2 minutos. A retomada segue o ritmo normal.
-        await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date() } });
-        registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: ${encerrou ? 'o robô encerrou o atendimento, não respondeu' : 'já pediu o decisor, espera a pessoa'}`);
-        return 'nada';
-      }
-      dicaDecisor = 'A loja respondeu só com MENSAGEM AUTOMÁTICA (robô de atendimento). Não agradeça nem converse com o robô. Escreva UMA mensagem curta para o ATENDENTE que vai ler: diga quem você é e o motivo em uma frase (sistema de gestão da farmácia/padaria, sem vender), e peça com educação o nome e o WhatsApp do dono ou do gerente que cuida da parte de sistema, ou o melhor horário para falar com ele. Use acao "continuar".';
-      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...dA, pediu_decisor_em: new Date().toISOString() } } });
-      registrarAcaoAgente(agenteDe(sdr), `só a mensagem automática de ${sdr.nome || 'um lead'} respondeu: pediu o contato do decisor ao atendente`);
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date(), dados: { ...dA, interlocutor: dA.interlocutor === 'decisor' || dA.interlocutor === 'atendente' ? dA.interlocutor : 'robo', robo_respondeu_em: new Date().toISOString() } } });
+      registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: ${encerrou ? 'o robô encerrou o atendimento' : 'só o robô respondeu'}, não respondeu ao robô`);
+      return 'nada';
     }
     if (ultimasDoAgente.length && novas.length && novas.every(m => m.tipo === 'TEXTO' && ehSoConfirmacao(m.conteudo))) {
       const d: any = sdr.dados || {};
