@@ -12,13 +12,14 @@ const TIPOS: { k: string; l: string; cor: string }[] = [
   { k: 'REUNIAO', l: 'Reuniões', cor: '#1e40af' },
   { k: 'ORIENTACAO', l: 'Orientações do Rafael', cor: '#1e40af' },
   { k: 'DUVIDA', l: 'Dúvidas', cor: '#d97706' },
+  { k: 'PERGUNTA', l: 'Perguntas para a Jessica', cor: '#be123c' },
   { k: 'RESPOSTA', l: 'Respostas', cor: '#16a34a' },
   { k: 'EXPERIENCIA', l: 'Experiências', cor: '#7c3aed' },
   { k: 'CONTEXTO', l: 'Passagem de bastão', cor: '#0891b2' },
   { k: 'CONVERSA', l: 'Conversas', cor: '#64748b' },
 ];
 const COR = Object.fromEntries(TIPOS.filter(t => t.k).map(t => [t.k, t.cor]));
-const ROTULO: Record<string, string> = { REUNIAO: 'Reunião', ORIENTACAO: 'Orientação', DUVIDA: 'Dúvida', RESPOSTA: 'Resposta', EXPERIENCIA: 'Experiência', CONTEXTO: 'Passagem de bastão', CONVERSA: 'Conversa' };
+const ROTULO: Record<string, string> = { REUNIAO: 'Reunião', ORIENTACAO: 'Orientação', DUVIDA: 'Dúvida', RESPOSTA: 'Resposta', EXPERIENCIA: 'Experiência', CONTEXTO: 'Passagem de bastão', CONVERSA: 'Conversa', PERGUNTA: 'Pergunta para a Jessica' };
 const quando = (s: string) => new Date(s).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function MuralEquipe() {
@@ -63,7 +64,7 @@ export function MuralEquipe() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 12 }}>
                 <span style={{ fontWeight: 600, color: COR[n.tipo] || '#64748b' }}>{ROTULO[n.tipo] || n.tipo}</span>
                 <span style={{ color: 'var(--t-text-secondary)' }}><b style={{ color: 'var(--t-text-primary)' }}>{n.de_nome}</b> → {n.para_nome}</span>
-                {n.tipo === 'DUVIDA' && <span style={{ fontWeight: 600, color: n.resolvida_em ? '#16a34a' : '#d97706' }}>{n.resolvida_em ? 'respondida' : 'em aberto'}</span>}
+                {(n.tipo === 'DUVIDA' || n.tipo === 'PERGUNTA') && <span style={{ fontWeight: 600, color: n.resolvida_em ? '#16a34a' : '#d97706' }}>{n.resolvida_em ? 'respondida' : 'em aberto'}</span>}
                 <span style={{ marginLeft: 'auto', color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{quando(n.created_at)}</span>
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{n.assunto}</div>

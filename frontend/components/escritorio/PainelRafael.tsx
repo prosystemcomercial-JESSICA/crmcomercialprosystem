@@ -6,11 +6,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import PerguntasRafael from './PerguntasRafael';
 
 type Doc = { id: string; tipo: string; titulo: string; conteudo: string; agente_alvo: string | null; status: string; versao: number; created_at: string };
 
 const TIPOS: { k: string; r: string }[] = [
-  { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'TREINAMENTO', r: '🎓 Treinamentos' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' }, { k: 'CONCORRENCIA', r: '🔍 Concorrência' },
+  { k: 'PERGUNTAS', r: '❓ Perguntas para você' }, { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'TREINAMENTO', r: '🎓 Treinamentos' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' }, { k: 'CONCORRENCIA', r: '🔍 Concorrência' },
   { k: 'POP', r: '📋 POPs' }, { k: 'PROCESSO', r: '🔁 Processos' }, { k: 'EXEMPLO', r: '💬 Exemplos' }, { k: 'DICA', r: '💡 Dicas' },
 ];
 const COR = '#1e40af';
@@ -30,10 +31,11 @@ export function Texto({ md }: { md: string }) {
   );
 }
 
-export default function PainelRafael() {
+export default function PainelRafael({ abaInicial }: { abaInicial?: string } = {}) {
   const [docs, setDocs] = useState<Doc[] | null>(null);
   const [andamento, setAndamento] = useState<string[]>([]);
-  const [aba, setAba] = useState('PENDENTES');
+  const [aba, setAba] = useState(abaInicial || 'PENDENTES');
+  const [perguntas, setPerguntas] = useState(0);
   const [aberto, setAberto] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [tema, setTema] = useState('');
@@ -75,12 +77,15 @@ export default function PainelRafael() {
         {TIPOS.map(t => (
           <button key={t.k} role="tab" aria-selected={aba === t.k} onClick={() => setAba(t.k)}
             style={{ minHeight: 32, padding: '0 12px', borderRadius: 16, fontSize: 12, fontWeight: 600, border: '1px solid var(--t-card-border)', background: aba === t.k ? COR : 'var(--t-card-bg)', color: aba === t.k ? '#fff' : 'var(--t-text-secondary)' }}>
-            {t.r}{t.k === 'PENDENTES' && pendentes ? ` (${pendentes})` : ''}
+            {t.r}{t.k === 'PENDENTES' && pendentes ? ` (${pendentes})` : ''}{t.k === 'PERGUNTAS' && perguntas ? ` (${perguntas})` : ''}
           </button>
         ))}
       </div>
 
-      {docs === null ? <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Carregando…</div> : lista.length === 0 ? (
+      {/* Sempre montado (só escondido) para o número de perguntas aparecer na aba. */}
+      <div style={{ display: aba === 'PERGUNTAS' ? 'block' : 'none' }}><PerguntasRafael onTotal={setPerguntas} /></div>
+
+      {aba === 'PERGUNTAS' ? null : docs === null ? <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Carregando…</div> : lista.length === 0 ? (
         <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>{aba === 'PENDENTES' ? 'Nada esperando sua aprovação.' : 'Nada aqui ainda. Use os botões acima para o Rafael trabalhar.'}</div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>

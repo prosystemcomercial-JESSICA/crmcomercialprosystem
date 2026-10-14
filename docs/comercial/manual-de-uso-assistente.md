@@ -1164,3 +1164,10 @@ Ao trocar de contato, aguarde “Carregando conversa…” desaparecer para cons
 ### WhatsApp compacto — 14/10/2026
 
 Os filtros do WhatsApp agora ficam no nome acima da busca (por exemplo, Minhas ou Atenção). Clique para trocar a lista ou escolher o tipo de contato. A seleção continua visível após fechar o menu. Para retirar o tipo escolhido, abra o menu e use Remover filtro de tipo. Nova e busca permanecem à mão; a tela foi compactada para o zoom padrão de 100%.
+
+### Novidade 14/10/2026 (noite): responder as perguntas do Rafael
+
+- **Onde:** Escritório › Painel do Rafael › aba **Perguntas para você**. O botão do painel mostra quantas perguntas esperam você, e o aviso do WhatsApp traz um link que abre direto nelas.
+- **O que aparece:** o que o Rafael precisa que você confirme (produto, preço, prazo, regra da casa) e as dúvidas de clientes que nenhum agente soube responder, com o contexto e, quando houver, o botão **Abrir conversa**.
+- **Como responder:** escreva como explicaria para a equipe e toque em **Responder** (ou Ctrl+Enter). A resposta vale na hora para todos os agentes e vira fonte oficial no material deles. Se a pergunta não fizer sentido, use **Não se aplica**.
+- **Juntar o que já foi perguntado:** o botão **Rafael: juntar perguntas dos documentos** faz ele reler os documentos dos últimos 30 dias e trazer para a lista tudo o que ficou "para confirmar".

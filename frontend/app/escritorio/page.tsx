@@ -124,6 +124,17 @@ export default function EscritorioPage() {
   const [metricas, setMetricas] = useState(false); // janela "Métricas da IA"
   const [conversasAgentes, setConversasAgentes] = useState<any[]>([]); // conversas entre agentes (balões redondos)
   const [janela, setJanela] = useState<null | 'treino' | 'rafael' | 'mila' | 'joana' | 'luiz_felipe' | 'julio' | 'heitor' | 'sofia' | 'caroline' | 'laya' | 'otavio'>(null); // painéis dos agentes em janela
+  // Perguntas do Rafael para a Jessica: número no botão do painel e link do aviso (?rafael=perguntas) abre direto nelas.
+  const [perguntasRafael, setPerguntasRafael] = useState(0);
+  const [abaRafael, setAbaRafael] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('rafael') === 'perguntas') { setAbaRafael('PERGUNTAS'); setJanela('rafael'); }
+  }, []);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const ler = () => apiClient.rafaelPerguntas().then(r => setPerguntasRafael(r.data.data.abertas.length)).catch(() => {});
+    ler(); const i = setInterval(ler, 60_000); return () => clearInterval(i);
+  }, [isAuthenticated]);
   const chamar = (id: string) => { setChamados(c => ({ ...c, [id]: 'sala' })); setSel(id); setChat(id); };
   const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
   const reunir = () => setChamados(Object.fromEntries((agentes || []).map(a => [a.id, 'reuniao' as Chamado])));
@@ -195,7 +206,7 @@ export default function EscritorioPage() {
               <button onClick={() => setJanela(null)} aria-label="Fechar" style={{ minWidth: 40, minHeight: 40, borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
             {janela === 'treino' && <SalaTreinamento onFala={setFalaTreino} />}
-            {janela === 'rafael' && <PainelRafael />}
+            {janela === 'rafael' && <PainelRafael abaInicial={abaRafael} />}
             {janela === 'mila' && <PainelMila />}
             {janela === 'joana' && <PainelJoana />}
             {janela === 'laya' && <CadernoLaya />}
@@ -243,7 +254,7 @@ export default function EscritorioPage() {
             </button>
             <button onClick={() => setJanela('rafael')}
               style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #1e40af', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#1e40af', background: 'var(--t-card-bg)' }}>
-              📚 Painel do Rafael
+              📚 Painel do Rafael{perguntasRafael ? ` · ${perguntasRafael} pergunta${perguntasRafael > 1 ? 's' : ''} para você` : ''}
             </button>
             <button onClick={() => setJanela('mila')}
               style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #0e7490', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#0e7490', background: 'var(--t-card-bg)' }}>

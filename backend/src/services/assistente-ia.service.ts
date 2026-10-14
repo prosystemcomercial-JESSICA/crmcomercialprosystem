@@ -28,12 +28,16 @@ export async function guiaComercial(prisma: PrismaClient): Promise<string> {
   const mats = await prisma.configuracaoIntegracao.findMany({ where: { chave: { in: ['whatsapp.triagem.material.farmacia', 'whatsapp.triagem.material.padaria'] } } }).catch(() => []);
   const materiais = mats.map(m => { try { return JSON.parse(m.valor).texto || ''; } catch { return ''; } }).filter(Boolean).join('\n\n');
   // O que a gestão aprovou do Rafael (POPs, processos, exemplos, dicas, respostas pesquisadas) vale para todos os agentes.
-  const aprovados = await prisma.especialistaDoc.findMany({
-    where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'] } },
-    orderBy: { decidido_em: 'desc' }, take: 30, select: { tipo: true, titulo: true, conteudo: true },
-  }).catch(() => []);
+  // Respostas da Jessica (painel do Rafael › Perguntas para você) vêm primeiro: são a fonte oficial (14/10/2026).
+  const [daJessica, aprovados] = await Promise.all([
+    prisma.especialistaDoc.findMany({ where: { status: 'APROVADO', origem: 'jessica' }, orderBy: { decidido_em: 'desc' }, take: 40, select: { tipo: true, titulo: true, conteudo: true } }).catch(() => []),
+    prisma.especialistaDoc.findMany({
+      where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'] }, OR: [{ origem: null }, { origem: { not: 'jessica' } }] },
+      orderBy: { decidido_em: 'desc' }, take: 30, select: { tipo: true, titulo: true, conteudo: true },
+    }).catch(() => []),
+  ]);
   let blocoRafael = '';
-  for (const d of aprovados) {
+  for (const d of [...daJessica, ...aprovados]) {
     const parte = `\n\n#### [${d.tipo}] ${d.titulo}\n${d.conteudo.slice(0, 4000)}`;
     if (blocoRafael.length + parte.length > 25000) break;
     blocoRafael += parte;
@@ -46,8 +50,9 @@ export async function guiaComercial(prisma: PrismaClient): Promise<string> {
 export async function parametrosAprovados(prisma: PrismaClient, maxChars = 8000): Promise<string> {
   const ds = await prisma.especialistaDoc.findMany({
     where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'] } },
-    orderBy: { decidido_em: 'desc' }, take: 20, select: { tipo: true, titulo: true, conteudo: true },
+    orderBy: { decidido_em: 'desc' }, take: 20, select: { tipo: true, titulo: true, conteudo: true, origem: true },
   }).catch(() => []);
+  ds.sort((a, b) => (a.origem === 'jessica' ? 0 : 1) - (b.origem === 'jessica' ? 0 : 1)); // respostas da Jessica primeiro
   let out = '';
   for (const d of ds) {
     const parte = `\n#### [${d.tipo}] ${d.titulo}\n${d.conteudo.slice(0, 1500)}`;

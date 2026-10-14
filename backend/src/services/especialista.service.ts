@@ -39,6 +39,16 @@ async function avisar(prisma: PrismaClient, texto: string) {
   await enviarAvisoGestao(prisma, 'lead_qualificado', texto, { somenteAprovadora: true }).catch(() => {});
 }
 
+const baseFrontend = () => (process.env.FRONTEND_URL || '').split(',')[0]?.trim().replace(/\/$/, '') || 'https://comercial.prosystemnet.com';
+/** Abre o Escritório já no painel do Rafael, na aba Perguntas para você. */
+export const linkPerguntas = () => `${baseFrontend()}/escritorio?rafael=perguntas`;
+
+/** Pergunta(s) nova(s) para a Jessica: um aviso só, com o link para responder. */
+export async function avisarPerguntas(prisma: PrismaClient, perguntas: string[]) {
+  if (!perguntas.length) return;
+  await avisar(prisma, [`❓ *O Rafael tem ${perguntas.length} pergunta(s) para você*`, ...perguntas.slice(0, 5).map(q => `• ${q.slice(0, 200)}`), '', `Responda aqui: ${linkPerguntas()}`].join('\n'));
+}
+
 // ── 1) Estudo ────────────────────────────────────────────────────────────────
 export async function estudarVendas(prisma: PrismaClient, tema: string | null = null) {
   const { instrucoesPara } = await import('./agentes-conversa.service');
@@ -91,8 +101,7 @@ export async function revisarConversas(prisma: PrismaClient) {
   });
   // Deixadas de lado: a última mensagem é do cliente e ninguém respondeu há mais de 2 h.
   const { contatoSemAgentes } = await import('@/lib/laya');
-  const base = (process.env.FRONTEND_URL || '').split(',')[0]?.trim().replace(/\/$/, '') || 'https://comercial.prosystemnet.com';
-  const link = (id: string) => `${base}/whatsapp?conversa=${id}`;
+  const link = (id: string) => `${baseFrontend()}/whatsapp?conversa=${id}`;
   const deLado: { nome: string; horas: number; texto: string; id: string }[] = [];
   const paraAvaliar: { nome: string; texto: string; id: string }[] = [];
   const desdeAgente = new Date(agora.getTime() - 24 * 3600_000);
@@ -116,6 +125,8 @@ export async function revisarConversas(prisma: PrismaClient) {
   }
   type Alerta = { conversa: string; id?: string; gravidade?: string; problema: string; como_melhorar: string };
   let avaliacao: { resumo: string; alertas: Alerta[]; dicas: string[] } | null = null;
+  const { perguntarAJessica } = await import('./equipe.service');
+  const perguntas: string[] = [];
   if (paraAvaliar.length) {
     const { instrucoesPara } = await import('./agentes-conversa.service');
     const sistema = QUEM + (await instrucoesPara(prisma, 'rafael'));
@@ -133,14 +144,19 @@ export async function revisarConversas(prisma: PrismaClient) {
         '- repetiu mensagem ou pergunta; insistiu no mesmo dia; respondeu a robô de atendimento;',
         '- informação errada, valor inventado, nome errado, tom robótico.',
         'Para cada conversa com problema: gravidade ("alta" se pode perder venda ou irritar cliente, senão "media"), o problema em 1 frase e o que fazer AGORA em 1-2 frases (com a mensagem sugerida quando ajudar). Não liste conversas boas.',
-        'Responda APENAS com JSON: {"resumo": string, "alertas": [{"n": número da conversa, "gravidade": "alta"|"media", "problema": string, "como_melhorar": string}], "dicas": [string]}',
+        'Se o cliente perguntou algo que SÓ A JESSICA (gestora) pode confirmar (recurso do produto, preço, prazo, condição, regra da casa) e o agente não soube, ponha em "perguntas_para_jessica" (no máximo 2, objetivas, com o número da conversa).',
+        'Responda APENAS com JSON: {"resumo": string, "alertas": [{"n": número da conversa, "gravidade": "alta"|"media", "problema": string, "como_melhorar": string}], "dicas": [string], "perguntas_para_jessica": [{"n": número da conversa, "pergunta": string}]}',
         '', ...lote.map((c, k) => `### Conversa ${k + 1}: ${c.nome}\n${c.texto}`),
       ].join('\n');
-      const r = lerJsonIa<{ resumo: string; alertas: { n: number; gravidade: string; problema: string; como_melhorar: string }[]; dicas: string[] }>(
+      const r = lerJsonIa<{ resumo: string; alertas: { n: number; gravidade: string; problema: string; como_melhorar: string }[]; dicas: string[]; perguntas_para_jessica?: { n: number; pergunta: string }[] }>(
         await chamarGemini(prisma, { sistema, partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 150_000 }).catch(() => '{}'));
       if (r?.resumo) resumos.push(r.resumo);
       for (const a of r?.alertas || []) { const c = lote[(Number(a.n) || 0) - 1]; if (c) alertas.push({ conversa: c.nome, id: c.id, gravidade: a.gravidade, problema: a.problema, como_melhorar: a.como_melhorar }); }
       dicas.push(...(r?.dicas || []));
+      for (const q of (r?.perguntas_para_jessica || []).slice(0, 2)) {
+        const c = lote[(Number(q?.n) || 0) - 1];
+        if (q?.pergunta && await perguntarAJessica(prisma, { pergunta: q.pergunta, assunto: `Revisão das conversas${c ? ` · ${c.nome}` : ''}`, ref: c?.id })) perguntas.push(q.pergunta);
+      }
     }
     alertas.sort((a, b) => (a.gravidade === 'alta' ? 0 : 1) - (b.gravidade === 'alta' ? 0 : 1));
     avaliacao = { resumo: resumos.join(' '), alertas, dicas: [...new Set(dicas)].slice(0, 5) };
@@ -172,6 +188,7 @@ export async function revisarConversas(prisma: PrismaClient) {
       deLado.length ? `\n⏰ *${deLado.length} cliente(s) esperando resposta*: ${deLado.slice(0, 5).map(d => `${d.nome} (${d.horas} h) ${link(d.id)}`).join('\n')}` : '',
     ].filter(Boolean).join('\n'));
   }
+  await avisarPerguntas(prisma, perguntas);
   return doc;
 }
 
@@ -379,7 +396,7 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
  * ou lacuna no treinamento) → ele pesquisa e escreve a resposta para a Jessica aprovar.
  * Aprovada, entra no material de todos os agentes. Uma vez por dúvida por dia.
  */
-export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, origem: string) {
+export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, origem: string, ref: string | null = null) {
   const q = duvida.trim().slice(0, 300);
   if (q.length < 8) return null;
   const { podeEnviarUmaVez, hashTexto } = await import('./envio-unico.service');
@@ -391,18 +408,84 @@ export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, orig
     pergunta: [
       `Um cliente (ou a equipe) perguntou e nenhum agente soube responder: "${q}". Origem: ${origem}.`,
       'Pesquise e escreva a resposta que os agentes podem dar pelo WhatsApp, para farmácias/padarias. Se for sobre o PRODUTO Prosystem e você não achar fonte confiável, NÃO invente: diga o que a equipe precisa confirmar.',
-      'Responda APENAS com JSON: {"titulo": string (curto, começando com "Resposta: "), "conteudo": string (markdown: resposta curta pronta para o WhatsApp + explicação + o que confirmar com a equipe, se houver)}',
+      'Responda APENAS com JSON: {"titulo": string (curto, começando com "Resposta: "), "conteudo": string (markdown: resposta curta pronta para o WhatsApp + explicação + o que confirmar com a equipe, se houver), "perguntas_para_jessica": [string] (até 2 perguntas objetivas para a Jessica, a gestora, sobre o que SÓ ELA pode confirmar: recurso do produto Prosystem, preço, prazo, regra da casa; respondíveis em 1 a 3 frases; lista vazia se a pesquisa resolveu)}',
     ].join('\n'),
     timeoutMs: 180_000,
   });
-  const r = lerJsonIa<{ titulo: string; conteudo: string }>(texto);
+  const r = lerJsonIa<{ titulo: string; conteudo: string; perguntas_para_jessica?: string[] }>(texto);
   if (!r?.titulo || !r?.conteudo) return null;
   const doc = await gravarDoc(prisma, { tipo: 'DICA', titulo: r.titulo.startsWith('Resposta') ? r.titulo : `Resposta: ${r.titulo}`, conteudo: `> Pergunta: "${q}" (${origem})\n\n${r.conteudo}` }, 'duvida', fontes);
   registrarAcaoAgente('rafael', `pesquisou e respondeu: "${q.slice(0, 50)}"`);
   await decidirDoc(prisma, doc.id, true, 'rafael').catch(() => {}); // vale na hora para todos os agentes
   await import('./equipe.service').then(m => m.responderDuvida(prisma, q, r.conteudo.slice(0, 1500))).catch(() => {});
-  await avisar(prisma, [`🔎 *Rafael pesquisou uma dúvida que ninguém sabia*`, `"${q.slice(0, 200)}"`, '', 'A resposta já vale para todos os agentes. Está no Escritório virtual › Rafael.'].join('\n'));
+  // O que só a Jessica sabe vira pergunta para ela, com campo de resposta no painel do Rafael (14/10/2026).
+  const { perguntarAJessica } = await import('./equipe.service');
+  const perguntas: string[] = [];
+  for (const p of (r.perguntas_para_jessica || []).slice(0, 2)) {
+    if (await perguntarAJessica(prisma, { pergunta: String(p), assunto: `Dúvida de cliente (${origem}): ${q.slice(0, 100)}`, ref })) perguntas.push(String(p));
+  }
+  await avisar(prisma, [`🔎 *Rafael pesquisou uma dúvida que ninguém sabia*`, `"${q.slice(0, 200)}"`, '', 'A resposta já vale para todos os agentes. Está no Escritório virtual › Rafael.',
+    ...(perguntas.length ? ['', `❓ *Ele precisa que você confirme:*`, ...perguntas.map(p => `• ${p.slice(0, 200)}`), `Responda aqui: ${linkPerguntas()}`] : [])].join('\n'));
   return doc;
+}
+
+/**
+ * A Jessica respondeu uma pergunta do Rafael ou uma dúvida da equipe (painel do Rafael › Perguntas para você).
+ * A resposta vale na hora para todos os agentes: vai para o mural e para o material (DICA aprovada, origem "jessica",
+ * que entra primeiro no guia como fonte oficial). A mesma pergunta repetida em outras conversas sai junto.
+ */
+export async function jessicaResponde(prisma: PrismaClient, notaId: string, resposta: string, userId: string) {
+  const n = await prisma.agenteNota.findUnique({ where: { id: notaId } });
+  if (!n || !['PERGUNTA', 'DUVIDA'].includes(n.tipo)) throw new Error('Pergunta não encontrada.');
+  if (n.resolvida_em) throw new Error('Essa pergunta já foi respondida.');
+  const texto = resposta.trim().slice(0, 4000);
+  if (texto.length < 2) throw new Error('Escreva a resposta.');
+  const { anotar, normalPergunta, GESTORA, EQUIPE } = await import('./equipe.service');
+  const chave = normalPergunta(n.texto);
+  const iguais = (await prisma.agenteNota.findMany({ where: { tipo: { in: ['PERGUNTA', 'DUVIDA'] }, resolvida_em: null }, select: { id: true, texto: true } })).filter(x => normalPergunta(x.texto) === chave);
+  await prisma.agenteNota.updateMany({ where: { id: { in: [n.id, ...iguais.map(x => x.id)] } }, data: { resolvida_em: new Date() } });
+  await anotar(prisma, { de: GESTORA, para: EQUIPE, tipo: 'RESPOSTA', assunto: n.texto.slice(0, 150), texto, ref: n.ref });
+  const doc = await gravarDoc(prisma, { tipo: 'DICA', titulo: `Resposta da Jessica: ${n.texto.slice(0, 200)}`, conteudo: [`> Pergunta: "${n.texto}" (${n.assunto})`, '', `**Resposta da Jessica (gestora, fonte oficial):** ${texto}`].join('\n') }, 'jessica');
+  await decidirDoc(prisma, doc.id, true, userId);
+  registrarAcaoAgente('rafael', `recebeu a resposta da Jessica: "${n.texto.slice(0, 50)}"`);
+  return doc;
+}
+
+/** Pergunta que não se aplica: sai da lista sem resposta (nada vai para os agentes). */
+export async function dispensarPergunta(prisma: PrismaClient, notaId: string) {
+  const n = await prisma.agenteNota.findUnique({ where: { id: notaId } });
+  if (!n || !['PERGUNTA', 'DUVIDA'].includes(n.tipo)) throw new Error('Pergunta não encontrada.');
+  await prisma.agenteNota.update({ where: { id: n.id }, data: { resolvida_em: new Date() } });
+  return n;
+}
+
+/**
+ * O Rafael relê os documentos dele dos últimos 30 dias e junta, numa lista, tudo o que perguntou ou deixou
+ * "para a equipe confirmar". Cada item vira pergunta para a Jessica (sem repetir as abertas nem as já respondidas).
+ */
+export async function levantarPerguntas(prisma: PrismaClient) {
+  const docs = await prisma.especialistaDoc.findMany({
+    where: { created_at: { gte: new Date(Date.now() - 30 * 864e5) }, status: { not: 'ARQUIVADO' }, OR: [{ origem: null }, { origem: { notIn: ['mila', 'joana', 'jessica'] } }] },
+    orderBy: { created_at: 'desc' }, take: 30, select: { id: true, tipo: true, titulo: true, conteudo: true },
+  });
+  if (!docs.length) return 0;
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const pergunta = [
+    'Releia os seus documentos abaixo e liste as PERGUNTAS que você precisa que a Jessica (gestora) responda: tudo o que você escreveu como "a equipe precisa confirmar", "confirmar com a Jessica", lacunas sobre o produto Prosystem, preço, prazo, regra da casa ou decisões que só ela pode tomar.',
+    'Cada pergunta: objetiva, respondível em 1 a 3 frases, e o contexto curto de onde veio. Não repita perguntas parecidas. No máximo 10.',
+    'Responda APENAS com JSON: {"perguntas": [{"pergunta": string, "contexto": string, "doc": número do documento}]}',
+    '', ...docs.map((d, i) => `### Documento ${i + 1}: [${d.tipo}] ${d.titulo}\n${d.conteudo.slice(0, 2000)}`),
+  ].join('\n');
+  const r = lerJsonIa<{ perguntas: { pergunta: string; contexto?: string; doc?: number }[] }>(await chamarGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 150_000 }));
+  const { perguntarAJessica } = await import('./equipe.service');
+  const novas: string[] = [];
+  for (const p of (r?.perguntas || []).slice(0, 10)) {
+    const d = docs.at((Number(p?.doc) || 0) - 1);
+    if (p?.pergunta && await perguntarAJessica(prisma, { pergunta: p.pergunta, assunto: p.contexto || d?.titulo || 'Documentos do Rafael', ref: d ? `doc:${d.id}` : null })) novas.push(p.pergunta);
+  }
+  registrarAcaoAgente('rafael', `juntou ${novas.length} pergunta(s) para a Jessica`);
+  await avisarPerguntas(prisma, novas);
+  return novas.length;
 }
 
 // ── Mila (CS): estuda retenção e experiência do cliente e vira especialista ─────

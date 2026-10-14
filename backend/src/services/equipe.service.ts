@@ -11,10 +11,13 @@ import { lerJsonIa } from '@/lib/assistente/ia-texto';
 // - orientações do Rafael para cada um (treinos e a reunião diária).
 // O mural entra no prompt de todos os agentes (instrucoesPara) e o contexto do cliente entra na conversa dele.
 
-export type TipoNota = 'CONTEXTO' | 'DUVIDA' | 'RESPOSTA' | 'EXPERIENCIA' | 'ORIENTACAO' | 'CONVERSA' | 'REUNIAO';
+export type TipoNota = 'CONTEXTO' | 'DUVIDA' | 'RESPOSTA' | 'EXPERIENCIA' | 'ORIENTACAO' | 'CONVERSA' | 'REUNIAO' | 'PERGUNTA';
 export const EQUIPE = 'equipe';
-const nomeAg = (id: string) => (id === EQUIPE ? 'Equipe' : AGENTES.find(a => a.id === id)?.nome || id);
-const ROTULO: Record<string, string> = { CONTEXTO: 'Contexto', DUVIDA: 'Dúvida', RESPOSTA: 'Resposta do Rafael', EXPERIENCIA: 'Experiência', ORIENTACAO: 'Orientação', CONVERSA: 'Conversa', REUNIAO: 'Reunião da equipe' };
+// A gestora no mural (14/10/2026): o Rafael pergunta a ela o que só ela sabe (PERGUNTA) e a resposta dela vale para todos.
+export const GESTORA = 'jessica';
+const nomeAg = (id: string) => (id === EQUIPE ? 'Equipe' : id === GESTORA ? 'Jessica' : AGENTES.find(a => a.id === id)?.nome || id);
+const ehAgente = (id: string) => id !== EQUIPE && id !== GESTORA;
+const ROTULO: Record<string, string> = { CONTEXTO: 'Contexto', DUVIDA: 'Dúvida', RESPOSTA: 'Resposta', EXPERIENCIA: 'Experiência', ORIENTACAO: 'Orientação', CONVERSA: 'Conversa', REUNIAO: 'Reunião da equipe', PERGUNTA: 'Pergunta para a Jessica' };
 const dataCurta = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
 
 /** Boot: liga a gravação das conversas no banco e recarrega a memória (nada se perde ao reiniciar). */
@@ -29,7 +32,7 @@ export async function iniciarEquipe(prisma: PrismaClient) {
     const conversas = notas.filter(n => n.tipo === 'CONVERSA' && n.created_at >= new Date(Date.now() - 864e5)).slice(0, 40)
       .map(n => ({ id: n.id, de: n.de, para: n.para, tema: n.assunto, falas: (Array.isArray(n.falas) ? n.falas : []) as any[], em: n.created_at.toISOString() }));
     const memorias: { agente: string; texto: string; em: string }[] = [];
-    for (const n of notas) for (const quem of [n.de, n.para]) if (quem !== EQUIPE) memorias.push({ agente: quem, texto: `${n.assunto}: ${n.texto.replace(/\s+/g, ' ')}`.slice(0, 240), em: n.created_at.toISOString() });
+    for (const n of notas) for (const quem of [n.de, n.para]) if (ehAgente(quem)) memorias.push({ agente: quem, texto: `${n.assunto}: ${n.texto.replace(/\s+/g, ' ')}`.slice(0, 240), em: n.created_at.toISOString() });
     recarregar(conversas, memorias);
     console.log(`[EQUIPE] mural carregado: ${notas.length} nota(s) dos últimos 14 dias`);
   } catch (e: any) { console.warn('[EQUIPE] carregar mural:', e?.message); }
@@ -41,7 +44,7 @@ export async function anotar(prisma: PrismaClient, n: { de: string; para: string
     const texto = n.texto.trim().slice(0, 4000);
     if (!texto) return null;
     const nota = await prisma.agenteNota.create({ data: { de: n.de, para: n.para, tipo: n.tipo, assunto: n.assunto.slice(0, 160), texto, ref: n.ref || null, falas: n.falas ?? undefined } });
-    for (const quem of [n.de, n.para]) if (quem !== EQUIPE) lembrar(quem, `${ROTULO[n.tipo] || n.tipo} · ${n.assunto}: ${texto.replace(/\s+/g, ' ')}`);
+    for (const quem of [n.de, n.para]) if (ehAgente(quem)) lembrar(quem, `${ROTULO[n.tipo] || n.tipo} · ${n.assunto}: ${texto.replace(/\s+/g, ' ')}`);
     return nota;
   } catch (e: any) { console.warn('[EQUIPE] anotar:', e?.message); return null; }
 }
@@ -87,6 +90,46 @@ export async function responderDuvida(prisma: PrismaClient, duvida: string, resp
   await anotar(prisma, { de: 'rafael', para: EQUIPE, tipo: 'RESPOSTA', assunto: duvida.slice(0, 150), texto: resposta, ref: abertas[0]?.ref || null });
 }
 
+/** Texto comparável: sem acento, pontuação nem caixa (a mesma pergunta não entra duas vezes). */
+export const normalPergunta = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+/**
+ * O Rafael pergunta à Jessica o que só ela pode confirmar (produto, preço, prazo, regra da casa, decisão).
+ * Não repete pergunta em aberto nem a que ela respondeu nos últimos 90 dias. Nunca lança.
+ * `ref`: id da conversa do WhatsApp, ou `doc:<id>` quando a pergunta saiu de um documento dele.
+ */
+export async function perguntarAJessica(prisma: PrismaClient, p: { pergunta: string; assunto: string; ref?: string | null }) {
+  const texto = String(p.pergunta || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+  if (texto.length < 8) return null;
+  const chave = normalPergunta(texto);
+  const ja = await prisma.agenteNota.findMany({ where: { tipo: 'PERGUNTA', created_at: { gte: new Date(Date.now() - 90 * 864e5) } }, select: { texto: true, resolvida_em: true }, take: 400 }).catch(() => []);
+  if (ja.some(n => normalPergunta(n.texto) === chave)) return null;
+  const nota = await anotar(prisma, { de: 'rafael', para: GESTORA, tipo: 'PERGUNTA', assunto: String(p.assunto || 'Pergunta do Rafael').slice(0, 160), texto, ref: p.ref || null });
+  if (nota) registrarAcaoAgente('rafael', `perguntou à Jessica: "${texto.slice(0, 60)}"`);
+  return nota;
+}
+
+/**
+ * O que espera a Jessica no painel do Rafael: perguntas dele e dúvidas da equipe ainda sem resposta
+ * (a mesma dúvida em várias conversas aparece uma vez) e as últimas respostas dela.
+ */
+export async function perguntasParaJessica(prisma: PrismaClient) {
+  const [notas, respondidas] = await Promise.all([
+    prisma.agenteNota.findMany({ where: { tipo: { in: ['PERGUNTA', 'DUVIDA'] }, resolvida_em: null, created_at: { gte: new Date(Date.now() - 30 * 864e5) } }, orderBy: { created_at: 'desc' }, take: 120 }),
+    prisma.agenteNota.findMany({ where: { tipo: 'RESPOSTA', de: GESTORA }, orderBy: { created_at: 'desc' }, take: 20 }),
+  ]);
+  const vistas = new Map<string, any>();
+  for (const n of notas) {
+    const k = normalPergunta(n.texto);
+    const igual = vistas.get(k);
+    if (igual) { igual.vezes++; continue; }
+    vistas.set(k, { id: n.id, tipo: n.tipo, de: n.de, de_nome: nomeAg(n.de), assunto: n.assunto, texto: n.texto, ref: n.ref, created_at: n.created_at, vezes: 1 });
+  }
+  // Perguntas do Rafael primeiro; depois as dúvidas de clientes que os agentes não souberam.
+  const abertas = [...vistas.values()].sort((a, b) => (a.tipo === 'PERGUNTA' ? 0 : 1) - (b.tipo === 'PERGUNTA' ? 0 : 1));
+  return { abertas, respondidas: respondidas.map(n => ({ id: n.id, pergunta: n.assunto, resposta: n.texto, created_at: n.created_at })) };
+}
+
 /**
  * Reunião diária da equipe, conduzida pelo Rafael (dias úteis, de manhã): ele lê o mural das últimas 24 h, o
  * estado de cada agente e as dúvidas em aberto; tira os aprendizados do dia, orienta cada agente que precisa e
@@ -114,8 +157,9 @@ export async function reuniaoDaEquipe(prisma: PrismaClient) {
     '3) "orientacoes": para cada agente que precisa (no máximo 8), uma orientação objetiva e prática do que fazer diferente ou continuar. Use só estes ids de agente: ' + ids.join(', ') + '.',
     '4) "respostas": para as dúvidas em aberto que você CONSEGUE responder com segurança pelo MATERIAL abaixo, a resposta pronta para o agente usar com o cliente (id da dúvida + resposta). Se não tiver certeza, não responda (ela segue para pesquisa).',
     '5) "dialogo": 4 a 8 falas curtas da reunião (você e os agentes), naturais, mostrando a troca de experiência entre eles.',
+    '6) "perguntas_para_jessica": até 3 perguntas objetivas para a Jessica (gestora) sobre o que SÓ ELA pode confirmar ou decidir (produto Prosystem, preço, prazo, regra da casa) e que travou a equipe. Cada uma respondível em 1 a 3 frases. Se nada travou, lista vazia.',
     'Nunca invente números, preços ou recursos. Português do Brasil, simples, sem travessão.',
-    'Responda APENAS com JSON: {"resumo": string, "aprendizados": [string], "orientacoes": [{"agente": string, "texto": string}], "respostas": [{"id": string, "resposta": string}], "dialogo": [{"quem": string, "texto": string}]}',
+    'Responda APENAS com JSON: {"resumo": string, "aprendizados": [string], "orientacoes": [{"agente": string, "texto": string}], "respostas": [{"id": string, "resposta": string}], "dialogo": [{"quem": string, "texto": string}], "perguntas_para_jessica": [string]}',
     '', '=== MURAL DAS ÚLTIMAS 24 H ===',
     notas.length ? notas.map(n => `- [${ROTULO[n.tipo] || n.tipo}] ${nomeAg(n.de)} → ${nomeAg(n.para)}: ${n.assunto}: ${n.texto.replace(/\s+/g, ' ').slice(0, 400)}`).join('\n') : '(vazio)',
     '', '=== ESTADO DE CADA AGENTE ===',
@@ -145,9 +189,14 @@ export async function reuniaoDaEquipe(prisma: PrismaClient) {
     await anotar(prisma, { de: 'rafael', para: EQUIPE, tipo: 'RESPOSTA', assunto: d.texto.slice(0, 150), texto: String(x.resposta).slice(0, 1500), ref: d.ref });
     respondidas++;
   }
+  const perguntas: string[] = [];
+  for (const q of (r.perguntas_para_jessica || []).slice(0, 3)) {
+    if (await perguntarAJessica(prisma, { pergunta: String(q), assunto: `Reunião da equipe · ${dia}` })) perguntas.push(String(q));
+  }
+  if (perguntas.length) await import('./especialista.service').then(m => m.avisarPerguntas(prisma, perguntas)).catch(() => {});
   if (dialogo.length) registrarConversaAgentes('rafael', EQUIPE, `Reunião da equipe · ${dia}`, dialogo);
-  registrarAcaoAgente('rafael', `conduziu a reunião da equipe: ${aprendizados.length} aprendizado(s), ${orientados} orientação(ões), ${respondidas} dúvida(s) respondida(s)`);
-  return { resumo: r.resumo, aprendizados, orientados, respondidas };
+  registrarAcaoAgente('rafael', `conduziu a reunião da equipe: ${aprendizados.length} aprendizado(s), ${orientados} orientação(ões), ${respondidas} dúvida(s) respondida(s)${perguntas.length ? `, ${perguntas.length} pergunta(s) para a Jessica` : ''}`);
+  return { resumo: r.resumo, aprendizados, orientados, respondidas, perguntas: perguntas.length };
 }
 
 /** Mural para a tela do Escritório (mais recente primeiro). */

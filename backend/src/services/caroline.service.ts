@@ -911,7 +911,7 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
     // O Rafael não sabia: vai atrás da resposta (pesquisa e escreve para a Jessica aprovar; aprovada, vale para todos).
     // A dúvida sobe para o Rafael (o chefe) no mural da equipe; a resposta dele vale para todos.
     if (r.duvida) await import('./equipe.service').then(m => m.anotar(prisma, { de: agenteDe(sdr), para: 'rafael', tipo: 'DUVIDA', assunto: `Dúvida de ${atual?.nome || sdr.nome || 'cliente'}${atual?.empresa ? ` (${atual.empresa})` : ''}`, texto: r.duvida!, ref: sdr.conversaId })).catch(() => {});
-    if (r.duvida) import('./especialista.service').then(m => m.pesquisarDuvida(prisma, r.duvida!, nomeDe(sdr))).catch((e: any) => console.warn('[RAFAEL] dúvida:', e?.message));
+    if (r.duvida) import('./especialista.service').then(m => m.pesquisarDuvida(prisma, r.duvida!, nomeDe(sdr), sdr.conversaId)).catch((e: any) => console.warn('[RAFAEL] dúvida:', e?.message));
   }
 }
 
