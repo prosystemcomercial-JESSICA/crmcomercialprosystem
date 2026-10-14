@@ -1176,3 +1176,10 @@ Os filtros do WhatsApp agora ficam no nome acima da busca (por exemplo, Minhas o
 
 - Os números extras (3 e 4, em rodízio) agora chamam primeiro os leads encontrados pelo Heitor; o número da empresa segue com campanhas, propostas e a base antiga do Julio. As duas frentes andam todo dia.
 - O teto do Heitor subiu para 30 por dia, mas de forma controlada: cada número novo começa com 10 contatos por dia e sobe uma etapa por semana até 40.
+
+### Novidade 14/10/2026 (noite): placar e nenhum interessado esquecido
+
+- **Placar no topo do Escritório virtual:** primeiros contatos, respostas, interessados, demonstrações, propostas e contratos de hoje e da semana, comparados com a meta da semana do plano.
+- **Interessado sem demonstração há mais de 48 h:** aparece no placar e no sino, com o link para a conversa. Chame ou peça para a consultora marcar.
+- **Proposta em rascunho há mais de 1 dia:** aparece no sino de quem criou (e da gestão), com o atalho para enviar.
+- **Resumo da manhã no WhatsApp:** nos dias úteis, entre 9h e 11h, só quando há algo parado.
