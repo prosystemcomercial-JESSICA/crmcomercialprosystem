@@ -10,7 +10,11 @@ const nextConfig: NextConfig = {
   // continuam cacheáveis; só o HTML das páginas é sempre revalidado.
   // Apresentações para leads (HTML estático em public/apresentacao/<nome>/): link curto sem /index.html.
   async rewrites() {
-    return [{ source: '/apresentacao/:nome', destination: '/apresentacao/:nome/index.html' }];
+    return [
+      { source: '/apresentacao/:nome', destination: '/apresentacao/:nome/index.html' },
+      // Página de captação (blog, site e campanhas → CRM), parte 4 do plano, 14/10/2026.
+      { source: '/conhecer', destination: '/conhecer/index.html' },
+    ];
   },
   async headers() {
     return [

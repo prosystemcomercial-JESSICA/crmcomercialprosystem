@@ -1494,6 +1494,8 @@ class ApiClient {
   async registrarIndicacaoAtivo(contatoId: string, body: { nome: string; telefone: string; empresa?: string | null; segmento?: string | null }) { return this.client.post(`/ativos/contatos/${contatoId}/indicacao`, body); }
   // Placar comercial: do interesse à demonstração e à proposta (parte 2 do plano, 14/10/2026)
   async getPlacarComercial() { return this.client.get('/comercial/placar'); }
+  // Funil por origem (parte 4 do plano, 14/10/2026)
+  async getFunilOrigem(dias = 30) { return this.client.get('/comercial/funil-origem', { params: { dias } }); }
   // Perguntas do Rafael para a Jessica (14/10/2026)
   async rafaelPerguntas() { return this.client.get('/especialista/perguntas'); }
   async rafaelResponder(id: string, resposta: string) { return this.client.post(`/especialista/perguntas/${id}/responder`, { resposta }); }

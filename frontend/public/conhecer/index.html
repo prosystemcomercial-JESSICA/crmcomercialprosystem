@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conheça o Prosystem</title>
+<meta name="description" content="Sistema de gestão e frente de caixa para farmácias, drogarias e padarias. Deixe seu WhatsApp e veja o Prosystem funcionando na sua loja.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Captação orgânica (parte 4 do Plano de Expansão, 14/10/2026): o blog, o site e as campanhas apontam para cá.
+     Envia para POST /api/publico/leads/formulario; a Caroline faz o primeiro contato no WhatsApp. */
+  :root { --navy:#081330; --ink:#121B2E; --mute:#55657F; --line:#D4DFEC; --ice:#EEF4FB; --blue:#417ABC; --electric:#0084F0; --green:#16A35A; --erro:#B42318; --fundo:#F7FAFD; --cartao:#FFFFFF; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#E8EEF7; --mute:#A6B3C7; --line:#2A3A55; --ice:#13213A; --fundo:#081330; --cartao:#0F1C33; --erro:#FDA29B; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--ink); font: 16px/1.5 "Segoe UI", Arial, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 32px 16px 48px; }
+  .marca { font: 800 15px Montserrat, sans-serif; letter-spacing: .02em; color: var(--electric); margin: 0 0 20px; }
+  h1 { font: 800 clamp(24px, 6vw, 30px)/1.2 Montserrat, sans-serif; margin: 0 0 10px; }
+  .sub { color: var(--mute); margin: 0 0 22px; }
+  .pedido { background: var(--ice); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin: 0 0 16px; }
+  form { background: var(--cartao); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; }
+  label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+  input, select { font: inherit; color: var(--ink); background: var(--cartao); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-height: 46px; width: 100%; }
+  input:focus, select:focus { outline: 2px solid var(--electric); outline-offset: 1px; }
+  .opcional { font-weight: 400; color: var(--mute); }
+  .escondido { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  button { font: 700 16px Montserrat, sans-serif; color: #fff; background: var(--electric); border: 0; border-radius: 10px; min-height: 50px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .erro { color: var(--erro); font-size: 14px; margin: 0; min-height: 1em; }
+  .lgpd { color: var(--mute); font-size: 12px; margin: 0; }
+  .ok { text-align: center; background: var(--cartao); border: 1px solid var(--line); border-radius: 14px; padding: 28px 18px; }
+  .ok h2 { font: 800 22px Montserrat, sans-serif; color: var(--green); margin: 0 0 8px; }
+  .ok p { margin: 0; color: var(--mute); }
+</style>
+</head>
+<body>
+<main>
+  <p class="marca">PROSYSTEM SISTEMAS</p>
+  <h1>Quer ver o Prosystem funcionando na sua loja?</h1>
+  <p class="sub">Deixe seu WhatsApp. A Caroline, da nossa equipe, te chama para entender como está a gestão da sua loja hoje e, se fizer sentido, marcar uma demonstração.</p>
+  <p class="pedido" id="pedido" hidden></p>
+  <form id="form" novalidate>
+    <label>Seu nome<input name="nome" autocomplete="name" required maxlength="120"></label>
+    <label>WhatsApp com DDD<input name="telefone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(27) 99999-9999" required maxlength="30"></label>
+    <label>Nome da loja <span class="opcional">(opcional)</span><input name="empresa" autocomplete="organization" maxlength="160"></label>
+    <label>Sua loja é
+      <select name="segmento">
+        <option value="Farmácia">Farmácia ou drogaria</option>
+        <option value="Farmácia de manipulação">Farmácia de manipulação</option>
+        <option value="Padaria">Padaria ou confeitaria</option>
+        <option value="Varejo">Outro varejo</option>
+      </select>
+    </label>
+    <label>Cidade <span class="opcional">(opcional)</span><input name="cidade" placeholder="Ex.: Serra/ES" maxlength="120"></label>
+    <label class="escondido" aria-hidden="true">Não preencha<input name="site" tabindex="-1" autocomplete="off"></label>
+    <p class="erro" id="erro" role="alert"></p>
+    <button type="submit" id="enviar">Quero que me chamem</button>
+    <p class="lgpd">Usamos seus dados só para falar com você sobre o Prosystem. Você pode pedir para parar quando quiser.</p>
+  </form>
+  <div class="ok" id="ok" hidden>
+    <h2>Pronto, recebemos!</h2>
+    <p>A Caroline vai te chamar no WhatsApp no horário comercial (segunda a sexta, 8h30 às 17h).</p>
+  </div>
+</main>
+<script>
+  const q = new URLSearchParams(location.search);
+  const material = q.get('material');
+  const seg = q.get('segmento');
+  if (material) { const p = document.getElementById('pedido'); p.textContent = 'Você está pedindo: ' + material; p.hidden = false; }
+  if (seg) { const s = document.querySelector('select[name=segmento]'); const o = [...s.options].find(x => x.value.toLowerCase().startsWith(seg.toLowerCase())); if (o) s.value = o.value; }
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target), erro = document.getElementById('erro'), btn = document.getElementById('enviar');
+    erro.textContent = '';
+    if (String(f.get('nome') || '').trim().length < 2) { erro.textContent = 'Informe seu nome.'; return; }
+    if (String(f.get('telefone') || '').replace(/\D/g, '').length < 10) { erro.textContent = 'Informe o WhatsApp com DDD.'; return; }
+    const corpo = { nome: f.get('nome'), telefone: f.get('telefone'), empresa: f.get('empresa') || undefined, segmento: f.get('segmento'), cidade: f.get('cidade') || undefined, site: f.get('site') || '',
+      origem: q.get('origem') || (q.get('utm_source') ? 'campanha' : 'site'), material: material || undefined, pagina: document.referrer || location.href };
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid']) if (q.get(k)) corpo[k] = q.get(k);
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    try {
+      const r = await fetch('/api/publico/leads/formulario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.message || 'Não deu para enviar agora. Tente de novo em instantes.');
+      document.getElementById('form').hidden = true; document.getElementById('ok').hidden = false;
+    } catch (x) { erro.textContent = x.message; btn.disabled = false; btn.textContent = 'Quero que me chamem'; }
+  });
+</script>
+</body>
+</html>

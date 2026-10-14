@@ -78,6 +78,14 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
   });
 
   // ===== PLACAR COMERCIAL (parte 2 do plano, 14/10/2026) =====
+  // Funil por origem (parte 4 do plano, 14/10/2026): qual canal e campanha trazem venda.
+  fastify.get('/comercial/funil-origem', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const dias = Math.max(7, Math.min(180, Number((request.query as any)?.dias) || 30));
+    const { funilPorOrigem } = await import('../services/placar-comercial.service');
+    return reply.send({ status: 'success', data: await funilPorOrigem(prisma, dias) });
+  });
+
   fastify.get('/comercial/placar', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const { placarComercial } = await import('../services/placar-comercial.service');
