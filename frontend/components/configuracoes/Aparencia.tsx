@@ -8,6 +8,7 @@ const THEMES: { id: ThemeColor; name: string; description: string }[] = [
   { id: 'champagne', name: 'Champagne', description: 'Areia, marfim e detalhes em bronze.' },
   { id: 'gelo', name: 'Branco gelo', description: 'Branco suave, cinza frio e detalhes em ardósia.' },
   { id: 'azul', name: 'Azul Prosystem', description: 'Superfícies neutras com o azul da marca.' },
+  { id: 'azul-intenso', name: 'Azul intenso', description: 'Menu azul profundo e detalhes mais marcantes.' },
   { id: 'laranja', name: 'Laranja', description: 'Tons de pedra com detalhes em terracota.' },
   { id: 'verde', name: 'Verde', description: 'Cinza suave com detalhes em verde sóbrio.' },
 ];

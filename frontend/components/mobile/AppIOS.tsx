@@ -6,8 +6,9 @@
 // agrupada (estilo Ajustes). Títulos grandes de cada tela entram nas próximas etapas.
 
 import Link from 'next/link';
-import { useEffect } from 'react';
-import { MessageSquare, GitMerge, ClipboardList, LayoutDashboard, MoreHorizontal, ChevronRight, X, BarChart3, TrendingUp } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { activeMenuHref, useMenuGroups } from '@/lib/use-menu-groups';
+import { MessageSquare, GitMerge, ClipboardList, LayoutDashboard, MoreHorizontal, ChevronRight, ChevronDown, ChevronsDownUp, ChevronsUpDown, X, BarChart3, TrendingUp } from 'lucide-react';
 
 export type ItemMenu = { href: string; icon: any; label: string; externoComToken?: boolean };
 export type GrupoMenu = { label: string; items: ItemMenu[] };
@@ -59,33 +60,53 @@ export function BarraAbasIOS({ pathname, permitidos, maisAberto, onMais, ceo }: 
 export function FolhaMaisIOS({ aberta, onFechar, grupos, pathname, onAbrirExterno, ceo }: {
   aberta: boolean; onFechar: () => void; grupos: GrupoMenu[]; pathname: string | null; onAbrirExterno: (item: ItemMenu) => void; ceo?: boolean;
 }) {
+  const { closed, toggle, toggleAll } = useMenuGroups();
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!aberta) return;
+    const previous = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => previous?.focus();
+  }, [aberta]);
   useEffect(() => { if (aberta) onFechar(); /* fecha ao trocar de tela */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
   if (!aberta) return null;
   const abas = new Set(abasDo(ceo).map(a => a.href));
+  const labels = grupos.filter(g => g.items.some(i => !abas.has(i.href))).map(g => g.label);
+  const allClosed = labels.every(g => closed.includes(g));
+  const current = activeMenuHref(pathname, grupos.flatMap(g => g.items.map(i => i.href)));
   return (
-    <div className="md:hidden fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Mais">
+    <div className="md:hidden fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Mais" onKeyDown={event => {
+      if (event.key === 'Escape') { event.stopPropagation(); onFechar(); }
+      if (event.key === 'Tab') {
+        const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button, a[href]')).filter(el => el.getClientRects().length > 0);
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    }}>
       <div className="absolute inset-0 ios-scrim" onClick={onFechar} />
       <div className="ios-sheet">
         <div className="ios-grabber" aria-hidden />
         <div className="ios-sheet-head">
           <h2>Mais</h2>
-          <button type="button" onClick={onFechar} className="ios-close" aria-label="Fechar"><X size={18} /></button>
+          <button ref={closeRef} type="button" onClick={onFechar} className="ios-close" aria-label="Fechar"><X size={18} /></button>
         </div>
         <div className="ios-sheet-body">
-          {grupos.map(g => {
+          <button type="button" className="ios-menu-all" onClick={() => toggleAll(labels)}>{allClosed ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}{allClosed ? 'Expandir grupos' : 'Recolher grupos'}</button>
+          {grupos.map((g, index) => {
             const itens = g.items.filter(i => !abas.has(i.href));
             if (!itens.length) return null;
             return (
               <section key={g.label}>
-                <p className="ios-group-label">{g.label}</p>
-                <div className="ios-group">
+                <button type="button" className="ios-group-label ios-menu-heading" aria-expanded={!closed.includes(g.label)} aria-controls={"ios-menu-group-" + index} onClick={() => toggle(g.label)}>{g.label}<ChevronDown size={14} aria-hidden="true" /></button>
+                <div id={"ios-menu-group-" + index} className="ios-group" hidden={closed.includes(g.label)}>
                   {itens.map(i => {
                     const Icon = i.icon;
                     const conteudo = (<><span className="ios-row-icon"><Icon size={17} aria-hidden /></span><span className="ios-row-label">{i.label}</span><ChevronRight size={16} className="ios-chevron" aria-hidden /></>);
                     return i.externoComToken
                       ? <button key={i.label} type="button" className="ios-row" onClick={() => onAbrirExterno(i)}>{conteudo}</button>
-                      : <Link key={i.href} href={i.href} className="ios-row" onClick={onFechar}>{conteudo}</Link>;
+                      : <Link key={i.href} href={i.href} className="ios-row" aria-current={i.href === current ? "page" : undefined} onClick={onFechar}>{conteudo}</Link>;
                   })}
                 </div>
               </section>

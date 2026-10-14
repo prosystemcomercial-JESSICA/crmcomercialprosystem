@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-export const THEME_COLORS = ['azul', 'laranja', 'verde', 'champagne', 'gelo'] as const;
+export const THEME_COLORS = ['azul', 'laranja', 'verde', 'champagne', 'gelo', 'azul-intenso'] as const;
 export type ThemeColor = typeof THEME_COLORS[number];
 export type ThemeMode = 'claro' | 'escuro';
 

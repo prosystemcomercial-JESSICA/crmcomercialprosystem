@@ -370,3 +370,10 @@
   .crono-flutuante { bottom: calc(57px + env(safe-area-inset-bottom, 0px)) !important; left: 8px !important; }
   body.ios-em-chat .crono-flutuante { display: none; }
 }
+
+/* Grupos do menu móvel compartilham a preferência do menu lateral. */
+.ios-menu-all { display: flex; align-items: center; gap: 8px; min-height: 44px; color: var(--ios-tint); font-size: 13px; }
+.ios-menu-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; margin: 0; text-align: left; cursor: pointer; }
+.ios-menu-heading[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.ios-group[hidden] { display: none; }
+.ios-row[aria-current="page"] { background: var(--t-primary-light); }

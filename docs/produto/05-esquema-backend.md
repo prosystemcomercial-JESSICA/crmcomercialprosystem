@@ -1515,3 +1515,8 @@ Temas não alteram banco, tabelas, migrations, dados do usuário ou APIs. Prefer
 - **Funil por origem (`GET /comercial/funil-origem?dias=30`, `lib/funil-origem`):** para cada canal (Prospecção, Anúncio Meta/Google, Blog, Site, Apresentação, Indicação de cliente, Indicação da loja, WhatsApp direto) e campanha (UTM, senão o nome no CRM): leads, responderam, interessados (35+), demonstrações, propostas (ligadas pelo telefone, criadas depois do lead) e contratos. Tela: "De onde vêm as vendas (funil por origem)" abaixo do placar no Escritório, 30/60/90 dias.
 - **Robô da loja, para todos os agentes:** quando só o robô responde (boas-vindas, horários, catálogo, folheto, encerramento, pesquisa de nota), o agente não responde naquele momento (antes escrevia na hora ao atendente pedindo o decisor e chegou a agradecer o robô da Nevespan). O lead vai para AGUARDANDO com `dados.interlocutor = "robo"` e `robo_respondeu_em`; na retomada normal, a regra "ROBÔ DA LOJA" do roteiro manda escrever para a pessoa que vai ler, sem comentar nem agradecer a mensagem automática, pedindo o contato de quem decide. Frases novas reconhecidas: "nosso catálogo", "estamos felizes em te atender", "nosso WhatsApp funciona", "horário de atendimento".
 - Testes: `tests/funil-origem.test.ts`; `sdr-mensagem-automatica.test.ts` com o texto da Nevespan.
+
+
+## Menu compacto e Azul intenso — 14/10/2026
+
+Sem alterações de API, banco, permissões, atendimento ou agentes. Preferências exclusivamente locais: ps_menu_closed_groups (array JSON de títulos de grupos), ps_sidebar_collapsed existente e ps-theme-color aceitando azul-intenso. Dados inválidos de grupos retornam lista vazia, sem impedir navegação. PERMITIDO vazio na publicação; backup padrão antes da troca de interface.
