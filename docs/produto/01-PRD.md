@@ -1541,3 +1541,8 @@ Pedido da Jessica: temas devem alterar a aparência das superfícies, não apena
 ## Menu compacto e Azul intenso — 14/10/2026
 
 Pedido: reduzir espaço e densidade do menu, permitir fechar grupos e recuperar uma opção de azul mais forte. Menu lateral de 208 px (52 px só ícones), itens de 28 px, controles compactos de largura e recolher/expandir todos. Grupos individuais persistem no navegador e são compartilhados com Mais no celular; atalhos, ordem e permissões existentes são preservados. Azul intenso é a sexta opção, independente do Azul Prosystem neutro, Champagne e Branco gelo.
+
+
+## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
+
+Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos devem iniciar fechados, mesmo se estavam abertos antes. Durante o uso podem ser expandidos individualmente ou em conjunto. Novo atalho do WhatsApp imediatamente ao lado do controle de modo claro/escuro abre o atendimento do CRM em nova aba e mantém a tela atual.

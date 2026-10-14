@@ -60,7 +60,7 @@ export function BarraAbasIOS({ pathname, permitidos, maisAberto, onMais, ceo }: 
 export function FolhaMaisIOS({ aberta, onFechar, grupos, pathname, onAbrirExterno, ceo }: {
   aberta: boolean; onFechar: () => void; grupos: GrupoMenu[]; pathname: string | null; onAbrirExterno: (item: ItemMenu) => void; ceo?: boolean;
 }) {
-  const { closed, toggle, toggleAll } = useMenuGroups();
+  const { isClosed, toggle, toggleAll } = useMenuGroups();
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!aberta) return;
@@ -73,7 +73,7 @@ export function FolhaMaisIOS({ aberta, onFechar, grupos, pathname, onAbrirExtern
   if (!aberta) return null;
   const abas = new Set(abasDo(ceo).map(a => a.href));
   const labels = grupos.filter(g => g.items.some(i => !abas.has(i.href))).map(g => g.label);
-  const allClosed = labels.every(g => closed.includes(g));
+  const allClosed = labels.every(g => isClosed(g));
   const current = activeMenuHref(pathname, grupos.flatMap(g => g.items.map(i => i.href)));
   return (
     <div className="md:hidden fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Mais" onKeyDown={event => {
@@ -99,8 +99,8 @@ export function FolhaMaisIOS({ aberta, onFechar, grupos, pathname, onAbrirExtern
             if (!itens.length) return null;
             return (
               <section key={g.label}>
-                <button type="button" className="ios-group-label ios-menu-heading" aria-expanded={!closed.includes(g.label)} aria-controls={"ios-menu-group-" + index} onClick={() => toggle(g.label)}>{g.label}<ChevronDown size={14} aria-hidden="true" /></button>
-                <div id={"ios-menu-group-" + index} className="ios-group" hidden={closed.includes(g.label)}>
+                <button type="button" className="ios-group-label ios-menu-heading" aria-expanded={!isClosed(g.label)} aria-controls={"ios-menu-group-" + index} onClick={() => toggle(g.label)}>{g.label}<ChevronDown size={14} aria-hidden="true" /></button>
+                <div id={"ios-menu-group-" + index} className="ios-group" hidden={isClosed(g.label)}>
                   {itens.map(i => {
                     const Icon = i.icon;
                     const conteudo = (<><span className="ios-row-icon"><Icon size={17} aria-hidden /></span><span className="ios-row-label">{i.label}</span><ChevronRight size={16} className="ios-chevron" aria-hidden /></>);

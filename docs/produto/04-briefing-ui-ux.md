@@ -1495,3 +1495,8 @@ Nova direção pedida pela Jessica substitui a obrigatoriedade antiga de gradien
 ## Menu compacto e Azul intenso — 14/10/2026
 
 Faixa vazia removida: os controles de largura e recolher todos ficam na mesma linha do primeiro grupo, com 32 px de altura total. Grupos de 24 px, intervalos de 4 px e links de 28 px; rodapé reduzido a uma linha. Desktop 208/52 px, rolagem apenas na lista, rótulos acessíveis nos atalhos compactos. Celular conserva controles de 44 px. Azul intenso: menu #184a78 claro / #102e4d escuro, texto claro e seleção própria; superfícies principais e mensagens permanecem legíveis. Navegação com botões de disclosure (aria-expanded/aria-controls) e link atual aria-current conforme referência WAI: https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/.
+
+
+## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
+
+Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir previamente os atalhos antes da hidratação. Atalho de 32 px alinhado ao botão lua/sol, ícone WhatsApp de 18 px em cor semântica de sucesso, tooltip e nome acessível Abrir WhatsApp em nova aba. Nenhum deslocamento dos demais controles ou novas faixas verticais.

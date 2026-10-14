@@ -1520,3 +1520,8 @@ Temas não alteram banco, tabelas, migrations, dados do usuário ou APIs. Prefer
 ## Menu compacto e Azul intenso — 14/10/2026
 
 Sem alterações de API, banco, permissões, atendimento ou agentes. Preferências exclusivamente locais: ps_menu_closed_groups (array JSON de títulos de grupos), ps_sidebar_collapsed existente e ps-theme-color aceitando azul-intenso. Dados inválidos de grupos retornam lista vazia, sem impedir navegação. PERMITIDO vazio na publicação; backup padrão antes da troca de interface.
+
+
+## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
+
+Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em memória por aba; ps_menu_closed_groups antigo deixa de ser consumido. A nova aba compartilha a autenticação já existente da mesma origem e não recebe token na URL. PERMITIDO vazio no deploy.

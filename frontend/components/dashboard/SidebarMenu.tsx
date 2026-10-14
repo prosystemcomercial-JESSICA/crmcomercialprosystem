@@ -13,13 +13,13 @@ export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExt
   groups: MenuGroup[]; pathname: string | null; open: boolean; onClose: () => void; onOpenExternal: (item: MenuItem) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const { closed, toggle, toggleAll } = useMenuGroups();
+  const { isClosed, toggle, toggleAll } = useMenuGroups();
   useEffect(() => {
     try { setCollapsed(localStorage.getItem('ps_sidebar_collapsed') === '1'); } catch { /* padrão expandido */ }
   }, []);
   const compact = collapsed && !open;
   const labels = groups.map(g => g.label);
-  const allClosed = labels.every(g => closed.includes(g));
+  const allClosed = labels.every(g => isClosed(g));
   const current = activeMenuHref(pathname, groups.flatMap(g => g.items.map(i => i.href)));
   const toggleWidth = () => {
     setCollapsed(!collapsed);
@@ -37,7 +37,7 @@ export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExt
       {compact && controls}
       <nav aria-label="Navegação principal" className="ps-menu-scroll">
         {groups.map((group, index) => {
-          const expanded = compact || !closed.includes(group.label);
+          const expanded = compact || !isClosed(group.label);
           const activeGroup = group.items.some(i => i.href === current);
           const id = 'ps-menu-group-' + index;
           return <section key={group.label} className="ps-menu-group">
