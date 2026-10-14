@@ -193,3 +193,5 @@ Menu, cabeçalho, conteúdo, cartões, campos e navegação móvel consomem toke
 ### Menu compacto e Azul intenso (14/10/2026)
 
 Navegação desktop: 208 px expandida, 52 px em ícones; links de 28 px, grupos de 24 px e primeiro grupo de 32 px com os controles integrados. O modo móvel mantém alvos de 44 px. Grupos recolhíveis preservam a preferência e a seleção atual, com um único link ativo por rota. A paleta opcional azul-intenso recupera o menu azul profundo, usando tokens próprios de texto e seleção; não altera o padrão nem as demais paletas.
+
+Revisão de 14/10/2026: os grupos passam a iniciar sempre fechados ao abrir/recarregar o CRM; o estado aberto fica apenas na aba em uso. A preferência de largura permanece salva. Atalho do WhatsApp junto à lua/sol abre /whatsapp em nova aba independente.

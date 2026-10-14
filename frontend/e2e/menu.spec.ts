@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
     if (!localStorage.getItem('ps_sidebar_collapsed')) localStorage.setItem('ps_sidebar_collapsed', '0');
     localStorage.setItem('wpp.proximaAcao.fechado', '1');
   }, { user });
-  await page.route('**/*', async route => {
+  await page.context().route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (request.resourceType() === 'eventsource') return route.abort();
@@ -37,19 +37,22 @@ test.beforeEach(async ({ page }) => {
 
 
 
-test('menu compacto guarda grupos e largura sem perder os atalhos', async ({ page }) => {
+test('grupos iniciam fechados mesmo após abrir grupos e recarregar', async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
+  await page.addInitScript(() => localStorage.setItem('ps_menu_closed_groups', '[]'));
   await page.goto('/whatsapp');
   const menu = page.getByRole('complementary', { name: 'Menu lateral' });
   await expect(menu).toHaveCSS('width','208px');
+  await expect(menu.getByRole('link')).toHaveCount(0);
+  await menu.getByRole('button', { name: 'Painéis', exact: true }).click();
   const firstLink = menu.getByRole('link', { name: 'Painel do CEO', exact: true });
   expect((await firstLink.boundingBox())!.y - (await menu.boundingBox())!.y).toBeLessThanOrEqual(34);
   const group = menu.getByRole('button', { name: 'Vendas', exact: true });
   await group.focus(); await page.keyboard.press('Enter');
-  await expect(group).toHaveAttribute('aria-expanded','false');
-  await expect(menu.getByRole('link', { name: 'Central de Leads', exact: true })).toHaveCount(0);
+  await expect(group).toHaveAttribute('aria-expanded','true');
   await page.reload();
   await expect(group).toHaveAttribute('aria-expanded','false');
+  await expect(menu.getByRole('link')).toHaveCount(0);
   await menu.getByRole('button', { name: 'Recolher menu', exact: true }).click();
   await expect(menu).toHaveCSS('width','52px');
   await expect(menu.getByRole('link', { name: 'Central de Leads', exact: true })).toBeVisible();
@@ -57,42 +60,55 @@ test('menu compacto guarda grupos e largura sem perder os atalhos', async ({ pag
   await expect(menu).toHaveCSS('width','52px');
   await menu.getByRole('button', { name: 'Expandir menu', exact: true }).click();
   await expect(group).toHaveAttribute('aria-expanded','false');
-  await expect(menu.locator('[aria-current="page"]')).toHaveCount(1);
-  const link = menu.getByRole('link', { name: 'WhatsApp', exact: true });
-  expect((await link.boundingBox())!.height).toBeLessThanOrEqual(30);
-  await page.screenshot({ path: 'test-results/menu-desktop.png' });
+  await page.screenshot({ path: 'test-results/menu-fechado.png' });
 });
 
-test('recolher todos e expandir todos preserva links e estado ativo', async ({ page }) => {
+test('expandir e recolher todos preserva links e estado ativo', async ({ page }) => {
   await page.goto('/whatsapp');
   const menu = page.getByRole('complementary', { name: 'Menu lateral' });
-  await menu.getByRole('button', { name: 'Recolher todos os grupos' }).click();
-  await expect(menu.getByRole('link')).toHaveCount(0);
   await expect(menu.locator('.ps-menu-heading[data-current="true"]')).toHaveCount(1);
   await menu.getByRole('button', { name: 'Expandir todos os grupos' }).click();
   await expect(menu.getByRole('link', { name: 'WhatsApp', exact: true })).toBeVisible();
   await expect(menu.locator('[aria-current="page"]')).toHaveCount(1);
-  await page.setViewportSize({ width: 1024, height: 768 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await menu.getByRole('button', { name: 'Recolher todos os grupos' }).click();
+  await expect(menu.getByRole('link')).toHaveCount(0);
 });
 
-test('menu móvel recolhe grupos e fecha com Escape, devolvendo o foco', async ({ page }) => {
+test('menu móvel inicia fechado e pode abrir grupos durante o uso', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/whatsapp');
+  const shortcut = page.getByRole('link', { name: 'Abrir WhatsApp em nova aba' });
+  await expect(shortcut).toBeInViewport();
   await page.getByRole('button', { name: 'Mais', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Mais', exact: true });
   const group = sheet.getByRole('button', { name: 'Vendas', exact: true });
-  await group.click();
   await expect(group).toHaveAttribute('aria-expanded','false');
+  await group.click();
+  await expect(group).toHaveAttribute('aria-expanded','true');
   expect((await group.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  await page.screenshot({ path: 'test-results/menu-mobile.png' });
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Mais', exact: true })).toBeFocused();
+  await page.reload();
   await page.getByRole('button', { name: 'Mais', exact: true }).click();
   await expect(group).toHaveAttribute('aria-expanded','false');
-  await sheet.getByRole('button', { name: 'Fechar', exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('atalho ao lado da lua abre WhatsApp independente sem sair da tela atual', async ({ page }) => {
+  await page.goto('/clientes');
+  const shortcut = page.getByRole('link', { name: 'Abrir WhatsApp em nova aba' });
+  await expect(shortcut).toHaveAttribute('target','_blank');
+  expect(await shortcut.evaluate((el) => el.previousElementSibling?.getAttribute('title'))).toBe('Modo escuro');
+  const popupPromise = page.waitForEvent('popup');
+  await shortcut.click();
+  const popup = await popupPromise;
+  await expect(popup).toHaveURL(/\/whatsapp$/);
+  await expect(popup.getByRole('heading', { name: 'WhatsApp', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/clientes$/);
+  expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+  await expect(popup.getByRole('complementary', { name: 'Menu lateral' }).getByRole('link')).toHaveCount(0);
+  await popup.close();
 });
 
 test("rota ativa respeita limites e seleciona apenas o caminho mais específico", () => {

@@ -1512,3 +1512,8 @@ Autoridade de tokens continua frontend/app/globals.css. Cinco paletas × dois mo
 SidebarMenu concentra apresentação e estado de largura antes embutidos em DashboardLayout; o layout mantém filtragem por cargo/módulo e abertura do portal externo. useMenuGroups valida armazenamento ps_menu_closed_groups (JSON de nomes) e sincroniza os consumidores por evento local/storage, tolerando falha de armazenamento. ps_sidebar_collapsed é preservado. activeMenuHref escolhe o caminho mais específico com fronteira de barra, evitando marcações duplas. Tema azul-intenso define superfícies claras/escuras e tokens separados de texto/seleção no menu azul.
 
 A sobrescrita local do WhatsApp que fixava menu branco e textos do conteúdo foi removida; todas as rotas passam a usar os tokens de navegação do tema selecionado. Teste lê o fundo e texto realmente renderizados, além dos tokens.
+
+
+## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
+
+useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba, snapshot inicial vazio e consumidores compartilhados SidebarMenu/FolhaMaisIOS. Não lê nem grava ps_menu_closed_groups; a preferência antiga é ignorada. A largura ps_sidebar_collapsed permanece independente. Atalho nativo href=/whatsapp, target=_blank, rel=noopener noreferrer e SVG de WhatsApp; renderizado somente quando hrefsPermitidos contém /whatsapp.

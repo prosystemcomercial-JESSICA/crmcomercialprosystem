@@ -1534,3 +1534,8 @@ Configurações → Aparência → Claro/Escuro → selecionar Champagne, Branco
 ## Menu compacto e Azul intenso — 14/10/2026
 
 Menu → clicar no título de um grupo alterna sua lista; o chevron informa estado. Controles superiores recolhem/expandem todos ou alternam entre 208 px e 52 px. No modo de ícones, todos os atalhos continuam acessíveis; ao expandir, os grupos voltam à preferência salva. Grupo fechado que contém a página atual recebe um marcador discreto. Mais no celular usa os mesmos grupos, alvos de 44 px, Escape, contenção e devolução do foco. Configurações → Aparência → Azul intenso aplica imediatamente e persiste neste navegador.
+
+
+## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
+
+Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somente a aba em uso até recarregar. Ícone WhatsApp à direita da lua/sol → nova aba no atendimento do CRM; a tela anterior continua no mesmo endereço. A nova aba também inicia com os grupos fechados. Mais no celular segue o mesmo padrão inicial.

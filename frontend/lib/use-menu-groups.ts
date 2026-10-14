@@ -1,36 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
-const KEY = 'ps_menu_closed_groups';
-const EVENT = 'ps-menu-groups-change';
-function readGroups(): string[] {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(KEY) || '[]');
-    return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
-  } catch { return []; }
+// Estado desta aba: uma abertura/recarregamento começa com todos os grupos fechados.
+// Menu lateral e Mais compartilham as escolhas apenas enquanto o CRM estiver aberto.
+const initial: string[] = [];
+let expanded: string[] = initial;
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+const snapshot = () => expanded;
+const serverSnapshot = () => initial;
+function update(next: string[]) {
+  expanded = next;
+  listeners.forEach(listener => listener());
 }
 
 export function useMenuGroups() {
-  const [closed, setClosed] = useState<string[]>([]);
-  useEffect(() => {
-    const sync = () => setClosed(readGroups());
-    sync();
-    window.addEventListener(EVENT, sync);
-    window.addEventListener('storage', sync);
-    return () => { window.removeEventListener(EVENT, sync); window.removeEventListener('storage', sync); };
-  }, []);
-  const save = (next: string[]) => {
-    setClosed(next);
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next));
-      window.dispatchEvent(new Event(EVENT));
-    } catch { /* O menu continua funcionando sem armazenamento. */ }
-  };
+  const opened = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   return {
-    closed,
-    toggle: (label: string) => save(closed.includes(label) ? closed.filter(g => g !== label) : [...closed, label]),
-    toggleAll: (labels: string[]) => save(labels.every(g => closed.includes(g)) ? closed.filter(g => !labels.includes(g)) : [...new Set([...closed, ...labels])]),
+    isClosed: (label: string) => !opened.includes(label),
+    toggle: (label: string) => update(opened.includes(label) ? opened.filter(g => g !== label) : [...opened, label]),
+    toggleAll: (labels: string[]) => update(labels.every(g => !opened.includes(g)) ? [...new Set([...opened, ...labels])] : opened.filter(g => !labels.includes(g))),
   };
 }
 

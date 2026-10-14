@@ -1522,3 +1522,10 @@ Implementados menu compacto extraído, grupos recolhíveis sincronizados com Mai
 Validação final local: 19 testes Chromium aprovados em 1,3 minuto, cobrindo 12 combinações de contraste, aparência real no WhatsApp, tabelas/formulários, navegação em 1366/1024/390 px, persistência dos grupos e largura, teclado, foco no celular e seleção única da rota. Checagem TypeScript focada sem diagnósticos. Inspeção visual confirmou fundo azul profundo no WhatsApp e o primeiro link a 32 px do topo; removida a sobrescrita branca específica dessa tela. Publicação terá compilação de produção isolada no servidor.
 
 Publicação concluída: commit `1abb7e9dfef3c3a64e02a2c159d79d7569a58904`, build ativo `dvOe03T74SwJxs4w99Vf3`, backup `/root/backups-deploy/menu-azul-20261014T194814Z` (banco e .next com checksums). Build isolado de produção aprovado com 72 rotas, HTTP/CSS do menu e Azul intenso conferidos e apenas comercial-frontend reiniciado; backend preservado. Nove testes focados aprovados na versão publicada, com APIs simuladas: paletas/contraste, Azul intenso no WhatsApp e clientes em claro/escuro, persistência/grupos/largura, rota ativa e menu móvel. Nenhuma mensagem ou gravação real nos testes. Evidências locais em `.refs/publicacao-menu/`. Outros navegadores e leitores de tela não foram exercitados.
+
+
+## Grupos fechados ao abrir e atalho WhatsApp — 14/10/2026
+
+Implementados grupos fechados a cada abertura/recarga e atalho WhatsApp ao lado da lua/sol. Testes focados: estado inicial e legado ignorado, abrir/recarregar, modo de ícones, expandir todos, celular, rota ativa e nova aba sem opener mantendo a página anterior. Resultado e publicação registrados após validação.
+
+Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs simuladas, incluindo nova aba com window.opener nulo, tela anterior preservada, estado inicial fechado em desktop/celular e recarregamento. TypeScript focado no layout e menu móvel: sem diagnósticos.

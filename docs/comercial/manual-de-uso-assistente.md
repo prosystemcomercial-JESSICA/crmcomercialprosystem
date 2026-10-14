@@ -1217,3 +1217,8 @@ A preferência é salva automaticamente neste navegador; não precisa usar Salva
 Clique no nome de um grupo (Painéis, Vendas etc.) para fechar ou abrir seus atalhos. No topo, o botão de recolher grupos fecha todos; clique novamente para abrir. O botão de recolher menu deixa somente ícones e libera espaço. Ao expandir, seus grupos permanecem como você deixou. As escolhas ficam salvas neste navegador e também valem no menu Mais do celular. O grupo fechado da tela atual continua marcado.
 
 Em Configurações → Aparência, Azul intenso recupera um menu azul mais marcante, com versões clara e escura. Azul Prosystem continua disponível com superfícies neutras.
+
+
+### Ao abrir o CRM e usar WhatsApp em outra aba
+
+Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Você pode abrir os que precisar durante o uso; essa revisão substitui a preferência anterior de guardar grupos abertos. O modo de largura do menu continua salvo. Ao lado da lua/sol, clique no ícone do WhatsApp para abrir o atendimento do CRM em uma nova aba, mantendo a tela atual. O atalho aparece para quem tem acesso ao WhatsApp.
