@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme, ThemeColor, ThemeMode } from '@/lib/theme-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import PerfilForm from '@/components/perfil/PerfilForm';
 import { Check, Moon, Sun, Palette, Bell, GitMerge, FileText, Info, Save, Zap, Shield, ExternalLink, DatabaseBackup, AlertTriangle, MessageSquare } from 'lucide-react';
 import { apiClient, ResumoBackup } from '@/lib/api-client';
 import PainelTvConfig from '@/components/dashboard/PainelTvConfig';
@@ -828,6 +829,12 @@ export default function ConfiguracoesPage() {
               </div>
             </div>
           )}
+
+          {/* ══ MEU PERFIL (foto, nome, telefone) ══════════════ */}
+          <div style={cardStyle}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 14 }}>Meu perfil</h2>
+            <PerfilForm />
+          </div>
 
           {/* ══ CONFIG SECTIONS ════════════════════════════════ */}
           {SECOES.map(secao => {

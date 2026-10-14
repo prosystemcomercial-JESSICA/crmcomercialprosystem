@@ -236,6 +236,14 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM ADD COLUMN admin_sistema TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {}),
     prisma.$executeRawUnsafe(`ALTER TABLE UsuarioCRM ADD COLUMN somente_leitura TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {}),
   ]).catch(() => {});
+  // Perfil do colaborador (foto + perfil completo no 1º acesso), pedido da Jessica em 14/10/2026.
+  // Tabela própria: a foto não entra nos SELECT * de UsuarioCRM (listas de usuários).
+  prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS UsuarioPerfil (
+    usuario_id CHAR(36) NOT NULL PRIMARY KEY,
+    foto MEDIUMTEXT NULL,
+    perfil_completo_em DATETIME NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) DEFAULT CHARSET=utf8mb4`).catch(() => {});
 
   // ─── Helper: registrar auditoria ────────────────────────────
   const auditoria = async (ator: any, acao: string, alvo_id: string, alvo_nome: string, detalhes?: any) => {
@@ -283,7 +291,35 @@ export async function usuariosRoutes(fastify: FastifyInstance, options: { prisma
     if (typeof me.modulos_permissao === 'string') {
       try { me.modulos_permissao = JSON.parse(me.modulos_permissao); } catch { me.modulos_permissao = null; }
     }
+    const perfil: any[] = await prisma.$queryRawUnsafe(`SELECT foto, perfil_completo_em FROM UsuarioPerfil WHERE usuario_id = ? LIMIT 1`, user.id).catch(() => []);
+    me.foto = perfil[0]?.foto || null;
+    me.perfil_completo_em = perfil[0]?.perfil_completo_em || null;
     return reply.send({ status: 'success', data: me });
+  });
+
+  // ─── PUT /usuarios/me/perfil — o próprio colaborador completa o perfil (foto, nome, telefone) ──
+  // Foto já vem reduzida pelo navegador (JPEG/PNG/WebP em data URL, até ~400 KB).
+  fastify.put('/usuarios/me/perfil', { onRequest: requireAuth }, async (request, reply) => {
+    const user = (request as any).user;
+    if (!user?.id) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    const b = (request.body || {}) as { nome?: string; telefone?: string | null; foto?: string | null };
+    const nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : undefined;
+    if (nome !== undefined && (nome.length < 2 || nome.length > 255)) return reply.status(400).send({ status: 'error', message: 'Informe seu nome (de 2 a 255 letras).' });
+    const telefone = b.telefone === null ? null : typeof b.telefone === 'string' ? b.telefone.replace(/[^\d()+\s-]/g, '').trim().slice(0, 50) || null : undefined;
+    if (b.foto !== undefined && b.foto !== null && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.foto) || b.foto.length > 400_000)) {
+      return reply.status(400).send({ status: 'error', message: 'Foto inválida ou grande demais. Use JPG, PNG ou WebP.' });
+    }
+    const sets: string[] = []; const vals: any[] = [];
+    if (nome !== undefined) { sets.push('nome = ?'); vals.push(nome); }
+    if (telefone !== undefined) { sets.push('telefone = ?'); vals.push(telefone); }
+    if (sets.length) await prisma.$executeRawUnsafe(`UPDATE UsuarioCRM SET ${sets.join(', ')}, updated_at = NOW() WHERE id = ?`, ...vals, user.id);
+    if (b.foto !== undefined) {
+      await prisma.$executeRawUnsafe(`INSERT INTO UsuarioPerfil (usuario_id, foto, perfil_completo_em) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE foto = VALUES(foto), perfil_completo_em = NOW()`, user.id, b.foto);
+    } else {
+      await prisma.$executeRawUnsafe(`INSERT INTO UsuarioPerfil (usuario_id, perfil_completo_em) VALUES (?, NOW()) ON DUPLICATE KEY UPDATE perfil_completo_em = NOW()`, user.id);
+    }
+    await auditoria(user, 'PERFIL_ATUALIZADO', user.id, nome || user.nome || '', { nome: nome !== undefined, telefone: telefone !== undefined, foto: b.foto === undefined ? 'sem mudança' : b.foto ? 'nova' : 'removida' });
+    return reply.send({ status: 'success', message: 'Perfil salvo.' });
   });
 
   // ─── GET /usuarios/vendedores — lista enxuta p/ atribuição de leads ──

@@ -430,7 +430,19 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const empresa = await obterInstanciaEmpresa(prisma);
     if (empresa) {
       const resumo = await resumoEmpresa(empresa);
-      return reply.send({ status: 'success', data: { configurado: true, empresa: resumo, instancias: [] } });
+      // Bolinhas da tela do WhatsApp (pedido da Jessica, 14/10/2026): um resumo leve de cada número cadastrado,
+      // lido do banco (sem consultar a API a cada atualização). O principal usa o status recém-conferido.
+      const insts = await prisma.whatsappInstancia.findMany({ where: { instancia_nome: { in: NOMES_NUMEROS_EMPRESA } }, select: { instancia_nome: true, apelido: true, numero: true, status: true, instance_token: true, conectado_em: true, pausada_motivo: true } });
+      const numeros = VAGAS.map(v => {
+        const i = insts.find(x => x.instancia_nome === v.vaga);
+        if (!i?.instance_token) return null;
+        return {
+          vaga: v.vaga, rotulo: i.apelido || v.rotulo, provedor: v.provedor, principal: !!v.principal,
+          numero: v.principal ? (resumo.numero || i.numero) : i.numero,
+          status: v.principal ? resumo.status : i.status, ja_conectou: !!i.conectado_em, pausada_motivo: i.pausada_motivo || null,
+        };
+      }).filter(Boolean);
+      return reply.send({ status: 'success', data: { configurado: true, empresa: resumo, instancias: [], numeros } });
     }
 
     if (!evo.evolutionConfigurada()) return reply.send({ status: 'success', data: { configurado: false, instancias: [] } });

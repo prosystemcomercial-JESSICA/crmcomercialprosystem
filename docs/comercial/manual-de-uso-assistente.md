@@ -1114,3 +1114,11 @@ Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas p
 - **Regra fixa:** o contato fica sempre no número que conversou com ele primeiro. Nenhum outro número chama ou responde esse contato (nem os agentes). Se o número dele estiver desconectado, a mensagem não sai por outro: reconecte o número.
 - No Inbox, a conversa de um número extra tem a etiqueta roxa **📱** com o nome do número. Responder por ali já sai pelo número certo.
 - Se um número falhar 3 vezes seguidas, ele sai do rodízio sozinho e a gestão recebe um aviso no WhatsApp.
+
+### Atualização 14/10/2026: encerramento das propostas, agentes que leem a conversa e tela do WhatsApp
+
+- **Luiz Felipe:** quem não responde às 3 tentativas recebe uma mensagem de encerramento: a proposta expirou, obrigado pela atenção, e os links do blog e do Instagram. Se o cliente ainda não tinha recebido a apresentação de padaria ou farmácia, ela vai junto. Se ele responder depois, o Luiz Felipe retoma a conversa.
+- **Os agentes leem a conversa antes de escrever.** Param sozinhos, e você recebe um aviso 🛑 no WhatsApp, quando: alguém da equipe escreveu que o contato não deve mais ser chamado (vale também mensagem mandada pelo celular, ex.: "vou pedir para os consultores não te chamarem mais"); o cliente pediu para parar; ou a conversa é de quem já é cliente (técnicos, banco de dados, troca de endereço, cupom já saindo).
+- **Tela do WhatsApp:** ao lado do título há uma bolinha para cada número. Passe o mouse (ou toque) para ver o número e se está conectado, conectando ou se caiu a conexão. O número completo e a conexão ficam em Configurações › Números de WhatsApp. As mensagens que a equipe envia agora aparecem em cinza claro.
+- **Cabeçalho:** o alarme da reunião (5, 10, 15 ou 30 minutos antes) e o cronômetro ficam ao lado da lua, em cima.
+- **Seu perfil:** no primeiro acesso aparece a janela para colocar a foto e conferir nome e telefone. Para mudar depois: menu do seu nome › **Meu perfil**, ou **Configurações** no menu lateral.

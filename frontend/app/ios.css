@@ -136,9 +136,11 @@
   /* Bolhas estilo iMessage */
   .ios-mensagens { background: var(--ios-cell) !important; padding: 10px 12px !important; }
   .ios-bolha-out, .ios-bolha-in { border: 0 !important; box-shadow: none !important; border-radius: 18px !important; padding: 7px 12px !important; font-size: 17px !important; line-height: 22px; max-width: 78% !important; }
-  .ios-bolha-out { background: var(--ios-tint) !important; color: #fff !important; border-bottom-right-radius: 5px !important; }
-  .ios-bolha-in { background: #e9e9eb !important; color: #000 !important; border-bottom-left-radius: 5px !important; }
-  .dark .ios-bolha-in { background: #26252a !important; color: #fff !important; }
+  /* Enviadas: cinza claro e sutil, texto escuro (14/10/2026: o azul cansava a vista). */
+  .ios-bolha-out { background: #E7EAEF !important; color: #111827 !important; border-bottom-right-radius: 5px !important; }
+  .ios-bolha-in { background: #fff !important; color: #000 !important; border-bottom-left-radius: 5px !important; box-shadow: inset 0 0 0 1px #E5E7EB !important; }
+  .dark .ios-bolha-in { background: #26252a !important; color: #fff !important; box-shadow: none !important; }
+  .dark .ios-bolha-out { background: #3A3F47 !important; color: #F3F4F6 !important; }
 
   /* Campo de mensagem */
   .ios-compositor { background: var(--ios-bar) !important; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--ios-separator); padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) !important; }

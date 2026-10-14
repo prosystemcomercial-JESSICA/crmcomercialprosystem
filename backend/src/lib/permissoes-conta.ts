@@ -72,6 +72,8 @@ export const ROTAS_ESCRITA_LIBERADAS_LEITURA = [
   '/push/inscrever',
   '/push/cancelar',
   '/push/teste',
+  // O próprio perfil (foto, nome, telefone): só mexe na conta da pessoa (14/10/2026).
+  '/usuarios/me/perfil',
 ];
 
 const METODOS_LEITURA = ['GET', 'HEAD', 'OPTIONS'];
