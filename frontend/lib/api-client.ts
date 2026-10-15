@@ -219,8 +219,13 @@ class ApiClient {
     return this.client.get('/casos-churn/exclusao');
   }
 
-  async enviarExclusaoAoCeo(ids: string[], observacao?: string) {
-    return this.client.post('/casos-churn/exclusao/enviar', { ids, observacao: observacao || null });
+  async enviarExclusaoAoCeo(ids: string[], observacao?: string, canal: 'whatsapp' | 'pdf' = 'whatsapp') {
+    return this.client.post('/casos-churn/exclusao/enviar', { ids, observacao: observacao || null, canal });
+  }
+
+  // Relatório em PDF (identidade Prosystem) para mandar no Teams; não muda nada no CRM.
+  async relatorioExclusaoPdf(ids: string[], observacao?: string) {
+    return this.client.post('/casos-churn/exclusao/relatorio', { ids, observacao: observacao || null }, { responseType: 'blob' });
   }
 
   async marcarExclusaoChurn(id: string, campo: 'suporte' | 'cobranca', feito: boolean) {

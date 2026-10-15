@@ -1624,3 +1624,28 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
   - A ficha do lead (prompt) mostra "Dados para a proposta já recebidos… Falta: …" ou "Completos: é com a consultora" (`linhaDadosProposta`, `dadosPropostaFaltando`).
   - O resumo da observação e do aviso à gestão ganha a linha "📋 Dados para a proposta…".
 - **Testes:** `tests/sdr-dados-proposta.test.ts`.
+
+#### Atualização 15/10/2026: duas opções de envio, relatório em PDF (Teams) ou WhatsApp
+
+- **Pedido da Jessica:** a conversa interna sobre esses procedimentos é no Teams. Ela quer um relatório em PDF com as observações, no design system Prosystem, e também a opção de WhatsApp.
+- **Tela (aba Exclusões):** dois botões em "Selecionar e enviar ao CEO":
+  - **📄 Gerar relatório PDF (N)**, o principal: pede confirmação, baixa o PDF no navegador e registra o envio com `canal: 'pdf'`. Nenhum WhatsApp nem push vai ao CEO.
+  - **📲 Enviar por WhatsApp**: o fluxo anterior, com lista no WhatsApp e push.
+  - Nos dois casos, os clientes vão para "Com o CEO", com o canal indicado ("relatório PDF, Teams" ou "WhatsApp").
+  - Em "Com o CEO", **📄 Baixar relatório dos pendentes** gera o PDF de novo sem mudar nada.
+  - O PDF é gerado antes de registrar o envio: se falhar, nada muda no CRM.
+- **O PDF** (`lib/churn-exclusao-pdf.ts`, pdfmake) usa o cabeçalho e o rodapé do contrato: barras azul e ciano, logo PROSYSTEM, site, contatos e paginação, fonte Roboto, cores `BRAND`. Conteúdo:
+  - título, "Para" (CEO), "Enviado por" e data/hora;
+  - indicadores: número de clientes, mensalidades a suspender e valor devido somado;
+  - caixa "O que precisa ser feito": retirar do suporte, suspender cobranças e marcar no CRM (com link), mais a observação do envio;
+  - tabela resumo: código, cliente, CNPJ, suporte (grupo técnico), mensalidade e valor devido;
+  - "Detalhes e observações" por cliente: razão social, CNPJ, cidade, status e data da perda, grupo técnico, motivo, relato, financeiro (situação, valor devido, observação financeira), observação do envio anterior e as últimas 4 observações do caso (OBSERVACAO, CONTATO, TENTATIVA, FINANCEIRO);
+  - duas caixas para marcar à mão: "Retirado do suporte em __ por __" e "Cobranças suspensas em __ por __".
+  - Com mais de 8 clientes, os detalhes começam numa página nova.
+- **Backend:**
+  - `POST /casos-churn/exclusao/relatorio` com `{ ids, observacao }`: devolve o PDF e não muda nada no CRM. Guarda `podeSelecionar` (gestão ou módulo Churn com "administrar").
+  - `POST /casos-churn/exclusao/enviar` aceita `canal: 'whatsapp'|'pdf'`, gravado em `RegistroExclusao.canal`.
+  - A confirmação "✅ Churn concluído" só vai por WhatsApp quando o envio foi por WhatsApp; no PDF vai só o push.
+  - `relatorioExclusaoPdf` está em `churn-exclusao.service.ts`.
+- **Correção junto:** `BRAND.site` não existia, e o cabeçalho do contrato e do termo de renegociação saía sem o site. Agora mostra www.prosystemnet.com.br.
+- **Testes:** `tests/churn-exclusao-pdf.test.ts`.
