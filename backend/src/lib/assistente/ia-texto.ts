@@ -115,3 +115,18 @@ export function lerDataUrl(s: string | null | undefined): { mime: string; base64
   if (!m) return null;
   return { mime: (m[1].split(';')[0] || '').trim() || 'application/octet-stream', base64: m[2] };
 }
+
+/**
+ * Extensão do arquivo de áudio enviado à transcrição: a OpenAI confere a extensão com o conteúdo.
+ * Áudio gravado pelo navegador vem em WebM (data:audio/webm;codecs=opus) e ia como ".ogg", dando HTTP 400 (15/10/2026).
+ */
+export function extensaoAudio(mime: string | null | undefined): string {
+  const m = (mime || '').toLowerCase();
+  if (m.includes('webm')) return 'webm';
+  if (m.includes('ogg') || m.includes('opus')) return 'ogg';
+  if (m.includes('mpeg') || m.includes('mp3')) return 'mp3';
+  if (m.includes('mp4') || m.includes('m4a') || m.includes('aac')) return 'm4a';
+  if (m.includes('wav')) return 'wav';
+  if (m.includes('flac')) return 'flac';
+  return 'ogg';
+}
