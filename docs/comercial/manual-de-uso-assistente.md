@@ -1233,3 +1233,7 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Possível concorrente ou consultor:** se o nome do WhatsApp ou da empresa parece de sistemas, consultoria, mentoria ou marketing (ou lembra o nome Prosystem), você recebe um aviso e o agente confirma qual é a loja e a cidade antes de marcar qualquer coisa. Se não for loja, ele encerra com educação, sem demonstração, preço ou material.
 - **Aprovar e enviar** não repete mais a mensagem, mesmo com cliques seguidos.
 - **"Até", "tchau", "abs"** não recebem resposta do agente.
+
+### Correção 15/10/2026: Portal Técnico e sessão vencida
+
+- Se a sessão terminar (ou o portal for aberto num navegador sem login), o CRM leva direto para a tela de login, em vez de ficar parado em "Carregando…". Depois de entrar, o portal abre normal.

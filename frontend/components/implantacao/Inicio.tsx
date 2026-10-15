@@ -21,7 +21,12 @@ const ICONE_ATENCAO: Record<string, { Icon: any; cor: string }> = {
 export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab: string, demandaId?: string) => void }) {
   const [d, setD] = useState<any | null>(null);
   const [aberto, setAberto] = useState<any | null>(null);
-  const carregar = useCallback(async () => { try { const r = await apiClient.getInicioPortal(); setD(r.data.data); } catch { /* sem login */ } }, []);
+  const [erro, setErro] = useState<string | null>(null);
+  // Falha não fica escondida: antes o erro era engolido e a tela ficava em "Carregando…" para sempre (15/10/2026).
+  const carregar = useCallback(async () => {
+    try { const r = await apiClient.getInicioPortal(); setD(r.data.data); setErro(null); }
+    catch (e: any) { setErro(e?.response?.status === 401 ? 'Sua sessão terminou. Entre de novo para ver o portal.' : 'Não deu para carregar o início agora.'); }
+  }, []);
   useEffect(() => {
     carregar();
     const t = setInterval(carregar, 60000);
@@ -30,6 +35,14 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
     return () => { clearInterval(t); window.removeEventListener('cronometro:mudou', ev); window.removeEventListener('avisos:mudou', ev); };
   }, [carregar]);
 
+  if (!d && erro) return (
+    <div role="alert" style={{ padding: 30, display: 'grid', gap: 10, justifyItems: 'start', color: 'var(--t-text-secondary)' }}>
+      <span>{erro}</span>
+      {erro.startsWith('Sua sessão')
+        ? <a href="/" style={{ fontWeight: 700, color: 'var(--t-link)' }}>Entrar</a>
+        : <button onClick={carregar} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', cursor: 'pointer' }}>Tentar de novo</button>}
+    </div>
+  );
   if (!d) return <div style={{ padding: 30, color: 'var(--t-text-muted)' }}><Loader2 size={16} className="animate-spin" /> Carregando…</div>;
 
   const abertas = d.tarefas.filter((t: any) => !t.concluida_em);

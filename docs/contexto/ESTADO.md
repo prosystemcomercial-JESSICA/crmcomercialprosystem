@@ -94,6 +94,7 @@ Documento de origem do plano: `C:\Users\prosy\Downloads\Meta_Comercial_2026 (4).
 5. Subir campanhas com os criativos de 13/10 usando o padrão de UTM.
 6. Colocar o botão `/conhecer` nos artigos do blog (Elementor) e manter 2 artigos/semana.
 7. Cadastrar o segundo número pago (vaga "Número 2 (UAZAPI)") se ele existir.
+8. Backups: a cópia no computador dela não roda desde 08/10 e no MEGA desde 07/10 (o computador precisa estar ligado às 17h; conferir a tarefa agendada e o MEGA).
 
 Quando ela responder as decisões, ajustar o CRM conforme a resposta (ex.: meta em `comercial.metas_semana`, orientação aos agentes, filas).
 

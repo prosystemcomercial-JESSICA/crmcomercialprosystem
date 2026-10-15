@@ -1544,3 +1544,10 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - **Robô:** frases novas reconhecidas: "agradece seu contato", "não estamos disponíveis", "responderemos assim que…", "responderei sua mensagem", "retornaremos…".
 - **Despedida:** "Até", "até mais/logo/lá/sexta/segunda/amanhã", "tchau", "abraço", "abs", "falou" contam como só confirmação: o agente não responde.
 - Testes: `tests/sdr-concorrente.test.ts`.
+
+### Correção 15/10/2026: Portal Técnico parado em "Carregando…" e sessão vencida
+
+- **Sintoma:** o Portal Técnico mostrava só o menu e ficava em "Carregando…" para sempre.
+- **Causa (registros do Nginx e do backend):** o navegador abria `/portal-tecnico` sem sessão válida (sem login no CRM Comercial ou sessão vencida); as três chamadas da tela inicial (`/implantacoes/inicio`, `/avisos`, `/cronometro/atual`) voltavam 401 e (1) o portal, diferente das outras telas, não levava ao login; (2) o `PainelInicio` engolia o erro ("sem login") e nunca saía do "Carregando…". Com sessão válida o portal carrega normal (testado em produção).
+- **Correção:** o portal leva ao login quando não há sessão (`useRouter().replace('/')`, como as demais telas); o `PainelInicio` mostra "Sua sessão terminou. Entre de novo" (com link) ou "Não deu para carregar" (com "Tentar de novo"). No `api-client`, um 401 sem como renovar (sem refreshToken ou com a renovação recusada), em pedido que levava sessão (`Authorization`) e fora de `/auth/`, limpa a sessão e dispara `sessao:expirada`; o `AuthProvider` escuta e leva ao login (uma vez por página). Páginas públicas (proposta, acompanhamento, TV) não são afetadas.
+- **Achado na investigação:** o vigia de backups avisa que a cópia dos backups no computador da Jessica não roda desde 08/10 e a cópia no MEGA desde 07/10.
