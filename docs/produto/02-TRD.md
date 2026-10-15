@@ -1600,3 +1600,27 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
   - `PATCH /casos-churn/:id/exclusao` segue restrito a ROLES_EXCLUSAO.
 - **Frontend:** `podeExclusao` e `podeConfirmarExclusao` em `app/casos/page.tsx`; prop `podeConfirmar` em `ExclusaoCeo`.
 - **Testes:** `tests/churn-exclusao.test.ts`, bloco "quem pode selecionar".
+
+### Implementação 15/10/2026: cliente pediu o valor → agente pede os dados da proposta
+
+- **Pedido da Jessica:** quando o cliente solicitar o valor, pedir os dados necessários para montar a proposta.
+- **Quais dados:** os mesmos que a Jessica pediu por áudio a uma cliente em 15/10:
+  - **CNPJ** (só o número)
+  - **e-mail** (a proposta também vai por e-mail)
+  - **quantidade de computadores** (caixa e balcão; pode ser faixa, "de 1 a 5" ou "de 5 a 10")
+  - se ainda não estiver claro na conversa: **loja nova** (banco zerado) ou **troca de sistema** (e qual usa hoje)
+- **Como o agente age** (Caroline, Julio e Luiz Felipe, enquanto o cliente não tem proposta):
+  1. Informa a faixa de mensalidade, como antes.
+  2. Apresenta o plano completo, como antes.
+  3. Em vez de "conduzir para a proposta ou demonstração", pede numa mensagem só o que falta desses dados, dizendo que é para montar a proposta certinha e que ela vai por WhatsApp e e-mail.
+  4. Nunca pede de novo o que já está no histórico ou na ficha.
+  5. CNPJ que ainda não saiu: não insiste, e vale a regra de adiamento.
+  6. Com CNPJ, e-mail e computadores recebidos: agradece, diz que a consultora monta e envia a proposta e usa `passar_vendedora`. O lead vai para a vendedora no expediente, ou às 8h30 do próximo dia útil.
+- **A regra do CNPJ mudou:** "nunca no começo" continua, mas agora também pode pedir quando o cliente pede o valor ou a proposta.
+- **Dados guardados:**
+  - Resposta da IA: `dados.cnpj` (14 dígitos), `dados.email`, `dados.computadores` e `dados.tipo_loja` (`nova`|`troca`), lidos por `lerCnpj`/`lerEmail` e gravados em `SdrLead.dados`.
+  - O **Lead** recebe `cnpj`, `responsavel_email` e `qtd_caixas` (número tirado de "computadores"), só nos campos vazios. O formulário de proposta em Leads já puxa esses campos (CNPJ, máquinas, e-mail do responsável).
+- **Ficha e resumo:**
+  - A ficha do lead (prompt) mostra "Dados para a proposta já recebidos… Falta: …" ou "Completos: é com a consultora" (`linhaDadosProposta`, `dadosPropostaFaltando`).
+  - O resumo da observação e do aviso à gestão ganha a linha "📋 Dados para a proposta…".
+- **Testes:** `tests/sdr-dados-proposta.test.ts`.

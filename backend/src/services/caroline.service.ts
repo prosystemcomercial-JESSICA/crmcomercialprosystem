@@ -6,7 +6,7 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida, retornoDaEquipe } from '@/lib/assistente/sdr';
+import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida, retornoDaEquipe, linhaDadosProposta } from '@/lib/assistente/sdr';
 import { lerDataUrl } from '@/lib/assistente/ia-texto';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
@@ -698,6 +698,18 @@ async function atualizarTermometro(prisma: PrismaClient, sdr: any, r: RespostaCa
   const virouInteressado = r.nota >= 35 && !(sdr.dados as any)?.interessado_em;
   const dados = { ...(sdr.dados || {}), ...Object.fromEntries(Object.entries(r.dados).filter(([, v]) => v)), ...(r.dor_principal ? { dor_principal: r.dor_principal } : {}), ...(pediuDecisor ? { pediu_decisor_em: new Date().toISOString() } : {}), ...(virouInteressado ? { interessado_em: new Date().toISOString() } : {}) };
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { nota: r.nota, nota_motivo: r.nota_motivo, temperatura, dados } });
+  // Dados para a proposta (15/10/2026): o que o cliente mandou vai para o lead (só preenche o que está vazio),
+  // para a consultora montar a proposta sem perguntar de novo.
+  if (sdr.lead_id && (r.dados.cnpj || r.dados.email || r.dados.computadores)) {
+    const l = await prisma.lead.findUnique({ where: { id: sdr.lead_id }, select: { cnpj: true, responsavel_email: true, qtd_caixas: true } }).catch(() => null);
+    const qtd = Number(String(r.dados.computadores || '').match(/\d+/)?.[0]);
+    const up: any = {
+      ...(r.dados.cnpj && !l?.cnpj ? { cnpj: r.dados.cnpj } : {}),
+      ...(r.dados.email && !l?.responsavel_email ? { responsavel_email: r.dados.email } : {}),
+      ...(qtd > 0 && qtd < 100 && !l?.qtd_caixas ? { qtd_caixas: qtd } : {}),
+    };
+    if (l && Object.keys(up).length) await prisma.lead.update({ where: { id: sdr.lead_id }, data: up }).catch(() => {});
+  }
   if (sdr.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: sdr.lead_id }, select: { temperatura: true } }).catch(() => null);
     if (lead && lead.temperatura !== temperatura) {
@@ -716,6 +728,8 @@ function resumoLead(sdr: any, dados: any, r: { nota: number; nota_motivo: string
     dados.cidade ? `Cidade: ${dados.cidade}` : null, dados.sistema_atual ? `Sistema atual: ${dados.sistema_atual}` : null,
     dados.lojas ? `Lojas/caixas: ${dados.lojas}` : null, dados.momento ? `Momento: ${dados.momento}` : null, dados.decisor ? `Decisor: ${dados.decisor}` : null,
     sdr.campanha ? `Campanha: ${sdr.campanha}` : null,
+    // Dados para a proposta (CNPJ, e-mail, computadores, loja nova ou troca) e o que ainda falta.
+    linhaDadosProposta(dados)?.replace(/^- /, '📋 ') || null,
   ].filter(Boolean).join('\n');
 }
 

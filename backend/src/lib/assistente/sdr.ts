@@ -179,7 +179,11 @@ export type RespostaCaroline = {
     /** Quem é de fato (14/10/2026): loja do segmento, concorrente/empresa de sistemas, consultor/mentor ou não sei. */
     perfil?: 'loja' | 'concorrente' | 'consultor' | 'nao_sei' | null;
     /** Nome da loja e cidade confirmados pela pessoa. */
-    loja_confirmada?: string | null };
+    loja_confirmada?: string | null;
+    /** Dados para montar a proposta (pedido da Jessica, 15/10/2026): CNPJ, e-mail e quantos computadores. */
+    cnpj?: string | null; email?: string | null; computadores?: string | null;
+    /** Loja nova (abrindo, banco zerado) ou troca de sistema (conversão). */
+    tipo_loja?: 'nova' | 'troca' | null };
   duvida?: string | null;
   motivo_perda?: MotivoPerda | null;
   revisar_proposta?: boolean;
@@ -298,6 +302,7 @@ export function fichaDoLead(sdr: { segmento?: string | null; campanha?: string |
     d.cidade && `- Cidade: ${d.cidade}`,
     (d.combinado || d.chamar_combinado) && `- Combinado com ele: ${d.combinado || d.chamar_combinado}`,
     d.loja_confirmada && `- Loja confirmada pela pessoa: ${d.loja_confirmada}`,
+    linhaDadosProposta(d),
     (d.perfil === 'concorrente' || d.perfil === 'consultor') && `- ATENÇÃO: já identificado como ${d.perfil}; não marque demonstração nem mande material`,
     Array.isArray(d.sinais_nao_loja) && d.sinais_nao_loja.length && !d.loja_confirmada && `- ATENÇÃO, possível concorrente ou consultor (${d.sinais_nao_loja.join('; ')}): confirme qual é a loja e a cidade antes de avançar`,
   ].filter(Boolean);
@@ -344,7 +349,36 @@ export function janelaCampanhaAtiva(d: Date): boolean {
 
 // Mesmas chaves do motivo da perda no funil (MOTIVOS_PERDA do frontend / relatório comercial).
 // Faixa de mensalidade que os agentes podem informar quando o cliente pergunta o valor (orientação da Jessica).
-export const FAIXA_MENSALIDADE = 'de R$ 350,00 a R$ 400,00 por mês, dependendo do plano (R$ 400,00 é o plano mais completo), mais o valor da instalação';
+// Dados que a Jessica pede para montar a proposta (áudio de 15/10/2026): CNPJ, e-mail (a proposta vai também por
+// e-mail) e quantos computadores a loja vai ter ("de 1 a 5" ou "de 5 a 10" já serve).
+export const DADOS_PROPOSTA_TEXTO = 'o CNPJ da loja (só o número), um e-mail para receber a proposta e quantos computadores a loja vai ter (contando caixa e balcão; pode ser uma faixa, ex.: de 1 a 5)';
+
+/** CNPJ só com números (14 dígitos); qualquer outra coisa vira null. */
+export function lerCnpj(v: unknown): string | null {
+  const d = String(v ?? '').replace(/\D/g, '');
+  return d.length === 14 ? d : null;
+}
+
+/** E-mail válido em minúsculas; senão null. */
+export function lerEmail(v: unknown): string | null {
+  const e = String(v ?? '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) && e.length <= 120 ? e : null;
+}
+
+/** O que ainda falta para montar a proposta (CNPJ, e-mail, computadores). */
+export function dadosPropostaFaltando(d: any): string[] {
+  return [!lerCnpj(d?.cnpj) && 'CNPJ', !lerEmail(d?.email) && 'e-mail', !String(d?.computadores || '').trim() && 'quantidade de computadores'].filter(Boolean) as string[];
+}
+
+/** Linha da ficha do lead com os dados da proposta já recebidos e o que falta (para o agente não pedir de novo). */
+export function linhaDadosProposta(d: any): string | null {
+  const tem = [lerCnpj(d?.cnpj) && `CNPJ ${lerCnpj(d.cnpj)}`, lerEmail(d?.email) && `e-mail ${lerEmail(d.email)}`, String(d?.computadores || '').trim() && `${String(d.computadores).trim()} computador(es)`, d?.tipo_loja === 'nova' ? 'loja nova' : d?.tipo_loja === 'troca' ? 'troca de sistema' : null].filter(Boolean);
+  if (!tem.length) return null;
+  const falta = dadosPropostaFaltando(d);
+  return `- Dados para a proposta já recebidos: ${tem.join(', ')}${falta.length ? `. Falta: ${falta.join(', ')}` : '. Completos: é com a consultora montar a proposta'}`;
+}
+
+export const FAIXA_MENSALIDADE ='de R$ 350,00 a R$ 400,00 por mês, dependendo do plano (R$ 400,00 é o plano mais completo), mais o valor da instalação';
 export const RECURSOS_PLANO_COMPLETO = 'PDV e vendas, controle de estoque, compras, financeiro, dashboard com visão gerencial, rentabilidade, indicador de perda de vendas, curva ABC de produtos com reprocessamento, análises gerenciais avançadas, integração com leitor biométrico para mais segurança, mensageria de WhatsApp para a rotina interna da loja (não é canal com o cliente), suporte ativo e treinamento por 5 meses';
 
 export const MOTIVOS_PERDA = ['PRECO', 'JA_TEM_FORNECEDOR', 'SEM_ORCAMENTO', 'TIMING', 'SEM_INTERESSE', 'FUNCIONALIDADE_AUSENTE', 'OUTRO'] as const;
@@ -449,7 +483,9 @@ export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): R
     dados: { cidade: s(d.cidade), sistema_atual: s(d.sistema_atual), lojas: s(d.lojas), momento: s(d.momento), decisor: s(d.decisor),
       interlocutor: (INTERLOCUTORES as readonly string[]).includes(d.interlocutor) ? d.interlocutor : null,
       segmento_real: s(d.segmento_real), motivo_busca: s(d.motivo_busca), motivo_inscricao: s(d.motivo_inscricao),
-      perfil: ['loja', 'concorrente', 'consultor', 'nao_sei'].includes(d.perfil) ? d.perfil : null, loja_confirmada: s(d.loja_confirmada) },
+      perfil: ['loja', 'concorrente', 'consultor', 'nao_sei'].includes(d.perfil) ? d.perfil : null, loja_confirmada: s(d.loja_confirmada),
+      cnpj: lerCnpj(d.cnpj), email: lerEmail(d.email), computadores: s(d.computadores)?.slice(0, 40) || null,
+      tipo_loja: d.tipo_loja === 'nova' || d.tipo_loja === 'troca' ? d.tipo_loja : null },
     duvida: s(j.duvida),
     revisar_proposta: j.revisar_proposta === true,
     adiar_dias: Number.isFinite(Number(j.adiar_dias)) && Number(j.adiar_dias) > 0 ? Math.min(60, Math.round(Number(j.adiar_dias))) : null,
@@ -564,14 +600,15 @@ export function promptCaroline(p: {
     'PEDIU DEMONSTRAÇÃO: se em QUALQUER momento da conversa (inclusive na triagem) o cliente pediu demonstração, apresentação ou "quero conhecer o sistema", NÃO faça pergunta genérica de dor antes: responda que vai marcar com a consultora e use acao "oferecer_demo" (o sistema manda os horários). Interesse declarado nunca fica sem próximo passo.',
     'CLIENTE ADIOU COM MOTIVO (esperando CNPJ, abrindo a loja, pesquisando sistemas, "assim que sair eu te chamo"): ele demonstrou interesse, não abandone. Responda curto, ofereça ajuda útil para a fase dele (ex.: tirar dúvidas, comparar sistemas, o que olhar na escolha) e MARQUE O RETORNO com "adiar_dias" (3 a 5 dias úteis) ou "retomar_em" se ele disse uma data. Nunca deixe sem data de retorno.',
     'BOTÕES: se o cliente tocou "Quero saber mais", agradeça curto e siga investigando a dor; "Me chama depois", pergunte o melhor dia e horário (acao "continuar"); "Agora não", despeça-se com gentileza e porta aberta (acao "sem_interesse").',
-    'CNPJ: nunca peça no começo. Só quando a conversa já estiver avançada (dor identificada, ou ao oferecer/marcar a demonstração), de forma natural, ex.: "pra eu já deixar tudo pronto pra sua demonstração, me passa o CNPJ da farmácia?". Se ele já mandou, não peça de novo.',
+    'CNPJ: nunca peça no começo. Só quando a conversa já estiver avançada (dor identificada, ao oferecer/marcar a demonstração, ou quando o cliente pedir o valor ou a proposta), de forma natural, ex.: "pra eu já deixar tudo pronto pra sua demonstração, me passa o CNPJ da farmácia?". Se ele já mandou, não peça de novo.',
     'FATOS: nunca atribua ao cliente algo que ele não disse ou fez no histórico (ex.: não diga "você pediu uma demonstração" se ele só tocou em "Quero conhecer"). Na dúvida, pergunte.',
-    `PREÇO: se o cliente perguntar o valor/mensalidade, responda com a faixa: ${FAIXA_MENSALIDADE}. Não fale nenhum outro valor. Logo depois, em OUTRA mensagem, apresente o plano completo com uma introdução curta e natural, começando com "Para você entender, hoje nosso plano completo oferece" e citando: ${RECURSOS_PLANO_COMPLETO}. Em seguida, conduza para a proposta personalizada ou a demonstração. NUNCA fale de desconto, condições, parcelamento ou contrato por conta própria: isso é com a consultora.`,
+    `PREÇO: se o cliente perguntar o valor/mensalidade, responda com a faixa: ${FAIXA_MENSALIDADE}. Não fale nenhum outro valor. Logo depois, em OUTRA mensagem, apresente o plano completo com uma introdução curta e natural, começando com "Para você entender, hoje nosso plano completo oferece" e citando: ${RECURSOS_PLANO_COMPLETO}. Em seguida, peça os DADOS PARA A PROPOSTA (regra abaixo). NUNCA fale de desconto, condições, parcelamento ou contrato por conta própria: isso é com a consultora.`,
+    `DADOS PARA A PROPOSTA (pedido da Jessica, 15/10/2026): quando o cliente pedir o valor, o preço, uma proposta ou um orçamento (e ainda não tiver proposta), peça com naturalidade, numa mensagem só, o que falta destes: ${DADOS_PROPOSTA_TEXTO}. Explique em poucas palavras que é para montar a proposta certinha e que ela vai pelo WhatsApp e por e-mail. Olhe o histórico e a ficha: NUNCA peça de novo o que ele já mandou. Se ainda não estiver claro, pergunte também se a loja é nova (abrindo agora) ou se vai trocar de sistema (e qual usa hoje). Registre o que ele mandar em dados.cnpj (só números), dados.email, dados.computadores e dados.tipo_loja (nova ou troca). Se ele disser que o CNPJ ainda não saiu, não insista: diga que, assim que sair, ele te manda e a gente monta a proposta. Quando ele já tiver mandado CNPJ, e-mail e a quantidade de computadores, agradeça, diga que a consultora monta a proposta e envia para ele, e use acao "passar_vendedora".`,
     `Se o cliente perguntar sinceramente se é robô ou pessoa, não negue: diga com leveza que é ${eu.assistente} da equipe Prosystem e que, se preferir, alguém da equipe atende pessoalmente.`,
     `Apresente-se como "${eu.nome}, da equipe Prosystem" só na primeira mensagem sua; depois não repita. Nunca diga que fala em nome da Jessica ou de outra pessoa.`, 'NOME: só chame o cliente pelo nome que está em "Lead:". Se o histórico mostrar que a pessoa com quem falamos tem outro nome, use o do histórico. Na dúvida, cumprimente sem nome (errar o nome estraga a conversa).','NATURALIDADE: escreva como uma pessoa real digitando no WhatsApp: frases curtas, tom de conversa, sem cara de texto pronto, sem listas, sem excesso de exclamação e sem emojis em excesso (no máximo um, e só se combinar). NUNCA use travessão (— ou –); use vírgula ou ponto.',
     'TERMÔMETRO (nota 0-100): dor principal identificada (clara 20, com impacto/custo 35), momento de compra (agora/este mês 25, próximos meses 12, sem pressa 0), fala com quem decide (dono/sócio 15, indica quem decide 8), engajamento até 15, encaixe no perfil até 10. Sem dor principal a nota não passa de 59.',
     'AÇÃO: "continuar" (seguir investigando); "oferecer_demo" assim que a dor foi dita (mesmo curta) e você já mostrou como o MATERIAL resolve, ou quando a nota ≥ 60, ou o cliente pedir (escreva uma mensagem curta ligando a dor ao que a demonstração vai mostrar; os horários são enviados depois automaticamente); "passar_vendedora" quando ele tem interesse mas não quer marcar agora (despeça-se dizendo que a consultora vai falar com ele); "sem_interesse" quando ele disser que não quer ou não é o momento (inclusive "já resolvi", "já resolvemos", "já temos sistema", "já fechamos": isso significa que ele não tem mais interesse; use motivo_perda JA_TEM_FORNECEDOR e ele passa só a receber o Informativo Prosystem) (despeça-se com gentileza, porta aberta).',
-    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":"nome e cargo de quem decide, se souber","interlocutor":"decisor|atendente|robo|nao_sei","segmento_real":"ramo real pela conversa, se diferente do cadastro","motivo_busca":"por que procura outra solução","motivo_inscricao":"por que se inscreveu / o que quer ver","perfil":"loja|concorrente|consultor|nao_sei","loja_confirmada":"nome da loja e cidade, quando a pessoa confirmar"},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","novo_contato":{"nome":null,"numero":null,"cargo":null},"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
+    'Responda SOMENTE JSON: {"mensagens":["..."],"acao":"continuar|oferecer_demo|passar_vendedora|sem_interesse|duvida_fora_material|encaminhar_suporte|aceitar_condicao|recusou","nota":0,"nota_motivo":"curto","dor_principal":"ou null","dados":{"cidade":null,"sistema_atual":null,"lojas":null,"momento":null,"decisor":"nome e cargo de quem decide, se souber","interlocutor":"decisor|atendente|robo|nao_sei","segmento_real":"ramo real pela conversa, se diferente do cadastro","motivo_busca":"por que procura outra solução","motivo_inscricao":"por que se inscreveu / o que quer ver","perfil":"loja|concorrente|consultor|nao_sei","loja_confirmada":"nome da loja e cidade, quando a pessoa confirmar","cnpj":"só números, quando o cliente mandar","email":"e-mail para a proposta","computadores":"quantos computadores (ex.: 2, ou de 1 a 5)","tipo_loja":"nova|troca|null"},"duvida":null,"revisar_proposta":false,"adiar_dias":null,"retomar_em":"AAAA-MM-DDTHH:MM ou null","demo_a_partir":"AAAA-MM-DD ou null","novo_contato":{"nome":null,"numero":null,"cargo":null},"motivo_perda":"só quando acao=sem_interesse: PRECO|JA_TEM_FORNECEDOR|SEM_ORCAMENTO|TIMING|SEM_INTERESSE|FUNCIONALIDADE_AUSENTE|OUTRO (JA_TEM_FORNECEDOR = já fechou/segue com outro sistema)"}',
     '', '=== MATERIAL (única fonte sobre o produto) ===', p.guia.slice(0, 14000),
     p.aprendizado?.length ? '\n=== COMO A EQUIPE RESPONDE QUANDO ASSUME A CONVERSA (aprenda o jeito, a abordagem e os argumentos; faça igual ou MELHOR, sem copiar palavra por palavra; nunca repita dados de outro cliente) ===\n' + p.aprendizado.map(a => `Cliente: ${a.cliente}\nEquipe: ${a.equipe}`).join('\n---\n') : '',
     p.exemplos.length ? '\n=== COMO A JESSICA AJUSTOU SUAS MENSAGENS (siga este tom) ===\n' + p.exemplos.map(e => `Você escreveu: ${e.antes}\nEla enviou: ${e.depois}`).join('\n---\n') : '',
