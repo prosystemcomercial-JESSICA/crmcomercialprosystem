@@ -5,6 +5,8 @@ import { CasoChurnService } from '@/services/caso-churn.service';
 import { requireAuth, requireRole } from '@/middleware/auth';
 import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } from '@/types/dto';
+import { listarExclusao, enviarAoCeo, marcarExclusao } from '@/services/churn-exclusao.service';
+import { ROLES_EXCLUSAO } from '@/lib/churn-exclusao';
 
 export async function casosChurnRoutes(
   fastify: FastifyInstance,
@@ -433,4 +435,39 @@ export async function casosChurnRoutes(
       }
     }
   );
+
+  // ── Envio ao CEO: retirar do suporte e suspender cobranças (pedido da Jessica, 15/10/2026) ──
+  const erroExclusao = (reply: any, error: any, onde: string) => {
+    if (error.name === 'ZodError') return reply.status(400).send({ status: 'error', message: 'Validação falhou', errors: error.errors });
+    if (error.name === 'BadRequestError') return reply.status(400).send({ status: 'error', message: error.message });
+    console.error(`[${onde}]`, error);
+    return reply.status(500).send({ status: 'error', message: 'Erro ao processar o envio ao CEO' });
+  };
+
+  // GET /casos-churn/exclusao — casos perdidos com a situação do pedido ao CEO
+  fastify.get('/casos-churn/exclusao', { onRequest: [requireAuth, requireRole(ROLES_EXCLUSAO)] }, async (_request, reply) => {
+    try {
+      return reply.send({ status: 'success', data: await listarExclusao(prisma) });
+    } catch (error: any) { return erroExclusao(reply, error, 'GET /casos-churn/exclusao'); }
+  });
+
+  // POST /casos-churn/exclusao/enviar — envia os casos selecionados ao CEO
+  fastify.post('/casos-churn/exclusao/enviar', { onRequest: [requireAuth, requireRole(ROLES_EXCLUSAO)] }, async (request, reply) => {
+    try {
+      const body = z.object({ ids: z.array(z.string().min(1)).min(1).max(100), observacao: z.string().max(500).optional().nullable() }).parse(request.body);
+      const user = (request as any).user;
+      const r = await enviarAoCeo(prisma, body.ids, body.observacao?.trim() || null, { id: user.id, nome: user.nome });
+      return reply.send({ status: 'success', data: r });
+    } catch (error: any) { return erroExclusao(reply, error, 'POST /casos-churn/exclusao/enviar'); }
+  });
+
+  // PATCH /casos-churn/:id/exclusao — marca "retirado do suporte" ou "cobrança suspensa"
+  fastify.patch('/casos-churn/:id/exclusao', { onRequest: [requireAuth, requireRole(ROLES_EXCLUSAO)] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = z.object({ campo: z.enum(['suporte', 'cobranca']), feito: z.boolean() }).parse(request.body);
+      const user = (request as any).user;
+      return reply.send({ status: 'success', data: await marcarExclusao(prisma, id, body.campo, body.feito, { id: user.id, nome: user.nome }) });
+    } catch (error: any) { return erroExclusao(reply, error, 'PATCH /casos-churn/:id/exclusao'); }
+  });
 }

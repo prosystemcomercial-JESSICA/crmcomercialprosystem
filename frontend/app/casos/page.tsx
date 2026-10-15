@@ -1,6 +1,7 @@
 'use client';
 
 import GraficosChurn from '@/components/casos/GraficosChurn';
+import ExclusaoCeo from '@/components/casos/ExclusaoCeo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -368,7 +369,9 @@ export default function CasosPage() {
   // Gate de role interno: mesmo dentro de /casos (visível a papéis técnicos),
   // só CEO/ADMIN/SUPERVISAO_COMERCIAL podem ver a aba "Visão Executiva".
   const podeVerVisaoExecutiva = SO_CEO_ROLES.includes((user?.role || '').toUpperCase());
-  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'executiva' | 'graficos'>('lista');
+  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'executiva' | 'graficos' | 'exclusao'>('lista');
+  // Link do aviso ao CEO abre direto na aba Exclusões (/casos?aba=exclusao).
+  useEffect(() => { try { if (new URLSearchParams(window.location.search).get('aba') === 'exclusao') setAbaAtiva('exclusao'); } catch { /* sem window */ } }, []);
 
   // Dados da aba executiva (Radar): busca própria (getCasos(0,200) sem filtro),
   // guardada em state SEPARADO de `casos` (que alimenta a Lista paginada) para
@@ -667,7 +670,7 @@ export default function CasosPage() {
         {/* Alternador Lista / Visão Executiva — a aba executiva só é renderizada
             (botão e conteúdo) para quem tem o role certo; dupla checagem abaixo. */}
         {podeVerVisaoExecutiva && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setAbaAtiva('lista')}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'lista' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
@@ -685,6 +688,12 @@ export default function CasosPage() {
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'graficos' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
             >
               📊 Gráficos
+            </button>
+            <button
+              onClick={() => setAbaAtiva('exclusao')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'exclusao' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
+            >
+              📤 Exclusões (CEO)
             </button>
           </div>
         )}
@@ -747,6 +756,8 @@ export default function CasosPage() {
         })()}
 
         {abaAtiva === 'graficos' && podeVerVisaoExecutiva && <GraficosChurn />}
+
+        {abaAtiva === 'exclusao' && podeVerVisaoExecutiva && <ExclusaoCeo />}
 
         {/* ===== ABA LISTA ===== */}
         {abaAtiva === 'lista' && <>
