@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **15/10/2026 (`58b6db2`):** Portal Técnico parado em "Carregando…": era o navegador sem sessão válida (401) e o portal não levava ao login nem mostrava o erro. Corrigido no portal, no painel Início e no `api-client`/`AuthProvider` (sessão recusada em tela logada leva ao login). Achado: a cópia dos backups no computador da Jessica não roda desde 08/10 e no MEGA desde 07/10 (pendência 8).
+
 - **15/10/2026:** computador, GitHub e servidor conferidos no mesmo commit; no servidor, os `package-lock.json` reescritos pelo npm (sem as linhas `libc`) foram devolvidos à versão do GitHub para não travar deploys futuros.
 - **15/10/2026:** regra nova da Jessica: tudo o que for feito é registrado na hora (este arquivo, o arquivo local e commit + push). Referências a acesso de servidor e chave SSH foram tiradas do repositório (`deploy-vps.sh`, `02-TRD.md`, `LEIA-PRIMEIRO.md`) e ficam só no arquivo local `C:\Users\prosy\CONTEXTO-CRM-COMERCIAL-LOCAL.md`.
 
