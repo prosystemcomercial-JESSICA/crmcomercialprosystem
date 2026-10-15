@@ -23,11 +23,15 @@ export function podeSelecionarExclusao(role: string | null | undefined, modulos:
 }
 
 /** Registro do pedido, guardado em ConfiguracaoIntegracao (`churn.exclusao.<casoId>`), sem mudar o banco. */
+/** Como o pedido foi ao CEO: WhatsApp (lista + push) ou relatório em PDF (postado no Teams pela gestão). */
+export type CanalExclusao = 'whatsapp' | 'pdf';
+
 export interface RegistroExclusao {
   enviado_em: string;
   enviado_por: string;
   enviado_por_nome: string;
   observacao?: string | null;
+  canal?: CanalExclusao;
   suporte_em?: string | null;
   suporte_por_nome?: string | null;
   cobranca_em?: string | null;

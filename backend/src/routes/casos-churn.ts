@@ -5,7 +5,7 @@ import { CasoChurnService } from '@/services/caso-churn.service';
 import { requireAuth, requireRole } from '@/middleware/auth';
 import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } from '@/types/dto';
-import { listarExclusao, enviarAoCeo, marcarExclusao } from '@/services/churn-exclusao.service';
+import { listarExclusao, enviarAoCeo, marcarExclusao, relatorioExclusaoPdf } from '@/services/churn-exclusao.service';
 import { ROLES_EXCLUSAO, podeSelecionarExclusao } from '@/lib/churn-exclusao';
 
 export async function casosChurnRoutes(
@@ -461,11 +461,25 @@ export async function casosChurnRoutes(
   // POST /casos-churn/exclusao/enviar — envia os casos selecionados ao CEO
   fastify.post('/casos-churn/exclusao/enviar', { onRequest: [requireAuth, podeSelecionar] }, async (request, reply) => {
     try {
-      const body = z.object({ ids: z.array(z.string().min(1)).min(1).max(100), observacao: z.string().max(500).optional().nullable() }).parse(request.body);
+      const body = z.object({ ids: z.array(z.string().min(1)).min(1).max(100), observacao: z.string().max(500).optional().nullable(), canal: z.enum(['whatsapp', 'pdf']).optional() }).parse(request.body);
       const user = (request as any).user;
-      const r = await enviarAoCeo(prisma, body.ids, body.observacao?.trim() || null, { id: user.id, nome: user.nome });
+      const r = await enviarAoCeo(prisma, body.ids, body.observacao?.trim() || null, { id: user.id, nome: user.nome }, body.canal || 'whatsapp');
       return reply.send({ status: 'success', data: r });
     } catch (error: any) { return erroExclusao(reply, error, 'POST /casos-churn/exclusao/enviar'); }
+  });
+
+  // POST /casos-churn/exclusao/relatorio — PDF dos casos selecionados (para o Teams). Não muda nada no CRM.
+  fastify.post('/casos-churn/exclusao/relatorio', { onRequest: [requireAuth, podeSelecionar] }, async (request, reply) => {
+    try {
+      const body = z.object({ ids: z.array(z.string().min(1)).min(1).max(100), observacao: z.string().max(500).optional().nullable() }).parse(request.body);
+      const user = (request as any).user;
+      const pdf = await relatorioExclusaoPdf(prisma, body.ids, body.observacao?.trim() || null, { id: user.id, nome: user.nome });
+      const dia = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      return reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `attachment; filename="Churn_suporte_cobrancas_${dia}.pdf"`)
+        .send(pdf);
+    } catch (error: any) { return erroExclusao(reply, error, 'POST /casos-churn/exclusao/relatorio'); }
   });
 
   // PATCH /casos-churn/:id/exclusao — marca "retirado do suporte" ou "cobrança suspensa"

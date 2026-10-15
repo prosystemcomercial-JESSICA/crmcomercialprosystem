@@ -4,7 +4,7 @@ import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { CasoChurnService } from './caso-churn.service';
 import {
   STATUS_PODE_ENVIAR, chaveExclusao, lerRegistro, situacaoExclusao, textoAvisoCeo,
-  type RegistroExclusao, type ItemAviso,
+  type RegistroExclusao, type ItemAviso, type CanalExclusao,
 } from '@/lib/churn-exclusao';
 
 /**
@@ -49,8 +49,8 @@ export async function listarExclusao(prisma: PrismaClient) {
     where: { status: { in: STATUS_PODE_ENVIAR } },
     orderBy: { updated_at: 'desc' },
     select: {
-      id: true, status: true, motivo_principal: true, descricao: true, fin_valor_atraso: true, created_at: true, updated_at: true, resolvido_em: true,
-      cliente: { select: { id: true, codigo: true, nome: true, empresa: true, razao_social: true, nome_fantasia: true, cnpj: true, grupo_tecnico: true, mensalidade_base: true, mrr_perdido: true, valor_devido_inativacao: true, inativado_em: true } },
+      id: true, status: true, motivo_principal: true, descricao: true, fin_valor_atraso: true, fin_situacao: true, fin_observacao: true, created_at: true, updated_at: true, resolvido_em: true,
+      cliente: { select: { id: true, codigo: true, nome: true, empresa: true, razao_social: true, nome_fantasia: true, cnpj: true, cidade: true, estado: true, grupo_tecnico: true, mensalidade_base: true, mrr_perdido: true, valor_devido_inativacao: true, inativado_em: true } },
     },
   });
   const regs = await lerRegistros(prisma, casos.map(c => c.id));
@@ -58,9 +58,11 @@ export async function listarExclusao(prisma: PrismaClient) {
     const r = regs.get(c.id) || null;
     return {
       id: c.id, status: c.status, motivo: c.motivo_principal || c.descricao || null,
+      relato: c.descricao || null, fin_situacao: c.fin_situacao || null, fin_observacao: c.fin_observacao || null,
       perdido_em: c.resolvido_em || c.cliente?.inativado_em || c.updated_at,
       cliente: {
         id: c.cliente.id, codigo: c.cliente.codigo, nome: nomeCliente(c.cliente), razao_social: c.cliente.razao_social, cnpj: c.cliente.cnpj,
+        cidade: [c.cliente.cidade, c.cliente.estado].filter(Boolean).join('/') || null,
         grupo_tecnico: c.cliente.grupo_tecnico, mensalidade: c.cliente.mrr_perdido ?? c.cliente.mensalidade_base ?? null,
         valor_devido: c.fin_valor_atraso ?? c.cliente.valor_devido_inativacao ?? null,
       },
@@ -69,8 +71,11 @@ export async function listarExclusao(prisma: PrismaClient) {
   });
 }
 
-/** Envia os casos selecionados ao CEO. Devolve quantos foram e para quem o aviso saiu. */
-export async function enviarAoCeo(prisma: PrismaClient, ids: string[], observacao: string | null, user: Usuario) {
+/**
+ * Envia os casos selecionados ao CEO. canal "whatsapp": lista no WhatsApp e push. canal "pdf" (15/10/2026: a conversa
+ * interna é no Teams): só registra o envio; o relatório sai por relatorioExclusaoPdf e a Jessica posta no Teams.
+ */
+export async function enviarAoCeo(prisma: PrismaClient, ids: string[], observacao: string | null, user: Usuario, canal: CanalExclusao = 'whatsapp') {
   const unicos = [...new Set(ids)].slice(0, 100);
   const lista = (await listarExclusao(prisma)).filter(c => unicos.includes(c.id));
   if (!lista.length) throw Object.assign(new Error('Nenhum caso perdido selecionado.'), { name: 'BadRequestError' });
@@ -82,14 +87,15 @@ export async function enviarAoCeo(prisma: PrismaClient, ids: string[], observaca
     // Reenvio mantém o que o CEO já marcou.
     const ant = c.registro;
     await salvarRegistro(prisma, c.id, {
-      enviado_em: agora, enviado_por: user.id, enviado_por_nome: user.nome, observacao: observacao || null,
+      enviado_em: agora, enviado_por: user.id, enviado_por_nome: user.nome, observacao: observacao || null, canal,
       suporte_em: ant?.suporte_em || null, suporte_por_nome: ant?.suporte_por_nome || null,
       cobranca_em: ant?.cobranca_em || null, cobranca_por_nome: ant?.cobranca_por_nome || null,
     }, user.id);
     await (prisma as any).atualizacaoCaso.create({
-      data: { caso_churn_id: c.id, tipo: 'SISTEMA', texto: `📤 ${ant ? 'Reenviado' : 'Enviado'} ao CEO para retirar do suporte e suspender as cobranças${observacao ? `. Obs.: ${observacao}` : ''}`, feito_por: user.id, feito_por_nome: user.nome },
+      data: { caso_churn_id: c.id, tipo: 'SISTEMA', texto: `📤 ${ant ? 'Reenviado' : 'Enviado'} ao CEO ${canal === 'pdf' ? 'por relatório em PDF (Teams)' : 'por WhatsApp'} para retirar do suporte e suspender as cobranças${observacao ? `. Obs.: ${observacao}` : ''}`, feito_por: user.id, feito_por_nome: user.nome },
     }).catch(() => {});
   }
+  if (canal === 'pdf') return { enviados: lista.length, avisados: [] as string[] };
   const itens: ItemAviso[] = lista.map(c => ({ codigo: c.cliente.codigo, nome: c.cliente.nome, cnpj: c.cliente.cnpj, mensalidade: c.cliente.mensalidade, valor_devido: c.cliente.valor_devido, motivo: c.motivo }));
   const texto = textoAvisoCeo(itens, user.nome, observacao, LINK);
   const destino = await ceos(prisma);
@@ -129,9 +135,32 @@ export async function marcarExclusao(prisma: PrismaClient, casoId: string, campo
     const inst = await obterInstanciaEmpresa(prisma).catch(() => null);
     const c = caso?.cliente;
     const txt = `✅ *Churn concluído:* ${c?.codigo ? `${c.codigo} · ` : ''}${nomeCliente(c)} foi retirado do suporte e as cobranças foram suspensas (${user.nome}).`;
-    if (quem?.telefone && inst?.instance_token) await evo.enviarTexto(inst.instance_token, quem.telefone, txt).catch((e: any) => console.error('[CHURN→CEO] confirmação:', e?.message));
+    if (r.canal !== 'pdf' && quem?.telefone && inst?.instance_token) await evo.enviarTexto(inst.instance_token, quem.telefone, txt).catch((e: any) => console.error('[CHURN→CEO] confirmação:', e?.message));
     const { enviarPush } = await import('./push.service');
     await enviarPush(prisma, [r.enviado_por], { titulo: 'Churn concluído', corpo: txt.replace(/\*/g, '').slice(0, 180), url: '/casos?aba=exclusao', tag: 'churn_exclusao' }).catch(() => 0);
   }
   return { situacao: situacaoExclusao(novo), registro: novo };
+}
+
+/** Relatório em PDF (identidade Prosystem) dos casos selecionados, com as observações de cada um. Não muda nada no CRM. */
+export async function relatorioExclusaoPdf(prisma: PrismaClient, ids: string[], observacao: string | null, user: Usuario) {
+  const unicos = [...new Set(ids)].slice(0, 100);
+  const lista = (await listarExclusao(prisma)).filter(c => unicos.includes(c.id));
+  if (!lista.length) throw Object.assign(new Error('Nenhum caso perdido selecionado.'), { name: 'BadRequestError' });
+  const atts = await (prisma as any).atualizacaoCaso.findMany({
+    where: { caso_churn_id: { in: lista.map(c => c.id) }, tipo: { in: ['OBSERVACAO', 'CONTATO', 'TENTATIVA', 'FINANCEIRO'] } },
+    orderBy: { created_at: 'desc' }, select: { caso_churn_id: true, texto: true, feito_por_nome: true, created_at: true },
+  }).catch(() => [] as any[]);
+  const ceo = (await ceos(prisma))[0];
+  const { gerarRelatorioExclusaoPdf } = await import('@/lib/churn-exclusao-pdf');
+  return gerarRelatorioExclusaoPdf({
+    enviado_por: user.nome, para: ceo ? `${ceo.nome} (CEO)` : null, observacao, link: LINK,
+    clientes: lista.map(c => ({
+      codigo: c.cliente.codigo, nome: c.cliente.nome, razao_social: c.cliente.razao_social, cnpj: c.cliente.cnpj, cidade: c.cliente.cidade,
+      grupo_tecnico: c.cliente.grupo_tecnico, status: c.status, perdido_em: c.perdido_em, mensalidade: c.cliente.mensalidade, valor_devido: c.cliente.valor_devido,
+      motivo: c.motivo, relato: c.relato, fin_situacao: c.fin_situacao, fin_observacao: c.fin_observacao,
+      observacao_envio: c.registro?.observacao && c.registro.observacao !== observacao ? c.registro.observacao : null,
+      atualizacoes: atts.filter((a: any) => a.caso_churn_id === c.id).slice(0, 4).map((a: any) => ({ em: a.created_at, por: a.feito_por_nome, texto: a.texto })),
+    })),
+  });
 }

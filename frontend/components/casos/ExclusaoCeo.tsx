@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api-client';
 // retirar o cadastro do suporte e suspender as cobranças. O CEO marca as duas confirmações aqui.
 
 interface Registro {
-  enviado_em: string; enviado_por_nome: string; observacao?: string | null;
+  enviado_em: string; enviado_por_nome: string; observacao?: string | null; canal?: 'whatsapp' | 'pdf';
   suporte_em?: string | null; suporte_por_nome?: string | null;
   cobranca_em?: string | null; cobranca_por_nome?: string | null;
 }
@@ -52,17 +52,52 @@ export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: 
   const alternar = (id: string) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const todos = sel.size > 0 && paraEnviar.every(i => sel.has(i.id));
 
-  async function enviar() {
+  // Baixa o PDF (identidade Prosystem) no navegador.
+  async function baixarPdf(ids: string[], observacao: string) {
+    const r = await apiClient.relatorioExclusaoPdf(ids, observacao);
+    const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `Churn_suporte_cobrancas_${new Date().toLocaleDateString('sv-SE')}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  // Erro de resposta em blob (PDF) vem como Blob: lê a mensagem do JSON.
+  async function mensagemErro(e: any, padrao: string) {
+    const d = e?.response?.data;
+    if (d instanceof Blob) { try { return JSON.parse(await d.text())?.message || padrao; } catch { return padrao; } }
+    return d?.message || padrao;
+  }
+
+  // Duas opções (15/10/2026): relatório em PDF para mandar no Teams ou a lista por WhatsApp.
+  async function enviar(canal: 'pdf' | 'whatsapp') {
     if (!selecionados.length || enviando) return;
-    if (!confirm(`Enviar ${selecionados.length} cliente(s) ao CEO para retirar do suporte e suspender as cobranças?`)) return;
+    const n = selecionados.length;
+    const pergunta = canal === 'pdf'
+      ? `Gerar o relatório em PDF de ${n} cliente(s) para mandar ao CEO no Teams?\n\nEles passam para "Com o CEO", para acompanhar as confirmações. Nenhum WhatsApp é enviado.`
+      : `Enviar ${n} cliente(s) ao CEO por WhatsApp para retirar do suporte e suspender as cobranças?`;
+    if (!confirm(pergunta)) return;
     setEnviando(true); setAviso(''); setErro('');
+    const ids = selecionados.map(i => i.id);
     try {
-      const r = await apiClient.enviarExclusaoAoCeo(selecionados.map(i => i.id), obs.trim());
+      if (canal === 'pdf') await baixarPdf(ids, obs.trim()); // primeiro o PDF: se falhar, nada muda no CRM
+      const r = await apiClient.enviarExclusaoAoCeo(ids, obs.trim(), canal);
       const d = r.data?.data || {};
-      setAviso(`${d.enviados} cliente(s) enviado(s). ${d.avisados?.length ? `Aviso no WhatsApp para ${d.avisados.join(', ')}.` : 'O WhatsApp do CEO não recebeu o aviso: ele vê a lista aqui, na aba Exclusões.'}`);
+      setAviso(canal === 'pdf'
+        ? `Relatório baixado com ${d.enviados} cliente(s). Poste o PDF no Teams para o CEO. Eles estão em "Com o CEO" para as confirmações.`
+        : `${d.enviados} cliente(s) enviado(s). ${d.avisados?.length ? `Aviso no WhatsApp para ${d.avisados.join(', ')}.` : 'O WhatsApp do CEO não recebeu o aviso: ele vê a lista aqui, na aba Exclusões.'}`);
       setSel(new Set()); setObs('');
       await carregar();
-    } catch (e: any) { setErro(e?.response?.data?.message || 'Não foi possível enviar.'); }
+    } catch (e: any) { setErro(await mensagemErro(e, canal === 'pdf' ? 'Não foi possível gerar o relatório.' : 'Não foi possível enviar.')); }
+    finally { setEnviando(false); }
+  }
+
+  // Baixa de novo o relatório de quem está com o CEO (não muda nada no CRM).
+  async function baixarPendentes() {
+    if (!enviados.length || enviando) return;
+    setEnviando(true); setErro('');
+    try { await baixarPdf(enviados.map(i => i.id), ''); }
+    catch (e: any) { setErro(await mensagemErro(e, 'Não foi possível gerar o relatório.')); }
     finally { setEnviando(false); }
   }
 
@@ -131,7 +166,7 @@ export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: 
         <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
           <div>
             <p className="text-sm font-bold">Selecionar e enviar ao CEO</p>
-            <p className="text-xs" style={muted}>Casos perdidos que ainda não foram enviados. O CEO recebe a lista no WhatsApp para retirar do suporte e suspender as cobranças.</p>
+            <p className="text-xs" style={muted}>Casos perdidos que ainda não foram enviados. Gere o relatório em PDF para mandar no Teams ou envie a lista ao CEO por WhatsApp.</p>
           </div>
           {paraEnviar.length > 0 && (
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -165,17 +200,31 @@ export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: 
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm" style={muted}>{selecionados.length ? `${selecionados.length} selecionado(s) · ${real(somaSel)}/mês` : 'Nenhum selecionado'}</p>
-              <button onClick={enviar} disabled={!selecionados.length || enviando}
-                className="px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 text-white disabled:opacity-50">
-                {enviando ? 'Enviando…' : `📤 Enviar ao CEO${selecionados.length ? ` (${selecionados.length})` : ''}`}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => enviar('pdf')} disabled={!selecionados.length || enviando}
+                  className="px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 text-white disabled:opacity-50">
+                  {enviando ? 'Gerando…' : `📄 Gerar relatório PDF${selecionados.length ? ` (${selecionados.length})` : ''}`}
+                </button>
+                <button onClick={() => enviar('whatsapp')} disabled={!selecionados.length || enviando}
+                  className="px-4 py-2 rounded-lg text-sm font-bold bg-white border border-gray-200 disabled:opacity-50">
+                  📲 Enviar por WhatsApp
+                </button>
+              </div>
             </div>
+            <p className="text-xs" style={muted}>PDF: você baixa o relatório (com as observações de cada cliente) e manda no Teams; nenhum WhatsApp sai. WhatsApp: o CEO recebe a lista no número dele. Nos dois, os clientes passam para "Com o CEO".</p>
           </div>
         )}
       </section>
 
       <section className={card} style={borda}>
-        <p className="text-sm font-bold">Com o CEO</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-bold">Com o CEO</p>
+          {enviados.length > 0 && (
+            <button onClick={baixarPendentes} disabled={enviando} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-200 disabled:opacity-50">
+              📄 Baixar relatório dos pendentes
+            </button>
+          )}
+        </div>
         <p className="text-xs mb-3" style={muted}>{podeConfirmar ? 'Marque quando o cadastro sair do suporte e quando a cobrança for suspensa. Com as duas marcadas, quem enviou recebe a confirmação.' : 'Acompanhe aqui: o CEO marca quando o cadastro sair do suporte e quando a cobrança for suspensa. Com as duas marcadas, você recebe a confirmação.'}</p>
         {enviados.length === 0
           ? <p className="text-sm py-2" style={muted}>Nada pendente com o CEO.</p>
@@ -185,7 +234,7 @@ export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: 
                 <div className="min-w-0">
                   <Cliente i={i} />
                   <p className="text-xs mt-0.5" style={muted}>
-                    Enviado por {i.registro?.enviado_por_nome} em {data(i.registro?.enviado_em)} · {real(i.cliente.mensalidade)}/mês
+                    Enviado por {i.registro?.enviado_por_nome} em {data(i.registro?.enviado_em)} {i.registro?.canal === 'pdf' ? '(relatório PDF, Teams)' : '(WhatsApp)'} · {real(i.cliente.mensalidade)}/mês
                     {i.registro?.observacao ? ` · Obs.: ${i.registro.observacao}` : ''}
                   </p>
                 </div>

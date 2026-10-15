@@ -56,6 +56,7 @@ export const BRAND = {
   email: 'comercial@prosystemnet.com.br',
   endereco: 'Av. Prof. Fernando Duarte Rabelo, 330 / Loja 02',
   bairroCidade: 'Goiabeiras - Vitória/ES',
+  site: 'www.prosystemnet.com.br', // o cabeçalho usa BRAND.site (antes vazio)
 };
 
 export const PAGE_W = 595.28; // A4 em pt
