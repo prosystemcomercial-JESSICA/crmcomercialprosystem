@@ -369,6 +369,10 @@ export default function CasosPage() {
   // Gate de role interno: mesmo dentro de /casos (visível a papéis técnicos),
   // só CEO/ADMIN/SUPERVISAO_COMERCIAL podem ver a aba "Visão Executiva".
   const podeVerVisaoExecutiva = SO_CEO_ROLES.includes((user?.role || '').toUpperCase());
+  // Aba Exclusões (CEO): gestão, admin ou quem tem "administrar" no módulo Cancelamentos / Churn (ex.: Ana Clara).
+  // Quem não é da gestão seleciona e envia; as confirmações de suporte e cobrança ficam com a gestão.
+  const podeConfirmarExclusao = podeVerVisaoExecutiva || !!user?.admin;
+  const podeExclusao = podeConfirmarExclusao || !!(user as any)?.modulos_permissao?.['Cancelamentos / Churn']?.administrar;
   const [abaAtiva, setAbaAtiva] = useState<'lista' | 'executiva' | 'graficos' | 'exclusao'>('lista');
   // Link do aviso ao CEO abre direto na aba Exclusões (/casos?aba=exclusao).
   useEffect(() => { try { if (new URLSearchParams(window.location.search).get('aba') === 'exclusao') setAbaAtiva('exclusao'); } catch { /* sem window */ } }, []);
@@ -669,7 +673,7 @@ export default function CasosPage() {
 
         {/* Alternador Lista / Visão Executiva — a aba executiva só é renderizada
             (botão e conteúdo) para quem tem o role certo; dupla checagem abaixo. */}
-        {podeVerVisaoExecutiva && (
+        {(podeVerVisaoExecutiva || podeExclusao) && (
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setAbaAtiva('lista')}
@@ -677,6 +681,7 @@ export default function CasosPage() {
             >
               ☰ Lista
             </button>
+            {podeVerVisaoExecutiva && <>
             <button
               onClick={() => setAbaAtiva('executiva')}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'executiva' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
@@ -689,12 +694,15 @@ export default function CasosPage() {
             >
               📊 Gráficos
             </button>
+            </>}
+            {podeExclusao && (
             <button
               onClick={() => setAbaAtiva('exclusao')}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'exclusao' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 hover:bg-opacity-0'}`}
             >
               📤 Exclusões (CEO)
             </button>
+            )}
           </div>
         )}
 
@@ -757,7 +765,7 @@ export default function CasosPage() {
 
         {abaAtiva === 'graficos' && podeVerVisaoExecutiva && <GraficosChurn />}
 
-        {abaAtiva === 'exclusao' && podeVerVisaoExecutiva && <ExclusaoCeo />}
+        {abaAtiva === 'exclusao' && podeExclusao && <ExclusaoCeo podeConfirmar={podeConfirmarExclusao} />}
 
         {/* ===== ABA LISTA ===== */}
         {abaAtiva === 'lista' && <>

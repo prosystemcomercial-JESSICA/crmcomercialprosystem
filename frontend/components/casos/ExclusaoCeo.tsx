@@ -23,7 +23,8 @@ const data = (v?: string | null) => v ? new Date(v).toLocaleDateString('pt-BR', 
 const cnpjFmt = (c: string | null) => { const d = (c || '').replace(/\D/g, ''); return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || ''); };
 const STATUS: Record<string, string> = { PERDIDO: 'Perdido', SISTEMA_REMOVIDO: 'Sistema removido', AGUARDANDO_EXCLUSAO: 'Aguardando exclusão' };
 
-export default function ExclusaoCeo() {
+// podeConfirmar: gestão (CEO, ADMIN, SUPERVISAO_COMERCIAL). Quem só tem o módulo Churn (ex.: Ana Clara) seleciona e envia.
+export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: boolean }) {
   const [itens, setItens] = useState<Item[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -95,8 +96,8 @@ export default function ExclusaoCeo() {
         const em = campo === 'suporte' ? i.registro?.suporte_em : i.registro?.cobranca_em;
         const por = campo === 'suporte' ? i.registro?.suporte_por_nome : i.registro?.cobranca_por_nome;
         return (
-          <label key={campo} className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" className="w-4 h-4" checked={!!em} disabled={salvando === `${i.id}.${campo}`}
+          <label key={campo} className={`flex items-center gap-2 select-none ${podeConfirmar ? 'cursor-pointer' : 'opacity-70'}`} title={podeConfirmar ? undefined : 'Quem confirma é o CEO ou a gestão'}>
+            <input type="checkbox" className="w-4 h-4" checked={!!em} disabled={!podeConfirmar || salvando === `${i.id}.${campo}`}
               onChange={e => marcar(i, campo, e.target.checked)} />
             <span>{campo === 'suporte' ? 'Retirado do suporte' : 'Cobrança suspensa'}</span>
             {em && <span className="text-xs" style={muted}>{data(em)}{por ? ` · ${por.split(' ')[0]}` : ''}</span>}
@@ -175,7 +176,7 @@ export default function ExclusaoCeo() {
 
       <section className={card} style={borda}>
         <p className="text-sm font-bold">Com o CEO</p>
-        <p className="text-xs mb-3" style={muted}>Marque quando o cadastro sair do suporte e quando a cobrança for suspensa. Com as duas marcadas, quem enviou recebe a confirmação.</p>
+        <p className="text-xs mb-3" style={muted}>{podeConfirmar ? 'Marque quando o cadastro sair do suporte e quando a cobrança for suspensa. Com as duas marcadas, quem enviou recebe a confirmação.' : 'Acompanhe aqui: o CEO marca quando o cadastro sair do suporte e quando a cobrança for suspensa. Com as duas marcadas, você recebe a confirmação.'}</p>
         {enviados.length === 0
           ? <p className="text-sm py-2" style={muted}>Nada pendente com o CEO.</p>
           : <ul className="divide-y" style={{ borderColor: 'var(--t-card-border)' }}>

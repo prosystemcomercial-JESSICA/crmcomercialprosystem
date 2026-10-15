@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { situacaoExclusao, lerRegistro, textoAvisoCeo, chaveExclusao, STATUS_PODE_ENVIAR } from '../src/lib/churn-exclusao';
+import { situacaoExclusao, lerRegistro, textoAvisoCeo, chaveExclusao, STATUS_PODE_ENVIAR, podeSelecionarExclusao } from '../src/lib/churn-exclusao';
 
 const base = { enviado_em: '2026-10-15T13:00:00.000Z', enviado_por: 'u1', enviado_por_nome: 'Jessica Cardoso' };
 
@@ -48,5 +48,20 @@ describe('mensagem para o CEO', () => {
     expect(t).toContain('• C24');
     expect(t).not.toContain('• C25');
     expect(t).toContain('…e mais 5 no CRM.');
+  });
+});
+
+describe('quem pode selecionar e enviar ao CEO', () => {
+  it('gestão sempre pode', () => {
+    expect(podeSelecionarExclusao('CEO', null)).toBe(true);
+    expect(podeSelecionarExclusao('supervisao_comercial', null)).toBe(true);
+  });
+  it('outro cargo só com "administrar" no módulo Cancelamentos / Churn (ex.: Ana Clara, SDR)', () => {
+    const ana = { 'Cancelamentos / Churn': { ver: true, administrar: true } };
+    expect(podeSelecionarExclusao('SDR', ana)).toBe(true);
+    expect(podeSelecionarExclusao('SDR', JSON.stringify(ana))).toBe(true);
+    expect(podeSelecionarExclusao('SDR', { 'Cancelamentos / Churn': { ver: true, administrar: false } })).toBe(false);
+    expect(podeSelecionarExclusao('TECNICO_IMPLANTACAO', null)).toBe(false);
+    expect(podeSelecionarExclusao('SDR', 'não é json')).toBe(false);
   });
 });
