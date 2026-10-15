@@ -2,7 +2,7 @@
 # Deploy do CRM Comercial na VPS (roda NO SERVIDOR): bash /root/deploy-vps.sh <commit>
 # Backup do banco → git pull → confere o commit → prisma generate → confere o diff do banco contra PERMITIDO
 # (vazio = nenhuma mudança de banco aceita) → build do frontend → pm2 restart → confere site e API.
-# Sem senhas aqui: as credenciais vêm do .env do servidor. Copiar com: scp -i ~/.ssh/crm_comercial_vps backend/scripts/deploy-vps.sh root@comercial.prosystemnet.com:/root/
+# Sem senhas nem acessos aqui: as credenciais vêm do .env do servidor; como entrar no servidor e copiar este script está no arquivo local C:/Users/prosy/CONTEXTO-CRM-COMERCIAL-LOCAL.md (fora do Git).
 set -e
 RELEASE="${1:?Informe o commit a publicar (ex.: 93e3bb8)}"
 PERMITIDO=''

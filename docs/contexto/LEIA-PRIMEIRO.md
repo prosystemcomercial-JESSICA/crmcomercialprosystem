@@ -25,8 +25,10 @@ CRM comercial da **Prosystem Sistemas** (ERP e PDV para farmácias, drogarias, m
 ## Como trabalhar aqui (aprendido em 14/10/2026)
 
 - **Testes:** `cd backend && npx vitest run tests/<arquivo>.test.ts`. Se `backend/node_modules` estiver vazio: `npm ci && npx prisma generate`.
-- **Ler dados de produção:** script `.cjs` (só leitura) copiado por `scp` para `/var/www/comercial-prosystem/backend/`, rodado com `set -a && . ./.env && set +a && node x.cjs` e apagado em seguida. Para usar serviços TypeScript, script `.ts` em `backend/scripts/` rodado com `npx tsx`.
-- **Deploy:** `scp backend/scripts/deploy-vps.sh` para `/root/` e `ssh … 'bash /root/deploy-vps.sh <commit>'`. Ele faz backup do banco (`/root/backups-deploy`), confere o commit, recusa qualquer mudança de banco fora de `PERMITIDO` e só reinicia depois do build.
+- **Acessos e chaves ficam só no computador**, nunca no Git: `C:\Users\prosy\CONTEXTO-CRM-COMERCIAL-LOCAL.md` (como entrar no servidor, pastas, comandos exatos de leitura e de deploy).
+- **Ler dados de produção:** script `.cjs` só de leitura, rodado no servidor com o `.env` do backend carregado e apagado em seguida. Para usar serviços TypeScript, script `.ts` em `backend/scripts/` rodado com `npx tsx`.
+- **Deploy:** `backend/scripts/deploy-vps.sh <commit>` rodado no servidor. Ele faz backup do banco, confere o commit, recusa qualquer mudança de banco fora de `PERMITIDO` e só reinicia depois do build.
+- **Atualização imediata (regra da Jessica, 15/10/2026):** toda mudança feita é registrada na hora: `docs/contexto/ESTADO.md` (o que mudou, decisões, pendências), o arquivo local (se envolver acessos ou casos de leads) e commit + push no mesmo passo.
 - **Diferença antiga no banco:** o Prisma quer `DROP TABLE UsuarioPerfil` (tabela fora do schema). **Nunca aplicar**; o script já ignora.
 - **Outra sessão do Claude pode estar trabalhando na mesma pasta** (aconteceu em 14/10 com a tela do WhatsApp e os temas). Antes de commitar, veja `git status` e `git diff --cached`. Se houver arquivos separados (staged) que não são seus, **não leve junto**: commite só os seus caminhos (`git commit -- <arquivos>`) ou monte o commit com um índice temporário (`GIT_INDEX_FILE`), aplicando suas mudanças sobre a versão publicada.
 - **Windows:** use Git Bash; não há `python`. `/tmp` do Bash não é o `/tmp` do Node: passe caminhos com `cygpath -m`. O disco `C:` chegou a 0 bytes livres em 14/10; confira `df -h /c` antes de builds.
