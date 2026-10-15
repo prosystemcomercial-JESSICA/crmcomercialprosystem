@@ -104,3 +104,14 @@ export function semCaractereQuebrado(s: string): string {
 export function jsonParaIa(obj: unknown): string {
   return JSON.stringify(obj, (_k, v) => (typeof v === 'string' ? semCaractereQuebrado(v) : v));
 }
+
+/**
+ * Lê um data URL de mídia ("data:audio/ogg; codecs=opus;base64,…"). Aceita parâmetros antes do ";base64"
+ * (codecs, charset): o formato antigo exigido (`data:<tipo>;base64,`) recusava todo áudio com "codecs=opus",
+ * e nem o botão "Transcrever áudio" nem os agentes conseguiam ler esses áudios (15/10/2026).
+ */
+export function lerDataUrl(s: string | null | undefined): { mime: string; base64: string } | null {
+  const m = /^data:([^,]*?);base64,([\s\S]+)$/.exec(s || '');
+  if (!m) return null;
+  return { mime: (m[1].split(';')[0] || '').trim() || 'application/octet-stream', base64: m[2] };
+}
