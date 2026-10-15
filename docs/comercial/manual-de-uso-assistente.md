@@ -1247,3 +1247,12 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - Quando você combina com o cliente "te chamo no dia X", o agente respeita essa data: não manda nenhuma retomada antes e, no dia, chama no contexto do que vocês conversaram (inclusive o que foi dito por áudio).
 - Se o cliente responder só "ok", o retorno continua de pé. Se ele mandar outra coisa, a conversa é sua.
 - Por enquanto, para marcar um retorno, peça ao Claude com a data e o combinado (ex.: "marque o retorno desse cliente para o dia 28, para ver se o CNPJ saiu").
+
+### Novidade 15/10/2026: enviar clientes de churn ao CEO
+
+1. Abra **Churn & Retenção** e toque na aba **📤 Exclusões (CEO)**.
+2. Em **Selecionar e enviar ao CEO** aparecem os clientes perdidos que ainda não foram enviados. Marque os que devem sair (ou "Selecionar todos"), escreva uma observação se quiser e toque em **Enviar ao CEO**.
+3. O CEO recebe no WhatsApp a lista com código, nome, CNPJ, mensalidade, valor devido e motivo, e um link para a mesma aba.
+4. Em **Com o CEO**, ele (ou você, se ele avisar) marca **Retirado do suporte** e **Cobrança suspensa**. Com as duas marcadas, você recebe a confirmação no WhatsApp e o cliente vai para **Concluídos**.
+- Só aparecem casos perdidos. Se o cliente ainda está em negociação, marque o caso como **Perdido** no Kanban primeiro.
+- Tudo fica registrado na linha do tempo do caso e na ficha do cliente.

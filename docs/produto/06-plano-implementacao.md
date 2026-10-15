@@ -1570,3 +1570,32 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
   - Se o cliente não responder, valem as duas retomadas normais (contagem do zero). Se responder, a conversa continua com a pessoa.
 - **Onde:** `retornoDaEquipe` (lib/assistente/sdr) e `retomarAssumidas` (caroline.service). Os leads com retorno marcado entram na rodada mesmo fora dos 40 mais recentes. Testes: `tests/sdr-espera-cliente.test.ts`.
 - **Caso que motivou (lead indicado, farmácia que abre em janeiro):** retorno marcado para 28/10/2026 às 9h30. Combinado: perguntar se o CNPJ ficou pronto. Se sim, pedir CNPJ e e-mail para a Jessica montar a proposta (2 computadores: 1 caixa e 1 balcão). Se não, combinar de falar na semana seguinte.
+
+### Implementação 15/10/2026: churn enviado ao CEO (retirar do suporte e suspender cobranças)
+
+- **Pedido da Jessica:** nos casos de churn, poder selecionar os clientes e enviar ao CEO para retirar os cadastros do suporte e suspender as cobranças.
+- **Antes:** o status `AGUARDANDO_EXCLUSAO` ("Aguardando exclusão do cadastro") existia só como etiqueta. O CEO não recebia nada, a marcação era caso a caso e não havia registro de suporte retirado nem de cobrança suspensa.
+- **Tela:** Churn & Retenção › aba **📤 Exclusões (CEO)**, visível para CEO, ADMIN e SUPERVISAO_COMERCIAL. O link `/casos?aba=exclusao` abre direto nela.
+  - Três indicadores: para enviar ao CEO, com o CEO (falta confirmar) e concluídos.
+  - **Selecionar e enviar ao CEO:** lista os casos perdidos (PERDIDO, SISTEMA_REMOVIDO e AGUARDANDO_EXCLUSAO ainda não enviados) com código, nome, CNPJ, grupo técnico, data da perda, motivo, mensalidade e valor devido. Tem caixa por cliente e "Selecionar todos", observação opcional (até 500 caracteres), soma das mensalidades selecionadas e botão "Enviar ao CEO (N)" com confirmação.
+  - **Com o CEO:** cada cliente enviado tem duas caixas, "Retirado do suporte" e "Cobrança suspensa", com data e quem marcou. Desmarcar também fica registrado.
+  - **Concluídos:** lista recolhível com os que têm as duas confirmações.
+  - Casos em andamento (não perdidos) não aparecem: primeiro o caso é marcado como Perdido no Kanban, como antes.
+- **O que o envio faz:**
+  - O caso vai para `AGUARDANDO_EXCLUSAO` pelo mesmo fluxo do Kanban (evento "📤 Enviado para exclusão de cadastro" na ficha e linha do tempo).
+  - Grava o registro do pedido e cria a atualização "📤 Enviado ao CEO…" no caso.
+  - Manda **um WhatsApp por lote** para os usuários CEO ativos com telefone (o usuário de teste QA/E2E fica de fora): código, nome, CNPJ, mensalidade, valor devido e motivo de cada cliente (até 25 linhas; o resto fica no CRM), soma das mensalidades, observação e o link da aba. Também manda notificação no celular (push).
+  - Reenviar um caso mantém as confirmações que o CEO já marcou.
+- **Confirmações:** cada marcação cria atualização no caso e, ao marcar, um evento na ficha do cliente ("🧰 Retirado do suporte" / "💳 Cobranças suspensas", tipo DESATIVACAO). Quando as duas ficam marcadas, quem enviou recebe "✅ Churn concluído" no WhatsApp e no celular (só se outra pessoa marcou).
+- **Backend:**
+  - `lib/churn-exclusao.ts`: `STATUS_PODE_ENVIAR`, `ROLES_EXCLUSAO`, `situacaoExclusao` (NAO_ENVIADO / ENVIADO / CONCLUIDO), `lerRegistro`, `textoAvisoCeo`.
+  - `services/churn-exclusao.service.ts`: `listarExclusao`, `enviarAoCeo`, `marcarExclusao`.
+  - Rotas em `routes/casos-churn.ts`:
+    - `GET /casos-churn/exclusao`
+    - `POST /casos-churn/exclusao/enviar` com `{ ids[1..100], observacao? }`
+    - `PATCH /casos-churn/:id/exclusao` com `{ campo: 'suporte'|'cobranca', feito }`
+    - Todas restritas a CEO, ADMIN e SUPERVISAO_COMERCIAL.
+- **Dados (sem mudar o banco):** registro por caso em `ConfiguracaoIntegracao`, chave `churn.exclusao.<casoId>`, com o JSON `{ enviado_em, enviado_por, enviado_por_nome, observacao, suporte_em, suporte_por_nome, cobranca_em, cobranca_por_nome }`.
+- **Frontend:** `components/casos/ExclusaoCeo.tsx`; aba e `?aba=exclusao` em `app/casos/page.tsx`; `getExclusaoChurn`, `enviarExclusaoAoCeo` e `marcarExclusaoChurn` no api-client.
+- **Testes:** `tests/churn-exclusao.test.ts`.
+- **Situação em 15/10:** 33 casos perdidos (18 PERDIDO, 11 SISTEMA_REMOVIDO, 4 AGUARDANDO_EXCLUSAO marcados em 08/10 sem envio). Todos aparecem em "Para enviar ao CEO".

@@ -214,6 +214,19 @@ class ApiClient {
     return this.client.patch(`/casos-churn/${id}`, data);
   }
 
+  // Churn → CEO: casos perdidos, envio dos selecionados e confirmações (suporte retirado / cobrança suspensa).
+  async getExclusaoChurn() {
+    return this.client.get('/casos-churn/exclusao');
+  }
+
+  async enviarExclusaoAoCeo(ids: string[], observacao?: string) {
+    return this.client.post('/casos-churn/exclusao/enviar', { ids, observacao: observacao || null });
+  }
+
+  async marcarExclusaoChurn(id: string, campo: 'suporte' | 'cobranca', feito: boolean) {
+    return this.client.patch(`/casos-churn/${id}/exclusao`, { campo, feito });
+  }
+
   // Reabre um caso RECUPERADO (só permitido uma vez, pelo mesmo motivo original).
   async reabrirCaso(id: string, relato: string) {
     return this.client.post(`/casos-churn/${id}/reabrir`, { relato });
