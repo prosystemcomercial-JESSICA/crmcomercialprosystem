@@ -113,15 +113,15 @@ export default function ExclusaoCeo() {
       {erro && <div className="rounded-xl px-4 py-3 text-sm bg-red-50 text-red-700 border border-red-200">{erro}</div>}
       {aviso && <div className="rounded-xl px-4 py-3 text-sm bg-green-50 text-green-800 border border-green-200">{aviso}</div>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
           { l: 'Para enviar ao CEO', v: paraEnviar.length, cor: '#475569' },
           { l: 'Com o CEO (falta confirmar)', v: enviados.length, cor: '#D97706' },
           { l: 'Concluídos', v: concluidos.length, cor: '#16A34A' },
         ].map(k => (
-          <div key={k.l} className={card} style={borda}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide" style={muted}>{k.l}</p>
-            <p className="text-2xl font-extrabold mt-1" style={{ color: k.cor }}>{k.v}</p>
+          <div key={k.l} className="ps-card rounded-2xl p-3 sm:p-4" style={borda}>
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide leading-tight" style={muted}>{k.l}</p>
+            <p className="text-xl sm:text-2xl font-extrabold mt-1" style={{ color: k.cor }}>{k.v}</p>
           </div>
         ))}
       </div>
