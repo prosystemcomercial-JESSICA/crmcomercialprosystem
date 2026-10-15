@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ehAdiamento, intervaloRetomadaAssumida } from '../src/lib/assistente/sdr';
+import { ehAdiamento, intervaloRetomadaAssumida, retornoDaEquipe } from '../src/lib/assistente/sdr';
 
 describe('cliente avisou que ainda não pode (adiamento)', () => {
   it('reconhece CNPJ que ainda não saiu, "te chamo" e loja abrindo', () => {
@@ -32,5 +32,19 @@ describe('quando retomar uma conversa assumida (dias úteis desde a nossa últim
     expect(intervaloRetomadaAssumida(0, false)).toBe(1);
     expect(intervaloRetomadaAssumida(1, false)).toBe(3);
     expect(intervaloRetomadaAssumida(2, false)).toBeNull();
+  });
+});
+
+describe('retorno marcado pela equipe numa conversa assumida', () => {
+  const marcado = { retorno_equipe: { em: '2026-10-28T09:30:00-03:00', combinado: 'ver se o CNPJ saiu' } };
+  it('antes da data o agente espera; na data, chama', () => {
+    expect(retornoDaEquipe(marcado, new Date('2026-10-20T10:00:00-03:00'))).toBe('esperar');
+    expect(retornoDaEquipe(marcado, new Date('2026-10-28T09:30:00-03:00'))).toBe('chamar');
+    expect(retornoDaEquipe(marcado, new Date('2026-10-28T14:00:00-03:00'))).toBe('chamar');
+  });
+  it('sem retorno marcado (ou data inválida) segue o ritmo normal', () => {
+    expect(retornoDaEquipe({}, new Date())).toBeNull();
+    expect(retornoDaEquipe({ retomar_em: '2026-10-21T12:30:00Z' }, new Date())).toBeNull();
+    expect(retornoDaEquipe({ retorno_equipe: { em: 'x' } }, new Date())).toBeNull();
   });
 });

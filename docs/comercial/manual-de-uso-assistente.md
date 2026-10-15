@@ -1241,3 +1241,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 ### Correção 15/10/2026: transcrição de áudios
 
 - Áudios que não transcreviam ("O áudio não está disponível para transcrever"), principalmente nos números novos, agora transcrevem pelo botão e os agentes passam a entender os áudios dos clientes.
+
+### Novidade 15/10/2026: retorno marcado com o cliente
+
+- Quando você combina com o cliente "te chamo no dia X", o agente respeita essa data: não manda nenhuma retomada antes e, no dia, chama no contexto do que vocês conversaram (inclusive o que foi dito por áudio).
+- Se o cliente responder só "ok", o retorno continua de pé. Se ele mandar outra coisa, a conversa é sua.
+- Por enquanto, para marcar um retorno, peça ao Claude com a data e o combinado (ex.: "marque o retorno desse cliente para o dia 28, para ver se o CNPJ saiu").

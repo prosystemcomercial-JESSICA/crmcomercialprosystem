@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **15/10/2026 (retorno marcado):** conversa de um lead indicado (farmácia que abre em janeiro, 2 computadores; nome e número no arquivo local). A Jessica combinou por áudio chamar no dia 28/10 para ver se o CNPJ saiu e pediu que a Caroline faça o contato. Novo `dados.retorno_equipe = { em, combinado, por }` em conversa assumida: antes da data nenhuma retomada; na data o agente chama no contexto do combinado (`retornoDaEquipe` em lib/assistente/sdr + `retomarAssumidas`). Lead marcado para 28/10/2026 9h30. **Conferir em 28/10** se a mensagem saiu (Escritório › mural da Caroline / observação no lead).
+- **15/10/2026 (`ff573c0`):** áudios `data:audio/ogg; codecs=opus;base64` não eram transcritos (botão e agentes). Corrigido com `lerDataUrl` (lib/assistente/ia-texto) em `transcreverAudio` e na foto do cliente. Testes em `tests/data-url.test.ts`.
 - **15/10/2026 (`58b6db2`):** Portal Técnico parado em "Carregando…": era o navegador sem sessão válida (401) e o portal não levava ao login nem mostrava o erro. Corrigido no portal, no painel Início e no `api-client`/`AuthProvider` (sessão recusada em tela logada leva ao login). Achado: a cópia dos backups no computador da Jessica não roda desde 08/10 e no MEGA desde 07/10 (pendência 8).
 
 - **15/10/2026:** computador, GitHub e servidor conferidos no mesmo commit; no servidor, os `package-lock.json` reescritos pelo npm (sem as linhas `libc`) foram devolvidos à versão do GitHub para não travar deploys futuros.

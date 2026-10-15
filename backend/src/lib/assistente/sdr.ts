@@ -221,6 +221,17 @@ export function intervaloRetomadaAssumida(n: number, clienteAdiou: boolean): num
 }
 
 /**
+ * Retorno que a equipe marcou com o cliente numa conversa assumida (dados.retorno_equipe = { em, combinado }).
+ * Pedido da Jessica (15/10/2026): "te chamo no dia 28". Antes da data o agente não retoma;
+ * na data, chama no contexto do combinado, sem esperar o intervalo das retomadas. null = nada marcado.
+ */
+export function retornoDaEquipe(dados: any, agora: Date): 'esperar' | 'chamar' | null {
+  const em = dados?.retorno_equipe?.em ? new Date(dados.retorno_equipe.em) : null;
+  if (!em || !Number.isFinite(em.getTime())) return null;
+  return agora >= em ? 'chamar' : 'esperar';
+}
+
+/**
  * Compromisso de horário na fala do agente ("falo com o Paulo às 13h", "te chamo amanhã às 10h30").
  * Hoje se a hora ainda não passou; senão (ou com "amanhã"), no dia seguinte. null = sem horário.
  */

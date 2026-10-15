@@ -1567,3 +1567,16 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
 - **Sintoma:** o botão "Transcrever áudio" e os agentes falhavam com "O áudio não está disponível para transcrever" (registro `[CAROLINE] áudio:`); a Caroline não entendia áudio de cliente nesse formato.
 - **Causa:** os áudios dos números extras (API gratuita) e os gravados pelo navegador são guardados como `data:audio/ogg; codecs=opus;base64,…`; a leitura exigia `data:<tipo>;base64,` e recusava o parâmetro `codecs`.
 - **Correção:** `lerDataUrl` (lib/assistente/ia-texto) aceita parâmetros antes de `;base64` e devolve o tipo limpo; usada em `transcreverAudio` (botão, transcrição automática e agentes) e na foto enviada pelo cliente ao agente. Testes: `tests/data-url.test.ts`.
+
+### Implementação 15/10/2026: retorno marcado pela equipe em conversa assumida
+
+- **Pedido da Jessica:** numa conversa de lead indicado (farmácia que abre em janeiro), a Jessica combinou por áudio que chamaria **no dia 28/10** para ver se o CNPJ saiu, e pediu que a Caroline faça esse contato nesse dia, no contexto do que foi conversado.
+- **Problema encontrado:** em conversa assumida por uma pessoa (status HUMANO), a retomada automática seguia só o intervalo (cliente que adiou: 3 dias úteis) e não respeitava data marcada. O cliente receberia uma retomada por volta de 20/10, antes do combinado.
+- **Como funciona agora:** `SdrLead.dados.retorno_equipe = { em, combinado, por }`.
+  - Antes de `em`, nenhuma retomada automática nessa conversa.
+  - A partir de `em` (na janela de retomada 9h–11h30 ou 14h–17h), o agente escreve UMA mensagem no contexto do `combinado`, lendo a conversa inteira, inclusive os áudios transcritos. Não espera o intervalo das retomadas.
+  - Um "ok"/"combinado" do cliente depois da última fala da equipe não cancela o retorno. Outra mensagem sem resposta fica com a pessoa.
+  - Depois do envio, `retorno_equipe` vira `retorno_equipe_feito` (com `enviado_em`), sai um registro `SdrMensagem` (acao `retorno_equipe`, ENVIADA_AUTO), uma observação no lead e uma ação no mural do agente.
+  - Se o cliente não responder, valem as duas retomadas normais (contagem do zero). Se responder, a conversa continua com a pessoa.
+- **Onde:** `retornoDaEquipe` (lib/assistente/sdr) e `retomarAssumidas` (caroline.service). Os leads com retorno marcado entram na rodada mesmo fora dos 40 mais recentes. Testes: `tests/sdr-espera-cliente.test.ts`.
+- **Caso que motivou (lead indicado, farmácia que abre em janeiro):** retorno marcado para 28/10/2026 às 9h30. Combinado: perguntar se o CNPJ ficou pronto. Se sim, pedir CNPJ e e-mail para a Jessica montar a proposta (2 computadores: 1 caixa e 1 balcão). Se não, combinar de falar na semana seguinte.

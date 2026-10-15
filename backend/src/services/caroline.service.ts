@@ -6,7 +6,7 @@ import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
-import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
+import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida, retornoDaEquipe } from '@/lib/assistente/sdr';
 import { lerDataUrl } from '@/lib/assistente/ia-texto';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
@@ -1607,18 +1607,52 @@ async function retomarAssumidas(prisma: PrismaClient, token: string, ativos: str
     where: { status: { in: ['HUMANO', 'DEMO', 'VENDEDORA'] }, agente: { in: ativos }, conversaId: { not: null }, updated_at: { gte: new Date(agora.getTime() - 60 * 864e5) } },
     orderBy: { updated_at: 'desc' }, take: 40,
   });
+  // Retorno marcado pela equipe (ex.: "te chamo no dia 28"): entra sempre, mesmo fora dos 40 mais recentes.
+  const marcadas = await prisma.$queryRaw<{ id: string }[]>`SELECT id FROM SdrLead WHERE status IN ('HUMANO','DEMO','VENDEDORA') AND conversaId IS NOT NULL AND JSON_EXTRACT(dados, '$.retorno_equipe.em') IS NOT NULL`.catch(() => []);
+  const faltam = marcadas.map(m => m.id).filter(id => !candidatos.some(c => c.id === id));
+  if (faltam.length) candidatos.unshift(...await prisma.sdrLead.findMany({ where: { id: { in: faltam }, agente: { in: ativos } } }));
   let enviadas = 0;
   for (const s of candidatos) {
     if (enviadas >= 3) break; // poucas por rodada, para proteger o número
     const d: any = s.dados || {};
     if (d.ja_cliente || d.bloqueado_etiqueta || await contatoSemAgentes(prisma, s.numero)) continue;
+    const retorno = retornoDaEquipe(d, agora);
+    if (retorno === 'esperar') continue; // a equipe marcou um dia com o cliente: nenhuma retomada antes
     const conv = await prisma.whatsappConversa.findUnique({ where: { id: s.conversaId! }, select: { finalizada_em: true, tipo_contato: true, etiqueta: true, bot_dados: true, contato_empresa: true } });
     if (!conv || conv.finalizada_em || conv.tipo_contato === 'EQUIPE' || conv.tipo_contato === 'CLIENTE') continue;
     const [ultSaida, ultEntrada] = await Promise.all([
       prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'SAIDA' }, orderBy: { created_at: 'desc' }, select: { id: true, created_at: true, enviada_por: true } }),
       prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { created_at: true } }),
     ]);
-    if (!ultSaida || !ultEntrada || ultEntrada.created_at > ultSaida.created_at) continue; // cliente respondeu: é com a pessoa
+    if (retorno === 'chamar' && ultSaida && ultEntrada && ultEntrada.created_at > ultSaida.created_at) {
+      // No dia marcado, um "ok"/"combinado" do cliente depois da última fala da equipe não cancela o retorno;
+      // qualquer outra coisa sem resposta é com a pessoa (não chama por cima).
+      const depois = await prisma.whatsappMensagem.findMany({ where: { conversaId: s.conversaId!, direcao: 'ENTRADA', created_at: { gt: ultSaida.created_at } }, select: { tipo: true, conteudo: true } });
+      if (!depois.every(m => m.tipo === 'TEXTO' && ehSoConfirmacao(m.conteudo))) continue;
+    } else if (!ultSaida || !ultEntrada || ultEntrada.created_at > ultSaida.created_at) continue; // cliente respondeu: é com a pessoa
+    if (retorno === 'chamar') {
+      // Dia marcado pela equipe: chama no contexto do combinado, sem esperar o intervalo das retomadas.
+      if (await ehClienteAtivo(prisma, s.numero)) continue;
+      const rc = d.retorno_equipe || {};
+      const quem = rc.por === 'jessica' ? 'a Jessica' : 'a equipe';
+      const dicaRetorno = `RETORNO COMBINADO PELA EQUIPE: ${quem} combinou com o cliente de chamar hoje. O combinado: ${rc.combinado || 'retomar a conversa no ponto em que parou'}. `
+        + 'Leia a conversa inteira (inclusive os áudios transcritos) e escreva UMA mensagem curta, calorosa e humana, chamando pelo nome, '
+        + `dizendo que está passando como ${quem === 'a Jessica' ? 'a Jessica combinou' : 'combinado'} e seguindo exatamente o combinado. Não se reapresente, não repita a apresentação nem valores já ditos e não invente condições. `
+        + 'Termine com uma pergunta fácil de responder. Use acao "continuar".';
+      const r = await gerarResposta(prisma, s, 'retomada', dicaRetorno).catch(() => null);
+      if (!r || !r.mensagens.length) continue;
+      const msgs = r.mensagens.slice(0, 2);
+      await enviarMensagens(prisma, token, s, msgs);
+      const ultima = await prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId!, direcao: 'SAIDA' }, orderBy: { created_at: 'desc' }, select: { id: true } });
+      const { retorno_equipe: _feito, ...resto } = d;
+      // Depois do retorno marcado, se o cliente não responder, valem as duas retomadas normais (contagem do zero).
+      await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...resto, retorno_equipe_feito: { ...rc, enviado_em: agora.toISOString() }, retomada_assumida: { n: 0, em: agora.toISOString(), ultima_msg_id: ultima?.id || null } } } });
+      await prisma.sdrMensagem.create({ data: { sdrId: s.id, conversaId: s.conversaId!, texto: msgs.join('\n\n'), status: 'ENVIADA_AUTO', acao: 'retorno_equipe', decidido_em: agora } }).catch(() => {});
+      if (s.lead_id) await prisma.leadObservacao.create({ data: { lead_id: s.lead_id, tipo: 'SISTEMA', descricao: `📅 ${nomeDe(s)} chamou no dia combinado por ${quem}: ${rc.combinado || ''}`.trim(), created_by: 'bot', created_by_name: nomeDe(s) } }).catch(() => {});
+      registrarAcaoAgente(agenteDe(s), `chamou ${s.nome || 'um lead'} no dia que ${quem} combinou com o cliente`);
+      enviadas++;
+      continue;
+    }
     const f = d.retomada_assumida || {};
     // Contagem recomeça quando a última fala não é uma retomada nossa (a pessoa voltou a falar com o cliente).
     const n = f.ultima_msg_id && f.ultima_msg_id === ultSaida.id ? Number(f.n || 0) : 0;
