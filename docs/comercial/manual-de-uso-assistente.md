@@ -1237,3 +1237,7 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 ### Correção 15/10/2026: Portal Técnico e sessão vencida
 
 - Se a sessão terminar (ou o portal for aberto num navegador sem login), o CRM leva direto para a tela de login, em vez de ficar parado em "Carregando…". Depois de entrar, o portal abre normal.
+
+### Correção 15/10/2026: transcrição de áudios
+
+- Áudios que não transcreviam ("O áudio não está disponível para transcrever"), principalmente nos números novos, agora transcrevem pelo botão e os agentes passam a entender os áudios dos clientes.

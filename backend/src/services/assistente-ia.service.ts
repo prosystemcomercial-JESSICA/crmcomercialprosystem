@@ -4,6 +4,7 @@ import path from 'path';
 import * as evo from './evolution.service';
 import { emitirEventoConversa } from './whatsapp-eventos.service';
 import { chamarGemini, chaveGemini } from './ia-gemini.service';
+import { lerDataUrl } from '@/lib/assistente/ia-texto';
 import { montarEstadoConversa } from '@/lib/laya';
 import {
   podeAutoResponder, promptTiraDuvidas, promptResumo, promptSugestao, lerJsonIa, respostaSegura,
@@ -119,12 +120,12 @@ export async function transcreverAudio(prisma: PrismaClient, mensagemId: string)
   const m = await prisma.whatsappMensagem.findUnique({ where: { id: mensagemId }, select: { id: true, tipo: true, midia_url: true, transcricao: true, conversaId: true } });
   if (!m || m.tipo !== 'AUDIO') throw new Error('Mensagem de áudio não encontrada.');
   if (m.transcricao) return m.transcricao;
-  const dm = (m.midia_url || '').match(/^data:([^;]+);base64,(.+)$/);
+  const dm = lerDataUrl(m.midia_url); // aceita "data:audio/ogg; codecs=opus;base64,…" (15/10/2026)
   if (!dm) throw new Error('O áudio não está disponível para transcrever.');
-  if (dm[2].length > 18_000_000) throw new Error('Áudio muito longo para transcrever.');
+  if (dm.base64.length > 18_000_000) throw new Error('Áudio muito longo para transcrever.');
   const texto = await chamarGemini(prisma, {
     sistema: 'Você transcreve áudios de WhatsApp em português do Brasil, fielmente, sem comentários.',
-    partes: [{ inline_data: { mime_type: dm[1].split(';')[0] || 'audio/ogg', data: dm[2] } }, { text: 'Transcreva este áudio. Responda só com a transcrição.' }],
+    partes: [{ inline_data: { mime_type: dm.mime.startsWith('audio/') ? dm.mime : 'audio/ogg', data: dm.base64 } }, { text: 'Transcreva este áudio. Responda só com a transcrição.' }],
     temperatura: 0, timeoutMs: 90_000,
   });
   await prisma.whatsappMensagem.update({ where: { id: m.id }, data: { transcricao: texto.slice(0, 20000) } });

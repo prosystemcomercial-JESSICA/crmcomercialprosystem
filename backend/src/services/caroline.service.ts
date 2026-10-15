@@ -7,6 +7,7 @@ import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
 import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida } from '@/lib/assistente/sdr';
+import { lerDataUrl } from '@/lib/assistente/ia-texto';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
 const DIAS_RETOMADA_ADIOU = 3;
@@ -565,8 +566,8 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
       ficha: fichaDoLead(sdr) },
   });
   const partes: any[] = [{ text: p.usuario }];
-  const dm = h.foto?.match(/^data:([^;]+);base64,(.+)$/);
-  if (fase === 'resposta' && dm && dm[2].length < 6_000_000) partes.push({ inline_data: { mime_type: dm[1], data: dm[2] } });
+  const dm = lerDataUrl(h.foto); // aceita parâmetros no data URL (15/10/2026)
+  if (fase === 'resposta' && dm && dm.base64.length < 6_000_000) partes.push({ inline_data: { mime_type: dm.mime, data: dm.base64 } });
   for (let i = 0; i < 2; i++) {
     try {
       const bruto = await chamarGemini(prisma, { sistema: p.sistema, partes, json: true, temperatura: 0.5, timeoutMs: 90_000 });
