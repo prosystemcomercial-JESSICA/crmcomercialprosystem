@@ -7,6 +7,21 @@ export const STATUS_PODE_ENVIAR = ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EX
 /** Quem envia e quem confirma (gestão comercial e diretoria). */
 export const ROLES_EXCLUSAO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 
+/** Módulo da tela Usuários e Permissões que libera a seleção e o envio para outras pessoas. */
+export const MODULO_CHURN = 'Cancelamentos / Churn';
+
+/**
+ * Pode selecionar e enviar ao CEO: a gestão (ROLES_EXCLUSAO) ou quem tem "administrar" no módulo
+ * Cancelamentos / Churn (pedido da Jessica, 15/10/2026: liberar a Ana Clara). As confirmações
+ * (suporte retirado / cobrança suspensa) continuam só com a gestão.
+ */
+export function podeSelecionarExclusao(role: string | null | undefined, modulos: unknown): boolean {
+  if (ROLES_EXCLUSAO.includes(String(role || '').toUpperCase())) return true;
+  let m: any = modulos;
+  if (typeof m === 'string') { try { m = JSON.parse(m); } catch { m = null; } }
+  return !!m?.[MODULO_CHURN]?.administrar;
+}
+
 /** Registro do pedido, guardado em ConfiguracaoIntegracao (`churn.exclusao.<casoId>`), sem mudar o banco. */
 export interface RegistroExclusao {
   enviado_em: string;

@@ -1616,3 +1616,16 @@ Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos de
 - **Frontend:** `components/casos/ExclusaoCeo.tsx`; aba e `?aba=exclusao` em `app/casos/page.tsx`; `getExclusaoChurn`, `enviarExclusaoAoCeo` e `marcarExclusaoChurn` no api-client.
 - **Testes:** `tests/churn-exclusao.test.ts`.
 - **Situação em 15/10:** 33 casos perdidos (18 PERDIDO, 11 SISTEMA_REMOVIDO, 4 AGUARDANDO_EXCLUSAO marcados em 08/10 sem envio). Todos aparecem em "Para enviar ao CEO".
+
+#### Atualização 15/10/2026: Ana Clara pode selecionar e enviar ao CEO
+
+- **Pedido da Jessica:** liberar a Ana para fazer a seleção.
+- **Regra:** selecionar e enviar ao CEO vale para a gestão (CEO, ADMIN, SUPERVISAO_COMERCIAL, flag admin) **ou** para quem tem **"administrar" no módulo "Cancelamentos / Churn"** (tela Usuários e Permissões). A Ana Clara (SDR) já tinha essa permissão. Para liberar ou tirar de outra pessoa, basta mudar esse "administrar".
+- As confirmações "Retirado do suporte" e "Cobrança suspensa" continuam só com a gestão. Para quem só tem o módulo, as caixas aparecem travadas, com a explicação "o CEO marca…".
+- Quem não é da gestão vê só as abas **Lista** e **📤 Exclusões (CEO)**. Visão Executiva e Gráficos continuam restritos.
+- **Backend:**
+  - `podeSelecionarExclusao(role, modulos)` e `MODULO_CHURN` em `lib/churn-exclusao.ts`.
+  - Guarda `podeSelecionar` em `GET /casos-churn/exclusao` e em `POST /casos-churn/exclusao/enviar`; ela lê `UsuarioCRM.modulos_permissao`.
+  - `PATCH /casos-churn/:id/exclusao` segue restrito a ROLES_EXCLUSAO.
+- **Frontend:** `podeExclusao` e `podeConfirmarExclusao` em `app/casos/page.tsx`; prop `podeConfirmar` em `ExclusaoCeo`.
+- **Testes:** `tests/churn-exclusao.test.ts`, bloco "quem pode selecionar".

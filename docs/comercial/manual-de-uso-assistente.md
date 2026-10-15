@@ -1256,3 +1256,4 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 4. Em **Com o CEO**, ele (ou você, se ele avisar) marca **Retirado do suporte** e **Cobrança suspensa**. Com as duas marcadas, você recebe a confirmação no WhatsApp e o cliente vai para **Concluídos**.
 - Só aparecem casos perdidos. Se o cliente ainda está em negociação, marque o caso como **Perdido** no Kanban primeiro.
 - Tudo fica registrado na linha do tempo do caso e na ficha do cliente.
+- **Quem pode enviar (15/10/2026):** você, o CEO e quem tiver "administrar" no módulo **Cancelamentos / Churn** em Usuários e Permissões (hoje, a Ana Clara). A Ana seleciona e envia; quem marca "Retirado do suporte" e "Cobrança suspensa" é o CEO ou a gestão.

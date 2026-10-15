@@ -6,7 +6,7 @@ import { requireAuth, requireRole } from '@/middleware/auth';
 import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } from '@/types/dto';
 import { listarExclusao, enviarAoCeo, marcarExclusao } from '@/services/churn-exclusao.service';
-import { ROLES_EXCLUSAO } from '@/lib/churn-exclusao';
+import { ROLES_EXCLUSAO, podeSelecionarExclusao } from '@/lib/churn-exclusao';
 
 export async function casosChurnRoutes(
   fastify: FastifyInstance,
@@ -444,15 +444,22 @@ export async function casosChurnRoutes(
     return reply.status(500).send({ status: 'error', message: 'Erro ao processar o envio ao CEO' });
   };
 
+  // Selecionar e enviar: gestão ou quem tem "administrar" no módulo Cancelamentos / Churn (ex.: Ana Clara).
+  const podeSelecionar = async (request: any, reply: any) => {
+    const user = request.user;
+    if (!user) return reply.status(401).send({ status: 'error', message: 'Não autenticado' });
+    const rows: any[] = await prisma.$queryRawUnsafe<any[]>('SELECT modulos_permissao FROM UsuarioCRM WHERE id = ? LIMIT 1', user.id).catch(() => []);
+    if (!user.admin && !podeSelecionarExclusao(user.role, rows[0]?.modulos_permissao)) return reply.status(403).send({ status: 'error', message: 'Sem permissão para enviar casos de churn ao CEO' });
+  };
   // GET /casos-churn/exclusao — casos perdidos com a situação do pedido ao CEO
-  fastify.get('/casos-churn/exclusao', { onRequest: [requireAuth, requireRole(ROLES_EXCLUSAO)] }, async (_request, reply) => {
+  fastify.get('/casos-churn/exclusao', { onRequest: [requireAuth, podeSelecionar] }, async (_request, reply) => {
     try {
       return reply.send({ status: 'success', data: await listarExclusao(prisma) });
     } catch (error: any) { return erroExclusao(reply, error, 'GET /casos-churn/exclusao'); }
   });
 
   // POST /casos-churn/exclusao/enviar — envia os casos selecionados ao CEO
-  fastify.post('/casos-churn/exclusao/enviar', { onRequest: [requireAuth, requireRole(ROLES_EXCLUSAO)] }, async (request, reply) => {
+  fastify.post('/casos-churn/exclusao/enviar', { onRequest: [requireAuth, podeSelecionar] }, async (request, reply) => {
     try {
       const body = z.object({ ids: z.array(z.string().min(1)).min(1).max(100), observacao: z.string().max(500).optional().nullable() }).parse(request.body);
       const user = (request as any).user;
